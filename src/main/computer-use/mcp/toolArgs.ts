@@ -2,6 +2,8 @@ import { readNumber } from "../drivers/common";
 import type {
   ComputerUseDeliveryMode,
   ComputerUseInvocableElementAction,
+  ComputerUseObservationMode,
+  ComputerUsePerformStep,
   ComputerUseVerification,
 } from "./types";
 import { COMPUTER_USE_INVOKABLE_ELEMENT_ACTIONS } from "./types";
@@ -20,6 +22,62 @@ export function readVerify(value: unknown): ComputerUseVerification {
   if (value === undefined) return "fast";
   if (value === "none" || value === "fast" || value === "effect") return value;
   throw new Error('verify must be "none", "fast", or "effect"');
+}
+
+export function readObserve(value: unknown): ComputerUseObservationMode {
+  if (value === undefined || value === "none") return "none";
+  if (value === "text" || value === "screenshot" || value === "both") return value;
+  throw new Error('observe must be "none", "text", "screenshot", or "both"');
+}
+
+export function readPerformSteps(value: unknown): ComputerUsePerformStep[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 32) {
+    throw new Error("steps must contain 1 to 32 actions");
+  }
+  return value.map((step, index) => {
+    if (!step || typeof step !== "object" || Array.isArray(step)) {
+      throw new Error(`steps[${index}] must be an object`);
+    }
+    const record = step as Record<string, unknown>;
+    switch (record.action) {
+      case "invoke_element":
+        return {
+          action: "invoke_element",
+          element_id: readRequiredStepString(record.element_id, index, "element_id"),
+          element_action: readElementAction(record.element_action),
+        };
+      case "set_element_value":
+        return {
+          action: "set_element_value",
+          element_id: readRequiredStepString(record.element_id, index, "element_id"),
+          value: readRequiredStepString(record.value, index, "value", true),
+        };
+      case "press_key":
+        return {
+          action: "press_key",
+          key: readRequiredStepString(record.key, index, "key"),
+        };
+      case "type_text":
+        return {
+          action: "type_text",
+          text: readRequiredStepString(record.text, index, "text", true),
+        };
+      default:
+        throw new Error(`steps[${index}].action is not supported`);
+    }
+  });
+}
+
+function readRequiredStepString(
+  value: unknown,
+  index: number,
+  name: string,
+  allowEmpty = false,
+): string {
+  if (typeof value !== "string" || (!allowEmpty && value.length === 0)) {
+    throw new Error(`steps[${index}].${name} must be a string`);
+  }
+  return value;
 }
 
 export function readElementAction(value: unknown): ComputerUseInvocableElementAction {

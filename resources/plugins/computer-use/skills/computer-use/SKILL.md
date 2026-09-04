@@ -9,14 +9,15 @@ Use Poracode's `computer_use` MCP for tasks that require interacting with deskto
 
 ## Workflow
 
-1. Call `computer_use.api` when you need the API map, then use `list_apps` or `list_windows` to select the exact target. If the app is not running, call `list_apps` with `query` and pass the returned app id to `launch_app`.
-2. Call `get_window_state` with `include_text:true`. Prefer `find_elements` plus `invoke_element` or `set_element_value` when the app exposes the needed control.
+1. Use `list_apps` or `list_windows` to select the exact target. Call `computer_use.api` only when you need capability or permission status. If the app is not running, call `list_apps` with `query` and pass the returned app id to `launch_app`.
+2. Call `get_window_state` with `include_text:true`. Element ids in its tree are directly actionable; when filtering the same tree, pass its `snapshot_id` to `find_elements`. Prefer `invoke_element` or `set_element_value` when the app exposes the needed control.
 3. Call `computer_use.enable` immediately before the first control action and keep it enabled across uninterrupted related steps.
 4. When no suitable element exists, derive frame-relative coordinates from the latest screenshot. Refresh the state after the window moves, resizes, or is recreated.
 5. Read every interactive result. Continue only after a successful `delivery`; respond to a structured `refused` result using its reason and hint. Background is the default and must not be silently retried as foreground.
 6. Use `mode:"foreground"` only when the user requested takeover or a refusal recommends it. Tell the user immediately before taking over the real pointer and keyboard. Native Wayland may use the consented desktop portal and report `delivered:"foreground"` with `wayland_portal_fallback` even when background was requested.
-7. Verify each meaningful change with a fresh window state. Re-list a stale window or refresh a stale element snapshot instead of retrying blindly.
-8. Call `computer_use.disable` before asking the user for input, waiting on an external event, or finishing.
+7. Pass `observe:"text"`, `"screenshot"`, or `"both"` with an action when that post-action state can replace a separate `get_window_state` call. Otherwise verify each meaningful change with a fresh window state. Re-list a stale window or refresh a stale element snapshot instead of retrying blindly.
+8. Use `perform` only for a deterministic sequence of background element, value, key, or text actions against one window. It stops on refusal, error, or unexpected foreground delivery; keep state-dependent or coordinate actions separate. Native Wayland rejects key/text batches before starting, so use individual tools there.
+9. Call `computer_use.disable` before asking the user for input, waiting on an external event, or finishing.
 
 ## Boundaries
 

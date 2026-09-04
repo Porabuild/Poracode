@@ -36,7 +36,7 @@ The protocol version is mirrored by:
 
 Change both constants and the protocol fixture whenever an action input, result, capability, error, or envelope changes incompatibly. Bump the bundled computer-use plugin version for every deployed helper behavior change. The helper version comes from its Cargo package version and is recorded in the staged manifest so stale binaries are detectable.
 
-The public actions are `hello`, `list_apps`, `list_windows`, `get_window`, `get_window_state`, `activate_window`, `click`, `press_key`, `type_text`, `scroll`, `drag`, `launch_app`, `find_elements`, `invoke_element`, and `set_element_value`, plus host-level `cancel` and `shutdown`.
+The public helper actions are `hello`, `list_apps`, `list_windows`, `get_window`, `get_window_state`, `activate_window`, `click`, `press_key`, `type_text`, `scroll`, `drag`, `launch_app`, `find_elements`, `invoke_element`, and `set_element_value`, plus host-level `cancel` and `shutdown`. Interactive MCP tools accept `observe` to return a post-action text tree, screenshot, or both without another agent round trip. The MCP-only `perform` tool runs a bounded deterministic sequence of background element, value, key, or text actions against one window, stops on any refusal/error/foreground delivery, and rejects portal-prone key/text batches on native Wayland before starting. Both are composed in the main process and do not alter the helper wire protocol.
 
 `list_apps` without a query stays compact and returns running apps with targetable windows. Passing `query` also searches the host's installed-app catalog and returns launchable ids: Windows Start apps, macOS application bundles, or Linux desktop entries.
 

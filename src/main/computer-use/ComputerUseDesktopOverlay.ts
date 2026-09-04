@@ -14,6 +14,17 @@ export const COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS = 5_000;
 
 const ESCAPE_ACCELERATOR = "Escape";
 
+function badgeDisplayId(
+  displays: readonly Display[],
+  targetBounds: ComputerUseActivityState["badgeTargetBounds"],
+): number | undefined {
+  if (!targetBounds) return screen.getPrimaryDisplay().id;
+  const dipBounds =
+    process.platform === "win32" ? screen.screenToDipRect(null, targetBounds) : targetBounds;
+  const matching = screen.getDisplayMatching(dipBounds);
+  return displays.find((display) => display.id === matching.id)?.id ?? displays[0]?.id;
+}
+
 interface OverlayWindow {
   contentKey: string;
   loaded: boolean;
@@ -68,9 +79,28 @@ export class ComputerUseDesktopOverlay {
   private show(): void {
     const displays = screen.getAllDisplays();
     this.removeMissingDisplays(displays);
+    const visibleDisplayIds = new Set(
+      this.state.level === "takeover"
+        ? displays.map((display) => display.id)
+        : [badgeDisplayId(displays, this.state.badgeTargetBounds)].filter(
+            (id): id is number => id !== undefined,
+          ),
+    );
     for (const display of displays) {
-      const overlay = this.windows.get(display.id) ?? this.createWindow(display);
-      overlay.window.setBounds(display.bounds);
+      const existing = this.windows.get(display.id);
+      if (!visibleDisplayIds.has(display.id)) {
+        if (existing && !existing.window.isDestroyed()) {
+          existing.contentKey = "";
+          existing.loaded = false;
+          existing.window.hide();
+        }
+        continue;
+      }
+      const overlay = existing ?? this.createWindow(display);
+      // The takeover border frames the whole display; the badge is anchored to
+      // the top of its window, so it uses the work area to stay clear of the
+      // macOS menu bar and the focused app's title bar.
+      overlay.window.setBounds(this.state.level === "takeover" ? display.bounds : display.workArea);
       this.updateContent(overlay);
       if (overlay.loaded && !overlay.window.isVisible()) overlay.window.showInactive();
     }
@@ -119,13 +149,25 @@ export class ComputerUseDesktopOverlay {
       this.state.level === "takeover"
         ? TAKEOVER_OVERLAY_URL
         : createBadgeOverlayUrl(this.state.badgeTarget);
-    void overlay.window.loadURL(url).then(() => {
-      if (overlay.contentKey !== contentKey) return;
-      overlay.loaded = true;
-      if (!this.disposed && this.state.level !== "hidden" && !overlay.window.isDestroyed()) {
-        overlay.window.showInactive();
-      }
-    });
+    void overlay.window
+      .loadURL(url)
+      .then(() => {
+        if (overlay.contentKey !== contentKey) return;
+        overlay.loaded = true;
+        if (!this.disposed && this.state.level !== "hidden" && !overlay.window.isDestroyed()) {
+          overlay.window.showInactive();
+        }
+      })
+      .catch((error: unknown) => {
+        if (overlay.contentKey !== contentKey) return;
+        overlay.contentKey = "";
+        overlay.loaded = false;
+        // Degrade to no overlay rather than leaving the previous level's
+        // content on screen (a stale badge during a takeover would understate
+        // what the agent is doing).
+        if (!overlay.window.isDestroyed()) overlay.window.hide();
+        console.error("[computer-use] failed to load desktop activity overlay", error);
+      });
   }
 
   private removeMissingDisplays(displays: Display[]): void {

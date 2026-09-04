@@ -34,8 +34,10 @@ describe("ComputerUseActivityTracker", () => {
       toolName: "click",
       delivery: "background",
       target: "Notepad",
+      targetBounds: { x: 2100, y: 100, width: 800, height: 600 },
       active: false,
     });
+    expect(state?.badgeTargetBounds).toEqual({ x: 2100, y: 100, width: 800, height: 600 });
     vi.advanceTimersByTime(100);
     expect(state?.level).toBe("badge");
     tracker.setActivity({ kind: "session", threadId: "one", active: false });
@@ -102,10 +104,46 @@ describe("ComputerUseActivityTracker", () => {
     tracker.setActivity({ kind: "session", threadId: "one", active: false });
     expect(state).toMatchObject({ level: "hidden" });
     expect(state?.badgeTarget).toBeUndefined();
+    expect(state?.badgeTargetBounds).toBeUndefined();
 
     tracker.setActivity({ kind: "session", threadId: "one", active: true });
     expect(state).toMatchObject({ level: "badge" });
     expect(state?.badgeTarget).toBeUndefined();
+  });
+
+  it("uses the most recently completed target across concurrent threads", () => {
+    let state: ComputerUseActivityState | undefined;
+    const tracker = new ComputerUseActivityTracker({
+      releaseDelayMs: 100,
+      onChange: (next) => {
+        state = next;
+      },
+    });
+    const complete = (threadId: string, x: number) => {
+      tracker.setActivity({
+        kind: "action",
+        threadId,
+        toolName: "click",
+        delivery: "background",
+        active: true,
+      });
+      tracker.setActivity({
+        kind: "action",
+        threadId,
+        toolName: "click",
+        delivery: "background",
+        target: threadId,
+        targetBounds: { x, y: 0, width: 800, height: 600 },
+        active: false,
+      });
+    };
+
+    complete("one", 0);
+    complete("two", 2000);
+    complete("one", 100);
+
+    expect(state?.badgeTarget).toBe("one");
+    expect(state?.badgeTargetBounds?.x).toBe(100);
   });
 
   it("promotes foreground calls above background activity through their grace period", () => {

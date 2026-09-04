@@ -63,8 +63,9 @@ export function createBadgeOverlayUrl(target?: string): string {
       html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
       .badge {
         position: fixed;
-        right: 16px;
-        bottom: 16px;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
         max-width: min(420px, calc(100vw - 32px));
         padding: 8px 12px;
         overflow: hidden;

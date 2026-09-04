@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "computer-use",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Control desktop apps in the background and complete visual workflows.",
   "author": {
     "name": "Poracode",

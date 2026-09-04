@@ -278,7 +278,13 @@ function runnableBinary(platform) {
 }
 
 function discoverStagedTargets() {
-  const ids = ["win32-x64", "win32-arm64", "darwin-universal", "linux-x64"];
+  // macOS is staged as one universal binary, so it has no targetTable row.
+  const ids = [
+    ...Object.values(targetTable)
+      .flat()
+      .map((target) => target.id),
+    "darwin-universal",
+  ];
   return ids.filter((id) => {
     const path = stagedBinary(id);
     return existsSync(path) && statSync(path).isFile() && statSync(path).size > 0;

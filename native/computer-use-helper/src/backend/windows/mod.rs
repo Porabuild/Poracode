@@ -14,6 +14,7 @@ fn shell_apps_folder_id(app_id: &str) -> String {
     format!("{SHELL_APPS_FOLDER_PREFIX}{app_id}")
 }
 
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -22,7 +23,8 @@ use windows::Win32::UI::HiDpi::{
 };
 
 use crate::backend::{
-    Backend, CancelToken, HelloInfo, InputOptions, KeyboardAction, PointerAction,
+    Backend, CancelToken, HelloInfo, InputOptions, InstalledAppCache, KeyboardAction,
+    PointerAction, verify_effect_with_early_check,
 };
 use crate::capture::CaptureResult;
 use crate::elements::SnapshotCache;
@@ -37,6 +39,7 @@ use crate::protocol::{ErrorCode, Result};
 
 pub struct WindowsBackend {
     elements: SnapshotCache<Vec<i32>>,
+    installed_apps: Arc<InstalledAppCache>,
 }
 
 impl WindowsBackend {
@@ -45,8 +48,11 @@ impl WindowsBackend {
         // before the helper starts dispatching window geometry work.
         let _ =
             unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
+        let installed_apps = Arc::new(InstalledAppCache::default());
+        installed_apps.prewarm(apps::list);
         Self {
             elements: SnapshotCache::default(),
+            installed_apps,
         }
     }
 
@@ -75,22 +81,19 @@ impl WindowsBackend {
         if verify != Verify::Effect || result.delivery.is_none() {
             return result;
         }
-        thread::sleep(Duration::from_millis(150));
-        let after = self.capture_hash_at(window, point);
         if let Some(delivery) = &mut result.delivery {
-            delivery.verified = match (before, after) {
-                (Some(before), Some(after)) if before != after => Verified::Confirmed,
-                (Some(_), Some(_)) => Verified::Unchanged,
-                _ => Verified::Unverified,
-            };
+            delivery.verified =
+                verify_effect_with_early_check(before, || self.capture_hash_at(window, point));
         }
         result
     }
 
     fn refresh_result_window(mut result: InteractiveResult) -> InteractiveResult {
         if result.delivery.is_some() {
-            // UIA Invoke can return before WinUI commits a resulting minimize,
-            // maximize, or bounds change to the top-level window.
+            // Every route can return before the target commits a resulting
+            // minimize, maximize, or bounds change to the top-level window --
+            // UIA Invoke and posted messages both do -- so the reported window
+            // (and any `observe` state derived from it) needs a settle window.
             thread::sleep(Duration::from_millis(50));
         }
         let window = &result.window;
@@ -159,7 +162,7 @@ impl Backend for WindowsBackend {
     }
 
     fn search_installed_apps(&self, query: &str) -> Result<Vec<crate::protocol::actions::AppInfo>> {
-        apps::search(query)
+        self.installed_apps.search(query, apps::list)
     }
 
     fn resolve_window(&self, window: &WindowRef) -> Result<WindowInfo> {

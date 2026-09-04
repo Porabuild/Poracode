@@ -13,18 +13,24 @@ List apps and windows and pick the exact target. If the app is not running, sear
 `query` and pass the returned id to `launch_app`. Write down the steps you intend to perform and what each one should
 produce on screen; do not improvise against whatever window happens to be in front.
 
-Call `computer_use.api` if needed, then list apps and windows and call `get_window_state` on the selected window with
-`include_text:true`. Some apps recreate windows during navigation or activation, so refresh a stale window instead of
-reusing its old id.
+Call `computer_use.api` only when capability or permission status is needed. List apps and windows, then call
+`get_window_state` on the selected window with `include_text:true`. Its element ids are directly actionable; pass its
+`snapshot_id` when filtering the same tree with `find_elements`. Some apps recreate windows during navigation or
+activation, so refresh a stale window instead of reusing its old id.
 
 ## Run the flow
 
 Call `computer_use.enable` immediately before the first control step and keep it enabled for the uninterrupted run.
 Background work shows a small badge; foreground takeover shows the border and enables Escape interruption except while a key chord is being sent.
 
-For each step: inspect, act, inspect again, and compare. Prefer `find_elements` with `invoke_element` or
-`set_element_value`. Coordinates are a fallback, come from the newest screenshot, and are relative to the window's
-top-left with the title bar included.
+For each step: inspect, act, inspect again, and compare. Pass `observe:"text"`, `"screenshot"`, or `"both"` with an
+action when its returned state can replace the second inspection call. Prefer `invoke_element` or `set_element_value`.
+Coordinates are a fallback, come from the newest screenshot, and are relative to the window's top-left with the title
+bar included.
+
+Use `perform` when several background element, value, key, or text actions are deterministic from the same inspected
+state. It stops on refusal, error, or unexpected foreground delivery. Native Wayland rejects key/text batches before
+starting. Do not batch coordinates or steps whose target depends on an intermediate result.
 
 Read `delivery` or `refused` after every action. Do not silently turn a background refusal into foreground input. Use
 `mode:"foreground"` only when the user requested takeover or the refusal recommends it, and warn the user immediately

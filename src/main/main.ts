@@ -48,7 +48,12 @@ import {
 } from "./browser";
 import { buildBrowserUserAgent } from "./browser/userAgent";
 import { startUsageLoginCookieMirror } from "./usageLogin/UsageLoginCookieMirror";
-import { ComputerUseDesktopOverlay, ComputerUseMcpIngress } from "./computer-use";
+import {
+  ComputerUseDesktopOverlay,
+  ComputerUseMcpIngress,
+  type ComputerUseMcpIngressInfo,
+  resolveComputerUseHelperBinaryPath,
+} from "./computer-use";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { showOsNotification } from "./osNotifications";
@@ -1031,34 +1036,48 @@ if (!hasSingleInstanceLock) {
       chromeBridgeServer.start().catch((err) => {
         console.error("[poracode] chrome bridge server failed to start:", err);
       });
-      computerUseDesktopOverlay = new ComputerUseDesktopOverlay({
-        onExit: (threadIds) => {
-          computerUseMcpIngress?.interruptActiveActions();
-          for (const threadId of threadIds) {
-            void supervisorClient.call("interruptThread", { threadId }).catch((error) => {
-              console.error(
-                `[poracode] failed to interrupt computer-use thread ${threadId}:`,
-                error,
-              );
-            });
-          }
-        },
-      });
       const computerUseHelperRoot = app.isPackaged
         ? join(process.resourcesPath, "computer-use-helper")
         : join(__dirname, "..", "..", "resources", "computer-use-helper");
-      computerUseMcpIngress = new ComputerUseMcpIngress({
-        driverOptions: {
-          helperRootDir: computerUseHelperRoot,
-          stateDir: join(app.getPath("userData"), "computer-use"),
-          warn: (message) => console.warn(`[poracode] ${message}`),
-        },
-        onActivity: (event) => computerUseDesktopOverlay?.setActivity(event),
-      });
-      const computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
-        console.error("[poracode] computer use MCP ingress failed to start:", err);
-        return null;
-      });
+      // Windows and macOS keep a legacy in-process driver, so they stay
+      // supported even without a staged helper. Everywhere else the helper is
+      // the only backend: with no binary for this platform/arch the ingress
+      // would advertise tools that all fail and would still inject a token into
+      // every agent launch, so skip it entirely and let resolveExtraEnv yield
+      // nothing because getInfo() stays null.
+      const computerUseSupported =
+        process.platform === "win32" ||
+        process.platform === "darwin" ||
+        resolveComputerUseHelperBinaryPath(computerUseHelperRoot) !== null;
+      let computerUseMcpInfoReady: Promise<ComputerUseMcpIngressInfo | null> =
+        Promise.resolve(null);
+      if (computerUseSupported) {
+        computerUseDesktopOverlay = new ComputerUseDesktopOverlay({
+          onExit: (threadIds) => {
+            computerUseMcpIngress?.interruptActiveActions();
+            for (const threadId of threadIds) {
+              void supervisorClient.call("interruptThread", { threadId }).catch((error) => {
+                console.error(
+                  `[poracode] failed to interrupt computer-use thread ${threadId}:`,
+                  error,
+                );
+              });
+            }
+          },
+        });
+        computerUseMcpIngress = new ComputerUseMcpIngress({
+          driverOptions: {
+            helperRootDir: computerUseHelperRoot,
+            stateDir: join(app.getPath("userData"), "computer-use"),
+            warn: (message) => console.warn(`[poracode] ${message}`),
+          },
+          onActivity: (event) => computerUseDesktopOverlay?.setActivity(event),
+        });
+        computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
+          console.error("[poracode] computer use MCP ingress failed to start:", err);
+          return null;
+        });
+      }
 
       const controller = createDesktopRemoteAccessController({
         appVersion: app.getVersion(),

@@ -2,18 +2,20 @@ use std::collections::HashSet;
 use std::path::{Component, Path};
 use std::process::Command;
 use std::process::Stdio;
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::backend::{
-    Backend, CancelToken, HelloInfo, InputOptions, KeyboardAction, PointerAction,
+    Backend, CancelToken, HelloInfo, InputOptions, InstalledAppCache, KeyboardAction,
+    PointerAction, verify_effect_with_early_check,
 };
 use crate::capture::CaptureResult;
 use crate::elements::SnapshotCache;
 use crate::protocol::Result;
 use crate::protocol::actions::{
     AccessibilityState, Capabilities, ElementAction, FindElementsInput, FindElementsResult,
-    InteractiveResult, LaunchResult, PermissionState, Permissions, Verified, Verify,
+    InteractiveResult, LaunchResult, PermissionState, Permissions, Verify,
 };
 use crate::protocol::window::{WindowInfo, WindowRef};
 
@@ -112,12 +114,16 @@ fn pointer_verification_point(action: PointerAction) -> (f64, f64) {
 
 pub struct MacOsBackend {
     elements: SnapshotCache<ax::AxElement>,
+    installed_apps: Arc<InstalledAppCache>,
 }
 
 impl MacOsBackend {
     pub fn new() -> Self {
+        let installed_apps = Arc::new(InstalledAppCache::default());
+        installed_apps.prewarm(apps::list);
         Self {
             elements: SnapshotCache::default(),
+            installed_apps,
         }
     }
 
@@ -146,14 +152,9 @@ impl MacOsBackend {
         if verify != Verify::Effect || result.delivery.is_none() {
             return result;
         }
-        thread::sleep(Duration::from_millis(150));
-        let after = self.capture_hash_at(window, point);
         if let Some(delivery) = &mut result.delivery {
-            delivery.verified = match (before, after) {
-                (Some(before), Some(after)) if before != after => Verified::Confirmed,
-                (Some(_), Some(_)) => Verified::Unchanged,
-                _ => Verified::Unverified,
-            };
+            delivery.verified =
+                verify_effect_with_early_check(before, || self.capture_hash_at(window, point));
         }
         result
     }
@@ -202,7 +203,7 @@ impl Backend for MacOsBackend {
     }
 
     fn search_installed_apps(&self, query: &str) -> Result<Vec<crate::protocol::actions::AppInfo>> {
-        apps::search(query)
+        self.installed_apps.search(query, apps::list)
     }
 
     fn resolve_window(&self, window: &WindowRef) -> Result<WindowInfo> {

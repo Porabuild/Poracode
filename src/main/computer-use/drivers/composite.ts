@@ -21,10 +21,6 @@ function refusal(
   return { ok: false, mode: "interactive", window, refused: { code, reason, hint } };
 }
 
-function canDegrade(error: unknown): boolean {
-  return error instanceof HelperUnavailableError;
-}
-
 export interface CompositeComputerUseDriverOptions {
   fallback: ComputerUseDriver | null;
   primary: ComputerUseDriver | null;
@@ -134,19 +130,19 @@ export class CompositeComputerUseDriver implements ComputerUseDriver {
   findElements(
     input: Parameters<ComputerUseDriver["findElements"]>[0],
   ): Promise<ComputerUseFindElementsResult | ComputerUseInteractiveResult> {
-    return this.findElementQuery(input.window, (driver) => driver.findElements(input));
+    return this.elementCall(input.window, (driver) => driver.findElements(input));
   }
 
   invokeElement(
     input: Parameters<ComputerUseDriver["invokeElement"]>[0],
   ): ReturnType<ComputerUseDriver["invokeElement"]> {
-    return this.elementTool(input.window, (driver) => driver.invokeElement(input));
+    return this.elementCall(input.window, (driver) => driver.invokeElement(input));
   }
 
   setElementValue(
     input: Parameters<ComputerUseDriver["setElementValue"]>[0],
   ): ReturnType<ComputerUseDriver["setElementValue"]> {
-    return this.elementTool(input.window, (driver) => driver.setElementValue(input));
+    return this.elementCall(input.window, (driver) => driver.setElementValue(input));
   }
 
   private async passive<T>(call: (driver: ComputerUseDriver) => Promise<T>): Promise<T> {
@@ -176,20 +172,11 @@ export class CompositeComputerUseDriver implements ComputerUseDriver {
     return await call(this.options.fallback);
   }
 
-  private async findElementQuery(
+  /** Element work has no legacy fallback: it refuses when the helper is gone. */
+  private async elementCall<T>(
     window: ComputerUseWindow,
-    call: (
-      driver: ComputerUseDriver,
-    ) => Promise<ComputerUseFindElementsResult | ComputerUseInteractiveResult>,
-  ): Promise<ComputerUseFindElementsResult | ComputerUseInteractiveResult> {
-    const primary = await this.tryPrimary(call);
-    return primary.available ? primary.value : this.elementUnavailable(window);
-  }
-
-  private async elementTool(
-    window: ComputerUseWindow,
-    call: (driver: ComputerUseDriver) => Promise<ComputerUseInteractiveResult>,
-  ): Promise<ComputerUseInteractiveResult> {
+    call: (driver: ComputerUseDriver) => Promise<T>,
+  ): Promise<T | ComputerUseInteractiveResult> {
     const primary = await this.tryPrimary(call);
     return primary.available ? primary.value : this.elementUnavailable(window);
   }
@@ -201,7 +188,7 @@ export class CompositeComputerUseDriver implements ComputerUseDriver {
       try {
         return { available: true, value: await call(this.options.primary) };
       } catch (error) {
-        if (!canDegrade(error)) throw error;
+        if (!(error instanceof HelperUnavailableError)) throw error;
         this.degrade(error);
       }
     } else if (!this.options.primary) {

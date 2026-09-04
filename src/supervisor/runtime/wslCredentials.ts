@@ -94,6 +94,12 @@ export function readGeminiCredsFromWsl(): Promise<string | undefined> {
   return readFromAnyWslDistro("cat $HOME/.gemini/oauth_creds.json 2>/dev/null");
 }
 
+export function readMuseAuthFromWsl(): Promise<string | undefined> {
+  return readFromAnyWslDistro(
+    "cat ${MUSE_AUTH_PATH:-${XDG_CONFIG_HOME:-$HOME/.config}/muse/auth.json} 2>/dev/null",
+  );
+}
+
 export function readAntigravityAcpCredsFromWsl(): Promise<string | undefined> {
   return readFromAnyWslDistro("cat $HOME/.gemini/antigravity-acp/acp_token.json 2>/dev/null");
 }

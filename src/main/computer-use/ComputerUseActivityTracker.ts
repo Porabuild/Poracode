@@ -1,10 +1,11 @@
-import type { ComputerUseActivityEvent } from "./ComputerUseMcpIngress";
+import type { ComputerUseActivityEvent, ComputerUseTargetBounds } from "./ComputerUseMcpIngress";
 import { isKeyChordToolName } from "./mcp/toolRegistry";
 
 export type OverlayLevel = "hidden" | "badge" | "takeover";
 
 export interface ComputerUseActivityState {
   badgeTarget?: string;
+  badgeTargetBounds?: ComputerUseTargetBounds;
   escapeEnabled: boolean;
   level: OverlayLevel;
   threadIds: string[];
@@ -30,7 +31,10 @@ export class ComputerUseActivityTracker {
   private readonly activeSessions = new Set<string>();
   private readonly backgroundThreads = new Set<string>();
   private readonly foregroundThreads = new Set<string>();
-  private readonly badgeTargets = new Map<string, string>();
+  private readonly badgeTargets = new Map<
+    string,
+    { bounds?: ComputerUseTargetBounds; label?: string }
+  >();
   private escapeSuppressedCalls = 0;
   private readonly releaseTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -76,8 +80,12 @@ export class ComputerUseActivityTracker {
     if (delivery === "foreground" && isKeyChordToolName(event.toolName)) {
       this.escapeSuppressedCalls = Math.max(0, this.escapeSuppressedCalls - 1);
     }
-    if (delivery === "background" && event.target) {
-      this.badgeTargets.set(threadId, event.target);
+    if (delivery === "background" && (event.target || event.targetBounds)) {
+      this.badgeTargets.delete(threadId);
+      this.badgeTargets.set(threadId, {
+        ...(event.target ? { label: event.target } : {}),
+        ...(event.targetBounds ? { bounds: event.targetBounds } : {}),
+      });
     }
     if (calls[delivery] === 0) {
       this.releaseTimers.set(
@@ -100,15 +108,15 @@ export class ComputerUseActivityTracker {
       : this.backgroundThreads.size
         ? "badge"
         : "hidden";
-    const targets = [...this.badgeTargets.values()];
-    const badgeTarget = targets.at(-1);
+    const badgeTarget = [...this.badgeTargets.values()].at(-1);
     return {
       level,
       escapeEnabled: level === "takeover" && this.escapeSuppressedCalls === 0,
       threadIds: [
         ...new Set([...this.activeSessions, ...this.backgroundThreads, ...this.foregroundThreads]),
       ],
-      ...(badgeTarget ? { badgeTarget } : {}),
+      ...(badgeTarget?.label ? { badgeTarget: badgeTarget.label } : {}),
+      ...(badgeTarget?.bounds ? { badgeTargetBounds: badgeTarget.bounds } : {}),
     };
   }
 

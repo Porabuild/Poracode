@@ -223,7 +223,9 @@ export function PluginDetail(props: {
           <span className="shrink-0 text-muted">
             <PluginIcon pluginId={plugin.name} className="size-4" />
           </span>
-          <span className="min-w-0 flex-1 truncate text-sm text-foreground">{examplePrompt}</span>
+          <span className="min-w-0 flex-1 truncate text-sm text-foreground" title={examplePrompt}>
+            {examplePrompt}
+          </span>
           <ArrowRight className="size-4 shrink-0 text-muted" />
         </Button>
       ) : null}

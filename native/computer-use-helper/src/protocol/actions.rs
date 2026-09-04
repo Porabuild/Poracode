@@ -634,15 +634,30 @@ impl AppInfo {
         }
     }
 
+    /// Only the final component of `id` is matched. An installed entry's id is a
+    /// launch id -- a bundle path, a `.desktop` path, or
+    /// `shell:AppsFolder\<AUMID>` -- so matching the whole string makes every
+    /// catalog entry match a shared directory segment like "applications" or
+    /// "system". The final component still carries the package or file name,
+    /// which often differs from the display name
+    /// (`org.gnome.Nautilus.desktop` vs "Files").
     pub fn matches_query(&self, query: &str) -> bool {
         let query = query.to_lowercase();
-        self.id.to_lowercase().contains(&query)
-            || self.display_name.to_lowercase().contains(&query)
+        self.display_name.to_lowercase().contains(&query)
+            || id_leaf(&self.id).to_lowercase().contains(&query)
             || self.windows.iter().any(|window| {
                 window.title.to_lowercase().contains(&query)
                     || window.app.to_lowercase().contains(&query)
             })
     }
+}
+
+/// Final path component of a launch id. Unlike `window::app_leaf` this keeps the
+/// extension, because an AUMID such as
+/// `Microsoft.WindowsCalculator_8wekyb3d8bbwe!App` would otherwise be truncated
+/// at its first dot down to the vendor prefix.
+fn id_leaf(id: &str) -> &str {
+    id.rsplit(['/', '\\']).next().unwrap_or(id)
 }
 
 /// Group windows by `app` (parity with the PowerShell `list_apps`).
@@ -685,7 +700,10 @@ pub fn merge_installed_apps(mut running: Vec<AppInfo>, installed: Vec<AppInfo>) 
                 .cmp(&right.display_name.to_lowercase())
         })
     });
-    running.dedup_by(|left, right| left.id.to_lowercase() == right.id.to_lowercase());
+    // `dedup_by` only removes adjacent equals, and the sort key is not the id,
+    // so duplicates have to be dropped by identity rather than by adjacency.
+    let mut seen = std::collections::HashSet::new();
+    running.retain(|app| seen.insert(app.id.to_lowercase()));
     running
 }
 
@@ -928,5 +946,57 @@ mod tests {
     fn app_search_matches_non_ascii_case() {
         let app = AppInfo::installed("editor".into(), "Éditeur".into());
         assert!(app.matches_query("éditeur"));
+    }
+
+    #[test]
+    fn app_search_ignores_launch_id_path_segments() {
+        let installed = AppInfo::installed(
+            "/System/Applications/Calculator.app".into(),
+            "Calculator".into(),
+        );
+        assert!(installed.matches_query("calculator"));
+        assert!(!installed.matches_query("system"));
+        assert!(!installed.matches_query("applications"));
+    }
+
+    #[test]
+    fn app_search_matches_a_launch_id_filename_that_differs_from_the_display_name() {
+        let nautilus = AppInfo::installed(
+            "/usr/share/applications/org.gnome.Nautilus.desktop".into(),
+            "Files".into(),
+        );
+        assert!(nautilus.matches_query("nautilus"));
+        assert!(nautilus.matches_query("files"));
+        assert!(!nautilus.matches_query("applications"));
+        assert!(!nautilus.matches_query("share"));
+    }
+
+    #[test]
+    fn app_search_matches_an_aumid_package_name_without_truncating_at_the_vendor() {
+        let calculator = AppInfo::installed(
+            r"shell:AppsFolder\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App".into(),
+            "Calculator".into(),
+        );
+        assert!(calculator.matches_query("windowscalculator"));
+        assert!(!calculator.matches_query("appsfolder"));
+    }
+
+    #[test]
+    fn app_search_still_matches_a_running_app_by_executable_path() {
+        let running = group_apps(vec![WindowInfo {
+            app: r"C:\Program Files\Notepad++\notepad++.exe".into(),
+            id: 1,
+            title: "readme.txt".into(),
+            x: 0,
+            y: 0,
+            width: 10,
+            height: 10,
+            pid: None,
+            display_name: Some("Notepad++".into()),
+            minimized: None,
+            source: None,
+        }]);
+        assert!(running[0].matches_query("program files"));
+        assert!(running[0].matches_query("readme"));
     }
 }

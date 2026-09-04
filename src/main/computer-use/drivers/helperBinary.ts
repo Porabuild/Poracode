@@ -32,19 +32,7 @@ export function resolveComputerUseHelperBinaryPath(
   if (!existsSync(manifestPath)) return null;
   try {
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as { targets?: unknown };
-    if (!Array.isArray(manifest.targets)) return null;
-    const targets = manifest.targets.flatMap((target) => {
-      if (typeof target === "string") return [target];
-      if (
-        target &&
-        typeof target === "object" &&
-        typeof (target as { id?: unknown }).id === "string"
-      ) {
-        return [(target as { id: string }).id];
-      }
-      return [];
-    });
-    if (!targets.includes(directory)) return null;
+    if (!Array.isArray(manifest.targets) || !manifest.targets.includes(directory)) return null;
   } catch {
     return null;
   }

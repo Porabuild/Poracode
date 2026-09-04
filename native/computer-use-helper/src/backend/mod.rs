@@ -1,10 +1,14 @@
 //! Platform backend trait. One implementation per OS lives in a `cfg`-gated
 //! submodule; `current()` picks it at startup.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use crate::capture::CaptureResult;
+#[cfg(any(target_os = "windows", target_os = "macos", test))]
+use crate::protocol::actions::Verified;
 use crate::protocol::actions::{
     AccessibilityState, AppInfo, Capabilities, ElementAction, FindElementsInput,
     FindElementsResult, Hello, InputMode, InteractiveResult, LaunchResult, MouseButton,
@@ -23,9 +27,108 @@ pub mod macos;
 pub mod windows;
 
 pub(crate) const COMPUTER_USE_OVERLAY_TITLE: &str = "Poracode Computer Use Overlay";
+const INSTALLED_APP_CACHE_TTL: Duration = Duration::from_secs(10 * 60);
+const MAX_INSTALLED_APP_RESULTS: usize = 50;
+#[cfg(any(target_os = "windows", target_os = "macos", test))]
+const EFFECT_EARLY_CHECK: Duration = Duration::from_millis(25);
+#[cfg(any(target_os = "windows", target_os = "macos", test))]
+const EFFECT_FINAL_CHECK: Duration = Duration::from_millis(150);
 
 pub(crate) fn is_computer_use_overlay_title(title: &str) -> bool {
     title == COMPUTER_USE_OVERLAY_TITLE
+}
+
+struct CachedInstalledApps {
+    loaded_at: Instant,
+    apps: Vec<AppInfo>,
+}
+
+#[derive(Default)]
+pub(crate) struct InstalledAppCache {
+    cached: Mutex<Option<CachedInstalledApps>>,
+}
+
+impl InstalledAppCache {
+    fn lock(&self) -> std::sync::MutexGuard<'_, Option<CachedInstalledApps>> {
+        self.cached
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    pub(crate) fn search(
+        &self,
+        query: &str,
+        load: impl FnOnce() -> Result<Vec<AppInfo>>,
+    ) -> Result<Vec<AppInfo>> {
+        // The loader shells out on Windows and walks the application
+        // directories elsewhere, so it must never run while the mutex is held:
+        // `list_apps` shares one passive lane with capture and element queries,
+        // and the prewarm thread would otherwise stall that whole lane.
+        let stale = self
+            .lock()
+            .as_ref()
+            .is_none_or(|cached| cached.loaded_at.elapsed() >= INSTALLED_APP_CACHE_TTL);
+        if stale {
+            let started = Instant::now();
+            let apps = load()?;
+            let mut cached = self.lock();
+            // A concurrent loader (typically `prewarm`) may have finished while
+            // this one was running; keep whichever snapshot is newer.
+            if cached
+                .as_ref()
+                .is_none_or(|cached| cached.loaded_at <= started)
+            {
+                *cached = Some(CachedInstalledApps {
+                    loaded_at: Instant::now(),
+                    apps,
+                });
+            }
+        }
+        let mut matches = self
+            .lock()
+            .as_ref()
+            .map(|cached| {
+                cached
+                    .apps
+                    .iter()
+                    .filter(|app| app.matches_query(query))
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        matches.truncate(MAX_INSTALLED_APP_RESULTS);
+        Ok(matches)
+    }
+
+    pub(crate) fn prewarm(self: &Arc<Self>, load: fn() -> Result<Vec<AppInfo>>) {
+        let cache = Arc::clone(self);
+        let _ = thread::Builder::new()
+            .name("computer-use-app-catalog".into())
+            .spawn(move || {
+                let _ = cache.search("", load);
+            });
+    }
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos", test))]
+pub(crate) fn verify_effect_with_early_check(
+    before: Option<u64>,
+    capture: impl Fn() -> Option<u64>,
+) -> Verified {
+    let Some(before) = before else {
+        return Verified::Unverified;
+    };
+    thread::sleep(EFFECT_EARLY_CHECK);
+    match capture() {
+        Some(after) if after != before => return Verified::Confirmed,
+        Some(_) | None => {}
+    }
+    thread::sleep(EFFECT_FINAL_CHECK.saturating_sub(EFFECT_EARLY_CHECK));
+    match capture() {
+        Some(after) if after != before => Verified::Confirmed,
+        Some(_) => Verified::Unchanged,
+        None => Verified::Unverified,
+    }
 }
 
 /// Cooperative cancellation. Long loops check it between steps; native calls
@@ -140,10 +243,14 @@ pub trait Backend: Send + Sync {
             return Ok(running);
         };
         running.retain(|app| app.matches_query(query));
-        Ok(merge_installed_apps(
-            running,
-            self.search_installed_apps(query)?,
-        ))
+        let installed = match self.search_installed_apps(query) {
+            Ok(installed) => installed,
+            Err(error) => {
+                log::debug!("installed-app discovery failed; returning running matches: {error}");
+                Vec::new()
+            }
+        };
+        Ok(merge_installed_apps(running, installed))
     }
 
     /// Exact id first, then recovery by app/title (parity with the PowerShell
@@ -319,4 +426,86 @@ pub fn current(options: &BackendOptions) -> Arc<dyn Backend> {
             std::env::consts::OS
         ),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use super::*;
+
+    #[test]
+    fn installed_app_cache_loads_once_and_filters_unicode_queries() {
+        let cache = InstalledAppCache::default();
+        let loads = AtomicUsize::new(0);
+        let load = || {
+            loads.fetch_add(1, Ordering::SeqCst);
+            Ok(vec![
+                AppInfo::installed("calculator".into(), "КАЛЬКУЛЯТОР".into()),
+                AppInfo::installed("paint".into(), "Paint".into()),
+            ])
+        };
+
+        assert_eq!(cache.search("калькулятор", load).unwrap().len(), 1);
+        assert_eq!(cache.search("paint", load).unwrap().len(), 1);
+        assert_eq!(loads.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn installed_app_cache_retries_after_a_loader_failure() {
+        let cache = InstalledAppCache::default();
+        assert!(
+            cache
+                .search("paint", || Err(HelperError::internal("temporary")))
+                .is_err()
+        );
+        assert_eq!(
+            cache
+                .search("paint", || {
+                    Ok(vec![AppInfo::installed("paint".into(), "Paint".into())])
+                })
+                .unwrap()
+                .len(),
+            1
+        );
+    }
+
+    #[test]
+    fn effect_verification_without_a_baseline_returns_immediately() {
+        let captures = AtomicUsize::new(0);
+        let verified = verify_effect_with_early_check(None, || {
+            captures.fetch_add(1, Ordering::SeqCst);
+            Some(1)
+        });
+
+        assert_eq!(verified, Verified::Unverified);
+        assert_eq!(captures.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn effect_verification_retries_after_an_unavailable_early_capture() {
+        let captures = AtomicUsize::new(0);
+        let verified = verify_effect_with_early_check(Some(1), || {
+            if captures.fetch_add(1, Ordering::SeqCst) == 0 {
+                None
+            } else {
+                Some(2)
+            }
+        });
+
+        assert_eq!(verified, Verified::Confirmed);
+        assert_eq!(captures.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn effect_verification_is_unverified_when_both_captures_are_unavailable() {
+        let captures = AtomicUsize::new(0);
+        let verified = verify_effect_with_early_check(Some(1), || {
+            captures.fetch_add(1, Ordering::SeqCst);
+            None
+        });
+
+        assert_eq!(verified, Verified::Unverified);
+        assert_eq!(captures.load(Ordering::SeqCst), 2);
+    }
 }

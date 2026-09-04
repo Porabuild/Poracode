@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import type { ProjectLocation, ScanSkillsPayload, SkillEntry } from "@/shared/contracts";
@@ -91,10 +91,12 @@ export const skillTools: ToolDomain = {
       if (!skill) throw new Error(`Unknown skill id: ${skillId}`);
       if (!skill.enabled) throw new Error(`Skill is disabled: ${skillId}`);
       if (!skill.valid) throw new Error(`Skill is invalid: ${skillId}`);
-      const content = await readFile(join(skill.absolutePath, "SKILL.md"));
-      if (content.length > MAX_READ_SKILL_BYTES) {
+      const skillFile = join(skill.absolutePath, "SKILL.md");
+      // Check the size before reading so an oversized file is never buffered.
+      if ((await stat(skillFile)).size > MAX_READ_SKILL_BYTES) {
         throw new Error(`Skill is too large to read through app controls: ${skillId}`);
       }
+      const content = await readFile(skillFile);
       return {
         id: skill.id,
         name: skill.name,

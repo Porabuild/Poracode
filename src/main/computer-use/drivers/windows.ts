@@ -5,11 +5,13 @@ import { join } from "node:path";
 import type {
   ComputerUseApp,
   ComputerUseDriver,
+  ComputerUseDriverStatus,
   ComputerUseInteractiveResult,
   ComputerUseListAppsInput,
   ComputerUseWindow,
   ComputerUseWindowState,
 } from "../mcp/types";
+import { legacyElementRefusal } from "./common";
 import { PersistentJsonLineHost } from "./jsonLineHost";
 import { validateWindowsLaunchAppInput } from "./launchAppValidation";
 
@@ -973,19 +975,6 @@ function withLegacyDelivery(result: LegacyInteractiveResult): ComputerUseInterac
   };
 }
 
-function legacyElementRefusal(window: ComputerUseWindow): ComputerUseInteractiveResult {
-  return {
-    ok: false,
-    mode: "interactive",
-    window,
-    refused: {
-      code: "capability_unavailable",
-      reason: "Accessibility element tools require the bundled native helper.",
-      hint: "Use get_window_state and coordinate input instead.",
-    },
-  };
-}
-
 export class WindowsComputerUseDriver implements ComputerUseDriver {
   private readonly host = new PersistentJsonLineHost({
     label: "computer-use host",
@@ -1014,7 +1003,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     this.host.dispose();
   }
 
-  async describeStatus(): Promise<import("../mcp/types").ComputerUseDriverStatus> {
+  async describeStatus(): Promise<ComputerUseDriverStatus> {
     return {
       backend: "legacy",
       helper: null,

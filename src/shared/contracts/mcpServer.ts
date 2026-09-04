@@ -129,6 +129,7 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "invoke_element",
     "set_element_value",
     "activate_window",
+    "perform",
     "click",
     "press_key",
     "type_text",

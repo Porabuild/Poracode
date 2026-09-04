@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::mem::ManuallyDrop;
 use std::ptr::NonNull;
 
-use windows::Win32::Foundation::{POINT, RPC_E_CHANGED_MODE};
+use windows::Win32::Foundation::{POINT, RECT, RPC_E_CHANGED_MODE};
 use windows::Win32::System::Com::{
     CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED, CoCreateInstance, CoInitializeEx, CoTaskMemFree,
     CoUninitialize, SAFEARRAY,
@@ -12,16 +12,19 @@ use windows::Win32::System::Variant::{
     VARIANT, VARIANT_0, VARIANT_0_0, VARIANT_0_0_0, VT_ARRAY, VT_I4, VariantClear,
 };
 use windows::Win32::UI::Accessibility::{
-    CUIAutomation8, IUIAutomation, IUIAutomation2, IUIAutomationElement,
+    CUIAutomation8, IUIAutomation, IUIAutomation2, IUIAutomationCacheRequest, IUIAutomationElement,
     IUIAutomationExpandCollapsePattern, IUIAutomationInvokePattern,
     IUIAutomationSelectionItemPattern, IUIAutomationTogglePattern, IUIAutomationValuePattern,
-    TreeScope_Subtree, UIA_AppBarControlTypeId, UIA_ButtonControlTypeId, UIA_CalendarControlTypeId,
-    UIA_CheckBoxControlTypeId, UIA_ComboBoxControlTypeId, UIA_CustomControlTypeId,
-    UIA_DataGridControlTypeId, UIA_DataItemControlTypeId, UIA_DocumentControlTypeId,
-    UIA_EditControlTypeId, UIA_ExpandCollapsePatternId, UIA_GroupControlTypeId,
-    UIA_HeaderControlTypeId, UIA_HeaderItemControlTypeId, UIA_HyperlinkControlTypeId,
-    UIA_ImageControlTypeId, UIA_InvokePatternId, UIA_ListControlTypeId, UIA_ListItemControlTypeId,
-    UIA_MenuBarControlTypeId, UIA_MenuControlTypeId, UIA_MenuItemControlTypeId,
+    TreeScope_Element, TreeScope_Subtree, UIA_AppBarControlTypeId, UIA_AutomationIdPropertyId,
+    UIA_BoundingRectanglePropertyId, UIA_ButtonControlTypeId, UIA_CalendarControlTypeId,
+    UIA_CheckBoxControlTypeId, UIA_ComboBoxControlTypeId, UIA_ControlTypePropertyId,
+    UIA_CustomControlTypeId, UIA_DataGridControlTypeId, UIA_DataItemControlTypeId,
+    UIA_DocumentControlTypeId, UIA_EditControlTypeId, UIA_ExpandCollapsePatternId,
+    UIA_GroupControlTypeId, UIA_HasKeyboardFocusPropertyId, UIA_HeaderControlTypeId,
+    UIA_HeaderItemControlTypeId, UIA_HyperlinkControlTypeId, UIA_ImageControlTypeId,
+    UIA_InvokePatternId, UIA_IsEnabledPropertyId, UIA_IsOffscreenPropertyId,
+    UIA_IsPasswordPropertyId, UIA_ListControlTypeId, UIA_ListItemControlTypeId,
+    UIA_MenuBarControlTypeId, UIA_MenuControlTypeId, UIA_MenuItemControlTypeId, UIA_NamePropertyId,
     UIA_PaneControlTypeId, UIA_ProgressBarControlTypeId, UIA_RadioButtonControlTypeId,
     UIA_RuntimeIdPropertyId, UIA_ScrollBarControlTypeId, UIA_SelectionItemPatternId,
     UIA_SeparatorControlTypeId, UIA_SliderControlTypeId, UIA_SpinnerControlTypeId,
@@ -112,6 +115,37 @@ fn optional_bstr(value: windows::core::Result<BSTR>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+fn snapshot_cache_request(automation: &IUIAutomation) -> Option<IUIAutomationCacheRequest> {
+    // SAFETY: the cache request is local to this UIA client and contains only
+    // standard properties and patterns read by `cached_element_info`.
+    unsafe {
+        let request = automation.CreateCacheRequest().ok()?;
+        for property in [
+            UIA_AutomationIdPropertyId,
+            UIA_BoundingRectanglePropertyId,
+            UIA_ControlTypePropertyId,
+            UIA_HasKeyboardFocusPropertyId,
+            UIA_IsEnabledPropertyId,
+            UIA_IsOffscreenPropertyId,
+            UIA_IsPasswordPropertyId,
+            UIA_NamePropertyId,
+        ] {
+            request.AddProperty(property).ok()?;
+        }
+        for pattern in [
+            UIA_InvokePatternId,
+            UIA_TogglePatternId,
+            UIA_SelectionItemPatternId,
+            UIA_ExpandCollapsePatternId,
+            UIA_ValuePatternId,
+        ] {
+            request.AddPattern(pattern).ok()?;
+        }
+        request.SetTreeScope(TreeScope_Element).ok()?;
+        Some(request)
+    }
+}
+
 fn role_name(control_type: windows::Win32::UI::Accessibility::UIA_CONTROLTYPE_ID) -> String {
     let role = if control_type == UIA_ButtonControlTypeId {
         "button"
@@ -199,6 +233,42 @@ fn role_name(control_type: windows::Win32::UI::Accessibility::UIA_CONTROLTYPE_ID
     role.to_string()
 }
 
+/// Which action patterns an element exposes. The live and cached readers probe
+/// these differently but must classify them identically.
+struct ElementPatterns {
+    invoke: bool,
+    toggle: bool,
+    select: bool,
+    expand_collapse: bool,
+    set_value: bool,
+}
+
+/// Action order is part of the element contract an agent sees, so it is derived
+/// once for both the live and the cached reader.
+fn element_actions(patterns: &ElementPatterns, rect: RECT) -> Vec<ElementAction> {
+    let mut actions = Vec::new();
+    if patterns.invoke {
+        actions.push(ElementAction::Invoke);
+    }
+    if patterns.toggle {
+        actions.push(ElementAction::Toggle);
+    }
+    if patterns.select {
+        actions.push(ElementAction::Select);
+    }
+    if patterns.expand_collapse {
+        actions.push(ElementAction::Expand);
+        actions.push(ElementAction::Collapse);
+    }
+    if patterns.set_value {
+        actions.push(ElementAction::SetValue);
+    }
+    if rect.right > rect.left && rect.bottom > rect.top {
+        actions.push(ElementAction::Click);
+    }
+    actions
+}
+
 fn element_info(element: &IUIAutomationElement, window: &WindowInfo, depth: u32) -> ElementInfo {
     // SAFETY: all UIA property and pattern calls are read-only on a live COM
     // interface obtained from the current tree walk. Failures become defaults.
@@ -210,38 +280,28 @@ fn element_info(element: &IUIAutomationElement, window: &WindowInfo, depth: u32)
         let value_pattern = (!password)
             .then(|| element.GetCurrentPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId))
             .and_then(std::result::Result::ok);
-        let mut actions = Vec::new();
-        if element
-            .GetCurrentPatternAs::<IUIAutomationInvokePattern>(UIA_InvokePatternId)
-            .is_ok()
-        {
-            actions.push(ElementAction::Invoke);
-        }
-        if element
-            .GetCurrentPatternAs::<IUIAutomationTogglePattern>(UIA_TogglePatternId)
-            .is_ok()
-        {
-            actions.push(ElementAction::Toggle);
-        }
-        if element
-            .GetCurrentPatternAs::<IUIAutomationSelectionItemPattern>(UIA_SelectionItemPatternId)
-            .is_ok()
-        {
-            actions.push(ElementAction::Select);
-        }
-        if element
-            .GetCurrentPatternAs::<IUIAutomationExpandCollapsePattern>(UIA_ExpandCollapsePatternId)
-            .is_ok()
-        {
-            actions.push(ElementAction::Expand);
-            actions.push(ElementAction::Collapse);
-        }
-        if value_pattern.is_some() {
-            actions.push(ElementAction::SetValue);
-        }
-        if rect.right > rect.left && rect.bottom > rect.top {
-            actions.push(ElementAction::Click);
-        }
+        let actions = element_actions(
+            &ElementPatterns {
+                invoke: element
+                    .GetCurrentPatternAs::<IUIAutomationInvokePattern>(UIA_InvokePatternId)
+                    .is_ok(),
+                toggle: element
+                    .GetCurrentPatternAs::<IUIAutomationTogglePattern>(UIA_TogglePatternId)
+                    .is_ok(),
+                select: element
+                    .GetCurrentPatternAs::<IUIAutomationSelectionItemPattern>(
+                        UIA_SelectionItemPatternId,
+                    )
+                    .is_ok(),
+                expand_collapse: element
+                    .GetCurrentPatternAs::<IUIAutomationExpandCollapsePattern>(
+                        UIA_ExpandCollapsePatternId,
+                    )
+                    .is_ok(),
+                set_value: value_pattern.is_some(),
+            },
+            rect,
+        );
         ElementInfo {
             id: String::new(),
             role: role_name(element.CurrentControlType().unwrap_or_default()),
@@ -262,6 +322,68 @@ fn element_info(element: &IUIAutomationElement, window: &WindowInfo, depth: u32)
                 .is_ok_and(|value| value.as_bool()),
             offscreen: element
                 .CurrentIsOffscreen()
+                .is_ok_and(|value| value.as_bool()),
+            actions,
+            depth,
+        }
+    }
+}
+
+fn cached_element_info(
+    element: &IUIAutomationElement,
+    window: &WindowInfo,
+    depth: u32,
+) -> ElementInfo {
+    // SAFETY: the element was returned by a BuildCache call using the request
+    // from `snapshot_cache_request`. Missing provider values become defaults.
+    unsafe {
+        let rect = element.CachedBoundingRectangle().unwrap_or_default();
+        let password = element
+            .CachedIsPassword()
+            .is_ok_and(|value| value.as_bool());
+        let value_pattern = (!password)
+            .then(|| element.GetCachedPatternAs::<IUIAutomationValuePattern>(UIA_ValuePatternId))
+            .and_then(std::result::Result::ok);
+        let actions = element_actions(
+            &ElementPatterns {
+                invoke: element
+                    .GetCachedPatternAs::<IUIAutomationInvokePattern>(UIA_InvokePatternId)
+                    .is_ok(),
+                toggle: element
+                    .GetCachedPatternAs::<IUIAutomationTogglePattern>(UIA_TogglePatternId)
+                    .is_ok(),
+                select: element
+                    .GetCachedPatternAs::<IUIAutomationSelectionItemPattern>(
+                        UIA_SelectionItemPatternId,
+                    )
+                    .is_ok(),
+                expand_collapse: element
+                    .GetCachedPatternAs::<IUIAutomationExpandCollapsePattern>(
+                        UIA_ExpandCollapsePatternId,
+                    )
+                    .is_ok(),
+                set_value: value_pattern.is_some(),
+            },
+            rect,
+        );
+        ElementInfo {
+            id: String::new(),
+            role: role_name(element.CachedControlType().unwrap_or_default()),
+            name: optional_bstr(element.CachedName()),
+            value: value_pattern.and_then(|pattern| optional_bstr(pattern.CachedValue())),
+            automation_id: optional_bstr(element.CachedAutomationId()),
+            bounds: ElementBounds {
+                x: rect.left - window.x,
+                y: rect.top - window.y,
+                width: (rect.right - rect.left).max(0),
+                height: (rect.bottom - rect.top).max(0),
+            },
+            enabled: element.CachedIsEnabled().is_ok_and(|value| value.as_bool()),
+            focused: element
+                .CachedHasKeyboardFocus()
+                .is_ok_and(|value| value.as_bool()),
+            offscreen: element
+                .CachedIsOffscreen()
                 .is_ok_and(|value| value.as_bool()),
             actions,
             depth,
@@ -327,16 +449,45 @@ fn build_snapshot(
     cancel: &CancelToken,
 ) -> Result<Snapshot<Vec<i32>>> {
     let (_guard, automation) = automation()?;
-    // SAFETY: the HWND was resolved immediately before this call; returned UIA
-    // interfaces are reference-counted and stored in the snapshot cache.
+    if let Some(request) = snapshot_cache_request(&automation) {
+        // SAFETY: the HWND was resolved immediately before this call; returned UIA
+        // interfaces are reference-counted and stored in the snapshot cache.
+        let cached_root =
+            unsafe { automation.ElementFromHandleBuildCache(hwnd_from_id(window.id), &request) };
+        if let Ok(root) = cached_root
+            && let Some(snapshot) =
+                traverse_snapshot(&automation, root, window, max_nodes, cancel, Some(&request))?
+        {
+            return Ok(snapshot);
+        }
+    }
+
+    // Cached UIA access is an optimization. Providers that reject BuildCache
+    // must retain the ordinary traversal behavior.
+    // SAFETY: the HWND was resolved immediately before this call and the
+    // returned interface is reference-counted.
     let root = unsafe { automation.ElementFromHandle(hwnd_from_id(window.id)) }
         .map_err(|error| HelperError::internal(format!("ElementFromHandle failed: {error}")))?;
+    traverse_snapshot(&automation, root, window, max_nodes, cancel, None)?.ok_or_else(|| {
+        HelperError::internal("uncached UI Automation traversal unexpectedly requested a retry")
+    })
+}
+
+fn traverse_snapshot(
+    automation: &IUIAutomation,
+    root: IUIAutomationElement,
+    window: &WindowInfo,
+    max_nodes: usize,
+    cancel: &CancelToken,
+    cache_request: Option<&IUIAutomationCacheRequest>,
+) -> Result<Option<Snapshot<Vec<i32>>>> {
     // SAFETY: ControlViewWalker returns a reference-counted walker owned locally.
     let walker = unsafe { automation.ControlViewWalker() }
         .map_err(|error| HelperError::internal(format!("ControlViewWalker failed: {error}")))?;
     let mut snapshot = Snapshot::new(window.id);
     let mut discovered = Vec::new();
     let mut queue = VecDeque::from([(root, 0u32, Vec::<usize>::new())]);
+    let mut cache_unavailable = false;
     while let Some((element, depth, path)) = queue.pop_front() {
         cancel.check()?;
         if discovered.len() >= max_nodes {
@@ -345,13 +496,35 @@ fn build_snapshot(
         }
         discovered.push((
             path.clone(),
-            element_info(&element, window, depth),
-            runtime_id(&automation, &element)?,
+            if cache_request.is_some() {
+                cached_element_info(&element, window, depth)
+            } else {
+                element_info(&element, window, depth)
+            },
+            runtime_id(automation, &element)?,
         ));
 
         // SAFETY: walker navigation only reads the current UIA tree. A missing
         // child/sibling is represented by an error/null interface and ends that branch.
-        let mut child = unsafe { walker.GetFirstChildElement(&element) }.ok();
+        let mut child = if let Some(request) = cache_request {
+            // SAFETY: `element` is a live element from this walker traversal,
+            // and the cache request remains alive for the call.
+            let cached_child = unsafe { walker.GetFirstChildElementBuildCache(&element, request) };
+            match cached_child {
+                Ok(child) => Some(child),
+                Err(error) if error.code().0 == 0 => None,
+                Err(_) => {
+                    cache_unavailable = true;
+                    None
+                }
+            }
+        } else {
+            // SAFETY: `element` is a live element from this walker traversal.
+            unsafe { walker.GetFirstChildElement(&element) }.ok()
+        };
+        if cache_unavailable {
+            break;
+        }
         let mut child_index = 0usize;
         while let Some(current) = child {
             if discovered.len() + queue.len() >= max_nodes {
@@ -363,14 +536,35 @@ fn build_snapshot(
             queue.push_back((current.clone(), depth + 1, child_path));
             child_index += 1;
             // SAFETY: `current` is a live element from this walker traversal.
-            child = unsafe { walker.GetNextSiblingElement(&current) }.ok();
+            child = if let Some(request) = cache_request {
+                // SAFETY: the cache request remains alive for the call.
+                let cached_sibling =
+                    unsafe { walker.GetNextSiblingElementBuildCache(&current, request) };
+                match cached_sibling {
+                    Ok(sibling) => Some(sibling),
+                    Err(error) if error.code().0 == 0 => None,
+                    Err(_) => {
+                        cache_unavailable = true;
+                        None
+                    }
+                }
+            } else {
+                // SAFETY: `current` is a live element from this walker traversal.
+                unsafe { walker.GetNextSiblingElement(&current) }.ok()
+            };
         }
+        if cache_unavailable {
+            break;
+        }
+    }
+    if cache_unavailable {
+        return Ok(None);
     }
     discovered.sort_by(|left, right| left.0.cmp(&right.0));
     for (_, info, handle) in discovered {
         snapshot.push(info, handle);
     }
-    Ok(snapshot)
+    Ok(Some(snapshot))
 }
 
 fn accessibility(snapshot: &Snapshot<Vec<i32>>) -> AccessibilityState {
@@ -756,6 +950,58 @@ pub fn set_element_value(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn element_actions_keep_a_stable_order_for_live_and_cached_readers() {
+        let patterns = ElementPatterns {
+            invoke: true,
+            toggle: true,
+            select: true,
+            expand_collapse: true,
+            set_value: true,
+        };
+        let visible = RECT {
+            left: 0,
+            top: 0,
+            right: 10,
+            bottom: 10,
+        };
+
+        assert_eq!(
+            element_actions(&patterns, visible),
+            vec![
+                ElementAction::Invoke,
+                ElementAction::Toggle,
+                ElementAction::Select,
+                ElementAction::Expand,
+                ElementAction::Collapse,
+                ElementAction::SetValue,
+                ElementAction::Click,
+            ]
+        );
+    }
+
+    #[test]
+    fn element_actions_omit_click_for_a_zero_area_element() {
+        let patterns = ElementPatterns {
+            invoke: true,
+            toggle: false,
+            select: false,
+            expand_collapse: false,
+            set_value: false,
+        };
+        let collapsed = RECT {
+            left: 5,
+            top: 5,
+            right: 5,
+            bottom: 5,
+        };
+
+        assert_eq!(
+            element_actions(&patterns, collapsed),
+            vec![ElementAction::Invoke]
+        );
+    }
 
     #[test]
     fn disables_uia_action_time_focus_changes() {

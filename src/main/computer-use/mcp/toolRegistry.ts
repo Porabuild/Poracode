@@ -1,4 +1,9 @@
-import type { ComputerUseScreenshot, ComputerUseWindowState } from "./types";
+import { isNativeWaylandTarget } from "./types";
+import type {
+  ComputerUseObservation,
+  ComputerUseScreenshot,
+  ComputerUseWindowState,
+} from "./types";
 import { dispatchTool as dispatchNormalizedTool } from "./dispatch";
 import { TOOLS } from "./toolSpecs";
 
@@ -8,17 +13,12 @@ export type { ToolContext } from "./dispatch";
 
 export const TOOL_NAMES = new Set(TOOLS.map((tool) => tool.name));
 
-const INTERACTIVE_TOOL_NAMES = new Set([
-  "activate_window",
-  "click",
-  "press_key",
-  "type_text",
-  "scroll",
-  "drag",
-  "launch_app",
-  "invoke_element",
-  "set_element_value",
-]);
+// Driving the desktop is exactly what `destructiveHint` marks in the tool
+// specs, so the activity overlay derives its set from there rather than keeping
+// a second list that a new tool could silently miss.
+const INTERACTIVE_TOOL_NAMES = new Set(
+  TOOLS.filter((tool) => tool.annotations?.destructiveHint).map((tool) => tool.name),
+);
 
 const FOREGROUND_ONLY_TOOL_NAMES = new Set(["activate_window", "launch_app"]);
 
@@ -55,13 +55,7 @@ export function resolveActivityDelivery(
   if (isForegroundOnlyToolName(name)) return "foreground";
   if (args.mode === "foreground") return "foreground";
   if (!PORTAL_FOREGROUND_TOOL_NAMES.has(normalizeToolName(name))) return "background";
-  const window =
-    args.window && typeof args.window === "object"
-      ? (args.window as Record<string, unknown>)
-      : undefined;
-  return window?.source === "atspi" || (typeof window?.id === "number" && window.id < 0)
-    ? "foreground"
-    : "background";
+  return isNativeWaylandTarget(args.window) ? "foreground" : "background";
 }
 
 const KEY_CHORD_TOOL_NAMES = new Set(["press_key"]);
@@ -112,12 +106,21 @@ export function formatToolResult(
   options: FormatToolResultOptions = {},
 ): McpToolResult {
   const notes = options.notes ?? [];
-  if (normalizeToolName(name) === "get_window_state" && result && typeof result === "object") {
-    const state = result as ComputerUseWindowState;
-    const metadata = {
-      ...state,
-      screenshots: state.screenshots.map(screenshotMetadata),
-    };
+  const directState =
+    normalizeToolName(name) === "get_window_state" && result && typeof result === "object"
+      ? (result as ComputerUseWindowState)
+      : undefined;
+  const observation = (result as { observation?: ComputerUseObservation } | undefined)?.observation;
+  const observedState = observation?.ok ? observation.state : undefined;
+  const state = directState ?? observedState;
+  if (state) {
+    const compactState = { ...state, screenshots: state.screenshots.map(screenshotMetadata) };
+    const metadata = directState
+      ? compactState
+      : {
+          ...(result as Record<string, unknown>),
+          observation: { ok: true, state: compactState },
+        };
     return {
       content: [
         { type: "text", text: formatText(JSON.stringify(metadata), notes) },

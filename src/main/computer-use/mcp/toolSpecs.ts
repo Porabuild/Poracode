@@ -38,16 +38,61 @@ const VERIFY_SCHEMA = {
   default: "fast",
 };
 
+const OBSERVE_SCHEMA = {
+  type: "string",
+  enum: ["none", "text", "screenshot", "both"],
+  default: "none",
+  description: "Return a post-action observation in this tool result to avoid a separate call.",
+};
+
 const inputProperties = {
   mode: MODE_SCHEMA,
+  observe: OBSERVE_SCHEMA,
   verify: VERIFY_SCHEMA,
+};
+
+const PERFORM_STEP_SCHEMA = {
+  oneOf: [
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["action", "element_id", "element_action"],
+      properties: {
+        action: { const: "invoke_element" },
+        element_id: { type: "string", minLength: 1 },
+        element_action: { type: "string", enum: COMPUTER_USE_INVOKABLE_ELEMENT_ACTIONS },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["action", "element_id", "value"],
+      properties: {
+        action: { const: "set_element_value" },
+        element_id: { type: "string", minLength: 1 },
+        value: { type: "string" },
+      },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["action", "key"],
+      properties: { action: { const: "press_key" }, key: { type: "string", minLength: 1 } },
+    },
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["action", "text"],
+      properties: { action: { const: "type_text" }, text: { type: "string" } },
+    },
+  ],
 };
 
 const RAW_TOOLS: ToolSpec[] = [
   {
     name: "api",
     description:
-      "Return the complete Computer Use API, native-helper status, capabilities, permissions, and guidance. Call this first.",
+      "Return native-helper status, capabilities, permissions, and platform notes. Call only when capability or permission details are needed.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -83,7 +128,7 @@ const RAW_TOOLS: ToolSpec[] = [
     inputSchema: {
       type: "object",
       required: ["app"],
-      properties: { app: { type: "string" } },
+      properties: { app: { type: "string" }, observe: OBSERVE_SCHEMA },
     },
   },
   {
@@ -145,6 +190,7 @@ const RAW_TOOLS: ToolSpec[] = [
           type: "string",
           enum: COMPUTER_USE_INVOKABLE_ELEMENT_ACTIONS,
         },
+        observe: OBSERVE_SCHEMA,
       },
     },
   },
@@ -159,6 +205,7 @@ const RAW_TOOLS: ToolSpec[] = [
         window: WINDOW_SCHEMA,
         element_id: { type: "string" },
         value: { type: "string" },
+        observe: OBSERVE_SCHEMA,
       },
     },
   },
@@ -169,7 +216,22 @@ const RAW_TOOLS: ToolSpec[] = [
     inputSchema: {
       type: "object",
       required: ["window"],
-      properties: { window: WINDOW_SCHEMA },
+      properties: { window: WINDOW_SCHEMA, observe: OBSERVE_SCHEMA },
+    },
+  },
+  {
+    name: "perform",
+    description:
+      "Run 1 to 32 deterministic background element, value, key, or text actions against one window. Stops on refusal, error, or unexpected foreground delivery and can return one final observation. Native Wayland rejects key/text batches before starting.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["window", "steps"],
+      properties: {
+        window: WINDOW_SCHEMA,
+        steps: { type: "array", minItems: 1, maxItems: 32, items: PERFORM_STEP_SCHEMA },
+        observe: OBSERVE_SCHEMA,
+      },
     },
   },
   {

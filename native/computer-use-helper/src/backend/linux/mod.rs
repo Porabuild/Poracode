@@ -5,13 +5,13 @@ use std::collections::HashSet;
 use std::future::Future;
 use std::path::{Component, Path};
 use std::process::{Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::backend::{
-    Backend, BackendOptions, CancelToken, HelloInfo, InputOptions, KeyboardAction, PointerAction,
-    is_computer_use_overlay_title,
+    Backend, BackendOptions, CancelToken, HelloInfo, InputOptions, InstalledAppCache,
+    KeyboardAction, PointerAction, is_computer_use_overlay_title,
 };
 use crate::capture::CaptureResult;
 use crate::elements::SnapshotCache;
@@ -62,12 +62,15 @@ pub struct LinuxBackend {
     state_dir: Option<std::path::PathBuf>,
     runtime: Mutex<tokio::runtime::Runtime>,
     elements: SnapshotCache<atspi::Handle>,
+    installed_apps: Arc<InstalledAppCache>,
     portal: Mutex<portal::Portal>,
 }
 
 impl LinuxBackend {
     pub fn new(options: &BackendOptions) -> Self {
         let state_dir = options.state_dir.clone();
+        let installed_apps = Arc::new(InstalledAppCache::default());
+        installed_apps.prewarm(apps::list);
         Self {
             display_server: DisplayServer::detect(),
             has_x11: x11::available(),
@@ -79,6 +82,7 @@ impl LinuxBackend {
                     .expect("create Linux backend async runtime"),
             ),
             elements: SnapshotCache::default(),
+            installed_apps,
             portal: Mutex::new(portal::Portal::new(state_dir)),
         }
     }
@@ -334,7 +338,7 @@ impl Backend for LinuxBackend {
     }
 
     fn search_installed_apps(&self, query: &str) -> Result<Vec<crate::protocol::actions::AppInfo>> {
-        apps::search(query)
+        self.installed_apps.search(query, apps::list)
     }
 
     fn resolve_window(&self, window: &WindowRef) -> Result<WindowInfo> {

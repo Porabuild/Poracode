@@ -19,6 +19,13 @@ import {
 
 export type ComputerUseMcpIngressInfo = StreamableHttpMcpIngressInfo;
 
+export interface ComputerUseTargetBounds {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+}
+
 export type ComputerUseActivityEvent =
   | { kind: "session"; threadId: string; active: boolean }
   | {
@@ -28,6 +35,7 @@ export type ComputerUseActivityEvent =
       toolName: string;
       delivery: "background" | "foreground";
       target?: string;
+      targetBounds?: ComputerUseTargetBounds;
     };
 
 export interface ComputerUseMcpIngressOptions {
@@ -57,7 +65,7 @@ export class ComputerUseMcpIngress {
       // must never be reachable off the machine — bind loopback only (unlike the
       // browser ingress, which binds 0.0.0.0 for WSL reachability).
       bindHost: "127.0.0.1",
-      serverInfo: { name: "computer_use", version: "0.1.0" },
+      serverInfo: { name: "computer_use", version: "0.2.0" },
       instructions: COMPUTER_USE_MCP_INSTRUCTIONS,
       tools: TOOLS,
       isKnownToolName,
@@ -68,8 +76,10 @@ export class ComputerUseMcpIngress {
     });
   }
 
-  start(): Promise<ComputerUseMcpIngressInfo> {
-    return this.ingress.start();
+  async start(): Promise<ComputerUseMcpIngressInfo> {
+    const info = await this.ingress.start();
+    void this.driver.describeStatus().catch(() => {});
+    return info;
   }
 
   getInfo(): ComputerUseMcpIngressInfo | null {
@@ -121,25 +131,38 @@ export class ComputerUseMcpIngress {
       delivery,
     };
     this.options.onActivity?.({ kind: "action", ...event, active: true });
-    let completedTarget: string | undefined;
-    try {
-      const result = await dispatchTool(name, args, ctx);
+    // The activity window covers the input, not the optional post-action
+    // observation: `dispatchTool` settles as soon as the input is delivered so a
+    // capture cannot hold the takeover border up or keep Escape suppressed, and
+    // so an unexpected foreground escalation surfaces immediately. `finally`
+    // still settles the paths that never reach the hook (a thrown tool).
+    let settled = false;
+    const settle = (result: unknown): void => {
+      if (settled) return;
+      settled = true;
+      let completedTarget: string | undefined;
+      let completedTargetBounds: ComputerUseTargetBounds | undefined;
       if (delivery === "background" && this.wasDelivered(result, "background")) {
         completedTarget = target;
+        completedTargetBounds = this.readTargetBounds(result) ?? this.readTargetBounds(args);
       }
-      if (delivery === "background" && this.wasDeliveredForeground(result)) {
+      if (delivery === "background" && this.wasDelivered(result, "foreground")) {
         const escalated = { ...event, delivery: "foreground" as const };
         this.options.onActivity?.({ kind: "action", ...escalated, active: true });
         this.options.onActivity?.({ kind: "action", ...escalated, active: false });
       }
-      return result;
-    } finally {
       this.options.onActivity?.({
         kind: "action",
         ...event,
         ...(completedTarget ? { target: completedTarget } : {}),
+        ...(completedTargetBounds ? { targetBounds: completedTargetBounds } : {}),
         active: false,
       });
+    };
+    try {
+      return await dispatchTool(name, args, { ...ctx, onInputSettled: settle });
+    } finally {
+      settle(undefined);
     }
   }
 
@@ -155,17 +178,37 @@ export class ComputerUseMcpIngress {
     return leaf.replace(/\.[^.]+$/u, "") || leaf;
   }
 
-  private wasDeliveredForeground(result: unknown): boolean {
-    return this.wasDelivered(result, "foreground");
+  private readTargetBounds(value: unknown): ComputerUseTargetBounds | undefined {
+    if (!value || typeof value !== "object") return undefined;
+    const window = (value as { window?: unknown }).window;
+    if (!window || typeof window !== "object") return undefined;
+    const { x, y, width, height } = window as Record<string, unknown>;
+    if (![x, y, width, height].every((part) => typeof part === "number" && Number.isFinite(part))) {
+      return undefined;
+    }
+    if ((width as number) <= 0 || (height as number) <= 0) return undefined;
+    return { x: x as number, y: y as number, width: width as number, height: height as number };
   }
 
   private wasDelivered(result: unknown, expected: "background" | "foreground"): boolean {
     if (!result || typeof result !== "object") return false;
-    const delivery = (result as { delivery?: unknown }).delivery;
-    return (
+    const record = result as { delivery?: unknown; steps?: unknown };
+    const delivery = record.delivery;
+    if (
       Boolean(delivery) &&
       typeof delivery === "object" &&
       (delivery as { delivered?: unknown }).delivered === expected
+    ) {
+      return true;
+    }
+    return (
+      Array.isArray(record.steps) &&
+      record.steps.some(
+        (step) =>
+          step &&
+          typeof step === "object" &&
+          this.wasDelivered((step as { result?: unknown }).result, expected),
+      )
     );
   }
 }

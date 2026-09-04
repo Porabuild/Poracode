@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::io::Read as _;
+use std::os::windows::process::CommandExt as _;
 use std::path::PathBuf;
 use std::process::{Child, Command, Output, Stdio};
 use std::thread;
@@ -7,12 +8,14 @@ use std::time::{Duration, Instant};
 
 use serde::Deserialize;
 
-use crate::protocol::Result;
 use crate::protocol::actions::AppInfo;
+use crate::protocol::{HelperError, Result};
 
 use super::shell_apps_folder_id;
 
-const MAX_RESULTS: usize = 50;
+/// The helper itself is spawned with `windowsHide`, so it owns no console; a
+/// console-subsystem child would allocate a visible one on the user's desktop.
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 #[derive(Deserialize)]
 struct StartApp {
@@ -56,14 +59,13 @@ fn wait_for_output(mut child: Child, timeout: Duration) -> Option<Output> {
     })
 }
 
-fn parse_start_apps(json: &str, query: &str) -> Vec<AppInfo> {
+fn parse_start_apps(json: &str) -> Vec<AppInfo> {
     let value = serde_json::from_str::<serde_json::Value>(json).unwrap_or_default();
     let items = match value {
         serde_json::Value::Array(items) => items,
         object @ serde_json::Value::Object(_) => vec![object],
         _ => Vec::new(),
     };
-    let query = query.to_lowercase();
     let mut seen = HashSet::new();
     let mut apps = items
         .into_iter()
@@ -71,11 +73,7 @@ fn parse_start_apps(json: &str, query: &str) -> Vec<AppInfo> {
         .filter_map(|app| {
             let name = app.name.trim();
             let app_id = app.app_id.trim();
-            if name.is_empty()
-                || app_id.is_empty()
-                || (!name.to_lowercase().contains(&query)
-                    && !app_id.to_lowercase().contains(&query))
-            {
+            if name.is_empty() || app_id.is_empty() {
                 return None;
             }
             let id = shell_apps_folder_id(app_id);
@@ -84,11 +82,10 @@ fn parse_start_apps(json: &str, query: &str) -> Vec<AppInfo> {
         })
         .collect::<Vec<_>>();
     apps.sort_by_key(|app| app.display_name.to_lowercase());
-    apps.truncate(MAX_RESULTS);
     apps
 }
 
-pub fn search(query: &str) -> Result<Vec<AppInfo>> {
+pub fn list() -> Result<Vec<AppInfo>> {
     let powershell = std::env::var_os("SystemRoot")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(r"C:\Windows"))
@@ -101,28 +98,28 @@ pub fn search(query: &str) -> Result<Vec<AppInfo>> {
             "-Command",
             "$OutputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); $items=Get-StartApps | Select-Object Name,AppID; ConvertTo-Json -InputObject @($items) -Compress -Depth 3",
         ])
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .creation_flags(CREATE_NO_WINDOW)
         .spawn();
-    let Ok(child) = child else {
-        log::debug!("Windows installed-app discovery could not start PowerShell");
-        return Ok(Vec::new());
-    };
+    let child = child.map_err(|error| {
+        HelperError::internal(format!(
+            "Windows installed-app discovery could not start PowerShell: {error}"
+        ))
+    })?;
     let Some(output) = wait_for_output(child, Duration::from_secs(5)) else {
-        log::debug!("Windows installed-app discovery timed out or failed");
-        return Ok(Vec::new());
+        return Err(HelperError::internal(
+            "Windows installed-app discovery timed out or failed",
+        ));
     };
     if !output.status.success() {
-        log::debug!(
+        return Err(HelperError::internal(format!(
             "Windows installed-app discovery failed: {}",
             String::from_utf8_lossy(&output.stderr).trim()
-        );
-        return Ok(Vec::new());
+        )));
     }
-    Ok(parse_start_apps(
-        &String::from_utf8_lossy(&output.stdout),
-        query,
-    ))
+    Ok(parse_start_apps(&String::from_utf8_lossy(&output.stdout)))
 }
 
 #[cfg(test)]
@@ -133,10 +130,9 @@ mod tests {
     fn parses_and_filters_start_apps_into_launchable_ids() {
         let apps = parse_start_apps(
             r#"[{"Name":"Calculator","AppID":"Microsoft.WindowsCalculator!App"},{"Name":"Paint","AppID":"Microsoft.Paint!App"}]"#,
-            "calc",
         );
 
-        assert_eq!(apps.len(), 1);
+        assert_eq!(apps.len(), 2);
         assert_eq!(apps[0].display_name, "Calculator");
         assert_eq!(
             apps[0].id,
@@ -146,12 +142,11 @@ mod tests {
     }
 
     #[test]
-    fn filters_start_apps_with_unicode_case() {
-        let apps = parse_start_apps(
-            r#"[{"Name":"КАЛЬКУЛЯТОР","AppID":"Microsoft.Calculator!App"}]"#,
-            "калькулятор",
-        );
+    fn keeps_unicode_start_app_names() {
+        let apps =
+            parse_start_apps(r#"[{"Name":"КАЛЬКУЛЯТОР","AppID":"Microsoft.Calculator!App"}]"#);
         assert_eq!(apps.len(), 1);
+        assert_eq!(apps[0].display_name, "КАЛЬКУЛЯТОР");
     }
 
     #[test]

@@ -4,18 +4,18 @@ use std::path::{Path, PathBuf};
 use crate::protocol::Result;
 use crate::protocol::actions::AppInfo;
 
-const MAX_RESULTS: usize = 50;
+const MAX_CATALOG_APPS: usize = 4_096;
 const MAX_DEPTH: usize = 4;
 
-fn collect_apps(root: &Path, query: &str, depth: usize, apps: &mut Vec<AppInfo>) {
-    if depth > MAX_DEPTH || apps.len() >= MAX_RESULTS {
+fn collect_apps(root: &Path, depth: usize, apps: &mut Vec<AppInfo>) {
+    if depth > MAX_DEPTH || apps.len() >= MAX_CATALOG_APPS {
         return;
     }
     let Ok(entries) = std::fs::read_dir(root) else {
         return;
     };
     for entry in entries.flatten() {
-        if apps.len() >= MAX_RESULTS {
+        if apps.len() >= MAX_CATALOG_APPS {
             break;
         }
         let path = entry.path();
@@ -23,20 +23,17 @@ fn collect_apps(root: &Path, query: &str, depth: usize, apps: &mut Vec<AppInfo>)
             let Some(name) = path.file_stem().and_then(|name| name.to_str()) else {
                 continue;
             };
-            if name.to_lowercase().contains(query) {
-                apps.push(AppInfo::installed(
-                    path.to_string_lossy().into_owned(),
-                    name.to_string(),
-                ));
-            }
+            apps.push(AppInfo::installed(
+                path.to_string_lossy().into_owned(),
+                name.to_string(),
+            ));
         } else if path.is_dir() && !entry.file_name().to_string_lossy().starts_with('.') {
-            collect_apps(&path, query, depth + 1, apps);
+            collect_apps(&path, depth + 1, apps);
         }
     }
 }
 
-pub fn search(query: &str) -> Result<Vec<AppInfo>> {
-    let query = query.to_lowercase();
+pub fn list() -> Result<Vec<AppInfo>> {
     let mut roots = vec![
         PathBuf::from("/Applications"),
         PathBuf::from("/System/Applications"),
@@ -46,12 +43,11 @@ pub fn search(query: &str) -> Result<Vec<AppInfo>> {
     }
     let mut apps = Vec::new();
     for root in roots {
-        collect_apps(&root, &query, 0, &mut apps);
+        collect_apps(&root, 0, &mut apps);
     }
     let mut seen = HashSet::new();
     apps.retain(|app| seen.insert(app.id.clone()));
     apps.sort_by_key(|app| app.display_name.to_lowercase());
-    apps.truncate(MAX_RESULTS);
     Ok(apps)
 }
 
@@ -66,10 +62,10 @@ mod tests {
         std::fs::create_dir_all(root.path().join("Notes.app")).unwrap();
         let mut apps = Vec::new();
 
-        collect_apps(root.path(), "calc", 0, &mut apps);
+        collect_apps(root.path(), 0, &mut apps);
 
-        assert_eq!(apps.len(), 1);
-        assert_eq!(apps[0].display_name, "Calculator");
+        assert_eq!(apps.len(), 2);
+        assert!(apps.iter().any(|app| app.display_name == "Calculator"));
     }
 
     #[test]
@@ -78,7 +74,7 @@ mod tests {
         std::fs::create_dir_all(root.path().join("ÉDITEUR.app")).unwrap();
         let mut apps = Vec::new();
 
-        collect_apps(root.path(), "éditeur", 0, &mut apps);
+        collect_apps(root.path(), 0, &mut apps);
 
         assert_eq!(apps.len(), 1);
     }

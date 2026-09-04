@@ -4,12 +4,13 @@ import { join } from "node:path";
 import type {
   ComputerUseApp,
   ComputerUseDriver,
+  ComputerUseDriverStatus,
   ComputerUseInteractiveResult,
   ComputerUseListAppsInput,
   ComputerUseWindow,
   ComputerUseWindowState,
 } from "../mcp/types";
-import { readNumber, runProcess } from "./common";
+import { legacyElementRefusal, readNumber, runProcess } from "./common";
 
 // Reads the pixel dimensions encoded in a PNG's IHDR chunk (width at byte 16,
 // height at byte 20, both big-endian uint32). Returns null for non-PNG or
@@ -191,25 +192,12 @@ function legacyResult(window?: ComputerUseWindow): ComputerUseInteractiveResult 
   };
 }
 
-function legacyElementRefusal(window: ComputerUseWindow): ComputerUseInteractiveResult {
-  return {
-    ok: false,
-    mode: "interactive",
-    window,
-    refused: {
-      code: "capability_unavailable",
-      reason: "Accessibility element tools require the bundled native helper.",
-      hint: "Use get_window_state and coordinate input instead.",
-    },
-  };
-}
-
 export class MacComputerUseDriver implements ComputerUseDriver {
   dispose(): void {
     // macOS spawns a fresh osascript per call, so there is nothing to release.
   }
 
-  async describeStatus(): Promise<import("../mcp/types").ComputerUseDriverStatus> {
+  async describeStatus(): Promise<ComputerUseDriverStatus> {
     return {
       backend: "legacy",
       helper: null,
