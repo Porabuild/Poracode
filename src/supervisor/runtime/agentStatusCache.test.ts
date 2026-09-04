@@ -227,7 +227,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(23);
+    expect(STATUS_CACHE_VERSION).toBe(24);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -271,7 +271,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(23);
+    expect(STATUS_CACHE_VERSION).toBe(24);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -348,7 +348,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(23);
+    expect(STATUS_CACHE_VERSION).toBe(24);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -395,7 +395,36 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(23);
+    expect(STATUS_CACHE_VERSION).toBe(24);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v23 ACP labels in both native and WSL caches", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    const staleStatus = {
+      kind: "acp-generic:example",
+      label: "Example ACP",
+      installed: true,
+      capabilities: { models: [{ id: "gemini-2.5-pro", label: "2.5 Pro" }] },
+    };
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 23,
+        windows: [{ ...staleStatus, envKind: "windows" }],
+        wsl: [{ ...staleStatus, envKind: "wsl", wslDistro: "Ubuntu" }],
+      }),
+    );
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (distros: readonly string[]) => unknown;
+      }
+    ).readCachedStatuses(["Ubuntu"]);
+    expect(STATUS_CACHE_VERSION).toBe(24);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

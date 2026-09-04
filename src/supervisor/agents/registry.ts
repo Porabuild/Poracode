@@ -21,7 +21,7 @@ import { createCommandCodeAdapter } from "./commandcode";
 import { createCopilotAdapter } from "./copilot";
 import { createCodexAdapter } from "./codex";
 import { createCursorAdapter, createCursorProfileAdapter } from "./cursor";
-import { createFactoryAdapter } from "./factory";
+import { createFactoryAdapter, createFactoryAcpRegistryAdapter } from "./factory";
 import { createGeminiAdapter } from "./gemini";
 import { createGrokAdapter } from "./grok";
 import { createKimiAdapter } from "./kimi";
@@ -69,6 +69,10 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
       adapter.firstClassAcpRegistryId ? [adapter.firstClassAcpRegistryId] : [],
     ),
   );
+  const acpRegistryAdapterFactories = new Map<
+    string,
+    (instance: AgentInstanceConfig) => AgentAdapter
+  >([["factory-droid", createFactoryAcpRegistryAdapter]]);
   const userAdapters = userInstances
     .filter(
       (inst) =>
@@ -76,7 +80,7 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
         inst.driver === "acp-generic" &&
         !firstClassRegistryIds.has(inst.id),
     )
-    .map((inst) => createAcpGenericAdapter(inst));
+    .map((inst) => (acpRegistryAdapterFactories.get(inst.id) ?? createAcpGenericAdapter)(inst));
   // One entry per multi-profile provider. Everything else here is generic, so
   // giving a new provider profiles means adding its factory below (and its
   // `driver` to `AGENT_PROFILE_DRIVERS`) — not another filter/flatMap block.

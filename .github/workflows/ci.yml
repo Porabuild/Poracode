@@ -142,12 +142,12 @@ jobs:
         run: cargo deny check
 
   test_shard:
-    name: Test shard (${{ matrix.shard }}/4)
+    name: Test shard (${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     # Unit tests run via vitest in node/jsdom and never launch the Electron
     # runtime, so skip the flaky Chromium binary download and the root
     # postinstall, which rebuilds better-sqlite3 for Electron. The database
@@ -194,7 +194,7 @@ jobs:
         shell: bash
 
       - name: Test shard
-        run: pnpm run test --shard=${{ matrix.shard }}/4
+        run: pnpm run test --shard=${{ matrix.shard }}/8
 
   test:
     name: Test

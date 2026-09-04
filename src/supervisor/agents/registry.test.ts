@@ -162,6 +162,19 @@ describe("first-class ACP registry aliases", () => {
     });
   });
 
+  it.each(["constructor", "toString", "valueOf", "hasOwnProperty"])(
+    "keeps generic ACP instance %s on the default factory",
+    (id) => {
+      const adapters = buildAgentRegistry([
+        { id, driver: "acp-generic", config: { binary: "example-agent" } },
+      ]);
+      expect(adapters.find((adapter) => adapter.kind === `acp-generic:${id}`)).toMatchObject({
+        binary: "example-agent",
+        capabilities: { presentationModes: ["gui"] },
+      });
+    },
+  );
+
   it("does not enable Chat from a disabled antigravity-acp instance", () => {
     const adapters = buildAgentRegistry([
       {
