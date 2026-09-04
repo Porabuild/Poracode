@@ -53,7 +53,7 @@ export function ThreadImagesDock({ gallery }: { gallery: readonly ThreadGalleryI
                     type="button"
                     aria-label={t`Open image ${index + 1} of ${gallery.length}`}
                     title={img.alt || t`Open image preview`}
-                    className="group relative block h-16 w-24 overflow-hidden rounded-lg border border-[color:var(--border)] bg-[var(--composer-surface)] hover:border-foreground/30 hover:shadow-md motion-safe:transition-all motion-safe:duration-150 motion-safe:hover:-translate-y-px focus-visible:outline-2 focus-visible:outline-accent"
+                    className="group relative block h-16 w-24 overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[var(--composer-surface)] focus-visible:outline-2 focus-visible:outline-accent"
                     onClick={() => openThreadGallery(gallery, undefined, index)}
                   >
                     <img
@@ -62,7 +62,7 @@ export function ThreadImagesDock({ gallery }: { gallery: readonly ThreadGalleryI
                       loading="lazy"
                       decoding="async"
                       draggable={false}
-                      className="size-full rounded-[inherit] object-cover [image-rendering:auto] motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out motion-safe:group-hover:scale-[1.06]"
+                      className="size-full rounded-[inherit] object-cover [image-rendering:auto]"
                     />
                     <span
                       aria-hidden="true"

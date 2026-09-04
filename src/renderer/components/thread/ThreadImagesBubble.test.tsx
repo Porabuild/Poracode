@@ -323,13 +323,13 @@ describe("ThreadImagesDock", () => {
     expect(imgs.length).toBe(4);
     for (const img of imgs) {
       expect(img.getAttribute("decoding")).toBe("async");
-      expect(img).toHaveClass(
-        "rounded-[inherit]",
-        "[image-rendering:auto]",
-        "motion-safe:group-hover:scale-[1.06]",
-      );
+      expect(img).toHaveClass("rounded-[inherit]", "[image-rendering:auto]");
+      expect(img.className).not.toContain("group-hover:scale");
     }
-    expect(tiles[0]).toHaveClass("rounded-lg", "hover:shadow-md");
+    expect(tiles[0]).toHaveClass("rounded-3xl");
+    expect(tiles[0]!.querySelector("span[aria-hidden='true']")).toHaveClass(
+      "group-hover:bg-foreground/10",
+    );
     fireEvent.click(tiles[2]!);
     expect(document.querySelector(".poracode-image-lightbox")).not.toBeNull();
     expect(document.querySelector(".poracode-image-lightbox__counter")).toHaveTextContent("3 / 4");
