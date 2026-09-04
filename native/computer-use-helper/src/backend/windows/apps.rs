@@ -149,27 +149,42 @@ mod tests {
         assert_eq!(apps[0].display_name, "КАЛЬКУЛЯТОР");
     }
 
+    fn cmd_type_path(path: &std::path::Path) -> String {
+        let text = path.to_string_lossy();
+        text.strip_prefix(r"\\?\")
+            .unwrap_or(&text)
+            .replace('/', r"\")
+    }
+
     #[test]
     fn drains_child_output_while_waiting() {
-        let powershell = std::env::var_os("SystemRoot")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(r"C:\Windows"))
-            .join(r"System32\WindowsPowerShell\v1.0\powershell.exe");
-        let child = Command::new(powershell)
-            .args([
-                "-NoLogo",
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                "[Console]::Out.Write('x' * 100000)",
-            ])
+        // Avoid PowerShell here: cold start on Windows CI can exceed the 5s
+        // drain timeout even when the pipe is being read. `cmd /c type` of a
+        // 100k file still exceeds the anonymous-pipe buffer, which is what
+        // this test is covering.
+        let file = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(file.path(), vec![b'x'; 100_000]).unwrap();
+        let path = cmd_type_path(file.path());
+        let child = Command::new("cmd.exe")
+            .raw_arg("/d")
+            .raw_arg("/c")
+            .raw_arg(format!("type \"{path}\""))
+            .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
+            .creation_flags(CREATE_NO_WINDOW)
             .spawn()
             .unwrap();
 
-        let output = wait_for_output(child, Duration::from_secs(5)).unwrap();
-        assert!(output.status.success());
+        let output = wait_for_output(child, Duration::from_secs(5))
+            .expect("child should finish before the drain timeout");
+        assert!(
+            output.status.success(),
+            "cmd type failed: status={:?} stdout_len={} stderr={}",
+            output.status.code(),
+            output.stdout.len(),
+            String::from_utf8_lossy(&output.stderr)
+        );
         assert_eq!(output.stdout.len(), 100_000);
     }
 }

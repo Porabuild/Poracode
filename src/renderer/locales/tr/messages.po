@@ -1380,6 +1380,10 @@ msgstr "Başka bir sohbet de aynı ağacı kullanıyor. Dosya geri yükleme, soh
 msgid "Another operation for this experiment is still running."
 msgstr "Bu deney için başka bir işlem hâlâ devam ediyor."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "Göndermek için tüm soruları yanıtlayın"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"

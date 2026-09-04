@@ -1380,6 +1380,10 @@ msgstr "Another chat uses this same tree. File restore could overwrite that chat
 msgid "Another operation for this experiment is still running."
 msgstr "Another operation for this experiment is still running."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "Answer every question to submit"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"

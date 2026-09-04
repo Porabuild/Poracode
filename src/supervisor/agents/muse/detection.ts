@@ -64,6 +64,11 @@ export const museDefaultCapabilities: AgentCapability = {
   supportsResume: true,
   supportsOneShot: true,
   supportsDirectInput: true,
+  // Muse's model routes reject image content carried in the session history
+  // ("retained media history is unsupported"), so MSP turn input references
+  // attachments by path instead of inlining image bytes. Muse reads the file
+  // itself — the same contract as its terminal `@path` mentions.
+  readsImageAttachmentsFromHost: false,
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
@@ -296,6 +301,86 @@ const MUSE_TERMINAL_AUTH: AgentTerminalAuthMethod = {
   type: "terminal",
 };
 
+/**
+ * Parse `muse skills list --json` into composer skill commands. Muse skills
+ * are invoked as `/skill <name>` (the same convention the CLI documents), and
+ * `scope` mirrors the CLI's user|project|built-in|plugin — only "project" is
+ * workspace-scoped. Off (disabled) skills are omitted. Best-effort: anything
+ * malformed yields no commands and the composer falls back to the shared
+ * local skill scan.
+ *
+ * This CLI probe is the only enumeration surface: the public docs
+ * (dev.meta.ai/docs/muse-code, current through 0.2.1) list no skills method in
+ * any session protocol — MSP is undocumented there — and define plugins purely
+ * as a skill source ("skills contributed by enabled plugin bundles"), so
+ * plugin contributions arrive through this same list. `--json` itself is
+ * undocumented in the docs but verified against the installed 1.0.2 binary.
+ */
+export function parseMuseSkillCommands(
+  output: string,
+): NonNullable<AgentCapability["slashCommands"]> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    return [];
+  }
+  const skills =
+    parsed && typeof parsed === "object" && Array.isArray((parsed as { skills?: unknown }).skills)
+      ? ((parsed as { skills: unknown[] }).skills ?? [])
+      : [];
+  const commands: NonNullable<AgentCapability["slashCommands"]> = [];
+  for (const skill of skills) {
+    if (!skill || typeof skill !== "object") continue;
+    const entry = skill as Record<string, unknown>;
+    if (entry.activation !== undefined && entry.activation !== "on") continue;
+    const name = typeof entry.name === "string" ? entry.name : "";
+    if (!name) continue;
+    const description =
+      typeof entry.short_description === "string" && entry.short_description
+        ? entry.short_description
+        : typeof entry.description === "string"
+          ? entry.description
+          : undefined;
+    const scope = entry.scope === "project" ? ("project" as const) : ("global" as const);
+    commands.push({
+      id: `muse-skill-${name}`,
+      label: name,
+      ...(description ? { description } : {}),
+      section: "skills",
+      skillName: name,
+      skillInvocation: `/skill ${name}`,
+      skillProvider: "muse",
+      skillScope: scope,
+    });
+  }
+  return commands;
+}
+
+/** Probe Muse's skill catalog for the composer's slash-command surface. */
+async function probeMuseSkillCommands(ctx: {
+  location: ProjectLocation;
+  executablePath?: string | undefined;
+  probeEnv?: Record<string, string> | undefined;
+  signal?: AbortSignal | undefined;
+}): Promise<NonNullable<AgentCapability["slashCommands"]> | undefined> {
+  if (!ctx.executablePath) return undefined;
+  const result = await readAgentCommandOutput(
+    ctx.location,
+    ctx.executablePath,
+    ["skills", "list", "--json", "--trust-workspace"],
+    {
+      timeoutMs: 12_000,
+      ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
+    },
+  ).catch(() => undefined);
+  const text = result ? `${result.stdout}\n${result.stderr}` : "";
+  if (!text.trim()) return undefined;
+  const commands = parseMuseSkillCommands(text);
+  return commands.length > 0 ? commands : undefined;
+}
+
 export const museDetectionSpec: DetectionSpec = {
   kind: "muse",
   label: "Muse Code",
@@ -346,11 +431,13 @@ export const museDetectionSpec: DetectionSpec = {
           )
         : null;
     const overlay = catalogCaps ?? helpCaps;
+    const skillCommands = await probeMuseSkillCommands(ctx);
     // `muse logout` clears the saved Meta credential (verified on 1.0.2), so
     // the Settings logout action is always available once installed.
     return {
       authMethods: [MUSE_TERMINAL_AUTH],
       authLogoutSupported: true,
+      ...(skillCommands ? { slashCommands: skillCommands } : {}),
       ...(overlay ?? {}),
     };
   },

@@ -1,65 +1,34 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CreateStructuredSessionInput } from "../../base";
-
-const readFile = vi.hoisted(() =>
-  vi.fn<(path: string) => Promise<Buffer>>().mockResolvedValue(Buffer.from("image bytes")),
-);
-
-vi.mock("node:fs/promises", () => ({ readFile }));
+import { describe, expect, it } from "vitest";
 
 import { buildMuseTurnInput } from "./turnInput";
 
-const input = {
-  threadId: "thread-1",
-  projectLocation: {
-    kind: "wsl",
-    distro: "Ubuntu",
-    linuxPath: "/mnt/c/project",
-    uncPath: "\\\\wsl.localhost\\Ubuntu\\mnt\\c\\project",
-  },
-  config: { model: "muse-spark-1.3" },
-  presentationMode: "gui",
-} satisfies CreateStructuredSessionInput;
-
 describe("Muse MSP turn input", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("reads WSL images through UNC and emits the MSP image shape", async () => {
-    await expect(
-      buildMuseTurnInput(
-        input,
-        "Inspect this",
-        [
-          {
-            kind: "attachment",
-            path: "/mnt/c/project/image.png",
-            mimeType: "image/png",
-          },
-        ],
-        "Follow the project instructions.",
-      ),
-    ).resolves.toEqual([
-      { type: "text", text: "Inspect this\n\nFollow the project instructions." },
-      { type: "image", mediaType: "image/png", base64Data: "aW1hZ2UgYnl0ZXM=" },
+  it("emits a single text part carrying the prompt", async () => {
+    await expect(buildMuseTurnInput("hello", undefined)).resolves.toEqual([
+      { type: "text", text: "hello" },
     ]);
-    expect(readFile).toHaveBeenCalledWith("\\\\wsl.localhost\\Ubuntu\\mnt\\c\\project\\image.png");
   });
 
-  it("ignores non-image attachments", async () => {
-    await expect(
-      buildMuseTurnInput(
-        input,
-        "Read this",
-        [
-          {
-            kind: "attachment",
-            path: "/mnt/c/project/notes.txt",
-            mimeType: "text/plain",
-          },
-        ],
-        undefined,
-      ),
-    ).resolves.toEqual([{ type: "text", text: "Read this" }]);
-    expect(readFile).not.toHaveBeenCalled();
+  it("appends inline skill instructions after the prompt", async () => {
+    await expect(buildMuseTurnInput("hello", "Follow the project instructions.")).resolves.toEqual([
+      { type: "text", text: "hello\n\nFollow the project instructions." },
+    ]);
+  });
+
+  it("never emits image parts — session routes reject media in retained history", async () => {
+    // Attachment segments are handled upstream: the runtime localizes their
+    // paths (readsImageAttachmentsFromHost: false) and the prompt formatter
+    // embeds `@path` mentions in the prompt text, which the caller supplies.
+    const parts = await buildMuseTurnInput(
+      "can you read this image?\n\n@/home/user/.poracode/attachments/image.png",
+      undefined,
+    );
+    expect(parts).toEqual([
+      {
+        type: "text",
+        text: "can you read this image?\n\n@/home/user/.poracode/attachments/image.png",
+      },
+    ]);
+    expect(parts.some((part) => part["type"] === "image")).toBe(false);
   });
 });

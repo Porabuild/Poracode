@@ -1380,6 +1380,10 @@ msgstr "Un autre chat utilise ce même arbre. La restauration de fichiers pourra
 msgid "Another operation for this experiment is still running."
 msgstr "Une autre opération pour cette expérience est toujours en cours."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "Répondez à toutes les questions pour envoyer"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
