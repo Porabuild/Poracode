@@ -9,6 +9,7 @@ import {
   writeFileSync,
   rmSync,
   symlinkSync,
+  utimesSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -327,6 +328,39 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
     expect(paths).toContain("src/index.ts");
     expect(paths.some((p) => p.includes("node_modules"))).toBe(false);
     expect(envelope.data.truncated).toBe(false);
+  });
+
+  it("find retains newest matching files across the full tree, evicting the oldest", async () => {
+    mkdirSync(join(projectRoot, "old"));
+    mkdirSync(join(projectRoot, "mid"));
+    mkdirSync(join(projectRoot, "new"));
+    const oldPath = join(projectRoot, "old", "session.jsonl");
+    const midPath = join(projectRoot, "mid", "session.jsonl");
+    const newPath = join(projectRoot, "new", "session.jsonl");
+    writeFileSync(oldPath, "old");
+    writeFileSync(midPath, "mid");
+    writeFileSync(newPath, "new");
+    utimesSync(oldPath, new Date(1_000), new Date(1_000));
+    utimesSync(midPath, new Date(1_500), new Date(1_500));
+    utimesSync(newPath, new Date(2_000), new Date(2_000));
+
+    const { body } = await post(`${bridge.baseUrl}/v1/fs/find`, {
+      projectRoot,
+      maxEntries: 2,
+      fileName: "session.jsonl",
+      newestFirst: true,
+    });
+    const envelope = body as {
+      data: {
+        entries: { path: string; name: string; type: string; mtimeMs?: number }[];
+        truncated: boolean;
+      };
+    };
+    expect(envelope.data.entries).toEqual([
+      { path: "new/session.jsonl", name: "session.jsonl", type: "file", mtimeMs: 2_000 },
+      { path: "mid/session.jsonl", name: "session.jsonl", type: "file", mtimeMs: 1_500 },
+    ]);
+    expect(envelope.data.truncated).toBe(true);
   });
 
   it("classifies symlinks and their target kind", async () => {

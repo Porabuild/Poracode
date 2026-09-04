@@ -90,6 +90,15 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     apiKeyFallback: true,
     windowIds: ["monthly"],
   },
+  muse: {
+    id: "muse",
+    label: "Muse Code",
+    // The signed-in dev.meta.ai dashboard is the only source for Muse's
+    // subscription windows and billed spend; see `collectors/muse.ts`.
+    mechanism: "cookie",
+    needsLogin: true,
+    windowIds: ["session-5h", "weekly"],
+  },
 } satisfies Record<string, UsageProviderDescriptor>;
 
 /** Descriptors for the built-in HTTP collectors, in registration order. */
@@ -102,7 +111,7 @@ export function builtInUsageProviderDescriptors(): UsageProviderDescriptor[] {
  * source of truth for the renderer's provider list and the supervisor's default
  * collection set so the two never drift.
  *
- * Most providers are HTTP collectors registered in `registry.ts`. A couple are
+ * Most providers are HTTP collectors registered in `registry.ts`. Several are
  * collected supervisor-side because they need process / SQLite access the pure
  * HTTP registry can't do — they have a descriptor here but no package collector:
  * `antigravity` prefers its local language server and falls back to Cloud Code

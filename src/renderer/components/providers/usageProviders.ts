@@ -126,6 +126,13 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   qoder: {
     supportsBrowserLogin: true,
   },
+  // Muse signs in via the in-app dev.meta.ai browser session — the dashboard is
+  // the only source for its subscription windows and billed spend. The 5h window
+  // is the fast outer ring, the weekly one the slower inner ring.
+  muse: {
+    supportsBrowserLogin: true,
+    rings: { outer: ["session-5h"], inner: ["weekly"] },
+  },
 };
 
 const STATIC_USAGE_PROVIDERS: ReadonlyArray<UsageProvider> = USAGE_PROVIDER_DESCRIPTORS.map(

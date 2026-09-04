@@ -187,11 +187,15 @@ export interface FindSessionFilesOptions {
   root: string;
   /** Filter on basename. Default accepts every file. */
   acceptFile?: (name: string) => boolean;
+  /** Exact basename filter forwarded to the WSL bridge when set. */
+  fileName?: string;
   /** Directory basenames to skip. */
   ignore?: string[];
   /** Hard cap on returned entries. Default 10 000. */
   maxEntries?: number;
-  /** Populate `mtimeMs` on each returned entry. Costs one extra batched stat. */
+  /** Ask the WSL bridge to retain the newest matching files across the tree. */
+  newestFirst?: boolean;
+  /** Populate `mtimeMs` on each returned entry. */
   includeMtime?: boolean;
 }
 
@@ -257,20 +261,26 @@ export async function findSessionFiles(
       root: opts.root,
       maxEntries,
       ignore,
+      ...(opts.fileName ? { fileName: opts.fileName } : {}),
+      ...(opts.newestFirst ? { newestFirst: true } : {}),
     });
     const matches = result.entries
       .filter((e) => e.type === "file" && acceptFile(e.name))
       .map((e) => ({
         path: e.path.startsWith("/") ? e.path : `${opts.root.replace(/\/+$/, "")}/${e.path}`,
         name: e.name,
+        ...(typeof e.mtimeMs === "number" ? { mtimeMs: e.mtimeMs } : {}),
       }));
     if (!opts.includeMtime || matches.length === 0) return matches;
-    const stats = await client.stat(
-      synLoc,
-      matches.map((m) => m.path),
-    );
+    // Old bridges (pre-2.15.0) ignore `newestFirst` and omit `mtimeMs`; those
+    // entries are backfilled with one batched `stat`. New bridges return
+    // `mtimeMs` on every entry, so the stat round-trip is skipped entirely.
+    const pathsWithoutMtime = matches.filter((m) => m.mtimeMs === undefined).map((m) => m.path);
+    if (pathsWithoutMtime.length === 0) return matches;
+    const stats = await client.stat(synLoc, pathsWithoutMtime);
     const byPath = new Map(stats.stats.map((s) => [s.path, s] as const));
     return matches.map((m) => {
+      if (m.mtimeMs !== undefined) return m;
       const s = byPath.get(m.path);
       return typeof s?.mtimeMs === "number" ? { ...m, mtimeMs: s.mtimeMs } : m;
     });

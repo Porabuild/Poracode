@@ -229,6 +229,39 @@ describe("WslBridgeClient", () => {
     });
   });
 
+  it("find forwards newest matching-file options", async () => {
+    fake.server.on("request", (req, res) => {
+      let raw = "";
+      req.on("data", (chunk) => (raw += chunk.toString("utf8")));
+      req.on("end", () => {
+        fake.lastRequest = {
+          url: req.url,
+          body: raw ? JSON.parse(raw) : undefined,
+          auth: req.headers["authorization"] as string | undefined,
+        };
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ ok: true, data: { entries: [], truncated: false } }));
+      });
+    });
+
+    const client = new WslBridgeClient(mockServer);
+    await client.find(makeLocation(), {
+      maxEntries: 100,
+      fileName: "session.jsonl",
+      newestFirst: true,
+    });
+
+    expect(fake.lastRequest.body).toEqual({
+      projectRoot: "/home/user/proj",
+      root: "/home/user/proj",
+      maxEntries: 100,
+      ignore: [],
+      fileName: "session.jsonl",
+      newestFirst: true,
+    });
+  });
+
   it("createGitCheckpointSnapshot forwards ref and metadata", async () => {
     fake.server.on("request", (req, res) => {
       let raw = "";

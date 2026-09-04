@@ -134,6 +134,16 @@ export {
 } from "./collectors/qwen";
 export type { AlibabaCodingPlanRegion } from "./collectors/qwen";
 export {
+  collectMuse,
+  museJazoest,
+  museSpendWindow,
+  parseMuseCometTokens,
+  parseMuseQuotaWindows,
+  parseMuseSpend,
+  MUSE_DASHBOARD_URL,
+  MUSE_PROVIDER_ID,
+} from "./collectors/muse";
+export {
   collectQoder,
   isQoderSessionLive,
   parseQoderUsage,
