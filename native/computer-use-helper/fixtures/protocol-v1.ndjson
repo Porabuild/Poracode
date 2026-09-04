@@ -1,0 +1,4 @@
+{"id":1,"action":"hello","input":{"protocolVersion":1,"clientVersion":"fixture"}}
+{"id":2,"action":"unknown_fixture_action","input":{}}
+not json
+{"id":3,"action":"shutdown","input":{}}

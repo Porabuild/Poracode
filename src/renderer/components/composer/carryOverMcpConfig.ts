@@ -28,8 +28,8 @@ const ALWAYS_SCOPED: Pick<AgentCapability, "mcpScope"> = {
  *   (`mcpConfigSource: "agentSettings"`), where per-thread flags are replaced by
  *   that provider's settings at launch;
  * - a server the *project* cannot reach — Chrome and Computer Use in a WSL
- *   project, Computer Use on a Linux host. The launch resolvers drop those
- *   anyway; carrying them would only leave a chip for a server that never runs.
+ *   project. The launch resolvers drop those anyway; carrying them would only
+ *   leave a chip for a server that never runs.
  *
  * Custom (user and project) MCP servers are not per-thread config: they are
  * resolved from settings at launch, so they follow the thread on their own.
@@ -39,7 +39,6 @@ export function carryOverComposerMcpConfig(
   presentationMode: ThreadPresentationMode,
   source: Pick<ThreadConfig, "browserMcp" | "chromeMcp" | "crossagentMcp" | "computerUse">,
   projectLocation?: ProjectLocation,
-  hostPlatform?: NodeJS.Platform,
 ): Partial<ThreadConfig> {
   if (providerOwnsMcpConfig(capabilities)) return {};
   const carried: Partial<ThreadConfig> = {};
@@ -50,7 +49,7 @@ export function carryOverComposerMcpConfig(
   }
   if (
     source.computerUse === true &&
-    getComputerUseScope(ALWAYS_SCOPED, presentationMode, projectLocation, hostPlatform) !== "none"
+    getComputerUseScope(ALWAYS_SCOPED, presentationMode, projectLocation) !== "none"
   ) {
     carried.computerUse = true;
   }

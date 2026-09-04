@@ -85,6 +85,62 @@ jobs:
       - name: Format check
         run: pnpm run fmt:check
 
+  rust_helper:
+    name: Rust helper (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: native/computer-use-helper
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/computer-use-helper
+
+      - name: Install Linux integration-test tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes dbus-x11 xvfb
+
+      - name: Install cargo-deny
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - name: Test (Linux X11 and D-Bus)
+        if: runner.os == 'Linux'
+        run: dbus-run-session -- xvfb-run --auto-servernum cargo test --locked
+
+      - name: Test
+        if: runner.os != 'Linux'
+        run: cargo test --locked
+
+      - name: Check documentation
+        run: cargo doc --no-deps --all-features --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+      - name: Check dependencies
+        if: runner.os == 'Linux'
+        run: cargo deny check
+
   test_shard:
     name: Test shard (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest

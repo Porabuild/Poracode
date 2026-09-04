@@ -1,63 +1,47 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ComputerUseDriver } from "../mcp/types";
+import { CompositeComputerUseDriver } from "./composite";
+import { HelperComputerUseDriver } from "./helper";
+import { resolveComputerUseHelperBinaryPath } from "./helperBinary";
 import { MacComputerUseDriver } from "./macos";
 import { WindowsComputerUseDriver } from "./windows";
 
-class UnsupportedComputerUseDriver implements ComputerUseDriver {
-  private unavailable(): Promise<never> {
-    return Promise.reject(new Error("Computer Use is only available on macOS and Windows."));
-  }
-
-  dispose(): void {
-    // No long-lived resources to release.
-  }
-
-  listApps(): Promise<never> {
-    return this.unavailable();
-  }
-
-  listWindows(): Promise<never> {
-    return this.unavailable();
-  }
-
-  getWindow(): Promise<never> {
-    return this.unavailable();
-  }
-
-  getWindowState(): Promise<never> {
-    return this.unavailable();
-  }
-
-  activateWindow(): Promise<never> {
-    return this.unavailable();
-  }
-
-  click(): Promise<never> {
-    return this.unavailable();
-  }
-
-  typeText(): Promise<never> {
-    return this.unavailable();
-  }
-
-  pressKey(): Promise<never> {
-    return this.unavailable();
-  }
-
-  scroll(): Promise<never> {
-    return this.unavailable();
-  }
-
-  drag(): Promise<never> {
-    return this.unavailable();
-  }
-
-  launchApp(): Promise<never> {
-    return this.unavailable();
-  }
+export interface CreateComputerUseDriverOptions {
+  arch?: string;
+  helperRootDir?: string;
+  platform?: NodeJS.Platform;
+  stateDir?: string;
+  warn?: (message: string) => void;
 }
 
-export function createComputerUseDriver(): ComputerUseDriver {
-  if (process.platform === "win32") return new WindowsComputerUseDriver();
-  if (process.platform === "darwin") return new MacComputerUseDriver();
-  return new UnsupportedComputerUseDriver();
+export function createComputerUseDriver(
+  options: CreateComputerUseDriverOptions = {},
+): ComputerUseDriver {
+  const platform = options.platform ?? process.platform;
+  const arch = options.arch ?? process.arch;
+  const helperRootDir =
+    options.helperRootDir ?? join(process.cwd(), "resources", "computer-use-helper");
+  const binaryPath = resolveComputerUseHelperBinaryPath(helperRootDir, platform, arch);
+  const primary = binaryPath
+    ? new HelperComputerUseDriver({
+        binaryPath,
+        stateDir: options.stateDir ?? join(tmpdir(), "poracode-computer-use"),
+      })
+    : null;
+  const fallback =
+    platform === "win32"
+      ? new WindowsComputerUseDriver()
+      : platform === "darwin"
+        ? new MacComputerUseDriver()
+        : null;
+  return new CompositeComputerUseDriver({
+    primary,
+    fallback,
+    ...(options.warn ? { warn: options.warn } : {}),
+  });
 }
+
+export { CompositeComputerUseDriver } from "./composite";
+export { HelperComputerUseDriver } from "./helper";
+export { resolveComputerUseHelperBinaryPath } from "./helperBinary";

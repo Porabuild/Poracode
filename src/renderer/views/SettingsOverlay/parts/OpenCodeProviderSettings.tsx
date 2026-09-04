@@ -79,10 +79,7 @@ export function OpenCodeProviderSettings(props: {
     draftCustomMcp.some((server, index) => server.enabled !== customMcpBaseline[index]?.enabled);
   const mcpDirty =
     customMcpDirty || OPEN_CODE_MCP_KEYS.some((key) => draftMcp[key] !== mcpBaseline[key]);
-  const showComputerUse = readBridge()?.platform !== "linux";
-  const builtInMcpCount = OPEN_CODE_MCP_KEYS.filter(
-    (key) => key !== "computerUse" || showComputerUse,
-  ).length;
+  const builtInMcpCount = OPEN_CODE_MCP_KEYS.length;
 
   const saveMcpSettings = async () => {
     setMcpSaving(true);
@@ -289,16 +286,14 @@ export function OpenCodeProviderSettings(props: {
                       setDraftMcp((current) => ({ ...current, chromeMcp: value }))
                     }
                   />
-                  {showComputerUse ? (
-                    <McpToggleRow
-                      title={t`Computer Use`}
-                      description={<Trans>Control the desktop.</Trans>}
-                      isSelected={draftMcp.computerUse}
-                      onChange={(value) =>
-                        setDraftMcp((current) => ({ ...current, computerUse: value }))
-                      }
-                    />
-                  ) : null}
+                  <McpToggleRow
+                    title={t`Computer Use`}
+                    description={<Trans>Control the desktop.</Trans>}
+                    isSelected={draftMcp.computerUse}
+                    onChange={(value) =>
+                      setDraftMcp((current) => ({ ...current, computerUse: value }))
+                    }
+                  />
                 </div>
 
                 <div className="border-t border-border/10 pt-3">

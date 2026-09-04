@@ -125,6 +125,12 @@ export {
 } from "./collectors/kimi";
 export type { KimiUsagesResponse } from "./collectors/kimi";
 export {
+  collectMuse,
+  parseMuseUsage,
+  MUSE_KEY_ENDPOINT,
+  MUSE_PROVIDER_ID,
+} from "./collectors/muse";
+export {
   collectQwen,
   parseQwenCodingPlanUsage,
   QWEN_PROVIDER_ID,

@@ -143,6 +143,7 @@ describe("UsageService", () => {
       "gemini",
       "grok",
       "kimi",
+      "muse",
       "opencode",
       "qoder",
       "qwen",
