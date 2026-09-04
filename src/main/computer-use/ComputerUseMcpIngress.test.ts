@@ -8,15 +8,19 @@ function createDriver(overrides: Partial<ComputerUseDriver> = {}): ComputerUseDr
   return {
     activateWindow: vi.fn<ComputerUseDriver["activateWindow"]>(),
     click: vi.fn<ComputerUseDriver["click"]>(),
+    describeStatus: vi.fn<ComputerUseDriver["describeStatus"]>(),
     dispose: vi.fn<ComputerUseDriver["dispose"]>(),
     drag: vi.fn<ComputerUseDriver["drag"]>(),
+    findElements: vi.fn<ComputerUseDriver["findElements"]>(),
     getWindow: vi.fn<ComputerUseDriver["getWindow"]>(),
     getWindowState: vi.fn<ComputerUseDriver["getWindowState"]>(),
     launchApp: vi.fn<ComputerUseDriver["launchApp"]>(),
     listApps: vi.fn<ComputerUseDriver["listApps"]>(),
     listWindows: vi.fn<ComputerUseDriver["listWindows"]>().mockResolvedValue([]),
+    invokeElement: vi.fn<ComputerUseDriver["invokeElement"]>(),
     pressKey: vi.fn<ComputerUseDriver["pressKey"]>(),
     scroll: vi.fn<ComputerUseDriver["scroll"]>(),
+    setElementValue: vi.fn<ComputerUseDriver["setElementValue"]>(),
     typeText: vi.fn<ComputerUseDriver["typeText"]>(),
     ...overrides,
   };
@@ -78,7 +82,8 @@ describe("ComputerUseMcpIngress", () => {
     expect(body.result.instructions).toContain("computer_use.api");
     expect(body.result.instructions).toContain("computer_use.enable");
     expect(body.result.instructions).toContain("computer_use.disable");
-    expect(body.result.instructions).toContain("switch to interactive mode");
+    expect(body.result.instructions).toContain('mode:"background" by default');
+    expect(body.result.instructions).toContain("delivery or refused");
   });
 
   it("requires bearer auth before listing tools", async () => {
@@ -128,14 +133,27 @@ describe("ComputerUseMcpIngress", () => {
         kind: "action",
         threadId: "thread-1",
         toolName: "click",
+        delivery: "background",
         active: true,
       });
     });
     expect(onActivity).toHaveBeenCalledTimes(1);
 
-    resolveClick?.({ ok: true, mode: "interactive" });
+    resolveClick?.({
+      ok: true,
+      mode: "interactive",
+      delivery: { delivered: "background", route: "message", verified: "unverified" },
+    });
     expect((await response).status).toBe(200);
     expect(onActivity.mock.calls.map(([event]) => event.active)).toEqual([true, false]);
+    expect(onActivity).toHaveBeenLastCalledWith({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      delivery: "background",
+      target: "calc",
+      active: false,
+    });
   });
 
   it("holds takeover activity between explicit enable and disable calls", async () => {
@@ -148,6 +166,47 @@ describe("ComputerUseMcpIngress", () => {
     expect(onActivity.mock.calls.map(([event]) => event)).toEqual([
       { kind: "session", threadId: "thread-1", active: true },
       { kind: "session", threadId: "thread-1", active: false },
+    ]);
+  });
+
+  it("does not attach a badge target to a refused background action", async () => {
+    const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
+    ingress = new ComputerUseMcpIngress({
+      driver: createDriver({
+        click: vi.fn<ComputerUseDriver["click"]>().mockResolvedValue({
+          ok: false,
+          mode: "interactive",
+          refused: {
+            code: "background_unavailable",
+            reason: "not safe",
+            hint: "use an element action",
+          },
+        }),
+      }),
+      onActivity,
+    });
+    const info = await ingress.start();
+
+    expect(
+      (await callTool(info, "click", { window: { app: "calc", id: 1 }, x: 10, y: 20 })).status,
+    ).toBe(200);
+    expect(
+      onActivity.mock.calls.map(([event]) => event).filter((event) => event.kind === "action"),
+    ).toEqual([
+      {
+        kind: "action",
+        threadId: "thread-1",
+        toolName: "click",
+        delivery: "background",
+        active: true,
+      },
+      {
+        kind: "action",
+        threadId: "thread-1",
+        toolName: "click",
+        delivery: "background",
+        active: false,
+      },
     ]);
   });
 
@@ -180,5 +239,56 @@ describe("ComputerUseMcpIngress", () => {
     expect(
       onActivity.mock.calls.map(([event]) => (event.kind === "action" ? event.toolName : null)),
     ).toEqual(["press_key", "press_key"]);
+  });
+
+  it("marks native Wayland portal input as foreground while the action is running", async () => {
+    let resolveClick: ((result: ComputerUseInteractiveResult) => void) | undefined;
+    const clickResult = new Promise<ComputerUseInteractiveResult>((resolve) => {
+      resolveClick = resolve;
+    });
+    const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
+    ingress = new ComputerUseMcpIngress({
+      driver: createDriver({
+        click: vi.fn<ComputerUseDriver["click"]>(() => clickResult),
+      }),
+      onActivity,
+    });
+    const info = await ingress.start();
+
+    const response = callTool(info, "click", {
+      window: { app: "editor", id: -1, source: "atspi" },
+      x: 10,
+      y: 20,
+    });
+    await vi.waitFor(() => {
+      expect(onActivity).toHaveBeenCalledWith({
+        kind: "action",
+        threadId: "thread-1",
+        toolName: "click",
+        delivery: "foreground",
+        active: true,
+      });
+    });
+    expect(onActivity).toHaveBeenCalledTimes(1);
+
+    resolveClick?.({
+      ok: true,
+      mode: "interactive",
+      delivery: {
+        delivered: "foreground",
+        route: "input",
+        verified: "unverified",
+        notes: ["wayland_portal_fallback"],
+      },
+    });
+    expect((await response).status).toBe(200);
+    expect(
+      onActivity.mock.calls.map(([event]) =>
+        event.kind === "action" ? [event.delivery, event.active] : null,
+      ),
+    ).toEqual([
+      ["foreground", true],
+      ["foreground", false],
+    ]);
   });
 });

@@ -51,14 +51,17 @@ jobs:
           - os: windows-latest
             artifact: dist-windows
             platform: win
+            rust-targets: x86_64-pc-windows-msvc,aarch64-pc-windows-msvc
             electron-cache: "~/AppData/Local/electron/Cache"
           - os: ubuntu-latest
             artifact: dist-linux
             platform: linux
+            rust-targets: x86_64-unknown-linux-musl
             electron-cache: "~/.cache/electron"
           - os: macos-latest
             artifact: dist-mac
             platform: mac
+            rust-targets: x86_64-apple-darwin,aarch64-apple-darwin
             electron-cache: "~/Library/Caches/electron"
 
     runs-on: ${{ matrix.os }}
@@ -68,6 +71,22 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref }}
+
+      - name: Install Linux helper build tools
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install --yes musl-tools
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/computer-use-helper
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -121,6 +140,10 @@ jobs:
           POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
           POSTHOG_HOST: ${{ vars.POSTHOG_HOST || 'https://us.i.posthog.com' }}
           POSTHOG_ENABLE_DEV: "0"
+
+      - name: Prepare computer-use helper
+        run: node scripts/prepare-computer-use-helper.mjs --platform "${{ matrix.platform }}" --require
+        shell: bash
 
       - name: Upload Sentry source maps
         if: matrix.os == 'ubuntu-latest'
@@ -192,6 +215,13 @@ jobs:
           fi
           for app in "${apps[@]}"; do
             codesign --verify --deep --strict --verbose=4 "$app"
+            helper="$app/Contents/Resources/computer-use-helper/darwin-universal/poracode-computer-use"
+            codesign --verify --strict --verbose=4 "$helper"
+            helper_signature="$(codesign -d --verbose=4 "$helper" 2>&1)"
+            if ! grep -q 'flags=.*runtime' <<<"$helper_signature"; then
+              echo "::error file=$helper::Computer-use helper is missing the hardened-runtime signature flag."
+              exit 1
+            fi
             main_executable="$app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
             expected_arch="$(lipo -archs "$main_executable")"
             if [[ "$expected_arch" == *arm64* ]]; then

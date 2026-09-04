@@ -176,9 +176,56 @@ end tell
 `);
 }
 
+function legacyResult(window?: ComputerUseWindow): ComputerUseInteractiveResult {
+  return {
+    ok: true,
+    mode: "interactive",
+    ...(window ? { window } : {}),
+    delivery: {
+      delivered: "foreground",
+      route: "input",
+      verified: "unverified",
+      notes: ["legacy_driver"],
+    },
+  };
+}
+
+function legacyElementRefusal(window: ComputerUseWindow): ComputerUseInteractiveResult {
+  return {
+    ok: false,
+    mode: "interactive",
+    window,
+    refused: {
+      code: "capability_unavailable",
+      reason: "Accessibility element tools require the bundled native helper.",
+      hint: "Use get_window_state and coordinate input instead.",
+    },
+  };
+}
+
 export class MacComputerUseDriver implements ComputerUseDriver {
   dispose(): void {
     // macOS spawns a fresh osascript per call, so there is nothing to release.
+  }
+
+  async describeStatus(): Promise<import("../mcp/types").ComputerUseDriverStatus> {
+    return {
+      backend: "legacy",
+      helper: null,
+      capabilities: {
+        backgroundPointer: false,
+        backgroundKeyboard: false,
+        backgroundChords: false,
+        accessibilityTree: false,
+        elementActions: false,
+        occludedCapture: false,
+        foregroundInput: true,
+        launchApp: true,
+        stableWindowIds: false,
+      },
+      permissions: { accessibility: "unknown", screenRecording: "unknown" },
+      notes: ["Using the foreground-only legacy macOS driver."],
+    };
   }
 
   async listApps(): Promise<ComputerUseApp[]> {
@@ -327,7 +374,7 @@ export class MacComputerUseDriver implements ComputerUseDriver {
   }): Promise<ComputerUseInteractiveResult> {
     const window = await this.getWindow(input.window);
     await activateApp(window.app);
-    return { ok: true, mode: "interactive" };
+    return legacyResult(window);
   }
 
   async click(input: {
@@ -361,7 +408,7 @@ tell application "System Events"
   ${count > 1 ? `${verb} at {${x}, ${y}}` : ""}
 end tell
 `);
-    return { ok: true, mode: "interactive" };
+    return legacyResult(window);
   }
 
   async typeText(input: {
@@ -375,7 +422,7 @@ tell application "System Events"
   keystroke ${quoteAppleScript(input.text)}
 end tell
 `);
-    return { ok: true, mode: "interactive" };
+    return legacyResult(window);
   }
 
   async pressKey(input: {
@@ -400,7 +447,7 @@ tell application "System Events"
   ${keyCode === undefined ? `keystroke ${quoteAppleScript(keyToken)}${using}` : `key code ${keyCode}${using}`}
 end tell
 `);
-    return { ok: true, mode: "interactive" };
+    return legacyResult(window);
   }
 
   async scroll(input: {
@@ -430,13 +477,13 @@ end tell
       const hSteps = Math.max(1, Math.min(20, Math.round(Math.abs(input.scrollX) / 120)));
       commands.push(`scroll ${hDir} ${hSteps}`);
     }
-    if (commands.length === 0) return { ok: true, mode: "interactive" };
+    if (commands.length === 0) return legacyResult(window);
     await runAppleScript(`
 tell application "System Events"
   ${commands.join("\n  ")}
 end tell
 `);
-    return { ok: true, mode: "interactive" };
+    return legacyResult(window);
   }
 
   async drag(input: {
@@ -457,7 +504,19 @@ tell application "System Events"
   drag from {${fromX}, ${fromY}} to {${toX}, ${toY}}
 end tell
 `);
-    return { ok: true, mode: "interactive" };
+    return legacyResult(window);
+  }
+
+  findElements(input: Parameters<ComputerUseDriver["findElements"]>[0]) {
+    return Promise.resolve(legacyElementRefusal(input.window));
+  }
+
+  invokeElement(input: Parameters<ComputerUseDriver["invokeElement"]>[0]) {
+    return Promise.resolve(legacyElementRefusal(input.window));
+  }
+
+  setElementValue(input: Parameters<ComputerUseDriver["setElementValue"]>[0]) {
+    return Promise.resolve(legacyElementRefusal(input.window));
   }
 
   async launchApp(input: { app: string }): Promise<{ ok: true }> {

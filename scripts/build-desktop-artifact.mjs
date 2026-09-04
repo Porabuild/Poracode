@@ -326,6 +326,14 @@ async function main() {
   if (!skipBuild) {
     run("pnpm", ["run", "build"], { cwd: repoRoot });
     run("pnpm", ["run", "clean:sourcemaps"], { cwd: repoRoot });
+    const helperArgs = [
+      "scripts/prepare-computer-use-helper.mjs",
+      "--require",
+      "--platform",
+      platform,
+    ];
+    if (arch && platform !== "mac") helperArgs.push("--arch", arch);
+    run("node", helperArgs, { cwd: repoRoot });
     run("pnpm", ["run", "prepare:package-assets"], { cwd: repoRoot });
   }
 
@@ -534,6 +542,10 @@ ${packagedDistFilesYaml}
   - "!node_modules/@anthropic-ai/claude-agent-sdk-*/**/*"
 
 extraResources:
+  - from: resources/computer-use-helper
+    to: computer-use-helper
+    filter:
+      - "**/*"
   - from: resources/wsl-helpers
     to: wsl-helpers
     filter:

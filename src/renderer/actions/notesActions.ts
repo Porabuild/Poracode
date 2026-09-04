@@ -1,4 +1,5 @@
 import { useAppStore } from "@/renderer/state/appStore";
+import type { ComposerSeedOptions } from "@/renderer/state/slices/draftSlice";
 import { openNewThread } from "./threadActions";
 
 /**
@@ -9,10 +10,10 @@ import { openNewThread } from "./threadActions";
 export function newThreadFromText(
   projectId: string,
   text: string,
-  options?: { bindLeadingSkill?: boolean },
+  options?: ComposerSeedOptions,
 ): void {
   const trimmed = text.trim();
   if (!trimmed) return;
-  useAppStore.getState().setComposerSeed(projectId, trimmed, options?.bindLeadingSkill);
+  useAppStore.getState().setComposerSeed(projectId, trimmed, options);
   openNewThread(projectId);
 }

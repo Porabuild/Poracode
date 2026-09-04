@@ -10,11 +10,14 @@ const {
   existsSync,
   statSync,
   chmodSync,
+  readFileSync,
   readdirSync,
   mkdirSync,
   cpSync,
+  writeFileSync,
   rmSync,
 } = require("node:fs");
+const { spawnSync } = require("node:child_process");
 const { join, resolve } = require("node:path");
 
 // electron-builder's Arch enum is numeric: ia32=0, x64=1, armv7l=2, arm64=3,
@@ -225,6 +228,109 @@ function chmodNodePtyHelpers(resourcesDir) {
   return fixed;
 }
 
+function computerUseTarget(electronPlatformName, archName) {
+  if (electronPlatformName === "darwin" || electronPlatformName === "mas") {
+    return { directory: "darwin-universal", executable: "poracode-computer-use" };
+  }
+  if (electronPlatformName === "win32") {
+    if (archName !== "x64" && archName !== "arm64") {
+      throw new Error(`[afterPack] FATAL: unsupported Windows computer-use arch ${archName}`);
+    }
+    return { directory: `win32-${archName}`, executable: "poracode-computer-use.exe" };
+  }
+  if (electronPlatformName === "linux") {
+    if (archName !== "x64") {
+      throw new Error(`[afterPack] FATAL: unsupported Linux computer-use arch ${archName}`);
+    }
+    return { directory: `linux-${archName}`, executable: "poracode-computer-use" };
+  }
+  throw new Error(`[afterPack] FATAL: unsupported computer-use platform ${electronPlatformName}`);
+}
+
+function allowMissingComputerUseHelper() {
+  return /^(1|true|yes)$/i.test(process.env.PORACODE_ALLOW_MISSING_COMPUTER_USE_HELPER ?? "");
+}
+
+function pruneForeignComputerUseHelpers(resourcesDir, electronPlatformName, archName) {
+  const root = join(resourcesDir, "computer-use-helper");
+  if (!existsSync(root)) return [];
+  const expected = computerUseTarget(electronPlatformName, archName).directory;
+  const removed = [];
+  for (const entry of readdirSync(root)) {
+    if (entry === "manifest.json" || entry === expected) continue;
+    const foreignPath = join(root, entry);
+    rmSync(foreignPath, { recursive: true, force: true });
+    removed.push(foreignPath);
+  }
+  return removed;
+}
+
+function assertComputerUseHelper(resourcesDir, electronPlatformName, archName) {
+  const root = join(resourcesDir, "computer-use-helper");
+  const manifestPath = join(root, "manifest.json");
+  if (!existsSync(manifestPath)) {
+    throw new Error(`[afterPack] FATAL: computer-use helper manifest missing at ${manifestPath}`);
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  } catch (error) {
+    throw new Error(
+      `[afterPack] FATAL: invalid computer-use helper manifest: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+
+  const target = computerUseTarget(electronPlatformName, archName);
+  if (
+    !Number.isInteger(manifest.clientProtocolVersion) ||
+    manifest.protocolVersion !== manifest.clientProtocolVersion ||
+    !Number.isInteger(manifest.minClientProtocolVersion) ||
+    manifest.minClientProtocolVersion < 1 ||
+    manifest.minClientProtocolVersion > manifest.clientProtocolVersion
+  ) {
+    throw new Error(
+      "[afterPack] FATAL: computer-use helper protocol is incompatible with the staged client protocol",
+    );
+  }
+  if (!Array.isArray(manifest.targets) || !manifest.targets.includes(target.directory)) {
+    throw new Error(
+      `[afterPack] FATAL: computer-use helper manifest does not contain ${target.directory}`,
+    );
+  }
+  const executable = join(root, target.directory, target.executable);
+  if (
+    !existsSync(executable) ||
+    !statSync(executable).isFile() ||
+    statSync(executable).size === 0
+  ) {
+    throw new Error(
+      `[afterPack] FATAL: computer-use helper missing or empty for ${target.directory}: ${executable}`,
+    );
+  }
+
+  if (electronPlatformName !== "win32") ensureExecutable(executable);
+  if (target.directory === "darwin-universal") {
+    const lipo = spawnSync("lipo", ["-archs", executable], { encoding: "utf8" });
+    if (lipo.error || lipo.status !== 0) {
+      throw new Error(
+        `[afterPack] FATAL: could not inspect macOS computer-use helper: ${lipo.error?.message ?? lipo.stderr}`,
+      );
+    }
+    const architectures = new Set(lipo.stdout.trim().split(/\s+/));
+    if (!architectures.has("x86_64") || !architectures.has("arm64")) {
+      throw new Error(
+        `[afterPack] FATAL: macOS computer-use helper is not universal: ${lipo.stdout.trim()}`,
+      );
+    }
+  }
+  if (manifest.targets.length !== 1 || manifest.targets[0] !== target.directory) {
+    manifest.targets = [target.directory];
+    writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  }
+  console.log(`[afterPack] verified computer-use helper for ${target.directory}`);
+}
+
 module.exports = async function afterPack(context) {
   const resourcesDir = findResourcesDir(context.appOutDir, context.electronPlatformName);
   if (!resourcesDir) {
@@ -240,9 +346,24 @@ module.exports = async function afterPack(context) {
   for (const path of removed) {
     console.log(`[afterPack] pruned foreign native prebuild ${path}`);
   }
+  const removedHelpers = pruneForeignComputerUseHelpers(
+    resourcesDir,
+    context.electronPlatformName,
+    archName,
+  );
+  for (const path of removedHelpers) {
+    console.log(`[afterPack] pruned foreign computer-use helper ${path}`);
+  }
   // Throws if a required native binary is missing or mis-packed, so a broken
   // app can never be packaged or published.
   assertNativeBinaries(resourcesDir, context.electronPlatformName, context.arch);
+  if (allowMissingComputerUseHelper()) {
+    console.warn(
+      "[afterPack] PORACODE_ALLOW_MISSING_COMPUTER_USE_HELPER is set; skipping the computer-use helper assertion",
+    );
+  } else {
+    assertComputerUseHelper(resourcesDir, context.electronPlatformName, archName);
+  }
   const fixed = chmodNodePtyHelpers(resourcesDir);
   for (const path of fixed) {
     console.log(`[afterPack] chmod +x ${path}`);

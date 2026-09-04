@@ -3116,12 +3116,28 @@ msgstr "Uso do computador"
 #~ msgstr "O Computer Use controla a área de trabalho emparelhada. Não use essa máquina enquanto o agente clica ou digita."
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
-msgstr "Computer Use ativado — controla a área de trabalho emparelhada; não use essa máquina enquanto o agente a controla"
+#~ msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+#~ msgstr "Computer Use ativado — controla a área de trabalho emparelhada; não use essa máquina enquanto o agente a controla"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
-msgstr "Computer Use ativado — ações interativas assumem o controle da área de trabalho; não use a máquina enquanto o agente a controla"
+#~ msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+#~ msgstr "Computer Use ativado — ações interativas assumem o controle da área de trabalho; não use a máquina enquanto o agente a controla"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use ativado — o agente controla apps na área de trabalho pareada em segundo plano; ele só assume o controle do mouse e do teclado dessa área de trabalho quando uma etapa exige explicitamente o primeiro plano"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground or when that desktop's system-approved portal requires it"
+msgstr "O Uso do Computador está ativado — o agente controla aplicativos na área de trabalho pareada em segundo plano; ele só assume o mouse e o teclado dessa área de trabalho quando uma etapa exige explicitamente o primeiro plano ou quando o portal dessa área de trabalho aprovado pelo sistema exige"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use ativado — o agente controla aplicativos de desktop em segundo plano; ele só assume o controle do mouse e do teclado quando uma etapa exige explicitamente o primeiro plano"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it"
+msgstr "O Uso do Computador está ativado — o agente controla aplicativos da área de trabalho em segundo plano; ele só assume o mouse e o teclado quando uma etapa exige explicitamente o primeiro plano ou quando um portal da área de trabalho aprovado pelo sistema exige"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
@@ -3338,8 +3354,12 @@ msgid "Control an external Chrome browser."
 msgstr "Controla um navegador Chrome externo."
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Control desktop apps and complete visual workflows."
-msgstr "Controle aplicativos de desktop e conclua fluxos visuais."
+#~ msgid "Control desktop apps and complete visual workflows."
+#~ msgstr "Controle aplicativos de desktop e conclua fluxos visuais."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps in the background and complete visual workflows."
+msgstr "Controle aplicativos de desktop em segundo plano e conclua fluxos de trabalho visuais."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3350,8 +3370,8 @@ msgid "Control which files appear in the @file mention search. Per-project overr
 msgstr "Controle quais arquivos aparecem na pesquisa de menção @file. As substituições por projeto estão disponíveis nas configurações de cada projeto."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Controls the paired desktop while the agent clicks or types"
-msgstr "Controla a área de trabalho emparelhada enquanto o agente clica ou digita"
+#~ msgid "Controls the paired desktop while the agent clicks or types"
+#~ msgstr "Controla a área de trabalho emparelhada enquanto o agente clica ou digita"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -4555,6 +4575,22 @@ msgstr "Arraste para reordenar; clique duas vezes para editar"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "Unidades"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground"
+#~ msgstr "Controla apps na área de trabalho pareada em segundo plano; assume o controle dessa área de trabalho somente quando o agente solicita o primeiro plano"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it"
+msgstr "Controla aplicativos na área de trabalho pareada em segundo plano; só assume essa área de trabalho quando o agente solicita o primeiro plano ou quando o portal aprovado pelo sistema exige"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground"
+#~ msgstr "Controla aplicativos de desktop em segundo plano; assume o controle da área de trabalho somente quando o agente solicita o primeiro plano"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it"
+msgstr "Controla aplicativos da área de trabalho em segundo plano; só assume a área de trabalho quando o agente solicita o primeiro plano ou quando um portal aprovado pelo sistema exige"
 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
@@ -12351,8 +12387,8 @@ msgid "Take Screenshot"
 msgstr "Tirar captura de tela"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Takes over the desktop while the agent clicks or types"
-msgstr "Assume a área de trabalho enquanto o agente clica ou digita"
+#~ msgid "Takes over the desktop while the agent clicks or types"
+#~ msgstr "Assume a área de trabalho enquanto o agente clica ou digita"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."

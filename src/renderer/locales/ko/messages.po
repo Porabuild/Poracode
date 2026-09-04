@@ -3116,12 +3116,28 @@ msgstr "컴퓨터 사용"
 #~ msgstr "Computer Use가 페어링된 데스크톱을 제어합니다. 에이전트가 클릭하거나 입력하는 동안에는 해당 컴퓨터를 사용하지 마세요."
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
-msgstr "Computer Use 사용 중 — 페어링된 데스크톱을 제어합니다. 에이전트가 제어하는 동안에는 해당 컴퓨터를 사용하지 마세요"
+#~ msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+#~ msgstr "Computer Use 사용 중 — 페어링된 데스크톱을 제어합니다. 에이전트가 제어하는 동안에는 해당 컴퓨터를 사용하지 마세요"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
-msgstr "Computer Use 사용 중 — 대화형 작업이 데스크톱을 제어합니다. 에이전트가 제어하는 동안에는 컴퓨터를 사용하지 마세요"
+#~ msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+#~ msgstr "Computer Use 사용 중 — 대화형 작업이 데스크톱을 제어합니다. 에이전트가 제어하는 동안에는 컴퓨터를 사용하지 마세요"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use 활성화됨 — 에이전트가 페어링된 데스크톱의 앱을 백그라운드에서 조작하며, 단계에서 포그라운드가 명시적으로 필요한 경우에만 해당 데스크톱의 마우스와 키보드를 제어합니다"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground or when that desktop's system-approved portal requires it"
+msgstr "컴퓨터 사용이 활성화되었습니다 — 에이전트는 페어링된 데스크톱의 앱을 백그라운드에서 조작하며, 단계에서 포그라운드가 명시적으로 필요하거나 해당 데스크톱의 시스템 승인 포털이 요구할 때만 마우스와 키보드를 제어합니다"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use 활성화됨 — 에이전트가 데스크톱 앱을 백그라운드에서 조작하며, 단계에서 포그라운드가 명시적으로 필요한 경우에만 마우스와 키보드를 제어합니다"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it"
+msgstr "컴퓨터 사용이 활성화되었습니다 — 에이전트는 데스크톱 앱을 백그라운드에서 조작하며, 단계에서 포그라운드가 명시적으로 필요하거나 시스템 승인 데스크톱 포털이 요구할 때만 마우스와 키보드를 제어합니다"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
@@ -3338,8 +3354,12 @@ msgid "Control an external Chrome browser."
 msgstr "외부 Chrome 브라우저를 제어합니다."
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Control desktop apps and complete visual workflows."
-msgstr "데스크톱 앱을 제어하고 시각적 워크플로를 완료합니다."
+#~ msgid "Control desktop apps and complete visual workflows."
+#~ msgstr "데스크톱 앱을 제어하고 시각적 워크플로를 완료합니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps in the background and complete visual workflows."
+msgstr "데스크톱 앱을 백그라운드에서 조작하고 시각적 워크플로를 완료합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3350,8 +3370,8 @@ msgid "Control which files appear in the @file mention search. Per-project overr
 msgstr "@file 멘션 검색에 표시되는 파일을 제어합니다. 프로젝트별 재정의는 각 프로젝트의 설정에 적용됩니다."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Controls the paired desktop while the agent clicks or types"
-msgstr "에이전트가 클릭하거나 입력하는 동안 페어링된 데스크톱을 제어합니다"
+#~ msgid "Controls the paired desktop while the agent clicks or types"
+#~ msgstr "에이전트가 클릭하거나 입력하는 동안 페어링된 데스크톱을 제어합니다"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -4555,6 +4575,22 @@ msgstr "드래그하여 재정렬하세요. 편집하려면 두 번 클릭하세
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "드라이브"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground"
+#~ msgstr "페어링된 데스크톱의 앱을 백그라운드에서 조작하며, 에이전트가 포그라운드를 요청할 때만 해당 데스크톱을 제어합니다"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it"
+msgstr "페어링된 데스크톱의 앱을 백그라운드에서 조작하며, 에이전트가 포그라운드를 요청하거나 시스템 승인 포털이 요구할 때만 해당 데스크톱을 제어합니다"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground"
+#~ msgstr "데스크톱 앱을 백그라운드에서 조작하며, 에이전트가 포그라운드를 요청할 때만 데스크톱을 제어합니다"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it"
+msgstr "데스크톱 앱을 백그라운드에서 조작하며, 에이전트가 포그라운드를 요청하거나 시스템 승인 포털이 요구할 때만 데스크톱을 제어합니다"
 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
@@ -12351,8 +12387,8 @@ msgid "Take Screenshot"
 msgstr "스크린샷 찍기"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Takes over the desktop while the agent clicks or types"
-msgstr "에이전트가 클릭하거나 입력하는 동안 데스크톱을 제어합니다"
+#~ msgid "Takes over the desktop while the agent clicks or types"
+#~ msgstr "에이전트가 클릭하거나 입력하는 동안 데스크톱을 제어합니다"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."

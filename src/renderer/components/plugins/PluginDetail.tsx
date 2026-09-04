@@ -6,6 +6,12 @@ import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 import { newThreadFromText } from "@/renderer/actions/notesActions";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import type {
+  BuiltInMcpServerDisabled,
+  InstalledPlugins,
+  LoadedPlugin,
+  PluginSkillRef,
+} from "@/shared/contracts";
 import {
   canDisablePlugin,
   canUninstallPlugin,
@@ -20,6 +26,28 @@ import { PluginTag } from "./PluginTag";
 import { usePluginOauth } from "./usePluginOauth";
 import { useLocalizedPluginDiagnostic, type LocalizedPlugin } from "./pluginCopy";
 
+function canTryPluginNow(input: {
+  plugin: LoadedPlugin;
+  coreSkill: PluginSkillRef | undefined;
+  hostPlatform: NodeJS.Platform;
+  installedPlugins: InstalledPlugins;
+  disabledBuiltInMcpServers: BuiltInMcpServerDisabled;
+}): boolean {
+  const state = resolveInstalledPluginState(input.plugin, input.installedPlugins);
+  return Boolean(
+    isPluginSupportedOnHost(input.plugin, input.hostPlatform) &&
+    state &&
+    input.coreSkill &&
+    isPluginSkillEnabled(input.plugin, state, input.coreSkill.folder) &&
+    input.plugin.mcpServers.every((server) =>
+      isPluginMcpServerEnabled(input.plugin, state, server.name),
+    ) &&
+    input.plugin.poracode.builtInMcpServerIds.every(
+      (id) => input.disabledBuiltInMcpServers[id] !== true,
+    ),
+  );
+}
+
 export function PluginDetail(props: {
   plugin: LocalizedPlugin;
   hostPlatform: NodeJS.Platform;
@@ -28,6 +56,9 @@ export function PluginDetail(props: {
   const { t } = useLingui();
   const plugin = props.plugin.plugin;
   const installedPlugins = useSharedSettings((settings) => settings.installedPlugins);
+  const disabledBuiltInMcpServers = useSharedSettings(
+    (settings) => settings.disabledBuiltInMcpServers,
+  );
   const state = resolveInstalledPluginState(plugin, installedPlugins);
   const installPlugin = useSharedSettings((settings) => settings.installPlugin);
   const uninstallPlugin = useSharedSettings((settings) => settings.uninstallPlugin);
@@ -43,6 +74,13 @@ export function PluginDetail(props: {
   const author = plugin.manifest.author?.name;
   const examplePrompt = plugin.poracode.examplePrompt;
   const coreSkill = getPluginCoreSkill(plugin);
+  const canTryNow = canTryPluginNow({
+    plugin,
+    coreSkill,
+    hostPlatform: props.hostPlatform,
+    installedPlugins,
+    disabledBuiltInMcpServers,
+  });
   const closeSettings = usePanelStore((panel) => panel.closeSettings);
   const oauth = usePluginOauth(plugin);
   const describeDiagnostic = useLocalizedPluginDiagnostic();
@@ -52,10 +90,26 @@ export function PluginDetail(props: {
   // Seeds a draft composer rather than sending anything, so the user still
   // reviews the prompt and picks a model before the thread starts.
   const tryNow = async () => {
-    if (!examplePrompt || !coreSkill) return;
+    if (!examplePrompt || !coreSkill || !canTryNow) return;
     const project = await ensureHomeScopeProject();
+    const latestSettings = useSharedSettings.getState();
+    if (
+      !canTryPluginNow({
+        plugin,
+        coreSkill,
+        hostPlatform: props.hostPlatform,
+        installedPlugins: latestSettings.installedPlugins,
+        disabledBuiltInMcpServers: latestSettings.disabledBuiltInMcpServers,
+      })
+    ) {
+      return;
+    }
     newThreadFromText(project.id, `/${coreSkill.folder} ${examplePrompt}`, {
       bindLeadingSkill: true,
+      leadingSkillPluginId: plugin.name,
+      ...(plugin.poracode.builtInMcpServerIds.length > 0
+        ? { enableMcpServerIds: plugin.poracode.builtInMcpServerIds }
+        : {}),
     });
     closeSettings();
   };
@@ -100,7 +154,7 @@ export function PluginDetail(props: {
                 <Button
                   size="sm"
                   variant="tertiary"
-                  isDisabled={!state?.enabled}
+                  isDisabled={!canTryNow}
                   onPress={() => void tryNow()}
                 >
                   <Sparkles className="size-4" />
@@ -162,14 +216,14 @@ export function PluginDetail(props: {
       {examplePrompt && coreSkill ? (
         <Button
           variant="tertiary"
-          isDisabled={!state?.enabled}
-          className="mt-6 flex w-full items-center gap-3 rounded-2xl border border-[var(--hairline)] bg-surface-secondary !px-4 !py-3 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
+          isDisabled={!canTryNow}
+          className="mt-6 flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-surface-secondary !px-4 !py-3 text-left hover:border-[var(--hairline-strong)] focus-visible:border-[var(--hairline-strong)]"
           onPress={() => void tryNow()}
         >
           <span className="shrink-0 text-muted">
             <PluginIcon pluginId={plugin.name} className="size-4" />
           </span>
-          <span className="min-w-0 flex-1 text-sm text-foreground">{examplePrompt}</span>
+          <span className="min-w-0 flex-1 truncate text-sm text-foreground">{examplePrompt}</span>
           <ArrowRight className="size-4 shrink-0 text-muted" />
         </Button>
       ) : null}

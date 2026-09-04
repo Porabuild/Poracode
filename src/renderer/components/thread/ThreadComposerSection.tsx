@@ -323,9 +323,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       icon: Webhook,
       enabled: true,
     })),
-    ...(effectiveMcpConfig?.computerUse === true &&
-    readBridge()?.platform !== "linux" &&
-    projectLocation?.kind !== "wsl"
+    ...(effectiveMcpConfig?.computerUse === true && projectLocation?.kind !== "wsl"
       ? [
           {
             id: COMPUTER_USE_MCP_ID,
@@ -973,7 +971,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             enabled: effectiveMcpConfig?.computerUse === true,
                             visible:
                               effectiveMcpConfig?.computerUse === true &&
-                              readBridge()?.platform !== "linux" &&
                               projectLocation?.kind !== "wsl",
                             onToggle: () => {},
                           }}

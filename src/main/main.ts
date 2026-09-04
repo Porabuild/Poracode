@@ -48,11 +48,7 @@ import {
 } from "./browser";
 import { buildBrowserUserAgent } from "./browser/userAgent";
 import { startUsageLoginCookieMirror } from "./usageLogin/UsageLoginCookieMirror";
-import {
-  ComputerUseDesktopOverlay,
-  ComputerUseMcpIngress,
-  type ComputerUseMcpIngressInfo,
-} from "./computer-use";
+import { ComputerUseDesktopOverlay, ComputerUseMcpIngress } from "./computer-use";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { showOsNotification } from "./osNotifications";
@@ -1035,35 +1031,34 @@ if (!hasSingleInstanceLock) {
       chromeBridgeServer.start().catch((err) => {
         console.error("[poracode] chrome bridge server failed to start:", err);
       });
-      // Computer-use drives the host desktop and is only supported on macOS and
-      // Windows (matches createComputerUseDriver). On other platforms the ingress
-      // would advertise tools that all fail and would still inject a token into
-      // launches, so skip it entirely — resolveExtraEnv then naturally yields
-      // nothing because getInfo() stays null.
-      let computerUseMcpInfoReady: Promise<ComputerUseMcpIngressInfo | null> =
-        Promise.resolve(null);
-      if (process.platform === "win32" || process.platform === "darwin") {
-        computerUseDesktopOverlay = new ComputerUseDesktopOverlay({
-          onExit: (threadIds) => {
-            computerUseMcpIngress?.interruptActiveActions();
-            for (const threadId of threadIds) {
-              void supervisorClient.call("interruptThread", { threadId }).catch((error) => {
-                console.error(
-                  `[poracode] failed to interrupt computer-use thread ${threadId}:`,
-                  error,
-                );
-              });
-            }
-          },
-        });
-        computerUseMcpIngress = new ComputerUseMcpIngress({
-          onActivity: (event) => computerUseDesktopOverlay?.setActivity(event),
-        });
-        computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
-          console.error("[poracode] computer use MCP ingress failed to start:", err);
-          return null;
-        });
-      }
+      computerUseDesktopOverlay = new ComputerUseDesktopOverlay({
+        onExit: (threadIds) => {
+          computerUseMcpIngress?.interruptActiveActions();
+          for (const threadId of threadIds) {
+            void supervisorClient.call("interruptThread", { threadId }).catch((error) => {
+              console.error(
+                `[poracode] failed to interrupt computer-use thread ${threadId}:`,
+                error,
+              );
+            });
+          }
+        },
+      });
+      const computerUseHelperRoot = app.isPackaged
+        ? join(process.resourcesPath, "computer-use-helper")
+        : join(__dirname, "..", "..", "resources", "computer-use-helper");
+      computerUseMcpIngress = new ComputerUseMcpIngress({
+        driverOptions: {
+          helperRootDir: computerUseHelperRoot,
+          stateDir: join(app.getPath("userData"), "computer-use"),
+          warn: (message) => console.warn(`[poracode] ${message}`),
+        },
+        onActivity: (event) => computerUseDesktopOverlay?.setActivity(event),
+      });
+      const computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
+        console.error("[poracode] computer use MCP ingress failed to start:", err);
+        return null;
+      });
 
       const controller = createDesktopRemoteAccessController({
         appVersion: app.getVersion(),

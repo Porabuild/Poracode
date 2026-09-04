@@ -161,7 +161,7 @@ describe("ThreadView", () => {
     expect(screen.queryByLabelText("Browser MCP enabled for this thread")).toBeNull();
     expect(
       screen.queryByLabelText(
-        "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it",
+        "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it",
       ),
     ).toBeNull();
     expect(screen.queryByLabelText("Disable Browser MCP")).toBeNull();

@@ -9,6 +9,7 @@ const electronMock = vi.hoisted(() => {
     visible = false;
     setAlwaysOnTop = vi.fn<(flag: boolean, level: string) => void>();
     setBounds = vi.fn<(bounds: unknown) => void>();
+    setContentProtection = vi.fn<(enable: boolean) => void>();
     setIgnoreMouseEvents = vi.fn<(ignore: boolean) => void>();
     setVisibleOnAllWorkspaces = vi.fn<(visible: boolean, options?: unknown) => void>();
     showInactive = vi.fn<() => void>(() => {
@@ -97,26 +98,69 @@ describe("ComputerUseDesktopOverlay", () => {
       kind: "action",
       threadId: "thread-1",
       toolName: "click",
+      delivery: "foreground",
       active: true,
     });
     await Promise.resolve();
 
     expect(electronMock.BrowserWindow.instances).toHaveLength(2);
     for (const window of electronMock.BrowserWindow.instances) {
-      expect(window.options).toMatchObject({ transparent: true, focusable: false, frame: false });
+      expect(window.options).toMatchObject({
+        transparent: true,
+        focusable: false,
+        frame: false,
+        title: "Poracode Computer Use Overlay",
+      });
       expect(window.setIgnoreMouseEvents).toHaveBeenCalledWith(true);
       expect(window.setAlwaysOnTop).toHaveBeenCalledWith(true, "screen-saver");
+      expect(window.setContentProtection).toHaveBeenCalledWith(true);
       expect(window.showInactive).toHaveBeenCalled();
       const overlayHtml = decodeURIComponent(window.loadURL.mock.calls[0]![0].split(",", 2)[1]!);
       expect(overlayHtml).toContain("inset 0 0 0 2px rgba(92, 167, 255, 0.6)");
       expect(overlayHtml).toContain("inset 0 0 48px rgba(92, 167, 255, 0.08)");
       expect(overlayHtml).toContain("Poracode using your computer | Esc to Exit");
+      expect(overlayHtml).toContain("<title>Poracode Computer Use Overlay</title>");
       expect(overlayHtml).not.toContain("<button");
     }
     expect(electronMock.globalShortcut.register).toHaveBeenCalledWith(
       "Escape",
       expect.any(Function),
     );
+
+    overlay.dispose();
+  });
+
+  it("shows only a corner badge for background control", async () => {
+    const overlay = new ComputerUseDesktopOverlay({
+      onExit: vi.fn<(threadIds: string[]) => void>(),
+    });
+
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      delivery: "background",
+      active: true,
+    });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      delivery: "background",
+      target: "Notepad",
+      active: false,
+    });
+    await Promise.resolve();
+
+    for (const window of electronMock.BrowserWindow.instances) {
+      const overlayHtml = decodeURIComponent(
+        window.loadURL.mock.calls.at(-1)![0].split(",", 2)[1]!,
+      );
+      expect(overlayHtml).toContain("Poracode is controlling Notepad in the background");
+      expect(overlayHtml).toContain("<title>Poracode Computer Use Overlay</title>");
+      expect(overlayHtml).not.toContain("inset 0 0 0 2px");
+    }
+    expect(electronMock.shortcuts.has("Escape")).toBe(false);
 
     overlay.dispose();
   });
@@ -129,6 +173,7 @@ describe("ComputerUseDesktopOverlay", () => {
       kind: "action",
       threadId: "thread-1",
       toolName: "click",
+      delivery: "foreground",
       active: true,
     });
     await Promise.resolve();
@@ -138,6 +183,7 @@ describe("ComputerUseDesktopOverlay", () => {
       kind: "action",
       threadId: "thread-1",
       toolName: "click",
+      delivery: "foreground",
       active: false,
     });
     vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS - 1);
@@ -161,12 +207,14 @@ describe("ComputerUseDesktopOverlay", () => {
       kind: "action",
       threadId: "thread-1",
       toolName: "click",
+      delivery: "foreground",
       active: true,
     });
     overlay.setActivity({
       kind: "action",
       threadId: "thread-1",
       toolName: "click",
+      delivery: "foreground",
       active: false,
     });
     vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
@@ -185,6 +233,7 @@ describe("ComputerUseDesktopOverlay", () => {
       kind: "action",
       threadId: "thread-1",
       toolName: "click",
+      delivery: "foreground",
       active: true,
     });
     await Promise.resolve();
@@ -206,6 +255,7 @@ describe("ComputerUseDesktopOverlay", () => {
       kind: "action",
       threadId: "thread-1",
       toolName: "press_key",
+      delivery: "foreground",
       active: true,
     });
     await Promise.resolve();
@@ -216,6 +266,7 @@ describe("ComputerUseDesktopOverlay", () => {
       kind: "action",
       threadId: "thread-1",
       toolName: "press_key",
+      delivery: "foreground",
       active: false,
     });
     expect(electronMock.shortcuts.has("Escape")).toBe(true);
@@ -231,12 +282,14 @@ describe("ComputerUseDesktopOverlay", () => {
       kind: "action",
       threadId: "thread-1",
       toolName: "click",
+      delivery: "foreground",
       active: true,
     });
     overlay.setActivity({
       kind: "action",
       threadId: "thread-1",
       toolName: "press_key",
+      delivery: "foreground",
       active: true,
     });
     await Promise.resolve();
@@ -246,6 +299,7 @@ describe("ComputerUseDesktopOverlay", () => {
       kind: "action",
       threadId: "thread-1",
       toolName: "click",
+      delivery: "foreground",
       active: false,
     });
     vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
@@ -256,6 +310,7 @@ describe("ComputerUseDesktopOverlay", () => {
       kind: "action",
       threadId: "thread-1",
       toolName: "press_key",
+      delivery: "foreground",
       active: false,
     });
     expect(electronMock.shortcuts.has("Escape")).toBe(true);

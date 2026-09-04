@@ -116,4 +116,5 @@ toast.warning(i18n._(msg`Unable to install ${label}.`));
 - [Editing & React Patterns](.agents/docs/editing-rules.md)
 - [Internationalization (i18n)](.agents/docs/i18n.md)
 - [Versioned State & Protocols](.agents/docs/versioning.md)
+- [Computer Use](.agents/docs/computer-use.md)
 - [Mobile Dev & Remote Pairing](docs/MOBILE_DEV.md) — `pnpm run dev:ios`, simulator pairing, deep linking

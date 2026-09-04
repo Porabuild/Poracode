@@ -1,5 +1,12 @@
+import type { BuiltInMcpServerId } from "@/shared/contracts";
 import type { DraftContent, PendingDraftWorktreeSelection } from "./types";
 import type { SliceCreator } from "./shared";
+
+export interface ComposerSeedOptions {
+  bindLeadingSkill?: boolean;
+  leadingSkillPluginId?: string;
+  enableMcpServerIds?: readonly BuiltInMcpServerId[];
+}
 
 /**
  * A one-shot request to insert text into a project's draft composer. Carried
@@ -12,6 +19,8 @@ export interface PendingComposerSeed {
   text: string;
   nonce: number;
   bindLeadingSkill?: boolean;
+  leadingSkillPluginId?: string;
+  enableMcpServerIds?: BuiltInMcpServerId[];
 }
 
 export interface DraftSlice {
@@ -39,7 +48,7 @@ export interface DraftSlice {
     selection: PendingDraftWorktreeSelection,
   ) => void;
   clearPendingDraftWorktreeSelection: (projectId: string) => void;
-  setComposerSeed: (projectId: string, text: string, bindLeadingSkill?: boolean) => void;
+  setComposerSeed: (projectId: string, text: string, options?: ComposerSeedOptions) => void;
   clearComposerSeed: (projectId: string) => void;
 }
 
@@ -103,7 +112,7 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
       const { [projectId]: _, ...rest } = state.pendingDraftWorktreeSelections;
       return { pendingDraftWorktreeSelections: rest };
     }),
-  setComposerSeed: (projectId, text, bindLeadingSkill) =>
+  setComposerSeed: (projectId, text, options) =>
     set((state) => {
       const trimmed = text.trim();
       if (!trimmed) return {};
@@ -114,7 +123,13 @@ export const createDraftSlice: SliceCreator<DraftSlice> = (set) => ({
           [projectId]: {
             text: trimmed,
             nonce: prevNonce + 1,
-            ...(bindLeadingSkill ? { bindLeadingSkill: true } : {}),
+            ...(options?.bindLeadingSkill ? { bindLeadingSkill: true } : {}),
+            ...(options?.leadingSkillPluginId
+              ? { leadingSkillPluginId: options.leadingSkillPluginId }
+              : {}),
+            ...(options?.enableMcpServerIds?.length
+              ? { enableMcpServerIds: [...options.enableMcpServerIds] }
+              : {}),
           },
         },
       };

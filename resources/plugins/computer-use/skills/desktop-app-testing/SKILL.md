@@ -1,29 +1,35 @@
 ---
 name: desktop-app-testing
-description: "Walk a native app through a flow with Poracode's desktop control and verify each step from the window itself."
+description: "Walk a native Windows, macOS, or Linux app through a flow with Poracode's desktop control and verify each step from the window itself."
 ---
 
 # Desktop App Testing
 
-Driving a desktop app is slow, exclusive, and visible — the real mouse and keyboard belong to you while it runs. Plan the run before taking control, and prove each step from the window rather than from the fact that a click was dispatched.
+Drive the app in the background when its platform and controls allow it. Plan the run before acting, and prove each step from the window rather than from the fact that input was dispatched.
 
-## Plan before you take over
+## Plan the run
 
 List apps and windows and pick the exact target. Write down the steps you intend to perform and what each one should
 produce on screen. Launch the app yourself if it is not running; do not improvise against whatever window happens to be
 in front.
 
-Prefer ordinary Win32 desktop apps when the task offers a choice. Some Store/WinUI apps recreate their window handles
-during activation, so a stale window object silently sends input nowhere.
+Call `computer_use.api` if needed, then list apps and windows and call `get_window_state` on the selected window with
+`include_text:true`. Some apps recreate windows during navigation or activation, so refresh a stale window instead of
+reusing its old id.
 
 ## Run the flow
 
-Call `computer_use.enable` immediately before the first interactive step, and keep it enabled for the whole run so the
-overlay stays up and the user knows the machine is busy.
+Call `computer_use.enable` immediately before the first control step and keep it enabled for the uninterrupted run.
+Background work shows a small badge; foreground takeover shows the border and enables Escape interruption except while a key chord is being sent.
 
-For each step: `get_window_state`, act, then `get_window_state` again and compare. Coordinates come from the newest
-screenshot and are relative to the window's top-left, title bar included. Prefer named controls and keyboard shortcuts
-over pixels wherever the app exposes them.
+For each step: inspect, act, inspect again, and compare. Prefer `find_elements` with `invoke_element` or
+`set_element_value`. Coordinates are a fallback, come from the newest screenshot, and are relative to the window's
+top-left with the title bar included.
+
+Read `delivery` or `refused` after every action. Do not silently turn a background refusal into foreground input. Use
+`mode:"foreground"` only when the user requested takeover or the refusal recommends it, and warn the user immediately
+beforehand. Native Wayland's consented portal is the exception: it reports foreground delivery and
+`wayland_portal_fallback` explicitly.
 
 Use the window object returned by the last interactive call. When a tool reports the window is gone, re-list and
 re-resolve rather than retrying blind.

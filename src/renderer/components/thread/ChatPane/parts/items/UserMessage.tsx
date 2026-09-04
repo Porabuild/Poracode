@@ -531,7 +531,7 @@ function UserMessageSlashChip({
 }) {
   const { t } = useLingui();
   const skill = label;
-  const resolvedAriaLabel = skillName ? t`Skill: ${skill}` : undefined;
+  const resolvedAriaLabel = pluginId ? label : skillName ? t`Skill: ${skill}` : undefined;
   return (
     <span
       className="poracode-slash-chip mr-1.5"

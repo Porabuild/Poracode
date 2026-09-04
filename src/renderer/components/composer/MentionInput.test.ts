@@ -520,6 +520,10 @@ describe("plugin mention selection", () => {
     fireEvent.keyDown(editor, { key: "Enter" });
 
     expect(editor.querySelector('[data-plugin-id="github"]')).toHaveTextContent("GitHub");
+    expect(editor.querySelector('[data-plugin-id="github"]')).toHaveAttribute(
+      "aria-label",
+      "GitHub",
+    );
     expect(ref.current?.serializeSegments()).toEqual([
       {
         kind: "skill",
