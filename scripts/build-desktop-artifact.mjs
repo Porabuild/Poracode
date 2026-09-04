@@ -459,7 +459,9 @@ async function main() {
       }
       const electronBuilderArgs = [PLATFORM_FLAG[platform]];
       if (selectedTarget) {
-        electronBuilderArgs.push(arch ? `${selectedTarget}:${arch}` : selectedTarget);
+        electronBuilderArgs.push(
+          ...targetArches.map((targetArch) => `${selectedTarget}:${targetArch}`),
+        );
       } else if (arch) {
         electronBuilderArgs.push(`--${arch}`);
       }
