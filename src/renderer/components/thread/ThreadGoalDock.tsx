@@ -18,7 +18,7 @@ interface ThreadGoalDockProps {
   state: ThreadGoalDockState;
   placement: ThreadDocksPlacement;
   showPlacementToggle?: boolean;
-  /** Composer-only: hide this goal until it changes. The right panel has no dismiss. */
+  /** Local hide-until-changed fallback when the provider offers no `clear` action. */
   onDismiss?: () => void;
 }
 

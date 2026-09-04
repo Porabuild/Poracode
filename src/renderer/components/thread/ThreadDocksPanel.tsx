@@ -5,8 +5,10 @@ import { GripVertical } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import { reorderVisibleThreadDocks, type ThreadDockKind } from "@/shared/settings";
+import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore, type ThreadDockFocus } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
@@ -14,6 +16,7 @@ import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadImagesDock } from "./ThreadImagesDock";
 import { ThreadTodoDock } from "./ThreadTodoDock";
 import { useThreadGalleryImages } from "./useThreadGalleryImages";
+import { selectThreadGoalDockItem } from "./threadGoalState";
 import {
   useThreadDocksSummary,
   useVisibleThreadGoalDockState,
@@ -35,6 +38,7 @@ export function ThreadDocksPanel({
 }) {
   const { t } = useLingui();
   const goalDockState = useVisibleThreadGoalDockState(threadId);
+  const goalDockItem = useAppStore((s) => selectThreadGoalDockItem(s, threadId));
   const todoDockState = useVisibleThreadTodoDockState(threadId);
   const todoDockCollapsed = useThreadTodoDockStore(
     (s) => s.byThreadId[threadId]?.collapsed ?? s.defaultCollapsed,
@@ -71,7 +75,14 @@ export function ThreadDocksPanel({
 
   const content: Record<ThreadDockKind, ReactNode> = {
     goal: goalDockState ? (
-      <ThreadGoalDock threadId={threadId} state={goalDockState} placement="right" />
+      <ThreadGoalDock
+        threadId={threadId}
+        state={goalDockState}
+        placement="right"
+        onDismiss={() => {
+          if (goalDockItem) useThreadGoalDockStore.getState().dismiss(threadId, goalDockItem);
+        }}
+      />
     ) : null,
     plan: todoDockState ? (
       <ThreadTodoDock
