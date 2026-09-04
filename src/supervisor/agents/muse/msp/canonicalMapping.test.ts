@@ -350,3 +350,84 @@ describe("Muse MSP canonical mapping", () => {
     expect(state.goalItemId).not.toEqual(goalItemId);
   });
 });
+
+describe("Muse MSP subagent tool mapping", () => {
+  const spawnItem = {
+    itemId: "tool-spawn",
+    kind: "toolCall",
+    status: "inProgress",
+    tool: "subagent_spawn",
+    args: JSON.stringify({ id: "sa-1", agent: "reviewer", prompt: "review it" }),
+  };
+  const waitItem = {
+    itemId: "tool-wait",
+    kind: "toolCall",
+    status: "inProgress",
+    tool: "subagent_wait",
+    args: JSON.stringify({ id: "sa-1" }),
+  };
+
+  it("marks spawn calls as sub-agent rows with their type", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    const [started] = mapMuseMspItem(state, spawnItem, "started");
+    expect(started).toMatchObject({
+      type: "item.started",
+      itemType: "tool_call",
+      payload: expect.objectContaining({
+        name: "subagent_spawn",
+        isSubAgent: true,
+        subAgentType: "reviewer",
+        subAgentStatus: "running",
+      }),
+    });
+  });
+
+  it("maps spawn completion to a completed sub-agent", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    mapMuseMspItem(state, spawnItem, "started");
+    const events = mapMuseMspItem(state, { ...spawnItem, status: "completed" }, "completed");
+    expect(events[events.length - 1]).toMatchObject({ type: "item.completed" });
+    expect(events[0]).toMatchObject({
+      type: "item.updated",
+      payload: expect.objectContaining({ subAgentStatus: "completed" }),
+    });
+  });
+
+  it("renders companion calls as resumes of the spawned agent", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    mapMuseMspItem(state, spawnItem, "started");
+    const [started] = mapMuseMspItem(state, waitItem, "started");
+    expect(started).toMatchObject({
+      type: "item.started",
+      payload: expect.objectContaining({
+        name: "subagent_wait",
+        isSubAgent: true,
+        isSubAgentResume: true,
+        subAgentType: "reviewer",
+        subAgentStatus: "running",
+      }),
+    });
+  });
+
+  it("leaves non-subagent tools unmarked", () => {
+    const state = createMuseMspItemMapperState("thread-1");
+    const [started] = mapMuseMspItem(
+      state,
+      {
+        itemId: "tool-read",
+        kind: "toolCall",
+        status: "inProgress",
+        tool: "read_file",
+        args: "{}",
+      },
+      "started",
+    );
+    expect(started).toMatchObject({
+      type: "item.started",
+      payload: expect.objectContaining({ name: "read_file" }),
+    });
+    const payload = (started as { payload: Record<string, unknown> }).payload;
+    expect(payload.isSubAgent).toBeUndefined();
+    expect(payload.subAgentStatus).toBeUndefined();
+  });
+});

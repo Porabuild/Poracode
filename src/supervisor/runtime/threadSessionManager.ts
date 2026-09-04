@@ -592,7 +592,9 @@ export class ThreadSessionManager {
       : undefined;
     const wslSegments = mentionSegments
       ? await rewriteSegmentsForWsl(mentionSegments, session.projectLocation, {
-          preserveImageAttachments: usesStructuredFlow,
+          preserveImageAttachments:
+            usesStructuredFlow &&
+            session.adapter.capabilities.readsImageAttachmentsFromHost !== false,
           preservePdfAttachments:
             usesStructuredFlow && session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
         })
@@ -626,7 +628,7 @@ export class ThreadSessionManager {
     };
     if (session.status === "inactive") {
       // Guaranteed to have a sessionRef here — the no-ref case threw above.
-      await this.spawnPipeline.restartThread(session, turn);
+      await this.restartThreadSettlingFailure(session, turn);
       return;
     }
     if (
@@ -635,7 +637,7 @@ export class ThreadSessionManager {
       (session.status === "error" || session.status === "idle") &&
       session.sessionRef
     ) {
-      await this.spawnPipeline.restartThread(session, turn);
+      await this.restartThreadSettlingFailure(session, turn);
       return;
     }
     // Route through the structured session when either the adapter is
@@ -1246,6 +1248,36 @@ export class ThreadSessionManager {
     if (!pendingStart) return undefined;
     await pendingStart;
     return this.sessions.get(threadId);
+  }
+
+  /**
+   * A failed restart must never strand the submitted turn: the renderer has
+   * already painted the user message and an optimistic working state, so a
+   * bare rejection leaves the thread "working" forever with the send lost.
+   * Settle it with a visible error item and an errored thread state, then
+   * rethrow so the caller still learns the launch failed.
+   */
+  private async restartThreadSettlingFailure(
+    session: SessionRuntime,
+    turn: QueuedStructuredTurn,
+  ): Promise<void> {
+    try {
+      await this.spawnPipeline.restartThread(session, turn);
+    } catch (error) {
+      if (this.isCurrentSession(session)) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.structuredFailureReporter.capture(session, error);
+        this.enqueueRuntimeEvent(session.threadId, {
+          type: "error",
+          threadId: session.threadId,
+          message,
+        });
+        this.outputPipeline.updateState(session, "error", "none", message, {
+          forceCloseActiveTurn: true,
+        });
+      }
+      throw error;
+    }
   }
 
   private rememberRemovedThread(threadId: string): void {

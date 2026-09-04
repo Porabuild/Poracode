@@ -311,6 +311,15 @@ export const agentCapabilitySchema = z.object({
    * supervisor, so WSL path rewriting must preserve their native host paths.
    */
   readsPdfAttachmentsFromHost: z.boolean().optional(),
+  /**
+   * Whether structured turns read image attachment bytes in the host supervisor
+   * and hand them to the provider as inline image content. When false, the
+   * provider's structured sessions cannot consume inline images — image
+   * attachments take the terminal path instead: WSL rewriting copies them into
+   * the execution location and the adapter references them by path.
+   * Optional: absent = true.
+   */
+  readsImageAttachmentsFromHost: z.boolean().optional(),
   liveInputMode: liveInputModeSchema.default("terminal"),
   presentationMode: threadPresentationModeSchema.default("terminal"),
   /**

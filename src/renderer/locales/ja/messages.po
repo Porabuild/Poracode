@@ -1379,6 +1379,10 @@ msgstr "別のチャットはこれと同じツリーを使用します。ファ
 msgid "Another operation for this experiment is still running."
 msgstr "この実験の別の操作がまだ実行中です。"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "送信するにはすべての質問に回答してください"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"

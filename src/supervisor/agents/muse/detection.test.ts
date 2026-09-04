@@ -33,6 +33,7 @@ import {
   museHasStoredCredentials,
   parseMuseHelpEfforts,
   parseMuseHelpModelIds,
+  parseMuseSkillCommands,
 } from "./detection";
 
 describe("museAuthJsonIsAuthenticated", () => {
@@ -608,5 +609,59 @@ describe("buildMuseCatalogCapabilities", () => {
       label: "Muse Spark 1.9 Contributor",
     });
     expect(probed?.modelContextSizes?.["muse-spark-1.3"]).toEqual(["2M"]);
+  });
+});
+
+describe("parseMuseSkillCommands", () => {
+  it("maps enabled muse skills to composer skill commands", () => {
+    expect(
+      parseMuseSkillCommands(
+        JSON.stringify({
+          skills: [
+            {
+              name: "plan",
+              activation: "on",
+              scope: "built-in",
+              description: "Create a grounded, decision-complete plan.",
+            },
+            {
+              name: "workspace-lint",
+              activation: "on",
+              scope: "project",
+              short_description: "Lint the workspace.",
+            },
+            { name: "retired", activation: "off", scope: "user" },
+            { name: "", activation: "on", scope: "user" },
+          ],
+        }),
+      ),
+    ).toEqual([
+      {
+        id: "muse-skill-plan",
+        label: "plan",
+        description: "Create a grounded, decision-complete plan.",
+        section: "skills",
+        skillName: "plan",
+        skillInvocation: "/skill plan",
+        skillProvider: "muse",
+        skillScope: "global",
+      },
+      {
+        id: "muse-skill-workspace-lint",
+        label: "workspace-lint",
+        description: "Lint the workspace.",
+        section: "skills",
+        skillName: "workspace-lint",
+        skillInvocation: "/skill workspace-lint",
+        skillProvider: "muse",
+        skillScope: "project",
+      },
+    ]);
+  });
+
+  it("returns nothing for malformed or empty output", () => {
+    expect(parseMuseSkillCommands("not json")).toEqual([]);
+    expect(parseMuseSkillCommands(JSON.stringify({ skills: [] }))).toEqual([]);
+    expect(parseMuseSkillCommands("")).toEqual([]);
   });
 });

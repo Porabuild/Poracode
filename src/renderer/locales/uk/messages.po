@@ -1380,6 +1380,10 @@ msgstr "Інший чат використовує це саме дерево. �
 msgid "Another operation for this experiment is still running."
 msgstr "Інша операція для цього експерименту ще виконується."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "Дайте відповіді на всі запитання, щоб надіслати"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"

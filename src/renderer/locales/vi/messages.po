@@ -1380,6 +1380,10 @@ msgstr "Một cuộc trò chuyện khác cũng sử dụng cây này. Khôi ph�
 msgid "Another operation for this experiment is still running."
 msgstr "Một thao tác khác của thử nghiệm này vẫn đang chạy."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "Trả lời tất cả câu hỏi để gửi"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"

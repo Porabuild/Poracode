@@ -7,8 +7,10 @@ import type {
 } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import {
+  batchWslCommandsAsync,
   createKnownSessionRef,
   mergeSpawnEnv,
+  quotePosixShellArg,
   type CreateStructuredSessionInput,
   type StartTurnOptions,
   type StructuredSessionHandle,
@@ -33,7 +35,12 @@ import {
   type MuseMspItem,
 } from "./canonicalMapping";
 import { MuseMspClient, spawnMuseServeHost } from "./client";
-import { MSP_SCHEMA_VERSION, MspRpcError, parseMspModelListResult } from "./protocol";
+import {
+  MSP_SCHEMA_VERSION,
+  MspRpcError,
+  parseMspModelListResult,
+  type MspModelListResult,
+} from "./protocol";
 import {
   buildMuseUserInputAnswers,
   isMuseCancelResponse,
@@ -48,6 +55,9 @@ import {
 } from "./requestMapping";
 import { mintMspCommandId } from "./uuidv7";
 import { buildMuseTurnInput } from "./turnInput";
+
+/** Best-effort budget for the optional `model/list` provider lookup at launch. */
+const MSP_PROVIDER_LOOKUP_TIMEOUT_MS = 10_000;
 
 const NOOP_LISTENER: StructuredSessionListener = {
   onClose() {},
@@ -125,6 +135,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     private readonly input: CreateStructuredSessionInput,
     private readonly child: ChildProcess,
     private readonly client: MuseMspClient,
+    private readonly hostCookie: string,
   ) {
     this.launchOptions = {
       suppressResumeConfigOverrides: true,
@@ -150,7 +161,12 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       label: "[muse-msp]",
       isolateCwd: false,
     });
-    return new MuseMspStructuredSession(input, hosted.child, new MuseMspClient(hosted.transport));
+    return new MuseMspStructuredSession(
+      input,
+      hosted.child,
+      new MuseMspClient(hosted.transport),
+      hosted.hostCookie,
+    );
   }
 
   ownsProviderSession(providerSessionId: string): boolean {
@@ -192,6 +208,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           commandId: mintMspCommandId(),
           workspaceRoot: workspaceRoot(this.input),
           modelId: config.model,
+          ...(await this.resolveModelProviderId(config.model)),
           approvalMode: toMspApprovalMode(config.approvalPolicy),
         });
     const session = recordOf(result["session"]);
@@ -255,7 +272,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       const result = await this.client.request("turn/start", {
         commandId,
         sessionId,
-        input: await buildMuseTurnInput(this.input, prompt, segments, options?.inlineInstructions),
+        input: await buildMuseTurnInput(prompt, options?.inlineInstructions),
         displayText: prompt,
         ...(config.effort ? { reasoningEffort: config.effort } : {}),
       });
@@ -289,12 +306,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           commandId,
           sessionId: this.requireSessionId(),
           expectedTurnId,
-          input: await buildMuseTurnInput(
-            this.input,
-            prompt,
-            segments,
-            options?.inlineInstructions,
-          ),
+          input: await buildMuseTurnInput(prompt, options?.inlineInstructions),
           ...(config.effort ? { reasoningEffort: config.effort } : {}),
         });
         return;
@@ -355,8 +367,25 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     if (this.activeTurnId) this.completeTurn(this.activeTurnId, "cancelled");
     this.client.dispose();
     terminateChildProcessTree(this.child, { ownedProcessGroup: process.platform !== "win32" });
+    this.killSurvivingWslHost();
     this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "disposed" });
     this.listener.onClose();
+  }
+
+  /**
+   * Terminating the Windows-side `wsl.exe` wrapper cannot be relied on to
+   * signal the Linux-side `muse serve` it launched — a surviving host keeps
+   * its sessions locked (`session/resume` then fails `sessionInUse` forever)
+   * and leaks CPU. The host carries a unique cookie in its environ; sweep
+   * /proc for it and kill what matches. Best-effort: the bridge may be gone
+   * (app teardown) or the process may already be dead.
+   */
+  private killSurvivingWslHost(): void {
+    const location = this.input.projectLocation;
+    if (location.kind !== "wsl") return;
+    void batchWslCommandsAsync(location.distro, [
+      `pids=$(grep -ls ${quotePosixShellArg(this.hostCookie)} /proc/[0-9]*/environ 2>/dev/null | tr -dc '0-9\\n '); [ -n "$pids" ] && kill -9 $pids 2>/dev/null; true`,
+    ]).catch(() => {});
   }
 
   private requireSessionId(): string {
@@ -365,14 +394,42 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     return this.sessionId;
   }
 
+  /**
+   * The model catalog's provider route for the requested model. The CLI always
+   * routes through this table, but `session/start` without `providerId` falls
+   * back to the server default — a different route whose retained-history
+   * policy rejects media ("retained media history is unsupported"), so as soon
+   * as the agent reads an attached image the whole turn fails. Best-effort:
+   * when the catalog is unavailable, omit the field and keep the server
+   * default. Short timeout — this lookup is optional and must not stall the
+   * launch when the host is wedged.
+   */
+  private async resolveModelProviderId(modelId: string): Promise<Record<string, string>> {
+    try {
+      const catalog = parseMspModelListResult(
+        await this.client.request("model/list", {}, MSP_PROVIDER_LOOKUP_TIMEOUT_MS),
+      );
+      const providerId = this.catalogProviderId(catalog, modelId);
+      return providerId ? { providerId } : {};
+    } catch {
+      return {};
+    }
+  }
+
+  /** Catalog route for a model: its own entry's provider, else the catalog default. */
+  private catalogProviderId(catalog: MspModelListResult, modelId: string): string {
+    return (
+      catalog.models.find((model) => model.modelId === modelId)?.providerId || catalog.providerId
+    );
+  }
+
   private async applyConfig(config: ThreadConfig): Promise<void> {
     const sessionId = this.requireSessionId();
     if (config.model !== this.currentConfig.model) {
       const catalog = parseMspModelListResult(
         await this.client.request("model/list", { sessionId }),
       );
-      const catalogModel = catalog.models.find((model) => model.modelId === config.model);
-      const providerId = catalogModel?.providerId || catalog.providerId;
+      const providerId = this.catalogProviderId(catalog, config.model);
       await this.client.request("session/setModel", {
         commandId: mintMspCommandId(),
         sessionId,
@@ -515,11 +572,16 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     const items = Array.isArray(rawItems) ? rawItems : [];
     const tasks = items.map((raw, index) => {
       const item = recordOf(raw);
-      const text =
+      let text =
         stringValue(item?.["activeForm"]) ?? stringValue(item?.["text"]) ?? `Task ${index + 1}`;
       const statusRaw = stringValue(item?.["status"]);
-      const status: PlanStepStatus =
-        statusRaw === "inProgress" || statusRaw === "in_progress"
+      // The plan dock has no cancelled state — a cancelled todo is done-not-done,
+      // so it lands on "completed" with the cancellation kept in the label.
+      const cancelled = statusRaw === "cancelled";
+      if (cancelled) text = `${text} (cancelled)`;
+      const status: PlanStepStatus = cancelled
+        ? "completed"
+        : statusRaw === "inProgress" || statusRaw === "in_progress"
           ? "in_progress"
           : statusRaw === "completed"
             ? "completed"

@@ -1380,6 +1380,10 @@ msgstr "Inny czat korzysta z tego samego drzewa. Przywrócenie pliku może zast�
 msgid "Another operation for this experiment is still running."
 msgstr "Inna operacja dla tego eksperymentu wciąż trwa."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "Odpowiedz na wszystkie pytania, aby wysłać"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
