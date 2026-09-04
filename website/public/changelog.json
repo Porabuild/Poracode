@@ -3,13 +3,18 @@
     {
       "version": "1.7.1",
       "date": "2026-09-03",
-      "title": "Thread docks, image gallery & richer OpenCode",
-      "summary": "Poracode 1.7.1 brings thread goals, plans, agents, and background tasks into a configurable dock system, adds a gallery for every image in a conversation, and substantially improves OpenCode structured chat. This release also makes MCP controls easier to reach, strengthens thread handoffs, brings Muse Spark 1.3 with live model discovery, logout, and more reliable installs, and fixes several provider and Windows reliability issues.",
+      "title": "Thread docks, Muse chat & richer OpenCode",
+      "summary": "Poracode 1.7.1 brings thread goals, plans, agents, and background tasks into a configurable dock system, adds a gallery for every image in a conversation, and substantially improves OpenCode structured chat. This release also makes MCP controls easier to reach, strengthens thread handoffs, brings Muse Spark 1.3 with live model discovery, structured Chat sessions, logout, and more reliable installs, improves Qoder usage reporting and PR Watch repairs, and fixes several provider and Windows reliability issues.",
       "changes": [
         {
           "kind": "added",
           "label": "Thread docks",
-          "text": "Goals, plans, subagents, and background tasks can now live above the composer or together in the right panel, with compact bubbles, drag-to-reorder, per-thread dismissal, and synchronized remote and mobile state."
+          "text": "Goals, plans, subagents, and background tasks can now live above the composer or together in the right panel, with compact bubbles, drag-to-reorder, per-thread dismissal, and synchronized remote and mobile state. New threads default to the compact composer with docks in the right panel."
+        },
+        {
+          "kind": "added",
+          "label": "Muse",
+          "text": "You can now run Muse Code as structured Chat sessions backed by the Muse Session Protocol, with goal tracking, model and effort slash commands, and WSL project support alongside the terminal."
         },
         {
           "kind": "added",
@@ -24,7 +29,12 @@
         {
           "kind": "improved",
           "label": "OpenCode",
-          "text": "Structured OpenCode threads now support current question and permission flows, native plans, subagent activity, produced images and files, audio and thread mentions, accurate usage, clearer tool states, and clean Stop, steer, model-switch, and resume behavior."
+          "text": "Structured OpenCode threads now support current question and permission flows, native plans, subagent activity, produced images and files, audio and thread mentions, accurate usage, clearer tool states, visible retry and rate-limit fallback notices, and clean Stop, steer, model-switch, and resume behavior."
+        },
+        {
+          "kind": "improved",
+          "label": "Muse",
+          "text": "Muse now defaults to Muse Spark 1.3, discovers new models and reasoning levels from the installed CLI and live MSP catalog, shows Thinking and Double-checking terminal states, signs out from Settings, and installs reliably through WSL."
         },
         {
           "kind": "improved",
@@ -33,8 +43,18 @@
         },
         {
           "kind": "improved",
-          "label": "Muse",
-          "text": "Muse now defaults to Muse Spark 1.3, discovers new models and reasoning levels from the installed CLI and live MSP catalog, shows Thinking and Double-checking terminal states, signs out from Settings, and installs reliably through WSL."
+          "label": "Pull requests",
+          "text": "PR Watch tasks are now explicitly authorized to commit and push the non-force fixes a pull request needs, so watched PRs get repaired and pushed without extra confirmation prompts."
+        },
+        {
+          "kind": "improved",
+          "label": "Qoder",
+          "text": "Qoder usage now parses migrated quota-system payloads and both naming conventions, enriching missing plan details so credit windows show accurate percentages with used and limit counts."
+        },
+        {
+          "kind": "improved",
+          "label": "Settings",
+          "text": "Agent updates are easier to follow: the Update-all button shows the outdated count, each agent reports queued and per-agent progress, and multi-runtime update docks collapse to a single line."
         },
         {
           "kind": "improved",
@@ -55,6 +75,11 @@
           "kind": "fixed",
           "label": "Cursor",
           "text": "Cross-agent tools no longer use schemas rejected by Cursor models, and globally installed Cursor SDK runtimes can be updated from Settings."
+        },
+        {
+          "kind": "fixed",
+          "label": "MCP",
+          "text": "Expired MCP OAuth tokens now correctly report as signed out, and failed ACP prompts hint at re-authenticating or starting a new thread on authorization errors."
         },
         {
           "kind": "fixed",
