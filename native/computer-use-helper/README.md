@@ -20,6 +20,8 @@ The response is either `{ "id", "ok": true, "result" }` or `{ "id", "ok": false,
 
 Interactive results contain either `delivery` or `refused`. Background failures are structured refusals and never silently fall through to foreground input. Native Wayland coordinate input is the explicit exception: the consented portal controls the real devices and reports foreground delivery with `wayland_portal_fallback`.
 
+`list_apps` returns running targetable apps by default. Its optional `query` searches installed Start apps on Windows, `.app` bundles on macOS, and `.desktop` entries on Linux; returned ids can be passed directly to `launch_app`.
+
 ## Build and checks
 
 The repository pins Rust and the standard `rustfmt` and Clippy components in `rust-toolchain.toml`.

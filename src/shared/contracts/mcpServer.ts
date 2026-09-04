@@ -194,6 +194,7 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "update_mcp_server",
     "remove_mcp_server",
     "list_skills",
+    "read_skill",
     "set_skill_enabled",
   ],
 } as const satisfies Record<BuiltInMcpServerId, readonly string[]>;

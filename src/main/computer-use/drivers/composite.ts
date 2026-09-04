@@ -3,6 +3,7 @@ import type {
   ComputerUseDriverStatus,
   ComputerUseFindElementsResult,
   ComputerUseInteractiveResult,
+  ComputerUseListAppsInput,
   ComputerUseRefusal,
   ComputerUseWindow,
 } from "../mcp/types";
@@ -72,8 +73,8 @@ export class CompositeComputerUseDriver implements ComputerUseDriver {
     };
   }
 
-  listApps(): ReturnType<ComputerUseDriver["listApps"]> {
-    return this.passive((driver) => driver.listApps());
+  listApps(input?: ComputerUseListAppsInput): ReturnType<ComputerUseDriver["listApps"]> {
+    return this.passive((driver) => driver.listApps(input));
   }
 
   listWindows(): ReturnType<ComputerUseDriver["listWindows"]> {

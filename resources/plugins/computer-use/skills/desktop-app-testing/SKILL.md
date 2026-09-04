@@ -9,9 +9,9 @@ Drive the app in the background when its platform and controls allow it. Plan th
 
 ## Plan the run
 
-List apps and windows and pick the exact target. Write down the steps you intend to perform and what each one should
-produce on screen. Launch the app yourself if it is not running; do not improvise against whatever window happens to be
-in front.
+List apps and windows and pick the exact target. If the app is not running, search installed apps with `list_apps`
+`query` and pass the returned id to `launch_app`. Write down the steps you intend to perform and what each one should
+produce on screen; do not improvise against whatever window happens to be in front.
 
 Call `computer_use.api` if needed, then list apps and windows and call `get_window_state` on the selected window with
 `include_text:true`. Some apps recreate windows during navigation or activation, so refresh a stale window instead of

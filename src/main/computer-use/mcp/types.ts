@@ -26,6 +26,10 @@ export interface ComputerUseApp {
   windows: ComputerUseWindow[];
 }
 
+export interface ComputerUseListAppsInput {
+  query?: string;
+}
+
 export const COMPUTER_USE_ELEMENT_ACTIONS = [
   "invoke",
   "toggle",
@@ -212,7 +216,7 @@ export interface ComputerUseDriver {
     window?: ComputerUseWindow | null;
     note?: string;
   }>;
-  listApps(): Promise<ComputerUseApp[]>;
+  listApps(input?: ComputerUseListAppsInput): Promise<ComputerUseApp[]>;
   listWindows(): Promise<ComputerUseWindow[]>;
   pressKey(input: {
     key: string;

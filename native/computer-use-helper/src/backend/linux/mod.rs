@@ -23,6 +23,7 @@ use crate::protocol::actions::{
 use crate::protocol::window::{WindowInfo, WindowRef, WindowSource};
 use crate::protocol::{ErrorCode, HelperError, Result};
 
+mod apps;
 mod atspi;
 mod keys;
 mod portal;
@@ -236,6 +237,17 @@ fn validate_launch_target(app: &str) -> Result<&str> {
     Ok(app)
 }
 
+fn matches_launch_hints(window: &WindowInfo, hints: &[String]) -> bool {
+    let display_name = window
+        .display_name
+        .as_deref()
+        .unwrap_or_default()
+        .to_lowercase();
+    hints
+        .iter()
+        .any(|hint| window.matches_app(Some(hint)) || display_name == *hint)
+}
+
 fn pointer_verification_region(action: PointerAction) -> (i32, i32) {
     let (x, y) = match action {
         PointerAction::Click { x, y, .. } | PointerAction::Scroll { x, y, .. } => (x, y),
@@ -319,6 +331,10 @@ impl Backend for LinuxBackend {
         };
         self.merge_atspi_windows(&mut windows)?;
         Ok(windows)
+    }
+
+    fn search_installed_apps(&self, query: &str) -> Result<Vec<crate::protocol::actions::AppInfo>> {
+        apps::search(query)
     }
 
     fn resolve_window(&self, window: &WindowRef) -> Result<WindowInfo> {
@@ -499,14 +515,28 @@ impl Backend for LinuxBackend {
             .map(|window| window.id)
             .collect();
         let lower = app.to_ascii_lowercase();
-        let (mut command, launch_name) = match lower.as_str() {
-            "terminal" => (Command::new("x-terminal-emulator"), "x-terminal-emulator"),
-            "files" | "file manager" => {
-                let mut command = Command::new("xdg-open");
-                command.arg(".");
-                (command, "xdg-open")
+        let desktop_file = Path::new(app).is_absolute()
+            && Path::new(app)
+                .extension()
+                .is_some_and(|extension| extension == "desktop");
+        let (mut command, launch_name, launch_hints) = if desktop_file {
+            let mut command = Command::new("gio");
+            command.args(["launch", app]);
+            (command, app, apps::launch_hints(Path::new(app)))
+        } else {
+            match lower.as_str() {
+                "terminal" => (
+                    Command::new("x-terminal-emulator"),
+                    "x-terminal-emulator",
+                    Vec::new(),
+                ),
+                "files" | "file manager" => {
+                    let mut command = Command::new("xdg-open");
+                    command.arg(".");
+                    (command, "xdg-open", Vec::new())
+                }
+                _ => (Command::new(app), app, Vec::new()),
             }
-            _ => (Command::new(app), app),
         };
         let mut child = command
             .stdin(Stdio::null())
@@ -524,12 +554,13 @@ impl Backend for LinuxBackend {
             let windows = self.list_windows()?;
             let window = windows
                 .iter()
-                .find(|window| window.pid == Some(launched_pid))
+                .find(|window| !desktop_file && window.pid == Some(launched_pid))
                 .or_else(|| {
                     windows.iter().find(|window| {
                         !before.contains(&window.id)
                             && (window.matches_app(Some(app))
-                                || window.matches_app(Some(launch_name)))
+                                || window.matches_app(Some(launch_name))
+                                || matches_launch_hints(window, &launch_hints))
                     })
                 })
                 .cloned();
@@ -552,7 +583,10 @@ impl Backend for LinuxBackend {
 
 #[cfg(test)]
 mod tests {
-    use super::{merge_discovered_window, pointer_verification_region, validate_launch_target};
+    use super::{
+        matches_launch_hints, merge_discovered_window, pointer_verification_region,
+        validate_launch_target,
+    };
     use crate::backend::PointerAction;
     use crate::protocol::actions::MouseButton;
     use crate::protocol::window::{WindowInfo, WindowSource};
@@ -597,6 +631,36 @@ mod tests {
                 "accepted {invalid:?}"
             );
         }
+    }
+
+    #[test]
+    fn desktop_launch_hints_do_not_accept_unrelated_titled_windows() {
+        let firefox = WindowInfo {
+            app: "/usr/bin/firefox".into(),
+            id: 1,
+            title: "Notes - Mozilla Firefox".into(),
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 100,
+            pid: Some(10),
+            display_name: Some("Firefox".into()),
+            minimized: Some(false),
+            source: Some(WindowSource::X11),
+        };
+        assert!(!matches_launch_hints(&firefox, &["notes".into()]));
+
+        let exact_title = WindowInfo {
+            title: "Notes".into(),
+            ..firefox.clone()
+        };
+        assert!(!matches_launch_hints(&exact_title, &["notes".into()]));
+
+        let notes = WindowInfo {
+            display_name: Some("Notes".into()),
+            ..firefox
+        };
+        assert!(matches_launch_hints(&notes, &["notes".into()]));
     }
 
     #[test]

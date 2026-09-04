@@ -47,8 +47,10 @@ export async function dispatchTool(
       if (!ctx.setSessionActive) throw new Error("computer_use.disable requires a thread context");
       ctx.setSessionActive(false);
       return { enabled: false };
-    case "list_apps":
-      return await ctx.driver.listApps();
+    case "list_apps": {
+      const query = optionalString(args.query);
+      return await ctx.driver.listApps(query ? { query } : undefined);
+    }
     case "list_windows":
       return await ctx.driver.listWindows();
     case "launch_app":

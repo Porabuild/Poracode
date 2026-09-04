@@ -242,6 +242,21 @@ pub struct LaunchAppInput {
     pub app: String,
 }
 
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ListAppsInput {
+    #[serde(default)]
+    pub query: Option<String>,
+}
+
+impl ListAppsInput {
+    pub fn query(&self) -> Option<&str> {
+        self.query
+            .as_deref()
+            .map(str::trim)
+            .filter(|query| !query.is_empty())
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct FindElementsInput {
     pub window: WindowRef,
@@ -609,6 +624,27 @@ pub struct AppInfo {
     pub windows: Vec<WindowInfo>,
 }
 
+impl AppInfo {
+    pub fn installed(id: String, display_name: String) -> Self {
+        Self {
+            id,
+            display_name,
+            is_running: false,
+            windows: Vec::new(),
+        }
+    }
+
+    pub fn matches_query(&self, query: &str) -> bool {
+        let query = query.to_lowercase();
+        self.id.to_lowercase().contains(&query)
+            || self.display_name.to_lowercase().contains(&query)
+            || self.windows.iter().any(|window| {
+                window.title.to_lowercase().contains(&query)
+                    || window.app.to_lowercase().contains(&query)
+            })
+    }
+}
+
 /// Group windows by `app` (parity with the PowerShell `list_apps`).
 pub fn group_apps(windows: Vec<WindowInfo>) -> Vec<AppInfo> {
     let mut apps: Vec<AppInfo> = Vec::new();
@@ -628,6 +664,29 @@ pub fn group_apps(windows: Vec<WindowInfo>) -> Vec<AppInfo> {
         });
     }
     apps
+}
+
+pub fn merge_installed_apps(mut running: Vec<AppInfo>, installed: Vec<AppInfo>) -> Vec<AppInfo> {
+    for mut app in installed {
+        if let Some(index) = running.iter().position(|candidate| {
+            candidate.id.to_lowercase() == app.id.to_lowercase()
+                || candidate.display_name.to_lowercase() == app.display_name.to_lowercase()
+        }) {
+            let active = running.remove(index);
+            app.is_running = true;
+            app.windows = active.windows;
+        }
+        running.push(app);
+    }
+    running.sort_by(|left, right| {
+        right.is_running.cmp(&left.is_running).then_with(|| {
+            left.display_name
+                .to_lowercase()
+                .cmp(&right.display_name.to_lowercase())
+        })
+    });
+    running.dedup_by(|left, right| left.id.to_lowercase() == right.id.to_lowercase());
+    running
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -809,5 +868,65 @@ mod tests {
         assert_eq!(apps.len(), 2);
         assert_eq!(apps[0].windows.len(), 2);
         assert_eq!(apps[0].display_name, "a");
+    }
+
+    #[test]
+    fn merges_installed_app_with_matching_running_id() {
+        let running = group_apps(vec![WindowInfo {
+            app: r"shell:AppsFolder\Microsoft.WindowsCalculator!App".into(),
+            id: 1,
+            title: "Calculator".into(),
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 100,
+            pid: Some(10),
+            display_name: Some("ApplicationFrameHost".into()),
+            minimized: Some(false),
+            source: None,
+        }]);
+        let apps = merge_installed_apps(
+            running,
+            vec![AppInfo::installed(
+                r"shell:AppsFolder\Microsoft.WindowsCalculator!App".into(),
+                "Calculator".into(),
+            )],
+        );
+
+        assert_eq!(apps.len(), 1);
+        assert!(apps[0].is_running);
+        assert_eq!(apps[0].windows.len(), 1);
+        assert!(apps[0].id.starts_with("shell:AppsFolder"));
+    }
+
+    #[test]
+    fn does_not_merge_an_unrelated_window_that_only_mentions_the_app_in_its_title() {
+        let running = group_apps(vec![WindowInfo {
+            app: "firefox".into(),
+            id: 1,
+            title: "Notes - Mozilla Firefox".into(),
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 100,
+            pid: Some(10),
+            display_name: Some("Firefox".into()),
+            minimized: Some(false),
+            source: None,
+        }]);
+        let apps = merge_installed_apps(
+            running,
+            vec![AppInfo::installed("notes".into(), "Notes".into())],
+        );
+
+        assert_eq!(apps.len(), 2);
+        assert!(apps.iter().any(|app| app.id == "firefox" && app.is_running));
+        assert!(apps.iter().any(|app| app.id == "notes" && !app.is_running));
+    }
+
+    #[test]
+    fn app_search_matches_non_ascii_case() {
+        let app = AppInfo::installed("editor".into(), "Éditeur".into());
+        assert!(app.matches_query("éditeur"));
     }
 }

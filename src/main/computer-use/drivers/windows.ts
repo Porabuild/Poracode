@@ -6,6 +6,7 @@ import type {
   ComputerUseApp,
   ComputerUseDriver,
   ComputerUseInteractiveResult,
+  ComputerUseListAppsInput,
   ComputerUseWindow,
   ComputerUseWindowState,
 } from "../mcp/types";
@@ -1033,8 +1034,18 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     };
   }
 
-  async listApps(): Promise<ComputerUseApp[]> {
-    return normalizeArray(await this.host.request<ComputerUseApp | ComputerUseApp[]>("list_apps"));
+  async listApps(input?: ComputerUseListAppsInput): Promise<ComputerUseApp[]> {
+    const apps = normalizeArray(
+      await this.host.request<ComputerUseApp | ComputerUseApp[]>("list_apps"),
+    );
+    const query = input?.query?.trim().toLowerCase();
+    if (!query) return apps;
+    return apps.filter(
+      (app) =>
+        app.id.toLowerCase().includes(query) ||
+        app.displayName?.toLowerCase().includes(query) ||
+        app.windows.some((window) => window.title?.toLowerCase().includes(query)),
+    );
   }
 
   async listWindows(): Promise<ComputerUseWindow[]> {

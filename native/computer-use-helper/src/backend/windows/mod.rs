@@ -1,4 +1,5 @@
 mod activate;
+mod apps;
 mod capture;
 mod input;
 mod keys;
@@ -6,6 +7,12 @@ mod launch;
 mod security;
 mod uia;
 mod window_list;
+
+const SHELL_APPS_FOLDER_PREFIX: &str = r"shell:AppsFolder\";
+
+fn shell_apps_folder_id(app_id: &str) -> String {
+    format!("{SHELL_APPS_FOLDER_PREFIX}{app_id}")
+}
 
 use std::thread;
 use std::time::Duration;
@@ -149,6 +156,10 @@ impl Backend for WindowsBackend {
 
     fn list_windows(&self) -> Result<Vec<WindowInfo>> {
         Ok(window_list::list_windows())
+    }
+
+    fn search_installed_apps(&self, query: &str) -> Result<Vec<crate::protocol::actions::AppInfo>> {
+        apps::search(query)
     }
 
     fn resolve_window(&self, window: &WindowRef) -> Result<WindowInfo> {

@@ -17,8 +17,8 @@ use crate::capture::{EncodeOptions, downscale_note, encode_screenshot};
 use crate::geometry::point_in_frame;
 use crate::protocol::actions::{
     ClickInput, DragInput, FindElementsInput, GetWindowStateInput, HelloInput, InvokeElementInput,
-    LaunchAppInput, PressKeyInput, ScrollInput, SetElementValueInput, TypeTextInput,
-    WindowOnlyInput, WindowStateResult, group_apps,
+    LaunchAppInput, ListAppsInput, PressKeyInput, ScrollInput, SetElementValueInput, TypeTextInput,
+    WindowOnlyInput, WindowStateResult,
 };
 use crate::protocol::keys::parse_chord;
 use crate::protocol::version::{MIN_CLIENT_PROTOCOL_VERSION, PROTOCOL_VERSION};
@@ -152,7 +152,7 @@ fn lane_for(action: &str) -> Lane {
 fn timeout_for(action: &str) -> Duration {
     match action {
         "launch_app" => Duration::from_secs(20),
-        "get_window_state" | "find_elements" => Duration::from_secs(6),
+        "list_apps" | "get_window_state" | "find_elements" => Duration::from_secs(6),
         "activate_window" | "click" | "press_key" | "type_text" | "scroll" | "drag"
         | "invoke_element" | "set_element_value" => Duration::from_secs(5),
         _ => Duration::from_secs(3),
@@ -320,7 +320,10 @@ pub fn dispatch_request(
             serialize(build_hello(backend.hello()))
         }
         "list_windows" => serialize(backend.list_windows()?),
-        "list_apps" => serialize(group_apps(backend.list_windows()?)),
+        "list_apps" => {
+            let input: ListAppsInput = parse(&request.input)?;
+            serialize(backend.list_apps(input.query())?)
+        }
         "get_window" => serialize(backend.resolve_window(&parse_window(&request.input)?)?),
         "get_window_state" => {
             let input: GetWindowStateInput = parse(&request.input)?;

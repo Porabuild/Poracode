@@ -13,6 +13,7 @@ import type {
   ComputerUseFindElementsResult,
   ComputerUseInvocableElementAction,
   ComputerUseInteractiveResult,
+  ComputerUseListAppsInput,
   ComputerUseRefusal,
   ComputerUseWindow,
   ComputerUseWindowState,
@@ -126,8 +127,8 @@ export class HelperComputerUseDriver implements ComputerUseDriver {
     };
   }
 
-  listApps(): Promise<ComputerUseApp[]> {
-    return this.call("list_apps");
+  listApps(input: ComputerUseListAppsInput = {}): Promise<ComputerUseApp[]> {
+    return this.call("list_apps", input);
   }
 
   listWindows(): Promise<ComputerUseWindow[]> {

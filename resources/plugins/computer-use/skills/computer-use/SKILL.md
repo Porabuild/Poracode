@@ -9,7 +9,7 @@ Use Poracode's `computer_use` MCP for tasks that require interacting with deskto
 
 ## Workflow
 
-1. Call `computer_use.api` when you need the API map, then use `list_apps` or `list_windows` to select the exact target.
+1. Call `computer_use.api` when you need the API map, then use `list_apps` or `list_windows` to select the exact target. If the app is not running, call `list_apps` with `query` and pass the returned app id to `launch_app`.
 2. Call `get_window_state` with `include_text:true`. Prefer `find_elements` plus `invoke_element` or `set_element_value` when the app exposes the needed control.
 3. Call `computer_use.enable` immediately before the first control action and keep it enabled across uninterrupted related steps.
 4. When no suitable element exists, derive frame-relative coordinates from the latest screenshot. Refresh the state after the window moves, resizes, or is recreated.

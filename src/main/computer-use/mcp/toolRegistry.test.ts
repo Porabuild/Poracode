@@ -46,9 +46,46 @@ describe("computer-use toolRegistry", () => {
     expect(formatted.content).toEqual([
       {
         type: "text",
-        text: `${JSON.stringify([{ app: "calc", id: 1 }], null, 2)}\n\nComputer Use backend notes:\n- Native helper unavailable; using the legacy driver.`,
+        text: `${JSON.stringify([{ app: "calc", id: 1 }])}\n\nComputer Use backend notes:\n- Native helper unavailable; using the legacy driver.`,
       },
     ]);
+  });
+
+  it("keeps accessibility state metadata compact enough for provider tool outputs", () => {
+    const tree = Array.from(
+      { length: 50 },
+      (_, index) => `[s1:${index}] button "Button ${index}" (0,0 40x40) actions=invoke`,
+    ).join("\n");
+    const formatted = formatToolResult("get_window_state", {
+      accessibility: {
+        source: "uia",
+        tree,
+        snapshotId: "s1",
+        elementCount: 50,
+        truncated: false,
+      },
+      mode: "passive",
+      notes: [],
+      screenshots: [],
+      window: { app: "calc", id: 1, title: "Calculator" },
+    });
+
+    expect(formatted.content[0]?.text).toBe(
+      JSON.stringify({
+        accessibility: {
+          source: "uia",
+          tree,
+          snapshotId: "s1",
+          elementCount: 50,
+          truncated: false,
+        },
+        mode: "passive",
+        notes: [],
+        screenshots: [],
+        window: { app: "calc", id: 1, title: "Calculator" },
+      }),
+    );
+    expect(formatted.content[0]?.text?.length).toBeLessThan(4_096);
   });
 
   it("appends backend notes to screenshot metadata without altering image content", () => {
@@ -138,6 +175,16 @@ describe("computer-use toolRegistry", () => {
       mode: "background",
       verify: "fast",
     });
+  });
+
+  it("passes an installed-app search query to the driver", async () => {
+    const driver = createDriver({
+      listApps: vi.fn<ComputerUseDriver["listApps"]>().mockResolvedValue([]),
+    });
+
+    await dispatchTool("list_apps", { query: "Calculator" }, { driver });
+
+    expect(driver.listApps).toHaveBeenCalledWith({ query: "Calculator" });
   });
 
   it("rejects malformed click options instead of silently left-clicking", async () => {

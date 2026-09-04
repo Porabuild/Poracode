@@ -65,8 +65,11 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "list_apps",
     description:
-      "List apps that currently have targetable windows. This does not enumerate installed apps.",
-    inputSchema: { type: "object", properties: {} },
+      "List apps that currently have targetable windows. Pass query to also search installed apps by name and receive a launchable id.",
+    inputSchema: {
+      type: "object",
+      properties: { query: { type: "string" } },
+    },
   },
   {
     name: "list_windows",

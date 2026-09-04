@@ -6,9 +6,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::capture::CaptureResult;
 use crate::protocol::actions::{
-    AccessibilityState, Capabilities, ElementAction, FindElementsInput, FindElementsResult, Hello,
-    InputMode, InteractiveResult, LaunchResult, MouseButton, PermissionState, Permissions, Refusal,
-    RefusalCode, Verify,
+    AccessibilityState, AppInfo, Capabilities, ElementAction, FindElementsInput,
+    FindElementsResult, Hello, InputMode, InteractiveResult, LaunchResult, MouseButton,
+    PermissionState, Permissions, Refusal, RefusalCode, Verify, group_apps, merge_installed_apps,
 };
 use crate::protocol::keys::Chord;
 use crate::protocol::version::{HELPER_VERSION, MIN_CLIENT_PROTOCOL_VERSION, PROTOCOL_VERSION};
@@ -129,6 +129,22 @@ pub trait Backend: Send + Sync {
     fn hello(&self) -> HelloInfo;
 
     fn list_windows(&self) -> Result<Vec<WindowInfo>>;
+
+    fn search_installed_apps(&self, _query: &str) -> Result<Vec<AppInfo>> {
+        Ok(Vec::new())
+    }
+
+    fn list_apps(&self, query: Option<&str>) -> Result<Vec<AppInfo>> {
+        let mut running = group_apps(self.list_windows()?);
+        let Some(query) = query else {
+            return Ok(running);
+        };
+        running.retain(|app| app.matches_query(query));
+        Ok(merge_installed_apps(
+            running,
+            self.search_installed_apps(query)?,
+        ))
+    }
 
     /// Exact id first, then recovery by app/title (parity with the PowerShell
     /// `Require-Window`), else `window_unavailable`.

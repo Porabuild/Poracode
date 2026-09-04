@@ -204,7 +204,7 @@ pub fn render_tree(elements: &[ElementInfo], max_bytes: usize) -> (String, bool)
     for element in elements {
         let mut line = String::new();
         for _ in 0..element.depth {
-            line.push_str("  ");
+            line.push(' ');
         }
         let _ = write!(line, "[{}] {}", element.id, element.role);
         if let Some(name) = &element.name
@@ -212,11 +212,13 @@ pub fn render_tree(elements: &[ElementInfo], max_bytes: usize) -> (String, bool)
         {
             let _ = write!(line, " {:?}", truncate(name, 120));
         }
-        let _ = write!(
-            line,
-            " ({},{} {}x{})",
-            element.bounds.x, element.bounds.y, element.bounds.width, element.bounds.height
-        );
+        if element.actions.is_empty() {
+            let _ = write!(
+                line,
+                " ({},{} {}x{})",
+                element.bounds.x, element.bounds.y, element.bounds.width, element.bounds.height
+            );
+        }
         if !element.enabled {
             line.push_str(" disabled");
         }
@@ -237,15 +239,16 @@ pub fn render_tree(elements: &[ElementInfo], max_bytes: usize) -> (String, bool)
             let _ = write!(line, " id={automation_id}");
         }
         if !element.actions.is_empty() {
-            line.push_str(" actions=");
-            line.push_str(
-                &element
-                    .actions
-                    .iter()
-                    .map(action_name)
-                    .collect::<Vec<_>>()
-                    .join(","),
-            );
+            let actions = element
+                .actions
+                .iter()
+                .filter(|action| !tree_action_is_implicit(&element.role, action))
+                .map(action_name)
+                .collect::<Vec<_>>();
+            if !actions.is_empty() {
+                line.push_str(" actions=");
+                line.push_str(&actions.join(","));
+            }
         }
         line.push('\n');
         if out.len() + line.len() > max_bytes {
@@ -254,6 +257,17 @@ pub fn render_tree(elements: &[ElementInfo], max_bytes: usize) -> (String, bool)
         out.push_str(&line);
     }
     (out, false)
+}
+
+fn tree_action_is_implicit(role: &str, action: &ElementAction) -> bool {
+    if action == &ElementAction::Click {
+        return true;
+    }
+    action == &ElementAction::Invoke
+        && matches!(
+            normalize_role(role).as_str(),
+            "button" | "pushbutton" | "splitbutton" | "menuitem" | "link" | "hyperlink"
+        )
 }
 
 fn action_name(action: &ElementAction) -> &'static str {
@@ -476,13 +490,20 @@ mod tests {
         let mut snapshot: Snapshot<()> = Snapshot::new(1);
         snapshot.push(element("window", "Untitled - Notepad", 0), ());
         snapshot.push(element("menuitem", "File", 1), ());
+        let mut passive = element("text", "Status", 1);
+        passive.actions.clear();
+        snapshot.push(passive, ());
         let (text, truncated) = render_tree(&snapshot.elements, MAX_TREE_BYTES);
         assert!(!truncated);
         assert!(text.starts_with(&format!(
-            "[{}] window \"Untitled - Notepad\" (1,2 3x4) actions=invoke\n",
+            "[{}] window \"Untitled - Notepad\" actions=invoke\n",
             snapshot.elements[0].id
         )));
-        assert!(text.contains("\n  ["));
+        assert!(text.contains(&format!(
+            "\n [{}] menuitem \"File\"\n",
+            snapshot.elements[1].id
+        )));
+        assert!(text.contains("text \"Status\" (1,2 3x4)"));
         let (short, truncated) = render_tree(&snapshot.elements, 10);
         assert!(truncated);
         assert!(short.is_empty());

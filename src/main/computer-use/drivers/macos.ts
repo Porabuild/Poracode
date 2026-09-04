@@ -5,6 +5,7 @@ import type {
   ComputerUseApp,
   ComputerUseDriver,
   ComputerUseInteractiveResult,
+  ComputerUseListAppsInput,
   ComputerUseWindow,
   ComputerUseWindowState,
 } from "../mcp/types";
@@ -228,7 +229,7 @@ export class MacComputerUseDriver implements ComputerUseDriver {
     };
   }
 
-  async listApps(): Promise<ComputerUseApp[]> {
+  async listApps(input?: ComputerUseListAppsInput): Promise<ComputerUseApp[]> {
     const windows = await listMacWindows();
     const groups = new Map<string, ComputerUseWindow[]>();
     for (const window of windows) {
@@ -236,12 +237,19 @@ export class MacComputerUseDriver implements ComputerUseDriver {
       prev.push(window);
       groups.set(window.app, prev);
     }
-    return [...groups.entries()].map(([id, appWindows]) => ({
+    const apps = [...groups.entries()].map(([id, appWindows]) => ({
       id,
       displayName: id,
       isRunning: true,
       windows: appWindows,
     }));
+    const query = input?.query?.trim().toLowerCase();
+    if (!query) return apps;
+    return apps.filter(
+      (app) =>
+        app.id.toLowerCase().includes(query) ||
+        app.windows.some((window) => window.title?.toLowerCase().includes(query)),
+    );
   }
 
   listWindows(): Promise<ComputerUseWindow[]> {

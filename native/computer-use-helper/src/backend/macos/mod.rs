@@ -17,6 +17,7 @@ use crate::protocol::actions::{
 };
 use crate::protocol::window::{WindowInfo, WindowRef};
 
+mod apps;
 mod ax;
 mod capture;
 mod input;
@@ -198,6 +199,10 @@ impl Backend for MacOsBackend {
 
     fn list_windows(&self) -> Result<Vec<WindowInfo>> {
         Ok(window_list::list_windows())
+    }
+
+    fn search_installed_apps(&self, query: &str) -> Result<Vec<crate::protocol::actions::AppInfo>> {
+        apps::search(query)
     }
 
     fn resolve_window(&self, window: &WindowRef) -> Result<WindowInfo> {

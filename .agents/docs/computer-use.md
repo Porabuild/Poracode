@@ -38,6 +38,8 @@ Change both constants and the protocol fixture whenever an action input, result,
 
 The public actions are `hello`, `list_apps`, `list_windows`, `get_window`, `get_window_state`, `activate_window`, `click`, `press_key`, `type_text`, `scroll`, `drag`, `launch_app`, `find_elements`, `invoke_element`, and `set_element_value`, plus host-level `cancel` and `shutdown`.
 
+`list_apps` without a query stays compact and returns running apps with targetable windows. Passing `query` also searches the host's installed-app catalog and returns launchable ids: Windows Start apps, macOS application bundles, or Linux desktop entries.
+
 ## Delivery and refusal contract
 
 Coordinate and element actions are transport-successful only when their structured result says so:

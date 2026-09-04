@@ -10,7 +10,7 @@ use crate::backend::CancelToken;
 use crate::protocol::actions::LaunchResult;
 use crate::protocol::{HelperError, Result};
 
-use super::window_list::list_windows;
+use super::{SHELL_APPS_FOLDER_PREFIX, shell_apps_folder_id, window_list::list_windows};
 
 fn validate(app: &str) -> Result<()> {
     let app = app.trim();
@@ -22,7 +22,9 @@ fn validate(app: &str) -> Result<()> {
             "UNC paths are not allowed for launch_app.",
         ));
     }
-    let shell_apps = app.to_ascii_lowercase().starts_with(r"shell:appsfolder\");
+    let shell_apps = app
+        .get(..SHELL_APPS_FOLDER_PREFIX.len())
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(SHELL_APPS_FOLDER_PREFIX));
     let bytes = app.as_bytes();
     let drive_path = bytes.len() >= 3
         && bytes[0].is_ascii_alphabetic()
@@ -51,7 +53,7 @@ fn launch_targets(app: &str) -> Vec<String> {
     match app.trim().to_ascii_lowercase().as_str() {
         "calc" | "calculator" => vec![
             "calc.exe".into(),
-            r"shell:AppsFolder\Microsoft.WindowsCalculator_8wekyb3d8bbwe!App".into(),
+            shell_apps_folder_id("Microsoft.WindowsCalculator_8wekyb3d8bbwe!App"),
         ],
         "notepad" => vec!["notepad.exe".into()],
         _ => vec![app.trim().into()],

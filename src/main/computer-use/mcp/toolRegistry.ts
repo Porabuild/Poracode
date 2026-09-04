@@ -120,7 +120,7 @@ export function formatToolResult(
     };
     return {
       content: [
-        { type: "text", text: formatText(JSON.stringify(metadata, null, 2), notes) },
+        { type: "text", text: formatText(JSON.stringify(metadata), notes) },
         ...state.screenshots.map((screenshot) => ({
           type: "image" as const,
           data: screenshot.data,
@@ -130,6 +130,6 @@ export function formatToolResult(
     };
   }
   return {
-    content: [{ type: "text", text: formatText(JSON.stringify(result, null, 2), notes) }],
+    content: [{ type: "text", text: formatText(JSON.stringify(result), notes) }],
   };
 }
