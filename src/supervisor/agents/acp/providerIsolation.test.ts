@@ -7,14 +7,14 @@
  * type, or regex in `acp/` or `acp-generic/` that names one agent means shared
  * code is carrying that agent's quirk instead of the provider folder.
  *
- * String literals are exempt: shared code legitimately matches and surfaces
- * vendor wire text. Control flow and data shape are what this checks.
+ * Prose strings are ignored; comparison literals and module imports are checked.
  */
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { tokenizer, type Token } from "acorn";
 
 const AGENTS_DIR = fileURLToPath(new URL("..", import.meta.url));
 const SHARED_DIRS = ["acp", "acp-generic"] as const;
@@ -25,29 +25,6 @@ const SHARED_DIRS = ["acp", "acp-generic"] as const;
  * text-scan `cursor` from the Cursor provider; review covers these.
  */
 const AMBIGUOUS_KINDS = new Set(["cursor"]);
-
-/**
- * Provider knowledge that predates the boundary being enforced. Pin it so
- * nothing new lands, and delete the entry when the debt is paid — a stale
- * entry fails this test just as a new violation does.
- */
-const KNOWN_EXCEPTIONS: ReadonlyArray<{ file: string; kind: string; reason: string }> = [
-  {
-    file: "acp/probe.ts",
-    kind: "gemini",
-    reason:
-      "humanizeModelId strips a hardcoded `gemini-` prefix for every ACP agent. " +
-      "Fix: let the adapter declare its model-label normalization instead.",
-  },
-  {
-    file: "acp-generic/index.ts",
-    kind: "factory",
-    reason:
-      "Probe results are routed through `normalizeFactoryModels` behind an " +
-      '`instance.id === "factory-droid"` branch. Fix: pass it as the existing ' +
-      "`normalizeProbeResult` option from the Factory registry entry.",
-  },
-];
 
 /** Printed alongside any violation so the failure explains the fix. */
 const ISOLATION_HINT =
@@ -64,77 +41,37 @@ function discoverProviderKinds(): string[] {
   });
 }
 
-/**
- * Drop comments and string/template contents, keeping everything else —
- * including regex bodies, which encode provider knowledge as surely as an
- * identifier does. Regex literals are consumed atomically so a quote inside a
- * character class cannot be mistaken for the start of a string.
- */
-function codeOnly(src: string): string {
-  let out = "";
-  let i = 0;
-  /** Last non-whitespace char of real code, to tell regex from division. */
-  let prev = "";
-  while (i < src.length) {
-    const c = src[i]!;
-    const next = src[i + 1];
-    if (c === "/" && next === "/") {
-      while (i < src.length && src[i] !== "\n") i++;
-      continue;
+function providerCodeSegments(src: string): Set<string> {
+  const tokens = [...tokenizer(src, { ecmaVersion: "latest", sourceType: "module" })] as Array<
+    Token & { value: unknown }
+  >;
+  const code: string[] = [];
+  const imports: string[] = [];
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index]!;
+    const label = token.type.label;
+    if (label === "name") code.push(String(token.value));
+    if (label === "regexp") code.push(src.slice(token.start + 1, token.end));
+    if (label !== "string" && label !== "template") continue;
+
+    const template = label === "template";
+    const previous = tokens[index - (template ? 2 : 1)];
+    const next = tokens[index + (template ? 2 : 1)];
+    const comparison = (value: unknown) => ["==", "!=", "===", "!=="].includes(String(value));
+    const imported =
+      previous?.type.label === "import" ||
+      previous?.value === "from" ||
+      (previous?.type.label === "(" &&
+        ["import", "require"].includes(String(tokens[index - (template ? 3 : 2)]?.value)));
+    if (comparison(previous?.value) || comparison(next?.value) || previous?.type.label === "case") {
+      code.push(String(token.value));
     }
-    if (c === "/" && next === "*") {
-      i += 2;
-      while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++;
-      i += 2;
-      continue;
-    }
-    if (c === '"' || c === "'" || c === "`") {
-      i++;
-      while (i < src.length) {
-        if (src[i] === "\\") {
-          i += 2;
-          continue;
-        }
-        if (src[i] === c) {
-          i++;
-          break;
-        }
-        i++;
-      }
-      out += '""';
-      prev = '"';
-      continue;
-    }
-    if (c === "/" && !/[A-Za-z0-9_$)\]]/.test(prev)) {
-      i++;
-      let body = "";
-      let inClass = false;
-      while (i < src.length) {
-        const ch = src[i]!;
-        if (ch === "\\") {
-          body += src.slice(i, i + 2);
-          i += 2;
-          continue;
-        }
-        if (ch === "\n") break;
-        if (ch === "[") inClass = true;
-        else if (ch === "]") inClass = false;
-        else if (ch === "/" && !inClass) {
-          i++;
-          break;
-        }
-        body += ch;
-        i++;
-      }
-      out += ` ${body} `;
-      prev = "/";
-      continue;
-    }
-    out += c;
-    if (!/\s/.test(c)) prev = c;
-    i++;
+    if (imported) imports.push(String(token.value));
   }
-  return out;
+  return new Set([
+    ...identifierSegments(code.join(" ")),
+    ...imports.flatMap((id) => id.split("/")),
+  ]);
 }
 
 /** Lowercased word segments of every identifier-shaped token in `code`. */
@@ -177,25 +114,42 @@ describe("shared ACP code names no provider", () => {
   });
 
   const found = sharedSourceFiles().flatMap((path) => {
-    const segments = identifierSegments(codeOnly(readFileSync(path, "utf8")));
+    const segments = providerCodeSegments(readFileSync(path, "utf8"));
     const file = relative(AGENTS_DIR, path).split(sep).join("/");
     return kinds.filter((kind) => segments.has(kind)).map((kind) => ({ file, kind }));
   });
   const key = (hit: { file: string; kind: string }) => `${hit.file} → ${hit.kind}`;
 
-  it("has no provider name in an identifier, type, or regex", () => {
-    const allowed = new Set(KNOWN_EXCEPTIONS.map(key));
-    const violations = found.filter((hit) => !allowed.has(key(hit))).map(key);
-    // The hint rides along in the compared value so a failure prints it.
-    const report = violations.length > 0 ? [ISOLATION_HINT, ...violations] : [];
-    expect(report).toEqual([]);
+  it("has no provider name in identifiers, types, regexes, comparisons, or imports", () => {
+    const violations = found.map(key);
+    expect(violations.length > 0 ? [ISOLATION_HINT, ...violations] : []).toEqual([]);
+  });
+});
+
+describe("provider isolation scanner", () => {
+  it.each([
+    "const geminiBuffer = [];",
+    "let value: GeminiPayload;",
+    'const pattern = /gemini-["a-z]+/;',
+    'if (kind === "gemini") stop();',
+    'if ("gemini" !== kind) stop();',
+    "if (kind === `gemini`) stop();",
+    'switch (kind) { case "gemini": break; }',
+    'import { normalize } from "../gemini/detection";',
+    'await import("../gemini/detection");',
+    "const message = `value: ${geminiState}`;",
+  ])("detects provider knowledge in %s", (source) => {
+    expect(providerCodeSegments(source)).toContain("gemini");
   });
 
-  it("pins only debt that still exists", () => {
-    const present = new Set(found.map(key));
-    const stale = KNOWN_EXCEPTIONS.filter((hit) => !present.has(key(hit))).map(key);
-    const report =
-      stale.length > 0 ? ["Fixed — delete these from KNOWN_EXCEPTIONS.", ...stale] : [];
-    expect(report).toEqual([]);
+  it("ignores comments, prose, and template text while preserving division", () => {
+    const source = [
+      "// geminiBuffer is provider-owned",
+      "/* GeminiPayload */",
+      'const message = "gemini output";',
+      "const template = `gemini ${count / total}`;",
+    ].join("\n");
+    expect(providerCodeSegments(source)).not.toContain("gemini");
+    expect(providerCodeSegments(source)).toContain("count");
   });
 });

@@ -264,9 +264,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 20,
-      // v20 mirrors supervisor STATUS_CACHE_VERSION=23: Muse now runs native
-      // Windows projects in WSL and advertises its MSP-backed GUI presentation.
+      version: 21,
+      // v21 mirrors supervisor STATUS_CACHE_VERSION=24: generic ACP model
+      // labels now preserve provider prefixes.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

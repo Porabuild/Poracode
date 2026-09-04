@@ -23,11 +23,16 @@ vi.mock("../base", async () => {
   };
 });
 
-vi.mock("../acp", () => ({
+vi.mock("../acp", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../acp")>()),
   probeAcpCapabilities: probeAcpCapabilitiesMock,
 }));
 
-import { geminiDetectionSpec, parseGeminiGoogleAccountsJson } from "./detection";
+import {
+  geminiDetectionSpec,
+  humanizeGeminiModelId,
+  parseGeminiGoogleAccountsJson,
+} from "./detection";
 
 describe("geminiDetectionSpec", () => {
   beforeEach(() => {
@@ -64,6 +69,7 @@ describe("geminiDetectionSpec", () => {
       expect.objectContaining({
         label: "gemini:posix",
         timeoutMs: 15_000,
+        modelLabel: humanizeGeminiModelId,
       }),
     );
   });
@@ -114,5 +120,13 @@ describe("parseGeminiGoogleAccountsJson", () => {
 
   it("returns undefined for malformed JSON", () => {
     expect(parseGeminiGoogleAccountsJson("not json")).toBeUndefined();
+  });
+});
+
+describe("humanizeGeminiModelId", () => {
+  it("strips only the leading provider prefix", () => {
+    expect(humanizeGeminiModelId("gemini-2.5-pro")).toBe("2.5 Pro");
+    expect(humanizeGeminiModelId("gemini-2.5-flash-lite")).toBe("2.5 Flash Lite");
+    expect(humanizeGeminiModelId("auto-gemini-3")).toBe("Auto Gemini 3");
   });
 });

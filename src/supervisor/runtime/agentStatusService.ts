@@ -84,8 +84,10 @@ const execFileAsync = promisify(execFile);
  * so cached Muse statuses that hide the logout button must be re-probed.
  * v23 lets adapters route native Windows projects through WSL and adds Muse's
  * MSP-backed GUI presentation, so native terminal-only caches must be re-probed.
+ * v24 preserves model prefixes in generic ACP labels; re-probe labels previously
+ * shortened by the shared provider-specific formatter.
  */
-export const STATUS_CACHE_VERSION = 23;
+export const STATUS_CACHE_VERSION = 24;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

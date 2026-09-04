@@ -39,6 +39,8 @@ rule is about control flow and data shape, not about erasing history.
    (agent-text, background-task, and tool-lifecycle quirks), `acpSessionUpdateTransform` /
    `acpExtensionSessionUpdateTransform` (payload normalization),
    `acpExtensionNotificationHandler` (vendor JSON-RPC notifications).
+   Probe customization uses `normalizeProbeResult` for discovered capabilities
+   and `modelLabel` for fallback labels when the agent supplies no display name.
 
 If none of the three fits, the right move is to add a new hook with a
 capability-shaped name and document it here — not to add a branch.
@@ -60,20 +62,14 @@ is attached is a coupling the type system will not catch.
 ### Enforcement
 
 `acp/providerIsolation.test.ts` fails the build when a provider name appears in
-an identifier, type, or regex anywhere under `acp/` or `acp-generic/`. It
+an identifier, type, regex, comparison literal, or provider import anywhere under
+`acp/` or `acp-generic/`. It
 discovers provider folders the same way the registry parity test does, so a new
-provider is covered the moment its `detection.ts` lands. Comments and string
-literals are exempt — shared code legitimately documents the case it was written
-for and matches vendor wire text.
+provider is covered the moment its `detection.ts` lands. Comments and prose
+strings are ignored; expressions inside template strings are checked.
 
-Two escape valves, both deliberately uncomfortable:
-
-- `AMBIGUOUS_KINDS` — kind names that are also ordinary words (`cursor`), where a
-  segment match proves nothing. Review covers these.
-- `KNOWN_EXCEPTIONS` — provider knowledge that predates the boundary, each entry
-  carrying the reason and the intended fix. The list may only shrink: a stale
-  entry fails the test exactly like a new violation, so paying the debt is what
-  removes it.
+`AMBIGUOUS_KINDS` excludes kind names that are also ordinary words (`cursor`),
+where a segment match proves nothing. Review covers these.
 
 The guard covers the shared ACP stack, which is where the pressure is highest.
 The rule applies to all shared code; the rest is on review.

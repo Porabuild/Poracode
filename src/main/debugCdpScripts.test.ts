@@ -376,3 +376,53 @@ async function close(server: Server): Promise<void> {
     server.close((error) => (error ? reject(error) : done())),
   );
 }
+
+describe("dev port preparation", () => {
+  it("parses listener owners independently of Windows display language", async () => {
+    const modulePath: string = "../../scripts/free-port.mjs";
+    const { parseListeningPidsWindows } = (await import(modulePath)) as {
+      parseListeningPidsWindows: (output: string, ports: number[]) => number[];
+    };
+    const output = [
+      "  TCP    0.0.0.0:3100       0.0.0.0:0       LISTENING    101",
+      "  TCP    [::]:3100          [::]:0          ABHÖREN      101",
+      "  TCP    127.0.0.1:3200     0.0.0.0:0       ABHÖREN      202",
+      "  TCP    [::1]:3200         [::]:0          ÉCOUTE       303",
+      "  TCP    127.0.0.1:3100     127.0.0.1:9000  ESTABLISHED  404",
+      "  TCP    127.0.0.1:3300     0.0.0.0:0       LISTENING    505",
+      "  UDP    0.0.0.0:3100       *:*                          606",
+    ].join("\n");
+    expect(parseListeningPidsWindows(output, [3100, 3200, 3100])).toEqual([101, 202, 303]);
+  });
+
+  it("accepts an unused port without reclaiming another process", async () => {
+    const server = await listen((_request, response) => response.end());
+    const port = addressPort(server);
+    await close(server);
+    const result = await execFileAsync(
+      process.execPath,
+      [join(repoRoot, "scripts/free-port.mjs"), String(port)],
+      {
+        env: { ...process.env, PORACODE_DEV_SERVER_REQUIRE_FREE: "1" },
+        timeout: 10_000,
+      },
+    );
+    expect(result.stdout).toContain("already free");
+  });
+
+  it("keeps an occupied port's server alive when reclaiming is forbidden", async () => {
+    const server = await listen((_request, response) => response.end("alive"));
+    const port = addressPort(server);
+    try {
+      await expect(
+        execFileAsync(process.execPath, [join(repoRoot, "scripts/free-port.mjs"), String(port)], {
+          env: { ...process.env, PORACODE_DEV_SERVER_REQUIRE_FREE: "1" },
+          timeout: 10_000,
+        }),
+      ).rejects.toMatchObject({ stderr: expect.stringContaining("Refusing to reclaim") });
+      expect(await (await fetch(`http://127.0.0.1:${port}`)).text()).toBe("alive");
+    } finally {
+      await close(server);
+    }
+  });
+});
