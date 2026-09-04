@@ -41,8 +41,10 @@ export function createSlashCommandChipElement(
   } else if (command.skillName) {
     chip.dataset.skillName = command.skillName;
   }
-  if (command.skillName) {
-    const skill = command.pluginName ?? command.skillName;
+  if (command.pluginName) {
+    chip.setAttribute("aria-label", command.pluginName);
+  } else if (command.skillName) {
+    const skill = command.skillName;
     chip.setAttribute("aria-label", i18n._(msg`Skill: ${skill}`));
   }
   chip.className = "poracode-slash-chip";

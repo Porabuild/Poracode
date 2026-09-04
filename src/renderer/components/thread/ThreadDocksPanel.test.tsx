@@ -88,6 +88,36 @@ describe("ThreadDocksPanel", () => {
     expect(screen.getByText("Ship the update")).toBeInTheDocument();
   });
 
+  it("offers a local dismiss for a right-panel goal without a clear action", () => {
+    const failedItem = {
+      id: "goal-1",
+      type: "goal" as const,
+      state: "completed" as const,
+      payload: {
+        action: "updated",
+        objective: "Implement plan",
+        status: "failed",
+        tokensUsed: 1000,
+      },
+      streams: {},
+    };
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "thread-1": ["goal-1"] },
+      runtimeItemsByIdByThread: { "thread-1": { "goal-1": failedItem } },
+      runtimeBackgroundTasksByThread: {},
+    });
+
+    render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-1" />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText("Implement plan")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close goal" }));
+    expect(screen.queryByRole("button", { name: "Reorder Goal" })).not.toBeInTheDocument();
+  });
+
   it("does not keep an empty docks panel alive for a dismissed agent row", () => {
     useAppStore.setState({
       runtimeItemIdsByThread: { "thread-dismissed-agent": ["agent-1"] },

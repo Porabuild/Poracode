@@ -41,10 +41,9 @@ import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
  * Bump when the cached snapshot source or shape changes so stale caches are
  * discarded. v3 relabeled Cursor's first-party window; v4 reselects the main
  * Cursor account when an SDK key is configured; v5 removes the desktop-app
- * credential fallback from the CLI-backed main tile. v6 invalidates successful
- * empty Muse snapshots produced from Comet authentication errors.
+ * credential fallback from the CLI-backed main tile.
  */
-const USAGE_CACHE_VERSION = 6;
+const USAGE_CACHE_VERSION = 5;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;

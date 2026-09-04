@@ -372,7 +372,8 @@ export class SpawnPipeline {
       : undefined;
     const wslSegments = mentionSegments
       ? await rewriteSegmentsForWsl(mentionSegments, executionLocation, {
-          preserveImageAttachments: useStructuredFlow,
+          preserveImageAttachments:
+            useStructuredFlow && adapter.capabilities.readsImageAttachmentsFromHost !== false,
           preservePdfAttachments:
             useStructuredFlow && adapter.capabilities.readsPdfAttachmentsFromHost === true,
         })

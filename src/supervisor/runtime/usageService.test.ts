@@ -66,26 +66,6 @@ afterEach(() => {
 });
 
 describe("UsageService", () => {
-  it("invalidates previous-version successful empty usage snapshots", async () => {
-    const cachePath = tempCachePath();
-    writeFileSync(
-      cachePath,
-      JSON.stringify({
-        version: 5,
-        snapshots: [{ providerId: "claude", status: "ok", windows: [], fetchedAt: NOW }],
-      }),
-    );
-    const service = new UsageService({
-      emit: () => {},
-      cachePath,
-      host: makeHost({}),
-      localCollectors: stubLocalCollectors(),
-    });
-    const result = await service.getProviderUsage({ providerIds: ["claude"] });
-    expect(result.fromCache).toBe(false);
-    expect(result.snapshots).toEqual([]);
-  });
-
   it("discards older caches that still label the first-party window Auto + Composer", async () => {
     const cachePath = tempCachePath();
     writeFileSync(

@@ -1380,6 +1380,10 @@ msgstr "Другой чат использует это же дерево. Во�
 msgid "Another operation for this experiment is still running."
 msgstr "Другая операция для этого эксперимента ещё выполняется."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "Ответьте на все вопросы, чтобы отправить"
+
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
 msgstr "Antigravity"
@@ -3121,12 +3125,28 @@ msgstr "Управление компьютером"
 #~ msgstr "Computer Use управляет сопряжённым рабочим столом. Не пользуйтесь этим компьютером, пока агент кликает или печатает."
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
-msgstr "Computer Use включён — управляет сопряжённым рабочим столом; не пользуйтесь этим компьютером, пока агент им управляет"
+#~ msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+#~ msgstr "Computer Use включён — управляет сопряжённым рабочим столом; не пользуйтесь этим компьютером, пока агент им управляет"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
-msgstr "Computer Use включён — интерактивные действия захватывают рабочий стол; не пользуйтесь компьютером, пока агент им управляет"
+#~ msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+#~ msgstr "Computer Use включён — интерактивные действия захватывают рабочий стол; не пользуйтесь компьютером, пока агент им управляет"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use включён — агент управляет приложениями на сопряжённом рабочем столе в фоновом режиме и перехватывает мышь и клавиатуру этого рабочего стола, только если шаг явно требует работы на переднем плане"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground or when that desktop's system-approved portal requires it"
+msgstr "Управление компьютером включено — агент управляет приложениями на сопряжённом рабочем столе в фоновом режиме; он перехватывает мышь и клавиатуру этого рабочего стола, только когда шаг явно требует переднего плана или этого требует одобренный системой портал рабочего стола"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use включён — агент управляет приложениями рабочего стола в фоновом режиме и перехватывает мышь и клавиатуру, только если шаг явно требует работы на переднем плане"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it"
+msgstr "Управление компьютером включено — агент управляет настольными приложениями в фоновом режиме; он перехватывает мышь и клавиатуру, только когда шаг явно требует переднего плана или этого требует одобренный системой портал рабочего стола"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
@@ -3343,8 +3363,12 @@ msgid "Control an external Chrome browser."
 msgstr "Управляет внешним браузером Chrome."
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Control desktop apps and complete visual workflows."
-msgstr "Управляйте настольными приложениями и выполняйте визуальные сценарии."
+#~ msgid "Control desktop apps and complete visual workflows."
+#~ msgstr "Управляйте настольными приложениями и выполняйте визуальные сценарии."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps in the background and complete visual workflows."
+msgstr "Управляйте приложениями рабочего стола в фоновом режиме и выполняйте визуальные рабочие процессы."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3355,8 +3379,8 @@ msgid "Control which files appear in the @file mention search. Per-project overr
 msgstr "Управляйте тем, какие файлы появляются в поиске по упоминанию @file. Переопределения для каждого проекта находятся в настройках соответствующего проекта."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Controls the paired desktop while the agent clicks or types"
-msgstr "Управляет сопряжённым рабочим столом, пока агент кликает или печатает"
+#~ msgid "Controls the paired desktop while the agent clicks or types"
+#~ msgstr "Управляет сопряжённым рабочим столом, пока агент кликает или печатает"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -4560,6 +4584,22 @@ msgstr "Перетащите для изменения порядка; двой�
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Drives"
 msgstr "Диски"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground"
+#~ msgstr "Управляет приложениями на сопряжённом рабочем столе в фоновом режиме и перехватывает этот рабочий стол, только когда агент запрашивает работу на переднем плане"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it"
+msgstr "Управляет приложениями на сопряжённом рабочем столе в фоновом режиме; перехватывает управление этим рабочим столом, только когда агент запрашивает передний план или этого требует одобренный системой портал"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground"
+#~ msgstr "Управляет приложениями рабочего стола в фоновом режиме и перехватывает рабочий стол, только когда агент запрашивает работу на переднем плане"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it"
+msgstr "Управляет настольными приложениями в фоновом режиме; перехватывает управление рабочим столом, только когда агент запрашивает передний план или этого требует одобренный системой портал"
 
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
@@ -12378,8 +12418,8 @@ msgid "Take Screenshot"
 msgstr "Сделать снимок экрана"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Takes over the desktop while the agent clicks or types"
-msgstr "Захватывает рабочий стол, пока агент кликает или печатает"
+#~ msgid "Takes over the desktop while the agent clicks or types"
+#~ msgstr "Захватывает рабочий стол, пока агент кликает или печатает"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."

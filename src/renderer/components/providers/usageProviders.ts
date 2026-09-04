@@ -119,19 +119,19 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   kimi: {
     rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
+  // Muse Code reads the CLI's device-code credential automatically; the 5h
+  // request window is the fast outer ring, the weekly quota the slower inner
+  // one. Meters appear only when the key endpoint reports `subs_usage` — the
+  // plan + account header still shows without them.
+  muse: {
+    rings: { outer: ["session-5h"], inner: ["weekly"] },
+  },
   qwen: {
     supportsBrowserLogin: true,
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },
   },
   qoder: {
     supportsBrowserLogin: true,
-  },
-  // Muse signs in via the in-app dev.meta.ai browser session — the dashboard is
-  // the only source for its subscription windows and billed spend. The 5h window
-  // is the fast outer ring, the weekly one the slower inner ring.
-  muse: {
-    supportsBrowserLogin: true,
-    rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
 };
 

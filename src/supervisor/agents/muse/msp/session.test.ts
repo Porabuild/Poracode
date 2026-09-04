@@ -16,7 +16,9 @@ const terminate = vi.hoisted(() =>
   vi.fn<(child: EventEmitter, options: { ownedProcessGroup: boolean }) => void>(),
 );
 const spawnMuseServeHost = vi.hoisted(() =>
-  vi.fn<() => Promise<{ child: EventEmitter; transport: Record<string, never> }>>(),
+  vi.fn<
+    () => Promise<{ child: EventEmitter; transport: Record<string, never>; hostCookie: string }>
+  >(),
 );
 let notificationHandler: ((method: string, params: Record<string, unknown>) => void) | undefined;
 let clientErrorHandler: ((error: Error) => void) | undefined;
@@ -89,7 +91,11 @@ async function createSession(overrides: Partial<CreateStructuredSessionInput> = 
   const errors: string[] = [];
   const closes: string[] = [];
   const child = new EventEmitter();
-  spawnMuseServeHost.mockResolvedValue({ child, transport: {} });
+  spawnMuseServeHost.mockResolvedValue({
+    child,
+    transport: {},
+    hostCookie: "test-host-cookie",
+  });
   request.mockImplementation(async (method) => {
     if (method === "session/start" || method === "session/resume") {
       return { session: sessionRecord() };
@@ -126,6 +132,59 @@ beforeEach(() => {
 });
 
 describe("MuseMspStructuredSession", () => {
+  it("routes session/start through the catalog's provider for the model", async () => {
+    // `session/start` without `providerId` falls back to the server default,
+    // whose retained-history policy rejects media — unlike the catalog route
+    // the CLI uses.
+    const { session } = await createSession();
+    request.mockImplementation(async (method) => {
+      if (method === "model/list") {
+        return {
+          models: [
+            {
+              modelId: "muse-spark-1.3",
+              displayLabel: "Muse Spark 1.3",
+              providerId: "meta",
+              isDefault: true,
+              isActive: true,
+              contextLimit: 1_000_000,
+            },
+          ],
+          providerId: "meta",
+          source: "bundledCatalog",
+        };
+      }
+      if (method === "session/start" || method === "session/resume") {
+        return { session: sessionRecord() };
+      }
+      return { status: "accepted" };
+    });
+    await session.openThread(config);
+    const start = request.mock.calls.find(([method]) => method === "session/start");
+    expect(start?.[1]).toMatchObject({ modelId: "muse-spark-1.3", providerId: "meta" });
+  });
+
+  it("omits providerId when the catalog lists the model without one, keeping the server default", async () => {
+    const { session } = await createSession();
+    await session.openThread(config);
+    const start = request.mock.calls.find(([method]) => method === "session/start");
+    expect(start?.[1]).not.toHaveProperty("providerId");
+  });
+
+  it("omits providerId when the model/list lookup fails, keeping the server default", async () => {
+    const { session } = await createSession();
+    request.mockImplementation(async (method) => {
+      if (method === "model/list") throw new Error("model/list unavailable");
+      if (method === "session/start" || method === "session/resume") {
+        return { session: sessionRecord() };
+      }
+      return { status: "accepted" };
+    });
+    await session.openThread(config);
+    const start = request.mock.calls.find(([method]) => method === "session/start");
+    expect(start?.[1]).not.toHaveProperty("providerId");
+  });
+
   it("starts a durable GUI session and streams a turn", async () => {
     const { session, runtimeEvents, updates } = await createSession();
     await expect(session.openThread(config)).resolves.toBe("session-1");
@@ -778,5 +837,57 @@ describe("MuseMspStructuredSession", () => {
         itemId: "muse-plan",
       }),
     );
+  });
+});
+
+describe("Muse MSP todo list mapping", () => {
+  it("maps todo create/update/complete/cancel into plan steps", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    notificationHandler?.("session/todoListChanged", {
+      sessionId: "session-1",
+      items: [
+        { status: "pending", text: "First" },
+        { status: "inProgress", text: "Second", activeForm: "Working on second" },
+        { status: "completed", text: "Third" },
+        { status: "cancelled", text: "Fourth" },
+      ],
+    });
+    const planEvent = runtimeEvents.find(
+      (event) => event.type === "item.started" && event.itemType === "plan",
+    );
+    if (planEvent?.type !== "item.started" || planEvent.itemType !== "plan") {
+      throw new Error("expected a plan item.started event");
+    }
+    const payload = planEvent.payload as {
+      steps: Array<{ step: string; status: string }>;
+    };
+    expect(payload.steps).toEqual([
+      { step: "First", status: "pending" },
+      { step: "Working on second", status: "in_progress" },
+      { step: "Third", status: "completed" },
+      { step: "Fourth (cancelled)", status: "completed" },
+    ]);
+  });
+
+  it("clears the plan when the todo list empties", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    notificationHandler?.("session/todoListChanged", {
+      sessionId: "session-1",
+      items: [{ status: "pending", text: "Only" }],
+    });
+    notificationHandler?.("session/todoListChanged", { sessionId: "session-1", items: [] });
+    const lastPlanUpdate = [...runtimeEvents]
+      .reverse()
+      .find(
+        (event) =>
+          event.type === "item.updated" &&
+          Array.isArray((event.payload as { steps?: unknown } | undefined)?.steps),
+      );
+    if (lastPlanUpdate?.type !== "item.updated") {
+      throw new Error("expected a plan item.updated event after clearing the list");
+    }
+    expect((lastPlanUpdate.payload as { steps: unknown[] }).steps).toEqual([]);
   });
 });

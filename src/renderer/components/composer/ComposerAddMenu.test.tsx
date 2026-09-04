@@ -259,7 +259,7 @@ describe("ComposerAddMenu", () => {
     expect(screen.getByText("Enabled plugins stay on for new threads")).toBeInTheDocument();
   });
 
-  it("shows a foreground-takeover hint for Computer Use inside the submenu", () => {
+  it("describes background delivery and explicit foreground takeover", () => {
     render(
       <ComposerAddMenu
         mcpServers={[]}
@@ -280,9 +280,32 @@ describe("ComposerAddMenu", () => {
     // The explanation moved behind an info-icon tooltip to keep the row compact.
     expect(
       screen.getByRole("button", {
-        name: "Takes over the desktop while the agent clicks or types",
+        name: "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it",
       }),
     ).toBeInTheDocument();
+  });
+
+  it("does not toggle Computer Use when its info hint is pressed", () => {
+    const onToggle = vi.fn<(next: boolean) => void>();
+    render(
+      <ComposerAddMenu
+        mcpServers={[]}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+        computerUse={{ enabled: true, visible: true, onToggle }}
+      />,
+    );
+
+    openMenu();
+    openMcpSubmenu();
+    const hint = screen.getByRole("button", {
+      name: "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it",
+    });
+    fireEvent.pointerDown(hint, { pointerId: 1, pointerType: "mouse", button: 0 });
+    fireEvent.pointerUp(hint, { pointerId: 1, pointerType: "mouse", button: 0 });
+    fireEvent.click(hint);
+
+    expect(onToggle).not.toHaveBeenCalled();
   });
 
   it("names a server after the plugin that packages it", () => {
@@ -586,7 +609,7 @@ describe("ComposerAddMenu", () => {
 
     expect(
       screen.getByRole("button", {
-        name: "Controls the paired desktop while the agent clicks or types",
+        name: "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it",
       }),
     ).toBeInTheDocument();
   });

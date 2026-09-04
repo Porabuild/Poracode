@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import type { ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { buildAgentCommand } from "../../base";
@@ -46,20 +47,25 @@ export interface SpawnMuseServeHostOptions {
  * Spawn a `muse serve` session host with piped stdio, mirroring the Codex
  * app-server probe spawn (WSL login-shell routing via `buildAgentCommand`,
  * own process group off Windows). Rejects when the process fails to spawn
- * or exits immediately; callers own teardown via `terminateChildProcessTree`.
+ * or exits immediately; callers own teardown via `terminateChildProcessTree`
+ * plus `hostCookie` (a WSL launch can outlive its Windows wrapper — the
+ * cookie finds the surviving Linux process by environ for a bridge kill).
  */
 export async function spawnMuseServeHost(
   location: ProjectLocation,
   options: SpawnMuseServeHostOptions,
-): Promise<{ child: ChildProcess; transport: MuseMspStdioTransport; commandLabel: string }> {
+): Promise<{
+  child: ChildProcess;
+  transport: MuseMspStdioTransport;
+  commandLabel: string;
+  hostCookie: string;
+}> {
   const tag = options.label ?? "[muse-serve]";
-  const cmd = buildAgentCommand(
-    location,
-    "muse",
-    options.serveArgs,
-    options.executablePath,
-    options.extraEnv,
-  );
+  const hostCookie = randomUUID();
+  const cmd = buildAgentCommand(location, "muse", options.serveArgs, options.executablePath, {
+    ...options.extraEnv,
+    PORACODE_MUSE_HOST_COOKIE: hostCookie,
+  });
   const spawnCwd = options.isolateCwd === false ? cmd.cwd : resolveProbeSpawnCwd(location, cmd.cwd);
   const ownedProcessGroup = process.platform !== "win32";
   const child = spawn(cmd.command, cmd.args, {
@@ -87,7 +93,7 @@ export async function spawnMuseServeHost(
       `${tag} exited before handshake (${classification.kind}): ${classification.detail}${transport.formatOutput()}`,
     );
   }
-  return { child, transport, commandLabel: `${cmd.command} ${cmd.args.join(" ")}` };
+  return { child, transport, commandLabel: `${cmd.command} ${cmd.args.join(" ")}`, hostCookie };
 }
 
 interface PendingMspRequest {

@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { Button, toast } from "@heroui/react";
+import { Button, Tooltip, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { FileText, HelpCircle, ListChecks, Plug, ShieldAlert } from "lucide-react";
 import {
@@ -120,6 +120,7 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
         ? HelpCircle
         : ShieldAlert;
   const userInputFormController = useUserInputFormController(userInputForm);
+  const userInputFormAllAnswered = userInputFormController?.allAnswered ?? false;
   const permissionDetails = !isCustomForm
     ? asPermissionRequestDetails(request.payload.details)
     : undefined;
@@ -181,18 +182,38 @@ export function ThreadRuntimeRequestPanel(props: ThreadRuntimeRequestPanelProps)
       >
         <Trans>Cancel</Trans>
       </Button>
+      {renderSubmitButton()}
+    </div>
+  ) : null;
+
+  function renderSubmitButton() {
+    // A gated Submit stays hoverable (not natively disabled) so its tooltip
+    // explains why; the form's own guard no-ops the click. Mirrors the
+    // composer's `disabledReason` toggle pattern.
+    const gated = !userInputFormAllAnswered;
+    const submit = (
       <Button
+        aria-disabled={gated}
         form={formId}
         isDisabled={resolving}
         size="sm"
         type="submit"
         variant="tertiary"
-        className="text-white"
+        className={gated ? "cursor-not-allowed opacity-50 text-white" : "text-white"}
       >
         <Trans>Submit</Trans>
       </Button>
-    </div>
-  ) : null;
+    );
+    if (!gated) return submit;
+    return (
+      <Tooltip delay={0}>
+        {submit}
+        <Tooltip.Content placement="top">
+          <Trans>Answer every question to submit</Trans>
+        </Tooltip.Content>
+      </Tooltip>
+    );
+  }
   const requestDetails =
     permissionDetails && !isPlanApproval ? (
       <PermissionDetailsLine details={permissionDetails} />
