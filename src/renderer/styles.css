@@ -976,6 +976,10 @@
        a set, tinted like the sidebar (side chrome) rather than the pane beneath
        it. Derived, so it follows --sidebar-background in every theme. */
     --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 82%, transparent);
+    /* Selected floating chrome keeps the theme accent but steers its oklch hue
+       halfway toward violet (~300): derived from --accent per element, so it
+       reads violet-leaning on every theme without pinning a brand hex. */
+    --floating-chrome-selected-accent: oklch(from var(--accent) l c calc(h + (300 - h) / 2));
     /* Selected floating chrome stays dark: make the glass denser with the
        sidebar tone instead of brightening it with the foreground color. */
     --floating-chrome-active-surface: color-mix(
@@ -1487,18 +1491,23 @@ html[data-platform="win32"][data-native-material="on"][data-theme="dark"] {
    conversation pane, not over the OS window material, so their glass is
    entirely ours to author.
 
-   The dark treatment stays deliberately low-alpha with a short blur: underlying
-   transcript shapes remain perceptible instead of being homogenized into a
-   bright frosted patch. A faint edge and shallow shadow separate the control
-   without the specular gradients or inset highlights of a raised glossy button.
-   Windows remains slightly denser because Chromium's blur is visually weaker. */
+   The dark treatment stays low-alpha with a short blur — but lifted with a
+   touch of foreground so the pills read against the dark pane instead of
+   vanishing into it, while underlying transcript shapes remain perceptible.
+   A faint edge and shallow shadow separate the control without the specular
+   gradients or inset highlights of a raised glossy button. Windows remains
+   slightly denser because Chromium's blur is visually weaker. */
 html[data-platform="darwin"] {
   --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 38%, transparent);
   --floating-chrome-backdrop: blur(12px) saturate(140%);
 }
 html[data-platform="darwin"].dark,
 html[data-platform="darwin"][data-theme="dark"] {
-  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 24%, transparent);
+  --floating-chrome-surface: color-mix(
+    in oklab,
+    color-mix(in oklab, var(--sidebar-background) 91%, var(--foreground) 9%) 34%,
+    transparent
+  );
   --floating-chrome-backdrop: blur(10px) saturate(135%);
 }
 html[data-platform="win32"] {
@@ -1507,7 +1516,11 @@ html[data-platform="win32"] {
 }
 html[data-platform="win32"].dark,
 html[data-platform="win32"][data-theme="dark"] {
-  --floating-chrome-surface: color-mix(in oklab, var(--sidebar-background) 30%, transparent);
+  --floating-chrome-surface: color-mix(
+    in oklab,
+    color-mix(in oklab, var(--sidebar-background) 91%, var(--foreground) 9%) 40%,
+    transparent
+  );
   --floating-chrome-backdrop: blur(10px) saturate(130%);
 }
 html:is([data-platform="darwin"], [data-platform="win32"]) .poracode-floating-chrome {
@@ -1524,10 +1537,12 @@ html:is([data-platform="darwin"], [data-platform="win32"]) .poracode-floating-ch
   border-color: color-mix(in oklab, var(--foreground) 12%, transparent);
 }
 
-/* Composer bubbles: the resting edge is barely there and firms up on hover;
-   the platform glass rule above is matched in specificity so this wins by
-   order on every platform. */
+/* Composer bubbles: at rest they read as the composer surface — a translucent
+   layer of it over the blurred pane (the color is a tint, not a fill) — with a
+   barely-there edge that firms up on hover. The platform glass rule above is
+   matched in specificity so this wins by order on every platform. */
 html .poracode-floating-chrome.poracode-floating-chrome--bubble {
+  background-color: color-mix(in oklab, var(--composer-surface) 70%, transparent);
   border-color: color-mix(in oklab, var(--foreground) 2%, transparent);
   box-shadow:
     0 1px 2px rgb(0 0 0 / 0.1),
@@ -1536,15 +1551,17 @@ html .poracode-floating-chrome.poracode-floating-chrome--bubble {
 html .poracode-floating-chrome.poracode-floating-chrome--bubble:hover {
   border-color: color-mix(in oklab, var(--foreground) 5%, transparent);
 }
-/* Bubble whose panel is open: a faint accent wash on the glass and its edge. */
+/* Bubble whose panel is open: a clear violet-steered theme wash over the same
+   translucent composer layer and a firmer accent edge, so the open state reads
+   as selected, not just lit. */
 html .poracode-floating-chrome.poracode-floating-chrome--bubble-active,
 html .poracode-floating-chrome.poracode-floating-chrome--bubble-active:hover {
   background-color: color-mix(
     in oklab,
-    var(--floating-chrome-active-surface) 86%,
-    var(--accent) 14%
+    color-mix(in oklab, var(--composer-surface) 70%, transparent) 72%,
+    var(--floating-chrome-selected-accent) 28%
   );
-  border-color: color-mix(in oklab, var(--accent) 12%, transparent);
+  border-color: color-mix(in oklab, var(--floating-chrome-selected-accent) 25%, transparent);
 }
 
 /* 2. In-app fallback: opaque window, faux-translucent gradient sidebar. */
