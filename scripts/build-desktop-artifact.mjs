@@ -537,9 +537,15 @@ files:
 ${packagedDistFilesYaml}
   - package.json
   - node_modules/**/*
+  - "!node_modules/**/*.map"
   # The SDK's optionalDependencies include a 200+MB precompiled \`claude\` SEA
   # binary per platform. We ship without it; users provide \`claude\` via PATH.
   - "!node_modules/@anthropic-ai/claude-agent-sdk-*/**/*"
+  # Native modules load their compiled binaries; compiler inputs and link/debug
+  # outputs are only needed while building the stage.
+  - "!node_modules/better-sqlite3/{src,deps}/**/*"
+  - "!node_modules/{better-sqlite3,node-pty}/build/**/obj/**/*"
+  - "!node_modules/{better-sqlite3,node-pty}/build/**/*.{iobj,ipdb,lib,pdb,exp}"
 
 extraResources:
   - from: resources/computer-use-helper

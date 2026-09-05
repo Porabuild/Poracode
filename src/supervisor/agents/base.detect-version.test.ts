@@ -6,6 +6,7 @@ import type { AgentCapability } from "@/shared/contracts";
 const execFileAsyncMock = vi.hoisted(() =>
   vi.fn<(...args: unknown[]) => Promise<{ stdout: string; stderr?: string }>>(),
 );
+const spawnSyncMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 const spawnMock = vi.hoisted(() =>
   vi.fn<
     (
@@ -21,6 +22,7 @@ vi.mock("node:child_process", async () => {
   const { promisify } = require("node:util") as typeof import("node:util");
   return {
     ...actual,
+    spawnSync: spawnSyncMock,
     spawn: spawnMock,
     execFile: Object.assign(vi.fn(), {
       [promisify.custom]: execFileAsyncMock,
@@ -30,7 +32,10 @@ vi.mock("node:child_process", async () => {
 
 import {
   clearExecutablePathCache,
+  cliSubcommandAuthProbe,
   detectAgentInstall,
+  readAgentCommandOutput,
+  readDetectedVersion,
   setWslProcessBridgeClient,
   type DetectionSpec,
 } from "./base";
@@ -66,6 +71,8 @@ describe("detectAgentInstall version probe", () => {
     clearExecutablePathCache();
     execFileAsyncMock.mockReset();
     spawnMock.mockReset();
+    spawnSyncMock.mockReset();
+    spawnSyncMock.mockReturnValue({ status: 1, stdout: "" });
     spawnMock.mockImplementation((command, args, options) => {
       const stdout = new PassThrough();
       const stderr = new PassThrough();
@@ -130,6 +137,35 @@ describe("detectAgentInstall version probe", () => {
     const status = await detectAgentInstall(undefined, spec);
 
     expect(status.version).toBe("24.14.0");
+  });
+
+  it("does not synchronously resolve a detected Windows executable again for version or auth", async () => {
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    const location = { kind: "windows" as const, path: "C:\\repo" };
+    const executablePath = "C:\\tools\\fixture-agent.exe";
+    execFileAsyncMock.mockResolvedValue({ stdout: "1.2.3" });
+
+    await expect(readDetectedVersion(location, executablePath, ["--version"])).resolves.toBe(
+      "1.2.3",
+    );
+    await expect(
+      cliSubcommandAuthProbe(["auth", "status"])({
+        location,
+        executablePath,
+      }),
+    ).resolves.toBe("authenticated");
+    await expect(
+      readAgentCommandOutput(location, executablePath, ["models"]),
+    ).resolves.toMatchObject({ ok: true });
+
+    expect(spawnMock.mock.calls.map(([command]) => command)).toEqual([
+      executablePath,
+      executablePath,
+      executablePath,
+    ]);
+    expect(
+      spawnSyncMock.mock.calls.filter(([command]) => String(command).endsWith("where.exe")),
+    ).toHaveLength(0);
   });
 });
 

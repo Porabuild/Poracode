@@ -32,6 +32,7 @@ resources/wsl-helpers/mcp-filter.mjs
 resources/wsl-helpers/cursor-sdk-worker.mjs
 resources/agent-plugins/
 resources/computer-use-helper/
+resources/computer-use-helper-dev/
 resources/mobile-ssh-runtime/
 .envrc
 .envrc.local

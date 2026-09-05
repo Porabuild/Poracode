@@ -81,9 +81,18 @@ export function MainView(props: {
     // Fresh detection results still arrive via events
     // (windows-agent-statuses, wsl-agent-statuses).
     const wslDistros = parseWslProjectDistrosKey(wslProjectDistrosKey);
+    const discoveryStartedAt = performance.now();
     void readBridge()
       .getAgentStatuses(wslDistros)
       .then((response) => {
+        if (import.meta.env.DEV) {
+          performance.measure(
+            `poracode:provider status request${response.fromCache ? " (cached)" : ""}`,
+            {
+              start: discoveryStartedAt,
+            },
+          );
+        }
         const missingWslDistro = findMissingWslDistro(wslDistros, response.wsl);
         if (response.fromCache) {
           useAgentStatusesStore.getState().hydrateFromCache({

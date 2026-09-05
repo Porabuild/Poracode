@@ -44,7 +44,15 @@ export async function writeDebugSession(sessionFile, session) {
     )}\n`,
   );
   try {
-    await rename(tempFile, sessionFile);
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await rename(tempFile, sessionFile);
+        break;
+      } catch (error) {
+        if (process.platform !== "win32" || error.code !== "EPERM" || attempt === 5) throw error;
+        await new Promise((done) => setTimeout(done, 100));
+      }
+    }
   } finally {
     await rm(tempFile, { force: true });
   }

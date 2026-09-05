@@ -227,10 +227,10 @@ export function findPosixExecutableInWellKnownDirs(binary: string): string | und
 
 export function resolveExecutablePath(command: string): string | undefined {
   if (process.platform === "win32") {
-    return (
-      resolveWindowsExecutablePath(command) ??
-      resolveWindowsExecutablePath(command, buildWindowsPathOverride())
-    );
+    const resolved = resolveWindowsExecutablePath(command);
+    if (resolved) return resolved;
+    const env = buildWindowsPathOverride();
+    return env ? resolveWindowsExecutablePath(command, env) : undefined;
   }
 
   const result = spawnSync(

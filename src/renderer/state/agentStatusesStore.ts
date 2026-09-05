@@ -318,6 +318,7 @@ export function applyAgentStatusSupervisorEvent(
       store.mergeAgentStatus(event.status);
       break;
     case "windows-agent-statuses": {
+      if (import.meta.env.DEV) performance.mark("poracode:native providers discovered");
       console.log(`[renderer] event: windows-agent-statuses (${event.statuses.length} agents)`);
       if (
         options.deferFirstLaunchBulk &&

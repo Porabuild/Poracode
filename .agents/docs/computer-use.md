@@ -23,7 +23,7 @@ agent MCP client
 - `native/computer-use-helper/` contains the Rust protocol host and the Windows, macOS, and Linux backends.
 - `scripts/prepare-computer-use-helper.mjs` builds and stages platform binaries under `resources/computer-use-helper/`.
 
-Main-process startup supplies the helper root and a persistent state directory. Packaged apps use `process.resourcesPath/computer-use-helper`; development uses `resources/computer-use-helper` from the checkout. Linux portal restore data is stored under the app's computer-use state directory, not in the repository.
+Main-process startup supplies the helper root and a persistent state directory. Packaged apps use `process.resourcesPath/computer-use-helper`; `pnpm dev` stages a Cargo development build under `resources/computer-use-helper-dev`. Explicit preparation and packaging keep release builds under `resources/computer-use-helper`. Linux portal restore data is stored under the app's computer-use state directory, not in the repository.
 
 ## Protocol and compatibility
 
