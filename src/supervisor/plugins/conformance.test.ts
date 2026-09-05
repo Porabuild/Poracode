@@ -777,7 +777,7 @@ describe("shipped packages", () => {
       },
       "chrome-tools": {
         folder: "signed-in-research",
-        markers: ["chrome.chrome_status", "chrome.chrome_attach", "chrome.disable"],
+        markers: ["chrome.status", "chrome.attach", "chrome.disable"],
       },
       "computer-use": {
         folder: "desktop-app-testing",

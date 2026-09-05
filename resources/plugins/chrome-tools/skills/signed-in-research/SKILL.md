@@ -10,7 +10,7 @@ paywalled doc, an admin console — and read only what was asked for.
 
 ## Confirm the surface first
 
-Call `chrome.chrome_status`. A disconnected extension means the answer is "connect Chrome", not a silent switch to the
+Call `chrome.status`. A disconnected extension means the answer is "connect Chrome", not a silent switch to the
 isolated browser, which has none of these logins.
 
 Ask yourself whether the login is actually required. If the page is public, Poracode's own browser is the safer surface
@@ -18,7 +18,7 @@ and leaves the user's session untouched.
 
 ## Reach the page
 
-Open the URL the user gave you. Attach to an existing tab with `chrome.chrome_attach` only when they asked you to work
+Open the URL the user gave you. Attach to an existing tab with `chrome.attach` only when they asked you to work
 in a tab they already have open — never because it happens to be authenticated already.
 
 If the page redirects to a login wall, stop and say so. Do not attempt credentials, and do not go hunting through other
@@ -26,7 +26,7 @@ tabs for a session that works.
 
 ## Read narrowly
 
-Pull the specific values, table, or passage the question needs, using `chrome.chrome_snapshot` or `chrome.chrome_find`.
+Pull the specific values, table, or passage the question needs, using `chrome.snapshot` or `chrome.find`.
 Stay on the requested site. Other tabs, unrelated pages, and the user's history are not context you get to collect.
 
 Leave cookies and storage alone unless the task genuinely requires them and Chrome data access is enabled.
