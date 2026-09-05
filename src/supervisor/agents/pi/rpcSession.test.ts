@@ -95,6 +95,10 @@ rl.on("line", (line) => {
     return;
   }
   if (type === "abort" || type === "set_model" || type === "set_thinking_level" || type === "steer") {
+    if (type === "steer" && req.message === "REJECT_STEER") {
+      send({ type: "response", id, command: type, success: false, error: "MOCK_STEER_REJECTED" });
+      return;
+    }
     send({ type: "response", id, command: type, success: true });
     return;
   }
@@ -210,6 +214,25 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     expect(updates.every((update) => update.sessionRef?.providerSessionId !== "")).toBe(true);
     expect(updates.at(-1)?.sessionRef?.providerSessionId).toBe("mock-session-1");
     await disposeSettledSession(session, events, updates);
+  });
+
+  it("rejects steering when the provider refuses the correction", async () => {
+    const { session, events, updates } = await createSession();
+    const config = { model: "mock/model", effort: "off" };
+    const turn = session.startTurn("DIALOG", config);
+    const request = (await waitFor(events, (event) => event.type === "request.opened")) as Extract<
+      RuntimeEvent,
+      { type: "request.opened" }
+    >;
+    try {
+      await expect(session.steerTurn("REJECT_STEER", config)).rejects.toThrow(
+        "MOCK_STEER_REJECTED",
+      );
+    } finally {
+      await session.resolveServerRequest(request.requestId, { optionId: "alpha" });
+      await turn;
+      await disposeSettledSession(session, events, updates);
+    }
   });
 
   it("publishes cumulative usage.spent from get_session_stats tokens.total", async () => {

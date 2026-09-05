@@ -91,6 +91,7 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "wait_for_agent",
     "get_status",
     "list_runs",
+    "steer_agent",
     "cancel",
   ],
   chrome: [

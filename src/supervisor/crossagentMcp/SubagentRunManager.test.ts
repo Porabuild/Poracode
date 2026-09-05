@@ -48,6 +48,7 @@ const PROJECT: ProjectLocation = { kind: "posix", path: "/tmp/project" };
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 class FakeHandle implements StructuredSessionHandle {
+  steerTurn?: NonNullable<StructuredSessionHandle["steerTurn"]>;
   launchOptions = {};
   listener: StructuredSessionListener | undefined;
   disposed = false;
@@ -645,6 +646,232 @@ describe("SubagentRunManager", () => {
     expect(polled.output.length).toBeLessThan(2500);
   });
 
+  it("wait-any returns when one child settles and leaves the others running", async () => {
+    const h = makeHarness();
+    const runs = h.manager.spawnMany(PARENT, [
+      { agent: "codex", prompt: "one" },
+      { agent: "codex", prompt: "two" },
+    ]);
+    await flush();
+    const waiting = h.manager.waitForMany(
+      runs.map((run) => run.runId),
+      1000,
+      PARENT,
+      undefined,
+      "any",
+    );
+    h.handles[0]!.completeTurn("completed");
+    expect((await waiting).map((run) => run.status)).toEqual(["completed", "running"]);
+    expect(h.handles[1]!.disposed).toBe(false);
+    expect(h.manager.getCapacity(PARENT)).toEqual({ running: 1, limit: 16, available_slots: 15 });
+    expect(h.manager.getCapacity("other-parent")).toEqual({
+      running: 0,
+      limit: 16,
+      available_slots: 16,
+    });
+    h.manager.cancelAllForThread(PARENT);
+    await flush();
+  });
+
+  it("wait-any times out without cancelling and handles settled or foreign IDs immediately", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    expect((await h.manager.waitForMany([runId], 0, PARENT, undefined, "any"))[0]?.status).toBe(
+      "running",
+    );
+    expect(
+      (await h.manager.waitForMany([runId], 1000, "other-parent", undefined, "any"))[0]?.status,
+    ).toBe("failed");
+    await h.manager.cancel(runId);
+    expect((await h.manager.waitForMany([runId], 1000, PARENT, undefined, "any"))[0]?.status).toBe(
+      "cancelled",
+    );
+  });
+
+  it("steers only a ready live child owned by the caller", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await expect(h.manager.steer(runId, "focus", PARENT)).rejects.toThrow(/still starting/);
+    await flush();
+    await expect(h.manager.steer(runId, "focus", PARENT)).rejects.toThrow(/does not support/);
+    const steer = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(async () => {});
+    h.handles[0]!.steerTurn = steer;
+    expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(true);
+    await expect(h.manager.steer(runId, "focus", "other-parent")).rejects.toThrow(/Unknown run_id/);
+    expect(steer).not.toHaveBeenCalled();
+    await h.manager.steer(runId, "focus", PARENT);
+    expect(steer).toHaveBeenCalledWith("focus", h.inputs[0]!.config);
+    expect(h.handles).toHaveLength(1);
+    expect(h.handles[0]!.interrupted).toBe(false);
+    steer.mockRejectedValueOnce(new Error("provider rejected steer"));
+    await expect(h.manager.steer(runId, "again", PARENT)).rejects.toThrow(/provider rejected/);
+    await h.manager.cancel(runId);
+    expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(false);
+    await expect(h.manager.steer(runId, "again", PARENT)).rejects.toThrow(/no longer running/);
+  });
+
+  it.each(["event", "accepted"])(
+    "blocks steering until the initial turn is ready via %s",
+    async (signal) => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const start = vi.spyOn(FakeHandle.prototype, "startTurn").mockImplementationOnce(() => gate);
+      const h = makeHarness();
+      try {
+        const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+        await flush();
+        const handle = h.handles[0]!;
+        const steer = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(async () => {});
+        handle.steerTurn = steer;
+        handle.update("working");
+        expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(false);
+        await expect(h.manager.steer(runId, "focus", PARENT)).rejects.toThrow(/still starting/);
+        expect(steer).not.toHaveBeenCalled();
+        if (signal === "event")
+          handle.emit({ type: "turn.started", threadId: "child", turnId: "initial" });
+        else {
+          release();
+          await flush();
+        }
+        expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(true);
+        await h.manager.steer(runId, "focus", PARENT);
+        expect(steer).toHaveBeenCalledOnce();
+      } finally {
+        release();
+        h.manager.cancelAllForThread(PARENT);
+        await flush();
+        start.mockRestore();
+      }
+    },
+  );
+
+  it.each(["event", "working"])(
+    "keeps a steer follow-up alive after completion via %s",
+    async (signal) => {
+      const h = makeHarness();
+      const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+      await flush();
+      const handle = h.handles[0]!;
+      handle.steerTurn = async () => {
+        handle.completeTurn("completed");
+        handle.update("idle");
+        expect(handle.disposed).toBe(false);
+        if (signal === "working") handle.update("working");
+        else handle.emit({ type: "turn.started", threadId: "child", turnId: "follow-up" });
+      };
+      await h.manager.steer(runId, "follow up", PARENT);
+      expect(h.manager.getStatus(runId).status).toBe("running");
+      expect(handle.disposed).toBe(false);
+      handle.completeTurn("completed");
+      expect(h.manager.getStatus(runId).status).toBe("completed");
+      await flush();
+      expect(handle.disposed).toBe(true);
+    },
+  );
+
+  it("flushes completion after steering and keeps cancellation immediate", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    h.handles[0]!.steerTurn = async () => {
+      h.handles[0]!.completeTurn("completed");
+    };
+    await h.manager.steer(runId, "focus", PARENT);
+    expect(h.manager.getStatus(runId).status).toBe("completed");
+    const next = h.manager.spawn(PARENT, { agent: "codex", prompt: "next" });
+    await flush();
+    let release!: () => void;
+    h.handles[1]!.steerTurn = () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    const steering = h.manager.steer(next.runId, "focus", PARENT);
+    await expect(h.manager.steer(next.runId, "concurrent", PARENT)).rejects.toThrow(
+      /already in progress/,
+    );
+    await h.manager.cancel(next.runId);
+    release();
+    await expect(steering).rejects.toThrow(/stopped before steering/);
+    expect(h.handles[1]!.disposed).toBe(true);
+  });
+
+  it("settles a failed steer follow-up after the original turn completed", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    h.handles[0]!.steerTurn = async () => {
+      h.handles[0]!.completeTurn("completed");
+      h.handles[0]!.update("idle");
+      h.handles[0]!.update("working");
+      throw new Error("follow-up failed");
+    };
+    await expect(h.manager.steer(runId, "focus", PARENT)).rejects.toThrow("follow-up failed");
+    expect(h.manager.getStatus(runId).status).toBe("failed");
+    expect(h.manager.getCapacity(PARENT).running).toBe(0);
+    await flush();
+    expect(h.handles[0]!.disposed).toBe(true);
+  });
+
+  it("does not let a failed attempt's pending steer block its fallback completion", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, {
+      agent: "codex",
+      prompt: "go",
+      retryMode: "any-failure",
+      fallbacks: [{ agent: "codex" }],
+    });
+    await flush();
+    let release!: () => void;
+    h.handles[0]!.steerTurn = () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      });
+    const steering = h.manager.steer(runId, "focus", PARENT);
+    h.handles[0]!.completeTurn("failed");
+    await flush();
+    h.handles[1]!.completeTurn("completed");
+    release();
+    await expect(steering).rejects.toThrow(/stopped before steering/);
+    expect(h.manager.getStatus(runId).status).toBe("completed");
+    expect(h.manager.getCapacity(PARENT).running).toBe(0);
+  });
+
+  it("does not let a stale steer clear a replacement attempt's steering state", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, {
+      agent: "codex",
+      prompt: "go",
+      retryMode: "any-failure",
+      fallbacks: [{ agent: "codex" }],
+    });
+    await flush();
+    let releaseFirst!: () => void;
+    h.handles[0]!.steerTurn = () =>
+      new Promise<void>((resolve) => {
+        releaseFirst = resolve;
+      });
+    const first = h.manager.steer(runId, "first", PARENT);
+    h.handles[0]!.completeTurn("failed");
+    await flush();
+    let releaseSecond!: () => void;
+    h.handles[1]!.steerTurn = () =>
+      new Promise<void>((resolve) => {
+        releaseSecond = resolve;
+      });
+    const second = h.manager.steer(runId, "second", PARENT);
+    h.handles[1]!.completeTurn("completed");
+    releaseFirst();
+    await expect(first).rejects.toThrow(/stopped before steering/);
+    expect(h.manager.getStatus(runId).status).toBe("running");
+    expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(false);
+    releaseSecond();
+    await second;
+    expect(h.manager.getStatus(runId).status).toBe("completed");
+  });
+
   it("returns the complete transcript when full_output is requested", async () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
@@ -815,6 +1042,25 @@ describe("SubagentRunManager", () => {
     expect(() => h.manager.spawn(PARENT, { agent: "codex", prompt: "overflow" })).toThrow(
       SubagentSpawnError,
     );
+  });
+
+  it("runs sixteen children across individual and batch calls and reuses a freed slot", async () => {
+    const h = makeHarness();
+    const first = h.manager.spawn(PARENT, { agent: "codex", prompt: "first" });
+    const rest = h.manager.spawnMany(
+      PARENT,
+      Array.from({ length: 15 }, (_, index) => ({ agent: "codex", prompt: `task ${index}` })),
+    );
+    await flush();
+    expect(h.handles).toHaveLength(16);
+    expect(rest).toHaveLength(15);
+    expect(() => h.manager.spawn(PARENT, { agent: "codex", prompt: "overflow" })).toThrow(
+      /max 16, 16 already running/,
+    );
+    await h.manager.cancel(first.runId);
+    expect(() => h.manager.spawn(PARENT, { agent: "codex", prompt: "replacement" })).not.toThrow();
+    h.manager.cancelAllForThread(PARENT);
+    await flush();
   });
 
   it("atomically starts a validated batch in parallel", async () => {

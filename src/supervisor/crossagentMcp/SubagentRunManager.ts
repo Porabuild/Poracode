@@ -37,7 +37,7 @@ export const DEFAULT_WAIT_TIMEOUT_MS = 120_000;
 /** Hard cap on caller-supplied `timeout_s` — see {@link DEFAULT_WAIT_TIMEOUT_MS}. */
 export const MAX_WAIT_TIMEOUT_MS = 240_000;
 /** Max concurrent live children per parent thread. */
-export const MAX_CONCURRENT_CHILDREN_PER_PARENT = 4;
+export const MAX_CONCURRENT_CHILDREN_PER_PARENT = 16;
 /** Bound terminal result retention for long-lived parent threads. */
 const MAX_RETAINED_RUNS_PER_PARENT = 50;
 /**
@@ -94,6 +94,7 @@ interface RunRecord extends AttemptExecutionState {
   plan: PreparedSubagentRun;
   attemptIndex: number;
   attemptSettled: boolean;
+  steering: { completion: "none" | "pending" | "resumed" } | undefined;
   attemptResults: SubagentAttemptResult[];
   status: SubagentRunStatus;
   /** Assistant text accumulated for the current attempt. */
@@ -235,6 +236,7 @@ export class SubagentRunManager {
       plan,
       attemptIndex: 0,
       attemptSettled: false,
+      steering: undefined,
       attemptResults: [],
       status: "running",
       output: "",
@@ -249,6 +251,7 @@ export class SubagentRunManager {
       cancelRequested: false,
       turnStarted: false,
       turnDispatched: false,
+      steerReady: false,
       error: undefined,
       settled: false,
       settledPromise,
@@ -307,7 +310,32 @@ export class SubagentRunManager {
     timeoutMs: number,
     parentThreadId?: string,
     options?: SubagentWaitOptions | ((runId: string) => SubagentWaitOptions),
+    mode: "all" | "any" = "all",
   ): Promise<Array<{ run_id: string } & SubagentWaitResult>> {
+    if (mode === "any" && runIds.length > 0) {
+      const records = runIds.map((runId) => this.ownedRun(runId, parentThreadId));
+      if (records.every((record) => record?.status === "running")) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            ...records.map((record) => record!.settledPromise),
+            new Promise<void>((resolve) => {
+              timer = setTimeout(resolve, Math.max(0, timeoutMs));
+            }),
+          ]);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      }
+      return runIds.map((runId) => ({
+        run_id: runId,
+        ...this.getStatus(
+          runId,
+          parentThreadId,
+          typeof options === "function" ? options(runId) : options,
+        ),
+      }));
+    }
     return await Promise.all(
       runIds.map(async (runId) => ({
         run_id: runId,
@@ -342,9 +370,62 @@ export class SubagentRunManager {
         background: record.background,
         attempt: record.attemptIndex + 1,
         attempt_count: record.plan.attempts.length,
+        can_steer:
+          record.status === "running" &&
+          record.steerReady &&
+          !record.steering &&
+          !!record.handle?.steerTurn,
       });
     }
     return out;
+  }
+
+  getCapacity(parentThreadId: string): { running: number; limit: number; available_slots: number } {
+    const running = this.activeCountForParent(parentThreadId);
+    return {
+      running,
+      limit: MAX_CONCURRENT_CHILDREN_PER_PARENT,
+      available_slots: MAX_CONCURRENT_CHILDREN_PER_PARENT - running,
+    };
+  }
+
+  /** Forward a parent correction using the live session's native steering capability. */
+  async steer(runId: string, prompt: string, parentThreadId: string): Promise<void> {
+    const record = this.ownedRun(runId, parentThreadId);
+    if (!record) throw new SubagentSpawnError(`Unknown run_id: ${runId}`);
+    if (record.status !== "running") throw new SubagentSpawnError("Subagent is no longer running");
+    if (!record.steerReady)
+      throw new SubagentSpawnError("Subagent is still starting; try again once it is ready");
+    if (!record.handle?.steerTurn)
+      throw new SubagentSpawnError("This subagent session does not support live steering");
+    if (record.steering)
+      throw new SubagentSpawnError("A steer is already in progress for this subagent");
+    const steering: NonNullable<RunRecord["steering"]> = { completion: "none" };
+    record.steering = steering;
+    const attemptIndex = record.attemptIndex;
+    try {
+      await record.handle.steerTurn(prompt, record.plan.attempts[attemptIndex]!.config);
+      if (!this.isCurrentAttempt(record, attemptIndex)) {
+        throw new SubagentSpawnError("Subagent stopped before steering could be confirmed");
+      }
+    } catch (error) {
+      if (record.steering === steering && steering.completion === "resumed") {
+        this.finishAttempt(
+          record,
+          attemptIndex,
+          "failed",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+      throw error;
+    } finally {
+      if (record.steering === steering) {
+        record.steering = undefined;
+        if (steering.completion === "pending") {
+          this.finishAttempt(record, attemptIndex, "completed");
+        }
+      }
+    }
   }
 
   /** Interrupt + dispose a single run. */
@@ -514,6 +595,7 @@ export class SubagentRunManager {
 
     record.attemptIndex = attemptIndex;
     record.attemptSettled = false;
+    record.steering = undefined;
     record.childThreadId = this.childThreadId(record.parentThreadId, record.runId, attemptIndex);
     record.label = attempt.label;
     record.output = "";
@@ -521,6 +603,7 @@ export class SubagentRunManager {
     record.error = undefined;
     record.turnStarted = false;
     record.turnDispatched = false;
+    record.steerReady = false;
     record.handle = undefined;
     record.oneShot = undefined;
 
@@ -540,6 +623,9 @@ export class SubagentRunManager {
 
     this.attemptRunner.run(record, attemptIndex, attempt, {
       isActive: () => this.isCurrentAttempt(record, attemptIndex),
+      onWorking: () => {
+        if (record.steering?.completion === "pending") record.steering.completion = "resumed";
+      },
       onRuntimeEvent: (event) => this.onChildEvent(record, attemptIndex, event),
       onSettle: (status, errorMessage) =>
         this.finishAttempt(record, attemptIndex, status, errorMessage),
@@ -597,6 +683,12 @@ export class SubagentRunManager {
       return;
     }
     switch (event.type) {
+      case "turn.started":
+        record.steerReady = true;
+        // A native steer can start a follow-up turn if the original finished
+        // during its round-trip. Keep that new turn alive until it completes.
+        if (record.steering?.completion === "pending") record.steering.completion = "resumed";
+        break;
       case "content.delta":
         if (event.stream === "assistant_text") {
           const cursorStart = record.cursorOutput.length;
@@ -737,6 +829,10 @@ export class SubagentRunManager {
     errorMessage?: string,
   ): void {
     if (!this.isCurrentAttempt(record, attemptIndex)) return;
+    if (record.steering && status === "completed") {
+      record.steering.completion = "pending";
+      return;
+    }
     record.attemptSettled = true;
     this.drainPendingRequests(record);
     this.completeOpenForwardedItems(record);
