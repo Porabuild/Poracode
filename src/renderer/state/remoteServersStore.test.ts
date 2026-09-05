@@ -5,11 +5,8 @@ import type { GitStatePatch, GitStateSnapshot } from "@/shared/gitState";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { PORACODE_REMOTE_PROTOCOL_VERSION, type RemoteGitSummaries } from "@/shared/remote";
 import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
-import {
-  __resetRemoteServersStoreForTest,
-  installRemoteProjectWorkspaceSync,
-  useRemoteServersStore,
-} from "./remoteServersStore";
+import { __resetRemoteServersStoreForTest, useRemoteServersStore } from "./remoteServersStore";
+import { installRemoteProjectWorkspaceSync } from "./remoteServers/appRows";
 import { filterRemoteThreadEvent } from "./remoteServers/eventRouting";
 import { mainProcessFetch } from "./remoteServers/mainProcessFetch";
 import type {
@@ -1632,6 +1629,15 @@ describe("useRemoteServersStore", () => {
 
     expect(socketFactory).toHaveBeenCalledTimes(1);
     expect(websocketUrl).toHaveBeenNthCalledWith(1, "ticket-1", 2);
+    const projectedId = remoteProjectId("d1", "p1");
+    useAppStore.getState().setProjectWorkspace(projectedId, "local-workspace");
+    snapshot.mockResolvedValue({
+      snapshotSeq: 8,
+      projects: [{ ...proj, workspaceId: "host-workspace" }],
+      threads: [remoteThread],
+      runtimeSummariesByThread: {},
+      updatedAt: "later",
+    });
 
     sockets[0]?.onmessage?.({
       data: JSON.stringify({ type: "event", seq: 7, event: { type: "noop" } }),
@@ -1642,6 +1648,20 @@ describe("useRemoteServersStore", () => {
 
     expect(socketFactory).toHaveBeenCalledTimes(2);
     expect(websocketUrl).toHaveBeenNthCalledWith(2, "ticket-2", 7);
+    sockets[1]?.onmessage?.({
+      data: JSON.stringify({ type: "resync-required", seq: 8, reason: "History expired" }),
+    });
+    await vi.advanceTimersByTimeAsync(600);
+    expect(
+      useAppStore.getState().projects.find((project) => project.id === projectedId)?.workspaceId,
+    ).toBe("local-workspace");
+    expect(useAppStore.getState().threads).toContainEqual(
+      expect.objectContaining({
+        id: remoteThreadId("d1", remoteThread.id),
+        projectId: projectedId,
+      }),
+    );
+    expect(useRemoteServersStore.getState().projectWorkspaceIds.d1?.p1).toBe("local-workspace");
   });
 
   it("stops reconnecting when the event stream reports an expired session", async () => {

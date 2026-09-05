@@ -130,6 +130,20 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     );
   });
 
+  it("does not repeat a failed lookup when the registry adds no PATH entries", () => {
+    process.env.Path = "C:\\Windows\\System32";
+    const registryPath = "    Path    REG_SZ    C:\\Windows\\System32";
+    spawnSyncMock
+      .mockReturnValueOnce({ status: 1, stdout: "" })
+      .mockReturnValueOnce({ status: 0, stdout: registryPath })
+      .mockReturnValueOnce({ status: 0, stdout: registryPath });
+
+    expect(resolveExecutablePath("missing-agent")).toBeUndefined();
+    expect(
+      spawnSyncMock.mock.calls.filter(([command]) => String(command).endsWith("where.exe")),
+    ).toHaveLength(1);
+  });
+
   it("resolves npm .cmd shims to their package exe target when present", () => {
     const root = mkdtempSync(join(tmpdir(), "poracode-claude-shim-"));
     tempDirs.push(root);

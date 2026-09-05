@@ -73,6 +73,33 @@ describe("managed CDP scripts", () => {
     ).rejects.toThrow(/ENOENT/);
   });
 
+  it("rejects startup profiling inside the repository before writing artifacts", async () => {
+    const invalidRoot = join(repoRoot, "tmp", `invalid-profile-${process.pid}-${Date.now()}`);
+    const result = await runScript(join(repoRoot, "scripts/profile-startup.mjs"), [invalidRoot]);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("debug session root must be outside the repository");
+    await expect(
+      import("node:fs/promises").then(({ access }) => access(invalidRoot)),
+    ).rejects.toThrow(/ENOENT/);
+  });
+
+  it("preserves the startup failure when a warm fixture is missing", async () => {
+    const root = await mkdtemp(join(tmpdir(), "poracode-profile-missing-"));
+    try {
+      const result = await runScript(join(repoRoot, "scripts/profile-startup.mjs"), [
+        root,
+        "--warm",
+      ]);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("Launcher exited before profiling completed");
+      expect(result.stderr).not.toContain("No managed debug session");
+      const log = await readFile(join(root, "startup-warm.log.json"), "utf8");
+      expect(log).toContain("ENOENT");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("refuses to guess a missing half of an explicit connection", async () => {
     const result = await runScript(cdpScript, ["eval", "location.href", "--port", "45678"]);
 

@@ -1038,7 +1038,13 @@ if (!hasSingleInstanceLock) {
       });
       const computerUseHelperRoot = app.isPackaged
         ? join(process.resourcesPath, "computer-use-helper")
-        : join(__dirname, "..", "..", "resources", "computer-use-helper");
+        : join(
+            __dirname,
+            "..",
+            "..",
+            "resources",
+            isDev ? "computer-use-helper-dev" : "computer-use-helper",
+          );
       // Windows and macOS keep a legacy in-process driver, so they stay
       // supported even without a staged helper. Everywhere else the helper is
       // the only backend: with no binary for this platform/arch the ingress

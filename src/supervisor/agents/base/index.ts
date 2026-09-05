@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, watch as fsWatch } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, win32 } from "node:path";
 import { toWslUncPath } from "@/shared/wsl";
 import type {
   AgentProviderMetadata,
@@ -464,7 +464,7 @@ export function configFileAuthProbe(
 export function cliSubcommandAuthProbe(args: string[]): AuthProbe {
   return async (ctx) => {
     if (!ctx.executablePath) return undefined;
-    const spec = buildAgentCommand(ctx.location, ctx.executablePath, args);
+    const spec = buildAgentCommand(ctx.location, ctx.executablePath, args, ctx.executablePath);
     const result = await readCommandOutputAsync(spec.command, spec.args, {
       ...(spec.cwd ? { cwd: spec.cwd } : {}),
       ...(spec.env ? { env: spec.env } : {}),
@@ -573,7 +573,7 @@ export async function readDetectedVersion(
   // detection — which uses the registry-backed fallback — but its `--version`
   // would miss and the version would render blank. Matches the WSL branch above
   // and readAgentCommandOutput.
-  const spec = buildAgentCommand(location, executablePath, versionArgs, undefined, probeEnv);
+  const spec = buildAgentCommand(location, executablePath, versionArgs, executablePath, probeEnv);
   const result = await readCommandOutputAsync(
     spec.command,
     spec.args,
@@ -626,7 +626,13 @@ export async function readAgentCommandOutput(
       wslOptions,
     );
   }
-  const spec = buildAgentCommand(location, executablePath, args, undefined, options?.env);
+  const spec = buildAgentCommand(
+    location,
+    executablePath,
+    args,
+    win32.isAbsolute(executablePath) ? executablePath : undefined,
+    options?.env,
+  );
   const effectiveCwd = options?.posixCwd ?? spec.cwd;
   const runOptions = {
     ...(effectiveCwd ? { cwd: effectiveCwd } : {}),

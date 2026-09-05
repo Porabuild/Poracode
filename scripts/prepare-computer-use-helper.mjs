@@ -16,7 +16,8 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const crateRoot = join(repoRoot, "native", "computer-use-helper");
-const resourcesRoot = join(repoRoot, "resources", "computer-use-helper");
+let resourcesRoot = join(repoRoot, "resources", "computer-use-helper");
+let cargoProfile = "release";
 const binaryName = "poracode-computer-use";
 const clientContractPath = join(repoRoot, "src", "shared", "contracts", "computerUse.ts");
 
@@ -54,6 +55,7 @@ function parseArgs(argv) {
   const options = {
     arch: null,
     check: false,
+    dev: false,
     force: false,
     hostOnly: false,
     platform: null,
@@ -62,6 +64,7 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--check") options.check = true;
+    else if (argument === "--dev") options.dev = true;
     else if (argument === "--force") options.force = true;
     else if (argument === "--host-only") options.hostOnly = true;
     else if (argument === "--require") options.require = true;
@@ -150,7 +153,12 @@ function cargoTargetDirectory() {
 }
 
 function builtBinary(targetDirectory, triple, extension = "") {
-  return join(targetDirectory, triple, "release", `${binaryName}${extension}`);
+  return join(
+    targetDirectory,
+    triple,
+    cargoProfile === "dev" ? "debug" : "release",
+    `${binaryName}${extension}`,
+  );
 }
 
 function isCurrent(path, sourceMtime) {
@@ -177,7 +185,7 @@ function prepareWindowsOrLinux(platform, targets, sourceMtime, force, targetDire
       continue;
     }
     run("rustup", ["target", "add", target.triple]);
-    run("cargo", ["build", "--release", "--locked", "--target", target.triple]);
+    run("cargo", ["build", "--profile", cargoProfile, "--locked", "--target", target.triple]);
     copyBuiltBinary(
       builtBinary(targetDirectory, target.triple, platform === "win" ? ".exe" : ""),
       destination,
@@ -199,7 +207,7 @@ function prepareMac(sourceMtime, force, targetDirectory) {
   const triples = ["x86_64-apple-darwin", "aarch64-apple-darwin"];
   for (const triple of triples) {
     run("rustup", ["target", "add", triple]);
-    run("cargo", ["build", "--release", "--locked", "--target", triple]);
+    run("cargo", ["build", "--profile", cargoProfile, "--locked", "--target", triple]);
   }
   mkdirSync(dirname(destination), { recursive: true });
   run("lipo", [
@@ -351,6 +359,12 @@ function verifyRequested(manifest, targets) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
+  cargoProfile = options.dev ? "dev" : "release";
+  resourcesRoot = join(
+    repoRoot,
+    "resources",
+    options.dev ? "computer-use-helper-dev" : "computer-use-helper",
+  );
   const host = hostPlatform();
   const platform = normalizePlatform(options.platform ?? host);
   if (platform !== host) {

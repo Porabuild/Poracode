@@ -31,7 +31,7 @@ import {
 } from "./actions/threadActions";
 import { deleteWorktreeGroup } from "./actions/worktreeActions";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
-import { installRemoteProjectWorkspaceSync } from "./state/remoteServersStore";
+import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
 import { applyRemoteThreadStartCommand } from "@/renderer/actions/remoteStartCommandActions";
