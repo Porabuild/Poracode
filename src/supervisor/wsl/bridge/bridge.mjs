@@ -51,7 +51,8 @@ import { isAbsolute, normalize, resolve as resolvePath } from "node:path/posix";
 import { createRequire } from "node:module";
 
 // Bumped on every behavioural change. Windows side reads this via regex.
-const BRIDGE_VERSION = "2.15.0";
+// Parent-pipe EOF now releases idle bridges and orphaned helpers.
+const BRIDGE_VERSION = "2.16.0";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
@@ -1496,3 +1497,7 @@ function shutdown() {
 }
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
+if (process.env.PORACODE_BRIDGE_PARENT_STDIN === "1") {
+  process.stdin.on("end", shutdown);
+  process.stdin.resume();
+}

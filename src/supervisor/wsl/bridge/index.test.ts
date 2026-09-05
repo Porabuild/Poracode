@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -28,6 +29,7 @@ function makeHelpersDir(): string {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   for (const dir of tempDirs.splice(0)) {
     try {
       rmSync(dir, { recursive: true, force: true });
@@ -55,6 +57,8 @@ function makeStubbedManager(opts: {
   onEvent: (envelope: AgentEventEnvelope) => void;
   onError?: (message: string, error?: unknown) => void;
   onBridgeExit?: (distro: string) => void;
+  onBridgeResume?: (distro: string) => void;
+  hasLiveSession?: (distro: string) => boolean;
   bootPort?: number;
   child?: FakeChild;
   childFactory?: () => FakeChild;
@@ -98,6 +102,8 @@ function makeStubbedManager(opts: {
   };
   if (opts.onError) managerOpts.onError = opts.onError;
   if (opts.onBridgeExit) managerOpts.onBridgeExit = opts.onBridgeExit;
+  if (opts.onBridgeResume) managerOpts.onBridgeResume = opts.onBridgeResume;
+  if (opts.hasLiveSession) managerOpts.hasLiveSession = opts.hasLiveSession;
   return { manager: new WslBridgeServer(managerOpts), child, children };
 }
 
@@ -114,6 +120,83 @@ function makeEnvelope(overrides: Partial<AgentEventEnvelope> = {}): AgentEventEn
 }
 
 describe("WslBridgeServer", () => {
+  it("ends the Linux parent pipe on idle release and cancels the kill fallback on exit", async () => {
+    vi.useFakeTimers({
+      toFake: ["Date", "setInterval", "clearInterval", "setTimeout", "clearTimeout"],
+    });
+    const child = Object.assign(new FakeChild(), { stdin: new PassThrough() });
+    const { manager } = makeStubbedManager({
+      helpersDir: makeHelpersDir(),
+      onEvent: vi.fn<(event: AgentEventEnvelope) => void>(),
+      child,
+    });
+    await manager.ensureBridge("Ubuntu");
+    expect(child.stdin.writableEnded).toBe(false);
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(child.stdin.writableEnded).toBe(true);
+    expect(vi.getTimerCount()).toBe(2);
+    child.emit("exit", 0);
+    expect(vi.getTimerCount()).toBe(1);
+    await manager.dispose();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("releases idle watchers per distro and restores them only on demand", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    const onBridgeExit = vi.fn<(distro: string) => void>();
+    const onBridgeResume = vi.fn<(distro: string) => void>();
+    const { manager, children } = makeStubbedManager({
+      helpersDir: makeHelpersDir(),
+      onEvent: vi.fn<(event: AgentEventEnvelope) => void>(),
+      onBridgeExit,
+      onBridgeResume,
+      childFactory: () => new FakeChild(),
+      hasLiveSession: (distro) => distro === "Debian",
+    });
+    await manager.ensureBridge("Ubuntu");
+    await manager.ensureBridge("Debian");
+    manager.registerWatchListener("old", "Ubuntu", vi.fn());
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(manager.hasWatchListener("old")).toBe(false);
+    expect(onBridgeExit).not.toHaveBeenCalled();
+    expect(onBridgeResume).not.toHaveBeenCalled();
+    await manager.ensureBridge("Debian");
+    expect(children).toHaveLength(2);
+    await manager.ensureBridge("Ubuntu");
+    expect(children).toHaveLength(3);
+    expect(onBridgeResume).toHaveBeenCalledExactlyOnceWith("Ubuntu");
+    manager.registerWatchListener("new", "Ubuntu", vi.fn());
+    children[0]!.emit("exit", 0);
+    expect(manager.hasWatchListener("new")).toBe(true);
+    await manager.dispose();
+  });
+
+  it("protects loaded sessions and in-flight requests, then starts a fresh idle grace period", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    let loaded = true;
+    const { manager, children } = makeStubbedManager({
+      helpersDir: makeHelpersDir(),
+      onEvent: vi.fn<(event: AgentEventEnvelope) => void>(),
+      childFactory: () => new FakeChild(),
+      hasLiveSession: () => loaded,
+    });
+    await manager.ensureBridge("Ubuntu");
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    loaded = false;
+    const endRequest = manager.beginRequest("Ubuntu");
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    endRequest();
+    await vi.advanceTimersByTimeAsync(4 * 60_000);
+    expect(children).toHaveLength(1);
+    manager.registerWatchListener("watch", "Ubuntu", vi.fn());
+    expect(manager.hasWatchListener("watch")).toBe(true);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(manager.hasWatchListener("watch")).toBe(false);
+    await manager.ensureBridge("Ubuntu");
+    expect(children).toHaveLength(2);
+    await manager.dispose();
+  });
+
   it("resolves ensureBridge once the child emits a boot line", async () => {
     const helpersDir = makeHelpersDir();
     const events: AgentEventEnvelope[] = [];
@@ -374,10 +457,10 @@ describe("WslBridgeServer", () => {
     await manager.dispose();
   });
 
-  it("replaces a cached bridge when the bundled helper version changes", async () => {
+  it("replaces the previous 2.15.0 helper with the parent-pipe-aware 2.16.0 helper", async () => {
     const helpersDir = mkdtempSync(join(tmpdir(), "lc-bridge-helpers-"));
     tempDirs.push(helpersDir);
-    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.0.0";\n`, "utf8");
+    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.15.0";\n`, "utf8");
 
     const children: FakeChild[] = [];
     const manager = new WslBridgeServer({
@@ -392,9 +475,11 @@ describe("WslBridgeServer", () => {
         source: "user-installed",
       }),
       deploy: () => ({ home: "/h", linuxBaseDir: "/h/.poracode" }),
-      spawn: () => {
+      spawn: (opts) => {
+        expect(opts.stdin).toBe("pipe");
+        expect(opts.env?.PORACODE_BRIDGE_PARENT_STDIN).toBe("1");
         const child = new FakeChild();
-        const version = children.length === 0 ? "2.0.0" : "2.0.1";
+        const version = children.length === 0 ? "2.15.0" : "2.16.0";
         const port = children.length === 0 ? 9100 : 9101;
         children.push(child);
         setImmediate(() => {
@@ -408,7 +493,7 @@ describe("WslBridgeServer", () => {
     });
 
     const first = await manager.ensureBridge("Ubuntu");
-    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.0.1";\n`, "utf8");
+    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.16.0";\n`, "utf8");
     const second = await manager.ensureBridge("Ubuntu");
 
     expect(children).toHaveLength(2);

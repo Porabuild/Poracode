@@ -36,7 +36,7 @@ interface RunningBridge {
 async function startBridge(extraEnv: Record<string, string> = {}): Promise<RunningBridge> {
   const child = spawn(process.execPath, [BRIDGE_SCRIPT], {
     env: { ...process.env, PORACODE_HOOK_SECRET: SECRET, ...extraEnv },
-    stdio: ["ignore", "pipe", "ignore"],
+    stdio: [extraEnv.PORACODE_BRIDGE_PARENT_STDIN === "1" ? "pipe" : "ignore", "pipe", "ignore"],
   });
 
   const baseUrl = await new Promise<string>((resolveUrl, reject) => {
@@ -71,6 +71,17 @@ async function startBridge(extraEnv: Record<string, string> = {}): Promise<Runni
 function closeServer(server: Server): Promise<void> {
   return new Promise((resolve) => server.close(() => resolve()));
 }
+
+it("exits the helper when its supervisor closes the parent pipe", async () => {
+  const bridge = await startBridge({ PORACODE_BRIDGE_PARENT_STDIN: "1" });
+  try {
+    const exited = new Promise<number | null>((resolve) => bridge.child.once("exit", resolve));
+    bridge.child.stdin!.end();
+    expect(await exited).toBe(0);
+  } finally {
+    await bridge.dispose();
+  }
+});
 
 function isProcessRunning(pid: number): boolean {
   try {

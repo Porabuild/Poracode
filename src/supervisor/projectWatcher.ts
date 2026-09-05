@@ -25,6 +25,7 @@ interface WatcherEntry {
   projectId: string;
   location: ProjectLocation;
   wslSchedule?: WslSchedule;
+  wslSubscriptionPending?: boolean;
 }
 
 interface WorktreeWatcherEntry {
@@ -36,6 +37,7 @@ interface WorktreeWatcherEntry {
   wslLocation?: WslLocation;
   wslLinuxPath?: string;
   wslSchedule?: WslSchedule;
+  wslSubscriptionPending?: boolean;
 }
 
 const IGNORED_PREFIXES = [
@@ -385,11 +387,22 @@ export class ProjectWatcher {
   }
 
   handleWslBridgeExit(distro: string): void {
+    this.restoreWslSubscriptions(distro, false);
+  }
+
+  handleWslBridgeResume(distro: string): void {
+    this.restoreWslSubscriptions(distro, true);
+  }
+
+  private restoreWslSubscriptions(distro: string, skipPending: boolean): void {
     for (const entry of this.watchers.values()) {
       if (entry.location.kind !== "wsl" || entry.location.distro !== distro || !entry.wslSchedule) {
         continue;
       }
+      if (skipPending && entry.wslSubscriptionPending) continue;
       entry.wslUnsubscribe = null;
+      entry.wslSchedule.onGit();
+      entry.wslSchedule.onTree();
       void this.startWslSubscription(
         entry,
         entry.location,
@@ -402,6 +415,7 @@ export class ProjectWatcher {
       if (entry.wslLocation?.distro !== distro || !entry.wslLinuxPath || !entry.wslSchedule) {
         continue;
       }
+      if (skipPending && entry.wslSubscriptionPending) continue;
       entry.wslUnsubscribe = null;
       void this.startWslWorktreeSubscription(
         entry,
@@ -441,16 +455,21 @@ export class ProjectWatcher {
     linuxPath: string,
     schedule: { onGit: () => void; onTree: () => void },
   ): Promise<void> {
-    const subscription = await this.subscribeWsl(location, linuxPath, schedule);
-    if (!subscription) return;
-    if (!this.watchers.has(entry.projectId) || this.watchers.get(entry.projectId) !== entry) {
-      // Entry was already unwatched while we awaited — tear down immediately.
-      await subscription.unsubscribe().catch((error) => {
-        console.warn("[watcher] WSL unsubscribe failed during teardown:", error);
-      });
-      return;
+    entry.wslSubscriptionPending = true;
+    try {
+      const subscription = await this.subscribeWsl(location, linuxPath, schedule);
+      if (!subscription) return;
+      if (!this.watchers.has(entry.projectId) || this.watchers.get(entry.projectId) !== entry) {
+        // Entry was already unwatched while we awaited — tear down immediately.
+        await subscription.unsubscribe().catch((error) => {
+          console.warn("[watcher] WSL unsubscribe failed during teardown:", error);
+        });
+        return;
+      }
+      entry.wslUnsubscribe = subscription.unsubscribe;
+    } finally {
+      entry.wslSubscriptionPending = false;
     }
-    entry.wslUnsubscribe = subscription.unsubscribe;
   }
 
   private async startWslWorktreeSubscription(
@@ -459,28 +478,33 @@ export class ProjectWatcher {
     linuxPath: string,
     schedule: { onGit: () => void; onTree: () => void },
   ): Promise<void> {
-    const worktreeLocation: WslLocation = {
-      kind: "wsl",
-      distro: location.distro,
-      linuxPath,
-      uncPath: toWslUncPath(location.distro, linuxPath),
-    };
-    const subscription = await this.subscribeWsl(worktreeLocation, linuxPath, schedule);
-    if (!subscription) return;
-    let stillActive = false;
-    for (const [, wtEntry] of this.worktreeWatchers) {
-      if (wtEntry === entry) {
-        stillActive = true;
-        break;
+    entry.wslSubscriptionPending = true;
+    try {
+      const worktreeLocation: WslLocation = {
+        kind: "wsl",
+        distro: location.distro,
+        linuxPath,
+        uncPath: toWslUncPath(location.distro, linuxPath),
+      };
+      const subscription = await this.subscribeWsl(worktreeLocation, linuxPath, schedule);
+      if (!subscription) return;
+      let stillActive = false;
+      for (const [, wtEntry] of this.worktreeWatchers) {
+        if (wtEntry === entry) {
+          stillActive = true;
+          break;
+        }
       }
+      if (!stillActive) {
+        await subscription.unsubscribe().catch((error) => {
+          console.warn("[watcher] WSL worktree unsubscribe failed during teardown:", error);
+        });
+        return;
+      }
+      entry.wslUnsubscribe = subscription.unsubscribe;
+    } finally {
+      entry.wslSubscriptionPending = false;
     }
-    if (!stillActive) {
-      await subscription.unsubscribe().catch((error) => {
-        console.warn("[watcher] WSL worktree unsubscribe failed during teardown:", error);
-      });
-      return;
-    }
-    entry.wslUnsubscribe = subscription.unsubscribe;
   }
 
   private async subscribeWsl(
