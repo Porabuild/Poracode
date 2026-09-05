@@ -254,11 +254,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     if (!this.currentTurnId) return this.startTurn(prompt, config, undefined, options);
     const response = await this.client.request("steer", { message: prompt });
     if (!response.success) {
-      this.emit({
-        type: "warning",
-        threadId: this.input.threadId,
-        message: response.error ?? "Pi could not steer the current turn.",
-      });
+      throw new Error(response.error ?? "Pi could not steer the current turn.");
     }
   }
 

@@ -243,6 +243,7 @@ export interface SubagentRunSummary {
   background: boolean;
   attempt: number;
   attempt_count: number;
+  can_steer: boolean;
 }
 
 /**

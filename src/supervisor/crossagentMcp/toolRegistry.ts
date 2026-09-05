@@ -70,10 +70,12 @@ export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "This server hosts one delegation lane: ephemeral subagent runs whose output streams into your own thread.",
   "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent for every background result the task requires. Each wait is bounded only to stay below the MCP client's transport timeout: status=running means the server kept the child active, and the elapsed wait does not by itself mean the run stalled. When its result is required, keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because 180 seconds or any other wait duration elapsed, it has not produced a final answer yet, or it is still investigating. Cancel only when the user explicitly asks or the task is no longer needed for a reason unrelated to elapsed time.",
   "wait_for_agent and get_status support incremental output: pass the previous result's total_output_chars as after_output_chars on the next call, so repeated waits return only newer text and identical retries remain safe. Output is clipped to a short tail while the run is still working; clipped text requires full_output=true if genuinely needed.",
-  "Pass tasks=[...] to the same spawn_agent call to launch up to four independent agents in parallel.",
+  `Pass tasks=[...] to the same spawn_agent call to launch up to ${MAX_CONCURRENT_CHILDREN_PER_PARENT} independent agents in parallel. Each parent thread can have at most ${MAX_CONCURRENT_CHILDREN_PER_PARENT} running agents across all calls; wait for an existing run to finish before spawning beyond that limit.`,
   "Use ordered fallbacks to retry startup failures on another model or provider. Retrying after a dispatched turn requires retry_on='any-failure' because it may repeat side effects.",
   "Background runs also survive interruption of the current parent turn, but still stop when the parent thread closes.",
   "Give each subagent a self-contained prompt — it does not share your conversation context.",
+  "Use steer_agent to send corrections, new evidence, or narrowed scope to an active child without restarting it. Check list_runs.can_steer first; startup, completed runs, and sessions without live steering cannot accept it. A successful steer means the provider accepted the message, not that the child has finished applying it; keep waiting for its result.",
+  "For larger batches, call list_runs with include_capacity=true to inspect available_slots (a snapshot, not a reservation). Use wait_for_agent with run_ids and wait_mode='any' to collect the next completed result and refill free slots; omit already-settled runs from the next wait. Scope concurrent edits to distinct files or clearly separated responsibilities. Include the objective, relevant context, constraints, and acceptance checks in each prompt. Ask for findings with file references, verification evidence, and unresolved risks; validate the returned work before integrating it.",
   "Always set name on spawn_agent and on every tasks=[...] entry: a short, specific label describing what that subagent will do (for example `Review runtime findings`). Users see this label in the thread; do not omit it or repeat provider/model/reasoning values there — Crossagents appends those automatically.",
   "For long-lived, first-class app threads the user sees in the sidebar (optionally in their own git worktree) — e.g. one ticket or feature per thread — use the always-on `poracode` MCP server's thread tools (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread, stop_thread) instead.",
 ].join(" ");
@@ -225,6 +227,7 @@ const RAW_TOOLS: ToolSpec[] = [
           type: "number",
           description: TIMEOUT_S_DESCRIPTION,
         },
+        full_output: FULL_OUTPUT_PROPERTY,
       },
       // No root-level union here: Cursor's backend rejects tool schemas that carry
       // `oneOf` at the root and fails the whole turn with a provider error. Callers
@@ -284,6 +287,13 @@ const RAW_TOOLS: ToolSpec[] = [
         full_output: FULL_OUTPUT_PROPERTY,
         after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
         after_output_chars_by_run: AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY,
+        wait_mode: {
+          type: "string",
+          enum: ["all", "any"],
+          default: "all",
+          description:
+            "For run_ids, all waits for every run; any returns when one run settles, with a status snapshot for every requested run. Already-settled or unknown runs return immediately. Pass only remaining running IDs on the next any wait.",
+        },
       },
       // No root-level union — see the spawn_agent schema above.
     },
@@ -305,8 +315,18 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "list_runs",
     description:
-      "List this parent thread's subagent runs, including background work, current status, and retry attempt.",
-    inputSchema: { type: "object", properties: {} },
+      "List this parent thread's subagent runs, including background work, current status, and retry attempt. With include_capacity=true, return { runs, capacity: { running, limit, available_slots } } to plan the next batch.",
+    inputSchema: { type: "object", properties: { include_capacity: { type: "boolean" } } },
+  },
+  {
+    name: "steer_agent",
+    description:
+      "Send a follow-up prompt to a running child owned by this parent. Requires can_steer=true in list_runs. Preserves the existing session and work; does not restart or interrupt the child. Returns after the provider accepts the message.",
+    inputSchema: {
+      type: "object",
+      required: ["run_id", "prompt"],
+      properties: { run_id: { type: "string" }, prompt: { type: "string", minLength: 1 } },
+    },
   },
   {
     name: "cancel",
@@ -338,8 +358,9 @@ const BASE_TOOLS: ToolSpec[] = RAW_TOOLS.map((tool) => ({
       ? { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
       : {
           readOnlyHint: false,
-          destructiveHint: tool.name === "spawn_agent" || tool.name === "cancel",
-          openWorldHint: tool.name === "spawn_agent",
+          destructiveHint:
+            tool.name === "spawn_agent" || tool.name === "steer_agent" || tool.name === "cancel",
+          openWorldHint: tool.name === "spawn_agent" || tool.name === "steer_agent",
         },
 }));
 
@@ -675,7 +696,7 @@ async function spawnAgent(
         runs.map(({ runId }) => runId),
         timeoutMs,
         ctx.parentThreadId,
-        { fullOutput: true, currentAttemptOnly: true },
+        { fullOutput: args.full_output === true, currentAttemptOnly: true },
       ),
     });
   }
@@ -692,7 +713,7 @@ async function spawnAgent(
     return jsonResult({ run_id: runId, status: "running", output: "" });
   }
   const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
-    fullOutput: true,
+    fullOutput: args.full_output === true,
     currentAttemptOnly: true,
   });
   return jsonResult({ run_id: runId, ...result });
@@ -776,6 +797,9 @@ export async function dispatchTool(
         return jsonResult({ run_ids: runs.map(({ runId }) => runId) });
       }
       case "wait_for_agent": {
+        if (args.wait_mode !== undefined && args.wait_mode !== "all" && args.wait_mode !== "any") {
+          return errorResult("wait_mode must be all or any");
+        }
         if (args.run_id !== undefined && args.run_ids !== undefined) {
           return errorResult("Pass either run_id or run_ids, not both.");
         }
@@ -787,6 +811,7 @@ export async function dispatchTool(
               parseWaitTimeoutMs(args),
               ctx.parentThreadId,
               (runId) => parseWaitOptions(args, runId),
+              args.wait_mode === "any" ? "any" : "all",
             ),
           );
         }
@@ -823,12 +848,27 @@ export async function dispatchTool(
         );
       }
       case "list_runs":
-        return jsonResult(ctx.runManager.listRuns(ctx.parentThreadId));
+        return jsonResult(
+          args.include_capacity === true
+            ? {
+                runs: ctx.runManager.listRuns(ctx.parentThreadId),
+                capacity: ctx.runManager.getCapacity(ctx.parentThreadId),
+              }
+            : ctx.runManager.listRuns(ctx.parentThreadId),
+        );
       case "cancel": {
         const runId = typeof args.run_id === "string" ? args.run_id : "";
         if (!runId) return errorResult("run_id is required");
         await ctx.runManager.cancel(runId, ctx.parentThreadId);
         return jsonResult({ ok: true });
+      }
+      case "steer_agent": {
+        const runId = typeof args.run_id === "string" ? args.run_id : "";
+        const prompt = typeof args.prompt === "string" ? args.prompt : "";
+        if (!runId) return errorResult("run_id is required");
+        if (!prompt.trim()) return errorResult("prompt must not be empty");
+        await ctx.runManager.steer(runId, prompt, ctx.parentThreadId);
+        return jsonResult({ run_id: runId, status: "accepted" });
       }
       default:
         return errorResult(`Unknown tool: ${name}`);

@@ -275,6 +275,7 @@ describe("CrossagentMcpIngress", () => {
       "remove_routing_preference",
       "set_routing_preference",
       "spawn_agent",
+      "steer_agent",
       "wait_for_agent",
     ]);
   });
@@ -294,6 +295,23 @@ describe("CrossagentMcpIngress", () => {
     expect((await call.json()).result).toMatchObject({ isError: true });
     const batchCall = await rpc("tools/call", { name: "spawn_agents", arguments: {} });
     expect((await batchCall.json()).result).toMatchObject({ isError: true });
+  });
+
+  it("enforces disabled steering in discovery and calls", async () => {
+    ingress.registerThread("thread-1", ["steer_agent"]);
+    const list = await rpc("tools/list");
+    const body = await list.json();
+    expect(body.result.tools.map((tool: { name: string }) => tool.name)).not.toContain(
+      "steer_agent",
+    );
+    const call = await rpc("tools/call", {
+      name: "steer_agent",
+      arguments: { run_id: "r", prompt: "focus" },
+    });
+    expect((await call.json()).result).toMatchObject({
+      isError: true,
+      content: [{ type: "text", text: "Tool disabled by Poracode: steer_agent" }],
+    });
   });
 
   it("dispatches list_agents", async () => {

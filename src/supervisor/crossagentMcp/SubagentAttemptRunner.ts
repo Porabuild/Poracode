@@ -17,10 +17,13 @@ export interface AttemptExecutionState {
   cancelRequested: boolean;
   turnStarted: boolean;
   turnDispatched: boolean;
+  /** The initial turn has been acknowledged, so native steering cannot launch a second one. */
+  steerReady: boolean;
 }
 
 interface AttemptCallbacks {
   isActive(): boolean;
+  onWorking(): void;
   onRuntimeEvent(event: RuntimeEvent): void;
   onSettle(status: Exclude<SubagentRunStatus, "running">, errorMessage?: string): void;
 }
@@ -117,6 +120,7 @@ export class SubagentAttemptRunner {
           callbacks.onSettle("failed", "Subagent session closed before the turn completed"),
         onError: (message) => callbacks.onSettle("failed", message),
         onUpdate: (update) => {
+          if (callbacks.isActive() && update.status === "working") callbacks.onWorking();
           if (callbacks.isActive() && state.turnStarted && update.status === "idle") {
             callbacks.onSettle("completed");
           }
@@ -135,6 +139,7 @@ export class SubagentAttemptRunner {
       state.turnStarted = true;
       state.turnDispatched = true;
       await handle.startTurn(state.plan.prompt, config);
+      if (callbacks.isActive()) state.steerReady = true;
     } catch (error) {
       callbacks.onSettle(
         state.cancelRequested ? "cancelled" : "failed",
