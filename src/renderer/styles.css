@@ -1551,15 +1551,23 @@ html .poracode-floating-chrome.poracode-floating-chrome--bubble {
 html .poracode-floating-chrome.poracode-floating-chrome--bubble:hover {
   border-color: color-mix(in oklab, var(--foreground) 5%, transparent);
 }
-/* Bubble whose panel is open: a clear violet-steered theme wash over the same
-   translucent composer layer and a firmer accent edge, so the open state reads
-   as selected, not just lit. */
-html .poracode-floating-chrome.poracode-floating-chrome--bubble-active,
+/* Bubble whose panel is open: the sidebar Git badge idiom (`bg-accent/15
+   hover:bg-accent/25`) — a violet-steered theme wash over the same translucent
+   composer layer, so the open state reads as selected, not just lit. The glyph
+   keeps its own tone; only the glass and edge take the wash. */
+html .poracode-floating-chrome.poracode-floating-chrome--bubble-active {
+  background-color: color-mix(
+    in oklab,
+    color-mix(in oklab, var(--composer-surface) 70%, transparent) 85%,
+    var(--floating-chrome-selected-accent) 15%
+  );
+  border-color: color-mix(in oklab, var(--floating-chrome-selected-accent) 18%, transparent);
+}
 html .poracode-floating-chrome.poracode-floating-chrome--bubble-active:hover {
   background-color: color-mix(
     in oklab,
-    color-mix(in oklab, var(--composer-surface) 70%, transparent) 72%,
-    var(--floating-chrome-selected-accent) 28%
+    color-mix(in oklab, var(--composer-surface) 70%, transparent) 75%,
+    var(--floating-chrome-selected-accent) 25%
   );
   border-color: color-mix(in oklab, var(--floating-chrome-selected-accent) 25%, transparent);
 }
