@@ -12,6 +12,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::protocol::actions::{ElementAction, ElementInfo, FindElementsInput};
 
+mod roles;
+pub use roles::canonical_role;
+
 static NEXT_SNAPSHOT: AtomicU64 = AtomicU64::new(1);
 
 pub const MAX_TREE_BYTES: usize = 40 * 1024;
@@ -156,46 +159,9 @@ impl<H> Snapshot<H> {
     }
 }
 
-/// Role matching is lenient across platform vocabularies: `edit` matches
-/// `Edit`, `text field`, `textbox`; `button` matches `push button`, etc.
+/// Match equivalent platform roles without conflating different control types.
 pub fn role_matches(actual: &str, wanted: &str) -> bool {
-    let actual = normalize_role(actual);
-    let wanted = normalize_role(wanted);
-    if actual == wanted {
-        return true;
-    }
-    let aliases: &[&[&str]] = &[
-        &[
-            "edit",
-            "text",
-            "textfield",
-            "textbox",
-            "textarea",
-            "entry",
-            "document",
-            "searchbox",
-        ],
-        &["button", "pushbutton", "splitbutton"],
-        &["checkbox", "checkbutton", "switch", "toggle"],
-        &["combobox", "popupbutton", "dropdown", "menubutton"],
-        &["menuitem", "menubaritem"],
-        &["listitem", "row", "cell", "treeitem", "outlinerow"],
-        &["window", "frame", "dialog", "pane", "group"],
-        &["link", "hyperlink"],
-        &["tab", "tabitem", "pagetab", "radiobutton"],
-    ];
-    aliases
-        .iter()
-        .any(|set| set.contains(&actual.as_str()) && set.contains(&wanted.as_str()))
-}
-
-fn normalize_role(role: &str) -> String {
-    let lower = role.trim().to_ascii_lowercase();
-    let stripped = lower.strip_prefix("ax").unwrap_or(&lower);
-    stripped
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
-        .collect()
+    canonical_role(actual) == canonical_role(wanted)
 }
 
 /// Render the tree text agents read. Truncated at `max_bytes`.
@@ -265,8 +231,8 @@ fn tree_action_is_implicit(role: &str, action: &ElementAction) -> bool {
     }
     action == &ElementAction::Invoke
         && matches!(
-            normalize_role(role).as_str(),
-            "button" | "pushbutton" | "splitbutton" | "menuitem" | "link" | "hyperlink"
+            canonical_role(role).as_str(),
+            "button" | "splitbutton" | "menuitem" | "link"
         )
 }
 
@@ -477,6 +443,11 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].role, "Edit");
         assert!(!truncated);
+        snapshot.push(element("text", "Name", 1), ());
+        snapshot.push(element("document", "Name", 1), ());
+        assert_eq!(snapshot.find(&input).0.len(), 1);
+        assert!(!role_matches("radio button", "tab"));
+        assert!(!role_matches("group", "window"));
         input.role = None;
         input.name = Some("sav".into());
         assert_eq!(snapshot.find(&input).0.len(), 1);

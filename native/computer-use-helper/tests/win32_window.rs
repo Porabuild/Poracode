@@ -149,7 +149,7 @@ impl TestWindow {
                 let edit = CreateWindowExW(
                     WINDOW_EX_STYLE::default(),
                     w!("EDIT"),
-                    w!(""),
+                    w!("Initial field value"),
                     WS_CHILD | WS_VISIBLE | WS_BORDER,
                     120,
                     18,
@@ -276,12 +276,12 @@ fn rect(id: i64) -> RECT {
 fn drives_a_window_in_the_background_without_changing_foreground() {
     CLICKS.store(0, Ordering::SeqCst);
     DOUBLE_CLICKS.store(0, Ordering::SeqCst);
-    PRIMARY_COMMANDS.store(0, Ordering::SeqCst);
     SECONDARY_COMMANDS.store(0, Ordering::SeqCst);
     MINIMIZE_ON_PRIMARY_COMMAND.store(false, Ordering::SeqCst);
     CHARACTERS.lock().unwrap().clear();
     let backend = WindowsBackend::new();
     let test = TestWindow::spawn();
+    PRIMARY_COMMANDS.store(0, Ordering::SeqCst);
     let window = backend
         .resolve_window(&WindowRef {
             app: None,
@@ -347,6 +347,22 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
     }
     assert_eq!(CLICKS.load(Ordering::SeqCst), 1);
     assert_eq!(DOUBLE_CLICKS.load(Ordering::SeqCst), 1);
+
+    let chord = backend
+        .keyboard(
+            &window,
+            KeyboardAction::Chord(parse_chord("Control+a").unwrap()),
+            InputOptions {
+                mode: InputMode::Background,
+                verify: Verify::None,
+            },
+            &CancelToken::default(),
+        )
+        .unwrap();
+    assert_eq!(
+        chord.refused.unwrap().code,
+        poracode_computer_use::protocol::actions::RefusalCode::BackgroundUnavailable
+    );
 
     let typed = backend
         .keyboard(
@@ -485,6 +501,10 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
 
     let captured = backend.capture(&window, &CancelToken::default()).unwrap();
     assert!(!captured.frame.is_black());
+    assert!(matches!(
+        captured.method,
+        "print_window" | "windows_graphics_capture"
+    ));
 
     let accessibility = backend
         .snapshot_tree(&window, 200, &CancelToken::default())
@@ -512,6 +532,10 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
         panic!("fresh accessibility snapshot was refused");
     };
     assert!(!found.elements.is_empty());
+    assert_eq!(
+        found.elements[0].value.as_deref(),
+        Some("Initial field value")
+    );
     // Reorder the edit among its siblings after the snapshot. RuntimeId-based
     // resolution must still locate the original element.
     // SAFETY: the HWND belongs to the live test window; flags preserve geometry.
@@ -531,13 +555,40 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
         .set_element_value(&window, &found.elements[0].id, "set through UIA")
         .unwrap();
     assert!(set.ok, "set_element_value was refused: {:?}", set.refused);
+    let updated = backend
+        .snapshot_tree(&window, 200, &CancelToken::default())
+        .unwrap();
+    assert!(updated.tree.contains("set through UIA"));
     assert_eq!(rect(test.edit).right - rect(test.edit).left, 220);
+
+    let FindElementsResult::Found(buttons) = backend
+        .find_elements(
+            &window,
+            &FindElementsInput {
+                window: WindowRef {
+                    app: Some(window.app.clone()),
+                    id: window.id,
+                    title: Some(window.title.clone()),
+                },
+                role: Some("button".into()),
+                name: Some("Invoke me".into()),
+                automation_id: None,
+                text: None,
+                max_results: Some(1),
+                snapshot_id: Some(updated.snapshot_id),
+            },
+            &CancelToken::default(),
+        )
+        .unwrap()
+    else {
+        panic!("updated accessibility snapshot was refused");
+    };
 
     MINIMIZE_ON_PRIMARY_COMMAND.store(true, Ordering::SeqCst);
     let minimized = backend
         .invoke_element(
             &window,
-            &target_id,
+            &buttons.elements[0].id,
             poracode_computer_use::protocol::actions::ElementAction::Invoke,
         )
         .unwrap();

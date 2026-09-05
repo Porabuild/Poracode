@@ -13,7 +13,7 @@ use zbus::names::BusName;
 use zbus::proxy::CacheProperties;
 
 use crate::backend::{CancelToken, capability_unavailable};
-use crate::elements::{MAX_TREE_BYTES, Snapshot, SnapshotCache, render_tree};
+use crate::elements::{MAX_TREE_BYTES, Snapshot, SnapshotCache, canonical_role, render_tree};
 use crate::protocol::actions::{
     AccessibilityState, Delivery, DeliveryTarget, ElementAction, ElementBounds, ElementInfo,
     FindElementsInput, FindElementsResult, InteractiveResult, Refusal, RefusalCode, Route,
@@ -235,6 +235,15 @@ fn map_action(name: &str) -> Option<ElementAction> {
     }
 }
 
+fn element_role(native: &str, editable: bool) -> String {
+    let role = canonical_role(native);
+    if role == "text" && editable {
+        "edit".into()
+    } else {
+        role
+    }
+}
+
 async fn element_info(
     connection: &zbus::Connection,
     handle: &Handle,
@@ -302,7 +311,7 @@ async fn element_info(
     Ok((
         ElementInfo {
             id: String::new(),
-            role,
+            role: element_role(&role, interfaces.contains(Interface::EditableText)),
             name,
             value,
             automation_id,
@@ -679,7 +688,7 @@ pub async fn focus_window(window: &WindowInfo) -> Result<InteractiveResult> {
 
 #[cfg(test)]
 mod tests {
-    use super::same_element;
+    use super::{element_role, same_element};
     use crate::protocol::actions::{ElementBounds, ElementInfo};
 
     fn element() -> ElementInfo {
@@ -701,6 +710,14 @@ mod tests {
             actions: Vec::new(),
             depth: 1,
         }
+    }
+
+    #[test]
+    fn distinguishes_editable_text_views_from_static_text() {
+        assert_eq!(element_role("text", true), "edit");
+        assert_eq!(element_role("text", false), "text");
+        assert_eq!(element_role("entry", true), "edit");
+        assert_eq!(element_role("push button", false), "button");
     }
 
     #[test]

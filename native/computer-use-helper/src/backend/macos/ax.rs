@@ -8,7 +8,7 @@ use objc2_core_foundation::{
 };
 
 use crate::backend::{CancelToken, capability_unavailable};
-use crate::elements::{MAX_TREE_BYTES, Snapshot, SnapshotCache, render_tree};
+use crate::elements::{MAX_TREE_BYTES, Snapshot, SnapshotCache, canonical_role, render_tree};
 use crate::protocol::actions::{
     AccessibilityState, Delivery, DeliveryTarget, ElementAction, ElementBounds, ElementInfo,
     FindElementsInput, FindElementsResult, InteractiveResult, Refusal, RefusalCode, Route,
@@ -288,7 +288,7 @@ fn element_info(
     (
         ElementInfo {
             id: String::new(),
-            role,
+            role: canonical_role(&role),
             name,
             value: value_string(element),
             automation_id: string_attribute(element, "AXIdentifier"),
@@ -535,7 +535,7 @@ fn cached_element(
     if !belongs_to_window(&element, window) {
         return Err(Refusal::stale_snapshot());
     }
-    live_info.role = role;
+    live_info.role = canonical_role(&role);
     live_info.name = string_attribute(&element, "AXTitle")
         .or_else(|| string_attribute(&element, "AXDescription"));
     let previous_bounds = live_info.bounds;
@@ -733,7 +733,7 @@ pub fn press_at_position(
         id: window_id(&element)
             .map(|id| id.to_string())
             .unwrap_or_else(|| "position".into()),
-        role: string_attribute(&element, "AXRole"),
+        role: string_attribute(&element, "AXRole").map(|role| canonical_role(&role)),
         name: string_attribute(&element, "AXTitle")
             .or_else(|| string_attribute(&element, "AXDescription")),
     }))

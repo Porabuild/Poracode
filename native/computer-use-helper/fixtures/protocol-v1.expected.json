@@ -1,5 +1,5 @@
 [
-  { "id": 1, "ok": true, "result": { "protocolVersion": 1 } },
+  { "id": 1, "ok": true, "result": { "protocolVersion": 2 } },
   { "id": 2, "ok": false, "code": "unknown_action" },
   { "id": null, "ok": false, "code": "invalid_input" },
   { "id": 3, "ok": true, "result": { "shuttingDown": true } }

@@ -14,7 +14,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     GCL_STYLE, GUITHREADINFO, GetClassLongPtrW, GetGUIThreadInfo, GetWindowThreadProcessId,
     IsChild, PostMessageW, SetCursorPos, WM_CHAR, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDBLCLK,
     WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDBLCLK, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
-    WM_MOUSEWHEEL, WM_RBUTTONDBLCLK, WM_RBUTTONDOWN, WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    WM_MOUSEWHEEL, WM_RBUTTONDBLCLK, WM_RBUTTONDOWN, WM_RBUTTONUP,
 };
 use windows::core::HRESULT;
 
@@ -27,7 +27,7 @@ use crate::protocol::keys::KeyToken;
 use crate::protocol::window::WindowInfo;
 use crate::protocol::{HelperError, Result};
 
-use super::keys::{VirtualChord, to_virtual_chord};
+use super::keys::to_virtual_chord;
 use super::security::probe_background;
 use super::window_list::{class_name, hwnd_from_id};
 
@@ -294,16 +294,13 @@ fn key_lparam(key: VIRTUAL_KEY, up: bool) -> isize {
     value as i32 as isize
 }
 
-fn post_virtual_chord(target: HWND, chord: &VirtualChord) -> std::result::Result<(), Refusal> {
-    let system = chord.modifiers.iter().any(|key| key.0 == 0x12);
-    let down_message = if system { WM_SYSKEYDOWN } else { WM_KEYDOWN };
-    let up_message = if system { WM_SYSKEYUP } else { WM_KEYUP };
+fn post_virtual_keys(target: HWND, keys: &[VIRTUAL_KEY]) -> std::result::Result<(), Refusal> {
     let mut pressed = Vec::new();
     let mut result = Ok(());
-    for key in chord.modifiers.iter().chain(&chord.keys) {
+    for key in keys {
         if let Err(error) = post(
             target,
-            down_message,
+            WM_KEYDOWN,
             usize::from(key.0),
             key_lparam(*key, false),
         ) {
@@ -313,12 +310,8 @@ fn post_virtual_chord(target: HWND, chord: &VirtualChord) -> std::result::Result
         pressed.push(*key);
     }
     for key in pressed.into_iter().rev() {
-        if let Err(error) = post(
-            target,
-            up_message,
-            usize::from(key.0),
-            key_lparam(key, true),
-        ) && result.is_ok()
+        if let Err(error) = post(target, WM_KEYUP, usize::from(key.0), key_lparam(key, true))
+            && result.is_ok()
         {
             result = Err(error);
         }
@@ -390,14 +383,16 @@ fn background_keyboard(
         }
         KeyboardAction::Chord(chord) => {
             let virtual_chord = to_virtual_chord(chord)?;
-            if chord.modifiers.any() || virtual_chord.modifiers.len() > chord.modifiers_count() {
-                delivery.notes.push("modifiers_unreliable".into());
+            if !virtual_chord.modifiers.is_empty() {
+                return Ok(InteractiveResult::refused(
+                    window.clone(),
+                    Refusal::background_unavailable(
+                        "Windows background messages cannot reliably deliver modifier keys. Use an accessibility action or type_text for literal text.",
+                    ),
+                ));
             }
-            let result = post_virtual_chord(target, &virtual_chord);
+            let result = post_virtual_keys(target, &virtual_chord.keys);
             if result.is_ok()
-                && !chord.modifiers.control
-                && !chord.modifiers.alt
-                && !chord.modifiers.meta
                 && chord.keys.len() == 1
                 && let KeyToken::Char(character) = chord.keys[0]
             {
@@ -415,24 +410,6 @@ fn background_keyboard(
         Some(refusal) => InteractiveResult::refused(window.clone(), refusal),
         None => InteractiveResult::delivered(window.clone(), delivery),
     })
-}
-
-trait ModifierCount {
-    fn modifiers_count(&self) -> usize;
-}
-
-impl ModifierCount for crate::protocol::keys::Chord {
-    fn modifiers_count(&self) -> usize {
-        [
-            self.modifiers.shift,
-            self.modifiers.control,
-            self.modifiers.alt,
-            self.modifiers.meta,
-        ]
-        .into_iter()
-        .filter(|enabled| *enabled)
-        .count()
-    }
 }
 
 fn keyboard_input(

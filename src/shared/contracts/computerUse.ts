@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Wire version shared with native/computer-use-helper/src/protocol/version.rs. */
-export const COMPUTER_USE_HELPER_PROTOCOL_VERSION = 1;
+export const COMPUTER_USE_HELPER_PROTOCOL_VERSION = 2;
 
 export const computerUsePermissionStateSchema = z.enum([
   "granted",

@@ -9,7 +9,6 @@ import {
   readPerformSteps,
   readVerify,
 } from "./toolArgs";
-import { isNativeWaylandTarget } from "./types";
 import type {
   ComputerUseDriver,
   ComputerUseInteractiveResult,
@@ -173,17 +172,6 @@ export async function dispatchTool(
       const observe = readObserve(args.observe);
       let window = readWindow(args.window);
       const steps = readPerformSteps(args.steps);
-      // `readWindow` drops `source`, so the native-Wayland check has to read the
-      // raw argument: batching key or text input there would deliver through the
-      // consented portal as foreground without reporting it per action.
-      if (
-        isNativeWaylandTarget(args.window) &&
-        steps.some((step) => step.action === "press_key" || step.action === "type_text")
-      ) {
-        throw new Error(
-          "perform cannot batch key or text input for native Wayland targets; use individual tools so foreground portal delivery is reported before each action",
-        );
-      }
       const results: Array<{
         action: ComputerUsePerformStep["action"];
         index: number;

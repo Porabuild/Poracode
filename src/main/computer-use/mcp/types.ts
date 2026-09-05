@@ -104,21 +104,6 @@ export interface ComputerUseWindowState {
   window: ComputerUseWindow;
 }
 
-/**
- * Native Wayland is the documented exception to background delivery: coordinate
- * and key input there goes through the consented desktop portal and is reported
- * as foreground. Such targets come from AT-SPI, which marks them `source:"atspi"`
- * and always assigns a negative synthetic id. Pass the *raw* window argument --
- * `readWindow()` normalizes ids but drops `source`.
- */
-export function isNativeWaylandTarget(window: unknown): boolean {
-  if (!window || typeof window !== "object") return false;
-  const { source, id } = window as { id?: unknown; source?: unknown };
-  if (source === "atspi") return true;
-  const numericId = typeof id === "number" || typeof id === "string" ? Number(id) : Number.NaN;
-  return Number.isFinite(numericId) && numericId < 0;
-}
-
 export type ComputerUseDeliveryMode = "background" | "foreground";
 export type ComputerUseObservationMode = "none" | "text" | "screenshot" | "both";
 export type ComputerUseVerification = "none" | "fast" | "effect";

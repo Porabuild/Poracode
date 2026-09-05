@@ -18,7 +18,7 @@ Send one request per line:
 
 The response is either `{ "id", "ok": true, "result" }` or `{ "id", "ok": false, "error", "code" }`. Responses may be out of order. `cancel` cooperatively cancels an active request; `shutdown` closes the host. Run `poracode-computer-use --hello` for a one-shot capability/permission handshake or `--version` for the helper version.
 
-Interactive results contain either `delivery` or `refused`. Background failures are structured refusals and never silently fall through to foreground input. Native Wayland coordinate input is the explicit exception: the consented portal controls the real devices and reports foreground delivery with `wayland_portal_fallback`.
+Interactive results contain either `delivery` or `refused`. Background failures are structured refusals and never silently fall through to foreground input. Native Wayland coordinate and key input require explicit `mode:"foreground"`; background requests are refused before portal setup or focus changes.
 
 `list_apps` returns running targetable apps by default. Its optional `query` searches installed Start apps on Windows, `.app` bundles on macOS, and `.desktop` entries on Linux; returned ids can be passed directly to `launch_app`.
 

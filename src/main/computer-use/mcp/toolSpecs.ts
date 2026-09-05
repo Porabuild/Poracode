@@ -42,7 +42,8 @@ const OBSERVE_SCHEMA = {
   type: "string",
   enum: ["none", "text", "screenshot", "both"],
   default: "none",
-  description: "Return a post-action observation in this tool result to avoid a separate call.",
+  description:
+    "Return observation.state to avoid a separate inspection call. Prefer text for semantic checks; screenshot or both for visual checks.",
 };
 
 const inputProperties = {
@@ -144,14 +145,14 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "get_window_state",
     description:
-      "Passively capture a window screenshot and optional accessibility tree. The response reports capture method and scale for coordinate conversion.",
+      "Passively inspect a window. For semantic tasks, use include_text:true with include_screenshot:false; request a screenshot for visual checks or coordinates. The response reports capture method and scale for coordinate conversion.",
     inputSchema: {
       type: "object",
       required: ["window"],
       properties: {
         window: WINDOW_SCHEMA,
-        include_screenshot: { type: "boolean" },
-        include_text: { type: "boolean" },
+        include_screenshot: { type: "boolean", default: true },
+        include_text: { type: "boolean", default: false },
         max_dimension: { type: "number", minimum: 0 },
         tree_max_nodes: { type: "integer", minimum: 1, maximum: 20_000 },
         format: { type: "string", enum: ["png", "jpeg"] },
@@ -161,7 +162,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "find_elements",
     description:
-      "Find accessibility elements by role, name, text, or automation id without changing focus. Reuse snapshot_id to filter an existing tree.",
+      "Find accessibility elements by role, name, text, or automation id without changing focus. Pass get_window_state's accessibility.snapshotId or a previous find_elements result's snapshotId as snapshot_id to filter that tree without rebuilding it.",
     inputSchema: {
       type: "object",
       required: ["window"],
@@ -222,7 +223,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "perform",
     description:
-      "Run 1 to 32 deterministic background element, value, key, or text actions against one window. Stops on refusal, error, or unexpected foreground delivery and can return one final observation. Native Wayland rejects key/text batches before starting.",
+      "Run 1 to 32 deterministic background element, value, key, or text actions against one window. Stops on refusal, error, or unexpected foreground delivery and can return one final observation.",
     inputSchema: {
       type: "object",
       additionalProperties: false,

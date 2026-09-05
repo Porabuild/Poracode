@@ -1,8 +1,8 @@
 use windows::Win32::Foundation::{HWND, RECT};
 use windows::Win32::Graphics::Dwm::{DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute};
 use windows::Win32::Graphics::Gdi::{
-    BI_RGB, BITMAPINFO, BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DIB_RGB_COLORS,
-    DeleteDC, DeleteObject, GetDC, GetDIBits, HGDIOBJ, ReleaseDC, SRCCOPY, SelectObject,
+    BI_RGB, BITMAPINFO, CreateCompatibleBitmap, CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC,
+    DeleteObject, GetDC, GetDIBits, HGDIOBJ, ReleaseDC, SelectObject,
 };
 use windows::Win32::Storage::Xps::{PRINT_WINDOW_FLAGS, PrintWindow};
 use windows::Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize, RoUninitialize};
@@ -141,7 +141,6 @@ fn capture_pixels(hwnd: HWND, window: &WindowInfo) -> Result<(Frame, &'static st
         let old = SelectObject(memory_dc, HGDIOBJ(bitmap.0));
 
         let mut method = "print_window";
-        let mut notes = Vec::new();
         let printed = PrintWindow(hwnd, memory_dc, PRINT_WINDOW_FLAGS(2)).as_bool();
 
         let read_pixels = || -> Result<Frame> {
@@ -178,26 +177,9 @@ fn capture_pixels(hwnd: HWND, window: &WindowInfo) -> Result<(Frame, &'static st
                 frame = Ok(captured);
                 method = "windows_graphics_capture";
             } else {
-                let fallback = BitBlt(
-                    memory_dc,
-                    0,
-                    0,
-                    width,
-                    height,
-                    Some(screen_dc),
-                    window.x,
-                    window.y,
-                    SRCCOPY,
-                );
-                if let Err(error) = fallback {
-                    frame = Err(HelperError::capture_failed(format!(
-                        "BitBlt failed: {error}"
-                    )));
-                } else {
-                    frame = read_pixels();
-                    method = "visible_region";
-                    notes.push("Occlusion-safe PrintWindow and Windows Graphics Capture were unavailable; used visible screen-region capture.".to_string());
-                }
+                frame = Err(HelperError::capture_failed(
+                    "PrintWindow and Windows Graphics Capture could not capture this window in the background.",
+                ));
             }
         }
 
@@ -205,7 +187,7 @@ fn capture_pixels(hwnd: HWND, window: &WindowInfo) -> Result<(Frame, &'static st
         let _ = DeleteObject(HGDIOBJ(bitmap.0));
         let _ = DeleteDC(memory_dc);
         let _ = ReleaseDC(None, screen_dc);
-        frame.map(|frame| (frame, method, notes))
+        frame.map(|frame| (frame, method, Vec::new()))
     }
 }
 
