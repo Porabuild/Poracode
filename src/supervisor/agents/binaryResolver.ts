@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import type { ProjectLocation } from "@/shared/contracts";
 import {
   findPosixExecutableInWellKnownDirs,
@@ -28,7 +29,14 @@ export function resolveAgentBinaryPath(
   if (location.kind === "windows") {
     const key = keyOf("windows", binary);
     if (cache.has(key)) {
-      return cache.get(key);
+      const cached = cache.get(key);
+      // A cached path can vanish under us: version managers (fnm/nvm/volta)
+      // re-point their `default` alias when the user switches Node, and the
+      // global npm shims move with it. Launching the stale path would hand
+      // PowerShell a missing `.cmd` and surface an opaque CLIXML error, so
+      // re-resolve instead of trusting the entry.
+      if (cached === undefined || existsSync(cached)) return cached;
+      cache.delete(key);
     }
     const resolved = resolveExecutablePath(binary);
     cache.set(key, resolved);
