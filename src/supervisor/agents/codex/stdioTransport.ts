@@ -1,4 +1,5 @@
 import type { ChildProcess } from "node:child_process";
+import { decodePowerShellClixml } from "../base/powershellClixml";
 
 export interface CodexStdioTransportListener {
   onMessage(message: unknown): void;
@@ -70,7 +71,10 @@ export class CodexStdioTransport {
   }
 
   formatOutput(): string {
-    const text = this.outputChunks.join("").trim();
+    // On Windows the app-server may be launched through PowerShell, whose
+    // errors arrive on stderr as CLIXML; decode them so callers surface the
+    // real message (e.g. "The term '…codex.cmd' is not recognized").
+    const text = decodePowerShellClixml(this.outputChunks.join("")).trim();
     return text ? ` Output: ${text}` : "";
   }
 

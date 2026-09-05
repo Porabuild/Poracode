@@ -100,6 +100,7 @@ export * from "./expectedRuntimeError";
 export * from "./oneShotModel";
 export * from "./promptSession";
 export * from "./processRuntime";
+export * from "./powershellClixml";
 export * from "./shellBasics";
 export * from "./spawnEnv";
 export type { DetectedPowerShell } from "../../shellPreference";
