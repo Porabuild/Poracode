@@ -175,6 +175,8 @@ describe("createAntigravityAdapter", () => {
 
     expect(adapter.kind).toBe("antigravity");
     expect(adapter.binary).toBe("agy");
+    expect(adapter.baseSpawnEnv).toEqual({ AGY_CLI_DISABLE_AUTO_UPDATE: "true" });
+    expect(antigravityDetectionSpec.baseSpawnEnv).toEqual(adapter.baseSpawnEnv);
     expect(adapter.update).toEqual({
       builtIn: { binary: "agy", args: ["update"] },
       latestVersionUrls: [

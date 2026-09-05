@@ -87,7 +87,8 @@ const execFileAsync = promisify(execFile);
  * v24 preserves model prefixes in generic ACP labels; re-probe labels previously
  * shortened by the shared provider-specific formatter.
  */
-export const STATUS_CACHE_VERSION = 24;
+// v25 discards terminal auth environments with obsolete updater-disable values.
+export const STATUS_CACHE_VERSION = 25;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

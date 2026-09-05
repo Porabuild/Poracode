@@ -264,9 +264,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 21,
-      // v21 mirrors supervisor STATUS_CACHE_VERSION=24: generic ACP model
-      // labels now preserve provider prefixes.
+      version: 22,
+      // v22 mirrors supervisor STATUS_CACHE_VERSION=25: discard terminal auth
+      // environments with obsolete updater-disable values.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {
