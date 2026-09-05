@@ -10,6 +10,7 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { shouldPollProject } from "@/renderer/state/wslBackgroundActivity";
 import {
   cleanupGitRefreshProjects,
   getWatcherRefreshMode,
@@ -131,6 +132,7 @@ export function useGitRefresh(storeHydrated: boolean) {
       // view` process per worktree. Do not put this on the view-change path:
       // plain thread switches must not spawn Git work while the panel is hidden.
       for (const project of activeProjects) {
+        if (!shouldPollProject(project)) continue;
         void prefetchBranchPrData(project);
       }
     }
@@ -222,6 +224,7 @@ export function useGitRefresh(storeHydrated: boolean) {
         [...priorityProjectIds].filter((projectId) => !previousPriorityProjectIds.has(projectId)),
       );
       const projectsToFetch = activeProjects.filter((project) => {
+        if (lastFetchTimes.has(project.id) && !shouldPollProject(project)) return false;
         const isPriority = priorityProjectIds.has(project.id);
         const interval = isPriority
           ? GIT_FETCH_PRIORITY_INTERVAL_MS
@@ -264,6 +267,7 @@ export function useGitRefresh(storeHydrated: boolean) {
       const priorityProjectIds = getPriorityProjectIds();
       for (const project of activeProjects) {
         if (project.location.kind !== "wsl") continue;
+        if (!shouldPollProject(project)) continue;
         if (!priorityProjectIds.has(project.id)) continue;
         void refreshGitProject(project, "poll", "status", { isActive: isActiveCheck });
       }

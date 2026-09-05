@@ -256,6 +256,7 @@ export class WslBridgeClient {
       unsubscribe: async () => {
         if (disposed) return;
         disposed = true;
+        if (!this.server.hasWatchListener(subscriptionId)) return;
         this.server.unregisterWatchListener(subscriptionId);
         await this.call(location, "/v1/watch/unsubscribe", { subscriptionId }).catch((error) => {
           console.warn(`[wsl-bridge] unsubscribe ${subscriptionId} failed:`, error);
@@ -265,6 +266,15 @@ export class WslBridgeClient {
   }
 
   private async call<T>(location: WslLocation, path: string, body: unknown): Promise<T> {
+    const endRequest = this.server.beginRequest(location.distro);
+    try {
+      return await this.request<T>(location, path, body);
+    } finally {
+      endRequest();
+    }
+  }
+
+  private async request<T>(location: WslLocation, path: string, body: unknown): Promise<T> {
     const handle = await this.server.ensureBridge(location.distro);
     if (!handle) {
       throw asNodeErr("EUNAVAIL", `WSL bridge unavailable for distro ${location.distro}`);

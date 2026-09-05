@@ -312,6 +312,8 @@ export class SupervisorRuntime {
       const bridge = new WslBridgeServer({
         onEvent: (envelope) => runHookDispatch(envelope, "wsl-bridge"),
         onBridgeExit: (distro) => this._projectWatcher?.handleWslBridgeExit(distro),
+        onBridgeResume: (distro) => this._projectWatcher?.handleWslBridgeResume(distro),
+        hasLiveSession: (distro) => this.hasLiveWslSession(distro),
         onError: (message, error) => {
           if (isPoracodeHookDebug()) {
             console.warn(`[supervisor] hook-debug: ${message}`, error);
@@ -518,10 +520,9 @@ export class SupervisorRuntime {
 
     // The usage credential WSL fallback boots every installed distro (and
     // keeps its VM alive via the resident bridge) just to look for tokens.
-    // Restrict it to when the user actually uses WSL — a watched WSL project
-    // or a live WSL session — so a Windows-only setup never spins up VmmemWSL.
+    // Restrict it to live WSL sessions so idle projects can release their bridge.
     this.disposeWslCredentialProjectScope = setWslCredentialProjectScope(() =>
-      this.hasActiveWslContext(),
+      this.hasLiveWslSession(),
     );
     this.usageService = new UsageService({
       emit,
@@ -655,19 +656,6 @@ export class SupervisorRuntime {
       if (session.projectLocation.kind === "wsl") distros.add(session.projectLocation.distro);
     }
     return [...distros];
-  }
-
-  /**
-   * True when the user actively uses WSL: a watched (non-disabled) project
-   * lives in a distro, or a live session does. Gates the usage credential
-   * WSL fallback so it never boots a distro on its own.
-   */
-  private hasActiveWslContext(): boolean {
-    if (this._projectWatcher?.hasWslProjects()) return true;
-    for (const session of this.sessions.values()) {
-      if (!session.ptyExited && session.projectLocation.kind === "wsl") return true;
-    }
-    return false;
   }
 
   async gitRemoveWorktree(payload: GitRemoveWorktreePayload): Promise<void> {
@@ -960,15 +948,20 @@ export class SupervisorRuntime {
   }
 
   releaseWslBridgeIfUnused(distro: string): void {
-    const hasLiveSession = [...this.sessions.values()].some(
-      (session) =>
-        session.status !== "inactive" &&
-        session.projectLocation.kind === "wsl" &&
-        session.projectLocation.distro === distro,
-    );
-    if (!hasLiveSession) {
+    if (!this.hasLiveWslSession(distro)) {
       this.wslHookBridge?.releaseBridge(distro);
     }
+  }
+
+  private hasLiveWslSession(distro?: string): boolean {
+    return [...this.sessions.values()].some(
+      (session) =>
+        session.status !== "inactive" &&
+        !session.ignoreExit &&
+        !session.ptyExited &&
+        session.projectLocation.kind === "wsl" &&
+        (distro === undefined || session.projectLocation.distro === distro),
+    );
   }
 
   dispose(): void {

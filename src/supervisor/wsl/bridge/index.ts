@@ -21,6 +21,10 @@ export interface WslBridgeServerOptions {
   onError?: (message: string, error?: unknown) => void;
   /** Called when a booted bridge child exits and callers should recreate subscriptions. */
   onBridgeExit?: (distro: string) => void;
+  /** Restore project subscriptions after an idle bridge wakes on demand. */
+  onBridgeResume?: (distro: string) => void;
+  /** Loaded sessions own hook/browser endpoints even between turns. */
+  hasLiveSession?: (distro: string) => boolean;
   /** Bearer secret shared with the Windows-side `HookIngress`. */
   secret: string;
   /** Supervisor's max protocol version, exposed to the in-WSL bridge. */
@@ -109,9 +113,41 @@ export class WslBridgeServer {
   private readonly bootTimeoutMs: number;
   private readonly watchListeners = new Map<string, WatchListenerEntry>();
   private isDisposed = false;
+  private readonly lastActivity = new Map<string, number>();
+  private readonly requests = new Map<string, number>();
+  private readonly sleeping = new Set<string>();
+  private readonly idleTimer: ReturnType<typeof setInterval>;
 
   constructor(private readonly options: WslBridgeServerOptions) {
     this.bootTimeoutMs = options.bootTimeoutMs ?? DEFAULT_BOOT_TIMEOUT_MS;
+    const idleTimeoutMs = 5 * 60_000;
+    this.idleTimer = setInterval(() => {
+      for (const distro of this.bridges.keys()) {
+        if (this.options.hasLiveSession?.(distro) || this.requests.get(distro)) {
+          this.lastActivity.set(distro, Date.now());
+          continue;
+        }
+        if (Date.now() - (this.lastActivity.get(distro) ?? Date.now()) < idleTimeoutMs) continue;
+        this.sleeping.add(distro);
+        this.releaseBridge(distro);
+      }
+    }, 30_000);
+    this.idleTimer.unref();
+  }
+
+  /** Keep long requests alive until their response body has been consumed. */
+  beginRequest(distro: string): () => void {
+    this.requests.set(distro, (this.requests.get(distro) ?? 0) + 1);
+    return () => {
+      const remaining = (this.requests.get(distro) ?? 1) - 1;
+      if (remaining) this.requests.set(distro, remaining);
+      else this.requests.delete(distro);
+      this.lastActivity.set(distro, Date.now());
+    };
+  }
+
+  hasWatchListener(subscriptionId: string): boolean {
+    return this.watchListeners.has(subscriptionId);
   }
 
   /**
@@ -143,6 +179,7 @@ export class WslBridgeServer {
    */
   async ensureBridge(distro: string): Promise<BridgeHandle | undefined> {
     if (this.isDisposed) return undefined;
+    this.lastActivity.set(distro, Date.now());
     const existing = this.bridges.get(distro);
     if (existing) {
       const helpersDir = this.options.helpersDir ?? resolveWslHelpersDir();
@@ -185,11 +222,15 @@ export class WslBridgeServer {
       return await task;
     } finally {
       this.inFlight.delete(distro);
+      if (this.bridges.has(distro) && this.sleeping.delete(distro)) {
+        this.options.onBridgeResume?.(distro);
+      }
     }
   }
 
   async dispose(): Promise<void> {
     this.isDisposed = true;
+    clearInterval(this.idleTimer);
     const distros = [...this.bridges.keys()];
     for (const distro of distros) {
       const state = this.bridges.get(distro);
@@ -198,7 +239,7 @@ export class WslBridgeServer {
       this.disposed.add(state.child);
       this.unregisterWatchListenersForDistro(distro);
       try {
-        terminateChildProcessTree(state.child);
+        this.stopChild(state.child);
       } catch {
         // best effort
       }
@@ -214,13 +255,25 @@ export class WslBridgeServer {
       this.bridges.delete(distro);
       this.disposed.add(state.child);
       try {
-        terminateChildProcessTree(state.child);
+        this.stopChild(state.child);
       } catch {
         // best effort
       }
     };
     void this.inFlight.get(distro)?.then(releaseStartedBridge);
     releaseStartedBridge();
+  }
+
+  private stopChild(child: ChildProcess): void {
+    // EOF reaches the Linux process; killing only its Windows relay may orphan it.
+    if (!child.stdin) {
+      terminateChildProcessTree(child);
+      return;
+    }
+    child.stdin.end();
+    const timer = setTimeout(() => terminateChildProcessTree(child), 2_000);
+    timer.unref();
+    child.once("exit", () => clearTimeout(timer));
   }
 
   /**
@@ -385,6 +438,7 @@ export class WslBridgeServer {
       distro,
       argv: [resolved.nodePath, linuxScriptPath],
       env: {
+        PORACODE_BRIDGE_PARENT_STDIN: "1",
         PORACODE_HOOK_SECRET: this.options.secret,
         PORACODE_HOOK_PROTOCOL_VERSION: String(this.options.protocolVersion),
         ...(process.env.PORACODE_BROWSER_MCP_URL
@@ -395,6 +449,7 @@ export class WslBridgeServer {
           : {}),
       },
       stderr: "ignore",
+      stdin: "pipe",
       onLine,
       onError: (error) => {
         if (!booted) {
@@ -422,7 +477,7 @@ export class WslBridgeServer {
       if (state && state.child === child) {
         this.bridges.delete(distro);
       }
-      this.unregisterWatchListenersForDistro(distro);
+      if (!this.disposed.has(child)) this.unregisterWatchListenersForDistro(distro);
       if (booted && isPoracodeHookDebug()) {
         console.log(
           "[supervisor] hook-debug: WSL bridge child exited (will respawn on next ensure)",

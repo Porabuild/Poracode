@@ -70,6 +70,62 @@ describe("isIgnoredWorkTreeFile", () => {
 });
 
 describe("ProjectWatcher WSL worktrees", () => {
+  it("restores subscriptions after a crash during pending setup", async () => {
+    const { watch, waitForSubscription } = createWatchHarness();
+    let rejectFirst!: (error: Error) => void;
+    let started!: () => void;
+    const firstStarted = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    watch.mockImplementationOnce(() => {
+      started();
+      return new Promise((_resolve, reject) => {
+        rejectFirst = reject;
+      });
+    });
+    const watcher = new ProjectWatcher({
+      onGitChanged: vi.fn<(id: string) => void>(),
+      onTreeChanged: vi.fn<(id: string) => void>(),
+    });
+    watcher.setWslClient({
+      readFile: vi.fn<WslBridgeClient["readFile"]>(async () => {
+        throw new Error("missing");
+      }),
+      stat: vi.fn<WslBridgeClient["stat"]>(async () => ({ stats: [] })),
+      watch,
+    } as unknown as WslBridgeClient);
+    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    await firstStarted;
+    watcher.handleWslBridgeExit("Ubuntu");
+    rejectFirst(new Error("bridge exited"));
+    await waitForSubscription(1);
+    expect(watch).toHaveBeenCalledTimes(2);
+    await watcher.dispose();
+  });
+
+  it("does not duplicate pending subscriptions when their first read wakes the bridge", async () => {
+    const { watch, unsubscribe, waitForSubscription } = createWatchHarness();
+    const watcher = new ProjectWatcher({
+      onGitChanged: vi.fn<(id: string) => void>(),
+      onTreeChanged: vi.fn<(id: string) => void>(),
+    });
+    const client = {
+      readFile: vi.fn<WslBridgeClient["readFile"]>(async () => {
+        watcher.handleWslBridgeResume("Ubuntu");
+        throw new Error("missing");
+      }),
+      stat: vi.fn<WslBridgeClient["stat"]>(async () => ({ stats: [] })),
+      watch,
+    } as unknown as WslBridgeClient;
+    watcher.setWslClient(client);
+    watcher.watch("project-1", makeLocation("/home/demo/work/repo"));
+    watcher.watchWorktrees("project-1", ["/home/demo/work/feature"]);
+    await waitForSubscription(2);
+    expect(watch).toHaveBeenCalledTimes(2);
+    await watcher.dispose();
+    expect(unsubscribe).toHaveBeenCalledTimes(2);
+  });
+
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();

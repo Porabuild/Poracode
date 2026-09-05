@@ -68,6 +68,7 @@ describe("WslBridgeClient", () => {
   beforeEach(async () => {
     fake = await startFakeBridge();
     mockServer = {
+      beginRequest: vi.fn<WslBridgeServer["beginRequest"]>(() => vi.fn<() => void>()),
       ensureBridge: vi.fn<
         (
           distro: string,
@@ -166,7 +167,9 @@ describe("WslBridgeClient", () => {
   });
 
   it("throws EUNAVAIL when the bridge cannot be started", async () => {
+    const release = vi.fn<() => void>();
     const unavailableServer = {
+      beginRequest: vi.fn<WslBridgeServer["beginRequest"]>(() => release),
       ensureBridge: vi.fn<
         (
           distro: string,
@@ -177,6 +180,21 @@ describe("WslBridgeClient", () => {
     await expect(client.readdir(makeLocation(), "/home/user/proj")).rejects.toMatchObject({
       code: "EUNAVAIL",
     });
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("does not wake an idle bridge to unsubscribe an expired watcher", async () => {
+    fake.server.on("request", (_req, res) => {
+      res.end(JSON.stringify({ ok: true, data: {} }));
+    });
+    mockServer.registerWatchListener = vi.fn<WslBridgeServer["registerWatchListener"]>();
+    mockServer.unregisterWatchListener = vi.fn<WslBridgeServer["unregisterWatchListener"]>();
+    mockServer.hasWatchListener = vi.fn<WslBridgeServer["hasWatchListener"]>(() => false);
+    const client = new WslBridgeClient(mockServer);
+    const subscription = await client.watch(makeLocation(), { paths: [] }, vi.fn());
+    vi.mocked(mockServer.ensureBridge).mockClear();
+    await subscription.unsubscribe();
+    expect(mockServer.ensureBridge).not.toHaveBeenCalled();
   });
 
   it("retries transient localhost forwarding failures after bridge boot", async () => {
