@@ -1,7 +1,8 @@
+import { PERFORM_TOOL } from "./perform";
 import type { ToolSpec } from "./types";
 
 export const BROWSER_MCP_INSTRUCTIONS =
-  "Use the browser MCP server for browsing, inspecting, clicking, typing, screenshots, network/console checks, and local web app verification inside Poracode. Before the first browsing action, call browser.enable once and keep it enabled across the whole uninterrupted browser session so agent presence stays consistent between calls. Always call browser.disable before pausing to ask for user input, waiting for an external event, or finishing, and enable again when you resume. Prefer browser.snapshot or browser.find before browser.click/fill/type, use @e refs from snapshots when possible, and call browser.api when you need the complete API map.";
+  "Use the browser MCP server for browsing, inspecting, clicking, typing, screenshots, network/console checks, and local web app verification inside Poracode. Before the first browsing action, call browser.enable once and keep it enabled across the whole uninterrupted browser session so agent presence stays consistent between calls. Always call browser.disable before pausing to ask for user input, waiting for an external event, or finishing, and enable again when you resume. Use browser.perform to batch known page actions and a condition wait with one final compact observation; split at decisions and navigation and never replay completed actions after partial failure. Prefer browser.snapshot or browser.find before browser.click/fill/type, use @e refs from snapshots when possible, and call browser.api when you need the complete API map.";
 
 const RAW_TOOLS: ToolSpec[] = [
   {
@@ -10,6 +11,7 @@ const RAW_TOOLS: ToolSpec[] = [
       "Return the complete Browser MCP API, recommended workflows, and current tabs. Call this first if you need to browse, inspect, click, type, screenshot, or verify a web page.",
     inputSchema: { type: "object", properties: {} },
   },
+  PERFORM_TOOL,
   {
     name: "enable",
     description:
@@ -610,14 +612,15 @@ const READ_ONLY_TOOL_NAMES = new Set([
   "get",
   "is",
   "find",
-  "wait",
   "wait_for_url",
   "wait_for_text",
-  "wait_for_js",
   "frames",
 ]);
 const SESSION_TOOL_NAMES = new Set(["enable", "disable"]);
 const DESTRUCTIVE_TOOL_NAMES = new Set([
+  "wait",
+  "wait_for_js",
+  "perform",
   "close_tab",
   "click",
   "dblclick",

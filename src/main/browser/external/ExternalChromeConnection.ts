@@ -161,8 +161,16 @@ export class ExternalChromeConnection {
   }
 
   /** Run a CDP command against the attached tab. Opens a workspace on first use. */
-  async sendCdp<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
-    const tabId = await this.ensureWorkspace();
+  async sendCdp<T = unknown>(
+    method: string,
+    params?: Record<string, unknown>,
+    expectedTabId?: number,
+  ): Promise<T> {
+    const tabId = expectedTabId ?? (await this.ensureWorkspace());
+    // A pinned batch must not reopen a detached tab or follow another caller's attachment.
+    if (expectedTabId !== undefined && this.attachedTabId !== expectedTabId) {
+      throw new Error("Chrome attachment changed during the batch; remaining actions were stopped");
+    }
     const res = (await this.request({
       type: "cdp",
       tabId,
@@ -188,8 +196,8 @@ export class ExternalChromeConnection {
   }
 
   /** A {@link CdpSession} view of this connection, usable with `../cdp/tools`. */
-  cdpSession(): CdpSession {
-    return new ExternalCdpClient(this);
+  cdpSession(expectedTabId?: number): CdpSession {
+    return new ExternalCdpClient(this, expectedTabId);
   }
 
   dispose(): void {
@@ -283,18 +291,27 @@ export class ExternalChromeConnection {
  * runs against the user's real browser without modification.
  */
 class ExternalCdpClient implements CdpSession {
-  constructor(private readonly conn: ExternalChromeConnection) {}
+  constructor(
+    private readonly conn: ExternalChromeConnection,
+    private readonly expectedTabId?: number,
+  ) {}
 
   async attach(): Promise<void> {
+    if (this.expectedTabId !== undefined) {
+      if (!this.isAttached()) throw new Error("Chrome attachment changed during the batch");
+      return;
+    }
     await this.conn.ensureWorkspace();
   }
 
   isAttached(): boolean {
-    return this.conn.isAttached();
+    return this.expectedTabId === undefined
+      ? this.conn.isAttached()
+      : this.conn.status().attachedTabId === this.expectedTabId;
   }
 
   send<TResult = unknown>(method: string, params?: Record<string, unknown>): Promise<TResult> {
-    return this.conn.sendCdp<TResult>(method, params);
+    return this.conn.sendCdp<TResult>(method, params, this.expectedTabId);
   }
 
   on(method: string, handler: (params: unknown) => void): () => void {

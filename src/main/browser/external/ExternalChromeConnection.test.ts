@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { WebSocket } from "ws";
 import { ExternalChromeConnection } from "./ExternalChromeConnection";
+import { dispatchChromeTool } from "./chromeTools";
 
 /** Minimal stand-in for a `ws` socket that records outbound frames and lets the
  *  test emit inbound ones. */
@@ -50,6 +51,72 @@ function makeConn(): { conn: ExternalChromeConnection; ws: FakeWs; onClosed: () 
 }
 
 describe("ExternalChromeConnection", () => {
+  it.each([
+    ["switch", "click"],
+    ["switch", "press"],
+    ["detach", "click"],
+    ["detach", "press"],
+  ])("stops batch %s before %s and observation can reach another tab", async (change, action) => {
+    const { conn, ws } = makeConn();
+    const attach = conn.attach(42);
+    ws.inbound({
+      id: ws.last().id,
+      type: "result",
+      ok: true,
+      tab: { tabId: 42, url: "https://a" },
+    });
+    await attach;
+    const batch = dispatchChromeTool(
+      "perform",
+      {
+        steps: [
+          { action: "wait", ms: 30 },
+          action === "press" ? { action, key: "Enter" } : { action, selector: "#submit" },
+        ],
+      },
+      { connection: conn, allowEval: false, allowDataAccess: false },
+    );
+    await flush();
+    if (change === "switch") {
+      const next = conn.attach(43);
+      ws.inbound({
+        id: ws.last().id,
+        type: "result",
+        ok: true,
+        tab: { tabId: 43, url: "https://b" },
+      });
+      await next;
+    } else {
+      ws.inbound({ type: "detached", tabId: 42, reason: "canceled_by_user" });
+    }
+    const sentBeforeContinuation = ws.sent.length;
+    await expect(batch).resolves.toMatchObject({
+      ok: false,
+      failedIndex: 1,
+      error: expect.stringContaining("attachment changed"),
+      observationError: expect.stringContaining("attachment changed"),
+      steps: [{ index: 0 }],
+    });
+    expect(ws.sent).toHaveLength(sentBeforeContinuation);
+    conn.dispose();
+  });
+
+  it("sends pinned commands only to the selected tab without reopening a workspace", async () => {
+    const { conn, ws } = makeConn();
+    const attach = conn.attach(42);
+    ws.inbound({
+      id: ws.last().id,
+      type: "result",
+      ok: true,
+      tab: { tabId: 42, url: "https://a" },
+    });
+    await attach;
+    const request = conn.cdpSession(42).send("Runtime.evaluate", { expression: "1" });
+    expect(ws.last()).toMatchObject({ type: "cdp", tabId: 42, method: "Runtime.evaluate" });
+    ws.inbound({ id: ws.last().id, type: "result", ok: true, result: 1 });
+    await expect(request).resolves.toBe(1);
+    conn.dispose();
+  });
   it("correlates a request with its result by id", async () => {
     const { conn, ws } = makeConn();
     const promise = conn.listTabs();

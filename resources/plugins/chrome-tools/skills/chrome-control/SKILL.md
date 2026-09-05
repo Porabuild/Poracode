@@ -9,11 +9,11 @@ Use Poracode's `chrome` MCP when a task depends on the user's current Chrome tab
 
 ## Workflow
 
-1. Call `chrome.chrome_status` first. If the extension is disconnected, ask the user to connect it rather than switching surfaces silently.
-2. Call `chrome.enable` once before browser actions. Use the background Poracode workspace by default; call `chrome.chrome_attach` only when the user asked to operate an existing tab.
-3. Inspect with `chrome.chrome_snapshot` or `chrome.chrome_find` before clicking or typing. Prefer returned element refs and use `chrome_fill` for replacement versus `chrome_type` for appending.
-4. Keep every action scoped to the requested site and task. Do not explore other tabs or signed-in content for extra context.
-5. After every meaningful action, wait for and verify the resulting URL, text, control state, or screenshot.
+1. Call `chrome.status` first. If the extension is disconnected, ask the user to connect it rather than switching surfaces silently.
+2. Call `chrome.enable` once before browser actions. Use the background Poracode workspace by default; call `chrome.attach` only when the user asked to operate an existing tab.
+3. Inspect with `chrome.snapshot` or `chrome.find` before clicking or typing. Prefer returned element refs and use `fill` for replacement versus `type` for appending.
+4. Page commands share the in-app browser names and arguments: `snapshot`, `find`, `fill`, `type`, `click`, `press`, `wait`, `perform`. Batch known actions with `{steps:[{action:"fill",ref:"@e1",text:"Ada"},{action:"click",ref:"@e2"},{action:"wait",text:"Saved"}]}`. `perform` stops on failure and returns one compact snapshot (`observe:"none"` omits it). Split at decisions, new targets, and navigation; never replay completed steps after partial failure. Keep every action scoped to the requested site and task. Do not explore other tabs or signed-in content for extra context.
+5. Include a condition `wait` at the end of a batch for asynchronous changes and verify the returned observation. After navigation, wait for and verify the resulting URL, text, control state, or screenshot.
 6. Call `chrome.disable` before asking the user for input, waiting on an external event, or finishing.
 
 ## Boundaries

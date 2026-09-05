@@ -10,6 +10,7 @@ import {
   dispatchTool,
   formatToolResult,
   isKnownToolName,
+  normalizeToolName,
   type ToolContext,
 } from "./mcp/toolRegistry";
 
@@ -30,6 +31,7 @@ export class BrowserMcpIngress {
     instructions: BROWSER_MCP_INSTRUCTIONS,
     tools: TOOLS,
     isKnownToolName,
+    normalizeToolName,
     // Agent tool calls no longer force the browser panel open — the tab's
     // <webview> stays alive off-screen (see BrowserHost "background" mode),
     // so the agent works headless without stealing the user's UI. Hence no
@@ -69,6 +71,7 @@ export class BrowserMcpIngress {
     if (!manager) return null;
     return {
       manager,
+      disabledTools: (identity.disabledTools ?? []).map(normalizeToolName),
       allowEval: this.allowEval,
       allowDataAccess: this.allowDataAccess,
       ...(identity.threadId ? { threadId: identity.threadId } : {}),
