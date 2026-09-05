@@ -52,8 +52,13 @@ describe("base control styles", () => {
     expect(styles).toMatch(
       /html \.poracode-floating-chrome\.poracode-floating-chrome--bubble\s*\{[^}]*background-color:\s*color-mix\(\s*in oklab,\s*var\(--composer-surface\) 70%,\s*transparent\s*\);[^}]*border-color:\s*color-mix\(in oklab, var\(--foreground\) 2%, transparent\);[^}]*box-shadow:\s*0 1px 2px rgb\(0 0 0 \/ 0\.1\),\s*0 3px 10px rgb\(0 0 0 \/ 0\.14\);/s,
     );
+    // Active mirrors the sidebar Git badge idiom (bg-accent/15, hover 25%):
+    // a subtle violet-steered wash at rest that deepens on hover.
     expect(styles).toMatch(
-      /html \.poracode-floating-chrome\.poracode-floating-chrome--bubble-active,[^{]*\{[^}]*background-color:\s*color-mix\(\s*in oklab,\s*color-mix\(\s*in oklab,\s*var\(--composer-surface\) 70%,\s*transparent\s*\) 72%,\s*var\(--floating-chrome-selected-accent\) 28%\s*\);[^}]*border-color:\s*color-mix\(in oklab, var\(--floating-chrome-selected-accent\) 25%, transparent\);/s,
+      /html \.poracode-floating-chrome\.poracode-floating-chrome--bubble-active\s*\{[^}]*background-color:\s*color-mix\(\s*in oklab,\s*color-mix\(\s*in oklab,\s*var\(--composer-surface\) 70%,\s*transparent\s*\) 85%,\s*var\(--floating-chrome-selected-accent\) 15%\s*\);[^}]*border-color:\s*color-mix\(in oklab, var\(--floating-chrome-selected-accent\) 18%, transparent\);/s,
+    );
+    expect(styles).toMatch(
+      /html \.poracode-floating-chrome\.poracode-floating-chrome--bubble-active:hover\s*\{[^}]*background-color:\s*color-mix\(\s*in oklab,\s*color-mix\(\s*in oklab,\s*var\(--composer-surface\) 70%,\s*transparent\s*\) 75%,\s*var\(--floating-chrome-selected-accent\) 25%\s*\);[^}]*border-color:\s*color-mix\(in oklab, var\(--floating-chrome-selected-accent\) 25%, transparent\);/s,
     );
   });
 
