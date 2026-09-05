@@ -12,6 +12,7 @@ use poracode_computer_use::protocol::actions::{
 use poracode_computer_use::protocol::window::{WindowRef, WindowSource};
 use x11rb::connection::Connection;
 use x11rb::protocol::Event;
+use x11rb::protocol::composite::{ConnectionExt as _, Redirect};
 use x11rb::protocol::xproto::{
     AtomEnum, ConnectionExt as _, CreateWindowAux, EventMask, PropMode, WindowClass,
 };
@@ -299,6 +300,21 @@ fn sends_background_events_and_captures_an_xwayland_window() {
             title: Some(window.title.clone()),
         })
         .expect("resolve X11 window");
+    match backend.capture(&resolved, &CancelToken::default()) {
+        Ok(capture) => assert_eq!(capture.method, "x_composite"),
+        Err(error) => {
+            assert_eq!(
+                error.code,
+                poracode_computer_use::protocol::ErrorCode::CaptureFailed
+            );
+            assert!(error.message.contains("XComposite"));
+        }
+    }
+    connection
+        .composite_redirect_window(window_id, Redirect::AUTOMATIC)
+        .expect("redirect test window")
+        .check()
+        .expect("confirm test window redirection");
     let capture = backend
         .capture(&resolved, &CancelToken::default())
         .expect("capture X11 window");
@@ -308,7 +324,7 @@ fn sends_background_events_and_captures_an_xwayland_window() {
     );
     assert!(capture.frame.width >= 240 && capture.frame.height >= 160);
     assert!(!capture.frame.is_black());
-    assert!(matches!(capture.method, "x_composite" | "x_root"));
+    assert_eq!(capture.method, "x_composite");
 
     let options = InputOptions {
         mode: InputMode::Background,

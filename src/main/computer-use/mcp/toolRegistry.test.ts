@@ -459,21 +459,40 @@ describe("computer-use toolRegistry", () => {
     expect(driver.getWindowState).not.toHaveBeenCalled();
   });
 
-  it("rejects native Wayland key batches before executing any step", async () => {
+  it("stops a batch when the backend requires foreground input", async () => {
     const window = { app: "editor", id: -1, source: "atspi" as const };
-    const driver = createDriver();
+    const driver = createDriver({
+      pressKey: vi.fn<ComputerUseDriver["pressKey"]>().mockResolvedValue({
+        ok: false,
+        mode: "interactive",
+        window,
+        refused: {
+          code: "background_unavailable",
+          reason: "This window requires foreground keyboard input.",
+          hint: 'Retry with mode:"foreground".',
+        },
+      }),
+    });
 
     await expect(
       dispatchTool(
         "perform",
         {
           window,
-          steps: [{ action: "press_key", key: "Enter" }],
+          steps: [
+            { action: "press_key", key: "Enter" },
+            { action: "type_text", text: "must not run" },
+          ],
         },
         { driver },
       ),
-    ).rejects.toThrow("perform cannot batch key or text input for native Wayland targets");
-    expect(driver.pressKey).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ ok: false, failed: { index: 0, effect: "refused" } });
+    expect(driver.pressKey).toHaveBeenCalledWith({
+      window: { app: "editor", id: -1 },
+      key: "Enter",
+      mode: "background",
+    });
+    expect(driver.typeText).not.toHaveBeenCalled();
   });
 
   it("stops a batch after an unexpected foreground delivery", async () => {

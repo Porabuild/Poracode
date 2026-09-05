@@ -416,6 +416,14 @@ impl Backend for LinuxBackend {
         cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         if window.source != Some(WindowSource::X11) {
+            if options.mode == InputMode::Background {
+                return Ok(InteractiveResult::refused(
+                    window.clone(),
+                    Refusal::background_unavailable(
+                        "This window requires foreground pointer input.",
+                    ),
+                ));
+            }
             let focused = match self.prepare_native_wayland_input(window, cancel) {
                 Ok(window) => window,
                 Err(refusal) => return Ok(*refusal),
@@ -455,6 +463,14 @@ impl Backend for LinuxBackend {
         cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         if window.source != Some(WindowSource::X11) {
+            if options.mode == InputMode::Background {
+                return Ok(InteractiveResult::refused(
+                    window.clone(),
+                    Refusal::background_unavailable(
+                        "This window requires foreground keyboard input.",
+                    ),
+                ));
+            }
             let focused = match self.prepare_native_wayland_input(window, cancel) {
                 Ok(window) => window,
                 Err(refusal) => return Ok(*refusal),
@@ -587,12 +603,15 @@ impl Backend for LinuxBackend {
 
 #[cfg(test)]
 mod tests {
+    use super::LinuxBackend;
     use super::{
         matches_launch_hints, merge_discovered_window, pointer_verification_region,
         validate_launch_target,
     };
-    use crate::backend::PointerAction;
-    use crate::protocol::actions::MouseButton;
+    use crate::backend::{
+        Backend, BackendOptions, CancelToken, InputOptions, KeyboardAction, PointerAction,
+    };
+    use crate::protocol::actions::{InputMode, MouseButton, RefusalCode, Verify};
     use crate::protocol::window::{WindowInfo, WindowSource};
 
     fn window(id: i64, title: &str, x: i32, source: WindowSource) -> WindowInfo {
@@ -608,6 +627,46 @@ mod tests {
             display_name: Some("Editor".into()),
             minimized: Some(false),
             source: Some(source),
+        }
+    }
+
+    #[test]
+    fn refuses_background_portal_input_before_connecting_or_focusing() {
+        let backend = LinuxBackend::new(&BackendOptions { state_dir: None });
+        let window = window(-1, "No actual window", 0, WindowSource::Atspi);
+        let options = InputOptions {
+            mode: InputMode::Background,
+            verify: Verify::None,
+        };
+        let cancel = CancelToken::default();
+        let pointer = backend
+            .pointer(
+                &window,
+                PointerAction::Click {
+                    x: 10.0,
+                    y: 10.0,
+                    button: MouseButton::Left,
+                    count: 1,
+                },
+                options,
+                &cancel,
+            )
+            .unwrap();
+        let keyboard = backend
+            .keyboard(
+                &window,
+                KeyboardAction::Type("test".into()),
+                options,
+                &cancel,
+            )
+            .unwrap();
+        for result in [pointer, keyboard] {
+            assert!(!result.ok);
+            assert!(result.delivery.is_none());
+            assert_eq!(
+                result.refused.unwrap().code,
+                RefusalCode::BackgroundUnavailable
+            );
         }
     }
 

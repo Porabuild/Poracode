@@ -14,8 +14,10 @@ List apps and windows and pick the exact target. If the app is not running, sear
 produce on screen; do not improvise against whatever window happens to be in front.
 
 Call `computer_use.api` only when capability or permission status is needed. List apps and windows, then call
-`get_window_state` on the selected window with `include_text:true`. Its element ids are directly actionable; pass its
-`snapshot_id` when filtering the same tree with `find_elements`. Some apps recreate windows during navigation or
+`get_window_state` on the selected window with `include_text:true`. Add `include_screenshot:false` for semantic checks;
+request a screenshot for visual checks or coordinates. Its element ids are directly actionable; pass the returned
+`accessibility.snapshotId` as `find_elements.snapshot_id` when filtering the same tree. Search results return a top-level
+`snapshotId` for reuse. Some apps recreate windows during navigation or
 activation, so refresh a stale window instead of reusing its old id.
 
 ## Run the flow
@@ -23,19 +25,19 @@ activation, so refresh a stale window instead of reusing its old id.
 Call `computer_use.enable` immediately before the first control step and keep it enabled for the uninterrupted run.
 Background work shows a small badge; foreground takeover shows the border and enables Escape interruption except while a key chord is being sent.
 
-For each step: inspect, act, inspect again, and compare. Pass `observe:"text"`, `"screenshot"`, or `"both"` with an
-action when its returned state can replace the second inspection call. Prefer `invoke_element` or `set_element_value`.
+For each step: inspect, act, inspect again, and compare. Prefer `observe:"text"` for semantic checks, or use
+`"screenshot"` or `"both"` for visual checks. Reuse the returned `observation.state` for the second inspection instead of
+requesting it again. Prefer `invoke_element` or `set_element_value`.
 Coordinates are a fallback, come from the newest screenshot, and are relative to the window's top-left with the title
 bar included.
 
 Use `perform` when several background element, value, key, or text actions are deterministic from the same inspected
-state. It stops on refusal, error, or unexpected foreground delivery. Native Wayland rejects key/text batches before
-starting. Do not batch coordinates or steps whose target depends on an intermediate result.
+state, with one final observation. It stops on refusal, error, or unexpected foreground delivery. After a partial
+failure, inspect completed steps and current state before continuing; do not replay the whole batch. Do not batch coordinates or steps whose target depends on an intermediate result.
 
 Read `delivery` or `refused` after every action. Do not silently turn a background refusal into foreground input. Use
 `mode:"foreground"` only when the user requested takeover or the refusal recommends it, and warn the user immediately
-beforehand. Native Wayland's consented portal is the exception: it reports foreground delivery and
-`wayland_portal_fallback` explicitly.
+beforehand. A `background_unavailable` refusal requires explicit foreground mode or a supported semantic action.
 
 Use the window object returned by the last interactive call. When a tool reports the window is gone, re-list and
 re-resolve rather than retrying blind.

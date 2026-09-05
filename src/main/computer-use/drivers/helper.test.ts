@@ -6,7 +6,7 @@ import { HelperComputerUseDriver, HelperUnavailableError } from "./helper";
 const fixturePath = fileURLToPath(new URL("./__fixtures__/fakeHelper.cjs", import.meta.url));
 const drivers: HelperComputerUseDriver[] = [];
 
-function createDriver(protocol = 1, extraEnv: NodeJS.ProcessEnv = {}): HelperComputerUseDriver {
+function createDriver(protocol = 2, extraEnv: NodeJS.ProcessEnv = {}): HelperComputerUseDriver {
   const driver = new HelperComputerUseDriver({
     binaryPath: process.execPath,
     stateDir: ".",
@@ -28,7 +28,7 @@ describe("HelperComputerUseDriver", () => {
     const driver = createDriver();
     await expect(driver.describeStatus()).resolves.toMatchObject({
       backend: "helper",
-      helper: { protocolVersion: 1, helperVersion: "fixture" },
+      helper: { protocolVersion: 2, helperVersion: "fixture" },
       capabilities: { backgroundPointer: true },
     });
     await expect(
@@ -66,8 +66,8 @@ describe("HelperComputerUseDriver", () => {
     });
   });
 
-  it("rejects a protocol mismatch with a stable degradation code", async () => {
-    const error = await createDriver(2)
+  it("rejects the previous helper before using its foreground fallback behavior", async () => {
+    const error = await createDriver(1)
       .describeStatus()
       .catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(HelperUnavailableError);
@@ -75,7 +75,7 @@ describe("HelperComputerUseDriver", () => {
   });
 
   it("classifies a helper exit during hello as a handshake failure", async () => {
-    const error = await createDriver(1, { FAKE_HELPER_EXIT_ON_HELLO: "1" })
+    const error = await createDriver(2, { FAKE_HELPER_EXIT_ON_HELLO: "1" })
       .describeStatus()
       .catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(HelperUnavailableError);

@@ -1,4 +1,3 @@
-import { isNativeWaylandTarget } from "./types";
 import type {
   ComputerUseObservation,
   ComputerUseScreenshot,
@@ -46,16 +45,13 @@ export function isForegroundOnlyToolName(name: string): boolean {
   return FOREGROUND_ONLY_TOOL_NAMES.has(normalizeToolName(name));
 }
 
-const PORTAL_FOREGROUND_TOOL_NAMES = new Set(["click", "press_key", "type_text", "scroll", "drag"]);
-
 export function resolveActivityDelivery(
   name: string,
   args: Record<string, unknown>,
 ): "background" | "foreground" {
   if (isForegroundOnlyToolName(name)) return "foreground";
   if (args.mode === "foreground") return "foreground";
-  if (!PORTAL_FOREGROUND_TOOL_NAMES.has(normalizeToolName(name))) return "background";
-  return isNativeWaylandTarget(args.window) ? "foreground" : "background";
+  return "background";
 }
 
 const KEY_CHORD_TOOL_NAMES = new Set(["press_key"]);

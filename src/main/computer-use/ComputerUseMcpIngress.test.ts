@@ -399,7 +399,7 @@ describe("ComputerUseMcpIngress", () => {
     ).toEqual(["press_key", "press_key"]);
   });
 
-  it("marks native Wayland portal input as foreground while the action is running", async () => {
+  it("marks explicitly requested foreground input while the action is running", async () => {
     let resolveClick: ((result: ComputerUseInteractiveResult) => void) | undefined;
     const clickResult = new Promise<ComputerUseInteractiveResult>((resolve) => {
       resolveClick = resolve;
@@ -415,6 +415,7 @@ describe("ComputerUseMcpIngress", () => {
 
     const response = callTool(info, "click", {
       window: { app: "editor", id: -1, source: "atspi" },
+      mode: "foreground",
       x: 10,
       y: 20,
     });
@@ -436,7 +437,6 @@ describe("ComputerUseMcpIngress", () => {
         delivered: "foreground",
         route: "input",
         verified: "unverified",
-        notes: ["wayland_portal_fallback"],
       },
     });
     expect((await response).status).toBe(200);

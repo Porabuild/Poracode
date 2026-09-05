@@ -152,44 +152,6 @@ fn composite_frame(context: &Context, window: &ResolvedWindow) -> Result<Frame> 
     frame
 }
 
-fn root_frame(context: &Context, window: &ResolvedWindow) -> Result<Frame> {
-    let screen = &context.connection.setup().roots[context.screen_number];
-    let x = window.info.x.clamp(0, i32::from(screen.width_in_pixels));
-    let y = window.info.y.clamp(0, i32::from(screen.height_in_pixels));
-    let width = window
-        .info
-        .width
-        .min(i32::from(screen.width_in_pixels) - x)
-        .max(1) as u16;
-    let height = window
-        .info
-        .height
-        .min(i32::from(screen.height_in_pixels) - y)
-        .max(1) as u16;
-    let image = context
-        .connection
-        .get_image(
-            ImageFormat::Z_PIXMAP,
-            context.root,
-            x as i16,
-            y as i16,
-            width,
-            height,
-            u32::MAX,
-        )
-        .map_err(|error| x_error("get root image", error))?
-        .reply()
-        .map_err(|error| x_error("get root image reply", error))?;
-    decode(
-        context,
-        width,
-        height,
-        image.depth,
-        screen.root_visual,
-        &image.data,
-    )
-}
-
 pub fn capture(window: &ResolvedWindow) -> Result<CaptureResult> {
     let context = super::connect()?;
     if let Ok(frame) = composite_frame(&context, window)
@@ -201,9 +163,7 @@ pub fn capture(window: &ResolvedWindow) -> Result<CaptureResult> {
             notes: Vec::new(),
         });
     }
-    Ok(CaptureResult {
-        frame: root_frame(&context, window)?,
-        method: "x_root",
-        notes: vec!["visible_region_only".into()],
-    })
+    Err(HelperError::capture_failed(
+        "XComposite could not capture this window in the background.",
+    ))
 }

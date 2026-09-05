@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 
 use base64::Engine as _;
-use fast_image_resize::images::Image;
+use fast_image_resize::images::{Image, ImageRef};
 use fast_image_resize::{FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer};
 use image::ImageEncoder as _;
 
@@ -108,13 +108,8 @@ pub struct EncodeOptions {
 }
 
 fn resize(frame: &Frame, width: u32, height: u32) -> Result<Vec<u8>> {
-    let src = Image::from_vec_u8(
-        frame.width,
-        frame.height,
-        frame.bgra.clone(),
-        PixelType::U8x4,
-    )
-    .map_err(|e| HelperError::capture_failed(format!("resize source: {e}")))?;
+    let src = ImageRef::new(frame.width, frame.height, &frame.bgra, PixelType::U8x4)
+        .map_err(|e| HelperError::capture_failed(format!("resize source: {e}")))?;
     let mut dst = Image::new(width, height, PixelType::U8x4);
     let mut resizer = Resizer::new();
     let options = ResizeOptions::new()
@@ -132,15 +127,6 @@ fn bgra_to_rgb(bgra: &[u8]) -> Vec<u8> {
         rgb.extend_from_slice(&[pixel[2], pixel[1], pixel[0]]);
     }
     rgb
-}
-
-fn bgra_to_rgba_opaque(bgra: &[u8]) -> Vec<u8> {
-    let mut rgba = Vec::with_capacity(bgra.len());
-    for pixel in bgra.as_chunks::<4>().0 {
-        // Window captures frequently carry alpha 0 for opaque pixels; force opaque.
-        rgba.extend_from_slice(&[pixel[2], pixel[1], pixel[0], 255]);
-    }
-    rgba
 }
 
 /// Downscale + encode + base64 a frame captured at the window's native size.
@@ -171,13 +157,14 @@ pub fn encode_screenshot(
             "image/jpeg"
         }
         ImageFormat::Png => {
-            let rgba = bgra_to_rgba_opaque(pixels.as_ref());
+            // Captures are opaque even when the native buffer carries alpha 0.
+            let rgb = bgra_to_rgb(pixels.as_ref());
             image::codecs::png::PngEncoder::new(&mut buffer)
                 .write_image(
-                    &rgba,
+                    &rgb,
                     plan.width,
                     plan.height,
-                    image::ExtendedColorType::Rgba8,
+                    image::ExtendedColorType::Rgb8,
                 )
                 .map_err(|e| HelperError::capture_failed(format!("png encode: {e}")))?;
             "image/png"
@@ -299,6 +286,11 @@ mod tests {
             .decode(&shot.data)
             .unwrap();
         assert_eq!(&decoded[1..4], b"PNG");
+        let pixels = image::load_from_memory(&decoded).unwrap().to_rgba8();
+        assert_eq!(pixels.dimensions(), (frame.width, frame.height));
+        for (pixel, source) in pixels.pixels().zip(frame.bgra.as_chunks::<4>().0) {
+            assert_eq!(pixel.0, [source[2], source[1], source[0], 255]);
+        }
     }
 
     #[test]
@@ -310,5 +302,42 @@ mod tests {
         assert_ne!(a.content_hash(), b.content_hash());
         let edge = frame.crop(60, 60, 16, 16);
         assert_eq!((edge.width, edge.height), (4, 4));
+    }
+
+    #[test]
+    #[ignore = "run in release mode to measure screenshot encoding"]
+    fn benchmark_screenshot_encoding() {
+        for (width, height, max_dimension) in
+            [(1280, 720, 1280), (1920, 1080, 1280), (3840, 2160, 1280)]
+        {
+            let frame = gradient(width, height);
+            for format in [ImageFormat::Jpeg, ImageFormat::Png] {
+                let options = EncodeOptions {
+                    max_dimension,
+                    format,
+                };
+                let expected = encode_screenshot(&frame, &window(), "test", &options).unwrap();
+                let mut samples = Vec::new();
+                for _ in 0..21 {
+                    let start = std::time::Instant::now();
+                    let shot = encode_screenshot(
+                        std::hint::black_box(&frame),
+                        &window(),
+                        "test",
+                        &options,
+                    )
+                    .unwrap();
+                    samples.push(start.elapsed());
+                    assert_eq!(shot.data, expected.data);
+                }
+                samples.sort();
+                eprintln!(
+                    "{width}x{height} {format:?}: median={:.3}ms p95={:.3}ms base64_bytes={}",
+                    samples[10].as_secs_f64() * 1000.0,
+                    samples[19].as_secs_f64() * 1000.0,
+                    expected.data.len(),
+                );
+            }
+        }
     }
 }

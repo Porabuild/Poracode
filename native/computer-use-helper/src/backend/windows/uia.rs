@@ -32,7 +32,8 @@ use windows::Win32::UI::Accessibility::{
     UIA_TabItemControlTypeId, UIA_TableControlTypeId, UIA_TextControlTypeId,
     UIA_ThumbControlTypeId, UIA_TitleBarControlTypeId, UIA_TogglePatternId,
     UIA_ToolBarControlTypeId, UIA_ToolTipControlTypeId, UIA_TreeControlTypeId,
-    UIA_TreeItemControlTypeId, UIA_ValuePatternId, UIA_WindowControlTypeId,
+    UIA_TreeItemControlTypeId, UIA_ValuePatternId, UIA_ValueValuePropertyId,
+    UIA_WindowControlTypeId,
 };
 use windows::core::{BSTR, Interface as _};
 
@@ -129,6 +130,7 @@ fn snapshot_cache_request(automation: &IUIAutomation) -> Option<IUIAutomationCac
             UIA_IsOffscreenPropertyId,
             UIA_IsPasswordPropertyId,
             UIA_NamePropertyId,
+            UIA_ValueValuePropertyId,
         ] {
             request.AddProperty(property).ok()?;
         }
@@ -501,7 +503,7 @@ fn traverse_snapshot(
             } else {
                 element_info(&element, window, depth)
             },
-            runtime_id(automation, &element)?,
+            runtime_id(automation, &element),
         ));
 
         // SAFETY: walker navigation only reads the current UIA tree. A missing
@@ -561,8 +563,15 @@ fn traverse_snapshot(
         return Ok(None);
     }
     discovered.sort_by(|left, right| left.0.cmp(&right.0));
-    for (_, info, handle) in discovered {
-        snapshot.push(info, handle);
+    for (path, info, handle) in discovered {
+        match handle {
+            Ok(handle) => {
+                snapshot.push(info, handle);
+            }
+            Err(error) if path.is_empty() => return Err(error),
+            // An unaddressable child must not hide the rest of the window.
+            Err(_) => snapshot.truncated = true,
+        }
     }
     Ok(Some(snapshot))
 }
