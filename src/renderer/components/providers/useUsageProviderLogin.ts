@@ -1,17 +1,40 @@
 import { useState } from "react";
+import { type AgentStatus, baseAgentKind } from "@/shared/contracts";
+import { runAgentLoginCommand } from "@/renderer/actions/agentLoginActions";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 import {
   useHasStoredSession,
   useUsageLoginStateStore,
 } from "@/renderer/state/usageLoginStateStore";
+import {
+  currentWslDistros,
+  findProjectForStatus,
+  findTerminalAuthMethodForStatus,
+  scopeEnvForStatus,
+} from "@/renderer/utils/acpRegistryAuth";
 import { refreshAndMergeProviderUsage } from "./refreshProviderUsageSnapshot";
 import {
+  isClaudeUsageProvider,
   needsBrowserSessionForUsage,
   supportsApiKeyLogin,
   supportsBrowserLogin,
 } from "./usageProviders";
+
+/**
+ * The installed agent whose CLI credential backs this usage provider. Usage
+ * collectors read host-side credentials, so the native install is
+ * authoritative; a WSL-only install is the fallback.
+ */
+function useCliAgentStatus(providerId: string): AgentStatus | undefined {
+  const kind = baseAgentKind(providerId);
+  const native = useAgentStatusesStore((s) => s.agentStatuses.find((st) => st.kind === kind));
+  const wsl = useAgentStatusesStore((s) => s.wslAgentStatuses.find((st) => st.kind === kind));
+  return native ?? wsl;
+}
 
 /**
  * Sign-in / sign-out flow for a usage provider, shared by the usage panel card
@@ -52,6 +75,44 @@ export function useUsageProviderLogin(id: string) {
   const canBrowserSignIn = canSignIn && isBrowserLogin;
   const canApiKeySignIn = canSignIn && isApiKeyLogin;
   const canSignOut = supportsLogin && hasStoredSession;
+  // The agent CLI's own login is a third, independent sign-in path: run the
+  // agent's declared `loginCommand` in the login terminal overlay. Offered
+  // alongside browser/API-key login where a provider has those too. Skipped
+  // where the card doesn't surface `auth-missing` as "Not signed in".
+  const cliAgentStatus = useCliAgentStatus(id);
+  const canCliSignIn =
+    !isRemote &&
+    sessionRejected &&
+    !isClaudeUsageProvider(id) &&
+    Boolean(cliAgentStatus?.loginCommand);
+
+  const handleCliSignIn = () => {
+    if (signingIn || !cliAgentStatus?.loginCommand) return;
+    const status = cliAgentStatus;
+    const terminalAuthMethod = findTerminalAuthMethodForStatus(status);
+    const project = findProjectForStatus(status, useAppStore.getState().projects);
+    setSigningIn(true);
+    const opened = runAgentLoginCommand({
+      label: status.label,
+      command: status.loginCommand!,
+      ...(terminalAuthMethod?.env ? { env: terminalAuthMethod.env } : {}),
+      ...(project ? { project } : {}),
+      onCommandComplete: (exitCode) => {
+        setSigningIn(false);
+        if (exitCode !== 0) return;
+        // The agent's detected auth state and the usage snapshot both read the
+        // same credential; refresh both so every surface flips together.
+        void readBridge()
+          .refreshAgentStatuses(currentWslDistros(), {
+            agentKinds: [status.kind],
+            envs: [scopeEnvForStatus(status)],
+          })
+          .catch(() => undefined);
+        void refreshAndMergeProviderUsage(id);
+      },
+    });
+    if (!opened) setSigningIn(false);
+  };
 
   const handleSignIn = async () => {
     setSigningIn(true);
@@ -121,12 +182,14 @@ export function useUsageProviderLogin(id: string) {
     canSignIn,
     canBrowserSignIn,
     canApiKeySignIn,
+    canCliSignIn,
     canSignOut,
     signingIn,
     signingOut,
     apiKey,
     setApiKey,
     handleSignIn,
+    handleCliSignIn,
     handleSubmitApiKey,
     handleSignOut,
   };

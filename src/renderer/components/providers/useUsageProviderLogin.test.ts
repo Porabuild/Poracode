@@ -1,6 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import type { UsageSnapshot } from "@poracode/agents-usage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AgentStatus } from "@/shared/contracts";
+import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { useUsageLoginStateStore } from "@/renderer/state/usageLoginStateStore";
@@ -13,6 +15,7 @@ const bridgeMock = vi.hoisted(() => ({
   submitUsageApiKey: vi.fn<() => Promise<{ ok: boolean }>>(),
   clearUsageLogin: vi.fn<() => Promise<{ ok: boolean }>>(),
   refreshProviderUsage: vi.fn<() => Promise<{ snapshots: UsageSnapshot[]; fromCache: boolean }>>(),
+  refreshAgentStatuses: vi.fn<() => Promise<unknown>>(),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -23,8 +26,27 @@ vi.mock("@/renderer/bridge", () => ({
     submitUsageApiKey: bridgeMock.submitUsageApiKey,
     clearUsageLogin: bridgeMock.clearUsageLogin,
     refreshProviderUsage: bridgeMock.refreshProviderUsage,
+    refreshAgentStatuses: bridgeMock.refreshAgentStatuses,
   }),
 }));
+
+const loginActionsMock = vi.hoisted(() => ({
+  runAgentLoginCommand: vi.fn<(input: { onCommandComplete?: (code: number) => void }) => boolean>(),
+}));
+
+vi.mock("@/renderer/actions/agentLoginActions", () => ({
+  runAgentLoginCommand: loginActionsMock.runAgentLoginCommand,
+}));
+
+function cliAgentStatus(kind: string, loginCommand?: string): AgentStatus {
+  return {
+    kind,
+    label: `${kind} CLI`,
+    installed: true,
+    ...(loginCommand ? { loginCommand } : {}),
+    envKind: "windows",
+  } as AgentStatus;
+}
 
 function authMissingSnapshot(providerId: string): UsageSnapshot {
   return {
@@ -63,6 +85,9 @@ describe("useUsageProviderLogin", () => {
     bridgeMock.submitUsageApiKey.mockReset();
     bridgeMock.clearUsageLogin.mockReset();
     bridgeMock.refreshProviderUsage.mockReset();
+    bridgeMock.refreshAgentStatuses.mockReset().mockResolvedValue(undefined);
+    loginActionsMock.runAgentLoginCommand.mockReset();
+    useAgentStatusesStore.setState({ agentStatuses: [], wslAgentStatuses: [] });
     useProviderUsageStore.setState({ snapshots: {} });
     useUsageLoginStateStore.setState({ stored: {} });
     usePanelStore.setState({ browserOverlayOpen: false, browserOverlayMaximized: false });
@@ -126,6 +151,88 @@ describe("useUsageProviderLogin", () => {
 
     expect(result.current.canBrowserSignIn).toBe(true);
     expect(result.current.canApiKeySignIn).toBe(true);
+  });
+
+  it("offers CLI sign-in when the agent declares a login command and usage is unauthenticated", () => {
+    useAgentStatusesStore.setState({ agentStatuses: [cliAgentStatus("muse", "muse login")] });
+    useProviderUsageStore.getState().mergeSnapshot(authMissingSnapshot("muse"));
+
+    const { result } = renderHook(() => useUsageProviderLogin("muse"));
+
+    expect(result.current.canCliSignIn).toBe(true);
+    expect(result.current.canBrowserSignIn).toBe(false);
+    expect(result.current.canApiKeySignIn).toBe(false);
+  });
+
+  it("hides CLI sign-in without a login command, once signed in, or in remote sessions", () => {
+    useProviderUsageStore.getState().mergeSnapshot(authMissingSnapshot("muse"));
+    useAgentStatusesStore.setState({ agentStatuses: [cliAgentStatus("muse")] });
+    expect(renderHook(() => useUsageProviderLogin("muse")).result.current.canCliSignIn).toBe(false);
+
+    useAgentStatusesStore.setState({ agentStatuses: [cliAgentStatus("muse", "muse login")] });
+    useProviderUsageStore.getState().mergeSnapshot(okSnapshot("muse"));
+    expect(renderHook(() => useUsageProviderLogin("muse")).result.current.canCliSignIn).toBe(false);
+
+    useProviderUsageStore.getState().mergeSnapshot(authMissingSnapshot("muse"));
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    expect(renderHook(() => useUsageProviderLogin("muse")).result.current.canCliSignIn).toBe(false);
+  });
+
+  it("runs the agent login command and refreshes usage once it exits cleanly", async () => {
+    let complete: ((code: number) => void) | undefined;
+    loginActionsMock.runAgentLoginCommand.mockImplementation((input) => {
+      complete = input.onCommandComplete;
+      return true;
+    });
+    bridgeMock.refreshProviderUsage.mockResolvedValue({
+      snapshots: [okSnapshot("muse")],
+      fromCache: false,
+    });
+    useAgentStatusesStore.setState({ agentStatuses: [cliAgentStatus("muse", "muse login")] });
+    useProviderUsageStore.getState().mergeSnapshot(authMissingSnapshot("muse"));
+
+    const { result } = renderHook(() => useUsageProviderLogin("muse"));
+
+    act(() => {
+      result.current.handleCliSignIn();
+    });
+    expect(loginActionsMock.runAgentLoginCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ label: "muse CLI", command: "muse login" }),
+    );
+    expect(result.current.signingIn).toBe(true);
+
+    await act(async () => {
+      complete?.(0);
+    });
+
+    expect(result.current.signingIn).toBe(false);
+    expect(bridgeMock.refreshAgentStatuses).toHaveBeenCalledWith(expect.any(Array), {
+      agentKinds: ["muse"],
+      envs: [{ kind: "native" }],
+    });
+    expect(bridgeMock.refreshProviderUsage).toHaveBeenCalledWith({
+      providerIds: ["muse"],
+      force: true,
+    });
+    expect(useProviderUsageStore.getState().snapshots.muse?.status).toBe("ok");
+  });
+
+  it("does not refresh usage when the login command fails", async () => {
+    loginActionsMock.runAgentLoginCommand.mockImplementation((input) => {
+      input.onCommandComplete?.(1);
+      return true;
+    });
+    useAgentStatusesStore.setState({ agentStatuses: [cliAgentStatus("muse", "muse login")] });
+    useProviderUsageStore.getState().mergeSnapshot(authMissingSnapshot("muse"));
+
+    const { result } = renderHook(() => useUsageProviderLogin("muse"));
+
+    await act(async () => {
+      result.current.handleCliSignIn();
+    });
+
+    expect(result.current.signingIn).toBe(false);
+    expect(bridgeMock.refreshProviderUsage).not.toHaveBeenCalled();
   });
 
   it("hides usage login and sign-out controls in remote sessions", () => {
