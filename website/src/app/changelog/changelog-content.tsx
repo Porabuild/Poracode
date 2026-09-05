@@ -57,6 +57,7 @@ function ReleaseSection({ release, index }: { release: ChangelogRelease; index: 
           <Hash className="size-3 text-gray-500 opacity-0 transition-opacity group-hover:opacity-100" />
         </a>
         <span className="text-sm text-gray-500">{formatReleaseDate(release.date)}</span>
+        <span className="text-sm text-gray-400">{release.tagline}</span>
       </div>
 
       <p className="mt-3 text-[15px] leading-relaxed text-gray-400">{release.summary}</p>
