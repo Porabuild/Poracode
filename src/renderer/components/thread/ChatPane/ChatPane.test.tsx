@@ -5,6 +5,7 @@ import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts"
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useRevertedPromptStore } from "../revertedPrompt";
 import { ChatPane } from "./ChatPane";
 import { byTextContent } from "@/renderer/testUtils/text";
 
@@ -230,6 +231,7 @@ describe("ChatPane", () => {
     vi.useRealTimers();
     MockResizeObserver.reset();
     localStorage.clear();
+    useRevertedPromptStore.setState({ byThread: {} });
     Object.defineProperty(window, "poracode", {
       configurable: true,
       writable: true,
@@ -255,6 +257,7 @@ describe("ChatPane", () => {
       fileCheckpointTurnsByThread: {},
       provisioningWorktreeThreadIds: {},
       connectingThreadIds: {},
+      pendingComposerFocusThreadId: null,
     }));
   });
 
@@ -2115,6 +2118,94 @@ describe("ChatPane", () => {
     expect(screen.getByText("Initial prompt")).toBeInTheDocument();
     expect(screen.getByText("First answer")).toBeInTheDocument();
     expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
+    expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
+      { kind: "text", text: "Follow-up prompt" },
+    ]);
+    expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
+  });
+
+  it("restores only the clicked prompt, not later turns or nested sub-agent prompts", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    Object.assign(window, {
+      poracode: {
+        rollbackThreadConversation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
+    seedUserMessage(thread.id, "Initial prompt", "user-1");
+    seedAssistantMessage(thread.id, "First answer", "assistant-1");
+    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "subagent-user",
+      itemType: "user_message",
+      parentItemId: "tool-parent",
+      payload: { content: [{ kind: "text", text: "internal child prompt" }] },
+    });
+    seedAssistantMessage(thread.id, "Second answer", "assistant-2");
+    seedUserMessage(thread.id, "Later prompt", "user-3");
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Revert to this checkpoint" })[0]!);
+    fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
+
+    await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
+    expect(screen.queryByText("Later prompt")).not.toBeInTheDocument();
+    expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
+      { kind: "text", text: "Follow-up prompt" },
+    ]);
+  });
+
+  it("snapshots the clicked steer and ignores repeat confirms during rollback", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    let finishRollback!: () => void;
+    const rollbackThreadConversation = vi.fn<() => Promise<void>>(
+      () =>
+        new Promise<void>((resolve) => {
+          finishRollback = resolve;
+        }),
+    );
+    Object.assign(window, {
+      poracode: {
+        rollbackThreadConversation,
+        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
+    seedUserMessage(thread.id, "Initial prompt", "user-1");
+    seedAssistantMessage(thread.id, "First answer", "assistant-1");
+    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+    seedUserMessage(thread.id, "Actually, use this steer", "user-3");
+    seedAssistantMessage(thread.id, "Second answer", "assistant-2");
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Revert to this checkpoint" })[1]!);
+    const confirm = await screen.findByRole("button", { name: "Revert" });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    expect(rollbackThreadConversation).toHaveBeenCalledTimes(1);
+    expect(useRevertedPromptStore.getState().byThread[thread.id]).toBeUndefined();
+
+    // Simulate a runtime update removing the source message while the provider responds.
+    await act(async () => {
+      useAppStore.getState().truncateThreadRuntimeAfter(thread.id, "assistant-1");
+      finishRollback();
+    });
+    await waitFor(() =>
+      expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
+        { kind: "text", text: "Actually, use this steer" },
+      ]),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Revert" })).not.toBeInTheDocument(),
+    );
   });
 
   it("rolls back provider by completed turns instead of assistant message count", async () => {
@@ -2189,6 +2280,9 @@ describe("ChatPane", () => {
       screen.queryByText("Codex does not support checkpoint rollback."),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
+    expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
+      { kind: "text", text: "Follow-up prompt" },
+    ]);
   });
 
   it("warns when checkpoint file restore would affect another chat on the main tree", async () => {

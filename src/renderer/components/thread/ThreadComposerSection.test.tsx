@@ -16,6 +16,7 @@ import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { SaveClipboardImage } from "../composer/useAttachments";
 import { ThreadComposerSection } from "./ThreadComposerSection";
+import { useRevertedPromptStore } from "./revertedPrompt";
 import type { ThreadErrorDockState } from "./threadErrorState";
 
 const bridgeMock = vi.hoisted(() => ({
@@ -261,6 +262,7 @@ describe("ThreadComposerSection", () => {
     });
     useGitStore.setState({ statuses: {} });
     useComposerInputInbox.setState({ itemsByComposer: {} });
+    useRevertedPromptStore.setState({ byThread: {} });
     bridgeMock.isRemoteSession.mockReturnValue(false);
     bridgeMock.clearPendingSteer.mockClear();
     bridgeMock.clearPendingSteer.mockResolvedValue(undefined);
@@ -687,6 +689,106 @@ describe("ThreadComposerSection", () => {
         { kind: "text", content: "existing draft\n\nfirst note\n\nsecond note" },
       ]);
     });
+  });
+
+  it("a reverted prompt overwrites an existing draft", async () => {
+    const { onSubmitInput } = renderComposer();
+    const input = screen.getByRole("textbox");
+    input.appendChild(document.createTextNode("existing draft"));
+    fireEvent.input(input);
+
+    act(() => {
+      useRevertedPromptStore
+        .getState()
+        .restore(guiThread.id, [{ kind: "text", text: "reverted prompt" }]);
+    });
+
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => {
+      expect(onSubmitInput).toHaveBeenCalledWith("reverted prompt", [
+        { kind: "text", content: "reverted prompt" },
+      ]);
+    });
+  });
+
+  it("restores attachments with their MIME type for resend", async () => {
+    const { onSubmitInput } = renderComposer();
+
+    act(() => {
+      useRevertedPromptStore.getState().restore(guiThread.id, [
+        { kind: "text", text: "see this" },
+        {
+          kind: "image",
+          path: "C:\\tmp\\shot",
+          mimeType: "image/png",
+          dataUrl: "",
+          source: "attachment",
+        },
+      ]);
+    });
+
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => {
+      expect(onSubmitInput).toHaveBeenCalledWith("see this", [
+        { kind: "attachment", path: "C:\\tmp\\shot", mimeType: "image/png" },
+        { kind: "text", content: "see this" },
+      ]);
+    });
+  });
+
+  it("restores inline skill references as executable skill chips", async () => {
+    const thread = {
+      ...guiThread,
+      slashCommands: [
+        {
+          id: "review",
+          label: "Review",
+          section: "skills" as const,
+          skillName: "review",
+          skillInvocation: "/skill:review",
+          skillPath: "/skills/review/SKILL.md",
+          skillProvider: "Example",
+          skillScope: "project" as const,
+        },
+      ],
+    };
+    const { onSubmitInput } = renderComposer({ thread });
+    act(() => {
+      useRevertedPromptStore.getState().restore(thread.id, [
+        { kind: "text", text: "Please " },
+        { kind: "skill", name: "review", invocation: "Use the review skill." },
+      ]);
+    });
+    await waitFor(() =>
+      expect(useRevertedPromptStore.getState().byThread[thread.id]).toBeUndefined(),
+    );
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() =>
+      expect(onSubmitInput).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.arrayContaining([
+          expect.objectContaining({
+            kind: "skill",
+            name: "review",
+            path: "/skills/review/SKILL.md",
+            invocation: "/skill:review",
+          }),
+        ]),
+      ),
+    );
+  });
+
+  it("keeps a reverted prompt until its target thread is shown", async () => {
+    const { rerender } = renderComposer();
+    act(() => {
+      useRevertedPromptStore
+        .getState()
+        .restore(secondGuiThread.id, [{ kind: "text", text: "retry this" }]);
+    });
+    expect(screen.getByRole("textbox")).not.toHaveTextContent("retry this");
+    rerender(composerElement({ thread: secondGuiThread }));
+    await waitFor(() => expect(screen.getByRole("textbox")).toHaveTextContent("retry this"));
+    expect(useRevertedPromptStore.getState().byThread[secondGuiThread.id]).toBeUndefined();
   });
 
   it("leaves queued input untouched until its target thread is shown", async () => {

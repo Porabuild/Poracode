@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useEffectEvent,
   useId,
   useLayoutEffect,
   useRef,
@@ -87,9 +88,10 @@ import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import {
   usePluginMentionItems,
-  useSkillSlashCommands,
+  useSkillSlashCommandState,
 } from "@/renderer/components/skills/useSkills";
 import { useDelayedPendingSteer } from "./useDelayedPendingSteer";
+import { revertedPromptToDraft, useRevertedPromptStore } from "./revertedPrompt";
 
 type ThreadComposerSectionProps = {
   threadId: string;
@@ -334,7 +336,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
   ];
-  const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind, presentationMode);
+  const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
+    projectLocation,
+    thread.agentKind,
+    presentationMode,
+  );
   const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
   // One row per tool: a plugin that wraps a built-in server replaces that
   // server's own mention instead of sitting next to an identical row, and only
@@ -596,6 +602,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // so defer until the editor mounts; the effect re-runs when `editorMounted`
   // flips, at which point `mentionRef` is attached.
   const editorMounted = !usesTerminalPresentation || thread.status !== "launching";
+  const revertedContent = useRevertedPromptStore((state) => state.byThread[thread.id]);
+  const restoreRevertedPrompt = useEffectEvent(() => {
+    const composer = mentionRef.current;
+    if (!composer || !revertedContent) return;
+    const draft = revertedPromptToDraft(revertedContent, availableCommands);
+    composer.restoreFromSegments(draft.segments);
+    latestSegmentsRef.current = draft.segments;
+    attachments.restore(draft.attachments);
+    useRevertedPromptStore.getState().consume(thread.id);
+    useAppStore.getState().requestComposerFocus(thread.id);
+  });
   const pendingComposerInputs = useComposerInputInbox((s) => s.itemsByComposer[thread.id]);
   const fallbackComposerInboxKey = thread.worktreePath
     ? worktreeComposerInboxKey(thread.projectId, thread.worktreePath)
@@ -664,6 +681,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     pendingFallbackComposerInputs,
     thread.id,
   ]);
+
+  useEffect(() => {
+    if (isSubmitting || !editorMounted || !revertedContent) return;
+    if (!skillCommandsResolved && revertedContent.some((block) => block.kind === "skill")) return;
+    restoreRevertedPrompt();
+  }, [editorMounted, isSubmitting, revertedContent, skillCommandsResolved]);
 
   useEffect(() => {
     setComposerCollapsed(collapseTerminalComposerSetting);
