@@ -82,14 +82,12 @@ export function UsageProviderCard(props: {
   const {
     canBrowserSignIn,
     canApiKeySignIn,
-    canCliSignIn,
     canSignOut,
     signingIn,
     signingOut,
     apiKey,
     setApiKey,
     handleSignIn,
-    handleCliSignIn,
     handleSubmitApiKey,
     handleSignOut,
   } = useUsageProviderLogin(id);
@@ -251,16 +249,6 @@ export function UsageProviderCard(props: {
                   className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
                 >
                   {signingIn ? <Trans>Signing in…</Trans> : <Trans>Browser sign-in</Trans>}
-                </button>
-              ) : null}
-              {canCliSignIn ? (
-                <button
-                  type="button"
-                  onClick={handleCliSignIn}
-                  disabled={signingIn}
-                  className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
-                >
-                  {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
                 </button>
               ) : null}
               {canApiKeySignIn ? (
