@@ -1072,7 +1072,7 @@ if (!hasSingleInstanceLock) {
             computerUseWakeLock.setSessionActive(state.level !== "hidden");
           },
           onExit: (threadIds) => {
-            computerUseMcpIngress?.interruptActiveActions();
+            computerUseMcpIngress?.interruptActiveActions(threadIds);
             for (const threadId of threadIds) {
               void supervisorClient.call("interruptThread", { threadId }).catch((error) => {
                 console.error(

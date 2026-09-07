@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { COMPUTER_USE_CORE_SKILL } from "./instructions";
 import { COMPUTER_USE_INVOKABLE_ELEMENT_ACTIONS, type ComputerUseDriver } from "./types";
 import {
   dispatchTool,
@@ -67,9 +68,16 @@ describe("computer-use toolRegistry", () => {
       describeStatus: vi.fn<ComputerUseDriver["describeStatus"]>().mockResolvedValue(helperStatus),
     });
 
-    const result = (await dispatchTool("api", {}, { driver })) as Record<string, unknown>;
+    const result = (await dispatchTool("api", {}, { driver, observationSettleMs: 0 })) as Record<
+      string,
+      unknown
+    >;
 
-    expect(result).toMatchObject({ backend: "helper", platform: process.platform });
+    expect(result).toMatchObject({
+      backend: "helper",
+      platform: process.platform,
+      skill: COMPUTER_USE_CORE_SKILL,
+    });
     expect(result).not.toHaveProperty("instructions");
     expect(result).not.toHaveProperty("tools");
     expect(JSON.stringify(result).length).toBeLessThan(1_000);
@@ -116,7 +124,6 @@ describe("computer-use toolRegistry", () => {
           elementCount: 50,
           truncated: false,
         },
-        mode: "passive",
         notes: [],
         screenshots: [],
         window: { app: "calc", id: 1, title: "Calculator" },
@@ -233,9 +240,13 @@ describe("computer-use toolRegistry", () => {
       .fn<ComputerUseDriver["launchApp"]>()
       .mockResolvedValue({ ok: true, window: null });
     const driver = createDriver({ launchApp });
-    await dispatchTool("launch_app", { app: "Calculator" }, { driver });
+    await dispatchTool("launch_app", { app: "Calculator" }, { driver, observationSettleMs: 0 });
     expect(launchApp).toHaveBeenCalledWith({ app: "Calculator", mode: "background" });
-    await dispatchTool("launch_app", { app: "Calculator", mode: "foreground" }, { driver });
+    await dispatchTool(
+      "launch_app",
+      { app: "Calculator", mode: "foreground" },
+      { driver, observationSettleMs: 0 },
+    );
     expect(launchApp).toHaveBeenLastCalledWith({ app: "Calculator", mode: "foreground" });
   });
 
@@ -244,9 +255,13 @@ describe("computer-use toolRegistry", () => {
       .fn<ComputerUseDriver["getWindow"]>()
       .mockResolvedValue({ app: "calc", id: 7 });
     const driver = createDriver({ getWindow });
-    await dispatchTool("get_window", { app: "calc", id: 3, title: "Preferences" }, { driver });
+    await dispatchTool(
+      "get_window",
+      { app: "calc", id: 3, title: "Preferences" },
+      { driver, observationSettleMs: 0 },
+    );
     expect(getWindow).toHaveBeenCalledWith({ app: "calc", id: 3, title: "Preferences" });
-    await dispatchTool("get_window", { app: "calc", id: 3 }, { driver });
+    await dispatchTool("get_window", { app: "calc", id: 3 }, { driver, observationSettleMs: 0 });
     expect(getWindow).toHaveBeenLastCalledWith({ app: "calc", id: 3 });
   });
 
@@ -266,9 +281,14 @@ describe("computer-use toolRegistry", () => {
       findElements: vi.fn<ComputerUseDriver["findElements"]>().mockResolvedValue(refused),
     });
 
+    const { mode: _mode, ...withoutLane } = refused;
     await expect(
-      dispatchTool("find_elements", { window, snapshot_id: "s1" }, { driver }),
-    ).resolves.toEqual(refused);
+      dispatchTool(
+        "find_elements",
+        { window, snapshot_id: "s1" },
+        { driver, observationSettleMs: 0 },
+      ),
+    ).resolves.toEqual(withoutLane);
   });
 
   it("preserves the refreshed window returned by interactive driver actions", async () => {
@@ -284,10 +304,13 @@ describe("computer-use toolRegistry", () => {
     });
 
     await expect(
-      dispatchTool("click", { window: inputWindow, x: 10, y: 20 }, { driver }),
+      dispatchTool(
+        "click",
+        { window: inputWindow, x: 10, y: 20 },
+        { driver, observationSettleMs: 0 },
+      ),
     ).resolves.toEqual({
       ok: true,
-      mode: "interactive",
       window: refreshedWindow,
       delivery: { delivered: "background", route: "message", verified: "unverified" },
     });
@@ -324,9 +347,10 @@ describe("computer-use toolRegistry", () => {
       }),
     });
 
-    await expect(dispatchTool("click", { window, x: 10, y: 20 }, { driver })).resolves.toEqual({
+    await expect(
+      dispatchTool("click", { window, x: 10, y: 20 }, { driver, observationSettleMs: 0 }),
+    ).resolves.toEqual({
       ok: true,
-      mode: "interactive",
       delivery: { delivered: "background", route: "event", verified: "unverified" },
     });
   });
@@ -350,7 +374,9 @@ describe("computer-use toolRegistry", () => {
       }),
     });
 
-    await expect(dispatchTool("activate_window", { window }, { driver })).resolves.toMatchObject({
+    await expect(
+      dispatchTool("activate_window", { window }, { driver, observationSettleMs: 0 }),
+    ).resolves.toMatchObject({
       window,
     });
   });
@@ -393,12 +419,15 @@ describe("computer-use toolRegistry", () => {
 
     // The batch/action result states the observed window at the top level, so
     // the observation does not repeat it.
-    const { window: _observedWindow, ...observedState } = state;
+    const { window: _observedWindow, mode: _mode, ...observedState } = state;
     await expect(
-      dispatchTool("click", { window: inputWindow, x: 10, y: 20, observe: "text" }, { driver }),
+      dispatchTool(
+        "click",
+        { window: inputWindow, x: 10, y: 20, observe: "text" },
+        { driver, observationSettleMs: 0 },
+      ),
     ).resolves.toEqual({
       ok: true,
-      mode: "interactive",
       window: refreshedWindow,
       delivery: { delivered: "background", route: "message", verified: "unverified" },
       observation: { ok: true, state: observedState },
@@ -425,7 +454,11 @@ describe("computer-use toolRegistry", () => {
     });
 
     await expect(
-      dispatchTool("click", { window, x: 10, y: 20, observe: "both" }, { driver }),
+      dispatchTool(
+        "click",
+        { window, x: 10, y: 20, observe: "both" },
+        { driver, observationSettleMs: 0 },
+      ),
     ).resolves.toMatchObject({ observation: { ok: false, error: "capture failed" } });
   });
 
@@ -434,7 +467,11 @@ describe("computer-use toolRegistry", () => {
     const driver = createDriver();
 
     await expect(
-      dispatchTool("click", { window, x: 10, y: 20, observe: "texts" }, { driver }),
+      dispatchTool(
+        "click",
+        { window, x: 10, y: 20, observe: "texts" },
+        { driver, observationSettleMs: 0 },
+      ),
     ).rejects.toThrow('observe must be "none", "text", "screenshot", or "both"');
     expect(driver.click).not.toHaveBeenCalled();
   });
@@ -475,7 +512,7 @@ describe("computer-use toolRegistry", () => {
           ],
           observe: "text",
         },
-        { driver },
+        { driver, observationSettleMs: 0 },
       ),
     ).resolves.toEqual({
       ok: true,
@@ -498,7 +535,7 @@ describe("computer-use toolRegistry", () => {
       ],
       observation: {
         ok: true,
-        state: { accessibility: state.accessibility, mode: "passive", screenshots: [] },
+        state: { accessibility: state.accessibility, screenshots: [] },
       },
     });
     expect(driver.typeText).toHaveBeenCalledWith({
@@ -543,7 +580,7 @@ describe("computer-use toolRegistry", () => {
           ],
           observe: "text",
         },
-        { driver },
+        { driver, observationSettleMs: 0 },
       ),
     ).resolves.toMatchObject({
       ok: false,
@@ -552,7 +589,7 @@ describe("computer-use toolRegistry", () => {
       steps: [{ index: 0, action: "invoke_element", ok: false, refused: refused.refused }],
       observation: {
         ok: true,
-        state: { accessibility: state.accessibility, mode: "passive", screenshots: [] },
+        state: { accessibility: state.accessibility, screenshots: [] },
       },
     });
     expect(driver.typeText).not.toHaveBeenCalled();
@@ -592,7 +629,7 @@ describe("computer-use toolRegistry", () => {
           ],
           observe: "text",
         },
-        { driver },
+        { driver, observationSettleMs: 0 },
       ),
     ).resolves.toMatchObject({
       ok: false,
@@ -629,7 +666,7 @@ describe("computer-use toolRegistry", () => {
             { action: "type_text", text: "must not run" },
           ],
         },
-        { driver },
+        { driver, observationSettleMs: 0 },
       ),
     ).resolves.toMatchObject({ ok: false, failed: { index: 0, effect: "refused" } });
     expect(driver.pressKey).toHaveBeenCalledWith({
@@ -662,7 +699,7 @@ describe("computer-use toolRegistry", () => {
             { action: "type_text", text: "must not run" },
           ],
         },
-        { driver },
+        { driver, observationSettleMs: 0 },
       ),
     ).resolves.toMatchObject({
       ok: false,
@@ -676,7 +713,7 @@ describe("computer-use toolRegistry", () => {
       listApps: vi.fn<ComputerUseDriver["listApps"]>().mockResolvedValue([]),
     });
 
-    await dispatchTool("list_apps", { query: "Calculator" }, { driver });
+    await dispatchTool("list_apps", { query: "Calculator" }, { driver, observationSettleMs: 0 });
 
     expect(driver.listApps).toHaveBeenCalledWith({ query: "Calculator" });
   });
@@ -686,11 +723,64 @@ describe("computer-use toolRegistry", () => {
     const window = { app: "calc", id: 1 };
 
     await expect(
-      dispatchTool("click", { window, x: 10, y: 20, mouse_button: "primary" }, { driver }),
+      dispatchTool(
+        "click",
+        { window, x: 10, y: 20, mouse_button: "primary" },
+        { driver, observationSettleMs: 0 },
+      ),
     ).rejects.toThrow("mouse_button must be left, right, or middle");
     await expect(
-      dispatchTool("click", { window, x: 10, y: 20, click_count: 100 }, { driver }),
+      dispatchTool(
+        "click",
+        { window, x: 10, y: 20, click_count: 100 },
+        { driver, observationSettleMs: 0 },
+      ),
     ).rejects.toThrow("click_count must be 1 or 2");
     expect(driver.click).not.toHaveBeenCalled();
+  });
+
+  it("forwards button as mouse_button so a right click cannot become a left press", async () => {
+    const driver = createDriver({
+      click: vi.fn<ComputerUseDriver["click"]>().mockResolvedValue({
+        ok: true,
+        mode: "interactive",
+        window: { app: "calc", id: 1 },
+        delivery: { delivered: "background", route: "event", verified: "unverified" },
+      }),
+    });
+    const window = { app: "calc", id: 1 };
+
+    await dispatchTool(
+      "click",
+      { window, x: 10, y: 20, button: "right" },
+      { driver, observationSettleMs: 0 },
+    );
+
+    expect(driver.click).toHaveBeenCalledWith(
+      expect.objectContaining({ mouse_button: "right", x: 10, y: 20 }),
+    );
+  });
+
+  it("names the window object when the caller passed an id", async () => {
+    const driver = createDriver();
+
+    await expect(
+      dispatchTool(
+        "invoke_element",
+        { window: 7159, element_id: "s1:2", action: "invoke" },
+        {
+          driver,
+          observationSettleMs: 0,
+        },
+      ),
+    ).rejects.toThrow("whole window object");
+    await expect(
+      dispatchTool(
+        "invoke_element",
+        { window: { windowId: 7159 }, element_id: "s1:2", action: "invoke" },
+        { driver, observationSettleMs: 0 },
+      ),
+    ).rejects.toThrow("whole window object");
+    expect(driver.invokeElement).not.toHaveBeenCalled();
   });
 });

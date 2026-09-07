@@ -79,7 +79,7 @@ afterEach(() => {
 describe("ComputerUseMcpIngress", () => {
   it("prewarms the native driver after the MCP ingress starts", async () => {
     const driver = createDriver();
-    ingress = new ComputerUseMcpIngress({ driver });
+    ingress = new ComputerUseMcpIngress({ driver, observationSettleMs: 0 });
 
     await ingress.start();
 
@@ -87,7 +87,7 @@ describe("ComputerUseMcpIngress", () => {
   });
 
   it("advertises computer_use instructions and tools on initialize", async () => {
-    ingress = new ComputerUseMcpIngress({ driver: createDriver() });
+    ingress = new ComputerUseMcpIngress({ driver: createDriver(), observationSettleMs: 0 });
     const info = await ingress.start();
 
     const response = await fetch(`${info.url}/mcp`, {
@@ -114,6 +114,7 @@ describe("ComputerUseMcpIngress", () => {
     expect(body.result.serverInfo.name).toBe("computer_use");
     expect(body.result.serverInfo.version).toBe("0.2.0");
     expect(body.result.instructions).toContain("call api only when");
+    expect(body.result.instructions).toContain("load the computer-use skill by name");
     expect(body.result.instructions).toContain("computer_use.enable");
     expect(body.result.instructions).toContain("computer_use.disable");
     expect(body.result.instructions).toContain('mode:"background" by default');
@@ -122,7 +123,7 @@ describe("ComputerUseMcpIngress", () => {
   });
 
   it("requires bearer auth before listing tools", async () => {
-    ingress = new ComputerUseMcpIngress({ driver: createDriver() });
+    ingress = new ComputerUseMcpIngress({ driver: createDriver(), observationSettleMs: 0 });
     const info = await ingress.start();
 
     const unauthorized = await fetch(`${info.url}/mcp`, {
@@ -151,6 +152,7 @@ describe("ComputerUseMcpIngress", () => {
     });
     const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
     ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
       driver: createDriver({
         click: vi.fn<ComputerUseDriver["click"]>(() => clickResult),
       }),
@@ -202,7 +204,11 @@ describe("ComputerUseMcpIngress", () => {
 
   it("holds takeover activity between explicit enable and disable calls", async () => {
     const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
-    ingress = new ComputerUseMcpIngress({ driver: createDriver(), onActivity });
+    ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
+      driver: createDriver(),
+      onActivity,
+    });
     const info = await ingress.start();
 
     expect((await callTool(info, "enable", {})).status).toBe(200);
@@ -216,6 +222,7 @@ describe("ComputerUseMcpIngress", () => {
   it("reports keepAwake on enable while the host holds the display awake", async () => {
     let held = false;
     ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
       driver: createDriver(),
       onActivity: (event) => {
         if (event.kind === "session") held = event.active;
@@ -233,6 +240,7 @@ describe("ComputerUseMcpIngress", () => {
 
   it("omits keepAwake when the host is not keeping the display awake", async () => {
     ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
       driver: createDriver(),
       isDisplayKeptAwake: () => false,
     });
@@ -242,7 +250,7 @@ describe("ComputerUseMcpIngress", () => {
   });
 
   it("omits keepAwake when the host exposes no wake-lock state", async () => {
-    ingress = new ComputerUseMcpIngress({ driver: createDriver() });
+    ingress = new ComputerUseMcpIngress({ driver: createDriver(), observationSettleMs: 0 });
     const info = await ingress.start();
 
     expect(await readToolJson(await callTool(info, "enable", {}))).toEqual({ enabled: true });
@@ -251,6 +259,7 @@ describe("ComputerUseMcpIngress", () => {
   it("does not attach a badge target to a refused background action", async () => {
     const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
     ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
       driver: createDriver({
         click: vi.fn<ComputerUseDriver["click"]>().mockResolvedValue({
           ok: false,
@@ -292,6 +301,7 @@ describe("ComputerUseMcpIngress", () => {
   it("attaches one badge target after a delivered batch", async () => {
     const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
     ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
       driver: createDriver({
         pressKey: vi.fn<ComputerUseDriver["pressKey"]>().mockResolvedValue({
           ok: true,
@@ -329,6 +339,7 @@ describe("ComputerUseMcpIngress", () => {
     const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
     let activeAtObservation: boolean[] = [];
     ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
       driver: createDriver({
         pressKey: vi.fn<ComputerUseDriver["pressKey"]>().mockResolvedValue({
           ok: true,
@@ -372,6 +383,7 @@ describe("ComputerUseMcpIngress", () => {
     const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
     let deliveriesAtObservation: Array<string | null> = [];
     ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
       driver: createDriver({
         pressKey: vi.fn<ComputerUseDriver["pressKey"]>().mockResolvedValue({
           ok: true,
@@ -413,7 +425,11 @@ describe("ComputerUseMcpIngress", () => {
 
   it("does not emit takeover activity for passive tools", async () => {
     const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
-    ingress = new ComputerUseMcpIngress({ driver: createDriver(), onActivity });
+    ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
+      driver: createDriver(),
+      onActivity,
+    });
     const info = await ingress.start();
 
     expect((await callTool(info, "list_windows", {})).status).toBe(200);
@@ -422,16 +438,117 @@ describe("ComputerUseMcpIngress", () => {
 
   it("cancels active driver actions on emergency exit", () => {
     const driver = createDriver();
-    ingress = new ComputerUseMcpIngress({ driver });
+    ingress = new ComputerUseMcpIngress({ driver, observationSettleMs: 0 });
 
     ingress.interruptActiveActions();
 
     expect(driver.dispose).toHaveBeenCalledOnce();
   });
 
+  // The pre-observation settle sleeps *after* the input lands, so an exit
+  // (Escape or the badge's exit button) lands inside it. The capture must
+  // stand down: issuing it would lazily respawn the helper the exit just
+  // killed and read the screen the user took back.
+  it("stands down a pending observation when the user exits mid-settle", async () => {
+    let resolveAction: ((result: ComputerUseInteractiveResult) => void) | undefined;
+    const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
+    const driver = createDriver({
+      pressKey: vi.fn<ComputerUseDriver["pressKey"]>().mockImplementation(
+        () =>
+          new Promise<ComputerUseInteractiveResult>((resolve) => {
+            resolveAction = resolve;
+          }),
+      ),
+      getWindowState: vi.fn<ComputerUseDriver["getWindowState"]>(),
+    });
+    ingress = new ComputerUseMcpIngress({ driver, observationSettleMs: 250, onActivity });
+    const info = await ingress.start();
+
+    const response = callTool(info, "press_key", {
+      window: { app: "calc", id: 1 },
+      key: "a",
+      observe: "text",
+    });
+    await vi.waitFor(() => expect(driver.pressKey).toHaveBeenCalledOnce());
+    resolveAction?.({
+      ok: true,
+      mode: "interactive",
+      window: { app: "calc", id: 1 },
+      delivery: { delivered: "background", route: "input", verified: "unverified" },
+    });
+    // The activity window closes (active:false) exactly when the input has
+    // landed and only the settle remains; one more macrotask lets the dispatch
+    // register the settle timer, so the exit below lands inside it.
+    await vi.waitFor(() =>
+      expect(onActivity).toHaveBeenCalledWith(
+        expect.objectContaining({ toolName: "press_key", active: false }),
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    ingress.interruptActiveActions(["thread-1"]);
+
+    expect((await response).status).toBe(200);
+    expect(driver.getWindowState).not.toHaveBeenCalled();
+    expect(driver.dispose).toHaveBeenCalledOnce();
+  });
+
+  // A call that starts *after* the exit captures the current generation, so
+  // the generation check alone cannot see the exit; the per-thread mark does.
+  // Re-enabling the thread (the enable tool) re-arms its observations.
+  it("stands an exited thread's observations down until the thread re-enables", async () => {
+    const driver = createDriver({
+      pressKey: vi.fn<ComputerUseDriver["pressKey"]>().mockResolvedValue({
+        ok: true,
+        mode: "interactive",
+        window: { app: "calc", id: 1 },
+        delivery: { delivered: "background", route: "input", verified: "unverified" },
+      }),
+      getWindowState: vi.fn<ComputerUseDriver["getWindowState"]>().mockResolvedValue({
+        accessibility: null,
+        mode: "passive",
+        screenshots: [],
+        window: { app: "calc", id: 1 },
+      }),
+    });
+    ingress = new ComputerUseMcpIngress({ driver, observationSettleMs: 0 });
+    const info = await ingress.start();
+
+    ingress.interruptActiveActions(["thread-1"]);
+    await expect(
+      (async () => {
+        const response = await callTool(info, "press_key", {
+          window: { app: "calc", id: 1 },
+          key: "a",
+          observe: "text",
+        });
+        expect(response.status).toBe(200);
+      })(),
+    ).resolves.toBeUndefined();
+    expect(driver.getWindowState).not.toHaveBeenCalled();
+
+    await expect(
+      (async () => {
+        const response = await callTool(info, "enable", {});
+        expect(response.status).toBe(200);
+      })(),
+    ).resolves.toBeUndefined();
+
+    const response = await callTool(info, "press_key", {
+      window: { app: "calc", id: 1 },
+      key: "b",
+      observe: "text",
+    });
+    expect(response.status).toBe(200);
+    expect(driver.getWindowState).toHaveBeenCalledOnce();
+  });
+
   it("normalizes interactive tool aliases in activity events", async () => {
     const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
-    ingress = new ComputerUseMcpIngress({ driver: createDriver(), onActivity });
+    ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
+      driver: createDriver(),
+      onActivity,
+    });
     const info = await ingress.start();
 
     expect(
@@ -448,7 +565,11 @@ describe("ComputerUseMcpIngress", () => {
       ok: true,
       delivery: { delivered: "background", route: "launch", verified: "confirmed" },
     });
-    ingress = new ComputerUseMcpIngress({ driver: createDriver({ launchApp }), onActivity });
+    ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
+      driver: createDriver({ launchApp }),
+      onActivity,
+    });
     const info = await ingress.start();
 
     expect((await callTool(info, "launch_app", { app: "Calculator" })).status).toBe(200);
@@ -488,6 +609,7 @@ describe("ComputerUseMcpIngress", () => {
   it("reports a launch that unexpectedly escalated to the foreground", async () => {
     const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
     ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
       driver: createDriver({
         launchApp: vi.fn<ComputerUseDriver["launchApp"]>().mockResolvedValue({
           ok: true,
@@ -511,6 +633,7 @@ describe("ComputerUseMcpIngress", () => {
     });
     const onActivity = vi.fn<NonNullable<ComputerUseMcpIngressOptions["onActivity"]>>();
     ingress = new ComputerUseMcpIngress({
+      observationSettleMs: 0,
       driver: createDriver({
         click: vi.fn<ComputerUseDriver["click"]>(() => clickResult),
       }),
