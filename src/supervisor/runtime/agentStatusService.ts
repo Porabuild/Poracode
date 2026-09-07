@@ -88,7 +88,8 @@ const execFileAsync = promisify(execFile);
  * shortened by the shared provider-specific formatter.
  */
 // v25 discards terminal auth environments with obsolete updater-disable values.
-export const STATUS_CACHE_VERSION = 25;
+// v26 refreshes model aliases and configured profile labels.
+export const STATUS_CACHE_VERSION = 26;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

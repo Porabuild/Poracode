@@ -264,9 +264,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 22,
-      // v22 mirrors supervisor STATUS_CACHE_VERSION=25: discard terminal auth
-      // environments with obsolete updater-disable values.
+      version: 23,
+      // v23 mirrors supervisor STATUS_CACHE_VERSION=26: rediscover model labels
+      // and profile overrides instead of retaining stale aliases.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

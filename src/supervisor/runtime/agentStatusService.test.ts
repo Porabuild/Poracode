@@ -200,6 +200,20 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     expect(detectInstall).toHaveBeenCalledTimes(2);
   });
 
+  it("invalidates the previous model catalog cache generation", () => {
+    const { service, statusCachePath } = makeService(vi.fn<AgentAdapter["detectInstall"]>());
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 25,
+        windows: [makeStatus()],
+        wsl: [],
+      }),
+    );
+    expect(STATUS_CACHE_VERSION).toBe(26);
+    expect(service.getCachedCapabilities("codex")).toBeUndefined();
+  });
+
   it("drops the on-disk status cache before an explicit full refresh", async () => {
     const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
     const { service, statusCachePath } = makeService(detectInstall);

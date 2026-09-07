@@ -453,3 +453,17 @@ describe("Claude SDK probe process handling", () => {
     });
   });
 });
+
+it("excludes unresolved SDK default aliases", () => {
+  expect(
+    claudeCapabilitiesFromSdkModels([
+      { value: "default", displayName: "Default", description: "" },
+    ]),
+  ).toBeUndefined();
+});
+it("uses the resolved model identity instead of the SDK Default label", () => {
+  const result = claudeCapabilitiesFromSdkModels([
+    { value: "default", resolvedModel: "qwen3.8-max", displayName: "Default", description: "" },
+  ]);
+  expect(result?.models).toContainEqual({ id: "qwen3.8-max", label: "qwen3.8-max" });
+});

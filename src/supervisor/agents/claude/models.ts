@@ -186,11 +186,14 @@ export function claudeCapabilitiesFromSdkModels(
     const rawId = sdkModel.resolvedModel || sdkModel.value;
     if (!rawId) continue;
     const modelId = rawId.replace(/\[[0-9]+[mk]\]$/i, "").trim();
-    if (!modelId) continue;
+    if (!modelId || modelId === "default" || modelId === "auto") continue;
     matched = true;
 
     if (!modelsMap.has(modelId)) {
-      const label = formatClaudeModelLabel(modelId, sdkModel.displayName);
+      const label = formatClaudeModelLabel(
+        modelId,
+        sdkModel.value === "default" ? undefined : sdkModel.displayName,
+      );
       modelsMap.set(modelId, { id: modelId, label });
     }
 
