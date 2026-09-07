@@ -3461,7 +3461,7 @@ msgstr "Не удалось скопировать"
 msgid "Copy ignored files"
 msgstr "Копировать игнорируемые файлы"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -10960,7 +10960,7 @@ msgstr "Сохранить API-ключ Cursor SDK"
 msgid "Save File"
 msgstr "Сохранить файл"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "Сохранить изображение"
 
@@ -13401,7 +13401,7 @@ msgstr "Не удалось подключиться по SSH."
 msgid "Unable to copy desktop endpoint."
 msgstr "Не удалось скопировать конечную точку рабочего стола."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to copy image."
 msgstr "Не удалось скопировать изображение."
 
@@ -13575,7 +13575,7 @@ msgstr "Не удалось сохранить учётные данные {0}."
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Не удалось сохранить профиль Claude {displayLabel}."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "Не удалось сохранить изображение."
 

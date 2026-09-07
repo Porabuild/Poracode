@@ -3461,7 +3461,7 @@ msgstr "복사 실패"
 msgid "Copy ignored files"
 msgstr "무시된 파일 복사"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -10960,7 +10960,7 @@ msgstr "Cursor SDK API 키 저장"
 msgid "Save File"
 msgstr "파일 저장"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "이미지 저장"
 
@@ -13401,7 +13401,7 @@ msgstr "SSH를 통해 연결할 수 없습니다."
 msgid "Unable to copy desktop endpoint."
 msgstr "데스크톱 엔드포인트를 복사할 수 없습니다."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to copy image."
 msgstr "이미지를 복사할 수 없습니다."
 
@@ -13575,7 +13575,7 @@ msgstr "{0} 자격 증명을 저장할 수 없습니다."
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Claude {displayLabel} 프로필을 저장할 수 없습니다."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "이미지를 저장할 수 없습니다."
 

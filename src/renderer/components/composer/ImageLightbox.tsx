@@ -10,7 +10,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
-import { ImageLightboxMenu } from "./ImageLightboxMenu";
+import { ImageLightboxActions } from "./ImageLightboxActions";
 
 /** A pre-resolved image for the lightbox: a renderable URL plus an accessible label. */
 export interface LightboxImage {
@@ -116,7 +116,6 @@ export function ImageLightboxView(props: {
   const [index, setIndex] = useState(initialIndex);
   const [scale, setScale] = useState(MIN_SCALE);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
-  const [menuPosition, setMenuPosition] = useState<Point | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const dragRef = useRef<{
@@ -138,13 +137,10 @@ export function ImageLightboxView(props: {
     if (nextIndex !== index) setIndex(nextIndex);
     setScale(MIN_SCALE);
     setPan({ x: 0, y: 0 });
-    setMenuPosition(null);
   }
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      // The menu owns Escape and arrow keys while it is open.
-      if (menuPosition) return;
       if (e.key === "Escape") {
         onClose();
       } else if (e.key === "ArrowLeft") {
@@ -155,7 +151,7 @@ export function ImageLightboxView(props: {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, images.length, menuPosition]);
+  }, [onClose, images.length]);
 
   useEffect(() => {
     function handleResize() {
@@ -261,11 +257,6 @@ export function ImageLightboxView(props: {
             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})`,
           }}
           onClick={(event) => event.stopPropagation()}
-          onContextMenu={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            setMenuPosition({ x: event.clientX, y: event.clientY });
-          }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerEnd}
@@ -318,6 +309,7 @@ export function ImageLightboxView(props: {
           >
             <ZoomIn className="size-4" />
           </button>
+          <ImageLightboxActions image={current} />
         </div>
         {images.length > 1 ? (
           <span className="poracode-image-lightbox__counter">
@@ -325,13 +317,6 @@ export function ImageLightboxView(props: {
           </span>
         ) : null}
       </div>
-      {menuPosition ? (
-        <ImageLightboxMenu
-          image={current}
-          position={menuPosition}
-          onClose={() => setMenuPosition(null)}
-        />
-      ) : null}
     </div>,
     document.body,
   );

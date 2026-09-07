@@ -40,15 +40,7 @@ function openPreview() {
   return onClose;
 }
 
-async function openMenu() {
-  fireEvent.contextMenu(document.querySelector(".poracode-image-lightbox__image")!, {
-    clientX: 120,
-    clientY: 140,
-  });
-  return screen.findByRole("menuitem", { name: "Copy image" });
-}
-
-describe("image preview context menu", () => {
+describe("image preview toolbar", () => {
   it("keeps a pasted attachment's original filename and format behind its blob URL", async () => {
     const webp = new Uint8Array([82, 73, 70, 70]);
     vi.stubGlobal(
@@ -73,8 +65,8 @@ describe("image preview context menu", () => {
         0,
       ),
     );
-    await openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save image" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Save image" }));
     await waitFor(() =>
       expect(saveImageFile).toHaveBeenCalledWith({
         data: webp,
@@ -85,7 +77,7 @@ describe("image preview context menu", () => {
   it("copies a local attachment without closing or changing the zoomed preview", async () => {
     const onClose = openPreview();
     fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
-    fireEvent.click(await openMenu());
+    fireEvent.click(screen.getByRole("button", { name: "Copy image" }));
     await waitFor(() => expect(copyImageToClipboard).toHaveBeenCalledWith({ data: png }));
     expect(readLocalImageFile).toHaveBeenCalledWith({
       url: "poracode-local:///C:/images/sample.png",
@@ -103,8 +95,8 @@ describe("image preview context menu", () => {
     vi.stubGlobal("fetch", fetchMock);
     const onClose = openPreview();
     fireEvent.click(screen.getByRole("button", { name: "Next image" }));
-    await openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save image" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Save image" }));
     await waitFor(() =>
       expect(saveImageFile).toHaveBeenCalledWith({
         data: png,
@@ -115,38 +107,32 @@ describe("image preview context menu", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("lets Escape dismiss the menu before closing the preview", async () => {
+  it("keeps gallery keyboard navigation and Escape available from the toolbar", () => {
     const onClose = openPreview();
-    const item = await openMenu();
-    fireEvent.keyDown(item, { key: "ArrowRight" });
+    const copy = screen.getByRole("button", { name: "Copy image" });
+    expect(copy.closest(".poracode-image-lightbox__footer")).not.toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "Save image" })
+        .closest(".poracode-image-lightbox__footer"),
+    ).not.toBeNull();
+    fireEvent.keyDown(copy, { key: "ArrowRight" });
     expect(document.querySelector(".poracode-image-lightbox__image")).toHaveAttribute(
       "alt",
-      "sample.png",
+      "Generated landscape",
     );
-    fireEvent.keyDown(item, { key: "Escape" });
-    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
-    expect(onClose).not.toHaveBeenCalled();
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(copy, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
   });
-
-  it("dismisses an outside press without dismissing the preview", async () => {
-    const onClose = openPreview();
-    await openMenu();
-    fireEvent.pointerDown(document.querySelector("[data-poracode-menu-backdrop]")!);
-    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
-    expect(onClose).not.toHaveBeenCalled();
-  });
-
   it("reports clipboard rejection and read errors", async () => {
     const danger = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
     copyImageToClipboard.mockResolvedValue(false);
     openPreview();
-    fireEvent.click(await openMenu());
+    fireEvent.click(screen.getByRole("button", { name: "Copy image" }));
     await waitFor(() => expect(danger).toHaveBeenCalledWith("Unable to copy image."));
     readLocalImageFile.mockRejectedValueOnce(new Error("missing file"));
-    await openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save image" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Save image" }));
     await waitFor(() => expect(danger).toHaveBeenCalledWith("Unable to save image."));
   });
 });

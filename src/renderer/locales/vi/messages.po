@@ -3461,7 +3461,7 @@ msgstr "Sao chép không thành công"
 msgid "Copy ignored files"
 msgstr "Sao chép các tập tin bị bỏ qua"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -10960,7 +10960,7 @@ msgstr "Lưu khóa API Cursor SDK"
 msgid "Save File"
 msgstr "Lưu tập tin"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "Lưu hình ảnh"
 
@@ -13401,7 +13401,7 @@ msgstr "Không thể kết nối qua SSH."
 msgid "Unable to copy desktop endpoint."
 msgstr "Không thể sao chép điểm cuối máy tính."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to copy image."
 msgstr "Không thể sao chép hình ảnh."
 
@@ -13575,7 +13575,7 @@ msgstr "Không thể lưu thông tin xác thực {0}."
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Không thể lưu hồ sơ Claude {displayLabel}."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "Không thể lưu hình ảnh."
 
