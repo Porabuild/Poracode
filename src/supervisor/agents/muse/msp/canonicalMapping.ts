@@ -332,6 +332,29 @@ export function mapMuseMspItem(
     );
   }
 
+  if (kind === "compaction") {
+    // Context compaction has a dedicated presentation in the shared chat pane,
+    // selected by tool name (see `isContextCompactionToolCall`) rather than by
+    // provider — so emit it as a tool call under that canonical name instead of
+    // letting it fall through to a generic activity row.
+    const rawStatus = stringValue(item["status"]);
+    const trigger = stringValue(item["trigger"]);
+    const payload: ToolCallPayload = {
+      name: "ContextCompaction",
+      kind: "other",
+      status:
+        rawStatus === "inProgress" ? "running" : rawStatus === "completed" ? "success" : "error",
+      ...(trigger ? { args: { trigger } } : {}),
+    };
+    return emitItemLifecycle(
+      state,
+      itemId,
+      "tool_call",
+      payload as unknown as Record<string, unknown>,
+      phase,
+    );
+  }
+
   // Fallback for future or unhandled item kinds: dynamic_tool_call
   const fallbackTitle =
     stringValue(item["fallbackText"]) ??

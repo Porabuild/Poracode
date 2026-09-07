@@ -174,6 +174,9 @@ const messages = {
   "remote.session.expired": "Pairing expired — pair again to reconnect.",
   "remote.server.unreachable":
     "Can't reach the remote server. Check that it is online, then reconnect it.",
+
+  // ── Thread runtime notices ────────────────────────────────
+  "thread.compact.noop": "Nothing to compact yet — the conversation is still small.",
 } as const;
 
 // ---------------------------------------------------------------------------

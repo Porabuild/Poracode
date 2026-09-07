@@ -55,7 +55,18 @@ import {
   type PendingUserInput,
 } from "./requestMapping";
 import { mintMspCommandId } from "./uuidv7";
+import { isMuseCompactCommand } from "./localCommands";
 import { buildMuseTurnInput } from "./turnInput";
+import { msg } from "@/shared/messages";
+import { isFullBypassApprovalPolicy } from "@/shared/agents/unrestrictedPermissions";
+
+/**
+ * How long the `/compact` turn stays open waiting for the host's `compaction`
+ * item. On a real host the item lands a few seconds after the command ack;
+ * this is only a safety net so a silent host can never wedge the thread in
+ * "working".
+ */
+const COMPACT_ITEM_TIMEOUT_MS = 30_000;
 
 /** Best-effort budget for the optional `model/list` provider lookup at launch. */
 const MSP_PROVIDER_LOOKUP_TIMEOUT_MS = 10_000;
@@ -102,6 +113,18 @@ function approvalPolicyFromMspMode(
   return current;
 }
 
+/**
+ * The choice to take when the app answers an approval itself: a
+ * session-scoped approval when the host offers one (it stops re-asking for
+ * the same requirement), else a one-shot approval. Returns undefined when the
+ * host offered no approving choice — such an approval must reach the user.
+ */
+function autoApproveChoiceId(choices: readonly Record<string, unknown>[]): string | undefined {
+  const pick = (decision: string) =>
+    stringValue(choices.find((choice) => choice["decision"] === decision)?.["choiceId"]);
+  return pick("approvedForSession") ?? pick("approved");
+}
+
 function workspaceRoot(input: CreateStructuredSessionInput): string {
   return input.projectLocation.kind === "wsl"
     ? input.projectLocation.linuxPath
@@ -130,6 +153,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private disposed = false;
   private transportErrorReported = false;
   private transportCloseReported = false;
+  private pendingCompact: { turnId: string; timer: NodeJS.Timeout } | undefined;
   private usageEpoch = 0;
   private usageScopeFresh = false;
   private constructor(
@@ -264,6 +288,10 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   ): Promise<void> {
     const sessionId = this.requireSessionId();
     await this.applyConfig(config);
+    if (isMuseCompactCommand(prompt)) {
+      await this.compactSession(sessionId);
+      return;
+    }
     const commandId = mintMspCommandId();
     this.pendingUserItems.set(commandId, options?.userMessageItemId ?? `user-${commandId}`);
     this.status = "working";
@@ -287,6 +315,87 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       this.failTurn(commandId, errorMessage(error));
       throw error;
     }
+  }
+
+  /**
+   * `/compact` is a session command, not a turn: the host acknowledges it
+   * immediately and streams whatever it produces as ordinary view items, so
+   * the session must fall straight back to idle instead of waiting for a
+   * `turn/completed` that will never arrive.
+   */
+  private async compactSession(sessionId: string): Promise<void> {
+    const commandId = mintMspCommandId();
+    // Run the compaction as a full local turn. Two reasons:
+    //  * The submitting renderer paints the thread "working" optimistically and
+    //    only a *changed* supervisor thread status clears it, so this path has
+    //    to actually leave and re-enter idle — publishing idle from idle is a
+    //    no-op that leaves the composer stuck on "Working for Ns" with a Stop
+    //    button forever.
+    //  * The shared structured-turn queue opens a synthetic turn to carry the
+    //    optimistic user message, and only `turn.completed` closes it.
+    // `session/compact` reports no host turn of its own (it acks immediately and
+    // the `compaction` item lands seconds later, tagged with the PREVIOUS
+    // turn's id), so the turn is opened and closed here instead.
+    this.activeTurnId = commandId;
+    this.status = "working";
+    this.attention = "working";
+    this.emitTurnStarted(commandId);
+    this.publishUpdate();
+    try {
+      const result = await this.client.request("session/compact", { commandId, sessionId });
+      if (result["status"] === "noop") {
+        this.emit({
+          type: "warning",
+          threadId: this.input.threadId,
+          message: stringValue(result["reason"]) ?? msg("thread.compact.noop"),
+        });
+        this.completeTurn(commandId, "completed");
+        return;
+      }
+      // Accepted: stay working until the compaction item reports completion, so
+      // its `item.started` / `item.completed` pair lands *inside* this turn.
+      // Trailing item events after `turn.completed` are what re-open a settled
+      // GUI turn in the renderer, and nothing would close it a second time.
+      this.pendingCompact = {
+        turnId: commandId,
+        timer: setTimeout(() => {
+          this.pendingCompact = undefined;
+          this.completeTurn(commandId, "completed");
+        }, COMPACT_ITEM_TIMEOUT_MS),
+      };
+      this.pendingCompact.timer.unref?.();
+    } catch (error) {
+      this.clearPendingCompact();
+      this.failTurn(commandId, errorMessage(error));
+      throw error;
+    }
+  }
+
+  /**
+   * Close the compact turn once the host's `compaction` item reaches a terminal
+   * state. Called after the item's canonical events are emitted so the item is
+   * complete before `turn.completed`.
+   */
+  private settleCompactItem(item: Record<string, unknown>, phase: string): void {
+    const pending = this.pendingCompact;
+    if (!pending) return;
+    // Only a phase that already closed the item may close the turn. The host
+    // sends `item/started` for the compaction with `status: "completed"`
+    // already set, but its own `item/completed` still follows — closing the
+    // turn on the started phase would put that trailing item event *after*
+    // `turn.completed`, which is exactly what re-opens a settled GUI turn.
+    const terminal =
+      phase === "completed" ||
+      (phase === "updated" && (item["status"] === "completed" || item["outcome"] !== undefined));
+    if (!terminal) return;
+    this.clearPendingCompact();
+    this.completeTurn(pending.turnId, "completed");
+  }
+
+  private clearPendingCompact(): void {
+    if (!this.pendingCompact) return;
+    clearTimeout(this.pendingCompact.timer);
+    this.pendingCompact = undefined;
   }
 
   /**
@@ -351,6 +460,14 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
 
   async interruptTurn(): Promise<void> {
     if (!this.sessionId || this.disposed || !this.activeTurnId) return;
+    // The compact turn is local — the host knows no turn by that id and would
+    // reject `turn/interrupt`. Stop just closes it.
+    if (this.pendingCompact?.turnId === this.activeTurnId) {
+      const turnId = this.pendingCompact.turnId;
+      this.clearPendingCompact();
+      this.completeTurn(turnId, "cancelled");
+      return;
+    }
     await this.client.request("turn/interrupt", {
       commandId: mintMspCommandId(),
       sessionId: this.sessionId,
@@ -378,6 +495,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    this.clearPendingCompact();
     this.emitMany(closePlanAggregator(this.planAggregator));
     for (const requestId of this.pendingRequests.keys()) {
       this.emit({
@@ -514,17 +632,14 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
           aliasMuseMspItem(this.mapper, providerItemId, optimisticId);
           this.pendingUserItems.delete(commandId!);
         }
-        this.emitMany(
-          mapMuseMspItem(
-            this.mapper,
-            item as MuseMspItem,
-            method === "item/started"
-              ? "started"
-              : method === "item/updated"
-                ? "updated"
-                : "completed",
-          ),
-        );
+        const phase =
+          method === "item/started"
+            ? "started"
+            : method === "item/updated"
+              ? "updated"
+              : "completed";
+        this.emitMany(mapMuseMspItem(this.mapper, item as MuseMspItem, phase));
+        if (stringValue(item["kind"]) === "compaction") this.settleCompactItem(item, phase);
         return;
       }
       case "item/delta":
@@ -666,6 +781,19 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
         )
       : [];
     if (!approvalId || !requirementId || choices.length === 0) return;
+    // Verified against `muse` 1.0.3: even with the session in `allowAll`
+    // approval mode, the host still raises an approval for shell pipelines it
+    // cannot statically parse (heredocs, `… | head`, … — the subject arrives
+    // with an empty `stages` list). `muse serve` has no `--disable-approval`
+    // switch, so under a full-bypass policy the only way to honour "never ask"
+    // is to decide on the user's behalf. Ask-style policies are untouched.
+    if (isFullBypassApprovalPolicy(this.currentConfig.approvalPolicy)) {
+      const autoChoiceId = autoApproveChoiceId(choices);
+      if (autoChoiceId) {
+        this.autoDecideApproval(approvalId, requirementId, autoChoiceId);
+        return;
+      }
+    }
     this.pendingRequests.set(approvalId, { kind: "approval", approvalId, requirementId, choices });
     const subject = recordOf(params["subject"]);
     const toolName =
@@ -691,6 +819,37 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       },
     });
     this.resumeWorkingState();
+  }
+
+  /**
+   * Answer an approval on the user's behalf without ever surfacing it. Runs
+   * from a notification/server-request handler, so failures are reported on
+   * the session error channel rather than thrown.
+   */
+  private autoDecideApproval(
+    approvalId: string,
+    requirementId: Record<string, unknown>,
+    choiceId: string,
+  ): void {
+    const report = (error: unknown) => {
+      this.emit({ type: "error", threadId: this.input.threadId, message: errorMessage(error) });
+    };
+    let sessionId: string;
+    try {
+      sessionId = this.requireSessionId();
+    } catch (error) {
+      report(error);
+      return;
+    }
+    void this.client
+      .request("approval/decide", {
+        commandId: mintMspCommandId(),
+        sessionId,
+        approvalId,
+        requirementId,
+        choiceId,
+      })
+      .catch(report);
   }
 
   private openUserInput(params: Record<string, unknown>): void {
@@ -848,12 +1007,16 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private handleTransportError(error: Error): void {
     if (this.disposed || this.transportErrorReported) return;
     this.transportErrorReported = true;
+    this.clearPendingCompact();
     this.listener.onError(error.message);
   }
 
   private handleTransportClose(code: number | null, signal: NodeJS.Signals | null): void {
     if (this.disposed || this.transportCloseReported) return;
     this.transportCloseReported = true;
+    // Nothing can settle a pending compaction once the host is gone; drop the
+    // timer now instead of retaining the session graph until it fires.
+    this.clearPendingCompact();
     if (this.activeTurnId) this.completeTurn(this.activeTurnId, "failed");
     const detail = signal ? `signal ${signal}` : `code ${code ?? "unknown"}`;
     this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "exited" });

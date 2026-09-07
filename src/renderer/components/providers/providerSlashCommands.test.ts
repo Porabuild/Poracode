@@ -39,12 +39,13 @@ describe("provider slash-command registry", () => {
     const registration = getGuiSlashCommands("muse");
 
     expect(registration).toBeDefined();
+    // `/compact` is the one Muse TUI built-in the session protocol exposes.
     expect(
       registration?.buildCommands({ hasEffort: false, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model"]);
+    ).toEqual(["model", "compact"]);
     expect(
       registration?.buildCommands({ hasEffort: true, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "effort"]);
+    ).toEqual(["model", "compact", "effort"]);
   });
 
   it("offers Cursor local commands only under the SDK runtime", () => {

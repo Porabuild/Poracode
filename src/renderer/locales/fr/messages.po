@@ -3051,6 +3051,10 @@ msgstr "Communication"
 msgid "Community"
 msgstr "Communauté"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Compact the conversation context"
+msgstr "Compacter le contexte de la conversation"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "Compactage du contexte…"
@@ -8423,6 +8427,10 @@ msgstr "Remarques"
 #: src/mobile/views/NotesView.tsx
 msgid "Notes & to-dos"
 msgstr "Notes et tâches"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Nothing to compact yet — the conversation is still small."
+msgstr "Rien à compacter pour l'instant — la conversation est encore courte."
 
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Nothing tracked yet. It'll appear here as you use it."

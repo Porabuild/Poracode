@@ -3051,6 +3051,10 @@ msgstr "커뮤니케이션"
 msgid "Community"
 msgstr "커뮤니티"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Compact the conversation context"
+msgstr "대화 컨텍스트 압축"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "컨텍스트 압축"
@@ -8424,6 +8428,10 @@ msgstr "메모"
 #: src/mobile/views/NotesView.tsx
 msgid "Notes & to-dos"
 msgstr "메모 및 할 일"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Nothing to compact yet — the conversation is still small."
+msgstr "아직 압축할 내용이 없습니다. 대화가 아직 짧습니다."
 
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Nothing tracked yet. It'll appear here as you use it."
