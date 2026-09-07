@@ -13,6 +13,25 @@ export interface UnrestrictedPermissionConfig {
 }
 
 /**
+ * Approval-policy ids that mean "never ask the user". Ordered most- to
+ * least-preferred for pickers; membership is what marks a policy as a full
+ * bypass. Kept in one place so every surface that has to answer "may this
+ * thread decide approvals on the user's behalf?" reads the same vocabulary.
+ */
+const FULL_BYPASS_APPROVAL_POLICIES = ["bypassPermissions", "yolo", "never", "dontAsk"] as const;
+
+/**
+ * Whether the thread's approval policy is a full-bypass one, i.e. the user has
+ * asked never to be prompted. Provider-agnostic: policy ids are declared by
+ * providers, so this only tests membership in the shared vocabulary above.
+ */
+export function isFullBypassApprovalPolicy(policy: string | undefined): boolean {
+  return (
+    policy !== undefined && (FULL_BYPASS_APPROVAL_POLICIES as readonly string[]).includes(policy)
+  );
+}
+
+/**
  * Resolve a provider's most-permissive approval/sandbox choice from its
  * advertised capabilities, falling back to its declared bypass posture when
  * the probe exposes no choices. Provider-agnostic: the preferred-id lists are
@@ -26,7 +45,7 @@ export function resolveUnrestrictedPermissionConfig(
   const approvalPolicy = resolveUnrestrictedOption(
     capabilities.approvalPolicies,
     capabilities.bypassPermissions?.approvalPolicy,
-    ["bypassPermissions", "yolo", "never", "dontAsk"],
+    FULL_BYPASS_APPROVAL_POLICIES,
   );
   const sandboxMode = resolveUnrestrictedOption(
     capabilities.sandboxModes,

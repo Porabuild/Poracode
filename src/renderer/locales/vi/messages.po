@@ -3051,6 +3051,10 @@ msgstr "Giao tiếp"
 msgid "Community"
 msgstr "Cộng đồng"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Compact the conversation context"
+msgstr "Nén ngữ cảnh cuộc trò chuyện"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "Đang nén ngữ cảnh"
@@ -8425,6 +8429,10 @@ msgstr "Ghi chú"
 #: src/mobile/views/NotesView.tsx
 msgid "Notes & to-dos"
 msgstr "Ghi chú và việc cần làm"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Nothing to compact yet — the conversation is still small."
+msgstr "Chưa có gì để nén — cuộc trò chuyện vẫn còn ngắn."
 
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Nothing tracked yet. It'll appear here as you use it."

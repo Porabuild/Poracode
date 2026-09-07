@@ -3050,6 +3050,10 @@ msgstr "コミュニケーション"
 msgid "Community"
 msgstr "コミュニティ"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Compact the conversation context"
+msgstr "会話のコンテキストを圧縮"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "コンテキストの圧縮"
@@ -8423,6 +8427,10 @@ msgstr "注意事項"
 #: src/mobile/views/NotesView.tsx
 msgid "Notes & to-dos"
 msgstr "メモとタスク"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Nothing to compact yet — the conversation is still small."
+msgstr "まだ圧縮するものがありません。会話がまだ短いです。"
 
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Nothing tracked yet. It'll appear here as you use it."

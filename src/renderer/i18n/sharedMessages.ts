@@ -262,6 +262,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "remote.server.unreachable": msg({
     message: "Can't reach the remote server. Check that it is online, then reconnect it.",
   }),
+  "thread.compact.noop": msg({
+    message: "Nothing to compact yet — the conversation is still small.",
+  }),
 };
 
 /**

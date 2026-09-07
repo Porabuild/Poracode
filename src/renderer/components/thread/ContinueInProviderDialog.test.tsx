@@ -4,6 +4,7 @@ import "@/renderer/components/providers/bootstrap";
 import type { AgentStatus, Thread } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ContinueInProviderDialog } from "./ContinueInProviderDialog";
 
@@ -43,7 +44,12 @@ const thread: Thread = {
   updatedAt: "2026-09-01T00:00:00.000Z",
 };
 
-function agent(kind: string, label: string, mode: "gui" | "terminal"): AgentStatus {
+function agent(
+  kind: string,
+  label: string,
+  mode: "gui" | "terminal",
+  capabilityOverrides?: Record<string, unknown>,
+): AgentStatus {
   return {
     kind,
     label,
@@ -61,11 +67,16 @@ function agent(kind: string, label: string, mode: "gui" | "terminal"): AgentStat
       liveInputMode: mode === "gui" ? "server" : "terminal",
       presentationMode: mode,
       presentationModes: [mode],
+      ...capabilityOverrides,
     },
   } as unknown as AgentStatus;
 }
 
-function renderDialog(overrides: { thread?: Partial<Thread>; installedAgents?: AgentStatus[] }) {
+function renderDialog(overrides: {
+  thread?: Partial<Thread>;
+  installedAgents?: AgentStatus[];
+  lastDraftConfig?: DialogProps["lastDraftConfig"];
+}) {
   const onContinue = vi.fn<DialogProps["onContinue"]>();
   render(
     <AppProvider>
@@ -79,6 +90,7 @@ function renderDialog(overrides: { thread?: Partial<Thread>; installedAgents?: A
             agent("codex", "Codex", "terminal"),
           ]
         }
+        {...(overrides.lastDraftConfig ? { lastDraftConfig: overrides.lastDraftConfig } : {})}
         onClose={() => {}}
         onContinue={onContinue}
       />
@@ -109,6 +121,11 @@ describe("ContinueInProviderDialog handoff flow", () => {
       sourceSessionId: "session-1",
       extractedAt: "2026-09-01T00:00:00.000Z",
     });
+    useSharedSettings.setState({
+      hiddenModels: {},
+      providerConfigs: {},
+      providerModelPreferences: {},
+    } as never);
     useAppStore.setState({
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
@@ -251,6 +268,109 @@ describe("ContinueInProviderDialog handoff flow", () => {
       undefined, // empty composer: no segments
       "switch",
       { strategy: "context-file", extracted: null },
+    );
+  });
+});
+
+describe("ContinueInProviderDialog target config", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useSharedSettings.setState({
+      hiddenModels: {},
+      providerConfigs: {},
+      providerModelPreferences: {},
+    } as never);
+    useAppStore.setState({
+      runtimeItemIdsByThread: {},
+      runtimeItemsByIdByThread: {},
+      threadMentionToolsAvailableByThreadId: {},
+    } as never);
+  });
+
+  it("falls back to a visible, labeled model when the saved model is hidden", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      models: [
+        { id: "codex-hidden", label: "Codex Hidden" },
+        { id: "codex-visible", label: "Codex Visible" },
+      ],
+    });
+    useSharedSettings.setState({ hiddenModels: { codex: ["codex-hidden"] } } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+      lastDraftConfig: { agentKind: "codex", model: "codex-hidden" } as never,
+    });
+
+    // The picker trigger can only label models it displays, so a hidden model
+    // would render as its bare id.
+    expect((await screen.findAllByText("Codex Visible")).length).toBeGreaterThan(0);
+    expect(screen.queryByText("codex-hidden")).toBeNull();
+
+    await pressSwitch();
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ model: "codex-visible" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("applies the saved per-provider permission level for a target the project did not last use", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      approvalPolicies: [
+        { id: "always", label: "Bypass Approvals" },
+        { id: "never", label: "Ask" },
+      ],
+      bypassPermissions: { approvalPolicy: "always" },
+    });
+    useSharedSettings.setState({
+      providerConfigs: { codex: { model: "codex-model", approvalPolicy: "never" } },
+    } as never);
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+      // The project's last draft is a different provider, so the saved config
+      // has to come from the app-wide per-provider settings.
+      lastDraftConfig: { agentKind: "claude", model: "claude-model" } as never,
+    });
+
+    await pressSwitch();
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ approvalPolicy: "never" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
+    );
+  });
+
+  it("falls back to the provider's declared default permission level when nothing is saved", async () => {
+    const target = agent("codex", "Codex", "gui", {
+      approvalPolicies: [
+        { id: "always", label: "Bypass Approvals" },
+        { id: "never", label: "Ask" },
+      ],
+      defaultApprovalPolicy: "never",
+    });
+
+    const onContinue = renderDialog({
+      installedAgents: [agent("claude", "Claude", "gui"), target],
+    });
+
+    await pressSwitch();
+    expect(onContinue).toHaveBeenCalledWith(
+      "codex",
+      expect.objectContaining({ approvalPolicy: "never" }),
+      "gui",
+      expect.anything(),
+      undefined,
+      "switch",
+      expect.anything(),
     );
   });
 });
