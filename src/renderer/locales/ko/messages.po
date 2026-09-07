@@ -8335,8 +8335,8 @@ msgid "No threads yet."
 msgstr "아직 스레드가 없습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
-msgstr "판정이 도착하지 않았습니다 — CLI가 /goal을 차단했거나(작업 공간 신뢰 또는 후크 설정) 평가기를 실행할 수 없습니다"
+#~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+#~ msgstr "판정이 도착하지 않았습니다 — CLI가 /goal을 차단했거나(작업 공간 신뢰 또는 후크 설정) 평가기를 실행할 수 없습니다"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
