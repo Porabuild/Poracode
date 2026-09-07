@@ -106,6 +106,19 @@ describe("local remoteHttpRequest handler", () => {
     ).resolves.toMatchObject({ status: 204 });
   });
 
+  it("preserves binary image responses when base64 is requested", async () => {
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0xff, 0x80]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<FetchMock>(async () => new Response(bytes)),
+    );
+    const result = await makeHandlers().remoteHttpRequest({
+      url: "https://remote.example.test/api/files/image?path=sample.png",
+      responseEncoding: "base64",
+    });
+    expect(new Uint8Array(Buffer.from(result.body, "base64"))).toEqual(bytes);
+  });
+
   it("rejects non-http protocols before fetching", async () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);

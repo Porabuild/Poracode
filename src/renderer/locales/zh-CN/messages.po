@@ -3461,6 +3461,7 @@ msgstr "复制失败"
 msgid "Copy ignored files"
 msgstr "复制忽略的文件"
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -10958,6 +10959,10 @@ msgstr "保存 Cursor SDK API 密钥"
 msgid "Save File"
 msgstr "保存文件"
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Save image"
+msgstr "保存图像"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Save MCP servers"
 msgstr "保存 MCP 服务器"
@@ -13395,6 +13400,10 @@ msgstr "无法通过 SSH 连接。"
 msgid "Unable to copy desktop endpoint."
 msgstr "无法复制桌面端点。"
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Unable to copy image."
+msgstr "无法复制图像。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy pairing link."
 msgstr "无法复制配对链接。"
@@ -13564,6 +13573,10 @@ msgstr "无法保存{0}凭据。"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "无法保存Claude {displayLabel}配置。"
+
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Unable to save image."
+msgstr "无法保存图像。"
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."

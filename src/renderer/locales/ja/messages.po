@@ -3460,6 +3460,7 @@ msgstr "コピーに失敗しました"
 msgid "Copy ignored files"
 msgstr "無視されたファイルをコピーする"
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -10957,6 +10958,10 @@ msgstr "Cursor SDK API キーを保存"
 msgid "Save File"
 msgstr "ファイルの保存"
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Save image"
+msgstr "画像を保存"
+
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Save MCP servers"
 msgstr "MCPサーバーを保存"
@@ -13394,6 +13399,10 @@ msgstr "SSH 経由で接続できません。"
 msgid "Unable to copy desktop endpoint."
 msgstr "デスクトップエンドポイントをコピーできませんでした。"
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Unable to copy image."
+msgstr "画像をコピーできませんでした。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy pairing link."
 msgstr "ペアリングリンクをコピーできませんでした。"
@@ -13563,6 +13572,10 @@ msgstr "{0}資格情報を保存できません。"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Claudeの{displayLabel}プロファイルを保存できません。"
+
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Unable to save image."
+msgstr "画像を保存できませんでした。"
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
