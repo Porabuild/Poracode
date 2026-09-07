@@ -2163,6 +2163,7 @@ msgstr "Can't reach the remote server. Check that it is online, then reconnect i
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2500,6 +2501,10 @@ msgstr "Choose what Poracode does for new pull requests: nothing, fix merge bloc
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose when this machine stays awake."
 msgstr "Choose when this machine stays awake."
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2877,6 +2882,10 @@ msgstr "Close workflows panel"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Closed"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3846,6 +3855,10 @@ msgstr "Crown with AI"
 msgid "Crowned"
 msgstr "Crowned"
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Curated free and premium skills managed by MCP Market."
@@ -4678,6 +4691,11 @@ msgstr "Edit MCP server"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "Edit profile"
+
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "Edit queued follow-up"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -5536,6 +5554,11 @@ msgstr "Folder that holds this project's worktrees. Reset to use the global sett
 #: src/mobile/views/ThreadView.tsx
 msgid "Follow up..."
 msgstr "Follow up..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "Follow-up behavior"
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -9085,6 +9108,7 @@ msgid "Pause goal"
 msgstr "Pause goal"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9864,6 +9888,14 @@ msgstr "Qoder CLI"
 msgid "Questions"
 msgstr "Questions"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "Queue"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "Queue message"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "Queued"
@@ -9873,6 +9905,18 @@ msgstr "Queued"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "Queued {0} for v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "Queued follow-up not found: {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "Queued follow-ups"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "Queued follow-ups are only supported for chat threads."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10313,6 +10357,10 @@ msgstr "Remove project"
 msgid "Remove Project"
 msgstr "Remove Project"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "Remove queued follow-up"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Remove shortcut"
@@ -10425,6 +10473,10 @@ msgstr "Reorder {0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Reorder {label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "Reorder queued follow-up"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10595,6 +10647,10 @@ msgstr "Resume"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Resume goal"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "Resume queued follow-ups"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10920,6 +10976,7 @@ msgstr "Saturation and brightness"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12177,6 +12234,27 @@ msgstr "Status:"
 msgid "stdio (local command)"
 msgstr "stdio (local command)"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "Steer"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "Steer current turn"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "Steer queued follow-up"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "Steer was cancelled before the message was sent."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "Steer was replaced by a newer message."
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -12737,6 +12815,10 @@ msgstr "The remote Poracode server returned no pairing credential."
 msgid "The remote server returned no pairing credential."
 msgstr "The remote server returned no pairing credential."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "The replacement message could not be sent."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "The repository location on disk. Update it if you moved the folder."
@@ -12812,6 +12894,10 @@ msgstr "The SSH tunnel reached an incompatible Poracode server."
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "the target provider"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "The thread session is not available for queued follow-ups."
 
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
@@ -12944,6 +13030,10 @@ msgstr "this machine"
 msgid "This machine"
 msgstr "This machine"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "This message is no longer queued. Your edit is still available to copy."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "This name is reserved by a built-in MCP server."
@@ -12998,6 +13088,15 @@ msgstr "this project"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "This project's remote server is offline. Reconnect it to start a thread."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "This queued follow-up changed. Reopen it before saving."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "This queued follow-up is already being sent."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "This remote project is unavailable. Reconnect the environment and try again."
@@ -13032,6 +13131,14 @@ msgstr "This server runs on this computer and is unavailable for WSL projects."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "This system-wide shortcut is unavailable. Choose another key combination."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "This thread does not support queued follow-ups."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "This thread is not ready for Steer."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

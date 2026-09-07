@@ -2159,6 +2159,7 @@ msgstr "无法连接远程服务器。请确认其处于在线状态，然后重
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2496,6 +2497,10 @@ msgstr "选择 Poracode 对新拉取请求执行的操作：不执行任何操�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose when this machine stays awake."
 msgstr "选择这台机器保持唤醒的时机。"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "选择在智能体工作时发送的聊天消息是引导当前响应，还是排队等待下一次响应。{followUpShortcut} 使用相反的操作。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2873,6 +2878,10 @@ msgstr "关闭工作流面板"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "已关闭"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3842,6 +3851,10 @@ msgstr "由 AI 选择优胜者"
 msgid "Crowned"
 msgstr "已选为优胜者"
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "由 MCP Market 管理的精选免费和高级技能。"
@@ -4674,6 +4687,11 @@ msgstr "编辑 MCP 服务器"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "编辑资料"
+
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "编辑排队消息"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -5532,6 +5550,11 @@ msgstr "存放此项目工作树的文件夹。重置以使用全局设置。"
 #: src/mobile/views/ThreadView.tsx
 msgid "Follow up..."
 msgstr "继续提问..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "后续消息行为"
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -9080,6 +9103,7 @@ msgid "Pause goal"
 msgstr "暂停目标"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9859,6 +9883,14 @@ msgstr "Qoder CLI"
 msgid "Questions"
 msgstr "问题"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "排队"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "将消息排队"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "已排队"
@@ -9868,6 +9900,18 @@ msgstr "已排队"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0} 已排队等待更新到 v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "未找到排队的后续消息：{id}。"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "排队的后续消息"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "排队的后续消息仅支持聊天线程。"
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10308,6 +10352,10 @@ msgstr "移除项目"
 msgid "Remove Project"
 msgstr "删除项目"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "移除排队的后续消息"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "移除快捷键"
@@ -10420,6 +10468,10 @@ msgstr "重新排序{0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "重新排序{label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "调整排队消息的顺序"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10590,6 +10642,10 @@ msgstr "继续"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "继续目标"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "恢复排队的后续消息"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10915,6 +10971,7 @@ msgstr "饱和度与亮度"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12172,6 +12229,27 @@ msgstr "状态："
 msgid "stdio (local command)"
 msgstr "stdio（本地命令）"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "引导"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "引导当前轮次"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "用排队消息调整当前回复"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "消息发送前已取消引导。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "引导已被更新的消息替换。"
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -12732,6 +12810,10 @@ msgstr "远程 Poracode 服务器未返回配对凭据。"
 msgid "The remote server returned no pairing credential."
 msgstr "远程服务器未返回配对凭据。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "无法发送替代消息。"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "存储库在磁盘上的位置。如果您移动了该文件夹，请更新此位置。"
@@ -12807,6 +12889,10 @@ msgstr "SSH 隧道连接到了不兼容的 Poracode 服务器。"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "目标提供商"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "聊天线程会话不可用于排队的后续消息。"
 
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
@@ -12939,6 +13025,10 @@ msgstr "此设备"
 msgid "This machine"
 msgstr "此设备"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "此消息已不在队列中。你仍然可以复制正在编辑的内容。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "此名称由内置 MCP 服务器保留。"
@@ -12993,6 +13083,15 @@ msgstr "此项目"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "该项目的远程服务器处于离线状态。请重新连接后再开始线程。"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "此排队的后续消息已更改。请重新打开后再保存。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "此排队的后续消息已在发送中。"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "此远程项目不可用。请重新连接环境后重试。"
@@ -13027,6 +13126,14 @@ msgstr "此服务器在本机运行，WSL 项目无法使用。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "此全局快捷键不可用。请选择其他按键组合。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "此线程不支持排队的后续消息。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "此线程尚未准备好接受引导。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

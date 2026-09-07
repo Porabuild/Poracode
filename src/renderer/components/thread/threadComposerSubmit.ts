@@ -9,6 +9,8 @@ import type {
   UserInputOption,
 } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import type { FollowUpBehavior } from "@/shared/settings";
+import { readBridge } from "@/renderer/bridge";
 import {
   changeThreadConfig,
   resolveThreadServerRequest,
@@ -45,6 +47,7 @@ export interface ComposerSubmitContext {
   /** Renderer routing hint for a GUI thread that appears to be working. The
    * supervisor rechecks the live session after any pending startup completes. */
   usesPendingSteerPath: boolean;
+  followUpBehavior?: FollowUpBehavior;
   needsFocusBeforeInput: boolean;
   activeRuntimeRequest: OpenRuntimeRequest | undefined;
   approvalDenyOption: UserInputOption | undefined;
@@ -65,6 +68,8 @@ export interface ComposerSubmitContext {
   requestOpenControl: (target: "model" | "effort") => void;
   /** Mobile override: routes through the remote transport + dock collapse. */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
+  /** Called after the transport accepts any ordinary, steered, or queued send. */
+  onSubmitSuccess?: (() => void) | undefined;
 }
 
 /**
@@ -165,6 +170,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   // The user's text becomes the next turn; the supervisor sees the denial
   // first, then the follow-up prompt explaining what to do differently.
   const denyPendingApproval = () => {
+    if (ctx.usesPendingSteerPath && ctx.followUpBehavior === "queue") return Promise.resolve();
     const { activeRuntimeRequest, approvalDenyOption } = ctx;
     if (!activeRuntimeRequest || !approvalDenyOption) return Promise.resolve();
     const rollback = applyOptimisticRequestResolution(thread.id, activeRuntimeRequest, "declined");
@@ -200,12 +206,21 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       await submit(flat, allSegments.length > 0 ? allSegments : undefined);
       return;
     }
-    await setThreadPendingSteer(thread, flat, allSegments.length > 0 ? allSegments : undefined);
+    if (ctx.followUpBehavior === "queue") {
+      await readBridge().queueThreadFollowUp({
+        threadId: thread.id,
+        prompt: flat,
+        config: thread.config,
+        ...(allSegments.length > 0 ? { segments: allSegments } : {}),
+      });
+    } else {
+      await setThreadPendingSteer(thread, flat, allSegments.length > 0 ? allSegments : undefined);
+    }
     captureThreadPromptSubmitted(
       thread,
       flat,
       allSegments.length > 0 ? allSegments : undefined,
-      "pending_steer",
+      ctx.followUpBehavior === "queue" ? "follow_up" : "pending_steer",
     );
   };
 
@@ -218,9 +233,11 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     .then(denyPendingApproval)
     .then(runSubmission)
     .then(() => {
-      if (!clearedBeforeSendSettled && ctx.isCurrentSession()) {
+      if (!ctx.isCurrentSession()) return;
+      if (!clearedBeforeSendSettled) {
         clearSubmittedComposer();
       }
+      ctx.onSubmitSuccess?.();
     })
     .catch((error: unknown) => {
       // Leave the prompt intact so the user can retry.

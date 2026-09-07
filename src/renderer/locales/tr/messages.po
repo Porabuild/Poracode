@@ -2159,6 +2159,7 @@ msgstr "Uzak sunucuya ulaşılamıyor. Çevrimiçi olduğunu doğrulayıp yenide
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2496,6 +2497,10 @@ msgstr "Poracode'un yeni pull request'lerde ne yapacağını seçin: hiçbir şe
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose when this machine stays awake."
 msgstr "Bu makinenin ne zaman uyanık kalacağını seçin."
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "Bir aracı çalışırken gönderilen sohbet mesajlarının mevcut yanıtı yönlendirmesini veya sonraki yanıt için kuyruğa alınmasını seçin. {followUpShortcut} ters eylemi kullanır."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2873,6 +2878,10 @@ msgstr "İş akışları panelini kapat"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Kapalı"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3842,6 +3851,10 @@ msgstr "Yapay zekayla kazanan seç"
 msgid "Crowned"
 msgstr "Kazanan seçildi"
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "MCP Market tarafından yönetilen seçilmiş ücretsiz ve premium beceriler."
@@ -4674,6 +4687,11 @@ msgstr "MCP sunucusunu düzenle"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "Profili düzenle"
+
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "Kuyruktaki takip mesajını düzenle"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -5532,6 +5550,11 @@ msgstr "Bu projenin çalışma ağaçlarını barındıran klasör. Genel ayarı
 #: src/mobile/views/ThreadView.tsx
 msgid "Follow up..."
 msgstr "Devam et..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "Takip davranışı"
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -9081,6 +9104,7 @@ msgid "Pause goal"
 msgstr "Hedefi duraklat"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9860,6 +9884,14 @@ msgstr "Qoder CLI"
 msgid "Questions"
 msgstr "Sorular"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "Kuyruğa al"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "Mesajı kuyruğa al"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "Kuyrukta"
@@ -9869,6 +9901,18 @@ msgstr "Kuyrukta"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0}, v{1} için sırada"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "Kuyruğa alınan takip mesajı bulunamadı: {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "Kuyruktaki takip mesajları"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "Kuyruğa alınan takip mesajları yalnızca sohbet konularında desteklenir."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10309,6 +10353,10 @@ msgstr "Projeyi kaldır"
 msgid "Remove Project"
 msgstr "Projeyi Kaldır"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "Kuyruktaki takip mesajını kaldır"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Kısayolu kaldır"
@@ -10421,6 +10469,10 @@ msgstr "{0} öğesini yeniden sırala"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "{label} öğesini yeniden sırala"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "Kuyruktaki takip mesajını yeniden sırala"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10591,6 +10643,10 @@ msgstr "Sürdür"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Hedefi sürdür"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "Kuyruktaki takip mesajlarını sürdür"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10916,6 +10972,7 @@ msgstr "Doygunluk ve parlaklık"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12173,6 +12230,27 @@ msgstr "Durum:"
 msgid "stdio (local command)"
 msgstr "stdio (yerel komut)"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "Yönlendir"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "Mevcut turu yönlendir"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "Kuyruktaki takip mesajıyla yönlendir"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "Mesaj gönderilmeden önce yönlendirme iptal edildi."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "Yönlendirme daha yeni bir mesajla değiştirildi."
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -12733,6 +12811,10 @@ msgstr "Uzak Poracode sunucusu eşleştirme kimlik bilgisi döndürmedi."
 msgid "The remote server returned no pairing credential."
 msgstr "Uzak sunucu eşleştirme kimlik bilgisi döndürmedi."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "Yerine geçecek mesaj gönderilemedi."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Deponun diskteki konumu. Klasörü taşıdıysanız güncelleyin."
@@ -12808,6 +12890,10 @@ msgstr "SSH tüneli uyumsuz bir Poracode sunucusuna ulaştı."
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "hedef sağlayıcı"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "Kuyruğa alınan takip mesajları için konu oturumu kullanılamıyor."
 
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
@@ -12940,6 +13026,10 @@ msgstr "bu makine"
 msgid "This machine"
 msgstr "Bu makine"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "Bu mesaj artık kuyrukta değil. Düzenlediğiniz metni hâlâ kopyalayabilirsiniz."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Bu ad, yerleşik bir MCP sunucusu için ayrılmıştır."
@@ -12994,6 +13084,15 @@ msgstr "bu proje"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Bu projenin uzak sunucusu çevrimdışı. Bir iş parçacığı başlatmak için yeniden bağlanın."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "Kuyruktaki bu takip mesajı değişti. Kaydetmeden önce yeniden açın."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "Bu kuyruğa alınan takip mesajı zaten gönderiliyor."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "Bu uzak proje kullanılamıyor. Ortamı yeniden bağlayıp tekrar deneyin."
@@ -13028,6 +13127,14 @@ msgstr "Bu sunucu bu bilgisayarda çalışır ve WSL projeleri için kullanılam
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Bu sistem genelindeki kısayol kullanılamıyor. Başka bir tuş birleşimi seçin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "Bu konu, kuyruğa alınan takip mesajlarını desteklemiyor."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "Bu konu henüz yönlendirme için hazır değil."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

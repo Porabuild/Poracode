@@ -5,8 +5,10 @@ import type { AgentStatus, Project, Thread, ToolCallPayload } from "@/shared/con
 import "@/renderer/components/providers/bootstrap";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ThreadView } from "./ThreadView";
+import { suppressNextGhostTap } from "../suppressGhostTap";
 
 const fixtures = vi.hoisted(() => ({
   project: {
@@ -17,6 +19,7 @@ const fixtures = vi.hoisted(() => ({
   } as Project,
   composerProps: [] as Array<{
     onSubmitInput?: (prompt: string) => Promise<void>;
+    onSubmitSuccess?: () => void;
     autoFocusComposer?: boolean;
     composerPlaceholder?: string;
     submitOnEnter?: boolean;
@@ -31,6 +34,7 @@ const fixtures = vi.hoisted(() => ({
 }));
 
 const bridgeMock = vi.hoisted(() => ({
+  pauseThreadFollowUps: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   closeThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   startThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   subagentSubscribe: vi.fn<() => Promise<{ history: [] }>>().mockResolvedValue({ history: [] }),
@@ -90,6 +94,7 @@ vi.mock("../GitSummaryParts", () => ({
 vi.mock("@/renderer/components/thread/ThreadComposerSection", () => ({
   ThreadComposerSection: (props: {
     onSubmitInput?: (prompt: string) => Promise<void>;
+    onSubmitSuccess?: () => void;
     autoFocusComposer?: boolean;
     composerPlaceholder?: string;
   }) => {
@@ -173,6 +178,9 @@ vi.mock("../composeScrollLock", () => ({
 
 describe("mobile ThreadView", () => {
   beforeEach(() => {
+    // Finish any synthetic touch gesture left armed by the preceding test.
+    suppressNextGhostTap()();
+    useThreadFollowUpQueueStore.getState().reset();
     bridgeMock.closeThread.mockReset().mockResolvedValue(undefined);
     bridgeMock.startThread.mockReset().mockResolvedValue(undefined);
     bridgeMock.subagentSubscribe.mockClear();
@@ -353,8 +361,22 @@ describe("mobile ThreadView", () => {
     // ghost-tap guard from an earlier test can't swallow the gesture.
     await act(async () => {
       await fixtures.composerProps.at(-1)?.onSubmitInput?.("hi");
+      fixtures.composerProps.at(-1)?.onSubmitSuccess?.();
     });
     expect(dock).not.toHaveAttribute("data-expanded");
+  });
+
+  it("passes the success callback used to collapse queued follow-ups", () => {
+    render(
+      <ThreadView
+        thread={{ ...makeTerminalThread(), presentationMode: "gui", status: "working" }}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+
+    expect(fixtures.composerProps.at(-1)?.onSubmitSuccess).toBeTypeOf("function");
   });
 
   it("uses the mobile follow-up placeholder for an active thread", () => {
@@ -663,11 +685,50 @@ describe("mobile ThreadView", () => {
       />,
     );
 
-    expect(view.container.querySelector(".m-thread-action-docks")).toBeNull();
+    const card = view.container.querySelector(".m-thread-action-docks");
+    expect(card).toBeEmptyDOMElement();
+    expect(card).toHaveClass("empty:hidden");
+  });
+
+  it("retains a queue edit after remote removal and returns focus to the composer on cancel", async () => {
+    fixtures.desktopPointer = true;
+    const thread = { ...makeTerminalThread(), presentationMode: "gui" } as Thread;
+    useThreadFollowUpQueueStore.getState().setQueue(thread.id, {
+      paused: true,
+      items: [{ id: "queued", stagedAt: 1, prompt: "Queued draft" }],
+    });
+    const view = render(
+      <ThreadView
+        thread={thread}
+        terminalScrollback=""
+        onThreadAction={() => undefined}
+        onSubmitInput={() => Promise.resolve()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Edit queued follow-up" }));
+    fireEvent.change(await screen.findByRole("textbox", { name: "Edit queued follow-up" }), {
+      target: { value: "Keep this local edit" },
+    });
+    act(() => {
+      useThreadFollowUpQueueStore.getState().setQueue(thread.id, null);
+    });
+    expect(screen.getByRole("textbox", { name: "Edit queued follow-up" })).toHaveValue(
+      "Keep this local edit",
+    );
+    act(() => {
+      useAppStore.getState().clearComposerFocusRequest(thread.id);
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
+    expect(view.container.querySelector(".m-thread-compose-dock")).toHaveAttribute("data-expanded");
+    await waitFor(() =>
+      expect(view.container.querySelector(".m-thread-action-docks")).toBeEmptyDOMElement(),
+    );
   });
 
   it("keeps the composer expanded when the keyboard is dismissed (no collapse-on-focus-loss)", async () => {
-    const { container } = render(
+    const view = render(
       <ThreadView
         thread={{ ...makeTerminalThread(), presentationMode: "gui" }}
         terminalScrollback=""
@@ -675,8 +736,9 @@ describe("mobile ThreadView", () => {
         onSubmitInput={() => Promise.resolve()}
       />,
     );
+    const { container } = view;
     const dock = container.querySelector(".m-thread-compose-dock");
-    const input = screen.getByRole("textbox");
+    const input = await screen.findByRole("textbox");
 
     fireEvent.focusIn(input);
     await waitFor(() => expect(dock).toHaveAttribute("data-expanded"));

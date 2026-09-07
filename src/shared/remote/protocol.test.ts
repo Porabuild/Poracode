@@ -3,6 +3,7 @@ import { defaultSharedSettings } from "../settings";
 import { LAUNCH_REMOTE_SERVER_SCRIPT } from "../sshRemoteScripts";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
+  REMOTE_SETTINGS_KEYS,
   pickRemoteSettings,
   remotePushRegistrationSchema,
   remoteSettingsPatchSchema,
@@ -141,6 +142,17 @@ describe("remote project snapshots", () => {
 });
 
 describe("remote settings", () => {
+  it("defaults follow-up behavior for older v9 settings responses", () => {
+    const legacySettings = { ...defaultSharedSettings } as Record<string, unknown>;
+    delete legacySettings.followUpBehavior;
+
+    expect(pickRemoteSettings(legacySettings).followUpBehavior).toBe("steer");
+    expect(REMOTE_SETTINGS_KEYS).toContain("followUpBehavior");
+    expect(remoteSettingsPatchSchema.parse({ titleGenProvider: "claude" })).toEqual({
+      titleGenProvider: "claude",
+    });
+  });
+
   it("exposes composer MCP enablement without exposing custom MCP definitions", () => {
     const settings = pickRemoteSettings({
       ...defaultSharedSettings,

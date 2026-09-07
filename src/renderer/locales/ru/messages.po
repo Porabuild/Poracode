@@ -2159,6 +2159,7 @@ msgstr "Не удалось связаться с удалённым серве�
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2496,6 +2497,10 @@ msgstr "Выберите, что Poracode будет делать с новым�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose when this machine stays awake."
 msgstr "Выберите, когда этот компьютер остаётся активным."
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "Выберите, будут ли сообщения чата, отправленные во время работы агента, направлять текущий ответ или помещаться в очередь для следующего ответа. {followUpShortcut} выполняет противоположное действие."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2873,6 +2878,10 @@ msgstr "Закрыть панель рабочих процессов"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Закрыто"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3842,6 +3851,10 @@ msgstr "Выбрать победителя с помощью AI"
 msgid "Crowned"
 msgstr "Назначен победителем"
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Отобранные бесплатные и премиальные навыки под управлением MCP Market."
@@ -4674,6 +4687,11 @@ msgstr "Изменить сервер MCP"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "Редактировать профиль"
+
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "Редактировать сообщение в очереди"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -5532,6 +5550,11 @@ msgstr "Папка, в которой хранятся worktree этого пр�
 #: src/mobile/views/ThreadView.tsx
 msgid "Follow up..."
 msgstr "Продолжить..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "Поведение последующих сообщений"
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -9081,6 +9104,7 @@ msgid "Pause goal"
 msgstr "Приостановить цель"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9860,6 +9884,14 @@ msgstr "Qoder CLI"
 msgid "Questions"
 msgstr "Вопросы"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "Поставить в очередь"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "Поставить сообщение в очередь"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "В очереди"
@@ -9869,6 +9901,18 @@ msgstr "В очереди"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0} в очереди на обновление до v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "Сообщение в очереди не найдено: {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "Сообщения в очереди"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "Сообщения в очереди поддерживаются только в чатах."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10309,6 +10353,10 @@ msgstr "Удалить проект"
 msgid "Remove Project"
 msgstr "Удалить проект"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "Удалить сообщение из очереди"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Удалить сочетание клавиш"
@@ -10421,6 +10469,10 @@ msgstr "Изменить порядок {0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Изменить порядок {label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "Изменить порядок сообщения в очереди"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10591,6 +10643,10 @@ msgstr "Возобновить"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Возобновить цель"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "Возобновить сообщения из очереди"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10916,6 +10972,7 @@ msgstr "Насыщенность и яркость"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12173,6 +12230,27 @@ msgstr "Статус:"
 msgid "stdio (local command)"
 msgstr "stdio (локальная команда)"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "Направить"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "Направить текущий ход"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "Направить текущий ответ сообщением из очереди"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "Корректировка отменена до отправки сообщения."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "Корректировка заменена более новым сообщением."
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -12733,6 +12811,10 @@ msgstr "Удаленный сервер Poracode не вернул данные 
 msgid "The remote server returned no pairing credential."
 msgstr "Удалённый сервер не вернул учётные данные для связывания."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "Не удалось отправить заменяющее сообщение."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Расположение репозитория на диске. Обновите его, если вы переместили папку."
@@ -12808,6 +12890,10 @@ msgstr "SSH-туннель подключился к несовместимом�
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "целевой провайдер"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "Сессия треда недоступна для сообщений в очереди."
 
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
@@ -12940,6 +13026,10 @@ msgstr "этот компьютер"
 msgid "This machine"
 msgstr "Этот компьютер"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "Этого сообщения больше нет в очереди. Вы всё ещё можете скопировать отредактированный текст."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Это имя зарезервировано встроенным сервером MCP."
@@ -12994,6 +13084,15 @@ msgstr "этот проект"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Удалённый сервер этого проекта офлайн. Переподключите его, чтобы начать тред."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "Это дополнительное сообщение в очереди изменилось. Откройте его заново перед сохранением."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "Это сообщение из очереди уже отправляется."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "Этот удалённый проект недоступен. Переподключите среду и повторите попытку."
@@ -13028,6 +13127,14 @@ msgstr "Этот сервер работает на этом компьютер�
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Это общесистемное сочетание клавиш недоступно. Выберите другое сочетание."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "Этот тред не поддерживает сообщения в очереди."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "Этот поток пока не готов к корректировке."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

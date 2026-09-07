@@ -7,6 +7,7 @@ import {
   normalizeThreadDocksOrder,
   WINDOWS_SHELL_ARGUMENTS_MAX,
   type CliPickerTarget,
+  type FollowUpBehavior,
   type ThreadDocksPlacement,
   type ThreadDockKind,
   type PreventSleep,
@@ -108,6 +109,7 @@ interface SharedSettingsState extends SharedSettings {
     value: boolean | string,
   ) => void;
   setCollapseTerminalComposer: (value: boolean) => void;
+  setFollowUpBehavior: (value: FollowUpBehavior) => void;
   setCliPickerTarget: (value: CliPickerTarget) => void;
   setThreadDocksPlacement: (value: ThreadDocksPlacement) => void;
   setThreadDocksOrder: (order: ThreadDockKind[]) => void;
@@ -548,6 +550,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setCollapseTerminalComposer: (collapseTerminalComposer) => {
     set({ collapseTerminalComposer });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setFollowUpBehavior: (followUpBehavior) => {
+    set({ followUpBehavior });
     persistSettings(selectSharedSettings(get()));
   },
   setCliPickerTarget: (cliPickerTarget) => {
@@ -1101,6 +1107,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     acpRegistryAutoInstallOptOuts: state.acpRegistryAutoInstallOptOuts,
     agentInstances: state.agentInstances,
     collapseTerminalComposer: state.collapseTerminalComposer,
+    followUpBehavior: state.followUpBehavior,
     cliPickerTarget: state.cliPickerTarget,
     threadDocksPlacement: state.threadDocksPlacement,
     threadDocksOrder: state.threadDocksOrder,

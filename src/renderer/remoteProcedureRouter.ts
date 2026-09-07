@@ -1,4 +1,8 @@
-import type { ProjectLocation, StartShellPayload } from "@/shared/contracts";
+import type {
+  ProjectLocation,
+  StartShellPayload,
+  ThreadFollowUpQueueState,
+} from "@/shared/contracts";
 import type { IpcProcedureName, IpcProcedurePayload, IpcProcedureResult } from "@/shared/ipc";
 import type { PersistedRuntimeItem } from "@/shared/ipc/schemas";
 import { msg } from "@/shared/messages";
@@ -12,6 +16,7 @@ import {
 import {
   isProjectedRemoteEntityId,
   projectRemoteRuntimeItems,
+  projectRemoteFollowUpQueue,
   unprojectRemoteThreadId,
 } from "@/renderer/state/remoteProjection";
 import {
@@ -192,6 +197,9 @@ function projectOwnedResult(
   remoteServerId: string,
   procedure: IpcProcedureName,
 ): unknown {
+  if (procedure === "getThreadFollowUpQueue") {
+    return projectRemoteFollowUpQueue(remoteServerId, result as ThreadFollowUpQueueState | null);
+  }
   if (!result || typeof result !== "object" || Array.isArray(result)) {
     return result;
   }

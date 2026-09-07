@@ -366,6 +366,72 @@ describe("remote procedure routing registry", () => {
     });
   });
 
+  it("projects queued follow-up mentions without changing cancellation ids", () => {
+    expect(
+      projectRemoteThreadEvent("d1", {
+        type: "thread-follow-up-queue",
+        threadId: "remote-thread",
+        queue: {
+          paused: true,
+          items: [
+            {
+              id: "queue-item",
+              prompt: "See source",
+              stagedAt: 1,
+              segments: [{ kind: "thread", threadId: "remote-source", title: "Source" }],
+            },
+          ],
+        },
+      }),
+    ).toEqual({
+      type: "thread-follow-up-queue",
+      threadId: "remote:d1:thread:remote-thread",
+      queue: {
+        paused: true,
+        items: [
+          {
+            id: "queue-item",
+            prompt: "See source",
+            stagedAt: 1,
+            segments: [
+              { kind: "thread", threadId: "remote:d1:thread:remote-source", title: "Source" },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  it("projects thread mentions in a remote queue snapshot", async () => {
+    callRemoteProcedure.mockResolvedValueOnce({
+      paused: false,
+      items: [
+        {
+          id: "item",
+          prompt: "See source",
+          stagedAt: 1,
+          segments: [{ kind: "thread", threadId: "source", title: "Source" }],
+        },
+      ],
+    });
+    await expect(
+      remoteResult(decide("getThreadFollowUpQueue", { threadId: "projected-thread" })),
+    ).resolves.toEqual({
+      paused: false,
+      items: [
+        {
+          id: "item",
+          prompt: "See source",
+          stagedAt: 1,
+          segments: [{ kind: "thread", threadId: "remote:d1:thread:source", title: "Source" }],
+        },
+      ],
+    });
+    expect(callRemoteProcedure).toHaveBeenCalledWith("getThreadFollowUpQueue", {
+      threadId: "remote-thread",
+    });
+  });
+
   it.each(Object.entries(REMOTE_PROCEDURE_SPECS).filter(([, spec]) => spec.owner !== "none"))(
     "routes shared procedure %s by its declared owner",
     async (procedure, spec) => {

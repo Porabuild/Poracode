@@ -46,6 +46,13 @@ export const functionalAreas = [
     manual: ["provider-live", "runtime-requests"],
   },
   {
+    id: "follow-up-queue",
+    title: "GUI follow-up queue, steering choice, and queue controls",
+    patterns: [/followUpQueue/i, /FollowUpQueue/, /threadComposerSubmit/],
+    automated: ["baseline", "thread-search", "settings"],
+    manual: ["ipc-roundtrip", "provider-live", "runtime-requests"],
+  },
+  {
     id: "terminal-pty",
     title: "Terminal presentation and PTY lifecycle",
     patterns: [/terminal/i, /pty/i, /osc/i],

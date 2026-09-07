@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { PromptSegment, ProviderHandoffItemPayload } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { StructuredTurnResult } from "../../agents/base";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 
@@ -21,9 +22,12 @@ export interface StructuredTurnQueueContext {
 export class StructuredTurnQueue {
   constructor(private readonly ctx: StructuredTurnQueueContext) {}
 
-  start(session: SessionRuntime, turn: QueuedStructuredTurn): void {
+  start(
+    session: SessionRuntime,
+    turn: QueuedStructuredTurn,
+  ): Promise<void | StructuredTurnResult> | undefined {
     if (!session.structuredSession?.startTurn) {
-      return;
+      return undefined;
     }
     this.ctx.beginFailureEpisode(session);
     // Optimistic user_message: paint the user's prompt in the chat pane
@@ -58,6 +62,10 @@ export class StructuredTurnQueue {
       }
       this.ctx.failStructuredSession(session, error);
     });
+    // This promise is the provider's admission/round-trip result. Callers
+    // may observe rejection so a queued item can be restored, but must never
+    // use resolution as the turn-completion boundary.
+    return startTurn;
   }
 
   /** Drain the launch-queued initial prompt once the agent's TUI is ready. */

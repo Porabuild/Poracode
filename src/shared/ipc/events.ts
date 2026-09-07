@@ -10,6 +10,7 @@ import type {
   RuntimeEvent,
   ThreadAttention,
   ThreadConfig,
+  ThreadFollowUpQueueState,
   ThreadStatus,
   ThreadStatusSource,
   UsageLoginConfirmationRequest,
@@ -117,6 +118,11 @@ export type SupervisorEvent =
       type: "thread-pending-steer";
       threadId: string;
       pending: PendingSteerState | null;
+    }
+  | {
+      type: "thread-follow-up-queue";
+      threadId: string;
+      queue: ThreadFollowUpQueueState | null;
     }
   | { type: "thread-exited"; threadId: string; exitCode: number | null }
   | {

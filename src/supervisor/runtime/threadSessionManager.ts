@@ -40,8 +40,10 @@ import {
   createKnownSessionRef,
   defaultFormatPromptSegments,
   getRefreshedWindowsPath,
+  isCompletedWithoutTurn,
   primeProjectShellEnv,
   resolveLaunchSpec,
+  type StructuredTurnResult,
 } from "../agents/base";
 import { ensureNodePtySpawnHelperExecutable } from "../nodePty";
 import { BufferedLogWriter } from "./bufferedLogWriter";
@@ -67,7 +69,8 @@ import { describeSpawnFailure, sanitizedProcessEnv } from "./threadSession/spawn
 import { CliHookSessionCoordinator } from "./threadSession/cliHookPlugin";
 import { InvalidSessionRecoveryCoordinator } from "./threadSession/invalidSessionRecovery";
 import { StructuredInterruptWatchdog } from "./threadSession/structuredInterruptWatchdog";
-import { SteerCoordinator, clearPendingSteerSlot } from "./threadSession/steerCoordinator";
+import { SteerCoordinator, type SteerSubmissionOptions } from "./threadSession/steerCoordinator";
+import { FollowUpQueueCoordinator } from "./threadSession/followUpQueueCoordinator";
 import { buildShellCommand } from "./threadSession/shellCommand";
 import {
   SpawnPipeline,
@@ -115,6 +118,7 @@ export class ThreadSessionManager {
   private readonly spawnPipeline: SpawnPipeline;
   private readonly invalidSessionRecovery: InvalidSessionRecoveryCoordinator;
   private readonly structuredTurnQueue: StructuredTurnQueue;
+  private readonly followUpQueue: FollowUpQueueCoordinator;
   private readonly structuredFailureReporter = new StructuredFailureReporter();
   private readonly recentlyRemovedThreadIds = new Set<string>();
   private disposed = false;
@@ -148,12 +152,24 @@ export class ThreadSessionManager {
       beginFailureEpisode: (session) => this.structuredFailureReporter.beginEpisode(session),
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
     });
+    this.followUpQueue = new FollowUpQueueCoordinator({
+      emit: options.emit,
+      sessions: this.sessions,
+      waitForPendingStart: (threadId) => this.waitForPendingStart(threadId),
+      isCurrentSession: (session) => this.isCurrentSession(session),
+      prepareTurn: (session, payload) => this.prepareQueuedFollowUp(session, payload),
+      startStructuredTurn: (session, turn) => this.startQueuedStructuredTurn(session, turn),
+      restartStructuredTurn: (session, turn) => this.restartThreadSettlingFailure(session, turn),
+      steer: (payload, steerOptions) => this.setPendingSteer(payload, steerOptions),
+    });
     this.steerCoordinator = new SteerCoordinator({
       emit: options.emit,
       sessions: this.sessions,
       interruptStructuredTurn: (session) =>
         this.structuredInterruptWatchdog.interruptStructuredTurn(session),
-      startStructuredTurn: (session, turn) => this.structuredTurnQueue.start(session, turn),
+      startStructuredTurn: (session, turn) => {
+        return this.startDirectStructuredTurn(session, turn);
+      },
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
       emitOptimisticUserMessage: (threadId, prompt, segments, requestedItemId, emitOptions) =>
         this.structuredTurnQueue.emitOptimisticUserMessage(
@@ -165,6 +181,9 @@ export class ThreadSessionManager {
         ),
       resolveSkillTurnInjection: (session, segments) =>
         this.resolveSkillTurnInjection(session, segments),
+      noteDirectSteerSubmitted: (session) => this.followUpQueue.noteDirectSteerSubmitted(session),
+      noteDirectSteerCompletedWithoutTurn: (session) =>
+        this.followUpQueue.onDirectTurnCompletedWithoutTurn(session),
     });
     this.cliHookPlugin = new CliHookSessionCoordinator({
       sessions: this.sessions,
@@ -180,6 +199,7 @@ export class ThreadSessionManager {
       outputPipeline: this.outputPipeline,
       runtimeEventRouter: this.runtimeEventRouter,
       steerCoordinator: this.steerCoordinator,
+      followUpQueue: this.followUpQueue,
       structuredInterruptWatchdog: this.structuredInterruptWatchdog,
       emit: this.options.emit,
       isCurrentSession: (session) => this.isCurrentSession(session),
@@ -292,6 +312,7 @@ export class ThreadSessionManager {
     this.structuredFailureReporter.capture(session, error);
     const message = error instanceof Error ? error.message : String(error);
     this.outputPipeline.updateState(session, "error", "error", message);
+    this.followUpQueue.onStructuredUpdate(session, "error");
     this.enqueueRuntimeEvent(session.threadId, {
       type: "error",
       threadId: session.threadId,
@@ -300,6 +321,7 @@ export class ThreadSessionManager {
   }
 
   private completeForcedStructuredInterrupt(session: SessionRuntime): void {
+    this.followUpQueue.onForcedInterrupt(session);
     this.runtimeEventRouter.flush();
     this.outputPipeline.updateState(session, "idle", "none", undefined, {
       forceCloseActiveTurn: true,
@@ -319,11 +341,20 @@ export class ThreadSessionManager {
       pending.userMessageItemId,
     );
     const turn: QueuedStructuredTurn = { ...pending, userMessageItemId };
-    clearPendingSteerSlot(session, this.options.emit);
-    void this.spawnPipeline.restartThread(session, turn).catch((error) => {
-      if (!this.isCurrentSession(session)) return;
-      this.failStructuredSession(session, error);
-    });
+    const admission = this.steerCoordinator.takePendingSteerAdmission(session);
+    void this.spawnPipeline.restartThread(session, turn).then(
+      () => {
+        // The restart promise is the provider's admission boundary. A queued
+        // steer owns its FIFO row until this resolves; the normal turn-
+        // completion barrier remains event-driven.
+        admission?.resolve();
+      },
+      (error) => {
+        admission?.reject(error);
+        if (!this.isCurrentSession(session)) return;
+        this.failStructuredSession(session, error);
+      },
+    );
   }
 
   private enqueueRuntimeEvent(threadId: string, event: RuntimeEvent): void {
@@ -530,6 +561,121 @@ export class ThreadSessionManager {
     }
   }
 
+  private async waitForPendingStart(threadId: string): Promise<void> {
+    // A provider switch can replace the map entry while its start lock is
+    // still settling. Follow the lock that was present at each observation so
+    // queued receipt handling never binds to the old SessionRuntime.
+    for (;;) {
+      const pending = this.startLocks.get(threadId);
+      if (!pending) return;
+      await pending;
+      if (this.startLocks.get(threadId) === pending) return;
+    }
+  }
+
+  /** Prepare a queued GUI turn without changing the live session config. */
+  private async prepareQueuedFollowUp(
+    session: SessionRuntime,
+    payload: SetPendingSteerPayload,
+  ): Promise<QueuedStructuredTurn> {
+    requireThreadMentionTools(session, payload.segments);
+    const mentionSegments = payload.segments
+      ? resolveThreadMentionSegments(payload.segments)
+      : undefined;
+    const effectiveSegments = mentionSegments
+      ? await rewriteSegmentsForWsl(mentionSegments, session.projectLocation, {
+          preserveImageAttachments:
+            session.adapter.capabilities.readsImageAttachmentsFromHost !== false,
+          preservePdfAttachments: session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
+        })
+      : undefined;
+    const policySegments = await this.filterPluginSkillSegments(session, effectiveSegments);
+    const prompt = this.formatSegmentsForPrompt(session, policySegments, payload.prompt);
+    const effectiveConfig = applyHomeScopePermissions(
+      effectiveProjectLocation(session),
+      payload.config,
+      session.adapter.capabilities,
+    );
+    const inlineInstructions = await this.resolveSkillTurnInjection(session, policySegments);
+    return {
+      prompt,
+      config: effectiveConfig,
+      ...(policySegments ? { segments: policySegments } : {}),
+      ...(payload.segments ? { displaySegments: payload.segments } : {}),
+      ...(inlineInstructions ? { inlineInstructions } : {}),
+    };
+  }
+
+  /** Queue delivery uses ordinary startTurn only and applies config on admission. */
+  private startQueuedStructuredTurn(
+    session: SessionRuntime,
+    turn: QueuedStructuredTurn,
+  ): Promise<void | StructuredTurnResult> | undefined {
+    // Match direct submission: apply the snapshot when dispatching. Some
+    // providers resolve startTurn only at completion, after a newer steer or
+    // model selection may already have changed the live config.
+    session.config = turn.config;
+    const start = this.structuredTurnQueue.start(session, turn);
+    if (start) this.outputPipeline.emitState(session);
+    return start;
+  }
+
+  /** Direct composer starts share the queue barrier but never queue. */
+  private startDirectStructuredTurn(
+    session: SessionRuntime,
+    turn: QueuedStructuredTurn,
+  ): Promise<void | StructuredTurnResult> | undefined {
+    this.followUpQueue.noteDirectTurnSubmitted(session);
+    const start = this.structuredTurnQueue.start(session, turn);
+    if (start) {
+      void start.then(
+        (result) => {
+          if (isCompletedWithoutTurn(result)) {
+            this.followUpQueue.onDirectTurnCompletedWithoutTurn(session);
+          }
+        },
+        () => undefined,
+      );
+    }
+    return start;
+  }
+
+  async queueThreadFollowUp(payload: SetPendingSteerPayload): Promise<void> {
+    return this.followUpQueue.queueThreadFollowUp(payload);
+  }
+
+  reorderQueuedThreadFollowUp(
+    input: Parameters<FollowUpQueueCoordinator["reorderQueuedThreadFollowUp"]>[0],
+  ) {
+    return this.followUpQueue.reorderQueuedThreadFollowUp(input);
+  }
+
+  editQueuedThreadFollowUp(
+    input: Parameters<FollowUpQueueCoordinator["editQueuedThreadFollowUp"]>[0],
+  ) {
+    return this.followUpQueue.editQueuedThreadFollowUp(input);
+  }
+
+  steerQueuedThreadFollowUp(input: { threadId: string; id: string }) {
+    return this.followUpQueue.steerQueuedThreadFollowUp(input);
+  }
+
+  async removeQueuedThreadFollowUp(input: { threadId: string; id: string }): Promise<void> {
+    return this.followUpQueue.removeQueuedThreadFollowUp(input);
+  }
+
+  pauseThreadFollowUps(input: { threadId: string; id: string }) {
+    return this.followUpQueue.pauseThreadFollowUps(input);
+  }
+
+  resumeThreadFollowUps(threadId: string): Promise<void> {
+    return this.followUpQueue.resumeThreadFollowUps(threadId);
+  }
+
+  getThreadFollowUpQueue(threadId: string) {
+    return this.followUpQueue.getThreadFollowUpQueue(threadId);
+  }
+
   async startThread(payload: StartThreadPayload): Promise<StartThreadResult> {
     if (this.disposed) {
       throw new Error("ThreadSessionManager is disposed.");
@@ -553,6 +699,10 @@ export class ThreadSessionManager {
         `Provider switch is stale: thread ${threadId} now belongs to ${currentSession.agentKind}.`,
       );
     }
+    const isSessionReplacement = currentSession !== undefined;
+    if (isSessionReplacement) {
+      this.followUpQueue.beginSessionReplacement(threadId);
+    }
     this.recentlyRemovedThreadIds.delete(threadId);
 
     const run = this.spawnPipeline.startThreadInner({ ...payload, threadId });
@@ -564,7 +714,16 @@ export class ThreadSessionManager {
       ),
     );
     try {
-      return await run;
+      const result = await run;
+      if (isSessionReplacement && !this.sessions.has(threadId)) {
+        this.followUpQueue.sessionReplacementFailed(threadId);
+      }
+      return result;
+    } catch (error) {
+      if (isSessionReplacement) {
+        this.followUpQueue.sessionReplacementFailed(threadId);
+      }
+      throw error;
     } finally {
       this.startLocks.delete(threadId);
       if (!this.sessions.has(threadId)) {
@@ -575,141 +734,174 @@ export class ThreadSessionManager {
   }
 
   async sendThreadInput(payload: SendThreadInputPayload): Promise<void> {
-    const session = await this.findSessionAfterPendingStart(payload.threadId);
-    if (!session) {
-      // Never swallow a full user prompt, even for a just-removed thread —
-      // callers (renderer composer, `send_to_thread`) resume on this error.
-      throw new Error(`Unknown thread session: ${payload.threadId}`);
-    }
-    if (session.status === "inactive" && !session.sessionRef) {
-      throw new Error("This thread exited before a resumable session id was discovered.");
-    }
-    const usesStructuredFlow =
-      session.adapter.capabilities.liveInputMode === "server" || session.presentationMode === "gui";
-    requireThreadMentionTools(session, payload.segments);
-    const mentionSegments = payload.segments
-      ? resolveThreadMentionSegments(payload.segments)
-      : undefined;
-    const wslSegments = mentionSegments
-      ? await rewriteSegmentsForWsl(mentionSegments, session.projectLocation, {
-          preserveImageAttachments:
-            usesStructuredFlow &&
-            session.adapter.capabilities.readsImageAttachmentsFromHost !== false,
-          preservePdfAttachments:
-            usesStructuredFlow && session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
-        })
-      : undefined;
-    const effectiveSegments = await this.filterPluginSkillSegments(session, wslSegments);
-    const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
+    const directInput = this.followUpQueue.beginDirectInput(payload.threadId);
+    try {
+      // A queued dispatch can still leave the provider-reported status at idle
+      // while its async admission is in flight. Wait for that admission edge
+      // before deciding whether this direct submit is a fresh turn or a steer.
+      await this.followUpQueue.waitForQueuedTurnAdmission(payload.threadId);
+      // A queued steer uses the same admission barrier, but it is not a queue
+      // record dispatch: it remains a FIFO row until fallback startTurn has
+      // emitted canonical admission. Do not start a second direct turn in
+      // that narrow setup window.
+      await this.steerCoordinator.waitForPendingSteerAdmission(payload.threadId);
+      const session = await this.findSessionAfterPendingStart(payload.threadId);
+      if (!session) {
+        // Never swallow a full user prompt, even for a just-removed thread —
+        // callers (renderer composer, `send_to_thread`) resume on this error.
+        throw new Error(`Unknown thread session: ${payload.threadId}`);
+      }
+      if (session.status === "inactive" && !session.sessionRef) {
+        throw new Error("This thread exited before a resumable session id was discovered.");
+      }
+      const usesStructuredFlow =
+        session.adapter.capabilities.liveInputMode === "server" ||
+        session.presentationMode === "gui";
+      requireThreadMentionTools(session, payload.segments);
+      const mentionSegments = payload.segments
+        ? resolveThreadMentionSegments(payload.segments)
+        : undefined;
+      const wslSegments = mentionSegments
+        ? await rewriteSegmentsForWsl(mentionSegments, session.projectLocation, {
+            preserveImageAttachments:
+              usesStructuredFlow &&
+              session.adapter.capabilities.readsImageAttachmentsFromHost !== false,
+            preservePdfAttachments:
+              usesStructuredFlow &&
+              session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
+          })
+        : undefined;
+      const effectiveSegments = await this.filterPluginSkillSegments(session, wslSegments);
+      const prompt = this.formatSegmentsForPrompt(session, effectiveSegments, payload.prompt);
 
-    const turnConfig =
-      session.presentationMode !== "gui" &&
-      payload.config.mode === "plan" &&
-      session.config.mode === undefined
-        ? { ...payload.config, mode: undefined }
-        : payload.config;
-    const effectiveConfig = applyHomeScopePermissions(
-      effectiveProjectLocation(session),
-      turnConfig,
-      session.adapter.capabilities,
-    );
+      const turnConfig =
+        session.presentationMode !== "gui" &&
+        payload.config.mode === "plan" &&
+        session.config.mode === undefined
+          ? { ...payload.config, mode: undefined }
+          : payload.config;
+      const effectiveConfig = applyHomeScopePermissions(
+        effectiveProjectLocation(session),
+        turnConfig,
+        session.adapter.capabilities,
+      );
 
-    session.config = effectiveConfig;
-    const inlineInstructions = usesStructuredFlow
-      ? await this.resolveSkillTurnInjection(session, effectiveSegments)
-      : undefined;
-    const turn: QueuedStructuredTurn = {
-      prompt,
-      config: effectiveConfig,
-      ...(effectiveSegments ? { segments: effectiveSegments } : {}),
-      ...(payload.segments ? { displaySegments: payload.segments } : {}),
-      ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
-      ...(inlineInstructions ? { inlineInstructions } : {}),
-    };
-    if (session.status === "inactive") {
-      // Guaranteed to have a sessionRef here — the no-ref case threw above.
-      await this.restartThreadSettlingFailure(session, turn);
-      return;
-    }
-    if (
-      usesStructuredFlow &&
-      !session.structuredSession &&
-      (session.status === "error" || session.status === "idle") &&
-      session.sessionRef
-    ) {
-      await this.restartThreadSettlingFailure(session, turn);
-      return;
-    }
-    // Route through the structured session when either the adapter is
-    // server-controlled OR this thread was launched in chat mode (the
-    // structured session owns input/output instead of the PTY).
-    if (usesStructuredFlow && session.structuredSession?.startTurn) {
-      // GUI threads route submit-while-working through the pending-steer
-      // path. Renderers should call `setPendingSteer` directly for that case;
-      // any `sendThreadInput` that lands here while working is treated as a
-      // steer (replace-latest) for backwards compatibility.
-      if (session.presentationMode === "gui" && session.status === "working") {
-        // Capability-based: sessions that support non-interrupting steer enqueue
-        // the message onto the running turn (subagents survive); others fall
-        // back to the interrupt-drain pending-steer path.
-        if (session.structuredSession.steerTurn) {
-          this.steerCoordinator.steerStructuredTurn(session, turn);
+      const inlineInstructions = usesStructuredFlow
+        ? await this.resolveSkillTurnInjection(session, effectiveSegments)
+        : undefined;
+      if (!this.isCurrentSession(session)) {
+        return this.sendThreadInput(payload);
+      }
+      session.config = effectiveConfig;
+      const turn: QueuedStructuredTurn = {
+        prompt,
+        config: effectiveConfig,
+        ...(effectiveSegments ? { segments: effectiveSegments } : {}),
+        ...(payload.segments ? { displaySegments: payload.segments } : {}),
+        ...(payload.userMessageItemId ? { userMessageItemId: payload.userMessageItemId } : {}),
+        ...(inlineInstructions ? { inlineInstructions } : {}),
+      };
+      if (session.status === "inactive") {
+        // Guaranteed to have a sessionRef here — the no-ref case threw above.
+        directInput.markStarted(session);
+        this.followUpQueue.noteDirectTurnSubmitted(session);
+        await this.restartThreadSettlingFailure(session, turn);
+        return;
+      }
+      if (
+        usesStructuredFlow &&
+        !session.structuredSession &&
+        (session.status === "error" || session.status === "idle") &&
+        session.sessionRef
+      ) {
+        directInput.markStarted(session);
+        this.followUpQueue.noteDirectTurnSubmitted(session);
+        await this.restartThreadSettlingFailure(session, turn);
+        return;
+      }
+      // Route through the structured session when either the adapter is
+      // server-controlled OR this thread was launched in chat mode (the
+      // structured session owns input/output instead of the PTY).
+      if (usesStructuredFlow && session.structuredSession?.startTurn) {
+        // GUI threads route submit-while-working through the pending-steer
+        // path. Renderers should call `setPendingSteer` directly for that case;
+        // any `sendThreadInput` that lands here while working is treated as a
+        // steer (replace-latest) for backwards compatibility.
+        if (session.presentationMode === "gui" && session.status === "working") {
+          // Capability-based: sessions that support non-interrupting steer enqueue
+          // the message onto the running turn (subagents survive); others fall
+          // back to the interrupt-drain pending-steer path.
+          directInput.markStarted(session);
+          if (session.structuredSession.steerTurn) {
+            await this.steerCoordinator.steerStructuredTurn(session, turn);
+            return;
+          }
+          this.steerCoordinator.stagePendingSteer(session, turn);
+          this.steerCoordinator.fireSteerInterrupt(session);
           return;
         }
-        this.steerCoordinator.stagePendingSteer(session, turn);
-        this.steerCoordinator.fireSteerInterrupt(session);
+        if (session.presentationMode === "gui" && session.pendingSteer !== undefined) {
+          // Drain in progress (cancel acked, slot still set). Replace it; the
+          // existing drain-on-idle hook will pick up the new content.
+          directInput.markStarted(session);
+          this.steerCoordinator.stagePendingSteer(session, turn);
+          void this.steerCoordinator.maybeDrainPendingSteer(session);
+          return;
+        }
+        directInput.markStarted(session);
+        void this.startDirectStructuredTurn(session, turn);
         return;
       }
-      if (session.presentationMode === "gui" && session.pendingSteer !== undefined) {
-        // Drain in progress (cancel acked, slot still set). Replace it; the
-        // existing drain-on-idle hook will pick up the new content.
-        this.steerCoordinator.stagePendingSteer(session, turn);
-        this.steerCoordinator.maybeDrainPendingSteer(session);
-        return;
-      }
-      this.structuredTurnQueue.start(session, turn);
-      return;
-    }
 
-    const pty = requireSessionPty(session);
-    // Terminal skills fallback: skill segments the CLI can't resolve natively
-    // become short path-hint text before the prompt is typed into the PTY.
-    const terminalSegments = await this.resolveTerminalSkillSegments(session, effectiveSegments);
-    // Workspace-sandboxed agents (e.g. Command Code) can't read attachments that
-    // live outside the project, so copy them in and re-format with the new paths.
-    // localizeWorkspaceAttachments returns the same array when it's a no-op, so
-    // reuse the already-formatted prompt unless paths actually changed.
-    const ptySegments = await this.localizeWorkspaceAttachments(session, terminalSegments);
-    const ptyPrompt =
-      ptySegments === effectiveSegments
-        ? prompt
-        : this.formatSegmentsForPrompt(session, ptySegments, payload.prompt);
-    await writeSubmittedPrompt(
-      pty,
-      session.adapter.buildDirectInput?.(
-        ptyPrompt,
-        ptySegments,
-        session.config,
+      const pty = requireSessionPty(session);
+      // Terminal skills fallback: skill segments the CLI can't resolve natively
+      // become short path-hint text before the prompt is typed into the PTY.
+      const terminalSegments = await this.resolveTerminalSkillSegments(session, effectiveSegments);
+      // Workspace-sandboxed agents (e.g. Command Code) can't read attachments that
+      // live outside the project, so copy them in and re-format with the new paths.
+      // localizeWorkspaceAttachments returns the same array when it's a no-op, so
+      // reuse the already-formatted prompt unless paths actually changed.
+      const ptySegments = await this.localizeWorkspaceAttachments(session, terminalSegments);
+      const ptyPrompt =
+        ptySegments === effectiveSegments
+          ? prompt
+          : this.formatSegmentsForPrompt(session, ptySegments, payload.prompt);
+      await writeSubmittedPrompt(
+        pty,
+        session.adapter.buildDirectInput?.(
+          ptyPrompt,
+          ptySegments,
+          session.config,
+          session.projectLocation,
+        ) ?? [ptyPrompt, "\r"],
         session.projectLocation,
-      ) ?? [ptyPrompt, "\r"],
-      session.projectLocation,
-    );
+      );
 
-    // Optimistic working edge for CLI-hook agents with no turn-START event
-    // (Command Code): show `working` the instant the prompt is sent. Gated on
-    // `cliHookEnvInjected` so the authoritative `Stop` hook is guaranteed wired
-    // to return the thread to idle — never strands it in `working`.
-    if (session.adapter.optimisticWorkingOnSubmit && session.cliHookEnvInjected) {
-      this.outputPipeline.updateState(session, "working", "working");
-    }
+      // Optimistic working edge for CLI-hook agents with no turn-START event
+      // (Command Code): show `working` the instant the prompt is sent. Gated on
+      // `cliHookEnvInjected` so the authoritative `Stop` hook is guaranteed wired
+      // to return the thread to idle — never strands it in `working`.
+      if (session.adapter.optimisticWorkingOnSubmit && session.cliHookEnvInjected) {
+        this.outputPipeline.updateState(session, "working", "working");
+      }
 
-    await sleep(300);
-    if (session.prevChunk.includes("[Pasted text")) {
-      pty.write("\r");
+      await sleep(300);
+      if (session.prevChunk.includes("[Pasted text")) {
+        pty.write("\r");
+      }
+    } catch (error) {
+      this.followUpQueue.directInputFailed(payload.threadId);
+      throw error;
+    } finally {
+      directInput.release();
     }
   }
 
   async interruptThread(payload: { threadId: string }): Promise<void> {
+    // Stop is an explicit queue pause, not an implicit drain trigger. Set the
+    // gate before looking up the session so a Stop racing startup or a queued
+    // receipt cannot slip through.
+    this.followUpQueue.pauseThread(payload.threadId);
     const session = this.sessions.get(payload.threadId);
     if (!session) {
       if (this.startLocks.has(payload.threadId)) {
@@ -960,25 +1152,67 @@ export class ThreadSessionManager {
    * renderer calls this when submit-while-working happens on a GUI thread.
    * Drain is automatic on cancelled-stopReason via `maybeDrainPendingSteer`.
    */
-  async setPendingSteer(payload: SetPendingSteerPayload): Promise<void> {
-    const session = await this.findSessionAfterPendingStart(payload.threadId);
-    if (!session) {
-      throw new Error(`Unknown thread session: ${payload.threadId}`);
+  async setPendingSteer(
+    payload: SetPendingSteerPayload,
+    options?: SteerSubmissionOptions,
+  ): Promise<void> {
+    const directInput = this.followUpQueue.beginDirectInput(payload.threadId);
+    let targetSession: SessionRuntime | undefined;
+    let admittedSession: SessionRuntime | undefined;
+    try {
+      // A provider switch/reconnect can leave the old SessionRuntime in the
+      // map while its replacement owns the serialized start lock. Wait before
+      // preparing or admitting input so a late rejection cannot reset the new
+      // session's direct barrier.
+      await this.waitForPendingStart(payload.threadId);
+      const session = await this.findSessionAfterPendingStart(payload.threadId);
+      if (!session) {
+        throw new Error(`Unknown thread session: ${payload.threadId}`);
+      }
+      targetSession = session;
+
+      let segments: PromptSegment[] | undefined;
+      if (payload.segments !== undefined) {
+        requireThreadMentionTools(session, payload.segments);
+        const mentionSegments = resolveThreadMentionSegments(payload.segments);
+        segments = await this.filterPluginSkillSegments(session, mentionSegments);
+      }
+
+      // Preparation above may have crossed a provider replacement. Re-check
+      // both the map identity and the lock before touching the old session.
+      await this.waitForPendingStart(payload.threadId);
+      if (!this.isCurrentSession(session) || this.startLocks.has(payload.threadId)) {
+        return this.setPendingSteer(payload, options);
+      }
+
+      const effectiveConfig = applyHomeScopePermissions(
+        effectiveProjectLocation(session),
+        payload.config,
+        session.adapter.capabilities,
+      );
+      session.config = effectiveConfig;
+      admittedSession = session;
+      directInput.markStarted(session);
+      await this.steerCoordinator.setPendingSteer(
+        session,
+        {
+          ...payload,
+          config: effectiveConfig,
+          ...(segments ? { segments } : {}),
+          ...(payload.segments ? { displaySegments: payload.segments } : {}),
+        },
+        options,
+      );
+    } catch (error) {
+      // An old session can reject after a replacement is already current.
+      // Never clear/pause the replacement's direct lifecycle in that case.
+      if (!targetSession || this.isCurrentSession(admittedSession ?? targetSession)) {
+        this.followUpQueue.directInputFailed(payload.threadId);
+      }
+      throw error;
+    } finally {
+      directInput.release();
     }
-    if (payload.segments === undefined) {
-      await this.steerCoordinator.setPendingSteer(session, payload);
-      return;
-    }
-    requireThreadMentionTools(session, payload.segments);
-    const mentionSegments = payload.segments
-      ? resolveThreadMentionSegments(payload.segments)
-      : undefined;
-    const segments = await this.filterPluginSkillSegments(session, mentionSegments);
-    await this.steerCoordinator.setPendingSteer(session, {
-      ...payload,
-      ...(segments ? { segments } : {}),
-      ...(payload.segments ? { displaySegments: payload.segments } : {}),
-    });
   }
 
   /**
@@ -989,6 +1223,7 @@ export class ThreadSessionManager {
   async clearPendingSteer(payload: ClearPendingSteerPayload): Promise<void> {
     const session = this.requireSession(payload.threadId);
     this.steerCoordinator.clearPendingSteerSlot(session);
+    this.followUpQueue.cancelDirectInput(session);
   }
 
   async closeThread(payload: CloseThreadPayload): Promise<void> {
@@ -1014,6 +1249,7 @@ export class ThreadSessionManager {
     existing.ignoreExit = true;
     this.rememberRemovedThread(payload.threadId);
     this.outputPipeline.clearSessionTimers(existing);
+    this.followUpQueue.onSessionClosing(payload.threadId, existing);
     existing.stopSessionRefWatcher?.();
     existing.stopSessionRefWatcher = undefined;
     // Final state before the session disappears: without it a working thread
@@ -1199,6 +1435,7 @@ export class ThreadSessionManager {
 
   async dispose(): Promise<void> {
     this.disposed = true;
+    this.followUpQueue.dispose();
     for (const threadId of this.startLocks.keys()) {
       this.pendingStartAborts.add(threadId);
     }
@@ -1260,9 +1497,9 @@ export class ThreadSessionManager {
   private async restartThreadSettlingFailure(
     session: SessionRuntime,
     turn: QueuedStructuredTurn,
-  ): Promise<void> {
+  ): Promise<void | StructuredTurnResult> {
     try {
-      await this.spawnPipeline.restartThread(session, turn);
+      return await this.spawnPipeline.restartThread(session, turn);
     } catch (error) {
       if (this.isCurrentSession(session)) {
         const message = error instanceof Error ? error.message : String(error);

@@ -23,6 +23,7 @@ import {
   type StructuredSessionHandle,
   type StructuredSessionListener,
   type StructuredSessionUpdate,
+  type StructuredTurnResult,
   type ThreadHistory,
 } from "../base";
 import {
@@ -354,7 +355,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private async dispatchCodexGoalCommand(
     threadId: string,
     command: CodexGoalCommand,
-  ): Promise<void> {
+  ): Promise<void | StructuredTurnResult> {
     switch (command.kind) {
       case "set":
         if (this.ensureMapperState().goalItemId) {
@@ -655,7 +656,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void> {
+  ): Promise<void | StructuredTurnResult> {
     this.applyTurnConfig(config);
     // New user turn clears any sticky error from a previous failed turn, along
     // with the per-turn error dedupe state and any pending fallback timer.
@@ -708,7 +709,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       }
       this.pendingTurnInterrupt = false;
       this.settleGoalCommandStatus();
-      return;
+      return { outcome: "completed-without-turn" };
     }
 
     this.emitRuntimeEvents(userEvents);
@@ -762,7 +763,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void> {
+  ): Promise<void | StructuredTurnResult> {
     // Goal slash-commands keep their control-flow semantics (goal RPC +
     // settle accounting); delivering them as literal steer text would hand
     // "/goal pause" to the model instead of pausing the goal.

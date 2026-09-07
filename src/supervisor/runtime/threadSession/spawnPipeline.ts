@@ -53,6 +53,7 @@ import {
   type AgentLaunchOptions,
   type CommandSpec,
   type StructuredSessionHandle,
+  type StructuredTurnResult,
   createKnownSessionRef,
   defaultFormatPromptSegments,
   injectWslEnv,
@@ -852,7 +853,10 @@ export class SpawnPipeline {
     return { threadId: payload.threadId };
   }
 
-  async restartThread(session: SessionRuntime, turn: QueuedStructuredTurn): Promise<void> {
+  async restartThread(
+    session: SessionRuntime,
+    turn: QueuedStructuredTurn,
+  ): Promise<void | StructuredTurnResult> {
     const ctx = this.ctx;
     const { prompt, config: turnConfig } = turn;
     if (!session.sessionRef) {
@@ -969,7 +973,7 @@ export class SpawnPipeline {
       if (!structuredSession) {
         throw new Error(`Thread ${session.threadId} cannot restart without a structured session.`);
       }
-      const restarted = this.spawnThread({
+      this.spawnThread({
         threadId: session.threadId,
         agentKind: session.agentKind,
         adapter: session.adapter,
@@ -1002,14 +1006,7 @@ export class SpawnPipeline {
           userMessageItemId: optimisticItemId,
           ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
         };
-        void structuredSession
-          .startTurn(prompt, launchConfig, turn.segments, startOptions)
-          .catch((error) => {
-            if (ctx.sessions.get(restarted.threadId)?.instanceId !== restarted.instanceId) {
-              return;
-            }
-            ctx.failStructuredSession(restarted, error);
-          });
+        return await structuredSession.startTurn(prompt, launchConfig, turn.segments, startOptions);
       }
       return;
     }

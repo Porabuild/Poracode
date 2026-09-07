@@ -93,6 +93,19 @@ export interface StartTurnOptions {
   inlineInstructions?: string;
 }
 
+/** Result used by provider controls that complete without opening a turn. */
+export interface StructuredTurnResult {
+  outcome: "completed-without-turn";
+}
+
+export function isCompletedWithoutTurn(result: unknown): result is StructuredTurnResult {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    (result as { outcome?: unknown }).outcome === "completed-without-turn"
+  );
+}
+
 export interface ThreadHistoryEntry {
   messageId: string;
   role: "user" | "assistant";
@@ -118,7 +131,7 @@ export interface StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void>;
+  ): Promise<void | StructuredTurnResult>;
   /**
    * Steer the in-flight turn: enqueue a new user message onto the running
    * turn WITHOUT interrupting it (no subagents killed, no error result). The
@@ -132,7 +145,7 @@ export interface StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void>;
+  ): Promise<void | StructuredTurnResult>;
   /**
    * Best-effort provider preparation immediately before the shared runtime
    * interrupts an in-flight turn for steering. Providers can preserve work

@@ -7,10 +7,14 @@ import {
   agentHookPluginPayloadSchema,
   getAgentHookPluginStatusesPayloadSchema,
   getAgentStatusesPayloadSchema,
+  getThreadFollowUpQueuePayloadSchema,
   installAcpRegistryAgentPayloadSchema,
   interruptThreadPayloadSchema,
   logoutAcpAgentPayloadSchema,
   removeAcpRegistryAgentPayloadSchema,
+  removeQueuedThreadFollowUpPayloadSchema,
+  editQueuedThreadFollowUpPayloadSchema,
+  reorderQueuedThreadFollowUpPayloadSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
   rollbackThreadConversationPayloadSchema,
@@ -20,6 +24,7 @@ import {
   stageThreadInputPayloadSchema,
   startShellPayloadSchema,
   startThreadPayloadSchema,
+  resumeThreadFollowUpsPayloadSchema,
   updateAcpRegistryAgentPayloadSchema,
   updateAgentBinaryPayloadSchema,
   getLatestAgentVersionPayloadSchema,
@@ -27,6 +32,8 @@ import {
   writeTerminalPayloadSchema,
 } from "../../contracts";
 import type {
+  EditQueuedThreadFollowUpPayload,
+  ReorderQueuedThreadFollowUpPayload,
   AcpRegistryListResult,
   AcpRegistryMutationResult,
   AgentHookPluginMutationResult,
@@ -42,17 +49,21 @@ import type {
   ExtractContextResult,
   GetAgentHookPluginStatusesPayload,
   GetAgentStatusesPayload,
+  GetThreadFollowUpQueuePayload,
   InstallAcpRegistryAgentPayload,
   InterruptThreadPayload,
   LogoutAcpAgentPayload,
   RefreshAgentScope,
   RemoveAcpRegistryAgentPayload,
+  RemoveQueuedThreadFollowUpPayload,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
   RollbackThreadConversationPayload,
   SendThreadInputPayload,
   SetAcpRegistryAgentAuthPayload,
   SetPendingSteerPayload,
+  ResumeThreadFollowUpsPayload,
+  ThreadFollowUpQueueState,
   StageThreadInputPayload,
   StartShellPayload,
   StartThreadPayload,
@@ -220,6 +231,46 @@ export const threadProcedures = {
     "supervisor",
     clearPendingSteerPayloadSchema,
   ),
+  queueThreadFollowUp: definePayloadProcedure<SetPendingSteerPayload, void, "supervisor">(
+    "queueThreadFollowUp",
+    "supervisor",
+    setPendingSteerPayloadSchema,
+  ),
+  removeQueuedThreadFollowUp: definePayloadProcedure<
+    RemoveQueuedThreadFollowUpPayload,
+    void,
+    "supervisor"
+  >("removeQueuedThreadFollowUp", "supervisor", removeQueuedThreadFollowUpPayloadSchema),
+  reorderQueuedThreadFollowUp: definePayloadProcedure<
+    ReorderQueuedThreadFollowUpPayload,
+    void,
+    "supervisor"
+  >("reorderQueuedThreadFollowUp", "supervisor", reorderQueuedThreadFollowUpPayloadSchema),
+  editQueuedThreadFollowUp: definePayloadProcedure<
+    EditQueuedThreadFollowUpPayload,
+    void,
+    "supervisor"
+  >("editQueuedThreadFollowUp", "supervisor", editQueuedThreadFollowUpPayloadSchema),
+  steerQueuedThreadFollowUp: definePayloadProcedure<
+    RemoveQueuedThreadFollowUpPayload,
+    void,
+    "supervisor"
+  >("steerQueuedThreadFollowUp", "supervisor", removeQueuedThreadFollowUpPayloadSchema),
+  pauseThreadFollowUps: definePayloadProcedure<
+    RemoveQueuedThreadFollowUpPayload,
+    void,
+    "supervisor"
+  >("pauseThreadFollowUps", "supervisor", removeQueuedThreadFollowUpPayloadSchema),
+  resumeThreadFollowUps: definePayloadProcedure<ResumeThreadFollowUpsPayload, void, "supervisor">(
+    "resumeThreadFollowUps",
+    "supervisor",
+    resumeThreadFollowUpsPayloadSchema,
+  ),
+  getThreadFollowUpQueue: definePayloadProcedure<
+    GetThreadFollowUpQueuePayload,
+    ThreadFollowUpQueueState | null,
+    "supervisor"
+  >("getThreadFollowUpQueue", "supervisor", getThreadFollowUpQueuePayloadSchema),
   writeTerminal: definePayloadProcedure<WriteTerminalPayload, void, "supervisor">(
     "writeTerminal",
     "supervisor",
