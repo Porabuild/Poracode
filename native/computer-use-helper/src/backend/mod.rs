@@ -310,6 +310,7 @@ pub trait Backend: Send + Sync {
         window: &WindowInfo,
         _element_id: &str,
         _action: ElementAction,
+        _cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         Ok(capability_unavailable(window.clone(), "invoke_element"))
     }
@@ -319,6 +320,7 @@ pub trait Backend: Send + Sync {
         window: &WindowInfo,
         _element_id: &str,
         _value: &str,
+        _cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         Ok(capability_unavailable(window.clone(), "set_element_value"))
     }

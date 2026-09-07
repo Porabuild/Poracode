@@ -701,7 +701,7 @@ pub fn live_element_info(
 
 fn delivery(element: &ElementInfo, element_id: &str) -> Delivery {
     Delivery::background(Route::Accessibility)
-        .with_verified(Verified::Confirmed)
+        .with_verified(Verified::Unverified)
         .with_target(DeliveryTarget {
             kind: "uia".into(),
             id: element_id.into(),

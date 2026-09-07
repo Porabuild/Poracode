@@ -287,6 +287,7 @@ impl Backend for WindowsBackend {
         window: &WindowInfo,
         element_id: &str,
         action: ElementAction,
+        _cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         if action != ElementAction::Click {
             let result = uia::invoke_element(&self.elements, window, element_id, action)?;
@@ -335,6 +336,7 @@ impl Backend for WindowsBackend {
         window: &WindowInfo,
         element_id: &str,
         value: &str,
+        _cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         let result = uia::set_element_value(&self.elements, window, element_id, value)?;
         Ok(Self::refresh_result_window(result))

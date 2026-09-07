@@ -505,6 +505,7 @@ impl Backend for LinuxBackend {
         window: &WindowInfo,
         element_id: &str,
         action: ElementAction,
+        _cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         self.block_on(atspi::invoke_element(
             &self.elements,
@@ -519,6 +520,7 @@ impl Backend for LinuxBackend {
         window: &WindowInfo,
         element_id: &str,
         value: &str,
+        _cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         self.block_on(atspi::set_element_value(
             &self.elements,

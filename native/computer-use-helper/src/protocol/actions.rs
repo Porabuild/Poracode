@@ -436,13 +436,34 @@ impl Refusal {
         }
     }
 
-    pub const FOREGROUND_HINT: &'static str = "Retry with mode:\"foreground\" (takes over the real mouse/keyboard and shows the takeover border), or use find_elements + invoke_element / set_element_value.";
+    /// Recovery for a refused background action.
+    ///
+    /// Naming `mode:"foreground"` here is what a blind evaluation showed to be
+    /// actively harmful: once an agent had exhausted the routes a hint listed,
+    /// the takeover was the only unused string left in it, and that read as the
+    /// sanctioned next step. A hint lists background routes and then defers to
+    /// the user — asking for a takeover is a decision, not a retry.
+    pub const BACKGROUND_RECOVERY_HINT: &'static str = "Use find_elements + invoke_element / set_element_value instead: element actions stay in the background and reach this window without focusing, raising, or activating it. If no element here can do the job, stop and tell the user what you need rather than taking over their desktop.";
+
+    /// Recovery for a right click, which has its own element action.
+    pub const CONTEXT_MENU_HINT: &'static str = "Open the menu through the element instead: find_elements for the node under this point, then invoke_element with action \"context_menu\" only if that node's actions list includes it. If it does not, say so rather than taking over the user's desktop.";
+
+    /// Recovery for a gesture that has an element equivalent rather than a
+    /// coordinate one.
+    ///
+    /// The recipe is specific because the obvious reading of it is wrong:
+    /// `scroll` on a scroll container does nothing (it is `AXScrollToVisible`,
+    /// which reveals the element it is called on), and a blind evaluation
+    /// watched an agent invoke it on the container five times, get
+    /// `verified:"confirmed"` every time, and nearly conclude that only a
+    /// takeover was left.
+    pub const ELEMENT_SCROLL_HINT: &'static str = "On macOS, scroll by revealing an element: find_elements for the node you want in view, then invoke_element with action \"scroll\" on that node even if its actions list omits it — the host walks up to whatever can actually scroll. Do not call it on the scroll container, where it does nothing and reports verified:\"unchanged\". On Windows and Linux, use a node whose find_elements actions list includes scroll. If nothing here can be revealed that way, say so instead of taking over the user's desktop.";
 
     pub fn background_unavailable(reason: impl Into<String>) -> Self {
         Self::new(
             RefusalCode::BackgroundUnavailable,
             reason,
-            Self::FOREGROUND_HINT,
+            Self::BACKGROUND_RECOVERY_HINT,
         )
     }
 
@@ -450,7 +471,7 @@ impl Refusal {
         Self::new(
             RefusalCode::WindowMinimized,
             "The target window is minimized; background input cannot reach it.",
-            "Call activate_window (or retry with mode:\"foreground\") to restore it, or use invoke_element / set_element_value which work on minimized windows where the app exposes accessibility.",
+            "Use invoke_element / set_element_value, which work on a minimized window wherever the app exposes accessibility and keep the desktop untouched. Restoring the window takes the user's focus, so ask them for it rather than doing it.",
         )
     }
 
@@ -474,7 +495,7 @@ impl Refusal {
         Self::new(
             RefusalCode::ElementActionUnsupported,
             format!("The element does not support the {action:?} action."),
-            "Check the element's `actions` list from find_elements, or click its bounds instead.",
+            "find_elements reports each node's real `actions` list — the tree text omits some of them — so check there for an action this node does support, or for a nearby node that supports the one you want.",
         )
     }
 }
@@ -840,6 +861,20 @@ mod tests {
             serde_json::from_str::<ClickInput>(r#"{"window":{"app":"a","id":1},"x":"","y":1}"#)
                 .unwrap_err();
         assert!(error.to_string().contains("expected a number"));
+    }
+
+    /// `mouse_button` decides the gesture, and an absent field means a left
+    /// press. A `button: "right"` synonym must never reach this struct: the
+    /// TypeScript host's `ARG_ALIASES` rewrites it before send (and rejects a
+    /// conflicting pair), because here it would be dropped and the default
+    /// left press would fire the control's primary action.
+    #[test]
+    fn click_input_parses_mouse_button() {
+        let input: ClickInput = serde_json::from_str(
+            r#"{"window":{"app":"a","id":1},"x":1,"y":1,"mouse_button":"right"}"#,
+        )
+        .unwrap();
+        assert_eq!(input.button().unwrap(), MouseButton::Right);
     }
 
     #[test]

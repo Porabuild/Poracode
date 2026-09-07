@@ -367,8 +367,8 @@ mod tests {
         assert!(downscale_note(&shot).is_none());
     }
 
-    /// Effect verification hashes the whole frame, so a single changed pixel
-    /// anywhere in the window registers — including far from the click point.
+    /// Effect verification hashes a small crop around the action point, so the
+    /// hash has to register a single changed pixel anywhere inside it.
     #[test]
     fn content_hash_covers_every_pixel() {
         let base = gradient(64, 48);

@@ -495,7 +495,7 @@ async fn live_cached_element(
 
 fn delivery(element: &ElementInfo, element_id: &str, moved: bool) -> Delivery {
     let delivery = Delivery::background(Route::Accessibility)
-        .with_verified(Verified::Confirmed)
+        .with_verified(Verified::Unverified)
         .with_target(DeliveryTarget {
             kind: "atspi".into(),
             id: element_id.into(),
@@ -672,7 +672,7 @@ pub async fn focus_window(window: &WindowInfo) -> Result<InteractiveResult> {
                 Refusal::new(
                     RefusalCode::WaylandRawInputUnsupported,
                     "The target window did not become active after the AT-SPI focus request.",
-                    "Activate the target manually and retry, or use find_elements with invoke_element or set_element_value.",
+                    Refusal::BACKGROUND_RECOVERY_HINT,
                 ),
             ));
         }
@@ -681,7 +681,7 @@ pub async fn focus_window(window: &WindowInfo) -> Result<InteractiveResult> {
     Ok(InteractiveResult::delivered(
         resolved.info,
         Delivery::foreground(Route::Accessibility)
-            .with_verified(Verified::Confirmed)
+            .with_verified(Verified::Unverified)
             .with_note("in_app_focus_changed"),
     ))
 }
