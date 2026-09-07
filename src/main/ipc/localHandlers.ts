@@ -298,7 +298,7 @@ export function createLocalIpcHandlers(
         return {
           status: response.status,
           headers: headersToRecord(response.headers),
-          body: Buffer.from(buffer).toString("utf8"),
+          body: Buffer.from(buffer).toString(payload.responseEncoding ?? "utf8"),
         };
       } catch (error) {
         if (controller.signal.aborted) {

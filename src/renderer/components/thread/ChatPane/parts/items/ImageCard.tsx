@@ -41,7 +41,7 @@ export const ImageCard = memo(function ImageCard({
   const openPreview = () => {
     if (threadId) {
       const gallery = getThreadGalleryImages(threadId);
-      if (gallery.length > 1 && gallery.some((img) => img.src === source.src)) {
+      if (gallery.some((img) => img.src === source.src)) {
         openThreadGallery(gallery, source.src);
         return;
       }

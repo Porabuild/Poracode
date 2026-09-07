@@ -1,8 +1,17 @@
 import { fireEvent, render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { ImageCard } from "./ImageCard";
 import type { ImageViewSource } from "./imageViewSource";
+import { getThreadGalleryImages, openThreadGallery } from "../../../useThreadGalleryImages";
+
+vi.mock("../../../useThreadGalleryImages", () => ({
+  getThreadGalleryImages: vi.fn<typeof getThreadGalleryImages>(() => []),
+  openThreadGallery: vi.fn<typeof openThreadGallery>(),
+}));
+vi.mock("../../chatPaneActionsContext", () => ({
+  useChatPaneActions: () => ({ threadId: "thread" }),
+}));
 
 const PREVIEW = "data:image/jpeg;base64,QQ==";
 
@@ -31,6 +40,14 @@ function renderCard(s: ImageViewSource) {
 }
 
 describe("ImageCard", () => {
+  it("uses gallery metadata even when a remote image is the only image", () => {
+    const imageSource = source({ fileName: "image.png", mime: "image/*" });
+    const gallery = [{ src: imageSource.src, fileName: "original.webp", mime: "image/webp" }];
+    vi.mocked(getThreadGalleryImages).mockReturnValueOnce(gallery);
+    const { view } = renderCard(imageSource);
+    fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
+    expect(openThreadGallery).toHaveBeenCalledWith(gallery, imageSource.src);
+  });
   it("reserves the slot from intrinsic size so the timeline cannot shift on load", () => {
     // width/height ride along on the host's image reference precisely so the
     // browser can compute the box before any bytes arrive.

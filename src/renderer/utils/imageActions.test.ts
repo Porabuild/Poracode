@@ -1,12 +1,23 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchImageBytes, toClipboardPngBytes } from "./imageActions";
+import { isRemoteSession } from "@/renderer/bridge";
+import type {
+  RemoteHttpRequestPayload,
+  RemoteHttpRequestResult,
+} from "@/shared/ipc/procedures/app";
 
 const readLocalImageFile = vi.fn<(payload: { url: string }) => Promise<Uint8Array>>();
-vi.mock("@/renderer/bridge", () => ({ readBridge: () => ({ readLocalImageFile }) }));
+const remoteHttpRequest =
+  vi.fn<(payload: RemoteHttpRequestPayload) => Promise<RemoteHttpRequestResult>>();
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => ({ readLocalImageFile, remoteHttpRequest }),
+  isRemoteSession: vi.fn<() => boolean>(() => false),
+}));
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.mocked(isRemoteSession).mockReturnValue(false);
 });
 
 describe("image action bytes", () => {
@@ -22,16 +33,16 @@ describe("image action bytes", () => {
     },
   );
 
-  it.each([new Uint8Array([0x89, 0x50, 0x4e, 0x47]), new Uint8Array([0xff, 0xd8, 0xff])])(
-    "passes native clipboard formats through even without MIME metadata",
-    async (bytes) => {
-      readLocalImageFile.mockResolvedValue(bytes);
-      expect(await toClipboardPngBytes({ src: "poracode-local:///sample" })).toEqual(bytes);
-    },
-  );
+  it("passes PNG through even without MIME metadata", async () => {
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+    readLocalImageFile.mockResolvedValue(bytes);
+    expect(await toClipboardPngBytes({ src: "poracode-local:///sample" })).toEqual(bytes);
+  });
 
-  it("converts local non-native formats and releases the temporary URL", async () => {
-    const original = new Uint8Array([82, 73, 70, 70]);
+  it.each([
+    { mime: "image/webp", original: new Uint8Array([82, 73, 70, 70]) },
+    { mime: "image/jpeg", original: new Uint8Array([0xff, 0xd8, 0xff]) },
+  ])("converts $mime to PNG for desktop and browser clipboards", async ({ mime, original }) => {
     const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
     readLocalImageFile.mockResolvedValue(original);
     const createObjectURL = vi.fn<(blob: Blob) => string>().mockReturnValue("blob:test");
@@ -51,9 +62,7 @@ describe("image action bytes", () => {
     vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback) => {
       callback({ arrayBuffer: async () => png.buffer } as Blob);
     });
-    expect(
-      await toClipboardPngBytes({ src: "poracode-local:///sample.webp", mime: "image/webp" }),
-    ).toEqual(png);
+    expect(await toClipboardPngBytes({ src: "poracode-local:///sample", mime })).toEqual(png);
     expect(drawImage).toHaveBeenCalledOnce();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:test");
     expect(await fetchImageBytes("poracode-local:///sample.webp")).toEqual(original);
@@ -79,6 +88,7 @@ describe("image action bytes", () => {
   });
 
   it("rejects failed remote responses", async () => {
+    vi.mocked(isRemoteSession).mockReturnValue(true);
     vi.stubGlobal(
       "fetch",
       vi
@@ -86,5 +96,34 @@ describe("image action bytes", () => {
         .mockResolvedValue({ ok: false, status: 404 }),
     );
     await expect(fetchImageBytes("https://example.test/image.png")).rejects.toThrow("404");
+  });
+
+  it("reads desktop HTTP image bytes through main without renderer CORS", async () => {
+    const bytes = new Uint8Array([0, 0xff, 0x80, 42]);
+    remoteHttpRequest.mockResolvedValue({
+      status: 200,
+      headers: {},
+      body: btoa(String.fromCharCode(...bytes)),
+    });
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    const url = "https://desktop.test/api/files/image?path=original.webp&token=fixture";
+    expect(await fetchImageBytes(url)).toEqual(bytes);
+    expect(remoteHttpRequest).toHaveBeenCalledWith({ url, responseEncoding: "base64" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects unsuccessful main-process HTTP responses", async () => {
+    remoteHttpRequest.mockResolvedValue({ status: 403, headers: {}, body: "" });
+    await expect(fetchImageBytes("https://desktop.test/image")).rejects.toThrow("403");
+  });
+
+  it("uses browser fetch for PWA image bytes", async () => {
+    vi.mocked(isRemoteSession).mockReturnValue(true);
+    const bytes = new Uint8Array([1, 2, 3]);
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(bytes));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await fetchImageBytes("https://desktop.test/image")).toEqual(bytes);
+    expect(fetchMock).toHaveBeenCalledWith("https://desktop.test/image");
   });
 });
