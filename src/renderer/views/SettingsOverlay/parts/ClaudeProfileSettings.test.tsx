@@ -470,9 +470,7 @@ describe("ClaudeProfileProviderSettings", () => {
     const config = applied?.config as ClaudeProfileInstanceConfig | undefined;
     expect(config?.models?.map((model) => model.id)).toEqual([
       "qwen3.8-max",
-      "qwen3.7-max",
-      "qwen3.7-plus",
-      "qwen3.6-flash",
+      "qwen3.8-flash",
       "glm-5.2",
       "deepseek-v4-pro-0813",
       "deepseek-v4-flash-0731",
@@ -483,9 +481,7 @@ describe("ClaudeProfileProviderSettings", () => {
       defaultEffort: "xHigh",
       modelEfforts: {
         "qwen3.8-max": ["low", "medium", "xHigh"],
-        "qwen3.7-max": [],
-        "qwen3.7-plus": [],
-        "qwen3.6-flash": [],
+        "qwen3.8-flash": ["low", "medium", "xHigh"],
         "glm-5.2": ["high", "max"],
         "deepseek-v4-pro-0813": ["high", "max"],
         "deepseek-v4-flash-0731": ["low", "high", "max"],
