@@ -5,6 +5,7 @@ import type {
   ThreadConfig,
   ThreadServerRequestId,
 } from "@/shared/contracts";
+import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import {
   batchWslCommandsAsync,
@@ -288,19 +289,42 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     }
   }
 
+  /**
+   * Enqueue input onto the running turn. `turn/steer` carries no `displayText`
+   * (unlike `turn/start`), so the steered prompt only reaches the transcript
+   * through the server's `userMessage` echo — and registering the optimistic
+   * alias below makes the mapper suppress that echo's `item.started`. Paint the
+   * row here, before the round-trip, so the message is visible immediately and
+   * survives a wedged or silent provider turn. The id stays stable across the
+   * `startTurn` fallbacks so the re-emitted row is deduped, not duplicated.
+   */
   async steerTurn(
     prompt: string,
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
+    const userItemId = options?.userMessageItemId ?? `user-${mintMspCommandId()}`;
+    const steerOptions: StartTurnOptions = { ...options, userMessageItemId: userItemId };
+    if (prompt.length > 0) {
+      this.emitMany([
+        {
+          type: "item.started",
+          threadId: this.input.threadId,
+          itemId: userItemId,
+          itemType: "user_message",
+          payload: { content: buildPromptContentBlocks(prompt, segments) },
+        },
+        { type: "item.completed", threadId: this.input.threadId, itemId: userItemId },
+      ]);
+    }
     for (;;) {
       if (!this.activeTurnId && this.pendingTurnStart) await this.pendingTurnStart;
-      if (!this.activeTurnId) return this.startTurn(prompt, config, segments, options);
+      if (!this.activeTurnId) return this.startTurn(prompt, config, segments, steerOptions);
       const expectedTurnId = this.activeTurnId;
       await this.applyConfig(config);
       const commandId = mintMspCommandId();
-      this.pendingUserItems.set(commandId, options?.userMessageItemId ?? `user-${commandId}`);
+      this.pendingUserItems.set(commandId, userItemId);
       try {
         await this.client.request("turn/steer", {
           commandId,
@@ -317,7 +341,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
             continue;
           }
           if (this.activeTurnId === expectedTurnId) this.activeTurnId = undefined;
-          await this.startTurn(prompt, config, segments, options);
+          await this.startTurn(prompt, config, segments, steerOptions);
           return;
         }
         throw error;

@@ -715,11 +715,71 @@ describe("MuseMspStructuredSession", () => {
         steered: true,
       },
     });
+    // The steer paints the row itself; the provider echo must not add a second.
     expect(
       runtimeEvents.filter(
         (event) => event.type === "item.started" && event.itemType === "user_message",
       ),
-    ).toHaveLength(0);
+    ).toEqual([expect.objectContaining({ itemId: "user-steer" })]);
+  });
+
+  it("paints the steered user message when the caller supplies no optimistic id", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    await session.startTurn("first", config);
+    await session.steerTurn("redirect", config);
+    const started = runtimeEvents.filter(
+      (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+        event.type === "item.started" && event.itemType === "user_message",
+    );
+    expect(started).toHaveLength(1);
+    expect(started[0]).toMatchObject({
+      payload: { content: [{ kind: "text", text: "redirect" }] },
+    });
+    const itemId = started[0]?.itemId;
+    expect(
+      runtimeEvents.some((event) => event.type === "item.completed" && event.itemId === itemId),
+    ).toBe(true);
+  });
+
+  it("keeps one user row when a rejected steer falls back to a fresh turn", async () => {
+    const { MspRpcError } = await import("./protocol");
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    await session.startTurn("first", config);
+    request.mockImplementation(async (method) => {
+      if (method === "turn/steer") {
+        throw new MspRpcError("turn is no longer active", {
+          code: -32030,
+          kind: "commandRejected",
+        });
+      }
+      if (method === "turn/start") {
+        return { turnId: "turn-2", status: "accepted", disposition: "started" };
+      }
+      return { status: "accepted" };
+    });
+    await session.steerTurn("redirect", config);
+    const start = request.mock.calls.findLast(([method]) => method === "turn/start");
+    const started = runtimeEvents.filter(
+      (event) => event.type === "item.started" && event.itemType === "user_message",
+    );
+    expect(started).toHaveLength(1);
+    notificationHandler?.("item/completed", {
+      sessionId: "session-1",
+      item: {
+        itemId: "provider-start",
+        commandId: start?.[1]?.["commandId"],
+        kind: "userMessage",
+        status: "completed",
+        text: "redirect",
+      },
+    });
+    expect(
+      runtimeEvents.filter(
+        (event) => event.type === "item.started" && event.itemType === "user_message",
+      ),
+    ).toHaveLength(1);
   });
 
   it("interrupts the exact active turn and terminates its owned host on dispose", async () => {
