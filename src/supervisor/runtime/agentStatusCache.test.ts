@@ -227,7 +227,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(26);
+    expect(STATUS_CACHE_VERSION).toBe(27);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -271,7 +271,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(26);
+    expect(STATUS_CACHE_VERSION).toBe(27);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -348,7 +348,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(26);
+    expect(STATUS_CACHE_VERSION).toBe(27);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -395,7 +395,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(26);
+    expect(STATUS_CACHE_VERSION).toBe(27);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -424,7 +424,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(26);
+    expect(STATUS_CACHE_VERSION).toBe(27);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -457,7 +457,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(26);
+    expect(STATUS_CACHE_VERSION).toBe(27);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
