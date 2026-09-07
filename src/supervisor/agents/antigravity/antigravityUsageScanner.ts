@@ -6,7 +6,8 @@ import {
   type UsageSnapshot,
 } from "@poracode/agents-usage";
 import {
-  resolveAntigravityAcpCredentials,
+  invalidateAntigravityAcpCredentialsCache,
+  resolveAntigravityAcpCredentialsCached,
   type AntigravityAcpCredentials,
 } from "./antigravityAcpCredentials";
 import { collectAntigravityCloudUsage } from "./antigravityCloudUsage";
@@ -95,6 +96,7 @@ export interface AntigravityUsageScannerDeps {
     wslDistros: readonly string[],
   ): Promise<UsageSnapshot | undefined>;
   resolveAcpCredentials(): Promise<AntigravityAcpCredentials | undefined>;
+  invalidateAcpCredentials(): void;
   collectCloudUsage(
     nowMs: number,
     host: HostPort,
@@ -104,7 +106,8 @@ export interface AntigravityUsageScannerDeps {
 
 const defaultDeps: AntigravityUsageScannerDeps = {
   scanLanguageServer: scanAntigravityLanguageServerUsage,
-  resolveAcpCredentials: resolveAntigravityAcpCredentials,
+  resolveAcpCredentials: resolveAntigravityAcpCredentialsCached,
+  invalidateAcpCredentials: invalidateAntigravityAcpCredentialsCache,
   collectCloudUsage: collectAntigravityCloudUsage,
 };
 
@@ -118,6 +121,14 @@ export async function scanAntigravityUsage(
   const ls = await deps.scanLanguageServer(nowMs, wslDistros).catch(() => undefined);
   if (ls && ls.windows.length > 0) return ls;
   const credentials = await deps.resolveAcpCredentials().catch(() => undefined);
-  if (credentials) return deps.collectCloudUsage(nowMs, host, credentials);
-  return { providerId: "antigravity", status: "app-not-running", windows: [], fetchedAt: nowMs };
+  if (!credentials) {
+    return { providerId: "antigravity", status: "app-not-running", windows: [], fetchedAt: nowMs };
+  }
+  const snapshot = await deps.collectCloudUsage(nowMs, host, credentials);
+  if (snapshot.status === "auth-missing") {
+    // The stored artifact was rejected (e.g. the user re-signed in and the
+    // refresh token rotated); re-read the OS stores on the next refresh.
+    deps.invalidateAcpCredentials();
+  }
+  return snapshot;
 }
