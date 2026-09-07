@@ -8334,8 +8334,8 @@ msgid "No threads yet."
 msgstr "暂无对话。"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
-msgstr "未收到判定结果 — CLI 可能阻止了 /goal（工作区信任或挂钩设置），或评估器无法运行"
+#~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+#~ msgstr "未收到判定结果 — CLI 可能阻止了 /goal（工作区信任或挂钩设置），或评估器无法运行"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"

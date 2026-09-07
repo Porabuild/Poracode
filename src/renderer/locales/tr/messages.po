@@ -8335,8 +8335,8 @@ msgid "No threads yet."
 msgstr "Henüz konuşma yok."
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
-msgstr "karar gelmedi — CLI /goal komutunu engellemiş olabilir (çalışma alanı güveni veya kanca ayarları) ya da değerlendirici çalıştırılamadı"
+#~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+#~ msgstr "karar gelmedi — CLI /goal komutunu engellemiş olabilir (çalışma alanı güveni veya kanca ayarları) ya da değerlendirici çalıştırılamadı"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"

@@ -8335,8 +8335,8 @@ msgid "No threads yet."
 msgstr "Тредов пока нет."
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
-msgstr "вердикт не получен — CLI мог заблокировать /goal (доверие к рабочему пространству или настройки хуков), либо оценщик не смог запуститься"
+#~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+#~ msgstr "вердикт не получен — CLI мог заблокировать /goal (доверие к рабочему пространству или настройки хуков), либо оценщик не смог запуститься"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"

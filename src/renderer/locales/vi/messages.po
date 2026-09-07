@@ -8335,8 +8335,8 @@ msgid "No threads yet."
 msgstr "Chưa có luồng nào."
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
-msgstr "không nhận được phán quyết — CLI có thể đã chặn /goal (độ tin cậy không gian làm việc hoặc cài đặt hook) hoặc trình đánh giá không chạy được"
+#~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+#~ msgstr "không nhận được phán quyết — CLI có thể đã chặn /goal (độ tin cậy không gian làm việc hoặc cài đặt hook) hoặc trình đánh giá không chạy được"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"

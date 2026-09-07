@@ -8333,8 +8333,8 @@ msgid "No threads yet."
 msgstr "まだスレッドがありません。"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
-msgstr "判定が届きませんでした — CLIが/goalをブロックしたか（ワークスペースの信頼またはフック設定）、評価器を実行できませんでした"
+#~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+#~ msgstr "判定が届きませんでした — CLIが/goalをブロックしたか（ワークスペースの信頼またはフック設定）、評価器を実行できませんでした"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
