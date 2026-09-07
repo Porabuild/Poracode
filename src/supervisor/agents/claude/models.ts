@@ -182,10 +182,21 @@ export function claudeCapabilitiesFromSdkModels(
   const fastModels = new Set(CLAUDE_BUILTIN_FAST_MODELS);
   let matched = false;
 
+  // Keep the built-in selectable alias when the SDK resolves it to a native
+  // Haiku release. External profile targets must retain their own identities.
+  const aliasTargets = new Map<string, string>();
+  for (const model of sdkModels) {
+    const resolved = model.resolvedModel?.replace(/\[[0-9]+[mk]\]$/i, "").trim();
+    if (model.value === CLAUDE_HAIKU_MODEL_ID && resolved && resolved.startsWith("claude-haiku-")) {
+      aliasTargets.set(resolved, CLAUDE_HAIKU_MODEL_ID);
+    }
+  }
+
   for (const sdkModel of sdkModels) {
     const rawId = sdkModel.resolvedModel || sdkModel.value;
     if (!rawId) continue;
-    const modelId = rawId.replace(/\[[0-9]+[mk]\]$/i, "").trim();
+    const resolvedId = rawId.replace(/\[[0-9]+[mk]\]$/i, "").trim();
+    const modelId = aliasTargets.get(resolvedId) ?? resolvedId;
     if (!modelId || modelId === "default" || modelId === "auto") continue;
     matched = true;
 

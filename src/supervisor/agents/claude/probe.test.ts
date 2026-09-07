@@ -467,3 +467,38 @@ it("uses the resolved model identity instead of the SDK Default label", () => {
   ]);
   expect(result?.models).toContainEqual({ id: "qwen3.8-max", label: "qwen3.8-max" });
 });
+
+it("merges the native Haiku resolution into its built-in alias and metadata", () => {
+  const result = claudeCapabilitiesFromSdkModels([
+    {
+      value: "claude-haiku-4-5-20251001",
+      displayName: "Haiku",
+      description: "",
+      supportsEffort: false,
+    },
+    {
+      value: "haiku",
+      resolvedModel: "claude-haiku-4-5-20251001",
+      displayName: "Haiku",
+      description: "",
+      supportsEffort: false,
+    },
+  ]);
+  expect(result?.models.filter((model) => model.label === "Haiku")).toEqual([
+    { id: "haiku", label: "Haiku" },
+  ]);
+  expect(result?.modelEfforts.haiku).toEqual([]);
+  expect(result?.modelContextSizes?.haiku).toEqual(["1m"]);
+  expect(result?.modelContextSizes).not.toHaveProperty("claude-haiku-4-5-20251001");
+});
+it("keeps external targets of the Haiku alias as distinct profile models", () => {
+  const result = claudeCapabilitiesFromSdkModels([
+    {
+      value: "haiku",
+      resolvedModel: "qwen3.8-flash",
+      displayName: "Qwen3.8 Flash",
+      description: "",
+    },
+  ]);
+  expect(result?.models).toContainEqual({ id: "qwen3.8-flash", label: "Qwen3.8 Flash" });
+});
