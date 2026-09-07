@@ -3461,7 +3461,7 @@ msgstr "复制失败"
 msgid "Copy ignored files"
 msgstr "复制忽略的文件"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -10959,7 +10959,7 @@ msgstr "保存 Cursor SDK API 密钥"
 msgid "Save File"
 msgstr "保存文件"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "保存图像"
 
@@ -13400,7 +13400,7 @@ msgstr "无法通过 SSH 连接。"
 msgid "Unable to copy desktop endpoint."
 msgstr "无法复制桌面端点。"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to copy image."
 msgstr "无法复制图像。"
 
@@ -13574,7 +13574,7 @@ msgstr "无法保存{0}凭据。"
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "无法保存Claude {displayLabel}配置。"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "无法保存图像。"
 

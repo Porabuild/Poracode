@@ -3461,7 +3461,7 @@ msgstr "Kopyalama başarısız oldu"
 msgid "Copy ignored files"
 msgstr "Yoksayılan dosyaları kopyala"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -10960,7 +10960,7 @@ msgstr "Cursor SDK API anahtarını kaydet"
 msgid "Save File"
 msgstr "Dosyayı Kaydet"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "Görseli kaydet"
 
@@ -13401,7 +13401,7 @@ msgstr "SSH üzerinden bağlanılamadı."
 msgid "Unable to copy desktop endpoint."
 msgstr "Masaüstü uç noktası kopyalanamadı."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to copy image."
 msgstr "Görsel kopyalanamadı."
 
@@ -13575,7 +13575,7 @@ msgstr "{0} kimlik bilgileri kaydedilemiyor."
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Claude {displayLabel} profili kaydedilemedi."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "Görsel kaydedilemedi."
 
