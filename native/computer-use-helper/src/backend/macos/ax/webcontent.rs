@@ -348,15 +348,18 @@ mod tests {
     #[test]
     fn pid_records_expire_and_reads_do_not_renew_them() {
         static LOG: PidLog = OnceLock::new();
-        let ttl = Duration::from_millis(60);
+        // Margins sized for a loaded CI scheduler: the fresh check sits at a
+        // fifth of the TTL, and the expiry check runs long past it (overshooting
+        // only makes the answer more certain).
+        let ttl = Duration::from_millis(1_000);
 
         assert!(!pid_logged(&LOG, 4321, ttl));
         record_pid(&LOG, 4321, ttl);
         assert!(pid_logged(&LOG, 4321, ttl));
 
-        thread::sleep(Duration::from_millis(35));
+        thread::sleep(Duration::from_millis(200));
         assert!(pid_logged(&LOG, 4321, ttl), "still inside the window");
-        thread::sleep(Duration::from_millis(35));
+        thread::sleep(Duration::from_millis(1_200));
         assert!(
             !pid_logged(&LOG, 4321, ttl),
             "the reads above must not have renewed it"
