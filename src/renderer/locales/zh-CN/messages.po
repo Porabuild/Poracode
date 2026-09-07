@@ -3051,6 +3051,10 @@ msgstr "沟通协作"
 msgid "Community"
 msgstr "社区"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Compact the conversation context"
+msgstr "压缩对话上下文"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "压缩上下文"
@@ -8423,6 +8427,10 @@ msgstr "注释"
 #: src/mobile/views/NotesView.tsx
 msgid "Notes & to-dos"
 msgstr "笔记和待办事项"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Nothing to compact yet — the conversation is still small."
+msgstr "暂无内容可压缩 — 对话还很短。"
 
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Nothing tracked yet. It'll appear here as you use it."
