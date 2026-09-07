@@ -45,21 +45,29 @@ export function CommandPalette() {
   const filteredCommands = filterCommands(commands, query, resolve).slice(0, MAX_VISIBLE_COMMANDS);
   const activeCommand = filteredCommands[activeIndex];
 
-  useEffect(() => {
+  // Reset on close and clamp the selection while open — both derive from
+  // (isOpen, filteredCommands.length), so adjust during render. Focusing the
+  // input is a DOM side effect and stays in the effect below.
+  const [prevPaletteOpen, setPrevPaletteOpen] = useState(isOpen);
+  if (prevPaletteOpen !== isOpen) {
+    setPrevPaletteOpen(isOpen);
     if (!isOpen) {
       setQuery("");
       setActiveIndex(0);
+    }
+  }
+  if (activeIndex >= filteredCommands.length) {
+    const clamped = Math.max(0, filteredCommands.length - 1);
+    if (clamped !== activeIndex) setActiveIndex(clamped);
+  }
+
+  useEffect(() => {
+    if (!isOpen) {
       return;
     }
     const id = requestAnimationFrame(() => inputRef.current?.focus());
     return () => cancelAnimationFrame(id);
   }, [isOpen]);
-
-  useEffect(() => {
-    if (activeIndex >= filteredCommands.length) {
-      setActiveIndex(Math.max(0, filteredCommands.length - 1));
-    }
-  }, [activeIndex, filteredCommands.length]);
 
   function runCommand(command: AppCommand | undefined) {
     if (!command) return;

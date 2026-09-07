@@ -227,7 +227,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(22);
+    expect(STATUS_CACHE_VERSION).toBe(27);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -271,7 +271,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(22);
+    expect(STATUS_CACHE_VERSION).toBe(27);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -348,7 +348,116 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(22);
+    expect(STATUS_CACHE_VERSION).toBe(27);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v22 native terminal-only Muse statuses", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 22,
+        windows: [
+          {
+            kind: "muse",
+            label: "Muse Code",
+            installed: false,
+            capabilities: { presentationModes: ["terminal"] },
+            envKind: "windows",
+          },
+        ],
+        wsl: [
+          {
+            kind: "muse",
+            label: "Muse Code",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { presentationModes: ["terminal"] },
+            envKind: "wsl",
+            wslDistro: "Ubuntu",
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses(["Ubuntu"]);
+
+    expect(STATUS_CACHE_VERSION).toBe(27);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v23 ACP labels in both native and WSL caches", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    const staleStatus = {
+      kind: "acp-generic:example",
+      label: "Example ACP",
+      installed: true,
+      capabilities: { models: [{ id: "gemini-2.5-pro", label: "2.5 Pro" }] },
+    };
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 23,
+        windows: [{ ...staleStatus, envKind: "windows" }],
+        wsl: [{ ...staleStatus, envKind: "wsl", wslDistro: "Ubuntu" }],
+      }),
+    );
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (distros: readonly string[]) => unknown;
+      }
+    ).readCachedStatuses(["Ubuntu"]);
+    expect(STATUS_CACHE_VERSION).toBe(27);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v24 terminal auth environments in native and WSL caches", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    const staleStatus = {
+      kind: "acp-generic:example",
+      label: "Example ACP",
+      installed: true,
+      authState: "missing",
+      capabilities: { models: [] },
+      authMethods: [
+        { type: "terminal", id: "login", name: "Login", env: { DISABLE_AUTO_UPDATE: "1" } },
+      ],
+    };
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 24,
+        windows: [{ ...staleStatus, envKind: "windows" }],
+        wsl: [{ ...staleStatus, envKind: "wsl", envDistro: "Ubuntu" }],
+      }),
+    );
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (distros: readonly string[]) => unknown;
+      }
+    ).readCachedStatuses(["Ubuntu"]);
+    expect(STATUS_CACHE_VERSION).toBe(27);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ThreadConfig } from "@/shared/contracts";
 import type { AgentAdapter, StructuredSessionHandle } from "../../agents/base";
 import type { SessionRuntime } from "../sessionTypes";
+import { shouldPrimeNativeProjectShellEnv } from "./helpers";
 import {
   InvalidSessionRecoveryCoordinator,
   type InvalidSessionRecoveryContext,
@@ -11,6 +12,7 @@ import {
 
 const THREAD_ID = "thread-recover";
 const PROJECT_LOCATION = { kind: "posix", path: "/repo" } as const;
+const LOGICAL_PROJECT_LOCATION = { kind: "windows", path: "C:\\repo" } as const;
 const CONFIG: ThreadConfig = { model: "recover-test/model" };
 
 function createHarness() {
@@ -49,6 +51,7 @@ function createHarness() {
     threadId: THREAD_ID,
     agentKind: adapter.kind,
     adapter,
+    logicalProjectLocation: LOGICAL_PROJECT_LOCATION,
     projectLocation: PROJECT_LOCATION,
     config: CONFIG,
     mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
@@ -184,7 +187,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
       "hooks",
       "compose",
       "build",
-      "prime",
+      ...(shouldPrimeNativeProjectShellEnv(harness.session.projectLocation) ? ["prime"] : []),
       "resolve",
       "spawn",
     ]);
@@ -193,6 +196,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     expect(spawnInput).not.toHaveProperty("sessionRef");
     expect(spawnInput.mcpLaunchSnapshot).toBe(harness.session.mcpLaunchSnapshot);
     expect(spawnInput.launchConfig).toEqual(CONFIG);
+    expect(spawnInput.logicalProjectLocation).toEqual(LOGICAL_PROJECT_LOCATION);
     expect(spawnInput).toMatchObject({
       threadId: THREAD_ID,
       launchPrompt: "",
@@ -260,6 +264,8 @@ describe("InvalidSessionRecoveryCoordinator", () => {
 
   it("aborts before spawn when pre-spawn priming replaced the session", async () => {
     const harness = createHarness();
+    harness.session.logicalProjectLocation = PROJECT_LOCATION;
+    harness.session.projectLocation = PROJECT_LOCATION;
     harness.primeProjectShellEnv.mockImplementation(async () => {
       harness.setCurrentSession(undefined);
     });
@@ -267,6 +273,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     await harness.coordinator.recover(harness.session);
 
     expect(harness.buildLaunchArgv).toHaveBeenCalledTimes(1);
+    expect(harness.primeProjectShellEnv).toHaveBeenCalledTimes(1);
     expect(harness.spawnThread).not.toHaveBeenCalled();
   });
 

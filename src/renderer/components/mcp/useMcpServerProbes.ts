@@ -41,6 +41,10 @@ function startProbe(
 ): void {
   const sequence = (requestSequences.current.get(server.id) ?? 0) + 1;
   requestSequences.current.set(server.id, sequence);
+  if (!server.enabled) {
+    setStates((current) => ({ ...current, [server.id]: { status: "disabled" } }));
+    return;
+  }
   setStates((current) => ({ ...current, [server.id]: { status: "checking" } }));
 
   let request: Promise<McpProbeResult>;
@@ -93,27 +97,29 @@ export function useMcpServerProbes(
     };
   }, []);
 
-  useEffect(() => {
-    const nextFingerprints = new Map<string, string>();
+  // Drop cached states for removed servers during render; probing stays in
+  // the effect below and only settles through async callbacks.
+  const serverIdsKey = servers.map((server) => server.id).join(",");
+  const [prevServerIdsKey, setPrevServerIdsKey] = useState(serverIdsKey);
+  if (prevServerIdsKey !== serverIdsKey) {
+    setPrevServerIdsKey(serverIdsKey);
     const currentIds = new Set(servers.map((server) => server.id));
-
     setStates((current) => {
       const remaining = Object.fromEntries(
         Object.entries(current).filter(([serverId]) => currentIds.has(serverId)),
       );
       return Object.keys(remaining).length === Object.keys(current).length ? current : remaining;
     });
+  }
+
+  useEffect(() => {
+    const nextFingerprints = new Map<string, string>();
+    const currentIds = new Set(servers.map((server) => server.id));
 
     for (const server of servers) {
       const fingerprint = JSON.stringify({ server, projectLocation: projectLocation ?? null });
       nextFingerprints.set(server.id, fingerprint);
       if (fingerprints.current.get(server.id) === fingerprint) continue;
-
-      if (!server.enabled) {
-        requestSequences.current.set(server.id, (requestSequences.current.get(server.id) ?? 0) + 1);
-        setStates((current) => ({ ...current, [server.id]: { status: "disabled" } }));
-        continue;
-      }
 
       startProbe(server, projectLocation, requestSequences, mounted, setStates);
     }

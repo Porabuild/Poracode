@@ -179,6 +179,11 @@ msgstr "{0} ({envName}) zaktualizowano."
 msgid "{0} (fork)"
 msgstr "{0} (fork)"
 
+#. placeholder {0}: defaultMethod.name
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#~ msgid "{0} {env}"
+#~ msgstr "{0} {env}"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -326,7 +331,7 @@ msgid "{0} threads"
 msgstr "{0} wątków"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageCostLine.tsx
 msgid "{0} tokens"
 msgstr "{0} tokenów"
 
@@ -523,13 +528,13 @@ msgstr "{label} – użycie — otwórz panel użycia"
 
 #. placeholder {0}: method.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {0}"
-msgstr "{loginLabel} {0}"
+#~ msgid "{loginLabel} {0}"
+#~ msgstr "{loginLabel} {0}"
 
 #. placeholder {0}: method.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {0} {env}"
-msgstr "{loginLabel} {0} {env}"
+#~ msgid "{loginLabel} {0} {env}"
+#~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{loginLabel} {env}"
@@ -697,7 +702,7 @@ msgid "<0>{passed}</0> of {0} checks passed"
 msgstr "Zaliczono <0>{passed}</0> z {0} kontroli"
 
 #. placeholder {0}: snapshot.cost.period
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageCostLine.tsx
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · szac."
 
@@ -746,6 +751,11 @@ msgstr "Profil Cursor o tej nazwie już istnieje."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "Zamrożone źródło drzewa roboczego wymaga pełnego skrótu commita"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
+msgstr "Zablokowany ekran zatrzymuje całą kontrolę nad pulpitem, dlatego podczas sesji obsługi komputera ekran pozostaje włączony. Nadal możesz zablokować ekran samodzielnie."
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
@@ -1379,6 +1389,10 @@ msgstr "Inny czat korzysta z tego samego drzewa. Przywrócenie pliku może zast�
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "Inna operacja dla tego eksperymentu wciąż trwa."
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "Odpowiedz na wszystkie pytania, aby wysłać"
 
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
@@ -2437,12 +2451,12 @@ msgid "Choose how Poracode performs manual merges and automatic PR merges."
 msgstr "Wybierz sposób wykonywania przez Poracode ręcznych i automatycznych scaleń PR."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Choose how to sign in for {env}."
-msgstr "Wybierz sposób logowania się do {env}."
+#~ msgid "Choose how to sign in for {env}."
+#~ msgstr "Wybierz sposób logowania się do {env}."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Choose how to sign in."
-msgstr "Wybierz sposób logowania."
+#~ msgid "Choose how to sign in."
+#~ msgstr "Wybierz sposób logowania."
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
@@ -2870,6 +2884,7 @@ msgstr "Codex"
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse"
 msgstr "Zwiń"
@@ -2914,6 +2929,10 @@ msgstr "Zwiń stopkę"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Collapse group"
 msgstr "Zwiń grupę"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse images"
+msgstr "Zwiń obrazy"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -3032,6 +3051,10 @@ msgstr "Komunikacja"
 msgid "Community"
 msgstr "Społeczność"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Compact the conversation context"
+msgstr "Skompaktuj kontekst rozmowy"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "Kompaktowanie kontekstu"
@@ -3053,7 +3076,7 @@ msgstr "Ukończono"
 msgid "Complete {0} sign-in before this thread can run."
 msgstr "Dokończ logowanie {0}, zanim będzie można uruchomić ten wątek."
 
-#. placeholder {0}: singleMethod.name
+#. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Complete {0} sign-in for {env}."
 msgstr "Dokończ logowanie {0} dla {env}."
@@ -3065,7 +3088,7 @@ msgid "Complete {0} sign-in or save {1} credentials."
 msgstr "Dokończ logowanie {0} lub zapisz poświadczenia {1}."
 
 #. placeholder {0}: agentAuth.method.name
-#. placeholder {0}: singleMethod.name
+#. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Complete {0} sign-in."
@@ -3116,12 +3139,28 @@ msgstr "Obsługa komputera"
 #~ msgstr "Computer Use steruje sparowanym pulpitem. Nie korzystaj z tego komputera, gdy agent klika lub pisze."
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
-msgstr "Computer Use włączone — steruje sparowanym pulpitem; nie korzystaj z tego komputera, gdy agent go kontroluje"
+#~ msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+#~ msgstr "Computer Use włączone — steruje sparowanym pulpitem; nie korzystaj z tego komputera, gdy agent go kontroluje"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
-msgstr "Computer Use włączone — działania interaktywne przejmują pulpit; nie korzystaj z komputera, gdy agent go kontroluje"
+#~ msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+#~ msgstr "Computer Use włączone — działania interaktywne przejmują pulpit; nie korzystaj z komputera, gdy agent go kontroluje"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Funkcja Computer Use jest włączona — agent steruje aplikacjami na sparowanym pulpicie w tle; przejmuje mysz i klawiaturę tego pulpitu tylko wtedy, gdy dany krok wyraźnie wymaga pracy na pierwszym planie"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground or when that desktop's system-approved portal requires it"
+msgstr "Sterowanie komputerem jest włączone — agent obsługuje aplikacje na sparowanym pulpicie w tle; przejmuje mysz i klawiaturę tego pulpitu tylko wtedy, gdy krok wyraźnie wymaga pierwszego planu lub wymaga tego zatwierdzony przez system portal tego pulpitu"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Funkcja Computer Use jest włączona — agent steruje aplikacjami komputerowymi w tle; przejmuje mysz i klawiaturę tylko wtedy, gdy dany krok wyraźnie wymaga pracy na pierwszym planie"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it"
+msgstr "Sterowanie komputerem jest włączone — agent obsługuje aplikacje komputerowe w tle; przejmuje mysz i klawiaturę tylko wtedy, gdy krok wyraźnie wymaga pierwszego planu lub wymaga tego zatwierdzony przez system portal pulpitu"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
@@ -3338,8 +3377,12 @@ msgid "Control an external Chrome browser."
 msgstr "Steruje zewnętrzną przeglądarką Chrome."
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Control desktop apps and complete visual workflows."
-msgstr "Steruj aplikacjami desktopowymi i realizuj wizualne przepływy pracy."
+#~ msgid "Control desktop apps and complete visual workflows."
+#~ msgstr "Steruj aplikacjami desktopowymi i realizuj wizualne przepływy pracy."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps in the background and complete visual workflows."
+msgstr "Steruj aplikacjami komputerowymi w tle i wykonuj wizualne przepływy pracy."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3350,8 +3393,8 @@ msgid "Control which files appear in the @file mention search. Per-project overr
 msgstr "Kontroluj, które pliki pojawiają się w wyszukiwaniu wzmianek @plik. Zastąpienia poszczególnych projektów są dostępne w ustawieniach każdego projektu."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Controls the paired desktop while the agent clicks or types"
-msgstr "Steruje sparowanym pulpitem, gdy agent klika lub pisze"
+#~ msgid "Controls the paired desktop while the agent clicks or types"
+#~ msgstr "Steruje sparowanym pulpitem, gdy agent klika lub pisze"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -3418,6 +3461,7 @@ msgstr "Kopiowanie nie powiodło się"
 msgid "Copy ignored files"
 msgstr "Skopiuj zignorowane pliki"
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -4556,6 +4600,22 @@ msgstr "Przeciągnij, aby zmienić kolejność; kliknij dwukrotnie, aby edytowa�
 msgid "Drives"
 msgstr "Dyski"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground"
+#~ msgstr "Steruje aplikacjami na sparowanym pulpicie w tle; przejmuje ten pulpit tylko wtedy, gdy agent zażąda pracy na pierwszym planie"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it"
+msgstr "Obsługuje aplikacje na sparowanym pulpicie w tle; przejmuje ten pulpit tylko wtedy, gdy agent żąda pierwszego planu lub wymaga tego jego zatwierdzony przez system portal"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground"
+#~ msgstr "Steruje aplikacjami komputerowymi w tle; przejmuje pulpit tylko wtedy, gdy agent zażąda pracy na pierwszym planie"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it"
+msgstr "Obsługuje aplikacje komputerowe w tle; przejmuje pulpit tylko wtedy, gdy agent żąda pierwszego planu lub wymaga tego zatwierdzony przez system portal"
+
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
 msgstr "Upuść tutaj, aby dołączyć"
@@ -4942,6 +5002,7 @@ msgstr "Zakończono z kodem {0}. Zamknij, aby spróbować ponownie."
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand"
 msgstr "Rozwiń"
@@ -4974,6 +5035,10 @@ msgstr "Rozwiń stopkę"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
 msgstr "Rozwiń grupę"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand images"
+msgstr "Rozwiń obrazy"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -5375,8 +5440,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Pierwszorzędna integracja Kimi Code CLI przy użyciu natywnego środowiska wykonawczego Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Pierwszorzędna integracja Muse Code CLI przy użyciu natywnego środowiska wykonawczego terminala Poracode."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Pierwszorzędna integracja Muse Code CLI przy użyciu natywnego środowiska wykonawczego terminala Poracode."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Pierwszorzędna integracja Muse Code z natywnymi środowiskami terminala i GUI Poracode."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -5880,6 +5949,7 @@ msgid "Hide"
 msgstr "Ukryj"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
 msgstr "Ukryj {label}"
 
@@ -6050,6 +6120,7 @@ msgstr "Obraz"
 msgid "Image preview"
 msgstr "Podgląd obrazu"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
@@ -6222,6 +6293,11 @@ msgstr "zainstaluj"
 msgid "Install"
 msgstr "Zainstaluj"
 
+#. placeholder {0}: slot.badge
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#~ msgid "Install {0}"
+#~ msgstr "Install {0}"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Install {0} for {env}."
@@ -6249,6 +6325,10 @@ msgstr "Zainstaluj {badge}"
 #~ msgid "Install @cursor/sdk to configure its API key."
 #~ msgstr "Zainstaluj @cursor/sdk, aby skonfigurować klucz API."
 
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+msgid "Install ACP"
+msgstr "Zainstaluj ACP"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Install ACP + SDK"
 msgstr "Zainstaluj ACP + SDK"
@@ -6256,6 +6336,10 @@ msgstr "Zainstaluj ACP + SDK"
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Install ACP + SDK in {environment}"
 msgstr "Zainstaluj ACP + SDK w {environment}"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+msgid "Install ACP in {environment}"
+msgstr "Zainstaluj ACP w {environment}"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
@@ -6485,6 +6569,11 @@ msgstr "Zachowaj jedną kolejność dostawców wszędzie. Wyłącz, aby układa�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep Poracode in the system tray when it launches at startup."
 msgstr "Po uruchomieniu przy starcie pozostaw Poracode w zasobniku systemowym."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the Mac awake during Computer Use"
+msgstr "Nie usypiaj Maca podczas obsługi komputera"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -7405,6 +7494,14 @@ msgstr "Więcej opcji żądania ściągnięcia"
 msgid "More schedule options"
 msgstr "Więcej opcji harmonogramu"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "More sign-in methods"
+msgstr "Więcej metod logowania"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "More sign-in methods {env}"
+msgstr "Więcej metod logowania {env}"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
 msgstr "Więcej opcji synchronizacji"
@@ -8292,6 +8389,7 @@ msgid "Not found"
 msgstr "Nie znaleziono"
 
 #: src/renderer/views/SettingsOverlay/parts/nativeAgentRuntimes.ts
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "not installed"
 msgstr "nie zainstalowano"
 
@@ -8331,6 +8429,10 @@ msgstr "Notatki"
 #: src/mobile/views/NotesView.tsx
 msgid "Notes & to-dos"
 msgstr "Notatki i zadania"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Nothing to compact yet — the conversation is still small."
+msgstr "Nie ma jeszcze czego kompaktować — rozmowa jest wciąż krótka."
 
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Nothing tracked yet. It'll appear here as you use it."
@@ -8718,6 +8820,10 @@ msgstr "Otwórz selektor modeli"
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "OpenCode request failed, retrying..."
+msgstr "Żądanie OpenCode nie powiodło się, ponawianie..."
 
 #. placeholder {0}: request.receivedAt
 #. placeholder {1}: index + 1
@@ -10430,6 +10536,16 @@ msgstr "Zmień rozmiar podziału"
 msgid "Resize terminal panel"
 msgstr "Zmień rozmiar panelu terminali"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useConflictResolver.ts
+msgid "Resolve conflicts in this worktree. First inspect Git status and the active operation; the file list below may be stale. Compare both sides and the base, preserving intended behavior and unrelated edits. During rebase, verify what ours/theirs refer to. Handle rename/delete, binary, and generated-file conflicts using repository conventions. If intent is ambiguous, ask before discarding changes. Validate the resolution with appropriate checks, then stage only resolved paths. Do not commit, continue or abort the operation, or push. Report resolutions, checks, and remaining conflicts.\n"
+"\n"
+"Files:\n"
+"{fileList}"
+msgstr "Rozwiąż konflikty w tym drzewie roboczym. Najpierw sprawdź stan Git i trwającą operację; poniższa lista plików może być nieaktualna. Porównaj obie strony i wersję bazową, zachowując zamierzone działanie oraz niezwiązane zmiany. Podczas rebase sprawdź, do czego odnoszą się ours/theirs. Obsłuż konflikty zmiany nazwy/usunięcia, plików binarnych i generowanych zgodnie z konwencjami repozytorium. Jeśli zamiar jest niejasny, zapytaj przed odrzuceniem zmian. Zweryfikuj rozwiązanie odpowiednimi kontrolami, a następnie dodaj do indeksu tylko rozwiązane ścieżki. Nie twórz commita, nie kontynuuj ani nie przerywaj operacji i nie wykonuj push. Opisz rozwiązania, kontrole i pozostałe konflikty.\n"
+"\n"
+"Pliki:\n"
+"{fileList}"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
@@ -10652,12 +10768,20 @@ msgstr "Uruchom {0}"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "Uruchom {0}, zanim ten wątek będzie mógł zostać uruchomiony."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "Uruchom {0}, zanim ten wątek będzie mógł zostać uruchomiony."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "Uruchom {loginCommand}, aby się zalogować."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "Uruchom {loginCommand}, aby się zalogować."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "Uruchom {loginCommandDisplay}, zanim ten wątek będzie mógł zostać uruchomiony."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "Uruchom {loginCommandDisplay}, aby się zalogować."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -10835,6 +10959,10 @@ msgstr "Zapisz klucz API SDK Cursor"
 #: src/renderer/commands/registry.ts
 msgid "Save File"
 msgstr "Zapisz plik"
+
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Save image"
+msgstr "Zapisz obraz"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Save MCP servers"
@@ -11242,6 +11370,10 @@ msgstr "Wysyłaj ogólny tekst zamiast tytułów rozmów przez usługę push fir
 msgid "Send message"
 msgstr "Wyślij wiadomość"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Send terminal input"
+msgstr "Wyślij dane do terminala"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
 msgstr "Wysłano zaznaczenie do terminala."
@@ -11595,6 +11727,10 @@ msgstr "Wyloguj się z {0}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Sign out of {serverName}"
 msgstr "Wyloguj się z {serverName}"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Sign-in methods"
+msgstr "Metody logowania"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "sign-in required"
@@ -12350,8 +12486,8 @@ msgid "Take Screenshot"
 msgstr "Zrób zrzut ekranu"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Takes over the desktop while the agent clicks or types"
-msgstr "Przejmuje pulpit, gdy agent klika lub pisze"
+#~ msgid "Takes over the desktop while the agent clicks or types"
+#~ msgstr "Przejmuje pulpit, gdy agent klika lub pisze"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."
@@ -13265,6 +13401,10 @@ msgstr "Nie można połączyć się przez SSH."
 msgid "Unable to copy desktop endpoint."
 msgstr "Nie można skopiować punktu końcowego pulpitu."
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Unable to copy image."
+msgstr "Nie można skopiować obrazu."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy pairing link."
 msgstr "Nie można skopiować linku parowania."
@@ -13434,6 +13574,10 @@ msgstr "Nie można zapisać danych uwierzytelniających {0}."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Nie można zapisać profilu Claude {displayLabel}."
+
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Unable to save image."
+msgstr "Nie można zapisać obrazu."
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
@@ -14084,7 +14228,7 @@ msgstr "Tylko do odczytu — to połączenie nie może zarządzać projektami."
 msgid "Violet"
 msgstr "Fioletowy"
 
-#. placeholder {0}: provider.label
+#. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Visible {0} models"
 msgstr "Widoczne modele {0}"

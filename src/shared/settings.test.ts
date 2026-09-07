@@ -22,15 +22,16 @@ describe("shared settings defaults", () => {
       "goal",
       "agents",
       "backgroundTasks",
+      "images",
     ]);
     expect(
       reorderVisibleThreadDocks(
-        ["goal", "plan", "agents", "backgroundTasks"],
-        ["plan", "backgroundTasks"],
-        1,
+        ["goal", "plan", "agents", "backgroundTasks", "images"],
+        ["plan", "backgroundTasks", "images"],
+        2,
         0,
       ),
-    ).toEqual(["goal", "backgroundTasks", "agents", "plan"]);
+    ).toEqual(["goal", "images", "agents", "plan", "backgroundTasks"]);
   });
 
   it("enables notifications and displays them for visible threads by default", () => {

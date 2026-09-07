@@ -1,13 +1,16 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { SSEClientTransport, SseError } from "@modelcontextprotocol/sdk/client/sse.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import {
+  Client,
+  SSEClientTransport,
+  SseError,
   StreamableHTTPClientTransport,
-  StreamableHTTPError,
-} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
-import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+  UnauthorizedError,
+  ProtocolError,
+  SdkErrorCode,
+  SdkError,
+  SdkHttpError,
+} from "@modelcontextprotocol/client";
+import type { Transport } from "@modelcontextprotocol/client";
 import type {
   McpProbeEnvironment,
   McpProbeError,
@@ -140,18 +143,19 @@ function classifyFailure(
   error: unknown,
   observation: AuthObservation,
   timedOut: boolean,
+  transportError?: unknown,
 ): McpProbeError {
-  if (timedOut || (error instanceof McpError && error.code === ErrorCode.RequestTimeout)) {
+  if (timedOut || (error instanceof SdkError && error.code === SdkErrorCode.RequestTimeout)) {
     return { code: "timeout", message: "Connection timed out." };
   }
 
   if (
     error instanceof UnauthorizedError ||
-    (error instanceof McpError &&
+    (error instanceof ProtocolError &&
       /unauthori[sz]ed|authentication required/iu.test(error.message)) ||
     observation.status === 401 ||
     observation.status === 403 ||
-    (error instanceof StreamableHTTPError && error.code === 401) ||
+    (error instanceof SdkHttpError && error.status === 401) ||
     (error instanceof SseError && error.code === 401)
   ) {
     return {
@@ -166,11 +170,32 @@ function classifyFailure(
     return { code: "command-not-found", message: "The server command could not be started." };
   }
 
+  // v2 reports spawn failures (missing command, bad permissions) to
+  // Client.onerror while the pending handshake rejects with
+  // ConnectionClosed; the transport cause still identifies the real problem.
+  const transportCode = errorCode(transportError);
+  if (transportCode === "ENOENT" || transportCode === "EACCES" || transportCode === "EPERM") {
+    return { code: "command-not-found", message: "The server command could not be started." };
+  }
+
   if (
     error instanceof SyntaxError ||
-    error instanceof McpError ||
+    error instanceof ProtocolError ||
     (error instanceof Error &&
       /invalid|protocol version|does not support tools/iu.test(error.message))
+  ) {
+    return { code: "protocol-error", message: "The server returned an invalid MCP response." };
+  }
+
+  // v2 reports oversized or malformed stdio frames to Client.onerror and then
+  // rejects the pending handshake with ConnectionClosed, so the terminal error
+  // alone is indistinguishable from a dead connection. When the transport saw
+  // a data-integrity failure first, keep the user-facing protocol-error code.
+  if (
+    error instanceof SdkError &&
+    error.code === SdkErrorCode.ConnectionClosed &&
+    transportError instanceof Error &&
+    /readbuffer|exceeded maximum size|invalid|parse|protocol|schema/iu.test(transportError.message)
   ) {
     return { code: "protocol-error", message: "The server returned an invalid MCP response." };
   }
@@ -243,6 +268,14 @@ export async function probeMcpServer(
   const startedAt = Date.now();
   const observation: AuthObservation = {};
   const client = new Client({ name: "poracode-mcp-probe", version: "1.0.0" });
+  // Transport-level failures (e.g. an oversized stdio frame) are reported via
+  // Client.onerror while the pending request rejects with ConnectionClosed.
+  // Remember the first one so the classifier can tell bad responses apart
+  // from dead connections.
+  let transportError: unknown;
+  client.onerror = (error) => {
+    transportError ??= error;
+  };
   let transport: ProbeTransport | undefined;
   let stdioPid: number | null = null;
   let timedOut = false;
@@ -283,7 +316,7 @@ export async function probeMcpServer(
         : {}),
     };
   } catch (error) {
-    const classified = classifyFailure(error, observation, timedOut);
+    const classified = classifyFailure(error, observation, timedOut, transportError);
     return classified.code === "auth-required"
       ? {
           status: "auth-required",

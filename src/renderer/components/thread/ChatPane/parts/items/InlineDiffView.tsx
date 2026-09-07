@@ -37,15 +37,34 @@ export function InlineDiffView({ diffText, filePath, oldText, newText }: InlineD
   const [state, setState] = useState<"building" | "ready" | "fallback">(
     diffText.length > MAX_DIFF_LENGTH ? "fallback" : "building",
   );
-
-  useEffect(() => {
+  // Reset the view for new inputs during render rather than synchronously on
+  // effect entry, so a changed patch never paints the previous diff first.
+  const [prevDiffInputs, setPrevDiffInputs] = useState({
+    diffText,
+    filePath,
+    oldText,
+    newText,
+    theme,
+  });
+  if (
+    prevDiffInputs.diffText !== diffText ||
+    prevDiffInputs.filePath !== filePath ||
+    prevDiffInputs.oldText !== oldText ||
+    prevDiffInputs.newText !== newText ||
+    prevDiffInputs.theme !== theme
+  ) {
+    setPrevDiffInputs({ diffText, filePath, oldText, newText, theme });
     if (diffText.length > MAX_DIFF_LENGTH) {
       setState("fallback");
-      return;
+    } else {
+      setState("building");
+      setDiffFiles([]);
     }
+  }
+
+  useEffect(() => {
+    if (diffText.length > MAX_DIFF_LENGTH) return;
     let cancelled = false;
-    setState("building");
-    setDiffFiles([]);
 
     const parts = prepareInlineDiffParts(diffText, filePath);
     const includeContent = parts.length === 1 && oldText !== undefined && newText !== undefined;

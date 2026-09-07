@@ -6,6 +6,9 @@ import { lingui } from "@lingui/vite-plugin";
 export default defineConfig({
   test: {
     globals: true,
+    // Vitest 5 defaults clearMocks to true; the repo accepts the new default
+    // (mock history is cleared before each test, implementations are kept).
+    clearMocks: true,
     // Default 5s is too tight for tests that vi.resetModules() + dynamic-import
     // under heavy parallel load. Raise to 15s so import jitter doesn't flake
     // the suite; per-test timeouts can still override.

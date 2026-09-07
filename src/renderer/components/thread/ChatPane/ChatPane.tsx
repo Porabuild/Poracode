@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Trans } from "@lingui/react/macro";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
@@ -135,24 +135,18 @@ export function ChatPane(props: ChatPaneProps) {
 
   // Session-media roots (e.g. Grok `image_gen` → session `images/N.jpg`) so
   // markdown can resolve those relative paths via poracode-local://.
+  const providerSessionId = thread.sessionRef?.providerSessionId;
   const markdownImageRoots = useMemo(() => {
     const projectLocation = targetContext?.projectLocation;
     if (!projectLocation) return undefined;
     return resolveThreadMarkdownImageRoots({
       agentKind: thread.agentKind,
-      ...(thread.sessionRef?.providerSessionId
-        ? { sessionId: thread.sessionRef.providerSessionId }
-        : {}),
+      ...(providerSessionId ? { sessionId: providerSessionId } : {}),
       projectLocation,
       ...(readBridge().homeDir ? { homeDir: readBridge().homeDir as string } : {}),
       ...(isRemoteThread ? { isRemote: true as const } : {}),
     });
-  }, [
-    isRemoteThread,
-    thread.agentKind,
-    thread.sessionRef?.providerSessionId,
-    targetContext?.projectLocation,
-  ]);
+  }, [isRemoteThread, thread.agentKind, providerSessionId, targetContext?.projectLocation]);
 
   // `onOpenThread` arrives as an inline arrow whose identity churns per parent
   // render (mobile re-renders on every streaming tick). Route it through a ref
@@ -160,14 +154,14 @@ export function ChatPane(props: ChatPaneProps) {
   // stays stable; only the handler's presence can invalidate it.
   const hasOpenThread = onOpenThread !== undefined;
   const onOpenThreadRef = useRef(onOpenThread);
-  onOpenThreadRef.current = onOpenThread;
+  useLayoutEffect(() => {
+    onOpenThreadRef.current = onOpenThread;
+  }, [onOpenThread]);
   const paneActions: ChatPaneActions | null = useMemo(() => {
-    const openThread = hasOpenThread
-      ? (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId)
-      : undefined;
+    const openThread = (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId);
     // Home scope has no project file context, but a referenced thread can
     // still be opened — the only action a Home thread gets.
-    if (isHomeScope) return openThread ? { openThread, threadId } : { threadId };
+    if (isHomeScope) return hasOpenThread ? { openThread, threadId } : { threadId };
     if (!project || !targetContext) return null;
     return {
       threadId,
@@ -184,7 +178,7 @@ export function ChatPane(props: ChatPaneProps) {
         }
         await openFileInEditor(project, worktreePath, branch, resolvedPath, lineNumber);
       },
-      ...(openThread ? { openThread } : {}),
+      ...(hasOpenThread ? { openThread } : {}),
       revealProjectFolderInTree: (path) => {
         const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
         if (onRevealProjectFolderInTree) {
@@ -411,7 +405,7 @@ export function ChatPane(props: ChatPaneProps) {
             }}
             scrollClassName="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
             scrollStyle={scrollFadeStyle}
-            contentClassName={`min-h-full pb-2 ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
+            contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
             emptyContent={
               isEmpty && !showTailLoader && showEmptyHint ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { MessageCircle } from "lucide-react";
@@ -90,15 +90,17 @@ export interface ThreadViewProps {
 }
 
 /** Read-only scrollback shown while the live terminal snapshot is loading. */
-function TerminalScrollbackPane(props: { readonly scrollback: string }) {
+function TerminalScrollbackPane({ scrollback }: { readonly scrollback: string }) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const node = scrollRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
-  }, [props.scrollback]);
+    if (!node) return;
+    // An empty snapshot sits at the top; any content pins to the newest line.
+    node.scrollTop = scrollback.length === 0 ? 0 : node.scrollHeight;
+  }, [scrollback]);
   return (
     <div ref={scrollRef} className="m-terminal-scroll">
-      <pre className="m-terminal">{stripAnsiPreservingLayout(props.scrollback).trimEnd()}</pre>
+      <pre className="m-terminal">{stripAnsiPreservingLayout(scrollback).trimEnd()}</pre>
     </div>
   );
 }
@@ -116,10 +118,6 @@ export function ThreadView(props: ThreadViewProps) {
   const [terminalSize, setTerminalSize] = useState<TerminalSize | null>(null);
   const [composerInputFocused, setComposerInputFocused] = useState(false);
   const [guiScrollSettledThreadId, setGuiScrollSettledThreadId] = useState<string | null>(null);
-  // The thread composer dock is controlled so a successful send collapses it
-  // (drops the keyboard + scrim), while a dismissed keyboard leaves it expanded
-  // like the home composer. Uncontrolled would collapse on either.
-  const [composerExpanded, setComposerExpanded] = useState(false);
   const agentTerminalFontSize = useSharedSettings((state) => state.agentTerminalFontSize);
   const dockState = useThreadDockState(thread?.id ?? "");
   const reportedContextUsage = useAppStore((state) =>
@@ -136,6 +134,12 @@ export function ThreadView(props: ThreadViewProps) {
   // home composer.
   const keyboardOffset = useKeyboardOffset();
   const submitOnEnter = useMediaQuery(DESKTOP_POINTER_QUERY);
+  // The thread composer dock is controlled so a successful send collapses it
+  // (drops the keyboard + scrim), while a dismissed keyboard leaves it expanded
+  // like the home composer. Uncontrolled would collapse on either. Initialized
+  // from the pointer layout so the mount commit already matches what the
+  // thread-switch reset below used to apply through its mount run.
+  const [composerExpanded, setComposerExpanded] = useState(submitOnEnter);
 
   useEffect(() => {
     terminalPaneRef.current = {
@@ -153,24 +157,33 @@ export function ThreadView(props: ThreadViewProps) {
   // reloadTerminal). latestThreadIdRef tracks the currently-shown thread so the
   // delayed startThread can bail when it no longer matches.
   const reloadTimerRef = useRef(0);
-  const latestThreadIdRef = useRef<string | undefined>(thread?.id);
-  latestThreadIdRef.current = thread?.id;
+  const threadId = thread?.id;
+  const latestThreadIdRef = useRef<string | undefined>(threadId);
+  useLayoutEffect(() => {
+    latestThreadIdRef.current = threadId;
+  }, [threadId]);
   useEffect(() => () => window.clearTimeout(reloadTimerRef.current), []);
 
   // ThreadView is reused across thread switches. Touch layouts start each
   // thread compact, while desktop PWA layouts open the focused composer at its
   // full size. Resetting every thread to compact here used to race the shared
   // composer's desktop autofocus and collapse the dock immediately afterward.
-  useEffect(() => {
+  // The owned-state reset is adjusted during render (not in an effect); the
+  // focus request below stays in an effect because it touches the shared store.
+  const [prevThreadReset, setPrevThreadReset] = useState({ threadId, submitOnEnter });
+  if (prevThreadReset.threadId !== threadId || prevThreadReset.submitOnEnter !== submitOnEnter) {
+    setPrevThreadReset({ threadId, submitOnEnter });
     setComposerExpanded(submitOnEnter);
     setGuiScrollSettledThreadId(null);
-    if (thread?.id && submitOnEnter) {
+  }
+  useEffect(() => {
+    if (threadId && submitOnEnter) {
       // The shared composer stays mounted while the wide PWA switches thread
       // IDs, so its mount-only autofocus does not run again. Route the switch
       // through the existing focus request consumed by ThreadComposerSection.
-      useAppStore.getState().requestComposerFocus(thread.id);
+      useAppStore.getState().requestComposerFocus(threadId);
     }
-  }, [thread?.id, submitOnEnter]);
+  }, [threadId, submitOnEnter]);
 
   if (!thread) {
     return (

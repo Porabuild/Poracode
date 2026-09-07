@@ -298,8 +298,6 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const providerModelPreferences = useSharedSettings((s) => s.providerModelPreferences);
   const providerConfigs = useSharedSettings((s) => s.providerConfigs);
   const toggleFavoriteModel = useSharedSettings((s) => s.toggleFavoriteModel);
-  const latestFavoritesRef = useRef(favorites);
-  const latestRecentsRef = useRef(recents);
 
   const currentProvider =
     providers.find(
@@ -319,27 +317,40 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const currentDisplayLabel = currentSubProvider
     ? `${currentLabelParts.name} · ${currentSubProvider.label}`
     : currentLabelParts.name;
-  latestFavoritesRef.current = favorites;
-  latestRecentsRef.current = recents;
-
-  useEffect(() => {
+  // Snapshot the favorites/recents lists when the menu opens so rows stay
+  // stable while it is open; the search-field focus stays in the effect below.
+  const [prevMenuOpen, setPrevMenuOpen] = useState(isOpen);
+  if (prevMenuOpen !== isOpen) {
+    setPrevMenuOpen(isOpen);
     if (isOpen) {
       setSearch("");
-      setSessionFavorites(latestFavoritesRef.current);
-      setSessionRecents(latestRecentsRef.current);
-      // On mobile, auto-focusing search would pop the keyboard over the drawer;
-      // let the user tap the field if they want to filter.
-      if (!mobile) setTimeout(() => searchRef.current?.focus(), 50);
-      return;
+      setSessionFavorites(favorites);
+      setSessionRecents(recents);
+    } else {
+      setSessionFavorites(undefined);
+      setSessionRecents(undefined);
     }
-    setSessionFavorites(undefined);
-    setSessionRecents(undefined);
+  }
+
+  const wasMenuOpenRef = useRef(false);
+  useEffect(() => {
+    const opened = isOpen && !wasMenuOpenRef.current;
+    wasMenuOpenRef.current = isOpen;
+    // On mobile, auto-focusing search would pop the keyboard over the drawer;
+    // let the user tap the field if they want to filter.
+    if (opened && !mobile) setTimeout(() => searchRef.current?.focus(), 50);
   }, [isOpen, mobile]);
 
-  useEffect(() => {
-    if (openSignal === undefined || isDisabled) return;
-    setIsOpen(true);
-  }, [openSignal, isDisabled]);
+  // An external `openSignal` bump opens the menu, tracked as a render snapshot
+  // with the previous effect's re-run semantics.
+  const [prevOpenSignal, setPrevOpenSignal] = useState({
+    signal: openSignal,
+    disabled: isDisabled,
+  });
+  if (prevOpenSignal.signal !== openSignal || prevOpenSignal.disabled !== isDisabled) {
+    setPrevOpenSignal({ signal: openSignal, disabled: isDisabled });
+    if (openSignal !== undefined && !isDisabled) setIsOpen(true);
+  }
 
   function handleOpenChange(open: boolean) {
     setIsOpen(open);
@@ -632,10 +643,11 @@ const WindowedProviderModelList = forwardRef<
     (selectedIndex >= 0 ? items[selectedIndex]?.id : undefined) ?? meta.firstModelId;
   const activeIndex = activeRowId == null ? -1 : (meta.itemIndexById.get(activeRowId) ?? -1);
 
-  useEffect(() => {
-    if (activeIndex >= 0 && meta.modelPositionByIndex.has(activeIndex)) return;
-    setActiveRowId(initialActiveRowId);
-  }, [activeIndex, initialActiveRowId, meta]);
+  // The active row resets to the selected/first model whenever the current id
+  // stops pointing at a model row (e.g. the search narrows the list).
+  if (!(activeIndex >= 0 && meta.modelPositionByIndex.has(activeIndex))) {
+    if (activeRowId !== initialActiveRowId) setActiveRowId(initialActiveRowId);
+  }
 
   useEffect(() => {
     onActiveChange(activeIndex >= 0 ? activeRowId : null);
@@ -688,15 +700,24 @@ const WindowedProviderModelList = forwardRef<
     }
   }, [meta, scrollRef, totalScrollHeight, viewportHeight]);
 
+  // Reset the scroll position whenever the row structure changes (search
+  // text, favorites, or provider list updates). Compared through a ref: the
+  // item list is rebuilt every render, so the effect triggers on the structure
+  // key rather than the list/meta identity (a starring toggle must not reset
+  // the scroll offset, for example).
+  const prevStructureKeyRef = useRef(meta.structureKey);
   useEffect(() => {
     const element = scrollRef.current;
     if (!element) return;
+    const structureKey = getWindowedItemsMeta(items, modelRowHeight).structureKey;
+    if (prevStructureKeyRef.current === structureKey) return;
+    prevStructureKeyRef.current = structureKey;
     element.scrollTop = 0;
     setScrollTop(0);
     setVisibleRow(0);
     shouldAutoScrollRef.current = true;
     shouldCenterActiveRef.current = true;
-  }, [scrollRef, meta.structureKey]);
+  }, [scrollRef, items, modelRowHeight]);
 
   useEffect(() => {
     if (activeIndex < 0) return;

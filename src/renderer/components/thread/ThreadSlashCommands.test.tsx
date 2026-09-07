@@ -13,6 +13,7 @@ import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useComposerInputInbox } from "@/renderer/state/composerInputInbox";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
 import { ThreadDraftComposerArea } from "./ThreadDraftComposerArea";
 import type { ComposerControl } from "./ThreadComposer";
 import { ThreadView } from "./ThreadView";
@@ -25,6 +26,7 @@ import {
 
 const { bridge } = vi.hoisted(() => ({
   bridge: {
+    platform: "win32",
     searchProjectFiles: vi
       .fn<() => Promise<{ entries: []; totalIndexed: number }>>()
       .mockResolvedValue({ entries: [], totalIndexed: 0 }),
@@ -202,7 +204,7 @@ describe("ThreadSlashCommands", () => {
     });
     vi.unstubAllGlobals();
     useAppStore.getState().clearDraftContent(draftProject.id);
-    useAppStore.setState({ draftContentDiscardRequests: {} });
+    useAppStore.setState({ draftContentDiscardRequests: {}, pendingComposerSeeds: {} });
     useComposerInputInbox.setState({ itemsByComposer: {} });
     useSharedSettings.setState({
       collapseTerminalComposer: false,
@@ -1046,6 +1048,85 @@ describe("ThreadSlashCommands", () => {
     typeSlashQuery(editor, "@ter");
 
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
+  });
+
+  it("binds a seeded plugin and enables its built-in MCP servers", async () => {
+    const onConfigChange = vi.fn<(patch: Partial<Thread["config"]>) => void>((patch) => {
+      if (patch.computerUse !== true) return;
+      expect(screen.getByLabelText("Computer Use")).toBeInTheDocument();
+      expect(screen.getByRole("textbox")).toHaveTextContent("Computer Use Inspect the desktop");
+    });
+    seedBuiltInPlugins();
+    useSharedSettings.setState({
+      installedPlugins: {
+        "computer-use": {
+          version: "seed-test",
+          enabled: true,
+          disabledSkillIds: [],
+          disabledMcpServerNames: [],
+        },
+      },
+    });
+    bridge.scanSkills.mockResolvedValue({
+      skills: [
+        {
+          id: "global:computer-use",
+          name: "computer-use",
+          description: "A colliding standalone skill",
+          folderName: "computer-use",
+          absolutePath: "/skills/computer-use",
+          skillFilePath: "/skills/computer-use/SKILL.md",
+          rootPath: "/skills",
+          providerId: "global",
+          providerLabel: "Personal skills",
+          scope: "global",
+          scopeLabel: "Global",
+          origin: "managed",
+          enabled: true,
+          mutable: true,
+          valid: true,
+          linked: false,
+        },
+        {
+          id: "plugin:computer-use:computer-use",
+          name: "operate-desktop",
+          description: "Operate desktop apps",
+          folderName: "computer-use",
+          absolutePath: "/plugins/computer-use/skills/computer-use",
+          skillFilePath: "/plugins/computer-use/skills/computer-use/SKILL.md",
+          rootPath: "/plugins/computer-use/skills",
+          providerId: "plugins",
+          providerLabel: "Computer Use",
+          scope: "global",
+          scopeLabel: "Global",
+          origin: "plugin",
+          pluginId: "computer-use",
+          pluginName: "Computer Use",
+          enabled: true,
+          mutable: false,
+          valid: true,
+          linked: false,
+        },
+      ],
+      effectiveSkillIds: ["global:computer-use", "plugin:computer-use:computer-use"],
+      invocation: "dollar",
+      issues: [],
+      canLinkToGlobal: true,
+    });
+    useAppStore.getState().setComposerSeed(draftProject.id, "/computer-use Inspect the desktop", {
+      bindLeadingSkill: true,
+      leadingSkillPluginId: "computer-use",
+      enableMcpServerIds: ["computer-use"],
+    });
+
+    await renderDraftComposer(makeAgentStatus(), vi.fn(), "gui", onConfigChange);
+
+    await waitFor(() => expect(onConfigChange).toHaveBeenCalledWith({ computerUse: true }));
+    const pluginChip = screen.getByLabelText("Computer Use");
+    expect(pluginChip).toHaveAttribute("data-plugin-id", "computer-use");
+    expect(pluginChip.querySelector("svg")).not.toBeNull();
+    expect(screen.getByRole("textbox")).toHaveTextContent("Computer Use Inspect the desktop");
+    expect(useAppStore.getState().pendingComposerSeeds[draftProject.id]).toBeUndefined();
   });
 
   it("saves draft composer content on ordinary unmount", () => {

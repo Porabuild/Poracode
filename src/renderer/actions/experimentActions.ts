@@ -218,15 +218,13 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
       ...worktreePlacementPayload(project),
       copyIgnoredPatterns: project.scripts?.worktreeCopyPatterns,
     })
-    .catch(
-      (error): CreateExperimentWorktreesResult => ({
-        candidates: plans.map((plan) => ({
-          threadId: plan.threadId,
-          branch: plan.worktreeBranch,
-          error: friendlyError(error),
-        })),
-      }),
-    );
+    .catch((error): CreateExperimentWorktreesResult => ({
+      candidates: plans.map((plan) => ({
+        threadId: plan.threadId,
+        branch: plan.worktreeBranch,
+        error: friendlyError(error),
+      })),
+    }));
   const preparedResults = plans.map((plan, index) => {
     const result = batch.candidates[index];
     if (result?.path) {
@@ -346,9 +344,8 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
   for (const thread of threads) {
     if (!preparedIds.has(thread.id)) useAppStore.getState().deleteThread(thread.id);
   }
-  const preparedThreads = prepared.map(
-    (candidate) =>
-      useAppStore.getState().threads.find((thread) => thread.id === candidate.threadId)!,
+  const preparedThreads = prepared.map((candidate) =>
+    useAppStore.getState().threads.find((thread) => thread.id === candidate.threadId)!,
   );
   const currentExperiment = useExperimentStore.getState().experiments[experimentId];
   useExperimentStore.getState().addExperiment({

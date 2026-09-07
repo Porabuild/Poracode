@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -110,6 +110,11 @@ export function GitReviewSidebar(props: {
   const { isCollapsed, collapse, expand } = useSidebar();
   const diffTheme = useDiffTheme();
   const scrollContentRef = useRef<HTMLDivElement>(null);
+  const [scrollContentElement, setScrollContentElement] = useState<HTMLDivElement | null>(null);
+  const setScrollContent = useCallback((element: HTMLDivElement | null) => {
+    scrollContentRef.current = element;
+    setScrollContentElement(element);
+  }, []);
   const { setScrollContainer, scrollEl, scrollFadeStyle } = useScrollFade<HTMLDivElement>({
     contentRef: scrollContentRef,
     maxFadePx: 10,
@@ -396,7 +401,7 @@ export function GitReviewSidebar(props: {
             className={gitReviewSidebarListScrollClass()}
             style={scrollFadeStyle}
           >
-            <div ref={scrollContentRef} className="relative min-h-full space-y-2">
+            <div ref={setScrollContent} className="relative min-h-full space-y-2">
               {mergeConflicting && mergeConflictFiles.length > 0 && (
                 <ConflictGroup
                   files={mergeConflictFiles}
@@ -412,7 +417,7 @@ export function GitReviewSidebar(props: {
                   diffTheme={diffTheme}
                   wrapLines={wrapLines}
                   scrollElement={scrollEl}
-                  scrollContentElement={scrollContentRef.current}
+                  scrollContentElement={scrollContentElement}
                 />
               )}
               {gitStatus && gitStatus.staged.length > 0 && (
@@ -433,7 +438,7 @@ export function GitReviewSidebar(props: {
                   diffTheme={diffTheme}
                   wrapLines={wrapLines}
                   scrollElement={scrollEl}
-                  scrollContentElement={scrollContentRef.current}
+                  scrollContentElement={scrollContentElement}
                 />
               )}
               {gitStatus && gitStatus.unstaged.length > 0 && (
@@ -454,7 +459,7 @@ export function GitReviewSidebar(props: {
                   diffTheme={diffTheme}
                   wrapLines={wrapLines}
                   scrollElement={scrollEl}
-                  scrollContentElement={scrollContentRef.current}
+                  scrollContentElement={scrollContentElement}
                 />
               )}
               {gitStatus && !gitStatus.isRepo && (

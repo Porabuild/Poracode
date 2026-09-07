@@ -1,30 +1,17 @@
+import { performPageActions, readPerformSteps } from "../mcp/tools/perform";
+import { dispatchPageTool, PAGE_TOOL_NAMES } from "../mcp/tools/page";
+import { TOOLS } from "../mcp/tools/specs";
 import { threadGroupColor } from "@/shared/browserMcpThread";
 import type { CdpSession } from "../cdp/cdpClient";
-import {
-  captureScreenshotPng,
-  evalJs,
-  findByA11y,
-  getCookies,
-  getElementInfo,
-  getElementState,
-  navigate,
-  pageSnapshot,
-  reload,
-  waitForSelector,
-  waitForText,
-} from "../cdp/tools";
-import {
-  glideCursorToSelector,
-  setCursorOverlayVisible,
-  withCursorOverlayHidden,
-} from "../cursorOverlay";
-import { clampInteger } from "../mcp/tools/helpers";
+import { captureScreenshotPng, evalJs, navigate, reload } from "../cdp/tools";
+import { setCursorOverlayVisible, withCursorOverlayHidden } from "../cursorOverlay";
+
 import type { McpContent, McpToolResult, ToolSpec } from "../mcp/tools/types";
-import { clickSelector, fillSelector, resolveRefToSelector, typeIntoSelector } from "../pageDriver";
+
 import type { ExternalChromeConnection } from "./ExternalChromeConnection";
 
 /**
- * A deliberately small tool set for driving the user's REAL Chrome via the
+ * Tools for driving the user's REAL Chrome via the
  * companion extension. It reuses the embedded browser's CDP tool library
  * (`../cdp/tools`) and DOM interaction primitives (`../pageDriver`) through the
  * shared {@link import("../cdp/cdpClient").CdpSession} seam — a thin
@@ -35,6 +22,7 @@ export interface ChromeToolContext {
   connection: ExternalChromeConnection | null;
   allowEval: boolean;
   allowDataAccess: boolean;
+  disabledTools?: readonly string[];
   /** Calling thread + task title (from the MCP URL) — the workspace tab joins a
    *  per-thread tab group named after the task. */
   threadId?: string;
@@ -46,11 +34,12 @@ export const CHROME_MCP_INSTRUCTIONS = [
   "These tools control the USER'S OWN Chrome browser through the Poracode companion extension —",
   "real tabs, real cookies, real logged-in sessions. Treat every action as if the user performed it themselves.",
   "By default you work in a BACKGROUND 'Poracode' tab group that does NOT steal the user's foreground tab:",
-  "chrome_open reuses your single background workspace tab (navigating it in place) and navigate/click/etc. run",
-  "there; tabs are never auto-closed. Pass newTab:true only when you truly need a second tab. Use chrome_attach",
-  "(with a tabId from chrome_list_tabs) only when the user asks you to act on a specific tab they already have open.",
-  "Prefer chrome_snapshot / chrome_find to discover elements (they return @e refs) before chrome_click / chrome_fill.",
-  "Use chrome_status first to confirm the extension is connected, then call chrome.enable once before the first browser action.",
+  "open reuses your single background workspace tab (navigating it in place) and navigate/click/etc. run",
+  "there; tabs are never auto-closed. Pass newTab:true only when you truly need a second tab. Use attach",
+  "(with a tabId from list_tabs) only when the user asks you to act on a specific tab they already have open.",
+  "Prefer snapshot / find to discover elements (they return @e refs) before click / fill.",
+  "Use status first to confirm the extension is connected, then call chrome.enable once before the first browser action.",
+  "Page commands use the same names and arguments as browser: snapshot, find, fill, type, click, press, wait, and perform. Batch known steps with perform for one final compact observation; split at decisions and navigation.",
   "Keep Chrome enabled across the whole uninterrupted session so agent presence stays consistent between calls.",
   "Always call chrome.disable before pausing to ask for user input, waiting for an external event, or finishing, and call chrome.enable again when you resume.",
   "Destructive or account-affecting actions (purchases, deletions, messages) should be confirmed with the user first.",
@@ -76,24 +65,12 @@ function threadGroupOpts(ctx: ChromeToolContext): {
   };
 }
 
-/** Resolve a tool's `selector` or snapshot `@e ref` to a CSS selector (or null). */
-async function resolveSelector(
-  cdp: CdpSession,
-  payload: { selector?: unknown; ref?: unknown },
-): Promise<string | null> {
-  if (typeof payload.selector === "string" && payload.selector.length > 0) {
-    return payload.selector;
-  }
-  if (typeof payload.ref === "string" && payload.ref.length > 0) {
-    return await resolveRefToSelector(pageExecutor(cdp), payload.ref);
-  }
-  return null;
-}
-
 const KEY_DEFS: Record<string, { key: string; code: string; keyCode: number; text?: string }> = {
   Enter: { key: "Enter", code: "Enter", keyCode: 13, text: "\r" },
   Tab: { key: "Tab", code: "Tab", keyCode: 9 },
   Escape: { key: "Escape", code: "Escape", keyCode: 27 },
+  Delete: { key: "Delete", code: "Delete", keyCode: 46 },
+  Space: { key: " ", code: "Space", keyCode: 32, text: " " },
   Backspace: { key: "Backspace", code: "Backspace", keyCode: 8 },
   ArrowUp: { key: "ArrowUp", code: "ArrowUp", keyCode: 38 },
   ArrowDown: { key: "ArrowDown", code: "ArrowDown", keyCode: 40 },
@@ -101,14 +78,19 @@ const KEY_DEFS: Record<string, { key: string; code: string; keyCode: number; tex
   ArrowRight: { key: "ArrowRight", code: "ArrowRight", keyCode: 39 },
 };
 
+export function normalizeChromeToolName(name: string): string {
+  return name.replace(/^chrome_/, "");
+}
+
 export async function dispatchChromeTool(
   name: string,
   payload: Record<string, unknown>,
   ctx: ChromeToolContext,
 ): Promise<unknown> {
+  name = normalizeChromeToolName(name);
   const conn = ctx.connection;
 
-  if (name === "chrome_status") {
+  if (name === "status") {
     if (!conn) {
       return {
         connected: false,
@@ -134,134 +116,56 @@ export async function dispatchChromeTool(
     };
   }
 
-  const cdp = conn.cdpSession();
-
+  const command = name;
+  if (command === "perform")
+    readPerformSteps(payload, (ctx.disabledTools ?? []).map(normalizeChromeToolName));
+  const cdp = conn.cdpSession(command === "perform" ? await conn.ensureWorkspace() : undefined);
+  if (command === "perform" || PAGE_TOOL_NAMES.has(command)) {
+    const page = {
+      cdp,
+      webContents: pageExecutor(cdp),
+      allowEval: ctx.allowEval,
+      allowDataAccess: ctx.allowDataAccess,
+      disabledTools: (ctx.disabledTools ?? []).map(normalizeChromeToolName),
+      pressKey: (key: string, shift: boolean) => pressKey(cdp, key, shift),
+    };
+    return command === "perform"
+      ? performPageActions(payload, page)
+      : dispatchPageTool(command, payload, page);
+  }
   switch (name) {
     case "enable":
       await conn.ensureWorkspace();
       ctx.setSessionActive?.(true);
       await setCursorOverlayVisible(cdp, true);
       return { enabled: true, status: conn.status() };
-    case "chrome_list_tabs":
+    case "list_tabs":
       return { tabs: await conn.listTabs() };
-    case "chrome_open": {
+    case "open": {
       const url = typeof payload.url === "string" ? payload.url : undefined;
       const reuse = payload.newTab !== true;
       const tab = await conn.openTab(url, { reuse, ...threadGroupOpts(ctx) });
       return { opened: tab };
     }
-    case "chrome_attach": {
+    case "attach": {
       const tabId = typeof payload.tabId === "number" ? payload.tabId : undefined;
       const tab = await conn.attach(tabId);
       return { attached: tab };
     }
-    case "chrome_navigate": {
+    case "navigate": {
       const url = String(payload.url ?? "");
       if (!url) throw new Error("url required");
       await navigate(cdp, url);
       return { ok: true, url };
     }
-    case "chrome_reload":
+    case "reload":
       await reload(cdp);
       return { ok: true };
-    case "chrome_get_url":
+    case "get_url":
       return { url: await evalJs<string>(cdp, "location.href") };
-    case "chrome_get_title":
+    case "get_title":
       return { title: await evalJs<string>(cdp, "document.title") };
-    case "chrome_snapshot": {
-      const maxNodes = clampInteger(payload.maxNodes, 120, 1, 500);
-      const mode: "full" | "compact" | "summary" =
-        payload.mode === "compact" ? "compact" : payload.mode === "summary" ? "summary" : "full";
-      return await pageSnapshot(cdp, {
-        maxNodes,
-        mode,
-        ...(payload.interactiveOnly === false ? { interactiveOnly: false } : {}),
-        ...(payload.includeUrls === true ? { includeUrls: true } : {}),
-        ...(typeof payload.selector === "string" ? { selector: payload.selector } : {}),
-      });
-    }
-    case "chrome_find":
-      return await findByA11y(cdp, {
-        ...(typeof payload.role === "string" ? { role: payload.role } : {}),
-        ...(typeof payload.name === "string" ? { name: payload.name } : {}),
-        ...(typeof payload.text === "string" ? { text: payload.text } : {}),
-        ...(typeof payload.placeholder === "string" ? { placeholder: payload.placeholder } : {}),
-        ...(typeof payload.nth === "number" ? { nth: payload.nth } : {}),
-        ...(typeof payload.limit === "number" ? { limit: payload.limit } : {}),
-      });
-    case "chrome_get": {
-      const selector = String(payload.selector ?? "");
-      if (!selector) throw new Error("selector required");
-      const fieldsRaw = Array.isArray(payload.fields) ? (payload.fields as string[]) : ["text"];
-      const fields = fieldsRaw.filter(
-        (f): f is "text" | "html" | "value" | "attr" | "count" | "box" =>
-          ["text", "html", "value", "attr", "count", "box"].includes(f),
-      );
-      return await getElementInfo(
-        cdp,
-        selector,
-        fields,
-        typeof payload.attr === "string" ? payload.attr : undefined,
-      );
-    }
-    case "chrome_is": {
-      const selector = String(payload.selector ?? "");
-      if (!selector) throw new Error("selector required");
-      return await getElementState(cdp, selector);
-    }
-    case "chrome_click": {
-      const selector = await resolveSelector(cdp, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(cdp, selector);
-      await clickSelector(pageExecutor(cdp), selector);
-      return { ok: true };
-    }
-    case "chrome_fill": {
-      const selector = await resolveSelector(cdp, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(cdp, selector);
-      await fillSelector(
-        pageExecutor(cdp),
-        selector,
-        String(payload.text ?? ""),
-        payload.submit === true,
-      );
-      return { ok: true };
-    }
-    case "chrome_type": {
-      const selector = await resolveSelector(cdp, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(cdp, selector);
-      await typeIntoSelector(
-        pageExecutor(cdp),
-        selector,
-        String(payload.text ?? ""),
-        payload.submit === true,
-      );
-      return { ok: true };
-    }
-    case "chrome_press": {
-      const key = String(payload.key ?? "");
-      if (!key) throw new Error("key required");
-      await pressKey(conn, key);
-      return { ok: true };
-    }
-    case "chrome_wait": {
-      const timeoutMs = typeof payload.timeoutMs === "number" ? payload.timeoutMs : 5000;
-      if (typeof payload.ms === "number") {
-        await delay(Math.max(0, Math.min(60_000, payload.ms)));
-        return { ok: true };
-      }
-      if (typeof payload.selector === "string" && payload.selector) {
-        return { found: await waitForSelector(cdp, payload.selector, timeoutMs) };
-      }
-      if (typeof payload.text === "string" && payload.text) {
-        await waitForText(cdp, payload.text, timeoutMs);
-        return { ok: true };
-      }
-      throw new Error("chrome_wait requires selector, text, or ms");
-    }
-    case "chrome_screenshot": {
+    case "screenshot": {
       const fullPage = payload.fullPage === true;
       const buffer = await withCursorOverlayHidden(cdp, () =>
         captureScreenshotPng(cdp, {
@@ -273,61 +177,38 @@ export async function dispatchChromeTool(
       );
       return { __image: buffer.toString("base64"), mimeType: "image/jpeg" };
     }
-    case "chrome_eval": {
-      if (!ctx.allowEval) {
-        return { error: "chrome_eval is disabled. Enable it in Poracode browser settings." };
-      }
-      const expression = String(payload.js ?? "");
-      if (!expression) throw new Error("js required");
-      try {
-        return { result: await evalJs(cdp, expression) };
-      } catch (err) {
-        return { error: (err as Error).message ?? "eval failed" };
-      }
-    }
-    case "chrome_cookies": {
-      if (!ctx.allowDataAccess) {
-        return {
-          error:
-            "chrome_cookies is disabled. Enable 'Allow agents to read/write cookies and storage' in Poracode settings.",
-        };
-      }
-      const urls = Array.isArray(payload.urls) ? (payload.urls as string[]) : undefined;
-      return { cookies: await getCookies(cdp, urls) };
-    }
     default:
       throw new Error(`unknown chrome tool: ${name}`);
   }
 }
 
-async function pressKey(conn: ExternalChromeConnection, key: string): Promise<void> {
+async function pressKey(cdp: CdpSession, key: string, shift = false): Promise<void> {
+  key = key === "Esc" ? "Escape" : key === " " ? "Space" : key;
   const def = KEY_DEFS[key];
   if (def) {
     const codes = { windowsVirtualKeyCode: def.keyCode, nativeVirtualKeyCode: def.keyCode };
-    await conn.sendCdp("Input.dispatchKeyEvent", {
+    await cdp.send("Input.dispatchKeyEvent", {
       type: def.text ? "keyDown" : "rawKeyDown",
       key: def.key,
       code: def.code,
       ...codes,
+      modifiers: shift ? 8 : 0,
       ...(def.text ? { text: def.text, unmodifiedText: def.text } : {}),
     });
-    await conn.sendCdp("Input.dispatchKeyEvent", {
+    await cdp.send("Input.dispatchKeyEvent", {
       type: "keyUp",
       key: def.key,
       code: def.code,
       ...codes,
+      modifiers: shift ? 8 : 0,
     });
     return;
   }
   if (key.length === 1) {
-    await conn.sendCdp("Input.insertText", { text: key });
+    await cdp.send("Input.insertText", { text: key });
     return;
   }
   throw new Error(`unsupported key: ${key}`);
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function formatChromeToolResult(raw: unknown): McpToolResult {
@@ -347,7 +228,7 @@ export function formatChromeToolResult(raw: unknown): McpToolResult {
 
 const RAW_CHROME_TOOLS: ToolSpec[] = [
   {
-    name: "chrome_status",
+    name: "status",
     description:
       "Report whether the companion Chrome extension is connected and which of the user's tabs is attached. Call this first.",
     inputSchema: { type: "object", properties: {} },
@@ -365,12 +246,12 @@ const RAW_CHROME_TOOLS: ToolSpec[] = [
     inputSchema: { type: "object", properties: {} },
   },
   {
-    name: "chrome_list_tabs",
+    name: "list_tabs",
     description: "List the tabs currently open in the user's real Chrome browser.",
     inputSchema: { type: "object", properties: {} },
   },
   {
-    name: "chrome_open",
+    name: "open",
     description:
       "Open the BACKGROUND workspace in the 'Poracode' tab group (does not steal the user's foreground). Reuses your existing workspace tab by default (navigating it); tabs are never auto-closed. Pass newTab:true to open an additional tab instead.",
     inputSchema: {
@@ -385,16 +266,16 @@ const RAW_CHROME_TOOLS: ToolSpec[] = [
     },
   },
   {
-    name: "chrome_attach",
+    name: "attach",
     description:
-      "Attach to one of the user's EXISTING tabs (shows a 'Poracode started debugging' banner). Use only when asked to act on a tab the user already has open; pass a tabId from chrome_list_tabs (omit for the active tab).",
+      "Attach to one of the user's EXISTING tabs (shows a 'Poracode started debugging' banner). Use only when asked to act on a tab the user already has open; pass a tabId from list_tabs (omit for the active tab).",
     inputSchema: {
       type: "object",
-      properties: { tabId: { type: "number", description: "Chrome tab id from chrome_list_tabs" } },
+      properties: { tabId: { type: "number", description: "Chrome tab id from list_tabs" } },
     },
   },
   {
-    name: "chrome_navigate",
+    name: "navigate",
     description: "Navigate the attached tab to a URL.",
     inputSchema: {
       type: "object",
@@ -403,133 +284,22 @@ const RAW_CHROME_TOOLS: ToolSpec[] = [
     },
   },
   {
-    name: "chrome_reload",
+    name: "reload",
     description: "Reload the attached tab.",
     inputSchema: { type: "object", properties: {} },
   },
   {
-    name: "chrome_get_url",
+    name: "get_url",
     description: "Get the current URL of the attached tab.",
     inputSchema: { type: "object", properties: {} },
   },
   {
-    name: "chrome_get_title",
+    name: "get_title",
     description: "Get the document title of the attached tab.",
     inputSchema: { type: "object", properties: {} },
   },
   {
-    name: "chrome_snapshot",
-    description:
-      "Structured accessibility snapshot of the attached page. Returns @e refs to pass to chrome_click/fill.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        maxNodes: { type: "number" },
-        mode: { type: "string", enum: ["full", "compact", "summary"] },
-        selector: { type: "string" },
-        interactiveOnly: { type: "boolean" },
-        includeUrls: { type: "boolean" },
-      },
-    },
-  },
-  {
-    name: "chrome_find",
-    description: "Find an element by role/name/text/placeholder. Returns @e refs and a best match.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        role: { type: "string" },
-        name: { type: "string" },
-        text: { type: "string" },
-        placeholder: { type: "string" },
-        nth: { type: "number" },
-        limit: { type: "number" },
-      },
-    },
-  },
-  {
-    name: "chrome_get",
-    description: "Read fields (text/html/value/attr/count/box) from an element by CSS selector.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        selector: { type: "string" },
-        fields: { type: "array", items: { type: "string" } },
-        attr: { type: "string" },
-      },
-      required: ["selector"],
-    },
-  },
-  {
-    name: "chrome_is",
-    description: "Element state (exists/visible/enabled/checked/focused) by CSS selector.",
-    inputSchema: {
-      type: "object",
-      properties: { selector: { type: "string" } },
-      required: ["selector"],
-    },
-  },
-  {
-    name: "chrome_click",
-    description: "Click an element by @e ref or CSS selector.",
-    inputSchema: {
-      type: "object",
-      properties: { ref: { type: "string" }, selector: { type: "string" } },
-    },
-  },
-  {
-    name: "chrome_fill",
-    description:
-      "Replace an input/textarea value (or contenteditable text). Set submit to press enter after.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        ref: { type: "string" },
-        selector: { type: "string" },
-        text: { type: "string" },
-        submit: { type: "boolean" },
-      },
-      required: ["text"],
-    },
-  },
-  {
-    name: "chrome_type",
-    description: "Append text to an input/textarea (does not clear existing value).",
-    inputSchema: {
-      type: "object",
-      properties: {
-        ref: { type: "string" },
-        selector: { type: "string" },
-        text: { type: "string" },
-      },
-      required: ["text"],
-    },
-  },
-  {
-    name: "chrome_press",
-    description:
-      "Press a key on the attached page (Enter, Tab, Escape, Backspace, Arrow*, or a single character).",
-    inputSchema: {
-      type: "object",
-      properties: { key: { type: "string" } },
-      required: ["key"],
-    },
-  },
-  {
-    name: "chrome_wait",
-    description: "Wait for a selector to appear, text to appear, or a fixed number of ms.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        selector: { type: "string" },
-        text: { type: "string" },
-        ms: { type: "number" },
-        timeoutMs: { type: "number" },
-      },
-    },
-  },
-  {
-    name: "chrome_screenshot",
+    name: "screenshot",
     description:
       "Capture a JPEG screenshot of the attached tab (set fullPage for the whole document).",
     inputSchema: {
@@ -537,48 +307,17 @@ const RAW_CHROME_TOOLS: ToolSpec[] = [
       properties: { fullPage: { type: "boolean" } },
     },
   },
-  {
-    name: "chrome_eval",
-    description: "Evaluate JavaScript in the attached page (requires eval enabled in settings).",
-    inputSchema: {
-      type: "object",
-      properties: { js: { type: "string" } },
-      required: ["js"],
-    },
-  },
-  {
-    name: "chrome_cookies",
-    description: "Read cookies from the attached page (requires data access enabled in settings).",
-    inputSchema: {
-      type: "object",
-      properties: { urls: { type: "array", items: { type: "string" } } },
-    },
-  },
 ];
 
 const READ_ONLY_CHROME_TOOL_NAMES = new Set([
-  "chrome_status",
-  "chrome_list_tabs",
-  "chrome_get_url",
-  "chrome_get_title",
-  "chrome_snapshot",
-  "chrome_find",
-  "chrome_get",
-  "chrome_is",
-  "chrome_wait",
-  "chrome_screenshot",
-  "chrome_cookies",
+  "status",
+  "list_tabs",
+  "get_url",
+  "get_title",
+  "screenshot",
 ]);
 const SESSION_CHROME_TOOL_NAMES = new Set(["enable", "disable"]);
-const DESTRUCTIVE_CHROME_TOOL_NAMES = new Set([
-  "chrome_click",
-  "chrome_fill",
-  "chrome_type",
-  "chrome_press",
-  "chrome_eval",
-]);
-
-export const CHROME_TOOLS: ToolSpec[] = RAW_CHROME_TOOLS.map((tool) => ({
+const CHROME_SESSION_TOOLS: ToolSpec[] = RAW_CHROME_TOOLS.map((tool) => ({
   ...tool,
   annotations: READ_ONLY_CHROME_TOOL_NAMES.has(tool.name)
     ? { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true }
@@ -586,9 +325,18 @@ export const CHROME_TOOLS: ToolSpec[] = RAW_CHROME_TOOLS.map((tool) => ({
       ? { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
       : {
           readOnlyHint: false,
-          destructiveHint: DESTRUCTIVE_CHROME_TOOL_NAMES.has(tool.name),
+          destructiveHint: false,
           openWorldHint: true,
         },
 }));
 
-export const CHROME_TOOL_NAMES = new Set(CHROME_TOOLS.map((t) => t.name));
+export const CHROME_TOOLS: ToolSpec[] = [
+  ...CHROME_SESSION_TOOLS,
+  ...TOOLS.filter((tool) => tool.name === "perform" || PAGE_TOOL_NAMES.has(tool.name)).map(
+    (tool) => {
+      const properties = { ...(tool.inputSchema.properties as Record<string, unknown>) };
+      delete properties.tabId;
+      return { ...tool, inputSchema: { ...tool.inputSchema, properties } };
+    },
+  ),
+];

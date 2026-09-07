@@ -160,15 +160,22 @@ export const ThreadDockRow = forwardRef<
     isDone?: boolean;
     title?: string;
     onClick?: () => void;
+    /**
+     * Stable identity key for the row (e.g. `${sourceId}:${index}`). Rendered
+     * as `data-row-key` so owners can look the row up among its siblings
+     * without keeping a ref per row.
+     */
+    rowKey?: string;
   }
->(function ThreadDockRow({ children, isActive, isDone, title, onClick }, ref) {
+>(function ThreadDockRow({ children, isActive, isDone, title, onClick, rowKey }, ref) {
   const innerClass = `flex items-center gap-2 rounded px-2 py-1 leading-5 ${
     isDone ? "opacity-60" : ""
   } ${isActive && !isDone ? "bg-accent/10" : ""}`;
+  const rowKeyAttrs = rowKey ? { "data-row-key": rowKey } : {};
 
   if (onClick) {
     return (
-      <li ref={ref} className="flex">
+      <li ref={ref} className="flex" {...rowKeyAttrs}>
         <button
           type="button"
           onClick={onClick}
@@ -183,7 +190,13 @@ export const ThreadDockRow = forwardRef<
   }
 
   return (
-    <li ref={ref} className={innerClass} title={title} aria-current={isActive ? "step" : undefined}>
+    <li
+      ref={ref}
+      className={innerClass}
+      title={title}
+      aria-current={isActive ? "step" : undefined}
+      {...rowKeyAttrs}
+    >
       {children}
     </li>
   );

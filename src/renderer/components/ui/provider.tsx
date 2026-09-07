@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useEffectEvent,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Toast, toast as heroToast } from "@heroui/react";
 import { I18nProvider } from "@lingui/react";
 import { Copy } from "lucide-react";
@@ -87,15 +80,9 @@ export function AppProvider(props: {
   const themePreset = useSharedSettings((state) => state.themePreset);
   const locale = useSharedSettings((state) => state.locale);
   const [prefersDark, setPrefersDark] = useState(systemPrefersDark);
-  const syncSystemPreference = useEffectEvent((matches: boolean) => {
-    setPrefersDark(matches);
-  });
   const sidebarTranslucency = useSharedSettings((state) => state.sidebarTranslucency);
   const sidebarGlassTint = useSharedSettings((state) => state.sidebarGlassTint);
   const [reducedTransparency, setReducedTransparency] = useState(systemPrefersReducedTransparency);
-  const syncReducedTransparency = useEffectEvent((matches: boolean) => {
-    setReducedTransparency(matches);
-  });
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
@@ -104,10 +91,9 @@ export function AppProvider(props: {
 
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = (event: MediaQueryListEvent) => {
-      syncSystemPreference(event.matches);
+      setPrefersDark(event.matches);
     };
 
-    syncSystemPreference(media.matches);
     media.addEventListener("change", onChange);
     return () => {
       media.removeEventListener("change", onChange);
@@ -129,10 +115,9 @@ export function AppProvider(props: {
 
     const media = window.matchMedia("(prefers-reduced-transparency: reduce)");
     const onChange = (event: MediaQueryListEvent) => {
-      syncReducedTransparency(event.matches);
+      setReducedTransparency(event.matches);
     };
 
-    syncReducedTransparency(media.matches);
     media.addEventListener("change", onChange);
     return () => {
       media.removeEventListener("change", onChange);

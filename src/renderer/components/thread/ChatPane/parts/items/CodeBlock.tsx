@@ -47,13 +47,19 @@ export function CodeBlock({ text, lang, className }: CodeBlockProps) {
   const theme: ShikiTheme = appearance === "dark" ? "github-dark" : "github-light";
   const key = cacheKey(theme, lang, text);
   const [html, setHtml] = useState<string | null>(() => cache.get(key) ?? null);
+  // Swap in the cached highlight during render on input change; on a cache
+  // miss the previous highlight stays until the async pass below resolves
+  // (the synchronous effect reset this replaces used to do the same).
+  const [prevKey, setPrevKey] = useState(key);
+  if (prevKey !== key) {
+    setPrevKey(key);
+    const cached = cache.get(key);
+    if (cached !== undefined) setHtml(cached);
+  }
 
   useEffect(() => {
-    const cached = cache.get(key);
-    if (cached !== undefined) {
-      setHtml(cached);
-      return;
-    }
+    // Already handled during render above; skip the redundant async pass.
+    if (cache.get(key) !== undefined) return;
     let cancelled = false;
     void (async () => {
       const ok = await ensureLanguage(lang);

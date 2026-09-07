@@ -39,7 +39,7 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "worktree list/merge/remove), its GitHub pull requests via the gh CLI (list/get/create/comment/" +
   "merge/update), the user's configured MCP servers (list/probe/add/update/remove — MCP servers " +
   "are managed with these dedicated tools, not update_settings), and installed skills (list/" +
-  "enable). Threads and projects are " +
+  "read/enable). Threads and projects are " +
   "the user's own work, visible in their sidebar; treat them as shared state. Explain " +
   "consequential or destructive actions — stopping or interrupting another thread, archiving, " +
   "marking done, creating a project, or changing settings — to the user before doing them, and " +

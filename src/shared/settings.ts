@@ -240,7 +240,7 @@ export const DEFAULT_USAGE_DISABLED_PROVIDER_IDS = allUsageProviderDescriptors()
 export const SIDEBAR_SHORTCUT_IDS = ["pullRequests", "githubActions", "schedules"] as const;
 export type SidebarShortcutId = (typeof SIDEBAR_SHORTCUT_IDS)[number];
 
-export const THREAD_DOCK_KINDS = ["goal", "plan", "agents", "backgroundTasks"] as const;
+export const THREAD_DOCK_KINDS = ["goal", "plan", "agents", "backgroundTasks", "images"] as const;
 export type ThreadDockKind = (typeof THREAD_DOCK_KINDS)[number];
 
 export function normalizeSidebarShortcutOrder(
@@ -390,10 +390,11 @@ export const sharedSettingsSchema = z.object({
   /**
    * Where a thread's informational docks (goal, plan, agents, background
    * tasks) live: stacked above the composer, or in the right panel's Docks tab
-   * with compact bubbles over the composer standing in for them.
+   * with compact bubbles over the composer standing in for them. Images always
+   * remain in the right panel.
    */
   threadDocksPlacement: z.enum(["composer", "right"]),
-  /** User-defined order for informational docks in the right panel and its composer bubbles. */
+  /** User-defined order for right-panel docks and their composer bubbles. */
   threadDocksOrder: z.array(z.enum(THREAD_DOCK_KINDS)),
   /**
    * Where a browser element-picker selection is delivered for a terminal-native
@@ -421,6 +422,13 @@ export const sharedSettingsSchema = z.object({
    * - "always": keep the machine awake whenever the app is running
    */
   preventSleep: z.enum(["while-working", "while-remote-access", "always"]),
+  /**
+   * Keep the display awake while a computer-use session is active. A locked
+   * desktop exposes no window content or controls to any automation route, so
+   * the idle lock would silently end an unattended session; holding the display
+   * awake is the only way to let one run through. Manual locking still works.
+   */
+  computerUseKeepAwake: z.boolean(),
   /** Register Poracode to launch automatically when the user signs in to Windows. */
   launchAtStartup: z.boolean(),
   /** Keep the main window hidden when Poracode is launched automatically at sign-in. */
@@ -741,8 +749,8 @@ export const defaultSharedSettings: SharedSettings = {
   acpRegistryInstalledAgents: {},
   acpRegistryAutoInstallOptOuts: [],
   agentInstances: {},
-  collapseTerminalComposer: false,
-  threadDocksPlacement: "composer",
+  collapseTerminalComposer: true,
+  threadDocksPlacement: "right",
   threadDocksOrder: [...THREAD_DOCK_KINDS],
   cliPickerTarget: "ask",
   staleThreadUnloadMinutes: 60,
@@ -752,6 +760,7 @@ export const defaultSharedSettings: SharedSettings = {
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
   preventSleep: "while-remote-access",
+  computerUseKeepAwake: true,
   launchAtStartup: true,
   startMinimized: true,
   closeToTray: true,

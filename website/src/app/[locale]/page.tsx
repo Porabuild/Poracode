@@ -5,6 +5,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { getLocaleMessages, translate } from "@/lib/i18n/messages";
 import { getLatestRelease } from "@/lib/releases";
+import { CHANGELOG } from "@/lib/changelog";
 import { createHomeJsonLd, createPageMetadata, stringifyJsonLd } from "@/lib/seo";
 
 type LocaleParams = { params: Promise<{ locale: Locale }> };
@@ -32,7 +33,12 @@ export default async function LocaleHome({ params }: LocaleParams) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: stringifyJsonLd(createHomeJsonLd(release, locale)) }}
       />
-      <HomeContent release={release} />
+      <HomeContent
+        release={release}
+        releaseTagline={
+          CHANGELOG.find((entry) => entry.version === release.version)?.tagline ?? null
+        }
+      />
     </I18nProvider>
   );
 }

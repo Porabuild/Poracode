@@ -53,6 +53,8 @@ export interface SessionRuntime {
   agentKind: AgentKind;
   adapter: AgentAdapter;
   pty?: IPty;
+  /** User-visible project location before any provider execution fallback. */
+  logicalProjectLocation?: ProjectLocation;
   projectLocation: ProjectLocation;
   config: ThreadConfig;
   /** Effective provider launch config with globally disabled MCP cleared. */
@@ -190,4 +192,20 @@ export interface ThreadOutputPipelineCallbacks {
 export interface ThreadOutputPipelineHooks extends ThreadOutputPipelineCallbacks {
   emitState(session: SessionRuntime, errorMessage?: string): void;
   getLatestTerminalStatusHint(session: SessionRuntime): TerminalStatusHint | null;
+}
+
+/** Spreadable `logicalProjectLocation` for session/spawn inputs (WSL fallback). */
+export function withLogicalProjectLocation<T extends { logicalProjectLocation?: ProjectLocation }>(
+  source: T,
+): { logicalProjectLocation: ProjectLocation } | Record<string, never> {
+  return source.logicalProjectLocation
+    ? { logicalProjectLocation: source.logicalProjectLocation }
+    : {};
+}
+
+/** User-visible location when present, otherwise the execution location. */
+export function effectiveProjectLocation<
+  T extends { projectLocation: ProjectLocation; logicalProjectLocation?: ProjectLocation },
+>(source: T): ProjectLocation {
+  return source.logicalProjectLocation ?? source.projectLocation;
 }

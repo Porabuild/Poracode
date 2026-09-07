@@ -45,6 +45,7 @@ import {
 } from "@agentclientprotocol/sdk";
 import type {
   AgentSlashCommand,
+  BackgroundTask,
   ProjectLocation,
   PromptSegment,
   RuntimeEvent,
@@ -85,6 +86,7 @@ import { AcpSessionConfigSync } from "./sessionConfigSync";
 // ── Helpers ──────────────────────────────────────────────────────
 
 import { isMissingPathError, toAcpFsRequestError } from "./sessionFsErrors";
+import { createAcpLocalImageResolver } from "./sessionLocalImages";
 import { AcpPlanModeToolTracker } from "./sessionPlanMode";
 import {
   isAcpHomeScopeLocation,
@@ -332,6 +334,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private readonly optimisticMcpTransports: readonly McpTransportKind[] | undefined;
   private readonly fsAgentHomeDirs: readonly string[];
   private readonly fsTextCapability: boolean;
+  /** Reads referenced local images for the canonical mapper (per-session cache). */
+  private readonly resolveLocalImage: (pathOrFileUri: string) => string | undefined;
   private planModeToolTrackerInstance: AcpPlanModeToolTracker | undefined;
   /** Poracode thread id (stable identifier we report in RuntimeEvents). */
   private readonly threadId: string;
@@ -416,6 +420,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private agentSessionCapabilities: SessionCapabilities | undefined;
   private agentMcpCapabilities: McpCapabilities | undefined;
   private mapperState: AcpMapperState | undefined;
+  /**
+   * Last `background_tasks.changed` list emitted by this session. Any
+   * text-stream extension may produce that event; the session only mirrors
+   * it for snapshot/getBackgroundTasks consumers.
+   */
+  private reportedBackgroundTasks: readonly BackgroundTask[] = [];
   /**
    * Client-hosted ACP terminal subsystem. Lazily created so test harnesses
    * that bypass the constructor (and override `projectLocation`/`cwd` after
@@ -522,6 +532,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.optimisticMcpTransports = options?.optimisticMcpTransports;
     this.fsAgentHomeDirs = options?.fsAgentHomeDirs ?? [];
     this.fsTextCapability = options?.fsTextCapability !== false;
+    this.resolveLocalImage = createAcpLocalImageResolver(this.projectLocation);
   }
 
   /** Initialize the canonical mapper once we have a stable thread id. */
@@ -535,12 +546,21 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         this.terminalManager.getTerminalOutput(terminalId);
       this.mapperState.resolveTerminalOutputByCommand = (command) =>
         this.terminalManager.resolveAcpTerminalOutputByCommand(command);
+      // Agents that report an image result by reference (a `uri`-only image
+      // block, or only a read-kind tool call's `locations`) need a filesystem
+      // read the pure mapper can't do itself.
+      this.mapperState.resolveLocalImage = this.resolveLocalImage;
     }
     return this.mapperState;
   }
 
   private emitRuntimeEvents(events: RuntimeEvent[]): void {
     if (events.length === 0) return;
+    for (const event of events) {
+      if (event.type === "background_tasks.changed") {
+        this.reportedBackgroundTasks = event.tasks;
+      }
+    }
     if (!this.listener?.onRuntimeEvent) {
       this.bufferedRuntimeEvents.push(...events);
       return;
@@ -548,6 +568,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     for (const event of events) {
       this.listener.onRuntimeEvent(event);
     }
+  }
+
+  getBackgroundTasks(): readonly BackgroundTask[] {
+    return this.reportedBackgroundTasks;
   }
 
   private emitListenerUpdate(update: StructuredSessionUpdate): void {
@@ -666,10 +690,10 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         requestPermission(params: RequestPermissionRequest) {
           return session.handlePermissionRequest(params);
         },
-        unstable_createElicitation(params: CreateElicitationRequest) {
+        createElicitation(params: CreateElicitationRequest) {
           return session.handleElicitationRequest(params);
         },
-        unstable_completeElicitation(params: CompleteElicitationNotification) {
+        completeElicitation(params: CompleteElicitationNotification) {
           session.handleElicitationComplete(params);
           return Promise.resolve();
         },
@@ -1308,6 +1332,12 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   async dispose(): Promise<void> {
     if (this.isDisposed) return;
     this.isDisposed = true;
+
+    if (this.reportedBackgroundTasks.length > 0) {
+      this.emitRuntimeEvents([
+        { type: "background_tasks.changed", threadId: this.threadId, tasks: [] },
+      ]);
+    }
 
     for (const source of this.externalSessionUpdateSources ?? []) source.dispose();
     this.externalSessionUpdateSources?.clear();

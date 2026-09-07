@@ -96,7 +96,7 @@ export function NarrowShell(props: {
   readonly onSearchOpenChange: (open: boolean) => void;
   readonly onSearchHostChange: (element: HTMLDivElement | null) => void;
 }) {
-  const { remote, chrome, pathname } = props;
+  const { remote, chrome, pathname, searchOpen, onSearchOpenChange, onSearchHostChange } = props;
   const navigate = useNavigate();
   const router = useRouter();
   const { t } = useLingui();
@@ -117,7 +117,14 @@ export function NarrowShell(props: {
     window.clearTimeout(ignoreSearchClickTimerRef.current);
     ignoreSearchClickTimerRef.current = null;
   };
-  useEffect(() => () => clearIgnoreSearchClickTimer(), []);
+  useEffect(
+    () => () => {
+      if (!ignoreSearchClickTimerRef.current) return;
+      window.clearTimeout(ignoreSearchClickTimerRef.current);
+      ignoreSearchClickTimerRef.current = null;
+    },
+    [],
+  );
 
   // Edge-swipe back mirrors the header back button: subscreens pop to their
   // parent, a thread pops to the list. Home has nowhere to go; fullscreen
@@ -252,7 +259,7 @@ export function NarrowShell(props: {
                 onPair={() => void navigate({ to: "/desktops" })}
               />
             </div>
-            <div className="m-topbar-search" ref={props.onSearchHostChange} />
+            <div className="m-topbar-search" ref={onSearchHostChange} />
           </>
         )}
         {chrome.layout === "home" ? null : (
@@ -305,9 +312,9 @@ export function NarrowShell(props: {
             className="m-home-compose-action"
             type="button"
             aria-label={t`Search threads`}
-            aria-pressed={props.searchOpen}
+            aria-pressed={searchOpen}
             onPointerDown={(event) => {
-              if (!props.searchOpen) return;
+              if (!searchOpen) return;
               event.preventDefault();
               ignoreSearchClickRef.current = true;
               clearIgnoreSearchClickTimer();
@@ -315,7 +322,7 @@ export function NarrowShell(props: {
                 ignoreSearchClickRef.current = false;
                 ignoreSearchClickTimerRef.current = null;
               }, 700);
-              props.onSearchOpenChange(false);
+              onSearchOpenChange(false);
             }}
             onPointerCancel={() => {
               ignoreSearchClickRef.current = false;
@@ -327,7 +334,7 @@ export function NarrowShell(props: {
                 clearIgnoreSearchClickTimer();
                 return;
               }
-              props.onSearchOpenChange(!props.searchOpen);
+              onSearchOpenChange(!searchOpen);
             }}
           >
             <Search className="size-5" />

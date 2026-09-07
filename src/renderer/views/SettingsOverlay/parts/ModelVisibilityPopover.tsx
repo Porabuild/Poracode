@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState, type Key, type ReactNode } from "react";
+import { useDeferredValue, useState, type Key, type ReactNode } from "react";
 import { Button, Input, ListBox, Popover } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, Minus, Search, Zap } from "lucide-react";
@@ -43,23 +43,28 @@ export function ModelVisibilityPopover(props: {
   const deferredSearch = useDeferredValue(search);
 
   const uncheckedKinds = new Set(props.providerToggle?.uncheckedKinds ?? []);
-  let totalCount = 0;
-  let visibleCount = 0;
   const providerEntries = props.providers.map((provider) => {
     const key = providerVisibilityKey(provider);
     const hidden = new Set(props.hiddenIdsByKey[key] ?? []);
     const models = provider.capabilities.models.filter((model) => model.id !== "auto");
     const hiddenCount = models.filter((model) => hidden.has(model.id)).length;
-    totalCount += models.length;
-    if (!uncheckedKinds.has(provider.kind)) visibleCount += models.length - hiddenCount;
     return { provider, key, hidden, models, hiddenCount };
   });
+  const totalCount = providerEntries.reduce((sum, entry) => sum + entry.models.length, 0);
+  const visibleCount = providerEntries.reduce(
+    (sum, entry) =>
+      sum + (uncheckedKinds.has(entry.provider.kind) ? 0 : entry.models.length - entry.hiddenCount),
+    0,
+  );
   const hiddenByKey = new Map(providerEntries.map((entry) => [entry.key, entry.hidden]));
   const entriesByKind = new Map(providerEntries.map((entry) => [entry.provider.kind, entry]));
 
-  useEffect(() => {
+  // Clearing the search on close derives from `isOpen`, so adjust during render.
+  const [prevPopoverOpen, setPrevPopoverOpen] = useState(isOpen);
+  if (prevPopoverOpen !== isOpen) {
+    setPrevPopoverOpen(isOpen);
     if (!isOpen) setSearch("");
-  }, [isOpen]);
+  }
 
   const items = isOpen
     ? buildProviderModelItems({

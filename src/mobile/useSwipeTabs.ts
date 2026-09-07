@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useEffectEvent, type RefObject } from "react";
 import { startsInHorizontalScroller } from "./startsInHorizontalScroller";
 
 /** Horizontal travel that commits the gesture and switches tabs. */
@@ -21,8 +21,7 @@ export function useSwipeTabs(
   enabled: boolean,
   onSwipe: (direction: "left" | "right") => void,
 ): void {
-  const onSwipeRef = useRef(onSwipe);
-  onSwipeRef.current = onSwipe;
+  const handleSwipe = useEffectEvent(onSwipe);
 
   useEffect(() => {
     const node = ref.current;
@@ -61,7 +60,7 @@ export function useSwipeTabs(
       if (absX > TRIGGER_PX && absX > absY * DOMINANCE) {
         committed = true;
         tracking = false;
-        onSwipeRef.current(deltaX < 0 ? "left" : "right");
+        handleSwipe(deltaX < 0 ? "left" : "right");
       }
     };
 

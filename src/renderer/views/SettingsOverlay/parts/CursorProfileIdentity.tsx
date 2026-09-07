@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button, toast } from "@heroui/react";
 import { Check } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -32,10 +32,13 @@ export function CursorProfileIdentity(props: {
   const [pending, setPending] = useState(false);
 
   // Re-seed when the settings page switches to a different profile, or when the
-  // saved name changes out-of-band (another window, the MCP tool).
-  useEffect(() => {
+  // saved name changes out-of-band (another window, the MCP tool). Derived
+  // from `savedName`, so adjust during render.
+  const [prevSavedName, setPrevSavedName] = useState(savedName);
+  if (prevSavedName !== savedName) {
+    setPrevSavedName(savedName);
     setName(savedName);
-  }, [savedName]);
+  }
 
   const trimmed = name.trim();
   const cursorInstances = Object.values(agentInstances).filter(

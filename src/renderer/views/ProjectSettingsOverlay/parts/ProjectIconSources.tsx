@@ -190,9 +190,13 @@ function CustomColorSwatch(props: {
 
   // Follow the project when the colour changes elsewhere (another preset, a
   // different glyph) so reopening the picker starts from what is applied.
-  useEffect(() => {
+  // Reset during render instead of an effect so the swatch never paints a
+  // frame with the previous colour.
+  const [prevStored, setPrevStored] = useState(stored);
+  if (prevStored !== stored) {
+    setPrevStored(stored);
     if (stored) setDraft(parseColor(stored));
-  }, [stored]);
+  }
 
   useEffect(
     () => () => {

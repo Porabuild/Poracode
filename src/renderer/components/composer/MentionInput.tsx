@@ -392,9 +392,32 @@ export const MentionInput = forwardRef<
     threadMentions,
   );
 
-  useEffect(() => {
+  // Restart keyboard navigation at the top whenever the query or the result
+  // set changes, tracked as a render snapshot instead of a sync setState in
+  // an effect.
+  const [prevMentionResults, setPrevMentionResults] = useState({
+    query: mention?.query,
+    files: fileResults,
+    mcp: mcpMentionKey,
+    plugin: pluginMentionKey,
+    thread: threadMentionKey,
+  });
+  if (
+    prevMentionResults.query !== mention?.query ||
+    prevMentionResults.files !== fileResults ||
+    prevMentionResults.mcp !== mcpMentionKey ||
+    prevMentionResults.plugin !== pluginMentionKey ||
+    prevMentionResults.thread !== threadMentionKey
+  ) {
+    setPrevMentionResults({
+      query: mention?.query,
+      files: fileResults,
+      mcp: mcpMentionKey,
+      plugin: pluginMentionKey,
+      thread: threadMentionKey,
+    });
     setActiveIndex(0);
-  }, [mention?.query, fileResults, mcpMentionKey, pluginMentionKey, threadMentionKey]);
+  }
 
   function insertPlainText(text: string) {
     const editor = editorRef.current;

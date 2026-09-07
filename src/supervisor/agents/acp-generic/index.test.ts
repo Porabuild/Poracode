@@ -257,38 +257,6 @@ describe("createAcpGenericAdapter", () => {
     expect(status.capabilities.modelEfforts).toEqual({ model: ["High"] });
   });
 
-  it("normalizes Factory Droid model rates at the provider boundary", async () => {
-    vi.mocked(probeAcpCapabilities).mockResolvedValue({
-      models: [
-        {
-          id: "glm-5.1",
-          label: "Droid Core (GLM-5.1)",
-          description: "0.55x Factory token rate",
-        },
-        {
-          id: "auto",
-          label: "Auto",
-          description: "Let Droid choose the best model",
-        },
-      ],
-    });
-    const adapter = createAcpGenericAdapter({
-      ...baseInstance,
-      id: "factory-droid",
-      displayName: "Factory Droid",
-    });
-    const status = await adapter.detectInstall();
-    expect(status.capabilities.models).toEqual([
-      {
-        id: "glm-5.1",
-        label: "Droid Core (GLM-5.1)",
-        description: "0.55x",
-        tooltipDescription: "0.55x Factory token rate",
-      },
-      { id: "auto", label: "Auto", description: "Let Droid choose the best model" },
-    ]);
-  });
-
   it("repairs an existing Factory Droid daemon command before launch", async () => {
     const adapter = createAcpGenericAdapter({
       ...baseInstance,
@@ -313,20 +281,20 @@ describe("createAcpGenericAdapter", () => {
     expect(launchArgs.join(" ")).not.toContain("acp-daemon");
   });
 
-  it("does not parse token-rate prose for other ACP-generic instances", async () => {
+  it("preserves model descriptions without a normalization hook", async () => {
     vi.mocked(probeAcpCapabilities).mockResolvedValue({
       models: [
         {
           id: "glm-5.1",
           label: "GLM-5.1",
-          description: "0.55x Factory token rate",
+          description: "0.55x provider token rate",
         },
       ],
     });
     const adapter = createAcpGenericAdapter(baseInstance);
     const status = await adapter.detectInstall();
     expect(status.capabilities.models).toEqual([
-      { id: "glm-5.1", label: "GLM-5.1", description: "0.55x Factory token rate" },
+      { id: "glm-5.1", label: "GLM-5.1", description: "0.55x provider token rate" },
     ]);
   });
 

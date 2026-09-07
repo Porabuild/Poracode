@@ -618,6 +618,7 @@ function mapClaudeSdkMessageInner(
   }
 
   if (message.type === "system" && message.subtype === "task_started") {
+    if (message.ambient === true) return [];
     registerSubAgentTaskIfNeeded(message, state);
     events.push(...applyTaskLifecycle(message, state));
     return events;

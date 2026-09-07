@@ -54,6 +54,7 @@ type TestableAcpSession = {
   resolveServerRequest(requestId: string, response: unknown): Promise<void>;
   handlePermissionRequest(params: RequestPermissionRequest): Promise<unknown>;
   handleSessionUpdate(params: { update: unknown }): void;
+  getBackgroundTasks(): readonly import("@/shared/contracts").BackgroundTask[];
   handleStderrTurnSignalLine(line: string): void;
   ingestExternalSessionUpdate(notification: SessionNotification): void;
   attachExternalSessionUpdateSource(source: {
@@ -198,6 +199,7 @@ function makeConfigSyncSession(
   session["stderrChunks"] = [];
   session["emptyResponseErrorResolver"] = undefined;
   session["mapperState"] = undefined;
+  session["reportedBackgroundTasks"] = [];
   session["acpTerminals"] = new Map();
   session["acpTerminalSeq"] = 0;
   session["releasedAcpTerminalOutput"] = new Map();
@@ -364,6 +366,31 @@ describe("resolveAcpPromptFailureMessage — prompt rejection after agent-surfac
   it("still emits the RPC error row when no agent-surfaced message exists", () => {
     const transport = RequestError.internalError({ details: "Agent error" });
     expect(shouldEmitAcpPromptRpcErrorItem(transport, undefined)).toBe(true);
+  });
+
+  it("appends the re-auth hint to an MCP Unauthorized agent-surfaced failure", () => {
+    const surfaced =
+      'Agent execution error: MCP load failed for Vercel: calling "initialize": sending "initialize": Unauthorized';
+    const out = resolveAcpPromptFailureMessage(
+      RequestError.internalError({ details: "Internal error" }),
+      surfaced,
+    );
+    expect(out.startsWith(surfaced)).toBe(true);
+    expect(out).toContain('MCP server "Vercel" rejected its saved sign-in (HTTP 401)');
+    expect(out).toContain("start a new thread");
+  });
+
+  it("appends a generic MCP re-auth hint when the server name is unknown", () => {
+    const out = resolveAcpPromptFailureMessage(
+      RequestError.internalError({ details: "MCP initialize failed: 401 Unauthorized" }),
+    );
+    expect(out).toContain("An MCP server rejected its saved sign-in (HTTP 401)");
+  });
+
+  it("leaves non-MCP failures without the re-auth hint", () => {
+    const usage = "Usage limit reached.";
+    expect(resolveAcpPromptFailureMessage(RequestError.internalError(), usage)).toBe(usage);
+    expect(resolveAcpPromptFailureMessage(new Error("boom"))).toBe("boom");
   });
 });
 
@@ -3532,6 +3559,44 @@ describe("ACP turn config sync", () => {
 
     resolvePrompt({ stopReason: "end_turn" });
     await turn;
+  });
+
+  it("mirrors background_tasks.changed events from a text-stream extension", () => {
+    const { listener, session } = makeConfigSyncSession({
+      textStreamExtension: {
+        id: "test.backgroundTasks",
+        trackToolCall(input) {
+          return [
+            {
+              type: "background_tasks.changed",
+              threadId: input.state.threadId,
+              tasks: [{ taskId: "task-1", kind: "command", description: "cargo test" }],
+            },
+          ];
+        },
+      },
+    });
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-1",
+        title: "cargo test",
+        kind: "execute",
+        status: "completed",
+        rawInput: { command: "cargo test" },
+      },
+    });
+
+    expect(session.getBackgroundTasks()).toEqual([
+      { taskId: "task-1", kind: "command", description: "cargo test" },
+    ]);
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "background_tasks.changed",
+        tasks: [{ taskId: "task-1", kind: "command", description: "cargo test" }],
+      }),
+    );
   });
 
   it("treats an interrupt-triggered prompt abort as a cancelled turn", async () => {

@@ -54,6 +54,7 @@ export function InfoHint(props: { text: string }) {
         className="shrink-0 cursor-help text-muted/70 hover:text-foreground"
         onClick={(event) => event.stopPropagation()}
         onPointerDown={(event) => event.stopPropagation()}
+        onPointerUp={(event) => event.stopPropagation()}
       >
         <Info className="size-3.5" aria-hidden />
       </Tooltip.Trigger>

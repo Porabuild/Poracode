@@ -16,9 +16,9 @@ import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
 
-// v8 adds thread prompt segments and canonical thread content blocks. Older
-// clients cannot paint or preserve those structured mentions correctly.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 8;
+// v9 carries the selected execution environment in thread snapshots and
+// mutation payloads. Older clients would silently drop a pinned WSL distro.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 9;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([

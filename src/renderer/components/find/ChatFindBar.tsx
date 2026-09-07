@@ -33,8 +33,11 @@ interface ChatFindBarProps {
  */
 export function ChatFindBar(props: ChatFindBarProps) {
   const active = useChatFindStore((state) => state.activeThreadId === props.threadId);
+  const openToken = useChatFindStore((state) => state.openToken);
   if (!active) return null;
-  return <ActiveChatFind {...props} />;
+  // Remount per open so a reopened session refocuses through a fresh mount
+  // instead of a re-run trigger.
+  return <ActiveChatFind key={openToken} {...props} />;
 }
 
 function ActiveChatFind({ threadId, scrollToIndexRef, scrollElement }: ChatFindBarProps) {
@@ -46,7 +49,6 @@ function ActiveChatFind({ threadId, scrollToIndexRef, scrollElement }: ChatFindB
   const caseSensitive = useChatFindStore((state) => state.caseSensitive);
   const currentIndex = useChatFindStore((state) => state.currentIndex);
   const matchCount = useChatFindStore((state) => state.matchCount);
-  const openToken = useChatFindStore((state) => state.openToken);
   const setQuery = useChatFindStore((state) => state.setQuery);
   const toggleCaseSensitive = useChatFindStore((state) => state.toggleCaseSensitive);
   const next = useChatFindStore((state) => state.next);
@@ -64,16 +66,20 @@ function ActiveChatFind({ threadId, scrollToIndexRef, scrollElement }: ChatFindB
         ] as const,
     ),
   );
-  const [itemsById, structuralVersion] = itemSnapshot;
+  // The structural version stays in the subscription so version bumps still
+  // re-render (the timeline selector below re-resolves on them); only the
+  // items map feeds the memo.
+  const [itemsById] = itemSnapshot;
 
   // `entries`/`itemsById` are reference-stable across navigation, so memoizing
   // keeps `matches` stable when only `currentIndex` changes — avoiding a full
   // transcript re-scan (and a spurious re-fire of the scroll/highlight effect)
-  // on every next/prev press.
+  // on every next/prev press. The timeline selector's cached identity already
+  // covers structural updates (and item maps are replaced immutably), so no
+  // extra version trigger is needed here.
   const matches = useMemo(() => {
-    void structuralVersion;
     return collectChatMatches(itemsById, entries, query, caseSensitive);
-  }, [itemsById, structuralVersion, entries, query, caseSensitive]);
+  }, [itemsById, entries, query, caseSensitive]);
 
   // Re-resolve highlight ranges from the live (virtualized) DOM. Reads the latest
   // render's values so the scroll listener and nav effect can share it.
@@ -101,7 +107,7 @@ function ActiveChatFind({ threadId, scrollToIndexRef, scrollElement }: ChatFindB
     setMatchCount(matches.length);
   }, [matches.length, setMatchCount]);
 
-  useFindBarChrome(inputRef, openToken, close);
+  useFindBarChrome(inputRef, close);
 
   // Scroll the active match's row into the virtualized window, then re-highlight
   // across the (now newly mounted) rows. Two frames: one for the scroll to land,

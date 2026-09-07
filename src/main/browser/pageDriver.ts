@@ -3,9 +3,11 @@ import type { WebContents } from "electron";
 type PageExecutor = Pick<WebContents, "executeJavaScript">;
 
 const DRIVER_GLOBAL = "__poracodeBrowserDriver";
+// Reinstall a driver injected before stale-reference validation was added.
+const DRIVER_VERSION = 2;
 
 const DRIVER_SOURCE = `(() => {
-  if (window.${DRIVER_GLOBAL}) return true;
+  if (window.${DRIVER_GLOBAL}?.version === ${DRIVER_VERSION}) return true;
 
   const bySelector = (selector) => document.querySelector(selector);
   const isVisible = (el) => {
@@ -123,6 +125,7 @@ const DRIVER_SOURCE = `(() => {
   };
 
   window.${DRIVER_GLOBAL} = {
+    version: ${DRIVER_VERSION},
     click(selector, clickCount) {
       const el = bySelector(selector);
       if (!el) return false;
@@ -181,7 +184,7 @@ const DRIVER_SOURCE = `(() => {
     },
     resolveRefToSelector(ref) {
       const el = (window.__lcRefs || new Map()).get(ref);
-      if (!el) return null;
+      if (!el || !el.isConnected) return null;
       if (el.id && !/^\\d/.test(el.id)) return "#" + CSS.escape(el.id);
       const path = [];
       let n = el;
@@ -279,8 +282,7 @@ const DRIVER_SOURCE = `(() => {
 })()`;
 
 async function callDriver<T = unknown>(page: PageExecutor, expression: string): Promise<T> {
-  await page.executeJavaScript(DRIVER_SOURCE, true);
-  return (await page.executeJavaScript(expression, true)) as T;
+  return (await page.executeJavaScript(`${DRIVER_SOURCE};\n${expression}`, true)) as T;
 }
 
 export async function clickSelector(page: PageExecutor, selector: string): Promise<void> {

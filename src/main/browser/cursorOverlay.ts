@@ -188,6 +188,14 @@ export function cursorGlideExpr(targetExpr: string, glideMs = GLIDE_MS): string 
     if (!el) return { ok: false };
     const c = __pcCursor();
     try { el.scrollIntoView({ block: "center", inline: "center" }); } catch (e) {}
+    if (${glideMs} === 0) {
+      const rect = el.getBoundingClientRect();
+      const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+      c.style.transition = "none";
+      c.style.transform = "translate(" + (x - 2) + "px," + (y - 1) + "px)";
+      __pcRipple(x, y);
+      return { ok: true, x, y };
+    }
     await new Promise(function (res) {
       var done = false;
       function go() { if (!done) { done = true; res(null); } }
@@ -231,9 +239,19 @@ function glideBounded(run: () => Promise<unknown>): Promise<void> {
  *  Await this BEFORE the action so the cursor lands first ("move then click");
  *  the glide is short (GLIDE_MS) and hard-capped (GLIDE_WAIT_CAP_MS) so it can
  *  never stall the action. */
-export async function glideCursorToSelector(cdp: CdpSession, selector: string): Promise<void> {
+export async function glideCursorToSelector(
+  cdp: CdpSession,
+  selector: string,
+  animate = true,
+): Promise<void> {
   await glideBounded(() =>
-    evalJs(cdp, cursorGlideExpr(`document.querySelector(${JSON.stringify(selector)})`)),
+    evalJs(
+      cdp,
+      cursorGlideExpr(
+        `document.querySelector(${JSON.stringify(selector)})`,
+        animate ? GLIDE_MS : 0,
+      ),
+    ),
   );
 }
 

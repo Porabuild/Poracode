@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ClientSideConnection, type AnyMessage } from "@agentclientprotocol/sdk";
 import {
   humanizeAcpModeName,
   humanizeModelId,
@@ -8,8 +9,49 @@ import {
   mapAcpSlashCommands,
   mapAcpThoughtLevels,
   normalizeAcpModeId,
+  type AcpProbeResult,
 } from "./probe";
+import { dedupeAcpAuthMethods } from "./authMethods";
 import { resolveThoughtLevelToggleValues } from "./thoughtLevel";
+
+describe("ACP authentication compatibility", () => {
+  it("preserves legacy env-var credentials through the SDK initialize response", async () => {
+    const method: NonNullable<AcpProbeResult["authMethods"]>[number] = {
+      type: "env_var",
+      id: "fixture-key",
+      name: "Fixture API key",
+      vars: [{ name: "FIXTURE_API_KEY", secret: true }],
+      _meta: { legacy: true },
+    };
+    const incoming = new TransformStream<AnyMessage>();
+    const outgoing = new TransformStream<AnyMessage>();
+    const writer = incoming.writable.getWriter();
+    const reader = outgoing.readable.getReader();
+    const connection = new ClientSideConnection(
+      () => ({
+        sessionUpdate: async () => {},
+        requestPermission: async () => ({ outcome: { outcome: "cancelled" } }),
+      }),
+      { readable: incoming.readable, writable: outgoing.writable },
+    );
+    try {
+      const initialized = connection.initialize({ protocolVersion: 1, clientCapabilities: {} });
+      const request = (await reader.read()).value;
+      if (!request || !("id" in request)) throw new Error("Missing initialize request");
+      await writer.write({
+        jsonrpc: "2.0",
+        id: request.id,
+        result: { protocolVersion: 1, authMethods: [method] },
+      });
+      const result = await initialized;
+      expect(dedupeAcpAuthMethods(result.authMethods ?? [])).toEqual([method]);
+    } finally {
+      await writer.close();
+      await reader.cancel();
+      await connection.closed;
+    }
+  });
+});
 
 describe("mapAcpSlashCommands", () => {
   it("maps ACP skill commands into the Skills section without changing their native id", () => {
@@ -43,18 +85,9 @@ describe("mapAcpSlashCommands", () => {
 });
 
 describe("humanizeModelId", () => {
-  it("strips gemini- prefix and title-cases segments", () => {
-    expect(humanizeModelId("gemini-2.5-pro")).toBe("2.5 Pro");
-    expect(humanizeModelId("gemini-2.5-flash-lite")).toBe("2.5 Flash Lite");
-    expect(humanizeModelId("gemini-3.1-pro-preview")).toBe("3.1 Pro Preview");
-  });
-
-  it("keeps auto- prefix for auto-gemini IDs", () => {
-    expect(humanizeModelId("auto-gemini-3")).toBe("Auto Gemini 3");
-    expect(humanizeModelId("auto-gemini-2.5")).toBe("Auto Gemini 2.5");
-  });
-
-  it("handles ids without gemini- prefix", () => {
+  it("title-cases every segment without stripping a provider prefix", () => {
+    expect(humanizeModelId("vendor-2.5-flash-lite")).toBe("Vendor 2.5 Flash Lite");
+    expect(humanizeModelId("auto-vendor-3")).toBe("Auto Vendor 3");
     expect(humanizeModelId("some-model")).toBe("Some Model");
   });
 });
@@ -153,8 +186,44 @@ describe("mapAcpModels", () => {
       { modelId: "gemini-2.5-flash-lite", name: "gemini-2.5-flash-lite" },
     ]);
     expect(result).toEqual([
-      { id: "gemini-2.5-pro", label: "2.5 Pro" },
-      { id: "gemini-2.5-flash-lite", label: "2.5 Flash Lite" },
+      { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+      { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+    ]);
+  });
+
+  it("uses the supplied label fallback in both model formats without replacing display names", () => {
+    const modelLabel = (id: string) => `Label for ${id}`;
+    expect(
+      mapAcpModels(
+        [
+          { modelId: "model-a", name: "model-a" },
+          { modelId: "model-b", name: "Display B" },
+        ],
+        modelLabel,
+      ),
+    ).toEqual([
+      { id: "model-a", label: "Label for model-a" },
+      { id: "model-b", label: "Display B" },
+    ]);
+    expect(
+      mapAcpConfigModels(
+        [
+          {
+            type: "select",
+            category: "model",
+            options: [
+              { value: "model-a", name: "model-a" },
+              { value: "model-b", name: "Display B" },
+              { value: "model-c" },
+            ],
+          },
+        ],
+        modelLabel,
+      ),
+    ).toEqual([
+      { id: "model-a", label: "Label for model-a" },
+      { id: "model-b", label: "Display B" },
+      { id: "model-c", label: "Label for model-c" },
     ]);
   });
 

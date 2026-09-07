@@ -106,6 +106,21 @@ function GenericProviderIcon(props: { label?: string; tone: StatusTone; classNam
   );
 }
 
+/**
+ * Renders a registry-provided icon behind a committed component boundary. The
+ * lookup result must not be rendered as `<Icon>` directly in `ProviderIcon` —
+ * a component value produced by a render-time call reads as a component
+ * created during render, so it renders through this stable wrapper instead.
+ */
+function RegisteredProviderIcon(props: {
+  icon: IconComponent;
+  tone: StatusTone;
+  className?: string | undefined;
+}) {
+  const { icon: Icon, tone, className } = props;
+  return <Icon tone={tone} {...(className ? { className } : {})} />;
+}
+
 export function ProviderIcon(props: {
   kind: string;
   tone?: StatusTone | undefined;
@@ -144,7 +159,11 @@ export function ProviderIcon(props: {
     );
   }
   const rendered = (
-    <Icon tone={tone} {...(props.className ? { className: props.className } : {})} />
+    <RegisteredProviderIcon
+      icon={Icon}
+      tone={tone}
+      {...(props.className ? { className: props.className } : {})}
+    />
   );
   // Every multi-profile provider gets the same instance badge, so the icon
   // needs no per-provider knowledge.

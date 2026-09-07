@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { Button, Popover } from "@heroui/react";
 import { Check, Minus, Search, Zap } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -190,9 +190,12 @@ export function ModelVisibilitySection() {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
 
-  useEffect(() => {
+  // Clearing the search on close derives from `isOpen`, so adjust during render.
+  const [prevSectionOpen, setPrevSectionOpen] = useState(isOpen);
+  if (prevSectionOpen !== isOpen) {
+    setPrevSectionOpen(isOpen);
     if (!isOpen) setSearch("");
-  }, [isOpen]);
+  }
 
   const items = isOpen
     ? buildProviderModelItems({ providers, search: deferredSearch }).filter(

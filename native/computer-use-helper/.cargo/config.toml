@@ -1,0 +1,3 @@
+# Static CRT on MSVC so the packaged helper has no VCRUNTIME dependency.
+[target.'cfg(all(windows, target_env = "msvc"))']
+rustflags = ["-C", "target-feature=+crt-static"]

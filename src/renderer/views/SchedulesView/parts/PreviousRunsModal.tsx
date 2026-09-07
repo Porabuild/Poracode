@@ -106,11 +106,23 @@ export function PreviousRunsModal({
   const taskId = task?.id ?? null;
   const isRunning = task?.lastStatus === "running";
 
+  // Reset the list whenever the shown schedule (or its running state, which
+  // controls the live poll) changes — during render rather than
+  // synchronously on effect entry, so switching schedules never paints the
+  // previous schedule's runs.
+  const runsRequestKey = `${taskId ?? ""}\0${isRunning ? "1" : "0"}`;
+  const [prevRunsRequestKey, setPrevRunsRequestKey] = useState<string | null>(null);
+  if (prevRunsRequestKey !== runsRequestKey) {
+    setPrevRunsRequestKey(runsRequestKey);
+    if (taskId) {
+      setRuns(null);
+      setRunsError("");
+    }
+  }
+
   useEffect(() => {
     if (!taskId) return;
     let cancelled = false;
-    setRuns(null);
-    setRunsError("");
     const load = () => {
       void readBridge()
         .getScheduleRuns({ id: taskId })

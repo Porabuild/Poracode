@@ -4,7 +4,6 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { AlertTriangle, LogIn, LogOut, Save } from "lucide-react";
 import { isNewerVersion } from "@/shared/agents/updateResolver";
 import type {
-  AgentOwnedAuthMethod,
   AgentProviderMetadata,
   AgentStatus,
   AgentTerminalAuthMethod,
@@ -47,13 +46,16 @@ import { SettingsPage } from "../SettingsForm";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../agentRegistryNative";
 import {
   availableRuntimeInstallOptions,
+  detectAgentRuntime,
   runtimeStateSummaryText,
   type NativeAgentRuntimeInstallOption,
+  type NativeAgentRuntimeSlot,
 } from "../nativeAgentRuntimes";
 import { SAVED_CREDENTIAL_MASK } from "../secretMask";
 import { AgentHeader } from "./parts/AgentHeader";
 import { AgentSettingRow } from "./parts/AgentSettingRow";
 import { ModelVisibilityDropdown } from "./parts/ModelVisibilityDropdown";
+import { modelSurfaceLabel } from "./parts/modelSurfaceLabel";
 import {
   AgentEnvironmentRow,
   AgentInstallEnvironmentRow,
@@ -68,6 +70,7 @@ import {
 } from "../machineScope/MachineScopeRows";
 import { useMachineScopedStatuses } from "../machineScope/useMachineScopedStatuses";
 import {
+  authRowKey,
   findAgentAuthMethod,
   findEnvVarAuthMethod,
   findTerminalLoginStatus,
@@ -75,6 +78,8 @@ import {
   hasInteractiveAuthMethods,
   resolveLivePlanLabel,
   statusEnvKey,
+  statusForRuntimeVariant,
+  statusHasAuthenticatedLogout,
   statusNeedsInteractiveLogin,
   supportsAcpLogoutStatus,
 } from "./parts/authHelpers";
@@ -344,6 +349,7 @@ export function SingleAgentSettings(props: {
     findTerminalLoginStatus(installedStatuses) ??
     missingAuthStatuses.find((status) => status.loginCommand);
   const loginCommand = loginStatus?.loginCommand;
+  const loginCommandDisplay = loginStatus?.loginCommandDisplay ?? loginCommand;
   const terminalLoginMethod = findTerminalAuthMethodForStatus(loginStatus);
   const acpInstanceId = extractAcpGenericInstanceId(agent.kind);
   // Native ACP adapters (copilot/gemini/cursor) and generic ACP instances all
@@ -354,9 +360,8 @@ export function SingleAgentSettings(props: {
   const supportsAcpAgentAuth =
     acpInstanceId !== undefined ||
     installedStatuses.some((status) => status.authMethods?.some(isAgentAuthMethod));
-  const logoutStatuses = installedStatuses.filter(
-    (status) =>
-      status.authState === "authenticated" && supportsAcpLogoutStatus(status, acpInstanceId),
+  const logoutStatuses = installedStatuses.filter((status) =>
+    statusHasAuthenticatedLogout(status, acpInstanceId),
   );
   const requiredAuthVars = envVarAuthMethod?.vars.filter((variable) => variable.optional !== true);
   const canSaveEnvAuth =
@@ -388,7 +393,7 @@ export function SingleAgentSettings(props: {
   const authenticateAgent = (auth = agentAuth) => {
     if (!auth || !supportsAcpAgentAuth) return;
     setAuthPending(true);
-    setAuthPendingEnvKey(statusEnvKey(auth.status));
+    setAuthPendingEnvKey(authRowKey(auth.status));
     const authEnv = envLabelForStatus(auth.status);
     const authMethodName = auth.method.name;
     setAuthPendingMessage(
@@ -426,7 +431,7 @@ export function SingleAgentSettings(props: {
     const project = findProjectForStatus(status, projects);
     const env = envLabelForStatus(status);
     setAuthPending(true);
-    setAuthPendingEnvKey(statusEnvKey(status));
+    setAuthPendingEnvKey(authRowKey(status));
     const methodName = method?.name ?? t`login`;
     setAuthPendingMessage(
       env
@@ -474,7 +479,7 @@ export function SingleAgentSettings(props: {
     if (!supportsAcpLogoutStatus(status, acpInstanceId)) return;
     const env = envLabelForStatus(status);
     setAuthPending(true);
-    setAuthPendingEnvKey(statusEnvKey(status));
+    setAuthPendingEnvKey(authRowKey(status));
     setAuthPendingMessage(
       env
         ? t`Signing out ${env}. Detected agents will refresh when it finishes.`
@@ -797,46 +802,89 @@ export function SingleAgentSettings(props: {
     };
   };
 
-  const renderInstalledEnvironmentRow = (status: AgentStatus) => {
-    const envKey = statusEnvKey(status);
+  const collectRowAuthMethods = (rowStatus: AgentStatus) => {
+    if (!(usePerEnvAuthRows && !isRemoteMachine)) return [];
     const agentMethods =
-      status.authMethods?.filter(isAgentAuthMethod) ??
+      rowStatus.authMethods?.filter(isAgentAuthMethod) ??
       (sharedAgentAuthMethod ? [sharedAgentAuthMethod] : []);
-    const terminalMethod = status.loginCommand
-      ? (findTerminalAuthMethodForStatus(status) ??
+    const terminalMethod = rowStatus.loginCommand
+      ? (findTerminalAuthMethodForStatus(rowStatus) ??
         sharedTerminalAuthMethod ?? {
           id: "terminal-login",
           name: t`Login`,
           type: "terminal" as const,
         })
       : undefined;
-    const methods: Array<AgentOwnedAuthMethod | AgentTerminalAuthMethod> =
-      usePerEnvAuthRows && !isRemoteMachine
-        ? shouldPreferTerminalLogin(status) && terminalMethod
-          ? [terminalMethod]
-          : agentMethods.length > 0
-            ? agentMethods
-            : terminalMethod
-              ? [terminalMethod]
-              : []
-        : [];
-    // Match against whichever identity the row actually displays, so the live
-    // plan is only adopted when it belongs to that same account.
+    if (shouldPreferTerminalLogin(rowStatus) && terminalMethod) return [terminalMethod];
+    if (agentMethods.length > 0) return agentMethods;
+    return terminalMethod ? [terminalMethod] : [];
+  };
+
+  const runtimesForSlot = (
+    status: AgentStatus,
+    slot: NativeAgentRuntimeSlot,
+  ): AgentEnvironmentRuntimes => {
+    const detection = detectAgentRuntime(slot, status);
+    const entry = combinedRuntimeUpdates.entryFor(status);
+    const runtimeUpdate = entry.runtimes.find((runtime) => runtime.id === slot.id);
+    const installOption = runtimeSlots
+      ? availableRuntimeInstallOptions(runtimeSlots, status).find((option) => option.id === slot.id)
+      : undefined;
+    const badge = slot.badge;
+    return {
+      summary: detection.installed
+        ? detection.version
+          ? `v${detection.version}`
+          : badge
+        : t`not installed`,
+      ...(installOption
+        ? {
+            install: {
+              label: t`Install ${badge}`,
+              isPending: runtimeInstallPendingEnvKeys.has(statusEnvKey(status)),
+              onInstall: () => installRuntimeInEnvironment(status, installOption),
+            },
+          }
+        : {}),
+      ...(runtimeUpdate?.updateAvailable && detection.installed
+        ? {
+            update: {
+              ...(runtimeUpdate.latestVersion ? { label: `v${runtimeUpdate.latestVersion}` } : {}),
+              isPending: entry.pending,
+              onUpdate: () => void combinedRuntimeUpdates.updateStatus(status),
+            },
+          }
+        : {}),
+    };
+  };
+
+  const renderEnvironmentRow = (
+    status: AgentStatus,
+    options?: { slot?: NativeAgentRuntimeSlot },
+  ) => {
+    const envKey = statusEnvKey(status);
+    const slot = options?.slot;
+    const rowStatus = slot ? statusForRuntimeVariant(status, slot.id) : status;
+    const rowKey = authRowKey(rowStatus);
+    const methods = collectRowAuthMethods(rowStatus);
     const rowMetadata =
-      providerAccount && status.authState === "authenticated"
+      providerAccount && rowStatus.authState === "authenticated"
         ? providerAccount
-        : status.providerMetadata;
+        : rowStatus.providerMetadata;
+    const accountRuntimeId = runtimeSlots?.accountRuntimeId ?? runtimeSlots?.runtimes[0]?.id;
+    const showAccountProbe = !slot || slot.id === accountRuntimeId;
     return (
       <AgentEnvironmentRow
-        key={`${status.kind}-${envKey}`}
-        accountMetadata={providerAccount}
-        runtimes={runtimesForStatus(status)}
+        key={`${status.kind}-${envKey}${slot ? `:${slot.id}` : ""}`}
+        {...(slot ? { title: slot.badge } : {})}
+        {...(showAccountProbe ? { accountMetadata: providerAccount } : {})}
+        runtimes={slot ? runtimesForSlot(status, slot) : runtimesForStatus(status)}
         acpInstanceId={acpInstanceId}
         agentLabel={agent.label}
         authMethods={methods}
-        authPending={authPendingEnvKey === envKey}
+        authPending={authPendingEnvKey === rowKey}
         binaryUpdatePending={binaryUpdatePendingEnvKeys.has(envKey)}
-        canLogout={!isRemoteMachine && supportsAcpLogoutStatus(status, acpInstanceId)}
+        canLogout={!isRemoteMachine && statusHasAuthenticatedLogout(rowStatus, acpInstanceId)}
         includeAuthFallback={includeAuthFallbackMetadata}
         isRedetecting={redetectingEnvKeys.has(envKey)}
         latestNpmVersion={
@@ -844,16 +892,16 @@ export function SingleAgentSettings(props: {
         }
         livePlan={resolveLivePlanLabel(rowMetadata, providerUsage)}
         newestInstalledVersion={hasCombinedRuntimeUpdates ? undefined : newestInstalledVersion}
-        pendingMessage={authPendingEnvKey === envKey ? authPendingMessage : undefined}
-        status={status}
+        pendingMessage={authPendingEnvKey === rowKey ? authPendingMessage : undefined}
+        status={rowStatus}
         onLogin={(method) => {
           if (isAgentAuthMethod(method)) {
-            authenticateAgent({ status, method });
+            authenticateAgent({ status: rowStatus, method });
             return;
           }
-          runTerminalLogin(status, method);
+          runTerminalLogin(rowStatus, method);
         }}
-        onLogout={() => logoutAgent(status)}
+        onLogout={() => logoutAgent(rowStatus)}
         onUpdate={() => performBinaryUpdate(status)}
       />
     );
@@ -877,7 +925,11 @@ export function SingleAgentSettings(props: {
       {machines.length > 1 ? (
         <MachineScopeHeading scope="machine" machineLabel={selectedMachine.label} />
       ) : null}
-      {installedStatuses.map(renderInstalledEnvironmentRow)}
+      {installedStatuses.flatMap((status) =>
+        runtimeSlots?.separateEnvironmentRows && status.runtimeVariants
+          ? runtimeSlots.runtimes.map((slot) => renderEnvironmentRow(status, { slot }))
+          : [renderEnvironmentRow(status)],
+      )}
       {installableStatuses.map(renderInstallableEnvironmentRow)}
       {installedStatuses.length === 0 && installableStatuses.length === 0 ? (
         <NoMachineStatusRow
@@ -1051,8 +1103,8 @@ export function SingleAgentSettings(props: {
                                   : t`Save ${envVarAuthMethod.name} credentials.`
                                 : agentAuth
                                   ? t`Complete ${agentAuth.method.name} sign-in.`
-                                  : loginCommand
-                                    ? t`Run ${loginCommand} to sign in.`
+                                  : loginCommandDisplay
+                                    ? t`Run ${loginCommandDisplay} to sign in.`
                                     : t`Sign in with the agent CLI.`
                             }`
                           : t`Credentials are configured.`)}
@@ -1128,7 +1180,11 @@ export function SingleAgentSettings(props: {
                 key={providerMenuKey(provider)}
                 settingsKey={providerVisibilityKey(provider)}
                 provider={provider}
-                showProviderLabel={modelVisibilityProviders.length > 1}
+                {...(modelVisibilityProviders.length > 1
+                  ? {
+                      surfaceLabel: modelSurfaceLabel(provider, agent, providerEntry?.runtimeSlots),
+                    }
+                  : {})}
               />
             ))}
           </div>

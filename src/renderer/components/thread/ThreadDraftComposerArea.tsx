@@ -633,13 +633,11 @@ export function ThreadDraftComposerArea(props: {
           props.selectedAgent.capabilities,
           props.presentationMode,
           props.project.location,
-          readBridge()?.platform,
         );
   const computerUseEnabled = props.config.computerUse === true;
   const providerComputerUseEnabled =
     providerOwnsMcpForComposer &&
     disabledBuiltInMcpServers[COMPUTER_USE_MCP_ID] !== true &&
-    readBridge()?.platform !== "linux" &&
     props.project.location.kind !== "wsl" &&
     providerMcpSettingEnabled(props.selectedAgent.capabilities, providerMcpSettings, "computerUse");
   const computerUsePersistent = persistentMcpServers[COMPUTER_USE_MCP_ID] === true;
@@ -719,12 +717,16 @@ export function ThreadDraftComposerArea(props: {
   const composerPluginLabels = pluginLabelsForMcpServers(composerPluginMentions);
   const onMcpMentionSelect = (id: string) => {
     if (id === COMPUTER_USE_MCP_ID) {
-      onConfigChange({ computerUse: true });
+      if (disabledBuiltInMcpServers[COMPUTER_USE_MCP_ID] !== true && computerUseScope !== "none") {
+        onConfigChange({ computerUse: true });
+      }
       return;
     }
     const descriptor = availableComposerMcpServers.find((server) => server.id === id);
     if (descriptor) onConfigChange(mcpTogglePatch(descriptor.configKey, true));
   };
+  const onMcpMentionSelectRef = useRef(onMcpMentionSelect);
+  onMcpMentionSelectRef.current = onMcpMentionSelect;
   const controls: ComposerControl[] = controlOpenRequest
     ? props.controls.map((control) => {
         if (controlOpenRequest.target === "model" && control.kind === "provider-model") {
@@ -994,27 +996,34 @@ export function ThreadDraftComposerArea(props: {
   // already-open draft (where openDraft does not remount this component).
   useEffect(() => {
     if (!pendingComposerSeed) return;
+    if (pendingComposerSeed.bindLeadingSkill && !skillCommandsResolved) return;
+    const composer = mentionRef.current;
+    if (!composer) return;
+    let segments: PromptSegment[] | undefined;
     if (pendingComposerSeed.bindLeadingSkill) {
       const match = /^\/([^\s]+)(?:\s+([\s\S]*))?$/.exec(pendingComposerSeed.text);
-      const command = match
-        ? skillCommands.find((candidate) => candidate.id === match[1])
-        : undefined;
-      if (!skillCommandsResolved) return;
+      const command = pendingComposerSeed.leadingSkillPluginId
+        ? pluginMentions.find(
+            (candidate) => candidate.id === pendingComposerSeed.leadingSkillPluginId,
+          )?.command
+        : match
+          ? skillCommands.find((candidate) => candidate.id === match[1])
+          : undefined;
       if (command) {
         const skill = skillSegmentFromSlashCommand(command);
         if (skill) {
-          mentionRef.current?.insertSegments([
+          segments = [
             skill,
             ...(match?.[2] ? [{ kind: "text" as const, content: ` ${match[2]}` }] : []),
-          ]);
+          ];
         }
-        useAppStore.getState().clearComposerSeed(projectId);
-        return;
       }
     }
-    mentionRef.current?.insertText(pendingComposerSeed.text);
+    if (segments) composer.insertSegments(segments);
+    else composer.insertText(pendingComposerSeed.text);
     useAppStore.getState().clearComposerSeed(projectId);
-  }, [pendingComposerSeed, projectId, skillCommands, skillCommandsResolved]);
+    pendingComposerSeed.enableMcpServerIds?.forEach((id) => onMcpMentionSelectRef.current(id));
+  }, [pendingComposerSeed, projectId, pluginMentions, skillCommands, skillCommandsResolved]);
 
   useEffect(() => {
     const composer = mentionRef.current;

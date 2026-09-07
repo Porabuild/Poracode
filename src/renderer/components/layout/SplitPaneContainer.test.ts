@@ -263,11 +263,10 @@ describe("SplitPaneContainer", () => {
   it("keeps a pane shell mounted when its caller-provided DOM key stays stable", () => {
     let mountCount = 0;
     function PaneShell({ paneId }: { paneId: string }) {
-      const instance = React.useRef<number | null>(null);
-      if (instance.current === null) instance.current = ++mountCount;
+      const [instance] = React.useState(() => ++mountCount);
       return React.createElement("div", {
         "data-pane-id": paneId,
-        "data-pane-instance": instance.current,
+        "data-pane-instance": instance,
       });
     }
     const renderPane = (paneId: string) => React.createElement(PaneShell, { paneId });

@@ -1,4 +1,4 @@
-import { type FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { ChevronDown, ChevronRight, GripVertical, LogOut, RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -6,10 +6,9 @@ import { usageWindowDisplayLabel } from "@poracode/agents-usage/formatters";
 import type { UsageSnapshot } from "@poracode/agents-usage/types";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
+import { UsageCostLine } from "@/renderer/components/providers/UsageCostLine";
 import {
   formatCreditBalance,
-  formatMoney,
-  formatTokens,
   formatWindowValue,
   hasDisplayableCredits,
   sharedWindowResetLabel,
@@ -81,12 +80,14 @@ export function UsageProviderCard(props: {
   const {
     canBrowserSignIn,
     canApiKeySignIn,
+    canCliSignIn,
     canSignOut,
     signingIn,
     signingOut,
     apiKey,
     setApiKey,
     handleSignIn,
+    handleCliSignIn,
     handleSubmitApiKey,
     handleSignOut,
   } = useUsageProviderLogin(id);
@@ -111,9 +112,11 @@ export function UsageProviderCard(props: {
     snapshot?.status === "ok" &&
     (snapshot.windows.length > 0 || Boolean(snapshot.cost) || Boolean(credits));
   const hasWindows = snapshot?.status === "ok" && snapshot.windows.length > 0;
-  const sharedReset = usesSharedWindowReset(id)
-    ? sharedWindowResetLabel(snapshot, Date.now())
-    : undefined;
+  // Mount-time clock for the reset label (same pattern as UsageWindowBars):
+  // impure reads can't run during render, and the card re-renders on snapshot
+  // updates anyway.
+  const [now] = useState(() => Date.now());
+  const sharedReset = usesSharedWindowReset(id) ? sharedWindowResetLabel(snapshot, now) : undefined;
   const Chevron = collapsed ? ChevronRight : ChevronDown;
 
   return (
@@ -216,7 +219,7 @@ export function UsageProviderCard(props: {
               {credits ? (
                 <UsageCreditsRow credits={credits} showSeparator={snapshot.windows.length > 0} />
               ) : null}
-              <UsageProviderMeta snapshot={snapshot} />
+              <UsageCostLine snapshot={snapshot} />
             </>
           ) : (
             <div className="space-y-2">
@@ -229,6 +232,16 @@ export function UsageProviderCard(props: {
                   className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
                 >
                   {signingIn ? <Trans>Signing in…</Trans> : <Trans>Browser sign-in</Trans>}
+                </button>
+              ) : null}
+              {canCliSignIn ? (
+                <button
+                  type="button"
+                  onClick={handleCliSignIn}
+                  disabled={signingIn}
+                  className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
+                >
+                  {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
                 </button>
               ) : null}
               {canApiKeySignIn ? (
@@ -279,18 +292,4 @@ function UsageCreditsRow(props: {
       </span>
     </div>
   );
-}
-
-function UsageProviderMeta(props: { snapshot: UsageSnapshot }) {
-  const { t } = useLingui();
-  const { snapshot } = props;
-  if (!snapshot.cost) return null;
-
-  const tokens = snapshot.tokens?.total
-    ? ` · ${t`${formatTokens(snapshot.tokens.total)} tokens`}`
-    : "";
-  const money = formatMoney(snapshot.cost.amount, snapshot.cost.currency);
-  const line = t`~${money}${tokens} · ${snapshot.cost.period} · est.`;
-
-  return <p className="truncate text-[11px] text-muted">{line}</p>;
 }

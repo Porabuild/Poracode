@@ -31,7 +31,7 @@ import {
 } from "./actions/threadActions";
 import { deleteWorktreeGroup } from "./actions/worktreeActions";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
-import { installRemoteProjectWorkspaceSync } from "./state/remoteServersStore";
+import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
 import { applyRemoteThreadStartCommand } from "@/renderer/actions/remoteStartCommandActions";
@@ -550,17 +550,30 @@ function MainApp() {
   usePrWatchAgentSync(!initialLoading);
   const [showStartupRecovery, setShowStartupRecovery] = useState(false);
   const [startupRecoveryCycle, setStartupRecoveryCycle] = useState(0);
+  // Reset the recovery screen while hydration is still pending: hiding it is
+  // derived from (initialLoading, startupRecoveryCycle), so adjust during
+  // render; the timeout that *shows* it stays in the effect below.
+  const [prevRecoveryKey, setPrevRecoveryKey] = useState({
+    initialLoading,
+    startupRecoveryCycle,
+  });
+  if (
+    prevRecoveryKey.initialLoading !== initialLoading ||
+    prevRecoveryKey.startupRecoveryCycle !== startupRecoveryCycle
+  ) {
+    setPrevRecoveryKey({ initialLoading, startupRecoveryCycle });
+    setShowStartupRecovery(false);
+  }
 
   useEffect(() => {
-    if (!initialLoading) {
-      setShowStartupRecovery(false);
+    if (!initialLoading || showStartupRecovery) {
       return;
     }
     const timeout = window.setTimeout(() => {
       setShowStartupRecovery(true);
     }, STARTUP_RECOVERY_TIMEOUT_MS);
     return () => window.clearTimeout(timeout);
-  }, [initialLoading, startupRecoveryCycle]);
+  }, [initialLoading, showStartupRecovery]);
 
   useEffect(() => {
     if (initialLoading) {
@@ -583,10 +596,17 @@ function MainApp() {
     };
   }, [initialLoading]);
 
+  // Startup timing log: impure (Date.now), so it lives in an effect and
+  // runs after every commit while the spinner is up, matching render timing.
+  useEffect(() => {
+    if (initialLoading) {
+      console.log(
+        `[renderer] +${Date.now() - loadT0}ms: rendering spinner (hydrated=${storeHydrated})`,
+      );
+    }
+  });
+
   if (initialLoading) {
-    console.log(
-      `[renderer] +${Date.now() - loadT0}ms: rendering spinner (hydrated=${storeHydrated})`,
-    );
     return (
       <AppProvider contentReady={false}>
         {showStartupRecovery ? (
@@ -626,10 +646,12 @@ function MainApp() {
 function DeferredCommandPalette() {
   const open = useCommandPaletteStore((state) => state.isOpen);
   const [enabled, setEnabled] = useState(open);
-
-  useEffect(() => {
+  // Latch on first open so the lazy chunk stays mounted afterwards.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) setEnabled(true);
-  }, [open]);
+  }
 
   return enabled ? (
     <Suspense>

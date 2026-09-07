@@ -59,6 +59,7 @@ export type RightPanelTab =
   | "subagent";
 
 export type { ThreadDockKind } from "@/shared/settings";
+export type ThreadDockFocus = ThreadDockKind | "images";
 
 /** Tabs that can be dragged into a dock zone. Thread-transient tabs (docks, subagent) and ports stay fixed. */
 export const DOCKABLE_PANEL_TABS: ReadonlySet<RightPanelTab> = new Set([
@@ -128,13 +129,13 @@ interface PanelState {
   notesPanelOpen: boolean;
   /**
    * Session-scoped: whether the focused thread's Docks tab (goal, plan, agents,
-   * background tasks in the right panel) is showing. Only meaningful while
-   * `threadDocksPlacement` is "right"; closing it leaves the mode alone and the
-   * composer bubbles bring it back.
+   * background tasks, or images in the right panel) is showing. Informational
+   * docks require `threadDocksPlacement` to be "right"; images can explicitly
+   * open it in either mode. Closing it leaves the placement mode alone.
    */
   threadDocksPanelOpen: boolean;
   /** Dock section the Docks tab should scroll to on its next open; consumed once. */
-  threadDocksFocus: ThreadDockKind | null;
+  threadDocksFocus: ThreadDockFocus | null;
   browserOverlayOpen: boolean;
   browserOverlayMaximized: boolean;
   browserOverlayDrawerWidth: number;
@@ -171,7 +172,7 @@ interface PanelState {
   setUsagePanelOpen: (v: boolean) => void;
   openUsagePanel: () => void;
   setThreadDocksPanelOpen: (v: boolean) => void;
-  openThreadDocksPanel: (focus?: ThreadDockKind) => void;
+  openThreadDocksPanel: (focus?: ThreadDockFocus) => void;
   setNotesPanelOpen: (v: boolean) => void;
   openNotesPanel: () => void;
   setBrowserOverlayOpen: (v: boolean) => void;

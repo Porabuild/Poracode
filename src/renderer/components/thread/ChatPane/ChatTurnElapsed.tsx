@@ -105,16 +105,24 @@ function WorkedFor({ startedAt, endedAt }: { startedAt: number; endedAt: number 
 function LiveWorkingFor({ startedAt, isPaused }: { startedAt: number; isPaused: boolean }) {
   const { t } = useLingui();
   const textRef = useRef<HTMLSpanElement>(null);
-  const pauseStateRef = useRef<{ accumulatedPauseMs: number; pausedSinceMs: number | null }>({
+  const pauseStateRef = useRef<{
+    startedAt: number;
+    accumulatedPauseMs: number;
+    pausedSinceMs: number | null;
+  }>({
+    startedAt,
     accumulatedPauseMs: 0,
     pausedSinceMs: null,
   });
 
   useEffect(() => {
-    pauseStateRef.current = { accumulatedPauseMs: 0, pausedSinceMs: null };
-  }, [startedAt]);
-
-  useEffect(() => {
+    // A new turn re-arms the pause baseline stored above; pause/locale-only
+    // runs keep the accumulated tracking. The stored start is what the
+    // elapsed math below measures against, so `startedAt` is read here —
+    // not just a re-run trigger.
+    if (pauseStateRef.current.startedAt !== startedAt) {
+      pauseStateRef.current = { startedAt, accumulatedPauseMs: 0, pausedSinceMs: null };
+    }
     const update = () => {
       const node = textRef.current;
       if (!node) return;
@@ -122,7 +130,7 @@ function LiveWorkingFor({ startedAt, isPaused }: { startedAt: number; isPaused: 
       const now = Date.now();
       const currentPauseMs =
         pauseState.pausedSinceMs !== null ? Math.max(0, now - pauseState.pausedSinceMs) : 0;
-      const elapsedMs = now - startedAt - pauseState.accumulatedPauseMs - currentPauseMs;
+      const elapsedMs = now - pauseState.startedAt - pauseState.accumulatedPauseMs - currentPauseMs;
       const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
       const elapsed = formatElapsed(elapsedSeconds);
       const text = elapsedSeconds < 1 ? "" : t`Working for ${elapsed}`;

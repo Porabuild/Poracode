@@ -48,6 +48,12 @@ import { SchedulesView } from "@/renderer/views/SchedulesView/SchedulesView";
 import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
 
+// Non-subscribing store read for the thread branch below. Aliased at module
+// scope (rather than `useAppStore.getState()` inline) so the render path never
+// references the hook as a value; pane deletion always updates view.panes
+// atomically, so subscribing to threads/projects here isn't worth a re-render.
+const getAppState = useAppStore.getState;
+
 export function AppContent() {
   const { t } = useLingui();
   const view = useAppStore((state) => state.view);
@@ -266,12 +272,12 @@ export function AppContent() {
   }
 
   if (view.kind === "thread") {
-    const closePane = useAppStore.getState().closePane;
+    const closePane = getAppState().closePane;
     const paneCount = view.panes.length;
     const paneLayout = view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout);
     // Non-subscribing read: threads / projects array identity isn't worth
     // a re-render here — pane deletion always updates view.panes atomically.
-    const storeThreads = useAppStore.getState().threads;
+    const storeThreads = getAppState().threads;
     const hasValidPanes = view.panes.some((id) =>
       isDraftPaneId(id)
         ? projectIds.includes(parseDraftProjectId(id) ?? "")

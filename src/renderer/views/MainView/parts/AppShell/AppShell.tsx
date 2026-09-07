@@ -79,21 +79,24 @@ export function useSidebar(): SidebarContextValue {
  * state changes — purely a side effect, renders nothing. Non-Mac is a no-op
  * (the attribute is never set), so the matching CSS rule never matches.
  */
-function MacCollapsedTracker(props: {
+function MacCollapsedTracker({
+  shellRef,
+  forceSidebarExpanded,
+}: {
   shellRef: RefObject<HTMLDivElement | null>;
   forceSidebarExpanded: boolean;
 }) {
   const isCollapsed = useSidebarOverlayStore((s) => s.isCollapsed);
   useEffect(() => {
     if (!isMac()) return;
-    const el = props.shellRef.current;
+    const el = shellRef.current;
     if (!el) return;
-    if (isCollapsed && !props.forceSidebarExpanded) {
+    if (isCollapsed && !forceSidebarExpanded) {
       el.dataset.macCollapsed = "";
     } else {
       delete el.dataset.macCollapsed;
     }
-  }, [isCollapsed, props.forceSidebarExpanded, props.shellRef]);
+  }, [isCollapsed, forceSidebarExpanded, shellRef]);
   return null;
 }
 
@@ -483,6 +486,11 @@ export function AppShell(props: {
     wantsRightOverlay: boolean;
     rightOverlayActive: boolean;
   } | null>(null);
+  const [prevOverlayDisplay, setPrevOverlayDisplay] = useState<{
+    active: boolean;
+    wants: boolean;
+    slot: RightOverlaySlot | null;
+  }>({ active: false, wants: false, slot: null });
   const shouldAutoHideRightOverlay =
     layoutMetricsReady &&
     !forceSidebarExpanded &&
@@ -501,39 +509,52 @@ export function AppShell(props: {
     : null;
   const displayedRightOverlaySlot = activeRightOverlaySlot ?? rightOverlaySlot;
   const rightOverlayReadyForDisplay = rightOverlayActive && rightOverlayReady;
-  useEffect(() => {
-    if (!layoutMetricsReady) {
-      return;
-    }
-    setPrevRightOverlay((prev) =>
-      prev?.wantsRightOverlay === wantsRightOverlay &&
-      prev.rightOverlayActive === computedRightOverlayActive
-        ? prev
-        : { wantsRightOverlay, rightOverlayActive: computedRightOverlayActive },
-    );
-    if (shouldAutoHideRightOverlay) {
-      onDismissRightOverlay?.();
-    }
-  }, [
-    computedRightOverlayActive,
-    forceSidebarExpanded,
-    layoutMetricsReady,
-    onDismissRightOverlay,
-    shouldAutoHideRightOverlay,
-    wantsRightOverlay,
-  ]);
-  useEffect(() => {
+  // Edge detectors: both derive from render inputs, so adjust during render.
+  // `prevRightOverlay` must lag one commit behind (it feeds
+  // `shouldAutoHideRightOverlay` above), so it only catches up once metrics
+  // are ready — matching the effect it replaces, which also bailed while
+  // unready.
+  if (
+    layoutMetricsReady &&
+    (prevRightOverlay?.wantsRightOverlay !== wantsRightOverlay ||
+      prevRightOverlay?.rightOverlayActive !== computedRightOverlayActive)
+  ) {
+    setPrevRightOverlay({ wantsRightOverlay, rightOverlayActive: computedRightOverlayActive });
+  }
+  // Presence latching: while active (or auto-hidden while still wanted) the
+  // mount/slot update immediately during render; the close path keeps its
+  // slide-out timer in the effect below.
+  if (
+    prevOverlayDisplay.active !== rightOverlayActive ||
+    prevOverlayDisplay.wants !== wantsRightOverlay ||
+    prevOverlayDisplay.slot !== activeRightOverlaySlot
+  ) {
+    setPrevOverlayDisplay({
+      active: rightOverlayActive,
+      wants: wantsRightOverlay,
+      slot: activeRightOverlaySlot,
+    });
     if (rightOverlayActive) {
       setRightOverlayMounted(true);
       setRightOverlaySlot(activeRightOverlaySlot);
-      return;
-    }
-    if (wantsRightOverlay) {
+    } else if (wantsRightOverlay) {
       // Auto-hide path: the overlay was never rendered (still docked when we
       // decided to dismiss). Skip the slide-out timer; there is nothing on
       // screen to animate.
       setRightOverlayMounted(false);
       setRightOverlaySlot(null);
+    }
+  }
+  useEffect(() => {
+    if (!layoutMetricsReady) {
+      return;
+    }
+    if (shouldAutoHideRightOverlay) {
+      onDismissRightOverlay?.();
+    }
+  }, [layoutMetricsReady, onDismissRightOverlay, shouldAutoHideRightOverlay]);
+  useEffect(() => {
+    if (rightOverlayActive || wantsRightOverlay) {
       return;
     }
     const timeout = window.setTimeout(() => {
@@ -541,7 +562,7 @@ export function AppShell(props: {
       setRightOverlaySlot(null);
     }, RIGHT_OVERLAY_EXIT_MS);
     return () => window.clearTimeout(timeout);
-  }, [activeRightOverlaySlot, rightOverlayActive, wantsRightOverlay]);
+  }, [rightOverlayActive, wantsRightOverlay]);
 
   // Cap the overlay panel width so it does not cover the whole viewport when
   // the window is very narrow — leave room for the user to click main to

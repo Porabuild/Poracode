@@ -58,13 +58,11 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
 
 process.on("message", (message: SupervisorRequest) => {
   void handleRequest(message)
-    .then(
-      (data): SupervisorReply => ({
-        replyTo: message.id,
-        ok: true,
-        data,
-      }),
-    )
+    .then((data): SupervisorReply => ({
+      replyTo: message.id,
+      ok: true,
+      data,
+    }))
     .catch((error: unknown): SupervisorReply => {
       return handleSupervisorIpcFailure(error, message.type, message.id);
     })

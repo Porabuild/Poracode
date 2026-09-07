@@ -70,7 +70,7 @@ const CHROME_TOOLS = makePlugin("chrome-tools", {
 });
 const COMPUTER_USE = makePlugin("computer-use", {
   skills: { "computer-use": {} },
-  platforms: ["win32", "darwin"],
+  platforms: ["win32", "darwin", "linux"],
   projectKinds: ["windows", "posix"],
 });
 const GITHUB = makePlugin("github", { skills: { github: {} }, mcpServers: ["github"] });
@@ -189,7 +189,7 @@ describe("plugin catalog", () => {
   });
 
   it("gates plugins on host platform and project kind", () => {
-    expect(isPluginSupportedForProject(COMPUTER_USE, "linux", undefined)).toBe(false);
+    expect(isPluginSupportedForProject(COMPUTER_USE, "linux", undefined)).toBe(true);
     expect(isPluginSupportedForProject(COMPUTER_USE, "win32", undefined)).toBe(true);
     expect(isPluginSupportedForProject(CHROME_TOOLS, "win32", WSL_PROJECT)).toBe(false);
     expect(isPluginSupportedForProject(BROWSER_TOOLS, "win32", WSL_PROJECT)).toBe(true);

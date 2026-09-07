@@ -1,0 +1,39 @@
+{
+  "elementActions": [
+    "invoke",
+    "toggle",
+    "select",
+    "expand",
+    "collapse",
+    "set_value",
+    "scroll",
+    "context_menu",
+    "click"
+  ],
+  "invocableElementActions": [
+    "invoke",
+    "toggle",
+    "select",
+    "expand",
+    "collapse",
+    "scroll",
+    "context_menu",
+    "click"
+  ],
+  "refusalCodes": [
+    "background_unavailable",
+    "background_occluded_unsupported",
+    "wayland_raw_input_unsupported",
+    "window_minimized",
+    "elevated_target",
+    "secure_desktop",
+    "target_not_responding",
+    "decoration_target",
+    "permission_denied",
+    "stale_snapshot",
+    "element_action_unsupported",
+    "unsupported_button",
+    "capability_unavailable",
+    "screen_locked"
+  ]
+}

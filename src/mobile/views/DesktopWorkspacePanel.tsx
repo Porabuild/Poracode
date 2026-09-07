@@ -147,7 +147,28 @@ export function DesktopWorkspacePanel(props: {
   const [panelWidth, setPanelWidth] = useState(readPanelWidth);
   const [panelRendered, setPanelRendered] = useState(open);
   const [panelVisible, setPanelVisible] = useState(false);
-  const [openedTabs, setOpenedTabs] = useState<ReadonlySet<DesktopPanelTab>>(() => new Set());
+  const [openedTabs, setOpenedTabs] = useState<ReadonlySet<DesktopPanelTab>>(
+    () => new Set(open ? [visibleTab] : []),
+  );
+  // The mount/unmount + visibility syncs below adjust during render (not in
+  // effects); only the frame/timer completions stay in effects. Mount behavior
+  // is unchanged: the lazy initializers above already match the mount run.
+  const [prevPanelOpen, setPrevPanelOpen] = useState(open);
+  if (prevPanelOpen !== open) {
+    setPrevPanelOpen(open);
+    if (open) {
+      setPanelRendered(true);
+    } else {
+      setPanelVisible(false);
+    }
+  }
+  const [prevOpenedTab, setPrevOpenedTab] = useState({ open, visibleTab });
+  if (prevOpenedTab.open !== open || prevOpenedTab.visibleTab !== visibleTab) {
+    setPrevOpenedTab({ open, visibleTab });
+    if (open && !openedTabs.has(visibleTab)) {
+      setOpenedTabs(new Set([...openedTabs, visibleTab]));
+    }
+  }
   const toolsRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const panelWidthRef = useRef(panelWidth);
@@ -157,36 +178,22 @@ export function DesktopWorkspacePanel(props: {
   useEffect(() => () => teardownResizeRef.current?.(), []);
 
   useEffect(() => {
-    let firstFrame: number | null = null;
-    let secondFrame: number | null = null;
-    let exitTimer: number | null = null;
-
-    if (open) {
-      setPanelRendered(true);
-      firstFrame = requestAnimationFrame(() => {
-        secondFrame = requestAnimationFrame(() => setPanelVisible(true));
-      });
-    } else {
-      setPanelVisible(false);
-      exitTimer = window.setTimeout(() => {
+    if (!open) {
+      const exitTimer = window.setTimeout(() => {
         setPanelRendered(false);
         setOpenedTabs(new Set());
       }, PANEL_EXIT_MS);
+      return () => window.clearTimeout(exitTimer);
     }
-
+    let secondFrame: number | null = null;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => setPanelVisible(true));
+    });
     return () => {
-      if (firstFrame !== null) cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(firstFrame);
       if (secondFrame !== null) cancelAnimationFrame(secondFrame);
-      if (exitTimer !== null) window.clearTimeout(exitTimer);
     };
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    setOpenedTabs((current) =>
-      current.has(visibleTab) ? current : new Set([...current, visibleTab]),
-    );
-  }, [open, visibleTab]);
 
   useEffect(() => {
     if (!open || visibleTab !== "terminal" || !projectId) return;

@@ -143,6 +143,7 @@ describe("UsageService", () => {
       "gemini",
       "grok",
       "kimi",
+      "muse",
       "opencode",
       "qoder",
       "qwen",
@@ -161,6 +162,50 @@ describe("UsageService", () => {
     const cached = await service.getProviderUsage({ providerIds: ["claude"] });
     expect(cached.snapshots).toHaveLength(1);
     expect(cached.snapshots[0]?.providerId).toBe("claude");
+  });
+
+  it("hides estimated local cost unless the setting is enabled", async () => {
+    const settingsPath = tempCachePath();
+    writeFileSync(settingsPath, JSON.stringify({ usage: { showEstimatedCost: false } }), "utf8");
+    const localCollectors: LocalUsageCollector[] = [
+      {
+        id: "antigravity",
+        collect: async (nowMs) => ({
+          providerId: "antigravity",
+          status: "ok",
+          windows: [],
+          cost: { currency: "USD", amount: 1, period: "30d", estimated: true },
+          tokens: { total: 100, input: 90, output: 10, period: "30d" },
+          fetchedAt: nowMs,
+        }),
+      },
+    ];
+    const service = new UsageService({
+      emit: () => {},
+      cachePath: tempCachePath(),
+      settingsPath,
+      host: makeHost({}),
+      providerIds: ["antigravity"],
+      localCollectors,
+    });
+
+    const hidden = await service.refreshProviderUsage({});
+    expect(hidden.snapshots[0]?.cost).toBeUndefined();
+    expect(hidden.snapshots[0]?.tokens?.total).toBe(100);
+
+    writeFileSync(settingsPath, JSON.stringify({ usage: { showEstimatedCost: true } }), "utf8");
+    const visible = await service.refreshProviderUsage({});
+    expect(visible.snapshots[0]?.cost?.amount).toBe(1);
+
+    // Toggling visibility takes effect immediately from the in-memory cache.
+    writeFileSync(settingsPath, JSON.stringify({ usage: { showEstimatedCost: false } }), "utf8");
+    const cached = await service.getProviderUsage({ providerIds: ["antigravity"] });
+    expect(cached.snapshots).toHaveLength(1);
+    expect(cached.snapshots[0]?.cost).toBeUndefined();
+
+    writeFileSync(settingsPath, JSON.stringify({ usage: { showEstimatedCost: true } }), "utf8");
+    const reenabled = await service.getProviderUsage({ providerIds: ["antigravity"] });
+    expect(reenabled.snapshots[0]?.cost?.amount).toBe(1);
   });
 
   it("does not trigger cache-read refreshes inside the 2-minute rate-limit floor", async () => {

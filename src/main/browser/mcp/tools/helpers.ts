@@ -40,7 +40,7 @@ export async function resolveTabId(
 }
 
 export async function resolveSelectorArg(
-  tab: ResolvedBrowserTab,
+  tab: { webContents: Pick<ResolvedBrowserTab["webContents"], "executeJavaScript"> },
   payload: Record<string, unknown>,
 ): Promise<string | null> {
   if (typeof payload.selector === "string" && payload.selector.length > 0) {

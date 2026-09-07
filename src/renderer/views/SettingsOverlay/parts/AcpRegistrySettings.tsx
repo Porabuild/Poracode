@@ -183,6 +183,15 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
   );
   const projects = useAppStore((state) => state.projects);
   const wslProjectDistrosKey = useAppStore((state) => buildWslProjectDistrosKey(state.projects));
+  // Re-entering loading (and clearing a past error) when the distro key
+  // changes derives from that key, so adjust during render; the fetch itself
+  // stays in the effect below.
+  const [prevListingKey, setPrevListingKey] = useState(wslProjectDistrosKey);
+  if (prevListingKey !== wslProjectDistrosKey) {
+    setPrevListingKey(wslProjectDistrosKey);
+    setIsLoading(true);
+    setError(undefined);
+  }
   const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
   const isWindowsPlatform = isWindows();
 
@@ -199,8 +208,6 @@ export function AcpRegistrySettings(props: { onOpenAgentSettings?: (kind: string
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    setError(undefined);
     // Through the shared listing loader: a direct call would race the
     // combined-runtime probe's own listing and run two supervisor
     // auto-update sweeps against the same install dirs.

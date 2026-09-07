@@ -24,7 +24,7 @@
   "peerDependencies": {
     "@capacitor/core": "^8.0.0"
   },
-  "packageManager": "pnpm@12.2.1",
+  "packageManager": "pnpm@12.3.4",
   "capacitor": {
     "ios": {
       "src": "ios"

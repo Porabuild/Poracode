@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +21,7 @@ import {
   AgentStatusService,
   detectWslAgentStatuses,
   parseWslRegistryDistributionNames,
+  STATUS_CACHE_VERSION,
 } from "./agentStatusService";
 
 const tempDirs: string[] = [];
@@ -197,6 +198,72 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
     await service.refreshAgentStatuses({ wslDistros: [] });
 
     expect(detectInstall).toHaveBeenCalledTimes(2);
+  });
+
+  it("invalidates the previous model catalog cache generation", () => {
+    const { service, statusCachePath } = makeService(vi.fn<AgentAdapter["detectInstall"]>());
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 26,
+        windows: [makeStatus()],
+        wsl: [],
+      }),
+    );
+    expect(STATUS_CACHE_VERSION).toBe(27);
+    expect(service.getCachedCapabilities("codex")).toBeUndefined();
+  });
+
+  it("drops the on-disk status cache before an explicit full refresh", async () => {
+    const detectInstall = vi.fn<AgentAdapter["detectInstall"]>().mockResolvedValue(makeStatus());
+    const { service, statusCachePath } = makeService(detectInstall);
+
+    await service.refreshAgentStatuses({ wslDistros: [] });
+    expect(existsSync(statusCachePath)).toBe(true);
+
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: STATUS_CACHE_VERSION,
+        windows: [
+          {
+            ...makeStatus(),
+            capabilities: {
+              ...capabilities,
+              models: [{ id: "stale", label: "Stale" }],
+            },
+          },
+        ],
+        wsl: [],
+      }),
+    );
+    expect(service.getCachedCapabilities("codex")?.models.map((model) => model.id)).toEqual([
+      "stale",
+    ]);
+
+    detectInstall.mockClear();
+    detectInstall.mockImplementation(async () => {
+      expect(existsSync(statusCachePath)).toBe(false);
+      expect(service.getCachedCapabilities("codex")).toBeUndefined();
+      return {
+        ...makeStatus(),
+        capabilities: {
+          ...capabilities,
+          models: [{ id: "fresh", label: "Fresh" }],
+        },
+      };
+    });
+
+    await service.refreshAgentStatuses({ wslDistros: [] });
+
+    expect(detectInstall).toHaveBeenCalledTimes(1);
+    const cached = JSON.parse(readFileSync(statusCachePath, "utf8")) as {
+      windows: AgentStatus[];
+    };
+    expect(cached.windows[0]?.capabilities.models.map((model) => model.id)).toEqual(["fresh"]);
+    expect(service.getCachedCapabilities("codex")?.models.map((model) => model.id)).toEqual([
+      "fresh",
+    ]);
   });
 
   it("busts the binary-path cache on explicit refresh but not on passive reads", async () => {

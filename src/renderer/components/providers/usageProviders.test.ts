@@ -152,6 +152,16 @@ describe("usageProviders", () => {
     expect(rings.inner?.id).toBe("weekly");
   });
 
+  it("rings Muse Code with the 5h window outside and the weekly quota inside", () => {
+    const windows: UsageWindow[] = [
+      { id: "weekly", label: "Weekly", usedPercent: 10 },
+      { id: "session-5h", label: "Session (5h)", usedPercent: 70 },
+    ];
+    const rings = pickUsageRings("muse", windows);
+    expect(rings.outer?.id).toBe("session-5h");
+    expect(rings.inner?.id).toBe("weekly");
+  });
+
   it("rings Alibaba Token Plan with the 5h quota outside and weekly quota inside", () => {
     const windows: UsageWindow[] = [
       { id: "monthly", label: "Monthly", usedPercent: 5 },

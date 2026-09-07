@@ -753,6 +753,84 @@ describe("OpencodeSdkSession", () => {
     await session.dispose();
   });
 
+  it("forwards retry session status to listener and emits error runtime event", async () => {
+    const runtimeEvents: RuntimeEvent[] = [];
+    const updates: Array<{ status?: string; attention?: string; errorMessage?: string }> = [];
+    const wrappedEvents = [
+      { payload: serverConnectedEvent() },
+      {
+        directory: "/repo",
+        payload: {
+          id: "evt-retry",
+          type: "session.status",
+          properties: {
+            sessionID: "ses_test",
+            status: {
+              type: "retry",
+              attempt: 1,
+              message: "Rate limit exceeded. Please try again later.",
+              next: Date.now() + 5000,
+            },
+          },
+        },
+      },
+    ];
+    const globalEvent = vi
+      .fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>()
+      .mockResolvedValue({
+        stream: streamOf(...wrappedEvents),
+      });
+
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: { global: { event: globalEvent } },
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_test" } }),
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: (upd) => updates.push(upd),
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+    });
+
+    await session.activate();
+    await session.openThread(config);
+
+    await vi.waitFor(() => {
+      // Retry is a transient working state — the detail lives in the
+      // transcript error row, never as a sticky thread errorMessage.
+      expect(updates).toContainEqual(
+        expect.objectContaining({
+          status: "working",
+          attention: "working",
+        }),
+      );
+      expect(runtimeEvents).toContainEqual({
+        type: "error",
+        threadId: "thread-opencode",
+        message: "Rate limit exceeded. Please try again later.",
+      });
+    });
+
+    await session.dispose();
+  });
+
   it("surfaces OpenCode command-list entries as slash commands", async () => {
     const updates: StructuredSessionUpdate[] = [];
     const commandList = vi

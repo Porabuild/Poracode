@@ -57,53 +57,61 @@ export function useSmoothStreamedText(text: string, isStreaming: boolean): strin
   const lastFrameRef = useRef(0);
   const tickRef = useRef<(now: number) => void>(() => undefined);
 
-  tickRef.current = (now: number) => {
-    frameRef.current = null;
-    const previous = lastFrameRef.current;
-    const elapsed = previous ? Math.min((now - previous) / 1_000, MAX_FRAME_SECONDS) : 0.016;
-    lastFrameRef.current = now;
+  // Latest-tick holder: assigned in an effect (never during render). The tick
+  // closure only touches refs and the stable setRevealed, so one assignment on
+  // mount stays fresh; rAF callbacks always read through the ref.
+  useEffect(() => {
+    tickRef.current = (now: number) => {
+      frameRef.current = null;
+      const previous = lastFrameRef.current;
+      const elapsed = previous ? Math.min((now - previous) / 1_000, MAX_FRAME_SECONDS) : 0.016;
+      lastFrameRef.current = now;
 
-    const target = targetRef.current;
-    if (shownRef.current > target.length) shownRef.current = target.length;
-    const backlog = target.length - shownRef.current;
+      const target = targetRef.current;
+      if (shownRef.current > target.length) shownRef.current = target.length;
+      const backlog = target.length - shownRef.current;
 
-    if (backlog > 0) {
-      idleSinceRef.current = null;
-      // Combine estimated arrival cadence with proportional catch-up
-      const catchUpVelocity = backlog / DRAIN_WINDOW_SECONDS;
-      const targetVelocity = Math.min(
-        MAX_CHARS_PER_SECOND,
-        Math.max(arrivalRateRef.current, catchUpVelocity),
-      );
-      velocityRef.current += (targetVelocity - velocityRef.current) * VELOCITY_LERP;
-      shownRef.current = Math.min(target.length, shownRef.current + velocityRef.current * elapsed);
-      if (target.length - shownRef.current < 0.25) {
-        shownRef.current = target.length;
+      if (backlog > 0) {
+        idleSinceRef.current = null;
+        // Combine estimated arrival cadence with proportional catch-up
+        const catchUpVelocity = backlog / DRAIN_WINDOW_SECONDS;
+        const targetVelocity = Math.min(
+          MAX_CHARS_PER_SECOND,
+          Math.max(arrivalRateRef.current, catchUpVelocity),
+        );
+        velocityRef.current += (targetVelocity - velocityRef.current) * VELOCITY_LERP;
+        shownRef.current = Math.min(
+          target.length,
+          shownRef.current + velocityRef.current * elapsed,
+        );
+        if (target.length - shownRef.current < 0.25) {
+          shownRef.current = target.length;
+        }
+      } else {
+        // Backlog is drained but stream may still be active: gently ease velocity
+        if (idleSinceRef.current === null) {
+          idleSinceRef.current = now;
+        }
+        velocityRef.current += (0 - velocityRef.current) * VELOCITY_LERP;
       }
-    } else {
-      // Backlog is drained but stream may still be active: gently ease velocity
-      if (idleSinceRef.current === null) {
-        idleSinceRef.current = now;
+
+      const nextCount = Math.floor(shownRef.current);
+      if (nextCount !== emittedRef.current) {
+        emittedRef.current = nextCount;
+        setRevealed(nextCount >= target.length ? target : target.slice(0, nextCount));
       }
-      velocityRef.current += (0 - velocityRef.current) * VELOCITY_LERP;
-    }
 
-    const nextCount = Math.floor(shownRef.current);
-    if (nextCount !== emittedRef.current) {
-      emittedRef.current = nextCount;
-      setRevealed(nextCount >= target.length ? target : target.slice(0, nextCount));
-    }
-
-    if (target.length > shownRef.current) {
-      frameRef.current = requestAnimationFrame((nextNow) => tickRef.current(nextNow));
-    } else if (idleSinceRef.current !== null && now - idleSinceRef.current < IDLE_GRACE_MS) {
-      // Keep tick loop warm for a short window so next chunk arrival doesn't stutter
-      frameRef.current = requestAnimationFrame((nextNow) => tickRef.current(nextNow));
-    } else {
-      lastFrameRef.current = 0;
-      idleSinceRef.current = null;
-    }
-  };
+      if (target.length > shownRef.current) {
+        frameRef.current = requestAnimationFrame((nextNow) => tickRef.current(nextNow));
+      } else if (idleSinceRef.current !== null && now - idleSinceRef.current < IDLE_GRACE_MS) {
+        // Keep tick loop warm for a short window so next chunk arrival doesn't stutter
+        frameRef.current = requestAnimationFrame((nextNow) => tickRef.current(nextNow));
+      } else {
+        lastFrameRef.current = 0;
+        idleSinceRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const previousTarget = targetRef.current;

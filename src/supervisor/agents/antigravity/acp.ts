@@ -5,13 +5,30 @@ import { createAcpGenericAdapter } from "../acp-generic";
 import type { AgentAdapter } from "../base";
 import { buildAntigravityAcpModelCapabilities } from "./models";
 import { createAntigravityAcpExtension } from "./acpExtension";
+import { transformAntigravityBackgroundToolCall } from "./acpTaskNotifications";
 import { parseAntigravityAcpTurnSignal } from "./acpTurnHold";
 
 const ANTIGRAVITY_ACP_PROBE_TIMEOUT_MS = 60_000;
+/** Personal Google OAuth is the default Chat sign-in; keep it first in the picker. */
+export const ANTIGRAVITY_DEFAULT_ACP_AUTH_METHOD_ID = "oauth-personal";
 export const ANTIGRAVITY_ACP_SESSION_BEHAVIOR = {
   suppressOutputAfterInterrupt: true,
   suppressStderrLogging: true,
 } as const;
+
+export function preferDefaultAntigravityAcpAuthMethod<T extends { id: string }>(
+  methods: readonly T[] | undefined,
+): T[] | undefined {
+  if (!methods) return undefined;
+  const preferred = methods.filter(
+    (method) => method.id === ANTIGRAVITY_DEFAULT_ACP_AUTH_METHOD_ID,
+  );
+  if (preferred.length === 0) return [...methods];
+  return [
+    ...preferred,
+    ...methods.filter((method) => method.id !== ANTIGRAVITY_DEFAULT_ACP_AUTH_METHOD_ID),
+  ];
+}
 
 export function createAntigravityAcpRuntime(
   instance: AgentInstanceConfig | undefined,
@@ -22,10 +39,12 @@ export function createAntigravityAcpRuntime(
     label: "Antigravity",
     probeTimeoutMs: ANTIGRAVITY_ACP_PROBE_TIMEOUT_MS,
     normalizeProbeResult: (result) => {
-      if (!result.models?.length) return result;
-      const normalized = buildAntigravityAcpModelCapabilities(result.models);
+      const authMethods = preferDefaultAntigravityAcpAuthMethod(result.authMethods);
+      const withPreferredAuth = authMethods ? { ...result, authMethods } : result;
+      if (!withPreferredAuth.models?.length) return withPreferredAuth;
+      const normalized = buildAntigravityAcpModelCapabilities(withPreferredAuth.models);
       return {
-        ...result,
+        ...withPreferredAuth,
         models: normalized.models.map((model) => ({
           id: model.id,
           label: model.label,
@@ -44,6 +63,7 @@ export function createAntigravityAcpRuntime(
     // and reports file reads as finished only at end of turn; both parsers
     // live here so the shared mapper stays provider-agnostic.
     textStreamExtension: createAntigravityAcpExtension(),
+    sessionUpdateTransform: transformAntigravityBackgroundToolCall,
     // agy_acp_server holds session/prompt open until every background task
     // exits; the only end-of-reply boundary it publishes is a stderr
     // diagnostic. See ./acpTurnHold.ts.

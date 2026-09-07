@@ -127,10 +127,16 @@ export function SettingsOverlay(props: { onClose: () => void }) {
     "settings",
   );
   // Apply a deep-link request (e.g. clicking a sidebar usage circle) and clear
-  // it so it doesn't re-fire on the next open.
+  // it so it doesn't re-fire on the next open. The section switch derives
+  // from the request, so it adjusts during render; clearing the request is a
+  // store write and stays in the effect.
+  const [prevRequestedSection, setPrevRequestedSection] = useState(requestedSection);
+  if (prevRequestedSection !== requestedSection) {
+    setPrevRequestedSection(requestedSection);
+    if (requestedSection) setActiveSection(requestedSection as SettingsSection);
+  }
   useEffect(() => {
     if (requestedSection) {
-      setActiveSection(requestedSection as SettingsSection);
       clearSettingsSection();
     }
   }, [requestedSection, clearSettingsSection]);
@@ -140,12 +146,12 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   // twice. Local (not a store): only this overlay coordinates the scroll, and it
   // has to land *after* the section content remounts (`key={activeSection}`).
   const [scrollTarget, setScrollTarget] = useState<{ anchor: string; token: number } | null>(null);
-  const scrollTokenRef = useRef(0);
   const navigateToSection = useCallback((section: SettingsSection, anchor?: string) => {
     setActiveSection(section);
     if (anchor) {
-      scrollTokenRef.current += 1;
-      setScrollTarget({ anchor, token: scrollTokenRef.current });
+      // Functional update mints the re-fire token without a ref, keeping this
+      // callback ref-free so it can be passed down during render.
+      setScrollTarget((prev) => ({ anchor, token: (prev?.token ?? 0) + 1 }));
     }
   }, []);
 
@@ -219,6 +225,18 @@ export function SettingsOverlay(props: { onClose: () => void }) {
     setIsRefreshingAgents(true);
     void readBridge()
       .refreshAgentStatuses(wslDistros)
+      .then((response) => {
+        if (refreshRunRef.current !== refreshRun) {
+          return;
+        }
+        // Apply the RPC result immediately. Supervisor events can be deferred
+        // while the discovery overlay is up, and localStorage still holds the
+        // previous sweep until this write replaces it.
+        useAgentStatusesStore.getState().hydrateFromCache({
+          windows: response.windows,
+          wsl: response.wsl,
+        });
+      })
       .catch(() => undefined)
       .finally(() => {
         setTimeout(() => {

@@ -9,7 +9,7 @@ import type {
   ThreadServerRequestId,
   ToolCallPayload,
 } from "@/shared/contracts";
-import type { AgentAdapter } from "@/supervisor/agents/base";
+import type { AgentAdapter, StructuredSessionHandle } from "@/supervisor/agents/base";
 import { ForwardedRuntimeItemTracker } from "./ForwardedRuntimeItemTracker";
 import { SubagentAttemptRunner, type AttemptExecutionState } from "./SubagentAttemptRunner";
 import { SubagentSpawnError } from "./errors";
@@ -37,7 +37,7 @@ export const DEFAULT_WAIT_TIMEOUT_MS = 120_000;
 /** Hard cap on caller-supplied `timeout_s` — see {@link DEFAULT_WAIT_TIMEOUT_MS}. */
 export const MAX_WAIT_TIMEOUT_MS = 240_000;
 /** Max concurrent live children per parent thread. */
-export const MAX_CONCURRENT_CHILDREN_PER_PARENT = 4;
+export const MAX_CONCURRENT_CHILDREN_PER_PARENT = 16;
 /** Bound terminal result retention for long-lived parent threads. */
 const MAX_RETAINED_RUNS_PER_PARENT = 50;
 /**
@@ -94,6 +94,7 @@ interface RunRecord extends AttemptExecutionState {
   plan: PreparedSubagentRun;
   attemptIndex: number;
   attemptSettled: boolean;
+  steering: SteerState | undefined;
   attemptResults: SubagentAttemptResult[];
   status: SubagentRunStatus;
   /** Assistant text accumulated for the current attempt. */
@@ -135,6 +136,31 @@ interface RunRecord extends AttemptExecutionState {
 }
 
 export { SubagentSpawnError } from "./errors";
+
+/**
+ * Bookkeeping for one in-flight steer. `completion` records whether the child
+ * reported a turn end during the steer (`pending`) and whether a follow-up
+ * turn then started (`resumed`). `onDrained` is armed only by the
+ * interrupt-and-restart fallback, which must wait for the interrupted turn to
+ * settle before it can open the replacement turn.
+ */
+interface SteerState {
+  completion: "none" | "pending" | "resumed";
+  onDrained?: () => void;
+}
+
+/** Upper bound for a child to acknowledge a steer interrupt before the steer fails. */
+const STEER_INTERRUPT_DRAIN_TIMEOUT_MS = 30_000;
+
+/**
+ * Whether a live child can accept a steer: natively via `steerTurn`, or via
+ * the shared interrupt-and-restart path every structured session supports as
+ * long as it can interrupt and start turns.
+ */
+function handleSupportsSteer(handle: StructuredSessionHandle | undefined): boolean {
+  if (!handle) return false;
+  return !!handle.steerTurn || (!!handle.interruptTurn && !!handle.startTurn);
+}
 
 /** Prefix used for a child's re-tagged item ids inside the parent stream. */
 function childItemPrefix(runId: string, attemptIndex: number): string {
@@ -235,6 +261,7 @@ export class SubagentRunManager {
       plan,
       attemptIndex: 0,
       attemptSettled: false,
+      steering: undefined,
       attemptResults: [],
       status: "running",
       output: "",
@@ -249,6 +276,7 @@ export class SubagentRunManager {
       cancelRequested: false,
       turnStarted: false,
       turnDispatched: false,
+      steerReady: false,
       error: undefined,
       settled: false,
       settledPromise,
@@ -307,7 +335,32 @@ export class SubagentRunManager {
     timeoutMs: number,
     parentThreadId?: string,
     options?: SubagentWaitOptions | ((runId: string) => SubagentWaitOptions),
+    mode: "all" | "any" = "all",
   ): Promise<Array<{ run_id: string } & SubagentWaitResult>> {
+    if (mode === "any" && runIds.length > 0) {
+      const records = runIds.map((runId) => this.ownedRun(runId, parentThreadId));
+      if (records.every((record) => record?.status === "running")) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            ...records.map((record) => record!.settledPromise),
+            new Promise<void>((resolve) => {
+              timer = setTimeout(resolve, Math.max(0, timeoutMs));
+            }),
+          ]);
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      }
+      return runIds.map((runId) => ({
+        run_id: runId,
+        ...this.getStatus(
+          runId,
+          parentThreadId,
+          typeof options === "function" ? options(runId) : options,
+        ),
+      }));
+    }
     return await Promise.all(
       runIds.map(async (runId) => ({
         run_id: runId,
@@ -342,9 +395,118 @@ export class SubagentRunManager {
         background: record.background,
         attempt: record.attemptIndex + 1,
         attempt_count: record.plan.attempts.length,
+        can_steer:
+          record.status === "running" &&
+          record.steerReady &&
+          !record.steering &&
+          handleSupportsSteer(record.handle),
       });
     }
     return out;
+  }
+
+  getCapacity(parentThreadId: string): { running: number; limit: number; available_slots: number } {
+    const running = this.activeCountForParent(parentThreadId);
+    return {
+      running,
+      limit: MAX_CONCURRENT_CHILDREN_PER_PARENT,
+      available_slots: MAX_CONCURRENT_CHILDREN_PER_PARENT - running,
+    };
+  }
+
+  /**
+   * Forward a parent correction to a live child. Sessions with a native
+   * `steerTurn` enqueue it onto the running turn. Every other structured
+   * session takes the same interrupt-and-restart path the main thread uses:
+   * preserve provider work, interrupt, wait for the turn to settle, then open
+   * the correction as a fresh turn on the same session.
+   */
+  async steer(runId: string, prompt: string, parentThreadId: string): Promise<void> {
+    const record = this.ownedRun(runId, parentThreadId);
+    if (!record) throw new SubagentSpawnError(`Unknown run_id: ${runId}`);
+    if (record.status !== "running") throw new SubagentSpawnError("Subagent is no longer running");
+    if (!record.steerReady)
+      throw new SubagentSpawnError("Subagent is still starting; try again once it is ready");
+    const handle = record.handle;
+    if (!handleSupportsSteer(handle) || !handle)
+      throw new SubagentSpawnError("This subagent cannot receive messages");
+    if (record.steering)
+      throw new SubagentSpawnError(
+        "The previous message to this subagent is still being delivered",
+      );
+    const steering: SteerState = { completion: "none" };
+    record.steering = steering;
+    const attemptIndex = record.attemptIndex;
+    const config = record.plan.attempts[attemptIndex]!.config;
+    try {
+      if (handle.steerTurn) {
+        await handle.steerTurn(prompt, config);
+      } else {
+        await this.interruptAndRestartTurn(record, attemptIndex, steering, handle, prompt, config);
+      }
+      if (!this.isCurrentAttempt(record, attemptIndex)) {
+        throw new SubagentSpawnError("Subagent stopped before the message was delivered");
+      }
+    } catch (error) {
+      if (record.steering === steering && steering.completion === "resumed") {
+        this.finishAttempt(
+          record,
+          attemptIndex,
+          "failed",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+      throw error;
+    } finally {
+      if (record.steering === steering) {
+        record.steering = undefined;
+        if (steering.completion === "pending") {
+          this.finishAttempt(record, attemptIndex, "completed");
+        }
+      }
+    }
+  }
+
+  /**
+   * Interrupt-and-restart steer for sessions without native `steerTurn`.
+   * The interrupted turn surfaces as a normal completion, which
+   * {@link finishAttempt} parks as `pending` while `record.steering` is set;
+   * this waits for that signal, then starts the replacement turn so the child
+   * reports `working`/`turn.started` again and the run stays alive.
+   */
+  private async interruptAndRestartTurn(
+    record: RunRecord,
+    attemptIndex: number,
+    steering: SteerState,
+    handle: StructuredSessionHandle,
+    prompt: string,
+    config: ThreadConfig,
+  ): Promise<void> {
+    const drained = new Promise<void>((resolve) => {
+      steering.onDrained = resolve;
+    });
+    await handle.prepareSteerInterrupt?.();
+    if (!this.isCurrentAttempt(record, attemptIndex)) return;
+    await handle.interruptTurn!();
+    if (steering.completion !== "pending" && this.isCurrentAttempt(record, attemptIndex)) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timedOut = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new SubagentSpawnError("Subagent did not accept the message in time")),
+          STEER_INTERRUPT_DRAIN_TIMEOUT_MS,
+        );
+      });
+      try {
+        await Promise.race([drained, timedOut]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    }
+    if (!this.isCurrentAttempt(record, attemptIndex)) return;
+    await handle.startTurn!(prompt, config);
+    // The replacement turn is open on the same session: the interrupted
+    // completion parked above must not settle the run.
+    if (steering.completion === "pending") steering.completion = "resumed";
   }
 
   /** Interrupt + dispose a single run. */
@@ -514,6 +676,7 @@ export class SubagentRunManager {
 
     record.attemptIndex = attemptIndex;
     record.attemptSettled = false;
+    record.steering = undefined;
     record.childThreadId = this.childThreadId(record.parentThreadId, record.runId, attemptIndex);
     record.label = attempt.label;
     record.output = "";
@@ -521,6 +684,7 @@ export class SubagentRunManager {
     record.error = undefined;
     record.turnStarted = false;
     record.turnDispatched = false;
+    record.steerReady = false;
     record.handle = undefined;
     record.oneShot = undefined;
 
@@ -540,6 +704,9 @@ export class SubagentRunManager {
 
     this.attemptRunner.run(record, attemptIndex, attempt, {
       isActive: () => this.isCurrentAttempt(record, attemptIndex),
+      onWorking: () => {
+        if (record.steering?.completion === "pending") record.steering.completion = "resumed";
+      },
       onRuntimeEvent: (event) => this.onChildEvent(record, attemptIndex, event),
       onSettle: (status, errorMessage) =>
         this.finishAttempt(record, attemptIndex, status, errorMessage),
@@ -597,6 +764,12 @@ export class SubagentRunManager {
       return;
     }
     switch (event.type) {
+      case "turn.started":
+        record.steerReady = true;
+        // A native steer can start a follow-up turn if the original finished
+        // during its round-trip. Keep that new turn alive until it completes.
+        if (record.steering?.completion === "pending") record.steering.completion = "resumed";
+        break;
       case "content.delta":
         if (event.stream === "assistant_text") {
           const cursorStart = record.cursorOutput.length;
@@ -678,14 +851,21 @@ export class SubagentRunManager {
           this.retag(record, attemptIndex, event),
         );
         return;
-      case "turn.completed":
+      case "turn.completed": {
+        // An interrupt-and-restart steer expects the running turn to end as
+        // interrupted/cancelled; that is the drain signal, not a failure.
+        const expectedInterrupt =
+          record.steering?.onDrained !== undefined &&
+          (event.state === "interrupted" || event.state === "cancelled");
+        const ok = event.state === "completed" || expectedInterrupt;
         this.finishAttempt(
           record,
           attemptIndex,
-          event.state === "completed" ? "completed" : "failed",
-          event.state === "completed" ? undefined : `Subagent turn ${event.state}`,
+          ok ? "completed" : "failed",
+          ok ? undefined : `Subagent turn ${event.state}`,
         );
         return;
+      }
       default:
         return;
     }
@@ -737,6 +917,14 @@ export class SubagentRunManager {
     errorMessage?: string,
   ): void {
     if (!this.isCurrentAttempt(record, attemptIndex)) return;
+    if (record.steering && status === "completed") {
+      record.steering.completion = "pending";
+      record.steering.onDrained?.();
+      return;
+    }
+    // A failed/cancelled attempt can never resume; release a waiting steer so
+    // it observes the settled attempt instead of hanging until its timeout.
+    record.steering?.onDrained?.();
     record.attemptSettled = true;
     this.drainPendingRequests(record);
     this.completeOpenForwardedItems(record);

@@ -52,6 +52,19 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     // Monthly credit pool plus rolling 5h / weekly USD caps from windowLimits.
     windowIds: ["session-5h", "weekly", "monthly"],
   },
+  muse: {
+    id: "muse",
+    label: "Muse Code",
+    // The signed-in dev.meta.ai dashboard is the source for Muse's weighted
+    // 5h / weekly quota windows and billed spend (see `collectors/muse.ts`).
+    // The CLI's device-code login can stand in for plan + account, but its
+    // meters are optional — so keep offering the dashboard sign-in until a
+    // browser session is captured.
+    mechanism: "cookie",
+    needsLogin: true,
+    needsBrowserSessionForUsage: true,
+    windowIds: ["session-5h", "weekly"],
+  },
   factory: {
     id: "factory",
     label: "Droid",
@@ -102,7 +115,7 @@ export function builtInUsageProviderDescriptors(): UsageProviderDescriptor[] {
  * source of truth for the renderer's provider list and the supervisor's default
  * collection set so the two never drift.
  *
- * Most providers are HTTP collectors registered in `registry.ts`. A couple are
+ * Most providers are HTTP collectors registered in `registry.ts`. Several are
  * collected supervisor-side because they need process / SQLite access the pure
  * HTTP registry can't do — they have a descriptor here but no package collector:
  * `antigravity` prefers its local language server and falls back to Cloud Code

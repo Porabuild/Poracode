@@ -307,6 +307,99 @@ describe("probeMcpServer", () => {
     });
   });
 
+  it("reports an oversized stdio response without waiting for the probe timeout", async () => {
+    const script = String.raw`
+      process.stdin.resume();
+      process.stdout.write("x".repeat(11 * 1024 * 1024));
+    `;
+    const result = await probeMcpServer(stdioServer(script, [], 5_000), environment);
+    expect(result).toMatchObject({ status: "unavailable", error: { code: "protocol-error" } });
+  });
+
+  it("reports an unsupported protocol version as a protocol error", async () => {
+    const script = STDIO_FIXTURE.replace("2025-06-18", "1999-01-01");
+    const result = await probeMcpServer(stdioServer(script), environment);
+    expect(result).toMatchObject({ status: "unavailable", error: { code: "protocol-error" } });
+  });
+
+  it("reports a missing server command without waiting for the probe timeout", async () => {
+    const server: McpServer = {
+      id: "missing-command-test",
+      name: "missing-command-test",
+      description: "",
+      enabled: true,
+      timeoutMs: 2_000,
+      transport: {
+        type: "stdio",
+        command: "poracode-definitely-missing-command",
+        args: [],
+        env: {},
+      },
+    };
+    const result = await probeMcpServer(server, environment);
+    expect(result).toMatchObject({
+      status: "unavailable",
+      error: { code: "command-not-found" },
+    });
+  });
+
+  it("treats a challenged SSE 401 as authentication-required", async () => {
+    const baseUrl = await listen(
+      createServer((request, response) => {
+        if (request.method === "GET" && request.url === "/sse") {
+          response.statusCode = 401;
+          response.setHeader("www-authenticate", 'Bearer realm="probe"');
+          response.end();
+          return;
+        }
+        response.statusCode = 404;
+        response.end();
+      }),
+    );
+    const server: McpServer = {
+      id: "sse-auth-test",
+      name: "sse-auth-test",
+      description: "",
+      enabled: true,
+      timeoutMs: 2_000,
+      transport: { type: "sse", url: `${baseUrl}/sse`, headers: {} },
+    };
+
+    const result = await probeMcpServer(server, environment);
+
+    expect(result).toMatchObject({
+      status: "auth-required",
+      toolCount: 0,
+      error: { code: "auth-required", authScheme: "bearer" },
+    });
+  });
+
+  it("treats a challenged 403 as authentication-required", async () => {
+    const baseUrl = await listen(
+      createServer((_request, response) => {
+        response.statusCode = 403;
+        response.setHeader("www-authenticate", 'Bearer realm="probe"');
+        response.end();
+      }),
+    );
+    const server: McpServer = {
+      id: "challenged-forbidden-test",
+      name: "challenged-forbidden-test",
+      description: "",
+      enabled: true,
+      timeoutMs: 2_000,
+      transport: { type: "http", url: `${baseUrl}/mcp`, headers: {} },
+    };
+
+    const result = await probeMcpServer(server, environment);
+
+    expect(result).toMatchObject({
+      status: "auth-required",
+      toolCount: 0,
+      error: { code: "auth-required", authScheme: "bearer" },
+    });
+  });
+
   it("times out and terminates an unresponsive stdio server", async () => {
     const directory = mkdtempSync(join(tmpdir(), "poracode-mcp-probe-"));
     const pidFile = join(directory, "pid.txt");

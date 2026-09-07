@@ -62,6 +62,10 @@ export function TerminalSurfaces(props: {
   const dragRef = useRef({ startX: 0, startPercent: 0 });
   const splitPercentRef = useRef(splitPercent);
   const cleanupRef = useRef<(() => void) | null>(null);
+  // Tags the settle chain below with its focus request so a chain that ever
+  // runs superseded cannot steal focus for an outdated request. (A newer
+  // request normally cancels via cleanup; this is the backstop.)
+  const latestFocusRequestRef = useRef(focusRequestId);
 
   useEffect(() => {
     splitPercentRef.current = splitPercent;
@@ -82,11 +86,14 @@ export function TerminalSurfaces(props: {
 
   useEffect(() => {
     if (!activeTabId || selectedTabId === "__add__") return;
+    const requestId = focusRequestId;
+    latestFocusRequestRef.current = requestId;
     let frame = 0;
     let settledFrame = 0;
 
     frame = requestAnimationFrame(() => {
       settledFrame = requestAnimationFrame(() => {
+        if (requestId !== latestFocusRequestRef.current) return;
         terminalRefs.current.get(selectedTabId)?.refit();
         if (activeTab?.splitId) terminalRefs.current.get(activeTab.splitId)?.refit();
         terminalRefs.current.get(selectedTabId)?.focus();

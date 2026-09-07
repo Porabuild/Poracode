@@ -64,14 +64,19 @@ export function WelcomeOverlay() {
   // not by toggling `visible`, so we don't need a RAF flip on entry.
   const [visible, setVisible] = useState(open);
 
-  useEffect(() => {
-    if (open) {
+  // `open` derives from `welcomeSeen` and only ever flips true → false via
+  // dismissWelcome. Drive the exit fade during render instead of an effect so
+  // the transition starts on the same frame the CTA commits (and the entry
+  // path needs no effect at all — the initial states already match `open`).
+  // `mounted` stays until the fade's transitionend releases it below.
+  if (open) {
+    if (!mounted || !visible) {
       setMounted(true);
       setVisible(true);
-      return;
     }
+  } else if (visible) {
     setVisible(false);
-  }, [open]);
+  }
 
   // First launch only: defer heavy background work until the intro animation
   // has settled, then release the gate so MainView can start agent detection.

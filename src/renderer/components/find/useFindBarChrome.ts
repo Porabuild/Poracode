@@ -4,19 +4,20 @@ import { clearFindHighlights } from "./findText";
 
 /**
  * Shared Find-bar wiring used by every find surface: focus + select the input
- * each time the session (re)opens, register Esc-to-close on the overlay escape
- * stack, and clear any CSS highlights when the bar unmounts (the session ends).
+ * on mount, register Esc-to-close on the overlay escape stack, and clear any
+ * CSS highlights when the bar unmounts (the session ends). Hosts remount the
+ * bar per `openToken` (key), so a reopened session refocuses through a fresh
+ * mount rather than a re-run trigger.
  */
 export function useFindBarChrome(
   inputRef: React.RefObject<HTMLInputElement | null>,
-  openToken: number,
   close: () => void,
 ): void {
-  // Focus + select the input whenever the session (re)opens.
+  // Focus + select the input on mount (each session mounts fresh).
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
-  }, [inputRef, openToken]);
+  }, [inputRef]);
 
   // Esc closes find from anywhere in the surface; clear highlights when the
   // session ends (the host component unmounts on close / surface switch).

@@ -147,6 +147,18 @@ describe("MuseMspClient", () => {
     client.dispose();
   });
 
+  it("surfaces transport errors even without a pending request", () => {
+    const transport = new FakeTransport();
+    const client = new MuseMspClient(transport, 1_000);
+    const errors: string[] = [];
+    client.onError((error) => errors.push(error.message));
+
+    transport.listener?.onError(new Error("EPIPE"));
+
+    expect(errors).toEqual(["EPIPE"]);
+    client.dispose();
+  });
+
   it("answers server-initiated requests through the registered handler", async () => {
     const transport = new FakeTransport();
     const client = new MuseMspClient(transport, 1_000);
@@ -214,20 +226,24 @@ class FakeStdio extends EventEmitter {
   setEncoding = vi.fn<(encoding: string) => void>();
 }
 
+class FakeStdin extends EventEmitter {
+  writable = true;
+  written: string[] = [];
+  ended = false;
+
+  write(text: string): void {
+    this.written.push(text);
+  }
+
+  end(): void {
+    this.ended = true;
+  }
+}
+
 class FakeChildProcess extends EventEmitter {
   stdout = new FakeStdio();
   stderr = new FakeStdio();
-  stdin = {
-    writable: true,
-    written: [] as string[],
-    ended: false,
-    write: (text: string) => {
-      this.stdin.written.push(text);
-    },
-    end: () => {
-      this.stdin.ended = true;
-    },
-  };
+  stdin = new FakeStdin();
   exitCode: number | null = null;
   killed = false;
 }
@@ -251,6 +267,28 @@ describe("spawnMuseServeHost", () => {
       expect.objectContaining({ stdio: ["pipe", "pipe", "pipe"], shell: false, windowsHide: true }),
     );
     expect(hosted.transport).toBeInstanceOf(MuseMspStdioTransport);
+  });
+
+  it("keeps durable hosts in the project while probes stay isolated", async () => {
+    const child = new FakeChildProcess();
+    spawnMock.mockReturnValue(child);
+    await spawnMuseServeHost(posix, {
+      executablePath: "/usr/bin/muse",
+      serveArgs: ["serve"],
+      isolateCwd: false,
+    });
+    expect(spawnMock).toHaveBeenLastCalledWith(
+      "/usr/bin/muse",
+      ["serve"],
+      expect.objectContaining({ cwd: "/tmp/proj" }),
+    );
+
+    await spawnMuseServeHost(posix, {
+      executablePath: "/usr/bin/muse",
+      serveArgs: ["serve", "--no-session-log"],
+    });
+    const options = spawnMock.mock.calls.at(-1)?.[2] as { cwd?: string };
+    expect(options.cwd).not.toBe("/tmp/proj");
   });
 
   it("routes through the WSL login shell on wsl locations", async () => {

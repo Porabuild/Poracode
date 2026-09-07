@@ -6,32 +6,29 @@ class FakeStdio extends EventEmitter {
   setEncoding = vi.fn<(encoding: string) => void>();
 }
 
+class FakeStdin extends EventEmitter {
+  writable = true;
+  written: string[] = [];
+  ended = false;
+
+  write(text: string): void {
+    this.written.push(text);
+  }
+
+  end(): void {
+    this.ended = true;
+  }
+}
+
 function fakeChild() {
   const child = new EventEmitter() as EventEmitter & {
     stdout: FakeStdio;
     stderr: FakeStdio;
-    stdin: {
-      writable: boolean;
-      written: string[];
-      ended: boolean;
-      write: (text: string) => void;
-      end: () => void;
-    };
+    stdin: FakeStdin;
   };
   child.stdout = new FakeStdio();
   child.stderr = new FakeStdio();
-  const stdin = {
-    writable: true,
-    written: [] as string[],
-    ended: false,
-    write: (text: string) => {
-      stdin.written.push(text);
-    },
-    end: () => {
-      stdin.ended = true;
-    },
-  };
-  child.stdin = stdin;
+  child.stdin = new FakeStdin();
   return child;
 }
 
@@ -81,9 +78,43 @@ describe("MuseMspStdioTransport", () => {
 
     child.stderr.emit("data", "muse: warning\n");
     child.emit("error", new Error("boom"));
-    child.emit("exit");
+    child.emit("close");
     expect(events).toEqual(["error", "close"]);
     expect(transport.formatOutput()).toContain("muse: warning");
+  });
+
+  it("waits for close so final stdout after exit is delivered", () => {
+    const child = fakeChild();
+    const transport = new MuseMspStdioTransport(child as never);
+    const messages: unknown[] = [];
+    const closes: string[] = [];
+    transport.setListener({
+      onMessage: (message) => messages.push(message),
+      onClose: () => closes.push("close"),
+      onError: () => {},
+    });
+
+    child.emit("exit");
+    child.stdout.emit("data", '{"jsonrpc":"2.0","method":"turn/completed"}\n');
+    expect(messages).toEqual([{ jsonrpc: "2.0", method: "turn/completed" }]);
+    expect(closes).toEqual([]);
+    child.emit("close");
+    expect(closes).toEqual(["close"]);
+  });
+
+  it("reports asynchronous stdin errors once", () => {
+    const child = fakeChild();
+    const transport = new MuseMspStdioTransport(child as never);
+    const errors: string[] = [];
+    transport.setListener({
+      onMessage: () => {},
+      onClose: () => {},
+      onError: (error) => errors.push(error.message),
+    });
+
+    child.stdin.emit("error", new Error("EPIPE"));
+    child.emit("error", new Error("duplicate"));
+    expect(errors).toEqual(["EPIPE"]);
   });
 
   it("writes newline-terminated JSON and enforces lifecycle", () => {

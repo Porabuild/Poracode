@@ -236,6 +236,7 @@ export function initializeSupervisorSentry(options: SupervisorSentryOptions): bo
     release: `poracode@${options.appVersion}`,
     environment: readSentryEnvironment(options),
     sendDefaultPii: false,
+    enableLogs: false,
     defaultIntegrations: false,
     maxBreadcrumbs: 20,
     normalizeDepth: 4,

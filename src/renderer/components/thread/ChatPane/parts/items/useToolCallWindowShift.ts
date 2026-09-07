@@ -61,6 +61,15 @@ export function useToolCallWindowShift({
   // live tail that is still appending. Animating there is pure waste, so the rig
   // is torn down and the window snaps until it comes back on screen.
   useEffect(() => {
+    // Visibility only gates the sliding-window animation (see `enabled` in the
+    // sync effect below), so when the group is not windowed there is nothing
+    // to track — restore the optimistic default and skip the observer until
+    // it is. Re-windowed groups briefly assume on-screen again, which costs
+    // at most one animation per the declaration above.
+    if (!isWindowed) {
+      isOnScreenRef.current = true;
+      return;
+    }
     const node = wrapRef.current;
     if (!node || typeof IntersectionObserver !== "function") return;
     const observer = new IntersectionObserver(

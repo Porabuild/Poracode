@@ -346,9 +346,10 @@ export class CliHookPluginCoordinator {
       // promise should not pin the whole session to L2 until restart.
       this.installPromises.delete(key);
     }
-    const task = this.runInstall(adapter, slice, ctx, key).catch(
-      (error): InstallOutcome => ({ ok: false, reason: errorMessage(error) }),
-    );
+    const task = this.runInstall(adapter, slice, ctx, key).catch((error): InstallOutcome => ({
+      ok: false,
+      reason: errorMessage(error),
+    }));
     this.installPromises.set(key, task);
     return task;
   }

@@ -1,171 +1,107 @@
-import { asc, eq, notInArray } from "drizzle-orm";
 import type { Project, Thread } from "@/shared/contracts";
-import * as schema from "../db.schema";
-import { getDb } from "./connection";
+import { getSqlite } from "./connection";
 import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
-import { projectMutableRow, rowToProject, rowToThread } from "./rowMappers";
+import {
+  projectMutableRow,
+  rowToProject,
+  rowToThread,
+  type ProjectRow,
+  type ThreadRow,
+} from "./rowMappers";
 import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
+import {
+  prepareProjectUpsertStatement,
+  prepareThreadUpsertStatement,
+  runProjectUpsert,
+  runThreadUpsert,
+} from "./upsertStatements";
 
 // ── Public query functions (called from IPC handlers) ───────────────
 
 export function dbGetProjects(): Project[] {
-  const db = getDb();
-  return db
-    .select()
-    .from(schema.projects)
-    .orderBy(asc(schema.projects.sortOrder))
-    .all()
-    .map(rowToProject);
+  const rows = getSqlite()
+    .prepare("SELECT * FROM projects ORDER BY sort_order ASC")
+    .all() as ProjectRow[];
+  return rows.map(rowToProject);
 }
 
 export function dbGetProject(projectId: string): Project | null {
-  const db = getDb();
-  const row = db.select().from(schema.projects).where(eq(schema.projects.id, projectId)).get();
+  const row = getSqlite().prepare("SELECT * FROM projects WHERE id = ?").get(projectId) as
+    | ProjectRow
+    | undefined;
   return row ? rowToProject(row) : null;
 }
 
 export function dbGetThreads(): Thread[] {
-  const db = getDb();
-  return db
-    .select()
-    .from(schema.threads)
-    .orderBy(asc(schema.threads.sortOrder))
-    .all()
-    .map(rowToThread);
+  const rows = getSqlite()
+    .prepare("SELECT * FROM threads ORDER BY sort_order ASC")
+    .all() as ThreadRow[];
+  return rows.map(rowToThread);
 }
 
 export function dbGetThread(threadId: string): Thread | null {
-  const db = getDb();
-  const row = db.select().from(schema.threads).where(eq(schema.threads.id, threadId)).get();
+  const row = getSqlite().prepare("SELECT * FROM threads WHERE id = ?").get(threadId) as
+    | ThreadRow
+    | undefined;
   return row ? rowToThread(row) : null;
 }
 
 export function dbGetState(key: string): string | null {
-  const db = getDb();
-  const row = db.select().from(schema.appState).where(eq(schema.appState.key, key)).get();
+  const row = getSqlite().prepare("SELECT value FROM app_state WHERE key = ?").get(key) as
+    | { value: string }
+    | undefined;
   return row?.value ?? null;
 }
 
 export function dbSetState(key: string, value: string): void {
-  const db = getDb();
-  db.insert(schema.appState)
-    .values({ key, value })
-    .onConflictDoUpdate({ target: schema.appState.key, set: { value } })
-    .run();
+  getSqlite()
+    .prepare(
+      "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    )
+    .run(key, value);
 }
 
 export function dbUpsertProject(project: Project, sortOrder: number): void {
-  const db = getDb();
-  db.insert(schema.projects)
-    .values({
-      id: project.id,
-      ...projectMutableRow(project),
-      sortOrder,
-      createdAt: project.createdAt,
-    })
-    .onConflictDoUpdate({
-      target: schema.projects.id,
-      set: {
-        ...projectMutableRow(project),
-        sortOrder,
-      },
-    })
-    .run();
+  const sqlite = getSqlite();
+  runProjectUpsert(prepareProjectUpsertStatement(sqlite), project, sortOrder);
   notifyProjectThreadDataChanged();
 }
 
 export function dbUpdateProject(project: Project): void {
-  getDb()
-    .update(schema.projects)
-    .set(projectMutableRow(project))
-    .where(eq(schema.projects.id, project.id))
-    .run();
+  getSqlite()
+    .prepare(
+      `UPDATE projects SET
+         name = @name,
+         icon = @icon,
+         location_kind = @locationKind,
+         location_path = @locationPath,
+         location_distro = @locationDistro,
+         location_linux_path = @locationLinuxPath,
+         location_unc_path = @locationUncPath,
+         last_draft_config = @lastDraftConfig,
+         scripts = @scripts,
+         search_settings = @searchSettings,
+         worktree_location = @worktreeLocation,
+         mcp_servers = @mcpServers,
+         gh_account = @ghAccount,
+         workspace_id = @workspaceId,
+         disabled = @disabled
+       WHERE id = @id`,
+    )
+    .run({ id: project.id, ...projectMutableRow(project) });
   notifyProjectThreadDataChanged();
 }
 
 export function dbUpsertThread(thread: Thread, sortOrder: number): void {
-  const db = getDb();
+  const sqlite = getSqlite();
   // A row main inserts on its own is invisible to the renderer's store until the
   // forwarded command reaches it, so shield it from `dbSyncAll`'s delete pass
   // (see mainCreatedThreads).
   const isNewRow =
-    db
-      .select({ id: schema.threads.id })
-      .from(schema.threads)
-      .where(eq(schema.threads.id, thread.id))
-      .get() === undefined;
-  db.insert(schema.threads)
-    .values({
-      id: thread.id,
-      projectId: thread.projectId,
-      workspaceId: thread.workspaceId ?? null,
-      title: thread.title,
-      agentKind: thread.agentKind,
-      agentInstanceId: thread.agentInstanceId ?? null,
-      config: JSON.stringify(thread.config),
-      status: thread.status,
-      attention: thread.attention,
-      threadStatusSource: thread.threadStatusSource ?? null,
-      canResumeWithConfig: thread.canResumeWithConfig,
-      sessionRef: thread.sessionRef ? JSON.stringify(thread.sessionRef) : null,
-      terminalPrompt: null,
-      worktreePath: thread.worktreePath ?? null,
-      worktreeBranch: thread.worktreeBranch ?? null,
-      prNumber: thread.prNumber ?? null,
-      groupId: thread.groupId ?? null,
-      groupName: thread.groupName ?? null,
-      parentThreadId: thread.parentThreadId ?? null,
-      archived: thread.archived,
-      archivedAt: thread.archivedAt ?? null,
-      done: thread.done,
-      doneAt: thread.doneAt ?? null,
-      starred: thread.starred,
-      presentationMode: thread.presentationMode ?? "terminal",
-      sortOrder,
-      createdAt: thread.createdAt,
-      updatedAt: thread.updatedAt,
-      activeTurnStartedAt: thread.activeTurnStartedAt ?? null,
-      lastTurnStartedAt: thread.lastTurnStartedAt ?? null,
-      lastTurnEndedAt: thread.lastTurnEndedAt ?? null,
-    })
-    .onConflictDoUpdate({
-      target: schema.threads.id,
-      set: {
-        // Kept in the update set so "Move to Workspace" survives full syncs.
-        workspaceId: thread.workspaceId ?? null,
-        title: thread.title,
-        // Mutable: a thread can be switched to another provider in place,
-        // keeping its id and transcript.
-        agentKind: thread.agentKind,
-        agentInstanceId: thread.agentInstanceId ?? null,
-        config: JSON.stringify(thread.config),
-        status: thread.status,
-        attention: thread.attention,
-        threadStatusSource: thread.threadStatusSource ?? null,
-        canResumeWithConfig: thread.canResumeWithConfig,
-        sessionRef: thread.sessionRef ? JSON.stringify(thread.sessionRef) : null,
-        terminalPrompt: null,
-        worktreePath: thread.worktreePath ?? null,
-        worktreeBranch: thread.worktreeBranch ?? null,
-        prNumber: thread.prNumber ?? null,
-        groupId: thread.groupId ?? null,
-        groupName: thread.groupName ?? null,
-        parentThreadId: thread.parentThreadId ?? null,
-        archived: thread.archived,
-        archivedAt: thread.archivedAt ?? null,
-        done: thread.done,
-        doneAt: thread.doneAt ?? null,
-        starred: thread.starred,
-        presentationMode: thread.presentationMode ?? "terminal",
-        sortOrder,
-        updatedAt: thread.updatedAt,
-        activeTurnStartedAt: thread.activeTurnStartedAt ?? null,
-        lastTurnStartedAt: thread.lastTurnStartedAt ?? null,
-        lastTurnEndedAt: thread.lastTurnEndedAt ?? null,
-      },
-    })
-    .run();
+    sqlite.prepare("SELECT 1 FROM threads WHERE id = ?").get(thread.id) === undefined;
+  const options = { writeThreadStatusSource: true } as const;
+  runThreadUpsert(prepareThreadUpsertStatement(sqlite, options), thread, sortOrder, options);
   if (isNewRow) noteMainCreatedThread(thread.id);
   notifyProjectThreadDataChanged();
 }
@@ -176,11 +112,9 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
  * when no renderer window is up to own the metadata write.
  */
 export function dbSetThreadGroup(threadId: string, groupId: string, groupName: string): void {
-  const db = getDb();
-  db.update(schema.threads)
-    .set({ groupId, groupName })
-    .where(eq(schema.threads.id, threadId))
-    .run();
+  getSqlite()
+    .prepare("UPDATE threads SET group_id = ?, group_name = ? WHERE id = ?")
+    .run(groupId, groupName, threadId);
   notifyProjectThreadDataChanged();
 }
 
@@ -191,32 +125,32 @@ export function dbSetThreadGroup(threadId: string, groupId: string, groupName: s
  * headless server calls it at startup since it has no renderer to self-heal.
  */
 export function dbMarkLiveThreadsInactive(): void {
-  const db = getDb();
-  db.update(schema.threads)
-    .set({ status: "inactive", attention: "none", activeTurnStartedAt: null })
-    .where(notInArray(schema.threads.status, ["inactive", "error"]))
+  getSqlite()
+    .prepare(
+      `UPDATE threads
+       SET status = 'inactive', attention = 'none', active_turn_started_at = NULL
+       WHERE status NOT IN ('inactive', 'error')`,
+    )
     .run();
   notifyProjectThreadDataChanged();
 }
 
 export function dbDeleteThread(threadId: string): void {
-  const db = getDb();
-  db.delete(schema.threads).where(eq(schema.threads.id, threadId)).run();
+  getSqlite().prepare("DELETE FROM threads WHERE id = ?").run(threadId);
   dbDiscardThreadRuntimeWrites(threadId);
   forgetMainCreatedThread(threadId);
   notifyProjectThreadDataChanged();
 }
 
 export function dbDeleteProject(projectId: string): void {
-  const db = getDb();
-  const threadIds = db
-    .select({ id: schema.threads.id })
-    .from(schema.threads)
-    .where(eq(schema.threads.projectId, projectId))
-    .all()
-    .map((row) => row.id);
-  db.delete(schema.projects).where(eq(schema.projects.id, projectId)).run();
-  db.delete(schema.projectNotes).where(eq(schema.projectNotes.projectId, projectId)).run();
+  const sqlite = getSqlite();
+  const threadIds = (
+    sqlite.prepare("SELECT id FROM threads WHERE project_id = ?").all(projectId) as {
+      id: string;
+    }[]
+  ).map((row) => row.id);
+  sqlite.prepare("DELETE FROM projects WHERE id = ?").run(projectId);
+  sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?").run(projectId);
   for (const threadId of threadIds) dbDiscardThreadRuntimeWrites(threadId);
   notifyProjectThreadDataChanged();
 }

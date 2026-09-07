@@ -85,17 +85,73 @@ jobs:
       - name: Format check
         run: pnpm run fmt:check
 
+  rust_helper:
+    name: Rust helper (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: native/computer-use-helper
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: native/computer-use-helper
+
+      - name: Install Linux integration-test tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes dbus-x11 xvfb
+
+      - name: Install cargo-deny
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - name: Test (Linux X11 and D-Bus)
+        if: runner.os == 'Linux'
+        run: dbus-run-session -- xvfb-run --auto-servernum cargo test --locked
+
+      - name: Test
+        if: runner.os != 'Linux'
+        run: cargo test --locked
+
+      - name: Check documentation
+        run: cargo doc --no-deps --all-features --locked
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+      - name: Check dependencies
+        if: runner.os == 'Linux'
+        run: cargo deny check
+
   test_shard:
-    name: Test shard (${{ matrix.shard }}/4)
+    name: Test shard (${{ matrix.shard }}/8)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     # Unit tests run via vitest in node/jsdom and never launch the Electron
     # runtime, so skip the flaky Chromium binary download and the root
-    # postinstall, which rebuilds better-sqlite3 for Electron. The database
-    # tests need Node-ABI better-sqlite3 and node-pty bindings rebuilt below.
+    # postinstall, which validates native dependencies under Electron. SQLite
+    # ships N-API prebuilds; only node-pty needs a Linux build below.
     # ELECTRON_OVERRIDE_DIST_PATH lets `require("electron")` resolve to a path
     # string without the binary present, so suites that import the module (but
     # never spawn it) load instead of throwing from electron/index.js.
@@ -125,7 +181,7 @@ jobs:
         # of failing cleanly, so retry the rebuild like other network steps.
         run: |
           for attempt in 1 2 3; do
-            if pnpm rebuild better-sqlite3 node-pty; then
+            if pnpm rebuild node-pty; then
               exit 0
             fi
             if [ "$attempt" -eq 3 ]; then
@@ -138,7 +194,7 @@ jobs:
         shell: bash
 
       - name: Test shard
-        run: pnpm run test --shard=${{ matrix.shard }}/4
+        run: pnpm run test --shard=${{ matrix.shard }}/8
 
   test:
     name: Test

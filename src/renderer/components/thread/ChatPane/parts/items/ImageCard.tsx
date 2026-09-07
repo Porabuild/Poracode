@@ -2,6 +2,7 @@ import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Check, Copy, Download, Maximize2 } from "lucide-react";
 import { memo, useState, type ReactNode } from "react";
+import { fetchImageBytes, toClipboardPngBytes } from "@/renderer/utils/imageActions";
 import { readBridge } from "@/renderer/bridge";
 import { openImageLightbox } from "@/renderer/components/composer/ImageLightbox";
 import {
@@ -40,12 +41,15 @@ export const ImageCard = memo(function ImageCard({
   const openPreview = () => {
     if (threadId) {
       const gallery = getThreadGalleryImages(threadId);
-      if (gallery.length > 1 && gallery.some((img) => img.src === source.src)) {
+      if (gallery.some((img) => img.src === source.src)) {
         openThreadGallery(gallery, source.src);
         return;
       }
     }
-    openImageLightbox([{ src: source.src, alt: imageAlt }], 0);
+    openImageLightbox(
+      [{ src: source.src, alt: imageAlt, mime: source.mime, fileName: source.fileName }],
+      0,
+    );
   };
   // A `data:` source is already in hand, so it paints on the first frame; fading
   // it would only add perceived latency. Anything fetched over the network gets
@@ -173,41 +177,4 @@ function IconButton({
       {children}
     </button>
   );
-}
-
-async function fetchImageBytes(src: string): Promise<Uint8Array<ArrayBuffer>> {
-  if (/^(?:poracode|lightcode)-local:\/\//.test(src)) {
-    return new Uint8Array(await readBridge().readLocalImageFile({ url: src }));
-  }
-  const response = await fetch(src);
-  if (!response.ok) throw new Error(`Failed to load image (${response.status})`);
-  return new Uint8Array(await response.arrayBuffer());
-}
-
-/**
- * Bytes to hand the OS clipboard. The native clipboard (Electron `nativeImage`)
- * only decodes PNG/JPEG, so those pass straight through; other raster formats
- * are decoded and re-encoded to PNG when possible.
- */
-async function toClipboardPngBytes(source: ImageViewSource) {
-  if (source.mime === "image/png" || source.mime === "image/jpeg") {
-    return fetchImageBytes(source.src);
-  }
-  try {
-    const blob = await (await fetch(source.src)).blob();
-    const bitmap = await createImageBitmap(blob);
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx || canvas.width === 0 || canvas.height === 0) return fetchImageBytes(source.src);
-    ctx.drawImage(bitmap, 0, 0);
-    const pngBlob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/png"),
-    );
-    if (!pngBlob) return fetchImageBytes(source.src);
-    return new Uint8Array(await pngBlob.arrayBuffer());
-  } catch {
-    return fetchImageBytes(source.src);
-  }
 }

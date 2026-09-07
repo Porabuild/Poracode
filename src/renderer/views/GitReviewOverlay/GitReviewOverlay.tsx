@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ChevronDown, Columns2, GitBranch, RefreshCw, Rows2 } from "lucide-react";
 import { Button, Dropdown, Label, toast, Tooltip } from "@heroui/react";
 import type { Selection } from "@heroui/react";
@@ -50,45 +50,53 @@ export function GitReviewOverlay(props: {
     statusKey ? s.worktreeStatuses[statusKey] : s.statuses[project.id],
   ) as GitStatusResult | undefined;
 
-  async function fetchStatus() {
-    setRefreshing(true);
-    try {
-      const status = await readBridge().getGitStatus({
-        projectLocation: effectiveLocation,
-      });
-      if (statusKey) {
-        useGitStore.getState().setWorktreeStatus(statusKey, status);
-      } else {
-        useGitStore.getState().setStatus(project.id, status);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
-  // Eagerly fetch status on mount when it's not yet in the store
-  // (e.g. worktree was just created and the poll cycle hasn't run yet)
+  // One-shot mount fetch for the worktree-just-created case (the poll cycle
+  // hasn't run yet). The guard reads the store status, and the did-fetch ref
+  // keeps it one-shot even if the status object identity churns.
+  const didInitialFetchRef = useRef(false);
   useEffect(() => {
+    if (didInitialFetchRef.current) return;
+    // Eagerly fetch status on mount when it's not yet in the store
+    // (e.g. worktree was just created and the poll cycle hasn't run yet)
     if (gitStatus && gitStatus.detail !== "summary") return;
-    void fetchStatus();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- one-shot on mount
+    didInitialFetchRef.current = true;
+    let cancelled = false;
+    void readBridge()
+      .getGitStatus({ projectLocation: effectiveLocation })
+      .then((status) => {
+        if (cancelled) return;
+        if (statusKey) {
+          useGitStore.getState().setWorktreeStatus(statusKey, status);
+        } else {
+          useGitStore.getState().setStatus(project.id, status);
+        }
+      })
+      .catch(() => {
+        // ignore
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveLocation, gitStatus, project.id, statusKey]);
 
-  // Auto-switch when the current view becomes empty but the other has files
-  useEffect(() => {
-    if (!gitStatus) return;
+  // Auto-switch when the current view becomes empty but the other has files.
+  // Applied during render so the filter never paints a frame for an empty
+  // view before switching.
+  if (gitStatus) {
     if (
       diffFilter === "changes" &&
       gitStatus.unstaged.length === 0 &&
       gitStatus.staged.length > 0
     ) {
       setDiffFilter("staged");
-    }
-    if (diffFilter === "staged" && gitStatus.staged.length === 0 && gitStatus.unstaged.length > 0) {
+    } else if (
+      diffFilter === "staged" &&
+      gitStatus.staged.length === 0 &&
+      gitStatus.unstaged.length > 0
+    ) {
       setDiffFilter("changes");
     }
-  }, [gitStatus, diffFilter]);
+  }
 
   function handleSelectFile(path: string | null, staged: boolean) {
     setSelectedFile(path);

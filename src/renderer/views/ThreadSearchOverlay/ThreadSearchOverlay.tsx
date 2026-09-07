@@ -63,9 +63,14 @@ export function ThreadSearchOverlay(props: { onClose: () => void }) {
       .slice(0, RESULT_LIMIT);
   }, [threads, query]);
 
-  useEffect(() => {
+  // Reset the keyboard selection whenever the query changes — during render
+  // instead of an effect, so the highlight never lags one frame behind the
+  // filtered list.
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
     setSelectedIndex(0);
-  }, [query]);
+  }
 
   function activateAt(index: number) {
     const thread = results[index];

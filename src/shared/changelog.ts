@@ -36,6 +36,11 @@ export const changelogReleaseSchema = z.object({
   date: z.string(),
   /** Short human headline (no version number). */
   title: z.string(),
+  /** Two-word release name; optional for cached documents from older releases. */
+  tagline: z
+    .string()
+    .regex(/^\S+ \S+$/u)
+    .optional(),
   /** One or two sentences describing the release overall, shown under the title. */
   summary: z.string(),
   /** Grouped, detailed changes. */

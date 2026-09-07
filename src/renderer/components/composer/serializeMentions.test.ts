@@ -185,6 +185,7 @@ describe("serializeComposerContent", () => {
     });
     container.appendChild(chip);
 
+    expect(chip).toHaveAttribute("aria-label", "GitHub");
     expect(serializeToSegments(container)).toEqual([
       {
         kind: "skill",

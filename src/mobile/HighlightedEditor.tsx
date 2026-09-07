@@ -33,15 +33,21 @@ export function HighlightedEditor(props: {
   const theme: ShikiTheme = appearance === "dark" ? "github-dark" : "github-light";
   const language = detectLanguageFromPath(props.path);
   const tooLarge = props.value.length > MAX_HIGHLIGHT_CHARS;
+  const nullMode = language === "plain" || tooLarge;
   const [html, setHtml] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Dropping into plain-text mode clears a stale highlight synchronously with
+  // the switch (adjusted during render, not in an effect). Length/theme/
+  // language edits within highlightable mode keep the previous backdrop until
+  // the debounced re-highlight below lands, so typing never flashes plain.
+  const [prevNullMode, setPrevNullMode] = useState(nullMode);
+  if (prevNullMode !== nullMode) {
+    setPrevNullMode(nullMode);
+    if (nullMode) setHtml(null);
+  }
 
   useEffect(() => {
-    if (language === "plain" || tooLarge) {
-      setHtml(null);
-      return;
-    }
+    if (nullMode) return;
     let cancelled = false;
     // Debounce so a long file isn't re-tokenized on every keystroke.
     const handle = window.setTimeout(() => {
@@ -71,7 +77,32 @@ export function HighlightedEditor(props: {
       cancelled = true;
       window.clearTimeout(handle);
     };
-  }, [props.value, language, tooLarge, theme]);
+  }, [props.value, language, nullMode, theme]);
+
+  return (
+    <CodeSurface
+      key={props.path}
+      value={props.value}
+      initialLineNumber={props.initialLineNumber}
+      readOnly={props.readOnly}
+      html={html}
+      onChange={props.onChange}
+    />
+  );
+}
+
+// Scroll container + editable layer, remounted per file (keyed by path above)
+// so the open-line scroll re-runs on file switches without depending on the
+// path string inside the effect.
+function CodeSurface(props: {
+  readonly value: string;
+  readonly initialLineNumber?: number | undefined;
+  readonly readOnly?: boolean | undefined;
+  readonly html: string | null;
+  readonly onChange: (next: string) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useLayoutEffect(() => {
     const lineNumber = props.initialLineNumber;
@@ -91,17 +122,17 @@ export function HighlightedEditor(props: {
       textarea.setSelectionRange(offset, offset);
     });
     return () => window.cancelAnimationFrame(handle);
-  }, [props.path, props.initialLineNumber, props.value]);
+  }, [props.initialLineNumber, props.value]);
 
   return (
     <div ref={scrollRef} className="m-files-code">
       <div className="m-files-code__inner">
-        {html !== null ? (
+        {props.html !== null ? (
           <div
             className="m-files-code__hl lc-shiki"
             aria-hidden="true"
             // Shiki HTML-escapes the source before wrapping it in token spans.
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={{ __html: props.html }}
           />
         ) : (
           <div className="m-files-code__hl" aria-hidden="true">

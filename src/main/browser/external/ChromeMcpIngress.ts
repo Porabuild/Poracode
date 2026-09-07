@@ -5,9 +5,9 @@ import {
 } from "../../mcp/StreamableHttpMcpIngress";
 import {
   CHROME_MCP_INSTRUCTIONS,
-  CHROME_TOOL_NAMES,
   CHROME_TOOLS,
   dispatchChromeTool,
+  normalizeChromeToolName,
   formatChromeToolResult,
   type ChromeToolContext,
 } from "./chromeTools";
@@ -32,7 +32,8 @@ export class ChromeMcpIngress {
     serverInfo: { name: "chrome", version: "1.0.0" },
     instructions: CHROME_MCP_INSTRUCTIONS,
     tools: CHROME_TOOLS,
-    isKnownToolName: (name) => CHROME_TOOL_NAMES.has(name),
+    normalizeToolName: normalizeChromeToolName,
+    isKnownToolName: (name) => CHROME_TOOLS.some((tool) => tool.name === name),
     buildContext: (identity) => this.buildContext(identity),
     dispatchTool: dispatchChromeTool,
     formatToolResult: (_name, result) => formatChromeToolResult(result),
@@ -67,6 +68,7 @@ export class ChromeMcpIngress {
     const sessionId = identity.threadId ?? "unscoped";
     return {
       connection: this.getConnection?.() ?? null,
+      disabledTools: (identity.disabledTools ?? []).map(normalizeChromeToolName),
       allowEval: this.allowEval,
       allowDataAccess: this.allowDataAccess,
       setSessionActive: (active) => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode, type TransitionEvent } from "react";
+import { useEffect, useState, type ReactNode, type TransitionEvent } from "react";
 import { pushEscapeHandler } from "./overlayEscapeStack";
 
 export type OverlayShellMode = "fixed" | "absolute";
@@ -29,39 +29,41 @@ export function OverlayShell(props: {
 }) {
   const { open, onExited, children, mode = "fixed", instantEnter = false } = props;
   const [mounted, setMounted] = useState(open);
-  const [visible, setVisible] = useState(false);
-  const escapeClosingRef = useRef(false);
+  const [visible, setVisible] = useState(open && instantEnter);
+  // Set when Escape starts the fade-out: the surface must not fade back in if
+  // `open` toggles while the exit transition is still running.
+  const [escapeClosing, setEscapeClosing] = useState(false);
   // Overlays that clear their own context on close (e.g. the GitHub Actions
   // view) drop their children in the same render that flips `open` to false,
   // which would blank the surface before the fade-out ran. Keep the last open
   // children and render those for the duration of the exit transition.
-  const exitChildrenRef = useRef(children);
+  const [exitChildren, setExitChildren] = useState(children);
+  if (open && exitChildren !== children) setExitChildren(children);
 
-  useEffect(() => {
-    if (open) exitChildrenRef.current = children;
-  }, [children, open]);
-
-  // Mount immediately when opened, fade in on next frame
-  useEffect(() => {
-    if (open) {
-      if (escapeClosingRef.current) return undefined;
+  // Mount immediately when opened (fade-in is scheduled by the frame effect
+  // below); `instantEnter` batches the visible flip into the same render so
+  // the surface never paints at opacity-0. Closing flips visible off so the
+  // CSS fade-out runs before the transition-end handler unmounts.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) {
+      // Parent acknowledged close — reset the escape flag.
+      setEscapeClosing(false);
+      // Start fade-out
+      setVisible(false);
+    } else if (!escapeClosing) {
       setMounted(true);
-      // Batched with setMounted into a single render, so the surface never
-      // paints at opacity-0 and no enter transition runs.
-      if (instantEnter) {
-        setVisible(true);
-        return undefined;
-      }
-      // Delay to allow the DOM to render at opacity-0 before transitioning
-      const raf = requestAnimationFrame(() => setVisible(true));
-      return () => cancelAnimationFrame(raf);
+      if (instantEnter) setVisible(true);
     }
-    // Parent acknowledged close — reset escape flag
-    escapeClosingRef.current = false;
-    // Start fade-out
-    setVisible(false);
-    return undefined;
-  }, [open, instantEnter]);
+  }
+
+  // Delay to allow the DOM to render at opacity-0 before transitioning
+  useEffect(() => {
+    if (!open || instantEnter || escapeClosing) return;
+    const raf = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(raf);
+  }, [open, instantEnter, escapeClosing]);
 
   // Close on Escape via the overlay escape stack — only the topmost overlay
   // dismisses, so a transient overlay floating above this one (e.g. the
@@ -69,7 +71,7 @@ export function OverlayShell(props: {
   useEffect(() => {
     if (!open || !onExited) return;
     return pushEscapeHandler(() => {
-      escapeClosingRef.current = true;
+      setEscapeClosing(true);
       setVisible(false);
       (document.activeElement as HTMLElement | null)?.blur();
     });
@@ -104,7 +106,7 @@ export function OverlayShell(props: {
       }`}
       onTransitionEnd={handleTransitionEnd}
     >
-      {open ? children : exitChildrenRef.current}
+      {open ? children : exitChildren}
     </div>
   );
 }

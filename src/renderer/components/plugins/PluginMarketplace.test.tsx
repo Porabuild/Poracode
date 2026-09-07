@@ -90,7 +90,7 @@ describe("PluginMarketplace", () => {
     expect(screen.getByText("No plugins match your search.")).toBeInTheDocument();
   });
 
-  it("does not install a plugin that is unavailable on this host", () => {
+  it("offers Computer Use on Linux", () => {
     const onOpen = vi.fn<(pluginId: string) => void>();
 
     function LinuxMarketplace() {
@@ -104,10 +104,9 @@ describe("PluginMarketplace", () => {
       .getByText("Computer Use")
       .closest<HTMLElement>("[class*='min-h-40']")!;
     expect(
-      within(computerUseCard).getByRole("button", {
-        name: "Computer Use Unavailable on this device",
-      }),
-    ).toBeDisabled();
-    expect(useSharedSettings.getState().installedPlugins["computer-use"]).toBeUndefined();
+      within(computerUseCard).getByRole("button", { name: "Computer Use Manage" }),
+    ).toBeEnabled();
+    fireEvent.click(within(computerUseCard).getByRole("button", { name: "Computer Use" }));
+    expect(onOpen).toHaveBeenCalledWith("computer-use");
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -31,25 +31,42 @@ export function HostFolderPicker(props: {
 }) {
   const { t } = useLingui();
   const [listing, setListing] = useState<Listing | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // The browsed path is owned state: `loading` derives from the request
+  // identity (current vs. settled path) instead of a flag set synchronously in
+  // an effect. Navigations only set the path — from events and from the
+  // initial-path adjustment below — while the effect fulfills the request.
+  const initialPath = props.initialPath ?? "";
+  const [currentPath, setCurrentPath] = useState(initialPath);
+  const [settledPath, setSettledPath] = useState<string | null>(null);
+  const loading = settledPath !== currentPath;
 
-  const browse = useCallback(async (path: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await readBridge().browseHostDirectory({ path });
-      setListing(result);
-    } catch (err) {
-      setError(friendlyError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [prevInitialPath, setPrevInitialPath] = useState(initialPath);
+  if (prevInitialPath !== initialPath) {
+    setPrevInitialPath(initialPath);
+    setCurrentPath(initialPath);
+  }
 
   useEffect(() => {
-    void browse(props.initialPath ?? "");
-  }, [browse, props.initialPath]);
+    let cancelled = false;
+    void readBridge()
+      .browseHostDirectory({ path: currentPath })
+      .then((result) => {
+        if (cancelled) return;
+        setListing(result);
+        setError(null);
+        setSettledPath(currentPath);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(friendlyError(err));
+        setSettledPath(currentPath);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPath]);
+  const browse = (path: string) => setCurrentPath(path);
 
   // Close on Escape, matching the composer drawers.
   useEffect(() => {
@@ -90,7 +107,7 @@ export function HostFolderPicker(props: {
             className="m-picker__nav"
             aria-label={t`Up one level`}
             disabled={!listing?.parentPath}
-            onClick={() => listing?.parentPath && void browse(listing.parentPath)}
+            onClick={() => listing?.parentPath && browse(listing.parentPath)}
           >
             <CornerLeftUp className="size-4" />
           </button>
@@ -98,7 +115,7 @@ export function HostFolderPicker(props: {
             type="button"
             className="m-picker__nav"
             aria-label={t`Home folder`}
-            onClick={() => listing && void browse(listing.homePath)}
+            onClick={() => listing && browse(listing.homePath)}
           >
             <House className="size-4" />
           </button>
@@ -126,7 +143,7 @@ export function HostFolderPicker(props: {
                   key={entry.path}
                   type="button"
                   className="m-picker__row"
-                  onClick={() => void browse(entry.path)}
+                  onClick={() => browse(entry.path)}
                 >
                   <Folder className="size-4 shrink-0 text-accent" />
                   <span className="m-picker__row-name">{entry.name}</span>

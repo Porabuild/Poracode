@@ -105,7 +105,8 @@ export function useProjectIconNode(
   const wantsAuto = spec?.kind === "auto";
   const autoPath = useAutoIconPath(wantsAuto ? project : undefined);
   // An image icon whose file was deleted (or fails to load) falls back to the
-  // caller's default glyph instead of rendering a broken-image box.
+  // caller's default glyph instead of rendering a broken-image box. Reset
+  // during render when the resolved URL changes.
   const [imageFailed, setImageFailed] = useState(false);
   const relativePath =
     !spec || spec.kind === "lucide"
@@ -117,9 +118,11 @@ export function useProjectIconNode(
     spec && spec.kind !== "lucide" && projectSupportsFileIcons(project) && relativePath
       ? projectIconImageUrl(project, relativePath)
       : undefined;
-  useEffect(() => {
+  const [prevImageUrl, setPrevImageUrl] = useState(imageUrl);
+  if (prevImageUrl !== imageUrl) {
+    setPrevImageUrl(imageUrl);
     setImageFailed(false);
-  }, [imageUrl]);
+  }
   if (!spec) return null;
   if (spec.kind === "lucide") {
     const entry = findProjectIcon(spec.name);

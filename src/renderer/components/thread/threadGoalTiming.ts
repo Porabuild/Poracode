@@ -17,12 +17,15 @@ export function resolveGoalElapsedSeconds(
   localAnchorSeconds: number,
 ): number {
   const baseSeconds = state.timeUsedSeconds ?? 0;
-  if (state.status !== "active") return Math.max(0, Math.round(baseSeconds));
+  // Floor, not round: the bubble re-renders on every store tick while chat
+  // streams, and rounding would flip the displayed second up to half a second
+  // early — the timer visibly ticks faster than real time.
+  if (state.status !== "active") return Math.max(0, Math.floor(baseSeconds));
 
   const serverUpdatedAtSeconds = normalizeTimestampSeconds(state.updatedAt);
   const anchorSeconds = serverUpdatedAtSeconds ?? localAnchorSeconds;
   const localDeltaSeconds = Math.max(0, nowSeconds - anchorSeconds);
-  return Math.max(0, Math.round(baseSeconds + localDeltaSeconds));
+  return Math.max(0, Math.floor(baseSeconds + localDeltaSeconds));
 }
 
 /**
@@ -54,17 +57,19 @@ export function resolveLocalGoalAnchorSeconds(
  * dock and its compact composer bubble so both show the same number.
  */
 export function useGoalElapsedSeconds(state: ThreadGoalDockState): number {
+  const { status, timeUsedSeconds, updatedAt, sourceItemId } = state;
   const [localAnchorSeconds, setLocalAnchorSeconds] = useState(() =>
     resolveLocalGoalAnchorSeconds(state, Date.now() / 1000),
   );
   const [nowSeconds, setNowSeconds] = useState(() => Date.now() / 1000);
-  const isActive = state.status === "active";
+  const isActive = status === "active";
 
   useEffect(() => {
     const now = Date.now() / 1000;
     setLocalAnchorSeconds(resolveLocalGoalAnchorSeconds(state, now));
     setNowSeconds(now);
-  }, [state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by goal-timing primitives, not `state` identity (rebuilt on every streamed message).
+  }, [status, timeUsedSeconds, updatedAt, sourceItemId]);
 
   useEffect(() => {
     if (!isActive) return;

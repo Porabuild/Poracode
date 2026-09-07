@@ -1,55 +1,18 @@
+import { performPageActions, readPerformSteps } from "./perform";
 import {
   addInitScript,
   addInitStyle,
-  back,
-  clearCookies,
-  evalJs,
   evaluateOneShotStyle,
-  findByA11y,
-  forward,
-  getCookies,
-  getElementInfo,
-  getElementState,
-  getFrameTree,
-  pageSnapshot,
-  querySelectorAllSnapshot,
   removeInitScript,
-  setCookie,
-  storageClear,
-  storageGet,
-  storageGetAll,
-  storageRemove,
-  storageSet,
-  waitForJs,
-  waitForSelector,
-  waitForText,
-  waitForUrl,
 } from "../../cdp/tools";
-import {
-  clickSelector,
-  doubleClickSelector,
-  fillSelector,
-  focusSelector,
-  hoverSelector,
-  pressKey,
-  scrollPage,
-  selectOption,
-  setCheckedSelector,
-  typeIntoSelector,
-} from "../../pageDriver";
-import { glideCursorToSelector, setCursorOverlayVisible } from "../../cursorOverlay";
-import {
-  agentTabOpts,
-  clampInteger,
-  requireTab,
-  resolveSelectorArg,
-  resolveTabId,
-} from "./helpers";
+
+import { setCursorOverlayVisible } from "../../cursorOverlay";
+import { agentTabOpts, clampInteger, requireTab, resolveTabId } from "./helpers";
 import { runScreenshotTool } from "./screenshot";
 import { compactToolSpec, normalizeToolName, TOOLS } from "./specs";
 import type { ToolContext } from "./types";
 
-const MAX_EVAL_RESULT = 64 * 1024;
+import { dispatchPageTool, PAGE_TOOL_NAMES } from "./page";
 
 /** Raw dispatch returning JS objects. The MCP wrapper formats these into the
  *  proper content shape. */
@@ -58,7 +21,23 @@ export async function dispatchTool(
   payload: Record<string, unknown>,
   ctx: ToolContext,
 ): Promise<unknown> {
-  switch (normalizeToolName(name)) {
+  name = normalizeToolName(name);
+  if (name === "perform")
+    readPerformSteps(payload, (ctx.disabledTools ?? []).map(normalizeToolName));
+  if (name === "perform" || PAGE_TOOL_NAMES.has(name)) {
+    const { tab } = await requireTab(ctx, payload);
+    const page = {
+      cdp: tab.cdp,
+      webContents: tab.webContents,
+      allowEval: ctx.allowEval,
+      allowDataAccess: ctx.allowDataAccess,
+      disabledTools: (ctx.disabledTools ?? []).map(normalizeToolName),
+    };
+    return name === "perform"
+      ? performPageActions(payload, page)
+      : dispatchPageTool(name, payload, page);
+  }
+  switch (name) {
     case "api":
       return {
         server: "browser",
@@ -152,18 +131,6 @@ export async function dispatchTool(
       await ctx.manager.navigate(tabId, url);
       return { ok: true, tabId };
     }
-    case "back": {
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      await back(tab.cdp);
-      return { ok: true };
-    }
-    case "forward": {
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      await forward(tab.cdp);
-      return { ok: true };
-    }
     case "reload": {
       const tabId = await resolveTabId(ctx, payload);
       await ctx.manager.reload(tabId);
@@ -179,271 +146,6 @@ export async function dispatchTool(
     }
     case "screenshot": {
       return await runScreenshotTool(ctx, payload);
-    }
-    case "query": {
-      const { tab } = await requireTab(ctx, payload);
-      const selector = String(payload.selector ?? "");
-      if (!selector) throw new Error("selector required");
-      await tab.cdp.attach();
-      const limit = clampInteger(payload.limit, 20, 1, 100);
-      const offset = clampInteger(payload.offset, 0, 0, Number.MAX_SAFE_INTEGER);
-      return await querySelectorAllSnapshot(tab.cdp, selector, limit, offset);
-    }
-    case "wait_for": {
-      const { tab } = await requireTab(ctx, payload);
-      const selector = String(payload.selector ?? "");
-      const timeoutMs = typeof payload.timeoutMs === "number" ? payload.timeoutMs : 5000;
-      if (!selector) throw new Error("selector required");
-      await tab.cdp.attach();
-      const found = await waitForSelector(tab.cdp, selector, timeoutMs);
-      return { found };
-    }
-    case "click": {
-      const { tab } = await requireTab(ctx, payload);
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(tab.cdp, selector);
-      await clickSelector(tab.webContents, selector);
-      return { ok: true };
-    }
-    case "dblclick": {
-      const { tab } = await requireTab(ctx, payload);
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(tab.cdp, selector);
-      await doubleClickSelector(tab.webContents, selector);
-      return { ok: true };
-    }
-    case "focus": {
-      const { tab } = await requireTab(ctx, payload);
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(tab.cdp, selector);
-      await focusSelector(tab.webContents, selector);
-      return { ok: true };
-    }
-    case "type": {
-      const { tab } = await requireTab(ctx, payload);
-      const text = String(payload.text ?? "");
-      const submit = payload.submit === true;
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(tab.cdp, selector);
-      await typeIntoSelector(tab.webContents, selector, text, submit);
-      return { ok: true };
-    }
-    case "fill": {
-      const { tab } = await requireTab(ctx, payload);
-      const text = String(payload.text ?? "");
-      const submit = payload.submit === true;
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(tab.cdp, selector);
-      await fillSelector(tab.webContents, selector, text, submit);
-      return { ok: true };
-    }
-    case "check": {
-      const { tab } = await requireTab(ctx, payload);
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(tab.cdp, selector);
-      await setCheckedSelector(tab.webContents, selector, true);
-      return { ok: true };
-    }
-    case "uncheck": {
-      const { tab } = await requireTab(ctx, payload);
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(tab.cdp, selector);
-      await setCheckedSelector(tab.webContents, selector, false);
-      return { ok: true };
-    }
-    case "select": {
-      const { tab } = await requireTab(ctx, payload);
-      const value = String(payload.value ?? "");
-      if (!value) throw new Error("value required");
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(tab.cdp, selector);
-      await selectOption(tab.webContents, selector, value);
-      return { ok: true };
-    }
-    case "eval": {
-      if (!ctx.allowEval) {
-        return { error: "eval is disabled in Poracode settings" };
-      }
-      const { tab } = await requireTab(ctx, payload);
-      const expression = String(payload.js ?? "");
-      if (!expression) throw new Error("js required");
-      await tab.cdp.attach();
-      try {
-        const result = await evalJs(tab.cdp, expression);
-        let serialized: unknown = result;
-        if (typeof result === "string" && result.length > MAX_EVAL_RESULT) {
-          serialized = `${result.slice(0, MAX_EVAL_RESULT)}...[truncated]`;
-        }
-        return { result: serialized };
-      } catch (err) {
-        return { error: (err as Error).message ?? "eval failed" };
-      }
-    }
-    case "snapshot": {
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      const maxNodes = clampInteger(payload.maxNodes, 120, 1, 500);
-      const offset = clampInteger(payload.offset, 0, 0, Number.MAX_SAFE_INTEGER);
-      const mode = payload.mode === "compact" || payload.mode === "summary" ? payload.mode : "full";
-      const maxTextLength =
-        typeof payload.maxTextLength === "number"
-          ? clampInteger(payload.maxTextLength, mode === "full" ? 200 : 80, 20, 1000)
-          : undefined;
-      const includeHidden = payload.includeHidden === true;
-      return await pageSnapshot(tab.cdp, {
-        maxNodes,
-        offset,
-        mode,
-        ...(maxTextLength != null ? { maxTextLength } : {}),
-        includeHidden,
-        ...(payload.interactiveOnly === false ? { interactiveOnly: false } : {}),
-        ...(payload.includeUrls === true ? { includeUrls: true } : {}),
-        ...(typeof payload.selector === "string" ? { selector: payload.selector } : {}),
-      });
-    }
-    case "get": {
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      const fieldsRaw = Array.isArray(payload.fields) ? (payload.fields as string[]) : ["text"];
-      const fields = fieldsRaw.filter(
-        (f): f is "text" | "html" | "value" | "attr" | "count" | "box" | "styles" =>
-          ["text", "html", "value", "attr", "count", "box", "styles"].includes(f),
-      );
-      const attrName = typeof payload.attr === "string" ? payload.attr : undefined;
-      const styles = Array.isArray(payload.styles) ? (payload.styles as string[]) : undefined;
-      return await getElementInfo(tab.cdp, selector, fields, attrName, styles);
-    }
-    case "is": {
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      return await getElementState(tab.cdp, selector);
-    }
-    case "find": {
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      return await findByA11y(tab.cdp, {
-        ...(typeof payload.role === "string" ? { role: payload.role } : {}),
-        ...(typeof payload.name === "string" ? { name: payload.name } : {}),
-        ...(typeof payload.label === "string" ? { label: payload.label } : {}),
-        ...(typeof payload.placeholder === "string" ? { placeholder: payload.placeholder } : {}),
-        ...(typeof payload.text === "string" ? { text: payload.text } : {}),
-        ...(typeof payload.testid === "string" ? { testid: payload.testid } : {}),
-        ...(typeof payload.nth === "number" ? { nth: payload.nth } : {}),
-        ...(typeof payload.limit === "number" ? { limit: payload.limit } : {}),
-        ...(typeof payload.visibleOnly === "boolean" ? { visibleOnly: payload.visibleOnly } : {}),
-        ...(typeof payload.interactiveOnly === "boolean"
-          ? { interactiveOnly: payload.interactiveOnly }
-          : {}),
-        ...(typeof payload.within === "string" ? { within: payload.within } : {}),
-      });
-    }
-    case "hover": {
-      const { tab } = await requireTab(ctx, payload);
-      const selector = await resolveSelectorArg(tab, payload);
-      if (!selector) throw new Error("selector or ref required");
-      await glideCursorToSelector(tab.cdp, selector);
-      await hoverSelector(tab.webContents, selector);
-      return { ok: true };
-    }
-    case "press": {
-      const { tab } = await requireTab(ctx, payload);
-      const key = String(payload.key ?? "");
-      if (!key) throw new Error("key required");
-      const hasTarget = typeof payload.selector === "string" || typeof payload.ref === "string";
-      const selector = hasTarget ? await resolveSelectorArg(tab, payload) : undefined;
-      if (hasTarget && !selector) throw new Error("selector or ref required");
-      const shift = payload.shift === true;
-      // Glide to a concrete target (like the other element-acting cases); an
-      // untargeted page-level press has nowhere to move the cursor.
-      if (selector) await glideCursorToSelector(tab.cdp, selector);
-      await pressKey(tab.webContents, key, selector ?? undefined, { shift });
-      return { ok: true };
-    }
-    case "wait": {
-      const timeoutMs = typeof payload.timeoutMs === "number" ? payload.timeoutMs : 5000;
-      if (typeof payload.ms === "number") {
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.max(0, Math.min(60_000, payload.ms as number))),
-        );
-        return { ok: true };
-      }
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      if (typeof payload.selector === "string" && payload.selector.length > 0) {
-        const found = await waitForSelector(tab.cdp, payload.selector, timeoutMs);
-        return { found };
-      }
-      if (typeof payload.text === "string" && payload.text.length > 0) {
-        await waitForText(tab.cdp, payload.text, timeoutMs);
-        return { ok: true };
-      }
-      if (typeof payload.url === "string" && payload.url.length > 0) {
-        const url = await waitForUrl(tab.cdp, payload.url, timeoutMs);
-        return { url };
-      }
-      if (typeof payload.js === "string" && payload.js.length > 0) {
-        if (!ctx.allowEval) {
-          return { error: "wait.js requires eval to be enabled in settings" };
-        }
-        const result = await waitForJs(tab.cdp, payload.js, timeoutMs);
-        return { result };
-      }
-      throw new Error("wait requires selector, text, url, js, or ms");
-    }
-    case "scroll": {
-      const { tab } = await requireTab(ctx, payload);
-      const selector =
-        typeof payload.selector === "string" || typeof payload.ref === "string"
-          ? await resolveSelectorArg(tab, payload)
-          : undefined;
-      await scrollPage(tab.webContents, {
-        ...(selector ? { selector } : {}),
-        ...(typeof payload.x === "number" ? { x: payload.x } : {}),
-        ...(typeof payload.y === "number" ? { y: payload.y } : {}),
-      });
-      return { ok: true };
-    }
-    case "wait_for_url": {
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      const pattern = String(payload.pattern ?? "");
-      const timeoutMs = typeof payload.timeoutMs === "number" ? payload.timeoutMs : 5000;
-      if (!pattern) throw new Error("pattern required");
-      const url = await waitForUrl(tab.cdp, pattern, timeoutMs);
-      return { url };
-    }
-    case "wait_for_text": {
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      const text = String(payload.text ?? "");
-      const timeoutMs = typeof payload.timeoutMs === "number" ? payload.timeoutMs : 5000;
-      if (!text) throw new Error("text required");
-      await waitForText(tab.cdp, text, timeoutMs);
-      return { ok: true };
-    }
-    case "wait_for_js": {
-      if (!ctx.allowEval) {
-        return { error: "wait_for_js requires eval to be enabled in settings" };
-      }
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      const expression = String(payload.js ?? "");
-      const timeoutMs = typeof payload.timeoutMs === "number" ? payload.timeoutMs : 5000;
-      if (!expression) throw new Error("js required");
-      const result = await waitForJs(tab.cdp, expression, timeoutMs);
-      return { result };
     }
     case "console": {
       const { tab } = await requireTab(ctx, payload);
@@ -485,77 +187,6 @@ export async function dispatchTool(
         requests: page,
       };
     }
-    case "cookies": {
-      if (!ctx.allowDataAccess) {
-        return {
-          error:
-            "cookies is disabled. Enable 'Allow agents to read/write cookies and storage' in Poracode settings.",
-        };
-      }
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      const op = String(payload.op ?? "get") as "get" | "set" | "clear";
-      if (op === "get") {
-        const urls = Array.isArray(payload.urls) ? (payload.urls as string[]) : undefined;
-        const cookies = await getCookies(tab.cdp, urls);
-        return { cookies };
-      }
-      if (op === "set") {
-        const cookie = payload.cookie as Parameters<typeof setCookie>[1] | undefined;
-        if (!cookie || typeof cookie.name !== "string" || typeof cookie.value !== "string") {
-          throw new Error("cookie.name and cookie.value required for op:set");
-        }
-        const ok = await setCookie(tab.cdp, cookie);
-        return { ok };
-      }
-      if (op === "clear") {
-        const filter = (payload.filter ?? undefined) as
-          | { name?: string; domain?: string; url?: string }
-          | undefined;
-        return await clearCookies(tab.cdp, filter);
-      }
-      throw new Error(`unknown cookies op: ${op}`);
-    }
-    case "storage": {
-      if (!ctx.allowDataAccess) {
-        return {
-          error:
-            "storage is disabled. Enable 'Allow agents to read/write cookies and storage' in Poracode settings.",
-        };
-      }
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      const kind = (payload.kind === "session" ? "session" : "local") as "local" | "session";
-      const op = String(payload.op ?? "");
-      if (op === "getAll") {
-        const items = await storageGetAll(tab.cdp, kind);
-        return { items };
-      }
-      if (op === "get") {
-        const key = String(payload.key ?? "");
-        if (!key) throw new Error("key required");
-        const value = await storageGet(tab.cdp, kind, key);
-        return { value };
-      }
-      if (op === "set") {
-        const key = String(payload.key ?? "");
-        const value = String(payload.value ?? "");
-        if (!key) throw new Error("key required");
-        await storageSet(tab.cdp, kind, key, value);
-        return { ok: true };
-      }
-      if (op === "remove") {
-        const key = String(payload.key ?? "");
-        if (!key) throw new Error("key required");
-        await storageRemove(tab.cdp, kind, key);
-        return { ok: true };
-      }
-      if (op === "clear") {
-        await storageClear(tab.cdp, kind);
-        return { ok: true };
-      }
-      throw new Error(`unknown storage op: ${op}`);
-    }
     case "dialog": {
       const { tab } = await requireTab(ctx, payload);
       await tab.cdp.attach();
@@ -580,12 +211,6 @@ export async function dispatchTool(
         return entry ? { dialog: entry } : { dialog: null };
       }
       throw new Error(`unknown dialog op: ${op}`);
-    }
-    case "frames": {
-      const { tab } = await requireTab(ctx, payload);
-      await tab.cdp.attach();
-      const frames = await getFrameTree(tab.cdp);
-      return { frames };
     }
     case "addscript": {
       const { tab } = await requireTab(ctx, payload);

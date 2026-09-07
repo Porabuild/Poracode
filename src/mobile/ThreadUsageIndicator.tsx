@@ -41,21 +41,13 @@ export function resolveThreadUsageProviderId(
 }
 
 /**
- * A per-provider usage ring for the current thread's provider, shown in the
- * thread header. Tapping it opens a drawer with the detailed per-window bars,
- * plan, reset countdowns, and a refresh. Mirrors the desktop's usage rail, but
- * scoped to the one provider the thread runs on.
+ * Hydrates the provider-usage store when a thread opens. Mounted with
+ * `key={threadId}` so the mount-only fetch re-runs on every thread switch;
+ * the mobile shell mounts no desktop usage rail, so nothing else fetches usage
+ * here. Best-effort: a missing or failing usage endpoint must never break the
+ * thread view.
  */
-export function ThreadUsageIndicator(props: { readonly thread: Thread }) {
-  const { thread } = props;
-  const { t } = useLingui();
-  const sheet = useSheet<true>();
-  const snapshots = useProviderUsageStore((s) => s.snapshots);
-  const agentInstances = useSharedSettings((s) => s.agentInstances);
-
-  // The mobile shell doesn't mount the desktop usage rail, so nothing else
-  // fetches usage here — hydrate the store when a thread opens. Best-effort: a
-  // missing or failing usage endpoint must never break the thread view.
+function UsageHydration() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -71,7 +63,22 @@ export function ThreadUsageIndicator(props: { readonly thread: Thread }) {
     return () => {
       cancelled = true;
     };
-  }, [thread.id]);
+  }, []);
+  return null;
+}
+
+/**
+ * A per-provider usage ring for the current thread's provider, shown in the
+ * thread header. Tapping it opens a drawer with the detailed per-window bars,
+ * plan, reset countdowns, and a refresh. Mirrors the desktop's usage rail, but
+ * scoped to the one provider the thread runs on.
+ */
+export function ThreadUsageIndicator(props: { readonly thread: Thread }) {
+  const { thread } = props;
+  const { t } = useLingui();
+  const sheet = useSheet<true>();
+  const snapshots = useProviderUsageStore((s) => s.snapshots);
+  const agentInstances = useSharedSettings((s) => s.agentInstances);
 
   const providerId = resolveThreadUsageProviderId(thread, Object.keys(snapshots));
   const snapshot = snapshots[providerId];
@@ -82,6 +89,7 @@ export function ThreadUsageIndicator(props: { readonly thread: Thread }) {
 
   return (
     <>
+      <UsageHydration key={thread.id} />
       <button
         type="button"
         className="m-usage-chip"

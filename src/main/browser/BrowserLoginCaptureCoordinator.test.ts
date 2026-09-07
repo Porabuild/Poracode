@@ -21,7 +21,7 @@ interface ConfirmEvent {
   request: { requestId: string; providerLabel: string };
 }
 
-function setup(opts: { cookies?: Array<{ name: string; value: string }> }) {
+function setup(opts: { cookies?: Array<{ name: string; value: string }>; tabUrl?: string }) {
   const events: BrowserEvent[] = [];
   const cookieJar = opts.cookies ?? [{ name: "auth", value: "abc" }];
   const tab = {
@@ -29,6 +29,7 @@ function setup(opts: { cookies?: Array<{ name: string; value: string }> }) {
     isAttached: () => true,
     loadURL: vi.fn<(url: string) => Promise<void>>(async () => {}),
     webContents: {
+      getURL: () => opts.tabUrl,
       session: {
         cookies: {
           get: async () => cookieJar,
@@ -119,6 +120,83 @@ describe("BrowserLoginCaptureCoordinator.captureLoginCookies", () => {
   it("cancels when no matching auth cookie ever appears", async () => {
     const { coordinator, events } = setup({ cookies: [{ name: "other", value: "x" }] });
     const promise = coordinator.captureLoginCookies(baseOpts);
+    await flush();
+
+    expect(events.some((e) => e.type === "usage-login-confirmation")).toBe(false);
+    coordinator.cancelLoginCapture();
+    await expect(promise).resolves.toEqual({ ok: false, cancelled: true });
+  });
+});
+
+describe("BrowserLoginCaptureCoordinator.captureLoginCookies validateTabUrl gate", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const tenantOpts = {
+    ...baseOpts,
+    authCookiePattern: /^never-matches$/,
+    validateTabUrl: (url: string): boolean => {
+      try {
+        return (
+          new URL(url).origin === "https://dash.example" &&
+          !!new URL(url).searchParams.get("team_id")
+        );
+      } catch {
+        return false;
+      }
+    },
+  };
+
+  it("prompts on the tab URL alone, capturing cookies no name pattern would match", async () => {
+    const { coordinator, pendingRequestId } = setup({
+      cookies: [{ name: "dprs", value: "session-value" }],
+      tabUrl: "https://dash.example/usage/?team_id=42",
+    });
+    const promise = coordinator.captureLoginCookies(tenantOpts);
+    await flush();
+
+    const requestId = pendingRequestId();
+    expect(requestId).toBeDefined();
+    coordinator.resolveUsageLoginConfirmation({ requestId: requestId!, action: "use" });
+    // The captured URL is also surfaced so callers can seal tenant ids from it.
+    await expect(promise).resolves.toEqual({
+      ok: true,
+      cookie: "dprs=session-value",
+      url: "https://dash.example/usage/?team_id=42",
+    });
+  });
+
+  it("keeps polling while the tab URL has no resolved team yet", async () => {
+    const { coordinator, events } = setup({
+      cookies: [{ name: "dprs", value: "session-value" }],
+      tabUrl: "https://dash.example/usage",
+    });
+    const promise = coordinator.captureLoginCookies(tenantOpts);
+    await flush();
+
+    expect(events.some((e) => e.type === "usage-login-confirmation")).toBe(false);
+    coordinator.cancelLoginCapture();
+    await expect(promise).resolves.toEqual({ ok: false, cancelled: true });
+  });
+
+  it("does not prompt from another origin's URL even when it carries the param", async () => {
+    const { coordinator, events } = setup({
+      cookies: [{ name: "dprs", value: "session-value" }],
+      tabUrl: "https://auth.example/finish?team_id=42",
+    });
+    const promise = coordinator.captureLoginCookies(tenantOpts);
+    await flush();
+
+    expect(events.some((e) => e.type === "usage-login-confirmation")).toBe(false);
+    coordinator.cancelLoginCapture();
+    await expect(promise).resolves.toEqual({ ok: false, cancelled: true });
+  });
+
+  it("never prompts while the jar for the cookie URL is empty", async () => {
+    const { coordinator, events } = setup({
+      cookies: [],
+      tabUrl: "https://dash.example/usage/?team_id=42",
+    });
+    const promise = coordinator.captureLoginCookies(tenantOpts);
     await flush();
 
     expect(events.some((e) => e.type === "usage-login-confirmation")).toBe(false);

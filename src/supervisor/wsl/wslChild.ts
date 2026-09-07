@@ -28,6 +28,7 @@ export interface WslLineChildOpts {
   env?: Record<string, string>;
   /** stderr piping mode; default `"ignore"` matches projectWatcher's behaviour. */
   stderr?: "ignore" | "pipe" | "inherit";
+  stdin?: "ignore" | "pipe";
   /** Called per non-empty trimmed line of stdout. */
   onLine: (line: string) => void;
   /** Called for spawn errors and onLine throws. */
@@ -61,7 +62,7 @@ export function spawnWslLineChild(opts: WslLineChildOpts): ChildProcess {
   }
 
   const cwdArgs = opts.cwd ? ["--cd", opts.cwd] : [];
-  const stdio: StdioOptions = ["ignore", "pipe", opts.stderr ?? "ignore"];
+  const stdio: StdioOptions = [opts.stdin ?? "ignore", "pipe", opts.stderr ?? "ignore"];
 
   const child = spawn(getWslCommand(), ["-d", opts.distro, ...cwdArgs, "--", ...opts.argv], {
     stdio,

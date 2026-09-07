@@ -17,7 +17,6 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
-  realpathSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -32,9 +31,11 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const requireFromHere = createRequire(import.meta.url);
 const channelTable = requireFromHere("./electron-builder.shared.cjs");
-const { restoreMacUpdaterManifests, snapshotMacUpdaterManifests } = requireFromHere(
-  "./mac-updater-manifest.cjs",
-);
+const {
+  restoreMacUpdaterManifests,
+  snapshotMacUpdaterManifests,
+  setMacUpdaterMinimumSystemVersion,
+} = requireFromHere("./mac-updater-manifest.cjs");
 const { supportEmail } = requireFromHere("../branding/contact.json");
 
 // Runtime externals — packages tsdown does NOT inline into dist/main/*.cjs.
@@ -42,12 +43,11 @@ const { supportEmail } = requireFromHere("../branding/contact.json");
 const RUNTIME_DEPS = [
   "@agentclientprotocol/sdk",
   "@anthropic-ai/claude-agent-sdk",
-  "@modelcontextprotocol/sdk",
+  "@modelcontextprotocol/client",
   "@opencode-ai/sdk",
   "@sentry/electron",
   "@sentry/node",
   "better-sqlite3",
-  "drizzle-orm",
   "json5",
   "micromatch",
   "node-pty",
@@ -57,8 +57,8 @@ const RUNTIME_DEPS = [
   "yaml",
 ];
 
-// devDependencies the stage needs to run electron-builder + rebuild natives.
-const STAGE_DEV_DEPS = ["electron", "electron-builder", "@electron/rebuild"];
+// devDependencies the stage needs to run electron-builder.
+const STAGE_DEV_DEPS = ["electron", "electron-builder"];
 const { PACKAGED_DIST_DIRS, PACKAGED_DIST_FILES } = channelTable;
 
 function parseArgs(argv) {
@@ -120,9 +120,6 @@ const PLATFORM_FLAG = { mac: "--mac", linux: "--linux", win: "--win" };
 
 // Arches each platform ships when the caller does not pin --arch. Must mirror
 // the per-platform `target.arch` lists emitted by buildElectronBuilderConfig().
-// Drives the per-arch native rebuild below so every installer carries a
-// better_sqlite3.node compiled for its own arch (better-sqlite3 builds from
-// source and is arch-specific; node-pty ships per-arch prebuilds and is fine).
 const DEFAULT_TARGET_ARCHES = { win: ["x64", "arm64"], mac: ["x64", "arm64"], linux: ["x64"] };
 
 // A missing peer of a runtime external surfaces as `ERR_MODULE_NOT_FOUND` deep
@@ -254,33 +251,6 @@ function pruneStageBinaries(stageRoot) {
   }
 }
 
-// electron-builder's pnpm node-module collector copies each dependency using
-// that package's own package.json "files" allowlist. better-sqlite3's allowlist
-// is ["binding.gyp","src/**/*.[ch]pp","lib/**","deps/**"] -- it OMITS build/,
-// the directory where electron-rebuild writes the compiled better_sqlite3.node.
-// So the collector drops the native binary and packs better-sqlite3 source-only
-// INTO app.asar (asarUnpack cannot unpack a file that was never collected),
-// which crashes the app at launch with "Could not locate the bindings file".
-// Widen the staged package's allowlist to include its build output so the whole
-// module (binary included) is collected and the existing asarUnpack glob moves
-// it to app.asar.unpacked. node-pty is unaffected: its binaries live under
-// prebuilds/, which is already in node-pty's "files" allowlist.
-function ensureNativeBuildCollected(stageRoot) {
-  const pkgLink = join(stageRoot, "node_modules", "better-sqlite3", "package.json");
-  if (!existsSync(pkgLink)) {
-    throw new Error(`better-sqlite3 not found in stage; cannot widen files allowlist: ${pkgLink}`);
-  }
-  // Resolve through pnpm's hoisted junction to patch the real package.json that
-  // electron-builder's collector reads.
-  const pkgPath = realpathSync(pkgLink);
-  const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-  if (Array.isArray(pkg.files) && !pkg.files.includes("build/**")) {
-    pkg.files.push("build/**");
-    writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
-    console.log("[stage] widened better-sqlite3 files allowlist to include build/**");
-  }
-}
-
 function copyArtifactsBack(stageReleaseDir, outputDir) {
   mkdirSync(outputDir, { recursive: true });
   const copied = [];
@@ -321,11 +291,24 @@ async function main() {
   if (!PLATFORM_FLAG[platform]) {
     throw new Error(`Unknown platform "${platform}". Expected mac/linux/win.`);
   }
+  if (platform === "mac" && publish !== "never") {
+    throw new Error(
+      "macOS update metadata is finalized after packaging. Use --publish never and upload the completed release artifacts separately.",
+    );
+  }
 
   // 1. Build dist artifacts unless caller already did it.
   if (!skipBuild) {
     run("pnpm", ["run", "build"], { cwd: repoRoot });
     run("pnpm", ["run", "clean:sourcemaps"], { cwd: repoRoot });
+    const helperArgs = [
+      "scripts/prepare-computer-use-helper.mjs",
+      "--require",
+      "--platform",
+      platform,
+    ];
+    if (arch && platform !== "mac") helperArgs.push("--arch", arch);
+    run("node", helperArgs, { cwd: repoRoot });
     run("pnpm", ["run", "prepare:package-assets"], { cwd: repoRoot });
   }
 
@@ -387,50 +370,8 @@ async function main() {
     run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error"], { cwd: stageRoot });
 
     pruneStageBinaries(stageRoot);
-    ensureNativeBuildCollected(stageRoot);
-
-    // 6b. Rebuild better-sqlite3 against Electron's V8 ABI, ONCE PER TARGET ARCH,
-    //     staging each arch's binary under native/<arch>/. A single multi-arch
-    //     electron-builder pass (kept below to preserve a combined latest.yml
-    //     updater manifest) packs whatever single binary is in node_modules into
-    //     BOTH the x64 and arm64 installers, so the off-host arch would ship a
-    //     wrong-arch better_sqlite3.node and crash. after-pack.cjs injects the
-    //     correct staged binary per arch instead. (We skip electron-builder's
-    //     bundled @electron/rebuild via npmRebuild:false in the staged YAML
-    //     because it would also try to compile node-pty from source, which fails:
-    //     node-pty 1.1.0's npm tarball omits the winpty submodule. node-pty ships
-    //     N-API prebuilds per arch, so it stays ABI-correct without a rebuild.)
-    const electronRebuildBin = join(
-      stageRoot,
-      "node_modules",
-      ".bin",
-      process.platform === "win32" ? "electron-rebuild.cmd" : "electron-rebuild",
-    );
-    const builtBinary = join(
-      stageRoot,
-      "node_modules",
-      "better-sqlite3",
-      "build",
-      "Release",
-      "better_sqlite3.node",
-    );
+    // SQLite and node-pty ship N-API prebuilds; afterPack keeps the target architecture.
     const targetArches = arch ? [arch] : DEFAULT_TARGET_ARCHES[platform];
-    for (const targetArch of targetArches) {
-      // electron-rebuild rebuilds in place; cross-building for a non-host arch is
-      // supported on CI runners (Win has the MSVC ARM64 cross tools, mac has both
-      // SDK slices). A failure here aborts the build rather than shipping a broken
-      // binary.
-      run(electronRebuildBin, ["--only", "better-sqlite3", "--arch", targetArch], {
-        cwd: stageRoot,
-      });
-      if (!existsSync(builtBinary)) {
-        throw new Error(`electron-rebuild produced no better_sqlite3.node for arch ${targetArch}`);
-      }
-      const archStageDir = join(stageRoot, "native", targetArch);
-      mkdirSync(archStageDir, { recursive: true });
-      cpSync(builtBinary, join(archStageDir, "better_sqlite3.node"));
-      console.log(`[stage] staged better_sqlite3.node for ${targetArch}`);
-    }
 
     // 7. Run electron-builder against the stage.
     const electronBuilderBin = join(
@@ -451,7 +392,9 @@ async function main() {
       }
       const electronBuilderArgs = [PLATFORM_FLAG[platform]];
       if (selectedTarget) {
-        electronBuilderArgs.push(arch ? `${selectedTarget}:${arch}` : selectedTarget);
+        electronBuilderArgs.push(
+          ...targetArches.map((targetArch) => `${selectedTarget}:${targetArch}`),
+        );
       } else if (arch) {
         electronBuilderArgs.push(`--${arch}`);
       }
@@ -474,6 +417,10 @@ async function main() {
       restoreMacUpdaterManifests(join(stageRoot, "release"), updaterManifests);
     } else {
       runElectronBuilder(target);
+    }
+
+    if (platform === "mac") {
+      setMacUpdaterMinimumSystemVersion(join(stageRoot, "release"));
     }
 
     // 8. Copy artifacts back to release/.
@@ -529,11 +476,21 @@ files:
 ${packagedDistFilesYaml}
   - package.json
   - node_modules/**/*
+  - "!node_modules/**/*.map"
   # The SDK's optionalDependencies include a 200+MB precompiled \`claude\` SEA
   # binary per platform. We ship without it; users provide \`claude\` via PATH.
   - "!node_modules/@anthropic-ai/claude-agent-sdk-*/**/*"
+  # Native modules load their compiled binaries; compiler inputs and link/debug
+  # outputs are only needed while building the stage.
+  - "!node_modules/better-sqlite3/{src,deps}/**/*"
+  - "!node_modules/{better-sqlite3,node-pty}/build/**/obj/**/*"
+  - "!node_modules/{better-sqlite3,node-pty}/build/**/*.{iobj,ipdb,lib,pdb,exp}"
 
 extraResources:
+  - from: resources/computer-use-helper
+    to: computer-use-helper
+    filter:
+      - "**/*"
   - from: resources/wsl-helpers
     to: wsl-helpers
     filter:
@@ -608,6 +565,7 @@ linux:
   artifactName: ${prefix}-\${version}-\${arch}.\${ext}
 
 mac:
+  minimumSystemVersion: "13.0.0"
   executableName: ${macExecutableName}
   target:
     - target: dmg

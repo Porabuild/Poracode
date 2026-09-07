@@ -2199,6 +2199,195 @@ describe("sdkCanonicalMapping — native todos and assistant errors", () => {
     expect(events).toEqual([]);
   });
 
+  it("surfaces retry session status as an error event and deduplicates", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const retry1 = {
+      id: "evt-retry-1",
+      type: "session.status",
+      properties: {
+        sessionID: "ses_test",
+        status: {
+          type: "retry",
+          attempt: 1,
+          message: "Rate limit exceeded. Please try again later.",
+          next: Date.now() + 5000,
+        },
+      },
+    } as unknown as Event;
+
+    const events1 = mapOpenCodeEvent(retry1, state);
+    expect(events1).toEqual([
+      {
+        type: "error",
+        threadId: "thread-1",
+        message: "Rate limit exceeded. Please try again later.",
+      },
+    ]);
+
+    // Same attempt and message is deduplicated
+    expect(mapOpenCodeEvent(retry1, state)).toEqual([]);
+
+    // Next attempt with different attempt number is emitted
+    const retry2 = {
+      id: "evt-retry-2",
+      type: "session.status",
+      properties: {
+        sessionID: "ses_test",
+        status: {
+          type: "retry",
+          attempt: 2,
+          message: "Rate limit exceeded. Please try again later.",
+          next: Date.now() + 10000,
+        },
+      },
+    } as unknown as Event;
+    const events2 = mapOpenCodeEvent(retry2, state);
+    expect(events2).toEqual([
+      {
+        type: "error",
+        threadId: "thread-1",
+        message: "Rate limit exceeded. Please try again later.",
+      },
+    ]);
+
+    // Resuming to busy clears the deduplication key
+    mapOpenCodeEvent(
+      {
+        id: "evt-busy",
+        type: "session.status",
+        properties: { sessionID: "ses_test", status: { type: "busy" } },
+      } as unknown as Event,
+      state,
+    );
+
+    // If retry occurs again, it is emitted
+    const events3 = mapOpenCodeEvent(retry2, state);
+    expect(events3).toEqual([
+      {
+        type: "error",
+        threadId: "thread-1",
+        message: "Rate limit exceeded. Please try again later.",
+      },
+    ]);
+  });
+
+  it("surfaces retry session status with action message fallback", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const retryAction = {
+      id: "evt-retry-action",
+      type: "session.status",
+      properties: {
+        sessionID: "ses_test",
+        status: {
+          type: "retry",
+          attempt: 1,
+          action: {
+            reason: "rate_limit",
+            provider: "opencode",
+            title: "Rate limit",
+            message: "Action rate limit fallback",
+            label: "Open dashboard",
+          },
+        },
+      },
+    } as unknown as Event;
+
+    const events = mapOpenCodeEvent(retryAction, state);
+    expect(events).toEqual([
+      {
+        type: "error",
+        threadId: "thread-1",
+        message: "Action rate limit fallback",
+      },
+    ]);
+  });
+
+  it("prefers the action message when the retry message is whitespace-only", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-retry-ws",
+        type: "session.status",
+        properties: {
+          sessionID: "ses_test",
+          status: {
+            type: "retry",
+            attempt: 1,
+            message: "   ",
+            action: {
+              reason: "rate_limit",
+              provider: "opencode",
+              title: "Rate limit",
+              message: "Action rate limit fallback",
+              label: "Open dashboard",
+            },
+            next: Date.now() + 5000,
+          },
+        },
+      } as unknown as Event,
+      state,
+    );
+    expect(events).toEqual([
+      {
+        type: "error",
+        threadId: "thread-1",
+        message: "Action rate limit fallback",
+      },
+    ]);
+  });
+
+  it("suppresses retry session status from child sessions", () => {
+    const state = createOpenCodeMapperState("thread-1");
+    setOpenCodeMainSessionId(state, "ses_main");
+    state.subAgentSessions.set("ses_child", {
+      parentPartID: "prt_task_1",
+      itemId: "item-task-1",
+      toolPartIds: new Set(),
+    });
+    const events = mapOpenCodeEvent(
+      {
+        id: "evt-child-retry",
+        type: "session.status",
+        properties: {
+          sessionID: "ses_child",
+          status: {
+            type: "retry",
+            attempt: 1,
+            message: "Rate limit exceeded. Please try again later.",
+            next: Date.now() + 5000,
+          },
+        },
+      } as unknown as Event,
+      state,
+    );
+    expect(events).toEqual([]);
+    // The child retry must not poison the shared dedup key — an identical
+    // parent retry still surfaces.
+    const parentEvents = mapOpenCodeEvent(
+      {
+        id: "evt-parent-retry",
+        type: "session.status",
+        properties: {
+          sessionID: "ses_main",
+          status: {
+            type: "retry",
+            attempt: 1,
+            message: "Rate limit exceeded. Please try again later.",
+            next: Date.now() + 5000,
+          },
+        },
+      } as unknown as Event,
+      state,
+    );
+    expect(parentEvents).toEqual([
+      {
+        type: "error",
+        threadId: "thread-1",
+        message: "Rate limit exceeded. Please try again later.",
+      },
+    ]);
+  });
+
   it("ignores transport-level events without chat rows", () => {
     const state = createOpenCodeMapperState("thread-1");
     for (const event of [

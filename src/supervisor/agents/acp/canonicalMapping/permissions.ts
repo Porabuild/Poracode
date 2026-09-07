@@ -1,5 +1,5 @@
 /**
- * Map ACP `requestPermission` / `unstable_createElicitation` calls to canonical
+ * Map ACP `requestPermission` / `createElicitation` calls to canonical
  * `request.opened` events.
  */
 
@@ -156,7 +156,7 @@ function stripCommandFromApprovalTitle(title: string | undefined, command: strin
 }
 
 /**
- * Map an ACP `unstable_createElicitation` call to a canonical user-input
+ * Map an ACP `createElicitation` call to a canonical user-input
  * request. The renderer owns the form/URL presentation; the ACP session owns
  * converting the resolved response back to the SDK response shape.
  */

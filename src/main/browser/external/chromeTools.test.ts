@@ -4,6 +4,31 @@ import type { ExternalChromeConnection } from "./ExternalChromeConnection";
 import { dispatchChromeTool } from "./chromeTools";
 
 describe("dispatchChromeTool", () => {
+  it.each([
+    ["Space", " ", "Space"],
+    ["Esc", "Escape", "Escape"],
+    ["Delete", "Delete", "Delete"],
+  ])("delivers the shared %s key through native Chrome input", async (key, expectedKey, code) => {
+    const sendCdp = vi
+      .fn<(method: string, params: Record<string, unknown>) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const connection = {
+      cdpSession: () => ({ send: sendCdp }),
+      sendCdp,
+    } as unknown as ExternalChromeConnection;
+    await expect(
+      dispatchChromeTool(
+        "press",
+        { key, shift: true },
+        { connection, allowEval: false, allowDataAccess: false },
+      ),
+    ).resolves.toEqual({ ok: true });
+    expect(sendCdp).toHaveBeenCalledTimes(2);
+    expect(sendCdp).toHaveBeenLastCalledWith(
+      "Input.dispatchKeyEvent",
+      expect.objectContaining({ type: "keyUp", key: expectedKey, code, modifiers: 8 }),
+    );
+  });
   it("attaches for an enabled session and detaches when it is disabled", async () => {
     const cdp = {
       send: vi.fn<() => Promise<unknown>>().mockResolvedValue({

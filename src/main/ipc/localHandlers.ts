@@ -1,6 +1,14 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import { app, clipboard, dialog, nativeImage, shell, type BrowserWindow } from "electron";
+import {
+  app,
+  clipboard,
+  ClipboardItem,
+  dialog,
+  nativeImage,
+  shell,
+  type BrowserWindow,
+} from "electron";
 import type { BrowserPanelManager } from "../browser";
 import { openMicrophoneSettings } from "../browser/permissions";
 import {
@@ -249,13 +257,15 @@ export function createLocalIpcHandlers(
       writeImageFile(result.filePath, data);
       return result.filePath;
     },
-    copyImageToClipboard: ({ data }) => {
+    copyImageToClipboard: async ({ data }) => {
       // `nativeImage.createFromBuffer` only decodes PNG/JPEG; the renderer
       // converts other formats to PNG first. Report whether anything landed on
       // the clipboard so the UI doesn't claim success on an empty image.
       const image = nativeImage.createFromBuffer(Buffer.from(data));
       if (image.isEmpty()) return false;
-      clipboard.writeImage(image);
+      await clipboard.write([
+        new ClipboardItem({ "image/png": new Blob([Uint8Array.from(image.toPNG())]) }),
+      ]);
       return true;
     },
     readLocalImageFile: ({ url }) => readLocalImageFile(url),
@@ -288,7 +298,7 @@ export function createLocalIpcHandlers(
         return {
           status: response.status,
           headers: headersToRecord(response.headers),
-          body: Buffer.from(buffer).toString("utf8"),
+          body: Buffer.from(buffer).toString(payload.responseEncoding ?? "utf8"),
         };
       } catch (error) {
         if (controller.signal.aborted) {
@@ -608,7 +618,9 @@ export function createLocalIpcHandlers(
     browserCopyScreenshot: async ({ tabId }) => {
       const bytes = await requireBrowserPanel(options.getBrowserPanelManager).capturePng(tabId);
       if (bytes) {
-        clipboard.writeImage(nativeImage.createFromBuffer(bytes));
+        await clipboard.write([
+          new ClipboardItem({ "image/png": new Blob([Uint8Array.from(bytes)]) }),
+        ]);
       }
     },
     browserCapturePreview: async ({ tabId }) => {
@@ -684,7 +696,11 @@ export function createLocalIpcHandlers(
       const win = options.getMainWindow();
       if (!win) return;
       const image = await win.webContents.capturePage(roundRect(rect));
-      if (!image.isEmpty()) clipboard.writeImage(image);
+      if (!image.isEmpty()) {
+        await clipboard.write([
+          new ClipboardItem({ "image/png": new Blob([Uint8Array.from(image.toPNG())]) }),
+        ]);
+      }
     },
     appendUsageEvents: ({ events }) => dbAppendUsageEvents(events),
   });

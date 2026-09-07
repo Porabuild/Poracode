@@ -51,7 +51,9 @@ function CreateProjectForm() {
 
   const [distros, setDistros] = useState<string[]>([]);
   const [runtimeKey, setRuntimeKey] = useState("native");
-  const [defaultDir, setDefaultDir] = useState("");
+  // Seeded from the mount-time override (or empty until the async home probe
+  // below resolves); later runtime/override changes re-seed during render.
+  const [defaultDir, setDefaultDir] = useState(() => lastUsedProjectDirs.native ?? "");
   const [dir, setDir] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -75,27 +77,39 @@ function CreateProjectForm() {
 
   // Switching runtime clears the user's pick. Keyed only on `runtimeKey` so an
   // unrelated change to the settings object's identity (e.g. hydration) can't
-  // wipe a folder the user already browsed to.
-  useEffect(() => {
+  // wipe a folder the user already browsed to. Derived state — adjust during
+  // render.
+  const [prevRuntimeKey, setPrevRuntimeKey] = useState(runtimeKey);
+  if (prevRuntimeKey !== runtimeKey) {
+    setPrevRuntimeKey(runtimeKey);
     setDir("");
     setSubmitError(null);
-  }, [runtimeKey]);
+  }
 
   // Resolve the default browse directory (last-used → home) for the runtime.
   // Depend on the resolved per-runtime value, not the whole map, so a
-  // new-but-equal map reference doesn't re-run this.
+  // new-but-equal map reference doesn't re-run this. Synchronous seeds adjust
+  // during render; only the async home-directory probe stays in the effect.
   const lastForRuntime = lastUsedProjectDirs[runtimeKey];
-  useEffect(() => {
-    let active = true;
+  const [prevDefaultDirKey, setPrevDefaultDirKey] = useState(
+    () => `${runtimeKey}\0${lastForRuntime ?? ""}`,
+  );
+  const defaultDirKey = `${runtimeKey}\0${lastForRuntime ?? ""}`;
+  if (prevDefaultDirKey !== defaultDirKey) {
+    setPrevDefaultDirKey(defaultDirKey);
     if (lastForRuntime) {
       setDefaultDir(lastForRuntime);
-      return;
-    }
-    if (runtimeKey !== "native") {
+    } else if (runtimeKey !== "native") {
       setDefaultDir(wslHomeDir(runtimeKey));
+    } else {
+      setDefaultDir("");
+    }
+  }
+  useEffect(() => {
+    if (lastForRuntime || runtimeKey !== "native") {
       return;
     }
-    setDefaultDir("");
+    let active = true;
     void loadHomeScopeLocation()
       .then((location) => {
         if (active) setDefaultDir(getProjectFsPath(location));

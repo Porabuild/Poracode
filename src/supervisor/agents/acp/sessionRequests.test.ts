@@ -1,4 +1,9 @@
-import type { CreateElicitationRequest, RequestPermissionRequest } from "@agentclientprotocol/sdk";
+import {
+  ClientSideConnection,
+  type AnyMessage,
+  type CreateElicitationRequest,
+  type RequestPermissionRequest,
+} from "@agentclientprotocol/sdk";
 import { describe, expect, it, vi } from "vitest";
 import type { RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import { createAcpMapperState } from "./canonicalMapping";
@@ -577,6 +582,62 @@ describe("AcpSessionRequests permissions", () => {
 });
 
 describe("AcpSessionRequests elicitations", () => {
+  it("handles form requests and URL completion through the stable SDK callbacks", async () => {
+    const { requests, setRequestAttention } = makeRequests();
+    const incoming = new TransformStream<AnyMessage>();
+    const outgoing = new TransformStream<AnyMessage>();
+    const writer = incoming.writable.getWriter();
+    const reader = outgoing.readable.getReader();
+    const connection = new ClientSideConnection(
+      () => ({
+        requestPermission: (params) => requests.requestPermission(params),
+        sessionUpdate: async () => {},
+        createElicitation: (params) => requests.createElicitation(params),
+        completeElicitation: (params) => requests.completeElicitation(params),
+      }),
+      { readable: incoming.readable, writable: outgoing.writable },
+    );
+    try {
+      await writer.write({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "elicitation/create",
+        params: formElicitation(),
+      });
+      await vi.waitFor(() => expect(setRequestAttention).toHaveBeenCalledWith("needs_reply"));
+      requests.resolve("acp-elicit-0", { action: "accept", content: { scope: "Focused" } });
+      expect((await reader.read()).value).toEqual({
+        jsonrpc: "2.0",
+        id: 1,
+        result: { action: "accept", content: { scope: "Focused" } },
+      });
+
+      setRequestAttention.mockClear();
+      await writer.write({
+        jsonrpc: "2.0",
+        id: 2,
+        method: "elicitation/create",
+        params: urlElicitation(),
+      });
+      await vi.waitFor(() => expect(setRequestAttention).toHaveBeenCalledWith("needs_reply"));
+      await writer.write({
+        jsonrpc: "2.0",
+        method: "elicitation/complete",
+        params: { elicitationId: "elicit-1" },
+      });
+      expect((await reader.read()).value).toEqual({
+        jsonrpc: "2.0",
+        id: 2,
+        result: { action: "accept" },
+      });
+    } finally {
+      requests.cancelPending();
+      await writer.close();
+      await reader.cancel();
+      await connection.closed;
+    }
+  });
+
   it("maps and normalizes a form response, including its canonical answer item", async () => {
     const { emitRuntimeEvents, requests, setRequestAttention } = makeRequests();
 

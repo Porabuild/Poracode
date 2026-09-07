@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useEffectEvent, useRef, useState } from "react";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -150,7 +150,7 @@ export function AudioSettings() {
         title={t`Test microphone`}
         description={<Trans>Check the live input level from the selected device.</Trans>}
       >
-        <MicrophoneTestBar microphoneDeviceId={microphoneDeviceId} />
+        <MicrophoneTestBar key={microphoneDeviceId} microphoneDeviceId={microphoneDeviceId} />
       </SettingRow>
       <SettingRow
         anchorId="audio.voiceInputLanguage"
@@ -216,8 +216,14 @@ function MicrophoneTestBar(props: { microphoneDeviceId: string }) {
   const [isTesting, setIsTesting] = useState(false);
   const [level, setLevel] = useState(0);
   const testRef = useRef<MicrophoneTest | null>(null);
+  // Set on unmount (a device switch remounts, see `key` above) so an
+  // in-flight `startTest` tears down its stream instead of parking it on the
+  // dead instance.
+  const cancelledRef = useRef(false);
 
-  function stopTest() {
+  // Plain teardown shared by the press handler and the unmount effect event
+  // below. Plain (not an EffectEvent) so event handlers may call it.
+  function stopTestNow() {
     const test = testRef.current;
     if (!test) return;
     testRef.current = null;
@@ -229,7 +235,21 @@ function MicrophoneTestBar(props: { microphoneDeviceId: string }) {
     setLevel(0);
   }
 
-  useEffect(() => () => stopTest(), [microphoneDeviceId]);
+  // Stable teardown for the unmount effect below. An EffectEvent stays fresh
+  // without re-subscribing, and never needs listing in dep arrays.
+  const stopTest = useEffectEvent(() => {
+    stopTestNow();
+  });
+
+  // The bar remounts per device (see `key` above), so unmount teardown covers
+  // both unmount and device switches.
+  useEffect(
+    () => () => {
+      cancelledRef.current = true;
+      stopTest();
+    },
+    [],
+  );
 
   async function startTest() {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -273,6 +293,14 @@ function MicrophoneTestBar(props: { microphoneDeviceId: string }) {
         }
       };
 
+      if (cancelledRef.current) {
+        // Unmounted (device switched) while starting: release everything
+        // instead of parking a live stream on the dead instance.
+        source.disconnect();
+        stream.getTracks().forEach((track) => track.stop());
+        void context.close();
+        return;
+      }
       testRef.current = { analyser, context, frame: requestAnimationFrame(tick), source, stream };
       setIsTesting(true);
     } catch (error) {
@@ -291,7 +319,7 @@ function MicrophoneTestBar(props: { microphoneDeviceId: string }) {
         isDisabled={isStarting}
         onPress={() => {
           if (isTesting) {
-            stopTest();
+            stopTestNow();
           } else {
             void startTest();
           }

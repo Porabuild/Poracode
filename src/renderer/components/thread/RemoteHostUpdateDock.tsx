@@ -63,9 +63,7 @@ export function RemoteHostUpdateDock({ desktopId }: { readonly desktopId: string
         title={title}
         actions={
           isInstalling ? (
-            <span role="status" aria-label={title}>
-              <Spinner size="sm" color="current" />
-            </span>
+            <Spinner size="sm" color="current" aria-label={title} />
           ) : status?.type === "downloaded" ? (
             <Button size="sm" variant="ghost" isDisabled={busy || !isOnline} onPress={install}>
               {t`Install and restart`}

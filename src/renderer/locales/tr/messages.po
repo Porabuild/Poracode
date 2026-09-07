@@ -179,6 +179,11 @@ msgstr "{0} ({envName}) güncellendi."
 msgid "{0} (fork)"
 msgstr "{0} (fork)"
 
+#. placeholder {0}: defaultMethod.name
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#~ msgid "{0} {env}"
+#~ msgstr "{0} {env}"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -326,7 +331,7 @@ msgid "{0} threads"
 msgstr "{0} iş parçacığı"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageCostLine.tsx
 msgid "{0} tokens"
 msgstr "{0} jeton"
 
@@ -523,13 +528,13 @@ msgstr "{label} kullanımı — kullanım panelini aç"
 
 #. placeholder {0}: method.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {0}"
-msgstr "{loginLabel} {0}"
+#~ msgid "{loginLabel} {0}"
+#~ msgstr "{loginLabel} {0}"
 
 #. placeholder {0}: method.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {0} {env}"
-msgstr "{loginLabel} {0} {env}"
+#~ msgid "{loginLabel} {0} {env}"
+#~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{loginLabel} {env}"
@@ -697,7 +702,7 @@ msgid "<0>{passed}</0> of {0} checks passed"
 msgstr "{0} kontrolden <0>{passed}</0> tanesi başarılı oldu"
 
 #. placeholder {0}: snapshot.cost.period
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageCostLine.tsx
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · tahmini"
 
@@ -746,6 +751,11 @@ msgstr "Bu ada sahip bir Cursor profili zaten var."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "Dondurulmuş bir çalışma ağacı kaynağı tam commit karması gerektirir"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
+msgstr "Kilitli ekran tüm masaüstü denetimini durdurur; bu nedenle Bilgisayar Kullanımı oturumu çalışırken ekran açık tutulur. Ekranı yine de kendiniz kilitleyebilirsiniz."
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
@@ -1379,6 +1389,10 @@ msgstr "Başka bir sohbet de aynı ağacı kullanıyor. Dosya geri yükleme, soh
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "Bu deney için başka bir işlem hâlâ devam ediyor."
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "Göndermek için tüm soruları yanıtlayın"
 
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
@@ -2437,12 +2451,12 @@ msgid "Choose how Poracode performs manual merges and automatic PR merges."
 msgstr "Poracode'un manuel ve otomatik PR birleştirmelerini nasıl yapacağını seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Choose how to sign in for {env}."
-msgstr "{env} için nasıl oturum açacağınızı seçin."
+#~ msgid "Choose how to sign in for {env}."
+#~ msgstr "{env} için nasıl oturum açacağınızı seçin."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Choose how to sign in."
-msgstr "Nasıl oturum açılacağını seçin."
+#~ msgid "Choose how to sign in."
+#~ msgstr "Nasıl oturum açılacağını seçin."
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
@@ -2870,6 +2884,7 @@ msgstr "Codex"
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse"
 msgstr "Daralt"
@@ -2914,6 +2929,10 @@ msgstr "Altbilgiyi daralt"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Collapse group"
 msgstr "Grubu daralt"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse images"
+msgstr "Görüntüleri daralt"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -3032,6 +3051,10 @@ msgstr "İletişim"
 msgid "Community"
 msgstr "Topluluk"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Compact the conversation context"
+msgstr "Konuşma bağlamını sıkıştır"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "Bağlam sıkıştırılıyor"
@@ -3053,7 +3076,7 @@ msgstr "Tamamlandı"
 msgid "Complete {0} sign-in before this thread can run."
 msgstr "Bu konunun çalıştırılabilmesi için {0} oturum açma işlemini tamamlayın."
 
-#. placeholder {0}: singleMethod.name
+#. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Complete {0} sign-in for {env}."
 msgstr "{env} için {0} oturum açma işlemini tamamlayın."
@@ -3065,7 +3088,7 @@ msgid "Complete {0} sign-in or save {1} credentials."
 msgstr "{0} oturum açma işlemini tamamlayın veya {1} kimlik bilgilerini kaydedin."
 
 #. placeholder {0}: agentAuth.method.name
-#. placeholder {0}: singleMethod.name
+#. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Complete {0} sign-in."
@@ -3116,12 +3139,28 @@ msgstr "Bilgisayar Kullanımı"
 #~ msgstr "Computer Use eşleştirilmiş masaüstünü kontrol eder. Ajan tıklarken veya yazarken o makineyi kullanmayın."
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
-msgstr "Computer Use etkin — eşleştirilmiş masaüstünü kontrol eder; ajan kontrol ederken o makineyi kullanmayın"
+#~ msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+#~ msgstr "Computer Use etkin — eşleştirilmiş masaüstünü kontrol eder; ajan kontrol ederken o makineyi kullanmayın"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
-msgstr "Computer Use etkin — etkileşimli eylemler masaüstünü kontrol eder; ajan kontrol ederken makineyi kullanmayın"
+#~ msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+#~ msgstr "Computer Use etkin — etkileşimli eylemler masaüstünü kontrol eder; ajan kontrol ederken makineyi kullanmayın"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use etkin — aracı, eşleştirilmiş masaüstündeki uygulamaları arka planda yönetir; yalnızca bir adım açıkça ön planı gerektirdiğinde bu masaüstünün fare ve klavyesini devralır"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground or when that desktop's system-approved portal requires it"
+msgstr "Bilgisayar Kullanımı etkin — aracı, eşleştirilmiş masaüstündeki uygulamaları arka planda yönetir; yalnızca bir adım açıkça ön planı gerektirdiğinde veya o masaüstünün sistem tarafından onaylanmış portalı bunu gerektirdiğinde fare ve klavyeyi devralır"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use etkin — aracı, masaüstü uygulamalarını arka planda yönetir; yalnızca bir adım açıkça ön planı gerektirdiğinde fare ve klavyeyi devralır"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it"
+msgstr "Bilgisayar Kullanımı etkin — aracı, masaüstü uygulamalarını arka planda yönetir; yalnızca bir adım açıkça ön planı gerektirdiğinde veya sistem tarafından onaylanmış bir masaüstü portalı bunu gerektirdiğinde fare ve klavyeyi devralır"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
@@ -3338,8 +3377,12 @@ msgid "Control an external Chrome browser."
 msgstr "Harici bir Chrome tarayıcısını kontrol eder."
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Control desktop apps and complete visual workflows."
-msgstr "Masaüstü uygulamalarını denetleyin ve görsel iş akışlarını tamamlayın."
+#~ msgid "Control desktop apps and complete visual workflows."
+#~ msgstr "Masaüstü uygulamalarını denetleyin ve görsel iş akışlarını tamamlayın."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps in the background and complete visual workflows."
+msgstr "Masaüstü uygulamalarını arka planda kontrol edin ve görsel iş akışlarını tamamlayın."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3350,8 +3393,8 @@ msgid "Control which files appear in the @file mention search. Per-project overr
 msgstr "@file bahsetme aramasında hangi dosyaların görüneceğini kontrol edin. Projeye özel geçersiz kılmalar her projenin ayarlarında bulunur."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Controls the paired desktop while the agent clicks or types"
-msgstr "Ajan tıklarken veya yazarken eşleştirilmiş masaüstünü kontrol eder"
+#~ msgid "Controls the paired desktop while the agent clicks or types"
+#~ msgstr "Ajan tıklarken veya yazarken eşleştirilmiş masaüstünü kontrol eder"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -3418,6 +3461,7 @@ msgstr "Kopyalama başarısız oldu"
 msgid "Copy ignored files"
 msgstr "Yoksayılan dosyaları kopyala"
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -4556,6 +4600,22 @@ msgstr "Yeniden sıralamak için sürükleyin; düzenlemek için çift tıklayı
 msgid "Drives"
 msgstr "Sürücüler"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground"
+#~ msgstr "Eşleştirilmiş masaüstündeki uygulamaları arka planda yönetir; yalnızca aracı ön planı istediğinde bu masaüstünü devralır"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it"
+msgstr "Eşleştirilmiş masaüstündeki uygulamaları arka planda yönetir; yalnızca aracı ön planı istediğinde veya sistem tarafından onaylanmış portalı bunu gerektirdiğinde o masaüstünü devralır"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground"
+#~ msgstr "Masaüstü uygulamalarını arka planda yönetir; yalnızca aracı ön planı istediğinde masaüstünü devralır"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it"
+msgstr "Masaüstü uygulamalarını arka planda yönetir; yalnızca aracı ön planı istediğinde veya sistem tarafından onaylanmış bir portal bunu gerektirdiğinde masaüstünü devralır"
+
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
 msgstr "Eklemek için buraya bırakın"
@@ -4942,6 +5002,7 @@ msgstr "{0} koduyla çıkıldı. Yeniden denemek için kapatın."
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand"
 msgstr "Genişlet"
@@ -4974,6 +5035,10 @@ msgstr "Altbilgiyi genişlet"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
 msgstr "Grubu genişlet"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand images"
+msgstr "Görüntüleri genişlet"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -5375,8 +5440,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Poracode'un yerel çalışma zamanını kullanan birinci sınıf Kimi Code CLI entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Poracode'un yerel terminal çalışma zamanını kullanan birinci sınıf Muse Code CLI entegrasyonu."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Poracode'un yerel terminal çalışma zamanını kullanan birinci sınıf Muse Code CLI entegrasyonu."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Poracode'un yerel terminal ve GUI çalışma zamanlarını kullanan birinci sınıf Muse Code entegrasyonu."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -5880,6 +5949,7 @@ msgid "Hide"
 msgstr "Gizle"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
 msgstr "{label} gizle"
 
@@ -6050,6 +6120,7 @@ msgstr "Resim"
 msgid "Image preview"
 msgstr "Resim önizlemesi"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
@@ -6222,6 +6293,11 @@ msgstr "yükle"
 msgid "Install"
 msgstr "Yükle"
 
+#. placeholder {0}: slot.badge
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#~ msgid "Install {0}"
+#~ msgstr "Install {0}"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Install {0} for {env}."
@@ -6249,6 +6325,10 @@ msgstr "{badge} yükle"
 #~ msgid "Install @cursor/sdk to configure its API key."
 #~ msgstr "API anahtarını yapılandırmak için @cursor/sdk paketini yükleyin."
 
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+msgid "Install ACP"
+msgstr "ACP'yi yükle"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Install ACP + SDK"
 msgstr "ACP + SDK'yı yükle"
@@ -6256,6 +6336,10 @@ msgstr "ACP + SDK'yı yükle"
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Install ACP + SDK in {environment}"
 msgstr "ACP + SDK'yı {environment} ortamına yükle"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+msgid "Install ACP in {environment}"
+msgstr "ACP'yi {environment} ortamına yükle"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
@@ -6485,6 +6569,11 @@ msgstr "Her yerde tek bir sağlayıcı sırası kullanın. Makine başına düze
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep Poracode in the system tray when it launches at startup."
 msgstr "Başlangıçta açıldığında Poracode'u sistem tepsisinde tutun."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the Mac awake during Computer Use"
+msgstr "Bilgisayar Kullanımı sırasında Mac'i uyanık tut"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -7405,6 +7494,14 @@ msgstr "Daha fazla çekme isteği seçeneği"
 msgid "More schedule options"
 msgstr "Diğer zamanlama seçenekleri"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "More sign-in methods"
+msgstr "Diğer oturum açma yöntemleri"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "More sign-in methods {env}"
+msgstr "Diğer oturum açma yöntemleri {env}"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
 msgstr "Daha fazla senkronizasyon seçeneği"
@@ -8292,6 +8389,7 @@ msgid "Not found"
 msgstr "Bulunamadı"
 
 #: src/renderer/views/SettingsOverlay/parts/nativeAgentRuntimes.ts
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "not installed"
 msgstr "kurulu değil"
 
@@ -8331,6 +8429,10 @@ msgstr "Notlar"
 #: src/mobile/views/NotesView.tsx
 msgid "Notes & to-dos"
 msgstr "Notlar ve yapılacaklar"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Nothing to compact yet — the conversation is still small."
+msgstr "Henüz sıkıştırılacak bir şey yok — konuşma hâlâ kısa."
 
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Nothing tracked yet. It'll appear here as you use it."
@@ -8718,6 +8820,10 @@ msgstr "Model seçiciyi açın"
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "OpenCode request failed, retrying..."
+msgstr "OpenCode isteği başarısız oldu, yeniden deneniyor..."
 
 #. placeholder {0}: request.receivedAt
 #. placeholder {1}: index + 1
@@ -10430,6 +10536,16 @@ msgstr "Bölmeyi yeniden boyutlandır"
 msgid "Resize terminal panel"
 msgstr "Terminal panelini yeniden boyutlandır"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useConflictResolver.ts
+msgid "Resolve conflicts in this worktree. First inspect Git status and the active operation; the file list below may be stale. Compare both sides and the base, preserving intended behavior and unrelated edits. During rebase, verify what ours/theirs refer to. Handle rename/delete, binary, and generated-file conflicts using repository conventions. If intent is ambiguous, ask before discarding changes. Validate the resolution with appropriate checks, then stage only resolved paths. Do not commit, continue or abort the operation, or push. Report resolutions, checks, and remaining conflicts.\n"
+"\n"
+"Files:\n"
+"{fileList}"
+msgstr "Bu çalışma ağacındaki çakışmaları çöz. Önce Git durumunu ve devam eden işlemi incele; aşağıdaki dosya listesi güncel olmayabilir. Her iki tarafı ve ortak tabanı karşılaştırarak amaçlanan davranışı ve ilgisiz düzenlemeleri koru. Rebase sırasında ours/theirs ifadelerinin neyi belirttiğini doğrula. Yeniden adlandırma/silme, ikili dosya ve üretilmiş dosya çakışmalarını depo kurallarına göre ele al. Amaç belirsizse değişiklikleri atmadan önce sor. Çözümü uygun kontrollerle doğrula, ardından yalnızca çözülen yolları hazırlama alanına ekle. Commit oluşturma, işlemi sürdürme veya iptal etme ve push yapma. Çözümleri, kontrolleri ve kalan çakışmaları bildir.\n"
+"\n"
+"Dosyalar:\n"
+"{fileList}"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
@@ -10652,12 +10768,20 @@ msgstr "{0} komutunu çalıştırın"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "Bu iş parçacığının çalıştırılabilmesi için önce {0} komutunu çalıştırın."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "Bu iş parçacığının çalıştırılabilmesi için önce {0} komutunu çalıştırın."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "Oturum açmak için {loginCommand} komutunu çalıştırın."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "Oturum açmak için {loginCommand} komutunu çalıştırın."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "Bu iş parçacığının çalıştırılabilmesi için önce {loginCommandDisplay} komutunu çalıştırın."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "Oturum açmak için {loginCommandDisplay} komutunu çalıştırın."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -10835,6 +10959,10 @@ msgstr "Cursor SDK API anahtarını kaydet"
 #: src/renderer/commands/registry.ts
 msgid "Save File"
 msgstr "Dosyayı Kaydet"
+
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Save image"
+msgstr "Görseli kaydet"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Save MCP servers"
@@ -11242,6 +11370,10 @@ msgstr "Konuşma başlıkları yerine Apple push hizmeti üzerinden genel metin 
 msgid "Send message"
 msgstr "Mesaj gönder"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Send terminal input"
+msgstr "Terminale girdi gönder"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
 msgstr "Seçim terminale gönderildi."
@@ -11595,6 +11727,10 @@ msgstr "{0} oturumunu kapat"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Sign out of {serverName}"
 msgstr "{serverName} oturumunu kapat"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Sign-in methods"
+msgstr "Oturum açma yöntemleri"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "sign-in required"
@@ -12350,8 +12486,8 @@ msgid "Take Screenshot"
 msgstr "Ekran Görüntüsü Al"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Takes over the desktop while the agent clicks or types"
-msgstr "Ajan tıklarken veya yazarken masaüstünü kontrol eder"
+#~ msgid "Takes over the desktop while the agent clicks or types"
+#~ msgstr "Ajan tıklarken veya yazarken masaüstünü kontrol eder"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."
@@ -13265,6 +13401,10 @@ msgstr "SSH üzerinden bağlanılamadı."
 msgid "Unable to copy desktop endpoint."
 msgstr "Masaüstü uç noktası kopyalanamadı."
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Unable to copy image."
+msgstr "Görsel kopyalanamadı."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy pairing link."
 msgstr "Eşleştirme bağlantısı kopyalanamadı."
@@ -13434,6 +13574,10 @@ msgstr "{0} kimlik bilgileri kaydedilemiyor."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Claude {displayLabel} profili kaydedilemedi."
+
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Unable to save image."
+msgstr "Görsel kaydedilemedi."
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
@@ -14084,7 +14228,7 @@ msgstr "Yalnızca görüntüleme — bu bağlantı projeleri yönetemez."
 msgid "Violet"
 msgstr "Mor"
 
-#. placeholder {0}: provider.label
+#. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Visible {0} models"
 msgstr "Görünür {0} modelleri"

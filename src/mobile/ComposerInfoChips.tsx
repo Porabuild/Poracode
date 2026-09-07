@@ -146,12 +146,22 @@ export function ComposerInfoChips(props: {
     });
   }
   const chipKeys = chips.map((chip) => chip.key).join(",");
-  currentChipsRef.current = chips;
+
+  // Mirror the latest chips for the exit-tracking effect below. Written in a
+  // layout effect (never during render) and declared first so it runs before
+  // the tracker: the tracker's re-runs are keyed on chipKeys, while the chip
+  // objects themselves get a fresh identity every render.
+  useLayoutEffect(() => {
+    currentChipsRef.current = chips;
+  });
 
   // Keep disappearing chips mounted for their exit animation. A layout effect
   // catches removals before paint so the chip never blinks out for one frame.
   useLayoutEffect(() => {
     const currentChips = currentChipsRef.current;
+    // Membership comes from the key string the re-runs are keyed on, so the
+    // trigger value is genuinely consumed here.
+    const currentKeys = new Set(chipKeys.split(",").filter((key) => key.length > 0));
     if (previousThreadIdRef.current !== threadId) {
       previousThreadIdRef.current = threadId;
       previousChipsRef.current = currentChips;
@@ -160,7 +170,6 @@ export function ComposerInfoChips(props: {
       setExitingChips([]);
       return;
     }
-    const currentKeys = new Set(currentChips.map((chip) => chip.key));
     const removed = previousChipsRef.current.filter((chip) => !currentKeys.has(chip.key));
     setExitingChips((current) => {
       const retained = current.filter((chip) => !currentKeys.has(chip.key));

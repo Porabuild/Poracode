@@ -179,6 +179,11 @@ msgstr "{0}({envName})이 업데이트되었습니다."
 msgid "{0} (fork)"
 msgstr "{0} (포크)"
 
+#. placeholder {0}: defaultMethod.name
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#~ msgid "{0} {env}"
+#~ msgstr "{0} {env}"
+
 #. placeholder {0}: days.map((day) => weekdayNames[day]).join(", ")
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "{0} at {time}"
@@ -326,7 +331,7 @@ msgid "{0} threads"
 msgstr "스레드 {0}개"
 
 #. placeholder {0}: formatTokens(snapshot.tokens.total)
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageCostLine.tsx
 msgid "{0} tokens"
 msgstr "{0} 토큰"
 
@@ -523,13 +528,13 @@ msgstr "{label} 사용량 — 사용량 패널 열기"
 
 #. placeholder {0}: method.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {0}"
-msgstr "{loginLabel} {0}"
+#~ msgid "{loginLabel} {0}"
+#~ msgstr "{loginLabel} {0}"
 
 #. placeholder {0}: method.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "{loginLabel} {0} {env}"
-msgstr "{loginLabel} {0} {env}"
+#~ msgid "{loginLabel} {0} {env}"
+#~ msgstr "{loginLabel} {0} {env}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "{loginLabel} {env}"
@@ -697,7 +702,7 @@ msgid "<0>{passed}</0> of {0} checks passed"
 msgstr "{0}개 검사 중 <0>{passed}</0>개 통과"
 
 #. placeholder {0}: snapshot.cost.period
-#: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
+#: src/renderer/components/providers/UsageCostLine.tsx
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · 예상"
 
@@ -746,6 +751,11 @@ msgstr "같은 이름의 Cursor 프로필이 이미 있습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A frozen worktree source requires a full commit hash"
 msgstr "고정된 작업 트리 소스에는 전체 커밋 해시가 필요합니다"
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
+msgstr "화면이 잠기면 데스크톱 제어가 모두 중단되므로 컴퓨터 사용 세션이 실행되는 동안 디스플레이를 켜 둡니다. 직접 화면을 잠그는 것은 여전히 가능합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
@@ -1379,6 +1389,10 @@ msgstr "다른 채팅에서도 이 동일한 트리를 사용합니다. 파일 �
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "이 실험에 대한 다른 작업이 아직 실행 중입니다."
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Answer every question to submit"
+msgstr "제출하려면 모든 질문에 답변하세요"
 
 #: src/renderer/components/providers/antigravity/manifest.ts
 msgid "Antigravity"
@@ -2437,12 +2451,12 @@ msgid "Choose how Poracode performs manual merges and automatic PR merges."
 msgstr "Poracode가 수동 병합과 자동 PR 병합을 수행하는 방법을 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Choose how to sign in for {env}."
-msgstr "{env}에 로그인하는 방법을 선택하세요."
+#~ msgid "Choose how to sign in for {env}."
+#~ msgstr "{env}에 로그인하는 방법을 선택하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
-msgid "Choose how to sign in."
-msgstr "로그인 방법을 선택하세요."
+#~ msgid "Choose how to sign in."
+#~ msgstr "로그인 방법을 선택하세요."
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Choose import destination"
@@ -2870,6 +2884,7 @@ msgstr "Codex"
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Collapse"
 msgstr "접기"
@@ -2914,6 +2929,10 @@ msgstr "바닥글 접기"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Collapse group"
 msgstr "그룹 접기"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Collapse images"
+msgstr "이미지 접기"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -3032,6 +3051,10 @@ msgstr "커뮤니케이션"
 msgid "Community"
 msgstr "커뮤니티"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Compact the conversation context"
+msgstr "대화 컨텍스트 압축"
+
 #: src/renderer/components/thread/ChatPane/parts/items/ContextCompaction.tsx
 msgid "Compacting context"
 msgstr "컨텍스트 압축"
@@ -3053,7 +3076,7 @@ msgstr "완료"
 msgid "Complete {0} sign-in before this thread can run."
 msgstr "이 스레드를 실행하려면 먼저 {0} 로그인을 완료하세요."
 
-#. placeholder {0}: singleMethod.name
+#. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Complete {0} sign-in for {env}."
 msgstr "{env}에 대한 {0} 로그인을 완료하세요."
@@ -3065,7 +3088,7 @@ msgid "Complete {0} sign-in or save {1} credentials."
 msgstr "{0} 로그인을 완료하거나 {1} 자격 증명을 저장하세요."
 
 #. placeholder {0}: agentAuth.method.name
-#. placeholder {0}: singleMethod.name
+#. placeholder {0}: defaultMethod.name
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Complete {0} sign-in."
@@ -3116,12 +3139,28 @@ msgstr "컴퓨터 사용"
 #~ msgstr "Computer Use가 페어링된 데스크톱을 제어합니다. 에이전트가 클릭하거나 입력하는 동안에는 해당 컴퓨터를 사용하지 마세요."
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
-msgstr "Computer Use 사용 중 — 페어링된 데스크톱을 제어합니다. 에이전트가 제어하는 동안에는 해당 컴퓨터를 사용하지 마세요"
+#~ msgid "Computer Use enabled — controls the paired desktop; don't use that machine while the agent is controlling it"
+#~ msgstr "Computer Use 사용 중 — 페어링된 데스크톱을 제어합니다. 에이전트가 제어하는 동안에는 해당 컴퓨터를 사용하지 마세요"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
-msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
-msgstr "Computer Use 사용 중 — 대화형 작업이 데스크톱을 제어합니다. 에이전트가 제어하는 동안에는 컴퓨터를 사용하지 마세요"
+#~ msgid "Computer Use enabled — interactive actions take over the desktop; don't use the machine while the agent is controlling it"
+#~ msgstr "Computer Use 사용 중 — 대화형 작업이 데스크톱을 제어합니다. 에이전트가 제어하는 동안에는 컴퓨터를 사용하지 마세요"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use 활성화됨 — 에이전트가 페어링된 데스크톱의 앱을 백그라운드에서 조작하며, 단계에서 포그라운드가 명시적으로 필요한 경우에만 해당 데스크톱의 마우스와 키보드를 제어합니다"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives apps on the paired desktop in the background; it only takes over that desktop's mouse and keyboard when a step explicitly needs the foreground or when that desktop's system-approved portal requires it"
+msgstr "컴퓨터 사용이 활성화되었습니다 — 에이전트는 페어링된 데스크톱의 앱을 백그라운드에서 조작하며, 단계에서 포그라운드가 명시적으로 필요하거나 해당 데스크톱의 시스템 승인 포털이 요구할 때만 마우스와 키보드를 제어합니다"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+#~ msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground"
+#~ msgstr "Computer Use 활성화됨 — 에이전트가 데스크톱 앱을 백그라운드에서 조작하며, 단계에서 포그라운드가 명시적으로 필요한 경우에만 마우스와 키보드를 제어합니다"
+
+#: src/renderer/components/composer/AttachmentBar.tsx
+msgid "Computer Use enabled — the agent drives desktop apps in the background; it only takes over the mouse and keyboard when a step explicitly needs the foreground or when a system-approved desktop portal requires it"
+msgstr "컴퓨터 사용이 활성화되었습니다 — 에이전트는 데스크톱 앱을 백그라운드에서 조작하며, 단계에서 포그라운드가 명시적으로 필요하거나 시스템 승인 데스크톱 포털이 요구할 때만 마우스와 키보드를 제어합니다"
 
 #: src/renderer/components/composer/AttachmentBar.tsx
 #~ msgid "Computer Use enabled for this thread"
@@ -3338,8 +3377,12 @@ msgid "Control an external Chrome browser."
 msgstr "외부 Chrome 브라우저를 제어합니다."
 
 #: src/renderer/components/plugins/pluginCopy.ts
-msgid "Control desktop apps and complete visual workflows."
-msgstr "데스크톱 앱을 제어하고 시각적 워크플로를 완료합니다."
+#~ msgid "Control desktop apps and complete visual workflows."
+#~ msgstr "데스크톱 앱을 제어하고 시각적 워크플로를 완료합니다."
+
+#: src/renderer/components/plugins/pluginCopy.ts
+msgid "Control desktop apps in the background and complete visual workflows."
+msgstr "데스크톱 앱을 백그라운드에서 조작하고 시각적 워크플로를 완료합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
@@ -3350,8 +3393,8 @@ msgid "Control which files appear in the @file mention search. Per-project overr
 msgstr "@file 멘션 검색에 표시되는 파일을 제어합니다. 프로젝트별 재정의는 각 프로젝트의 설정에 적용됩니다."
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Controls the paired desktop while the agent clicks or types"
-msgstr "에이전트가 클릭하거나 입력하는 동안 페어링된 데스크톱을 제어합니다"
+#~ msgid "Controls the paired desktop while the agent clicks or types"
+#~ msgstr "에이전트가 클릭하거나 입력하는 동안 페어링된 데스크톱을 제어합니다"
 
 #: src/mobile/views/pr/PrConversationPage.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
@@ -3418,6 +3461,7 @@ msgstr "복사 실패"
 msgid "Copy ignored files"
 msgstr "무시된 파일 복사"
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -4556,6 +4600,22 @@ msgstr "드래그하여 재정렬하세요. 편집하려면 두 번 클릭하세
 msgid "Drives"
 msgstr "드라이브"
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground"
+#~ msgstr "페어링된 데스크톱의 앱을 백그라운드에서 조작하며, 에이전트가 포그라운드를 요청할 때만 해당 데스크톱을 제어합니다"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it"
+msgstr "페어링된 데스크톱의 앱을 백그라운드에서 조작하며, 에이전트가 포그라운드를 요청하거나 시스템 승인 포털이 요구할 때만 해당 데스크톱을 제어합니다"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#~ msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground"
+#~ msgstr "데스크톱 앱을 백그라운드에서 조작하며, 에이전트가 포그라운드를 요청할 때만 데스크톱을 제어합니다"
+
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+msgid "Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it"
+msgstr "데스크톱 앱을 백그라운드에서 조작하며, 에이전트가 포그라운드를 요청하거나 시스템 승인 포털이 요구할 때만 데스크톱을 제어합니다"
+
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Drop here to attach"
 msgstr "첨부하려면 여기에 드롭하세요."
@@ -4942,6 +5002,7 @@ msgstr "코드 {0}(으)로 종료되었습니다. 다시 시도하려면 닫으�
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
+#: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand"
 msgstr "펼치기"
@@ -4974,6 +5035,10 @@ msgstr "바닥글 펼치기"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 msgid "Expand group"
 msgstr "그룹 펼치기"
+
+#: src/renderer/components/thread/ThreadImagesDock.tsx
+msgid "Expand images"
+msgstr "이미지 펼치기"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Expand to review or revoke access."
@@ -5375,8 +5440,12 @@ msgid "First-class Kimi Code CLI integration using Poracode's native runtime."
 msgstr "Poracode의 기본 런타임을 사용하는 최고 수준의 Kimi Code CLI 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
-msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
-msgstr "Poracode의 기본 터미널 런타임을 사용하는 최고 수준의 Muse Code CLI 통합."
+#~ msgid "First-class Muse Code CLI integration using Poracode's native terminal runtime."
+#~ msgstr "Poracode의 기본 터미널 런타임을 사용하는 최고 수준의 Muse Code CLI 통합."
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "First-class Muse Code integration using Poracode's native terminal and GUI runtimes."
+msgstr "Poracode의 기본 터미널 및 GUI 런타임을 사용하는 최고 수준의 Muse Code 통합."
 
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "First-class OpenCode integration using Poracode's native SDK runtime."
@@ -5880,6 +5949,7 @@ msgid "Hide"
 msgstr "숨기기"
 
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
+#: src/renderer/components/thread/ThreadImagesBubble.tsx
 msgid "Hide {label}"
 msgstr "{label} 숨기기"
 
@@ -6050,6 +6120,7 @@ msgstr "이미지"
 msgid "Image preview"
 msgstr "이미지 미리보기"
 
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadImagesBubble.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
@@ -6222,6 +6293,11 @@ msgstr "설치"
 msgid "Install"
 msgstr "설치"
 
+#. placeholder {0}: slot.badge
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+#~ msgid "Install {0}"
+#~ msgstr "Install {0}"
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Install {0} for {env}."
@@ -6249,6 +6325,10 @@ msgstr "{badge} 설치"
 #~ msgid "Install @cursor/sdk to configure its API key."
 #~ msgstr "API 키를 구성하려면 @cursor/sdk를 설치하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+msgid "Install ACP"
+msgstr "ACP 설치"
+
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Install ACP + SDK"
 msgstr "ACP + SDK 설치"
@@ -6256,6 +6336,10 @@ msgstr "ACP + SDK 설치"
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Install ACP + SDK in {environment}"
 msgstr "{environment}에 ACP + SDK 설치"
+
+#: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
+msgid "Install ACP in {environment}"
+msgstr "{environment}에 ACP 설치"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
@@ -6485,6 +6569,11 @@ msgstr "모든 기기에서 하나의 프로바이더 순서를 유지합니다.
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Keep Poracode in the system tray when it launches at startup."
 msgstr "시작 시 Poracode를 시스템 트레이에 둡니다."
+
+#: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Keep the Mac awake during Computer Use"
+msgstr "컴퓨터 사용 중 Mac 절전 방지"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -7405,6 +7494,14 @@ msgstr "추가 풀 요청 옵션"
 msgid "More schedule options"
 msgstr "추가 일정 옵션"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "More sign-in methods"
+msgstr "다른 로그인 방법"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "More sign-in methods {env}"
+msgstr "{env}의 다른 로그인 방법"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CommitSyncPanel.tsx
 msgid "More sync options"
 msgstr "더 많은 동기화 옵션"
@@ -8292,6 +8389,7 @@ msgid "Not found"
 msgstr "찾을 수 없음"
 
 #: src/renderer/views/SettingsOverlay/parts/nativeAgentRuntimes.ts
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "not installed"
 msgstr "설치되지 않음"
 
@@ -8331,6 +8429,10 @@ msgstr "메모"
 #: src/mobile/views/NotesView.tsx
 msgid "Notes & to-dos"
 msgstr "메모 및 할 일"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Nothing to compact yet — the conversation is still small."
+msgstr "아직 압축할 내용이 없습니다. 대화가 아직 짧습니다."
 
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "Nothing tracked yet. It'll appear here as you use it."
@@ -8718,6 +8820,10 @@ msgstr "모델 선택기 열기"
 #: src/renderer/components/providers/opencode/manifest.ts
 msgid "OpenCode"
 msgstr "OpenCode"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "OpenCode request failed, retrying..."
+msgstr "OpenCode 요청이 실패했습니다. 다시 시도하는 중..."
 
 #. placeholder {0}: request.receivedAt
 #. placeholder {1}: index + 1
@@ -10430,6 +10536,16 @@ msgstr "분할 크기 조정"
 msgid "Resize terminal panel"
 msgstr "터미널 패널 크기 조정"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useConflictResolver.ts
+msgid "Resolve conflicts in this worktree. First inspect Git status and the active operation; the file list below may be stale. Compare both sides and the base, preserving intended behavior and unrelated edits. During rebase, verify what ours/theirs refer to. Handle rename/delete, binary, and generated-file conflicts using repository conventions. If intent is ambiguous, ask before discarding changes. Validate the resolution with appropriate checks, then stage only resolved paths. Do not commit, continue or abort the operation, or push. Report resolutions, checks, and remaining conflicts.\n"
+"\n"
+"Files:\n"
+"{fileList}"
+msgstr "이 작업 트리의 충돌을 해결하세요. 먼저 Git 상태와 진행 중인 작업을 확인하세요. 아래 파일 목록은 오래되었을 수 있습니다. 양쪽과 기준 버전을 비교하여 의도한 동작과 관련 없는 수정 사항을 보존하세요. rebase 중에는 ours/theirs가 무엇을 가리키는지 확인하세요. 이름 변경/삭제, 바이너리 및 생성된 파일의 충돌은 저장소 규칙에 따라 처리하세요. 의도가 모호하면 변경 사항을 버리기 전에 질문하세요. 적절한 검사로 해결 결과를 검증한 다음 해결된 경로만 스테이징하세요. 커밋하거나 작업을 계속 또는 중단하거나 push하지 마세요. 해결 내용, 검사 결과, 남은 충돌을 보고하세요.\n"
+"\n"
+"파일:\n"
+"{fileList}"
+
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
@@ -10652,12 +10768,20 @@ msgstr "{0} 실행"
 
 #. placeholder {0}: agentStatus.loginCommand
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
-msgid "Run {0} before this thread can run."
-msgstr "이 스레드가 실행되기 전에 {0}을(를) 실행하십시오."
+#~ msgid "Run {0} before this thread can run."
+#~ msgstr "이 스레드가 실행되기 전에 {0}을(를) 실행하십시오."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-msgid "Run {loginCommand} to sign in."
-msgstr "{loginCommand}을 실행하여 로그인합니다."
+#~ msgid "Run {loginCommand} to sign in."
+#~ msgstr "{loginCommand}을 실행하여 로그인합니다."
+
+#: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
+msgid "Run {loginCommandDisplay} before this thread can run."
+msgstr "이 스레드가 실행되기 전에 {loginCommandDisplay}을(를) 실행하십시오."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
+msgid "Run {loginCommandDisplay} to sign in."
+msgstr "{loginCommandDisplay}을 실행하여 로그인합니다."
 
 #. placeholder {0}: server.label
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
@@ -10835,6 +10959,10 @@ msgstr "Cursor SDK API 키 저장"
 #: src/renderer/commands/registry.ts
 msgid "Save File"
 msgstr "파일 저장"
+
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Save image"
+msgstr "이미지 저장"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Save MCP servers"
@@ -11242,6 +11370,10 @@ msgstr "대화 제목 대신 일반 텍스트를 Apple 푸시 서비스로 전�
 msgid "Send message"
 msgstr "메시지 보내기"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Send terminal input"
+msgstr "터미널에 입력 보내기"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Sent selection to terminal."
 msgstr "선택 항목을 터미널로 보냈습니다."
@@ -11595,6 +11727,10 @@ msgstr "{0}에서 로그아웃"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Sign out of {serverName}"
 msgstr "{serverName}에서 로그아웃"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+msgid "Sign-in methods"
+msgstr "로그인 방법"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "sign-in required"
@@ -12350,8 +12486,8 @@ msgid "Take Screenshot"
 msgstr "스크린샷 찍기"
 
 #: src/renderer/components/composer/ComposerAddMenu.tsx
-msgid "Takes over the desktop while the agent clicks or types"
-msgstr "에이전트가 클릭하거나 입력하는 동안 데스크톱을 제어합니다"
+#~ msgid "Takes over the desktop while the agent clicks or types"
+#~ msgstr "에이전트가 클릭하거나 입력하는 동안 데스크톱을 제어합니다"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Tap + to add a folder or clone a repository on your desktop."
@@ -13265,6 +13401,10 @@ msgstr "SSH를 통해 연결할 수 없습니다."
 msgid "Unable to copy desktop endpoint."
 msgstr "데스크톱 엔드포인트를 복사할 수 없습니다."
 
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Unable to copy image."
+msgstr "이미지를 복사할 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy pairing link."
 msgstr "페어링 링크를 복사할 수 없습니다."
@@ -13434,6 +13574,10 @@ msgstr "{0} 자격 증명을 저장할 수 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Claude {displayLabel} 프로필을 저장할 수 없습니다."
+
+#: src/renderer/components/composer/ImageLightboxMenu.tsx
+msgid "Unable to save image."
+msgstr "이미지를 저장할 수 없습니다."
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
@@ -14084,7 +14228,7 @@ msgstr "읽기 전용 — 이 연결로는 프로젝트를 관리할 수 없습�
 msgid "Violet"
 msgstr "보라"
 
-#. placeholder {0}: provider.label
+#. placeholder {0}: props.surfaceLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Visible {0} models"
 msgstr "표시되는 {0} 모델"

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Thread } from "@/shared/contracts";
 import { isFullscreenScreenPath, threadIdFromPath } from "./navHelpers";
 import type { Chrome } from "./chrome";
@@ -24,6 +24,11 @@ interface HeldThreadHeader {
  * mounted as `visibleHeldThreadHeader` for a short window so the shared
  * element view transition has a matching header to animate from/to, then
  * released once the transition has had time to settle.
+ *
+ * Owned snapshots live in state and adjust during render (never as render-time
+ * ref writes): the hold must already be in place on the first fullscreen paint
+ * or the transition flashes a headerless frame. Only the release polling uses
+ * an effect.
  */
 export function useHeldThreadHeader(params: {
   readonly pathname: string;
@@ -35,49 +40,9 @@ export function useHeldThreadHeader(params: {
   readonly visibleHeldThreadHeader: HeldThreadHeader | null;
 } {
   const { pathname, chromeLayout, selectedThread, threads } = params;
-  const previousPathnameRef = useRef(pathname);
-  const lastThreadHeaderRef = useRef<HeldThreadHeader | null>(null);
-  const heldThreadHeaderRef = useRef<HeldThreadHeader | null>(null);
-  const heldThreadHeaderTimerRef = useRef<number | null>(null);
-  const [, rerenderHeldThreadHeader] = useState(0);
-
-  const clearHeldThreadHeaderTimer = () => {
-    if (!heldThreadHeaderTimerRef.current) return;
-    window.clearTimeout(heldThreadHeaderTimerRef.current);
-    heldThreadHeaderTimerRef.current = null;
-  };
-  useEffect(() => () => clearHeldThreadHeaderTimer(), []);
-  const clearHeldThreadHeader = (snapshot: HeldThreadHeader) => {
-    if (heldThreadHeaderRef.current?.key !== snapshot.key) return;
-    heldThreadHeaderRef.current = null;
-    rerenderHeldThreadHeader((version) => version + 1);
-  };
-  const isViewTransitionActive = () => {
-    try {
-      return document.documentElement.matches(":active-view-transition");
-    } catch {
-      return false;
-    }
-  };
-  const scheduleHeldThreadHeaderRelease = (snapshot: HeldThreadHeader) => {
-    clearHeldThreadHeaderTimer();
-    const startedAt = performance.now();
-    const check = () => {
-      heldThreadHeaderTimerRef.current = null;
-      if (heldThreadHeaderRef.current?.key !== snapshot.key) return;
-
-      const elapsed = performance.now() - startedAt;
-      if (
-        (elapsed >= FULLSCREEN_HEADER_MIN_HOLD_MS && !isViewTransitionActive()) ||
-        elapsed >= FULLSCREEN_HEADER_MAX_HOLD_MS
-      ) {
-        clearHeldThreadHeader(snapshot);
-        return;
-      }
-      heldThreadHeaderTimerRef.current = window.setTimeout(check, FULLSCREEN_HEADER_POLL_MS);
-    };
-    heldThreadHeaderTimerRef.current = window.setTimeout(check, FULLSCREEN_HEADER_MIN_HOLD_MS);
-  };
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  const [lastThreadHeader, setLastThreadHeader] = useState<HeldThreadHeader | null>(null);
+  const [heldThreadHeader, setHeldThreadHeader] = useState<HeldThreadHeader | null>(null);
 
   // `selectedThread` falls back to the most-recent thread, so on a stale
   // /thread/:id deep link (thread deleted elsewhere) it points at the wrong
@@ -88,47 +53,71 @@ export function useHeldThreadHeader(params: {
     chromeLayout === "thread" && selectedThread && selectedThread.id === routedThreadId
       ? selectedThread
       : null;
-  if (headerThread) {
-    lastThreadHeaderRef.current = {
+  // Guarded on the thread identity so a fresh `threads` array alone never
+  // re-triggers the update (the held header is inert; its list going briefly
+  // stale is unobservable).
+  if (headerThread && lastThreadHeader?.thread !== headerThread) {
+    setLastThreadHeader({
       key: headerThread.id,
       thread: headerThread,
       threads,
-    };
+    });
   }
+
   const enteringFullscreenFromThread =
     chromeLayout === "fullscreen" &&
-    previousPathnameRef.current !== pathname &&
-    threadIdFromPath(previousPathnameRef.current) !== null &&
+    prevPathname !== pathname &&
+    threadIdFromPath(prevPathname) !== null &&
     isFullscreenScreenPath(pathname);
-  const immediateHeldThreadHeader = enteringFullscreenFromThread
-    ? lastThreadHeaderRef.current
-    : null;
-  if (immediateHeldThreadHeader) {
-    heldThreadHeaderRef.current = immediateHeldThreadHeader;
-  }
-  const visibleHeldThreadHeader =
-    chromeLayout === "fullscreen" ? heldThreadHeaderRef.current : null;
-
-  useLayoutEffect(() => {
-    const previousPathname = previousPathnameRef.current;
-    if (previousPathname === pathname) return;
-    previousPathnameRef.current = pathname;
-
-    const shouldHoldThreadHeader =
-      isFullscreenScreenPath(pathname) && threadIdFromPath(previousPathname) !== null;
-
-    if (!shouldHoldThreadHeader) {
-      clearHeldThreadHeaderTimer();
-      heldThreadHeaderRef.current = null;
-      rerenderHeldThreadHeader((version) => version + 1);
-      return;
+  if (prevPathname !== pathname) {
+    setPrevPathname(pathname);
+    if (enteringFullscreenFromThread) {
+      if (lastThreadHeader) setHeldThreadHeader(lastThreadHeader);
+    } else {
+      const shouldHoldThreadHeader =
+        isFullscreenScreenPath(pathname) && threadIdFromPath(prevPathname) !== null;
+      if (!shouldHoldThreadHeader) {
+        if (heldThreadHeader !== null) setHeldThreadHeader(null);
+      } else if (heldThreadHeader === null && lastThreadHeader) {
+        setHeldThreadHeader(lastThreadHeader);
+      }
     }
+  }
+  const visibleHeldThreadHeader = chromeLayout === "fullscreen" ? heldThreadHeader : null;
 
-    const snapshot = heldThreadHeaderRef.current ?? lastThreadHeaderRef.current;
-    if (!snapshot) return;
-    heldThreadHeaderRef.current = snapshot;
-    scheduleHeldThreadHeaderRelease(snapshot);
-  }, [pathname]);
+  // Release the hold once the hand-off transition has had time to settle:
+  // at least MIN_HOLD ms and no active view transition, or MAX_HOLD ms come
+  // what may. Keyed on the held snapshot and the pathname so every navigation
+  // while held restarts the schedule (like the pathname effect it replaces);
+  // cleanup covers unmount and early release.
+  useEffect(() => {
+    if (heldThreadHeader === null || !isFullscreenScreenPath(pathname)) return;
+    const snapshot = heldThreadHeader;
+    const startedAt = performance.now();
+    const isViewTransitionActive = () => {
+      try {
+        return document.documentElement.matches(":active-view-transition");
+      } catch {
+        return false;
+      }
+    };
+    let timer: number | null = window.setTimeout(check, FULLSCREEN_HEADER_MIN_HOLD_MS);
+    function check() {
+      timer = null;
+      const elapsed = performance.now() - startedAt;
+      if (
+        (elapsed >= FULLSCREEN_HEADER_MIN_HOLD_MS && !isViewTransitionActive()) ||
+        elapsed >= FULLSCREEN_HEADER_MAX_HOLD_MS
+      ) {
+        setHeldThreadHeader((current) => (current?.key === snapshot.key ? null : current));
+        return;
+      }
+      timer = window.setTimeout(check, FULLSCREEN_HEADER_POLL_MS);
+    }
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [heldThreadHeader, pathname]);
 
   return { headerThread, visibleHeldThreadHeader };
 }

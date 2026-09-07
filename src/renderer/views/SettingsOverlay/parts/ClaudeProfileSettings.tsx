@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Button, Popover, toast } from "@heroui/react";
 import { Check, ChevronDown, Lock, LockOpen, Plus, Wand2, X } from "lucide-react";
 import { msg } from "@lingui/core/macro";
@@ -48,6 +48,11 @@ const CLAUDE_PROFILE_BASE_MODEL_IDS = [
   "haiku",
 ];
 const EMPTY_EFFORT_SELECTION = new Set<string>();
+
+// Row ids only need per-session uniqueness for React keys and row updates — a
+// module counter keeps the id factory ref-free so it can seed state during
+// render as well as run in event handlers.
+let profileRowIdCounter = 0;
 
 function refreshClaudeProfile(kind?: string): void {
   window.setTimeout(() => {
@@ -227,8 +232,7 @@ function ClaudeProfileEditor(props: {
       s.agentStatuses.find((status) => status.kind === profileKind) ??
       s.wslAgentStatuses.find((status) => status.kind === profileKind),
   );
-  const rowIdCounter = useRef(0);
-  const nextRowId = () => `r${(rowIdCounter.current += 1)}`;
+  const nextRowId = () => `r${(profileRowIdCounter += 1)}`;
 
   // Local editor state is seeded once from props; the editor is keyed by
   // instance id so it re-seeds when a different profile takes its place. The

@@ -52,6 +52,10 @@ export function ConflictFileCard(props: {
   const [diffFile, setDiffFile] = useState<DiffFile | null>(null);
   const [loading, setLoading] = useState(false);
   const loadedKeyRef = useRef<string | null>(null);
+  // Mirror of loadedKeyRef for rendering: the "no changes" row shows once a
+  // load has settled. Refs can't be read during render, so this state is set
+  // alongside the terminal loading updates in the async callbacks below.
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const tooLarge = file.insertions + file.deletions > LARGE_DIFF_THRESHOLD;
 
   const fetchKey = `${file.path}|${file.insertions}|${file.deletions}`;
@@ -76,6 +80,7 @@ export function ConflictFileCard(props: {
         const rawDiff = result.diff;
         if (!rawDiff.trim()) {
           setLoading(false);
+          setHasAttemptedLoad(true);
           return;
         }
 
@@ -103,7 +108,10 @@ export function ConflictFileCard(props: {
       } catch {
         // Diff unavailable
       }
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        setLoading(false);
+        setHasAttemptedLoad(true);
+      }
     }
 
     void load();
@@ -212,7 +220,7 @@ export function ConflictFileCard(props: {
               </Trans>
             </div>
           )}
-          {!loading && !tooLarge && !diffFile && loadedKeyRef.current !== null && (
+          {!loading && !tooLarge && !diffFile && hasAttemptedLoad && (
             <div className="px-4 py-3 text-xs text-muted">
               <Trans>No changes to display</Trans>
             </div>

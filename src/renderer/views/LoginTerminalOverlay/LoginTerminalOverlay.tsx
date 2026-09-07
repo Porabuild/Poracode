@@ -24,28 +24,38 @@ import { XTermSurface, type XTermSurfaceHandle } from "@/renderer/components/ter
 export function LoginTerminalOverlay() {
   const { t } = useLingui();
   const active = useLoginTerminalStore((state) => state.active);
-  const [renderedSession, setRenderedSession] = useState<LoginTerminalSession | null>(null);
+  const [renderedSession, setRenderedSession] = useState<LoginTerminalSession | null>(() => active);
   const [visible, setVisible] = useState(false);
   const xtermRef = useRef<XTermSurfaceHandle | null>(null);
 
-  useEffect(() => {
+  // Swap the rendered session during render rather than synchronously on
+  // effect entry, so opening for another session never paints a frame with
+  // the previous session's terminal. The lazy initializer above covers the
+  // mount case (a session already active when the overlay mounts).
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
     if (active) {
       setRenderedSession(active);
-      // Double rAF: first frame commits the off-screen position to the DOM
-      // (browser paints it), second frame flips to translateX(0) so the
-      // transition has a starting point to animate from. A single rAF can be
-      // batched into the same paint as the initial mount and skip the slide.
-      let inner = 0;
-      const outer = requestAnimationFrame(() => {
-        inner = requestAnimationFrame(() => setVisible(true));
-      });
-      return () => {
-        cancelAnimationFrame(outer);
-        if (inner) cancelAnimationFrame(inner);
-      };
+    } else {
+      setVisible(false);
     }
-    setVisible(false);
-    return undefined;
+  }
+
+  useEffect(() => {
+    if (!active) return;
+    // Double rAF: first frame commits the off-screen position to the DOM
+    // (browser paints it), second frame flips to translateX(0) so the
+    // transition has a starting point to animate from. A single rAF can be
+    // batched into the same paint as the initial mount and skip the slide.
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setVisible(true));
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      if (inner) cancelAnimationFrame(inner);
+    };
   }, [active]);
 
   useEffect(() => {

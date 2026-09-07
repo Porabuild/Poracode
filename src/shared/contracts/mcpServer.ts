@@ -34,6 +34,7 @@ export const BUILT_IN_MCP_SERVER_NAMES: Record<BuiltInMcpServerId, string> = {
 export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
   browser: [
     "api",
+    "perform",
     "enable",
     "disable",
     "list_tabs",
@@ -90,31 +91,49 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "wait_for_agent",
     "get_status",
     "list_runs",
+    "steer_agent",
     "cancel",
   ],
   chrome: [
-    "chrome_status",
+    "status",
     "enable",
     "disable",
-    "chrome_list_tabs",
-    "chrome_open",
-    "chrome_attach",
-    "chrome_navigate",
-    "chrome_reload",
-    "chrome_get_url",
-    "chrome_get_title",
-    "chrome_snapshot",
-    "chrome_find",
-    "chrome_get",
-    "chrome_is",
-    "chrome_click",
-    "chrome_fill",
-    "chrome_type",
-    "chrome_press",
-    "chrome_wait",
-    "chrome_screenshot",
-    "chrome_eval",
-    "chrome_cookies",
+    "list_tabs",
+    "open",
+    "attach",
+    "navigate",
+    "reload",
+    "get_url",
+    "get_title",
+    "screenshot",
+    "perform",
+    "back",
+    "forward",
+    "query",
+    "wait_for",
+    "click",
+    "dblclick",
+    "focus",
+    "type",
+    "fill",
+    "check",
+    "uncheck",
+    "select",
+    "eval",
+    "snapshot",
+    "get",
+    "is",
+    "find",
+    "hover",
+    "press",
+    "wait",
+    "scroll",
+    "wait_for_url",
+    "wait_for_text",
+    "wait_for_js",
+    "cookies",
+    "storage",
+    "frames",
   ],
   "computer-use": [
     "api",
@@ -125,7 +144,11 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "launch_app",
     "get_window",
     "get_window_state",
+    "find_elements",
+    "invoke_element",
+    "set_element_value",
     "activate_window",
+    "perform",
     "click",
     "press_key",
     "type_text",
@@ -191,6 +214,7 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "update_mcp_server",
     "remove_mcp_server",
     "list_skills",
+    "read_skill",
     "set_skill_enabled",
   ],
 } as const satisfies Record<BuiltInMcpServerId, readonly string[]>;
@@ -482,6 +506,15 @@ export type BuiltInMcpServerDisabled = z.infer<typeof builtInMcpServerDisabledSc
 
 export const builtInMcpDisabledToolsSchema = z
   .partialRecord(z.enum(BUILT_IN_MCP_SERVER_IDS), z.array(z.string().min(1)))
+  // Normalize the previous Chrome catalogue on read; old settings remain valid.
+  .transform((disabled) =>
+    disabled.chrome
+      ? {
+          ...disabled,
+          chrome: [...new Set(disabled.chrome.map((name) => name.replace(/^chrome_/, "")))],
+        }
+      : disabled,
+  )
   .default({});
 export type BuiltInMcpDisabledTools = z.infer<typeof builtInMcpDisabledToolsSchema>;
 

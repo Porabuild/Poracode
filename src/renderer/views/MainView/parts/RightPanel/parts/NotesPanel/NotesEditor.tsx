@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { StarterKit } from "@tiptap/starter-kit";
@@ -20,9 +20,11 @@ export function NotesEditor(props: { projectId: string }) {
   const { t } = useLingui();
   const setDoc = useNotesStore((s) => s.setDoc);
   // Read the loaded document once at mount — feeding store updates back into the
-  // editor on every keystroke would reset the caret.
-  const initialContentRef = useRef<unknown>(
-    useNotesStore.getState().byProject[projectId]?.doc ?? null,
+  // editor on every keystroke would reset the caret. A lazy state initializer
+  // (not a ref read during render) holds the mount-time snapshot; the panel
+  // remounts per project via its `key`.
+  const [initialContent] = useState<unknown>(
+    () => useNotesStore.getState().byProject[projectId]?.doc ?? null,
   );
   // Guards against persisting an empty document before the editor has finished
   // initializing with the loaded content — that would clobber saved notes.
@@ -33,7 +35,7 @@ export function NotesEditor(props: { projectId: string }) {
       StarterKit,
       Placeholder.configure({ placeholder: t`Write notes for this project…` }),
     ],
-    content: (initialContentRef.current as object | null) ?? "",
+    content: (initialContent as object | null) ?? "",
     editorProps: {
       attributes: { class: "lc-notes-prose", "aria-label": t`Project notes` },
     },

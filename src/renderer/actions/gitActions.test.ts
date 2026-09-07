@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitPullFromSourceResult, Project } from "@/shared/contracts";
 
-const project = vi.hoisted(
-  (): Project => ({
-    id: "project-1",
-    name: "Poracode",
-    createdAt: "2026-07-21T00:00:00.000Z",
-    location: { kind: "posix", path: "/repo" },
-  }),
-);
+const project = vi.hoisted((): Project => ({
+  id: "project-1",
+  name: "Poracode",
+  createdAt: "2026-07-21T00:00:00.000Z",
+  location: { kind: "posix", path: "/repo" },
+}));
 
 const bridgeMock = vi.hoisted(() => ({
   gitGetWorktreeSourceBranch:

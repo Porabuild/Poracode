@@ -79,12 +79,14 @@ function UsageProviderControls(props: { id: string; label: string }) {
   const {
     canBrowserSignIn,
     canApiKeySignIn,
+    canCliSignIn,
     canSignOut,
     signingIn,
     signingOut,
     apiKey,
     setApiKey,
     handleSignIn,
+    handleCliSignIn,
     handleSubmitApiKey,
     handleSignOut,
   } = useUsageProviderLogin(id);
@@ -122,6 +124,20 @@ function UsageProviderControls(props: { id: string; label: string }) {
     </div>
   ) : null;
 
+  const cliSignIn = canCliSignIn ? (
+    <div className="order-last flex basis-full items-center @xl:order-none @xl:basis-auto">
+      <Button
+        size="sm"
+        variant="ghost"
+        className="shrink-0 text-foreground"
+        isDisabled={signingIn}
+        onPress={handleCliSignIn}
+      >
+        {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
+      </Button>
+    </div>
+  ) : null;
+
   const apiKeySignIn = canApiKeySignIn ? (
     <form
       onSubmit={onSubmitApiKey}
@@ -152,6 +168,7 @@ function UsageProviderControls(props: { id: string; label: string }) {
   return (
     <>
       {browserSignIn}
+      {cliSignIn}
       {apiKeySignIn}
       {/* Pinned to the right of the first line; the sign-in block above wraps
           below them when the container is narrow. */}

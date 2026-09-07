@@ -21,6 +21,8 @@ export interface ChangelogRelease {
   version: string;
   date: string;
   title: string;
+  /** Two-word release name shared by the changelog and homepage announcement. */
+  tagline: string;
   summary: string;
   changes: ChangelogChange[];
 }
@@ -44,6 +46,8 @@ function isRelease(value: unknown): value is ChangelogRelease {
     typeof r.version === "string" &&
     typeof r.date === "string" &&
     typeof r.title === "string" &&
+    typeof r.tagline === "string" &&
+    /^\S+ \S+$/u.test(r.tagline) &&
     typeof r.summary === "string" &&
     Array.isArray(r.changes) &&
     r.changes.every(isChange)

@@ -71,27 +71,28 @@ export function GitReviewPanel(props: {
     statusKey ? s.worktreeStatuses[statusKey] : s.statuses[project.id],
   ) as GitStatusResult | undefined;
 
-  async function fetchStatus() {
-    setRefreshing(true);
-    try {
-      const status = await readBridge().getGitStatus({
-        projectLocation: effectiveLocation,
-      });
-      if (statusKey) {
-        useGitStore.getState().setWorktreeStatus(statusKey, status);
-      } else {
-        useGitStore.getState().setStatus(project.id, status);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
+  // One-shot mount fetch so the panel paints with live status even before the
+  // poll cycle runs. Effect-only store writes (no synchronous setState), keyed
+  // on the location pieces the call actually uses.
   useEffect(() => {
-    void fetchStatus();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- one-shot on mount
+    let cancelled = false;
+    void readBridge()
+      .getGitStatus({ projectLocation: effectiveLocation })
+      .then((status) => {
+        if (cancelled) return;
+        if (statusKey) {
+          useGitStore.getState().setWorktreeStatus(statusKey, status);
+        } else {
+          useGitStore.getState().setStatus(project.id, status);
+        }
+      })
+      .catch(() => {
+        // ignore
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveLocation, project.id, statusKey]);
 
   function handleSelectFile(path: string | null, staged: boolean) {
     setSelectedFile(path);

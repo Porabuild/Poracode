@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { AlertDialog } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
@@ -40,9 +40,13 @@ import { findExperimentByWorktree } from "@/renderer/state/experimentStore";
 
 function useEverEnabled(active: boolean): boolean {
   const [enabled, setEnabled] = useState(active);
-  useEffect(() => {
+  // Latch: once enabled the prewarmed host stays mounted. Derived from
+  // `active`, so adjust during render.
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
     if (active) setEnabled(true);
-  }, [active]);
+  }
   return enabled;
 }
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Download, ArrowLeft, Monitor, Apple, Terminal, Moon, AlertTriangle } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/I18nProvider";
 import { localizedPath } from "@/lib/i18n/config";
@@ -65,19 +65,23 @@ export function NightlyContent({ release }: { release: ReleaseInfo }) {
   const { locale, t } = useI18n();
   const hasBuild = release.version !== null;
   const publishedAt = release.publishedAt ?? null;
-  const [relativeTime, setRelativeTime] = useState<string>("");
-  const [absoluteTime, setAbsoluteTime] = useState<string>("");
+  const [relativeTime, setRelativeTime] = useState<string>(() =>
+    publishedAt ? formatRelative(publishedAt, locale) : "",
+  );
+  const [absoluteTime, setAbsoluteTime] = useState<string>(() =>
+    publishedAt ? formatBuildTime(publishedAt, locale) : "",
+  );
+  const [prevTimeFormat, setPrevTimeFormat] = useState({ locale, publishedAt });
+  if (prevTimeFormat.locale !== locale || prevTimeFormat.publishedAt !== publishedAt) {
+    setPrevTimeFormat({ locale, publishedAt });
+    setRelativeTime(publishedAt ? formatRelative(publishedAt, locale) : "");
+    setAbsoluteTime(publishedAt ? formatBuildTime(publishedAt, locale) : "");
+  }
   const homeHref = localizedPath("/", locale);
   const downloadHref = localizedPath("/download", locale);
   const [warningBefore, warningAfter] = t("nightly.warning").split("{stable}");
   const [noBuildBefore, noBuildAfter] = t("nightly.noBuild").split("{releases}");
   const [footerBefore, footerAfter] = t("nightly.footer").split("{prereleases}");
-
-  useEffect(() => {
-    if (!publishedAt) return;
-    setRelativeTime(formatRelative(publishedAt, locale));
-    setAbsoluteTime(formatBuildTime(publishedAt, locale));
-  }, [locale, publishedAt]);
 
   return (
     <div lang={locale} className="relative min-h-screen overflow-x-hidden bg-black text-white">

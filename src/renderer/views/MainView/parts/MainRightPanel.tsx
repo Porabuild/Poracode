@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useBottomTerminalVisible, usePanelVisibility } from "./AppShell/parts/usePanelVisibility";
 import { BottomPanelDockContainer } from "./RightPanel/parts/PanelDock/BottomPanelDockContainer";
@@ -12,10 +12,13 @@ export function MainRightPanel() {
   const { rightPanelOpen } = usePanelVisibility();
   const terminalVisible = useBottomTerminalVisible();
   const [enabled, setEnabled] = useState(rightPanelOpen);
-
-  useEffect(() => {
+  // Latch: once open the panel host stays mounted. Derived from
+  // `rightPanelOpen`, so adjust during render.
+  const [prevRightPanelOpen, setPrevRightPanelOpen] = useState(rightPanelOpen);
+  if (prevRightPanelOpen !== rightPanelOpen) {
+    setPrevRightPanelOpen(rightPanelOpen);
     if (rightPanelOpen) setEnabled(true);
-  }, [rightPanelOpen]);
+  }
 
   if (!enabled) return null;
 

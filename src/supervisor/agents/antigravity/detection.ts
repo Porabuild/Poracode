@@ -21,7 +21,8 @@ export const ANTIGRAVITY_DEFAULT_MODEL_ID = "Gemini 3.5 Flash";
 // probes, account probe, PTY launches, one-shots). `agy update` runs without
 // this env (separate path), so explicit updates still work.
 export const ANTIGRAVITY_DISABLE_AUTO_UPDATE_ENV: Record<string, string> = {
-  AGY_CLI_DISABLE_AUTO_UPDATE: "1",
+  // The CLI checks for the literal "true"; "1" still launches its updater.
+  AGY_CLI_DISABLE_AUTO_UPDATE: "true",
 };
 
 const defaultModelCapabilities = buildAntigravityModelCapabilities(

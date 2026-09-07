@@ -53,7 +53,15 @@ function resolveRange(
 }
 
 export function useResizablePanels(
-  refs: {
+  {
+    sidebarRef,
+    panelRef,
+    panelInnerRef,
+    gitPanelRef,
+    gitPanelInnerRef,
+    mainRef,
+    overlayRef,
+  }: {
     sidebarRef: RefObject<HTMLDivElement | null>;
     panelRef: RefObject<HTMLDivElement | null>;
     panelInnerRef: RefObject<HTMLDivElement | null>;
@@ -101,57 +109,57 @@ export function useResizablePanels(
 
   const applySidebarWidth = useCallback(
     (next: number) => {
-      const sidebar = refs.sidebarRef.current;
+      const sidebar = sidebarRef.current;
       if (!sidebar) return;
       sidebar.style.width = `${next}px`;
       sidebar.style.minWidth = `${next}px`;
     },
-    [refs.sidebarRef],
+    [sidebarRef],
   );
 
   const applyPanelWidth = useCallback(
     (next: number) => {
-      const panel = refs.panelRef.current;
+      const panel = panelRef.current;
       if (panel) {
         panel.style.width = `${next}px`;
         panel.style.minWidth = `${next}px`;
       }
-      const inner = refs.panelInnerRef.current;
+      const inner = panelInnerRef.current;
       if (inner) {
         inner.style.width = `${next}px`;
       }
     },
-    [refs.panelInnerRef, refs.panelRef],
+    [panelInnerRef, panelRef],
   );
 
   const applyPanelHeight = useCallback(
     (next: number) => {
-      const panel = refs.panelRef.current;
+      const panel = panelRef.current;
       if (panel) {
         panel.style.height = `${next}px`;
         panel.style.minHeight = `${next}px`;
       }
-      const inner = refs.panelInnerRef.current;
+      const inner = panelInnerRef.current;
       if (inner) {
         inner.style.height = `${next}px`;
       }
     },
-    [refs.panelInnerRef, refs.panelRef],
+    [panelInnerRef, panelRef],
   );
 
   const applyGitPanelWidth = useCallback(
     (next: number) => {
-      const panel = refs.gitPanelRef.current;
+      const panel = gitPanelRef.current;
       if (panel) {
         panel.style.width = `${next}px`;
         panel.style.minWidth = `${next}px`;
       }
-      const inner = refs.gitPanelInnerRef.current;
+      const inner = gitPanelInnerRef.current;
       if (inner) {
         inner.style.width = `${next}px`;
       }
     },
-    [refs.gitPanelInnerRef, refs.gitPanelRef],
+    [gitPanelInnerRef, gitPanelRef],
   );
 
   useEffect(() => {
@@ -232,7 +240,7 @@ export function useResizablePanels(
       // mid-drag and the panel disappears under the cursor. A floating overlay
       // panel does not squeeze main at all, so the caller overrides the range.
       const limits = getResizeLimitsRef.current?.(target) ?? null;
-      const mainW = refs.mainRef.current?.getBoundingClientRect().width ?? 0;
+      const mainW = mainRef.current?.getBoundingClientRect().width ?? 0;
       const dockedMaxWidth =
         mainW > 0 ? mainW + startWidth - CONTENT_MIN_WIDTH : Number.POSITIVE_INFINITY;
       // Only meaningful for the "panel" / "git-panel" targets.
@@ -245,14 +253,14 @@ export function useResizablePanels(
       // otherwise its width/height will lag behind the per-frame ref writes below.
       const affected =
         target === "sidebar"
-          ? refs.sidebarRef.current
+          ? sidebarRef.current
           : target === "git-panel"
-            ? refs.gitPanelRef.current
-            : refs.panelRef.current;
+            ? gitPanelRef.current
+            : panelRef.current;
       const prevTransitionDuration = affected ? affected.style.transitionDuration : "";
       if (affected) affected.style.transitionDuration = "0ms";
 
-      const overlay = refs.overlayRef.current;
+      const overlay = overlayRef.current;
       if (overlay) {
         overlay.style.display = "block";
         overlay.style.cursor = target === "panel-bottom" ? "row-resize" : "col-resize";
@@ -349,11 +357,11 @@ export function useResizablePanels(
       applyPanelHeight,
       applyPanelWidth,
       applySidebarWidth,
-      refs.gitPanelRef,
-      refs.mainRef,
-      refs.overlayRef,
-      refs.panelRef,
-      refs.sidebarRef,
+      gitPanelRef,
+      mainRef,
+      overlayRef,
+      panelRef,
+      sidebarRef,
     ],
   );
 

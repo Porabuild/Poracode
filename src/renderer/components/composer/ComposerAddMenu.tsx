@@ -111,8 +111,8 @@ export function ComposerAddMenu(props: {
     customMcpServers.length > 0 || onManageMcpServers !== undefined || readOnly;
   const computerUseLabel = pluginLabels[COMPUTER_USE_MCP_ID] ?? t`Computer Use`;
   const computerUseHint = isRemoteSession()
-    ? t`Controls the paired desktop while the agent clicks or types`
-    : t`Takes over the desktop while the agent clicks or types`;
+    ? t`Drives apps on the paired desktop in the background; takes over that desktop only when the agent asks for the foreground or its system-approved portal requires it`
+    : t`Drives desktop apps in the background; takes over the desktop only when the agent asks for the foreground or a system-approved portal requires it`;
   const experimentHint = t`Run one prompt with multiple agents, then compare their work.`;
 
   // Counts every enabled row the Plugins submenu shows, Computer Use included —

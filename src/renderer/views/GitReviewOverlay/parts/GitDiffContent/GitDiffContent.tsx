@@ -161,7 +161,10 @@ export function GitDiffContent(props: {
   const filtered =
     diffFilter === "staged" ? entries.filter((e) => e.staged) : entries.filter((e) => !e.staged);
 
-  // Track staggered mount progress — loader hides when last DiffSection mounts
+  // Track staggered mount progress — loader hides when last DiffSection mounts.
+  // The counters live in refs because the mount callback fires from children;
+  // the visible readiness flag resets during render whenever a new batch of
+  // diffs (or the loading state) arrives.
   const mountedCountRef = useRef(0);
   const expectedCountRef = useRef(0);
   const onSectionMounted = () => {
@@ -172,12 +175,17 @@ export function GitDiffContent(props: {
   };
 
   const filteredWithDiffs = filtered.filter((e) => e.diffFile);
+  const readyKey = `${filteredWithDiffs.length}\0${loading ? "1" : "0"}`;
+  const [prevReadyKey, setPrevReadyKey] = useState<string | null>(null);
+  if (prevReadyKey !== readyKey) {
+    setPrevReadyKey(readyKey);
+    if (filteredWithDiffs.length === 0) setPanelReady(!loading);
+    else setPanelReady(false);
+  }
   useEffect(() => {
     mountedCountRef.current = 0;
     expectedCountRef.current = filteredWithDiffs.length;
-    if (filteredWithDiffs.length === 0) setPanelReady(!loading);
-    else setPanelReady(false);
-  }, [filteredWithDiffs.length, loading]);
+  }, [expectedCountRef, filteredWithDiffs.length]);
 
   if (!gitStatus?.isRepo) {
     return (

@@ -28,8 +28,16 @@ describe("newThreadFromText", () => {
   });
 
   it("marks seeds whose leading skill should render as a chip", () => {
-    newThreadFromText("p1", "/skill-creator Create a skill.", { bindLeadingSkill: true });
-    expect(useAppStore.getState().pendingComposerSeeds["p1"]?.bindLeadingSkill).toBe(true);
+    newThreadFromText("p1", "/skill-creator Create a skill.", {
+      bindLeadingSkill: true,
+      leadingSkillPluginId: "example-plugin",
+      enableMcpServerIds: ["computer-use"],
+    });
+    expect(useAppStore.getState().pendingComposerSeeds["p1"]).toMatchObject({
+      bindLeadingSkill: true,
+      leadingSkillPluginId: "example-plugin",
+      enableMcpServerIds: ["computer-use"],
+    });
   });
 
   it("ignores blank text", () => {

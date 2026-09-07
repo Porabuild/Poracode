@@ -155,6 +155,7 @@ function createRoutingSend(): ReturnType<typeof vi.fn> {
 
 const ROUTING_ARGS: Record<string, Record<string, unknown>> = {
   api: {},
+  perform: { steps: [{ action: "fill", selector: "input", text: "Ada" }], observe: "none" },
   enable: {},
   disable: {},
   list_tabs: {},

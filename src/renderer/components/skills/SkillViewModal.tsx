@@ -23,11 +23,25 @@ export function SkillViewModal(props: {
   const [error, setError] = useState(false);
   const [raw, setRaw] = useState(false);
 
-  useEffect(() => {
-    let active = true;
+  // Reload when the viewed skill (or its source location) changes; the
+  // content/error/raw reset happens during render, the file read stays in the
+  // effect below and only settles through async callbacks.
+  const skillContentKey = [
+    props.skill.skillFilePath,
+    props.skill.absolutePath,
+    props.wslDistro ?? "",
+    props.projectLocation ? JSON.stringify(props.projectLocation) : "",
+  ].join("");
+  const [prevSkillContentKey, setPrevSkillContentKey] = useState(skillContentKey);
+  if (prevSkillContentKey !== skillContentKey) {
+    setPrevSkillContentKey(skillContentKey);
     setContent(undefined);
     setError(false);
     setRaw(false);
+  }
+
+  useEffect(() => {
+    let active = true;
     const bridge = readBridge();
     const projectLocation: ProjectLocation =
       props.projectLocation ??

@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
-import { join } from "node:path";
+import { join, resolve as resolvePath } from "node:path";
+import { fileURLToPath } from "node:url";
 import { resolveDevServerPort } from "./dev-server-port.mjs";
 
 function parsePort(value) {
@@ -57,32 +58,26 @@ function run(command, args, errorMessage) {
 }
 
 function findListeningPidsWindows(ports) {
-  const script = [
-    `$ports = @(${ports.join(",")})`,
-    "$connections = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | " +
-      "Where-Object { $_.LocalPort -in $ports }",
-    "if (-not $connections) { exit 0 }",
-    "$connections | Select-Object -ExpandProperty OwningProcess -Unique",
-  ].join("; ");
-
   const systemRoot = process.env.SystemRoot ?? process.env.windir ?? "C:\\Windows";
-  const where = spawnSync(join(systemRoot, "System32", "where.exe"), ["pwsh.exe"], {
-    encoding: "utf8",
-    env: process.env,
-    windowsHide: true,
-  });
-  const pwsh = where.status === 0 ? where.stdout.trim().split(/\r?\n/)[0] : undefined;
-  const shell = pwsh || join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
   const output = run(
-    shell,
-    ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script],
+    join(systemRoot, "System32", "netstat.exe"),
+    ["-ano"],
     "Failed to inspect ports",
   );
+  return parseListeningPidsWindows(output, ports);
+}
 
-  return output
-    .split(/\r?\n/)
-    .map((value) => Number.parseInt(value.trim(), 10))
-    .filter((value) => Number.isInteger(value) && value > 0);
+export function parseListeningPidsWindows(output, ports) {
+  const pids = new Set();
+  for (const line of output.split(/\r?\n/)) {
+    const [protocol, localAddress, foreignAddress, , rawPid] = line.trim().split(/\s+/);
+    // State names are localized; listening sockets have an unspecified peer.
+    if (protocol !== "TCP" || !["0.0.0.0:0", "[::]:0"].includes(foreignAddress)) continue;
+    const port = Number(localAddress.slice(localAddress.lastIndexOf(":") + 1));
+    const pid = Number(rawPid);
+    if (ports.includes(port) && Number.isInteger(pid) && pid > 0) pids.add(pid);
+  }
+  return [...pids];
 }
 
 function findListeningPidsUnix(ports) {
@@ -156,34 +151,40 @@ async function waitForPortsFree(ports, timeoutMs = 5000) {
   throw new Error(`Port range still in use after ${timeoutMs}ms`);
 }
 
-try {
-  const ports = parsePorts(process.argv.slice(2));
-  const pids = findListeningPids(ports);
-  const portLabel = ports.length === 1 ? `Port ${ports[0]}` : `Ports ${ports.join(", ")}`;
-  const verb = ports.length === 1 ? "is" : "are";
+async function main() {
+  try {
+    const ports = parsePorts(process.argv.slice(2));
+    const pids = findListeningPids(ports);
+    const portLabel = ports.length === 1 ? `Port ${ports[0]}` : `Ports ${ports.join(", ")}`;
+    const verb = ports.length === 1 ? "is" : "are";
 
-  if (pids.length === 0) {
-    console.log(`[poracode] ${portLabel} ${verb} already free`);
-    process.exit(0);
-  }
+    if (pids.length === 0) {
+      console.log(`[poracode] ${portLabel} ${verb} already free`);
+      process.exit(0);
+    }
 
-  if (process.env.PORACODE_DEV_SERVER_REQUIRE_FREE === "1") {
-    throw new Error(
-      `[poracode] Refusing to reclaim ${portLabel.toLowerCase()} from PID${pids.length === 1 ? "" : "s"} ${pids.join(", ")}; the managed debug session will not terminate another process`,
+    if (process.env.PORACODE_DEV_SERVER_REQUIRE_FREE === "1") {
+      throw new Error(
+        `[poracode] Refusing to reclaim ${portLabel.toLowerCase()} from PID${pids.length === 1 ? "" : "s"} ${pids.join(", ")}; the managed debug session will not terminate another process`,
+      );
+    }
+
+    console.log(
+      `[poracode] Reclaiming ${portLabel.toLowerCase()} from PID${pids.length === 1 ? "" : "s"} ${pids.join(", ")}`,
     );
+
+    for (const pid of pids) {
+      killPid(pid);
+    }
+
+    await waitForPortsFree(ports);
+    console.log(`[poracode] ${portLabel} ${verb} now free`);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
   }
+}
 
-  console.log(
-    `[poracode] Reclaiming ${portLabel.toLowerCase()} from PID${pids.length === 1 ? "" : "s"} ${pids.join(", ")}`,
-  );
-
-  for (const pid of pids) {
-    killPid(pid);
-  }
-
-  await waitForPortsFree(ports);
-  console.log(`[poracode] ${portLabel} ${verb} now free`);
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
+if (process.argv[1] && resolvePath(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
 }

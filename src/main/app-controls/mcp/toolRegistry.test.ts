@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type {
   AgentStatusesResponse,
@@ -2054,6 +2057,16 @@ describe("Poracode app control tools — skills", () => {
     });
     expect(result.global.map((s) => s.id)).toEqual(["g1"]);
     expect(result.project.map((s) => s.id)).toEqual(["p1s"]);
+
+    await expect(
+      dispatchTool("list_skills", { projectId: "p1", query: "PROJECT skill" }, ctx),
+    ).resolves.toMatchObject({
+      query: "PROJECT skill",
+      count: 1,
+      global: [],
+      project: [{ id: "p1s" }],
+      effectiveSkillIds: [],
+    });
   });
 
   it("set_skill_enabled toggles by absolutePath", async () => {
@@ -2063,5 +2076,124 @@ describe("Poracode app control tools — skills", () => {
       absolutePath: "/skills/g1",
       enabled: false,
     });
+  });
+
+  it("read_skill returns enabled skill content by scanned id without accepting a path", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "poracode-read-skill-"));
+    try {
+      await writeFile(join(directory, "SKILL.md"), "---\nname: example\n---\n\nInstructions.\n");
+      const skillScan: SkillScanResult = {
+        skills: [
+          {
+            id: "plugin-skill",
+            name: "example",
+            description: "Example skill",
+            folderName: "example",
+            absolutePath: directory,
+            skillFilePath: join(directory, "SKILL.md"),
+            rootPath: directory,
+            providerId: "plugin:example",
+            providerLabel: "Example",
+            scope: "global",
+            scopeLabel: "Global",
+            origin: "plugin",
+            enabled: true,
+            mutable: false,
+            valid: true,
+            linked: false,
+          },
+        ],
+        effectiveSkillIds: ["plugin-skill"],
+        invocation: "prompt",
+        issues: [],
+        canLinkToGlobal: false,
+      };
+      const { ctx } = context({ skillScan });
+
+      await expect(dispatchTool("read_skill", { skillId: "plugin-skill" }, ctx)).resolves.toEqual({
+        id: "plugin-skill",
+        name: "example",
+        description: "Example skill",
+        content: "---\nname: example\n---\n\nInstructions.\n",
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("read_skill refuses disabled skills", async () => {
+    const skillScan: SkillScanResult = {
+      skills: [
+        {
+          id: "disabled-skill",
+          name: "disabled",
+          description: "",
+          folderName: "disabled",
+          absolutePath: "/skills/disabled",
+          skillFilePath: "/skills/disabled/SKILL.md",
+          rootPath: "/skills",
+          providerId: "plugin:example",
+          providerLabel: "Example",
+          scope: "global",
+          scopeLabel: "Global",
+          origin: "plugin",
+          enabled: false,
+          mutable: false,
+          valid: true,
+          linked: false,
+        },
+      ],
+      effectiveSkillIds: [],
+      invocation: "prompt",
+      issues: [],
+      canLinkToGlobal: false,
+    };
+    const { ctx } = context({ skillScan });
+
+    await expect(dispatchTool("read_skill", { skillId: "disabled-skill" }, ctx)).rejects.toThrow(
+      "Skill is disabled",
+    );
+  });
+
+  it("read_skill accepts the same 1 MiB file-size boundary as skill scanning", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "poracode-read-skill-large-"));
+    try {
+      const content = "x".repeat(65 * 1024);
+      await writeFile(join(directory, "SKILL.md"), content);
+      const skillScan: SkillScanResult = {
+        skills: [
+          {
+            id: "large-skill",
+            name: "large",
+            description: "",
+            folderName: "large",
+            absolutePath: directory,
+            skillFilePath: join(directory, "SKILL.md"),
+            rootPath: directory,
+            providerId: "plugin:example",
+            providerLabel: "Example",
+            scope: "global",
+            scopeLabel: "Global",
+            origin: "plugin",
+            enabled: true,
+            mutable: false,
+            valid: true,
+            linked: false,
+          },
+        ],
+        effectiveSkillIds: ["large-skill"],
+        invocation: "prompt",
+        issues: [],
+        canLinkToGlobal: false,
+      };
+      const { ctx } = context({ skillScan });
+
+      const result = (await dispatchTool("read_skill", { skillId: "large-skill" }, ctx)) as {
+        content: string;
+      };
+      expect(result.content).toHaveLength(content.length);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });

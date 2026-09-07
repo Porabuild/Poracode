@@ -5,8 +5,10 @@ import { GripVertical } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import { reorderVisibleThreadDocks, type ThreadDockKind } from "@/shared/settings";
-import { usePanelStore } from "@/renderer/state/panelStore";
+import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore, type ThreadDockFocus } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { ActiveSubAgentTile } from "./ChatPane/parts/items/ActiveSubAgentTile";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
@@ -14,6 +16,7 @@ import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadImagesDock } from "./ThreadImagesDock";
 import { ThreadTodoDock } from "./ThreadTodoDock";
 import { useThreadGalleryImages } from "./useThreadGalleryImages";
+import { selectThreadGoalDockItem } from "./threadGoalState";
 import {
   useThreadDocksSummary,
   useVisibleThreadGoalDockState,
@@ -21,9 +24,10 @@ import {
 } from "./useThreadDocksSummary";
 
 /**
- * Right-panel "Docks" tab: the thread's informational docks (goal, plan,
- * agents, background tasks) stacked as separate sections in one panel. Shown
- * only while `threadDocksPlacement` is "right"; the composer bubbles open it.
+ * Right-panel "Docks" tab: the thread's informational docks and image gallery
+ * stacked as sortable sections in one panel. When the informational docks stay
+ * above the composer, an image bubble can open the panel with just the thread
+ * gallery.
  */
 export function ThreadDocksPanel({
   threadId,
@@ -34,18 +38,20 @@ export function ThreadDocksPanel({
 }) {
   const { t } = useLingui();
   const goalDockState = useVisibleThreadGoalDockState(threadId);
+  const goalDockItem = useAppStore((s) => selectThreadGoalDockItem(s, threadId));
   const todoDockState = useVisibleThreadTodoDockState(threadId);
   const todoDockCollapsed = useThreadTodoDockStore(
     (s) => s.byThreadId[threadId]?.collapsed ?? s.defaultCollapsed,
   );
   const order = useSharedSettings((s) => s.threadDocksOrder);
   const setOrder = useSharedSettings((s) => s.setThreadDocksOrder);
+  const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const summary = useThreadDocksSummary(threadId, goalDockState, todoDockState);
   const gallery = useThreadGalleryImages(threadId);
   const focus = usePanelStore((s) => s.threadDocksFocus);
   const docksShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
   const containerRef = useRef<HTMLDivElement>(null);
-  const lastScrolledFocusRef = useRef<ThreadDockKind | null>(null);
+  const lastScrolledFocusRef = useRef<ThreadDockFocus | null>(null);
 
   // The layer stays mounted while another right-panel tab shows; forgetting
   // the last scroll target when hidden lets the same bubble scroll again on
@@ -54,22 +60,38 @@ export function ThreadDocksPanel({
     if (!docksShowing) lastScrolledFocusRef.current = null;
   }, [docksShowing]);
 
+  // Whether the focused dock is currently mounted, derived from the same
+  // membership states as the section map below. A bubble click can name a dock
+  // whose members are still mounting, so the scroll re-arms on every
+  // membership change and bails until the focused dock exists.
+  const focusedDockMounted =
+    (focus === "goal" && goalDockState !== null) ||
+    (focus === "plan" && todoDockState !== null) ||
+    (focus === "agents" && summary.agentCount > 0) ||
+    (focus === "backgroundTasks" && summary.backgroundTaskCount > 0) ||
+    (focus === "images" && gallery.length > 0);
+
   // A bubble click names the active section. Scroll only when that selection
   // changes so later content updates do not fight the user's own scrolling.
-  // Dock membership can lag the selection (agents or tasks still mounting),
-  // so the counts participate too.
   useEffect(() => {
-    if (!focus || lastScrolledFocusRef.current === focus) return;
+    if (!focus || !focusedDockMounted || lastScrolledFocusRef.current === focus) return;
     const target = containerRef.current?.querySelector<HTMLElement>(`[data-dock-kind="${focus}"]`);
     if (typeof target?.scrollIntoView === "function") {
       target.scrollIntoView({ block: "start" });
       lastScrolledFocusRef.current = focus;
     }
-  }, [focus, goalDockState, todoDockState, summary.agentCount, summary.backgroundTaskCount]);
+  }, [focus, focusedDockMounted]);
 
   const content: Record<ThreadDockKind, ReactNode> = {
     goal: goalDockState ? (
-      <ThreadGoalDock threadId={threadId} state={goalDockState} placement="right" />
+      <ThreadGoalDock
+        threadId={threadId}
+        state={goalDockState}
+        placement="right"
+        onDismiss={() => {
+          if (goalDockItem) useThreadGoalDockStore.getState().dismiss(threadId, goalDockItem);
+        }}
+      />
     ) : null,
     plan: todoDockState ? (
       <ThreadTodoDock
@@ -96,14 +118,19 @@ export function ThreadDocksPanel({
       summary.backgroundTaskCount > 0 ? (
         <ThreadBackgroundTasksDock threadId={threadId} placement="right" />
       ) : null,
+    images: gallery.length > 0 ? <ThreadImagesDock gallery={gallery} /> : null,
   };
   const labels: Record<ThreadDockKind, string> = {
     goal: t`Goal`,
     plan: t`Plan`,
     agents: t`Agents`,
     backgroundTasks: t`Background tasks`,
+    images: t`Images`,
   };
-  const visibleOrder = order.filter((kind) => content[kind] !== null);
+  const imageOnly = docksPlacement === "composer" && focus === "images";
+  const visibleOrder = imageOnly
+    ? order.filter((kind) => kind === "images" && content[kind] !== null)
+    : order.filter((kind) => content[kind] !== null);
 
   function handleDragEnd(event: DragEndEvent) {
     if (event.canceled) return;
@@ -124,13 +151,6 @@ export function ThreadDocksPanel({
             </DockSection>
           ))}
         </DragDropProvider>
-        {gallery.length > 0 ? (
-          <div data-dock-kind="images" className="relative scroll-mt-1 pl-4">
-            <div className="min-w-0">
-              <ThreadImagesDock gallery={gallery} />
-            </div>
-          </div>
-        ) : null}
       </div>
     </div>
   );

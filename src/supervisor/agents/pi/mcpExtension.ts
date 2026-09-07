@@ -12,7 +12,7 @@ interface BridgeServer {
 
 /**
  * Pi's RPC mode has no native MCP support and the installed `pi` CLI does not
- * ship `@modelcontextprotocol/sdk`, so Poracode's resolved MCP servers are
+ * ship an MCP SDK, so Poracode's resolved MCP servers are
  * bridged by generating a self-contained pi extension. The extension runs
  * inside the pi subprocess, speaks MCP directly (stdio via child_process,
  * HTTP/SSE via fetch — no external imports, so it also works once Poracode's

@@ -118,6 +118,7 @@ interface SharedSettingsState extends SharedSettings {
   setGuiChatFontSize: (value: number) => void;
   setTerminalPanelFontSize: (value: number) => void;
   setPreventSleep: (value: PreventSleep) => void;
+  setComputerUseKeepAwake: (value: boolean) => void;
   setLaunchAtStartup: (value: boolean) => void;
   setStartMinimized: (value: boolean) => void;
   setCloseToTray: (value: boolean) => void;
@@ -591,6 +592,10 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setPreventSleep: (preventSleep) => {
     set({ preventSleep });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setComputerUseKeepAwake: (computerUseKeepAwake) => {
+    set({ computerUseKeepAwake });
     persistSettings(selectSharedSettings(get()));
   },
   setLaunchAtStartup: (launchAtStartup) => {
@@ -1106,6 +1111,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     guiChatFontSize: state.guiChatFontSize,
     terminalPanelFontSize: state.terminalPanelFontSize,
     preventSleep: state.preventSleep,
+    computerUseKeepAwake: state.computerUseKeepAwake,
     launchAtStartup: state.launchAtStartup,
     startMinimized: state.startMinimized,
     closeToTray: state.closeToTray,

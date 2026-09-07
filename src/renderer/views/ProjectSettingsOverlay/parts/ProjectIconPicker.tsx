@@ -56,14 +56,23 @@ export function ProjectIconPicker(props: { project: Project }) {
   const [discovered, setDiscovered] = useState<readonly string[]>([]);
   const location = project.location;
 
+  // Clear the search when the picker closes, during render rather than in an
+  // effect, so reopening never paints a frame with the previous search.
+  const [prevPickerOpen, setPrevPickerOpen] = useState(open);
+  if (prevPickerOpen !== open) {
+    setPrevPickerOpen(open);
+    if (!open) setSearch("");
+  }
+
   useEffect(() => {
-    if (!open) {
-      setSearch("");
-      return;
-    }
+    if (!open) return;
     // On mobile the drawer opens under the on-screen keyboard if we focus the
     // field for them; let the user tap it when they want to filter.
-    if (!mobile) setTimeout(() => searchRef.current?.focus(), 50);
+    if (!mobile) {
+      const timer = setTimeout(() => searchRef.current?.focus(), 50);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
   }, [open, mobile]);
 
   // Probed per opening rather than once, so an icon added to the project while

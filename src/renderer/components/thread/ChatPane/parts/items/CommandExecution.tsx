@@ -36,7 +36,7 @@ export const CommandExecution = memo(function CommandExecution({ item }: Command
     header?.durationMs,
     header?.isPayloadError === true,
   );
-  const Icon = iconForCommandIntent(header?.display.kind ?? "command");
+  const Icon = COMMAND_INTENT_ICONS[header?.display.kind ?? "command"];
   const displayCommandLine = header?.displayCommandLine ?? "";
   const display = header?.display;
 
@@ -69,24 +69,19 @@ export const CommandExecution = memo(function CommandExecution({ item }: Command
   );
 });
 
+const COMMAND_INTENT_ICONS = {
+  view: Eye,
+  search: SearchCode,
+  git: GitBranch,
+  check: Check,
+  install: Package,
+  package: Package,
+  list: FolderSearch,
+  command: Terminal,
+} as const satisfies Record<CommandIntentKind, LucideIcon>;
+
 export function iconForCommandIntent(kind: CommandIntentKind): LucideIcon {
-  switch (kind) {
-    case "view":
-      return Eye;
-    case "search":
-      return SearchCode;
-    case "git":
-      return GitBranch;
-    case "check":
-      return Check;
-    case "install":
-    case "package":
-      return Package;
-    case "list":
-      return FolderSearch;
-    case "command":
-      return Terminal;
-  }
+  return COMMAND_INTENT_ICONS[kind];
 }
 
 type CommandStatus = { textClass: string; rightLabel: ReactNode };

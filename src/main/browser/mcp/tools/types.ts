@@ -5,6 +5,7 @@ export interface ToolContext {
   manager: BrowserPanelManager;
   allowEval: boolean;
   allowDataAccess: boolean;
+  disabledTools?: readonly string[];
   /** Calling thread + its task title (from the MCP URL) — agent tabs join a
    *  per-thread group named after the task. */
   threadId?: string;

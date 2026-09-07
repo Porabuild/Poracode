@@ -1,5 +1,10 @@
 import type { ProjectLocation } from "@/shared/contracts";
-import { withCommandBaseSpawnEnv, type AgentAdapter, type CommandSpec } from "./agents/base";
+import {
+  resolveAgentProjectLocation,
+  withCommandBaseSpawnEnv,
+  type AgentAdapter,
+  type CommandSpec,
+} from "./agents/base";
 import { prepareOneShot } from "./oneShotSpawn";
 
 // Spawn returns these errno codes when the OS rejects the argv length:
@@ -124,6 +129,12 @@ async function runOneShotPromptWithFallbackImpl(
   }
 
   const useSdkPath = typeof runOneShot === "function";
+  const executionLocation = await resolveAgentProjectLocation(
+    options.adapter,
+    options.location,
+    undefined,
+    options.signal,
+  );
 
   let lastError: unknown;
   for (let i = 0; i < options.attempts.length; i++) {
@@ -138,7 +149,7 @@ async function runOneShotPromptWithFallbackImpl(
       const signal = wrapTimeoutSignal(options.signal, options.timeoutMs);
       try {
         return await runOneShot.call(options.adapter, {
-          location: options.location,
+          location: executionLocation,
           model: options.model,
           effort: options.effort,
           fast: options.fast,
@@ -169,7 +180,7 @@ async function runOneShotPromptWithFallbackImpl(
       options.model,
       options.effort,
       prompt,
-      options.location,
+      executionLocation,
       options.fast,
       { readOnlyWorkspace: options.readOnlyWorkspace },
     );
@@ -184,7 +195,7 @@ async function runOneShotPromptWithFallbackImpl(
     // Every Poracode-made spawn of this CLI carries the provider's base env
     // (updater/telemetry opt-outs); a command-specific `env` wins on conflict.
     const effectiveCommand = withCommandBaseSpawnEnv(baseCommand, options.adapter.baseSpawnEnv);
-    const { spec: spawnSpec, spawn } = prepareOneShot(options.location, effectiveCommand);
+    const { spec: spawnSpec, spawn } = prepareOneShot(executionLocation, effectiveCommand);
 
     if (hasNextAttempt && isArgvLikelyTooLong(spawnSpec)) {
       console.warn(

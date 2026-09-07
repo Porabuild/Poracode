@@ -160,6 +160,12 @@ export const UserMessage = memo(function UserMessage({
   });
 
   useLayoutEffect(() => {
+    // With no text and no attachments the component renders null (see the
+    // guard below), so no post-paint overflow can exist — skip scheduling the
+    // two frames. A slash-command chip or inline block with empty body text
+    // still renders a measurable row (bodyRef set), so only the truly empty
+    // case bails, keyed on the same values that re-arm the measurement.
+    if (text.length === 0 && attachments.length === 0 && bodyRef.current === null) return;
     // Defer the forced layout read until after first paint. Thread switches
     // mount many user rows; measuring in useLayoutEffect blocked first paint
     // (~100ms in CDP). Double-rAF lands after the browser has painted the
@@ -531,7 +537,7 @@ function UserMessageSlashChip({
 }) {
   const { t } = useLingui();
   const skill = label;
-  const resolvedAriaLabel = skillName ? t`Skill: ${skill}` : undefined;
+  const resolvedAriaLabel = pluginId ? label : skillName ? t`Skill: ${skill}` : undefined;
   return (
     <span
       className="poracode-slash-chip mr-1.5"

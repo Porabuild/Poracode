@@ -1,10 +1,11 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { useAppStore } from "./appStore";
 import type { Project, ProjectDraftConfig, Thread } from "@/shared/contracts";
 
 const threadMapCache = new WeakMap<Thread[], Map<string, Thread>>();
 const projectMapCache = new WeakMap<Project[], Map<string, Project>>();
+const getAppState = useAppStore.getState;
 
 function getThreadMap(threads: Thread[]) {
   let threadMap = threadMapCache.get(threads);
@@ -70,29 +71,24 @@ export function useProjectWithoutDraftConfig(projectId: string | undefined) {
 export function useInitialProjectDraftConfig(
   projectId: string | undefined,
 ): ProjectDraftConfig | undefined {
-  const snapshotRef = useRef<{
-    projectId?: string;
+  const [snapshot, setSnapshot] = useState<{
+    projectId: string | undefined;
     hasProject: boolean;
-    value?: ProjectDraftConfig;
-  }>({ hasProject: false });
+    value: ProjectDraftConfig | undefined;
+  }>({ projectId: undefined, hasProject: false, value: undefined });
 
-  if (!projectId) {
-    snapshotRef.current = { hasProject: false };
-    return undefined;
-  }
-
-  if (snapshotRef.current.projectId !== projectId || !snapshotRef.current.hasProject) {
-    const project = getProjectMap(useAppStore.getState().projects).get(projectId);
-    if (project) {
-      snapshotRef.current = {
+  if (snapshot.projectId !== projectId || !snapshot.hasProject) {
+    const project = projectId ? getProjectMap(getAppState().projects).get(projectId) : undefined;
+    if (snapshot.projectId !== projectId || project) {
+      setSnapshot({
         projectId,
-        hasProject: true,
-        ...(project.lastDraftConfig ? { value: project.lastDraftConfig } : {}),
-      };
+        hasProject: Boolean(project),
+        value: project?.lastDraftConfig,
+      });
     }
   }
 
-  return snapshotRef.current.value;
+  return snapshot.projectId === projectId ? snapshot.value : undefined;
 }
 
 export function useProjectIds() {

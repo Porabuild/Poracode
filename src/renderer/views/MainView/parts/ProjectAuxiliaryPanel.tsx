@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { resolveProjectLocation } from "@/shared/worktree";
@@ -124,8 +124,11 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   // Image-only threads offer the Docks tab without making image presence itself
   // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
   const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
+  const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
   const gallery = useThreadGalleryImages(
-    currentThreadId !== null && docksPlacement === "right" ? currentThreadId : undefined,
+    currentThreadId !== null && (docksPlacement === "right" || threadDocksFocus === "images")
+      ? currentThreadId
+      : undefined,
   );
   const imagesInCurrentThread = gallery.length > 0;
   const docksTabAvailable = docksInCurrentThread || imagesInCurrentThread;
@@ -144,23 +147,21 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
     subAgentPanelContext.threadId === currentThreadId &&
     subAgentItemExists;
 
-  const previousGitReviewContextRef = useRef<GitReviewContext | null>(null);
-  const gitReviewContextChanged = previousGitReviewContextRef.current !== gitReviewContext;
-  previousGitReviewContextRef.current = gitReviewContext;
-
-  const lastGitPanelContextRef = useRef(gitReviewContext);
-  if (gitReviewContext && gitReviewAsPanel) {
-    lastGitPanelContextRef.current = gitReviewContext;
+  // Last-non-null context holders. They derive from store state during
+  // render, so they are `useState` snapshots adjusted during render — never
+  // refs written during render. (Change *detection* for the sync effect below
+  // lives in that effect's own ref so the adopting commit still observes it.)
+  const [lastGitPanelContext, setLastGitPanelContext] = useState(gitReviewContext);
+  if (gitReviewContext && gitReviewAsPanel && lastGitPanelContext !== gitReviewContext) {
+    setLastGitPanelContext(gitReviewContext);
   }
-  const gitPanelContext = gitPanelOpen ? gitReviewContext : lastGitPanelContextRef.current;
+  const gitPanelContext = gitPanelOpen ? gitReviewContext : lastGitPanelContext;
 
-  const lastFilesPanelContextRef = useRef(filesPanelContext);
-  if (filesPanelContext) {
-    lastFilesPanelContextRef.current = filesPanelContext;
+  const [lastFilesPanelContext, setLastFilesPanelContext] = useState(filesPanelContext);
+  if (filesPanelContext && lastFilesPanelContext !== filesPanelContext) {
+    setLastFilesPanelContext(filesPanelContext);
   }
-  const rawFilesPanelContext = filesPanelOpen
-    ? filesPanelContext
-    : lastFilesPanelContextRef.current;
+  const rawFilesPanelContext = filesPanelOpen ? filesPanelContext : lastFilesPanelContext;
   const resolvedFilesPanelContext = resolveFilesRootContext(rawFilesPanelContext, projects);
 
   const requestedTab: RightPanelTab = props.includeTerminal
@@ -207,14 +208,20 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
   }
 
   const activeTab = requestedTabIsAvailable() ? requestedTab : fallbackActiveTab();
+  // Tracks the last git context this sync observed (null initially, so a
+  // context present on mount counts as an explicit target and wins). Read and
+  // written only inside the effect — never during render.
+  const prevGitReviewContextRef = useRef<GitReviewContext | null>(null);
   useEffect(() => {
     if (!props.visible) return;
+    // A new git context is an explicit target (for example, clicking thread
+    // B's badge while thread A is focused). Let that open win; the follow
+    // lock will take over again on the next thread or tab change.
+    const gitReviewContextChanged = prevGitReviewContextRef.current !== gitReviewContext;
+    prevGitReviewContextRef.current = gitReviewContext;
     let refreshTimer: number | undefined;
     const frame = requestAnimationFrame(() => {
-      // A new git context is an explicit target (for example, clicking thread
-      // B's badge while thread A is focused). Let that open win; the follow
-      // lock will take over again on the next thread or tab change.
-      if (activeTab !== "git" || !gitReviewContextChanged) {
+      if (rightPanelFollowsThread && (activeTab !== "git" || !gitReviewContextChanged)) {
         syncRightPanelTabToFocusedThread(activeTab);
       }
       if (activeTab !== "git") return;
@@ -234,14 +241,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       cancelAnimationFrame(frame);
       if (refreshTimer !== undefined) window.clearTimeout(refreshTimer);
     };
-  }, [
-    activeTab,
-    currentThreadId,
-    gitReviewContext,
-    gitReviewContextChanged,
-    props.visible,
-    rightPanelFollowsThread,
-  ]);
+  }, [activeTab, currentThreadId, gitReviewContext, props.visible, rightPanelFollowsThread]);
   useProductViewTracking(productSurfaceView(activeTab, "panel"), "panel", {
     active: props.visible,
     finishWhenInactive: true,
@@ -441,7 +441,7 @@ export function ProjectAuxiliaryPanel(props: { includeTerminal: boolean; visible
       }
       docksHeaderActions={
         <ThreadDocksPlacementToggle
-          placement="right"
+          placement={docksPlacement}
           buttonClassName={`poracode-overlay-header__controls ${panelHeaderIconButtonClass}`}
         />
       }

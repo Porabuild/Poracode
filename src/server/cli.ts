@@ -27,7 +27,7 @@ import {
  *   PORACODE_REMOTE_ACCESS_PORT             bind port (default: first available 49152-65535)
  *   PORACODE_REMOTE_ACCESS_ADVERTISED_HOST  host advertised in pairing URLs
  *   PORACODE_SECRET_STORAGE_KEY             base64 32-byte key (else file-backed)
- *   PORACODE_BETTER_SQLITE3_NATIVE_BINDING  optional Node-ABI better_sqlite3.node
+ *   PORACODE_BETTER_SQLITE3_NATIVE_BINDING  optional compatible SQLite 13 N-API binary
  *   PORACODE_WSL_HELPERS_DIR                in-WSL helper assets dir
  *   PORACODE_REMOTE_RELAY_URL               relay /host control URL (cross-network)
  *   PORACODE_REMOTE_RELAY_SECRET            secret claiming the server id (else file-backed)

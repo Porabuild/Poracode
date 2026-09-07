@@ -15,6 +15,7 @@ import { buildBranchNamePrKey, buildBranchPrKey } from "@/renderer/state/gitSele
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { shouldPollProject } from "@/renderer/state/wslBackgroundActivity";
 import { aggregatePrChecksStatus, combineChecksStatus } from "@/renderer/utils/prStatus";
 import {
   buildSidebarProjectRows,
@@ -660,14 +661,16 @@ export function startPostPushPrStatusRefresh(target: PostPushPrRefreshTarget): v
 
 export function syncPendingPrRefreshProjects(activeProjects: readonly ActiveGitProject[]): void {
   pendingPrRefreshActiveProjects = activeProjects;
-  const targets = buildPendingPrRefreshTargets(activeProjects);
+  const targets = buildPendingPrRefreshTargets(activeProjects.filter(shouldPollProject));
   for (const [key, entry] of pendingPrRefreshEntries) {
     const target = targets.get(key);
     if (!target) {
       clearInterval(entry.intervalId);
       pendingPrRefreshEntries.delete(key);
       if (
-        activeProjects.some((project) => project.id === entry.target.projectId) &&
+        activeProjects.some(
+          (project) => project.id === entry.target.projectId && shouldPollProject(project),
+        ) &&
         didPendingPrSettle(entry.target)
       ) {
         requestSettledPrCheck(entry.target);

@@ -317,9 +317,8 @@ two remote-exploitable security holes). Grouped by area:
   CLI takes an exclusive `server.lock` (stale-pid reclaim) so it can't co-open
   the desktop's live data dir with a mismatched secret key; the relay adapter's
   local proxy base is derived from the actual bind host (only `127.0.0.1` for
-  wildcard binds), fixing ECONNREFUSED when bound to a Tailscale/VPN IP. The
-  prepared Node-ABI sqlite binding is also resolved relative to `__dirname`
-  (not `cwd`) so systemd/launchd/cron launches find it.
+  wildcard binds), fixing ECONNREFUSED when bound to a Tailscale/VPN IP. SQLite
+  uses its package-bundled N-API binary, independent of the launch directory.
 - **Desktop-as-client event scoping (high, bug).** The open-remote-thread socket
   now filters events before dispatch: desktop-global events (agent statuses, git
   summaries) are dropped and runtime batches are scoped to the open thread, so a
@@ -373,39 +372,21 @@ with **zero console errors** on both the PWA and the desktop.
   cross-network deployments. The managed cloud subscription layer is outside
   this repo and can sit on top of the relay protocol.
 - **Headless runtime:** plain-Node CLI. The composition root is runtime-agnostic;
-  packaging the Node-ABI builds of `better-sqlite3` / `node-pty` (alongside the
-  Electron-ABI builds the desktop uses) is a packaging task, tracked below.
+  packaging the N-API prebuilds of `better-sqlite3` / `node-pty` lets Node and
+  Electron use the same native packages.
 - **Source of truth (headless):** the SQLite DB. No renderer, so
   `dispatchThreadCommand` is absent and the DB-path handlers apply.
 
 ## 6. Open packaging tasks (Phase 1 follow-ups)
 
-- **Native ABI.** The desktop rebuilds `better-sqlite3` / `node-pty` for the
-  **Electron** ABI via `electron-rebuild` (`pnpm run setup:native`). A headless
-  server runs under **plain Node**, so it needs a Node-ABI SQLite binding
-  instead of the Electron one. If the default package binding is Electron-built,
-  `new Database()` fails with:
-
-  ```
-  The module 'better_sqlite3.node' was compiled against a different Node.js
-  version using NODE_MODULE_VERSION 145 [Electron]. This version of Node.js
-  requires NODE_MODULE_VERSION 137 [Node].
-  ```
-
-  This is a build-output mismatch, not a protocol/runtime issue. The headless
-  server now supports a separate Node-ABI `better_sqlite3.node` without
-  disturbing the desktop's Electron-ABI build:
-  - `pnpm run prepare:server-native` builds a Node-ABI binding into
-    `dist/server-native/better_sqlite3.node`.
-  - `src/server/cli.ts` marks the process as headless, and `src/main/db.ts`
-    automatically uses that prepared binding when present.
-  - Operators can override the binding path explicitly with
+- **Native SQLite binding:** better-sqlite3 13 bundles N-API prebuilds shared
+  by Node and Electron. Both desktop and headless startup use the package's
+  platform/architecture selection. Old `dist/server-native` binaries are ignored
+  automatically so an upgrade cannot load a previous-generation SQLite addon.
+  - `pnpm run prepare:server-native` copies the current N-API prebuild into
+    `dist/server-native/better_sqlite3.node` for callers that need a standalone file.
+  - Operators can explicitly select a compatible SQLite 13 binary with
     `PORACODE_BETTER_SQLITE3_NATIVE_BINDING`.
-
-  Verified against the built production CLI: with the prepared binding,
-  `node dist/main/server.cjs` starts on an isolated data dir, serves the
-  environment descriptor, exchanges the pairing token, returns an authenticated
-  snapshot, and shuts down cleanly on SIGTERM.
 
 - **HTTP-server boot is independent of native modules.** `RemoteAccessServer`
   binds and serves even if the supervisor (which needs `node-pty`) is degraded;

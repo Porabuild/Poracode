@@ -453,16 +453,22 @@ function useDeferredChildEntries(
   }));
   const latestEntriesRef = useRef(entries);
   const cancelPendingRevealRef = useRef<(() => void) | null>(null);
-  latestEntriesRef.current = entries;
-  const visibleEntries = selectRevealedChildEntries(entries, reveal);
-  const needsReveal = childEntriesNeedReveal(entries, visibleEntries);
-
   useLayoutEffect(() => {
-    setReveal((current) => clampChildRevealAfterShrink(current, entries));
-  }, [entries]);
+    latestEntriesRef.current = entries;
+  });
+  const visibleEntries = selectRevealedChildEntries(entries, reveal);
+
+  // Clamp the reveal after a shrink during render rather than synchronously
+  // in a layout effect.
+  const clampedReveal = clampChildRevealAfterShrink(reveal, entries);
+  if (clampedReveal !== reveal) setReveal(clampedReveal);
 
   useEffect(() => {
-    if (!needsReveal || cancelPendingRevealRef.current) return;
+    // Chain the next chunk while content stays unrevealed: each committed
+    // `reveal` re-fires this effect for its successor and newly streamed
+    // `entries` re-arm it, so both are consumed by the need check below.
+    if (!childEntriesNeedReveal(entries, selectRevealedChildEntries(entries, reveal))) return;
+    if (cancelPendingRevealRef.current) return;
     const revealNext = () => {
       cancelPendingRevealRef.current = null;
       startTransition(() => {
@@ -476,7 +482,7 @@ function useDeferredChildEntries(
     }
     const timeoutId = window.setTimeout(revealNext, 16);
     cancelPendingRevealRef.current = () => window.clearTimeout(timeoutId);
-  }, [entries, needsReveal, reveal]);
+  }, [entries, reveal]);
 
   useEffect(
     () => () => {

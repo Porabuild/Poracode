@@ -113,20 +113,31 @@ export function BranchSelector(props: BranchSelectorProps) {
     projectLocation,
   } = useBranchList({ projectId, search });
 
-  useEffect(() => {
+  // Reset the menu chrome whenever it opens; the focus + PR-prefetch side
+  // effects below stay in an effect gated on the closed → open transition.
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (wasOpen !== isOpen) {
+    setWasOpen(isOpen);
     if (isOpen) {
       setSearch("");
       setIsCreating(false);
       setNewBranchName("");
-      // On mobile, auto-focusing search would pop the keyboard over the drawer.
-      if (!isRemote) setTimeout(() => searchRef.current?.focus(), 50);
-      // Refresh PR status for all branches in the background; cached icons show
-      // immediately (prefetch self-throttles + dedupes).
-      if (projectLocation && !selectionOnly) {
-        void prefetchBranchPrData({ id: projectId, location: projectLocation });
-      }
     }
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps -- only on open/close
+  }
+
+  const wasOpenRef = useRef(false);
+  useEffect(() => {
+    const opened = isOpen && !wasOpenRef.current;
+    wasOpenRef.current = isOpen;
+    if (!opened) return;
+    // On mobile, auto-focusing search would pop the keyboard over the drawer.
+    if (!isRemote) setTimeout(() => searchRef.current?.focus(), 50);
+    // Refresh PR status for all branches in the background; cached icons show
+    // immediately (prefetch self-throttles + dedupes).
+    if (projectLocation && !selectionOnly) {
+      void prefetchBranchPrData({ id: projectId, location: projectLocation });
+    }
+  }, [isOpen, isRemote, projectId, projectLocation, selectionOnly]);
 
   useEffect(() => {
     if (isCreating) {

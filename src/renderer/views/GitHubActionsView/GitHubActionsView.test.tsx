@@ -749,7 +749,7 @@ describe("GitHubActionsView", () => {
     render(<GitHubActionsView projectId={project.id} onClose={() => {}} />);
 
     const login = await screen.findByText("octocat");
-    expect(login.parentElement).toHaveTextContent("ghe.example.com");
+    await waitFor(() => expect(login.parentElement).toHaveTextContent("ghe.example.com"));
   });
 
   it("scopes Actions calls to the account configured for the project", async () => {

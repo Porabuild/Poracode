@@ -1,7 +1,8 @@
 import type { AuthMethod } from "@agentclientprotocol/sdk";
 import { describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
-import { createAcpStructuredSession } from "../acp";
+import { createAcpStructuredSession, type AcpProbeResult } from "../acp";
+import { buildAgentRegistry } from "../registry";
 import {
   buildFactoryCommand,
   buildFactoryProbeCapabilities,
@@ -13,7 +14,7 @@ import {
 import { createFactoryAdapter } from "./index";
 
 const probeAcpCapabilitiesMock = vi.hoisted(() =>
-  vi.fn<(...args: unknown[]) => Promise<undefined>>(),
+  vi.fn<(...args: unknown[]) => Promise<AcpProbeResult | undefined>>(),
 );
 
 vi.mock("../acp", async (importOriginal) => ({
@@ -23,6 +24,41 @@ vi.mock("../acp", async (importOriginal) => ({
 }));
 
 describe("Factory Droid detection", () => {
+  it("normalizes Factory Droid model rates at the provider boundary", async () => {
+    probeAcpCapabilitiesMock.mockResolvedValue({
+      models: [
+        {
+          id: "glm-5.1",
+          label: "Droid Core (GLM-5.1)",
+          description: "0.55x Factory token rate",
+        },
+        {
+          id: "auto",
+          label: "Auto",
+          description: "Let Droid choose the best model",
+        },
+      ],
+    });
+    const adapter = buildAgentRegistry([
+      {
+        driver: "acp-generic",
+        config: { binary: "droid", args: ["exec", "--output-format", "acp"] },
+        id: "factory-droid",
+        displayName: "Factory Droid",
+      },
+    ]).find((candidate) => candidate.kind === "acp-generic:factory-droid")!;
+    const status = await adapter.detectInstall();
+    expect(status.capabilities.models).toEqual([
+      {
+        id: "glm-5.1",
+        label: "Droid Core (GLM-5.1)",
+        description: "0.55x",
+        tooltipDescription: "0.55x Factory token rate",
+      },
+      { id: "auto", label: "Auto", description: "Let Droid choose the best model" },
+    ]);
+  });
+
   it("declares the native binary, updater, ACP defaults, and API-key fallback", () => {
     expect(factoryDetectionSpec).toMatchObject({
       kind: "factory",

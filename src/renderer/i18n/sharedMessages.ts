@@ -11,6 +11,7 @@ import { i18n } from "./i18n";
  * arguments resolved with the values passed to `msg()`.
  */
 const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "supervisor.sendTerminalInput": msg({ message: "Send terminal input" }),
   "git.commandFailed": msg({ message: "Git {command} failed: {detail}" }),
   "github.accountUnavailable": msg({
     message: 'Couldn\'t access the GitHub account "{login}". Run "gh auth login" and try again.',
@@ -190,6 +191,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
     message:
       "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
   }),
+  "opencode.retryFallback": msg({
+    message: "OpenCode request failed, retrying...",
+  }),
   "claude.goal.noVerdict": msg({
     message:
       "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run",
@@ -257,6 +261,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   }),
   "remote.server.unreachable": msg({
     message: "Can't reach the remote server. Check that it is online, then reconnect it.",
+  }),
+  "thread.compact.noop": msg({
+    message: "Nothing to compact yet — the conversation is still small.",
   }),
 };
 

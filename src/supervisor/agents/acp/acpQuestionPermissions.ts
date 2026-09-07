@@ -286,14 +286,12 @@ export function buildAcpQuestionPermissionAnswerEvents(input: {
   return buildQuestionAnswerEvents({
     threadId: input.threadId,
     itemId: input.itemId,
-    questions: questions.map(
-      (question): QuestionAnswerSourceQuestion => ({
-        keys: [question.id, question.question, question.header],
-        header: question.header,
-        question: question.question,
-        options: question.options,
-      }),
-    ),
+    questions: questions.map((question): QuestionAnswerSourceQuestion => ({
+      keys: [question.id, question.question, question.header],
+      header: question.header,
+      question: question.question,
+      options: question.options,
+    })),
     answers: responseAnswers(input.response),
   });
 }

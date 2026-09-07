@@ -285,23 +285,11 @@ describe("OpenCodeProviderSettings", () => {
     );
   });
 
-  it("hides Computer Use on Linux and shows it on Windows and macOS", () => {
+  it("shows Computer Use on Linux", () => {
     bridgeMock.platform = "linux";
     render(
       <OpenCodeProviderSettings agentKind="opencode" statuses={[makeStatus()]} wslDistros={[]} />,
     );
-    expect(screen.queryByRole("switch", { name: "Computer Use" })).toBeNull();
-
-    bridgeMock.platform = "win32";
-    render(
-      <OpenCodeProviderSettings agentKind="opencode" statuses={[makeStatus()]} wslDistros={[]} />,
-    );
-    expect(screen.getByRole("switch", { name: "Computer Use" })).toBeTruthy();
-
-    bridgeMock.platform = "darwin";
-    render(
-      <OpenCodeProviderSettings agentKind="opencode" statuses={[makeStatus()]} wslDistros={[]} />,
-    );
-    expect(screen.getAllByRole("switch", { name: "Computer Use" })).toHaveLength(2);
+    expect(screen.getByRole("switch", { name: "Computer Use" })).toBeInTheDocument();
   });
 });

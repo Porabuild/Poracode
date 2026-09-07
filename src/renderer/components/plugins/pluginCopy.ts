@@ -71,7 +71,7 @@ export function useLocalizedPluginCatalog(projectLocation?: ProjectLocation): Lo
         break;
       case "computer-use":
         name = t`Computer Use`;
-        description = t`Control desktop apps and complete visual workflows.`;
+        description = t`Control desktop apps in the background and complete visual workflows.`;
         break;
       case "subagent-delegation":
         name = t`Crossagents`;

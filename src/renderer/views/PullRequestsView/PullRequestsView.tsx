@@ -1,6 +1,6 @@
 import { Button, Checkbox, Input, Popover, TextField } from "@heroui/react";
 import { ArrowRight, Funnel, GitPullRequest, Loader2, RefreshCw, Search } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Project, PullRequestSummary } from "@/shared/contracts";
@@ -75,20 +75,40 @@ export function PullRequestsView() {
   const [hiddenProjectIds, setHiddenProjectIds] = useState<Set<string>>(() => new Set());
   const [hiddenAccounts, setHiddenAccounts] = useState<Set<string>>(() => new Set());
 
-  useEffect(() => {
-    if (prReviewOpen) return;
-
-    let cancelled = false;
+  // Every input that restarts the fan-out, folded into one key so the effect
+  // consumes the trigger-only refreshVersion instead of listing it as an
+  // extra dependency. The location is part of the key so a moved project
+  // refetches even when its id is unchanged.
+  const prProjectsKey = prProjects
+    .map((project) => `${project.id}\0${JSON.stringify(project.location)}`)
+    .join("\n");
+  const prRequestKey = `${prProjectsKey}\n---\n${refreshVersion}`;
+  const activePrRequestKeyRef = useRef(prRequestKey);
+  // Reset-on-request-change during render (mirrors the synchronous resets the
+  // effect used to do on entry). Starts as null so the mount pass applies it
+  // too — the old effect ran on mount and set the same values.
+  const [prevPrRequestKey, setPrevPrRequestKey] = useState<string | null>(null);
+  if (prevPrRequestKey !== prRequestKey) {
+    setPrevPrRequestKey(prRequestKey);
     setLoadedProjects([]);
     setFailures([]);
     setLoading(prProjects.length > 0);
+  }
+
+  useEffect(() => {
+    activePrRequestKeyRef.current = prRequestKey;
+    if (prReviewOpen) return;
+
+    let cancelled = false;
+    const capturedKey = prRequestKey;
+    const keyFresh = () => !cancelled && activePrRequestKeyRef.current === capturedKey;
 
     const requests = prProjects.map((project) =>
       readBridge()
         .ghListPullRequests({ projectLocation: project.location })
         .then(
           (result) => {
-            if (cancelled) return;
+            if (!keyFresh()) return;
             setLoadedProjects((current) => [
               ...current,
               {
@@ -99,20 +119,20 @@ export function PullRequestsView() {
             ]);
           },
           (reason) => {
-            if (cancelled) return;
+            if (!keyFresh()) return;
             setFailures((current) => [...current, { project, message: friendlyError(reason) }]);
           },
         ),
     );
 
     void Promise.allSettled(requests).then(() => {
-      if (!cancelled) setLoading(false);
+      if (keyFresh()) setLoading(false);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [prProjects, prReviewOpen, refreshVersion]);
+  }, [prProjects, prRequestKey, prReviewOpen]);
 
   const accountLogins = [
     ...new Set(

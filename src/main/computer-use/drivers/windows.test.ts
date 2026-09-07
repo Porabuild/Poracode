@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateWindowsLaunchAppInput } from "./windows";
+import { validateWindowsLaunchAppInput } from "./launchAppValidation";
 
 describe("validateWindowsLaunchAppInput", () => {
   it("allows app aliases, drive paths, and shell AppsFolder targets", () => {
@@ -30,5 +30,12 @@ describe("validateWindowsLaunchAppInput", () => {
     expect(() => validateWindowsLaunchAppInput(String.raw`.\tool.exe`)).toThrow(
       "Relative paths are not allowed",
     );
+    for (const app of [
+      "notepad.exe\0ignored",
+      "C:\\Windows\\notepad.exe\0ignored",
+      "shell:AppsFolder\\Calculator\0ignored",
+    ]) {
+      expect(() => validateWindowsLaunchAppInput(app)).toThrow("app is required");
+    }
   });
 });

@@ -59,6 +59,7 @@ export function authStatusForPresentation(
 function stripProviderLogin(status: AgentStatus): AgentStatus {
   const {
     loginCommand: _loginCommand,
+    loginCommandDisplay: _loginCommandDisplay,
     authMethods: _authMethods,
     authLogoutSupported: _authLogoutSupported,
     preferTerminalLogin: _preferTerminalLogin,
@@ -70,13 +71,20 @@ function stripProviderLogin(status: AgentStatus): AgentStatus {
 function restoreProviderLogin(
   source: Pick<
     AgentStatus,
-    "loginCommand" | "authMethods" | "authLogoutSupported" | "preferTerminalLogin"
+    | "loginCommand"
+    | "loginCommandDisplay"
+    | "authMethods"
+    | "authLogoutSupported"
+    | "preferTerminalLogin"
   >,
   status: AgentStatus,
 ): AgentStatus {
   return {
     ...status,
     ...(source.loginCommand !== undefined ? { loginCommand: source.loginCommand } : {}),
+    ...(source.loginCommandDisplay !== undefined
+      ? { loginCommandDisplay: source.loginCommandDisplay }
+      : {}),
     ...(source.authMethods !== undefined ? { authMethods: source.authMethods } : {}),
     ...(source.authLogoutSupported !== undefined
       ? { authLogoutSupported: source.authLogoutSupported }
@@ -169,6 +177,7 @@ export function agentStatusForPresentation(
   };
   const hasRuntimeLogin =
     runtimeVariant.loginCommand !== undefined ||
+    runtimeVariant.loginCommandDisplay !== undefined ||
     runtimeVariant.authMethods !== undefined ||
     runtimeVariant.authLogoutSupported !== undefined ||
     runtimeVariant.preferTerminalLogin !== undefined;
@@ -237,6 +246,35 @@ export function filterHiddenModels(
   if (effectiveHiddenIds.length === 0) return capabilities;
   const hidden = new Set(effectiveHiddenIds);
   return { ...capabilities, models: capabilities.models.filter((m) => !hidden.has(m.id)) };
+}
+
+/**
+ * Re-admit one model into a hidden-filtered surface when that surface has to
+ * represent a selection that already exists.
+ *
+ * Hiding a model is a menu preference, not a capability change: something
+ * already configured with model X (a running thread, a restored draft) must
+ * still show X's label and keep X's reasoning/context options. Without this the
+ * picker cannot label X — it is absent from the list it labels from — and falls
+ * back to rendering the bare model id.
+ *
+ * The entry is taken from `source` (the unfiltered surface) and reinserted in
+ * `source` order, so the list stays ordered as the provider declared it. A
+ * model the surface no longer advertises at all cannot be recovered here.
+ */
+export function withModelVisible(
+  filtered: AgentCapability,
+  source: AgentCapability,
+  modelId: string | undefined,
+): AgentCapability {
+  if (!modelId) return filtered;
+  if (filtered.models.some((m) => m.id === modelId)) return filtered;
+  if (!source.models.some((m) => m.id === modelId)) return filtered;
+  const visible = new Set(filtered.models.map((m) => m.id));
+  return {
+    ...filtered,
+    models: source.models.filter((m) => visible.has(m.id) || m.id === modelId),
+  };
 }
 
 export function modelSelectionFor(

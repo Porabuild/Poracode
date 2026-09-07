@@ -32,20 +32,45 @@
  * carrying the task id, optional fenced command output, then a metadata block
  * with `task_id`, `status`, and `exit_code`.
  *
+ * Or the current `**Background task started|update|completed:**` report
+ * (command, task id, exit/duration, fenced output).
+ *
+ * Or a `<received_message>` wrapper around a classic
+ * `Task <id> finished with the following output:` dump (unfenced cargo/test
+ * output). Both of those shapes used to stream as assistant prose.
+ *
+ * Live 3.8 Flash also launches background work on the tool call itself:
+ * `WaitMsBeforeAsync` plus a running-in-background `toolAction`/`toolSummary`,
+ * and later completes that same toolCallId with native command output (no
+ * markdown dump). Wait/sleep polls reuse `WaitMsBeforeAsync` with a
+ * "waiting for … task" action and must not take over the dock.
+ *
  * This module extracts and maps these notifications into canonical
  * `command_execution` events (either updating an already-tracked command
- * or emitting a standalone command accordion) and cleans up XML/system tags so they
- * do not leak into assistant message streams as unformatted text.
+ * or emitting a standalone command accordion), reports live work through
+ * `background_tasks.changed` so it appears in the Background tasks dock,
+ * and cleans up XML/system tags so they do not leak into assistant message
+ * streams as unformatted text.
  */
 
-import type { CanonicalItemType, RuntimeEvent } from "@/shared/contracts";
+import type { SessionNotification } from "@agentclientprotocol/sdk";
+import type { BackgroundTask, CanonicalItemType, RuntimeEvent } from "@/shared/contracts";
 import {
+  BACKGROUND_TASK_COMPLETED_HEADING,
+  BACKGROUND_TASK_STARTED_HEADING,
   BACKGROUND_TASK_UPDATE_HEADING,
+  BACKGROUND_TASK_UPDATE_REPORT_HEADING,
+  CLOSE_RECEIVED_MESSAGE_TAG,
   CLOSE_TASK_METADATA_TAG,
+  extractBackgroundTaskReportBlock,
+  findBackgroundTaskReportStart,
+  looksLikeClassicTaskReport,
+  OPEN_RECEIVED_MESSAGE_TAG,
   OPEN_TASK_METADATA_TAG,
   parseBackgroundTaskUpdateBlock,
   parseTaskNotificationBody,
   type ParsedTaskNotificationBody,
+  type TaskNotificationPhase,
 } from "@/shared/taskNotificationText";
 import { msg } from "@/shared/messages";
 import type { AcpMapperState } from "../acp/canonicalMapping/state";
@@ -62,6 +87,12 @@ import {
   type AcpExtensionToolCallSource,
   type AcpTextStreamExtension,
 } from "../acp/canonicalMapping/textStreamExtension";
+import {
+  extractFlashBackgroundTaskId,
+  hasFlashNativeCommandOutput,
+  isFlashBackgroundLaunch,
+  isWaitingForBackgroundTask,
+} from "./acpBackgroundLaunch";
 
 const EXTENSION_ID = "antigravity.taskNotifications";
 
@@ -75,6 +106,8 @@ interface AntigravityTaskNotificationStore {
     string,
     { toolCallId: string; itemId: string; command: string; payload: Record<string, unknown> }
   >;
+  /** Fingerprint of the last emitted `background_tasks.changed` payload. */
+  lastReportedBackgroundTasksKey?: string;
   /**
    * Partial `<task_notification>` text still streaming across
    * `agent_message_chunk` boundaries, pinned to the parent tool call whose
@@ -119,7 +152,11 @@ export function createAntigravityTaskNotificationExtension(): AcpTextStreamExten
       );
       return { events, text: handled.text };
     },
-    trackToolCall(input: AcpExtensionToolCallInput): void {
+    trackToolCall(input: AcpExtensionToolCallInput): RuntimeEvent[] {
+      if (isWaitingForBackgroundTask(input.toolCall.rawInput)) return [];
+      if (input.toolCall.status === "completed" || input.toolCall.status === "failed") {
+        return drainBackgroundCommandIfTracked(input.state, input.toolCall.toolCallId);
+      }
       trackBackgroundCommandFromToolCall(
         input.state,
         input.itemType,
@@ -127,6 +164,7 @@ export function createAntigravityTaskNotificationExtension(): AcpTextStreamExten
         input.payload,
         input.toolCall,
       );
+      return backgroundTasksChangedEvents(input.state);
     },
     flushTurnBoundary(state: AcpMapperState) {
       return flushTaskNotificationBuffer(state);
@@ -140,8 +178,11 @@ export function createAntigravityTaskNotificationExtension(): AcpTextStreamExten
 export interface ParsedTaskNotification {
   raw: string;
   taskId: string;
-  exitCode: number;
+  exitCode?: number;
   output: string;
+  command?: string;
+  durationMs?: number;
+  phase: TaskNotificationPhase;
 }
 
 const OPEN_TASK_TAG = "<task_notification>";
@@ -163,16 +204,18 @@ const BACKGROUND_SIGNAL_RE = /background\s+task/i;
 /** Shape a truncated `<task_notification>` or `<SYSTEM_MESSAGE>` body must have to be completed
  *  leniently at a turn boundary instead of streaming as plain text. */
 const TRUNCATED_BODY_SHAPE_RE =
-  /completed with|failed with|Output:|exited with code|finished with result|content=Task id/i;
+  /completed with|failed with|Output:|exited with code|finished with result|finished with the following output|content=Task id/i;
 const TRUNCATED_BACKGROUND_UPDATE_SHAPE_RE = /The task exited|task_id:|exit_code:|<task_metadata>/i;
 
 /**
- * Pull complete `<task_notification>`, `<SYSTEM_MESSAGE>`, or markdown
- * `# Background Task Update` + `<task_metadata>` blocks out of streamed agent
- * text, mapping each to a parsed notification. `cleanText` is the input with
- * the blocks surgically removed — every other byte (including boundary
- * whitespace) is preserved, because callers concatenate the returned text into
- * streaming assistant deltas. An unterminated tail stays in `cleanText`.
+ * Pull complete `<task_notification>`, `<SYSTEM_MESSAGE>`, markdown
+ * `# Background Task Update` + `<task_metadata>`,
+ * `**Background task started|update|completed:**`, or `<received_message>`
+ * task-report blocks out of streamed agent text, mapping each to a parsed
+ * notification. `cleanText` is the input with the blocks surgically removed —
+ * every other byte (including boundary whitespace) is preserved, because
+ * callers concatenate the returned text into streaming assistant deltas. An
+ * unterminated tail stays in `cleanText`.
  */
 export function extractTaskNotifications(text: string): {
   notifications: ParsedTaskNotification[];
@@ -189,15 +232,26 @@ function toParsedTaskNotification(
   raw: string,
   parsed: ParsedTaskNotificationBody,
 ): ParsedTaskNotification {
+  const phase = parsed.phase ?? "finish";
   return {
     raw: raw.trim(),
     taskId: parsed.taskId ?? "unknown",
-    exitCode: parsed.exitCode ?? (parsed.failed ? 1 : 0),
     output: parsed.output,
+    phase,
+    ...(parsed.command ? { command: parsed.command } : {}),
+    ...(parsed.durationMs !== undefined ? { durationMs: parsed.durationMs } : {}),
+    ...(phase === "finish" || parsed.exitCode !== undefined
+      ? { exitCode: parsed.exitCode ?? (parsed.failed ? 1 : 0) }
+      : {}),
   };
 }
 
-type NotificationBlockKind = "task" | "system" | "backgroundUpdate";
+type NotificationBlockKind =
+  | "task"
+  | "system"
+  | "received"
+  | "backgroundUpdate"
+  | "completedReport";
 
 function indexOfIgnoreCase(haystack: string, needle: string, from: number): number {
   return haystack.toLowerCase().indexOf(needle.toLowerCase(), from);
@@ -251,6 +305,7 @@ function isPartialBackgroundTaskUpdateHeading(lastLine: string): boolean {
 const NOTIFICATION_PREFIXES: Array<{ value: string; min: number; ignoreCase: boolean }> = [
   { value: OPEN_TASK_TAG, min: 2, ignoreCase: false },
   { value: OPEN_SYSTEM_TAG, min: 2, ignoreCase: false },
+  { value: OPEN_RECEIVED_MESSAGE_TAG, min: 2, ignoreCase: false },
   { value: SYSTEM_MESSAGE_PREAMBLE_PREFIX, min: 2, ignoreCase: false },
   { value: OPEN_TASK_METADATA_TAG, min: 2, ignoreCase: true },
   {
@@ -258,6 +313,12 @@ const NOTIFICATION_PREFIXES: Array<{ value: string; min: number; ignoreCase: boo
     min: BACKGROUND_TASK_UPDATE_PREFIX_MIN,
     ignoreCase: true,
   },
+  { value: `**${BACKGROUND_TASK_COMPLETED_HEADING}`, min: 6, ignoreCase: true },
+  { value: BACKGROUND_TASK_COMPLETED_HEADING, min: 18, ignoreCase: true },
+  { value: `**${BACKGROUND_TASK_STARTED_HEADING}`, min: 6, ignoreCase: true },
+  { value: BACKGROUND_TASK_STARTED_HEADING, min: 18, ignoreCase: true },
+  { value: `**${BACKGROUND_TASK_UPDATE_REPORT_HEADING}`, min: 6, ignoreCase: true },
+  { value: BACKGROUND_TASK_UPDATE_REPORT_HEADING, min: 18, ignoreCase: true },
 ];
 
 function matchTrailingNotificationPrefix(
@@ -291,8 +352,10 @@ function containsTaskNotificationMarker(text: string): boolean {
   return (
     text.includes("<task") ||
     text.includes("<SYSTEM_MESSAGE") ||
+    text.includes("<received") ||
     text.includes("The following is a <SYSTEM_MESSAGE>") ||
     /Background Task Update/i.test(text) ||
+    /Background task (?:started|updated?|completed)/i.test(text) ||
     text.includes("<task_metadata") ||
     matchTrailingNotificationPrefix(text) !== undefined
   );
@@ -314,6 +377,7 @@ function scanTaskNotificationBlocks(text: string): {
   while (cursor < text.length) {
     const nextTaskIdx = text.indexOf(OPEN_TASK_TAG, cursor);
     const nextSysIdx = text.indexOf(OPEN_SYSTEM_TAG, cursor);
+    const nextReceivedIdx = text.indexOf(OPEN_RECEIVED_MESSAGE_TAG, cursor);
     let preambleStart = -1;
 
     if (nextSysIdx !== -1) {
@@ -328,6 +392,7 @@ function scanTaskNotificationBlocks(text: string): {
 
     const effectiveSysStart = preambleStart !== -1 ? preambleStart : nextSysIdx;
     const nextBgIdx = findBackgroundTaskUpdateStart(text, cursor);
+    const nextCompletedIdx = findBackgroundTaskReportStart(text, cursor);
 
     let chosenType: NotificationBlockKind | undefined;
     let blockStart = -1;
@@ -356,12 +421,28 @@ function scanTaskNotificationBlocks(text: string): {
         closeTag: CLOSE_SYSTEM_TAG,
       });
     }
+    if (nextReceivedIdx !== -1) {
+      candidates.push({
+        kind: "received",
+        start: nextReceivedIdx,
+        openTagEnd: nextReceivedIdx + OPEN_RECEIVED_MESSAGE_TAG.length,
+        closeTag: CLOSE_RECEIVED_MESSAGE_TAG,
+      });
+    }
     if (nextBgIdx !== -1) {
       candidates.push({
         kind: "backgroundUpdate",
         start: nextBgIdx,
         openTagEnd: nextBgIdx,
         closeTag: CLOSE_TASK_METADATA_TAG,
+      });
+    }
+    if (nextCompletedIdx !== -1) {
+      candidates.push({
+        kind: "completedReport",
+        start: nextCompletedIdx,
+        openTagEnd: nextCompletedIdx,
+        closeTag: "",
       });
     }
     candidates.sort((a, b) => a.start - b.start);
@@ -375,6 +456,23 @@ function scanTaskNotificationBlocks(text: string): {
 
     if (!chosenType || blockStart === -1) {
       break;
+    }
+
+    if (chosenType === "completedReport") {
+      const extracted = extractBackgroundTaskReportBlock(text.slice(blockStart));
+      if (!extracted.complete) {
+        cleanText += text.slice(cursor, blockStart);
+        return { notifications, cleanText, unclosed: text.slice(blockStart) };
+      }
+      cleanText += text.slice(cursor, blockStart);
+      const raw = text.slice(blockStart, blockStart + extracted.end);
+      if (extracted.parsed.taskId) {
+        notifications.push(toParsedTaskNotification(raw, extracted.parsed));
+      } else {
+        cleanText += raw;
+      }
+      cursor = blockStart + extracted.end;
+      continue;
     }
 
     const closeIdx =
@@ -391,6 +489,14 @@ function scanTaskNotificationBlocks(text: string): {
     if (chosenType === "backgroundUpdate") {
       const parsed = parseBackgroundTaskUpdateBlock(raw);
       if (parsed.taskId) {
+        notifications.push(toParsedTaskNotification(raw, parsed));
+      } else {
+        cleanText += raw;
+      }
+    } else if (chosenType === "received") {
+      const body = text.slice(openTagEnd, closeIdx);
+      const parsed = parseTaskNotificationBody(body);
+      if (looksLikeClassicTaskReport(body) && parsed.taskId) {
         notifications.push(toParsedTaskNotification(raw, parsed));
       } else {
         cleanText += raw;
@@ -492,20 +598,66 @@ export function trackBackgroundCommandFromToolCall(
   toolCall: AcpExtensionToolCallSource,
 ): void {
   if (itemType !== "command_execution") return;
+  if (isWaitingForBackgroundTask(toolCall.rawInput)) return;
+
+  let taskId: string | undefined;
   for (const source of [payload.result, toolCall.rawOutput, toolCall.content] as const) {
     if (typeof source === "string" && !BACKGROUND_SIGNAL_RE.test(source)) continue;
-    const taskId = extractBackgroundTaskId(source);
-    if (!taskId) continue;
-    const existing = store(state).backgroundTasks.get(taskId);
-    if (existing && existing.toolCallId !== toolCall.toolCallId) return;
-    store(state).backgroundTasks.set(taskId, {
-      toolCallId: toolCall.toolCallId,
-      itemId,
-      command: resolveCommand(payload, toolCall),
-      payload,
-    });
-    return;
+    taskId = extractBackgroundTaskId(source);
+    if (taskId) break;
   }
+  if (!taskId && isFlashBackgroundLaunch(toolCall.rawInput)) {
+    taskId = extractFlashBackgroundTaskId(toolCall) ?? toolCall.toolCallId;
+  }
+  if (!taskId) return;
+
+  const existing = store(state).backgroundTasks.get(taskId);
+  if (existing && existing.toolCallId !== toolCall.toolCallId) {
+    if (!existing.toolCallId.startsWith("bg:")) return;
+  }
+  store(state).backgroundTasks.set(taskId, {
+    toolCallId: toolCall.toolCallId,
+    itemId,
+    command: resolveCommand(payload, toolCall) || existing?.command || "",
+    payload,
+  });
+}
+
+function drainBackgroundCommandIfTracked(
+  state: AcpMapperState,
+  toolCallId: string,
+): RuntimeEvent[] {
+  const tasks = store(state).backgroundTasks;
+  let removed = false;
+  for (const [taskId, tracked] of [...tasks.entries()]) {
+    if (tracked.toolCallId !== toolCallId) continue;
+    tasks.delete(taskId);
+    removed = true;
+  }
+  if (!removed) return [];
+  return backgroundTasksChangedEvents(state);
+}
+
+function reportedBackgroundTasks(state: AcpMapperState): BackgroundTask[] {
+  return [...store(state).backgroundTasks.entries()].map(([taskId, tracked]) => ({
+    taskId,
+    kind: "command" as const,
+    description: tracked.command,
+  }));
+}
+
+function backgroundTasksKey(tasks: readonly BackgroundTask[]): string {
+  return tasks
+    .map((task) => `${task.taskId}\u0000${task.kind}\u0000${task.description}`)
+    .join("\n");
+}
+
+function backgroundTasksChangedEvents(state: AcpMapperState): RuntimeEvent[] {
+  const tasks = reportedBackgroundTasks(state);
+  const key = backgroundTasksKey(tasks);
+  if ((store(state).lastReportedBackgroundTasksKey ?? "") === key) return [];
+  store(state).lastReportedBackgroundTasksKey = key;
+  return [{ type: "background_tasks.changed", threadId: state.threadId, tasks }];
 }
 
 function resolveCommand(
@@ -521,12 +673,140 @@ function resolveCommand(
 }
 
 /**
- * Emit canonical runtime events for a completed task notification.
- * If the task was tracked from an earlier command execution, update that item.
- * Otherwise, emit a standalone `command_execution` item so the output renders
- * cleanly in an accordion.
+ * Keep a command row open when ACP reports it "completed" only because the
+ * harness backgrounded it. Finish reports own the real close.
+ */
+export function transformAntigravityBackgroundToolCall(
+  notification: SessionNotification,
+): SessionNotification {
+  const update = notification.update as Record<string, unknown>;
+  if (update.sessionUpdate !== "tool_call" && update.sessionUpdate !== "tool_call_update") {
+    return notification;
+  }
+  if (update.status !== "completed" && update.status !== "failed") return notification;
+  if (hasFlashNativeCommandOutput(update.rawOutput)) return notification;
+  const sources = [update.rawOutput, update.content, update.rawInput];
+  const backgrounded = sources.some((source) => {
+    if (typeof source !== "string" || !BACKGROUND_SIGNAL_RE.test(source)) return false;
+    return extractBackgroundTaskId(source) !== undefined;
+  });
+  const flashLaunch = isFlashBackgroundLaunch(update.rawInput);
+  if (!backgrounded && !flashLaunch) return notification;
+  return {
+    ...notification,
+    update: { ...update, status: "in_progress" } as SessionNotification["update"],
+  };
+}
+
+function mergeCommandOutput(previous: unknown, next: string): string {
+  const prev = typeof previous === "string" ? previous : "";
+  if (!next) return prev;
+  if (!prev) return next;
+  if (next.startsWith(prev)) return next;
+  if (prev.endsWith(next)) return prev;
+  return `${prev}${prev.endsWith("\n") ? "" : "\n"}${next}`;
+}
+
+function commandLabel(notification: ParsedTaskNotification, fallback = ""): string {
+  return notification.command || fallback;
+}
+
+/**
+ * Emit canonical runtime events for a task notification.
+ * Start/progress keep the command row running and the Background tasks dock
+ * populated; finish seals the row and drains the dock entry.
  */
 export function emitTaskNotificationEvents(
+  notification: ParsedTaskNotification,
+  state: AcpMapperState,
+): RuntimeEvent[] {
+  if (notification.phase === "start" || notification.phase === "progress") {
+    return emitLiveTaskNotificationEvents(notification, state);
+  }
+  return emitFinishedTaskNotificationEvents(notification, state);
+}
+
+function emitLiveTaskNotificationEvents(
+  notification: ParsedTaskNotification,
+  state: AcpMapperState,
+): RuntimeEvent[] {
+  const events: RuntimeEvent[] = [];
+  const threadId = state.threadId;
+  const tracked = store(state).backgroundTasks.get(notification.taskId);
+  if (tracked) {
+    const live = state.toolCallItems.get(tracked.toolCallId);
+    const command = tracked.command || commandLabel(notification);
+    const result = mergeCommandOutput(
+      live?.payload.result ?? tracked.payload.result,
+      notification.output,
+    );
+    const updatedPayload: Record<string, unknown> = {
+      ...(live ? live.payload : tracked.payload),
+      command,
+      result,
+      status: "running",
+    };
+    if (live) live.payload = updatedPayload;
+    tracked.command = command;
+    tracked.payload = updatedPayload;
+    if (notification.output) {
+      events.push({
+        type: "content.delta",
+        threadId,
+        itemId: tracked.itemId,
+        stream: "command_output",
+        delta: notification.output,
+      });
+    }
+    events.push({
+      type: "item.updated",
+      threadId,
+      itemId: tracked.itemId,
+      payload: updatedPayload,
+    });
+    events.push(...backgroundTasksChangedEvents(state));
+    return events;
+  }
+
+  events.push(...closeAllOpenContentItems(state));
+  const itemId = newItemId("tool");
+  const command = commandLabel(
+    notification,
+    msg("acp.taskNotification.task", { id: notification.taskId }),
+  );
+  const payload: Record<string, unknown> = {
+    name: command,
+    command,
+    result: notification.output,
+    status: "running",
+  };
+  store(state).backgroundTasks.set(notification.taskId, {
+    toolCallId: `bg:${notification.taskId}`,
+    itemId,
+    command,
+    payload,
+  });
+  events.push({
+    type: "item.started",
+    threadId,
+    itemId,
+    itemType: "command_execution",
+    payload,
+  });
+  if (notification.output) {
+    events.push({
+      type: "content.delta",
+      threadId,
+      itemId,
+      stream: "command_output",
+      delta: notification.output,
+    });
+  }
+  events.push(...backgroundTasksChangedEvents(state));
+  return events;
+}
+
+function emitFinishedTaskNotificationEvents(
   notification: ParsedTaskNotification,
   state: AcpMapperState,
 ): RuntimeEvent[] {
@@ -552,10 +832,11 @@ export function emitTaskNotificationEvents(
     }
     const updatedPayload: Record<string, unknown> = {
       ...(live ? live.payload : tracked.payload),
-      command: tracked.command,
+      command: tracked.command || notification.command || "",
       result: notification.output,
       exitCode: notification.exitCode,
       status,
+      ...(notification.durationMs !== undefined ? { durationMs: notification.durationMs } : {}),
     };
     if (notification.output) {
       events.push({
@@ -578,18 +859,22 @@ export function emitTaskNotificationEvents(
       itemId: tracked.itemId,
       payload: updatedPayload,
     });
+    events.push(...backgroundTasksChangedEvents(state));
     return events;
   }
 
   // Fallback: emit a standalone command_execution item
   events.push(...closeAllOpenContentItems(state));
   const itemId = newItemId("tool");
+  const fallbackCommand =
+    notification.command ?? msg("acp.taskNotification.task", { id: notification.taskId });
   const payload: Record<string, unknown> = {
-    name: msg("acp.taskNotification.task", { id: notification.taskId }),
-    command: msg("acp.taskNotification.task", { id: notification.taskId }),
+    name: fallbackCommand,
+    command: fallbackCommand,
     result: notification.output,
     exitCode: notification.exitCode,
     status,
+    ...(notification.durationMs !== undefined ? { durationMs: notification.durationMs } : {}),
   };
   events.push({
     type: "item.started",
@@ -630,6 +915,7 @@ export function flushTaskNotificationBuffer(state: AcpMapperState): RuntimeEvent
   const events: RuntimeEvent[] = [];
   let text = buffer.text;
   const isTaskOpen = text.startsWith(OPEN_TASK_TAG);
+  const isReceivedOpen = text.startsWith(OPEN_RECEIVED_MESSAGE_TAG);
   const sysOpenIdx = text.indexOf(OPEN_SYSTEM_TAG);
   const isSysOpen =
     sysOpenIdx !== -1 &&
@@ -639,8 +925,20 @@ export function flushTaskNotificationBuffer(state: AcpMapperState): RuntimeEvent
     bgHeading === 0 ||
     indexOfIgnoreCase(text.trimStart(), OPEN_TASK_METADATA_TAG, 0) === 0 ||
     /^The task exited with the following message:/i.test(text.trimStart());
+  const completedStart = findBackgroundTaskReportStart(text, 0);
+  const isCompletedOpen =
+    completedStart === 0 || (completedStart !== -1 && text.slice(0, completedStart).trim() === "");
 
-  if (isTaskOpen || isSysOpen) {
+  if (isReceivedOpen) {
+    const body = text.slice(OPEN_RECEIVED_MESSAGE_TAG.length);
+    if (looksLikeClassicTaskReport(body)) {
+      const parsed = parseTaskNotificationBody(body);
+      if (parsed.taskId) {
+        events.push(...emitTaskNotificationEvents(toParsedTaskNotification(text, parsed), state));
+        text = "";
+      }
+    }
+  } else if (isTaskOpen || isSysOpen) {
     const openTagLen = isTaskOpen ? OPEN_TASK_TAG.length : sysOpenIdx + OPEN_SYSTEM_TAG.length;
     const body = text.slice(openTagLen);
     if (TRUNCATED_BODY_SHAPE_RE.test(body)) {
@@ -653,6 +951,18 @@ export function flushTaskNotificationBuffer(state: AcpMapperState): RuntimeEvent
       }
     } else {
       text = isTaskOpen ? body : "";
+    }
+  } else if (isCompletedOpen) {
+    const raw = text.slice(completedStart);
+    const extracted = extractBackgroundTaskReportBlock(raw);
+    if (extracted.parsed.taskId) {
+      const reportRaw = extracted.complete ? raw.slice(0, extracted.end) : raw;
+      events.push(
+        ...emitTaskNotificationEvents(toParsedTaskNotification(reportRaw, extracted.parsed), state),
+      );
+      text = extracted.complete
+        ? text.slice(0, completedStart) + raw.slice(extracted.end)
+        : text.slice(0, completedStart);
     }
   } else if (isBgOpen) {
     const parsed = parseBackgroundTaskUpdateBlock(text);
@@ -674,7 +984,10 @@ export function flushTaskNotificationBuffer(state: AcpMapperState): RuntimeEvent
 
   if (text.trim().length === 0 || buffer.suppressOutput) return events;
   const trailingOpener = matchTrailingNotificationPrefix(text);
-  const isProtocolOpener = text.startsWith("<") || isPartialBackgroundTaskUpdateHeading(text);
+  const isProtocolOpener =
+    text.startsWith("<") ||
+    isPartialBackgroundTaskUpdateHeading(text) ||
+    /^\*{0,2}Background task (?:started|updated?|completed)/i.test(text);
   const isDistinctPreamble =
     text.startsWith("The following is a ") && SYSTEM_MESSAGE_PREAMBLE_PREFIX.startsWith(text);
   if (trailingOpener?.start === 0 && (isProtocolOpener || isDistinctPreamble)) {

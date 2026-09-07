@@ -17,13 +17,14 @@ const nextConfig = {
     formats: ["image/avif", "image/webp"],
     qualities: [50, 75],
   },
-  // Both `dev` and `build` pass `--webpack` on purpose. The workspace sets
-  // `enableGlobalVirtualStore: true`, so every dependency's real path lives in
-  // ~/Library/pnpm/store — outside the repo. Turbopack refuses to compile
-  // anything whose realpath falls outside its root, so it cannot resolve `next`
-  // itself here and no in-repo `turbopack.root` can fix that (still true on
-  // 16.3). Webpack follows the symlinks fine. Revisit if the global virtual
-  // store is ever disabled.
+  // Local `dev` (scripts/dev.mjs) and the `build` script in package.json pass
+  // `--webpack` on purpose. The workspace sets `enableGlobalVirtualStore: true`,
+  // so every dependency's real path lives in ~/Library/pnpm/store — outside the
+  // repo. Turbopack refuses to compile anything whose realpath falls outside its
+  // root, so it cannot resolve `next` itself here and no in-repo `turbopack.root`
+  // can fix that (still true on 16.3). Webpack follows the symlinks fine. The
+  // Vercel build command in vercel.json omits `--webpack` and uses Turbopack,
+  // because the Vercel installCommand disables the global virtual store.
   async headers() {
     return [
       {

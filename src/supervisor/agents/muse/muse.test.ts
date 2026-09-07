@@ -22,6 +22,7 @@ describe("createMuseAdapter shape", () => {
     expect(adapter.kind).toBe("muse");
     expect(adapter.label).toBe("Muse Code");
     expect(adapter.binary).toBe("muse");
+    expect(adapter.windowsProjectExecution).toBe("wsl");
   });
 
   it("re-exposes the installer-only update spec on the adapter", () => {
@@ -31,12 +32,21 @@ describe("createMuseAdapter shape", () => {
       binary: "sh",
       args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
     });
+    expect(adapter.update?.installer?.windows).toEqual({
+      binary: "wsl.exe",
+      args: [
+        "--exec",
+        "bash",
+        "-lc",
+        "if command -v curl >/dev/null 2>&1; then set -o pipefail; curl -fsSL https://dev.meta.ai/install.sh | bash; else exit 127; fi",
+      ],
+    });
   });
 
-  it("advertises terminal-only and no structured session (awaiting real ACP)", () => {
-    expect(adapter.capabilities.presentationModes).toEqual(["terminal"]);
+  it("advertises terminal and MSP-backed GUI presentations", () => {
+    expect(adapter.capabilities.presentationModes).toEqual(["terminal", "gui"]);
     expect(adapter.capabilities.liveInputMode).toBe("terminal");
-    expect(adapter.createStructuredSession).toBeUndefined();
+    expect(adapter.createStructuredSession).toBeTypeOf("function");
   });
 
   it("neutralizes the browser for the WSL OAuth flow", () => {
@@ -99,7 +109,7 @@ describe("createMuseAdapter launch / resume argv", () => {
   });
 
   it("chunks direct input with a paste-safe Enter delay", () => {
-    expect(adapter.buildDirectInput?.("hello")).toEqual(["hello", "@wait:200", "\r"]);
+    expect(adapter.buildDirectInput?.("hello")).toEqual(["hello", "@wait:200", "\x1b[13;1u"]);
   });
 
   it("defers initial prompts to the TUI so resumed sessions receive them", () => {

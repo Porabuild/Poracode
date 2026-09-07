@@ -84,6 +84,12 @@ function hasDisplayableUsage(snapshot: UsageSnapshot): boolean {
   );
 }
 
+function withoutEstimatedCost(snapshot: UsageSnapshot): UsageSnapshot {
+  if (!snapshot.cost?.estimated) return snapshot;
+  const { cost: _cost, ...rest } = snapshot;
+  return rest;
+}
+
 export class UsageService {
   private readonly registry: UsageCollectorRegistry = createUsageCollectorRegistry();
   private readonly localCollectors: Map<string, LocalUsageCollector>;
@@ -187,9 +193,11 @@ export class UsageService {
    */
   async getProviderUsage(payload: ProviderUsagePayload): Promise<ProviderUsageResponse> {
     const ids = this.resolveIds(payload);
+    const showEstimatedCost = this.readUsageSettings().showEstimatedCost;
     const cached = ids
       .map((id) => this.snapshots.get(id))
-      .filter((snap): snap is UsageSnapshot => snap !== undefined);
+      .filter((snap): snap is UsageSnapshot => snap !== undefined)
+      .map((snap) => (showEstimatedCost ? snap : withoutEstimatedCost(snap)));
 
     // Refresh only the stale ids — never the whole requested set — so a single
     // stale provider doesn't drag a still-rate-limited sibling back into a 429.
@@ -231,6 +239,7 @@ export class UsageService {
     const claudeProfiles = this.claudeUsageProfiles();
     const cursorSdkProfile = readCursorSdkUsageProfile(this.readSharedSettings());
     const cursorProfiles = this.cursorUsageProfiles();
+    const showEstimatedCost = this.readUsageSettings().showEstimatedCost;
     const registryIds = ids.filter(
       (id) => this.registry.has(id) && !(id === "cursor" && cursorSdkProfile),
     );
@@ -266,16 +275,27 @@ export class UsageService {
       ...cursorProfileSnaps,
       ...(cursorSdkSnapshot ? [cursorSdkSnapshot] : []),
     ].map((snap) => this.preserveOnTransientFailure(snap));
-    if (this.readUsageSettings().showEstimatedCost) {
+    // Keep collector estimates cached so toggling their visibility needs no refresh.
+    if (showEstimatedCost) {
       snapshots = await this.withEstimatedCost(snapshots, claudeProfiles);
     }
     for (const snapshot of snapshots) {
       this.snapshots.set(snapshot.providerId, snapshot);
-      this.options.emit({ type: "provider-usage", snapshot });
+      this.options.emit({
+        type: "provider-usage",
+        snapshot: showEstimatedCost ? snapshot : withoutEstimatedCost(snapshot),
+      });
     }
-    this.options.emit({ type: "provider-usage-all", snapshots: [...this.snapshots.values()] });
+    const all = [...this.snapshots.values()];
+    this.options.emit({
+      type: "provider-usage-all",
+      snapshots: showEstimatedCost ? all : all.map(withoutEstimatedCost),
+    });
     this.writeCache();
-    return { snapshots, fromCache: false };
+    return {
+      snapshots: showEstimatedCost ? snapshots : snapshots.map(withoutEstimatedCost),
+      fromCache: false,
+    };
   }
 
   /**

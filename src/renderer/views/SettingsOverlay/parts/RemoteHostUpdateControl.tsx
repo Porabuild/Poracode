@@ -65,7 +65,7 @@ export function RemoteHostUpdateControl({
       ) : null}
       {restarting ? (
         <span role="status" className="flex items-center gap-1.5 text-xs text-muted">
-          <Spinner size="sm" color="current" />
+          <Spinner size="sm" color="current" aria-hidden="true" />
           <Trans>The host is restarting to install the update.</Trans>
         </span>
       ) : updateStatus?.type === "downloaded" ? (

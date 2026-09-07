@@ -136,7 +136,13 @@ export function readCodexErrorMessage(
 }
 
 function readTurnErrorMessage(value: unknown): string | undefined {
-  return readStringField(value, "message");
+  const direct = readStringField(value, "message");
+  if (direct) return direct;
+  // 0.153+ attaches the substantive localized explanation for misalignment
+  // blocks under `misalignment.detailedExplanation`; surface it when the
+  // top-level message is absent so the failure stays diagnosable.
+  const misalignment = readRecord(readRecord(value)?.misalignment);
+  return readStringField(misalignment, "detailedExplanation");
 }
 
 export function readCodexPlanSteps(

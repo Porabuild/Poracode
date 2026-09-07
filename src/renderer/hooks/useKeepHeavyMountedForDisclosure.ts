@@ -33,31 +33,35 @@ export function useKeepHeavyMountedForDisclosure(
 ) {
   const fallbackMs = options?.fallbackMs ?? DEFAULT_FALLBACK_MS;
   const [keepHeavy, setKeepHeavy] = useState(isExpanded);
+  const [prevCollapse, setPrevCollapse] = useState({ isExpanded, fallbackMs });
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useLayoutEffect(() => {
+  // Mount/expand state derives from `isExpanded` (plus the immediate-collapse
+  // fast path), so adjust during render. Timer arming/clearing stays in the
+  // effects below, which run in the same commit before paint.
+  if (prevCollapse.isExpanded !== isExpanded || prevCollapse.fallbackMs !== fallbackMs) {
+    setPrevCollapse({ isExpanded, fallbackMs });
     if (isExpanded) {
-      if (closeTimerRef.current != null) {
-        clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = null;
-      }
       setKeepHeavy(true);
-      return;
+    } else if (
+      fallbackMs <= 0 ||
+      (typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    ) {
+      setKeepHeavy(false);
     }
+  }
 
+  // A re-expand cancels a pending collapse timer before paint so the panel
+  // never unmounts mid-open. Collapse-path clearing is owned by the arming
+  // effect below (its cleanup runs before every re-arm).
+  useLayoutEffect(() => {
+    if (!isExpanded) return;
     if (closeTimerRef.current != null) {
       clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
-
-    const reduceMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    if (fallbackMs <= 0 || reduceMotion) {
-      setKeepHeavy(false);
-    }
-  }, [isExpanded, fallbackMs]);
+  }, [isExpanded]);
 
   useEffect(() => {
     if (isExpanded) {

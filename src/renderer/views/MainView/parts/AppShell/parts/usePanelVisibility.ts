@@ -57,6 +57,7 @@ export function usePanelVisibility() {
   const bottomDocks = useBottomDockedTabs();
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const threadDocksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
+  const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
   const currentThreadId = useFocusedThreadId();
   const bottomTerminalOpen = useBottomTerminalVisible();
   const informationalDocksPanelOpen = useDocksPanelHasContent();
@@ -64,7 +65,9 @@ export function usePanelVisibility() {
   const gallery = useThreadGalleryImages(currentThreadId ?? undefined);
   const docksPanelOpen =
     informationalDocksPanelOpen ||
-    (threadDocksPlacement === "right" && threadDocksPanelOpen && gallery.length > 0);
+    (threadDocksPanelOpen &&
+      gallery.length > 0 &&
+      (threadDocksPlacement === "right" || threadDocksFocus === "images"));
 
   const isTerminalRight = terminalPosition === "right";
   const gitPanelOpen = !!gitReviewContext && gitReviewAsPanel;

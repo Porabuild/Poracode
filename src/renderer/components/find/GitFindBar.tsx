@@ -20,8 +20,11 @@ interface GitFindBarProps {
  * the CSS Custom Highlight API. */
 export function GitFindBar({ containerRef }: GitFindBarProps) {
   const isOpen = useGitFindStore((state) => state.isOpen);
+  const openToken = useGitFindStore((state) => state.openToken);
   if (!isOpen) return null;
-  return <ActiveGitFind containerRef={containerRef} />;
+  // Remount per open so a reopened session rescans + refocuses through a
+  // fresh mount instead of a re-run trigger.
+  return <ActiveGitFind key={openToken} containerRef={containerRef} />;
 }
 
 function ActiveGitFind({ containerRef }: GitFindBarProps) {
@@ -33,7 +36,6 @@ function ActiveGitFind({ containerRef }: GitFindBarProps) {
   const caseSensitive = useGitFindStore((state) => state.caseSensitive);
   const currentIndex = useGitFindStore((state) => state.currentIndex);
   const matchCount = useGitFindStore((state) => state.matchCount);
-  const openToken = useGitFindStore((state) => state.openToken);
   const setQuery = useGitFindStore((state) => state.setQuery);
   const toggleCaseSensitive = useGitFindStore((state) => state.toggleCaseSensitive);
   const next = useGitFindStore((state) => state.next);
@@ -41,33 +43,36 @@ function ActiveGitFind({ containerRef }: GitFindBarProps) {
   const close = useGitFindStore((state) => state.close);
   const setMatchCount = useGitFindStore((state) => state.setMatchCount);
 
-  const paint = useEffectEvent(() => {
+  const paint = useEffectEvent((index: number) => {
     const ranges = rangesRef.current;
-    const current = ranges[currentIndex] ?? null;
+    const current = ranges[index] ?? null;
     setFindHighlights(ranges, current);
     const container = containerRef.current;
     if (current && container) scrollRangeIntoView(container, current);
   });
 
-  const rebuild = useEffectEvent(() => {
+  // Re-scans the diff DOM for the given query. The active index is read from
+  // the store (not passed in) so stepping through matches repaints without
+  // re-scanning; see the paint effect below.
+  const rebuild = useEffectEvent((searchQuery: string, matchCase: boolean) => {
     const container = containerRef.current;
-    if (!container || !query) {
+    if (!container || !searchQuery) {
       rangesRef.current = [];
       clearFindHighlights();
       setMatchCount(0);
       return;
     }
-    rangesRef.current = buildMatchRanges(container, query, caseSensitive);
+    rangesRef.current = buildMatchRanges(container, searchQuery, matchCase);
     setMatchCount(rangesRef.current.length);
-    paint();
+    paint(useGitFindStore.getState().currentIndex);
   });
 
   useEffect(() => {
-    rebuild();
-  }, [query, caseSensitive, openToken]);
+    rebuild(query, caseSensitive);
+  }, [query, caseSensitive]);
 
   useEffect(() => {
-    paint();
+    paint(currentIndex);
   }, [currentIndex]);
 
   // The diff mounts in staggered chunks and re-renders on refresh; re-scan when
@@ -80,7 +85,8 @@ function ActiveGitFind({ containerRef }: GitFindBarProps) {
       if (raf !== null) return;
       raf = requestAnimationFrame(() => {
         raf = null;
-        rebuild();
+        const { query: latestQuery, caseSensitive: latestCase } = useGitFindStore.getState();
+        rebuild(latestQuery, latestCase);
       });
     });
     observer.observe(container, { childList: true, subtree: true, characterData: true });
@@ -90,7 +96,7 @@ function ActiveGitFind({ containerRef }: GitFindBarProps) {
     };
   }, [containerRef]);
 
-  useFindBarChrome(inputRef, openToken, close);
+  useFindBarChrome(inputRef, close);
 
   return (
     <div className="pointer-events-auto absolute right-4 top-2 z-30">

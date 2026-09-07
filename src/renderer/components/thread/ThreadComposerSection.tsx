@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useEffectEvent,
   useId,
   useLayoutEffect,
   useRef,
@@ -61,6 +62,7 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
 import { useThread } from "@/renderer/state/useThread";
+import { ComposerBubbleRow } from "./ComposerBubbleRow";
 import { ThreadChangesBubble } from "./ThreadChangesBubble";
 import { ThreadDockBubbles } from "./ThreadDockBubbles";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
@@ -87,9 +89,10 @@ import type { TerminalPaneHandle } from "./TerminalPane";
 import { ThreadComposerDocks } from "./ThreadComposerDocks";
 import {
   usePluginMentionItems,
-  useSkillSlashCommands,
+  useSkillSlashCommandState,
 } from "@/renderer/components/skills/useSkills";
 import { useDelayedPendingSteer } from "./useDelayedPendingSteer";
+import { revertedPromptToDraft, useRevertedPromptStore } from "./revertedPrompt";
 
 type ThreadComposerSectionProps = {
   threadId: string;
@@ -323,9 +326,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       icon: Webhook,
       enabled: true,
     })),
-    ...(effectiveMcpConfig?.computerUse === true &&
-    readBridge()?.platform !== "linux" &&
-    projectLocation?.kind !== "wsl"
+    ...(effectiveMcpConfig?.computerUse === true && projectLocation?.kind !== "wsl"
       ? [
           {
             id: COMPUTER_USE_MCP_ID,
@@ -336,7 +337,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         ]
       : []),
   ];
-  const skillCommands = useSkillSlashCommands(projectLocation, thread.agentKind, presentationMode);
+  const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
+    projectLocation,
+    thread.agentKind,
+    presentationMode,
+  );
   const pluginMentions = usePluginMentionItems(projectLocation, thread.agentKind, presentationMode);
   // One row per tool: a plugin that wraps a built-in server replaces that
   // server's own mention instead of sitting next to an identical row, and only
@@ -598,6 +603,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // so defer until the editor mounts; the effect re-runs when `editorMounted`
   // flips, at which point `mentionRef` is attached.
   const editorMounted = !usesTerminalPresentation || thread.status !== "launching";
+  const revertedContent = useRevertedPromptStore((state) => state.byThread[thread.id]);
+  const restoreRevertedPrompt = useEffectEvent(() => {
+    const composer = mentionRef.current;
+    if (!composer || !revertedContent) return;
+    const draft = revertedPromptToDraft(revertedContent, availableCommands);
+    composer.restoreFromSegments(draft.segments);
+    latestSegmentsRef.current = draft.segments;
+    attachments.restore(draft.attachments);
+    useRevertedPromptStore.getState().consume(thread.id);
+    useAppStore.getState().requestComposerFocus(thread.id);
+  });
   const pendingComposerInputs = useComposerInputInbox((s) => s.itemsByComposer[thread.id]);
   const fallbackComposerInboxKey = thread.worktreePath
     ? worktreeComposerInboxKey(thread.projectId, thread.worktreePath)
@@ -666,6 +682,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     pendingFallbackComposerInputs,
     thread.id,
   ]);
+
+  useEffect(() => {
+    if (isSubmitting || !editorMounted || !revertedContent) return;
+    if (!skillCommandsResolved && revertedContent.some((block) => block.kind === "skill")) return;
+    restoreRevertedPrompt();
+  }, [editorMounted, isSubmitting, revertedContent, skillCommandsResolved]);
 
   useEffect(() => {
     setComposerCollapsed(collapseTerminalComposerSetting);
@@ -738,9 +760,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
         <div className="relative">
           {/* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
               measures the real buttons without adding a line box above the composer. */}
-          <div className="absolute right-3 bottom-full z-10 mb-1.5 flex max-w-full flex-wrap items-center justify-end gap-1.5">
-            {showDockBubbles ? <ThreadDockBubbles summary={docksSummary} /> : null}
-            {!hideInfoDocks && canShowRuntimeChrome ? (
+          <ComposerBubbleRow threadId={thread.id}>
+            {showDockBubbles ? (
+              <ThreadDockBubbles summary={docksSummary} threadId={thread.id} />
+            ) : null}
+            {!hideInfoDocks && canShowRuntimeChrome && docksInComposer ? (
               <ThreadImagesBubble threadId={thread.id} />
             ) : null}
             {awaitingWorktree ? null : (
@@ -750,7 +774,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                 {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
               />
             )}
-          </div>
+          </ComposerBubbleRow>
           <div
             className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
             style={{ gridTemplateRows: isComposerCollapsed ? "0fr" : "1fr" }}
@@ -973,7 +997,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             enabled: effectiveMcpConfig?.computerUse === true,
                             visible:
                               effectiveMcpConfig?.computerUse === true &&
-                              readBridge()?.platform !== "linux" &&
                               projectLocation?.kind !== "wsl",
                             onToggle: () => {},
                           }}

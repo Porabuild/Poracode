@@ -367,9 +367,8 @@ export function resolveSiblingInsertTarget(
  * synchronously. `useDragDropManager` only resolves inside the provider, so this
  * runs as a child of it.
  */
-function DndManagerBridge(props: { managerRef: React.RefObject<DragDropManager | null> }) {
+function DndManagerBridge({ managerRef }: { managerRef: React.RefObject<DragDropManager | null> }) {
   const manager = useDragDropManager();
-  const managerRef = props.managerRef;
   useEffect(() => {
     managerRef.current = (manager as DragDropManager | null) ?? null;
     return () => {

@@ -57,7 +57,16 @@ export class BrowserLoginCaptureCoordinator {
      * polling so a stale or mid-auth cookie never triggers a false prompt.
      */
     validateSession?: (cookieHeader: string) => Promise<boolean>;
-  }): Promise<{ ok: boolean; cookie?: string; cancelled?: boolean; error?: string }> {
+    /** Replace the cookie-name candidate gate with a predicate on the login tab's URL. */
+    validateTabUrl?: (url: string) => boolean;
+  }): Promise<{
+    ok: boolean;
+    cookie?: string;
+    /** Login tab URL at capture time, including the selected workspace parameters. */
+    url?: string;
+    cancelled?: boolean;
+    error?: string;
+  }> {
     // The caller (renderer) opens the browser-overlay drawer; we just create the
     // login tab in it and capture cookies — presentation is the renderer's call.
     let tabId: string;
@@ -99,6 +108,14 @@ export class BrowserLoginCaptureCoordinator {
       // Let an external signal (e.g. the user closing the overlay) cancel the
       // in-flight capture instead of waiting out the timeout.
       this.activeLoginCancel = () => finish({ ok: false, cancelled: true });
+      /** The tab's current URL, or undefined when destroyed / mid-navigation. */
+      const tabUrl = (tab: BrowserTab): string | undefined => {
+        try {
+          return tab.webContents.getURL() || undefined;
+        } catch {
+          return undefined;
+        }
+      };
       const tryCapture = async (): Promise<void> => {
         if (settled) return;
         const tab = this.host.findTab(tabId);
@@ -114,15 +131,15 @@ export class BrowserLoginCaptureCoordinator {
             session.cookies.on("changed", onChanged);
           }
           const cookies = await ses.cookies.get({ url: opts.cookieUrl });
-          if (!cookies.some((c) => opts.authCookiePattern.test(c.name))) return;
           const header = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
-          if (
-            !header ||
-            ignoredHeaders.has(header) ||
-            invalidHeaders.has(header) ||
-            confirming ||
-            validating
-          )
+          if (!header) return;
+          if (opts.validateTabUrl) {
+            const url = tabUrl(tab);
+            if (!url || !opts.validateTabUrl(url)) return;
+          } else if (!cookies.some((c) => opts.authCookiePattern.test(c.name))) {
+            return;
+          }
+          if (ignoredHeaders.has(header) || invalidHeaders.has(header) || confirming || validating)
             return;
           // A matching cookie name is only a candidate. Providers that can verify
           // a live session gate on it here so a stale/mid-auth cookie never
@@ -148,7 +165,8 @@ export class BrowserLoginCaptureCoordinator {
           const action = await this.confirmLoginCookies(opts.providerLabel ?? "provider");
           confirming = false;
           if (action === "use") {
-            finish({ ok: true, cookie: header });
+            const url = tabUrl(tab);
+            finish({ ok: true, cookie: header, ...(url ? { url } : {}) });
             return;
           }
           if (action === "change") {

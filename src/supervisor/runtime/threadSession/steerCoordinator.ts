@@ -208,7 +208,8 @@ export class SteerCoordinator {
     }
     const effectiveSegments = payload.segments
       ? await rewriteSegmentsForWsl(payload.segments, session.projectLocation, {
-          preserveImageAttachments: true,
+          preserveImageAttachments:
+            session.adapter.capabilities.readsImageAttachmentsFromHost !== false,
           preservePdfAttachments: session.adapter.capabilities.readsPdfAttachmentsFromHost === true,
         })
       : undefined;

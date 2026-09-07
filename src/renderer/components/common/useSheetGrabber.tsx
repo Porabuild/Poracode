@@ -63,12 +63,22 @@ export function useSheetGrabber(options: {
   };
 
   // Sheets that stay mounted must clear stale drag/expanded state on reopen.
+  // The state reset happens during render; the ref + DOM cleanup stays in the
+  // effect below (with the style write inline so the effect consumes only
+  // stable values plus its trigger).
+  const [prevResetOnOpen, setPrevResetOnOpen] = useState(resetOnOpen);
+  if (prevResetOnOpen !== resetOnOpen) {
+    setPrevResetOnOpen(resetOnOpen);
+    if (resetOnOpen) {
+      setExpanded(false);
+      setDragging(false);
+    }
+  }
+
   useEffect(() => {
     if (!resetOnOpen) return;
-    setExpanded(false);
-    setDragging(false);
     dragRef.current = null;
-    clearDragOffset();
+    sheetRef.current?.style.removeProperty("--m-sheet-drag-y");
   }, [resetOnOpen]);
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {

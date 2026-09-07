@@ -12,8 +12,8 @@ Use Poracode's `browser` MCP when the task depends on a rendered page, visible i
 1. Call `browser.api` when you need the current API map, then call `browser.enable` once before the first browser action.
 2. Reuse a relevant tab from `browser.list_tabs`; otherwise open the exact URL the user supplied or the known local target. Do not guess a remote site or substitute web search when authentication blocks the requested page.
 3. Establish the baseline with the current URL plus `browser.snapshot` or `browser.find`. Prefer accessible roles, names, and returned element refs over brittle selectors or coordinates.
-4. Perform the smallest meaningful action. Use `fill` when replacing a field and `type` only when appending is intended.
-5. After every navigation or state-changing action, wait for the expected URL, text, or element and inspect the resulting state. For web-app verification, also check relevant console errors and failed network requests.
+4. Use `perform` for a bounded sequence of known actions: `{steps:[{action:"fill",ref:"@e1",text:"Ada"},{action:"click",ref:"@e2"},{action:"wait",text:"Saved"}]}`. It stops on failure and returns one final compact snapshot (`observe:"none"` omits it). Use `fill` for replacement and `type` for appending. Split batches at decisions, new targets, and navigation; do not replay completed steps after failure.
+5. Include a condition `wait` at the end of a batch for asynchronous changes, then inspect its returned observation. After navigation, wait for the expected URL, text, or element and inspect the resulting state. For web-app verification, also check relevant console errors and failed network requests.
 6. Capture a screenshot when visual layout or appearance is part of the requirement.
 7. Call `browser.disable` before asking the user for input, waiting on an external event, or finishing.
 

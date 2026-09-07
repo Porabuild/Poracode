@@ -78,10 +78,18 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
   }
 
   useEffect(() => {
+    // The set object itself is never reassigned (only mutated), so capturing
+    // the reference still observes every URL owned at unmount time.
+    const ownedPreviewUrls = ownedPreviewUrlsRef.current;
     return () => {
       pasteGenerationRef.current += 1;
-      // jsdom (tests) has no object-URL support.
-      releaseAllPreviewUrls();
+      // jsdom (tests) has no object-URL support. Inlined (rather than calling
+      // releaseAllPreviewUrls) so the cleanup reads refs only and takes no
+      // dependencies.
+      for (const previewUrl of ownedPreviewUrls) {
+        if (!ownedPreviewUrls.delete(previewUrl)) continue;
+        if (typeof URL.revokeObjectURL === "function") URL.revokeObjectURL(previewUrl);
+      }
     };
   }, []);
 

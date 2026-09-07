@@ -130,7 +130,7 @@ function renderDropdownItem(
       />
     );
   }
-  return renderDropdownItemRow(item, close, onAction);
+  return <DropdownItemRow key={item.id} item={item} close={close} onAction={onAction} />;
 }
 
 /**
@@ -160,15 +160,22 @@ function DraggableDropdownItem(props: {
     onItemDragChange?.(item.id, isDragging);
   }, [isDragging, item.id, onItemDragChange]);
 
-  return renderDropdownItemRow(props.item, props.close, props.onAction, ref);
+  return (
+    <DropdownItemRow item={item} close={props.close} onAction={props.onAction} dragRef={ref} />
+  );
 }
 
-function renderDropdownItemRow(
-  item: ContextMenuItem,
-  close: () => void,
-  onAction: (key: string) => void,
-  dragRef?: (element: Element | null) => void,
-) {
+function DropdownItemRow({
+  item,
+  close,
+  onAction,
+  dragRef,
+}: {
+  item: ContextMenuItem;
+  close: () => void;
+  onAction: (key: string) => void;
+  dragRef?: (element: Element | null) => void;
+}) {
   return (
     <Dropdown.Item
       key={item.id}
@@ -218,12 +225,17 @@ function renderDropdownItemRow(
   );
 }
 
-function renderEntry(
-  entry: ContextMenuItem | ContextMenuSubmenu,
-  close: () => void,
-  onAction: (key: string) => void,
-  onItemDragChange?: ItemDragChangeHandler,
-) {
+function ContextMenuEntryRow({
+  entry,
+  close,
+  onAction,
+  onItemDragChange,
+}: {
+  entry: ContextMenuItem | ContextMenuSubmenu;
+  close: () => void;
+  onAction: (key: string) => void;
+  onItemDragChange?: ItemDragChangeHandler;
+}) {
   if (isSubmenu(entry)) {
     return (
       <Dropdown.SubmenuTrigger key={entry.id}>
@@ -383,16 +395,28 @@ export function ContextMenuSurface(props: {
                 {(() => {
                   const sections = splitSections(items);
                   if (sections.length <= 1) {
-                    return (sections[0] ?? []).map((entry) =>
-                      renderEntry(entry, onClose, onAction, handleItemDragChange),
-                    );
+                    return (sections[0] ?? []).map((entry) => (
+                      <ContextMenuEntryRow
+                        key={entry.id}
+                        entry={entry}
+                        close={onClose}
+                        onAction={onAction}
+                        onItemDragChange={handleItemDragChange}
+                      />
+                    ));
                   }
                   return sections.flatMap((section, sIdx) => {
                     const sectionEl = (
                       <Dropdown.Section key={`section-${sIdx}`}>
-                        {section.map((entry) =>
-                          renderEntry(entry, onClose, onAction, handleItemDragChange),
-                        )}
+                        {section.map((entry) => (
+                          <ContextMenuEntryRow
+                            key={entry.id}
+                            entry={entry}
+                            close={onClose}
+                            onAction={onAction}
+                            onItemDragChange={handleItemDragChange}
+                          />
+                        ))}
                       </Dropdown.Section>
                     );
                     return sIdx > 0 ? [<Separator key={`sep-${sIdx}`} />, sectionEl] : [sectionEl];

@@ -4,7 +4,7 @@ Universal AI agent orchestrator — Electron desktop app managing Claude, Codex,
 
 ## Quick Reference
 
-- **Package manager:** `pnpm` (12.2.1, pinned in `package.json#packageManager`)
+- **Package manager:** `pnpm` (12.3.4, pinned in `package.json#packageManager`)
 - **Node:** >= 24.10.0
 - **Typecheck:** `pnpm run typecheck` (tsc, TypeScript 7 native)
 - **Lint:** `pnpm run lint` (oxlint)
@@ -116,4 +116,5 @@ toast.warning(i18n._(msg`Unable to install ${label}.`));
 - [Editing & React Patterns](.agents/docs/editing-rules.md)
 - [Internationalization (i18n)](.agents/docs/i18n.md)
 - [Versioned State & Protocols](.agents/docs/versioning.md)
+- [Computer Use](.agents/docs/computer-use.md)
 - [Mobile Dev & Remote Pairing](docs/MOBILE_DEV.md) — `pnpm run dev:ios`, simulator pairing, deep linking

@@ -512,11 +512,13 @@ async function pluginsSectionDeepDive(client) {
         `(() => {
           const search = document.querySelector('[aria-label="Search plugins"]');
           const action = document.querySelector("#plugin-browser-tools-action");
+          const initialState = window.__poracodeDev.stores.sharedSettings.getState().installedPlugins["browser-tools"];
           return {
             visible: Boolean(search && !search.closest("[hidden]")),
             pluginCount: document.querySelectorAll("[data-plugin-id]").length,
             action: action?.textContent?.trim(),
-            initialInstalled: window.__poracodeDev.stores.sharedSettings.getState().installedPlugins["browser-tools"] !== undefined,
+            initialStored: initialState !== undefined,
+            initialStoredEnabled: initialState?.enabled,
           };
         })()`,
       ),
@@ -524,8 +526,8 @@ async function pluginsSectionDeepDive(client) {
     "plugins marketplace",
   );
   assert(
-    marketplaceState.action === (marketplaceState.initialInstalled ? "Manage" : "Install"),
-    `Browser Tools marketplace action did not match install state: ${JSON.stringify(marketplaceState)}`,
+    marketplaceState.action === "Manage",
+    `Built-in Browser Tools plugin was not manageable: ${JSON.stringify(marketplaceState)}`,
   );
 
   let detailOpened = false;
@@ -549,32 +551,37 @@ async function pluginsSectionDeepDive(client) {
           `(() => {
             const buttonText = [...document.querySelectorAll("button")].map((button) => button.textContent?.trim());
             const headings = [...document.querySelectorAll("h2")].map((heading) => heading.textContent?.trim());
-            const switchNames = [...document.querySelectorAll('[role="switch"]')].map((control) =>
-              (control.getAttribute("aria-labelledby") ?? "")
+            const switches = [...document.querySelectorAll('[role="switch"]')];
+            const switchName = (control) =>
+              (control?.getAttribute("aria-labelledby") ?? "")
                 .split(/\\s+/u)
                 .map((id) => document.getElementById(id)?.textContent?.trim() ?? "")
                 .filter(Boolean)
-                .join(" "),
-            );
+                .join(" ");
+            const switchNames = switches.map(switchName);
+            const pluginSwitch = switches.find((control) => switchName(control).includes("Enable plugin"));
             return {
-              installed: window.__poracodeDev.stores.sharedSettings.getState().installedPlugins["browser-tools"] !== undefined,
               back: buttonText.includes("Back to plugins"),
+              builtIn: document.body.innerText.includes("Built-in"),
               uninstall: buttonText.includes("Uninstall"),
               mcpServers: headings.includes("MCP servers") && document.body.innerText.includes("Browser"),
               skills: headings.includes("Skills") && document.body.innerText.includes("Browser Control"),
               bundledMcpHasNoSeparateSwitch: !switchNames.includes("Browser MCP"),
               skillSwitch: switchNames.includes("Browser Control Skill"),
+              pluginSwitch: Boolean(pluginSwitch),
+              pluginEnabled: pluginSwitch instanceof HTMLInputElement && pluginSwitch.checked,
             };
           })()`,
         ),
       (state) =>
-        state.installed &&
         state.back &&
-        state.uninstall &&
+        state.builtIn &&
+        !state.uninstall &&
         state.mcpServers &&
         state.skills &&
         state.bundledMcpHasNoSeparateSwitch &&
-        state.skillSwitch,
+        state.skillSwitch &&
+        state.pluginSwitch,
       "Browser Tools plugin detail",
     );
     assert(
@@ -589,37 +596,48 @@ async function pluginsSectionDeepDive(client) {
     const pluginsScreenshotPath = join(outDir, "smoke-02-plugins.png");
     await screenshot(client, pluginsScreenshotPath);
 
-    if (!marketplaceState.initialInstalled) {
-      const uninstalled = await evaluate(
-        client,
-        `(() => {
-          const button = [...document.querySelectorAll("button")].find(
-            (candidate) => candidate.textContent?.trim() === "Uninstall",
-          );
-          if (!(button instanceof HTMLButtonElement)) return false;
-          button.click();
-          return true;
-        })()`,
-      );
-      assert(uninstalled, "Browser Tools uninstall action was unavailable");
-      await waitForValue(
-        () =>
-          evaluate(
-            client,
-            `window.__poracodeDev.stores.sharedSettings.getState().installedPlugins["browser-tools"] === undefined`,
-          ),
-        Boolean,
-        "Browser Tools install-state restoration",
-      );
-    }
-
-    const restored = await evaluate(
+    const toggled = await evaluate(
       client,
-      `window.__poracodeDev.stores.sharedSettings.getState().installedPlugins[${JSON.stringify(pluginId)}] !== undefined`,
+      `(() => {
+        const control = [...document.querySelectorAll('[role="switch"]')].find((candidate) =>
+          (candidate.getAttribute("aria-labelledby") ?? "")
+            .split(/\\s+/u)
+            .some((id) => document.getElementById(id)?.textContent?.trim() === "Enable plugin"),
+        );
+        if (!(control instanceof HTMLElement)) return false;
+        control.click();
+        return true;
+      })()`,
     );
-    assert(
-      restored === marketplaceState.initialInstalled,
-      "Browser Tools install state was not restored",
+    assert(toggled, "Browser Tools plugin toggle was unavailable");
+    await waitForValue(
+      () =>
+        evaluate(
+          client,
+          `window.__poracodeDev.stores.sharedSettings.getState().installedPlugins["browser-tools"]?.enabled === ${JSON.stringify(!detailState.pluginEnabled)}`,
+        ),
+      Boolean,
+      "Browser Tools plugin toggle persistence",
+    );
+    await evaluate(
+      client,
+      `(() => {
+        const control = [...document.querySelectorAll('[role="switch"]')].find((candidate) =>
+          (candidate.getAttribute("aria-labelledby") ?? "")
+            .split(/\\s+/u)
+            .some((id) => document.getElementById(id)?.textContent?.trim() === "Enable plugin"),
+        );
+        if (control instanceof HTMLElement) control.click();
+      })()`,
+    );
+    await waitForValue(
+      () =>
+        evaluate(
+          client,
+          `window.__poracodeDev.stores.sharedSettings.getState().installedPlugins["browser-tools"]?.enabled === ${JSON.stringify(detailState.pluginEnabled)}`,
+        ),
+      Boolean,
+      "Browser Tools plugin re-enable persistence",
     );
     return { pluginsScreenshotPath };
   } finally {
@@ -627,17 +645,38 @@ async function pluginsSectionDeepDive(client) {
       client,
       `(() => {
         const store = window.__poracodeDev.stores.sharedSettings.getState();
-        const plugin = window.__poracodeDev.stores.plugins
-          .getState()
-          .plugins.find((candidate) => candidate.name === ${JSON.stringify(pluginId)});
+        const plugin = Object.values(
+          window.__poracodeDev.stores.plugins.getState().pluginsByScope,
+        )
+          .flat()
+          .find((candidate) => candidate.name === ${JSON.stringify(pluginId)});
         if (!plugin) return;
         const installed = store.installedPlugins[${JSON.stringify(pluginId)}] !== undefined;
-        if (${JSON.stringify(marketplaceState.initialInstalled)} && !installed) {
+        if (${JSON.stringify(marketplaceState.initialStored)} && !installed) {
           store.installPlugin(plugin);
-        } else if (!${JSON.stringify(marketplaceState.initialInstalled)} && installed) {
+        }
+        if (${JSON.stringify(marketplaceState.initialStored)}) {
+          window.__poracodeDev.stores.sharedSettings
+            .getState()
+            .setPluginEnabled(plugin, ${JSON.stringify(marketplaceState.initialStoredEnabled)});
+        } else if (installed) {
           store.uninstallPlugin(plugin);
         }
       })()`,
+    );
+    await waitForValue(
+      () =>
+        evaluate(
+          client,
+          `(() => {
+            const state = window.__poracodeDev.stores.sharedSettings.getState().installedPlugins[${JSON.stringify(pluginId)}];
+            return ${JSON.stringify(marketplaceState.initialStored)}
+              ? state?.enabled === ${JSON.stringify(marketplaceState.initialStoredEnabled)}
+              : state === undefined;
+          })()`,
+        ),
+      Boolean,
+      "Browser Tools final state restoration",
     );
     if (detailOpened) {
       await evaluate(
@@ -839,25 +878,27 @@ async function skillsSectionDeepDive(client) {
 }
 
 // Runs while the settings overlay is showing the mcpServers section: asserts
-// probe results against the fixture, round-trips the built-in disable switch,
-// and walks the add-server editor. Returns the captured screenshot paths.
+// probe results against the fixture and walks the add-server editor. Built-in
+// server controls live with their plugins. Returns the captured screenshot paths.
 async function mcpServersSectionDeepDive(client, mcpFixture) {
   const mcpState = await evaluate(
     client,
     `(() => {
       const browserRow = document.querySelector('[data-built-in-mcp-server="browser"]');
       return {
-        builtInsVisible: document.body.innerText.includes("Built-in MCP servers"),
-        builtInToolCount: /\\b\\d+ tools?\\b/.test(browserRow?.textContent ?? ""),
+        pluginServersVisible: document.body.innerText.includes("Plugin servers"),
+        pluginToolCount: /\\b\\d+ tools?\\b/.test(browserRow?.textContent ?? ""),
+        browserManagedByPlugin: browserRow?.textContent?.includes("Managed by Browser") === true,
         addButton: Boolean([...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Add MCP server")),
         browserSwitch: Boolean(document.querySelector('[role="switch"][aria-label="Disable Browser"]')),
       };
     })()`,
   );
-  assert(mcpState.builtInsVisible, "MCP settings did not render built-in servers");
-  assert(mcpState.builtInToolCount, "MCP settings did not render built-in tool counts");
+  assert(mcpState.pluginServersVisible, "MCP settings did not render plugin servers");
+  assert(mcpState.pluginToolCount, "MCP settings did not render plugin tool counts");
+  assert(mcpState.browserManagedByPlugin, "Browser MCP was not attributed to its plugin");
   assert(mcpState.addButton, "MCP settings add control is missing");
-  assert(mcpState.browserSwitch, "MCP settings built-in disable control is missing");
+  assert(!mcpState.browserSwitch, "MCP settings rendered a duplicate Browser disable control");
   try {
     await waitForValue(
       () =>
@@ -881,33 +922,6 @@ async function mcpServersSectionDeepDive(client, mcpFixture) {
   }
   const mcpListScreenshotPath = join(outDir, "smoke-02-mcp-servers-list.png");
   await screenshot(client, mcpListScreenshotPath);
-
-  await evaluate(
-    client,
-    `document.querySelector('[role="switch"][aria-label="Disable Browser"]').click()`,
-  );
-  await waitForValue(
-    () =>
-      evaluate(
-        client,
-        `window.__poracodeDev.stores.sharedSettings.getState().disabledBuiltInMcpServers.browser === true`,
-      ),
-    Boolean,
-    "MCP built-in disable persistence",
-  );
-  await evaluate(
-    client,
-    `document.querySelector('[role="switch"][aria-label="Enable Browser"]').click()`,
-  );
-  await waitForValue(
-    () =>
-      evaluate(
-        client,
-        `window.__poracodeDev.stores.sharedSettings.getState().disabledBuiltInMcpServers.browser !== true`,
-      ),
-    Boolean,
-    "MCP built-in re-enable persistence",
-  );
 
   await evaluate(
     client,
@@ -1603,7 +1617,7 @@ async function runMockGate(client, gate, fixture) {
     }
     case "provider-skill-delivery": {
       const expected = {
-        claude: "slash",
+        claude: "prompt",
         codex: "dollar",
         gemini: "prompt",
         opencode: "prompt",

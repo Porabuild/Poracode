@@ -1,4 +1,5 @@
 import type { KeyboardEvent, RefObject } from "react";
+import type { MessageDescriptor } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
 import {
   findProjectIconCategory,
@@ -37,22 +38,27 @@ export function ProjectIconGrid(props: {
   onExitTop: () => void;
 }) {
   const { t } = useLingui();
+  const { results, selectedId, rootRef, onPick, onExitTop } = props;
   // Flat cell offsets across the groups: the roving tab stop is the first cell,
   // and arrow keys walk the whole grid rather than stopping at a category edge.
+  const baseGroups = results
+    ? [{ id: "results", label: undefined, icons: results }]
+    : PROJECT_ICON_CATEGORIES.map((category) => ({
+        id: category.id,
+        label: category.label,
+        icons: category.icons,
+      }));
+  const groups: {
+    id: string;
+    label: MessageDescriptor | undefined;
+    icons: readonly ProjectIconEntry[];
+    start: number;
+  }[] = [];
   let offset = 0;
-  const groups = (
-    props.results
-      ? [{ id: "results", label: undefined, icons: props.results }]
-      : PROJECT_ICON_CATEGORIES.map((category) => ({
-          id: category.id,
-          label: category.label,
-          icons: category.icons,
-        }))
-  ).map((group) => {
-    const positioned = { ...group, start: offset };
+  for (const group of baseGroups) {
+    groups.push({ ...group, start: offset });
     offset += group.icons.length;
-    return positioned;
-  });
+  }
 
   function onCellKeyDown(event: KeyboardEvent<HTMLButtonElement>): void {
     const step =
@@ -67,19 +73,19 @@ export function ProjectIconGrid(props: {
               : 0;
     if (step === 0) return;
     event.preventDefault();
-    const cells = iconCells(props.rootRef.current);
+    const cells = iconCells(rootRef.current);
     const index = cells.indexOf(event.currentTarget);
     if (index < 0) return;
     const next = index + step;
     if (next < 0) {
-      props.onExitTop();
+      onExitTop();
       return;
     }
     cells[Math.min(next, cells.length - 1)]?.focus();
   }
 
   return (
-    <div ref={props.rootRef}>
+    <div ref={rootRef}>
       {groups.map((group) => (
         <div key={group.id} className="mb-2">
           {group.label ? (
@@ -92,10 +98,10 @@ export function ProjectIconGrid(props: {
               <IconGridCell
                 key={entry.id}
                 entry={entry}
-                selected={props.selectedId === entry.id}
+                selected={selectedId === entry.id}
                 tabIndex={group.start + index === 0 ? 0 : -1}
                 onKeyDown={onCellKeyDown}
-                onPick={() => props.onPick(entry.id)}
+                onPick={() => onPick(entry.id)}
               />
             ))}
           </div>

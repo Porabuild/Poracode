@@ -73,7 +73,8 @@ export function formatWindowValue(w: UsageWindow): string {
 
 /**
  * Optional secondary label: spend / credit amounts shown muted beside the
- * percent (USD windows and percent windows that also report currency amounts).
+ * percent (USD windows, percent windows that also report currency amounts,
+ * and credit-count windows such as Qoder/Grok that report used + limit).
  */
 export function formatWindowSecondaryValue(w: UsageWindow): string | undefined {
   if (w.used === undefined) return undefined;
@@ -81,6 +82,10 @@ export function formatWindowSecondaryValue(w: UsageWindow): string | undefined {
     const used = formatMoney(w.used, w.currency);
     if (!used) return undefined;
     return w.limit !== undefined ? `${used} / ${formatMoney(w.limit, w.currency)}` : used;
+  }
+  if (w.unit === "credits") {
+    const used = formatCount(w.used);
+    return w.limit !== undefined ? `${used} / ${formatCount(w.limit)}` : used;
   }
   return undefined;
 }

@@ -1,12 +1,34 @@
-import { describe, expect, it } from "vitest";
-import type { ThreadConfig } from "@/shared/contracts";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
+import type { AgentAdapter } from "../../agents/base";
+
+const resolveAgentProjectLocation = vi.hoisted(() =>
+  vi.fn<
+    (
+      adapter: AgentAdapter,
+      location: ProjectLocation,
+      environment?: ThreadConfig["executionEnvironment"],
+    ) => Promise<ProjectLocation>
+  >(),
+);
+
+vi.mock("../../agents/base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../agents/base")>()),
+  resolveAgentProjectLocation,
+}));
 import {
   applyAgentSettingsMcpFlags,
   composeResolvedMcpServers,
   effectiveLaunchConfig,
+  resolveThreadExecution,
   usesProviderSessionCrossagentRouting,
   workspaceLaunchConfig,
 } from "./spawnPipeline";
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  resolveAgentProjectLocation.mockImplementation(async (_adapter, location) => location);
+});
 
 const baseConfig: ThreadConfig = {
   model: "test-model",
@@ -15,6 +37,56 @@ const baseConfig: ThreadConfig = {
   computerUse: true,
   chromeMcp: true,
 };
+
+describe("resolveThreadExecution", () => {
+  const windowsProject: ProjectLocation = { kind: "windows", path: "C:\\repo" };
+  const wslProject: ProjectLocation = {
+    kind: "wsl",
+    distro: "Ubuntu",
+    linuxPath: "/mnt/c/repo",
+    uncPath: "\\\\wsl.localhost\\Ubuntu\\mnt\\c\\repo",
+  };
+  const wslAdapter = { windowsProjectExecution: "wsl" } as AgentAdapter;
+
+  it("persists the selected distro for a Windows project", async () => {
+    resolveAgentProjectLocation.mockResolvedValue(wslProject);
+
+    await expect(resolveThreadExecution(wslAdapter, windowsProject, baseConfig)).resolves.toEqual({
+      location: wslProject,
+      config: {
+        ...baseConfig,
+        executionEnvironment: { kind: "wsl", distro: "Ubuntu" },
+      },
+    });
+  });
+
+  it("forwards a persisted distro on cold resume", async () => {
+    const config = {
+      ...baseConfig,
+      executionEnvironment: { kind: "wsl" as const, distro: "Debian" },
+    };
+    resolveAgentProjectLocation.mockResolvedValue({ ...wslProject, distro: "Debian" });
+
+    await resolveThreadExecution(wslAdapter, windowsProject, config);
+
+    expect(resolveAgentProjectLocation).toHaveBeenCalledWith(
+      wslAdapter,
+      windowsProject,
+      config.executionEnvironment,
+    );
+  });
+
+  it("keeps non-opted-in providers on the native Windows location", async () => {
+    const nativeAdapter = {} as AgentAdapter;
+
+    await expect(
+      resolveThreadExecution(nativeAdapter, windowsProject, {
+        ...baseConfig,
+        executionEnvironment: { kind: "wsl", distro: "Ubuntu" },
+      }),
+    ).resolves.toEqual({ location: windowsProject, config: baseConfig });
+  });
+});
 
 describe("effectiveLaunchConfig — single gate for built-in MCP disables", () => {
   it("returns the config unchanged when nothing is disabled", () => {
@@ -103,6 +175,29 @@ describe("workspaceLaunchConfig — Home scope unrestricted for every agent", ()
     const config = { ...baseConfig, approvalPolicy: "default", sandboxMode: "workspace-write" };
     expect(
       workspaceLaunchConfig({ kind: "windows", path: "C:\\Users\\me" }, config, adapter, []),
+    ).toEqual({
+      ...config,
+      approvalPolicy: "bypassPermissions",
+      sandboxMode: "danger-full-access",
+    });
+  });
+
+  it("uses the logical Windows Home path for a WSL-backed launch", () => {
+    const config = { ...baseConfig, approvalPolicy: "default", sandboxMode: "workspace-write" };
+    expect(
+      workspaceLaunchConfig(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/mnt/c/Users/me",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\mnt\\c\\Users\\me",
+        },
+        config,
+        adapter,
+        [],
+        [],
+        { kind: "windows", path: "C:\\Users\\me" },
+      ),
     ).toEqual({
       ...config,
       approvalPolicy: "bypassPermissions",

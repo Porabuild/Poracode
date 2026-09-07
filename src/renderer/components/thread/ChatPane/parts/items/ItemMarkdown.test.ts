@@ -266,5 +266,57 @@ exit_code: 0
 After the block.`;
     expect(formatTaskNotifications(text)).toBe(text);
   });
+
+  it("formats a leftover Background task completed report into a callout", () => {
+    const text = `**Background task completed:** cargo test -p herogpui-components (task id: 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-688).
+Exit code: 0.
+Duration: 13.91 seconds.
+
+Output:
+\`\`\`
+running 43 tests
+test result: ok. 43 passed; 0 failed
+\`\`\`
+`;
+    const formatted = formatTaskNotifications(text);
+    expect(formatted).toContain(
+      "> **Task Notification** — `286e9bdd-4a17-46e8-92a9-1736a13640e3/task-688` (Exit code 0)",
+    );
+    expect(formatted).toContain(
+      "```console\nrunning 43 tests\ntest result: ok. 43 passed; 0 failed\n```",
+    );
+    expect(formatted).not.toContain("Background task completed");
+    expect(formatted).not.toContain("Duration: 13.91");
+  });
+
+  it("formats a leftover received_message task dump into a callout", () => {
+    const text = `<received_message>
+Task 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-890 finished with the following output:
+The command exited with code 0.
+Output:
+   Compiling herogpui-components
+test result: ok. 43 passed
+</received_message>`;
+    const formatted = formatTaskNotifications(text);
+    expect(formatted).toContain(
+      "> **Task Notification** — `286e9bdd-4a17-46e8-92a9-1736a13640e3/task-890` (Exit code 0)",
+    );
+    expect(formatted).toContain("43 passed");
+    expect(formatted).not.toContain("<received_message>");
+    expect(formatted).not.toContain("finished with the following output");
+  });
+
+  it("leaves a non-task received_message untouched", () => {
+    const text = "<received_message>\nHello from the user.\n</received_message>";
+    expect(formatTaskNotifications(text)).toBe(text);
+  });
+
+  it("preserves surrounding prose around a leftover completed report", () => {
+    const text = `Before.\n\n**Background task completed:** cargo check (task id: task-1).\nExit code: 0.\nDuration: 1.00 seconds.\n\nOutput:\n\`\`\`\nok\n\`\`\`\n\nAfter.`;
+    const formatted = formatTaskNotifications(text);
+    expect(formatted.startsWith("Before.")).toBe(true);
+    expect(formatted.endsWith("After.")).toBe(true);
+    expect(formatted).toContain("> **Task Notification** — `task-1` (Exit code 0)");
+  });
 });
 // @vitest-environment node

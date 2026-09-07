@@ -21,9 +21,19 @@ export function useDebouncedFileSearch(
     projectId ? s.projects.find((p) => p.id === projectId)?.searchSettings : undefined,
   );
 
+  // Clearing on deactivate happens during render; the debounced fetch below
+  // only settles through async callbacks.
+  const [prevSearchActive, setPrevSearchActive] = useState({
+    active: isActive,
+    location: projectLocation,
+  });
+  if (prevSearchActive.active !== isActive || prevSearchActive.location !== projectLocation) {
+    setPrevSearchActive({ active: isActive, location: projectLocation });
+    if (!isActive || !projectLocation) setResults([]);
+  }
+
   useEffect(() => {
     if (!isActive || !projectLocation) {
-      setResults([]);
       return;
     }
 

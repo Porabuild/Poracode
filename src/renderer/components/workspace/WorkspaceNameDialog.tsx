@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input, Label, Modal, TextField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Button } from "@/renderer/components/common/Button";
@@ -19,9 +19,12 @@ export function WorkspaceNameDialog(props: {
   const [name, setName] = useState(initialName);
 
   // Reset on each open so a cancelled edit doesn't leak into the next one.
-  useEffect(() => {
+  // A new initial name while open also resets, matching the previous effect.
+  const [prevDialogKey, setPrevDialogKey] = useState({ open: isOpen, initial: initialName });
+  if (prevDialogKey.open !== isOpen || prevDialogKey.initial !== initialName) {
+    setPrevDialogKey({ open: isOpen, initial: initialName });
     if (isOpen) setName(initialName);
-  }, [isOpen, initialName]);
+  }
 
   const trimmed = name.trim();
   const canSubmit = trimmed.length > 0;

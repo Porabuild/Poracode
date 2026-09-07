@@ -17,9 +17,17 @@ const COMPOSER_OVERLAY_SELECTOR = [
   ".poracode-mention-popover",
 ].join(",");
 
-function resetCompactComposerScroll(root: HTMLElement | null): void {
+function resetCompactComposerScroll(
+  root: HTMLElement | null,
+  // Identifies the composer document being reset: thread switches reuse the
+  // same collapsed bubble for another draft, so the caller's effect re-runs on
+  // its change. Traced (not branched on) — every document's collapsed input
+  // restarts at its first line.
+  composerKey: string | null | undefined,
+): void {
   const input = getComposerInput(root);
   if (!input) return;
+  keyboardDebug("dock-reset-compact-scroll", { composerKey });
   input.scrollTop = 0;
   input.scrollLeft = 0;
 }
@@ -76,10 +84,22 @@ export function FloatingComposerDock(props: {
   // reveal it (reads as the keyboard pushing the page). Cleared after the
   // expansion has painted so later offset reconciliation animates normally.
   const [instantExpand, setInstantExpand] = useState(false);
+  // Latches a focus-loss collapse so the owned-state reset below can adjust
+  // during render while the callback + blur still fire once from an effect.
+  const [focusLossCollapsed, setFocusLossCollapsed] = useState(false);
   const expansionLocked = props.expansionLocked === true;
   const expanded = expansionLocked ? false : (props.expanded ?? internalExpanded);
   const wasExpandedRef = useRef(expanded);
-  const skipNextFocusOnExpandRef = useRef(false);
+  // One-shot guard for the focus-on-expand path below: the guarded-focus
+  // choreography focuses the composer itself, so the expansion it caused must
+  // not trigger a second programmatic focus. Owned state (reset during render
+  // on document switches, set from event paths) with a ref mirror for stable
+  // reads inside effects and callbacks.
+  const [skipNextFocusOnExpand, setSkipNextFocusOnExpand] = useState(false);
+  const skipNextFocusOnExpandRef = useRef(skipNextFocusOnExpand);
+  useLayoutEffect(() => {
+    skipNextFocusOnExpandRef.current = skipNextFocusOnExpand;
+  }, [skipNextFocusOnExpand]);
   const onComposerFocusChange = props.onComposerFocusChange;
   const androidRuntime = isAndroidRuntime();
 
@@ -91,13 +111,15 @@ export function FloatingComposerDock(props: {
   // the compact control.
   useLayoutEffect(() => {
     if (expanded) return;
-    resetCompactComposerScroll(bubbleRef.current);
+    resetCompactComposerScroll(bubbleRef.current, props.keyboardKey);
   }, [expanded, props.keyboardKey]);
 
   const setExpanded = (next: boolean) => {
     if (next && expansionLocked) return;
-    if (!next) {
-      skipNextFocusOnExpandRef.current = false;
+    if (next) {
+      setFocusLossCollapsed(false);
+    } else {
+      setSkipNextFocusOnExpand(false);
     }
     if (props.expanded === undefined) {
       setInternalExpanded(next);
@@ -125,7 +147,7 @@ export function FloatingComposerDock(props: {
           expanded,
           controlled: props.expanded !== undefined,
         });
-        skipNextFocusOnExpandRef.current = true;
+        setSkipNextFocusOnExpand(true);
         setInstantExpand(true);
         setExpanded(true);
         onComposerFocusChange?.(true);
@@ -141,7 +163,7 @@ export function FloatingComposerDock(props: {
           expanded,
           controlled: props.expanded !== undefined,
         });
-        skipNextFocusOnExpandRef.current = true;
+        setSkipNextFocusOnExpand(true);
         setExpanded(true);
         onComposerFocusChange?.(true);
       },
@@ -170,15 +192,24 @@ export function FloatingComposerDock(props: {
   // debounced against the guarded-focus dance, so its falling edge is the
   // collapse signal. Toolbar taps don't blur (React Aria presses keep the
   // editable focused), so they never trip this.
-  const prevInputFocusedRef = useRef(inputFocused);
   const collapseOnFocusLoss = props.collapseOnFocusLoss;
   const onExpandedChange = props.onExpandedChange;
   const expandedControlled = props.expanded !== undefined;
+  // The owned-state reset adjusts during render (not in an effect); the latch
+  // below carries the collapse into an effect that still fires the callback +
+  // blur exactly once per falling edge.
+  const [prevCollapseFocus, setPrevCollapseFocus] = useState(inputFocused);
+  if (prevCollapseFocus !== inputFocused) {
+    setPrevCollapseFocus(inputFocused);
+    if (collapseOnFocusLoss && prevCollapseFocus && !inputFocused && expanded) {
+      if (!expandedControlled) setInternalExpanded(false);
+      setFocusLossCollapsed(true);
+    } else if (inputFocused) {
+      setFocusLossCollapsed(false);
+    }
+  }
   useEffect(() => {
-    const lostFocus = prevInputFocusedRef.current && !inputFocused;
-    prevInputFocusedRef.current = inputFocused;
-    if (!collapseOnFocusLoss || !lostFocus || !expanded) return;
-    if (!expandedControlled) setInternalExpanded(false);
+    if (!focusLossCollapsed) return;
     onExpandedChange?.(false);
     const active = document.activeElement;
     // The dismiss key hides the keyboard WITHOUT blurring; drop the leftover
@@ -186,17 +217,28 @@ export function FloatingComposerDock(props: {
     if (active instanceof HTMLElement && bubbleRef.current?.contains(active)) {
       active.blur();
     }
-  }, [inputFocused, collapseOnFocusLoss, expanded, expandedControlled, onExpandedChange]);
+  }, [focusLossCollapsed, onExpandedChange]);
 
-  useEffect(() => {
+  // Reset per-document composer state when the keyboard document switches
+  // (thread switches reuse this dock). Adjusted during render with identical
+  // mount semantics (every mount-time reset is a no-op against the lazy
+  // initializers above).
+  const [prevKeyboardKey, setPrevKeyboardKey] = useState(props.keyboardKey);
+  if (prevKeyboardKey !== props.keyboardKey) {
+    setPrevKeyboardKey(props.keyboardKey);
     if (props.expanded === undefined) {
       setInternalExpanded(false);
     }
-  }, [props.keyboardKey, props.expanded]);
-
-  useEffect(() => {
-    skipNextFocusOnExpandRef.current = false;
-  }, [props.keyboardKey]);
+    setFocusLossCollapsed(false);
+    setSkipNextFocusOnExpand(false);
+  }
+  const [prevExpandedProp, setPrevExpandedProp] = useState(props.expanded);
+  if (prevExpandedProp !== props.expanded) {
+    setPrevExpandedProp(props.expanded);
+    if (props.expanded === undefined) {
+      setInternalExpanded(false);
+    }
+  }
 
   useEffect(() => {
     if (props.focusOnExpand && expanded && !wasExpandedRef.current) {
@@ -271,7 +313,7 @@ export function FloatingComposerDock(props: {
       if (target instanceof Element && target.closest(COMPOSER_OVERLAY_SELECTOR)) return;
 
       keyboardDebug("dock-background-collapse", { expanded, measuringKeyboard });
-      skipNextFocusOnExpandRef.current = false;
+      setSkipNextFocusOnExpand(false);
       if (!expandedControlled) setInternalExpanded(false);
       onExpandedChange?.(false);
       onComposerFocusChange?.(false);

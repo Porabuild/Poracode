@@ -9,12 +9,9 @@ import { useEffect, useState } from "react";
  */
 export function useTwoRafReady(active: boolean): boolean {
   const [ready, setReady] = useState(false);
+  if (!active && ready) setReady(false);
   useEffect(() => {
-    if (!active) {
-      setReady(false);
-      return;
-    }
-    setReady(false);
+    if (!active) return;
     let r1: number | null = requestAnimationFrame(() => {
       r1 = null;
       r2 = requestAnimationFrame(() => {

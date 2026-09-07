@@ -139,7 +139,9 @@ function TranscriptLine(props: { entry: JudgeTranscriptEntry; isCurrent: boolean
         ) : entry.kind === "captured-response" ? (
           <>
             {entry.label}
-            {entry.details ? <span className="text-muted/80"> · {entry.details}</span> : null} —{" "}
+            {entry.details ? (
+              <span className="text-muted/80"> · {entry.details}</span>
+            ) : null} —{" "}
             <span className="text-muted">
               <Plural value={entry.characters} one="# character" other="# characters" />
             </span>
@@ -147,7 +149,9 @@ function TranscriptLine(props: { entry: JudgeTranscriptEntry; isCurrent: boolean
         ) : (
           <>
             {entry.label}
-            {entry.details ? <span className="text-muted/80"> · {entry.details}</span> : null} —{" "}
+            {entry.details ? (
+              <span className="text-muted/80"> · {entry.details}</span>
+            ) : null} —{" "}
             <span className="font-mono text-success">+{entry.insertions}</span>{" "}
             <span className="font-mono text-danger">−{entry.deletions}</span>{" "}
             <span className="text-muted">

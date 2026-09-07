@@ -38,9 +38,23 @@ describe("parseAntigravityAcpCredentials", () => {
 });
 
 describe("resolveAntigravityAcpCredentials", () => {
-  it("prefers native credentials without probing WSL", async () => {
+  it("prefers the OS keychain item without touching the file or WSL", async () => {
+    const readNative = vi.fn<() => Promise<string | undefined>>();
     const readWsl = vi.fn<() => Promise<string | undefined>>();
     const credentials = await resolveAntigravityAcpCredentials({
+      readKeychain: async () => VALID,
+      readNative,
+      readWsl,
+    });
+    expect(credentials?.refreshToken).toBe("refresh-token");
+    expect(readNative).not.toHaveBeenCalled();
+    expect(readWsl).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the native file when the keychain has no usable item", async () => {
+    const readWsl = vi.fn<() => Promise<string | undefined>>();
+    const credentials = await resolveAntigravityAcpCredentials({
+      readKeychain: async () => "not json",
       readNative: async () => VALID,
       readWsl,
     });
@@ -51,6 +65,7 @@ describe("resolveAntigravityAcpCredentials", () => {
   it("falls back to the gated WSL credential sweep", async () => {
     const readWsl = vi.fn<() => Promise<string | undefined>>().mockResolvedValue(VALID);
     const credentials = await resolveAntigravityAcpCredentials({
+      readKeychain: async () => undefined,
       readNative: async () => undefined,
       readWsl,
     });

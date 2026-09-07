@@ -19,6 +19,8 @@ export function GeneralSettings() {
   const setGitTextLanguage = useSharedSettings((state) => state.setGitTextLanguage);
   const preventSleep = useSharedSettings((state) => state.preventSleep);
   const setPreventSleep = useSharedSettings((state) => state.setPreventSleep);
+  const computerUseKeepAwake = useSharedSettings((state) => state.computerUseKeepAwake);
+  const setComputerUseKeepAwake = useSharedSettings((state) => state.setComputerUseKeepAwake);
   const closeToTray = useSharedSettings((state) => state.closeToTray);
   const setCloseToTray = useSharedSettings((state) => state.setCloseToTray);
   const launchAtStartup = useSharedSettings((state) => state.launchAtStartup);
@@ -187,6 +189,29 @@ export function GeneralSettings() {
               });
             }}
             ariaLabel={t`Prevent sleep`}
+          />
+        </SettingRow>
+      )}
+
+      {!remote && (
+        <SettingRow
+          anchorId="general.computerUseKeepAwake"
+          title={t`Keep the Mac awake during Computer Use`}
+          description={
+            <Trans>
+              A locked screen stops all desktop control, so the display is kept on while a Computer
+              Use session is running. You can still lock the screen yourself.
+            </Trans>
+          }
+        >
+          <ToggleSwitch
+            aria-label={t`Keep the Mac awake during Computer Use`}
+            isSelected={computerUseKeepAwake}
+            onChange={(selected) => {
+              startTransition(() => {
+                setComputerUseKeepAwake(selected);
+              });
+            }}
           />
         </SettingRow>
       )}

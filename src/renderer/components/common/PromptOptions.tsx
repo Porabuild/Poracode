@@ -25,9 +25,18 @@ export function PromptOptions(props: {
   const selectedOption = options[selectedIndex];
   const isTextMode = selectedOption?.isTextInput === true;
 
-  useEffect(() => {
+  // A new question resets the selection; the container focus for keyboard nav
+  // stays in the effect below.
+  const [prevQuestion, setPrevQuestion] = useState({ title, count: options.length });
+  if (prevQuestion.title !== title || prevQuestion.count !== options.length) {
+    setPrevQuestion({ title, count: options.length });
     setSelectedIndex(0);
     setTextValue("");
+  }
+
+  useEffect(() => {
+    // An empty list has nothing to navigate, so it keeps focus where it is.
+    if (title === undefined && options.length === 0) return;
     containerRef.current?.focus();
   }, [title, options.length]);
 

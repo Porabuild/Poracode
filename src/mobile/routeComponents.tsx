@@ -1,12 +1,4 @@
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react";
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
@@ -145,6 +137,16 @@ export function ThreadsRoute() {
     (state) => Object.keys(state.pendingDraftWorktreeSelections).length > 0,
   );
   const [composeExpanded, setComposeExpanded] = useState(hasPendingWorktreeDraft);
+  const [prevPendingWorktreeDraft, setPrevPendingWorktreeDraft] = useState(hasPendingWorktreeDraft);
+  // Worktree actions from another narrow route return here with a one-shot
+  // target already queued. Reveal the inline composer that will consume it.
+  // Adjusted during render (not in an effect): this is a reset-on-key-change
+  // of owned state with identical mount semantics (the lazy initializer above
+  // already covers the mount case).
+  if (prevPendingWorktreeDraft !== hasPendingWorktreeDraft) {
+    setPrevPendingWorktreeDraft(hasPendingWorktreeDraft);
+    if (hasPendingWorktreeDraft) setComposeExpanded(true);
+  }
   const [restoreWorktreeSelectionToken, setRestoreWorktreeSelectionToken] = useState(0);
   const readyToCompose = remote.connection === "online" && remote.projects.length > 0;
   const needsDesktop = remote.connection !== "online";
@@ -174,9 +176,6 @@ export function ThreadsRoute() {
 
   // Worktree actions from another narrow route return here with a one-shot
   // target already queued. Reveal the inline composer that will consume it.
-  useEffect(() => {
-    if (hasPendingWorktreeDraft) setComposeExpanded(true);
-  }, [hasPendingWorktreeDraft]);
 
   // Once a desktop is connected, warm the fullscreen chunks after first paint
   // so their push transition normally captures real content. Disconnected
@@ -382,16 +381,14 @@ export function DesktopsRoute() {
   );
   const [manualEndpoint, setManualEndpoint] = useState(launch.endpoint);
   const [manualToken, setManualToken] = useState(launch.credential ?? "");
-  const lastLaunchRef = useRef(launch);
-  useEffect(() => {
-    if (launch !== lastLaunchRef.current) {
-      lastLaunchRef.current = launch;
-      if (launch.credential) {
-        setManualEndpoint(launch.endpoint);
-        setManualToken(launch.credential);
-      }
+  const [prevLaunch, setPrevLaunch] = useState(launch);
+  if (prevLaunch !== launch) {
+    setPrevLaunch(launch);
+    if (launch.credential) {
+      setManualEndpoint(launch.endpoint);
+      setManualToken(launch.credential);
     }
-  }, [launch]);
+  }
   const manualEndpointValue = manualEndpoint.trim();
   const manualTokenValue = manualToken.trim();
   const manualPairingLink =

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type {
   ProfileCoreStats,
@@ -9,6 +9,7 @@ import type {
   ProfileTokenStats,
 } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
 export interface ProfileSelection {
   scope: ProfileStatScope;
@@ -69,16 +70,18 @@ export function useProfileData(): ProfileData {
   }, []);
 
   const { scope, deviceId, provider, window } = selection;
-  useEffect(() => {
-    let active = true;
-    const utcOffsetMinutes = -new Date().getTimezoneOffset();
-    const req = {
-      utcOffsetMinutes,
-      scope,
-      window,
-      ...(deviceId ? { deviceId } : {}),
-      ...(provider ? { provider } : {}),
-    };
+  // The locale translator changes identity per language, and the old effect
+  // refetched on it — fold it into the request key so the locale stays a
+  // genuine (consumed) input instead of a trigger-only dependency.
+  const locale = useSharedSettings((state) => state.locale);
+  const statsRequestKey = `${scope}\0${deviceId ?? ""}\0${provider ?? ""}\0${window}\0${locale}`;
+  const activeStatsKeyRef = useRef(statsRequestKey);
+  // Reset-on-selection-change during render (mirrors the synchronous resets
+  // the effect used to do on entry). Starts as null so the mount pass applies
+  // it too — the old effect ran on mount and set the same values.
+  const [prevStatsKey, setPrevStatsKey] = useState<string | null>(null);
+  if (prevStatsKey !== statsRequestKey) {
+    setPrevStatsKey(statsRequestKey);
     setCoreLoading(true);
     setTokensLoading(true);
     setError(null);
@@ -88,36 +91,51 @@ export function useProfileData(): ProfileData {
     // `core` is kept (it reloads from the fast SQLite tier) so the page chrome -
     // including the account filter itself - stays mounted during the refetch.
     setTokens(null);
+  }
+  useEffect(() => {
+    activeStatsKeyRef.current = statsRequestKey;
+    let active = true;
+    const capturedKey = statsRequestKey;
+    const keyFresh = () => active && activeStatsKeyRef.current === capturedKey;
+    const utcOffsetMinutes = -new Date().getTimezoneOffset();
+    const req = {
+      utcOffsetMinutes,
+      scope,
+      window,
+      ...(deviceId ? { deviceId } : {}),
+      ...(provider ? { provider } : {}),
+    };
 
     void readBridge()
       .getProfileCoreStats(req)
       .then((result) => {
-        if (active) setCore(result);
+        if (keyFresh()) setCore(result);
       })
       .catch((err: unknown) => {
-        if (active) setError(err instanceof Error ? err.message : t`Failed to load profile stats.`);
+        if (keyFresh())
+          setError(err instanceof Error ? err.message : t`Failed to load profile stats.`);
       })
       .finally(() => {
-        if (active) setCoreLoading(false);
+        if (keyFresh()) setCoreLoading(false);
       });
 
     void readBridge()
       .getProfileTokenStats(req)
       .then((result) => {
-        if (active) setTokens(result);
+        if (keyFresh()) setTokens(result);
       })
       .catch(() => {
         // Token rollup is best-effort; the core stats still render.
-        if (active) setTokens(null);
+        if (keyFresh()) setTokens(null);
       })
       .finally(() => {
-        if (active) setTokensLoading(false);
+        if (keyFresh()) setTokensLoading(false);
       });
 
     return () => {
       active = false;
     };
-  }, [scope, deviceId, provider, window, t]);
+  }, [scope, deviceId, provider, window, statsRequestKey, t]);
 
   async function saveIdentity(identity: ProfileIdentity): Promise<void> {
     const response = await readBridge().setProfileIdentity(identity);

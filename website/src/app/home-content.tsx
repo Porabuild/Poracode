@@ -385,15 +385,27 @@ async function getBrowserArchitecture(): Promise<string | undefined> {
   }
 }
 
-export function HomeContent({ release }: { release: ReleaseInfo }) {
+export function HomeContent({
+  release,
+  releaseTagline,
+}: {
+  release: ReleaseInfo;
+  releaseTagline: string | null;
+}) {
   return (
     <LightboxProvider>
-      <HomeBody release={release} />
+      <HomeBody release={release} releaseTagline={releaseTagline} />
     </LightboxProvider>
   );
 }
 
-function HomeBody({ release }: { release: ReleaseInfo }) {
+function HomeBody({
+  release,
+  releaseTagline,
+}: {
+  release: ReleaseInfo;
+  releaseTagline: string | null;
+}) {
   const { locale, t } = useI18n();
   const openLightbox = useLightbox();
 
@@ -446,8 +458,8 @@ function HomeBody({ release }: { release: ReleaseInfo }) {
   }, []);
 
   const versionLabel = release.version
-    ? `v${release.version} • ${t("hero.tagline")}`
-    : t("hero.tagline");
+    ? `v${release.version}${releaseTagline ? ` • ${releaseTagline}` : ""}`
+    : t("nav.changelog");
   const downloadHref = downloadUrlFor(release, platform.slug);
   const homeHref = localizedPath("/", locale);
   const aboutHref = "/about";

@@ -99,15 +99,13 @@ function getDigest(error: unknown): string | undefined {
 }
 
 export default function GlobalError({ error, retry }: { error: unknown; retry: () => void }) {
-  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
+  // Derive the locale during render: the URL prefix is available on first
+  // paint, so the emergency copy never flashes in the default locale first.
+  const [locale] = useState<Locale>(() => detectLocale());
 
   useEffect(() => {
     console.error(error);
   }, [error]);
-
-  useEffect(() => {
-    setLocale(detectLocale());
-  }, []);
 
   const copy = ERROR_COPY[locale];
   const digest = getDigest(error);

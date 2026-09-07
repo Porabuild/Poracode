@@ -115,12 +115,15 @@ export function usePanelHeaderAvailableWidth(
           PANEL_HEADER_DIVIDER_FOOTPRINT_PX,
       );
     };
-    const apply = () => {
+    const apply = (_layoutKey?: string | undefined) => {
       const next = read();
       if (next === null) return;
       setAvailable((current) => (current === next ? current : next));
     };
-    apply();
+    // `layoutKey` is accepted (not read) so a tab swap that changes the
+    // leading content without resizing the row still forces an immediate
+    // remeasure through the dependency array below.
+    apply(layoutKey);
     if (typeof ResizeObserver === "undefined") return;
     let timer: number | undefined;
     const observer = new ResizeObserver(() => {

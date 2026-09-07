@@ -15,21 +15,23 @@ export function useDelayedPendingSteer(
     if (!pending) return null;
     return Date.now() - pending.stagedAt >= PENDING_STEER_VISIBILITY_DELAY_MS ? pending.id : null;
   });
+  // Hide the new steer during render when the pending steer changes; the
+  // effect below reveals it once its delay elapses. The timer path is async,
+  // so no synchronous setState stays in the effect.
+  const pendingKey = pending?.id ?? null;
+  const [prevPendingKey, setPrevPendingKey] = useState<string | null>(pendingKey);
+  if (prevPendingKey !== pendingKey) {
+    setPrevPendingKey(pendingKey);
+    setVisiblePendingId(null);
+  }
 
   useEffect(() => {
-    if (!pending) {
-      setVisiblePendingId(null);
-      return;
-    }
+    if (!pending) return;
 
     const remainingDelay = Math.max(
       0,
       pending.stagedAt + PENDING_STEER_VISIBILITY_DELAY_MS - Date.now(),
     );
-    if (remainingDelay === 0) {
-      setVisiblePendingId(pending.id);
-      return;
-    }
 
     const pendingId = pending.id;
     const timer = window.setTimeout(() => setVisiblePendingId(pendingId), remainingDelay);

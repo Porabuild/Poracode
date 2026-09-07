@@ -47,6 +47,8 @@ export interface StreamableHttpMcpIngressOptions<TContext> {
   buildContext(identity: McpThreadIdentity): TContext | null;
   instructions: string;
   isKnownToolName(name: string): boolean;
+  /** Canonicalize aliases when applying per-tool restrictions and dispatching. */
+  normalizeToolName?(name: string): string;
   onBeforeToolCall?(name: string, ctx: TContext): void;
   serverInfo: { name: string; version: string };
   tools: readonly StreamableHttpMcpToolSpec[];
@@ -313,18 +315,22 @@ export class StreamableHttpMcpIngress<TContext> {
         return { jsonrpc: "2.0", id, result: {} };
       }
       if (method === "tools/list") {
-        const disabled = new Set(identity.disabledTools ?? []);
+        const normalize = this.options.normalizeToolName ?? ((name: string) => name);
+        const disabled = new Set((identity.disabledTools ?? []).map(normalize));
         return {
           jsonrpc: "2.0",
           id,
-          result: { tools: this.options.tools.filter((tool) => !disabled.has(tool.name)) },
+          result: {
+            tools: this.options.tools.filter((tool) => !disabled.has(normalize(tool.name))),
+          },
         };
       }
       if (method === "tools/call") {
         const p = (params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
-        const name = String(p.name ?? "");
+        const normalize = this.options.normalizeToolName ?? ((name: string) => name);
+        const name = normalize(String(p.name ?? ""));
         const args = (p.arguments ?? {}) as Record<string, unknown>;
-        if (identity.disabledTools?.includes(name)) {
+        if (identity.disabledTools?.some((disabled) => normalize(disabled) === name)) {
           return {
             jsonrpc: "2.0",
             id,

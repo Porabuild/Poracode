@@ -3,6 +3,7 @@ import {
   BUILT_IN_MCP_SERVER_TOOL_COUNTS,
   BUILT_IN_MCP_SERVER_TOOL_NAMES,
   builtInMcpServerDisabledSchema,
+  builtInMcpDisabledToolsSchema,
   discoverExternalMcpServersPayloadSchema,
   isReservedMcpServerName,
   isValidMcpServerName,
@@ -30,6 +31,14 @@ function server(id: string, name: string, enabled = true): McpServer {
 }
 
 describe("mcpServerSchema", () => {
+  it("preserves disabled tools from the previous Chrome catalogue", () => {
+    expect(
+      builtInMcpDisabledToolsSchema.parse({
+        chrome: ["chrome_click", "click", "chrome_eval", "disable"],
+        browser: ["fill"],
+      }),
+    ).toEqual({ chrome: ["click", "eval", "disable"], browser: ["fill"] });
+  });
   it("normalizes defaults for a canonical stdio server", () => {
     expect(
       mcpServerSchema.parse({

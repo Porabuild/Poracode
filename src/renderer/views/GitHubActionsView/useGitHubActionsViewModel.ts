@@ -22,13 +22,6 @@ function workflowRunIsActive(run: GitHubActionsRun): boolean {
   return run.status.toLowerCase() !== "completed";
 }
 
-function accountRefsEqual(
-  first: GitHubAccountRef | undefined,
-  second: GitHubAccountRef | undefined,
-): boolean {
-  return first?.host === second?.host && first?.login === second?.login;
-}
-
 function accountCacheKey(account: GitHubAccountRef): string {
   return `${encodeURIComponent(account.host)}:${encodeURIComponent(account.login)}`;
 }
@@ -212,18 +205,41 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
   const [deleteRun, setDeleteRun] = useState<GitHubActionsRun | null>(null);
   const [accounts, setAccounts] = useState<GitHubAccount[]>([]);
   const [resolvedAccount, setResolvedAccount] = useState<GitHubAccountRef | undefined>();
-  const previousGhAccountRef = useRef(ghAccount);
   // A selection derived from the cache seed is a guess, not a choice: once the
   // real list lands it must still resolve to the default (first pinned), or a
   // workflow pinned while the overlay was closed would be ignored. Only an
-  // explicit pick survives the refresh.
+  // explicit pick survives the refresh. Kept as state so the project switch
+  // below can reset it during render; mirrored into a ref so the in-flight
+  // fetch callbacks below always read the latest pick without refetching.
+  const [userPickedWorkflow, setUserPickedWorkflow] = useState(false);
   const userPickedWorkflowRef = useRef(false);
+
+  useEffect(() => {
+    userPickedWorkflowRef.current = userPickedWorkflow;
+  }, [userPickedWorkflow]);
+
+  // Request identities: every input that must restart a request is folded
+  // into a key the fetch effects consume (staleness guard), instead of
+  // listing trigger-only versions (workflowRefreshVersion, runsRefreshVersion,
+  // runRefreshVersion) as effect dependencies.
+  const ghAccountKey = `${ghAccount?.host ?? ""}\0${ghAccount?.login ?? ""}`;
+  const projectResetKey = `${selectedProjectId ?? ""}\0${props.runId ?? ""}`;
+  const workflowsRequestKey = `${selectedProjectId ?? ""}\0${ghAccountKey}\0${workflowRefreshVersion}`;
+  const runsRequestKey = `${selectedProjectId ?? ""}\0${selectedWorkflowId ?? ""}\0${ghAccountKey}\0${runsRefreshVersion}`;
+  const definitionRequestKey = `${selectedProjectId ?? ""}\0${selectedWorkflowId ?? ""}\0${ghAccountKey}\0${definitionRef ?? ""}\0${workflowRefreshVersion}`;
+  const runDetailsKey = `${selectedProjectId ?? ""}\0${selectedRunId ?? ""}\0${ghAccountKey}\0${runRefreshVersion}`;
+  const activeWorkflowsKeyRef = useRef(workflowsRequestKey);
+  const activeRunsKeyRef = useRef(runsRequestKey);
+  const activeDefinitionKeyRef = useRef(definitionRequestKey);
+  const activeRunDetailsKeyRef = useRef(runDetailsKey);
 
   // Switching project resets the view. Seed from cache rather than clearing, so
   // this also leaves the mount-time seed above intact (same references in, no
-  // extra render out) instead of blanking it before the first paint.
-  useEffect(() => {
-    userPickedWorkflowRef.current = false;
+  // extra render out) instead of blanking it before the first paint. Applied
+  // during render so the reset never paints a frame with the old project.
+  const [prevProjectResetKey, setPrevProjectResetKey] = useState(projectResetKey);
+  if (prevProjectResetKey !== projectResetKey) {
+    setPrevProjectResetKey(projectResetKey);
     const cached = cachedWorkflowsForProject(selectedProjectId);
     setWorkflows(cached ?? EMPTY_WORKFLOWS);
     setRuns(EMPTY_RUNS);
@@ -241,11 +257,12 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     setLoadError(null);
     setDispatchRequestedAt(null);
     setResolvedAccount(undefined);
-  }, [props.runId, selectedProjectId]);
+    setUserPickedWorkflow(false);
+  }
 
-  useEffect(() => {
-    if (accountRefsEqual(previousGhAccountRef.current, ghAccount)) return;
-    previousGhAccountRef.current = ghAccount;
+  const [prevGhAccountKey, setPrevGhAccountKey] = useState(ghAccountKey);
+  if (prevGhAccountKey !== ghAccountKey) {
+    setPrevGhAccountKey(ghAccountKey);
     setWorkflows(EMPTY_WORKFLOWS);
     setRuns(EMPTY_RUNS);
     setSelectedWorkflowId(null);
@@ -257,14 +274,18 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     setLoadError(null);
     setLoadingWorkflows(true);
     setResolvedAccount(undefined);
-  }, [ghAccount]);
+  }
+
+  const [prevAccountsProject, setPrevAccountsProject] = useState(selectedProject);
+  if (prevAccountsProject !== selectedProject) {
+    setPrevAccountsProject(selectedProject);
+    setAccounts([]);
+  }
 
   useEffect(() => {
     if (!selectedProject) {
-      setAccounts([]);
       return;
     }
-    setAccounts([]);
     let cancelled = false;
     void readBridge()
       .ghListAccounts({ runtime: selectedProject.location })
@@ -279,14 +300,24 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     };
   }, [selectedProject]);
 
-  useEffect(() => {
+  const [prevWorkflowsKey, setPrevWorkflowsKey] = useState<string | null>(null);
+  if (prevWorkflowsKey !== workflowsRequestKey) {
+    setPrevWorkflowsKey(workflowsRequestKey);
     if (!selectedProject) {
       setLoadingWorkflows(false);
+    } else {
+      setLoadingWorkflows(true);
+      setLoadError(null);
+    }
+  }
+
+  useEffect(() => {
+    activeWorkflowsKeyRef.current = workflowsRequestKey;
+    if (!selectedProject) {
       return;
     }
     let cancelled = false;
-    setLoadingWorkflows(true);
-    setLoadError(null);
+    const capturedKey = workflowsRequestKey;
     void readBridge()
       .ghListWorkflows({
         projectLocation: selectedProject.location,
@@ -294,7 +325,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       })
       .then(
         (result) => {
-          if (cancelled) return;
+          if (cancelled || activeWorkflowsKeyRef.current !== capturedKey) return;
           const activeWorkflows = result.workflows.filter(
             (workflow) => workflow.state.toLowerCase() === "active",
           );
@@ -317,7 +348,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
           setLoadingWorkflows(false);
         },
         (error: unknown) => {
-          if (cancelled) return;
+          if (cancelled || activeWorkflowsKeyRef.current !== capturedKey) return;
           // Keep whatever the cache seeded — showing a stale list beside the
           // error beats blanking the sidebar on a transient gh failure. An
           // expired entry counts as absent, so this clears once the TTL lapses.
@@ -329,19 +360,29 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     return () => {
       cancelled = true;
     };
-  }, [ghAccount, selectedProject, workflowRefreshVersion]);
+  }, [ghAccount, selectedProject, workflowsRequestKey]);
 
-  useEffect(() => {
+  const [prevRunsKey, setPrevRunsKey] = useState<string | null>(null);
+  if (prevRunsKey !== runsRequestKey) {
+    setPrevRunsKey(runsRequestKey);
     if (!selectedProject || !selectedWorkflowId) {
       setRuns(EMPTY_RUNS);
       setLoadingRuns(false);
+    } else {
+      setRuns(cachedRunsFor(selectedProject.id, selectedWorkflowId, ghAccount) ?? EMPTY_RUNS);
+      setLoadingRuns(true);
+      setLoadError(null);
+    }
+  }
+
+  useEffect(() => {
+    activeRunsKeyRef.current = runsRequestKey;
+    if (!selectedProject || !selectedWorkflowId) {
       return;
     }
     let cancelled = false;
+    const capturedKey = runsRequestKey;
     const cachedRuns = cachedRunsFor(selectedProject.id, selectedWorkflowId, ghAccount);
-    setRuns(cachedRuns ?? EMPTY_RUNS);
-    setLoadingRuns(true);
-    setLoadError(null);
     void readBridge()
       .ghListWorkflowRuns({
         projectLocation: selectedProject.location,
@@ -350,7 +391,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       })
       .then(
         (result) => {
-          if (cancelled) return;
+          if (cancelled || activeRunsKeyRef.current !== capturedKey) return;
           if (ghAccount) {
             writeCache(
               runsCache,
@@ -372,7 +413,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
           setLoadingRuns(false);
         },
         (error: unknown) => {
-          if (cancelled) return;
+          if (cancelled || activeRunsKeyRef.current !== capturedKey) return;
           if (!cachedRuns) setRuns(EMPTY_RUNS);
           setLoadError(friendlyError(error));
           setLoadingRuns(false);
@@ -381,23 +422,36 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     return () => {
       cancelled = true;
     };
-  }, [dispatchRequestedAt, ghAccount, runsRefreshVersion, selectedProject, selectedWorkflowId]);
+  }, [dispatchRequestedAt, ghAccount, runsRequestKey, selectedProject, selectedWorkflowId]);
 
-  useEffect(() => {
+  const [prevDefinitionKey, setPrevDefinitionKey] = useState<string | null>(null);
+  if (prevDefinitionKey !== definitionRequestKey) {
+    setPrevDefinitionKey(definitionRequestKey);
     if (!selectedProject || !selectedWorkflowId) {
       setDefinition(null);
       setLoadingDefinition(false);
+    } else {
+      setDefinition(
+        cachedDefinitionFor(selectedProject.id, selectedWorkflowId, ghAccount, definitionRef) ??
+          null,
+      );
+      setLoadingDefinition(true);
+    }
+  }
+
+  useEffect(() => {
+    activeDefinitionKeyRef.current = definitionRequestKey;
+    if (!selectedProject || !selectedWorkflowId) {
       return;
     }
     let cancelled = false;
+    const capturedKey = definitionRequestKey;
     const cachedDefinition = cachedDefinitionFor(
       selectedProject.id,
       selectedWorkflowId,
       ghAccount,
       definitionRef,
     );
-    setDefinition(cachedDefinition ?? null);
-    setLoadingDefinition(true);
     void readBridge()
       .ghGetWorkflowDefinition({
         projectLocation: selectedProject.location,
@@ -407,7 +461,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       })
       .then(
         (result) => {
-          if (cancelled) return;
+          if (cancelled || activeDefinitionKeyRef.current !== capturedKey) return;
           if (ghAccount) {
             writeCache(
               definitionCache,
@@ -419,7 +473,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
           setLoadingDefinition(false);
         },
         (error: unknown) => {
-          if (cancelled) return;
+          if (cancelled || activeDefinitionKeyRef.current !== capturedKey) return;
           if (!cachedDefinition) setDefinition(null);
           setLoadError(friendlyError(error));
           setLoadingDefinition(false);
@@ -428,16 +482,26 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     return () => {
       cancelled = true;
     };
-  }, [definitionRef, ghAccount, selectedProject, selectedWorkflowId, workflowRefreshVersion]);
+  }, [definitionRef, definitionRequestKey, ghAccount, selectedProject, selectedWorkflowId]);
 
-  useEffect(() => {
+  const [prevRunDetailsKey, setPrevRunDetailsKey] = useState<string | null>(null);
+  if (prevRunDetailsKey !== runDetailsKey) {
+    setPrevRunDetailsKey(runDetailsKey);
     if (!selectedProject || !selectedRunId) {
       setSelectedRunDetails(null);
       setLoadingRun(false);
+    } else {
+      setLoadingRun(true);
+    }
+  }
+
+  useEffect(() => {
+    activeRunDetailsKeyRef.current = runDetailsKey;
+    if (!selectedProject || !selectedRunId) {
       return;
     }
     let cancelled = false;
-    setLoadingRun(true);
+    const capturedKey = runDetailsKey;
     void readBridge()
       .ghGetWorkflowRun({
         projectLocation: selectedProject.location,
@@ -446,13 +510,13 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       })
       .then(
         (result) => {
-          if (cancelled) return;
+          if (cancelled || activeRunDetailsKeyRef.current !== capturedKey) return;
           setSelectedRunDetails(result.run);
           if (result.run.workflowId) setSelectedWorkflowId(result.run.workflowId);
           setLoadingRun(false);
         },
         (error: unknown) => {
-          if (cancelled) return;
+          if (cancelled || activeRunDetailsKeyRef.current !== capturedKey) return;
           setSelectedRunDetails(null);
           setLoadError(friendlyError(error));
           setLoadingRun(false);
@@ -461,7 +525,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
     return () => {
       cancelled = true;
     };
-  }, [ghAccount, runRefreshVersion, selectedProject, selectedRunId]);
+  }, [ghAccount, runDetailsKey, selectedProject, selectedRunId]);
 
   const hasActiveRuns = runs.some(workflowRunIsActive);
   useEffect(() => {
@@ -486,6 +550,7 @@ export function useGitHubActionsViewModel(props: { projectId?: string; runId?: n
       : (runs.find((run) => run.id === selectedRunId) ?? null);
   function selectWorkflow(workflowId: number) {
     userPickedWorkflowRef.current = true;
+    setUserPickedWorkflow(true);
     if (workflowId === selectedWorkflowId) {
       setSelectedRunId(null);
       setSelectedRunDetails(null);

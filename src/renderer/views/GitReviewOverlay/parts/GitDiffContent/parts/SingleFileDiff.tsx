@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { DiffFile, DiffView } from "@git-diff-view/react";
 import { Trans } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
@@ -21,16 +21,29 @@ export function SingleFileDiff(props: {
   containerRef: RefObject<HTMLDivElement | null>;
   annotationTarget?: { projectId: string; worktreePath: string | undefined };
 }) {
-  const { project, filePath, staged, diffMode, refreshKey } = props;
+  const { project, filePath, staged, diffMode, refreshKey, containerRef, annotationTarget } = props;
   const theme = useDiffTheme();
   const [diffFile, setDiffFile] = useState<DiffFile | null>(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-
+  // Every input that restarts the load, folded into one key so the effect
+  // consumes the trigger-only values (project id, refresh key) instead of
+  // listing them as extra dependencies.
+  const requestKey = `${project.id}\0${JSON.stringify(project.location)}\0${filePath}\0${staged ? "1" : "0"}\0${refreshKey}`;
+  const activeRequestKeyRef = useRef(requestKey);
+  // Reset the view for the new request during render rather than
+  // synchronously on effect entry, so switching files never paints the old
+  // diff before clearing.
+  const [prevRequestKey, setPrevRequestKey] = useState(requestKey);
+  if (prevRequestKey !== requestKey) {
+    setPrevRequestKey(requestKey);
     setLoading(true);
     setDiffFile(null);
+  }
+
+  useEffect(() => {
+    activeRequestKeyRef.current = requestKey;
+    let cancelled = false;
+    const capturedKey = requestKey;
 
     async function load() {
       try {
@@ -39,7 +52,7 @@ export function SingleFileDiff(props: {
           filePath,
           staged,
         });
-        if (cancelled) return;
+        if (cancelled || activeRequestKeyRef.current !== capturedKey) return;
         const { oldName, newName } = extractDiffNames(result.diff);
         const results = await buildInWorker([
           {
@@ -50,24 +63,24 @@ export function SingleFileDiff(props: {
             fileLang: getLang(newName || filePath),
           },
         ]);
-        if (cancelled) return;
+        if (cancelled || activeRequestKeyRef.current !== capturedKey) return;
         const r = results[0];
         if (r?.bundle) setDiffFile(diffFileFromBundle(r.data, r.bundle));
       } catch {
         /* empty */
       }
-      if (!cancelled) setLoading(false);
+      if (!cancelled && activeRequestKeyRef.current === capturedKey) setLoading(false);
     }
 
     void load();
     return () => {
       cancelled = true;
     };
-  }, [filePath, staged, project.id, project.location, refreshKey]);
+  }, [filePath, project.location, requestKey, staged]);
 
   return (
     <div
-      ref={props.containerRef}
+      ref={containerRef}
       className="absolute inset-0 z-10 overflow-y-auto bg-[var(--content-background)] px-4"
     >
       {loading && (
@@ -83,13 +96,13 @@ export function SingleFileDiff(props: {
       {diffFile && (
         <div className="space-y-4">
           <div className="rounded border border-border">
-            {props.annotationTarget ? (
+            {annotationTarget ? (
               <DiffAnnotationView
                 diffFile={diffFile}
                 filePath={filePath}
-                projectId={props.annotationTarget.projectId}
+                projectId={annotationTarget.projectId}
                 staged={staged}
-                worktreePath={props.annotationTarget.worktreePath}
+                worktreePath={annotationTarget.worktreePath}
                 diffViewMode={diffMode}
                 diffViewTheme={theme}
                 diffViewFontSize={12}

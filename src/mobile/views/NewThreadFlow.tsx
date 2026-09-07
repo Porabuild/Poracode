@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
@@ -21,15 +21,19 @@ export function NewThreadFlow(props: {
 }) {
   const remote = useRemote();
   const { t } = useLingui();
-  const [draftProjectId, setDraftProjectId] = useState<string | null>(null);
-  const [draftNonce, setDraftNonce] = useState(0);
-
   // The draft composer embeds the desktop ProjectSwitchMenu, which switches
   // projects through the shared store's `openDraft`; mirror that choice here.
   const storeView = useAppStore((state) => state.view);
-  useEffect(() => {
+  const [draftProjectId, setDraftProjectId] = useState<string | null>(() =>
+    storeView.kind === "draft" ? storeView.projectId : null,
+  );
+  const [draftNonce, setDraftNonce] = useState(0);
+
+  const [prevStoreView, setPrevStoreView] = useState(storeView);
+  if (prevStoreView !== storeView) {
+    setPrevStoreView(storeView);
     if (storeView.kind === "draft") setDraftProjectId(storeView.projectId);
-  }, [storeView]);
+  }
 
   const draftProject = selectDraftProject(remote.projects, {
     draftProjectId,

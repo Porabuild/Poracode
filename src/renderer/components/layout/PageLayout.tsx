@@ -74,6 +74,8 @@ function SidebarHeaderRow(props: {
     };
 
     update();
+    // Title changes alter the ghost container's width, which fires its
+    // observer below — no title dependency needed.
     const ro = new ResizeObserver(() => update());
     ro.observe(el);
     const ro2 = new ResizeObserver(() => update());
@@ -83,7 +85,7 @@ function SidebarHeaderRow(props: {
       ro.disconnect();
       ro2.disconnect();
     };
-  }, [props.title]);
+  }, []);
 
   return (
     <>

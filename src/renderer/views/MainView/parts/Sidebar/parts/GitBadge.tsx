@@ -140,9 +140,18 @@ export function GitBadge(props: {
     }),
   );
 
+  // Invalidating the verified branch when the key inputs change derives from
+  // render state, so adjust during render. The async verification (and the
+  // shared prData clear, a store write) stays in the effect below.
+  const prBranchVerifyKey = props.worktreePath ?? `${projectPrKey}\0${branch}`;
+  const [prevPrBranchVerifyKey, setPrevPrBranchVerifyKey] = useState(prBranchVerifyKey);
+  if (prevPrBranchVerifyKey !== prBranchVerifyKey) {
+    setPrevPrBranchVerifyKey(prBranchVerifyKey);
+    setVerifiedProjectPrBranch(null);
+  }
+
   useEffect(() => {
     if (props.worktreePath) return;
-    setVerifiedProjectPrBranch(null);
     useGitStore.getState().setPrData(projectPrKey, null);
     if (!isRepo || !branch || !projectLocation || !ghAvailable) return;
     if (remotePlatform !== "github" && remotePlatform !== "unknown") return;

@@ -36,7 +36,7 @@ describe("sharedSettingsStore", () => {
       crossagentSelectionUsage: [],
       crossagentRoutingOverrides: [],
       providerOrder: [],
-      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks"],
+      threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images"],
       sidebarShortcutOrder: ["pullRequests", "githubActions", "schedules"],
       lastUsedProjectDirs: {},
       enabledMcpServers: {},
@@ -127,6 +127,7 @@ describe("sharedSettingsStore", () => {
       "plan",
       "goal",
       "agents",
+      "images",
     ]);
   });
 
@@ -243,7 +244,7 @@ describe("sharedSettingsStore", () => {
     useSharedSettings.getState().installPlugin(pluginFixture("browser-tools"));
     expect(persistedPlugins()).toEqual({
       "browser-tools": {
-        version: "1.2.0",
+        version: pluginFixture("browser-tools").manifest.version,
         enabled: true,
         disabledSkillIds: [],
         disabledMcpServerNames: [],
@@ -255,7 +256,7 @@ describe("sharedSettingsStore", () => {
       .getState()
       .setPluginSkillEnabled(pluginFixture("browser-tools"), "browser-control", false);
     expect(persistedPlugins()["browser-tools"]).toEqual({
-      version: "1.2.0",
+      version: pluginFixture("browser-tools").manifest.version,
       enabled: false,
       disabledSkillIds: ["browser-control"],
       disabledMcpServerNames: [],

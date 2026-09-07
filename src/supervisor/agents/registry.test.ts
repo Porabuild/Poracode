@@ -50,7 +50,7 @@ const EXPECTED_DEFAULT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)[
   qoder: "bypassPermissions",
   grok: "bypassPermissions",
   kimi: "auto",
-  muse: "on-request",
+  muse: "yolo",
   antigravity: "yolo",
   commandcode: "yolo",
   cursor: "never",
@@ -161,6 +161,19 @@ describe("first-class ACP registry aliases", () => {
       capabilities: { presentationModes: ["terminal", "gui"] },
     });
   });
+
+  it.each(["constructor", "toString", "valueOf", "hasOwnProperty"])(
+    "keeps generic ACP instance %s on the default factory",
+    (id) => {
+      const adapters = buildAgentRegistry([
+        { id, driver: "acp-generic", config: { binary: "example-agent" } },
+      ]);
+      expect(adapters.find((adapter) => adapter.kind === `acp-generic:${id}`)).toMatchObject({
+        binary: "example-agent",
+        capabilities: { presentationModes: ["gui"] },
+      });
+    },
+  );
 
   it("does not enable Chat from a disabled antigravity-acp instance", () => {
     const adapters = buildAgentRegistry([

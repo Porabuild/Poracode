@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Experiment, Project, Thread, ThreadRuntimeSnapshot } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -132,6 +132,35 @@ describe("useAppHydration experiments", () => {
           : "experiment-1:candidate-2",
     }));
     mocks.hydrateThreadRuntimeItems.mockResolvedValue(undefined);
+  });
+
+  it("flips storeHydrated to true when hydration finishes after mount", async () => {
+    vi.mocked(useAppStore.persist.hasHydrated).mockReturnValue(false);
+    vi.mocked(useExperimentStore.persist.hasHydrated).mockReturnValue(false);
+    const finishListeners: Array<() => void> = [];
+    vi.mocked(useAppStore.persist.onFinishHydration).mockImplementation((listener) => {
+      finishListeners.push(() => {
+        (listener as unknown as () => void)();
+      });
+      return () => undefined;
+    });
+    vi.mocked(useExperimentStore.persist.onFinishHydration).mockImplementation((listener) => {
+      finishListeners.push(() => {
+        (listener as unknown as () => void)();
+      });
+      return () => undefined;
+    });
+
+    const { result } = renderHook(() => useAppHydration());
+    expect(result.current.storeHydrated).toBe(false);
+
+    vi.mocked(useAppStore.persist.hasHydrated).mockReturnValue(true);
+    vi.mocked(useExperimentStore.persist.hasHydrated).mockReturnValue(true);
+    act(() => {
+      for (const listener of finishListeners) listener();
+    });
+
+    await waitFor(() => expect(result.current.storeHydrated).toBe(true));
   });
 
   it("retains every running candidate even when the board is not the active view", async () => {

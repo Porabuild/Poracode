@@ -28,6 +28,11 @@ import {
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
 
+// Non-subscribing action read: these stable store actions don't need a
+// subscription, and aliasing keeps the render path from referencing the hook
+// as a value.
+const getAppState = useAppStore.getState;
+
 export function ThreadPane(props: {
   threadId: string;
   paneCount: number;
@@ -76,7 +81,7 @@ export function ThreadPane(props: {
     providerSwitch: pendingLaunchProviderSwitch,
     mentionHandoff: pendingLaunchMentionHandoff,
   } = useThreadPendingLaunch(props.threadId);
-  const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = useAppStore.getState();
+  const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = getAppState();
 
   const paneElementRef = useRef<HTMLDivElement>(null);
   const { handleRef } = useDraggable({

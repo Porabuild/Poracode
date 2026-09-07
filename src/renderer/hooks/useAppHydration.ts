@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
@@ -30,6 +30,32 @@ function scheduleIdle(work: () => void): IdleCallbackHandle {
   return { cancel: () => clearTimeout(timeoutId) };
 }
 
+function subscribeToAppStoreHydration(listener: () => void): () => void {
+  const unsubscribeHydrate = useAppStore.persist.onHydrate(listener);
+  const unsubscribeFinishHydration = useAppStore.persist.onFinishHydration(listener);
+  return () => {
+    unsubscribeHydrate();
+    unsubscribeFinishHydration();
+  };
+}
+
+function getAppStoreHydrationSnapshot(): boolean {
+  return useAppStore.persist.hasHydrated();
+}
+
+function subscribeToExperimentStoreHydration(listener: () => void): () => void {
+  const unsubscribeHydrate = useExperimentStore.persist.onHydrate(listener);
+  const unsubscribeFinishHydration = useExperimentStore.persist.onFinishHydration(listener);
+  return () => {
+    unsubscribeHydrate();
+    unsubscribeFinishHydration();
+  };
+}
+
+function getExperimentStoreHydrationSnapshot(): boolean {
+  return useExperimentStore.persist.hasHydrated();
+}
+
 export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   const runtimeOwner = options.runtimeOwner ?? true;
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
@@ -40,9 +66,13 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   const view = useAppStore((state) => state.view);
 
   const [initialLoading, setInitialLoading] = useState(true);
-  const [appStoreHydrated, setAppStoreHydrated] = useState(() => useAppStore.persist.hasHydrated());
-  const [experimentStoreHydrated, setExperimentStoreHydrated] = useState(() =>
-    useExperimentStore.persist.hasHydrated(),
+  const appStoreHydrated = useSyncExternalStore(
+    subscribeToAppStoreHydration,
+    getAppStoreHydrationSnapshot,
+  );
+  const experimentStoreHydrated = useSyncExternalStore(
+    subscribeToExperimentStoreHydration,
+    getExperimentStoreHydrationSnapshot,
   );
   const storeHydrated = appStoreHydrated && experimentStoreHydrated;
   const [loadT0] = useState(() => Date.now());
@@ -50,33 +80,14 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   const skipSnapshotRefreshForView = useRef<ReturnType<typeof useAppStore.getState>["view"] | null>(
     null,
   );
-
-  useEffect(() => {
-    const unsubscribeHydrate = useAppStore.persist.onHydrate(() => {
-      setAppStoreHydrated(false);
-    });
-    const unsubscribeFinishHydration = useAppStore.persist.onFinishHydration(() => {
-      setAppStoreHydrated(true);
-    });
-    const unsubscribeExperimentHydrate = useExperimentStore.persist.onHydrate(() => {
-      setExperimentStoreHydrated(false);
-    });
-    const unsubscribeExperimentFinishHydration = useExperimentStore.persist.onFinishHydration(
-      () => {
-        setExperimentStoreHydrated(true);
-      },
-    );
-
-    setAppStoreHydrated(useAppStore.persist.hasHydrated());
-    setExperimentStoreHydrated(useExperimentStore.persist.hasHydrated());
-
-    return () => {
-      unsubscribeHydrate();
-      unsubscribeFinishHydration();
-      unsubscribeExperimentHydrate();
-      unsubscribeExperimentFinishHydration();
-    };
-  }, []);
+  // Resetting the snapshot gate when hydration (re)completes derives from
+  // `storeHydrated`, so adjust during render. The module-level reopen flag
+  // and the view ref below stay in the effect to preserve startup ordering.
+  const [prevHydratedForSnapshots, setPrevHydratedForSnapshots] = useState(storeHydrated);
+  if (prevHydratedForSnapshots !== storeHydrated) {
+    setPrevHydratedForSnapshots(storeHydrated);
+    if (storeHydrated) setRuntimeSnapshotsReady(false);
+  }
 
   useEffect(() => {
     if (!storeHydrated) {
@@ -85,7 +96,6 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     }
 
     let isActive = true;
-    setRuntimeSnapshotsReady(false);
     setThreadRuntimeReopenEnabled(false);
     skipSnapshotRefreshForView.current = null;
     const appState = useAppStore.getState();

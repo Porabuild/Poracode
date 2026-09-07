@@ -1,0 +1,133 @@
+[package]
+name = "poracode-computer-use"
+# helperVersion reported by the hello handshake. Bump on any behavior change so
+# stale staged binaries are detectable (see .agents/docs/computer-use.md).
+version = "0.3.0"
+edition = "2024"
+rust-version = "1.98"
+license = "Apache-2.0"
+publish = false
+description = "Poracode background computer-use helper (window control without stealing focus)"
+
+[lib]
+name = "poracode_computer_use"
+path = "src/lib.rs"
+
+[[bin]]
+name = "poracode-computer-use"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.23"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+fast_image_resize = "6"
+crossbeam-channel = "0.5"
+thiserror = "2"
+log = "0.4"
+env_logger = { version = "0.11", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+wgc = "1"
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_Accessibility",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dwm",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Threading",
+  "Win32_System_Variant",
+  "Win32_System_Ole",
+  "Win32_System_StationsAndDesktops",
+  "Win32_Security",
+  "Win32_System_ProcessStatus",
+  "Win32_System_SystemInformation",
+  "Win32_System_WinRT",
+  "Win32_Storage_Xps",
+  "Win32_Storage_Packaging_Appx",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = [
+  "NSString",
+  "NSArray",
+  "NSDictionary",
+  "NSValue",
+  "NSURL",
+  "NSError",
+] }
+objc2-app-kit = { version = "0.3", features = [
+  "NSRunningApplication",
+  "NSWorkspace",
+  "NSScreen",
+  "NSEvent",
+  "objc2-core-graphics",
+] }
+objc2-core-foundation = { version = "0.3", features = [
+  "CFString",
+  "CFArray",
+  "CFDictionary",
+  "CFNumber",
+  "CFBase",
+  "CFCGTypes",
+] }
+objc2-core-graphics = { version = "0.3", features = [
+  "CGImage",
+  "CGColorSpace",
+  "CGContext",
+  "CGDataProvider",
+  "CGBitmapContext",
+] }
+objc2-screen-capture-kit = { version = "0.3", features = [
+  "SCStream",
+  "SCShareableContent",
+  "SCScreenshotManager",
+  "block2",
+  "objc2-core-graphics",
+] }
+block2 = "0.6"
+libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { version = "0.14", features = ["composite", "xtest", "xinput", "xfixes", "randr", "xkb"] }
+xkeysym = "0.2"
+tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+atspi = { version = "0.30", default-features = false, features = [
+  "tokio",
+  "proxies",
+  "connection",
+] }
+ashpd = { version = "0.13", default-features = false, features = [
+  "tokio",
+  "remote_desktop",
+  "screencast",
+  "screenshot",
+] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
+# A panicking request is caught per job and answered with code "internal".
+panic = "unwind"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "deny"
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"

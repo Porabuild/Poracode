@@ -67,9 +67,17 @@ export function BrowserOmnibox(props: {
   const lastInsertRef = useRef(false);
   const pendingSelectRef = useRef<[number, number] | null>(null);
 
+  // While unfocused the field mirrors the active tab's URL. Derived from
+  // `activeUrl`, so adjust during render; the keystroke-tracking ref below is
+  // not render state and stays in the effect.
+  const [prevActiveUrl, setPrevActiveUrl] = useState(activeUrl);
+  if (!focused && prevActiveUrl !== activeUrl) {
+    setPrevActiveUrl(activeUrl);
+    setUrlInput(activeUrl ?? "");
+  }
+
   useEffect(() => {
     if (!focused) {
-      setUrlInput(activeUrl ?? "");
       prevValueRef.current = activeUrl ?? "";
     }
   }, [activeUrl, focused]);
@@ -80,6 +88,9 @@ export function BrowserOmnibox(props: {
     const sel = pendingSelectRef.current;
     if (!sel) return;
     pendingSelectRef.current = null;
+    // A stale completion for an input that has since been emptied has nothing
+    // to highlight.
+    if (urlInput.length === 0) return;
     inputRef.current?.setSelectionRange(sel[0], sel[1]);
   }, [urlInput]);
 
@@ -103,9 +114,16 @@ export function BrowserOmnibox(props: {
     };
   }, [open, activeTabId, onPreviewChange]);
 
+  // The dropdown's screen position derives from `open`, so clearing it on
+  // close adjusts during render; measuring stays in the layout effect.
+  const [prevOmniOpen, setPrevOmniOpen] = useState(open);
+  if (prevOmniOpen !== open) {
+    setPrevOmniOpen(open);
+    if (!open) setRect(null);
+  }
+
   useLayoutEffect(() => {
     if (!open) {
-      setRect(null);
       return;
     }
     const measure = () => {

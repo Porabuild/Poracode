@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 import { toast } from "@heroui/react";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
+import { useGitRefresh } from "@/renderer/hooks/useGitRefresh";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Experiment, RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
@@ -1494,6 +1495,38 @@ describe("App", () => {
       );
       expect(screen.getByTestId("thread-view-thread-1")).toHaveAttribute("data-pending-launch", "");
     });
+  });
+
+  it("fetches unloaded WSL projects once at startup without recurring background fetches", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const location = {
+      kind: "wsl" as const,
+      distro: "Ubuntu",
+      linuxPath: "/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\repo",
+    };
+    useAppStore.setState({
+      projects: [
+        { id: "wsl-project", name: "WSL", location, createdAt: "2026-09-04T00:00:00.000Z" },
+      ],
+      threads: [],
+      view: { kind: "draft", projectId: "wsl-project" },
+    });
+    const hook = renderHook(() => useGitRefresh(true));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+    });
+    expect(bridge.gitFetch).toHaveBeenCalledExactlyOnceWith({
+      projectLocation: location,
+      remote: "origin",
+      prune: true,
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30 * 60_000);
+    });
+    expect(bridge.gitFetch).toHaveBeenCalledTimes(1);
+    hook.unmount();
   });
 
   it("sweeps and unloads stale hidden idle threads every 5 minutes", async () => {

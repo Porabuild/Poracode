@@ -80,18 +80,29 @@ export function DevTerminalPanel(props: {
   });
   const contextKey = `${activeProjectId}:${activeWorktreePath ?? ""}`;
   const [fadeOpacity, setFadeOpacity] = useState(1);
-  const prevContextRef = useRef(contextKey);
-  useEffect(() => {
-    if (prevContextRef.current !== contextKey) {
-      prevContextRef.current = contextKey;
-      if (isOpen && activeProjectId) {
-        setFadeOpacity(0);
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => setFadeOpacity(1));
-        });
-      }
+  // Cross-fade reset derives from the context key, so adjust during render;
+  // the double-rAF that fades back in stays in the effect below.
+  const [prevContextKey, setPrevContextKey] = useState(contextKey);
+  if (prevContextKey !== contextKey) {
+    setPrevContextKey(contextKey);
+    if (isOpen && activeProjectId) {
+      setFadeOpacity(0);
     }
-  }, [contextKey, isOpen, activeProjectId]);
+  }
+  useEffect(() => {
+    if (fadeOpacity !== 0) {
+      return;
+    }
+    let raf1 = 0;
+    let raf2 = 0;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setFadeOpacity(1));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [fadeOpacity]);
   const fadeStyle = {
     opacity: fadeOpacity,
     transition: fadeOpacity < 1 ? "none" : "opacity 150ms ease-out",

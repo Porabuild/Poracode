@@ -130,6 +130,20 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     );
   });
 
+  it("does not repeat a failed lookup when the registry adds no PATH entries", () => {
+    process.env.Path = "C:\\Windows\\System32";
+    const registryPath = "    Path    REG_SZ    C:\\Windows\\System32";
+    spawnSyncMock
+      .mockReturnValueOnce({ status: 1, stdout: "" })
+      .mockReturnValueOnce({ status: 0, stdout: registryPath })
+      .mockReturnValueOnce({ status: 0, stdout: registryPath });
+
+    expect(resolveExecutablePath("missing-agent")).toBeUndefined();
+    expect(
+      spawnSyncMock.mock.calls.filter(([command]) => String(command).endsWith("where.exe")),
+    ).toHaveLength(1);
+  });
+
   it("resolves npm .cmd shims to their package exe target when present", () => {
     const root = mkdtempSync(join(tmpdir(), "poracode-claude-shim-"));
     tempDirs.push(root);
@@ -296,6 +310,57 @@ describe.skipIf(process.platform !== "win32")("Windows executable path fallback"
     });
 
     expect(resolveExecutablePath("grok")).toBe(cmdPath);
+  });
+
+  it("keeps the .cmd path for npm 11.19 variable-indirection shims (e.g. npx.cmd)", () => {
+    // Regression: npm 11.19 routes npx.cmd through variables
+    // (`SET "NPX_CLI_JS=%~dp0\node_modules\npm\bin\npx-cli.js"` then
+    // `"%NODE_EXE%" "%NPX_CLI_JS%" %*`). The shim guard missed it and the
+    // exe substitution matched the shim's `SET "NODE_EXE=%~dp0\node.exe"`
+    // line — resolving `npx` to node.exe and dropping the CLI script, so the
+    // probe spawned `node.exe -y codex-acp@1.0.0 --help`.
+    const root = mkdtempSync(join(tmpdir(), "poracode-npm11-npx-shim-"));
+    tempDirs.push(root);
+    const cmdPath = join(root, "npx.cmd");
+    const nodeExePath = join(root, "node.exe");
+    const jsPath = join(root, "node_modules", "npm", "bin", "px-cli.js");
+    mkdirSync(join(jsPath, ".."), { recursive: true });
+    writeFileSync(nodeExePath, "");
+    writeFileSync(jsPath, "");
+    writeFileSync(
+      cmdPath,
+      [
+        ":: Created by npm, please don't edit manually.",
+        "@ECHO OFF",
+        "",
+        "SETLOCAL",
+        "",
+        'SET "NODE_EXE=%~dp0\\node.exe"',
+        'IF NOT EXIST "%NODE_EXE%" (',
+        '  SET "NODE_EXE=node"',
+        ")",
+        "",
+        'SET "NPM_PREFIX_JS=%~dp0\\node_modules\\npm\\bin\\npm-prefix.js"',
+        'SET "NPX_CLI_JS=%~dp0\\node_modules\\npm\\bin\\px-cli.js"',
+        'FOR /F "delims=" %%F IN (\'CALL "%NODE_EXE%" "%NPM_PREFIX_JS%"\') DO (',
+        '  SET "NPM_PREFIX_NPX_CLI_JS=%%F\\node_modules\\npm\\bin\\px-cli.js"',
+        ")",
+        'IF EXIST "%NPM_PREFIX_NPX_CLI_JS%" (',
+        '  SET "NPX_CLI_JS=%NPM_PREFIX_NPX_CLI_JS%"',
+        ")",
+        "",
+        '"%NODE_EXE%" "%NPX_CLI_JS%" %*',
+        "",
+      ].join("\r\n"),
+    );
+    spawnSyncMock.mockReturnValueOnce({
+      error: undefined,
+      status: 0,
+      stdout: [join(root, "npx"), cmdPath].join("\r\n"),
+      stderr: "",
+    });
+
+    expect(resolveExecutablePath("npx")).toBe(cmdPath);
   });
 
   it("keeps the .cmd path for pnpm node-shim wrappers (e.g. command-code.cmd -> node index.mjs)", () => {
@@ -508,6 +573,63 @@ describe("extractWindowsCmdShimScript", () => {
   it('returns undefined for pnpm exe-wrapping shims with @"%~dp0\\..."', () => {
     const body =
       '@SETLOCAL\r\n@"%~dp0\\..\\global\\v11\\hash\\node_modules\\@anthropic-ai\\claude-code\\bin\\claude.exe"  %*';
+    expect(extractWindowsCmdShimScript(body)).toBeUndefined();
+  });
+
+  it("extracts npm 11.19 npx.cmd via variable indirection", () => {
+    const body = [
+      ":: Created by npm, please don't edit manually.",
+      "@ECHO OFF",
+      "",
+      "SETLOCAL",
+      "",
+      'SET "NODE_EXE=%~dp0\\node.exe"',
+      'IF NOT EXIST "%NODE_EXE%" (',
+      '  SET "NODE_EXE=node"',
+      ")",
+      "",
+      'SET "NPM_PREFIX_JS=%~dp0\\node_modules\\npm\\bin\\npm-prefix.js"',
+      'SET "NPX_CLI_JS=%~dp0\\node_modules\\npm\\bin\\px-cli.js"',
+      'FOR /F "delims=" %%F IN (\'CALL "%NODE_EXE%" "%NPM_PREFIX_JS%"\') DO (',
+      '  SET "NPM_PREFIX_NPX_CLI_JS=%%F\\node_modules\\npm\\bin\\px-cli.js"',
+      ")",
+      'IF EXIST "%NPM_PREFIX_NPX_CLI_JS%" (',
+      '  SET "NPX_CLI_JS=%NPM_PREFIX_NPX_CLI_JS%"',
+      ")",
+      "",
+      '"%NODE_EXE%" "%NPX_CLI_JS%" %*',
+    ].join("\r\n");
+    expect(extractWindowsCmdShimScript(body)).toBe("node_modules\\npm\\bin\\px-cli.js");
+  });
+
+  it("extracts npm 11.19 npm.cmd via variable indirection", () => {
+    const body = [
+      "@ECHO OFF",
+      "SETLOCAL",
+      'SET "NODE_EXE=%~dp0\\node.exe"',
+      'IF NOT EXIST "%NODE_EXE%" (',
+      '  SET "NODE_EXE=node"',
+      ")",
+      'SET "NPM_PREFIX_JS=%~dp0\\node_modules\\npm\\bin\\npm-prefix.js"',
+      'SET "NPM_CLI_JS=%~dp0\\node_modules\\npm\\bin\\npm-cli.js"',
+      'FOR /F "delims=" %%F IN (\'CALL "%NODE_EXE%" "%NPM_PREFIX_JS%"\') DO (',
+      '  SET "NPM_PREFIX_NPM_CLI_JS=%%F\\node_modules\\npm\\bin\\npm-cli.js"',
+      ")",
+      'IF EXIST "%NPM_PREFIX_NPM_CLI_JS%" (',
+      '  SET "NPM_CLI_JS=%NPM_PREFIX_NPM_CLI_JS%"',
+      ")",
+      '"%NODE_EXE%" "%NPM_CLI_JS%" %*',
+    ].join("\r\n");
+    expect(extractWindowsCmdShimScript(body)).toBe("node_modules\\npm\\bin\\npm-cli.js");
+  });
+
+  it("returns undefined when the indirection variable is not dp0-relative", () => {
+    const body = [
+      "@ECHO OFF",
+      "SETLOCAL",
+      'SET "MY_CLI_JS=C:\\tools\\cli\\entry.js"',
+      '"%~dp0\\node.exe" "%MY_CLI_JS%" %*',
+    ].join("\r\n");
     expect(extractWindowsCmdShimScript(body)).toBeUndefined();
   });
 });

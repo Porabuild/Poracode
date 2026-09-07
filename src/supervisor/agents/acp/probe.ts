@@ -17,10 +17,16 @@ import {
   RequestError,
   type Client,
   type AuthMethod,
+  type AuthMethodAgent,
   type SessionNotification,
   type SessionMode,
 } from "@agentclientprotocol/sdk";
-import type { AgentSlashCommand, AuthState, ThreadMode } from "@/shared/contracts";
+import type {
+  AgentEnvVarAuthMethod,
+  AgentSlashCommand,
+  AuthState,
+  ThreadMode,
+} from "@/shared/contracts";
 import { sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import {
@@ -59,7 +65,9 @@ function isAcpAuthRequiredError(error: unknown): boolean {
 // ── Types ────────────────────────────────────────────────────────
 
 export interface AcpProbeResult {
-  authMethods?: AuthMethod[];
+  // SDK 1.4 removed env_var from the spec; installed agents still use the
+  // credential flow represented by Poracode's existing auth-method contract.
+  authMethods?: Array<AuthMethod | (AgentEnvVarAuthMethod & AuthMethodAgent)>;
   authLogoutSupported?: boolean;
   sessionEstablished?: boolean;
   supportsResume?: boolean;
@@ -204,13 +212,10 @@ export function mapAcpModes(availableModes: SessionMode[]): {
 
 /**
  * Build a human-friendly label from a model ID when the ACP agent
- * returns `name` identical to `modelId` (e.g. "gemini-2.5-flash-lite").
- *
- * Strips the "gemini-" prefix and title-cases dash-separated segments.
+ * returns `name` identical to `modelId`. Title-cases dash-separated segments.
  */
 export function humanizeModelId(id: string): string {
-  const stripped = id.replace(/^gemini-/, "");
-  return stripped
+  return id
     .split("-")
     .map((seg) => (seg.length <= 1 ? seg : seg[0]!.toUpperCase() + seg.slice(1)))
     .join(" ");
@@ -225,19 +230,23 @@ export function humanizeModelId(id: string): string {
  */
 export function mapAcpModels(
   availableModels: UnstableModelInfo[],
+  modelLabel: (id: string) => string = humanizeModelId,
 ): Array<{ id: string; label: string; description?: string }> {
   return availableModels.map((m) => {
     const description = m.description?.trim();
     return {
       id: m.modelId,
-      label: m.name === m.modelId ? humanizeModelId(m.modelId) : m.name,
+      label: m.name === m.modelId ? modelLabel(m.modelId) : m.name,
       ...(description ? { description } : {}),
     };
   });
 }
 
 /** Map the standard ACP model config option to Poracode model options. */
-export function mapAcpConfigModels(configOptions: unknown): Array<{ id: string; label: string }> {
+export function mapAcpConfigModels(
+  configOptions: unknown,
+  modelLabel: (id: string) => string = humanizeModelId,
+): Array<{ id: string; label: string }> {
   const option = findSelectConfigOption(configOptions, "model");
   if (!option) return [];
 
@@ -245,7 +254,7 @@ export function mapAcpConfigModels(configOptions: unknown): Array<{ id: string; 
     const id = typeof entry.value === "string" ? entry.value.trim() : "";
     if (!id) return [];
     const name = typeof entry.name === "string" ? entry.name.trim() : "";
-    return [{ id, label: name && name !== id ? name : humanizeModelId(id) }];
+    return [{ id, label: name && name !== id ? name : modelLabel(id) }];
   });
 }
 
@@ -445,6 +454,8 @@ export async function probeAcpCapabilities(
     label?: string;
     env?: Record<string, string>;
     signal?: AbortSignal;
+    /** Provider-owned fallback label when a model has no distinct display name. */
+    modelLabel?: (id: string) => string;
     /**
      * Auth method IDs to call `authenticate` with (in order) after `initialize`
      * but before `newSession`. Stops at the first one advertised by the agent.
@@ -687,14 +698,14 @@ export async function probeAcpCapabilities(
     // signed-out agent appear usable. `configOptions` "model" stays primary.
     const unstableModels = readUnstableSessionModels(result) ?? initializeModels;
     if (unstableModels?.availableModels.length) {
-      probeResult.models = mapAcpModels(unstableModels.availableModels);
+      probeResult.models = mapAcpModels(unstableModels.availableModels, options?.modelLabel);
       const modelMetadata = mapAcpModelMetadata(unstableModels.availableModels);
       if (Object.keys(modelMetadata).length > 0) {
         probeResult.modelMetadata = modelMetadata;
       }
     }
     if (result.configOptions?.length) {
-      const configModels = mapAcpConfigModels(result.configOptions);
+      const configModels = mapAcpConfigModels(result.configOptions, options?.modelLabel);
       if (configModels.length > 0) {
         probeResult.models = configModels;
       }

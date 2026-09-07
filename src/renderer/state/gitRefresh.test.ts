@@ -13,6 +13,8 @@ import { useExperimentStore } from "./experimentStore";
 import { buildBranchPrKey } from "./gitSelectors";
 import { usePanelStore } from "./panelStore";
 import { useSidebarUiStore } from "./sidebarUiStore";
+import { useDevTerminalStore } from "./devTerminalStore";
+import { shouldPollProject } from "./wslBackgroundActivity";
 import {
   cleanupGitRefreshProjects,
   getProjectActiveWorktreePaths,
@@ -137,6 +139,22 @@ const hiddenWorktreeThread: Thread = {
 };
 
 describe("pending PR refresh", () => {
+  it("stops WSL background polls for unloaded projects and resumes for loaded threads or terminals", () => {
+    const wslProject = { ...project, location: wslLocation };
+    useDevTerminalStore.setState({ isOpen: false, activeProjectId: null });
+    expect(shouldPollProject(project)).toBe(true);
+    expect(shouldPollProject(wslProject)).toBe(false);
+    useAppStore.setState({ threads: [{ ...worktreeThread, status: "inactive" }] });
+    expect(shouldPollProject(wslProject)).toBe(false);
+    useAppStore.setState({ threads: [worktreeThread] });
+    expect(shouldPollProject(wslProject)).toBe(true);
+    useAppStore.setState({ threads: [{ ...worktreeThread, projectId: "other" }] });
+    expect(shouldPollProject(wslProject)).toBe(false);
+    useDevTerminalStore.setState({ isOpen: true, activeProjectId: project.id });
+    expect(shouldPollProject(wslProject)).toBe(true);
+    useDevTerminalStore.setState({ isOpen: false, activeProjectId: null });
+  });
+
   beforeEach(() => {
     vi.useFakeTimers();
     ghGetPrForBranchMock.mockReset();
@@ -414,6 +432,26 @@ describe("pending PR refresh", () => {
       branch: "feature/pr-checks",
     });
     expect(ghGetPrDetailsMock).toHaveBeenCalledWith({ projectLocation: location, prNumber: 42 });
+  });
+
+  it("pauses pending PR polling on WSL unload and resumes when a thread loads", async () => {
+    const wslProject = { ...project, location: wslLocation };
+    useAppStore.setState({ projects: [wslProject], threads: [worktreeThread] });
+    useGitStore.getState().setStatus("p1", status);
+    useGitStore.getState().setPrData(buildBranchPrKey("p1"), basePr);
+    ghGetPrForBranchMock.mockResolvedValue(basePr);
+    ghGetPrDetailsMock.mockResolvedValue({ details: baseDetails });
+    syncPendingPrRefreshProjects([wslProject]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(ghGetPrForBranchMock).toHaveBeenCalled();
+    useAppStore.setState({ threads: [{ ...worktreeThread, status: "inactive" }] });
+    syncPendingPrRefreshProjects([wslProject]);
+    ghGetPrForBranchMock.mockClear();
+    await vi.advanceTimersByTimeAsync(2 * PR_PENDING_REFRESH_INTERVAL_MS);
+    expect(ghGetPrForBranchMock).not.toHaveBeenCalled();
+    useAppStore.setState({ threads: [worktreeThread] });
+    syncPendingPrRefreshProjects([wslProject]);
+    expect(ghGetPrForBranchMock).toHaveBeenCalled();
   });
 
   it("stops polling when the worktree thread is removed", async () => {

@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState, type CSSProperties } from "react";
+import { startTransition, useState, type CSSProperties } from "react";
 import { ChevronDown, RotateCcw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Slider, SliderFill, SliderOutput, SliderThumb, SliderTrack } from "@heroui/react";
@@ -51,9 +51,19 @@ export function AppearanceSettings() {
   const glassTintOverride = sidebarGlassTint[appearance];
   const glassTintDefault = sidebarGlassTintDefault(appearance);
   const [glassTint, setGlassTint] = useState(glassTintOverride ?? glassTintDefault);
-  useEffect(() => {
+  // Re-seeding the slider when the stored override (or appearance) changes
+  // derives from those inputs, so adjust during render.
+  const [prevGlassTintSeed, setPrevGlassTintSeed] = useState({
+    appearance,
+    override: glassTintOverride,
+  });
+  if (
+    prevGlassTintSeed.appearance !== appearance ||
+    prevGlassTintSeed.override !== glassTintOverride
+  ) {
+    setPrevGlassTintSeed({ appearance, override: glassTintOverride });
     setGlassTint(glassTintOverride ?? glassTintDefault);
-  }, [glassTintOverride, glassTintDefault]);
+  }
   // HeroUI's Slider emits number | number[]; this control is single-thumb.
   const normalizeSliderValue = (value: number | number[]): number =>
     Array.isArray(value) ? (value[0] ?? glassTint) : value;

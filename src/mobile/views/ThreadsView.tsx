@@ -301,14 +301,16 @@ export function ThreadsView(props: ThreadsViewProps) {
   const [prevSearchOpen, setPrevSearchOpen] = useState(props.searchOpen === true);
   if ((props.searchOpen === true) !== prevSearchOpen) {
     setPrevSearchOpen(props.searchOpen === true);
-    setSearchExiting(floatingSearch && !props.searchOpen && prevSearchOpen);
+    const closing = floatingSearch && !props.searchOpen && prevSearchOpen;
+    setSearchExiting(closing);
+    // The closing box keeps no state: drop the filter in the same commit (a
+    // hidden query would read as missing threads).
+    if (closing) setQuery("");
   }
   useEffect(() => {
     if (!searchExiting) return;
-    // The closing box keeps no state: drop the filter (a hidden query would
-    // read as missing threads) and release focus so the keyboard dismisses
-    // with the animation, not after it.
-    setQuery("");
+    // Release focus so the keyboard dismisses with the exit animation, not
+    // after it.
     const overlay = searchFloatRef.current;
     if (overlay?.contains(document.activeElement) && document.activeElement instanceof HTMLElement)
       document.activeElement.blur();

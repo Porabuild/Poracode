@@ -258,9 +258,13 @@ describe("SidebarFlatThreadList", () => {
 
     const wslRow = screen.getByText(/thread:w1 in Ubuntu Repo/).closest("[data-testid=row]");
     expect(wslRow).toHaveTextContent("WSL");
-    expect(wslRow?.querySelector('svg[viewBox="0 0 40 16"]')?.getAttribute("class")).toContain(
-      "h-2.5",
+    // Find the Tux icon by reading its viewBox in JS rather than through an
+    // attribute selector: jsdom 30 stopped matching exact-value selectors on
+    // camelCase SVG attributes, while browsers still do.
+    const tuxIcon = Array.from(wslRow?.querySelectorAll("svg") ?? []).find(
+      (svg) => svg.getAttribute("viewBox") === "0 0 40 16",
     );
+    expect(tuxIcon?.getAttribute("class")).toContain("h-2.5");
     const localRow = screen.getByText(/thread:p1 in Poracode/).closest("[data-testid=row]");
     expect(localRow).not.toHaveTextContent("WSL");
   });

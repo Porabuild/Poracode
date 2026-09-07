@@ -117,7 +117,11 @@ try {
         break sessionLaunch;
       }
     }
-    await createFixture();
+    if (args["reuse-fixture"] === true) {
+      await Promise.all([access(join(projectDir, ".git")), access(join(dataDir, "state.sqlite"))]);
+    } else {
+      await createFixture();
+    }
     if (stopRequested) break sessionLaunch;
     // Each run gets its own dev-server and CDP ports so isolated apps from
     // multiple worktrees can run side by side. Explicit --port/--vitePort values

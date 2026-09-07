@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 
 // 3×3 pixel grid:
@@ -181,8 +181,6 @@ function injectPatternStyles(): void {
   }
 }
 
-let filterIdCounter = 0;
-
 export function PixelLoader({
   size = "sm",
   color,
@@ -193,11 +191,11 @@ export function PixelLoader({
   style,
 }: PixelLoaderProps) {
   const { t } = useLingui();
-  const chosen = useRef(pattern ?? SESSION_PATTERN);
-  const filterId = useRef(`px-glow-${filterIdCounter++}`);
-  const speedMultiplier = PATTERN_SPEED_MULTIPLIERS[chosen.current] ?? 1;
+  const [chosen] = useState(pattern ?? SESSION_PATTERN);
+  const filterId = useId();
+  const speedMultiplier = PATTERN_SPEED_MULTIPLIERS[chosen] ?? 1;
   const frameMs = Math.max(MIN_FRAME_MS, Math.round(speed * speedMultiplier));
-  const offsetMs = useRef(Math.floor(Math.random() * 10_000));
+  const [offsetMs] = useState(() => Math.floor(Math.random() * 10_000));
 
   const fill = color ?? "currentColor";
   const sizeClass = ICON_SIZE_CLASS[size];
@@ -216,11 +214,11 @@ export function PixelLoader({
     injectPatternStyles();
   }, []);
 
-  const totalDuration = frameMs * PATTERNS[chosen.current].length;
+  const totalDuration = frameMs * PATTERNS[chosen].length;
   const customStyle = {
     ...style,
     "--pixel-loader-duration": `${totalDuration}ms`,
-    "--pixel-loader-delay": `-${offsetMs.current}ms`,
+    "--pixel-loader-delay": `-${offsetMs}ms`,
     "--pixel-loader-color": fill,
   } as React.CSSProperties;
 
@@ -235,12 +233,12 @@ export function PixelLoader({
       overflow="visible"
       className={mergedClass}
       style={customStyle}
-      data-pattern={chosen.current}
+      data-pattern={chosen}
       aria-label={t`Loading`}
       role="img"
     >
       <defs>
-        <filter id={filterId.current} x="-100%" y="-100%" width="300%" height="300%">
+        <filter id={filterId} x="-100%" y="-100%" width="300%" height="300%">
           <feGaussianBlur in="SourceGraphic" stdDeviation={13.333} result="innerBlur" />
           <feGaussianBlur in="SourceGraphic" stdDeviation={32} result="outerBlur" />
           <feMerge>
@@ -250,7 +248,7 @@ export function PixelLoader({
           </feMerge>
         </filter>
       </defs>
-      <g filter={`url(#${filterId.current})`}>
+      <g filter={`url(#${filterId})`}>
         {Array.from({ length: 9 }, (_, i) => {
           const col = i % 3;
           const row = Math.floor(i / 3);

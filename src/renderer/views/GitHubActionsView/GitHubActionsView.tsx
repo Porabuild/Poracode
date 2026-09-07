@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Play, RefreshCw, Workflow } from "lucide-react";
@@ -68,39 +68,52 @@ export function GitHubActionsView(props: {
     : EMPTY_PINNED_WORKFLOWS;
   const [dispatchWorkflowId, setDispatchWorkflowId] = useState<number | null>(null);
   const [displayedRun, setDisplayedRun] = useState(selectedRun);
-  const previousAccountRef = useRef(selectedAccount);
   const selectedDefinition = definition?.workflowId === selectedWorkflowId ? definition : null;
   const dispatchOpen = dispatchWorkflowId !== null && dispatchWorkflowId === selectedWorkflowId;
 
-  useEffect(() => {
-    if (selectedRun) {
+  // Keep the detail panel mounted for its exit animation after deselect: the
+  // run clears here only when a new run is picked or the account changes.
+  // Otherwise displayedRun survives and the timeout effect below clears it.
+  const [prevRunForDisplay, setPrevRunForDisplay] = useState(selectedRun);
+  const [prevAccountForDisplay, setPrevAccountForDisplay] = useState(selectedAccount);
+  if (selectedRun) {
+    if (prevRunForDisplay !== selectedRun) {
+      setPrevRunForDisplay(selectedRun);
       setDisplayedRun(selectedRun);
-      return;
     }
-    const accountChanged = !accountRefsEqual(previousAccountRef.current, selectedAccount);
-    previousAccountRef.current = selectedAccount;
-    if (accountChanged) {
+  } else {
+    if (!accountRefsEqual(prevAccountForDisplay, selectedAccount)) {
+      setPrevAccountForDisplay(selectedAccount);
+      setPrevRunForDisplay(selectedRun);
       setDisplayedRun(null);
-      return;
+    } else if (prevRunForDisplay !== selectedRun) {
+      setPrevRunForDisplay(selectedRun);
     }
+  }
+
+  useEffect(() => {
+    if (selectedRun || displayedRun === null) return;
     const timeout = window.setTimeout(() => setDisplayedRun(null), RUN_PANEL_EXIT_MS);
     return () => window.clearTimeout(timeout);
-  }, [selectedAccount, selectedRun]);
+  }, [selectedRun, displayedRun]);
 
-  useEffect(() => {
+  // A project switch closes any open dispatch popover.
+  const [prevDispatchProjectId, setPrevDispatchProjectId] = useState(selectedProject?.id);
+  if (prevDispatchProjectId !== selectedProject?.id) {
+    setPrevDispatchProjectId(selectedProject?.id);
     setDispatchWorkflowId(null);
-  }, [selectedProject?.id]);
+  }
 
-  useEffect(() => {
-    if (dispatchWorkflowId === null) return;
+  // Close the popover when it no longer targets the selected workflow, or the
+  // workflow turns out not to be manually dispatchable. Applied during render
+  // so the popover never paints a frame for the wrong workflow.
+  if (dispatchWorkflowId !== null) {
     if (dispatchWorkflowId !== selectedWorkflowId) {
       setDispatchWorkflowId(null);
-      return;
-    }
-    if (!loadingDefinition && selectedDefinition && !selectedDefinition.dispatchable) {
+    } else if (!loadingDefinition && selectedDefinition && !selectedDefinition.dispatchable) {
       setDispatchWorkflowId(null);
     }
-  }, [dispatchWorkflowId, loadingDefinition, selectedDefinition, selectedWorkflowId]);
+  }
 
   function selectWorkflowPage(workflowId: number) {
     setDispatchWorkflowId(null);

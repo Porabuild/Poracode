@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadGoalDockStore } from "@/renderer/state/threadGoalDockStore";
 import { useThreadBackgroundTasksDockStore } from "@/renderer/state/threadBackgroundTasksDockStore";
@@ -10,13 +11,15 @@ import { selectThreadHasDockContent } from "./useThreadDocksSummary";
 
 describe("ThreadDocksPanel", () => {
   beforeEach(() => {
+    usePanelStore.setState({ threadDocksPanelOpen: false, threadDocksFocus: null });
     useThreadGoalDockStore.setState({ dismissedByThread: {} });
     useThreadBackgroundTasksDockStore.setState({
       collapsed: false,
       dismissedTasksKeyByThread: {},
     });
     useSharedSettings.setState({
-      threadDocksOrder: ["backgroundTasks", "plan", "goal", "agents"],
+      threadDocksPlacement: "right",
+      threadDocksOrder: ["backgroundTasks", "images", "plan", "goal", "agents"],
     });
     useAppStore.setState({
       runtimeItemIdsByThread: { "thread-1": ["plan-1"] },
@@ -85,6 +88,36 @@ describe("ThreadDocksPanel", () => {
     expect(screen.getByText("Ship the update")).toBeInTheDocument();
   });
 
+  it("offers a local dismiss for a right-panel goal without a clear action", () => {
+    const failedItem = {
+      id: "goal-1",
+      type: "goal" as const,
+      state: "completed" as const,
+      payload: {
+        action: "updated",
+        objective: "Implement plan",
+        status: "failed",
+        tokensUsed: 1000,
+      },
+      streams: {},
+    };
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "thread-1": ["goal-1"] },
+      runtimeItemsByIdByThread: { "thread-1": { "goal-1": failedItem } },
+      runtimeBackgroundTasksByThread: {},
+    });
+
+    render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-1" />
+      </AppProvider>,
+    );
+
+    expect(screen.getByText("Implement plan")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close goal" }));
+    expect(screen.queryByRole("button", { name: "Reorder Goal" })).not.toBeInTheDocument();
+  });
+
   it("does not keep an empty docks panel alive for a dismissed agent row", () => {
     useAppStore.setState({
       runtimeItemIdsByThread: { "thread-dismissed-agent": ["agent-1"] },
@@ -118,6 +151,40 @@ describe("ThreadDocksPanel", () => {
         undefined,
       ),
     ).toBe(false);
+  });
+
+  it("shows the running agent loader without composer active-row highlighting", () => {
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "thread-agent": ["agent-1"] },
+      runtimeItemsByIdByThread: {
+        "thread-agent": {
+          "agent-1": {
+            id: "agent-1",
+            type: "tool_call",
+            state: "started",
+            payload: {
+              name: "spawnAgent",
+              status: "running",
+              isSubAgent: true,
+              args: { description: "Review the resize behavior" },
+            },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { "thread-agent": 1 },
+      runtimeBackgroundTasksByThread: {},
+    });
+
+    const { container } = render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-agent" />
+      </AppProvider>,
+    );
+
+    const row = container.querySelector(".poracode-subagent-dock-row");
+    expect(row?.querySelector(".poracode-pixel-loader")).not.toBeNull();
+    expect(row).not.toHaveClass("bg-accent/10");
   });
 
   it("renders persisted dock order with a drag handle for every visible section", () => {
@@ -155,5 +222,55 @@ describe("ThreadDocksPanel", () => {
     });
     expect(screen.getByRole("button", { name: "Reorder Background tasks" })).toBeInTheDocument();
     expect(screen.getByText("New background update")).toBeInTheDocument();
+  });
+
+  it("renders Images in persisted order with its drag handle", () => {
+    useAppStore.setState({
+      runtimeItemIdsByThread: { "thread-1": ["plan-1", "image-1"] },
+      runtimeItemsByIdByThread: {
+        "thread-1": {
+          ...useAppStore.getState().runtimeItemsByIdByThread["thread-1"],
+          "image-1": {
+            id: "image-1",
+            type: "image_view",
+            state: "completed",
+            payload: {
+              name: "imageGeneration",
+              status: "success",
+              result: { image: "data:image/png;base64,AAA" },
+            },
+            streams: {},
+          },
+        },
+      },
+      runtimeStructuralVersionByThread: { "thread-1": 1 },
+    });
+
+    const { container } = render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-1" />
+      </AppProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Reorder Images" })).toBeInTheDocument();
+    expect(
+      [...container.querySelectorAll("[data-dock-kind]")].map((element) =>
+        element.getAttribute("data-dock-kind"),
+      ),
+    ).toEqual(["backgroundTasks", "images", "plan"]);
+  });
+
+  it("keeps composer-placed informational docks out of image-focused Thread info", () => {
+    usePanelStore.setState({ threadDocksPanelOpen: true, threadDocksFocus: "images" });
+    useSharedSettings.setState({ threadDocksPlacement: "composer" });
+
+    render(
+      <AppProvider>
+        <ThreadDocksPanel threadId="thread-1" />
+      </AppProvider>,
+    );
+
+    expect(screen.queryByRole("button", { name: "Reorder Background tasks" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reorder Plan" })).toBeNull();
   });
 });

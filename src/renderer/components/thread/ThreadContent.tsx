@@ -1,4 +1,4 @@
-import { useLayoutEffect, type RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import { Trans } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -51,9 +51,17 @@ export function GuiThreadContent(
   const runtimeDebugOpen = import.meta.env.DEV && props.runtimeDebugOpen;
   const thread = useThread(props.threadId) ?? props.fallbackThread;
   const guiChatFontSize = useSharedSettings((s) => s.guiChatFontSize);
-  useLayoutEffect(() => {
-    clearUserMessageCollapsedHeightCache();
-  }, [guiChatFontSize]);
+  useEffect(() => {
+    // The collapsed-height cache is keyed on chat typography: clear it
+    // whenever the font size changes. A direct store subscription in a
+    // mount-only effect is the real external-system sync here; the selector
+    // above keeps re-rendering for the CSS vars.
+    return useSharedSettings.subscribe((state, prev) => {
+      if (state.guiChatFontSize !== prev.guiChatFontSize) {
+        clearUserMessageCollapsedHeightCache();
+      }
+    });
+  }, []);
   const ownDockState = useThreadDockState(thread.id);
   const dockState = props.dockState ?? ownDockState;
 

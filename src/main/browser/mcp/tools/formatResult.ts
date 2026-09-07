@@ -34,7 +34,15 @@ export function formatToolResult(name: string, result: unknown): McpToolResult {
     typeof (result as { error: unknown }).error === "string"
   ) {
     return {
-      content: [{ type: "text", text: String((result as { error: string }).error) }],
+      content: [
+        {
+          type: "text",
+          text:
+            normalizeToolName(name) === "perform"
+              ? JSON.stringify(result)
+              : String((result as { error: string }).error),
+        },
+      ],
       isError: true,
     };
   }

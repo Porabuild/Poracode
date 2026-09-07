@@ -12,6 +12,7 @@
 
 import type { EventSubscribeResponse, Part } from "../legacySdk";
 import type { RuntimeEvent } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { newItemId } from "../../contextUsage";
 import {
   markOpenCodeUsageScopeSampled,
@@ -75,6 +76,22 @@ function readNativeErrorMessage(error: unknown): string {
   if (data && typeof data.message === "string" && data.message.length > 0) return data.message;
   if (typeof record.name === "string" && record.name.length > 0) return record.name;
   return "OpenCode session error";
+}
+
+interface OpenCodeRetryStatus {
+  attempt?: number;
+  message?: string;
+  action?: { message?: string };
+}
+
+/**
+ * Resolve the display text for a retry `session.status`: trimmed provider
+ * message first, then the trimmed retry-action message, then the localized
+ * fallback. Trim-first so a whitespace-only provider message falls through
+ * instead of shadowing the valid action text.
+ */
+function resolveRetryStatusMessage(status: OpenCodeRetryStatus): string {
+  return status.message?.trim() || status.action?.message?.trim() || msg("opencode.retryFallback");
 }
 
 function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent[]): void {
@@ -288,11 +305,12 @@ function handlePart(state: OpenCodeMapperState, part: Part, events: RuntimeEvent
     }
     return;
   }
-  // subtask / step-start / step-finish / patch / agent / retry / compaction / snapshot —
+  // subtask / step-start / step-finish / patch / agent / compaction / snapshot —
   // transport-level progress markers with no chat-row equivalent. Step cost
   // and tokens are already accounted at the message level (`message.updated`
-  // usage events); retries surface through `session.status` (retry); agent
-  // switches have no provider-handoff anchor (no from/to pair is tracked).
+  // usage events); agent switches have no provider-handoff anchor (no
+  // from/to pair is tracked). Retries are surfaced through `session.status`
+  // as transient error events so upstream throttling/failures never stall silently.
   // They are intentionally not surfaced as their own canonical items.
 }
 
@@ -629,11 +647,41 @@ function mapCanonicalEvent(
       });
       return events;
     }
+    case "session.status": {
+      const status = (
+        event.properties as
+          | {
+              status?: {
+                type: string;
+                attempt?: number;
+                message?: string;
+                action?: { message?: string };
+              };
+            }
+          | undefined
+      )?.status;
+      if (status?.type === "retry") {
+        const message = resolveRetryStatusMessage(status);
+        const retryKey = `${status.attempt ?? 1}:${message}`;
+        if (state.lastEmittedRetryKey !== retryKey) {
+          state.lastEmittedRetryKey = retryKey;
+          events.push({
+            type: "error",
+            threadId: state.threadId,
+            message,
+          });
+        }
+      } else if (status?.type === "busy" || status?.type === "idle") {
+        state.lastEmittedRetryKey = undefined;
+      }
+      return events;
+    }
     // Intentionally not surfaced (no chat-row equivalent; covered elsewhere):
     // - session.created (child linking handled in mapOpenCodeEvent; the main
     //   session id comes from openThread), session.updated/deleted,
     //   session.diff (aggregate of per-tool file changes), session.compacted,
-    //   session.status/idle (thread status via StructuredSessionListener),
+    //   session.idle (thread status via StructuredSessionListener; status
+    //   is handled above to surface retries),
     // - command.executed (slash commands already listed via command.list),
     // - file.edited, file.watcher.updated, reference.updated, lsp.updated,
     //   project.*, workspace.*, worktree.*, vcs.*, pty.*, tui.*, mcp.*,
@@ -649,8 +697,9 @@ function mapCanonicalEvent(
 /**
  * Map a single OpenCode SSE event to canonical RuntimeEvents. Returns an
  * empty array for events that are not surfaced (or are session-status only —
- * those are surfaced through `StructuredSessionListener.onUpdate` separately
- * by the session class).
+ * `session.status` retry rows are emitted as transient `error` events here
+ * and the working/idle state is surfaced through
+ * `StructuredSessionListener.onUpdate` separately by the session class).
  */
 export function mapOpenCodeEvent(
   event: EventSubscribeResponse,
@@ -688,8 +737,13 @@ export function mapOpenCodeEvent(
   // Native todo syncs from child sessions are subagent-internal detail — the
   // parent task row already surfaces stepCount progress, and the mapper keeps
   // a single native plan row per thread. Map them only for the main session.
+  // Child `session.status` retries are likewise subagent-internal: emitting
+  // them would leak a child throttling row into the main timeline and poison
+  // the shared retry-dedup key, suppressing an identical parent retry.
   const canonicalEvents =
-    child && event.type === "todo.updated" ? [] : mapCanonicalEvent(event, state);
+    child && (event.type === "todo.updated" || event.type === "session.status")
+      ? []
+      : mapCanonicalEvent(event, state);
 
   if (child) {
     // Tag any new canonical items as belonging to this sub-agent so they get

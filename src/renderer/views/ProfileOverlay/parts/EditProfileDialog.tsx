@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check } from "lucide-react";
 import { Label, Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -28,8 +28,14 @@ export function EditProfileDialog(props: {
   const [avatarColor, setAvatarColor] = useState(identity.avatarColor);
   const [saving, setSaving] = useState(false);
 
-  // Reset the form to the latest identity each time the dialog opens.
-  useEffect(() => {
+  // Reset the form to the latest identity each time the dialog opens (or the
+  // identity changes while open). Applied during render instead of an effect
+  // so opening never paints a frame with the previous identity's values. The
+  // previous open/identity pair is tracked as one object so the two stay in
+  // sync.
+  const [prevFormSource, setPrevFormSource] = useState({ open, identity });
+  if (prevFormSource.open !== open || prevFormSource.identity !== identity) {
+    setPrevFormSource({ open, identity });
     if (open) {
       setName(identity.name);
       setHandle(identity.handle);
@@ -37,7 +43,7 @@ export function EditProfileDialog(props: {
         AVATAR_PALETTE.includes(identity.avatarColor) ? identity.avatarColor : AVATAR_PALETTE[0]!,
       );
     }
-  }, [open, identity]);
+  }
 
   async function handleSave() {
     setSaving(true);

@@ -105,6 +105,11 @@ export interface OpenCodeMapperState {
   /** Assistant message ids whose `info.error` was already surfaced (exact-once). */
   errorEmittedMessages: Set<string>;
   /**
+   * Retry status key (`${attempt}:${message}`) last emitted as an error row.
+   * Cleared when the session transitions back to busy or idle.
+   */
+  lastEmittedRetryKey: string | undefined;
+  /**
    * Canonical item id for the session-level native todo list (`todo.updated`
    * events). One row per session: started on first sight, updated after.
    */
@@ -136,6 +141,7 @@ export function createOpenCodeMapperState(threadId: string): OpenCodeMapperState
     usageSampledScopes: new Set(),
     usageSpentMessages: new Set(),
     errorEmittedMessages: new Set(),
+    lastEmittedRetryKey: undefined,
     nativeTodoItemId: undefined,
   };
 }
@@ -158,6 +164,9 @@ export function setOpenCodeMainSessionId(
     if (state.usageScopeId !== null) state.usageEpoch += 1;
     state.usageScopeId = sessionId;
     state.usageScopeFresh = options?.fresh === true;
+    // A new provider session is a new incident scope — an identical retry
+    // message must not be suppressed by the previous session's dedup key.
+    state.lastEmittedRetryKey = undefined;
   }
 }
 

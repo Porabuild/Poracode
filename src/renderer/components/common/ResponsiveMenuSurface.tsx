@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { Popover, useMediaQuery } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -65,9 +72,21 @@ export function ResponsiveMenuSurface(props: {
   // SHEET_EXIT_MS after `isOpen` goes false; `closing` toggles `data-closing`
   // so the CSS exit keyframes run before React unmounts the portal (without
   // this, closing the drawer unmounts it synchronously and no animation plays).
+  // Transitions are tracked during render; only the exit timer lives in the
+  // effect below (its callback is async, so no sync setState-in-effect).
   const [rendered, setRendered] = useState(props.isOpen);
   const [closing, setClosing] = useState(false);
   const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [prevSheetOpen, setPrevSheetOpen] = useState({ mobile, open: props.isOpen });
+  if (prevSheetOpen.mobile !== mobile || prevSheetOpen.open !== props.isOpen) {
+    setPrevSheetOpen({ mobile, open: props.isOpen });
+    if (mobile && props.isOpen) {
+      setClosing(false);
+      setRendered(true);
+    } else if (mobile && !props.isOpen && rendered) {
+      setClosing(true);
+    }
+  }
   const { sheetRef, expanded, dragging, grabberHandlers } = useSheetGrabber({
     expandable: true,
     closing,
@@ -82,40 +101,44 @@ export function ResponsiveMenuSurface(props: {
     ? (document.querySelector<HTMLElement>(".m-shell") ?? document.body)
     : null;
 
+  // Unmount SHEET_EXIT_MS after the slide-out starts; reopening first cancels
+  // the pending unmount. Runs only while the drawer path is active.
   useEffect(() => {
-    if (!mobile) return;
-    if (props.isOpen) {
+    if (!mobile || props.isOpen || !closing) {
       if (exitTimer.current) {
         clearTimeout(exitTimer.current);
         exitTimer.current = null;
       }
-      setClosing(false);
-      setRendered(true);
-    } else if (rendered && !exitTimer.current) {
-      setClosing(true);
-      exitTimer.current = setTimeout(() => {
-        exitTimer.current = null;
-        setClosing(false);
-        setRendered(false);
-      }, SHEET_EXIT_MS);
+      return;
     }
+    if (exitTimer.current) return;
+    exitTimer.current = setTimeout(() => {
+      exitTimer.current = null;
+      setClosing(false);
+      setRendered(false);
+    }, SHEET_EXIT_MS);
     return () => {
       if (exitTimer.current) {
         clearTimeout(exitTimer.current);
         exitTimer.current = null;
       }
     };
-  }, [mobile, props.isOpen, rendered]);
+  }, [mobile, props.isOpen, closing]);
 
   // Close the drawer on Escape (mobile path only; HeroUI handles it on desktop).
+  // The close callback rides an effect event so the subscription only
+  // re-registers when the drawer path or open state changes.
+  const closeDrawer = useEffectEvent(() => {
+    props.onOpenChange(false);
+  });
   useEffect(() => {
     if (!mobile || !props.isOpen) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") props.onOpenChange(false);
+      if (event.key === "Escape") closeDrawer();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [mobile, props.isOpen, props]);
+  }, [mobile, props.isOpen]);
 
   // iOS can pan the layout document when an input inside a fixed sheet gains
   // focus. Blur before the sheet disappears, then keep restoring the opening

@@ -139,6 +139,27 @@ describe("dispatchAcpAuthenticate", () => {
     expect(script.match(/export CURSOR_CONFIG=/gu)).toHaveLength(1);
     expect(script).toContain("export BROWSER='cmd.exe /c start \"\"'");
   });
+
+  it("injects base and browser env into WSL ACP auth commands", async () => {
+    await dispatchAcpAuthenticate({
+      adapter: makeAdapter(
+        {
+          command: "C:\\Windows\\System32\\wsl.exe",
+          args: ["-d", "Ubuntu", "--", "/bin/bash", "-l", "-i", "-c", "exec 'muse' 'serve'"],
+        },
+        { baseSpawnEnv: { MUSE_NO_AUTO_UPDATE: "1" } },
+      ),
+      methodId: "browser-login",
+      envKind: "wsl",
+      wslDistro: "Ubuntu",
+    });
+
+    const [, args, , options] = authenticateAcpAgentMock.mock.calls[0]!;
+    const script = String(args.at(-1));
+    expect(script).toContain("export MUSE_NO_AUTO_UPDATE='1'");
+    expect(script).toContain("export BROWSER='cmd.exe /c start \"\"'");
+    expect(options).not.toHaveProperty("env");
+  });
 });
 
 describe("dispatchAcpLogout", () => {
@@ -303,6 +324,29 @@ describe("baseSpawnEnv — every ACP auth/logout spawn carries the adapter's bas
     expect(options).toEqual(
       expect.objectContaining({ env: expect.objectContaining(baseSpawnEnv) }),
     );
+  });
+
+  it("injects it into direct WSL logout commands", async () => {
+    await dispatchAcpLogout({
+      adapter: makeAdapter(
+        { command: "muse", args: ["serve"] },
+        {
+          baseSpawnEnv: { MUSE_NO_AUTO_UPDATE: "1" },
+          async buildAcpLogoutCommand() {
+            return {
+              command: "C:\\Windows\\System32\\wsl.exe",
+              args: ["-d", "Ubuntu", "--", "/bin/bash", "-l", "-i", "-c", "muse logout"],
+            };
+          },
+        },
+      ),
+      envKind: "wsl",
+      wslDistro: "Ubuntu",
+    });
+
+    const [, args, options] = readCommandOutputAsyncMock.mock.calls[0]!;
+    expect(String((args as string[]).at(-1))).toContain("export MUSE_NO_AUTO_UPDATE='1'");
+    expect(options).toBeUndefined();
   });
 
   it("applies it to the logout RPC fallback", async () => {

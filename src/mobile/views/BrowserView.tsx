@@ -524,11 +524,14 @@ function DesktopBrowserToolbar(props: {
   const [focused, setFocused] = useState(false);
 
   const activeUrl = activeTab?.url ?? "";
-  useEffect(() => {
-    if (!focused) {
-      setUrlInput(activeUrl === "about:blank" ? "" : activeUrl);
-    }
-  }, [activeUrl, focused]);
+  // Display mapping shared by the unfocused sync below and the blur reset:
+  // the blank tab has no address to show.
+  const displayUrl = activeUrl === "about:blank" ? "" : activeUrl;
+  const [prevActiveUrl, setPrevActiveUrl] = useState(activeUrl);
+  if (!focused && prevActiveUrl !== activeUrl) {
+    setPrevActiveUrl(activeUrl);
+    setUrlInput(displayUrl);
+  }
 
   const disabled = !activeTab;
   const keyboardButtonClass = `${desktopToolbarButtonClass} ${
@@ -591,7 +594,7 @@ function DesktopBrowserToolbar(props: {
           }}
           onBlur={() => {
             setFocused(false);
-            setUrlInput(activeTab?.url ?? "");
+            setUrlInput(displayUrl);
           }}
         />
       </form>

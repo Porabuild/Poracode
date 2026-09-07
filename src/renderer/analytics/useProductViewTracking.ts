@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
@@ -6,11 +6,7 @@ import {
   configureProductAnalytics,
   flushProductAnalytics,
 } from "./productAnalytics";
-import {
-  createProductViewTracker,
-  type ProductViewTracker,
-  type TrackedProductView,
-} from "./productViewTracker";
+import { createProductViewTracker, type TrackedProductView } from "./productViewTracker";
 
 export type ProductSurface = "app" | "overlay" | "panel" | "project_settings" | "settings";
 
@@ -87,34 +83,22 @@ export function useProductViewTracking(
   surface: Exclude<ProductSurface, "app">,
   options: { active?: boolean; finishWhenInactive?: boolean } = {},
 ): void {
-  const trackerRef = useRef<ProductViewTracker | null>(null);
+  const [tracker] = useState(() => createProductViewTracker({ capture: captureProductEvent }));
   const active = options.active ?? true;
-  const activeRef = useRef(active);
-  activeRef.current = active;
-  if (!trackerRef.current) {
-    trackerRef.current = createProductViewTracker({
-      capture: captureProductEvent,
-      // Wrap window's timer methods — called detached from `window` they throw
-      // "Illegal invocation" in the browser (Node's timers don't, so tests miss it).
-      clearTimeout: (timer) => clearTimeout(timer),
-      now: Date.now,
-      setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
-    });
-  }
+
+  const updateVisibility = useEffectEvent((visible: boolean) => {
+    tracker.setVisible(visible && active);
+  });
 
   useEffect(() => {
-    const tracker = trackerRef.current!;
-    const unsubscribe = subscribeProductSurfaceVisibility(surface, (visible) => {
-      tracker.setVisible(visible && activeRef.current);
-    });
+    const unsubscribe = subscribeProductSurfaceVisibility(surface, updateVisibility);
     return () => {
       unsubscribe();
       tracker.finish();
     };
-  }, [surface]);
+  }, [surface, tracker]);
 
   useEffect(() => {
-    const tracker = trackerRef.current!;
     if (!active) {
       if (options.finishWhenInactive) tracker.finish();
       else tracker.setVisible(false);
@@ -122,7 +106,7 @@ export function useProductViewTracking(
     }
     tracker.setView(view);
     tracker.setVisible(isProductSurfaceVisible(surface));
-  }, [active, options.finishWhenInactive, surface, view]);
+  }, [active, options.finishWhenInactive, surface, tracker, view]);
 }
 
 /**
@@ -130,21 +114,10 @@ export function useProductViewTracking(
  * self-contained analytics lifecycle rather than the main store subscriptions.
  */
 export function useStandaloneWindowViewTracking(surface: string, active = true): void {
-  const trackerRef = useRef<ProductViewTracker | null>(null);
-  if (!trackerRef.current) {
-    trackerRef.current = createProductViewTracker({
-      capture: captureProductEvent,
-      // Wrap window's timer methods — called detached from `window` they throw
-      // "Illegal invocation" in the browser (Node's timers don't, so tests miss it).
-      clearTimeout: (timer) => clearTimeout(timer),
-      now: Date.now,
-      setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
-    });
-  }
+  const [tracker] = useState(() => createProductViewTracker({ capture: captureProductEvent }));
 
   useEffect(() => {
     if (!configureProductAnalytics()) return;
-    const tracker = trackerRef.current!;
     const syncVisibility = () => {
       tracker.setVisible(active && document.visibilityState !== "hidden");
     };
@@ -162,5 +135,5 @@ export function useStandaloneWindowViewTracking(surface: string, active = true):
       window.removeEventListener("pagehide", finishAndFlush);
       finishAndFlush();
     };
-  }, [active, surface]);
+  }, [active, surface, tracker]);
 }

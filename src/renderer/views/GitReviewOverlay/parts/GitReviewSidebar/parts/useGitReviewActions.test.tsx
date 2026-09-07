@@ -1,4 +1,5 @@
 import { act } from "@testing-library/react";
+import { useEffect } from "react";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitStatusResult, PrData, Project } from "@/shared/contracts";
@@ -113,7 +114,7 @@ type Actions = ReturnType<typeof useGitReviewActions>;
 function renderActions(): { current: Actions } {
   const ref = { current: null as unknown as Actions };
   function Harness() {
-    ref.current = useGitReviewActions({
+    const actions = useGitReviewActions({
       project,
       gitStatus,
       worktreeBranch: undefined,
@@ -127,6 +128,12 @@ function renderActions(): { current: Actions } {
       sourceBranch: "master",
       defaultPrTargetBranch: "master",
     });
+    // Publish the latest actions after commit — assigning during render would
+    // mutate the outer holder mid-render. Effects flush synchronously inside
+    // renderWithI18n/act, so ref.current is fresh whenever a test reads it.
+    useEffect(() => {
+      ref.current = actions;
+    }, [actions]);
     return null;
   }
   renderWithI18n(<Harness />);

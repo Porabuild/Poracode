@@ -15,6 +15,7 @@ import type {
   UserInputOption,
 } from "@/shared/contracts";
 import { readStringField } from "../../fileChangeSummary";
+import { msg } from "@/shared/messages";
 import type { CommandExecutionApprovalDecision, ToolRequestUserInputParams } from "../protocol";
 
 type StringCommandExecutionApprovalDecision = Extract<CommandExecutionApprovalDecision, string>;
@@ -214,6 +215,7 @@ export function mapCodexServerRequest(
   }
 
   if (method === "item/commandExecution/requestApproval") {
+    const writeStdin = params?.kind === "writeStdin";
     const command = readStringField(params, "command") ?? "command";
     const decisions = readAvailableDecisions(params, DEFAULT_APPROVAL_DECISIONS);
     return {
@@ -222,12 +224,13 @@ export function mapCodexServerRequest(
       requestId,
       requestType: "command_execution_approval" satisfies CanonicalRequestType,
       payload: {
-        summary: reason ?? "Run command",
+        summary: reason ?? (writeStdin ? msg("supervisor.sendTerminalInput") : "Run command"),
         details: codexPermissionDetails({
           toolName: "command_execution",
-          displayName: "Run",
+          displayName: writeStdin ? msg("supervisor.sendTerminalInput") : "Run",
           toolInput: {
             command,
+            ...(writeStdin ? { kind: "writeStdin" } : {}),
             ...(readStringField(params, "cwd") ? { cwd: readStringField(params, "cwd") } : {}),
           },
         }),

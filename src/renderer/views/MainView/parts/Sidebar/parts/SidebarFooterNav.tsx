@@ -1,6 +1,6 @@
 import { Dropdown, Label } from "@heroui/react";
 import { ChevronsDown, ChevronsUp, Ellipsis, PanelLeftClose, Settings2 } from "lucide-react";
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { SidebarButton, sidebarIconButtonClass } from "@/renderer/components/common/SidebarButton";
 import { sidebarFooterNavClass } from "@/renderer/components/layout/sidebarChrome";
@@ -77,7 +77,11 @@ export function SidebarFooterNav(props: { remoteAccessStatus: RemoteAccessSideba
 
   const rowRef = useRef<HTMLDivElement | null>(null);
   const enabledRef = useRef(!isCollapsed);
-  enabledRef.current = !isCollapsed;
+  // Latest-value mirror for the observer callbacks below: updated in an
+  // effect (never during render) so the layout effect keeps a stable dep list.
+  useEffect(() => {
+    enabledRef.current = !isCollapsed;
+  });
   const [settledWidth, setSettledWidth] = useState<number | null>(null);
 
   // Two resize paths with different responsiveness needs: a divider drag
@@ -90,6 +94,9 @@ export function SidebarFooterNav(props: { remoteAccessStatus: RemoteAccessSideba
   // exactly where they were). A zero width (jsdom, or a fully collapsed
   // column) reads as "unmeasured" so the row shows everything.
   useLayoutEffect(() => {
+    // The row only exists while the footer is collapsed; without it there is
+    // nothing to observe.
+    if (!footerCollapsed) return;
     const el = rowRef.current;
     if (!el) return;
     const read = () => el.getBoundingClientRect().width;

@@ -116,7 +116,28 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   const previousLayoutRef = useRef({ isExpanded, showAll });
   const hasOverflowRows = segments.length > TOOL_CALL_GROUP_MAX_VISIBLE_ROWS;
   // Preserve manual open/close across live-tail item updates.
-  const userToggledRef = useRef(false);
+  const [userToggled, setUserToggled] = useState(false);
+  // Reset expansion during render when the live state or the edit-only
+  // summary changes.
+  const liveResetKey = `${isLive ? "1" : "0"}:${editOnlyGroup ? "1" : "0"}`;
+  const [prevLiveResetKey, setPrevLiveResetKey] = useState(liveResetKey);
+  if (prevLiveResetKey !== liveResetKey) {
+    setPrevLiveResetKey(liveResetKey);
+    if (!isLive) {
+      setIsExpanded(false);
+      setUserToggled(false);
+    } else if (!userToggled) {
+      setIsExpanded(!editOnlyGroup);
+    }
+  }
+
+  // Collapse the overflow window during render when the group stops
+  // overflowing instead of synchronously on effect entry.
+  const [prevHasOverflowRows, setPrevHasOverflowRows] = useState(hasOverflowRows);
+  if (prevHasOverflowRows !== hasOverflowRows) {
+    setPrevHasOverflowRows(hasOverflowRows);
+    if (!hasOverflowRows) setShowAll(false);
+  }
 
   useLayoutEffect(() => {
     const previous = previousLayoutRef.current;
@@ -129,22 +150,12 @@ export const ToolCallGroup = memo(function ToolCallGroup({
     }
   }, [actions, isExpanded, onHeightChange, showAll]);
 
-  useEffect(() => {
-    if (!isLive) {
-      userToggledRef.current = false;
-      setIsExpanded(false);
-      return;
-    }
-    if (!userToggledRef.current) setIsExpanded(!editOnlyGroup);
-  }, [isLive, editOnlyGroup]);
-
-  useEffect(() => {
-    if (!hasOverflowRows) setShowAll(false);
-  }, [hasOverflowRows]);
-
   // Auto-scroll to bottom when new items arrive in live mode (only relevant
   // when the full list is scrollable; collapsed mode slices to the latest rows).
   useEffect(() => {
+    // An empty group renders null (no scroll container), so there is nothing
+    // to pin — and each arrival re-arms the pin via `items.length`.
+    if (items.length === 0) return;
     if (isLive && isExpanded && showAll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -175,7 +186,7 @@ export const ToolCallGroup = memo(function ToolCallGroup({
           // row. LegendList can adjust its visible-content anchor during that
           // commit, before the post-commit remeasurement callback runs.
           onVirtualizerLayoutChange?.();
-          userToggledRef.current = true;
+          setUserToggled(true);
           setIsExpanded(next);
         }}
       >

@@ -200,7 +200,11 @@ export function useElementPicker() {
     [enqueueAttach, t],
   );
 
-  const startPicker = useCallback(async (): Promise<PickerOutcome> => {
+  // Plain callback (no manual memo): the React Compiler owns memoization in
+  // this repo, and hand-listing `deliverPick` here trips memo-dependencies
+  // while omitting it trips exhaustive-deps. Always closes over the latest
+  // `deliverPick`; only invoked from the toolbar's event handler.
+  async function startPicker(): Promise<PickerOutcome> {
     if (pickerActive) {
       return await cancelPicker();
     }
@@ -261,15 +265,7 @@ export function useElementPicker() {
     } finally {
       setPickerActive(false);
     }
-  }, [
-    activeTabId,
-    cancelPicker,
-    deliverPick,
-    pickerActive,
-    setPendingPickerAttachment,
-    setPickerActive,
-    t,
-  ]);
+  }
 
   const chooseTargetForPendingPick = useCallback(
     (threadId: string, destination: PickDestination) => {

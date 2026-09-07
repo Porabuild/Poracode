@@ -28,7 +28,7 @@ import {
   envContextFromPayload,
   isUnsupportedAcpLogoutError,
 } from "../agents/acp";
-import { buildAgentRegistry } from "../agents/registry";
+import { buildAgentRegistryEntries } from "../agents/registry";
 import {
   autoUpdateAcpRegistryAgents,
   backfillAcpRegistryAgentIcons,
@@ -48,6 +48,7 @@ import { pruneAcpRegistryPendingDeletes } from "../agents/acpRegistryInstallDir"
 import {
   detectProbeLocation,
   readDetectedVersion,
+  resolveAgentEnvContext,
   type AgentAdapter,
   type AgentEnvContext,
 } from "../agents/base";
@@ -109,6 +110,13 @@ export class AgentRegistryService {
   private readonly acpAutoInstallSweeps = new Map<string, { at: number; installed: boolean }>();
   /** Settings files confirmed free of legacy Antigravity ACP state on disk. */
   private readonly aliasPersistCheckedPaths = new Set<string>();
+  /**
+   * Registry input that produced each live adapter, by kind. An adapter is
+   * only replaced when this changes; otherwise the instance — and the runtime
+   * state its `detectInstall` learned (e.g. which Antigravity runtimes exist,
+   * which decides the Crossagents lane) — survives the per-poll rebuild.
+   */
+  private readonly adapterInputKeys = new Map<AgentKind, string>();
 
   constructor(private readonly deps: AgentRegistryServiceDeps) {}
 
@@ -288,15 +296,19 @@ export class AgentRegistryService {
       }
     }
     const settings = readAcpRegistrySettings(this.deps.settingsPath);
-    const adapters = buildAgentRegistry(Object.values(settings.agentInstances));
-    const nextKinds = new Set(adapters.map((adapter) => adapter.kind));
+    const entries = buildAgentRegistryEntries(Object.values(settings.agentInstances));
+    const nextKinds = new Set(entries.map((entry) => entry.adapter.kind));
     for (const kind of [...this.deps.adapters.keys()]) {
       if (!nextKinds.has(kind)) {
         this.deps.adapters.delete(kind);
+        this.adapterInputKeys.delete(kind);
       }
     }
-    for (const adapter of adapters) {
+    for (const { adapter, inputKey } of entries) {
+      const existing = this.deps.adapters.get(adapter.kind);
+      if (existing && this.adapterInputKeys.get(adapter.kind) === inputKey) continue;
       this.deps.adapters.set(adapter.kind, adapter);
+      this.adapterInputKeys.set(adapter.kind, inputKey);
     }
   }
 
@@ -480,6 +492,7 @@ export class AgentRegistryService {
       ...(payload.wslDistro ? { wslDistro: payload.wslDistro } : {}),
       baseDir: this.deps.baseDir,
     };
+    const executionContext = await resolveAgentEnvContext(adapter, envContext);
 
     const wslDistros = payload.envKind === "wsl" && payload.wslDistro ? [payload.wslDistro] : [];
     const statuses = await this.agentStatusService.refreshAgentStatuses({
@@ -510,17 +523,17 @@ export class AgentRegistryService {
       ?.verifyBuiltInVersionChange;
     const result =
       verifyBuiltInVersionChange && status.version
-        ? await runUpdateCommandWithFallback(adapter, status, envContext, {
+        ? await runUpdateCommandWithFallback(adapter, status, executionContext, {
             verifyBuiltInSuccess: async () => {
               const refreshedVersion = await readDetectedVersion(
-                detectProbeLocation(envContext),
+                detectProbeLocation(executionContext),
                 status.executablePath,
                 ["--version"],
               );
               return refreshedVersion !== undefined && refreshedVersion !== status.version;
             },
           })
-        : await runUpdateCommandWithFallback(adapter, status, envContext);
+        : await runUpdateCommandWithFallback(adapter, status, executionContext);
     if (result.ok) {
       // Drop the cached executable path so the next detection probe runs a
       // fresh `command -v` / `where.exe`. Without this we keep returning the
@@ -610,7 +623,7 @@ export class AgentRegistryService {
       throw new Error(`Unknown agent: ${payload.agentKind}`);
     }
     const ctx = envContextFromPayload(payload.envKind, payload.wslDistro);
-    await dispatchAcpAuthenticate({
+    const executionCtx = await dispatchAcpAuthenticate({
       adapter,
       methodId: payload.methodId,
       ...(payload.envKind ? { envKind: payload.envKind } : {}),
@@ -626,17 +639,27 @@ export class AgentRegistryService {
     if (instanceId !== undefined) {
       const instance = readAcpRegistrySettings(this.deps.settingsPath).agentInstances[instanceId];
       const verified =
-        instance !== undefined && (await verifyAcpGenericAuthentication(instance, ctx));
+        instance !== undefined && (await verifyAcpGenericAuthentication(instance, executionCtx));
       if (!verified) {
-        setAcpGenericAgentAuthAcknowledged(this.deps.settingsPath, instanceId, ctx, false);
+        setAcpGenericAgentAuthAcknowledged(
+          this.deps.settingsPath,
+          instanceId,
+          executionCtx ?? ctx,
+          false,
+        );
         this.deps.sharedSettingsCache.invalidate();
         this.refreshAgentRegistryAdapters();
         void this.refreshAffectedAgentStatus(payload.agentKind);
         throw new Error(msg("acp.authenticationUnverified", { agent: adapter.label }));
       }
-      setAcpGenericAgentAuthAcknowledged(this.deps.settingsPath, instanceId, ctx, true);
+      setAcpGenericAgentAuthAcknowledged(
+        this.deps.settingsPath,
+        instanceId,
+        executionCtx ?? ctx,
+        true,
+      );
     } else {
-      const status = await adapter.detectInstall(ctx);
+      const status = await adapter.detectInstall(executionCtx);
       if (status.authState === "missing") {
         void this.refreshAffectedAgentStatus(payload.agentKind);
         throw new Error(msg("acp.authenticationUnverified", { agent: adapter.label }));
@@ -660,15 +683,21 @@ export class AgentRegistryService {
     // clear the UI state. Native adapters must not report success unless the
     // agent actually accepts the logout request.
     try {
-      await dispatchAcpLogout({
+      const executionCtx = await dispatchAcpLogout({
         adapter,
         ...(payload.envKind ? { envKind: payload.envKind } : {}),
         ...(payload.wslDistro ? { wslDistro: payload.wslDistro } : {}),
       });
+      if (instanceId !== undefined) {
+        setAcpGenericAgentAuthAcknowledged(
+          this.deps.settingsPath,
+          instanceId,
+          executionCtx ?? ctx,
+          false,
+        );
+      }
     } catch (error) {
       if (instanceId === undefined || !isUnsupportedAcpLogoutError(error)) throw error;
-    }
-    if (instanceId !== undefined) {
       setAcpGenericAgentAuthAcknowledged(this.deps.settingsPath, instanceId, ctx, false);
     }
     this.deps.sharedSettingsCache.invalidate();

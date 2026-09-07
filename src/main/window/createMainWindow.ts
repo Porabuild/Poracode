@@ -159,6 +159,15 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
     },
   });
   installSessionPermissions(window.webContents.session);
+  if (options.isDev && process.env.PORACODE_PROFILE_STARTUP === "1") {
+    console.log(`[startup] ${Date.now()} window-created`);
+    window.once("ready-to-show", () => console.log(`[startup] ${Date.now()} window-ready`));
+    window.webContents.on("console-message", (details) => {
+      if (details.message.startsWith("[renderer") || details.message.startsWith("[startup]")) {
+        console.log(`[startup] ${Date.now()} ${details.message}`);
+      }
+    });
+  }
   window.webContents.setUserAgent(options.browserUserAgent);
 
   installAppNavigationGuards(window, {

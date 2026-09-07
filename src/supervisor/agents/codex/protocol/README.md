@@ -1,6 +1,6 @@
 # Codex app-server protocol types
 
-The protocol façades import live generated definitions from `@poracode/codex-protocol`. Its generator uses the official `@openai/codex` package pinned to `0.144.5` and writes the app-server TypeScript output to `packages/codex-protocol/generated/` during `pnpm install`.
+The protocol façades import live generated definitions from `@poracode/codex-protocol`. Its generator uses the official `@openai/codex` package pinned to `0.153.4` and writes the app-server TypeScript output to `packages/codex-protocol/generated/` during `pnpm install`.
 
 The generated directory is gitignored. Regenerate it manually from the repository root with:
 

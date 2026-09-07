@@ -58,11 +58,35 @@ export function SkillMarketplaceModal(props: {
   const deferredQuery = useDeferredValue(query.trim());
   const remoteQuery = marketplace === "skills-directory" ? deferredQuery || undefined : undefined;
 
+  // Closing resets the filters; opening (or a new marketplace/remote query
+  // while open) raises the loading state. Tracked during render with the exact
+  // re-run conditions of the two previous effects; the fetch below only
+  // settles through async callbacks.
+  const catalogRequestKey = `${marketplace}${remoteQuery ?? ""}`;
+  const [prevMarketplaceKey, setPrevMarketplaceKey] = useState({
+    open: props.isOpen,
+    request: catalogRequestKey,
+  });
+  if (
+    prevMarketplaceKey.open !== props.isOpen ||
+    prevMarketplaceKey.request !== catalogRequestKey
+  ) {
+    setPrevMarketplaceKey({ open: props.isOpen, request: catalogRequestKey });
+    if (!props.isOpen) {
+      setQuery("");
+      setSource("all");
+      setSort("rank");
+      setAvailability("shared");
+      setOfficialOnly(false);
+    } else {
+      setLoading(true);
+      setError(false);
+    }
+  }
+
   useEffect(() => {
     if (!props.isOpen) return;
     let active = true;
-    setLoading(true);
-    setError(false);
     void readBridge()
       .listSkillMarketplace({
         marketplace,
@@ -82,15 +106,6 @@ export function SkillMarketplaceModal(props: {
       active = false;
     };
   }, [marketplace, props.isOpen, remoteQuery]);
-
-  useEffect(() => {
-    if (props.isOpen) return;
-    setQuery("");
-    setSource("all");
-    setSort("rank");
-    setAvailability("shared");
-    setOfficialOnly(false);
-  }, [props.isOpen]);
 
   const currentCatalog = catalog?.marketplace === marketplace ? catalog : undefined;
   const skills = currentCatalog?.skills ?? [];

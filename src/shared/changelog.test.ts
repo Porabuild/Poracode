@@ -37,6 +37,16 @@ describe("parseChangelogDocument", () => {
     expect(parseChangelogDocument({})).toBeNull();
   });
 
+  it("preserves release taglines while accepting older cached documents without them", () => {
+    const legacy = { version: "1.0.0", date: "2026-01-01", title: "a", summary: "s", changes: [] };
+    expect(parseChangelogDocument({ releases: [legacy] })).toEqual([legacy]);
+    const release = { ...legacy, tagline: "First Stable" };
+    expect(parseChangelogDocument({ releases: [release] })).toEqual([release]);
+    for (const tagline of ["", "One", "Too Many Words", " First Stable", 42]) {
+      expect(parseChangelogDocument({ releases: [{ ...legacy, tagline }] })).toBeNull();
+    }
+  });
+
   it("returns releases sorted newest-first regardless of input order", () => {
     const parsed = parseChangelogDocument({
       releases: [
@@ -115,6 +125,7 @@ describe("changelog.json data integrity", () => {
       expect(versions.has(release.version)).toBe(false);
       versions.add(release.version);
       expect(release.title.length).toBeGreaterThan(0);
+      expect(release.tagline).toMatch(/^\S+ \S+$/u);
       expect(release.summary.length).toBeGreaterThan(0);
       expect(release.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(release.changes.length).toBeGreaterThan(0);

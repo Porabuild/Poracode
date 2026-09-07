@@ -73,6 +73,33 @@ describe("managed CDP scripts", () => {
     ).rejects.toThrow(/ENOENT/);
   });
 
+  it("rejects startup profiling inside the repository before writing artifacts", async () => {
+    const invalidRoot = join(repoRoot, "tmp", `invalid-profile-${process.pid}-${Date.now()}`);
+    const result = await runScript(join(repoRoot, "scripts/profile-startup.mjs"), [invalidRoot]);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain("debug session root must be outside the repository");
+    await expect(
+      import("node:fs/promises").then(({ access }) => access(invalidRoot)),
+    ).rejects.toThrow(/ENOENT/);
+  });
+
+  it("preserves the startup failure when a warm fixture is missing", async () => {
+    const root = await mkdtemp(join(tmpdir(), "poracode-profile-missing-"));
+    try {
+      const result = await runScript(join(repoRoot, "scripts/profile-startup.mjs"), [
+        root,
+        "--warm",
+      ]);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("Launcher exited before profiling completed");
+      expect(result.stderr).not.toContain("No managed debug session");
+      const log = await readFile(join(root, "startup-warm.log.json"), "utf8");
+      expect(log).toContain("ENOENT");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("refuses to guess a missing half of an explicit connection", async () => {
     const result = await runScript(cdpScript, ["eval", "location.href", "--port", "45678"]);
 
@@ -376,3 +403,53 @@ async function close(server: Server): Promise<void> {
     server.close((error) => (error ? reject(error) : done())),
   );
 }
+
+describe("dev port preparation", () => {
+  it("parses listener owners independently of Windows display language", async () => {
+    const modulePath: string = "../../scripts/free-port.mjs";
+    const { parseListeningPidsWindows } = (await import(modulePath)) as {
+      parseListeningPidsWindows: (output: string, ports: number[]) => number[];
+    };
+    const output = [
+      "  TCP    0.0.0.0:3100       0.0.0.0:0       LISTENING    101",
+      "  TCP    [::]:3100          [::]:0          ABHÖREN      101",
+      "  TCP    127.0.0.1:3200     0.0.0.0:0       ABHÖREN      202",
+      "  TCP    [::1]:3200         [::]:0          ÉCOUTE       303",
+      "  TCP    127.0.0.1:3100     127.0.0.1:9000  ESTABLISHED  404",
+      "  TCP    127.0.0.1:3300     0.0.0.0:0       LISTENING    505",
+      "  UDP    0.0.0.0:3100       *:*                          606",
+    ].join("\n");
+    expect(parseListeningPidsWindows(output, [3100, 3200, 3100])).toEqual([101, 202, 303]);
+  });
+
+  it("accepts an unused port without reclaiming another process", async () => {
+    const server = await listen((_request, response) => response.end());
+    const port = addressPort(server);
+    await close(server);
+    const result = await execFileAsync(
+      process.execPath,
+      [join(repoRoot, "scripts/free-port.mjs"), String(port)],
+      {
+        env: { ...process.env, PORACODE_DEV_SERVER_REQUIRE_FREE: "1" },
+        timeout: 10_000,
+      },
+    );
+    expect(result.stdout).toContain("already free");
+  });
+
+  it("keeps an occupied port's server alive when reclaiming is forbidden", async () => {
+    const server = await listen((_request, response) => response.end("alive"));
+    const port = addressPort(server);
+    try {
+      await expect(
+        execFileAsync(process.execPath, [join(repoRoot, "scripts/free-port.mjs"), String(port)], {
+          env: { ...process.env, PORACODE_DEV_SERVER_REQUIRE_FREE: "1" },
+          timeout: 10_000,
+        }),
+      ).rejects.toMatchObject({ stderr: expect.stringContaining("Refusing to reclaim") });
+      expect(await (await fetch(`http://127.0.0.1:${port}`)).text()).toBe("alive");
+    } finally {
+      await close(server);
+    }
+  });
+});

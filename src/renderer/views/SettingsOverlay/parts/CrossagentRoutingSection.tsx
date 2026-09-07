@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { toast } from "@heroui/react";
 import { Trash2 } from "lucide-react";
@@ -70,18 +70,10 @@ export function CrossagentRoutingSection() {
     if (!capabilities) return undefined;
     return distinctSubProviderLabel(entry.model.id, capabilities, entry.label);
   }
-  useEffect(() => {
-    let active = true;
-    void readBridge()
-      .getCrossagentRouting()
-      .then((state) => {
-        if (active) setRouting(state);
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [
+  // Joined into a stable primitive so the refresh effect below re-fires on
+  // routing-input changes without listing nine trigger-only deps (and without
+  // a useMemo — React Compiler).
+  const routingRefreshKey = JSON.stringify([
     statuses,
     disabledAgents,
     hiddenModels,
@@ -92,6 +84,26 @@ export function CrossagentRoutingSection() {
     agentSelectionUsage,
     favoriteModels,
   ]);
+  const requestedRoutingKeyRef = useRef(routingRefreshKey);
+  useEffect(() => {
+    // The snapshot takes no arguments — it reflects the persisted routing
+    // inputs — so the inputs are joined into a single request key. The effect
+    // consumes the key (tags the request, ignores superseded responses) and
+    // re-fires only when the inputs actually change.
+    const requestKey = routingRefreshKey;
+    requestedRoutingKeyRef.current = requestKey;
+    let active = true;
+    void readBridge()
+      .getCrossagentRouting()
+      .then((state) => {
+        if (!active || requestedRoutingKeyRef.current !== requestKey) return;
+        setRouting(state);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [routingRefreshKey]);
 
   async function removePinnedRoute(tags: string[]) {
     const key = tags.join(" ");

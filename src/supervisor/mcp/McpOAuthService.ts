@@ -2,12 +2,14 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
-import { auth, type OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
+import { auth } from "@modelcontextprotocol/client";
 import type {
-  OAuthClientInformationMixed,
+  OAuthClientProvider,
   OAuthClientMetadata,
   OAuthTokens,
-} from "@modelcontextprotocol/sdk/shared/auth.js";
+  StoredOAuthClientInformation,
+  StoredOAuthTokens,
+} from "@modelcontextprotocol/client";
 import {
   mcpOauthBeginPayloadSchema,
   type McpOauthBeginPayload,
@@ -161,7 +163,17 @@ export class McpOAuthService {
   status(): McpOauthStatusResult {
     const store = this.readStore();
     return {
-      authenticatedUrls: Object.keys(store.servers).filter((url) => this.readTokens(url)),
+      // A stored entry alone does not mean the next turn can authenticate:
+      // an expired access token without a refresh token will be sent as no
+      // `Authorization` header at all, and fail-closed agents (e.g. Antigravity
+      // ACP) abort the whole turn with `MCP load failed ... Unauthorized`.
+      // Only report URLs whose tokens are still usable (or refreshable).
+      authenticatedUrls: Object.keys(store.servers).filter((url) => {
+        const tokens = this.readTokens(url);
+        if (!tokens) return false;
+        if (!this.tokensExpired(url, tokens)) return true;
+        return Boolean(tokens.refresh_token);
+      }),
     };
   }
 
@@ -237,6 +249,21 @@ export class McpOAuthService {
    * Interactive when `flow` is given (captures the authorization redirect and
    * uses the loopback listener); non-interactive otherwise (refresh only —
    * a required redirect aborts the flow instead of opening a browser).
+   *
+   * Deliberately implements only the v2 `OAuthClientProvider` members needed
+   * for the authorization-code + PKCE + refresh-token flow. The optional v2
+   * hooks are left at their SDK defaults, which are correct for this public
+   * loopback client: `addClientAuthentication` (default `none` handling),
+   * `validateResourceURL` (default RFC 9728 check), `prepareTokenRequest`
+   * (default authorization-code grant), `clientMetadataUrl` (DCR is used),
+   * `saveDiscoveryState`/`discoveryState` (every `auth()` rediscovers; opting
+   * out also skips the callback-leg issuer-mismatch guard, which needs state
+   * persisted alongside the code verifier), `saveResourceUrl`/`resourceUrl`
+   * (Cross-App Access only), and the deprecated
+   * `saveAuthorizationServerUrl`/`authorizationServerUrl` pair (written by the
+   * SDK but never read). The `ctx.issuer` argument on the persistence methods
+   * is ignored: one credential set per server URL round-trips the SDK's
+   * issuer stamp through the encrypted JSON store untouched.
    */
   private createProvider(serverUrl: string, flow?: ActiveFlow): OAuthClientProvider {
     const service = this;
@@ -296,6 +323,11 @@ export class McpOAuthService {
             delete next.tokens;
             delete next.tokensSavedAt;
           }
+          // v2 splits the old single "all" invalidation into separate
+          // "client" + "tokens" calls with the same net effect. "verifier"
+          // (kept in-memory on the active flow, not in this store) and
+          // "discovery" (never cached — every auth() rediscovers) are
+          // intentionally no-ops here.
           return next;
         });
       },
@@ -400,21 +432,25 @@ export class McpOAuthService {
     }
   }
 
-  private readClientInformation(serverUrl: string): OAuthClientInformationMixed | undefined {
+  private readClientInformation(serverUrl: string): StoredOAuthClientInformation | undefined {
     const sealed = this.readStore().servers[serverUrl]?.clientInformation;
     if (!sealed) return undefined;
     try {
-      return JSON.parse(decryptSecret(this.baseDir, sealed)) as OAuthClientInformationMixed;
+      // v2 stamps an optional `issuer` on save; pre-upgrade entries without it
+      // still parse — the SDK accepts unstamped credentials and re-saves them
+      // with the stamp, so no migration is needed.
+      return JSON.parse(decryptSecret(this.baseDir, sealed)) as StoredOAuthClientInformation;
     } catch {
       return undefined;
     }
   }
 
-  private readTokens(serverUrl: string): OAuthTokens | undefined {
+  private readTokens(serverUrl: string): StoredOAuthTokens | undefined {
     const sealed = this.readStore().servers[serverUrl]?.tokens;
     if (!sealed) return undefined;
     try {
-      return JSON.parse(decryptSecret(this.baseDir, sealed)) as OAuthTokens;
+      // Same issuer-stamp back-compat as client information above.
+      return JSON.parse(decryptSecret(this.baseDir, sealed)) as StoredOAuthTokens;
     } catch {
       return undefined;
     }

@@ -34,13 +34,21 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
   } = props;
   const { t } = useLingui();
   const activeRowRef = useRef<HTMLLIElement>(null);
+  // Identity of the row the ref below attaches to (mirrors the row keys in
+  // the list). Scrolling looks the row up by this key, so every identity
+  // change re-arms the scroll for the new row.
+  const activeRowKey = `${state.sourceItemId}:${state.activeIndex}`;
 
   useEffect(() => {
     if (collapsed) return;
-    if (typeof activeRowRef.current?.scrollIntoView === "function") {
-      activeRowRef.current.scrollIntoView({ block: "nearest" });
+    // No rows, no active row to reveal.
+    if (state.steps.length === 0) return;
+    const list = activeRowRef.current?.parentElement;
+    const row = list?.querySelector<HTMLElement>(`[data-row-key="${CSS.escape(activeRowKey)}"]`);
+    if (typeof row?.scrollIntoView === "function") {
+      row.scrollIntoView({ block: "nearest" });
     }
-  }, [collapsed, state.activeIndex, state.sourceItemId, state.steps.length]);
+  }, [collapsed, activeRowKey, state.steps.length]);
 
   const inProgressStepIndices = state.steps
     .map((s, i) => (s.status === "in_progress" ? i : -1))
@@ -95,6 +103,7 @@ export function ThreadTodoDock(props: ThreadTodoDockProps) {
             <ThreadDockRow
               key={`${state.sourceItemId}:${index}`}
               ref={isActive ? activeRowRef : undefined}
+              rowKey={`${state.sourceItemId}:${index}`}
               isActive={isActive}
               isDone={isDone}
               title={step.text}

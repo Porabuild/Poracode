@@ -38,7 +38,7 @@ function attachmentImage(path: string, name: string): unknown {
 }
 
 describe("threadGalleryImages", () => {
-  it("collects user attachment images in order", () => {
+  it("collects user attachment images newest-first", () => {
     const items = [
       userItem("u1", [
         attachmentImage("/tmp/a.png", "a.png"),
@@ -48,9 +48,21 @@ describe("threadGalleryImages", () => {
     ];
     const gallery = collectThreadGalleryImages(items, {});
     expect(gallery.length).toBe(2);
-    expect(gallery[0]!.alt).toBe("a.png");
-    expect(gallery[1]!.alt).toBe("b.jpg");
+    expect(gallery[0]!.alt).toBe("b.jpg");
+    expect(gallery[1]!.alt).toBe("a.png");
     expect(gallery[0]!.src).toContain("poracode-local://");
+  });
+
+  it("collects later thread items before earlier items", () => {
+    const gallery = collectThreadGalleryImages(
+      [
+        userItem("older", [attachmentImage("/tmp/older.png", "older.png")]),
+        userItem("newer", [attachmentImage("/tmp/newer.png", "newer.png")]),
+      ],
+      {},
+    );
+
+    expect(gallery.map((image) => image.alt)).toEqual(["newer.png", "older.png"]);
   });
 
   it("resolves remote attachment paths through the desktop endpoint", () => {
@@ -59,9 +71,10 @@ describe("threadGalleryImages", () => {
       imageUrlForPath: (p) => `https://desktop/images?path=${encodeURIComponent(p)}`,
     });
     expect(gallery[0]!.src).toBe("https://desktop/images?path=%2Ftmp%2Fa.png");
+    expect(gallery[0]).toMatchObject({ fileName: "a.png", mime: "image/png" });
   });
 
-  it("collects assistant image blocks and markdown images in display order", () => {
+  it("collects assistant image blocks and markdown images newest-first", () => {
     const items = [
       assistantItem(
         "a1",
@@ -78,9 +91,11 @@ describe("threadGalleryImages", () => {
     ];
     const gallery = collectThreadGalleryImages(items, {});
     expect(gallery.length).toBe(2);
-    // Markdown first (paints inline in the text), then structured blocks.
-    expect(gallery[0]!.src).toBe("https://example.test/x.png");
-    expect(gallery[1]!.src).toBe("data:image/png;base64,AAA");
+    // Newest display position first: structured blocks paint after inline
+    // markdown, so the block leads when iterating newest-first.
+    expect(gallery[0]!.src).toBe("data:image/png;base64,AAA");
+    expect(gallery[0]).toMatchObject({ fileName: "gen-png.png", mime: "image/png" });
+    expect(gallery[1]!.src).toBe("https://example.test/x.png");
   });
 
   it("collects generated image_view tool images", () => {
@@ -193,6 +208,30 @@ describe("threadGalleryImages", () => {
         },
       }),
     ).toThrow("resolver failed");
+  });
+
+  it("retains Markdown and HTML image metadata through opaque remote URLs", () => {
+    const out = extractMarkdownGalleryImages(
+      '![preview](images/original.webp) <img src="/tmp/animation.gif" alt="Animation">',
+      {
+        projectRoot: "/proj",
+        remoteLocalImageUrl: () => "https://desktop/images?token=opaque",
+      },
+    );
+    expect(out).toEqual([
+      {
+        src: "https://desktop/images?token=opaque",
+        alt: "preview",
+        fileName: "original.webp",
+        mime: "image/webp",
+      },
+      {
+        src: "https://desktop/images?token=opaque",
+        alt: "Animation",
+        fileName: "animation.gif",
+        mime: "image/gif",
+      },
+    ]);
   });
 
   it("skips non-image relative targets", () => {

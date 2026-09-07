@@ -13,7 +13,8 @@ enableGlobalVirtualStore: true
 allowBuilds:
   "@google/genai": false
   "@sentry/cli": true
-  better-sqlite3: true
+  # SQLite 13 ships N-API prebuilds; do not synthesize a node-gyp install step.
+  better-sqlite3: false
   electron: true
   electron-winstaller: true
   esbuild: true
@@ -23,7 +24,6 @@ allowBuilds:
   sharp: true
 onlyBuiltDependencies:
   - "@sentry/cli"
-  - better-sqlite3
   - electron
   - electron-winstaller
   - esbuild
@@ -40,15 +40,12 @@ publicHoistPattern:
 # resolution still works when the dependency graph lives in pnpm's global
 # virtual store.
 packageExtensions:
-  "@testing-library/jest-dom@6.9.1":
-    dependencies:
-      vitest: 4.1.10
   "@huggingface/transformers@4.2.0":
     dependencies:
       onnxruntime-common: 1.24.3
-  "@heroui/react@3.2.2":
+  "@heroui/react@3.2.4":
     dependencies:
-      "@internationalized/date": 3.12.2
+      "@internationalized/date": 3.12.3
   "react-aria-components@1.17.0":
     dependencies:
       "@internationalized/string": 3.2.9
@@ -65,6 +62,8 @@ packageExtensions:
 nodeLinker: isolated
 
 minimumReleaseAgeExclude:
+  # Security fixes for query serialization and array limit handling.
+  - "qs@6.16.0"
   # The OpenCode connector tracks the current SDK used by Desktop's compatibility path.
   - "@opencode-ai/sdk@1.18.3 || 1.18.10 || 1.18.27"
   - "@anthropic-ai/claude-agent-sdk@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233"
@@ -226,6 +225,52 @@ minimumReleaseAgeExclude:
   - "undici-types@7.24.6"
   # The platform aliases are prerelease versions of this same package name.
   - "@openai/codex"
+  # 2026-09-05 Vitest 5 major; user-approved guard bypass.
+  - "vitest@5.0.0"
+  - "@vitest/coverage-v8@5.0.0"
+  - "@vitest/mocker@5.0.0"
+  - "@vitest/spy@5.0.0"
+  # 2026-09-05 user-approved guard bypass for the September patch sweep.
+  - "oxlint@1.81.0"
+  - "@oxlint/binding-android-arm-eabi@1.81.0"
+  - "@oxlint/binding-android-arm64@1.81.0"
+  - "@oxlint/binding-darwin-arm64@1.81.0"
+  - "@oxlint/binding-darwin-x64@1.81.0"
+  - "@oxlint/binding-freebsd-x64@1.81.0"
+  - "@oxlint/binding-linux-arm-gnueabihf@1.81.0"
+  - "@oxlint/binding-linux-arm-musleabihf@1.81.0"
+  - "@oxlint/binding-linux-arm64-gnu@1.81.0"
+  - "@oxlint/binding-linux-arm64-musl@1.81.0"
+  - "@oxlint/binding-linux-ppc64-gnu@1.81.0"
+  - "@oxlint/binding-linux-riscv64-gnu@1.81.0"
+  - "@oxlint/binding-linux-riscv64-musl@1.81.0"
+  - "@oxlint/binding-linux-s390x-gnu@1.81.0"
+  - "@oxlint/binding-linux-x64-gnu@1.81.0"
+  - "@oxlint/binding-linux-x64-musl@1.81.0"
+  - "@oxlint/binding-openharmony-arm64@1.81.0"
+  - "@oxlint/binding-win32-arm64-msvc@1.81.0"
+  - "@oxlint/binding-win32-ia32-msvc@1.81.0"
+  - "@oxlint/binding-win32-x64-msvc@1.81.0"
+  - "zod@4.5.4"
+  - "lucide-react@1.41.0"
+  - "@types/node@26.4.1"
+  - "@types/react-dom@19.2.7"
+  - "lint-staged@17.5.0"
+  # lint-staged 17.5.0's runner dependency, published inside the guard window.
+  - "tinyexec@1.3.1"
+  - "next@16.3.4"
+  - "@next/env@16.3.4"
+  - "@next/swc-darwin-x64@16.3.4"
+  - "@next/swc-darwin-arm64@16.3.4"
+  - "@next/swc-linux-x64-gnu@16.3.4"
+  - "@next/swc-linux-x64-musl@16.3.4"
+  - "@next/swc-linux-arm64-gnu@16.3.4"
+  - "@next/swc-linux-arm64-musl@16.3.4"
+  - "@next/swc-win32-x64-msvc@16.3.4"
+  - "@next/swc-win32-arm64-msvc@16.3.4"
+  - "motion@13.2.0"
+  - "framer-motion@13.2.0"
+  - "motion-dom@13.2.0"
 
 # Supply-chain guard: refuse to install any package version published less
 # than this many minutes ago. 7 days catches the typical window in which
@@ -238,13 +283,22 @@ minimumReleaseAge: 10080
 # Each selector is scoped to the affected major so it only rewrites versions
 # inside the advisory range and never force-upgrades a different major line.
 overrides:
+  # Keep optional analytics peers on the patched Next.js server too.
+  "next@>=16.0.0 <16.3.3": "16.3.3"
+  # Tiptap 3.30 requires model 1.25.11; mixed model instances break Notes transforms.
+  "prosemirror-model@>=1.0.0 <1.25.11": "1.25.11"
   "axios@<1.16.0": "^1.16.0"
   "tmp@<0.2.6": "^0.2.6"
   "brace-expansion@>=5.0.0 <5.0.9": "5.0.9"
   "esbuild@<0.28.1": "0.28.1"
   "shell-quote@<1.9.0": "^1.9.0"
   "cross-spawn@<6.0.6": "6.0.6"
-  "@xmldom/xmldom@<0.8.13": "0.8.13"
+  # XML injection and parser denial-of-service fixes, preserving each minor line.
+  "@xmldom/xmldom@>=0.8.0 <0.8.15": "0.8.15"
+  "@xmldom/xmldom@>=0.9.0 <0.9.12": "0.9.12"
+  # Query-cache memory growth/prototype writes and query-string limits.
+  "browserslist@>=4.0.0 <4.28.7": "4.28.7"
+  "qs@>=6.0.0 <6.16.0": "6.16.0"
   # DOMPurify custom-element hook bypasses (#141, #197).
   "dompurify@>=3.0.0 <3.4.13": "3.4.13"
   # 2026-06-15 advisory batch (alerts #88-#102).
@@ -266,10 +320,10 @@ overrides:
   # (#138-#140), plus the node adapter's encoded-backslash traversal (#137).
   "hono@<4.12.34": "4.12.34"
   "@hono/node-server@<2.0.10": "2.0.10"
-  # fast-uri host confusion through a backslash authority delimiter (#143).
-  "fast-uri@>=3.0.0 <3.1.5": "3.1.5"
+  # fast-uri host confusion and SSRF normalization fixes.
+  "fast-uri@>=3.0.0 <3.1.6": "3.1.6"
   # nanoid zero-size infinite loop (#201).
-  "nanoid@<3.3.17": "3.3.17"
+  "nanoid@>=3.0.0 <3.3.18": "3.3.18"
   # ip-address address parsing and validation advisories (#186-#188).
   "ip-address@>=10.0.0 <10.3.1": "10.3.1"
   # sharp 0.35.x upgrades libvips past the inherited CVE batch (#142, #154).
@@ -282,7 +336,7 @@ overrides:
   # electron use-after-free / injection batch (#106-#123). The vulnerable 23.x
   # comes only from react-devtools (dev-only standalone inspector); 23.x has no
   # in-line patch (#104), so dedupe it onto the app's own electron major.
-  "electron@>=23.0.0 <39.8.5": "43.1.0"
+  "electron@>=23.0.0 <39.8.5": "44.0.0"
   # 2026-07-21 advisory batch (#132-#136).
   # adm-zip crafted-ZIP 4GB allocation; only used by onnxruntime-node's install
   # script to extract trusted NuGet archives.

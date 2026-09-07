@@ -29,7 +29,8 @@
     "vitest/no-identical-title": "error",
     "vitest/no-test-return-statement": "error",
     "vitest/prefer-called-exactly-once-with": "error",
-    "jsx-a11y/prefer-tag-over-role": "off"
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "react/incompatible-library": "off"
   },
   "overrides": [
     {

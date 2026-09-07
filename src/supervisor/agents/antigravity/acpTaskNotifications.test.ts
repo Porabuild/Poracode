@@ -10,6 +10,7 @@ import {
   extractTaskNotifications,
   extractBackgroundTaskId,
   readAntigravityTaskNotificationState,
+  transformAntigravityBackgroundToolCall,
 } from "./acpTaskNotifications";
 
 /** Every case below runs the shared mapper with Antigravity's extension attached. */
@@ -102,6 +103,7 @@ Build succeeded in 3.4s
       taskId: "1bc6d974-9b4c-41ad-b800-88aa46277fee/task-304",
       exitCode: 0,
       output: "Build succeeded in 3.4s",
+      phase: "finish",
     });
     expect(cleanText).toBe("");
   });
@@ -120,6 +122,7 @@ fatal: repository not found
       taskId: "task-error-123",
       exitCode: 1,
       output: "fatal: repository not found",
+      phase: "finish",
     });
     expect(cleanText).toBe("");
   });
@@ -137,6 +140,7 @@ Output:
       taskId: "t-ok",
       exitCode: 0,
       output: "0 errors, 3 warnings",
+      phase: "finish",
     });
   });
 
@@ -183,6 +187,25 @@ out 2
     const { notifications, cleanText } = extractTaskNotifications(raw);
     expect(notifications).toEqual([]);
     expect(cleanText).toBe(raw);
+  });
+
+  it("extracts a received_message Task finished dump", () => {
+    const raw = `<received_message>
+Task 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-890 finished with the following output:
+The command exited with code 0.
+Output:
+   Compiling herogpui-components
+test result: ok. 43 passed
+</received_message>`;
+    const { notifications, cleanText } = extractTaskNotifications(raw);
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({
+      taskId: "286e9bdd-4a17-46e8-92a9-1736a13640e3/task-890",
+      exitCode: 0,
+      phase: "finish",
+    });
+    expect(notifications[0]?.output).toContain("43 passed");
+    expect(cleanText).toBe("");
   });
 });
 
@@ -1061,5 +1084,413 @@ Tests passed
       suppressAgentOutput: true,
     });
     expect(assistantDeltas(closeOpenTurnItems(state)).join("")).toBe("");
+  });
+});
+
+const STARTED_REPORT = `**Background task started:** cargo test -p herogpui-components (task id: 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-688).
+`;
+const UPDATE_REPORT = `**Background task update:** cargo test -p herogpui-components (task id: 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-688).
+
+Output:
+\`\`\`
+running 43 tests
+...........................................
+\`\`\`
+`;
+const COMPLETED_REPORT = `**Background task completed:** cargo test -p herogpui-components (task id: 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-688).
+Exit code: 0.
+Duration: 13.91 seconds.
+
+Output:
+\`\`\`
+running 43 tests
+...........................................
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+\`\`\`
+`;
+
+describe("background task start / change / finish", () => {
+  it("captures start, change, and finish without leaking reports into assistant text", () => {
+    const state = mapperState("t-lifecycle");
+    const startEvents = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-bg",
+        title: "cargo test -p herogpui-components",
+        kind: "execute",
+        status: "in_progress",
+        rawInput: { command: "cargo test -p herogpui-components" },
+        rawOutput:
+          'Tool is running as a background task with task id: "286e9bdd-4a17-46e8-92a9-1736a13640e3/task-688"',
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    expect(startEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "background_tasks.changed",
+          tasks: [
+            expect.objectContaining({
+              taskId: "286e9bdd-4a17-46e8-92a9-1736a13640e3/task-688",
+              kind: "command",
+              description: "cargo test -p herogpui-components",
+            }),
+          ],
+        }),
+      ]),
+    );
+
+    const startedText = mapAcpSessionUpdate(agentChunk(STARTED_REPORT), state);
+    expect(assistantDeltas(startedText).join("").trim()).toBe("");
+    expect(readAntigravityTaskNotificationState(state).backgroundTasks.size).toBe(1);
+
+    const changeEvents = mapAcpSessionUpdate(agentChunk(UPDATE_REPORT), state);
+    expect(assistantDeltas(changeEvents).join("").trim()).toBe("");
+    expect(changeEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "item.updated",
+          payload: expect.objectContaining({ status: "running" }),
+        }),
+        expect.objectContaining({
+          type: "content.delta",
+          stream: "command_output",
+          delta: expect.stringContaining("running 43 tests"),
+        }),
+      ]),
+    );
+    expect(changeEvents.some((event) => event.type === "item.completed")).toBe(false);
+    expect(readAntigravityTaskNotificationState(state).backgroundTasks.size).toBe(1);
+
+    const finishEvents = mapAcpSessionUpdate(agentChunk(COMPLETED_REPORT), state);
+    expect(assistantDeltas(finishEvents).join("").trim()).toBe("");
+    expect(finishEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "item.completed",
+          payload: expect.objectContaining({
+            status: "success",
+            exitCode: 0,
+            result: expect.stringContaining("43 passed"),
+            durationMs: 13910,
+          }),
+        }),
+        expect.objectContaining({ type: "background_tasks.changed", tasks: [] }),
+      ]),
+    );
+    expect(readAntigravityTaskNotificationState(state).backgroundTasks.size).toBe(0);
+  });
+
+  it("translates a received_message finish dump onto the tracked command row", () => {
+    const state = mapperState("t-received-finish");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-bg",
+        title: "cargo test -p herogpui-components --test buttons",
+        kind: "execute",
+        status: "in_progress",
+        rawInput: { command: "cargo test -p herogpui-components --test buttons" },
+        rawOutput:
+          'Tool is running as a background task with task id: "286e9bdd-4a17-46e8-92a9-1736a13640e3/task-890"',
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+
+    const started = mapAcpSessionUpdate(
+      agentChunk(`<received_message>
+Task 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-890 started.
+</received_message>`),
+      state,
+    );
+    expect(assistantDeltas(started).join("").trim()).toBe("");
+    expect(readAntigravityTaskNotificationState(state).backgroundTasks.size).toBe(1);
+
+    const progress = mapAcpSessionUpdate(
+      agentChunk(`<received_message>
+Task 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-890 updated with the following output:
+Output:
+   Compiling herogpui-components
+</received_message>`),
+      state,
+    );
+    expect(assistantDeltas(progress).join("").trim()).toBe("");
+    expect(progress.some((event) => event.type === "item.completed")).toBe(false);
+    expect(progress).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "content.delta",
+          stream: "command_output",
+          delta: expect.stringContaining("Compiling herogpui-components"),
+        }),
+      ]),
+    );
+
+    const finish = mapAcpSessionUpdate(
+      agentChunk(`<received_message>
+Task 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-890 finished with the following output:
+The command exited with code 0.
+Output:
+   Compiling herogpui-components
+test result: ok. 43 passed
+</received_message>`),
+      state,
+    );
+    expect(assistantDeltas(finish).join("").trim()).toBe("");
+    expect(finish).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "item.completed",
+          payload: expect.objectContaining({
+            status: "success",
+            exitCode: 0,
+            result: expect.stringContaining("43 passed"),
+          }),
+        }),
+        expect.objectContaining({ type: "background_tasks.changed", tasks: [] }),
+      ]),
+    );
+  });
+
+  it("does not leak a standalone received_message finish dump into assistant text", () => {
+    const state = mapperState("t-received-standalone");
+    const events = mapAcpSessionUpdate(
+      agentChunk(`<received_message>
+Task 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-938 finished with the following output:
+The command exited with code 0.
+Output:
+    Checking herogpui-components
+    Finished \`dev\` profile
+</received_message>`),
+      state,
+    );
+    expect(assistantDeltas(events).join("").trim()).toBe("");
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "item.started",
+          itemType: "command_execution",
+        }),
+        expect.objectContaining({
+          type: "item.completed",
+          payload: expect.objectContaining({
+            exitCode: 0,
+            result: expect.stringContaining("Checking herogpui-components"),
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it("keeps a non-task received_message in assistant text", () => {
+    const state = mapperState("t-received-other");
+    const events = mapAcpSessionUpdate(
+      agentChunk("<received_message>\nHello from the user.\n</received_message>"),
+      state,
+    );
+    expect(assistantDeltas(events).join("")).toContain("Hello from the user.");
+  });
+
+  it("buffers a split received_message finish dump across chunks", () => {
+    const state = mapperState("t-received-split");
+    const first = mapAcpSessionUpdate(
+      agentChunk(
+        "<received_message>\nTask 286e9bdd-4a17-46e8-92a9-1736a13640e3/task-903 finished with the following output:\nThe command exited with code 0.\nOutput:\n   Compiling",
+      ),
+      state,
+    );
+    expect(assistantDeltas(first).join("").trim()).toBe("");
+    expect(readAntigravityTaskNotificationState(state).buffer?.text).toContain(
+      "<received_message>",
+    );
+
+    const second = mapAcpSessionUpdate(
+      agentChunk(" herogpui-components\ntest result: ok. 21 passed\n</received_message>"),
+      state,
+    );
+    expect(assistantDeltas(second).join("").trim()).toBe("");
+    expect(second).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "item.completed",
+          payload: expect.objectContaining({
+            exitCode: 0,
+            result: expect.stringContaining("21 passed"),
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it("drops Antigravity wait heartbeats instead of opening an assistant row", () => {
+    const state = mapperState("t-wait-heartbeat");
+    const events = mapAcpSessionUpdate(
+      agentChunk("I will wait for the build task to complete."),
+      state,
+    );
+    expect(assistantDeltas(events).join("")).toBe("");
+    expect(
+      events.some(
+        (event) =>
+          event.type === "item.started" &&
+          (event as { itemType?: string }).itemType === "assistant_message",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps a backgrounded tool_call open so later changes can update the same row", () => {
+    const raw = note({
+      sessionUpdate: "tool_call",
+      toolCallId: "tc-keep",
+      title: "cargo test",
+      kind: "execute",
+      status: "completed",
+      rawInput: { command: "cargo test" },
+      rawOutput: "Tool is running as a background task with task id: task-keep",
+    } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]);
+    const transformed = transformAntigravityBackgroundToolCall(raw);
+    expect((transformed.update as { status?: string }).status).toBe("in_progress");
+
+    const state = mapperState("t-keep-open");
+    mapAcpSessionUpdate(transformed, state);
+    expect(state.toolCallItems.has("tc-keep")).toBe(true);
+    expect(readAntigravityTaskNotificationState(state).backgroundTasks.has("task-keep")).toBe(true);
+  });
+});
+
+const FLASH_TASK_ID = "f7d9d873-a5b4-4b32-a7f3-67cfd71e260c/task-57";
+const FLASH_TASK_LOG =
+  "C:/Users/sdsle/.gemini/antigravity-acp/brain/f7d9d873-a5b4-4b32-a7f3-67cfd71e260c/.system_generated/tasks/task-57.log";
+const FLASH_PING_OUTPUT =
+  "\r\nPinging 127.0.0.1 with 32 bytes of data:\r\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128\r\n";
+
+function flashBackgroundLaunchUpdate(): SessionNotification["update"] {
+  return {
+    sessionUpdate: "tool_call",
+    toolCallId: "tc-ping",
+    title: "ping -n 40 127.0.0.1",
+    kind: "execute",
+    status: "in_progress",
+    rawInput: {
+      CommandLine: "ping -n 40 127.0.0.1",
+      Cwd: "C:\\repo",
+      WaitMsBeforeAsync: 500,
+      toolAction: "Running ping in background",
+      toolSummary: "Run ping background task",
+    },
+    locations: [{ path: FLASH_TASK_LOG }],
+  } as SessionNotification["update"];
+}
+
+function resultText(result: unknown): string {
+  if (typeof result === "string") return result;
+  if (result && typeof result === "object") return JSON.stringify(result);
+  return String(result ?? "");
+}
+
+describe("3.8 Flash WaitMsBeforeAsync launch", () => {
+  it("tracks the launch on the command row and dock, then finishes natively", () => {
+    const state = mapperState("t-flash-launch");
+    const startEvents = mapAcpSessionUpdate(note(flashBackgroundLaunchUpdate()), state);
+    const commandStarts = startEvents.filter(
+      (event) =>
+        event.type === "item.started" &&
+        (event as { itemType?: string }).itemType === "command_execution",
+    );
+    expect(commandStarts).toHaveLength(1);
+    const itemId = (commandStarts[0] as { itemId: string }).itemId;
+    expect((commandStarts[0] as { payload?: { status?: string } }).payload?.status).toBe("running");
+    expect(startEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "background_tasks.changed",
+          tasks: [
+            expect.objectContaining({
+              taskId: FLASH_TASK_ID,
+              kind: "command",
+              description: "ping -n 40 127.0.0.1",
+            }),
+          ],
+        }),
+      ]),
+    );
+
+    const finishEvents = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-ping",
+        status: "completed",
+        rawOutput: {
+          commandLine: "ping -n 40 127.0.0.1",
+          exitCode: 0,
+          combinedOutput: FLASH_PING_OUTPUT,
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+    const completed = finishEvents.find(
+      (event) =>
+        event.type === "item.completed" && (event as { itemId?: string }).itemId === itemId,
+    );
+    expect(completed).toBeDefined();
+    const payload = (completed as { payload?: Record<string, unknown> }).payload;
+    expect(payload?.status).toBe("success");
+    expect(resultText(payload?.result)).toContain("Pinging 127.0.0.1");
+    expect(finishEvents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "background_tasks.changed", tasks: [] }),
+      ]),
+    );
+    expect(readAntigravityTaskNotificationState(state).backgroundTasks.size).toBe(0);
+  });
+
+  it("does not let a wait/sleep tool call take over the dock", () => {
+    const state = mapperState("t-flash-wait");
+    mapAcpSessionUpdate(note(flashBackgroundLaunchUpdate()), state);
+
+    const waitEvents = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-sleep",
+        title: "Start-Sleep -Seconds 10",
+        kind: "execute",
+        status: "in_progress",
+        rawInput: {
+          CommandLine: 'powershell -Command "Start-Sleep -Seconds 10"',
+          Cwd: "C:\\repo",
+          WaitMsBeforeAsync: 10_000,
+          toolAction: "Waiting for background task",
+          toolSummary: "Wait for ping task",
+        },
+      } as SessionNotification["update"]),
+      state,
+    );
+
+    const dock = readAntigravityTaskNotificationState(state).backgroundTasks;
+    expect([...dock.keys()]).toEqual([FLASH_TASK_ID]);
+    expect(dock.get(FLASH_TASK_ID)?.command).toBe("ping -n 40 127.0.0.1");
+    expect(dock.get(FLASH_TASK_ID)?.toolCallId).toBe("tc-ping");
+    for (const event of waitEvents) {
+      if (event.type !== "background_tasks.changed") continue;
+      expect(event.tasks).toEqual([
+        expect.objectContaining({
+          taskId: FLASH_TASK_ID,
+          description: "ping -n 40 127.0.0.1",
+        }),
+      ]);
+    }
+
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-sleep",
+        status: "completed",
+        rawOutput: { commandLine: "Start-Sleep -Seconds 10", exitCode: 0, combinedOutput: "" },
+      } as SessionNotification["update"]),
+      state,
+    );
+    expect([...readAntigravityTaskNotificationState(state).backgroundTasks.keys()]).toEqual([
+      FLASH_TASK_ID,
+    ]);
   });
 });

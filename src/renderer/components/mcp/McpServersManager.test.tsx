@@ -165,7 +165,13 @@ describe("McpServersManager", () => {
     expect(screen.getByRole("button", { name: "Edit memory" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete memory" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete Browser" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "46 tools" })).toBeInTheDocument();
+    const browserRow = document.querySelector('[data-built-in-mcp-server="browser"]');
+    expect(browserRow).not.toBeNull();
+    expect(
+      within(browserRow as HTMLElement).getByRole("button", {
+        name: `${BUILT_IN_MCP_SERVER_TOOL_COUNTS.browser} tools`,
+      }),
+    ).toBeInTheDocument();
   });
 
   it("identifies plugin-managed built-ins without exposing edit or delete controls", () => {

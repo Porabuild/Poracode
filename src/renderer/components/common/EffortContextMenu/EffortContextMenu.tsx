@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState, type ReactNode } from "react";
+import { startTransition, useState, type ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown } from "lucide-react";
 import { Header, Label, ListBox, Tooltip } from "@heroui/react";
@@ -54,12 +54,35 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
   const hasContext = contextSizes.length > 0;
   const hasThinking = thinkingSupported;
 
-  useEffect(() => {
-    if (openSignal === undefined || isDisabled || (!hasEffort && !hasContext && !hasThinking)) {
-      return;
+  // An external `openSignal` bump opens the menu. Tracked as a render snapshot
+  // (instead of a sync setState in an effect) with the exact re-run semantics
+  // of the previous effect: any signal/disabled/availability change re-opens
+  // while the request is serviceable.
+  const [prevOpenRequest, setPrevOpenRequest] = useState({
+    signal: openSignal,
+    disabled: isDisabled,
+    effort: hasEffort,
+    context: hasContext,
+    thinking: hasThinking,
+  });
+  if (
+    prevOpenRequest.signal !== openSignal ||
+    prevOpenRequest.disabled !== isDisabled ||
+    prevOpenRequest.effort !== hasEffort ||
+    prevOpenRequest.context !== hasContext ||
+    prevOpenRequest.thinking !== hasThinking
+  ) {
+    setPrevOpenRequest({
+      signal: openSignal,
+      disabled: isDisabled,
+      effort: hasEffort,
+      context: hasContext,
+      thinking: hasThinking,
+    });
+    if (openSignal !== undefined && !isDisabled && (hasEffort || hasContext || hasThinking)) {
+      setIsOpen(true);
     }
-    setIsOpen(true);
-  }, [openSignal, isDisabled, hasEffort, hasContext, hasThinking]);
+  }
 
   if (!hasEffort && !hasContext && !hasThinking) return null;
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
@@ -28,14 +28,22 @@ export function QuickComposerOverlay() {
   const [composerRevision, setComposerRevision] = useState(0);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [phase, setPhase] = useState<OverlayPhase>("opening");
-  // Mirrors `phase` so timer callbacks and reentrancy guards read the latest
-  // value; write both only through `transitionPhase`.
   const phaseRef = useRef<OverlayPhase>("opening");
   const frameRef = useRef<HTMLElement>(null);
+  // Mirrors `phase` so timer callbacks and reentrancy guards read the latest
+  // value; write both only through `transitionPhase`.
   const transitionPhase = (next: OverlayPhase) => {
     phaseRef.current = next;
     setPhase(next);
   };
+  // The focus listener below is subscribed once, but must always invoke the
+  // latest transition — route it through a ref synced after every render
+  // (same pattern as ChatPane's onOpenThreadRef) so the effect takes no
+  // per-render dependency.
+  const transitionPhaseRef = useRef(transitionPhase);
+  useLayoutEffect(() => {
+    transitionPhaseRef.current = transitionPhase;
+  });
   const animationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projects = useAppStore((state) => state.projects);
   const threads = useAppStore((state) => state.threads);
@@ -92,15 +100,27 @@ export function QuickComposerOverlay() {
         ?.querySelector<HTMLElement>('[data-composer-input-anchor] [contenteditable="true"]')
         ?.focus();
       if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
-      transitionPhase("opening");
+      transitionPhaseRef.current("opening");
       animationTimerRef.current = setTimeout(() => {
-        transitionPhase("idle");
+        transitionPhaseRef.current("idle");
       }, 220);
       void refresh().catch(() => undefined);
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("focus", onFocus);
-    onFocus();
+    // Mount runs the same enter sequence as a fresh focus. The phase is
+    // already "opening", so this inlines the DOM focus, the idle timer, and
+    // the refresh without invoking the phase transition synchronously on
+    // effect entry.
+    wasHiddenSinceRefresh = false;
+    frameRef.current
+      ?.querySelector<HTMLElement>('[data-composer-input-anchor] [contenteditable="true"]')
+      ?.focus();
+    if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
+    animationTimerRef.current = setTimeout(() => {
+      transitionPhaseRef.current("idle");
+    }, 220);
+    void refresh().catch(() => undefined);
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("focus", onFocus);
@@ -125,6 +145,9 @@ export function QuickComposerOverlay() {
     };
   }, [project]);
 
+  // An EffectEvent for the same reason as transitionPhase: the dismiss-request
+  // subscription below must not depend on its per-render identity, and it is
+  // only ever invoked from event handlers and subscriptions.
   const dismiss = (openMainWindow = false) => {
     if (phaseRef.current === "closing" || phaseRef.current === "sending") return;
     transitionPhase("closing");
@@ -136,6 +159,12 @@ export function QuickComposerOverlay() {
       });
     }, 180);
   };
+  // Same ref-routing as transitionPhaseRef so the dismiss-request
+  // subscription below stays dependency-free while invoking the latest close.
+  const dismissRef = useRef(dismiss);
+  useLayoutEffect(() => {
+    dismissRef.current = dismiss;
+  });
   const startThread = async (input: DraftStartInput) => {
     if (!project) return;
     transitionPhase("sending");
@@ -150,7 +179,7 @@ export function QuickComposerOverlay() {
     }
   };
 
-  useEffect(() => readBridge().onQuickComposerDismissRequested(() => dismiss()), []);
+  useEffect(() => readBridge().onQuickComposerDismissRequested(() => dismissRef.current()), []);
 
   return (
     <main

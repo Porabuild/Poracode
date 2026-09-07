@@ -142,6 +142,25 @@ vi.mock("@heroui/react", () => {
   Tooltip.Trigger = Wrapper;
   Tooltip.Content = Wrapper;
 
+  function Dropdown(props: { children?: ReactNode }) {
+    return <div>{props.children}</div>;
+  }
+  Dropdown.Popover = Wrapper;
+  Dropdown.Menu = (props: {
+    children?: ReactNode;
+    onAction?: (key: string) => void;
+    "aria-label"?: string;
+  }) => (
+    <div role="menu" aria-label={props["aria-label"]}>
+      {props.children}
+    </div>
+  );
+  Dropdown.Item = (props: { children?: ReactNode; id?: string; textValue?: string }) => (
+    <button type="button" role="menuitem">
+      {props.children}
+    </button>
+  );
+
   const Disclosure = Object.assign(Wrapper, {
     Heading: Wrapper,
     Trigger: Wrapper,
@@ -159,6 +178,7 @@ vi.mock("@heroui/react", () => {
     Button,
     Card,
     Disclosure,
+    Dropdown,
     Input,
     Label: (props: { children?: ReactNode }) => <span>{props.children}</span>,
     ListBox,
@@ -246,6 +266,8 @@ const uninstallAgentHookPluginMock = vi.hoisted(() =>
 );
 
 vi.mock("@/renderer/bridge", () => ({
+  isMac: () => false,
+  isWindows: () => true,
   readBridge: () => ({
     refreshAgentStatuses: refreshAgentStatusesMock,
     setAcpRegistryAgentAuth: setAcpRegistryAgentAuthMock,
@@ -401,6 +423,10 @@ function makeAntigravityStatus(cliVersion: string, acpVersion: string): AgentSta
         version: cliVersion,
         authState: "authenticated",
         authUsesProviderLogin: true,
+        loginCommand: "agy",
+        authMethods: [
+          { type: "terminal", id: "antigravity-login", name: "Antigravity login", args: [] },
+        ],
         capabilities: baseCapabilities,
       },
       acp: {
@@ -409,6 +435,8 @@ function makeAntigravityStatus(cliVersion: string, acpVersion: string): AgentSta
         version: acpVersion,
         authState: "authenticated",
         authUsesProviderLogin: true,
+        authLogoutSupported: true,
+        authMethods: [{ id: "oauth-personal", name: "Log in with Google" }],
         capabilities: {
           ...baseCapabilities,
           presentationMode: "gui",
@@ -688,6 +716,27 @@ describe("SingleAgentSettings", () => {
     expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
       label: "Gemini",
       command: "gemini auth login",
+      onCommandComplete: expect.any(Function),
+    });
+  });
+
+  it("shows the concise login command while executing its platform wrapper", () => {
+    statusesState.agentStatuses = [
+      makeStatus("muse", {
+        label: "Muse Code",
+        authState: "missing",
+        loginCommand: "wsl.exe -d 'Ubuntu' --exec bash -l -i -c 'muse login'",
+        loginCommandDisplay: "muse login",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="muse" />);
+
+    expect(screen.getByText("Run muse login to sign in.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /login/i }));
+    expect(runAgentLoginCommandMock).toHaveBeenCalledWith({
+      label: "Muse Code",
+      command: "wsl.exe -d 'Ubuntu' --exec bash -l -i -c 'muse login'",
       onCommandComplete: expect.any(Function),
     });
   });
@@ -1050,15 +1099,13 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="antigravity" />);
 
-    // No bespoke runtime panel: the versions ride the same row every other
-    // provider uses.
     expect(screen.queryByRole("list", { name: "Runtime" })).not.toBeInTheDocument();
-    const row = envRow("This computer");
-    expect(row).toHaveTextContent("CLI v1.2.0 · ACP v1.0.0");
+    const cliRow = envRow("CLI");
+    const acpRow = envRow("ACP");
+    expect(cliRow).toHaveTextContent("v1.2.0");
+    expect(acpRow).toHaveTextContent("v1.0.0");
 
-    // Both runtimes are behind, so the single reconciling action does not claim
-    // either one's version.
-    const update = await within(row).findByRole("button", { name: /^Update Antigravity/i });
+    const update = await within(cliRow).findByRole("button", { name: /Update to v1.3.0/i });
     fireEvent.click(update);
 
     await waitFor(() => {
@@ -1095,11 +1142,10 @@ describe("SingleAgentSettings", () => {
 
     render(<SingleAgentSettings agentKind="antigravity" />);
 
-    const row = envRow("This computer");
-    expect(row).toHaveTextContent("CLI v1.2.0 · ACP not installed");
-    // Half-installed used to leave chat unavailable with no way to fix it from
-    // this page — the auto-install is best-effort and silent when it fails.
-    fireEvent.click(within(row).getByRole("button", { name: /Install ACP/i }));
+    expect(envRow("CLI")).toHaveTextContent("v1.2.0");
+    const acpRow = envRow("ACP");
+    expect(acpRow).toHaveTextContent("not installed");
+    fireEvent.click(within(acpRow).getByRole("button", { name: /Install ACP/i }));
 
     await waitFor(() =>
       expect(installAcpRegistryAgentMock).toHaveBeenCalledWith({
@@ -1145,6 +1191,148 @@ describe("SingleAgentSettings", () => {
       command: "agy",
       onCommandComplete: expect.any(Function),
     });
+  });
+
+  it("offers Chat login when the CLI is signed in but the Chat runtime is not", async () => {
+    const authed = makeAntigravityStatus("1.1.27", "1.1.1");
+    statusesState.agentStatuses = [
+      {
+        ...authed,
+        authLogoutSupported: true,
+        presentationAuthStates: { terminal: "authenticated", gui: "missing" },
+        presentationAuthUsesProviderLogin: { terminal: true, gui: true },
+        authMethods: [
+          { id: "oauth-personal", name: "Log in with Google" },
+          { id: "oauth-business", name: "Log in with Gemini Enterprise" },
+          { id: "gemini-api-key", name: "Gemini API Key" },
+          { id: "agent-platform", name: "Gemini Enterprise Agent Platform" },
+        ],
+        runtimeVariants: {
+          ...authed.runtimeVariants,
+          acp: {
+            ...authed.runtimeVariants!.acp!,
+            authState: "missing",
+            authLogoutSupported: true,
+            authMethods: [
+              { id: "oauth-personal", name: "Log in with Google" },
+              { id: "oauth-business", name: "Log in with Gemini Enterprise" },
+              { id: "gemini-api-key", name: "Gemini API Key" },
+              { id: "agent-platform", name: "Gemini Enterprise Agent Platform" },
+            ],
+          },
+        },
+      },
+    ];
+
+    render(<SingleAgentSettings agentKind="antigravity" />);
+
+    const cliRow = envRow("CLI");
+    const acpRow = envRow("ACP");
+    expect(within(cliRow).queryByText("Login required")).not.toBeInTheDocument();
+    expect(within(acpRow).getByText("Login required")).toBeInTheDocument();
+    expect(within(acpRow).queryByRole("button", { name: /logout/i })).not.toBeInTheDocument();
+    expect(within(acpRow).getByRole("button", { name: /log in with google/i })).toBeInTheDocument();
+    expect(
+      within(acpRow).getByRole("button", { name: /more sign-in methods/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(acpRow).getByRole("menuitem", { name: /log in with gemini enterprise/i }),
+    ).toBeInTheDocument();
+    expect(within(acpRow).getByRole("menuitem", { name: /gemini api key/i })).toBeInTheDocument();
+    expect(
+      within(acpRow).getByRole("menuitem", { name: /gemini enterprise agent platform/i }),
+    ).toBeInTheDocument();
+    fireEvent.click(within(acpRow).getByRole("button", { name: /log in with google/i }));
+    expect(authenticateAcpAgentMock).toHaveBeenCalledWith({
+      agentKind: "antigravity",
+      methodId: "oauth-personal",
+      envKind: "windows",
+    });
+    await waitFor(() => expect(focusWindowMock).toHaveBeenCalled());
+  });
+
+  it("keeps auth pending feedback on the runtime row that started the sign-in", async () => {
+    let resolveAuth!: () => void;
+    authenticateAcpAgentMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveAuth = resolve;
+      }),
+    );
+    const authed = makeAntigravityStatus("1.1.27", "1.1.1");
+    statusesState.agentStatuses = [
+      {
+        ...authed,
+        authLogoutSupported: true,
+        presentationAuthStates: { terminal: "authenticated", gui: "missing" },
+        presentationAuthUsesProviderLogin: { terminal: true, gui: true },
+        authMethods: [{ id: "oauth-personal", name: "Log in with Google" }],
+        runtimeVariants: {
+          ...authed.runtimeVariants,
+          acp: {
+            ...authed.runtimeVariants!.acp!,
+            authState: "missing",
+            authLogoutSupported: true,
+            authMethods: [{ id: "oauth-personal", name: "Log in with Google" }],
+          },
+        },
+      },
+    ];
+
+    render(<SingleAgentSettings agentKind="antigravity" />);
+
+    const cliRow = envRow("CLI");
+    const acpRow = envRow("ACP");
+    fireEvent.click(within(acpRow).getByRole("button", { name: /^login/i }));
+
+    expect(within(acpRow).getByRole("status", { name: /logging in/i })).toBeInTheDocument();
+    expect(
+      within(acpRow).getByText(/Waiting for .*Log in with Google authentication/u),
+    ).toBeInTheDocument();
+    // The CLI row shares the environment but not the sign-in, so it keeps its
+    // own controls instead of mirroring the sibling's loader.
+    expect(within(cliRow).queryByRole("status")).not.toBeInTheDocument();
+    expect(within(cliRow).queryByText(/Waiting for/u)).not.toBeInTheDocument();
+    expect(within(cliRow).getByRole("button", { name: /re-login/i })).toBeInTheDocument();
+
+    resolveAuth();
+    await waitFor(() => expect(refreshAgentStatusesMock).toHaveBeenCalled());
+  });
+
+  it("labels each Antigravity model surface with its runtime", () => {
+    const authed = makeAntigravityStatus("1.1.27", "1.1.1");
+    const cliCapabilities = {
+      ...baseCapabilities,
+      runtimeLabel: "CLI",
+      models: [{ id: "gemini-3.1-pro", label: "Gemini 3.1 Pro" }],
+    };
+    const acpCapabilities = {
+      ...baseCapabilities,
+      runtimeLabel: "ACP",
+      showRuntimeLabelInPicker: false,
+      presentationMode: "gui" as const,
+      liveInputMode: "server" as const,
+      models: [{ id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" }],
+    };
+    statusesState.agentStatuses = [
+      {
+        ...authed,
+        capabilities: {
+          ...cliCapabilities,
+          presentationModes: ["terminal", "gui"],
+          presentationCapabilities: { gui: acpCapabilities },
+        },
+        runtimeVariants: {
+          cli: { ...authed.runtimeVariants!.cli!, capabilities: cliCapabilities },
+          acp: { ...authed.runtimeVariants!.acp!, capabilities: acpCapabilities },
+        },
+      },
+    ];
+
+    render(<SingleAgentSettings agentKind="antigravity" />);
+
+    expect(screen.getByText("Visible Antigravity CLI models")).toBeInTheDocument();
+    expect(screen.getByText("Visible Antigravity ACP models")).toBeInTheDocument();
+    expect(screen.queryByText("Visible Antigravity models")).not.toBeInTheDocument();
   });
 
   it("shows a native Windows install row when Grok is only installed in WSL", async () => {
@@ -1195,6 +1383,51 @@ describe("SingleAgentSettings", () => {
       onCommandComplete: expect.any(Function),
       project: windowsProject,
     });
+  });
+
+  it("offers Muse's WSL-backed installer for a native Windows environment", () => {
+    appState.projects = [
+      makeProject({
+        id: "windows-project",
+        name: "Windows Project",
+        location: { kind: "windows", path: "C:\\project" },
+      }),
+      makeProject({
+        id: "wsl-project",
+        name: "WSL Project",
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/demo/project",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\demo\\project",
+        },
+      }),
+    ];
+    statusesState.agentStatuses = [
+      makeStatus("muse", {
+        label: "Muse Code",
+        installed: false,
+        authState: "missing",
+        envKind: "windows",
+      }),
+    ];
+    statusesState.wslAgentStatuses = [
+      makeStatus("muse", {
+        label: "Muse Code",
+        version: "1.0.2",
+        envKind: "wsl",
+        envDistro: "Ubuntu",
+      }),
+    ];
+
+    render(<SingleAgentSettings agentKind="muse" />);
+
+    const windowsRow = envRow("This computer");
+    fireEvent.click(within(windowsRow).getByRole("button", { name: "Install on This computer" }));
+    const installInput = runAgentInstallCommandMock.mock.calls[0]?.[0] as
+      | { command: (project: Project) => string }
+      | undefined;
+    expect(installInput?.command(appState.projects[0]!)).toContain("wsl.exe --exec bash -lc");
   });
 
   it("shows a WSL install row when Grok is only installed on Windows", async () => {

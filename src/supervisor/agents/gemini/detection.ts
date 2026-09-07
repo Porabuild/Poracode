@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { AgentCapability, AgentTerminalAuthMethod } from "@/shared/contracts";
 import { compactAgentProviderMetadata } from "@/shared/contracts";
-import { probeAcpCapabilities } from "../acp";
+import { humanizeModelId, probeAcpCapabilities } from "../acp";
 import {
   batchWslCommandsAsync,
   buildAgentCommand,
@@ -33,6 +33,10 @@ const GEMINI_MODEL_CONTEXT_TOKENS = new Map<string, number>([
 
 function geminiModelContextTokens(modelId: string): number | undefined {
   return GEMINI_MODEL_CONTEXT_TOKENS.get(modelId.toLowerCase());
+}
+
+export function humanizeGeminiModelId(id: string): string {
+  return humanizeModelId(id.replace(/^gemini-/, ""));
 }
 
 export const defaultGeminiCapabilities: AgentCapability = {
@@ -155,6 +159,7 @@ export const geminiDetectionSpec: DetectionSpec = {
     const probeCwd = ctx.location.kind === "wsl" ? "/tmp" : getAgentProbeCwd(ctx.location);
     const probeResult = await probeAcpCapabilities(probeCmd.command, probeCmd.args, probeCwd, {
       timeoutMs: 15_000,
+      modelLabel: humanizeGeminiModelId,
       ...(ctx.signal ? { signal: ctx.signal } : {}),
       label:
         ctx.location.kind === "wsl"

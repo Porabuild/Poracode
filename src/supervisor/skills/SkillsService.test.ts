@@ -531,7 +531,7 @@ describe("SkillsService", () => {
     },
   );
 
-  it("hides and filters Computer Use plugin skills on unsupported Linux hosts", async () => {
+  it("keeps Computer Use plugin skills on supported Linux hosts", async () => {
     const pkg = await writePluginPackage(root, "computer-use", ["computer-use"]);
     const bundledService = new SkillsService({
       adapters,
@@ -545,20 +545,17 @@ describe("SkillsService", () => {
       (await bundledService.scan({ projectLocation, agentKind: "claude" })).skills.find(
         (skill) => skill.name === "computer-use",
       ),
-    ).toBeUndefined();
+    ).toMatchObject({ pluginId: "computer-use", enabled: true });
 
-    expect(
-      await bundledService.filterPluginSkillSegments([
-        {
-          kind: "skill",
-          name: "computer-use",
-          path: join(pkg.skillsDir, "computer-use", "SKILL.md"),
-          invocation: "/computer-use",
-          provider: "Computer Use",
-          scope: "global",
-        },
-      ]),
-    ).toEqual([]);
+    const segment = {
+      kind: "skill" as const,
+      name: "computer-use",
+      path: join(pkg.skillsDir, "computer-use", "SKILL.md"),
+      invocation: "/computer-use",
+      provider: "Computer Use",
+      scope: "global" as const,
+    };
+    expect(await bundledService.filterPluginSkillSegments([segment])).toEqual([segment]);
   });
 
   it("filters plugin skills whose companion apps cannot run in WSL projects", async () => {

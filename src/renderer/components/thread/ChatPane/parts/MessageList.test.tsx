@@ -70,15 +70,22 @@ vi.mock("@legendapp/list/react", async () => {
       props: MockLegendProps,
       forwardedRef: React.ForwardedRef<unknown>,
     ) {
-      latestLegendProps.current = props;
+      // Published for assertions via an effect so the mock never writes the
+      // shared box during render.
+      React.useEffect(() => {
+        latestLegendProps.current = props;
+      });
       const scrollRef = React.useRef<HTMLDivElement>(null);
       const onLoadRef = React.useRef(props.onLoad);
-      const setScrollRef = React.useCallback((element: HTMLDivElement | null) => {
-        scrollRef.current = element;
-        if (element) {
-          Object.defineProperty(element, "clientWidth", { configurable: true, value: 500 });
-        }
-      }, []);
+      const setScrollRef = React.useCallback(
+        (element: HTMLDivElement | null) => {
+          scrollRef.current = element;
+          if (element) {
+            Object.defineProperty(element, "clientWidth", { configurable: true, value: 500 });
+          }
+        },
+        [scrollRef],
+      );
       React.useImperativeHandle(forwardedRef, () => ({
         getScrollableNode: () => scrollRef.current,
         getState: () => ({
@@ -205,7 +212,7 @@ describe("MessageList", () => {
     }));
   });
 
-  it("configures LegendList 3.3.3 anchoring and dynamic-size preservation", () => {
+  it("configures LegendList anchoring and dynamic-size preservation", () => {
     const onStartReached = vi.fn<() => void>();
     render(
       <MessageList

@@ -170,6 +170,30 @@ describe("parseCodexUsage", () => {
     ]);
   });
 
+  it("labels the GPT reserve weekly limit", () => {
+    const snap = parseCodexUsage(
+      {
+        additional_rate_limits: [
+          {
+            limit_name: "gpt-reserve",
+            rate_limit: {
+              primary_window: { used_percent: 0, window_minutes: 10_080 },
+            },
+          },
+        ],
+      },
+      {},
+      FAKE_NOW_MS,
+    );
+    expect(snap.windows).toEqual([
+      expect.objectContaining({
+        id: "codex:gpt-reserve:weekly",
+        label: "Reserve Weekly",
+        usedPercent: 0,
+      }),
+    ]);
+  });
+
   it("falls back to x-codex-* headers when the body omits percents", () => {
     const snap = parseCodexUsage(
       { rate_limit: {} },

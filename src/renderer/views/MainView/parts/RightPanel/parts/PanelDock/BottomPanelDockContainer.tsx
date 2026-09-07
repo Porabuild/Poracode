@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { PanelDockDropZone } from "@/renderer/components/layout/PanelDock/PanelDockDropZone";
 import { PanelSectionHeader } from "@/renderer/components/layout/PanelDock/PanelSectionHeader";
@@ -48,8 +48,10 @@ export function BottomPanelDockContainer(props: {
   const containerRef = useRef<HTMLDivElement>(null);
   const leftPaneRef = useRef<HTMLDivElement>(null);
   const rightPaneRef = useRef<HTMLDivElement>(null);
-  const previousDocksRef = useRef(docks);
-  const flexibleDockRef = useRef<BottomDockPlacement | null>(null);
+  const [previousDocks, setPreviousDocks] = useState({
+    ...docks,
+    flexibleDock: null as BottomDockPlacement | null,
+  });
 
   const { left: leftTab, right: rightTab } = docks;
   const terminalReplacesLeft = props.terminalVisible && leftTab !== null && rightTab !== null;
@@ -89,7 +91,6 @@ export function BottomPanelDockContainer(props: {
   // Keep the existing dock's stored width when a second panel is added. The
   // newly occupied slot absorbs the remaining space beside it (and the
   // terminal, when visible), instead of shrinking the panel already on screen.
-  const previousDocks = previousDocksRef.current;
   if (previousDocks.left !== leftTab || previousDocks.right !== rightTab) {
     const addedPlacement =
       leftTab !== null && previousDocks.left === null
@@ -97,13 +98,15 @@ export function BottomPanelDockContainer(props: {
         : rightTab !== null && previousDocks.right === null
           ? "right"
           : null;
-    if (addedPlacement !== null) flexibleDockRef.current = addedPlacement;
-    previousDocksRef.current = docks;
+    setPreviousDocks({
+      ...docks,
+      flexibleDock: addedPlacement ?? previousDocks.flexibleDock,
+    });
   }
 
   const flexibleDock =
     leftTab !== null && rightTab !== null
-      ? (flexibleDockRef.current ?? "right")
+      ? (previousDocks.flexibleDock ?? "right")
       : leftTab === null && rightTab !== null
         ? "left"
         : rightTab === null && leftTab !== null

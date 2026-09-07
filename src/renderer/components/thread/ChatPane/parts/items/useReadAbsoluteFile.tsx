@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { ProjectLocation } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
@@ -29,19 +29,27 @@ export function useReadAbsoluteFile(target: FetchTarget | null): ReadResult {
   const [result, setResult] = useState<ReadResult>({ state: "idle" });
   const path = target?.path;
   const projectLocation = target?.projectLocation;
+  // Every input that restarts the read, folded into one key so the effect
+  // consumes the request identity instead of resetting state synchronously.
+  // Starts as null so the mount pass applies the same reset the effect ran.
+  const requestKey = path && projectLocation ? `${path}\0${JSON.stringify(projectLocation)}` : null;
+  const activeRequestKeyRef = useRef(requestKey);
+  const [prevRequestKey, setPrevRequestKey] = useState<string | null>(null);
+  if (prevRequestKey !== requestKey) {
+    setPrevRequestKey(requestKey);
+    setResult(requestKey === null ? { state: "idle" } : { state: "loading" });
+  }
 
   useEffect(() => {
-    if (!path || !projectLocation) {
-      setResult({ state: "idle" });
-      return;
-    }
+    activeRequestKeyRef.current = requestKey;
+    if (requestKey === null || !path || !projectLocation) return;
     let cancelled = false;
-    setResult({ state: "loading" });
+    const capturedKey = requestKey;
     const absolutePath = resolveAbsolutePath(path, projectLocation);
     readBridge()
       .readAbsoluteFile({ projectLocation, absolutePath })
       .then((res) => {
-        if (cancelled) return;
+        if (cancelled || activeRequestKeyRef.current !== capturedKey) return;
         if (res.status === "ready") {
           setResult({ state: "ready", content: res.content ?? "" });
         } else {
@@ -49,13 +57,13 @@ export function useReadAbsoluteFile(target: FetchTarget | null): ReadResult {
         }
       })
       .catch((err: unknown) => {
-        if (cancelled) return;
+        if (cancelled || activeRequestKeyRef.current !== capturedKey) return;
         setResult({ state: "error", reason: err instanceof Error ? err.message : String(err) });
       });
     return () => {
       cancelled = true;
     };
-  }, [path, projectLocation]);
+  }, [path, projectLocation, requestKey]);
 
   return result;
 }

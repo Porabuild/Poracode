@@ -1,4 +1,6 @@
 import { createAcpStructuredSession } from "../acp";
+import type { AgentInstanceConfig } from "@/shared/contracts";
+import { createAcpGenericAdapter } from "../acp-generic";
 import {
   detectAgentInstall,
   detectProbeLocation,
@@ -13,8 +15,18 @@ import {
   FACTORY_ACP_ARGS,
   factoryDefaultCapabilities,
   factoryDetectionSpec,
+  normalizeFactoryModels,
 } from "./detection";
 import { attachFactorySubagentTranscripts } from "./subagentTranscripts";
+
+export function createFactoryAcpRegistryAdapter(instance: AgentInstanceConfig): AgentAdapter {
+  return createAcpGenericAdapter(instance, {
+    normalizeProbeResult: (result) => ({
+      ...result,
+      ...(result.models ? { models: normalizeFactoryModels(result.models) } : {}),
+    }),
+  });
+}
 
 export function createFactoryAdapter(): AgentAdapter {
   let capabilities = factoryDefaultCapabilities;

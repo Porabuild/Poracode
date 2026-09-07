@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
 import { ArrowRightLeft, Bug, CircleCheck, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -213,25 +213,42 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   );
   const launchTerminalSize = usesTerminalPresentation ? terminalSize : DEFAULT_HIDDEN_TERMINAL_SIZE;
 
-  useLayoutEffect(() => {
+  // Reset per-thread chrome during render on thread switch instead of
+  // synchronously in a layout effect.
+  const [prevPaneThreadId, setPrevPaneThreadId] = useState(thread.id);
+  if (prevPaneThreadId !== thread.id) {
+    setPrevPaneThreadId(thread.id);
     setContinueDialogOpen(false);
     setRuntimeDebugOpen(false);
     setIsTitleTooltipOpen(false);
-  }, [thread.id]);
+  }
 
   // The sidebar's "Continue in..." entry can only open the thread; the dialog
   // lives here, so honour the request once this pane is showing that thread.
   // The request is consumed only when acted on: while agent detection is still
-  // in flight the guard declines, and the request stays pending until this
-  // effect re-runs with the populated list rather than being silently eaten.
+  // in flight the guard declines, and the request stays pending until the
+  // populated list arrives rather than being silently eaten. The dialog opens
+  // during render (keyed on the request plus the guard outcome); the store
+  // clear stays in the effect below.
   const continueRequestedThreadId = useContinueInProviderStore((s) => s.requestedThreadId);
+  const canOpenContinueDialog =
+    onContinueInProvider !== undefined &&
+    installedAgents?.some((a) => a.kind !== thread.agentKind) === true;
+  const continueRequestKey =
+    continueRequestedThreadId === thread.id && canOpenContinueDialog
+      ? continueRequestedThreadId
+      : null;
+  const [prevContinueRequestKey, setPrevContinueRequestKey] = useState<string | null>(null);
+  if (prevContinueRequestKey !== continueRequestKey) {
+    setPrevContinueRequestKey(continueRequestKey);
+    if (continueRequestKey !== null) setContinueDialogOpen(true);
+  }
   useEffect(() => {
     if (continueRequestedThreadId !== thread.id) return;
     if (!onContinueInProvider || !installedAgents?.some((a) => a.kind !== thread.agentKind)) {
       return;
     }
     useContinueInProviderStore.getState().clear(thread.id);
-    setContinueDialogOpen(true);
   }, [
     continueRequestedThreadId,
     thread.id,
@@ -241,10 +258,13 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   ]);
 
   useEffect(() => {
+    // No thread id dep: the launch key below embeds `thread.id`, so a stale
+    // key from another thread can never match — clearing on prompt removal
+    // alone is sufficient hygiene.
     if (pendingLaunchPrompt === undefined) {
       launchRequestRef.current = null;
     }
-  }, [pendingLaunchPrompt, thread.id]);
+  }, [pendingLaunchPrompt]);
 
   useEffect(() => {
     if (pendingLaunchPrompt === undefined || launchTerminalSize === null) {

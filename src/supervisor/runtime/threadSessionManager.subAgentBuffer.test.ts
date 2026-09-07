@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import type { RuntimeEvent } from "@/shared/contracts";
+import type { ProjectLocation, RuntimeEvent } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { AgentAdapter } from "../agents/base";
+import type { SessionRuntime } from "./sessionTypes";
 import { ThreadSessionManager } from "./threadSessionManager";
 
 /**
@@ -57,6 +59,27 @@ describe("ThreadSessionManager sub-agent buffer", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("gives subagents the logical project instead of a provider execution fallback", () => {
+    const { manager } = makeManager();
+    const logicalProject: ProjectLocation = { kind: "windows", path: "C:\\repo" };
+    const executionProject: ProjectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/mnt/c/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\mnt\\c\\repo",
+    };
+    manager.sessions.set("t1", {
+      threadId: "t1",
+      logicalProjectLocation: logicalProject,
+      projectLocation: executionProject,
+      config: { model: "model", executionEnvironment: { kind: "wsl", distro: "Ubuntu" } },
+      adapter: {} as AgentAdapter,
+      mcpLaunchSnapshot: { mcpServers: [], disabledBuiltInMcpServerIds: [] },
+    } as unknown as SessionRuntime);
+
+    expect(manager.getSubagentParentContext("t1")?.projectLocation).toEqual(logicalProject);
   });
 
   it("drains buffered child events when the parent completes so the renderer sees every turn", () => {

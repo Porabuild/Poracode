@@ -73,9 +73,16 @@ export function FileEditorPane(props: {
 
   const { notifyDidSave } = useLspSync({ monaco: monacoInstance, activePath, bufferStatus });
 
-  useEffect(() => {
+  // The preview follows the active file and the store's preview target; the
+  // user can still toggle it per file via setShowPreview, which leaves this
+  // key untouched. Reset during render instead of an effect so switching files
+  // never paints one frame with the previous file's toggle.
+  const previewSyncKey = `${activePath ?? ""}\0${isMarkdown ? "1" : "0"}\0${markdownPreviewPath ?? ""}`;
+  const [prevPreviewSyncKey, setPrevPreviewSyncKey] = useState(previewSyncKey);
+  if (prevPreviewSyncKey !== previewSyncKey) {
+    setPrevPreviewSyncKey(previewSyncKey);
     setShowPreview(!!activePath && isMarkdown && markdownPreviewPath === activePath);
-  }, [activePath, isMarkdown, markdownPreviewPath]);
+  }
 
   async function handleSave(path: string) {
     try {

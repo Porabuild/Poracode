@@ -95,6 +95,9 @@ export function buildUnrestrictedChildConfig(
     ...(parentConfig?.browserMcp === true ? { browserMcp: true } : {}),
     ...(parentConfig?.computerUse === true ? { computerUse: true } : {}),
     ...(parentConfig?.chromeMcp === true ? { chromeMcp: true } : {}),
+    ...(parentConfig?.executionEnvironment
+      ? { executionEnvironment: parentConfig.executionEnvironment }
+      : {}),
   };
 }
 
@@ -240,6 +243,7 @@ export interface SubagentRunSummary {
   background: boolean;
   attempt: number;
   attempt_count: number;
+  can_steer: boolean;
 }
 
 /**
@@ -256,6 +260,7 @@ export interface SubagentRunHost {
     threadId: string,
     identity: McpThreadIdentity,
     targetAgentKind: AgentKind,
+    projectLocation: ProjectLocation,
   ): Promise<{ mcpServers?: ResolvedMcpServer[] }>;
   /** Append a (re-tagged) runtime event into the parent thread's event stream. */
   appendRuntimeEvent(parentThreadId: string, event: RuntimeEvent): void;

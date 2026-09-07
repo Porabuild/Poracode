@@ -8,6 +8,7 @@
  */
 
 const messages = {
+  "supervisor.sendTerminalInput": "Send terminal input",
   // ── Git: general ──────────────────────────────────────────
   "git.commandFailed": "Git {command} failed: {detail}",
   "github.accountUnavailable":
@@ -142,6 +143,9 @@ const messages = {
   "kimi.emptyResponse":
     "Kimi Code ended the turn without returning a response. Restart the thread and try again.",
 
+  // ── OpenCode ──────────────────────────────────────────
+  "opencode.retryFallback": "OpenCode request failed, retrying...",
+
   // ── App update ────────────────────────────────────────────
   "update.error": "Update error: {detail}",
   "update.serviceUnavailable": "The update service is temporarily unavailable.",
@@ -170,6 +174,9 @@ const messages = {
   "remote.session.expired": "Pairing expired — pair again to reconnect.",
   "remote.server.unreachable":
     "Can't reach the remote server. Check that it is online, then reconnect it.",
+
+  // ── Thread runtime notices ────────────────────────────────
+  "thread.compact.noop": "Nothing to compact yet — the conversation is still small.",
 } as const;
 
 // ---------------------------------------------------------------------------

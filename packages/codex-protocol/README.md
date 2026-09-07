@@ -1,6 +1,6 @@
 # @poracode/codex-protocol
 
-TypeScript definitions generated during `pnpm install` from `@openai/codex`, pinned to `0.144.5`.
+TypeScript definitions generated during `pnpm install` from `@openai/codex`, pinned to `0.153.4`.
 
 The generated sources live in `generated/` and are intentionally gitignored. Regenerate them manually from the repository root with:
 

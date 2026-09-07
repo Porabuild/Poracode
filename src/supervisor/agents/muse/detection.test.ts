@@ -33,6 +33,7 @@ import {
   museHasStoredCredentials,
   parseMuseHelpEfforts,
   parseMuseHelpModelIds,
+  parseMuseSkillCommands,
 } from "./detection";
 
 describe("museAuthJsonIsAuthenticated", () => {
@@ -142,7 +143,15 @@ describe("museDetectionSpec", () => {
       binary: "sh",
       args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
     });
-    expect(museDetectionSpec.update?.installer?.windows?.binary).toBe("powershell.exe");
+    expect(museDetectionSpec.update?.installer?.windows).toEqual({
+      binary: "wsl.exe",
+      args: [
+        "--exec",
+        "bash",
+        "-lc",
+        "if command -v curl >/dev/null 2>&1; then set -o pipefail; curl -fsSL https://dev.meta.ai/install.sh | bash; else exit 127; fi",
+      ],
+    });
   });
 
   it("advertises a terminal login method via capabilitiesProbe", async () => {
@@ -204,7 +213,7 @@ describe("museDetectionSpec", () => {
     expect(result?.efforts).toContain("max");
   });
 
-  it("appends live catalog models after the curated defaults", async () => {
+  it("uses the live catalog as the authoritative model list", async () => {
     probeMuseModelCatalogMock.mockResolvedValueOnce({
       models: [
         { id: "muse-spark-1.3", label: "Muse Spark 1.3", contextLimit: 1_048_576, isDefault: true },
@@ -229,16 +238,11 @@ describe("museDetectionSpec", () => {
       location,
       expect.objectContaining({ executablePath: "/usr/bin/muse" }),
     );
-    // Curated default stays first; the live id is appended with its label.
-    expect(result?.models?.slice(0, 2).map((m) => m.id)).toEqual([
-      MUSE_DEFAULT_MODEL_ID,
-      "muse-spark-1.3-contributor",
+    expect(result?.models).toEqual([
+      { id: MUSE_DEFAULT_MODEL_ID, label: "Muse Spark 1.3" },
+      { id: "muse-spark-1.9", label: "Muse Spark 1.9" },
     ]);
-    expect(result?.models?.at(-1)).toEqual({
-      id: "muse-spark-1.9",
-      label: "Muse Spark 1.9",
-    });
-    // Context comes from the catalog limit; known ids keep their mapping.
+    // Context comes from the catalog limits.
     expect(result?.modelContextSizes?.["muse-spark-1.9"]).toEqual(["2M"]);
     expect(result?.modelContextSizes?.["muse-spark-1.3"]).toEqual(["1M"]);
   });
@@ -294,12 +298,12 @@ describe("museDefaultCapabilities", () => {
       "never",
       "yolo",
     ]);
-    expect(museDefaultCapabilities.defaultApprovalPolicy).toBe("on-request");
+    expect(museDefaultCapabilities.defaultApprovalPolicy).toBe("yolo");
     expect(museDefaultCapabilities.bypassPermissions).toEqual({ approvalPolicy: "yolo" });
   });
 
-  it("advertises terminal-only with resume, direct input, and exec one-shots", () => {
-    expect(museDefaultCapabilities.presentationModes).toEqual(["terminal"]);
+  it("advertises terminal and GUI presentations with resume, direct input, and exec one-shots", () => {
+    expect(museDefaultCapabilities.presentationModes).toEqual(["terminal", "gui"]);
     expect(museDefaultCapabilities.presentationMode).toBe("terminal");
     expect(museDefaultCapabilities.liveInputMode).toBe("terminal");
     expect(museDefaultCapabilities.supportsResume).toBe(true);
@@ -442,6 +446,10 @@ describe("parseMuseHelpModelIds", () => {
     ]);
   });
 
+  it("rejects hyphen-suffixed lookalikes instead of extracting a prefix", () => {
+    expect(parseMuseHelpModelIds("muse-spark-1.4-preview")).toEqual([]);
+  });
+
   it("returns an empty list when help mentions no model ids", () => {
     expect(parseMuseHelpModelIds(DOCUMENTED_MUSE_HELP)).toEqual([]);
   });
@@ -523,19 +531,26 @@ describe("buildMuseCatalogCapabilities", () => {
   ];
   const efforts = ["low", "medium", "high"];
 
-  it("returns null when the catalog adds no unknown ids", () => {
+  it("returns the accepted live subset and ignores only an empty catalog", () => {
     expect(
       buildMuseCatalogCapabilities(
         base,
         {
-          models: [{ id: "muse-spark-1.3", label: "x", contextLimit: null, isDefault: false }],
+          models: [
+            {
+              id: "muse-spark-1.3",
+              label: "muse-spark-1.3",
+              contextLimit: null,
+              isDefault: false,
+            },
+          ],
           source: "providerCatalog",
           providerId: "meta",
           profileId: null,
         },
         efforts,
-      ),
-    ).toBeNull();
+      )?.models,
+    ).toEqual([{ id: "muse-spark-1.3", label: "Muse Spark 1.3" }]);
     expect(
       buildMuseCatalogCapabilities(
         base,
@@ -545,7 +560,7 @@ describe("buildMuseCatalogCapabilities", () => {
     ).toBeNull();
   });
 
-  it("appends unknown ids with catalog labels and limits on the given ladder", () => {
+  it("uses catalog ids with catalog labels and limits on the given ladder", () => {
     const probed = buildMuseCatalogCapabilities(
       base,
       {
@@ -564,14 +579,10 @@ describe("buildMuseCatalogCapabilities", () => {
       },
       efforts,
     );
-    expect(probed?.models.map((m) => m.id)).toEqual([
-      "muse-spark-1.3",
-      "muse-spark-1.1",
-      "muse-spark-1.9",
-    ]);
+    expect(probed?.models.map((m) => m.id)).toEqual(["muse-spark-1.9"]);
     expect(probed?.modelEfforts["muse-spark-1.9"]).toEqual(efforts);
     expect(probed?.modelContextSizes?.["muse-spark-1.9"]).toEqual(["2M"]);
-    expect(probed?.modelContextSizes?.["muse-spark-1.3"]).toEqual(["1M"]);
+    expect(probed?.modelContextSizes?.["muse-spark-1.3"]).toBeUndefined();
   });
 
   it("humanizes blank catalog labels and prefers catalog limits for known ids", () => {
@@ -598,5 +609,59 @@ describe("buildMuseCatalogCapabilities", () => {
       label: "Muse Spark 1.9 Contributor",
     });
     expect(probed?.modelContextSizes?.["muse-spark-1.3"]).toEqual(["2M"]);
+  });
+});
+
+describe("parseMuseSkillCommands", () => {
+  it("maps enabled muse skills to composer skill commands", () => {
+    expect(
+      parseMuseSkillCommands(
+        JSON.stringify({
+          skills: [
+            {
+              name: "plan",
+              activation: "on",
+              scope: "built-in",
+              description: "Create a grounded, decision-complete plan.",
+            },
+            {
+              name: "workspace-lint",
+              activation: "on",
+              scope: "project",
+              short_description: "Lint the workspace.",
+            },
+            { name: "retired", activation: "off", scope: "user" },
+            { name: "", activation: "on", scope: "user" },
+          ],
+        }),
+      ),
+    ).toEqual([
+      {
+        id: "muse-skill-plan",
+        label: "plan",
+        description: "Create a grounded, decision-complete plan.",
+        section: "skills",
+        skillName: "plan",
+        skillInvocation: "/skill plan",
+        skillProvider: "muse",
+        skillScope: "global",
+      },
+      {
+        id: "muse-skill-workspace-lint",
+        label: "workspace-lint",
+        description: "Lint the workspace.",
+        section: "skills",
+        skillName: "workspace-lint",
+        skillInvocation: "/skill workspace-lint",
+        skillProvider: "muse",
+        skillScope: "project",
+      },
+    ]);
+  });
+
+  it("returns nothing for malformed or empty output", () => {
+    expect(parseMuseSkillCommands("not json")).toEqual([]);
+    expect(parseMuseSkillCommands(JSON.stringify({ skills: [] }))).toEqual([]);
+    expect(parseMuseSkillCommands("")).toEqual([]);
   });
 });

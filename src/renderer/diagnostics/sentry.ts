@@ -99,6 +99,7 @@ export function initializeRendererSentry(): boolean {
 
   Sentry.init({
     sendDefaultPii: false,
+    enableLogs: false,
     maxBreadcrumbs: 0,
     normalizeDepth: 4,
     tracesSampleRate: 0,

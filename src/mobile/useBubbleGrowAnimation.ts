@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffectEvent, useLayoutEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 
 /* Release safety net when transitionend never arrives (hidden tab, reduced
@@ -42,11 +42,12 @@ export function useBubbleGrowAnimation(
   // Ref mirror so the flip effect can read the pin without depending on it —
   // depending on it would cancel the in-flight animation (its own setState
   // would re-run the effect and the cleanup would cancel the pending rAF).
+  // An EffectEvent (never a render-time assignment) keeps the mirror fresh.
   const pinRef = useRef<BubblePin | null>(null);
-  const setPinned = (value: BubblePin | null) => {
+  const setPinned = useEffectEvent((value: BubblePin | null) => {
     pinRef.current = value;
     setPin(value);
-  };
+  });
   // Rest heights captured while idle, so a flip can start from the real
   // pre-flip height even though the layout effect runs after the DOM has
   // already switched to the post-flip styles.
@@ -54,7 +55,11 @@ export function useBubbleGrowAnimation(
   const expandedHeightRef = useRef(0);
   const prevExpandedRef = useRef(expanded);
   const expandedRef = useRef(expanded);
-  expandedRef.current = expanded;
+  // Mirror for the ResizeObserver callback below, which fires asynchronously
+  // (long after render) and must read the committed value.
+  useLayoutEffect(() => {
+    expandedRef.current = expanded;
+  }, [expanded]);
 
   // Content edits happen below FloatingComposerDock (the contenteditable owns
   // its own state), so they can resize the bubble without rendering this hook.

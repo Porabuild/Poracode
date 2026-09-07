@@ -42,7 +42,10 @@ function endpointHost(endpoint: string): string {
 }
 
 /** Compact bare input used across the remote-server forms. */
-function CompactInput(props: {
+function CompactInput({
+  inputRef,
+  ...props
+}: {
   readonly value: string;
   readonly placeholder: string;
   readonly ariaLabel: string;
@@ -62,7 +65,7 @@ function CompactInput(props: {
       spellCheck={false}
       autoCapitalize="off"
       autoCorrect="off"
-      ref={props.inputRef}
+      ref={inputRef}
       onChange={(event) => props.onChange(event.currentTarget.value)}
       onKeyDown={(event) => {
         if (event.key === "Enter" && props.onEnter) {

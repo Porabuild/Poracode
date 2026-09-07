@@ -54,23 +54,21 @@ export function LightballTabs<K extends string>(props: {
 
   const listRef = useRef<HTMLDivElement>(null);
   const buttonRefs = useRef<Partial<Record<K, HTMLButtonElement | null>>>({});
+  // The visible text color. Without `delayActiveText` it tracks the active tab
+  // directly; with the delay it blanks while the ball flies and flips on
+  // arrival (~80ms), driven by the timer effect below.
   const [activeText, setActiveText] = useState<K | null>(active);
-  const isInitialMount = useRef(true);
+  const [prevTabKey, setPrevTabKey] = useState({ active, delay: delayActiveText });
+  if (prevTabKey.active !== active || prevTabKey.delay !== delayActiveText) {
+    setPrevTabKey({ active, delay: delayActiveText });
+    setActiveText(delayActiveText ? null : active);
+  }
 
   useEffect(() => {
-    if (!delayActiveText) {
-      setActiveText(active);
-      return;
-    }
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      setActiveText(active);
-      return;
-    }
-    setActiveText(null);
-    const t = setTimeout(() => setActiveText(active), 80);
-    return () => clearTimeout(t);
-  }, [active, delayActiveText]);
+    if (!delayActiveText || activeText === active) return;
+    const timer = setTimeout(() => setActiveText(active), 80);
+    return () => clearTimeout(timer);
+  }, [active, activeText, delayActiveText]);
 
   function selectTab(id: K) {
     const tab = tabs.find((t) => t.id === id);

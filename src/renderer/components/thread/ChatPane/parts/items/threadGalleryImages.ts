@@ -7,6 +7,7 @@ import { resolveMarkdownImageUrl } from "@/shared/markdownLocalImages";
 import {
   fileNameFromPath,
   isImagePath,
+  mimeForPath,
   resolveLocalFileUrlPath,
   toLocalFileUrl,
 } from "@/shared/promptContent";
@@ -14,22 +15,19 @@ import { getProjectFsPath } from "@/shared/wsl";
 import { resolveProjectLocation } from "@/shared/worktree";
 import type { RemoteImageRefValue } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
+import { imageUrlMetadata } from "@/renderer/utils/imageUrlMetadata";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { attachmentImageUrl } from "@/renderer/components/composer/useAttachments";
+import type { LightboxImage } from "@/renderer/components/composer/ImageLightbox";
 import { resolveThreadMarkdownImageRoots } from "@/renderer/components/thread/threadMarkdownImageRoots";
 import { imageViewSourceFromImageBlock, resolveImageViewSource } from "./imageViewSource";
 
 /** Renderable thread image for galleries, mosaics, and the fullscreen lightbox. */
-export interface ThreadGalleryImage {
-  /** Renderable URL — `data:`, `poracode-local://`, or remote HTTP(S). */
-  src: string;
-  /** Accessible label / alt text. */
-  alt?: string;
-}
+export type ThreadGalleryImage = LightboxImage;
 
 export interface ThreadGalleryResolvers {
   /** Resolve a user-attachment path (remote desktop image endpoint). */
@@ -45,11 +43,12 @@ export interface ThreadGalleryResolvers {
 }
 
 /**
- * Collect every renderable image in thread order: user attachments, assistant
- * markdown images (in document order) followed by assistant image blocks, then
- * generated `image_view` / tool-call images. Skips sub-agent children (they
- * render in the overlay, not the main transcript) and anything that cannot
- * resolve to a renderable URL on this client (remote refs without a session).
+ * Collect every renderable image newest-first: later thread items come before
+ * earlier ones, and within an item later display positions come first (blocks
+ * before markdown, document tails before heads). Skips sub-agent children
+ * (they render in the overlay, not the main transcript) and anything that
+ * cannot resolve to a renderable URL on this client (remote refs without a
+ * session).
  */
 export function collectThreadGalleryImages(
   items: readonly RuntimeChatItem[],
@@ -66,31 +65,39 @@ export function collectThreadGalleryImages(
     gallery.push(image);
   };
 
-  for (const item of items) {
-    if (item.parentItemId) continue;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i];
+    if (!item || item.parentItemId) continue;
     if (item.type === "user_message") {
-      for (const att of buildUserImageAttachments(item)) {
+      const attachments = buildUserImageAttachments(item);
+      for (let j = attachments.length - 1; j >= 0; j--) {
+        const att = attachments[j];
+        if (!att) continue;
+        const mime = att.mimeType ?? mimeForPath(att.path);
         push({
           src: attachmentImageUrl(att, resolvers.imageUrlForPath),
-          ...(att.name ? { alt: att.name } : {}),
+          ...(att.name ? { alt: att.name, fileName: att.name } : {}),
+          ...(mime ? { mime } : {}),
         });
       }
     } else if (item.type === "assistant_message") {
       const payload = getRuntimeItemPayload<MessageItemPayload>(item, "assistant_message");
+      const blocks = (payload?.content ?? []).filter((b) => b.kind === "image");
+      for (let j = blocks.length - 1; j >= 0; j--) {
+        const source = imageViewSourceFromImageBlock(
+          blocks[j] as { dataUrl?: unknown; mimeType?: unknown; name?: unknown },
+          resolvers.remoteImageRefUrl,
+        );
+        if (source)
+          push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
+      }
       // Pure text deltas intentionally do not invalidate the gallery cache.
       // Collect markdown once the item completes, when its structural version
       // advances and the parsed destination is no longer a streaming tail.
       if (item.state === "completed") {
         const text = assistantDisplayText(item);
-        for (const md of extractMarkdownGalleryImages(text, resolvers)) push(md);
-      }
-      const blocks = (payload?.content ?? []).filter((b) => b.kind === "image");
-      for (const block of blocks) {
-        const source = imageViewSourceFromImageBlock(
-          block as { dataUrl?: unknown; mimeType?: unknown; name?: unknown },
-          resolvers.remoteImageRefUrl,
-        );
-        if (source) push({ src: source.src, ...(source.alt ? { alt: source.alt } : {}) });
+        const markdown = extractMarkdownGalleryImages(text, resolvers);
+        for (let j = markdown.length - 1; j >= 0; j--) push(markdown[j]);
       }
     } else if (
       item.type === "image_view" ||
@@ -105,7 +112,8 @@ export function collectThreadGalleryImages(
         item.payload as ToolCallPayload | undefined,
         resolvers.remoteImageRefUrl,
       );
-      if (source) push({ src: source.src, ...(source.alt ? { alt: source.alt } : {}) });
+      if (source)
+        push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
     }
   }
   return gallery;
@@ -118,20 +126,24 @@ function readToolStatus(payload: unknown): string | undefined {
   return typeof status === "string" ? status : undefined;
 }
 
-function buildUserImageAttachments(item: RuntimeChatItem): { path: string; name?: string }[] {
+function buildUserImageAttachments(
+  item: RuntimeChatItem,
+): { path: string; name?: string; mimeType?: string }[] {
   const payload = getRuntimeItemPayload<MessageItemPayload>(item, "user_message");
   const content = payload?.content ?? [];
-  const out: { path: string; name?: string }[] = [];
+  const out: { path: string; name?: string; mimeType?: string }[] = [];
   content.forEach((block) => {
     if (block.kind === "image" && block.source === "attachment" && block.path) {
       out.push({
         path: block.path,
+        ...(block.mimeType ? { mimeType: block.mimeType } : {}),
         ...resolveAttachmentName(block.name, block.path),
       });
     } else if (block.kind === "file" && block.source === "attachment" && block.path) {
       if (!isImagePath(block.path, block.mimeType ?? undefined)) return;
       out.push({
         path: block.path,
+        ...(block.mimeType ? { mimeType: block.mimeType } : {}),
         ...resolveAttachmentName(block.name, block.path),
       });
     }
@@ -190,7 +202,9 @@ export function extractMarkdownGalleryImages(
       : resolveMarkdownImageTarget(candidate.rawUrl, resolvers);
     if (resolved) {
       const alt = candidate.alt || fileNameFromPath(candidate.rawUrl);
-      out.push({ src: resolved, ...(alt ? { alt } : {}) });
+      // Read metadata before a remote resolver replaces the original path with an opaque URL.
+      const { fileName, mime } = imageUrlMetadata(candidate.rawUrl, alt);
+      out.push({ src: resolved, fileName, mime, ...(alt ? { alt } : {}) });
     }
   }
   return out;

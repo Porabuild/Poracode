@@ -119,6 +119,14 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   kimi: {
     rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
+  // Muse Code signs in via the in-app dev.meta.ai browser session — the
+  // dashboard is the source for its quota meters and billed spend. The CLI's
+  // device-code credential stands in for plan + account until then. The 5h
+  // window is the fast outer ring, the weekly quota the slower inner one.
+  muse: {
+    supportsBrowserLogin: true,
+    rings: { outer: ["session-5h"], inner: ["weekly"] },
+  },
   qwen: {
     supportsBrowserLogin: true,
     rings: { outer: ["session-5h"], inner: ["weekly", "monthly"] },

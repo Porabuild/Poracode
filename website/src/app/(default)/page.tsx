@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { getLocaleMessages } from "@/lib/i18n/messages";
 import { getLatestRelease } from "@/lib/releases";
+import { CHANGELOG } from "@/lib/changelog";
 import {
   createHomeJsonLd,
   createPageMetadata,
@@ -26,7 +27,12 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: stringifyJsonLd(createHomeJsonLd(release)) }}
       />
-      <HomeContent release={release} />
+      <HomeContent
+        release={release}
+        releaseTagline={
+          CHANGELOG.find((entry) => entry.version === release.version)?.tagline ?? null
+        }
+      />
     </I18nProvider>
   );
 }

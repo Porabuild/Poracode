@@ -672,7 +672,15 @@ export class BrowserPanelManager {
     timeoutMs: number;
     providerLabel?: string;
     validateSession?: (cookieHeader: string) => Promise<boolean>;
-  }): Promise<{ ok: boolean; cookie?: string; cancelled?: boolean; error?: string }> {
+    validateTabUrl?: (url: string) => boolean;
+  }): Promise<{
+    ok: boolean;
+    cookie?: string;
+    /** Login tab URL at capture time; carries tenant-scoped ids for some dashboards. */
+    url?: string;
+    cancelled?: boolean;
+    error?: string;
+  }> {
     return this.loginCoordinator.captureLoginCookies(opts);
   }
 

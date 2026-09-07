@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Slider } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
 import type { PrAutomationMode } from "@/shared/contracts";
@@ -29,9 +29,13 @@ export function PrAutomationSlider(props: {
   const [draftValue, setDraftValue] = useState(MODE_VALUES[props.value]);
   const draftMode = modeForValue(draftValue);
 
-  useEffect(() => {
+  // The draft follows the controlled value; user drags only diverge between
+  // change events. Synced during render instead of an effect.
+  const [prevMode, setPrevMode] = useState(props.value);
+  if (prevMode !== props.value) {
+    setPrevMode(props.value);
     setDraftValue(MODE_VALUES[props.value]);
-  }, [props.value]);
+  }
 
   async function commit(value: number | number[]): Promise<void> {
     const nextMode = modeForValue(value);

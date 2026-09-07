@@ -744,6 +744,8 @@ export interface AgentAdapter
     Partial<AgentAcpAuth>,
     Partial<AgentCliHookPluginSupport>,
     Partial<AgentNativePluginSupport> {
+  /** Run this provider inside WSL when its project lives on native Windows. */
+  readonly windowsProjectExecution?: "wsl";
   readonly skillSupport?: AgentSkillSupport;
 }
 

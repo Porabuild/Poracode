@@ -21,35 +21,33 @@ describe("getComputerUseScope", () => {
     ).toBe("none");
   });
 
-  it("disables Computer Use on Linux hosts (ingress never starts)", () => {
-    expect(getComputerUseScope(undeclared, "gui", { kind: "posix", path: "/tmp" }, "linux")).toBe(
+  it("allows Computer Use for native Linux projects", () => {
+    expect(getComputerUseScope(undeclared, "gui", { kind: "posix", path: "/tmp" })).toBe("launch");
+  });
+
+  it("disables Computer Use for adapters that opt out in every presentation", () => {
+    expect(getComputerUseScope(optedOut, "gui", { kind: "windows", path: "C:\\repo" })).toBe(
       "none",
     );
   });
 
-  it("disables Computer Use for adapters that opt out in every presentation", () => {
-    expect(
-      getComputerUseScope(optedOut, "gui", { kind: "windows", path: "C:\\repo" }, "win32"),
-    ).toBe("none");
-  });
-
   it("allows Computer Use from remote/mobile sessions when the host is Windows", () => {
     // Remote is not a scope gate — agents run on the paired desktop.
-    expect(
-      getComputerUseScope(undeclared, "gui", { kind: "windows", path: "C:\\repo" }, "win32"),
-    ).toBe("launch");
+    expect(getComputerUseScope(undeclared, "gui", { kind: "windows", path: "C:\\repo" })).toBe(
+      "launch",
+    );
   });
 
   it("hides the toggle for terminal threads when the adapter declares no scope", () => {
-    expect(
-      getComputerUseScope(undeclared, "terminal", { kind: "posix", path: "/tmp" }, "darwin"),
-    ).toBe("none");
+    expect(getComputerUseScope(undeclared, "terminal", { kind: "posix", path: "/tmp" })).toBe(
+      "none",
+    );
   });
 
   it("allows Computer Use for terminal threads when the adapter opts in (Codex)", () => {
-    expect(
-      getComputerUseScope(codexLike, "terminal", { kind: "posix", path: "/tmp" }, "darwin"),
-    ).toBe("launch");
+    expect(getComputerUseScope(codexLike, "terminal", { kind: "posix", path: "/tmp" })).toBe(
+      "launch",
+    );
   });
 });
 // @vitest-environment node

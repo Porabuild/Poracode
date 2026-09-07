@@ -3042,6 +3042,21 @@ describe("sdkCanonicalMapping — background sub-agents", () => {
     } as unknown as SDKMessage;
   }
 
+  it("does not hold an Agent tool open for an ambient housekeeping task", () => {
+    const state = createClaudeMapperState("thread-1");
+    startAgentTool(state, "toolu_parent");
+    expect(
+      mapClaudeSdkMessage(
+        { ...taskStarted("toolu_parent", "general-purpose"), ambient: true } as SDKMessage,
+        state,
+      ),
+    ).toEqual([]);
+    expect(state.activeSubAgentToolToTask?.has("toolu_parent") ?? false).toBe(false);
+    expect(mapClaudeSdkMessage(launchToolResult("toolu_parent"), state)).toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: "toolu_parent" }),
+    );
+  });
+
   it("keeps the Agent parent running after its launch tool_result when a subagent task is live", () => {
     const state = createClaudeMapperState("thread-1");
     startAgentTool(state, "toolu_parent");

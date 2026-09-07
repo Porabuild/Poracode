@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
+import { ImageLightboxMenu } from "./ImageLightboxMenu";
 
 /** A pre-resolved image for the lightbox: a renderable URL plus an accessible label. */
 export interface LightboxImage {
@@ -17,6 +18,9 @@ export interface LightboxImage {
   src: string;
   /** Accessible label / alt text. */
   alt?: string;
+  /** Original download name and MIME type, retained when the display URL is opaque. */
+  fileName?: string;
+  mime?: string;
 }
 
 type LightboxState = {
@@ -69,6 +73,8 @@ export function openAttachmentLightbox(
     attachments.map((img) => ({
       src: attachmentImageUrl(img, imageUrlForPath),
       alt: img.name,
+      fileName: img.name,
+      ...(img.mimeType ? { mime: img.mimeType } : {}),
     })),
     initialIndex,
   );
@@ -110,28 +116,35 @@ export function ImageLightboxView(props: {
   const [index, setIndex] = useState(initialIndex);
   const [scale, setScale] = useState(MIN_SCALE);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
+  const [menuPosition, setMenuPosition] = useState<Point | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const dragRef = useRef<{
     pointerId: number;
     pointerStart: Point;
     panStart: Point;
+    /** Image index the drag started on; a stale drag never pans a new image. */
+    index: number;
   } | null>(null);
   const current = images[index];
 
-  // Reset index if initialIndex changes (new lightbox open)
-  useEffect(() => {
-    setIndex(initialIndex);
-  }, [initialIndex]);
-
-  useEffect(() => {
+  // Reset the index when a new lightbox opens, and reset zoom/pan whenever
+  // the visible image changes (prop or keyboard/button nav) — tracked during
+  // render instead of sync setStates in effects.
+  const [prevImageKey, setPrevImageKey] = useState({ initial: initialIndex, current: index });
+  if (prevImageKey.initial !== initialIndex || prevImageKey.current !== index) {
+    const nextIndex = prevImageKey.initial !== initialIndex ? initialIndex : index;
+    setPrevImageKey({ initial: initialIndex, current: nextIndex });
+    if (nextIndex !== index) setIndex(nextIndex);
     setScale(MIN_SCALE);
     setPan({ x: 0, y: 0 });
-    dragRef.current = null;
-  }, [index]);
+    setMenuPosition(null);
+  }
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // The menu owns Escape and arrow keys while it is open.
+      if (menuPosition) return;
       if (e.key === "Escape") {
         onClose();
       } else if (e.key === "ArrowLeft") {
@@ -142,7 +155,7 @@ export function ImageLightboxView(props: {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, images.length]);
+  }, [onClose, images.length, menuPosition]);
 
   useEffect(() => {
     function handleResize() {
@@ -168,12 +181,13 @@ export function ImageLightboxView(props: {
       pointerId: event.pointerId,
       pointerStart: { x: event.clientX, y: event.clientY },
       panStart: pan,
+      index,
     };
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLImageElement>) {
     const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag || drag.pointerId !== event.pointerId || drag.index !== index) return;
     event.preventDefault();
     setPan(
       clampPan(
@@ -247,6 +261,11 @@ export function ImageLightboxView(props: {
             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})`,
           }}
           onClick={(event) => event.stopPropagation()}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setMenuPosition({ x: event.clientX, y: event.clientY });
+          }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerEnd}
@@ -306,6 +325,13 @@ export function ImageLightboxView(props: {
           </span>
         ) : null}
       </div>
+      {menuPosition ? (
+        <ImageLightboxMenu
+          image={current}
+          position={menuPosition}
+          onClose={() => setMenuPosition(null)}
+        />
+      ) : null}
     </div>,
     document.body,
   );

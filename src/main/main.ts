@@ -51,7 +51,9 @@ import { startUsageLoginCookieMirror } from "./usageLogin/UsageLoginCookieMirror
 import {
   ComputerUseDesktopOverlay,
   ComputerUseMcpIngress,
+  ComputerUseWakeLock,
   type ComputerUseMcpIngressInfo,
+  resolveComputerUseHelperBinaryPath,
 } from "./computer-use";
 import { SupervisorClient } from "./supervisor/SupervisorClient";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
@@ -85,7 +87,7 @@ import {
   type QuickComposerSubmission,
   type SupervisorEvent,
 } from "@/shared/ipc";
-import type { SharedSettings } from "@/shared/settings";
+import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 import { readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
 import { remoteProjectCommandResultSchema } from "@/shared/remote";
 import { WindowsJobObjectManager } from "./windowsJobObject";
@@ -613,6 +615,10 @@ function injectBrowserToMain(): void {
 
 const workingThreads = new Set<string>();
 const sleepInhibitor = createSleepInhibitor();
+// A locked desktop is uncontrollable and unobservable for computer use, so the
+// display is held awake for the duration of a session. Owned here (not by the
+// ingress) so it survives ingress restarts and is released on quit.
+const computerUseWakeLock = new ComputerUseWakeLock();
 
 function requirePoracodePaths(): PoracodePaths {
   if (!poracodePaths) {
@@ -624,10 +630,14 @@ function requirePoracodePaths(): PoracodePaths {
 function updatePowerSaveBlocker(): void {
   if (!poracodePaths) {
     sleepInhibitor.setActive(workingThreads.size > 0);
+    computerUseWakeLock.setEnabled(defaultSharedSettings.computerUseKeepAwake);
     return;
   }
   const settings = readSharedSettingsFile(poracodePaths.settingsPath);
   sleepInhibitor.setActive(shouldPreventSystemSleep(settings, workingThreads.size));
+  // Every settings write funnels through here, so toggling the setting off
+  // releases an already-held wake lock immediately.
+  computerUseWakeLock.setEnabled(settings.computerUseKeepAwake);
 }
 
 function handleSupervisorEventForSleep(event: SupervisorEvent): void {
@@ -1035,15 +1045,32 @@ if (!hasSingleInstanceLock) {
       chromeBridgeServer.start().catch((err) => {
         console.error("[poracode] chrome bridge server failed to start:", err);
       });
-      // Computer-use drives the host desktop and is only supported on macOS and
-      // Windows (matches createComputerUseDriver). On other platforms the ingress
+      const computerUseHelperRoot = app.isPackaged
+        ? join(process.resourcesPath, "computer-use-helper")
+        : join(
+            __dirname,
+            "..",
+            "..",
+            "resources",
+            isDev ? "computer-use-helper-dev" : "computer-use-helper",
+          );
+      // Windows and macOS keep a legacy in-process driver, so they stay
+      // supported even without a staged helper. Everywhere else the helper is
+      // the only backend: with no binary for this platform/arch the ingress
       // would advertise tools that all fail and would still inject a token into
-      // launches, so skip it entirely — resolveExtraEnv then naturally yields
+      // every agent launch, so skip it entirely and let resolveExtraEnv yield
       // nothing because getInfo() stays null.
+      const computerUseSupported =
+        process.platform === "win32" ||
+        process.platform === "darwin" ||
+        resolveComputerUseHelperBinaryPath(computerUseHelperRoot) !== null;
       let computerUseMcpInfoReady: Promise<ComputerUseMcpIngressInfo | null> =
         Promise.resolve(null);
-      if (process.platform === "win32" || process.platform === "darwin") {
+      if (computerUseSupported) {
         computerUseDesktopOverlay = new ComputerUseDesktopOverlay({
+          onActivityState: (state) => {
+            computerUseWakeLock.setSessionActive(state.level !== "hidden");
+          },
           onExit: (threadIds) => {
             computerUseMcpIngress?.interruptActiveActions();
             for (const threadId of threadIds) {
@@ -1057,7 +1084,13 @@ if (!hasSingleInstanceLock) {
           },
         });
         computerUseMcpIngress = new ComputerUseMcpIngress({
+          driverOptions: {
+            helperRootDir: computerUseHelperRoot,
+            stateDir: join(app.getPath("userData"), "computer-use"),
+            warn: (message) => console.warn(`[poracode] ${message}`),
+          },
           onActivity: (event) => computerUseDesktopOverlay?.setActivity(event),
+          isDisplayKeptAwake: () => computerUseWakeLock.isHeld(),
         });
         computerUseMcpInfoReady = computerUseMcpIngress.start().catch((err) => {
           console.error("[poracode] computer use MCP ingress failed to start:", err);
@@ -1293,6 +1326,7 @@ if (!hasSingleInstanceLock) {
         appControlsMcpIngress = null;
         computerUseDesktopOverlay?.dispose();
         computerUseDesktopOverlay = null;
+        computerUseWakeLock.dispose();
         chromeMcpIngress?.dispose();
         chromeMcpIngress = null;
         chromeBridgeServer?.dispose();

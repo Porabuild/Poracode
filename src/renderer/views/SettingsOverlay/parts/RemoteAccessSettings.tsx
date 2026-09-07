@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Button, Disclosure, ToggleButton, ToggleButtonGroup, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Copy, ExternalLink, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
@@ -294,9 +294,17 @@ function PairingReady(props: {
   const countdown = formatCountdown(remainingMs);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
+  // Regenerating the QR when the URL changes clears the stale image first.
+  // Derived from `pairingUrl`, so adjust during render; the async encode
+  // stays in the effect.
+  const [prevPairingUrl, setPrevPairingUrl] = useState(pairingUrl);
+  if (prevPairingUrl !== pairingUrl) {
+    setPrevPairingUrl(pairingUrl);
+    setQrDataUrl(null);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setQrDataUrl(null);
     void toDataURL(pairingUrl, {
       errorCorrectionLevel: "M",
       margin: 1,
@@ -455,6 +463,27 @@ function tailscaleHint(
 }
 
 /**
+ * Probe the Tailscale daemon status once. Module scope (not a hook closure)
+ * so the polling effect and the action handlers can share it without dep
+ * arrays: the setter and the in-flight flag are both stable. Keeps the last
+ * known status on a transient probe failure.
+ */
+async function fetchTailscaleStatus(
+  setStatus: (status: RemoteAccessTailscaleStatus | null) => void,
+  inFlightRef: RefObject<boolean>,
+): Promise<void> {
+  if (inFlightRef.current) return;
+  inFlightRef.current = true;
+  try {
+    setStatus(await readBridge().getRemoteAccessTailscaleStatus());
+  } catch {
+    // Keep the last known status on a transient probe failure.
+  } finally {
+    inFlightRef.current = false;
+  }
+}
+
+/**
  * Secure-URL configuration for the running remote-access server: a Tailscale
  * HTTPS toggle (disabled with a hint until the local daemon is running) plus a
  * custom public base URL. Both persist their setting and restart the server so
@@ -470,42 +499,32 @@ function RemoteAccessAdvanced(props: {
   const [status, setStatus] = useState<RemoteAccessTailscaleStatus | null>(null);
   const [isTogglingTailscale, setIsTogglingTailscale] = useState(false);
   const [isStartingTailscale, setIsStartingTailscale] = useState(false);
-  const [refreshNonce, setRefreshNonce] = useState(0);
   const [urlDraft, setUrlDraft] = useState(advertisedUrl);
   const [isSavingUrl, setIsSavingUrl] = useState(false);
 
   // Poll the daemon so lifecycle transitions (app launched, logged in, HTTPS
-  // provisioned) surface live without reopening Settings. Bumping `refreshNonce`
-  // after an action re-runs this immediately without changing the 5s cadence.
+  // provisioned) surface live without reopening Settings. The immediate
+  // re-poll after an action is an event that calls the same module helper
+  // directly (rather than a trigger dep): the 5s cadence keeps its phase and
+  // at most one extra probe follows an action.
+  const pollInFlightRef = useRef(false);
   useEffect(() => {
-    let cancelled = false;
-    let inFlight = false;
-    const poll = async () => {
-      if (inFlight) return;
-      inFlight = true;
-      try {
-        const next = await readBridge().getRemoteAccessTailscaleStatus();
-        if (!cancelled) setStatus(next);
-      } catch {
-        // Keep the last known status on a transient probe failure.
-      } finally {
-        inFlight = false;
-      }
-    };
-    void poll();
-    const timer = setInterval(() => void poll(), 5_000);
+    void fetchTailscaleStatus(setStatus, pollInFlightRef);
+    const timer = setInterval(() => void fetchTailscaleStatus(setStatus, pollInFlightRef), 5_000);
     return () => {
-      cancelled = true;
       clearInterval(timer);
     };
-  }, [refreshNonce]);
+  }, []);
 
-  const triggerStatusRefresh = () => setRefreshNonce((nonce) => nonce + 1);
+  const triggerStatusRefresh = () => void fetchTailscaleStatus(setStatus, pollInFlightRef);
 
-  // Reflect external changes (e.g. a remote client editing the URL) into the draft.
-  useEffect(() => {
+  // Reflect external changes (e.g. a remote client editing the URL) into the
+  // draft. Derived from `advertisedUrl`, so adjust during render.
+  const [prevAdvertisedUrl, setPrevAdvertisedUrl] = useState(advertisedUrl);
+  if (prevAdvertisedUrl !== advertisedUrl) {
+    setPrevAdvertisedUrl(advertisedUrl);
     setUrlDraft(advertisedUrl);
-  }, [advertisedUrl]);
+  }
 
   const daemonReady = status?.daemon === "running";
   const hint = tailscaleHint(status, {

@@ -25,6 +25,14 @@ interface RenderedEntry extends DiffCardEntry {
   diffFile: DiffFile | null;
 }
 
+function toInitialRendered(input: DiffCardEntry[]): RenderedEntry[] {
+  return input.map((e) => ({ ...e, diffFile: null }));
+}
+
+function hasRenderable(rendered: RenderedEntry[]): boolean {
+  return rendered.some((e) => e.patch.trim().length > 0);
+}
+
 /**
  * Renders a list of pre-fetched per-file unified diffs as collapsible cards.
  *
@@ -40,25 +48,23 @@ export function DiffCardList(props: {
   loading: boolean;
 }) {
   const { entries: input, visiblePath, diffMode, theme, loading } = props;
-  const [rendered, setRendered] = useState<RenderedEntry[]>([]);
-  const [building, setBuilding] = useState(false);
+  const [rendered, setRendered] = useState<RenderedEntry[]>(() => toInitialRendered(input));
+  const [building, setBuilding] = useState(() => hasRenderable(toInitialRendered(input)));
+
+  // A new input (or theme) resets to unbuilt cards during render; the worker
+  // build below only fills results in through async callbacks.
+  const [prevDiffKey, setPrevDiffKey] = useState({ entries: input, theme });
+  if (prevDiffKey.entries !== input || prevDiffKey.theme !== theme) {
+    setPrevDiffKey({ entries: input, theme });
+    const next = toInitialRendered(input);
+    setRendered(next);
+    setBuilding(hasRenderable(next));
+  }
 
   useEffect(() => {
     let cancelled = false;
-    if (input.length === 0) {
-      setRendered([]);
-      setBuilding(false);
-      return;
-    }
-
-    const initial: RenderedEntry[] = input.map((e) => ({ ...e, diffFile: null }));
-    setRendered(initial);
-    const renderable = initial.filter((e) => e.patch.trim());
-    if (renderable.length === 0) {
-      setBuilding(false);
-      return;
-    }
-    setBuilding(true);
+    const renderable = input.filter((e) => e.patch.trim());
+    if (renderable.length === 0) return;
 
     void buildInWorker(
       renderable.map((e) => {
@@ -76,8 +82,8 @@ export function DiffCardList(props: {
       .then((results) => {
         if (cancelled) return;
         const map = new Map(results.map((r) => [r.key, r]));
-        setRendered(
-          initial.map((e) => {
+        setRendered((current) =>
+          current.map((e) => {
             const r = map.get(e.path);
             return r?.bundle ? { ...e, diffFile: diffFileFromBundle(r.data, r.bundle) } : e;
           }),

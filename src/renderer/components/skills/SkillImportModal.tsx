@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { Checkbox, Modal, toast } from "@heroui/react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
@@ -100,15 +100,26 @@ export function SkillImportModal(props: SkillImportModalProps) {
   const allSelected = selectable.length > 0 && selectable.every((skill) => selected.has(skill.id));
   const someSelected = !allSelected && selectable.some((skill) => selected.has(skill.id));
 
-  useEffect(() => {
-    if (props.isOpen) return;
-    setSelected(new Set());
-    setExpanded(new Set());
-    setDestinationId(props.defaultDestinationId);
-    setAvailability("shared");
-    setMode("copy");
-    setReplaceConflicts(false);
-  }, [props.defaultDestinationId, props.isOpen]);
+  // Reset the selection when the modal closes (or the default destination
+  // changes while closed), tracked during render instead of an effect.
+  const [prevImportReset, setPrevImportReset] = useState({
+    open: props.isOpen,
+    destination: props.defaultDestinationId,
+  });
+  if (
+    prevImportReset.open !== props.isOpen ||
+    prevImportReset.destination !== props.defaultDestinationId
+  ) {
+    setPrevImportReset({ open: props.isOpen, destination: props.defaultDestinationId });
+    if (!props.isOpen) {
+      setSelected(new Set());
+      setExpanded(new Set());
+      setDestinationId(props.defaultDestinationId);
+      setAvailability("shared");
+      setMode("copy");
+      setReplaceConflicts(false);
+    }
+  }
 
   const updateSelected = (skill: SkillEntry, next: boolean) => {
     setSelected((current) => {

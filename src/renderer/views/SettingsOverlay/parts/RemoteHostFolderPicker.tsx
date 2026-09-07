@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Modal } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ChevronRight, CornerLeftUp, File, Folder, House, Loader2, Server } from "lucide-react";
@@ -31,11 +31,35 @@ export function RemoteHostFolderPicker(props: {
       setLoading(false);
     }
   }
-  const browseInitialPath = useEffectEvent(browse);
+
+  // Resetting the listing state when the entry path changes derives from that
+  // path, so adjust during render; the fetch itself stays in the effect with
+  // only async (thenable) state updates.
+  const [prevInitialPath, setPrevInitialPath] = useState(props.initialPath);
+  if (prevInitialPath !== props.initialPath) {
+    setPrevInitialPath(props.initialPath);
+    setLoading(true);
+    setError(null);
+  }
 
   useEffect(() => {
-    void browseInitialPath(props.initialPath ?? "");
-  }, [props.initialPath]);
+    let cancelled = false;
+    void browseHostDirectory(props.desktopId, props.initialPath ?? "").then(
+      (result) => {
+        if (cancelled) return;
+        setListing(result);
+        setLoading(false);
+      },
+      (err: unknown) => {
+        if (cancelled) return;
+        setError(friendlyError(err));
+        setLoading(false);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [browseHostDirectory, props.desktopId, props.initialPath]);
 
   const directories = listing?.entries.filter((entry) => entry.type === "directory") ?? [];
   const files = listing?.entries.filter((entry) => entry.type === "file") ?? [];

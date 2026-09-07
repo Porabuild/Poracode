@@ -89,11 +89,12 @@ function ensureNodePty() {
 
 function ensureBetterSqlite3() {
   try {
-    require("better-sqlite3");
+    const Database = require("better-sqlite3");
+    new Database(":memory:").close();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `[poracode] better-sqlite3 is unavailable: ${message}. If pnpm blocked native build scripts, run 'pnpm approve-builds' and reinstall.`,
+      `[poracode] better-sqlite3 is unavailable: ${message}. Reinstall dependencies to restore the bundled N-API binaries.`,
       { cause: error },
     );
   }
@@ -107,11 +108,14 @@ function electronNativeFingerprint() {
   const electronVersion = require("electron/package.json").version;
   const betterSqlite3Version = require("better-sqlite3/package.json").version;
   const nodePtyVersion = require("node-pty/package.json").version;
+  const platform =
+    process.platform === "linux" && !process.report.getReport().header.glibcVersionRuntime
+      ? "linuxmusl"
+      : process.platform;
   const bindingPath = join(
     dirname(require.resolve("better-sqlite3/package.json")),
-    "build",
-    "Release",
-    "better_sqlite3.node",
+    "prebuilds",
+    `${platform}-${process.arch}.node`,
   );
   return {
     electronVersion,
@@ -143,16 +147,6 @@ function validateElectronNativeDependencies() {
   return validation;
 }
 
-function rebuildElectronNativeDependencies() {
-  const rebuildCli = join(dirname(require.resolve("@electron/rebuild")), "cli.js");
-  const result = spawnSync(process.execPath, [rebuildCli, "--force", "--only", "better-sqlite3"], {
-    stdio: "inherit",
-  });
-  if (result.status !== 0) {
-    throw new Error("[poracode] electron-rebuild failed for better-sqlite3");
-  }
-}
-
 function ensureElectronNativeDependencies() {
   const cacheDir = join(process.cwd(), "node_modules", ".cache", "poracode");
   const cachePath = join(cacheDir, "electron-native.json");
@@ -165,16 +159,11 @@ function ensureElectronNativeDependencies() {
   }
 
   if (fingerprintsMatch(cachedFingerprint, fingerprint)) {
-    console.log("[poracode] Electron native dependencies already compatible, skipping rebuild");
+    console.log("[poracode] Electron native dependencies already validated");
     return;
   }
 
-  let validation = validateElectronNativeDependencies();
-  if (validation.status !== 0) {
-    console.log("[poracode] Electron native dependency check failed; rebuilding better-sqlite3");
-    rebuildElectronNativeDependencies();
-    validation = validateElectronNativeDependencies();
-  }
+  const validation = validateElectronNativeDependencies();
   if (validation.status !== 0) {
     const detail = validation.stderr?.trim() || validation.error?.message || "unknown error";
     throw new Error(`[poracode] Electron native dependency validation failed: ${detail}`);

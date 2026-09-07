@@ -39,8 +39,8 @@ function composeAcpExtensions(
       }
       return { events, text };
     },
-    trackToolCall(input: AcpExtensionToolCallInput): void {
-      for (const part of parts) part.trackToolCall?.(input);
+    trackToolCall(input: AcpExtensionToolCallInput): RuntimeEvent[] {
+      return parts.flatMap((part) => part.trackToolCall?.(input) ?? []);
     },
     observeSessionUpdate(input): RuntimeEvent[] {
       return parts.flatMap((part) => part.observeSessionUpdate?.(input) ?? []);

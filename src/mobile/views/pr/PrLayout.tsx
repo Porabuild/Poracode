@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "@heroui/react";
 import { getRouteApi, Outlet, useNavigate, useRouter } from "@tanstack/react-router";
 import type { ProjectLocation } from "@/shared/contracts";
@@ -51,7 +51,6 @@ export function PrLayout() {
   const remote = useRemote();
   const navigate = useNavigate();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
 
   const prNumber = Number(prNumberParam);
   const validPr = Number.isInteger(prNumber) && prNumber > 0;
@@ -70,13 +69,17 @@ export function PrLayout() {
     ...(explicitPrKey ? { prKey: explicitPrKey } : {}),
   };
 
-  const load = useCallback(() => {
-    if (!projectLocation || !validPr) return;
-    setLoading(true);
-    void fetchPr(projectLocation, prNumber, cacheKey)
-      .catch((err: unknown) => toast.danger(friendlyError(err)))
-      .finally(() => setLoading(false));
-  }, [projectLocation, prNumber, cacheKey, validPr]);
+  // Loading is owned state primed from the initial request (like the fetch
+  // below, which always runs on mount): the key-change adjustment only flips
+  // it back on for subsequent navigations, and the fetch settles it off in its
+  // async completion — never synchronously inside the effect.
+  const loadKey = !projectLocation || !validPr ? null : cacheKey;
+  const [loading, setLoading] = useState(loadKey !== null);
+  const [prevLoadKey, setPrevLoadKey] = useState(loadKey);
+  if (prevLoadKey !== loadKey) {
+    setPrevLoadKey(loadKey);
+    if (loadKey !== null) setLoading(true);
+  }
 
   // Bail to the thread list on a stale deep link (unknown project or a
   // non-numeric PR number that would otherwise poison the cache key).
@@ -86,8 +89,17 @@ export function PrLayout() {
 
   // Refetch whenever the PR changes (always fresh, like the desktop overlay).
   useEffect(() => {
-    load();
-  }, [load]);
+    if (loadKey === null || !projectLocation) return;
+    let cancelled = false;
+    void fetchPr(projectLocation, prNumber, cacheKey)
+      .catch((err: unknown) => toast.danger(friendlyError(err)))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadKey, projectLocation, prNumber, cacheKey]);
 
   if (!project || !projectLocation || !validPr) return null;
 
@@ -99,7 +111,15 @@ export function PrLayout() {
     prKey,
     cacheKey,
     loading,
-    reload: load,
+    // Manual retry from the PR pages (event context, so priming `loading`
+    // synchronously here is fine).
+    reload: () => {
+      if (!projectLocation || !validPr) return;
+      setLoading(true);
+      void fetchPr(projectLocation, prNumber, cacheKey)
+        .catch((err: unknown) => toast.danger(friendlyError(err)))
+        .finally(() => setLoading(false));
+    },
     toOverview: () =>
       void navigate({ to: "/pr/$prNumber", params: { prNumber: prNumberParam }, search }),
     toPage: (page: PrPageKey) =>

@@ -13,6 +13,16 @@ const buildAgentCommandMock = vi.hoisted(() =>
     ) => { command: string; args: string[]; cwd?: string }
   >(),
 );
+const resolveAgentProjectLocationMock = vi.hoisted(() =>
+  vi.fn<
+    (
+      _adapter: AgentAdapter,
+      location: ProjectLocation,
+      _environment?: unknown,
+      signal?: AbortSignal,
+    ) => Promise<ProjectLocation>
+  >(),
+);
 
 vi.mock("node:child_process", async (importOriginal) => ({
   ...(await importOriginal<typeof import("node:child_process")>()),
@@ -21,6 +31,7 @@ vi.mock("node:child_process", async (importOriginal) => ({
 vi.mock("./agents/base", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./agents/base")>()),
   buildAgentCommand: buildAgentCommandMock,
+  resolveAgentProjectLocation: resolveAgentProjectLocationMock,
 }));
 
 import {
@@ -71,6 +82,7 @@ function argvProneAdapter(): AgentAdapter {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resolveAgentProjectLocationMock.mockImplementation(async (_adapter, location) => location);
   buildAgentCommandMock.mockImplementation(
     (location: ProjectLocation, command: string, args: string[]) =>
       location.kind === "wsl" ? { command, args } : { command, args, cwd: location.path },
@@ -113,6 +125,38 @@ describe("isArgvLikelyTooLong", () => {
 });
 
 describe("runOneShotPromptWithFallback", () => {
+  it("resolves the provider execution location and forwards cancellation", async () => {
+    const signal = new AbortController().signal;
+    const wslProject: ProjectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/mnt/c/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\mnt\\c\\repo",
+    };
+    const runOneShot = vi.fn<NonNullable<AgentAdapter["runOneShot"]>>().mockResolvedValue("ok");
+    const adapter = { label: "WSL-backed", runOneShot } as unknown as AgentAdapter;
+    resolveAgentProjectLocationMock.mockResolvedValue(wslProject);
+
+    await runOneShotPromptWithFallback({
+      location: windowsProject,
+      adapter,
+      model: "model",
+      effort: undefined,
+      timeoutMs: 10_000,
+      logTag: "test",
+      attempts: [{ level: "full", buildPrompt: () => "hello" }],
+      signal,
+    });
+
+    expect(resolveAgentProjectLocationMock).toHaveBeenCalledWith(
+      adapter,
+      windowsProject,
+      undefined,
+      signal,
+    );
+    expect(runOneShot).toHaveBeenCalledWith(expect.objectContaining({ location: wslProject }));
+  });
+
   it("forwards read-only workspace access to structured one-shot runtimes", async () => {
     const runOneShot = vi.fn<() => Promise<string>>().mockResolvedValue("ok");
     const adapter = {

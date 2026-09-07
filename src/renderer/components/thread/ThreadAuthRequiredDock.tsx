@@ -53,10 +53,11 @@ export function ThreadAuthRequiredDock(props: { agentStatus: AgentStatus; projec
   const hasDirectLogin = canUseAgentAuth || canUseTerminalLogin;
   const preferTerminalLogin = shouldPreferTerminalLogin(agentStatus);
   const useTerminalLogin = canUseTerminalLogin && (preferTerminalLogin || !canUseAgentAuth);
+  const loginCommandDisplay = agentStatus.loginCommandDisplay ?? agentStatus.loginCommand;
   const description = isRemote
     ? t`Sign in on the paired desktop, then refresh this status.`
     : useTerminalLogin
-      ? t`Run ${agentStatus.loginCommand} before this thread can run.`
+      ? t`Run ${loginCommandDisplay} before this thread can run.`
       : agentAuthMethod
         ? t`Complete ${agentAuthMethod.name} sign-in before this thread can run.`
         : t`Add credentials before this thread can run.`;

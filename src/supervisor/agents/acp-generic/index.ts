@@ -42,6 +42,7 @@ import {
   buildAgentCommand,
   batchWslCommandsAsync,
   quotePosixShellArg,
+  type AcpSessionUpdateTransform,
   type AgentAdapter,
   type AgentEnvContext,
   type CommandSpec,
@@ -49,7 +50,6 @@ import {
 } from "../base";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
 import { applyAcpRegistryNpxArgsOverride } from "../acpRegistryNpx";
-import { normalizeFactoryModels } from "../factory/detection";
 
 /** First-time `npx` installs can exceed the default probe budget. */
 export const REGISTRY_INSTALL_PROBE_TIMEOUT_MS = 90_000;
@@ -73,6 +73,7 @@ export interface AcpGenericAdapterOptions {
   kind?: string;
   label?: string;
   probeTimeoutMs?: number;
+  /** Provider-owned normalization of discovered capabilities before merging defaults. */
   normalizeProbeResult?: (result: AcpProbeResult) => AcpProbeResult;
   synthesizeApprovalPolicies?: boolean;
   sessionBehavior?: AcpSessionBehavior;
@@ -84,6 +85,8 @@ export interface AcpGenericAdapterOptions {
    * `AcpStructuredSessionOptions.stderrTurnSignalParser`.
    */
   stderrTurnSignalParser?: (line: string) => "background-wait" | undefined;
+  /** Provider-owned rewrite of inbound `session/update` notifications. */
+  sessionUpdateTransform?: AcpSessionUpdateTransform;
 }
 
 export function createAcpGenericAdapter(
@@ -150,7 +153,7 @@ export function createAcpGenericAdapter(
         ...(providerMetadata ? { providerMetadata } : {}),
         ...(probeResult?.authMethods ? { authMethods: probeResult.authMethods } : {}),
         ...(probeResult?.authLogoutSupported ? { authLogoutSupported: true } : {}),
-        capabilities: mergeAcpProbeCapabilities(capabilities, probeResult, instance, {
+        capabilities: mergeAcpProbeCapabilities(capabilities, probeResult, {
           synthesizeApprovalPolicies: options.synthesizeApprovalPolicies !== false,
         }),
       };
@@ -169,15 +172,24 @@ export function createAcpGenericAdapter(
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
       const command = buildGenericCommand(input.projectLocation, cfg, instance);
-      return createAcpStructuredSession(command, input, {
-        ...(options.sessionBehavior ? { behavior: options.sessionBehavior } : {}),
-        ...(options.textStreamExtension
-          ? { textStreamExtension: options.textStreamExtension }
-          : {}),
-        ...(options.stderrTurnSignalParser
-          ? { stderrTurnSignalParser: options.stderrTurnSignalParser }
-          : {}),
-      });
+      return createAcpStructuredSession(
+        command,
+        {
+          ...input,
+          ...(options.sessionUpdateTransform
+            ? { acpSessionUpdateTransform: options.sessionUpdateTransform }
+            : {}),
+        },
+        {
+          ...(options.sessionBehavior ? { behavior: options.sessionBehavior } : {}),
+          ...(options.textStreamExtension
+            ? { textStreamExtension: options.textStreamExtension }
+            : {}),
+          ...(options.stderrTurnSignalParser
+            ? { stderrTurnSignalParser: options.stderrTurnSignalParser }
+            : {}),
+        },
+      );
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
@@ -293,15 +305,12 @@ async function probeGenericCapabilities(
 function mergeAcpProbeCapabilities(
   capabilities: AgentCapability,
   probeResult: AcpProbeResult | undefined,
-  instance: AgentInstanceConfig,
   options: { synthesizeApprovalPolicies: boolean },
 ): AgentCapability {
   if (!probeResult) return capabilities;
   const merged: AgentCapability = {
     ...capabilities,
-    ...(probeResult.models
-      ? { models: normalizeProviderModels(instance, probeResult.models) }
-      : {}),
+    ...(probeResult.models ? { models: probeResult.models } : {}),
     ...(probeResult.efforts ? { efforts: probeResult.efforts } : {}),
     ...(probeResult.defaultEffort ? { defaultEffort: probeResult.defaultEffort } : {}),
     ...(probeResult.modelEfforts ? { modelEfforts: probeResult.modelEfforts } : {}),
@@ -337,16 +346,6 @@ function mergeAcpProbeCapabilities(
     merged.defaultApprovalPolicy = "never";
   }
   return merged;
-}
-
-function normalizeProviderModels(
-  instance: AgentInstanceConfig,
-  models: NonNullable<AcpProbeResult["models"]>,
-): NonNullable<AcpProbeResult["models"]> {
-  if (instance.id !== "factory-droid") {
-    return models;
-  }
-  return normalizeFactoryModels(models);
 }
 
 function buildGenericCommand(

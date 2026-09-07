@@ -419,6 +419,13 @@ export default defineConfig(({ mode }) => ({
         codeSplitting: {
           groups: [
             {
+              // Keep the shared preload helper out of recursively grouped
+              // features so importing it does not load those features too.
+              name: "preload-helper",
+              test: /vite[\\/]preload-helper/,
+              priority: 110,
+            },
+            {
               name: "xterm",
               test: /[\\/]node_modules[\\/]@xterm[\\/]/,
               priority: 50,
@@ -441,7 +448,10 @@ export default defineConfig(({ mode }) => ({
               // separate per-language chunks, so V8 only parses the grammars
               // actually rendered.
               name: "shiki",
-              test: /[\\/]node_modules[\\/](shiki[\\/]|@shikijs[\\/](?:core|engine-|types|vscode-))/,
+              test: /[\\/]node_modules[\\/](shiki[\\/]|@shikijs[\\/](?:core|engine-|primitive|types|vscode-))/,
+              // Markdown also uses Shiki's HTML utilities. Keep those shared
+              // dependencies outside the highlighter chunk.
+              includeDependenciesRecursively: false,
               priority: 38,
             },
             {
@@ -451,8 +461,18 @@ export default defineConfig(({ mode }) => ({
             },
             {
               name: "framework",
-              test: /[\\/]node_modules[\\/](react|react-dom|scheduler|zustand|zod)[\\/]/,
-              priority: 30,
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-sync-external-store|zustand|zod)[\\/]/,
+              priority: 100,
+            },
+            {
+              name: "notes-editor",
+              test: /[\\/]node_modules[\\/](@tiptap[\\/]|prosemirror-|orderedmap[\\/]|rope-sequence[\\/]|w3c-keyname[\\/])/,
+              priority: 25,
+            },
+            {
+              name: "mobile-vendor",
+              test: /[\\/]node_modules[\\/](jsqr[\\/]|dexie[\\/]|@capacitor[\\/]|@aparajita[\\/]|@poracode[\\/](?:ssh|activity)-bridge[\\/]|@tanstack[\\/](?:react-router|router-core|history)[\\/])/,
+              priority: 20,
             },
             {
               // Catch-all for everything not handled above. Excludes

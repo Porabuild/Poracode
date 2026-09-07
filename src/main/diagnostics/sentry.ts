@@ -96,6 +96,7 @@ export function initializeMainSentry(options: MainSentryOptions): boolean {
     release: `poracode@${options.appVersion}`,
     environment: readSentryEnvironment(options),
     sendDefaultPii: false,
+    enableLogs: false,
     attachScreenshot: false,
     maxBreadcrumbs: 0,
     normalizeDepth: 4,

@@ -105,9 +105,14 @@ export function ThreadToolRail(props: {
     headerMenuCloseTimerRef.current = null;
   };
 
+  // Mount-only cleanup for a close timer a late pointer event may still have
+  // armed; the body is inlined (rather than calling cancelHeaderMenuClose)
+  // so the effect depends on nothing that changes per render.
   useEffect(
     () => () => {
-      cancelHeaderMenuClose();
+      if (headerMenuCloseTimerRef.current === null) return;
+      clearTimeout(headerMenuCloseTimerRef.current);
+      headerMenuCloseTimerRef.current = null;
     },
     [],
   );

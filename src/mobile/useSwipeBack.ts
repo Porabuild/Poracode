@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useEffectEvent, type RefObject } from "react";
 import { startsInHorizontalScroller } from "./startsInHorizontalScroller";
 
 /** Gesture starts only from the left screen edge, like the iOS back swipe. */
@@ -22,8 +22,7 @@ export function useSwipeBack(
   enabled: boolean,
   onBack: () => void,
 ): void {
-  const onBackRef = useRef(onBack);
-  onBackRef.current = onBack;
+  const handleBack = useEffectEvent(onBack);
 
   useEffect(() => {
     const node = ref.current;
@@ -63,7 +62,7 @@ export function useSwipeBack(
       if (!committed && deltaX > TRIGGER_PX) {
         committed = true;
         tracking = false;
-        onBackRef.current();
+        handleBack();
       }
     };
 

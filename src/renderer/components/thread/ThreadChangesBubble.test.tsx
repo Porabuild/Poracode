@@ -66,7 +66,11 @@ describe("ThreadChangesBubble", () => {
 
     const bubble = screen.getByRole("button", { name: "Review changes" });
 
-    expect(bubble).toHaveClass("poracode-floating-chrome", "w-7");
+    expect(bubble).toHaveClass(
+      "poracode-floating-chrome",
+      "poracode-floating-chrome--bubble",
+      "w-7",
+    );
     // Positioning belongs to the composer's shared bubble wrapper, not the bubble.
     expect(bubble).not.toHaveClass("absolute");
     expect(bubble.querySelector(".lucide-git-fork")).not.toBeNull();

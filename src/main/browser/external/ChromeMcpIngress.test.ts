@@ -25,6 +25,56 @@ afterEach(() => {
 });
 
 describe("ChromeMcpIngress", () => {
+  it.each(["chrome_click", "click"])(
+    "enforces disabled %s across aliases and batches",
+    async (disabled) => {
+      const send = vi.fn<(method: string) => Promise<unknown>>();
+      ingress = new ChromeMcpIngress();
+      ingress.setConnectionAccessor(
+        () => ({ cdpSession: () => ({ send }) }) as unknown as ExternalChromeConnection,
+      );
+      const info = await ingress.start();
+      const query = `?thread=fixture&disable=${disabled}`;
+      const list = await postMcp(info, { jsonrpc: "2.0", id: 1, method: "tools/list" }, query);
+      const catalog = (await list.json()) as { result: { tools: Array<{ name: string }> } };
+      expect(catalog.result.tools.some((tool) => tool.name === "click")).toBe(false);
+      for (const name of [
+        "click",
+        "chrome_click",
+        "perform",
+        "chrome_perform",
+        "chrome_chrome_click",
+      ]) {
+        const response = await postMcp(
+          info,
+          {
+            jsonrpc: "2.0",
+            id: 2,
+            method: "tools/call",
+            params: {
+              name,
+              arguments: {
+                selector: "#submit",
+                steps: [
+                  { action: "fill", selector: "#name", text: "Ada" },
+                  { action: "click", selector: "#submit" },
+                ],
+              },
+            },
+          },
+          query,
+        );
+        const body = (await response.json()) as {
+          result: { isError?: boolean; content: Array<{ text: string }> };
+        };
+        expect(body.result.isError).toBe(true);
+        expect(body.result.content[0]?.text).toMatch(
+          /Tool disabled by Poracode: click|Unknown tool: chrome_click/,
+        );
+      }
+      expect(send).not.toHaveBeenCalled();
+    },
+  );
   it("advertises Chrome instructions and tools through the shared transport", async () => {
     ingress = new ChromeMcpIngress();
     const info = await ingress.start();
@@ -47,15 +97,17 @@ describe("ChromeMcpIngress", () => {
     const listBody = (await list.json()) as {
       result: { tools: Array<{ name: string; annotations?: Record<string, boolean> }> };
     };
-    expect(listBody.result.tools.map((tool) => tool.name)).toContain("chrome_status");
+    expect(listBody.result.tools.map((tool) => tool.name)).toContain("status");
     expect(listBody.result.tools.map((tool) => tool.name)).toContain("enable");
     expect(listBody.result.tools.map((tool) => tool.name)).toContain("disable");
     expect(
-      listBody.result.tools.find((tool) => tool.name === "chrome_snapshot")?.annotations,
+      listBody.result.tools.find((tool) => tool.name === "snapshot")?.annotations,
     ).toMatchObject({ readOnlyHint: true, destructiveHint: false });
-    expect(
-      listBody.result.tools.find((tool) => tool.name === "chrome_click")?.annotations,
-    ).toMatchObject({ readOnlyHint: false, destructiveHint: true, openWorldHint: true });
+    expect(listBody.result.tools.find((tool) => tool.name === "click")?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
+    });
   });
 
   it("routes Chrome tool calls and formats their result", async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { Sparkles, Terminal } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentSlashCommand } from "@/shared/contracts";
@@ -16,9 +16,8 @@ interface ThreadCommandPanelProps {
 }
 
 export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
-  const { commands, activeIndex, onSelect } = props;
+  const { commands, activeIndex, onSelect, listId } = props;
   const { t } = useLingui();
-  const activeRowRef = useRef<HTMLButtonElement>(null);
   const groups = commands.reduce<
     Array<{
       section: AgentSlashCommand["section"];
@@ -32,10 +31,14 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
   }, []);
 
   useEffect(() => {
-    if (typeof activeRowRef.current?.scrollIntoView === "function") {
-      activeRowRef.current.scrollIntoView({ block: "nearest" });
+    // Keyboard navigation and hover move `activeIndex`; resolve the newly
+    // active option by its id (`${listId}-option-${index}`, set on the buttons
+    // below) and bring it into view.
+    const active = document.getElementById(`${listId}-option-${activeIndex}`);
+    if (typeof active?.scrollIntoView === "function") {
+      active.scrollIntoView({ block: "nearest" });
     }
-  }, [activeIndex]);
+  }, [activeIndex, listId]);
 
   if (commands.length === 0) return null;
 
@@ -81,7 +84,6 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
                 <div key={key} onMouseEnter={() => props.onActiveIndexChange(index)}>
                   <button
                     id={`${props.listId}-option-${index}`}
-                    ref={isActive ? activeRowRef : undefined}
                     aria-selected={isActive}
                     className={
                       isPopover

@@ -117,6 +117,8 @@ export type UserInputFormController = {
   activeIndex: number;
   answers: Record<string, UserInputFormAnswer>;
   customAnswers: Record<string, string>;
+  /** Every question has a selection or custom text — the form is submittable. */
+  allAnswered: boolean;
   setActiveIndex: (index: number) => void;
   selectSingleChoice: (questionId: string, optionId: string) => void;
   toggleMultiSelect: (questionId: string, optionId: string) => void;
@@ -202,6 +204,9 @@ export function useUserInputFormController(
     activeIndex,
     answers,
     customAnswers,
+    allAnswered: form.questions.every((question) =>
+      questionHasAnswer(question, answers, customAnswers),
+    ),
     setActiveIndex,
     selectSingleChoice,
     toggleMultiSelect,
@@ -223,7 +228,9 @@ export function questionHasAnswer(
 
 function hasUserInputAnswer(value: UserInputFormAnswer | undefined): boolean {
   if (Array.isArray(value)) return value.length > 0;
-  return typeof value === "string" && value.length > 0;
+  // Whitespace-only text is as unanswered: the supervisor rejects empty
+  // answer entries, so the gate and the trimmed payload must agree.
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 export function UserInputForm(props: {
@@ -238,6 +245,7 @@ export function UserInputForm(props: {
   const activeQuestion = controller.questions[controller.activeIndex] ?? controller.questions[0];
   if (!activeQuestion) return null;
   const customAnswer = controller.customAnswers[activeQuestion.id] ?? "";
+  const allQuestionsAnswered = controller.allAnswered;
   // The panel already renders the question as the bold summary/title. Skip a
   // header/question line here when it only repeats that title or the other line
   // — e.g. providers (Kimi) that carry a single question with no distinct header
@@ -254,6 +262,9 @@ export function UserInputForm(props: {
       className="space-y-2 border-t border-[color:var(--border)] px-2 py-1.5"
       onSubmit={(event) => {
         event.preventDefault();
+        // The supervisor rejects answers with empty entries, so never submit
+        // an incomplete form — the Submit button is gated to match.
+        if (!allQuestionsAnswered) return;
         onSubmit(controller.buildResponse(), "answered");
       }}
     >

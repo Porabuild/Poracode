@@ -7,11 +7,16 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
-import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
+import {
+  floatingGlassBubbleClass,
+  floatingGlassSurfaceClass,
+} from "@/renderer/components/layout/floatingGlass";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { isPanelResizing, subscribePanelResize } from "@/renderer/state/panelResizeSignal";
 import {
   BOTTOM_EPSILON_PX,
@@ -89,6 +94,9 @@ export const ChatScrollControls = forwardRef<
     onInitialScrollSettled,
   } = props;
   const scrollToBottomToken = useAppStore((s) => s.chatScrollToBottomTokens[threadId] ?? 0);
+  // When the thread's composer publishes a bubble-row slot, the button joins
+  // that row; otherwise it floats over the pane (sub-agent overlays, previews).
+  const bubbleSlot = useComposerBubbleSlotStore((s) => s.byThread[threadId] ?? null);
   const initialLayoutChangeTokenRef = useRef(layoutChangeToken);
   const lastScrollTopRef = useRef(0);
   const stickToBottomRef = useRef(true);
@@ -781,21 +789,24 @@ export const ChatScrollControls = forwardRef<
     scheduleExplicitPinSettle();
   }
 
-  return (
+  const button = (
     <Button
       isIconOnly
       variant="tertiary"
       size="sm"
       aria-label={t`Scroll to bottom`}
       onPress={handleScrollButtonPress}
-      /* Centered via a negative margin, not `-translate-x-1/2`: HeroUI's pressed
+      /* Same 28px glass pill as the composer bubbles. In the fallback it is
+         centered via a negative margin, not `-translate-x-1/2`: HeroUI's pressed
          state animates `transform`, which would fight a translate and snap the
          button sideways on click. */
-      className={`${floatingGlassSurfaceClass} absolute bottom-4 left-1/2 z-10 -ml-3.5 size-7 min-w-0 rounded-full transition-opacity duration-200 ease-out ${
-        showScrollDown ? "opacity-80 hover:opacity-100" : "pointer-events-none opacity-0"
-      }`}
+      className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} size-7 min-w-0 rounded-full text-muted transition-[opacity,color] duration-200 ease-out hover:text-foreground ${
+        bubbleSlot ? "" : "absolute bottom-4 left-1/2 z-10 -ml-3.5"
+      } ${showScrollDown ? "opacity-100" : "pointer-events-none opacity-0"}`}
     >
       <ArrowDown className="size-3.5" strokeWidth={2.5} />
     </Button>
   );
+
+  return bubbleSlot ? createPortal(button, bubbleSlot) : button;
 });

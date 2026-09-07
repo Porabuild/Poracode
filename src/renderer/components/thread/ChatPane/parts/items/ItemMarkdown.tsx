@@ -4,6 +4,9 @@ import { Suspense, useMemo } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import {
   backgroundTaskUpdateBlockRe,
+  extractBackgroundTaskCompletedBlock,
+  findBackgroundTaskCompletedStart,
+  looksLikeClassicTaskReport,
   parseBackgroundTaskUpdateBlock,
   parseTaskNotificationBody,
   type ParsedTaskNotificationBody,
@@ -272,40 +275,82 @@ export function normalizeShortCodeFenceClosers(text: string): string {
 
 /**
  * Antigravity ACP background tasks and historical transcript logs can embed
- * `<task_notification>`, `<SYSTEM_MESSAGE>`, or markdown `# Background Task Update`
- * / `<task_metadata>` blocks into markdown text.
- * Render these cleanly as formatted task notification callouts with monospace output
- * blocks rather than raw XML tags or system prompt noise. Matches inside fenced
- * code blocks are left untouched — they are literal code content, and rewriting them
- * would corrupt the fence structure.
+ * `<task_notification>`, `<SYSTEM_MESSAGE>`, `<received_message>` task reports,
+ * markdown `# Background Task Update` / `<task_metadata>`, or
+ * `**Background task completed:**` blocks into markdown text. Render these
+ * cleanly as formatted task notification callouts with monospace output blocks
+ * rather than raw XML tags or system prompt noise.
+ * Matches inside fenced code blocks are left untouched — they are literal
+ * code content, and rewriting them would corrupt the fence structure.
  */
 export function formatTaskNotifications(text: string): string {
   if (
     !text.includes("<task_notification>") &&
     !text.includes("<SYSTEM_MESSAGE>") &&
+    !text.includes("<received_message>") &&
     !text.includes("<task_metadata>") &&
-    !/Background Task Update/i.test(text)
+    !/Background Task Update/i.test(text) &&
+    !/Background task (?:started|updated?|completed)/i.test(text)
   ) {
     return text;
   }
   const fenceLines = scanFenceLines(text);
-  const withBackgroundUpdates = text.replace(
+  const withCompletedReports = replaceBackgroundTaskCompletedReports(text, fenceLines);
+  const fenceLinesAfterCompleted =
+    withCompletedReports === text ? fenceLines : scanFenceLines(withCompletedReports);
+  const withBackgroundUpdates = withCompletedReports.replace(
     backgroundTaskUpdateBlockRe(),
     (match: string, offset: number) => {
-      if (isInsideFence(fenceLines, offset)) return match;
+      if (isInsideFence(fenceLinesAfterCompleted, offset)) return match;
       return formatParsedTaskNotification(parseBackgroundTaskUpdateBlock(match));
     },
   );
   const fenceLinesAfterBg =
-    withBackgroundUpdates === text ? fenceLines : scanFenceLines(withBackgroundUpdates);
+    withBackgroundUpdates === withCompletedReports
+      ? fenceLinesAfterCompleted
+      : scanFenceLines(withBackgroundUpdates);
   return withBackgroundUpdates.replace(
-    /(?:The following is a <SYSTEM_MESSAGE>[^\n]*\r?\n+)?<SYSTEM_MESSAGE>([\s\S]*?)<\/SYSTEM_MESSAGE>|<task_notification>([\s\S]*?)<\/task_notification>/gi,
-    (match: string, sysBody: string | undefined, taskBody: string | undefined, offset: number) => {
+    /(?:The following is a <SYSTEM_MESSAGE>[^\n]*\r?\n+)?<SYSTEM_MESSAGE>([\s\S]*?)<\/SYSTEM_MESSAGE>|<task_notification>([\s\S]*?)<\/task_notification>|<received_message>([\s\S]*?)<\/received_message>/gi,
+    (
+      match: string,
+      sysBody: string | undefined,
+      taskBody: string | undefined,
+      receivedBody: string | undefined,
+      offset: number,
+    ) => {
       if (isInsideFence(fenceLinesAfterBg, offset)) return match;
-      const body = sysBody ?? taskBody ?? "";
+      if (receivedBody !== undefined && !looksLikeClassicTaskReport(receivedBody)) return match;
+      const body = sysBody ?? taskBody ?? receivedBody ?? "";
       return formatParsedTaskNotification(parseTaskNotificationBody(body));
     },
   );
+}
+
+function replaceBackgroundTaskCompletedReports(text: string, fenceLines: FenceLine[]): string {
+  let out = "";
+  let cursor = 0;
+  while (cursor < text.length) {
+    const start = findBackgroundTaskCompletedStart(text, cursor);
+    if (start === -1) {
+      out += text.slice(cursor);
+      break;
+    }
+    if (isInsideFence(fenceLines, start)) {
+      out += text.slice(cursor, start + 1);
+      cursor = start + 1;
+      continue;
+    }
+    const extracted = extractBackgroundTaskCompletedBlock(text.slice(start));
+    if (!extracted.complete || !extracted.parsed.taskId) {
+      out += text.slice(cursor, start + 1);
+      cursor = start + 1;
+      continue;
+    }
+    out += text.slice(cursor, start);
+    out += formatParsedTaskNotification(extracted.parsed);
+    cursor = start + extracted.end;
+  }
+  return out;
 }
 
 function formatParsedTaskNotification(parsed: ParsedTaskNotificationBody): string {

@@ -227,10 +227,10 @@ export function findPosixExecutableInWellKnownDirs(binary: string): string | und
 
 export function resolveExecutablePath(command: string): string | undefined {
   if (process.platform === "win32") {
-    return (
-      resolveWindowsExecutablePath(command) ??
-      resolveWindowsExecutablePath(command, buildWindowsPathOverride())
-    );
+    const resolved = resolveWindowsExecutablePath(command);
+    if (resolved) return resolved;
+    const env = buildWindowsPathOverride();
+    return env ? resolveWindowsExecutablePath(command, env) : undefined;
   }
 
   const result = spawnSync(
@@ -325,7 +325,29 @@ export function extractWindowsCmdShimScript(body: string): string | undefined {
       body,
     )?.[1];
   if (prog && !/\.(?:exe|cmd|bat|com|ps1)$/i.test(prog)) return prog;
+  // npm 11.19 (Node 24.20) routes npm.cmd/npx.cmd through variables:
+  // `SET "NPX_CLI_JS=%~dp0\node_modules\npm\bin\npx-cli.js"` then
+  // `"%NODE_EXE%" "%NPX_CLI_JS%" %*`. Resolve one level of indirection via
+  // the first %~dp0-relative SET for that variable (the later
+  // NPM_PREFIX_* override targets a global prefix that may not exist).
+  const indirectVar =
+    /(?:["']?%[A-Za-z0-9_]+%["']?|["']?%(?:~dp0|dp0%)[\\/]node(?:\.exe)?["']?|\bnode(?:\.exe)?\b)\s+["']?%([A-Za-z][A-Za-z0-9_]*)%["']?\s+%\*/i.exec(
+      body,
+    )?.[1];
+  if (indirectVar) {
+    const rel = findDp0RelativeVarAssignment(body, indirectVar);
+    if (rel && !/\.(?:exe|cmd|bat|com|ps1)$/i.test(rel)) return rel;
+  }
   return undefined;
+}
+
+function findDp0RelativeVarAssignment(body: string, varName: string): string | undefined {
+  const escaped = varName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(
+    `^\\s*SET\\s+"?${escaped}\\s*=\\s*"?(?:%~dp0|%dp0%)[\\\\/]?([^"\\r\\n]+?)"?\\s*$`,
+    "gim",
+  );
+  return pattern.exec(body)?.[1]?.trim();
 }
 
 function resolveWindowsCmdExeTarget(path: string | undefined): string | undefined {

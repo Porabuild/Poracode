@@ -267,23 +267,34 @@ function BrowserDeviceCodeButton() {
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
+  // A fresh device code auto-copies and opens the tooltip; clearing it resets
+  // both. Derived from `deviceCode`, so adjust during render — only the
+  // timeout that clears "copied" stays in the effect.
+  const [prevDeviceCode, setPrevDeviceCode] = useState(deviceCode);
+  if (prevDeviceCode !== deviceCode) {
+    setPrevDeviceCode(deviceCode);
     if (!deviceCode) {
       setCopied(false);
       setTooltipOpen(false);
-      return;
+    } else {
+      setCopied(true);
+      setTooltipOpen(true);
     }
-    setCopied(true);
-    setTooltipOpen(true);
-    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
-    copiedTimerRef.current = setTimeout(() => setCopied(false), 1_500);
-  }, [deviceCode]);
+  }
 
   useEffect(() => {
+    if (!deviceCode) {
+      return;
+    }
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+    copiedTimerRef.current = setTimeout(() => setCopied(false), 1_500);
     return () => {
-      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      if (copiedTimerRef.current) {
+        clearTimeout(copiedTimerRef.current);
+        copiedTimerRef.current = null;
+      }
     };
-  }, []);
+  }, [deviceCode]);
 
   if (!deviceCode) return null;
   const activeDeviceCode = deviceCode;
@@ -336,7 +347,9 @@ function BrowserDeviceCodeButton() {
 
 function BrowserTabWebview(props: { tabId: string; initialSrc: string; visible: boolean }) {
   const ref = useRef<HTMLWebViewElement | null>(null);
-  const initialSrcRef = useRef(props.initialSrc);
+  // Snapshot the first URL: later navigations update the tab, never the
+  // webview's `src` (re-setting it would reload the page).
+  const [initialSrc] = useState(props.initialSrc);
 
   useEffect(() => {
     const el = ref.current;
@@ -381,7 +394,7 @@ function BrowserTabWebview(props: { tabId: string; initialSrc: string; visible: 
       ref={ref}
       data-tab-id={props.tabId}
       partition={BROWSER_SESSION_PARTITION}
-      src={initialSrcRef.current || "about:blank"}
+      src={initialSrc || "about:blank"}
       // Electron's React type says boolean, but React warns unless this custom
       // element attribute is serialized as a string.
       allowpopups={"true" as unknown as boolean}

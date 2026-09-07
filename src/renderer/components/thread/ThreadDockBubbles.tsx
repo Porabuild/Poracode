@@ -14,6 +14,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import type { ThreadGoalDockState } from "./threadGoalState";
+import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { useGoalElapsedSeconds } from "./threadGoalTiming";
 import type { ThreadDocksSummary } from "./useThreadDocksSummary";
 
@@ -24,7 +25,13 @@ import type { ThreadDocksSummary } from "./useThreadDocksSummary";
  * Clicking opens the Docks tab scrolled to that section; clicking the active
  * one closes the panel again.
  */
-export function ThreadDockBubbles({ summary }: { summary: ThreadDocksSummary }) {
+export function ThreadDockBubbles({
+  summary,
+  threadId,
+}: {
+  summary: ThreadDocksSummary;
+  threadId: string;
+}) {
   const { t } = useLingui();
   const panelShowing = usePanelStore((s) => s.threadDocksPanelOpen && s.rightPanelTab === "docks");
   const order = useSharedSettings((s) => s.threadDocksOrder);
@@ -75,6 +82,7 @@ export function ThreadDockBubbles({ summary }: { summary: ThreadDocksSummary }) 
           <span className="[font-variant-numeric:tabular-nums]">{summary.backgroundTaskCount}</span>
         </DockBubble>
       ) : null,
+    images: <ThreadImagesBubble key="images" threadId={threadId} />,
   };
 
   return <>{order.map((kind) => bubbles[kind])}</>;
