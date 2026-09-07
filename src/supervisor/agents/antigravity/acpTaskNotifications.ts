@@ -193,6 +193,18 @@ const CLOSE_SYSTEM_TAG = "</SYSTEM_MESSAGE>";
 const SYSTEM_MESSAGE_PREAMBLE_PREFIX =
   "The following is a <SYSTEM_MESSAGE> not actually sent by the user. It is provided by the system as important information to pay attention to.";
 
+/**
+ * The preamble sentence quotes `<SYSTEM_MESSAGE>` inline (`The following is a
+ * <SYSTEM_MESSAGE> not actually sent by the user…`), so the first open tag in a
+ * chunk is that quoted one and the words in front of it belong to the
+ * notification, not to assistant prose. Anchor the block at the sentence start
+ * so nothing of it reaches the chat stream.
+ */
+const SYSTEM_MESSAGE_PREAMBLE_LEAD = SYSTEM_MESSAGE_PREAMBLE_PREFIX.slice(
+  0,
+  SYSTEM_MESSAGE_PREAMBLE_PREFIX.indexOf(OPEN_SYSTEM_TAG),
+);
+
 const BACKGROUND_TASK_UPDATE_PREFIX = `# ${BACKGROUND_TASK_UPDATE_HEADING}`;
 /** Hold a trailing heading fragment only once it is unique (`# Bac…`).
  *  `# ` / `# B` are ordinary markdown and must still stream. */
@@ -380,14 +392,11 @@ function scanTaskNotificationBlocks(text: string): {
     const nextReceivedIdx = text.indexOf(OPEN_RECEIVED_MESSAGE_TAG, cursor);
     let preambleStart = -1;
 
-    if (nextSysIdx !== -1) {
-      const textBeforeSys = text.slice(cursor, nextSysIdx);
-      const preambleMatch = textBeforeSys.match(
-        /(?:The following is a <SYSTEM_MESSAGE>[^\n]*\r?\n+)\s*$/,
-      );
-      if (preambleMatch && preambleMatch.index !== undefined) {
-        preambleStart = cursor + preambleMatch.index;
-      }
+    if (
+      nextSysIdx !== -1 &&
+      text.slice(cursor, nextSysIdx).endsWith(SYSTEM_MESSAGE_PREAMBLE_LEAD)
+    ) {
+      preambleStart = nextSysIdx - SYSTEM_MESSAGE_PREAMBLE_LEAD.length;
     }
 
     const effectiveSysStart = preambleStart !== -1 ? preambleStart : nextSysIdx;
