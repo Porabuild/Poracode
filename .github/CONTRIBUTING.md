@@ -11,7 +11,7 @@ By contributing, you agree your work is licensed under the [Apache License 2.0](
 
 ## Local setup
 
-You'll need Node `>= 24.10.0` (see `.nvmrc`) and pnpm `11.x` (pinned in `package.json`).
+You'll need Node `>= 24.10.0` (see `.nvmrc`) and pnpm `12.3.4` (pinned in `package.json#packageManager`).
 
 ```bash
 git clone https://github.com/<your-username>/poracode.git

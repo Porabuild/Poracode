@@ -872,14 +872,17 @@ mod tests {
     use crate::protocol::keys::parse_chord;
 
     /// Regression guard: the layout lookup used to create `NSEvent`s off the
-    /// main thread, which blocked until the dispatcher timeout.
+    /// main thread, which blocked until the dispatcher timeout (3-20s). The
+    /// bounds are generous because loaded CI runners routinely add hundreds of
+    /// milliseconds of scheduling noise; they only need to separate a working
+    /// lookup from one that waits on the main-thread dispatcher.
     #[test]
     fn character_keycodes_resolve_quickly() {
         let start = Instant::now();
         assert!(keycode(KeyToken::Char('a')).is_some());
         let first = start.elapsed();
         assert!(
-            first < Duration::from_millis(200),
+            first < Duration::from_millis(1500),
             "first character lookup took {first:?}"
         );
 
@@ -889,7 +892,7 @@ mod tests {
             let elapsed = start.elapsed();
             assert!(resolved.is_some(), "{character} has no keycode");
             assert!(
-                elapsed < Duration::from_millis(1),
+                elapsed < Duration::from_millis(50),
                 "cached lookup of {character} took {elapsed:?}"
             );
         }
