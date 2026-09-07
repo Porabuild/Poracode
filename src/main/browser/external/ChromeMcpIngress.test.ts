@@ -90,6 +90,7 @@ describe("ChromeMcpIngress", () => {
     };
     expect(initializeBody.result.serverInfo.name).toBe("chrome");
     expect(initializeBody.result.instructions).toContain("USER'S OWN Chrome");
+    expect(initializeBody.result.instructions).toContain("load the chrome-control skill by name");
     expect(initializeBody.result.instructions).toContain("chrome.enable");
     expect(initializeBody.result.instructions).toContain("chrome.disable");
 

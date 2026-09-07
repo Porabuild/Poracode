@@ -1,13 +1,7 @@
 import type { LoadedPlugin } from "@/shared/contracts";
+import { BUNDLED_PLUGIN_MANIFESTS } from "@/shared/plugins/builtInCoreSkills";
 import { parsePluginManifest, parsePoracodeExtension } from "@/shared/plugins/spec";
 import { usePlugins } from "@/renderer/state/pluginsStore";
-import appControls from "../../../resources/plugins/app-controls/plugin.json";
-import browserTools from "../../../resources/plugins/browser-tools/plugin.json";
-import chromeTools from "../../../resources/plugins/chrome-tools/plugin.json";
-import computerUse from "../../../resources/plugins/computer-use/plugin.json";
-import github from "../../../resources/plugins/github/plugin.json";
-import subagentDelegation from "../../../resources/plugins/subagent-delegation/plugin.json";
-import terminal from "../../../resources/plugins/terminal/plugin.json";
 
 /**
  * Seeds the renderer plugin store from the real shipped manifests.
@@ -20,15 +14,7 @@ import terminal from "../../../resources/plugins/terminal/plugin.json";
  * `src/supervisor/plugins/conformance.test.ts`.
  */
 
-const SHIPPED_MANIFESTS = [
-  appControls,
-  browserTools,
-  chromeTools,
-  computerUse,
-  subagentDelegation,
-  terminal,
-  github,
-];
+const SHIPPED_MANIFESTS = BUNDLED_PLUGIN_MANIFESTS;
 
 function toLoadedPlugin(raw: unknown): LoadedPlugin {
   const parsed = parsePluginManifest(raw);

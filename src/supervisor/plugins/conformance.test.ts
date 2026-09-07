@@ -1,5 +1,5 @@
 import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -715,7 +715,11 @@ describe("registry", () => {
 describe("shipped packages", () => {
   it("loads every package in resources/plugins", () => {
     const shippedDir = join(process.cwd(), "resources", "plugins");
-    const shipped = [
+    const shipped = readdirSync(shippedDir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+    expect(shipped).toEqual([
       "app-controls",
       "browser-tools",
       "chrome-tools",
@@ -724,7 +728,7 @@ describe("shipped packages", () => {
       "outlook",
       "subagent-delegation",
       "terminal",
-    ];
+    ]);
     for (const name of shipped) {
       const result = loadPluginFromDirectory(join(shippedDir, name), "bundled");
       expect(result.diagnostics, `${name}: ${JSON.stringify(result.diagnostics)}`).toEqual([]);
@@ -754,9 +758,8 @@ describe("shipped packages", () => {
         ).toBeTruthy();
       }
 
-      // Every package ships its core skill plus at least one supporting skill,
-      // so an agent has both the "how to work with these tools" entry point and
-      // a skill for the concrete job.
+      // Every bundled package ships a core skill so @mention and a bound
+      // built-in MCP have the same "how to work with these tools" entry point.
       const core = result.plugin?.poracode.coreSkill;
       expect(core, `${name} declares no core skill`).toBeTruthy();
       expect(

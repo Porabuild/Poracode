@@ -1149,6 +1149,8 @@ describe("Poracode app control tools — app", () => {
 
 describe("Poracode app control tools — terminal / steer / rollback", () => {
   it("explains the optimized @Terminal workflow to agents", () => {
+    expect(APP_CONTROLS_MCP_INSTRUCTIONS).toContain("load the app-controls skill by name");
+    expect(APP_CONTROLS_MCP_INSTRUCTIONS).toContain("load the terminal-inspection skill by name");
     expect(APP_CONTROLS_MCP_INSTRUCTIONS).toContain("Treat @Terminal, or its localized equivalent");
     expect(APP_CONTROLS_MCP_INSTRUCTIONS).toContain("Call list_terminals directly");
     expect(APP_CONTROLS_MCP_INSTRUCTIONS).toContain("integrated Terminal panel");
