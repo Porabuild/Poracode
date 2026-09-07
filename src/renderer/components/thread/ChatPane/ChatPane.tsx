@@ -47,6 +47,7 @@ import { normalizeChatProjectPath } from "./chatPathUtils";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
 import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
+import { resolveThreadTranscriptMarkdownFormatter } from "../threadTranscriptMarkdown";
 
 interface ChatPaneProps {
   thread: Thread;
@@ -147,6 +148,7 @@ export function ChatPane(props: ChatPaneProps) {
       ...(isRemoteThread ? { isRemote: true as const } : {}),
     });
   }, [isRemoteThread, thread.agentKind, providerSessionId, targetContext?.projectLocation]);
+  const formatTranscriptMarkdown = resolveThreadTranscriptMarkdownFormatter(thread.agentKind);
 
   // `onOpenThread` arrives as an inline arrow whose identity churns per parent
   // render (mobile re-renders on every streaming tick). Route it through a ref
@@ -223,6 +225,7 @@ export function ChatPane(props: ChatPaneProps) {
       projectLocation: targetContext.projectLocation,
       projectRootNames,
       ...(markdownImageRoots ? { markdownImageRoots } : {}),
+      ...(formatTranscriptMarkdown ? { formatTranscriptMarkdown } : {}),
       ...(thread.remoteServerId
         ? {
             remoteLocalImageUrl: (url: string) => {
@@ -245,6 +248,7 @@ export function ChatPane(props: ChatPaneProps) {
     worktreePath,
     projectRootNames,
     markdownImageRoots,
+    formatTranscriptMarkdown,
     onOpenProjectRelativePath,
     hasOpenThread,
     onRevealProjectFolderInTree,

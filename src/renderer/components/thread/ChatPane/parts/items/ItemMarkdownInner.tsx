@@ -34,11 +34,7 @@ import { ImageCard } from "./ImageCard";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
-import {
-  formatTaskNotifications,
-  normalizeGfmTableSeparators,
-  normalizeShortCodeFenceClosers,
-} from "./ItemMarkdown";
+import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
 import { imageViewSourceFromMarkdownImage } from "./imageViewSource";
 import { normalizeHighlightLanguage } from "./languageDetect";
 import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
@@ -180,9 +176,10 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
     ? getProjectFsPath(actions.projectLocation)
     : undefined;
   const extraRoots = actions?.markdownImageRoots;
+  const formatTranscript = actions?.formatTranscriptMarkdown ?? identityMarkdown;
   const markdownText = rewriteMarkdownLocalImageUrls(
     normalizeIncompleteProjectLinkTail(
-      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(formatTaskNotifications(text))),
+      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(formatTranscript(text))),
     ),
     {
       ...(projectRoot ? { projectRoot } : {}),
@@ -594,4 +591,9 @@ function flattenMdChildren(node: ReactNode): string {
     return flattenMdChildren(p.children);
   }
   return "";
+}
+
+/** No provider rewrite: transcript markdown renders exactly as recorded. */
+function identityMarkdown(text: string): string {
+  return text;
 }

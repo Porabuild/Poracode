@@ -4977,7 +4977,7 @@ msgid "Exclude patterns"
 msgstr "Kalıpları hariç tut"
 
 #. placeholder {0}: parsed.exitCode
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 msgid "Exit code {0}"
 msgstr "Çıkış kodu {0}"
 
@@ -5173,7 +5173,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "başarısız oldu"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
@@ -12522,7 +12522,7 @@ msgstr "Görev {id}"
 msgid "Task match"
 msgstr "Görev eşleşmesi"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 msgid "Task Notification"
 msgstr "Görev bildirimi"
 
