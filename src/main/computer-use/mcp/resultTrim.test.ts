@@ -61,6 +61,20 @@ describe("computer-use result trimming", () => {
     expect(deliveryTargetAddsNothing(undefined, window)).toBe(true);
   });
 
+  it("omits the internal lane mode so interactive cannot be read as a takeover", () => {
+    expect(
+      trimInteractiveResult(
+        {
+          ok: true,
+          mode: "interactive",
+          window,
+          delivery: { delivered: "background", route: "event", verified: "unverified" },
+        },
+        { requestedWindow: window },
+      ),
+    ).not.toHaveProperty("mode");
+  });
+
   it("drops the unchanged window echo and the id-restating delivery target", () => {
     expect(
       trimInteractiveResult(
@@ -79,7 +93,6 @@ describe("computer-use result trimming", () => {
       ),
     ).toEqual({
       ok: true,
-      mode: "interactive",
       delivery: { delivered: "background", route: "event", verified: "unverified" },
     });
   });
@@ -115,7 +128,7 @@ describe("computer-use result trimming", () => {
   it("drops an observation window that repeats the window the caller knows", () => {
     expect(trimObservation({ ok: true, state: state() }, window)).toEqual({
       ok: true,
-      state: { accessibility: null, mode: "passive", screenshots: [] },
+      state: { accessibility: null, screenshots: [] },
     });
     expect(
       trimObservation({ ok: true, state: state({ window: { ...window, y: 400 } }) }, window),
@@ -189,7 +202,7 @@ describe("computer-use result trimming", () => {
           delivery: { delivered: "background", route: "event", verified: "unverified" },
         },
       ],
-      observation: { ok: true, state: { accessibility: null, mode: "passive", screenshots: [] } },
+      observation: { ok: true, state: { accessibility: null, screenshots: [] } },
     });
     expect(JSON.stringify(result).match(/"app"/gu)).toHaveLength(1);
   });

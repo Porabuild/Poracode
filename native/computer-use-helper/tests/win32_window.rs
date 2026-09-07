@@ -446,6 +446,7 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
             &window,
             &target_id,
             poracode_computer_use::protocol::actions::ElementAction::Invoke,
+            &CancelToken::default(),
         )
         .unwrap();
     assert!(reinvoked.ok, "cached UIA target was not actionable");
@@ -552,7 +553,12 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
     }
     .unwrap();
     let set = backend
-        .set_element_value(&window, &found.elements[0].id, "set through UIA")
+        .set_element_value(
+            &window,
+            &found.elements[0].id,
+            "set through UIA",
+            &CancelToken::default(),
+        )
         .unwrap();
     assert!(set.ok, "set_element_value was refused: {:?}", set.refused);
     let updated = backend
@@ -590,6 +596,7 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
             &window,
             &buttons.elements[0].id,
             poracode_computer_use::protocol::actions::ElementAction::Invoke,
+            &CancelToken::default(),
         )
         .unwrap();
     assert!(

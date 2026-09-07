@@ -1,5 +1,7 @@
 import { readNumber, readString, readWindow } from "../drivers/common";
+import { COMPUTER_USE_CORE_SKILL } from "./instructions";
 import {
+  omitLaneMode,
   trimInteractiveResult,
   trimObservation,
   trimPerformResult,
@@ -23,8 +25,37 @@ import type {
   ComputerUseWindow,
 } from "./types";
 
+/**
+ * Pause before an `observe` capture so the observation shows the action's
+ * result instead of the state before it.
+ *
+ * An accessibility tree is the app's own asynchronous report, not a live read.
+ * Measured on macOS 25.6 with Brave: `invoke_element` returns in 2 ms while the
+ * tree keeps answering with the pre-action values for another 350-460 ms.
+ * 500 ms covers that tail; 400 ms sat inside the measured range and could
+ * still hand the agent the pre-action tree. An
+ * agent that reads straight back sees "nothing happened" on an action that did
+ * work, decides background control is broken, and escalates to a takeover — the
+ * failure this whole path exists to avoid. The wait is only paid when the
+ * caller asked for an observation, where it replaces a whole round trip.
+ */
+export const OBSERVATION_SETTLE_MS = 500;
+
 export interface ToolContext {
   driver: ComputerUseDriver;
+  /**
+   * Overrides {@link OBSERVATION_SETTLE_MS}. Tests set 0; the ingress leaves it
+   * unset.
+   */
+  observationSettleMs?: number;
+  /**
+   * True once computer use has been ended (Escape, the badge's exit button, or
+   * host teardown) after this context was built. The observation settle sleeps
+   * before capturing, and a capture that lands after the exit would spawn a
+   * fresh helper to read the screen the user just took back — so every pending
+   * observation stands down instead.
+   */
+  interrupted?: () => boolean;
   /**
    * Called once a tool's real input has been delivered and only the passive
    * `observe` capture remains. The ingress closes its activity window here so a
@@ -43,11 +74,19 @@ export interface ToolContext {
 }
 
 async function observeWindow(
-  driver: ComputerUseDriver,
+  ctx: ToolContext,
   window: ComputerUseWindow | null | undefined,
   mode: ComputerUseObservationMode,
 ): Promise<ComputerUseObservation | undefined> {
   if (!window || mode === "none") return undefined;
+  if (ctx.interrupted?.()) return undefined;
+  const settleMs = ctx.observationSettleMs ?? OBSERVATION_SETTLE_MS;
+  if (settleMs > 0) await new Promise((resolve) => setTimeout(resolve, settleMs));
+  // The settle window is exactly where an exit lands, so re-check before the
+  // capture: `driver.getWindowState` would lazily respawn the helper the exit
+  // just killed.
+  if (ctx.interrupted?.()) return undefined;
+  const driver = ctx.driver;
   try {
     return {
       ok: true,
@@ -69,7 +108,7 @@ async function withObservation(
 ): Promise<ComputerUseInteractiveResult> {
   ctx.onInputSettled?.(result);
   if (!result.ok) return result;
-  const observation = await observeWindow(ctx.driver, result.window, mode);
+  const observation = await observeWindow(ctx, result.window, mode);
   return observation ? { ...result, observation } : result;
 }
 
@@ -118,6 +157,7 @@ export async function dispatchTool(
       return {
         platform: process.platform,
         ...status,
+        skill: COMPUTER_USE_CORE_SKILL,
       };
     }
     case "enable":
@@ -141,7 +181,7 @@ export async function dispatchTool(
         mode: readMode(args.mode),
       });
       ctx.onInputSettled?.(result);
-      const observation = await observeWindow(ctx.driver, result.window, observe);
+      const observation = await observeWindow(ctx, result.window, observe);
       return observation
         ? { ...result, observation: trimObservation(observation, result.window) }
         : result;
@@ -176,7 +216,7 @@ export async function dispatchTool(
       const text = optionalString(args.text);
       const automationId = optionalString(args.automation_id);
       const snapshotId = optionalString(args.snapshot_id);
-      return await ctx.driver.findElements({
+      const found = await ctx.driver.findElements({
         window: readWindow(args.window),
         ...(role ? { role } : {}),
         ...(elementName ? { name: elementName } : {}),
@@ -185,6 +225,12 @@ export async function dispatchTool(
         ...(snapshotId ? { snapshot_id: snapshotId } : {}),
         ...(maxResults !== undefined ? { max_results: maxResults } : {}),
       });
+      // A stale snapshot is an interactive refusal. Strip only the lane
+      // label — the window still identifies which snapshot died.
+      if (found && typeof found === "object" && "refused" in found && "mode" in found) {
+        return omitLaneMode(found);
+      }
+      return found;
     }
     case "invoke_element":
       return await interactive(() =>
@@ -231,7 +277,7 @@ export async function dispatchTool(
         // the takeover border immediately instead of behind a capture.
         ctx.onInputSettled?.(batch);
         const observation = observeAfterFailure
-          ? await observeWindow(ctx.driver, window, observe)
+          ? await observeWindow(ctx, window, observe)
           : undefined;
         // The batch states its window once; step entries carry only what
         // differs between steps.

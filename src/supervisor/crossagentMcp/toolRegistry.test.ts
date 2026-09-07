@@ -588,6 +588,9 @@ describe("subagent tool registration", () => {
   });
 
   it("documents background runs as an explicit join that keeps working across wait timeouts", () => {
+    expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
+      "load the subagent-delegation skill by name",
+    );
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain("never injects a new message");
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
       "keep waiting across as many wait_for_agent calls as necessary",

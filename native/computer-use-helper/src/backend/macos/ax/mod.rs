@@ -1,4 +1,12 @@
-use std::collections::VecDeque;
+//! The macOS accessibility client: the AX FFI declarations, the `AxElement`
+//! ownership wrapper, single-attribute reads, and window identity and
+//! resolution.
+//!
+//! The public entry points live here as well and delegate the three concerns
+//! the submodules own: `snapshot` describes a window as a tree, `webcontent`
+//! gets a browser to expose its page, and `press` turns a coordinate or a
+//! request into an acted-on element.
+
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::OnceLock;
@@ -7,8 +15,12 @@ use objc2_core_foundation::{
     CFArray, CFBoolean, CFNumber, CFRetained, CFString, CFType, CGPoint, CGSize,
 };
 
+use super::chromium;
 use crate::backend::{CancelToken, capability_unavailable};
-use crate::elements::{MAX_TREE_BYTES, Snapshot, SnapshotCache, canonical_role, render_tree};
+use crate::elements::{
+    MAX_TREE_BYTES, SnapshotCache, advertise_ancestor_scroll, canonical_role, render_tree,
+    render_tree_preferring_page,
+};
 use crate::protocol::actions::{
     AccessibilityState, Delivery, DeliveryTarget, ElementAction, ElementBounds, ElementInfo,
     FindElementsInput, FindElementsResult, InteractiveResult, Refusal, RefusalCode, Route,
@@ -16,6 +28,15 @@ use crate::protocol::actions::{
 };
 use crate::protocol::window::WindowInfo;
 use crate::protocol::{HelperError, Result};
+
+mod press;
+mod snapshot;
+mod webcontent;
+
+pub(crate) use press::press_at_position;
+use press::{Observation, element_origin, observed, scroll_into_view};
+use snapshot::{build_snapshot, same_element};
+use webcontent::request_web_accessibility;
 
 const AX_SUCCESS: i32 = 0;
 const AX_VALUE_POINT: u32 = 1;
@@ -177,6 +198,12 @@ fn value_string(element: &AxElement) -> Option<String> {
         .map(|value| value.as_bool().to_string())
 }
 
+fn bool_attribute(element: &AxElement, name: &str) -> Option<bool> {
+    copy_attribute(element, name)?
+        .downcast_ref::<CFBoolean>()
+        .map(CFBoolean::as_bool)
+}
+
 fn array_attribute(element: &AxElement, name: &str) -> Vec<AxElement> {
     let Some(value) = copy_attribute(element, name) else {
         return Vec::new();
@@ -220,286 +247,6 @@ fn size(element: &AxElement) -> Option<CGSize> {
             )
         })
     .then_some(size)
-}
-
-/// Attributes fetched for every snapshot node in a single IPC round trip.
-/// The order is the positional contract used by the `ATTR_*` indexes below;
-/// `AXChildren` rides along so the walk needs no separate children fetch.
-const SNAPSHOT_ATTRIBUTES: [&str; 12] = [
-    "AXRole",
-    "AXTitle",
-    "AXDescription",
-    "AXValue",
-    "AXIdentifier",
-    "AXPosition",
-    "AXSize",
-    "AXEnabled",
-    "AXFocused",
-    "AXVisible",
-    "AXExpanded",
-    "AXChildren",
-];
-const ATTR_ROLE: usize = 0;
-const ATTR_TITLE: usize = 1;
-const ATTR_DESCRIPTION: usize = 2;
-const ATTR_VALUE: usize = 3;
-const ATTR_IDENTIFIER: usize = 4;
-const ATTR_POSITION: usize = 5;
-const ATTR_SIZE: usize = 6;
-const ATTR_ENABLED: usize = 7;
-const ATTR_FOCUSED: usize = 8;
-const ATTR_VISIBLE: usize = 9;
-const ATTR_EXPANDED: usize = 10;
-const ATTR_CHILDREN: usize = 11;
-
-thread_local! {
-    /// The attribute-name array is immutable, so the CFStrings are built once
-    /// per worker thread rather than once per node.
-    static SNAPSHOT_ATTRIBUTE_NAMES: CFRetained<CFArray<CFString>> = {
-        let names: Vec<CFRetained<CFString>> =
-            SNAPSHOT_ATTRIBUTES.iter().map(|name| attribute(name)).collect();
-        CFArray::from_retained_objects(&names)
-    };
-}
-
-/// Positional values for [`SNAPSHOT_ATTRIBUTES`]. `None` means the attribute is
-/// absent or came back as an AX error placeholder.
-type NodeAttributes = Vec<Option<CFRetained<CFType>>>;
-
-fn is_ax_error(value: &CFType) -> bool {
-    // SAFETY: AXValueGetType reads the type of any CoreFoundation value and
-    // answers kAXValueIllegalType for values that are not AXValues.
-    unsafe { AXValueGetType(std::ptr::from_ref(value).cast()) == AX_VALUE_AX_ERROR }
-}
-
-fn copy_multiple_attributes(element: &AxElement) -> Option<NodeAttributes> {
-    let mut values = std::ptr::null_mut();
-    let status = SNAPSHOT_ATTRIBUTE_NAMES.with(|names| {
-        // SAFETY: `element` and the name array are live and `values` is a
-        // writable Copy-rule output.
-        unsafe {
-            AXUIElementCopyMultipleAttributeValues(
-                element.as_ptr(),
-                CFRetained::as_ptr(names).as_ptr(),
-                AX_COPY_MULTIPLE_KEEP_GOING,
-                &mut values,
-            )
-        }
-    });
-    if status != AX_SUCCESS {
-        return None;
-    }
-    let values = NonNull::new(values)?;
-    // SAFETY: A successful call returned this array following the Copy rule.
-    let values = unsafe { CFRetained::from_raw(values) };
-    if values.len() != SNAPSHOT_ATTRIBUTES.len() {
-        return None;
-    }
-    Some(
-        (0..SNAPSHOT_ATTRIBUTES.len())
-            .map(|index| values.get(index).filter(|value| !is_ax_error(value)))
-            .collect(),
-    )
-}
-
-/// One round trip per node, falling back to per-attribute reads only when the
-/// batched call is refused outright, so results stay identical either way.
-fn node_attributes(element: &AxElement) -> NodeAttributes {
-    copy_multiple_attributes(element).unwrap_or_else(|| {
-        SNAPSHOT_ATTRIBUTES
-            .iter()
-            .map(|name| copy_attribute(element, name))
-            .collect()
-    })
-}
-
-fn attribute_at(values: &NodeAttributes, index: usize) -> Option<&CFType> {
-    values.get(index)?.as_deref()
-}
-
-fn batched_string(values: &NodeAttributes, index: usize) -> Option<String> {
-    attribute_at(values, index)?
-        .downcast_ref::<CFString>()
-        .map(CFString::to_string)
-        .filter(|value| !value.is_empty())
-}
-
-fn batched_bool(values: &NodeAttributes, index: usize) -> Option<bool> {
-    attribute_at(values, index)?
-        .downcast_ref::<CFBoolean>()
-        .map(CFBoolean::as_bool)
-}
-
-fn batched_value_string(values: &NodeAttributes) -> Option<String> {
-    let value = attribute_at(values, ATTR_VALUE)?;
-    if let Some(text) = value.downcast_ref::<CFString>() {
-        let text = text.to_string();
-        return (!text.is_empty()).then_some(text);
-    }
-    if let Some(number) = value.downcast_ref::<CFNumber>() {
-        return number.as_f64().map(|number| number.to_string());
-    }
-    value
-        .downcast_ref::<CFBoolean>()
-        .map(|value| value.as_bool().to_string())
-}
-
-fn batched_ax_value<T>(values: &NodeAttributes, index: usize, kind: u32) -> Option<T>
-where
-    T: Default,
-{
-    let value = attribute_at(values, index)?;
-    let pointer = std::ptr::from_ref(value).cast::<c_void>();
-    let mut out = T::default();
-    // SAFETY: The value is live; `kind` is checked before decoding and `out` is
-    // the correctly sized writable output for that AXValue type.
-    (unsafe {
-        AXValueGetType(pointer) == kind && AXValueGetValue(pointer, kind, (&raw mut out).cast())
-    })
-    .then_some(out)
-}
-
-fn batched_children(values: &NodeAttributes) -> Vec<AxElement> {
-    let Some(value) = attribute_at(values, ATTR_CHILDREN) else {
-        return Vec::new();
-    };
-    let Some(array) = value.downcast_ref::<CFArray>() else {
-        return Vec::new();
-    };
-    // SAFETY: AXChildren is documented as an array of CoreFoundation-backed
-    // AXUIElement values.
-    let array = unsafe { array.cast_unchecked::<CFType>() };
-    array.to_vec().into_iter().map(AxElement::from_cf).collect()
-}
-
-fn action_names(element: &AxElement) -> Vec<String> {
-    let mut names = std::ptr::null_mut();
-    // SAFETY: The AX element is live and `names` is a writable Copy-rule output.
-    let status = unsafe { AXUIElementCopyActionNames(element.as_ptr(), &mut names) };
-    if status != AX_SUCCESS {
-        return Vec::new();
-    }
-    let Some(names) = NonNull::new(names) else {
-        return Vec::new();
-    };
-    // SAFETY: A successful CopyActionNames returned a retained string array.
-    let names = unsafe { CFRetained::from_raw(names) };
-    names.iter().map(|name| name.to_string()).collect()
-}
-
-fn is_settable(element: &AxElement, name: &str) -> bool {
-    let name = attribute(name);
-    let mut settable = false;
-    // SAFETY: Inputs are live and `settable` is writable.
-    (unsafe {
-        AXUIElementIsAttributeSettable(
-            element.as_ptr(),
-            CFRetained::as_ptr(&name).as_ptr(),
-            &mut settable,
-        ) == AX_SUCCESS
-    }) && settable
-}
-
-/// Probe policy for the two extra per-node IPC round trips
-/// (`AXUIElementCopyActionNames` and `AXUIElementIsAttributeSettable`).
-///
-/// Static text, images and separators are pure presentation on every platform:
-/// they expose no AX action and no settable value, so all three probes are
-/// skipped for them. Containers such as group, pane and splitgroup are
-/// deliberately *not* skipped even though they are usually inert — web engines
-/// map clickable `div`s onto AXGroup and really do expose AXPress there, and
-/// rows/cells expose AXPress for selection.
-fn role_may_be_actionable(role: &str) -> bool {
-    !matches!(
-        canonical_role(role).as_str(),
-        "text" | "image" | "separator"
-    )
-}
-
-fn mapped_actions(
-    element: &AxElement,
-    role: &str,
-    native: &[String],
-    has_expanded: bool,
-    has_value: bool,
-) -> Vec<ElementAction> {
-    let mut actions = Vec::new();
-    let has = |name: &str| native.iter().any(|action| action == name);
-    if has("AXPress") || has("AXConfirm") {
-        actions.extend([ElementAction::Invoke, ElementAction::Click]);
-        if role.contains("CheckBox") || role.contains("RadioButton") || role.contains("Switch") {
-            actions.push(ElementAction::Toggle);
-        }
-        if role.contains("Row") || role.contains("MenuItem") || role.contains("Tab") {
-            actions.push(ElementAction::Select);
-        }
-    }
-    if has("AXShowMenu") {
-        actions.push(ElementAction::ContextMenu);
-    }
-    if has("AXScrollToVisible") {
-        actions.push(ElementAction::Scroll);
-    }
-    // An attribute the batched fetch proved absent can never be settable, so
-    // the settability probe would always answer false.
-    if has_expanded && is_settable(element, "AXExpanded") {
-        actions.extend([ElementAction::Expand, ElementAction::Collapse]);
-    }
-    if has_value && is_settable(element, "AXValue") {
-        actions.push(ElementAction::SetValue);
-    }
-    actions.sort_by_key(|action| *action as u8);
-    actions.dedup();
-    actions
-}
-
-fn element_info(
-    element: &AxElement,
-    window: &WindowInfo,
-    depth: u32,
-) -> (ElementInfo, Vec<AxElement>) {
-    let values = node_attributes(element);
-    let role = batched_string(&values, ATTR_ROLE).unwrap_or_else(|| "AXUnknown".into());
-    let name =
-        batched_string(&values, ATTR_TITLE).or_else(|| batched_string(&values, ATTR_DESCRIPTION));
-    let point = batched_ax_value::<CGPoint>(&values, ATTR_POSITION, AX_VALUE_POINT)
-        .unwrap_or(CGPoint::ZERO);
-    let size =
-        batched_ax_value::<CGSize>(&values, ATTR_SIZE, AX_VALUE_SIZE).unwrap_or(CGSize::ZERO);
-    let actions = if role_may_be_actionable(&role) {
-        let native_actions = action_names(element);
-        mapped_actions(
-            element,
-            &role,
-            &native_actions,
-            attribute_at(&values, ATTR_EXPANDED).is_some(),
-            attribute_at(&values, ATTR_VALUE).is_some(),
-        )
-    } else {
-        Vec::new()
-    };
-    let children = batched_children(&values);
-    (
-        ElementInfo {
-            id: String::new(),
-            role: canonical_role(&role),
-            name,
-            value: batched_value_string(&values),
-            automation_id: batched_string(&values, ATTR_IDENTIFIER),
-            bounds: ElementBounds {
-                x: point.x.round() as i32 - window.x,
-                y: point.y.round() as i32 - window.y,
-                width: size.width.round().max(0.0) as i32,
-                height: size.height.round().max(0.0) as i32,
-            },
-            enabled: batched_bool(&values, ATTR_ENABLED).unwrap_or(true),
-            focused: batched_bool(&values, ATTR_FOCUSED).unwrap_or(false),
-            offscreen: !batched_bool(&values, ATTR_VISIBLE).unwrap_or(true),
-            actions,
-            depth,
-        },
-        children,
-    )
 }
 
 type GetWindowId = unsafe extern "C" fn(*const c_void, *mut u32) -> i32;
@@ -546,29 +293,6 @@ fn belongs_to_window(element: &AxElement, window: &WindowInfo) -> bool {
         return same_window(&owner, window);
     }
     same_window(element, window)
-}
-
-fn is_chromium(window: &WindowInfo) -> bool {
-    let app = window.app.to_ascii_lowercase();
-    app.contains("chrome")
-        || app.contains("chromium")
-        || app.contains("microsoft edge")
-        || std::path::Path::new(&window.app)
-            .join("Contents/Frameworks/Electron Framework.framework")
-            .is_dir()
-}
-
-fn enable_manual_accessibility(application: &AxElement) -> bool {
-    let value = CFBoolean::new(true);
-    set_value(
-        application,
-        "AXManualAccessibility",
-        (value as *const CFBoolean).cast(),
-    ) | set_value(
-        application,
-        "AXEnhancedUserInterface",
-        (value as *const CFBoolean).cast(),
-    )
 }
 
 /// Index of the only AX window that can possibly be the requested one, or
@@ -635,93 +359,17 @@ fn resolve(window: &WindowInfo) -> Result<AxElement> {
     if let Some(element) = find_window(&application, window) {
         return Ok(element);
     }
-    if is_chromium(window) && enable_manual_accessibility(&application) {
-        return find_window(&application, window).ok_or_else(HelperError::window_unavailable);
+    if chromium::is_chromium_shell(window) {
+        // The same throttled request the snapshot path uses. A raw write here
+        // would fire on every failing resolution — `cached_element`, focus,
+        // presses against a window that has gone away — and the mode is a
+        // process-wide write into a third-party app.
+        request_web_accessibility(pid, &application);
+        if let Some(element) = find_window(&application, window) {
+            return Ok(element);
+        }
     }
     Err(HelperError::window_unavailable())
-}
-
-/// True when `candidate` repeats something already on its own ancestor chain,
-/// which means descending into it would walk the same subtree forever.
-///
-/// Kept generic over the equality predicate so the decision is testable without
-/// live `AXUIElement`s.
-fn repeats_ancestor<T>(candidate: &T, ancestors: &[T], equal: impl Fn(&T, &T) -> bool) -> bool {
-    ancestors.iter().any(|ancestor| equal(ancestor, candidate))
-}
-
-/// CoreFoundation identity for two `AXUIElement`s. Each attribute copy returns
-/// a fresh reference, so pointer comparison is not enough.
-fn same_element(left: &AxElement, right: &AxElement) -> bool {
-    // SAFETY: Both wrappers own a live CoreFoundation object.
-    unsafe { CFEqual(left.as_ptr(), right.as_ptr()) != 0 }
-}
-
-fn walk_snapshot(
-    window: &WindowInfo,
-    root: AxElement,
-    application: Option<&AxElement>,
-    max_nodes: usize,
-    cancel: &CancelToken,
-) -> Result<Snapshot<AxElement>> {
-    let mut snapshot = Snapshot::new(window.id);
-    let mut discovered = Vec::new();
-    // A degraded accessibility server — notably every app's while the macOS
-    // console is locked — hands back a window proxy that lists the application
-    // element as its own child, so the walk would spend its whole node budget
-    // on one endlessly repeating chain. Seeding the root's ancestors with the
-    // application element closes that loop at the first hop.
-    let root_ancestors: Vec<AxElement> = application.cloned().into_iter().collect();
-    let mut queue = VecDeque::from([(root, 0u32, Vec::<usize>::new(), root_ancestors)]);
-    while let Some((element, depth, path, ancestors)) = queue.pop_front() {
-        cancel.check()?;
-        if discovered.len() >= max_nodes {
-            snapshot.truncated = true;
-            break;
-        }
-        let (info, children) = element_info(&element, window, depth);
-        let mut child_ancestors = ancestors;
-        child_ancestors.push(element.clone());
-        discovered.push((path.clone(), info, element));
-        for (child_index, child) in children.into_iter().enumerate() {
-            if discovered.len() + queue.len() >= max_nodes {
-                snapshot.truncated = true;
-                break;
-            }
-            if repeats_ancestor(&child, &child_ancestors, same_element) {
-                continue;
-            }
-            let mut child_path = path.clone();
-            child_path.push(child_index);
-            queue.push_back((child, depth + 1, child_path, child_ancestors.clone()));
-        }
-    }
-    discovered.sort_by(|left, right| left.0.cmp(&right.0));
-    for (_, info, handle) in discovered {
-        snapshot.push(info, handle);
-    }
-    Ok(snapshot)
-}
-
-fn build_snapshot(
-    window: &WindowInfo,
-    max_nodes: usize,
-    cancel: &CancelToken,
-) -> Result<Snapshot<AxElement>> {
-    ensure_trusted()?;
-    let root = resolve(window)?;
-    let app_element = window.pid.and_then(|pid| application(pid).ok());
-    let mut snapshot = walk_snapshot(window, root, app_element.as_ref(), max_nodes, cancel)?;
-    if snapshot.elements.len() == 1 && is_chromium(window) {
-        let pid = window.pid.ok_or_else(HelperError::window_unavailable)?;
-        let application = application(pid)?;
-        if enable_manual_accessibility(&application)
-            && let Some(root) = find_window(&application, window)
-        {
-            snapshot = walk_snapshot(window, root, Some(&application), max_nodes, cancel)?;
-        }
-    }
-    Ok(snapshot)
 }
 
 pub fn is_trusted() -> bool {
@@ -746,7 +394,11 @@ pub fn snapshot_tree(
     cancel: &CancelToken,
 ) -> Result<AccessibilityState> {
     let snapshot = build_snapshot(window, max_nodes, cancel)?;
-    let (tree, text_truncated) = render_tree(&snapshot.elements, MAX_TREE_BYTES);
+    let (tree, text_truncated) = if chromium::is_chromium_shell(window) {
+        render_tree_preferring_page(&snapshot.elements, MAX_TREE_BYTES)
+    } else {
+        render_tree(&snapshot.elements, MAX_TREE_BYTES)
+    };
     let state = AccessibilityState {
         source: "ax".into(),
         tree,
@@ -777,7 +429,8 @@ pub fn find_elements(
             if snapshot.window_id != window.id {
                 return None;
             }
-            let (elements, filtered_truncated) = snapshot.find(input);
+            let (mut elements, filtered_truncated) = snapshot.find(input);
+            advertise_ancestor_scroll(&mut elements);
             Some(FindElementsResult::found(
                 snapshot.id.clone(),
                 snapshot.truncated || filtered_truncated,
@@ -876,11 +529,68 @@ fn permission_refusal(window: &WindowInfo) -> InteractiveResult {
     )
 }
 
+#[derive(Clone, PartialEq, Eq)]
+struct InvokeWatch {
+    focused: Option<bool>,
+    value: Option<String>,
+    name: Option<String>,
+}
+
+fn invoke_watch(element: &AxElement) -> InvokeWatch {
+    InvokeWatch {
+        focused: bool_attribute(element, "AXFocused"),
+        value: value_string(element),
+        name: string_attribute(element, "AXTitle")
+            .or_else(|| string_attribute(element, "AXDescription")),
+    }
+}
+
+/// A local change confirms the press. No change is not evidence of a no-op —
+/// most buttons publish nothing — so the verdict stays `unverified`.
+fn invoke_verdict(observation: Observation) -> Verified {
+    match observation {
+        Observation::Seen => Verified::Confirmed,
+        Observation::Absent | Observation::Interrupted => Verified::Unverified,
+    }
+}
+
+/// The verdict for a watch whose only outcomes are "it happened" and "it did
+/// not". An interrupted watch reached no conclusion at all.
+fn verdict(observation: Observation) -> Verified {
+    match observation {
+        Observation::Seen => Verified::Confirmed,
+        Observation::Absent => Verified::Unchanged,
+        Observation::Interrupted => Verified::Unverified,
+    }
+}
+
+/// The verdict for a `toggle`. Only a natively advertised toggle with a
+/// readable value can be watched honestly. Both other shapes stay `unverified`:
+/// a `toggle` that reached a plain button through the `Invoke` fallback pressed
+/// something real — a tab or a segmented control publishes a selected index a
+/// press does not change, so calling that `unchanged` would send the agent
+/// hunting elsewhere — and a native toggle with no readable value gave the
+/// watch nothing to compare.
+fn toggle_verdict(
+    natively_advertised: bool,
+    before: Option<Option<String>>,
+    watch: impl FnOnce(Option<String>) -> Observation,
+) -> Verified {
+    if !natively_advertised {
+        return Verified::Unverified;
+    }
+    match before {
+        Some(None) | None => Verified::Unverified,
+        Some(readable_before) => verdict(watch(readable_before)),
+    }
+}
+
 pub fn invoke_element(
     cache: &SnapshotCache<AxElement>,
     window: &WindowInfo,
     element_id: &str,
     requested: ElementAction,
+    cancel: &CancelToken,
 ) -> Result<InteractiveResult> {
     if !is_trusted() {
         return Ok(permission_refusal(window));
@@ -889,7 +599,11 @@ pub fn invoke_element(
         Ok(cached) => cached,
         Err(refusal) => return Ok(InteractiveResult::refused(window.clone(), refusal)),
     };
-    if !element_info.actions.contains(&requested)
+    // `Scroll` is exempt: the node an agent asks to reveal usually does not
+    // carry the action itself, and refusing here is what sent every blind
+    // evaluation hunting for a container that cannot scroll.
+    if requested != ElementAction::Scroll
+        && !element_info.actions.contains(&requested)
         && !(requested == ElementAction::Toggle
             && element_info.actions.contains(&ElementAction::Invoke))
     {
@@ -898,13 +612,38 @@ pub fn invoke_element(
             Refusal::element_action_unsupported(requested),
         ));
     }
+    // Everything a verdict will compare against has to be read *before* the
+    // action. Reading it afterwards is a race that only looks correct against a
+    // slow accessibility server: a native control that flips synchronously
+    // would be compared against its own post-action state and reported
+    // `unchanged`, which tells the agent to abandon the control that worked.
+    // `None` means there is nothing to watch — an element with no value — and
+    // the verdict says so rather than inventing one.
+    let toggle_before = (requested == ElementAction::Toggle).then(|| value_string(&element));
+    // Invoke/click/select often have no value to watch. A press that moves
+    // focus or changes the published name/value is still a local effect, and
+    // reporting `unverified` while the bundled observation already shows the
+    // change is what sent testers to retry the button. Absence of a change
+    // stays `unverified`, never `unchanged`: a button that does not publish
+    // local state still pressed.
+    let invoke_before = matches!(
+        requested,
+        ElementAction::Invoke | ElementAction::Click | ElementAction::Select
+    )
+    .then(|| invoke_watch(&element));
+    // Scrolling reports which element moved, because it may not be the one the
+    // caller named.
+    let mut scrolled = None;
     let performed = match requested {
         ElementAction::Invoke
         | ElementAction::Click
         | ElementAction::Toggle
         | ElementAction::Select => perform(&element, "AXPress") || perform(&element, "AXConfirm"),
         ElementAction::ContextMenu => perform(&element, "AXShowMenu"),
-        ElementAction::Scroll => perform(&element, "AXScrollToVisible"),
+        ElementAction::Scroll => {
+            scrolled = scroll_into_view(&element, window);
+            scrolled.is_some()
+        }
         ElementAction::Expand | ElementAction::Collapse => {
             let value = CFBoolean::new(requested == ElementAction::Expand);
             set_value(&element, "AXExpanded", (value as *const CFBoolean).cast())
@@ -917,10 +656,59 @@ pub fn invoke_element(
             Refusal::element_action_unsupported(requested),
         ));
     }
-    Ok(InteractiveResult::delivered(
-        window.clone(),
-        delivery(&element_info, element_id, Verified::Confirmed, moved),
-    ))
+    // `Confirmed` used to be unconditional here, which certified no-ops: an
+    // `AXScrollToVisible` on a scroll container returns success and moves
+    // nothing. Claim it only where there is something to watch, and report
+    // `Unverified` — accepted, effect not observable — where there is not.
+    // Each arm spends `unchanged` only when it *watched* and nothing moved.
+    // Where the thing to watch could not be read, or the watch was interrupted,
+    // the verdict is `unverified`: the instructions tell an agent to abandon an
+    // element on `unchanged`, so spending that verdict on "could not tell"
+    // costs it the control that actually worked.
+    let verified = match requested {
+        ElementAction::Scroll => match scrolled.as_ref() {
+            // An unreadable position is not a stationary one.
+            Some(scrolled) if scrolled.before.is_none() => Verified::Unverified,
+            Some(scrolled) => verdict(observed(cancel, || {
+                element_origin(&scrolled.element) != scrolled.before
+            })),
+            None => Verified::Unverified,
+        },
+        ElementAction::Toggle => {
+            let natively_advertised = element_info.actions.contains(&ElementAction::Toggle);
+            toggle_verdict(natively_advertised, toggle_before.clone(), |before| {
+                observed(cancel, || value_string(&element) != before)
+            })
+        }
+        ElementAction::Expand | ElementAction::Collapse => {
+            let want = requested == ElementAction::Expand;
+            match observed(cancel, || {
+                bool_attribute(&element, "AXExpanded") == Some(want)
+            }) {
+                Observation::Seen => Verified::Confirmed,
+                // The state is evidence of "did not happen" only if it can be
+                // read at all: an app that never publishes `AXExpanded` has
+                // told us nothing either way.
+                Observation::Absent if bool_attribute(&element, "AXExpanded").is_some() => {
+                    Verified::Unchanged
+                }
+                Observation::Absent | Observation::Interrupted => Verified::Unverified,
+            }
+        }
+        ElementAction::Invoke | ElementAction::Click | ElementAction::Select => match invoke_before
+        {
+            Some(before) => invoke_verdict(observed(cancel, || invoke_watch(&element) != before)),
+            None => Verified::Unverified,
+        },
+        _ => Verified::Unverified,
+    };
+    let mut result = delivery(&element_info, element_id, verified, moved);
+    if scrolled.is_some_and(|scrolled| !same_element(&scrolled.element, &element)) {
+        // The caller asked to reveal one node and an ancestor is what scrolled,
+        // so say so rather than implying the named node moved on its own.
+        result = result.with_note("scrolled_ancestor");
+    }
+    Ok(InteractiveResult::delivered(window.clone(), result))
 }
 
 pub fn set_element_value(
@@ -928,6 +716,7 @@ pub fn set_element_value(
     window: &WindowInfo,
     element_id: &str,
     value: &str,
+    cancel: &CancelToken,
 ) -> Result<InteractiveResult> {
     if !is_trusted() {
         return Ok(permission_refusal(window));
@@ -955,18 +744,36 @@ pub fn set_element_value(
             "setting this accessibility value",
         ));
     }
-    let current_value = value_string(&element);
-    let verified = if current_value.as_deref() == Some(requested_value) {
-        Verified::Confirmed
-    } else if current_value == previous_value {
-        Verified::Unchanged
-    } else {
-        Verified::Unverified
+    let verified = match observed(cancel, || {
+        value_string(&element).as_deref() == Some(requested_value)
+    }) {
+        Observation::Seen => Verified::Confirmed,
+        Observation::Absent if value_string(&element) == previous_value => Verified::Unchanged,
+        Observation::Absent | Observation::Interrupted => Verified::Unverified,
     };
     Ok(InteractiveResult::delivered(
         window.clone(),
         delivery(&element_info, element_id, verified, moved),
     ))
+}
+
+/// True when the app already treats this window as its focused window.
+///
+/// Background keyboard input goes to whichever window the target app has
+/// focused, so reaching a different one means making the target focused, and
+/// macOS raises it inside its app when that happens. Checking first keeps the
+/// common case — typing into the window the app is already on — free of any
+/// focus write at all.
+pub fn window_already_focused(window: &WindowInfo) -> bool {
+    let Some(pid) = window.pid else {
+        return false;
+    };
+    let Ok(application) = application(pid) else {
+        return false;
+    };
+    copy_attribute(&application, "AXFocusedWindow")
+        .map(AxElement::from_cf)
+        .is_some_and(|focused| same_window(&focused, window))
 }
 
 pub fn focus_window(window: &WindowInfo, raise: bool) -> Result<bool> {
@@ -982,48 +789,54 @@ pub fn focus_window(window: &WindowInfo, raise: bool) -> Result<bool> {
     })
 }
 
-pub fn press_at_position(
-    window: &WindowInfo,
-    screen_x: f64,
-    screen_y: f64,
-) -> Result<Option<DeliveryTarget>> {
-    ensure_trusted()?;
-    let pid = window.pid.ok_or_else(HelperError::window_unavailable)?;
-    let application = application(pid)?;
-    let mut element = std::ptr::null_mut();
-    // SAFETY: The application is live and `element` is a writable Create-rule output.
-    let status = unsafe {
-        AXUIElementCopyElementAtPosition(application.as_ptr(), screen_x, screen_y, &mut element)
-    };
-    if status != AX_SUCCESS {
-        return Ok(None);
-    }
-    let Some(element) = AxElement::from_created(element) else {
-        return Ok(None);
-    };
-    if !belongs_to_window(&element, window) || !perform(&element, "AXPress") {
-        return Ok(None);
-    }
-    Ok(Some(DeliveryTarget {
-        kind: "ax".into(),
-        id: window_id(&element)
-            .map(|id| id.to_string())
-            .unwrap_or_else(|| "position".into()),
-        role: string_attribute(&element, "AXRole").map(|role| canonical_role(&role)),
-        name: string_attribute(&element, "AXTitle")
-            .or_else(|| string_attribute(&element, "AXDescription")),
-    }))
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{repeats_ancestor, unique_title_fallback};
+    use super::Observation;
+    use super::Verified;
+    use super::toggle_verdict;
+    use super::unique_title_fallback;
 
     fn titles(values: &[Option<&str>]) -> Vec<Option<String>> {
         values
             .iter()
             .map(|value| value.map(str::to_string))
             .collect()
+    }
+
+    /// A `toggle` that reached a plain button through the `Invoke` fallback
+    /// pressed something real. A tab or a segmented control publishes its
+    /// selected index as its value, and the index does not change on a press —
+    /// calling that `unchanged` would send the agent hunting elsewhere.
+    #[test]
+    fn a_fallback_toggle_with_a_readable_value_is_never_called_unchanged() {
+        let verdict = toggle_verdict(false, Some(Some("1".into())), |_| {
+            panic!("a fallback press has no comparable value")
+        });
+        assert_eq!(verdict, Verified::Unverified);
+    }
+
+    #[test]
+    fn a_native_toggle_is_judged_by_its_value() {
+        assert_eq!(
+            toggle_verdict(true, Some(Some("0".into())), |_| Observation::Seen),
+            Verified::Confirmed
+        );
+        assert_eq!(
+            toggle_verdict(true, Some(Some("0".into())), |_| Observation::Absent),
+            Verified::Unchanged
+        );
+        assert_eq!(
+            toggle_verdict(true, Some(Some("0".into())), |_| Observation::Interrupted),
+            Verified::Unverified
+        );
+        assert_eq!(
+            toggle_verdict(true, Some(None), |_| panic!("nothing to watch")),
+            Verified::Unverified
+        );
+        assert_eq!(
+            toggle_verdict(true, None, |_| panic!("nothing to watch")),
+            Verified::Unverified
+        );
     }
 
     #[test]
@@ -1057,17 +870,6 @@ mod tests {
     fn rejects_when_no_candidate_carries_the_requested_title() {
         let candidates = titles(&[Some("Preferences"), None]);
         assert_eq!(unique_title_fallback(&candidates, "Calculator", 1), None);
-    }
-
-    #[test]
-    fn a_child_that_repeats_an_ancestor_is_a_cycle() {
-        let equal = |left: &u32, right: &u32| left == right;
-        // The self-recursive proxy macOS hands out while the screen is locked.
-        assert!(repeats_ancestor(&7, &[1, 7], equal));
-        // The application element seeded as the root's ancestor.
-        assert!(repeats_ancestor(&1, &[1], equal));
-        assert!(!repeats_ancestor(&7, &[1, 2], equal));
-        assert!(!repeats_ancestor(&7, &[], equal));
     }
 
     #[test]
