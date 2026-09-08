@@ -28,7 +28,7 @@ import {
   envContextFromPayload,
   isUnsupportedAcpLogoutError,
 } from "../agents/acp";
-import { buildAgentRegistry } from "../agents/registry";
+import { buildAgentRegistryEntries } from "../agents/registry";
 import {
   autoUpdateAcpRegistryAgents,
   backfillAcpRegistryAgentIcons,
@@ -110,6 +110,13 @@ export class AgentRegistryService {
   private readonly acpAutoInstallSweeps = new Map<string, { at: number; installed: boolean }>();
   /** Settings files confirmed free of legacy Antigravity ACP state on disk. */
   private readonly aliasPersistCheckedPaths = new Set<string>();
+  /**
+   * Registry input that produced each live adapter, by kind. An adapter is
+   * only replaced when this changes; otherwise the instance — and the runtime
+   * state its `detectInstall` learned (e.g. which Antigravity runtimes exist,
+   * which decides the Crossagents lane) — survives the per-poll rebuild.
+   */
+  private readonly adapterInputKeys = new Map<AgentKind, string>();
 
   constructor(private readonly deps: AgentRegistryServiceDeps) {}
 
@@ -289,15 +296,19 @@ export class AgentRegistryService {
       }
     }
     const settings = readAcpRegistrySettings(this.deps.settingsPath);
-    const adapters = buildAgentRegistry(Object.values(settings.agentInstances));
-    const nextKinds = new Set(adapters.map((adapter) => adapter.kind));
+    const entries = buildAgentRegistryEntries(Object.values(settings.agentInstances));
+    const nextKinds = new Set(entries.map((entry) => entry.adapter.kind));
     for (const kind of [...this.deps.adapters.keys()]) {
       if (!nextKinds.has(kind)) {
         this.deps.adapters.delete(kind);
+        this.adapterInputKeys.delete(kind);
       }
     }
-    for (const adapter of adapters) {
+    for (const { adapter, inputKey } of entries) {
+      const existing = this.deps.adapters.get(adapter.kind);
+      if (existing && this.adapterInputKeys.get(adapter.kind) === inputKey) continue;
       this.deps.adapters.set(adapter.kind, adapter);
+      this.adapterInputKeys.set(adapter.kind, inputKey);
     }
   }
 

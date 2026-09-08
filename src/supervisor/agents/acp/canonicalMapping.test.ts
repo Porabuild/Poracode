@@ -712,6 +712,207 @@ describe("mapAcpSessionUpdate", () => {
     expect(sealed?.payload?.images).toEqual(["data:image/png;base64,iVBORw0KGgo="]);
   });
 
+  it("resolves a uri-only image block through the session's local image resolver", () => {
+    const state = createAcpMapperState("t-image-uri");
+    const requested: string[] = [];
+    state.resolveLocalImage = (source) => {
+      requested.push(source);
+      return "data:image/png;base64,RESOLVED";
+    };
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-uri",
+        title: "Read shot.png",
+        kind: "read",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-uri",
+        status: "completed",
+        content: [
+          {
+            type: "content",
+            content: { type: "image", uri: "file:///tmp/shot.png", mimeType: "image/png" },
+          },
+        ],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const sealed = completed.find((e) => e.type === "item.completed") as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(requested).toEqual(["file:///tmp/shot.png"]);
+    expect(sealed?.payload?.images).toEqual(["data:image/png;base64,RESOLVED"]);
+  });
+
+  it("adds no image when the resolver rejects the referenced file", () => {
+    const state = createAcpMapperState("t-image-reject");
+    // Missing / oversized / non-image files all surface the same way: the
+    // resolver returns undefined and must never throw.
+    state.resolveLocalImage = () => undefined;
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-reject",
+        title: "Read huge.png",
+        kind: "read",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-reject",
+        status: "completed",
+        content: [{ type: "content", content: { type: "image", uri: "file:///tmp/huge.png" } }],
+        locations: [{ path: "/tmp/huge.png" }],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const sealed = completed.find((e) => e.type === "item.completed") as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(sealed?.payload?.images).toBeUndefined();
+  });
+
+  it("resolves a completed read-kind tool call's locations when no image content is present", () => {
+    const state = createAcpMapperState("t-image-locations");
+    const requested: string[] = [];
+    state.resolveLocalImage = (source) => {
+      requested.push(source);
+      return "data:image/png;base64,FROMLOCATION";
+    };
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-loc",
+        title: "Read",
+        kind: "read",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-loc",
+        status: "completed",
+        locations: [{ path: "/abs/shot.png" }],
+        content: [{ type: "content", content: { type: "text", text: "Read image file" } }],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const sealed = completed.find((e) => e.type === "item.completed") as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(requested).toEqual(["/abs/shot.png"]);
+    expect(sealed?.payload?.images).toEqual(["data:image/png;base64,FROMLOCATION"]);
+  });
+
+  it("does not resolve locations into images for a non-read tool kind", () => {
+    const state = createAcpMapperState("t-image-kind-gate");
+    const requested: string[] = [];
+    state.resolveLocalImage = (source) => {
+      requested.push(source);
+      return "data:image/png;base64,NOPE";
+    };
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-search",
+        title: "grep",
+        kind: "search",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-search",
+        status: "completed",
+        locations: [{ path: "/abs/shot.png" }],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const sealed = completed.find((e) => e.type === "item.completed") as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(requested).toEqual([]);
+    expect(sealed?.payload?.images).toBeUndefined();
+  });
+
+  it("dedupes a uri block and a location pointing at the same file", () => {
+    const state = createAcpMapperState("t-image-dedupe");
+    let calls = 0;
+    state.resolveLocalImage = () => {
+      calls += 1;
+      return "data:image/png;base64,SAME";
+    };
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-dupe",
+        title: "Read",
+        kind: "read",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-dupe",
+        status: "completed",
+        locations: [{ path: "/abs/shot.png" }],
+        content: [
+          { type: "content", content: { type: "image", uri: "file:///abs/shot.png" } },
+          { type: "content", content: { type: "image", uri: "file:///abs/shot.png" } },
+        ],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const sealed = completed.find((e) => e.type === "item.completed") as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(calls).toBe(1);
+    expect(sealed?.payload?.images).toEqual(["data:image/png;base64,SAME"]);
+  });
+
+  it("leaves referenced images alone when no resolver is wired (baseline behavior)", () => {
+    const state = createAcpMapperState("t-image-noresolver");
+    mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-none",
+        title: "Read",
+        kind: "read",
+        status: "in_progress",
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const completed = mapAcpSessionUpdate(
+      note({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "tc-none",
+        status: "completed",
+        locations: [{ path: "/abs/shot.png" }],
+        content: [{ type: "content", content: { type: "image", uri: "file:///abs/shot.png" } }],
+      } as Parameters<typeof mapAcpSessionUpdate>[0]["update"]),
+      state,
+    );
+    const sealed = completed.find((e) => e.type === "item.completed") as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(sealed?.payload?.images).toBeUndefined();
+  });
+
   it("falls back to the tool title for command_execution when rawInput.command is missing", () => {
     // Gemini's ACP run_shell_command tool emits `kind: "execute"` with the
     // command in `title` instead of `rawInput.command`. Without the fallback

@@ -278,6 +278,16 @@ function makeProject(input: { id: string; name: string; location: Project["locat
   };
 }
 
+async function chooseCardInstall(card: HTMLElement, actionName: string): Promise<void> {
+  const solo = within(card).queryByRole("button", { name: actionName });
+  if (solo) {
+    fireEvent.click(solo);
+    return;
+  }
+  fireEvent.click(within(card).getByRole("button", { name: "Install" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: actionName }));
+}
+
 function withHostPlatform<T>(platform: NodeJS.Platform, run: () => T): T {
   const previous = bridge.platform;
   bridge.platform = platform;
@@ -580,9 +590,13 @@ describe("AcpRegistrySettings", () => {
     expect(antigravityCard).toBeTruthy();
 
     fireEvent.click(
-      within(antigravityCard as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
+      within(antigravityCard as HTMLElement).getByRole("button", { name: "Install" }),
     );
-    expect(screen.queryByRole("menuitem", { name: /Install Antigravity/u })).toBeNull();
+    expect(
+      await screen.findByRole("menuitem", { name: "Install Antigravity" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Install ACP" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Install Antigravity" }));
     const installInput = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
       | { command: (project: Project) => string; onCommandComplete: (code: number) => void }
       | undefined;
@@ -604,21 +618,28 @@ describe("AcpRegistrySettings", () => {
     });
   });
 
-  it("does not install Chat when the Terminal prerequisite is still undetected", async () => {
+  it("installs Chat from the registry tile when Terminal is not installed", async () => {
+    bridge.refreshAgentStatuses.mockResolvedValue({
+      windows: [
+        makeAntigravityStatus({ cliInstalled: false, acpInstalled: true, acpVersion: "1.0.0" }),
+      ],
+      wsl: [],
+      fromCache: false,
+    });
     render(<AcpRegistrySettings />);
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
-    fireEvent.click(
-      within(card as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
-    );
-    const input = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
-      | { onCommandComplete: (code: number) => void }
-      | undefined;
-    await act(async () => input?.onCommandComplete(0));
+    expect(card).toBeTruthy();
+    await chooseCardInstall(card as HTMLElement, "Install ACP");
 
-    expect(await screen.findByText("Unable to refresh Antigravity status.")).toBeInTheDocument();
-    expect(bridge.installAcpRegistryAgent).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(bridge.installAcpRegistryAgent).toHaveBeenCalledWith({
+        agentId: "antigravity-acp",
+        target: { kind: "native" },
+      });
+    });
+    expect(runAgentInstallCommandMock).not.toHaveBeenCalled();
   });
 
   it("reconciles Chat from the unified card for a CLI-only Antigravity install", async () => {
@@ -649,9 +670,7 @@ describe("AcpRegistrySettings", () => {
       within(card as HTMLElement).getByText("Antigravity ACP").parentElement,
     ).toHaveTextContent("Antigravity ACPNot installed → v1.0.0");
     expect(within(card as HTMLElement).queryByText("ACP not installed")).toBeNull();
-    fireEvent.click(
-      within(card as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
-    );
+    await chooseCardInstall(card as HTMLElement, "Install ACP");
 
     await waitFor(() => {
       expect(bridge.installAcpRegistryAgent).toHaveBeenCalledWith({
@@ -983,9 +1002,7 @@ describe("AcpRegistrySettings", () => {
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
-    fireEvent.click(
-      within(card as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
-    );
+    await chooseCardInstall(card as HTMLElement, "Install Antigravity");
     const input = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
       | { project?: Project; onCommandComplete: (code: number) => void }
       | undefined;
@@ -1011,9 +1028,7 @@ describe("AcpRegistrySettings", () => {
 
     await screen.findByRole("heading", { name: "Agent Registry" });
     const card = screen.getByText(/First-class Antigravity integration/u).closest(".rounded-lg");
-    fireEvent.click(
-      within(card as HTMLElement).getByRole("button", { name: "Install Antigravity" }),
-    );
+    await chooseCardInstall(card as HTMLElement, "Install Antigravity");
     const input = runAgentInstallCommandMock.mock.calls.at(-1)?.[0] as
       | { onCommandComplete: (code: number) => void }
       | undefined;

@@ -3,8 +3,10 @@ import type {
   ComputerUseScreenshot,
   ComputerUseWindowState,
 } from "./types";
+import { WINDOW_SHAPE_ERROR } from "../drivers/common";
 import { dispatchTool as dispatchNormalizedTool } from "./dispatch";
-import { TOOLS } from "./toolSpecs";
+import { compactStateNotes, omitLaneMode } from "./resultTrim";
+import { TOOLS, WINDOW_SCHEMA } from "./toolSpecs";
 
 export { COMPUTER_USE_MCP_INSTRUCTIONS } from "./instructions";
 export { TOOLS, type ToolSpec } from "./toolSpecs";
@@ -19,7 +21,9 @@ const INTERACTIVE_TOOL_NAMES = new Set(
   TOOLS.filter((tool) => tool.annotations?.destructiveHint).map((tool) => tool.name),
 );
 
-const FOREGROUND_ONLY_TOOL_NAMES = new Set(["activate_window", "launch_app"]);
+// `launch_app` is not here: it takes a `mode` like the input tools and
+// defaults to a background launch that never raises the app.
+const FOREGROUND_ONLY_TOOL_NAMES = new Set(["activate_window"]);
 
 const TOOL_ALIASES = new Map([
   ["apps", "list_apps"],
@@ -60,12 +64,108 @@ export function isKeyChordToolName(name: string): boolean {
   return KEY_CHORD_TOOL_NAMES.has(normalizeToolName(name));
 }
 
+/**
+ * The single owner of argument synonyms: names agents actually send for fields
+ * the published schema spells differently. Rewritten onto the canonical key
+ * before unknown-argument rejection, so a guessed synonym is the action that
+ * was asked for and a real typo is still named. The helper's wire structs take
+ * the canonical names only — no serde aliases; a second table on the Rust side
+ * drifted the moment `drag` grew aliases the wire never mirrored.
+ *
+ * `button` is the dangerous one: a blind evaluation sent it on a right click,
+ * the helper dropped the field, and a default left press fired the control's
+ * primary action — a Delete button when a menu was requested.
+ */
+export const ARG_ALIASES: Record<string, Record<string, string>> = {
+  click: {
+    button: "mouse_button",
+    mouseButton: "mouse_button",
+    count: "click_count",
+    clickCount: "click_count",
+  },
+  invoke_element: {
+    elementId: "element_id",
+    element_action: "action",
+  },
+  set_element_value: {
+    elementId: "element_id",
+  },
+  find_elements: {
+    snapshotId: "snapshot_id",
+    maxResults: "max_results",
+    automationId: "automation_id",
+  },
+  get_window_state: {
+    includeScreenshot: "include_screenshot",
+    includeText: "include_text",
+    maxDimension: "max_dimension",
+    treeMaxNodes: "tree_max_nodes",
+  },
+  scroll: {
+    scroll_x: "scrollX",
+    scroll_y: "scrollY",
+  },
+  drag: {
+    fromX: "from_x",
+    fromY: "from_y",
+    toX: "to_x",
+    toY: "to_y",
+  },
+};
+
+function rewriteArgumentAliases(name: string, args: Record<string, unknown>): void {
+  const aliases = ARG_ALIASES[name];
+  if (!aliases) return;
+  for (const [from, to] of Object.entries(aliases)) {
+    if (!Object.hasOwn(args, from)) continue;
+    if (Object.hasOwn(args, to) && args[from] !== args[to]) {
+      throw new Error(`${name} takes ${to}, not both ${to} and ${from}.`);
+    }
+    if (!Object.hasOwn(args, to)) args[to] = args[from];
+    delete args[from];
+  }
+}
+
+/**
+ * Reject arguments a tool does not take, naming the ones it does.
+ *
+ * Silently ignoring them is worse than it sounds: a blind evaluation watched an
+ * agent try `direction`, `amount`, `delta_y` and `dy` on the same call, each
+ * accepted without complaint, and conclude from the lack of any error that it
+ * simply had not guessed the right parameter name yet — while the action it
+ * wanted was never going to happen. An unknown argument is a misunderstanding,
+ * and saying so immediately costs one call instead of five.
+ */
+function rejectUnknownArguments(name: string, args: Record<string, unknown>): void {
+  const properties = TOOLS.find((tool) => tool.name === name)?.inputSchema.properties;
+  if (!properties || typeof properties !== "object") return;
+  const accepted = Object.keys(properties as Record<string, unknown>);
+  const unknown = Object.keys(args).filter(
+    // An underscore prefix is the MCP convention for metadata. It belongs on
+    // the request rather than inside a tool's arguments, but a client that
+    // inlines it should not have its call rejected over a naming rule.
+    (key) => !key.startsWith("_") && !accepted.includes(key),
+  );
+  if (unknown.length === 0) return;
+  const windowFields = Object.keys(WINDOW_SCHEMA.properties);
+  const inlinedWindow =
+    accepted.includes("window") && unknown.every((key) => windowFields.includes(key));
+  throw new Error(
+    `${name} does not take ${unknown.join(", ")}. It accepts: ${accepted.sort().join(", ")}.${
+      inlinedWindow ? ` ${WINDOW_SHAPE_ERROR}` : ""
+    }`,
+  );
+}
+
 export async function dispatchTool(
   name: string,
   args: Record<string, unknown>,
   ctx: import("./dispatch").ToolContext,
 ): Promise<unknown> {
-  return await dispatchNormalizedTool(normalizeToolName(name), args, ctx);
+  const normalized = normalizeToolName(name);
+  rewriteArgumentAliases(normalized, args);
+  rejectUnknownArguments(normalized, args);
+  return await dispatchNormalizedTool(normalized, args, ctx);
 }
 
 export interface McpContent {
@@ -110,7 +210,14 @@ export function formatToolResult(
   const observedState = observation?.ok ? observation.state : undefined;
   const state = directState ?? observedState;
   if (state) {
-    const compactState = { ...state, screenshots: state.screenshots.map(screenshotMetadata) };
+    // Screenshot payloads move to image content, and capture prose is reduced
+    // to the coordinate rule the agent actually needs.
+    const compactNotes = compactStateNotes(state.notes);
+    const compactState = {
+      ...omitLaneMode(state),
+      screenshots: state.screenshots.map(screenshotMetadata),
+      ...(compactNotes ? { notes: compactNotes } : {}),
+    };
     const metadata = directState
       ? compactState
       : {

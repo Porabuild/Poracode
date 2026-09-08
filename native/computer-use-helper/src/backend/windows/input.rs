@@ -11,10 +11,10 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CS_DBLCLKS, CWP_SKIPDISABLED, CWP_SKIPINVISIBLE, CWP_SKIPTRANSPARENT, ChildWindowFromPointEx,
-    GCL_STYLE, GUITHREADINFO, GetClassLongPtrW, GetGUIThreadInfo, GetWindowThreadProcessId,
-    IsChild, PostMessageW, SetCursorPos, WM_CHAR, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDBLCLK,
-    WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDBLCLK, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE,
-    WM_MOUSEWHEEL, WM_RBUTTONDBLCLK, WM_RBUTTONDOWN, WM_RBUTTONUP,
+    GA_PARENT, GA_ROOT, GCL_STYLE, GUITHREADINFO, GetAncestor, GetClassLongPtrW, GetGUIThreadInfo,
+    GetWindowThreadProcessId, IsChild, PostMessageW, SetCursorPos, WM_CHAR, WM_KEYDOWN, WM_KEYUP,
+    WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDBLCLK, WM_MBUTTONDOWN, WM_MBUTTONUP,
+    WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_RBUTTONDBLCLK, WM_RBUTTONDOWN, WM_RBUTTONUP,
 };
 use windows::core::HRESULT;
 
@@ -36,7 +36,7 @@ fn post_refusal(error: windows::core::Error) -> Refusal {
         return Refusal::new(
             RefusalCode::ElevatedTarget,
             "Windows blocked background messages at the target's integrity boundary.",
-            "Run Poracode at the same integrity level as the target, or retry with mode:\"foreground\".",
+            "Windows will not let this session reach an elevated target in the background at all. Tell the user it needs Poracode running at the same integrity level; do not take over their desktop instead.",
         );
     }
     Refusal::background_unavailable(format!("Windows rejected the background message: {error}"))
@@ -52,6 +52,44 @@ fn post(
     // message parameters contain only packed scalar values.
     unsafe { PostMessageW(Some(hwnd), message, WPARAM(wparam), LPARAM(lparam)) }
         .map_err(post_refusal)
+}
+
+/// Chromium's top-level window class.
+const CHROMIUM_WINDOW_CLASS: &str = "Chrome_WidgetWin";
+
+/// The note for input posted to a Chromium shell. The PostMessage transport
+/// genuinely reaches Chromium while it is unfocused, so this is a caveat about
+/// Chromium's own event handling, never a refusal.
+const CHROMIUM_INPUT_NOTE: &str = "chromium_synthetic_input_may_be_ignored";
+
+/// True when `hwnd` or any ancestor up to its top-level window carries
+/// [`CHROMIUM_WINDOW_CLASS`].
+///
+/// Chromium resolves a page-area target to a render-widget descendant whose
+/// own class is not the frame's, so testing only the resolved target would
+/// miss exactly the deliveries the note exists for.
+fn chromium_class_in_chain(hwnd: HWND) -> bool {
+    // SAFETY: GetAncestor performs read-only queries on the resolved target's
+    // live window chain, and class_name reads one class atom per window.
+    unsafe {
+        let root = GetAncestor(hwnd, GA_ROOT);
+        let mut current = hwnd;
+        // Bounded like the other window-chain walks; GA_ROOT should end it.
+        for _ in 0..32 {
+            if class_name(current).contains(CHROMIUM_WINDOW_CLASS) {
+                return true;
+            }
+            if current == root {
+                return false;
+            }
+            let parent = GetAncestor(current, GA_PARENT);
+            if parent.0.is_null() || parent == current {
+                return false;
+            }
+            current = parent;
+        }
+        false
+    }
 }
 
 fn deepest_child(root: HWND, screen: POINT) -> (HWND, POINT) {
@@ -164,10 +202,8 @@ fn background_pointer(
                     .notes
                     .push("context_menu_position_unreliable".into());
             }
-            if class_name(target).contains("Chrome_WidgetWin") {
-                delivery
-                    .notes
-                    .push("chromium_synthetic_input_may_be_ignored".into());
+            if chromium_class_in_chain(target) {
+                delivery.notes.push(CHROMIUM_INPUT_NOTE.into());
             }
             result.err()
         }
@@ -189,6 +225,11 @@ fn background_pointer(
                     packed_wheel(dx.round() as i32),
                     make_lparam(screen.x, screen.y),
                 );
+            }
+            // The scroll arm reaches the same render-widget descendants as the
+            // click arm, so it carries the same caveat.
+            if chromium_class_in_chain(target) {
+                delivery.notes.push(CHROMIUM_INPUT_NOTE.into());
             }
             result.err()
         }
@@ -252,6 +293,11 @@ fn background_pointer(
                 if result.is_ok() {
                     result = release;
                 }
+            }
+            // The drag posts through the same render-widget descendants as the
+            // click arm, so it carries the same caveat.
+            if chromium_class_in_chain(target) {
+                delivery.notes.push(CHROMIUM_INPUT_NOTE.into());
             }
             result.err()
         }
@@ -335,10 +381,8 @@ fn background_keyboard(
     if focus_unknown {
         delivery.notes.push("focus_unknown".into());
     }
-    if class_name(hwnd_from_id(window.id)).contains("Chrome_WidgetWin") {
-        delivery
-            .notes
-            .push("chromium_synthetic_input_may_be_ignored".into());
+    if chromium_class_in_chain(hwnd_from_id(window.id)) {
+        delivery.notes.push(CHROMIUM_INPUT_NOTE.into());
     }
     let refused = match action {
         KeyboardAction::Type(text) => {

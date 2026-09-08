@@ -1,3 +1,7 @@
+import {
+  loadPluginCoreSkillPhrase,
+  uniqueCoreSkillForBuiltInMcp,
+} from "@/shared/plugins/builtInCoreSkills";
 import { performPageActions, readPerformSteps } from "../mcp/tools/perform";
 import { dispatchPageTool, PAGE_TOOL_NAMES } from "../mcp/tools/page";
 import { TOOLS } from "../mcp/tools/specs";
@@ -30,6 +34,8 @@ export interface ChromeToolContext {
   setSessionActive?: (active: boolean) => boolean;
 }
 
+const CHROME_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("chrome");
+
 export const CHROME_MCP_INSTRUCTIONS = [
   "These tools control the USER'S OWN Chrome browser through the Poracode companion extension —",
   "real tabs, real cookies, real logged-in sessions. Treat every action as if the user performed it themselves.",
@@ -38,7 +44,7 @@ export const CHROME_MCP_INSTRUCTIONS = [
   "there; tabs are never auto-closed. Pass newTab:true only when you truly need a second tab. Use attach",
   "(with a tabId from list_tabs) only when the user asks you to act on a specific tab they already have open.",
   "Prefer snapshot / find to discover elements (they return @e refs) before click / fill.",
-  "Use status first to confirm the extension is connected, then call chrome.enable once before the first browser action.",
+  `Use status first to confirm the extension is connected, then ${loadPluginCoreSkillPhrase(CHROME_CORE_SKILL)} and call chrome.enable once before the first browser action.`,
   "Page commands use the same names and arguments as browser: snapshot, find, fill, type, click, press, wait, and perform. Batch known steps with perform for one final compact observation; split at decisions and navigation.",
   "Keep Chrome enabled across the whole uninterrupted session so agent presence stays consistent between calls.",
   "Always call chrome.disable before pausing to ask for user input, waiting for an external event, or finishing, and call chrome.enable again when you resume.",

@@ -1344,12 +1344,12 @@ describe("ClaudeSdkSession", () => {
     }
   });
 
-  it("marks a refused /goal failed on a frame-capable CLI instead of completing it", async () => {
+  it("completes a /goal at the turn end when the CLI streams no active_goal frame", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);
     const runtimeEvents: RuntimeEvent[] = [];
     const session = await ClaudeSdkSession.create({
-      threadId: "thread-claude-goal-refused",
+      threadId: "thread-claude-goal-no-frames",
       projectLocation,
       config,
       presentationMode: "gui",
@@ -1364,9 +1364,9 @@ describe("ClaudeSdkSession", () => {
     const openedSessionId = await session.openThread(config);
     await flushAsyncWork();
 
-    // A frame-capable CLI: init carries the version, but the CLI never arms
-    // the goal (workspace-trust or hooks gate refuses /goal with a printed
-    // reason) — no active_goal frame ever arrives.
+    // A current CLI: `/goal` is armed and its Stop-hook loop runs, but goal
+    // verdicts are streamed only to the CLI's own interactive surface, so no
+    // active_goal frame ever reaches the SDK transport.
     fake.emitMessage({
       type: "system",
       subtype: "init",
@@ -1391,18 +1391,19 @@ describe("ClaudeSdkSession", () => {
     const lastGoalUpdate = runtimeEvents
       .filter((event) => event.type === "item.updated" && event.itemId === goalItemId)
       .at(-1);
+    // Frame silence says nothing about whether the goal was armed, so the
+    // clean turn end resolves it instead of failing it.
     expect(lastGoalUpdate).toMatchObject({
       payload: {
-        status: "failed",
+        status: "complete",
         objective: "fix the bug",
-        lastReason: expect.stringContaining("verdict"),
       },
     });
     expect(runtimeEvents).not.toContainEqual(
       expect.objectContaining({
         type: "item.updated",
         itemId: goalItemId,
-        payload: expect.objectContaining({ status: "complete" }),
+        payload: expect.objectContaining({ status: "failed" }),
       }),
     );
 

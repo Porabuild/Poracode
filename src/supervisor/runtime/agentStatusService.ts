@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { promisify } from "node:util";
 import { z } from "zod";
 import {
@@ -88,7 +88,9 @@ const execFileAsync = promisify(execFile);
  * shortened by the shared provider-specific formatter.
  */
 // v25 discards terminal auth environments with obsolete updater-disable values.
-export const STATUS_CACHE_VERSION = 25;
+// v26 refreshes model aliases and configured profile labels.
+// v27 coalesces resolved model aliases with their selectable catalog entries.
+export const STATUS_CACHE_VERSION = 27;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 
@@ -449,6 +451,10 @@ export class AgentStatusService {
     if (payload.scope) {
       return this.runScopedDetection(wslDistros, payload.scope);
     }
+    // Full Settings refresh must not keep serving the previous sweep. Drop the
+    // on-disk status file first so `getAgentStatuses` / `getCachedCapabilities`
+    // cannot return stale models while the new probe runs, then rewrite it.
+    this.clearDiskCache();
     this.startupDetectionLaunched = true;
     for (const distro of wslDistros) {
       this.startupDetectionWslDistros.add(distro);
@@ -651,6 +657,14 @@ export class AgentStatusService {
           : {}),
       },
     };
+  }
+
+  private clearDiskCache(): void {
+    try {
+      unlinkSync(this.options.statusCachePath);
+    } catch {
+      // best-effort: missing or unreadable files are already a cache miss
+    }
   }
 
   private writeDiskCache(windows: AgentStatus[], wsl: AgentStatus[]): void {

@@ -28,6 +28,7 @@ function deps(overrides: Partial<AntigravityUsageScannerDeps>): AntigravityUsage
   return {
     scanLanguageServer: async () => undefined,
     resolveAcpCredentials: async () => undefined,
+    invalidateAcpCredentials: () => {},
     collectCloudUsage: async () => SNAPSHOT,
     ...overrides,
   };
@@ -71,5 +72,36 @@ describe("scanAntigravityUsage", () => {
       windows: [],
       fetchedAt: NOW,
     });
+  });
+
+  it("drops the cached credentials when Cloud Code rejects the stored artifact", async () => {
+    const invalidateAcpCredentials = vi.fn<() => void>();
+    await scanAntigravityUsage(
+      NOW,
+      [],
+      HOST,
+      deps({
+        resolveAcpCredentials: async () => CREDENTIALS,
+        collectCloudUsage: async () => ({
+          providerId: "antigravity",
+          status: "auth-missing",
+          windows: [],
+          fetchedAt: NOW,
+        }),
+        invalidateAcpCredentials,
+      }),
+    );
+    expect(invalidateAcpCredentials).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the cached credentials while Cloud Code answers", async () => {
+    const invalidateAcpCredentials = vi.fn<() => void>();
+    await scanAntigravityUsage(
+      NOW,
+      [],
+      HOST,
+      deps({ resolveAcpCredentials: async () => CREDENTIALS, invalidateAcpCredentials }),
+    );
+    expect(invalidateAcpCredentials).not.toHaveBeenCalled();
   });
 });

@@ -134,9 +134,11 @@ describe("useUsageProviderLogin", () => {
     const { result } = renderHook(() => useUsageProviderLogin("muse"));
 
     expect(result.current).not.toHaveProperty("canCliSignIn");
-    expect(result.current.canBrowserSignIn).toBe(false);
+    // Muse signs in through the dev.meta.ai dashboard browser session, so a
+    // usage-box sign-in is offered — just never the agent CLI's login.
+    expect(result.current.canBrowserSignIn).toBe(true);
     expect(result.current.canApiKeySignIn).toBe(false);
-    expect(result.current.canSignIn).toBe(false);
+    expect(result.current.canSignIn).toBe(true);
   });
 
   it("hides usage login and sign-out controls in remote sessions", () => {

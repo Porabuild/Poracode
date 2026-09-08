@@ -129,7 +129,24 @@ fn bgra_to_rgb(bgra: &[u8]) -> Vec<u8> {
     rgb
 }
 
-/// Downscale + encode + base64 a frame captured at the window's native size.
+/// Screenshot pixels per window point on the dominant axis.
+///
+/// This — not the frame-to-output ratio — is what agents need: they read a
+/// coordinate off the screenshot and send back a window-relative coordinate,
+/// which is always in the window's own units (points on macOS, physical pixels
+/// on Windows/X11). On a Retina capture the frame is larger than the window's
+/// point size, so the ratio can exceed 1 even though the image was downscaled.
+fn window_relative_scale(width: u32, height: u32, window: &WindowInfo) -> f64 {
+    let (output, units) = if window.width >= window.height {
+        (f64::from(width), f64::from(window.width.max(1)))
+    } else {
+        (f64::from(height), f64::from(window.height.max(1)))
+    };
+    ((output / units) * 10_000.0).round() / 10_000.0
+}
+
+/// Downscale + encode + base64 a frame captured at the window's native
+/// resolution (which may be a multiple of the window's point size).
 pub fn encode_screenshot(
     frame: &Frame,
     window: &WindowInfo,
@@ -179,7 +196,7 @@ pub fn encode_screenshot(
         origin_x: window.x,
         origin_y: window.y,
         z_index: 0,
-        scale: plan.scale,
+        scale: window_relative_scale(plan.width, plan.height, window),
         source_width: frame.width,
         source_height: frame.height,
         capture_method: method.to_string(),
@@ -192,8 +209,8 @@ pub fn downscale_note(shot: &Screenshot) -> Option<String> {
         return None;
     }
     Some(format!(
-        "Screenshot was downscaled to {}x{} px (scale {}) from the {}x{} window to shrink the payload. To convert a coordinate you read from this screenshot into the window-relative coordinate for click/scroll/drag, DIVIDE it by {} (both x and y).",
-        shot.width, shot.height, shot.scale, shot.source_width, shot.source_height, shot.scale
+        "Screenshot downscaled: divide screenshot x/y by {} for window coordinates ({}x{} px encoded from a {}x{} px capture).",
+        shot.scale, shot.width, shot.height, shot.source_width, shot.source_height
     ))
 }
 
@@ -201,20 +218,24 @@ pub fn downscale_note(shot: &Screenshot) -> Option<String> {
 mod tests {
     use super::*;
 
-    fn window() -> WindowInfo {
+    fn sized_window(width: i32, height: i32) -> WindowInfo {
         WindowInfo {
             app: "a".into(),
             id: 1,
             title: String::new(),
             x: 10,
             y: 20,
-            width: 200,
-            height: 100,
+            width,
+            height,
             pid: None,
             display_name: None,
             minimized: None,
             source: None,
         }
+    }
+
+    fn window() -> WindowInfo {
+        sized_window(200, 100)
     }
 
     fn gradient(width: u32, height: u32) -> Frame {
@@ -246,7 +267,7 @@ mod tests {
         let frame = gradient(400, 200);
         let shot = encode_screenshot(
             &frame,
-            &window(),
+            &sized_window(400, 200),
             "test",
             &EncodeOptions {
                 max_dimension: 200,
@@ -263,7 +284,11 @@ mod tests {
             .decode(&shot.data)
             .unwrap();
         assert_eq!(&decoded[..2], &[0xff, 0xd8], "jpeg magic");
-        assert!(downscale_note(&shot).unwrap().contains("DIVIDE it by 0.5"));
+        assert!(
+            downscale_note(&shot)
+                .unwrap()
+                .contains("divide screenshot x/y by 0.5 ")
+        );
     }
 
     #[test]
@@ -271,7 +296,7 @@ mod tests {
         let frame = gradient(30, 20);
         let shot = encode_screenshot(
             &frame,
-            &window(),
+            &sized_window(30, 20),
             "test",
             &EncodeOptions {
                 max_dimension: 1280,
@@ -290,6 +315,72 @@ mod tests {
         assert_eq!(pixels.dimensions(), (frame.width, frame.height));
         for (pixel, source) in pixels.pixels().zip(frame.bgra.as_chunks::<4>().0) {
             assert_eq!(pixel.0, [source[2], source[1], source[0], 255]);
+        }
+    }
+
+    /// A 2x capture of a 700x400 pt window: max_dimension still bounds the
+    /// encoded image, and `scale` stays screenshot-px-per-window-point so the
+    /// agent's DIVIDE conversion lands on the right window coordinate.
+    #[test]
+    fn retina_scale_is_relative_to_window_points() {
+        let window = sized_window(700, 400);
+        let frame = gradient(1400, 800);
+        let shot = encode_screenshot(
+            &frame,
+            &window,
+            "test",
+            &EncodeOptions {
+                max_dimension: 1280,
+                format: ImageFormat::Jpeg,
+            },
+        )
+        .unwrap();
+        // Downscale still applies: 1400 px -> 1280 px.
+        assert_eq!((shot.width, shot.height), (1280, 731));
+        assert_eq!((shot.source_width, shot.source_height), (1400, 800));
+        // 1280 screenshot px / 700 window pt.
+        assert_eq!(shot.scale, 1.8286);
+        let note = downscale_note(&shot).unwrap();
+        assert!(note.contains("divide screenshot x/y by 1.8286 "), "{note}");
+        // A coordinate at the screenshot's right edge maps back inside the window.
+        let converted = f64::from(shot.width - 1) / shot.scale;
+        assert!(converted < f64::from(window.width), "{converted}");
+        assert!(converted > f64::from(window.width) - 2.0, "{converted}");
+    }
+
+    /// A Retina capture that happens to downscale exactly back to point size
+    /// needs no conversion and therefore no note.
+    #[test]
+    fn retina_scale_is_one_when_downscaled_back_to_points() {
+        let shot = encode_screenshot(
+            &gradient(2560, 1600),
+            &sized_window(1280, 800),
+            "test",
+            &EncodeOptions {
+                max_dimension: 1280,
+                format: ImageFormat::Jpeg,
+            },
+        )
+        .unwrap();
+        assert_eq!((shot.width, shot.height), (1280, 800));
+        assert_eq!(shot.scale, 1.0);
+        assert!(downscale_note(&shot).is_none());
+    }
+
+    /// Effect verification hashes a small crop around the action point, so the
+    /// hash has to register a single changed pixel anywhere inside it.
+    #[test]
+    fn content_hash_covers_every_pixel() {
+        let base = gradient(64, 48);
+        assert_eq!(base.content_hash(), gradient(64, 48).content_hash());
+        for pixel in [0usize, 63, 47 * 64, 47 * 64 + 63, 24 * 64 + 32] {
+            let mut changed = base.clone();
+            changed.bgra[pixel * 4] ^= 0xff;
+            assert_ne!(
+                base.content_hash(),
+                changed.content_hash(),
+                "pixel {pixel} was not covered"
+            );
         }
     }
 

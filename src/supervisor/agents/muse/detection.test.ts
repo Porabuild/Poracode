@@ -298,7 +298,7 @@ describe("museDefaultCapabilities", () => {
       "never",
       "yolo",
     ]);
-    expect(museDefaultCapabilities.defaultApprovalPolicy).toBe("on-request");
+    expect(museDefaultCapabilities.defaultApprovalPolicy).toBe("yolo");
     expect(museDefaultCapabilities.bypassPermissions).toEqual({ approvalPolicy: "yolo" });
   });
 

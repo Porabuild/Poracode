@@ -185,7 +185,7 @@ describe("SubAgentContent", () => {
     scroller!.scrollTop = 100;
     fireEvent.scroll(scroller!);
 
-    await waitFor(() => expect(scrollButton).toHaveClass("opacity-80"));
+    await waitFor(() => expect(scrollButton).toHaveClass("opacity-100"));
     mockScrollToEnd.mockClear();
     fireEvent.click(scrollButton);
     await waitFor(() => expect(mockScrollToEnd).toHaveBeenCalled());

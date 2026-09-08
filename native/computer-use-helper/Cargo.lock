@@ -1000,7 +1000,7 @@ dependencies = [
 
 [[package]]
 name = "poracode-computer-use"
-version = "0.2.1"
+version = "0.4.3"
 dependencies = [
  "ashpd",
  "atspi",

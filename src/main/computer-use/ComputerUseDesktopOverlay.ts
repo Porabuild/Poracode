@@ -6,6 +6,7 @@ import {
 import type { ComputerUseActivityEvent } from "./ComputerUseMcpIngress";
 import {
   COMPUTER_USE_OVERLAY_TITLE,
+  OVERLAY_EXIT_URL,
   TAKEOVER_OVERLAY_URL,
   createBadgeOverlayUrl,
 } from "./ComputerUseOverlayHtml";
@@ -13,6 +14,27 @@ import {
 export const COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS = 5_000;
 
 const ESCAPE_ACCELERATOR = "Escape";
+
+// The badge window hugs the chip exactly (the chip fills the window), so the
+// whole window can take mouse events without swallowing clicks on invisible
+// space around it.
+const BADGE_WIDTH = 440;
+const BADGE_HEIGHT = 34;
+const BADGE_TOP_OFFSET = 16;
+
+function badgeBounds(workArea: Display["workArea"]): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  return {
+    x: Math.round(workArea.x + (workArea.width - BADGE_WIDTH) / 2),
+    y: workArea.y + BADGE_TOP_OFFSET,
+    width: BADGE_WIDTH,
+    height: BADGE_HEIGHT,
+  };
+}
 
 function badgeDisplayId(
   displays: readonly Display[],
@@ -33,6 +55,13 @@ interface OverlayWindow {
 
 export interface ComputerUseDesktopOverlayOptions {
   onExit(threadIds: string[]): void;
+  /**
+   * Every reduced activity state, including the `hidden` <-> non-hidden
+   * transitions. Lets side effects that follow session activity but are not
+   * overlay windows (e.g. the display wake lock) observe the same reduction
+   * instead of re-deriving it from raw events.
+   */
+  onActivityState?(state: ComputerUseActivityState): void;
 }
 
 export class ComputerUseDesktopOverlay {
@@ -52,6 +81,7 @@ export class ComputerUseDesktopOverlay {
       onChange: (state) => {
         this.state = state;
         this.applyState();
+        this.options.onActivityState?.(state);
       },
     });
   }
@@ -97,10 +127,16 @@ export class ComputerUseDesktopOverlay {
         continue;
       }
       const overlay = existing ?? this.createWindow(display);
-      // The takeover border frames the whole display; the badge is anchored to
-      // the top of its window, so it uses the work area to stay clear of the
-      // macOS menu bar and the focused app's title bar.
-      overlay.window.setBounds(this.state.level === "takeover" ? display.bounds : display.workArea);
+      // The takeover border frames the whole display. The badge is a chip
+      // anchored to the top of the work area, so it stays clear of the macOS
+      // menu bar and the focused app's title bar — and it is clickable, so the
+      // window hugs the chip rather than spanning the display.
+      overlay.window.setBounds(
+        this.state.level === "takeover" ? display.bounds : badgeBounds(display.workArea),
+      );
+      // The takeover border has nothing to click (Escape exits); the badge
+      // carries an exit button and must receive clicks.
+      overlay.window.setIgnoreMouseEvents(this.state.level !== "badge");
       this.updateContent(overlay);
       if (overlay.loaded && !overlay.window.isVisible()) overlay.window.showInactive();
     }
@@ -134,6 +170,12 @@ export class ComputerUseDesktopOverlay {
     window.setContentProtection(true);
     window.setIgnoreMouseEvents(true);
     window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    // The badge's exit link opens this URL with target="_blank" purely to
+    // reach this handler; nothing may actually open.
+    window.webContents.setWindowOpenHandler(({ url }) => {
+      if (url === OVERLAY_EXIT_URL) this.requestExit();
+      return { action: "deny" };
+    });
     window.on("closed", () => {
       if (this.windows.get(display.id)?.window === window) this.windows.delete(display.id);
     });
@@ -193,10 +235,15 @@ export class ComputerUseDesktopOverlay {
       return;
     }
     this.escapeRegistered = globalShortcut.register(ESCAPE_ACCELERATOR, () => {
-      const threadIds = this.state.threadIds;
-      this.tracker.clear();
-      this.options.onExit(threadIds);
+      this.requestExit();
     });
+  }
+
+  /** Ends computer use for every thread the overlay is currently tracking. */
+  private requestExit(): void {
+    const threadIds = this.state.threadIds;
+    this.tracker.clear();
+    this.options.onExit(threadIds);
   }
 
   private unregisterEscape(): void {

@@ -46,6 +46,7 @@ export function buildAcpToolCallPayload(
   isSubAgent: boolean,
   resolveTerminalOutput?: (terminalId: string) => string | undefined,
   resolveTerminalOutputByCommand?: (command: string) => string | undefined,
+  resolveLocalImage?: (pathOrFileUri: string) => string | undefined,
 ): Record<string, unknown> {
   const title = normalizeToolText(toolCall.title);
   const kind = normalizeToolText(toolCall.kind);
@@ -58,7 +59,15 @@ export function buildAcpToolCallPayload(
   // finalization (`finalizeToolCallPayload`) guarantees it never stays nameless.
   const name = title ?? kind;
   const contentResult = extractToolCallContentText(toolCall.content, resolveTerminalOutput);
-  const images = extractToolCallContentImages(toolCall.content);
+  // Images may be inline base64, a `uri`-only reference, or — for a completed
+  // read-kind call — only named by `locations`; the session-injected resolver
+  // is what turns the latter two into renderable data URLs.
+  const images = extractToolCallContentImages(toolCall.content, {
+    kind,
+    status,
+    locations,
+    resolveLocalImage,
+  });
   const subAgentModel = isSubAgent ? readStringField(toolCall.rawInput, "model") : undefined;
   const base: Record<string, unknown> = {
     ...(name ? { name } : {}),
@@ -134,6 +143,7 @@ export function buildAcpToolCallUpdatePayload(
   status: "running" | "success" | "error",
   resolveTerminalOutput?: (terminalId: string) => string | undefined,
   resolveTerminalOutputByCommand?: (command: string) => string | undefined,
+  resolveLocalImage?: (pathOrFileUri: string) => string | undefined,
 ): Record<string, unknown> {
   const title = normalizeToolText(toolCall.title);
   const kind = normalizeToolText(toolCall.kind);
@@ -150,7 +160,14 @@ export function buildAcpToolCallUpdatePayload(
     resolveTerminalOutput,
     item.terminalId,
   );
-  const images = extractToolCallContentImages(toolCall.content);
+  const images = extractToolCallContentImages(toolCall.content, {
+    // A `tool_call_update` often repeats neither `kind` nor `locations` — both
+    // arrived on the opening `tool_call` — so fall back to the tracked payload.
+    kind: kind ?? readPayloadString(item.payload, "kind"),
+    status,
+    locations: locations.length > 0 ? locations : readPayloadLocations(item.payload),
+    resolveLocalImage,
+  });
   const isFileChange = item.itemType === "file_change";
   const contentDiffs = isFileChange ? extractAcpFileChangesFromContent(toolCall.content) : [];
   const contentDiffText = isFileChange ? joinAcpContentFileChangeDiffs(contentDiffs) : undefined;
@@ -207,6 +224,21 @@ export function buildAcpToolCallUpdatePayload(
     if (query) payload.query = query;
   }
   return payload;
+}
+
+function readPayloadString(payload: Record<string, unknown>, key: string): string | undefined {
+  const value = payload[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function readPayloadLocations(payload: Record<string, unknown>): readonly { path: string }[] {
+  const value = payload.locations;
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) =>
+    entry && typeof entry === "object" && typeof (entry as { path?: unknown }).path === "string"
+      ? [{ path: (entry as { path: string }).path }]
+      : [],
+  );
 }
 
 function pickAcpToolCallResult(args: {

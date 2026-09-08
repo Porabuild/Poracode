@@ -37,7 +37,8 @@ use windows::Win32::UI::Accessibility::{
 };
 use windows::core::{BSTR, Interface as _};
 
-use crate::backend::CancelToken;
+use crate::backend::{CancelToken, SnapshotOutcome};
+use crate::elements::page::{PAGE_ABSENT, PAGE_WAIT, await_page_content, page_note};
 use crate::elements::{MAX_TREE_BYTES, Snapshot, SnapshotCache, render_tree};
 use crate::geometry::frame_to_screen;
 use crate::protocol::actions::{
@@ -445,7 +446,30 @@ fn runtime_id_variant(automation: &IUIAutomation, runtime_id: &[i32]) -> Result<
     }))
 }
 
+/// UIA's control type for a web page container. Chromium, Electron and
+/// Firefox all expose their page under a Document element.
+const PAGE_ROLES: &[&str] = &["document"];
+
 fn build_snapshot(
+    window: &WindowInfo,
+    max_nodes: usize,
+    cancel: &CancelToken,
+) -> Result<Snapshot<Vec<i32>>> {
+    let snapshot = build_snapshot_once(window, max_nodes, cancel)?;
+    // Wait for page content that may still be exposing itself (see
+    // `elements::page`).
+    await_page_content(
+        snapshot,
+        window.pid,
+        PAGE_ROLES,
+        &PAGE_ABSENT,
+        PAGE_WAIT,
+        cancel,
+        || build_snapshot_once(window, max_nodes, cancel),
+    )
+}
+
+fn build_snapshot_once(
     window: &WindowInfo,
     max_nodes: usize,
     cancel: &CancelToken,
@@ -592,11 +616,12 @@ pub fn snapshot_tree(
     window: &WindowInfo,
     max_nodes: usize,
     cancel: &CancelToken,
-) -> Result<AccessibilityState> {
+) -> Result<SnapshotOutcome> {
     let snapshot = build_snapshot(window, max_nodes, cancel)?;
     let state = accessibility(&snapshot);
+    let notes = page_note(&snapshot, PAGE_ROLES).into_iter().collect();
     cache.insert(snapshot);
-    Ok(state)
+    Ok(SnapshotOutcome { state, notes })
 }
 
 pub fn find_elements(
@@ -701,7 +726,7 @@ pub fn live_element_info(
 
 fn delivery(element: &ElementInfo, element_id: &str) -> Delivery {
     Delivery::background(Route::Accessibility)
-        .with_verified(Verified::Confirmed)
+        .with_verified(Verified::Unverified)
         .with_target(DeliveryTarget {
             kind: "uia".into(),
             id: element_id.into(),

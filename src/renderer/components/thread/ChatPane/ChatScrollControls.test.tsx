@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent } from "@testing-library/react";
 import { createRef, useRef } from "react";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
+import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
 
 let scrollToBottomToken = 0;
@@ -62,6 +63,57 @@ describe("ChatScrollControls", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it("renders into the thread's composer bubble slot when one is published", () => {
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: { configurable: true, get: () => 400, set: () => {} },
+    });
+    const slot = document.createElement("div");
+    document.body.appendChild(slot);
+    useComposerBubbleSlotStore.getState().setSlot("thread-1", slot);
+    try {
+      const { container, getByRole } = renderWithI18n(
+        <Harness
+          scrollEl={scrollEl}
+          controlsRef={createRef<ChatScrollControlsHandle>()}
+          virtualScrollToBottom={() => {}}
+        />,
+      );
+      const button = getByRole("button", { name: "Scroll to bottom" });
+      expect(slot).toContainElement(button);
+      expect(container).not.toContainElement(button);
+      // Shares the composer bubble material instead of floating over the pane.
+      expect(button).toHaveClass("poracode-floating-chrome--bubble", "size-7", "rounded-full");
+      expect(button).not.toHaveClass("absolute");
+    } finally {
+      useComposerBubbleSlotStore.getState().setSlot("thread-1", null);
+      slot.remove();
+    }
+  });
+
+  it("floats over the pane when no composer bubble slot exists", () => {
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: { configurable: true, get: () => 400, set: () => {} },
+    });
+    const { getByRole } = renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={createRef<ChatScrollControlsHandle>()}
+        virtualScrollToBottom={() => {}}
+      />,
+    );
+    expect(getByRole("button", { name: "Scroll to bottom" })).toHaveClass(
+      "absolute",
+      "bottom-4",
+      "left-1/2",
+    );
   });
 
   it("skips scrollTop writes and virtualizer reconcile when already at bottom", () => {

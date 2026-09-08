@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { useShallow } from "zustand/shallow";
 import type {
   AgentStatus,
@@ -45,6 +46,7 @@ export function useConflictResolver(params: {
   worktreeBranch: string | undefined;
   onLaunchResolverThread?: ((input: ConflictResolverLaunchInput) => void) | undefined;
 }) {
+  const { t } = useLingui();
   const { project, mergeConflictFiles, worktreePath, worktreeBranch } = params;
 
   const agentStatuses = useAgentStatusesStore((s) => s.agentStatuses);
@@ -105,9 +107,10 @@ export function useConflictResolver(params: {
     const fast = resolveFastValue(provider, model, liveSettings.fast);
 
     const fileList = mergeConflictFiles.map((f) => `- ${f.path}`).join("\n");
-    const prompt =
-      `Resolve the merge conflicts in this worktree. The conflicted files are:\n${fileList}\n\n` +
-      `For each file, open it and resolve the conflict markers (<<<<<<< =======  >>>>>>>).`;
+    const prompt = t`Resolve conflicts in this worktree. First inspect Git status and the active operation; the file list below may be stale. Compare both sides and the base, preserving intended behavior and unrelated edits. During rebase, verify what ours/theirs refer to. Handle rename/delete, binary, and generated-file conflicts using repository conventions. If intent is ambiguous, ask before discarding changes. Validate the resolution with appropriate checks, then stage only resolved paths. Do not commit, continue or abort the operation, or push. Report resolutions, checks, and remaining conflicts.
+
+Files:
+${fileList}`;
 
     const presentationMode = resolvePresentationMode(
       liveSettings.presentationMode,

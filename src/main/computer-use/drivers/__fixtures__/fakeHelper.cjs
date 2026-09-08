@@ -13,7 +13,7 @@ lines.on("line", (line) => {
         id: request.id,
         ok: true,
         result: {
-          protocolVersion: Number(process.env.FAKE_HELPER_PROTOCOL ?? 2),
+          protocolVersion: Number(process.env.FAKE_HELPER_PROTOCOL ?? 3),
           minClientProtocolVersion: 1,
           helperVersion: "fixture",
           platform: "win32",

@@ -1,12 +1,19 @@
 import { parseRetryAfter, toEpochMs } from "../formatters";
 import type { CollectOptions, HostPort, HttpResponse } from "../host";
 import type { UsageSnapshot, UsageWindow } from "../types";
+import { collectMuseDashboard, MUSE_PROVIDER_ID } from "./museDashboard";
 
 /**
- * Muse Code (Meta). Usage is read from the same key endpoint the CLI itself
- * calls: it mints (idempotently — the same `api_key` is returned every call)
- * the Meta Model API key for the stored device-code login and reports the
- * subscription state alongside it.
+ * Muse Code (Meta). Two sources, tried in this order:
+ *
+ * 1. The signed-in `dev.meta.ai` dashboard, with the browser session cookie
+ *    captured by the in-app sign-in (`getSecret(id, "cookie")`). It is the
+ *    only source for the weighted 5h / weekly quota meters and billed spend —
+ *    see `museDashboard.ts`.
+ * 2. The CLI's own key endpoint, with the device-code login `muse login`
+ *    stores. It reports the subscription plan + account (and quota percents
+ *    only when the endpoint chooses to include `subs_usage`), so the card can
+ *    at least show who is signed in before the dashboard session is captured.
  *
  *   POST https://api.meta.ai/muse-code/key
  *     headers: Authorization: Bearer <dca access_token>, Content-Type: application/json
@@ -15,21 +22,18 @@ import type { UsageSnapshot, UsageWindow } from "../types";
  *         subs_usage?: { window?: { used_percent, resets_at, window_duration_mins },
  *                         weekly?: { used_percent, resets_at } } }
  *
- * Auth is the `access_token` (`dca:...`) from `~/.config/muse/auth.json
+ * Auth for (2) is the `access_token` (`dca:...`) from `~/.config/muse/auth.json`
  * `providers.meta` (resolved host-side, see `museCredentials.ts`) — notably
  * NOT `META_API_KEY` / the `api_key` field, which the endpoint rejects with
  * 401. Pay-as-you-go keys have no subscription quota, so a key-only setup
- * correctly reports `auth-missing` and the card prompts for `muse login`.
+ * correctly reports `auth-missing` and the card prompts for sign-in.
  *
- * `subs_usage` carries the current-window + weekly quota percents the CLI's
- * `/usage` overlay shows. The endpoint omits it when there is nothing to
- * report (verified: a fresh Everyday Usage subscription returns plan/account
- * only), so windows are emitted only when present — an `ok` snapshot with
- * plan + account and no windows means "signed in, no meters exposed", never
- * a healthy 0%.
+ * An `ok` snapshot from (2) with plan + account and no windows means "signed
+ * in, no meters exposed", never a healthy 0% — the descriptor's
+ * `needsBrowserSessionForUsage` keeps the dashboard sign-in offered there.
  */
 
-export const MUSE_PROVIDER_ID = "muse" as const;
+export { MUSE_PROVIDER_ID };
 
 export const MUSE_KEY_ENDPOINT = "https://api.meta.ai/muse-code/key";
 
@@ -126,12 +130,19 @@ function errorSnapshot(now: number, error: string): UsageSnapshot {
 }
 
 /**
- * Collect Muse Code subscription state. Reads the CLI's device-code access
- * token host-side; returns `auth-missing` when the user is not logged in
- * (`muse login`) so the card can prompt for sign-in.
+ * Collect Muse Code usage. Prefers the captured dashboard session; falls back
+ * to the CLI's device-code token host-side; returns `auth-missing` when neither
+ * exists so the card can prompt for sign-in.
  */
 export async function collectMuse(host: HostPort, _opts?: CollectOptions): Promise<UsageSnapshot> {
   const now = host.now();
+  const cookie = (await host.credentials.getSecret(MUSE_PROVIDER_ID, "cookie"))?.trim();
+  if (cookie) return collectMuseDashboard(host, cookie, now);
+  return collectMuseKeyEndpoint(host, now);
+}
+
+/** The CLI key-endpoint path: plan + account, meters only when reported. */
+async function collectMuseKeyEndpoint(host: HostPort, now: number): Promise<UsageSnapshot> {
   const token = await host.credentials.getOAuthToken(MUSE_PROVIDER_ID);
   if (!token?.accessToken) return authMissing(now);
 

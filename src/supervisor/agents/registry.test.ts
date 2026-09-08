@@ -50,7 +50,7 @@ const EXPECTED_DEFAULT_APPROVAL_POLICY: Record<(typeof EXPECTED_BUILT_IN_ORDER)[
   qoder: "bypassPermissions",
   grok: "bypassPermissions",
   kimi: "auto",
-  muse: "on-request",
+  muse: "yolo",
   antigravity: "yolo",
   commandcode: "yolo",
   cursor: "never",

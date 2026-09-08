@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Wire version shared with native/computer-use-helper/src/protocol/version.rs. */
-export const COMPUTER_USE_HELPER_PROTOCOL_VERSION = 2;
+export const COMPUTER_USE_HELPER_PROTOCOL_VERSION = 3;
 
 export const computerUsePermissionStateSchema = z.enum([
   "granted",
@@ -34,6 +34,13 @@ export const computerUseHelperHelloSchema = z.object({
     accessibility: computerUsePermissionStateSchema,
     screenRecording: computerUsePermissionStateSchema,
   }),
+  /**
+   * True when the console session's screen is locked. Foreground operations are
+   * refused with `screen_locked`; on macOS the desktop also exposes no window
+   * content or controls, so captures are blank and the accessibility tree is
+   * only an app proxy. Optional so an older helper binary still validates.
+   */
+  screenLocked: z.boolean().optional(),
   notes: z.array(z.string()),
 });
 

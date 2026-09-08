@@ -8,6 +8,13 @@
 
 // Version 2 guarantees background requests never take foreground control and
 // returns canonical accessibility roles. Version 1 clients can still connect.
-pub const PROTOCOL_VERSION: u32 = 2;
+//
+// Version 3 makes element-action verdicts honest: `verified` distinguishes
+// "confirmed" (the effect was watched) from "unverified" (accepted with nothing
+// observable) and "unchanged" (watched, nothing moved), and delivery results
+// gained the notes `coordinate_resolved_by_tree`, `scrolled_ancestor`, and
+// `in_app_focus_changed`. Older clients keep working: everything they send
+// still parses, and the new fields are ones they already tolerate.
+pub const PROTOCOL_VERSION: u32 = 3;
 pub const MIN_CLIENT_PROTOCOL_VERSION: u32 = 1;
 pub const HELPER_VERSION: &str = env!("CARGO_PKG_VERSION");

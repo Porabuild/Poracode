@@ -12,6 +12,7 @@ import type {
   ThreadConfig,
   ThreadServerRequestId,
 } from "@/shared/contracts";
+import { isFullBypassApprovalPolicy } from "@/shared/agents/unrestrictedPermissions";
 import {
   mapAcpElicitationRequest,
   mapAcpPermissionRequest,
@@ -206,7 +207,7 @@ export class AcpSessionRequests {
     const { config, availableModeIds } = this.options.getPermissionContext();
     const policy = config?.approvalPolicy;
     if (!config || config.mode === "plan" || !policy) return false;
-    if (policy !== "never" && policy !== "yolo" && policy !== "bypassPermissions") return false;
+    if (!isFullBypassApprovalPolicy(policy)) return false;
     return !hasNativeAcpPermissionMode(policy, availableModeIds);
   }
 

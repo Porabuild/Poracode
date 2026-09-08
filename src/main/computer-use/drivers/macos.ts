@@ -515,12 +515,25 @@ end tell
     return Promise.resolve(legacyElementRefusal(input.window));
   }
 
-  async launchApp(input: { app: string }): Promise<{ ok: true }> {
+  async launchApp(
+    input: Parameters<ComputerUseDriver["launchApp"]>[0],
+  ): ReturnType<ComputerUseDriver["launchApp"]> {
+    // `-g` is what keeps a background launch from taking the user's focus.
+    const background = input.mode !== "foreground";
+    const args = background ? ["-g"] : [];
     if (input.app.startsWith("/") || input.app.endsWith(".app")) {
-      await runProcess("/usr/bin/open", [input.app], { timeoutMs: 10_000 });
+      args.push(input.app);
     } else {
-      await runProcess("/usr/bin/open", ["-a", input.app], { timeoutMs: 10_000 });
+      args.push("-a", input.app);
     }
-    return { ok: true };
+    await runProcess("/usr/bin/open", args, { timeoutMs: 10_000 });
+    return {
+      ok: true,
+      delivery: {
+        delivered: background ? "background" : "foreground",
+        route: "launch",
+        verified: "unverified",
+      },
+    };
   }
 }

@@ -131,35 +131,138 @@ pub fn list_windows() -> Vec<WindowInfo> {
 }
 
 pub fn resolve(window: &WindowRef) -> Result<WindowInfo> {
-    let windows = list_windows();
+    resolve_in(&list_windows(), window)
+}
+
+/// Strict resolution against a window list.
+///
+/// macOS advertises `stableWindowIds`, so an id that is no longer present means
+/// that exact window is gone. Falling back to the app's largest window would
+/// silently retarget a closed dialog's input at the main window, so it is not
+/// done. The one tolerated recovery is a window that the app recreated under
+/// the same title, and only when that title is unambiguous within the app;
+/// anything else is a stale-window error the caller is told to recover from
+/// with `get_window` / `list_windows`.
+pub(crate) fn resolve_in(windows: &[WindowInfo], window: &WindowRef) -> Result<WindowInfo> {
     if let Some(exact) = windows
         .iter()
         .find(|candidate| candidate.id == window.id && candidate.matches_app(window.app.as_deref()))
     {
         return Ok(exact.clone());
     }
-    let mut matches = windows
-        .into_iter()
+    let title = window
+        .title
+        .as_deref()
+        .map(str::trim)
+        .filter(|title| !title.is_empty())
+        .ok_or_else(HelperError::window_unavailable)?;
+    let mut recreated = windows
+        .iter()
         .filter(|candidate| candidate.matches_app(window.app.as_deref()))
-        .filter(|candidate| {
-            window
-                .title
-                .as_deref()
-                .map(str::trim)
-                .filter(|title| !title.is_empty())
-                .is_none_or(|title| candidate.title.contains(title))
-        })
-        .collect::<Vec<_>>();
-    matches.sort_by_key(|candidate| std::cmp::Reverse(candidate.area()));
-    matches
-        .into_iter()
+        .filter(|candidate| candidate.title == title);
+    let single = recreated
         .next()
-        .ok_or_else(HelperError::window_unavailable)
+        .ok_or_else(HelperError::window_unavailable)?;
+    if recreated.next().is_some() {
+        return Err(HelperError::window_unavailable());
+    }
+    Ok(single.clone())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocol::window::WindowSource;
+
+    fn window(id: i64, app: &str, title: &str, width: i32) -> WindowInfo {
+        WindowInfo {
+            app: app.into(),
+            id,
+            title: title.into(),
+            x: 0,
+            y: 0,
+            width,
+            height: 100,
+            pid: Some(7),
+            display_name: None,
+            minimized: Some(false),
+            source: Some(WindowSource::Cg),
+        }
+    }
+
+    fn reference(id: i64, app: &str, title: Option<&str>) -> WindowRef {
+        WindowRef {
+            app: Some(app.into()),
+            id,
+            title: title.map(str::to_string),
+        }
+    }
+
+    fn list() -> Vec<WindowInfo> {
+        vec![
+            window(1, "/Applications/Editor.app", "Main Window", 1200),
+            window(2, "/Applications/Editor.app", "Preferences", 400),
+            window(3, "/Applications/Other.app", "Preferences", 400),
+        ]
+    }
+
+    #[test]
+    fn exact_app_and_id_wins() {
+        let resolved =
+            resolve_in(&list(), &reference(2, "/Applications/Editor.app", None)).unwrap();
+        assert_eq!(resolved.id, 2);
+    }
+
+    #[test]
+    fn stale_id_without_a_title_is_an_error_instead_of_the_largest_window() {
+        let error =
+            resolve_in(&list(), &reference(99, "/Applications/Editor.app", None)).unwrap_err();
+        assert_eq!(error.code, crate::protocol::ErrorCode::WindowUnavailable);
+    }
+
+    #[test]
+    fn stale_id_resolves_a_uniquely_recreated_title() {
+        let resolved = resolve_in(
+            &list(),
+            &reference(99, "/Applications/Editor.app", Some("  Preferences  ")),
+        )
+        .unwrap();
+        assert_eq!(resolved.id, 2);
+    }
+
+    #[test]
+    fn stale_id_with_an_ambiguous_title_is_an_error() {
+        let mut windows = list();
+        windows.push(window(4, "/Applications/Editor.app", "Preferences", 300));
+        assert!(
+            resolve_in(
+                &windows,
+                &reference(99, "/Applications/Editor.app", Some("Preferences")),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn stale_id_does_not_match_a_partial_or_other_app_title() {
+        for title in ["Preference", "Main", "Untitled"] {
+            assert!(
+                resolve_in(
+                    &list(),
+                    &reference(99, "/Applications/Editor.app", Some(title)),
+                )
+                .is_err(),
+                "accepted {title}"
+            );
+        }
+        assert!(
+            resolve_in(
+                &list(),
+                &reference(99, "/Applications/Missing.app", Some("Preferences"))
+            )
+            .is_err()
+        );
+    }
 
     #[test]
     fn excludes_only_the_exact_computer_use_overlay_title() {

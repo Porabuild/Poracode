@@ -1,3 +1,4 @@
+import { COMPUTER_USE_HELPER_PROTOCOL_VERSION } from "@/shared/contracts/computerUse";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
@@ -6,7 +7,10 @@ import { HelperComputerUseDriver, HelperUnavailableError } from "./helper";
 const fixturePath = fileURLToPath(new URL("./__fixtures__/fakeHelper.cjs", import.meta.url));
 const drivers: HelperComputerUseDriver[] = [];
 
-function createDriver(protocol = 2, extraEnv: NodeJS.ProcessEnv = {}): HelperComputerUseDriver {
+function createDriver(
+  protocol = COMPUTER_USE_HELPER_PROTOCOL_VERSION,
+  extraEnv: NodeJS.ProcessEnv = {},
+): HelperComputerUseDriver {
   const driver = new HelperComputerUseDriver({
     binaryPath: process.execPath,
     stateDir: ".",
@@ -28,7 +32,7 @@ describe("HelperComputerUseDriver", () => {
     const driver = createDriver();
     await expect(driver.describeStatus()).resolves.toMatchObject({
       backend: "helper",
-      helper: { protocolVersion: 2, helperVersion: "fixture" },
+      helper: { protocolVersion: COMPUTER_USE_HELPER_PROTOCOL_VERSION, helperVersion: "fixture" },
       capabilities: { backgroundPointer: true },
     });
     await expect(

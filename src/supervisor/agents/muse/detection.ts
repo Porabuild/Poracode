@@ -72,7 +72,7 @@ export const museDefaultCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
-  defaultApprovalPolicy: "on-request",
+  defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
   mcpScope: { terminal: "none", gui: "none" },
   settingDefs: [],

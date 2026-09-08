@@ -31,63 +31,43 @@ export function relativePathInside(root: string, target: string): string | undef
 }
 
 /**
- * Canonicalize a path that may not exist yet by resolving its nearest existing
- * ancestor and then restoring the missing suffix. This preserves filesystem
- * aliases (for example macOS `/var` -> `/private/var`) and, critically,
- * resolves any symlinked ancestor before containment is decided.
- */
-function realPathThroughExistingAncestor(path: string): string | undefined {
-  const suffix: string[] = [];
-  let cursor = resolve(path);
-  while (true) {
-    try {
-      return resolve(realpathSync.native(cursor), ...suffix.reverse());
-    } catch {
-      const parent = dirname(cursor);
-      if (parent === cursor) return undefined;
-      suffix.push(basename(cursor));
-      cursor = parent;
-    }
-  }
-}
-
-/**
  * Real-path containment. Returns the relative path when `target` resolves inside
  * `root`, or `undefined` when it escapes.
  *
- * Falls back to normalized lexical comparison when a path does not exist yet,
- * which is what callers validating a *configured* path (not an existing file)
- * need.
+ * A path that does not exist yet is placed under the real path of its nearest
+ * existing ancestor, so callers validating a *configured* path (not an existing
+ * file) still get a real-path answer.
  */
 export function relativePolicyPath(root: string, target: string): string | undefined {
   const normalizedRoot = resolve(normalizeWindowsNamespacePath(root));
   const normalizedTarget = resolve(normalizeWindowsNamespacePath(target));
-  try {
-    return relativePathInside(
-      resolve(realpathSync.native(root)),
-      resolve(realpathSync.native(target)),
-    );
-  } catch {
-    // Fall through to the normalized aliases for non-existent paths.
-  }
+  return relativePathInside(
+    realpathOfNearestAncestor(normalizedRoot),
+    realpathOfNearestAncestor(normalizedTarget),
+  );
+}
 
-  try {
-    const realRoot = resolve(realpathSync.native(normalizedRoot));
-    const realTarget = realPathThroughExistingAncestor(normalizedTarget);
-    if (realTarget) return relativePathInside(realRoot, realTarget);
-  } catch {
-    // A configured root may not exist yet; lexical containment remains useful
-    // in that case and is handled below.
-  }
-  const direct = relativePathInside(normalizedRoot, normalizedTarget);
-  if (direct) return direct;
-  try {
-    return relativePathInside(
-      resolve(realpathSync.native(normalizedRoot)),
-      resolve(realpathSync.native(normalizedTarget)),
-    );
-  } catch {
-    return undefined;
+/**
+ * Real path of `path`, resolving as much of it as exists on disk and appending
+ * the missing tail verbatim. A path that does not exist yet (a not-yet-written
+ * skill, a `nested/SKILL.md` probe) is still placed under its real parent —
+ * otherwise a symlinked root (macOS `/var` → `/private/var`) never matches a
+ * target spelled through the alias.
+ */
+function realpathOfNearestAncestor(path: string): string {
+  const missing: string[] = [];
+  let current = path;
+  for (;;) {
+    try {
+      return missing.length === 0
+        ? resolve(realpathSync.native(current))
+        : resolve(realpathSync.native(current), ...missing.reverse());
+    } catch {
+      const parent = dirname(current);
+      if (parent === current) return path;
+      missing.push(basename(current));
+      current = parent;
+    }
   }
 }
 

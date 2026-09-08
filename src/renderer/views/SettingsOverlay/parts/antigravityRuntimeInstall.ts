@@ -13,6 +13,8 @@ export function antigravityCliInstallCommand(project: Project): string {
 
 export const antigravityRuntimeSlots: NativeAgentRuntimeSlots = {
   unifiedAgent: true,
+  separateEnvironmentRows: true,
+  accountRuntimeId: "cli",
   runtimes: [
     {
       id: "cli",
@@ -29,7 +31,7 @@ export const antigravityRuntimeSlots: NativeAgentRuntimeSlots = {
       installedTag: msg`ACP installed`,
       notInstalledTag: msg`ACP not installed`,
       installLabel: (environment) =>
-        environment ? msg`Install Antigravity in ${environment}` : msg`Install Antigravity`,
+        environment ? msg`Install ACP in ${environment}` : msg`Install ACP`,
       registryAgentId: ANTIGRAVITY_ACP_REGISTRY_ID,
     },
   ],

@@ -6,7 +6,6 @@
 //! snapshot is cached; acting on an evicted snapshot yields `stale_snapshot`.
 
 use std::collections::VecDeque;
-use std::fmt::Write as _;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -15,10 +14,19 @@ use crate::protocol::actions::{ElementAction, ElementInfo, FindElementsInput};
 mod roles;
 pub use roles::canonical_role;
 
+mod render;
+pub use render::{render_tree, render_tree_preferring_page};
+
+pub mod page;
+
 static NEXT_SNAPSHOT: AtomicU64 = AtomicU64::new(1);
 
 pub const MAX_TREE_BYTES: usize = 40 * 1024;
-pub const SNAPSHOTS_PER_WINDOW: usize = 3;
+/// Snapshots kept per window. Generous because a coordinate click can insert
+/// one of its own (see the macOS `press_at_position` tree route), and evicting
+/// the tree an agent is holding element ids from reads to it as the element
+/// route breaking.
+pub const SNAPSHOTS_PER_WINDOW: usize = 6;
 pub const MAX_WINDOWS: usize = 8;
 
 fn base36(mut value: u64) -> String {
@@ -159,104 +167,21 @@ impl<H> Snapshot<H> {
     }
 }
 
+/// macOS `invoke_element` walks ancestors for `scroll`, so a find result that
+/// omitted it read as "this node cannot scroll" and sent agents hunting for a
+/// container that cannot. The snapshot stays as AX advertised it; only the
+/// returned clones gain the action the host will actually honor.
+pub fn advertise_ancestor_scroll(elements: &mut [ElementInfo]) {
+    for element in elements {
+        if !element.actions.contains(&ElementAction::Scroll) {
+            element.actions.push(ElementAction::Scroll);
+        }
+    }
+}
+
 /// Match equivalent platform roles without conflating different control types.
 pub fn role_matches(actual: &str, wanted: &str) -> bool {
     canonical_role(actual) == canonical_role(wanted)
-}
-
-/// Render the tree text agents read. Truncated at `max_bytes`.
-pub fn render_tree(elements: &[ElementInfo], max_bytes: usize) -> (String, bool) {
-    let mut out = String::new();
-    for element in elements {
-        let mut line = String::new();
-        for _ in 0..element.depth {
-            line.push(' ');
-        }
-        let _ = write!(line, "[{}] {}", element.id, element.role);
-        if let Some(name) = &element.name
-            && !name.is_empty()
-        {
-            let _ = write!(line, " {:?}", truncate(name, 120));
-        }
-        if element.actions.is_empty() {
-            let _ = write!(
-                line,
-                " ({},{} {}x{})",
-                element.bounds.x, element.bounds.y, element.bounds.width, element.bounds.height
-            );
-        }
-        if !element.enabled {
-            line.push_str(" disabled");
-        }
-        if element.focused {
-            line.push_str(" focused");
-        }
-        if element.offscreen {
-            line.push_str(" offscreen");
-        }
-        if let Some(value) = &element.value
-            && !value.is_empty()
-        {
-            let _ = write!(line, " value={:?}", truncate(value, 200));
-        }
-        if let Some(automation_id) = &element.automation_id
-            && !automation_id.is_empty()
-        {
-            let _ = write!(line, " id={automation_id}");
-        }
-        if !element.actions.is_empty() {
-            let actions = element
-                .actions
-                .iter()
-                .filter(|action| !tree_action_is_implicit(&element.role, action))
-                .map(action_name)
-                .collect::<Vec<_>>();
-            if !actions.is_empty() {
-                line.push_str(" actions=");
-                line.push_str(&actions.join(","));
-            }
-        }
-        line.push('\n');
-        if out.len() + line.len() > max_bytes {
-            return (out, true);
-        }
-        out.push_str(&line);
-    }
-    (out, false)
-}
-
-fn tree_action_is_implicit(role: &str, action: &ElementAction) -> bool {
-    if action == &ElementAction::Click {
-        return true;
-    }
-    action == &ElementAction::Invoke
-        && matches!(
-            canonical_role(role).as_str(),
-            "button" | "splitbutton" | "menuitem" | "link"
-        )
-}
-
-fn action_name(action: &ElementAction) -> &'static str {
-    match action {
-        ElementAction::Invoke => "invoke",
-        ElementAction::Toggle => "toggle",
-        ElementAction::Select => "select",
-        ElementAction::Expand => "expand",
-        ElementAction::Collapse => "collapse",
-        ElementAction::SetValue => "set_value",
-        ElementAction::Scroll => "scroll",
-        ElementAction::ContextMenu => "context_menu",
-        ElementAction::Click => "click",
-    }
-}
-
-fn truncate(text: &str, max: usize) -> String {
-    if text.chars().count() <= max {
-        return text.to_string();
-    }
-    let mut out: String = text.chars().take(max).collect();
-    out.push('…');
-    out
 }
 
 struct WindowSnapshots<H> {
@@ -314,7 +239,20 @@ impl<H> SnapshotCache<H> {
         let position = windows
             .iter()
             .position(|w| w.snapshots.iter().any(|s| s.id == parsed.snapshot))?;
-        let entry = windows.remove(position).expect("index in range");
+        let mut entry = windows.remove(position).expect("index in range");
+        // Using a snapshot makes it the freshest one for its window, so the
+        // per-window cap evicts what the caller has stopped touching. Insert
+        // order alone would let a few coordinate clicks — each of which inserts
+        // the tree it resolved against — push out the inspection tree the
+        // caller is still holding element ids from, and the next element action
+        // would refuse with `stale_snapshot` for no reason the caller can see.
+        let found = entry.snapshots.iter().position(|s| s.id == parsed.snapshot);
+        if let Some(index) = found
+            && index + 1 < entry.snapshots.len()
+            && let Some(snapshot) = entry.snapshots.remove(index)
+        {
+            entry.snapshots.push_back(snapshot);
+        }
         let result = entry
             .snapshots
             .iter()
@@ -456,27 +394,49 @@ mod tests {
         assert!(snapshot.find(&input).1, "truncated when over max_results");
     }
 
+    /// A snapshot the caller is still using must outlive newer ones it is not.
+    /// Coordinate clicks insert a snapshot each, so insert-order eviction alone
+    /// would drop the inspection tree an agent is holding ids from.
     #[test]
-    fn tree_rendering_truncates() {
+    fn using_a_snapshot_protects_it_from_eviction() {
+        let cache: SnapshotCache<()> = SnapshotCache::default();
+        let mut held: Snapshot<()> = Snapshot::new(7);
+        held.push(element("button", "Send", 0), ());
+        let held_id = held.elements[0].id.clone();
+        cache.insert(held);
+
+        for _ in 0..SNAPSHOTS_PER_WINDOW - 1 {
+            let mut filler: Snapshot<()> = Snapshot::new(7);
+            filler.push(element("button", "Other", 0), ());
+            cache.insert(filler);
+            // Touching the held snapshot keeps it current.
+            assert!(cache.with_element(&held_id, |_, index| index).is_some());
+        }
+        let mut overflow: Snapshot<()> = Snapshot::new(7);
+        overflow.push(element("button", "Overflow", 0), ());
+        cache.insert(overflow);
+
+        assert!(
+            cache.with_element(&held_id, |_, index| index).is_some(),
+            "the snapshot in use survived; an untouched one was evicted instead"
+        );
+    }
+
+    #[test]
+    fn advertise_ancestor_scroll_adds_scroll_to_the_result_only() {
         let mut snapshot: Snapshot<()> = Snapshot::new(1);
-        snapshot.push(element("window", "Untitled - Notepad", 0), ());
-        snapshot.push(element("menuitem", "File", 1), ());
-        let mut passive = element("text", "Status", 1);
-        passive.actions.clear();
-        snapshot.push(passive, ());
-        let (text, truncated) = render_tree(&snapshot.elements, MAX_TREE_BYTES);
-        assert!(!truncated);
-        assert!(text.starts_with(&format!(
-            "[{}] window \"Untitled - Notepad\" actions=invoke\n",
-            snapshot.elements[0].id
-        )));
-        assert!(text.contains(&format!(
-            "\n [{}] menuitem \"File\"\n",
-            snapshot.elements[1].id
-        )));
-        assert!(text.contains("text \"Status\" (1,2 3x4)"));
-        let (short, truncated) = render_tree(&snapshot.elements, 10);
-        assert!(truncated);
-        assert!(short.is_empty());
+        let mut row = element("text", "Row 50", 0);
+        row.actions.clear();
+        snapshot.push(row, ());
+        let input: FindElementsInput =
+            serde_json::from_str(r#"{"window":{"app":"a","id":1},"name":"Row"}"#).unwrap();
+        let (mut found, _) = snapshot.find(&input);
+        assert!(found[0].actions.is_empty());
+        advertise_ancestor_scroll(&mut found);
+        assert_eq!(found[0].actions, vec![ElementAction::Scroll]);
+        assert!(
+            snapshot.elements[0].actions.is_empty(),
+            "the snapshot keeps the advertised AX set"
+        );
     }
 }

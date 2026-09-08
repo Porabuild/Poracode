@@ -33,6 +33,7 @@
     "stale_snapshot",
     "element_action_unsupported",
     "unsupported_button",
-    "capability_unavailable"
+    "capability_unavailable",
+    "screen_locked"
   ]
 }

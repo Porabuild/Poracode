@@ -87,7 +87,7 @@ import {
   resolveInitialPresentationMode,
   supportsPresentation,
 } from "@/shared/continueProviderRanking";
-import { supportsUsableFastMode } from "./threadDraftViewHelpers";
+import { resolveSavedProviderDraftConfig, supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { buildTranscriptContext } from "@/renderer/actions/handoffTranscript";
@@ -149,27 +149,44 @@ function resolveModeValue(
     : (capabilities.modes[0] ?? undefined);
 }
 
+/**
+ * A saved/preferred id wins while the surface still advertises it. Otherwise
+ * the handoff prefers the provider's bypass posture (a switch is an explicit
+ * "carry this task over", not a fresh careful start), and only then falls back
+ * to the provider's declared default — the same fallback the draft composer
+ * applies via `resolveApprovalPolicyValue` / `resolveSandboxModeValue`.
+ */
 function resolveLabeledOptionValue(
   options: ReadonlyArray<{ id: string }>,
   preferred: string | undefined,
   bypass: string | undefined,
+  declaredDefault: string | undefined,
 ): string {
-  if (preferred !== undefined) {
-    return options.some((o) => o.id === preferred) ? preferred : "";
+  if (preferred !== undefined && options.some((o) => o.id === preferred)) {
+    return preferred;
   }
   if (bypass && options.some((o) => o.id === bypass)) {
     return bypass;
   }
+  if (declaredDefault && options.some((o) => o.id === declaredDefault)) {
+    return declaredDefault;
+  }
   return options[0]?.id ?? "";
 }
 
+/**
+ * Resolve a target config against the capability surface the pickers in this
+ * dialog actually display — presentation-scoped *and* hidden-model filtered.
+ * Resolving against the unfiltered surface let a hidden model stay selected,
+ * which the model picker then rendered as a bare id because the model is not
+ * in the list it can label from.
+ */
 function resolveDefaultConfig(
-  agent: AgentStatus,
+  capabilities: AgentCapability,
   presentationMode: ThreadPresentationMode,
   preferred?: Partial<ThreadConfig>,
   projectLocation?: ProjectLocation,
 ): ThreadConfig {
-  const capabilities = capabilitiesForPresentation(agent.capabilities, presentationMode);
   const model = resolveModelSelection(capabilities, preferred?.model);
   const effort = resolveReasoningSelection(capabilities, model, preferred?.effort);
   const contextSize = resolveContextSizeValue(capabilities, model, preferred?.contextSize);
@@ -182,11 +199,13 @@ function resolveDefaultConfig(
     capabilities.approvalPolicies,
     preferred?.approvalPolicy,
     capabilities.bypassPermissions?.approvalPolicy,
+    capabilities.defaultApprovalPolicy,
   );
   const sandboxMode = resolveLabeledOptionValue(
     capabilities.sandboxModes,
     preferred?.sandboxMode,
     capabilities.bypassPermissions?.sandboxMode,
+    capabilities.defaultSandboxMode,
   );
 
   return {
@@ -205,8 +224,26 @@ function resolveDefaultConfig(
   };
 }
 
-function savedConfigForAgent(agent: AgentStatus, savedConfig?: ProjectDraftConfig) {
-  return savedConfig?.agentKind === agent.kind ? savedConfig : undefined;
+/**
+ * The capability surface this dialog's pickers show for one agent: scoped to
+ * the presentation mode, then stripped of the models the user hid for that
+ * surface. If hiding leaves nothing selectable, the unfiltered surface stands
+ * in so the handoff still has a model to launch with.
+ */
+function visibleCapabilities(
+  agent: AgentStatus,
+  presentationMode: ThreadPresentationMode,
+  hiddenModelsByKey: Readonly<Record<string, readonly string[] | undefined>>,
+): AgentCapability {
+  const presentationCapabilities = capabilitiesForPresentation(
+    agent.capabilities,
+    presentationMode,
+  );
+  const filtered = filterHiddenModels(
+    presentationCapabilities,
+    hiddenModelsByKey[modelVisibilityKey(agent.kind, presentationMode)],
+  );
+  return filtered.models.length > 0 ? filtered : presentationCapabilities;
 }
 
 export function ContinueInProviderDialog(props: {
@@ -239,6 +276,22 @@ export function ContinueInProviderDialog(props: {
   const crossagentSelectionUsage = useSharedSettings((s) => s.crossagentSelectionUsage);
   const crossagentRoutingOverrides = useSharedSettings((s) => s.crossagentRoutingOverrides);
   const favoriteModels = useSharedSettings((s) => s.favoriteModels);
+  const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
+  // App-wide per-provider draft settings — the same source the draft composer
+  // resolves from, so the permission/model posture a user last set for a
+  // provider shows up here too, not only when that provider happens to be the
+  // project's last-used one.
+  const providerConfigs = useSharedSettings((s) => s.providerConfigs);
+  const providerModelPreferences = useSharedSettings((s) => s.providerModelPreferences);
+
+  function savedConfigForAgent(agent: AgentStatus): Partial<ThreadConfig> | undefined {
+    return resolveSavedProviderDraftConfig(
+      agent.kind,
+      props.lastDraftConfig,
+      providerConfigs,
+      providerModelPreferences,
+    );
+  }
 
   // Whether this thread's sessions get the app-controls `read_thread` tool —
   // the transcript-reading path a handoff hands to the incoming provider in
@@ -308,10 +361,10 @@ export function ContinueInProviderDialog(props: {
   const [targetConfig, setTargetConfig] = useState<ThreadConfig>(() =>
     proposedAgent
       ? resolveDefaultConfig(
-          proposedAgent,
+          visibleCapabilities(proposedAgent, proposedPresentationMode, allHiddenModels),
           proposedPresentationMode,
           {
-            ...savedConfigForAgent(proposedAgent, props.lastDraftConfig),
+            ...savedConfigForAgent(proposedAgent),
             ...preferredConfigPatch(proposedRanking),
             ...sourceMcpConfig,
           },
@@ -336,10 +389,10 @@ export function ContinueInProviderDialog(props: {
       }
       setTargetConfig(
         resolveDefaultConfig(
-          agent,
+          visibleCapabilities(agent, nextPresentationMode, allHiddenModels),
           nextPresentationMode,
           {
-            ...savedConfigForAgent(agent, props.lastDraftConfig),
+            ...savedConfigForAgent(agent),
             ...preferred,
             // Whatever is enabled right now — seeded from the source thread and
             // possibly since toggled in this dialog — not the saved draft's.
@@ -363,9 +416,12 @@ export function ContinueInProviderDialog(props: {
     if (nextAgent.kind !== selectedKind) setSelectedKind(nextAgent.kind);
     setTargetConfig(
       resolveDefaultConfig(
-        nextAgent,
+        visibleCapabilities(nextAgent, next, allHiddenModels),
         next,
-        nextAgent.kind === selectedKind ? targetConfig : composerMcpConfig(targetConfig),
+        {
+          ...savedConfigForAgent(nextAgent),
+          ...(nextAgent.kind === selectedKind ? targetConfig : composerMcpConfig(targetConfig)),
+        },
         props.projectLocation,
       ),
     );
@@ -375,7 +431,7 @@ export function ContinueInProviderDialog(props: {
     if (!selectedAgent) return;
     setTargetConfig((prev) =>
       resolveDefaultConfig(
-        selectedAgent,
+        visibleCapabilities(selectedAgent, targetPresentationMode, allHiddenModels),
         targetPresentationMode,
         { ...prev, ...patch },
         props.projectLocation,
@@ -419,12 +475,8 @@ export function ContinueInProviderDialog(props: {
     (s) => s.projects.find((project) => project.id === thread.projectId)?.mcpServers,
   );
 
-  const allHiddenModels = useSharedSettings((s) => s.hiddenModels);
   const selectedTargetCapabilities = selectedAgent
-    ? filterHiddenModels(
-        capabilitiesForPresentation(selectedAgent.capabilities, targetPresentationMode),
-        allHiddenModels[modelVisibilityKey(selectedAgent.kind, targetPresentationMode)],
-      )
+    ? visibleCapabilities(selectedAgent, targetPresentationMode, allHiddenModels)
     : undefined;
   const providerModelProviders = buildProviderModelMenuProviders(otherAgents, {
     presentationMode: targetPresentationMode,
@@ -1022,17 +1074,17 @@ export function ContinueInProviderDialog(props: {
                           onSlashCommandChange={setSlashQuery}
                           submitOnEnter={!showCommandPanel}
                           onSubmit={(segments) => {
-                            void handleAction("fork", segments);
+                            void handleAction("switch", segments);
                           }}
                         />
                       }
                       placeholder={t`Tell the target provider what to do next...`}
                       prompt=""
                       submitDisabled={!canSubmit}
-                      submitLabel={t`Fork`}
+                      submitLabel={t`Switch`}
                       onPromptChange={() => undefined}
                       onSubmit={() => {
-                        void handleAction("fork");
+                        void handleAction("switch");
                       }}
                       afterControls={
                         <ComposerAddMenu
