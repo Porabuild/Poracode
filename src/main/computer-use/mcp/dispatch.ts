@@ -50,10 +50,15 @@ export interface ToolContext {
   observationSettleMs?: number;
   /**
    * True once computer use has been ended (Escape, the badge's exit button, or
-   * host teardown) after this context was built. The observation settle sleeps
-   * before capturing, and a capture that lands after the exit would spawn a
-   * fresh helper to read the screen the user just took back — so every pending
-   * observation stands down instead.
+   * host teardown) after this context was built.
+   *
+   * Ending computer use revokes the desktop itself, not just whatever capture
+   * happened to be pending, so this gates two places. {@link dispatchTool}
+   * refuses every tool outside {@link POST_EXIT_ALLOWED_TOOLS} up front, and
+   * {@link observeWindow} re-checks around its settle sleep to catch an exit
+   * that lands mid-call. Either way the point is that `driver` lazily respawns
+   * the helper the exit just killed, so any call that reaches it drives or
+   * reads a desktop the user has taken back.
    */
   interrupted?: () => boolean;
   /**
@@ -128,11 +133,37 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+/**
+ * The only tools that stay callable after the user ends computer use.
+ *
+ * `enable` is the re-arm path — it clears the thread's exited mark, so refusing
+ * it would make the end permanent for the rest of the app's life. `disable` is
+ * the teardown every agent is instructed to finish with; refusing it would
+ * strand the agent on its own cleanup for no benefit, since it touches nothing
+ * but session state.
+ */
+const POST_EXIT_ALLOWED_TOOLS: ReadonlySet<string> = new Set(["enable", "disable"]);
+
 export async function dispatchTool(
   name: string,
   args: Record<string, unknown>,
   ctx: ToolContext,
 ): Promise<unknown> {
+  // The user's exit revokes the desktop, so nothing that would touch it may run
+  // afterwards — not an input, and not a read either: `get_window_state` and
+  // `find_elements` are `readOnlyHint`, so they raise no badge and no overlay
+  // while capturing a screen and accessibility tree the user just took back.
+  //
+  // This throws rather than returning a refusal for two reasons. A refusal code
+  // is part of the helper wire contract (mirrored in Rust and pinned by a
+  // fixture), and this is a host-side revocation the helper knows nothing
+  // about. And an error is what actually reaches the agent: staying silent is
+  // how it ends up acting on a desktop it can no longer observe.
+  if (!POST_EXIT_ALLOWED_TOOLS.has(name) && ctx.interrupted?.()) {
+    throw new Error(
+      "Computer use was ended by the user. Call computer_use.enable to start a new session before acting on the desktop again.",
+    );
+  }
   // Reads `observe` before running the action so an invalid mode is rejected
   // without touching the desktop, then settles the activity window before the
   // observation capture.

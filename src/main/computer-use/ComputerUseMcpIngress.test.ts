@@ -71,6 +71,18 @@ async function readToolJson(response: Response): Promise<unknown> {
   return JSON.parse(text);
 }
 
+/**
+ * A refused tool comes back as an `isError` result carrying a plain message, so
+ * it cannot go through {@link readToolJson}.
+ */
+async function readToolError(response: Response): Promise<string> {
+  const body = (await response.json()) as {
+    result: { content: { type: string; text?: string }[]; isError?: boolean };
+  };
+  expect(body.result.isError).toBe(true);
+  return body.result.content.find((part) => part.type === "text")?.text ?? "";
+}
+
 afterEach(() => {
   ingress?.dispose();
   ingress = null;
@@ -492,10 +504,12 @@ describe("ComputerUseMcpIngress", () => {
     expect(driver.dispose).toHaveBeenCalledOnce();
   });
 
-  // A call that starts *after* the exit captures the current generation, so
-  // the generation check alone cannot see the exit; the per-thread mark does.
-  // Re-enabling the thread (the enable tool) re-arms its observations.
-  it("stands an exited thread's observations down until the thread re-enables", async () => {
+  // A call that starts *after* the exit captures the current generation, so the
+  // generation check alone cannot see the exit; the per-thread mark does. The
+  // exit revokes the desktop, so the input must not land either — driving on
+  // would respawn the helper the exit just killed. Re-enabling the thread (the
+  // enable tool) is what restores it.
+  it("refuses an exited thread's desktop tools until the thread re-enables", async () => {
     const driver = createDriver({
       pressKey: vi.fn<ComputerUseDriver["pressKey"]>().mockResolvedValue({
         ok: true,
@@ -514,24 +528,27 @@ describe("ComputerUseMcpIngress", () => {
     const info = await ingress.start();
 
     ingress.interruptActiveActions(["thread-1"]);
-    await expect(
-      (async () => {
-        const response = await callTool(info, "press_key", {
-          window: { app: "calc", id: 1 },
-          key: "a",
-          observe: "text",
-        });
-        expect(response.status).toBe(200);
-      })(),
-    ).resolves.toBeUndefined();
+    const refused = await callTool(info, "press_key", {
+      window: { app: "calc", id: 1 },
+      key: "a",
+      observe: "text",
+    });
+    expect(refused.status).toBe(200);
+    expect(await readToolError(refused)).toContain("Computer use was ended by the user");
+    // The input itself stood down, not just its observation.
+    expect(driver.pressKey).not.toHaveBeenCalled();
     expect(driver.getWindowState).not.toHaveBeenCalled();
 
-    await expect(
-      (async () => {
-        const response = await callTool(info, "enable", {});
-        expect(response.status).toBe(200);
-      })(),
-    ).resolves.toBeUndefined();
+    // `get_window_state` is readOnlyHint, so it raises no badge and no overlay —
+    // a post-exit capture would read the screen back with nothing on screen to
+    // say so.
+    const refusedRead = await callTool(info, "get_window_state", {
+      window: { app: "calc", id: 1 },
+    });
+    expect(await readToolError(refusedRead)).toContain("Computer use was ended by the user");
+    expect(driver.getWindowState).not.toHaveBeenCalled();
+
+    expect((await callTool(info, "enable", {})).status).toBe(200);
 
     const response = await callTool(info, "press_key", {
       window: { app: "calc", id: 1 },
@@ -539,6 +556,7 @@ describe("ComputerUseMcpIngress", () => {
       observe: "text",
     });
     expect(response.status).toBe(200);
+    expect(driver.pressKey).toHaveBeenCalledOnce();
     expect(driver.getWindowState).toHaveBeenCalledOnce();
   });
 
