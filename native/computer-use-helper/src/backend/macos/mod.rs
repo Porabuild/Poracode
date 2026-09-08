@@ -7,14 +7,15 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::backend::{
-    Backend, CancelToken, HelloInfo, InputOptions, InstalledAppCache, KeyboardAction, PointerAction,
+    Backend, CancelToken, HelloInfo, InputOptions, InstalledAppCache, KeyboardAction,
+    PointerAction, SnapshotOutcome,
 };
 use crate::capture::CaptureResult;
 use crate::elements::SnapshotCache;
 use crate::protocol::Result;
 use crate::protocol::actions::{
-    AccessibilityState, Capabilities, Delivered, ElementAction, FindElementsInput,
-    FindElementsResult, InputMode, InteractiveResult, LaunchResult, PermissionState, Permissions,
+    Capabilities, Delivered, ElementAction, FindElementsInput, FindElementsResult, InputMode,
+    InteractiveResult, LaunchResult, PermissionState, Permissions,
 };
 use crate::protocol::window::{WindowInfo, WindowRef};
 
@@ -270,8 +271,13 @@ impl Backend for MacOsBackend {
         window: &WindowInfo,
         max_nodes: usize,
         cancel: &CancelToken,
-    ) -> Result<AccessibilityState> {
-        ax::snapshot_tree(&self.elements, window, max_nodes, cancel)
+    ) -> Result<SnapshotOutcome> {
+        // macOS has no snapshot-level caveat to add; its session-level notes
+        // flow through `session_notes`.
+        Ok(SnapshotOutcome {
+            state: ax::snapshot_tree(&self.elements, window, max_nodes, cancel)?,
+            notes: Vec::new(),
+        })
     }
 
     fn find_elements(

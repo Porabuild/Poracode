@@ -791,7 +791,8 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
 
     let accessibility = backend
         .snapshot_tree(&window, 200, &CancelToken::default())
-        .unwrap();
+        .unwrap()
+        .state;
     let found = backend
         .find_elements(
             &window,
@@ -845,7 +846,8 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
     assert!(set.ok, "set_element_value was refused: {:?}", set.refused);
     let updated = backend
         .snapshot_tree(&window, 200, &CancelToken::default())
-        .unwrap();
+        .unwrap()
+        .state;
     assert!(updated.tree.contains("set through UIA"));
     assert_eq!(rect(test.edit).right - rect(test.edit).left, 220);
 

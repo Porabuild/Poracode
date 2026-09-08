@@ -12,7 +12,11 @@ use atspi::{CoordType, Interface, ObjectRefOwned, ScrollType, State, StateSet};
 use zbus::names::BusName;
 use zbus::proxy::CacheProperties;
 
-use crate::backend::{CancelToken, capability_unavailable};
+use crate::backend::{CancelToken, SnapshotOutcome, capability_unavailable};
+use crate::elements::page::{
+    PAGE_ABSENT, PAGE_ABSENT_TTL, PAGE_WAIT_BUDGET, PAGE_WAIT_POLL, missing_content, page_note,
+    pid_logged, record_pid,
+};
 use crate::elements::{MAX_TREE_BYTES, Snapshot, SnapshotCache, canonical_role, render_tree};
 use crate::protocol::actions::{
     AccessibilityState, Delivery, DeliveryTarget, ElementAction, ElementBounds, ElementInfo,
@@ -331,24 +335,28 @@ async fn element_info(
     ))
 }
 
-async fn build_snapshot(
+/// Canonical roles of an AT-SPI web page container: Chromium and Electron
+/// expose "document web" (and "document frame" for subframes), Firefox
+/// exposes "document frame".
+const PAGE_ROLES: &[&str] = &["documentweb", "documentframe"];
+
+async fn walk(
+    connection: &zbus::Connection,
+    root: &AccessibleWindow,
     window: &WindowInfo,
     max_nodes: usize,
     cancel: &CancelToken,
 ) -> Result<Snapshot<Handle>> {
-    let atspi = connect().await?;
-    let root = resolve(window).await?;
     let mut snapshot = Snapshot::new(window.id);
     let mut discovered = Vec::new();
-    let mut queue = VecDeque::from([(root.handle, 0u32, Vec::<usize>::new())]);
+    let mut queue = VecDeque::from([(root.handle.clone(), 0u32, Vec::<usize>::new())]);
     while let Some((handle, depth, path)) = queue.pop_front() {
         cancel.check()?;
         if discovered.len() >= max_nodes {
             snapshot.truncated = true;
             break;
         }
-        let Ok((info, children)) = element_info(atspi.connection(), &handle, window, depth).await
-        else {
+        let Ok((info, children)) = element_info(connection, &handle, window, depth).await else {
             continue;
         };
         discovered.push((path.clone(), info, handle));
@@ -372,12 +380,48 @@ async fn build_snapshot(
     Ok(snapshot)
 }
 
+async fn build_snapshot(
+    window: &WindowInfo,
+    max_nodes: usize,
+    cancel: &CancelToken,
+) -> Result<Snapshot<Handle>> {
+    let atspi = connect().await?;
+    let root = resolve(window).await?;
+    let mut snapshot = walk(atspi.connection(), &root, window, max_nodes, cancel).await?;
+    // Wait for page content that may still be exposing itself (see
+    // `elements::page`); `set_session_accessibility` in `connect` is the ask
+    // that starts it. The wait blocks this request's dedicated runtime
+    // between walks only.
+    if let Some(pid) = window.pid
+        && !snapshot.truncated
+        && missing_content(&snapshot, PAGE_ROLES).is_some()
+        && !pid_logged(&PAGE_ABSENT, pid, PAGE_ABSENT_TTL)
+    {
+        let deadline = tokio::time::Instant::now() + PAGE_WAIT_BUDGET;
+        while missing_content(&snapshot, PAGE_ROLES).is_some()
+            && tokio::time::Instant::now() < deadline
+        {
+            cancel.check()?;
+            tokio::time::sleep(
+                PAGE_WAIT_POLL.min(deadline.saturating_duration_since(tokio::time::Instant::now())),
+            )
+            .await;
+            cancel.check()?;
+            snapshot = walk(atspi.connection(), &root, window, max_nodes, cancel).await?;
+        }
+        if missing_content(&snapshot, PAGE_ROLES).is_some() {
+            record_pid(&PAGE_ABSENT, pid, PAGE_ABSENT_TTL);
+        }
+    }
+    Ok(snapshot)
+}
+
 pub async fn snapshot_tree(
     cache: &SnapshotCache<Handle>,
     window: &WindowInfo,
     max_nodes: usize,
     cancel: &CancelToken,
-) -> Result<AccessibilityState> {
+) -> Result<SnapshotOutcome> {
     let snapshot = build_snapshot(window, max_nodes, cancel).await?;
     let (tree, text_truncated) = render_tree(&snapshot.elements, MAX_TREE_BYTES);
     let state = AccessibilityState {
@@ -387,8 +431,9 @@ pub async fn snapshot_tree(
         element_count: snapshot.elements.len(),
         truncated: snapshot.truncated || text_truncated,
     };
+    let notes = page_note(&snapshot, PAGE_ROLES).into_iter().collect();
     cache.insert(snapshot);
-    Ok(state)
+    Ok(SnapshotOutcome { state, notes })
 }
 
 pub async fn find_elements(
@@ -723,6 +768,7 @@ pub async fn focus_window(window: &WindowInfo) -> Result<InteractiveResult> {
 #[cfg(test)]
 mod tests {
     use super::{element_role, focus_delivery, same_element, window_active};
+    use crate::elements::canonical_role;
     use crate::protocol::actions::{Delivered, ElementBounds, ElementInfo, Route, Verified};
     use atspi::{State, StateSet};
 
@@ -775,6 +821,19 @@ mod tests {
             State::Active | State::Focused
         )));
         assert!(!window_active(&StateSet::empty()));
+    }
+
+    /// The page-content wait keys off canonical roles, so the platform role
+    /// vocabulary must keep landing in [`super::PAGE_ROLES`] if role
+    /// canonicalization ever changes.
+    #[test]
+    fn page_roles_cover_the_at_spi_page_containers() {
+        for role in ["document web", "document frame"] {
+            assert!(
+                super::PAGE_ROLES.contains(&canonical_role(role).as_str()),
+                "{role} canonicalizes outside PAGE_ROLES"
+            );
+        }
     }
 
     /// The note claims a focus change, so it belongs only to the delivery that

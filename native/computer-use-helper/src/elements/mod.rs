@@ -17,6 +17,8 @@ pub use roles::canonical_role;
 mod render;
 pub use render::{render_tree, render_tree_preferring_page};
 
+pub mod page;
+
 static NEXT_SNAPSHOT: AtomicU64 = AtomicU64::new(1);
 
 pub const MAX_TREE_BYTES: usize = 40 * 1024;
