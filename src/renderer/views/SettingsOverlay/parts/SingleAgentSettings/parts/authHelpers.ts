@@ -3,6 +3,7 @@ import type {
   AgentEnvVarAuthMethod,
   AgentOwnedAuthMethod,
   AgentProviderMetadata,
+  AgentRuntimeVariant,
   AgentStatus,
   UsageSnapshot,
 } from "@/shared/contracts";
@@ -28,19 +29,111 @@ export function hasInteractiveAuthMethods(status: AgentStatus): boolean {
   );
 }
 
+function installedRuntimeVariants(status: AgentStatus): AgentRuntimeVariant[] {
+  const variants = status.runtimeVariants;
+  if (!variants) return [];
+  return Object.values(variants).filter((variant) => variant.installed);
+}
+
+function variantHasInteractiveAuthMethods(
+  variant: AgentRuntimeVariant,
+  status: AgentStatus,
+): boolean {
+  const methods = variant.authMethods ?? status.authMethods;
+  return (
+    methods?.some((method) => isAgentAuthMethod(method) || isTerminalAuthMethod(method)) ?? false
+  );
+}
+
 /**
- * Whether an env still needs a sign-in. `unknown` only counts when the agent
- * advertises an interactive method and its ACP session setup did not succeed —
- * a working session means the agent is usable, so prompting for login there
- * would be a false alarm.
+ * Installed runtimes that still need the provider's ordinary login. Runtimes
+ * that opt out of provider login (external API keys) are excluded so the
+ * shared row does not offer a misleading CLI/browser sign-in.
  */
-export function statusNeedsInteractiveLogin(status: AgentStatus): boolean {
+export function unsignedInteractiveRuntimes(status: AgentStatus): AgentRuntimeVariant[] {
+  return installedRuntimeVariants(status).filter((variant) => {
+    if (variant.authUsesProviderLogin === false) return false;
+    if (variant.authState === "authenticated") return false;
+    if (variant.authState === "missing") return true;
+    return variant.authState === "unknown" && variantHasInteractiveAuthMethods(variant, status);
+  });
+}
+
+function rootNeedsInteractiveLogin(status: AgentStatus): boolean {
   if (status.authState === "missing") return true;
   return (
     status.authState === "unknown" &&
     status.acpSessionEstablished !== true &&
     hasInteractiveAuthMethods(status)
   );
+}
+
+/**
+ * Whether an env still needs a sign-in. `unknown` only counts when the agent
+ * advertises an interactive method and its ACP session setup did not succeed —
+ * a working session means the agent is usable, so prompting for login there
+ * would be a false alarm.
+ *
+ * Independently authenticated runtimes are checked on their own: a signed-in
+ * CLI must not hide Login for an installed Chat runtime that is still unsigned.
+ */
+export function statusNeedsInteractiveLogin(status: AgentStatus): boolean {
+  if (unsignedInteractiveRuntimes(status).length > 0) return true;
+  return rootNeedsInteractiveLogin(status);
+}
+
+/**
+ * Logout is only offered when a logout-capable runtime is actually signed in.
+ * Copying `authLogoutSupported` onto the root status is not enough — a signed-in
+ * CLI plus an unsigned Chat runtime would otherwise render Logout instead of Login.
+ */
+/**
+ * Restrict a detected status to one named runtime so a Settings row can own
+ * that runtime's version, auth, and login methods without the sibling's.
+ */
+export function statusForRuntimeVariant(status: AgentStatus, runtimeId: string): AgentStatus {
+  const variant = status.runtimeVariants?.[runtimeId];
+  const {
+    loginCommand: _loginCommand,
+    loginCommandDisplay: _loginCommandDisplay,
+    preferTerminalLogin: _preferTerminalLogin,
+    authMethods: _authMethods,
+    authLogoutSupported: _authLogoutSupported,
+    providerMetadata: _providerMetadata,
+    runtimeVariants: _runtimeVariants,
+    ...base
+  } = status;
+  if (!variant) {
+    return { ...base, installed: false, authState: "missing" };
+  }
+  return {
+    ...base,
+    installed: variant.installed,
+    authState: variant.authState,
+    runtimeVariants: { [runtimeId]: variant },
+    ...(variant.version ? { version: variant.version } : {}),
+    ...(variant.loginCommand ? { loginCommand: variant.loginCommand } : {}),
+    ...(variant.loginCommandDisplay ? { loginCommandDisplay: variant.loginCommandDisplay } : {}),
+    ...(variant.preferTerminalLogin !== undefined
+      ? { preferTerminalLogin: variant.preferTerminalLogin }
+      : {}),
+    ...(variant.authMethods ? { authMethods: variant.authMethods } : {}),
+    ...(variant.authLogoutSupported ? { authLogoutSupported: true } : {}),
+    ...(variant.providerMetadata ? { providerMetadata: variant.providerMetadata } : {}),
+  };
+}
+
+export function statusHasAuthenticatedLogout(
+  status: AgentStatus,
+  acpInstanceId: string | undefined,
+): boolean {
+  const variants = installedRuntimeVariants(status);
+  if (variants.length > 0) {
+    return variants.some(
+      (variant) => variant.authState === "authenticated" && variant.authLogoutSupported === true,
+    );
+  }
+  return status.authState === "authenticated" && supportsAcpLogoutStatus(status, acpInstanceId);
 }
 
 /**
@@ -136,6 +229,19 @@ export function findTerminalLoginStatus(statuses: readonly AgentStatus[]): Agent
 
 export function statusEnvKey(status: AgentStatus): string {
   return agentEnvKey(agentEnvForStatus(status));
+}
+
+/**
+ * Key that identifies the Settings row an auth action belongs to. Rows split
+ * per runtime (see `statusForRuntimeVariant`) share one environment, so the
+ * environment key alone would light up every sibling's pending state while a
+ * single runtime signs in. A status scoped to exactly one runtime variant gets
+ * that variant appended; an unscoped status keeps the plain environment key.
+ */
+export function authRowKey(status: AgentStatus): string {
+  const envKey = statusEnvKey(status);
+  const variantIds = status.runtimeVariants ? Object.keys(status.runtimeVariants) : [];
+  return variantIds.length === 1 ? `${envKey}:${variantIds[0]}` : envKey;
 }
 
 export function supportsAcpLogoutStatus(

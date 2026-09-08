@@ -22,6 +22,10 @@ export interface AcpExtensionToolCallSource {
   rawInput?: unknown;
   rawOutput?: unknown;
   content?: unknown;
+  /** Lets an extension treat native completion as finish for a tracked row. */
+  status?: "pending" | "in_progress" | "completed" | "failed";
+  /** Paths the agent attached to the call, when present. */
+  locations?: Array<{ path?: string | null; line?: number | null }> | null;
 }
 
 export interface AcpAgentTextInput {
@@ -52,8 +56,11 @@ export interface AcpTextStreamExtension {
   readonly id: string;
   /** Split a streamed agent-text chunk into events plus residual assistant text. */
   handleAgentText?(input: AcpAgentTextInput): AcpAgentTextResult;
-  /** Observe a completing tool call so later async reports can update its row. */
-  trackToolCall?(input: AcpExtensionToolCallInput): void;
+  /**
+   * Observe a completing tool call so later async reports can update its row.
+   * May return runtime events (for example `background_tasks.changed`).
+   */
+  trackToolCall?(input: AcpExtensionToolCallInput): RuntimeEvent[] | void;
   /**
    * Observe every `session/update` before the shared mapper handles it and
    * return events to emit first, e.g. to settle rows the agent itself reports
@@ -88,8 +95,8 @@ export function applyAgentTextExtension(input: AcpAgentTextInput): AcpAgentTextR
   return handled ?? { events: [], text: input.text };
 }
 
-export function trackToolCallExtension(input: AcpExtensionToolCallInput): void {
-  input.state.textStreamExtension?.trackToolCall?.(input);
+export function trackToolCallExtension(input: AcpExtensionToolCallInput): RuntimeEvent[] {
+  return input.state.textStreamExtension?.trackToolCall?.(input) ?? [];
 }
 
 export function flushTextStreamExtension(state: AcpMapperState): RuntimeEvent[] {

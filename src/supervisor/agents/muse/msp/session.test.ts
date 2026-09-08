@@ -715,11 +715,71 @@ describe("MuseMspStructuredSession", () => {
         steered: true,
       },
     });
+    // The steer paints the row itself; the provider echo must not add a second.
     expect(
       runtimeEvents.filter(
         (event) => event.type === "item.started" && event.itemType === "user_message",
       ),
-    ).toHaveLength(0);
+    ).toEqual([expect.objectContaining({ itemId: "user-steer" })]);
+  });
+
+  it("paints the steered user message when the caller supplies no optimistic id", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    await session.startTurn("first", config);
+    await session.steerTurn("redirect", config);
+    const started = runtimeEvents.filter(
+      (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+        event.type === "item.started" && event.itemType === "user_message",
+    );
+    expect(started).toHaveLength(1);
+    expect(started[0]).toMatchObject({
+      payload: { content: [{ kind: "text", text: "redirect" }] },
+    });
+    const itemId = started[0]?.itemId;
+    expect(
+      runtimeEvents.some((event) => event.type === "item.completed" && event.itemId === itemId),
+    ).toBe(true);
+  });
+
+  it("keeps one user row when a rejected steer falls back to a fresh turn", async () => {
+    const { MspRpcError } = await import("./protocol");
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    await session.startTurn("first", config);
+    request.mockImplementation(async (method) => {
+      if (method === "turn/steer") {
+        throw new MspRpcError("turn is no longer active", {
+          code: -32030,
+          kind: "commandRejected",
+        });
+      }
+      if (method === "turn/start") {
+        return { turnId: "turn-2", status: "accepted", disposition: "started" };
+      }
+      return { status: "accepted" };
+    });
+    await session.steerTurn("redirect", config);
+    const start = request.mock.calls.findLast(([method]) => method === "turn/start");
+    const started = runtimeEvents.filter(
+      (event) => event.type === "item.started" && event.itemType === "user_message",
+    );
+    expect(started).toHaveLength(1);
+    notificationHandler?.("item/completed", {
+      sessionId: "session-1",
+      item: {
+        itemId: "provider-start",
+        commandId: start?.[1]?.["commandId"],
+        kind: "userMessage",
+        status: "completed",
+        text: "redirect",
+      },
+    });
+    expect(
+      runtimeEvents.filter(
+        (event) => event.type === "item.started" && event.itemType === "user_message",
+      ),
+    ).toHaveLength(1);
   });
 
   it("interrupts the exact active turn and terminates its owned host on dispose", async () => {
@@ -836,6 +896,156 @@ describe("MuseMspStructuredSession", () => {
         type: "item.completed",
         itemId: "muse-plan",
       }),
+    );
+  });
+  const approvalNotification = {
+    sessionId: "session-1",
+    approvalId: "approval-auto",
+    currentRequirementId: { approvalId: "approval-auto", sourceIndex: 0 },
+    availableChoices: [
+      { choiceId: "allow_once", decision: "approved", label: "Allow once", scope: "once" },
+      { choiceId: "abort", decision: "abort", label: "Reject" },
+    ],
+    subject: { kind: "shell", command: "python3 - <<'PY'", stages: [] },
+    toolName: "shell",
+  };
+
+  it("auto-approves host approvals under bypass policies", async () => {
+    // `allowAll` still raises approvals for pipelines the host cannot parse,
+    // and `muse serve` has no flag to disable them.
+    const { session, runtimeEvents } = await createSession({
+      config: { ...config, approvalPolicy: "yolo" },
+    });
+    await session.openThread({ ...config, approvalPolicy: "yolo" });
+    notificationHandler?.("approval/requested", approvalNotification);
+    await Promise.resolve();
+    expect(request).toHaveBeenCalledWith(
+      "approval/decide",
+      expect.objectContaining({ approvalId: "approval-auto", choiceId: "allow_once" }),
+    );
+    expect(runtimeEvents).not.toContainEqual(
+      expect.objectContaining({ type: "request.opened", requestId: "approval-auto" }),
+    );
+  });
+
+  it("still surfaces host approvals under ask policies", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    notificationHandler?.("approval/requested", approvalNotification);
+    await Promise.resolve();
+    expect(request).not.toHaveBeenCalledWith("approval/decide", expect.anything());
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "request.opened", requestId: "approval-auto" }),
+    );
+  });
+
+  it("never auto-answers structured questions under bypass policies", async () => {
+    const { session, runtimeEvents } = await createSession({
+      config: { ...config, approvalPolicy: "yolo" },
+    });
+    await session.openThread({ ...config, approvalPolicy: "yolo" });
+    notificationHandler?.("userInput/requested", {
+      sessionId: "session-1",
+      userInputId: "input-auto",
+      questions: [
+        {
+          id: "color",
+          question: "Choose a color",
+          selection: { mode: "single" },
+          options: [{ label: "Blue" }],
+        },
+      ],
+    });
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "request.opened", requestId: "input-auto" }),
+    );
+    expect(request).not.toHaveBeenCalledWith("userInput/answer", expect.anything());
+  });
+
+  const compactionItem = {
+    itemId: "item-compaction",
+    kind: "compaction",
+    // Real 1.0.3 wire shape: the item is tagged with the PREVIOUS turn's id.
+    turnId: "turn-earlier",
+    status: "completed",
+    fallbackText: "Context compaction",
+    outcome: "compacted",
+    trigger: "manual",
+  };
+
+  it("routes /compact through session/compact instead of a turn", async () => {
+    const { session, updates, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    await session.startTurn("/compact", config);
+    expect(request).toHaveBeenCalledWith(
+      "session/compact",
+      expect.objectContaining({ sessionId: "session-1" }),
+    );
+    expect(request).not.toHaveBeenCalledWith("turn/start", expect.anything());
+    // The command only acks; the compaction item arrives seconds later, so the
+    // turn has to stay open until then — the submitting renderer paints
+    // "working" optimistically and only a *changed* status clears it.
+    expect(runtimeEvents).toContainEqual(expect.objectContaining({ type: "turn.started" }));
+    expect(runtimeEvents.at(-1)?.type).not.toBe("turn.completed");
+    expect(updates.at(-1)?.status).toBe("working");
+
+    notificationHandler?.("item/started", { sessionId: "session-1", item: compactionItem });
+    expect(updates.at(-1)?.status).toBe("working");
+    notificationHandler?.("item/completed", { sessionId: "session-1", item: compactionItem });
+
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.started",
+        itemType: "tool_call",
+        payload: expect.objectContaining({ name: "ContextCompaction", status: "success" }),
+      }),
+    );
+    // Nothing may follow `turn.completed`: a trailing item event re-opens the
+    // settled GUI turn in the renderer and nothing would close it again.
+    expect(runtimeEvents.at(-1)).toEqual(
+      expect.objectContaining({ type: "turn.completed", state: "completed" }),
+    );
+    expect(updates.at(-1)?.status).toBe("idle");
+    expect(updates.at(-1)?.attention).toBe("none");
+  });
+
+  it("completes the compact turn when no compaction item ever arrives", async () => {
+    vi.useFakeTimers();
+    try {
+      const { session, updates } = await createSession();
+      await session.openThread(config);
+      await session.startTurn("/compact", config);
+      expect(updates.at(-1)?.status).toBe("working");
+      vi.advanceTimersByTime(30_000);
+      expect(updates.at(-1)?.status).toBe("idle");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops a pending compact locally instead of interrupting an unknown turn", async () => {
+    const { session, updates } = await createSession();
+    await session.openThread(config);
+    await session.startTurn("/compact", config);
+    await session.interruptTurn();
+    expect(request).not.toHaveBeenCalledWith("turn/interrupt", expect.anything());
+    expect(updates.at(-1)?.status).toBe("idle");
+  });
+
+  it("warns when the host reports nothing to compact", async () => {
+    const { session, runtimeEvents } = await createSession();
+    await session.openThread(config);
+    request.mockImplementation(async (method) => {
+      if (method === "session/compact") return { status: "noop", reason: "History is empty." };
+      return { status: "accepted" };
+    });
+    await session.startTurn("/compact", config);
+    expect(runtimeEvents).toContainEqual(
+      expect.objectContaining({ type: "warning", message: "History is empty." }),
+    );
+    // Nothing will be compacted, so there is no item to wait for.
+    expect(runtimeEvents.at(-1)).toEqual(
+      expect.objectContaining({ type: "turn.completed", state: "completed" }),
     );
   });
 });

@@ -1,7 +1,11 @@
 import { homedir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createClaudeAdapter, createClaudeProfileAdapter } from "./index";
+import {
+  createClaudeAdapter,
+  createClaudeProfileAdapter,
+  overrideProfileCapabilities,
+} from "./index";
 import { claudeCapabilities } from "./detection";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
@@ -335,7 +339,7 @@ describe("createClaudeProfileAdapter", () => {
     const sonnetEntries = adapter.capabilities.models.filter(
       (model) => model.id === "claude-sonnet-5",
     );
-    expect(sonnetEntries).toEqual([{ id: "claude-sonnet-5", label: "Sonnet 5" }]);
+    expect(sonnetEntries).toEqual([{ id: "claude-sonnet-5", label: "Sonnet (custom)" }]);
   });
 
   it("does not duplicate repeated configured model ids", () => {
@@ -418,4 +422,29 @@ describe("createClaudeProfileAdapter", () => {
     expect(adapter.capabilities.efforts).toEqual(claudeCapabilities.efforts);
     expect(adapter.capabilities.defaultEffort).toBe(claudeCapabilities.defaultEffort);
   });
+});
+
+it("preserves every configured profile model and label after SDK discovery", () => {
+  const models = [
+    { id: "qwen3.8-max", label: "Qwen3.8 Max" },
+    { id: "qwen3.8-flash", label: "Qwen3.8 Flash" },
+    { id: "deepseek-v4-pro-0813", label: "DeepSeek V4 Pro 0813" },
+    { id: "deepseek-v4-flash-0731", label: "DeepSeek V4 Flash 0731" },
+  ];
+  const result = overrideProfileCapabilities(
+    {
+      ...claudeCapabilities,
+      models: [
+        ...claudeCapabilities.models,
+        { id: models[0]!.id, label: "Default" },
+        { id: models[1]!.id, label: models[1]!.id },
+      ],
+    },
+    models,
+    undefined,
+    undefined,
+    undefined,
+  );
+  expect(result.models.slice(-4)).toEqual(models);
+  expect(result.models.some((model) => model.label === "Default")).toBe(false);
 });

@@ -248,6 +248,35 @@ export function filterHiddenModels(
   return { ...capabilities, models: capabilities.models.filter((m) => !hidden.has(m.id)) };
 }
 
+/**
+ * Re-admit one model into a hidden-filtered surface when that surface has to
+ * represent a selection that already exists.
+ *
+ * Hiding a model is a menu preference, not a capability change: something
+ * already configured with model X (a running thread, a restored draft) must
+ * still show X's label and keep X's reasoning/context options. Without this the
+ * picker cannot label X — it is absent from the list it labels from — and falls
+ * back to rendering the bare model id.
+ *
+ * The entry is taken from `source` (the unfiltered surface) and reinserted in
+ * `source` order, so the list stays ordered as the provider declared it. A
+ * model the surface no longer advertises at all cannot be recovered here.
+ */
+export function withModelVisible(
+  filtered: AgentCapability,
+  source: AgentCapability,
+  modelId: string | undefined,
+): AgentCapability {
+  if (!modelId) return filtered;
+  if (filtered.models.some((m) => m.id === modelId)) return filtered;
+  if (!source.models.some((m) => m.id === modelId)) return filtered;
+  const visible = new Set(filtered.models.map((m) => m.id));
+  return {
+    ...filtered,
+    models: source.models.filter((m) => visible.has(m.id) || m.id === modelId),
+  };
+}
+
 export function modelSelectionFor(
   capabilities: AgentCapability,
   model: string,

@@ -346,6 +346,18 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
     setIsRefreshingAgents(true);
     void readBridge()
       .refreshAgentStatuses(wslDistros)
+      .then((response) => {
+        if (refreshRunRef.current !== refreshRun) {
+          return;
+        }
+        // Apply the RPC result immediately. Supervisor events can be deferred
+        // while the discovery overlay is up, and localStorage still holds the
+        // previous sweep until this write replaces it.
+        useAgentStatusesStore.getState().hydrateFromCache({
+          windows: response.windows,
+          wsl: response.wsl,
+        });
+      })
       .catch(() => undefined)
       .finally(() => {
         setTimeout(() => {

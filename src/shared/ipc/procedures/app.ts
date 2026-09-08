@@ -105,6 +105,8 @@ export const remoteHttpRequestPayloadSchema = z.object({
   headers: z.record(z.string(), z.string()).optional(),
   body: z.string().optional(),
   bodyBase64: z.string().optional(),
+  /** Opt-in binary response; omitted by existing text/JSON callers. Local IPC only. */
+  responseEncoding: z.enum(["utf8", "base64"]).optional(),
 });
 export type RemoteHttpRequestPayload = z.infer<typeof remoteHttpRequestPayloadSchema>;
 export interface RemoteHttpRequestResult {

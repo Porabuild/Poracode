@@ -1,3 +1,7 @@
+import {
+  loadPluginCoreSkillPhrase,
+  uniqueCoreSkillForBuiltInMcp,
+} from "@/shared/plugins/builtInCoreSkills";
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
 import { modelSelectionFor } from "@/shared/agentSelection";
 import {
@@ -58,9 +62,12 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
   return "balanced";
 }
 
+const CROSSAGENTS_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("crossagents");
+
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use the Crossagents MCP server to delegate lightweight, ephemeral work to the other AI agents connected to this Poracode session.",
+  `Before the first spawn_agent call, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} — it is this plugin's core skill.`,
   "Every tool named below belongs to this server. Hosts that namespace MCP tools expose them under this server's name (for example `crossagents__list_agents` or `mcp__crossagents__list_agents`), so resolve each bare name against your own tool list and call the crossagents entry — never the same bare name under another server such as `poracode`.",
   "Delegate only once the user has explicitly asked you to involve another agent in this thread, for example via an @Crossagents mention or a direct request to delegate or get a second opinion. That ask authorizes delegation for the rest of the thread, so later turns may spawn as the work requires; until then, never spawn subagents on your own initiative.",
   "Call list_agents when provider selection matters; call get_agent only when you need one provider's detailed models, reasoning options, Fast availability, or permissions preset.",
@@ -74,7 +81,7 @@ export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use ordered fallbacks to retry startup failures on another model or provider. Retrying after a dispatched turn requires retry_on='any-failure' because it may repeat side effects.",
   "Background runs also survive interruption of the current parent turn, but still stop when the parent thread closes.",
   "Give each subagent a self-contained prompt — it does not share your conversation context.",
-  "Use steer_agent to send corrections, new evidence, or narrowed scope to an active child without restarting it. Check list_runs.can_steer first; startup, completed runs, and sessions without live steering cannot accept it. A successful steer means the provider accepted the message, not that the child has finished applying it; keep waiting for its result.",
+  "Use steer_agent to send a follow-up message to a running child: corrections, new evidence, or narrowed scope. The child keeps its session and context and continues with your message. It is a message, not a result: keep waiting for the child to finish. list_runs.can_steer is false only while a child is still starting, has finished, or is processing a previous message.",
   "For larger batches, call list_runs with include_capacity=true to inspect available_slots (a snapshot, not a reservation). Use wait_for_agent with run_ids and wait_mode='any' to collect the next completed result and refill free slots; omit already-settled runs from the next wait. Scope concurrent edits to distinct files or clearly separated responsibilities. Include the objective, relevant context, constraints, and acceptance checks in each prompt. Ask for findings with file references, verification evidence, and unresolved risks; validate the returned work before integrating it.",
   "Always set name on spawn_agent and on every tasks=[...] entry: a short, specific label describing what that subagent will do (for example `Review runtime findings`). Users see this label in the thread; do not omit it or repeat provider/model/reasoning values there — Crossagents appends those automatically.",
   "For long-lived, first-class app threads the user sees in the sidebar (optionally in their own git worktree) — e.g. one ticket or feature per thread — use the always-on `poracode` MCP server's thread tools (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread, stop_thread) instead.",
@@ -321,7 +328,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "steer_agent",
     description:
-      "Send a follow-up prompt to a running child owned by this parent. Requires can_steer=true in list_runs. Preserves the existing session and work; does not restart or interrupt the child. Returns after the provider accepts the message.",
+      "Send a follow-up message to a running child owned by this parent, like sending a message to a chat. The child keeps its session and context and continues with your message. Returns once the message is delivered; keep waiting for the child's result.",
     inputSchema: {
       type: "object",
       required: ["run_id", "prompt"],

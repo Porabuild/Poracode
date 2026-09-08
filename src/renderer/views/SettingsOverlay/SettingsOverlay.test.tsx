@@ -2,7 +2,7 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentStatus, Project } from "@/shared/contracts";
+import type { AgentStatus, AgentStatusesResponse, Project } from "@/shared/contracts";
 
 const statusesState = {
   agentStatuses: [] as AgentStatus[],
@@ -11,7 +11,14 @@ const statusesState = {
 
 const resetDiscoveredAgentsMock = vi.fn<() => void>();
 const beginFirstLaunchDiscoveryMock = vi.fn<(scope?: unknown) => void>();
-const refreshAgentStatusesMock = vi.fn<(wslDistros?: string[]) => Promise<void>>();
+const hydrateFromCacheMock =
+  vi.fn<(cached: { windows: AgentStatus[]; wsl: AgentStatus[] }) => void>();
+const emptyStatusesResponse: AgentStatusesResponse = {
+  windows: [],
+  wsl: [],
+  fromCache: false,
+};
+const refreshAgentStatusesMock = vi.fn<(wslDistros?: string[]) => Promise<AgentStatusesResponse>>();
 
 const appState = {
   projects: [] as Project[],
@@ -39,6 +46,7 @@ vi.mock("@/renderer/state/agentStatusesStore", () => {
   useAgentStatusesStore.getState = () => ({
     beginFirstLaunchDiscovery: beginFirstLaunchDiscoveryMock,
     resetDiscoveredAgents: resetDiscoveredAgentsMock,
+    hydrateFromCache: hydrateFromCacheMock,
   });
   return { useAgentStatusesStore };
 });
@@ -235,8 +243,9 @@ describe("SettingsOverlay", () => {
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     beginFirstLaunchDiscoveryMock.mockReset();
     resetDiscoveredAgentsMock.mockReset();
+    hydrateFromCacheMock.mockReset();
     refreshAgentStatusesMock.mockReset();
-    refreshAgentStatusesMock.mockResolvedValue(undefined);
+    refreshAgentStatusesMock.mockResolvedValue(emptyStatusesResponse);
     usePanelStore.setState({ settingsSection: null });
   });
 
@@ -648,9 +657,14 @@ describe("SettingsOverlay", () => {
       },
     ];
 
-    let resolveRefresh: (() => void) | undefined;
+    let resolveRefresh: ((value: AgentStatusesResponse) => void) | undefined;
+    const refreshed: AgentStatusesResponse = {
+      windows: statusesState.agentStatuses,
+      wsl: [],
+      fromCache: false,
+    };
     refreshAgentStatusesMock.mockReturnValueOnce(
-      new Promise<void>((resolve) => {
+      new Promise<AgentStatusesResponse>((resolve) => {
         resolveRefresh = resolve;
       }),
     );
@@ -669,8 +683,13 @@ describe("SettingsOverlay", () => {
       expect(screen.getByText("Discovering coding agents…")).toBeInTheDocument();
 
       await act(async () => {
-        resolveRefresh?.();
+        resolveRefresh?.(refreshed);
         await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(hydrateFromCacheMock).toHaveBeenCalledWith({
+        windows: refreshed.windows,
+        wsl: refreshed.wsl,
       });
 
       await act(() => vi.advanceTimersByTimeAsync(999));
@@ -686,7 +705,9 @@ describe("SettingsOverlay", () => {
   });
 
   it("cancels the visible agent refresh overlay", () => {
-    refreshAgentStatusesMock.mockReturnValueOnce(new Promise<void>(() => undefined));
+    refreshAgentStatusesMock.mockReturnValueOnce(
+      new Promise<AgentStatusesResponse>(() => undefined),
+    );
 
     render(<SettingsOverlay onClose={() => undefined} />);
 

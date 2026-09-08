@@ -94,20 +94,14 @@ const QWEN_38_EFFORTS = ["low", "medium", "xHigh"] as const;
 const QWEN_TOKEN_PLAN_EFFORTS = ["low", "medium", "high", "xHigh", "max"] as const;
 const QWEN_TOKEN_PLAN_MODELS = [
   { id: QWEN_TOKEN_MODEL_ID, label: "Qwen3.8 Max" },
-  { id: "qwen3.7-max", label: "Qwen3.7 Max" },
-  { id: "qwen3.7-plus", label: "Qwen3.7 Plus" },
-  { id: "qwen3.6-flash", label: "Qwen3.6 Flash" },
+  { id: "qwen3.8-flash", label: "Qwen3.8 Flash" },
   { id: "glm-5.2", label: "GLM-5.2" },
   { id: "deepseek-v4-pro-0813", label: "DeepSeek V4 Pro 0813" },
   { id: "deepseek-v4-flash-0731", label: "DeepSeek V4 Flash 0731" },
 ] as const;
 const QWEN_TOKEN_PLAN_MODEL_EFFORTS = {
   [QWEN_TOKEN_MODEL_ID]: QWEN_38_EFFORTS,
-  // Claude profiles cannot represent ACP's thinking toggle, so hybrid Qwen
-  // models must not inherit Qwen3.8's effort tiers here.
-  "qwen3.7-max": [],
-  "qwen3.7-plus": [],
-  "qwen3.6-flash": [],
+  "qwen3.8-flash": QWEN_38_EFFORTS,
   "glm-5.2": ["high", "max"],
   "deepseek-v4-pro-0813": ["high", "max"],
   "deepseek-v4-flash-0731": ["low", "high", "max"],
@@ -121,10 +115,10 @@ export const QWEN_TOKEN_PLAN_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   },
   { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
   { key: "ANTHROPIC_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "qwen3.6-flash", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "qwen3.8-flash", sensitive: false },
   { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
   { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
-  { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: "qwen3.7-max", sensitive: false },
+  { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: "qwen3.8-flash", sensitive: false },
   { key: "CLAUDE_CODE_MAX_CONTEXT_TOKENS", value: "983616", sensitive: false },
 ];
 

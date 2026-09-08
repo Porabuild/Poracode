@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronDown, Images } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ThreadGalleryImage } from "./ChatPane/parts/items/threadGalleryImages";
+import { DownsampledThumb } from "./DownsampledThumb";
 import { openThreadGallery } from "./useThreadGalleryImages";
 import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 
@@ -9,8 +10,9 @@ import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./Thr
  * Right-panel "Images" section: a 2-row horizontal mosaic of every renderable
  * image in the thread's loaded history, newest first. Thumbnails lazy-load
  * (`loading="lazy"` + `decoding="async"`) so opening the panel never fetches
- * off-screen bytes up front; clicking any tile opens the fullscreen lightbox
- * at that image with prev/next across the whole thread.
+ * off-screen bytes up front, then downsample to the tile's device-pixel box.
+ * Clicking any tile opens the fullscreen lightbox at that image with prev/next
+ * across the whole thread.
  */
 export function ThreadImagesDock({ gallery }: { gallery: readonly ThreadGalleryImage[] }) {
   const { t } = useLingui();
@@ -56,13 +58,10 @@ export function ThreadImagesDock({ gallery }: { gallery: readonly ThreadGalleryI
                     className="group relative block h-16 w-24 overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[var(--composer-surface)] focus-visible:outline-2 focus-visible:outline-accent"
                     onClick={() => openThreadGallery(gallery, undefined, index)}
                   >
-                    <img
+                    <DownsampledThumb
                       src={img.src}
                       alt={img.alt || ""}
-                      loading="lazy"
-                      decoding="async"
-                      draggable={false}
-                      className="size-full rounded-[inherit] object-cover [image-rendering:auto]"
+                      className="size-full rounded-[inherit] object-cover [image-rendering:high-quality]"
                     />
                     <span
                       aria-hidden="true"

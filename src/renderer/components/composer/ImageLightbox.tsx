@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { attachmentImageUrl, type Attachment } from "./useAttachments";
+import { ImageLightboxActions } from "./ImageLightboxActions";
 
 /** A pre-resolved image for the lightbox: a renderable URL plus an accessible label. */
 export interface LightboxImage {
@@ -17,6 +18,9 @@ export interface LightboxImage {
   src: string;
   /** Accessible label / alt text. */
   alt?: string;
+  /** Original download name and MIME type, retained when the display URL is opaque. */
+  fileName?: string;
+  mime?: string;
 }
 
 type LightboxState = {
@@ -69,6 +73,8 @@ export function openAttachmentLightbox(
     attachments.map((img) => ({
       src: attachmentImageUrl(img, imageUrlForPath),
       alt: img.name,
+      fileName: img.name,
+      ...(img.mimeType ? { mime: img.mimeType } : {}),
     })),
     initialIndex,
   );
@@ -303,6 +309,7 @@ export function ImageLightboxView(props: {
           >
             <ZoomIn className="size-4" />
           </button>
+          <ImageLightboxActions image={current} />
         </div>
         {images.length > 1 ? (
           <span className="poracode-image-lightbox__counter">

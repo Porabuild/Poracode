@@ -26,12 +26,14 @@ export function isEnvVarAuthMethod(
 export function isAgentAuthMethod(
   method: StatusAuthMethod | undefined,
 ): method is AgentOwnedAuthMethod {
+  // Name matching "API key" is not enough to hide a method: some agents
+  // advertise a real `authenticate()` API-key flow with no env-var twin.
+  // Methods that carry `vars` still belong on the credential form, not here.
   return (
     method !== undefined &&
     !isEnvVarAuthMethod(method) &&
     method.type !== "terminal" &&
-    !("vars" in method) &&
-    !/\b(api[-_\s]*key|token|secret)\b/iu.test(`${method.id} ${method.name}`)
+    !("vars" in method)
   );
 }
 

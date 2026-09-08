@@ -98,8 +98,5 @@ export function openThreadGallery(
   if (images.length === 0) return;
   const atSrc = initialSrc ? images.findIndex((img) => img.src === initialSrc) : -1;
   const index = atSrc >= 0 ? atSrc : Math.min(Math.max(0, initialIndex), images.length - 1);
-  openImageLightbox(
-    images.map((img) => ({ src: img.src, ...(img.alt ? { alt: img.alt } : {}) })),
-    index,
-  );
+  openImageLightbox(images, index);
 }

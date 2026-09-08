@@ -5,6 +5,9 @@ const electronMock = vi.hoisted(() => {
     static instances: BrowserWindow[] = [];
     readonly options: Record<string, unknown>;
     readonly handlers = new Map<string, () => void>();
+    readonly webContents = {
+      setWindowOpenHandler: vi.fn<(handler: (options: { url: string }) => unknown) => void>(),
+    };
     destroyed = false;
     visible = false;
     setAlwaysOnTop = vi.fn<(flag: boolean, level: string) => void>();
@@ -103,6 +106,7 @@ import {
   COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS,
   ComputerUseDesktopOverlay,
 } from "./ComputerUseDesktopOverlay";
+import { OVERLAY_EXIT_URL } from "./ComputerUseOverlayHtml";
 
 describe("ComputerUseDesktopOverlay", () => {
   beforeEach(() => {
@@ -193,25 +197,71 @@ describe("ComputerUseDesktopOverlay", () => {
     expect(primaryOverlay?.visible).toBe(false);
     expect(targetOverlay?.visible).toBe(true);
     expect(targetOverlay?.options).toMatchObject({ x: 1920, y: 0, width: 1280, height: 1024 });
-    // Anchored to the work area so the top-center badge never covers the macOS
-    // menu bar or the focused app's title bar.
+    // Anchored to the top of the work area so the badge never covers the macOS
+    // menu bar or the focused app's title bar, and sized to hug the chip: the
+    // badge is clickable, so the window must not span the display.
     expect(targetOverlay?.setBounds).toHaveBeenLastCalledWith({
-      x: 1920,
-      y: 32,
-      width: 1280,
-      height: 992,
+      x: 2340,
+      y: 48,
+      width: 440,
+      height: 34,
     });
+    expect(targetOverlay?.setIgnoreMouseEvents).toHaveBeenLastCalledWith(false);
     const overlayHtml = decodeURIComponent(
       targetOverlay!.loadURL.mock.calls.at(-1)![0].split(",", 2)[1]!,
     );
     expect(overlayHtml).toContain("Poracode is controlling Notepad in the background");
     expect(overlayHtml).toContain("<title>Poracode Computer Use Overlay</title>");
-    expect(overlayHtml).toContain("top: 16px");
-    expect(overlayHtml).toContain("left: 50%");
-    expect(overlayHtml).toContain("transform: translateX(-50%)");
+    expect(overlayHtml).toContain("Exit computer use");
     expect(overlayHtml).not.toContain("bottom: 16px");
     expect(overlayHtml).not.toContain("inset 0 0 0 2px");
     expect(electronMock.shortcuts.has("Escape")).toBe(false);
+
+    overlay.dispose();
+  });
+
+  it("ends background control when the badge's exit button is used", async () => {
+    const onExit = vi.fn<(threadIds: string[]) => void>();
+    const overlay = new ComputerUseDesktopOverlay({ onExit });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      delivery: "background",
+      target: "Notepad",
+      active: true,
+    });
+    await Promise.resolve();
+
+    const badge = electronMock.BrowserWindow.instances.at(-1)!;
+    const openHandler = badge.webContents.setWindowOpenHandler.mock.calls.at(-1)![0];
+    const decision = openHandler({ url: OVERLAY_EXIT_URL });
+
+    expect(decision).toEqual({ action: "deny" });
+    expect(onExit).toHaveBeenCalledWith(["thread-1"]);
+    expect(electronMock.BrowserWindow.instances.every((window) => !window.visible)).toBe(true);
+
+    overlay.dispose();
+  });
+
+  it("ignores other open requests from the badge page", async () => {
+    const onExit = vi.fn<(threadIds: string[]) => void>();
+    const overlay = new ComputerUseDesktopOverlay({ onExit });
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      delivery: "background",
+      active: true,
+    });
+    await Promise.resolve();
+
+    const badge = electronMock.BrowserWindow.instances[0]!;
+    const openHandler = badge.webContents.setWindowOpenHandler.mock.calls.at(-1)![0];
+
+    expect(openHandler({ url: "https://example.com/" })).toEqual({ action: "deny" });
+    expect(onExit).not.toHaveBeenCalled();
+    expect(badge.visible).toBe(true);
 
     overlay.dispose();
   });
@@ -370,6 +420,41 @@ describe("ComputerUseDesktopOverlay", () => {
 
     overlay.setActivity({ kind: "session", threadId: "thread-1", active: false });
     expect(windows.every((window) => !window.visible)).toBe(true);
+
+    overlay.dispose();
+  });
+
+  it("reports every hidden/non-hidden transition to onActivityState", () => {
+    const onActivityState = vi.fn<(state: { level: string }) => void>();
+    const overlay = new ComputerUseDesktopOverlay({
+      onExit: vi.fn<(threadIds: string[]) => void>(),
+      onActivityState,
+    });
+
+    overlay.setActivity({ kind: "session", threadId: "thread-1", active: true });
+    expect(onActivityState.mock.calls.at(-1)?.[0].level).toBe("badge");
+
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      delivery: "foreground",
+      active: true,
+    });
+    expect(onActivityState.mock.calls.at(-1)?.[0].level).toBe("takeover");
+
+    overlay.setActivity({
+      kind: "action",
+      threadId: "thread-1",
+      toolName: "click",
+      delivery: "foreground",
+      active: false,
+    });
+    vi.advanceTimersByTime(COMPUTER_USE_OVERLAY_RELEASE_DELAY_MS);
+    overlay.setActivity({ kind: "session", threadId: "thread-1", active: false });
+
+    expect(onActivityState.mock.calls.at(-1)?.[0].level).toBe("hidden");
+    expect(onActivityState.mock.calls.map(([state]) => state.level)).toContain("hidden");
 
     overlay.dispose();
   });

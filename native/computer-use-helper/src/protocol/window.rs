@@ -66,6 +66,12 @@ pub struct WindowInfo {
 }
 
 impl WindowInfo {
+    /// Frame geometry only. Comparing frames detects that a freshly launched
+    /// window has stopped animating.
+    pub fn frame(&self) -> (i32, i32, i32, i32) {
+        (self.x, self.y, self.width, self.height)
+    }
+
     pub fn area(&self) -> i64 {
         i64::from(self.width.max(0)) * i64::from(self.height.max(0))
     }

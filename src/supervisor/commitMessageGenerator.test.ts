@@ -225,7 +225,7 @@ describe("generateCommitMessage", () => {
       }),
     );
     expect(child.stdin.end).toHaveBeenCalledWith(
-      expect.stringContaining("Generate a git commit message for the following diff"),
+      expect.stringContaining("Generate a git commit message for the supplied changes"),
     );
 
     child.stdout.emit("data", Buffer.from("fix(git): restore Windows commit generation"));

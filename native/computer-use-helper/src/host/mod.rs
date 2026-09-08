@@ -116,6 +116,7 @@ mod tests {
                     accessibility: PermissionState::NotRequired,
                     screen_recording: PermissionState::NotRequired,
                 },
+                screen_locked: false,
                 notes: vec![],
             }
         }
@@ -165,7 +166,12 @@ mod tests {
             unreachable!()
         }
 
-        fn launch_app(&self, _app: &str, _cancel: &CancelToken) -> Result<LaunchResult> {
+        fn launch_app(
+            &self,
+            _app: &str,
+            _mode: crate::protocol::actions::InputMode,
+            _cancel: &CancelToken,
+        ) -> Result<LaunchResult> {
             unreachable!()
         }
     }

@@ -84,7 +84,7 @@ const THINKING_OPEN_TAGS = ["<thinking>", "<think>", "<antThinking>"] as const;
 const THINKING_CLOSE_TAGS = ["</thinking>", "</think>", "</antThinking>"] as const;
 
 export const BACKGROUND_TASK_WAIT_RE =
-  /^\s*(?:<\/?(?:thinking|think|antThinking)>\s*)*waiting for (?:the\s+)?.*?(?:background task|task)\s+to\s+(?:finish|complete)\.?\s*(?:<\/?(?:thinking|think|antThinking)>\s*)*$/i;
+  /^\s*(?:<\/?(?:thinking|think|antThinking)>\s*)*(?:waiting for (?:the\s+)?.*?(?:background task|task)\s+to\s+(?:finish|complete)|I will wait for (?:the\s+)?.+?\s+task\s+to\s+(?:finish|complete))\.?\s*(?:<\/?(?:thinking|think|antThinking)>\s*)*$/i;
 
 export function isBackgroundTaskWaitText(text: string): boolean {
   return BACKGROUND_TASK_WAIT_RE.test(text);
@@ -537,6 +537,7 @@ export function mapAcpSessionUpdate(
         isSubAgent,
         state.resolveTerminalOutput,
         state.resolveTerminalOutputByCommand,
+        state.resolveLocalImage,
       );
       const terminalId = findTerminalIdInContent((toolCall as { content?: unknown }).content);
       state.toolCallItems.set(toolCall.toolCallId, {
@@ -570,7 +571,7 @@ export function mapAcpSessionUpdate(
         });
         state.toolCallItems.delete(toolCall.toolCallId);
       }
-      trackToolCallExtension({ state, itemType, itemId, payload, toolCall });
+      events.push(...trackToolCallExtension({ state, itemType, itemId, payload, toolCall }));
       if (isSubAgent && toolCall.status !== "completed" && toolCall.status !== "failed") {
         pendingSubAgent = { toolCallId: toolCall.toolCallId, itemId, hasChildActivity: false };
       }
@@ -644,6 +645,7 @@ export function mapAcpSessionUpdate(
         status,
         state.resolveTerminalOutput,
         state.resolveTerminalOutputByCommand,
+        state.resolveLocalImage,
       );
       const hasOpenSubAgentContent =
         item.isSubAgent &&
@@ -718,14 +720,16 @@ export function mapAcpSessionUpdate(
       } else {
         events.push(parentEvent, ...progressEvents);
       }
-      if (isTerminal) {
-        trackToolCallExtension({
+      events.push(
+        ...trackToolCallExtension({
           state,
           itemType: item.itemType,
           itemId: item.itemId,
           payload: item.payload,
           toolCall,
-        });
+        }),
+      );
+      if (isTerminal) {
         state.toolCallItems.delete(toolCall.toolCallId);
         if (item.isSubAgent) {
           removeActiveSubAgent(state, toolCall.toolCallId);

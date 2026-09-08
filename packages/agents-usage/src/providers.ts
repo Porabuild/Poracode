@@ -55,10 +55,14 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
   muse: {
     id: "muse",
     label: "Muse Code",
-    mechanism: "oauth-endpoint",
-    needsLogin: false,
-    // Subscription plan + account from the key endpoint; rolling 5h / weekly
-    // quota windows only when the endpoint reports `subs_usage`.
+    // The signed-in dev.meta.ai dashboard is the source for Muse's weighted
+    // 5h / weekly quota windows and billed spend (see `collectors/muse.ts`).
+    // The CLI's device-code login can stand in for plan + account, but its
+    // meters are optional — so keep offering the dashboard sign-in until a
+    // browser session is captured.
+    mechanism: "cookie",
+    needsLogin: true,
+    needsBrowserSessionForUsage: true,
     windowIds: ["session-5h", "weekly"],
   },
   factory: {

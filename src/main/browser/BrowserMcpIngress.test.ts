@@ -37,6 +37,7 @@ describe("BrowserMcpIngress", () => {
 
     expect(body.result.serverInfo.name).toBe("browser");
     expect(body.result.instructions).toContain("Use the browser MCP server");
+    expect(body.result.instructions).toContain("load the browser-control skill by name");
     expect(body.result.instructions).toContain("browser.enable");
     expect(body.result.instructions).toContain("browser.disable");
     expect(body.result.instructions).toContain("browser.api");

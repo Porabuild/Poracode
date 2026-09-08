@@ -69,10 +69,21 @@ export interface NativeAgentRuntimeSlots {
   bundle?: NativeAgentRuntimeInstallOption;
   /**
    * The runtimes implement surfaces of one user-facing agent. When several are
-   * missing, installation reconciles the bundle instead of exposing binaries
-   * as separate choices, and the card omits per-runtime tags.
+   * missing, installation prefers the bundle instead of exposing every binary
+   * as a separate choice, and the card omits per-runtime tags. Registry-only
+   * runtimes (a `registryAgentId` and no shell `installCommand`) stay offered
+   * next to the bundle so they can be installed without the companion binary.
    */
   unifiedAgent?: boolean;
+  /**
+   * Render one Settings environment row per runtime, each with its own version,
+   * install, update, and login controls. Use when the runtimes authenticate
+   * independently. The out-of-band account probe, if any, is shown on
+   * `accountRuntimeId` (default: the first runtime).
+   */
+  separateEnvironmentRows?: boolean;
+  /** Runtime id that receives the provider-level account probe. */
+  accountRuntimeId?: string;
 }
 
 export function detectAgentRuntime(
@@ -92,13 +103,19 @@ export function detectAgentRuntime(
  * Install options for one environment: every runtime not yet detected there,
  * plus the combined bundle when more than one is missing.
  */
+function isRegistryOnlyInstall(option: NativeAgentRuntimeInstallOption): boolean {
+  return Boolean(option.registryAgentId && !option.installCommand);
+}
+
 export function availableRuntimeInstallOptions(
   slots: NativeAgentRuntimeSlots,
   status: AgentStatus | undefined,
 ): NativeAgentRuntimeInstallOption[] {
   const missing = slots.runtimes.filter((slot) => !detectAgentRuntime(slot, status).installed);
   if (missing.length > 1 && slots.bundle) {
-    return slots.unifiedAgent ? [slots.bundle] : [...missing, slots.bundle];
+    if (!slots.unifiedAgent) return [...missing, slots.bundle];
+    const independent = missing.filter(isRegistryOnlyInstall);
+    return independent.length > 0 ? [slots.bundle, ...independent] : [slots.bundle];
   }
   return missing;
 }

@@ -8,11 +8,11 @@ export function ModelVisibilityDropdown(props: {
   settingsKey: string;
   provider: ProviderModelMenuProvider;
   /**
-   * Include the provider label in the row title. Set when the agent expands
-   * to multiple visibility providers (e.g. Cursor's terminal + GUI model
-   * surfaces) so sibling rows stay distinguishable.
+   * Label naming this model surface in the row title. Set when the agent
+   * expands to multiple visibility providers (e.g. a CLI + ACP runtime pair)
+   * so sibling rows stay distinguishable; see `modelSurfaceLabel`.
    */
-  showProviderLabel?: boolean;
+  surfaceLabel?: string;
 }) {
   const { t } = useLingui();
   const { settingsKey, provider } = props;
@@ -24,7 +24,7 @@ export function ModelVisibilityDropdown(props: {
     <div className="group flex items-center justify-between gap-4 border-b border-border/10 py-2 last:border-0">
       <div className="flex min-w-0 flex-1 flex-col">
         <p className="text-sm font-medium text-foreground">
-          {props.showProviderLabel ? t`Visible ${provider.label} models` : t`Visible models`}
+          {props.surfaceLabel ? t`Visible ${props.surfaceLabel} models` : t`Visible models`}
         </p>
         <p className="line-clamp-1 text-[11px] text-muted transition-all group-hover:line-clamp-none">
           <Trans>Toggle models off to hide them from the selector.</Trans>
@@ -34,7 +34,9 @@ export function ModelVisibilityDropdown(props: {
         providers={[{ ...provider, hiddenModelsKey: settingsKey }]}
         hiddenIdsByKey={{ [settingsKey]: effectiveHiddenIds }}
         onHiddenIdsChange={(_key, next) => setHiddenModels(settingsKey, next)}
-        listAriaLabel={t`Visible models`}
+        listAriaLabel={
+          props.surfaceLabel ? t`Visible ${props.surfaceLabel} models` : t`Visible models`
+        }
         summaryKind="visible"
         triggerClassName="min-w-[4.5rem] tabular-nums"
       />

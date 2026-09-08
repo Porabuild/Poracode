@@ -1,6 +1,7 @@
 import {
   ALIBABA_TOKEN_PLAN_INTL_DASHBOARD_URL,
   allUsageProviderDescriptors,
+  MUSE_DASHBOARD_URL,
 } from "@poracode/agents-usage";
 import { isOpenCodeLoginCookieLive } from "./openCodeLoginProbe";
 import { isQoderLoginCookieLive } from "./qoderLoginProbe";
@@ -89,6 +90,18 @@ function isAlibabaConsoleSessionCandidate(cookieHeader: string): boolean {
   );
 }
 
+const MUSE_DASHBOARD_ORIGIN = "https://dev.meta.ai";
+
+/** The Muse dashboard has resolved an active team after login. */
+function isMuseTeamDashboardUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.origin === MUSE_DASHBOARD_ORIGIN && Boolean(parsed.searchParams.get("team_id"));
+  } catch {
+    return false;
+  }
+}
+
 export const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
   copilot: {
     kind: "github-device",
@@ -135,6 +148,18 @@ export const PROVIDER_CONFIGS: Record<string, ProviderLoginConfig> = {
     cookieUrl: "https://modelstudio.console.alibabacloud.com/",
     authCookiePattern: /^login_(?:aliyunid_ticket|aliyunid_pk|current_pk|aliyunid)$/i,
     validateSession: async (cookieHeader) => isAlibabaConsoleSessionCandidate(cookieHeader),
+  },
+  muse: {
+    kind: "cookie",
+    // The usage page is a client-side route; signing in on it lands the user on
+    // the same dashboard the collector reads.
+    loginUrl: MUSE_DASHBOARD_URL,
+    cookieUrl: `${MUSE_DASHBOARD_ORIGIN}/`,
+    // llm_sess is the dashboard session cookie; the mirror and logout must
+    // track this exact name. The team URL remains the completed-login gate.
+    authCookiePattern: /^llm_sess$/i,
+    validateTabUrl: isMuseTeamDashboardUrl,
+    captureUrlParams: [{ param: "team_id", secretKey: "teamId" }],
   },
   qoder: {
     kind: "cookie",

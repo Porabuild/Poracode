@@ -109,6 +109,15 @@ export interface AcpMapperState {
    * tool_call payload.
    */
   resolveTerminalOutputByCommand?: (command: string) => string | undefined;
+  /**
+   * Read a local image file (given as a `file://` URI or an absolute path) and
+   * return it as a renderable `data:` URL, or `undefined` when it isn't a
+   * small, readable image. ACP agents may report an image result by reference
+   * only — a `uri`-only image block, or just a read-kind tool call's
+   * `locations` — and the mapper must stay filesystem-free, so the session
+   * wires this in.
+   */
+  resolveLocalImage?: (pathOrFileUri: string) => string | undefined;
 }
 
 export function createAcpMapperState(

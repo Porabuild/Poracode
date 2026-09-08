@@ -47,7 +47,7 @@ const windowSchema = z
 
 const deliverySchema = z.object({
   delivered: z.enum(["background", "foreground"]),
-  route: z.enum(["accessibility", "message", "event", "input"]),
+  route: z.enum(["accessibility", "message", "event", "input", "launch"]),
   target: z
     .object({
       kind: z.string(),

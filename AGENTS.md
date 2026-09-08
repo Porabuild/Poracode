@@ -4,7 +4,7 @@ Universal AI agent orchestrator — Electron desktop app managing Claude, Codex,
 
 ## Quick Reference
 
-- **Package manager:** `pnpm` (12.2.1, pinned in `package.json#packageManager`)
+- **Package manager:** `pnpm` (12.3.4, pinned in `package.json#packageManager`)
 - **Node:** >= 24.10.0
 - **Typecheck:** `pnpm run typecheck` (tsc, TypeScript 7 native)
 - **Lint:** `pnpm run lint` (oxlint)
@@ -41,72 +41,14 @@ Universal AI agent orchestrator — Electron desktop app managing Claude, Codex,
 
 ## Internationalization (i18n)
 
-Any time you add or edit a menu, button, dialog, label, placeholder, tooltip, toast, `aria-label`, or any other text the user can read, you must localize it in the same change. The renderer is localized with Lingui (`@lingui/*` v6). Source locale is `en`; there are **12 non-English catalogs** (`es`, `ru`, `uk`, `zh-CN`, `ja`, `pt-BR`, `de`, `fr`, `ko`, `pl`, `vi`, `tr`) at `src/renderer/locales/{locale}/messages.po`. Lingui scans **only `src/renderer`** — see the per-locale terminology table, gotchas, and "add a language" steps in [Internationalization (i18n)](.agents/docs/i18n.md).
+Any user-facing string in `src/renderer` (menus, buttons, dialogs, labels, placeholders, tooltips, toasts, `aria-label`) must be localized in the same change. Lingui (`@lingui/*` v6) scans **only `src/renderer`**. Source locale is `en`; fill all **12 non-English catalogs** (`es`, `ru`, `uk`, `zh-CN`, `ja`, `pt-BR`, `de`, `fr`, `ko`, `pl`, `vi`, `tr`) at `src/renderer/locales/{locale}/messages.po`. Macros, examples, terminology, and "add a language" steps: [Internationalization (i18n)](.agents/docs/i18n.md).
 
-### Step 1 — Wrap the string in the right macro for its context
+1. Wrap with the right macro: JSX body → `<Trans>`; attributes/strings in a component → `` t`…` `` from `useLingui()`; module-level labels → `msg`; toasts/actions → `i18n._(msg`…`)`; supervisor/main → key in `src/shared/messages.ts` plus descriptor in `src/renderer/i18n/sharedMessages.ts`.
+2. Run `pnpm i18n:extract` (skipping this leaves the UI in English with no error).
+3. Fill every new `msgstr ""` in all 12 non-English catalogs — they are fully translated, not English-fallback. Keep `Poracode`, `WSL`, `.poracode/worktrees` literal; grep an existing catalog entry for terminology.
+4. Re-run `pnpm i18n:extract` and confirm **0 missing** for every locale.
 
-**Inside a React component** — import the macros and pull `t` from the hook:
-
-```tsx
-import { Trans, useLingui } from "@lingui/react/macro";
-
-function MyPanel() {
-  const { t } = useLingui();
-  return (
-    <SettingsPage title={t`General`}>
-      {/* JSX body text → <Trans>; it handles interpolation and nested markup */}
-      <SettingRow description={<Trans>Choose the display language.</Trans>}>
-        {/* attribute / string values → t`…` */}
-        <Button aria-label={t`Save`}>{t`Save`}</Button>
-      </SettingRow>
-    </SettingsPage>
-  );
-}
-```
-
-- JSX text content → `<Trans>…</Trans>`. Attributes, `aria-label`, `title`, `placeholder`, and any plain string → `` t`…` ``.
-- Interpolate with the value inline: `` t`Discard changes in ${path}?` `` or `<Trans>Removing {count} files</Trans>`.
-
-**Module-level lists (option/menu definitions outside a component)** — `t` only exists at render time, so define labels lazily with `msg` and resolve them where they render:
-
-```ts
-import { msg } from "@lingui/core/macro";
-
-export const themeOptions = [
-  { id: "system", label: msg`System` },
-  { id: "dark", label: msg`Dark` },
-] as const;
-// resolve at render: const { t } = useLingui(); ...options.map(o => ({ ...o, label: t(o.label) }))
-// reuse the existing useLocalizedOptions() helper in views/SettingsOverlay/parts/settingsOptions.ts
-```
-
-**Non-React files (actions, command handlers, toasts)** — there is no hook, so translate eagerly through the singleton:
-
-```ts
-import { msg } from "@lingui/core/macro";
-import { i18n } from "@/renderer/i18n/i18n";
-
-// verbatim from actions/agentLoginActions.ts and actions/projectActions.ts:
-toast.warning(i18n._(msg`Add a project before signing in.`));
-toast.danger(i18n._(msg`Stop the project's running threads before changing its folder.`));
-// interpolate inline, just like in a component:
-toast.warning(i18n._(msg`Unable to install ${label}.`));
-```
-
-**Text that originates outside the renderer (supervisor / main process)** — those processes carry no catalogs and must stay macro-free. Add a stable key to `src/shared/messages.ts`, add the matching `msg(...)` descriptor in `src/renderer/i18n/sharedMessages.ts`, and emit it with `msg("my.key", { param })`. `{param}` placeholders are interpolated by the resolver.
-
-### Step 2 — Extract, then translate every locale
-
-1. Run `pnpm i18n:extract`. This registers the new msgids across all 13 catalogs. Forgetting this is the most common mistake — the new IDs never reach the catalogs and the strings silently stay English.
-2. **The catalogs are fully translated, not English-fallback.** Open each of the 12 non-English `messages.po` files and fill the new `msgstr ""` entries with a real translation. Leaving them empty ships a half-English UI. (`en` is the source locale and needs no `msgstr`.) Match the per-language terminology already used in the catalog — grep an existing entry first; keep product nouns like `Poracode`, `WSL`, `.poracode/worktrees` literal. The terminology cheat-sheet is in [i18n.md](.agents/docs/i18n.md).
-3. Re-run `pnpm i18n:extract` to normalize `.po` formatting, and confirm the printed stats table shows **0 missing** for every locale.
-
-### Checklist before you finish
-
-- [ ] No raw user-facing string literals left in `src/renderer` JSX/attributes/toasts.
-- [ ] `pnpm i18n:extract` run; stats table shows 0 missing in all locales.
-- [ ] Every new `msgstr` filled in all 12 non-English catalogs (not just `en`).
-- [ ] `pnpm run typecheck` and `pnpm run lint` pass on touched files.
+Before finishing: no raw user-facing literals in `src/renderer`; extract stats 0 missing; all 12 `msgstr` filled; typecheck and lint pass on touched files.
 
 ## Guidelines
 

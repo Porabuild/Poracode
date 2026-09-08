@@ -1121,12 +1121,19 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
     return Promise.resolve(legacyElementRefusal(input.window));
   }
 
-  launchApp(input: { app: string }): Promise<{
-    ok: true;
-    window?: ComputerUseWindow | null;
-    note?: string;
-  }> {
+  /**
+   * The PowerShell helper activates the app, so `mode` is accepted for contract
+   * parity and the result honestly reports a foreground delivery.
+   */
+  async launchApp(
+    input: Parameters<ComputerUseDriver["launchApp"]>[0],
+  ): ReturnType<ComputerUseDriver["launchApp"]> {
     validateWindowsLaunchAppInput(input.app);
-    return this.host.request("launch_app", input);
+    const result: { note?: string; ok: true; window?: ComputerUseWindow | null } =
+      await this.host.request("launch_app", { app: input.app });
+    return {
+      ...result,
+      delivery: { delivered: "foreground", route: "launch", verified: "unverified" },
+    };
   }
 }

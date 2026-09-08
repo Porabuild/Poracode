@@ -801,3 +801,91 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
     expect(acpRegistryMocks.installAcpRegistryAgent).not.toHaveBeenCalled();
   });
 });
+
+describe("AgentRegistryService.refreshAgentRegistryAdapters", () => {
+  const antigravityAcp = {
+    id: "antigravity-acp",
+    driver: "acp-generic",
+    displayName: "Antigravity",
+    enabled: true,
+    config: { binary: "agy_acp_server", cwd: "project", authMode: "none" },
+  };
+  const demo = {
+    id: "demo",
+    driver: "acp-generic",
+    displayName: "Demo",
+    enabled: true,
+    config: { binary: "demo", cwd: "project", authMode: "none" },
+  };
+  const withInstances = (instances: Record<string, typeof demo>) =>
+    ({
+      ...defaultSharedSettings,
+      agentInstances: instances,
+      acpRegistryInstalledAgents: {},
+    }) satisfies ReturnType<typeof import("../agents/acpRegistry").readAcpRegistrySettings>;
+
+  function createService() {
+    const adapters = new Map<AgentKind, AgentAdapter>();
+    const service = new AgentRegistryService({
+      adapters,
+      settingsPath: "/data/settings.json",
+      baseDir: "/data",
+      acpIconsDir: "/data/icons",
+      sharedSettingsCache: {
+        invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
+      } as unknown as SupervisorSharedSettingsCache,
+      getAgentStatusService: () => ({}) as AgentStatusService,
+      getActiveWslProjectDistros: () => [],
+      closeThreadsForAgentKind: vi.fn<(agentKind: AgentKind) => Promise<void>>(async () => {}),
+    });
+    return { adapters, service };
+  }
+
+  it("keeps live adapter instances across rebuilds with unchanged registry input", () => {
+    acpRegistryMocks.readAcpRegistrySettings
+      .mockReset()
+      .mockReturnValue(withInstances({ "antigravity-acp": antigravityAcp, demo }));
+    const { adapters, service } = createService();
+
+    service.refreshAgentRegistryAdapters();
+    const antigravity = adapters.get("antigravity" as AgentKind);
+    const claude = adapters.get("claude" as AgentKind);
+    const demoAdapter = adapters.get("acp-generic:demo" as AgentKind);
+    expect(antigravity).toBeDefined();
+    expect(demoAdapter).toBeDefined();
+
+    // A status poll rebuilds from the same settings: every detected adapter —
+    // and the runtime state its detectInstall learned — must survive.
+    service.refreshAgentRegistryAdapters();
+    expect(adapters.get("antigravity" as AgentKind)).toBe(antigravity);
+    expect(adapters.get("claude" as AgentKind)).toBe(claude);
+    expect(adapters.get("acp-generic:demo" as AgentKind)).toBe(demoAdapter);
+  });
+
+  it("replaces only the adapters whose registry input changed", () => {
+    acpRegistryMocks.readAcpRegistrySettings
+      .mockReset()
+      .mockReturnValue(withInstances({ "antigravity-acp": antigravityAcp, demo }));
+    const { adapters, service } = createService();
+    service.refreshAgentRegistryAdapters();
+    const antigravity = adapters.get("antigravity" as AgentKind);
+    const demoAdapter = adapters.get("acp-generic:demo" as AgentKind);
+
+    acpRegistryMocks.readAcpRegistrySettings.mockReturnValue(
+      withInstances({
+        "antigravity-acp": antigravityAcp,
+        demo: { ...demo, config: { ...demo.config, binary: "demo-v2" } },
+      }),
+    );
+    service.refreshAgentRegistryAdapters();
+    expect(adapters.get("antigravity" as AgentKind)).toBe(antigravity);
+    expect(adapters.get("acp-generic:demo" as AgentKind)).not.toBe(demoAdapter);
+
+    acpRegistryMocks.readAcpRegistrySettings.mockReturnValue(
+      withInstances({ "antigravity-acp": { ...antigravityAcp, enabled: false } }),
+    );
+    service.refreshAgentRegistryAdapters();
+    expect(adapters.get("antigravity" as AgentKind)).not.toBe(antigravity);
+    expect(adapters.has("acp-generic:demo" as AgentKind)).toBe(false);
+  });
+});

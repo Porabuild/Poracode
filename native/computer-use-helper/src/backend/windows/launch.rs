@@ -7,7 +7,7 @@ use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 use windows::core::{PCWSTR, w};
 
 use crate::backend::CancelToken;
-use crate::protocol::actions::LaunchResult;
+use crate::protocol::actions::{Delivered, LaunchResult};
 use crate::protocol::{HelperError, Result};
 
 use super::{SHELL_APPS_FOLDER_PREFIX, shell_apps_folder_id, window_list::list_windows};
@@ -117,11 +117,7 @@ pub fn launch_app(app: &str, cancel: &CancelToken) -> Result<LaunchResult> {
                             .iter()
                             .any(|hint| app.contains(hint) || title.contains(hint)))
             }) {
-                return Ok(LaunchResult {
-                    ok: true,
-                    window: Some(window),
-                    note: None,
-                });
+                return Ok(LaunchResult::launched(Some(window), Delivered::Foreground));
             }
             thread::sleep(Duration::from_millis(150));
         }
@@ -131,14 +127,9 @@ pub fn launch_app(app: &str, cancel: &CancelToken) -> Result<LaunchResult> {
             "Unable to launch app: {app}"
         )));
     }
-    Ok(LaunchResult {
-        ok: true,
-        window: None,
-        note: Some(
-            "App launched but no window became available within the timeout. Call list_windows to find it."
-                .into(),
-        ),
-    })
+    Ok(LaunchResult::launched(None, Delivered::Foreground).with_note(
+        "App launched but no window became available within the timeout. Call list_windows to find it.",
+    ))
 }
 
 #[cfg(test)]

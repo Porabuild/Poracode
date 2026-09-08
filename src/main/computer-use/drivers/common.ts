@@ -26,12 +26,21 @@ export function readRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
 
+export const WINDOW_SHAPE_ERROR =
+  "window is the whole window object from list_windows or get_window, not an id. It needs { app, id } from the window you already hold.";
+
 export function readWindow(value: unknown): ComputerUseWindow {
+  // A number, a string, `{windowId}`, or `{id}` without `app` all fail the
+  // same way. Blind evaluations burned three calls each rediscovering that
+  // from "window with app and id is required".
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(WINDOW_SHAPE_ERROR);
+  }
   const obj = readRecord(value);
   const id = Number(obj.id);
   const app = typeof obj.app === "string" ? obj.app : "";
   if (!Number.isFinite(id) || !app) {
-    throw new Error("window with app and id is required");
+    throw new Error(WINDOW_SHAPE_ERROR);
   }
   return {
     app,

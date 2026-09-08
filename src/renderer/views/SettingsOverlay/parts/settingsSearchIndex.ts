@@ -91,6 +91,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   },
   {
     section: "general",
+    anchor: "general.computerUseKeepAwake",
+    title: msg`Keep the Mac awake during Computer Use`,
+    description: msg`A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself.`,
+    keywords: "computer use desktop automation lock screen idle display sleep awake screensaver",
+    desktopOnly: true,
+  },
+  {
+    section: "general",
     anchor: "general.closeToTray",
     title: msg`Close to tray`,
     description: msg`When you close the window, keep Poracode running in the system tray. Disable to quit on close.`,

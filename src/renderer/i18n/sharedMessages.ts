@@ -194,10 +194,6 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "opencode.retryFallback": msg({
     message: "OpenCode request failed, retrying...",
   }),
-  "claude.goal.noVerdict": msg({
-    message:
-      "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run",
-  }),
   "acp.authenticationUnverified": msg({
     message:
       "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
@@ -261,6 +257,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   }),
   "remote.server.unreachable": msg({
     message: "Can't reach the remote server. Check that it is online, then reconnect it.",
+  }),
+  "thread.compact.noop": msg({
+    message: "Nothing to compact yet — the conversation is still small.",
   }),
 };
 

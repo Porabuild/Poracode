@@ -70,7 +70,11 @@ export const poracodePluginExtensionSchema = z
     alwaysEnabled: z.boolean().default(false),
     platforms: z.array(pluginPlatformSchema).optional(),
     projectKinds: z.array(pluginProjectKindSchema).optional(),
-    /** Skill invoked when the package itself is mentioned in chat. */
+    /**
+     * Skill invoked when the package itself is mentioned in chat, and the
+     * skill a built-in MCP tells the agent to load. Required on every bundled
+     * package in `resources/plugins`.
+     */
     coreSkill: z.string().min(1).optional(),
     /** Provider-native packages that collectively replace this package when all are available. */
     nativePluginNames: z.array(z.string().min(1)).default([]),

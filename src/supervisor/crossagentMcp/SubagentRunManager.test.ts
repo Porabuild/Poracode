@@ -694,7 +694,6 @@ describe("SubagentRunManager", () => {
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
     await expect(h.manager.steer(runId, "focus", PARENT)).rejects.toThrow(/still starting/);
     await flush();
-    await expect(h.manager.steer(runId, "focus", PARENT)).rejects.toThrow(/does not support/);
     const steer = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(async () => {});
     h.handles[0]!.steerTurn = steer;
     expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(true);
@@ -772,6 +771,71 @@ describe("SubagentRunManager", () => {
     },
   );
 
+  it("steers a child without native steerTurn by interrupting and restarting the turn", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    expect(handle.steerTurn).toBeUndefined();
+    expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(true);
+    const prepare = vi.fn<() => Promise<void>>(async () => {});
+    (handle as StructuredSessionHandle).prepareSteerInterrupt = prepare;
+    handle.update("working");
+
+    const steering = h.manager.steer(runId, "focus", PARENT);
+    await flush();
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(handle.interrupted).toBe(true);
+    expect(handle.startTurns).toHaveLength(1);
+    // The interrupted turn settles like a normal completion; the run must stay alive.
+    handle.completeTurn("interrupted");
+    handle.update("idle");
+    await steering;
+    expect(handle.startTurns).toHaveLength(2);
+    expect(handle.startTurns[1]).toEqual({ prompt: "focus", config: h.inputs[0]!.config });
+    expect(h.manager.getStatus(runId).status).toBe("running");
+    expect(handle.disposed).toBe(false);
+
+    handle.emit({ type: "turn.started", threadId: "child", turnId: "follow-up" });
+    handle.update("working");
+    handle.completeTurn("completed");
+    handle.update("idle");
+    expect(h.manager.getStatus(runId).status).toBe("completed");
+    await flush();
+    expect(handle.disposed).toBe(true);
+  });
+
+  it("fails a fallback steer when the interrupted child errors instead of settling", async () => {
+    const h = makeHarness({ interruptError: "child crashed" });
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    await expect(h.manager.steer(runId, "focus", PARENT)).rejects.toThrow(
+      /stopped before the message/,
+    );
+    expect(handle.startTurns).toHaveLength(1);
+    expect(h.manager.getStatus(runId).status).toBe("failed");
+  });
+
+  it("times out a fallback steer when the child never acknowledges the interrupt", async () => {
+    vi.useFakeTimers();
+    try {
+      const h = makeHarness();
+      const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+      await vi.advanceTimersByTimeAsync(0);
+      const handle = h.handles[0]!;
+      const steering = h.manager.steer(runId, "focus", PARENT);
+      steering.catch(() => undefined);
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(steering).rejects.toThrow(/did not accept the message in time/);
+      expect(handle.startTurns).toHaveLength(1);
+      expect(h.manager.getStatus(runId).status).toBe("running");
+      expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("flushes completion after steering and keeps cancellation immediate", async () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
@@ -790,11 +854,11 @@ describe("SubagentRunManager", () => {
       });
     const steering = h.manager.steer(next.runId, "focus", PARENT);
     await expect(h.manager.steer(next.runId, "concurrent", PARENT)).rejects.toThrow(
-      /already in progress/,
+      /still being delivered/,
     );
     await h.manager.cancel(next.runId);
     release();
-    await expect(steering).rejects.toThrow(/stopped before steering/);
+    await expect(steering).rejects.toThrow(/stopped before the message/);
     expect(h.handles[1]!.disposed).toBe(true);
   });
 
@@ -834,7 +898,7 @@ describe("SubagentRunManager", () => {
     await flush();
     h.handles[1]!.completeTurn("completed");
     release();
-    await expect(steering).rejects.toThrow(/stopped before steering/);
+    await expect(steering).rejects.toThrow(/stopped before the message/);
     expect(h.manager.getStatus(runId).status).toBe("completed");
     expect(h.manager.getCapacity(PARENT).running).toBe(0);
   });
@@ -864,7 +928,7 @@ describe("SubagentRunManager", () => {
     const second = h.manager.steer(runId, "second", PARENT);
     h.handles[1]!.completeTurn("completed");
     releaseFirst();
-    await expect(first).rejects.toThrow(/stopped before steering/);
+    await expect(first).rejects.toThrow(/stopped before the message/);
     expect(h.manager.getStatus(runId).status).toBe("running");
     expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(false);
     releaseSecond();

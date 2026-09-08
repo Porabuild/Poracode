@@ -451,3 +451,63 @@ describe("buildProviderModelMenuProviders", () => {
     expect(providers.map(({ label }) => label)).toEqual(["Cursor CLI", "Cursor ACP"]);
   });
 });
+
+describe("buildControls hidden current model", () => {
+  const agent = {
+    kind: "codex",
+    label: "Codex",
+    installed: true,
+    authState: "authenticated",
+    capabilities,
+  } as AgentStatus;
+  const threadWithModel = (model: string): Thread =>
+    ({
+      id: "thread-1",
+      projectId: "project-1",
+      title: "Thread",
+      agentKind: "codex",
+      config: { model },
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+      archived: false,
+      done: false,
+      starred: false,
+      presentationMode: "gui",
+      createdAt: "2026-08-20T00:00:00.000Z",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+    }) as Thread;
+
+  function pickerProviderModels(thread: Thread, hidden: readonly string[] | undefined) {
+    const control = buildControls(thread, agent, hidden, vi.fn()).find(
+      (c) => c.kind === "provider-model",
+    );
+    return control?.kind === "provider-model"
+      ? control.providers[0]?.capabilities.models.map((m) => m.id)
+      : undefined;
+  }
+
+  it("keeps the running model in the picker list so it can be labeled", () => {
+    expect(pickerProviderModels(threadWithModel("b"), ["b"])).toEqual(["a", "b"]);
+  });
+
+  it("keeps the running model when the provider hides it by default", () => {
+    const defaultHidden = {
+      ...agent,
+      capabilities: { ...capabilities, defaultHiddenModels: ["b"] } as AgentCapability,
+    } as AgentStatus;
+    const control = buildControls(threadWithModel("b"), defaultHidden, undefined, vi.fn()).find(
+      (c) => c.kind === "provider-model",
+    );
+    expect(
+      control?.kind === "provider-model"
+        ? control.providers[0]?.capabilities.models.map((m) => m.id)
+        : undefined,
+    ).toEqual(["a", "b"]);
+  });
+
+  it("still hides other models and drops ids the surface no longer advertises", () => {
+    expect(pickerProviderModels(threadWithModel("a"), ["b"])).toEqual(["a"]);
+    expect(pickerProviderModels(threadWithModel("gone"), ["b"])).toEqual(["a"]);
+  });
+});

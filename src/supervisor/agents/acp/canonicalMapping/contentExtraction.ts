@@ -147,27 +147,83 @@ export function extractToolCallContentText(
 }
 
 /**
- * Collect inline images from an ACP tool result's `ToolCallContent[]` as
- * renderable `data:` URLs. ACP carries images as
+ * Optional context that lets {@link extractToolCallContentImages} recover
+ * images an agent referenced instead of inlining. All fields are optional: with
+ * an empty context the extractor is exactly the inline-base64-only function it
+ * has always been.
+ */
+export interface ToolCallImageContext {
+  /** ACP tool `kind` — gates the `locations` fallback to read-kind calls. */
+  kind?: string | null | undefined;
+  /** Canonical tool-call status — the `locations` fallback waits for success. */
+  status?: "running" | "success" | "error" | undefined;
+  /** Normalized tool-call locations (see {@link extractToolLocations}). */
+  locations?: readonly { path: string }[] | undefined;
+  /**
+   * Session-injected reader that turns a `file://` URI or absolute path into a
+   * `data:` URL, or `undefined` when the file is unreadable/too large/not an
+   * image. Pure mapping code never touches the filesystem itself.
+   */
+  resolveLocalImage?: ((pathOrFileUri: string) => string | undefined) | undefined;
+}
+
+/**
+ * Collect images from an ACP tool result's `ToolCallContent[]` as renderable
+ * `data:` URLs. ACP carries images as
  * `{ type: "content", content: { type: "image", data: "<base64>", mimeType } }`
  * — `extractToolCallContentText` keeps only text, so this preserves the picture
- * for the renderer's inline image card. Only inline base64 `data` is honored;
- * `uri`-only references are left to fall through to the accordion.
+ * for the renderer's inline image card.
+ *
+ * Three sources, in order, all deduped against each other:
+ *  1. inline base64 `data` on an image block (always honored);
+ *  2. an image block that carries only a `uri` and no `data` — resolved through
+ *     `context.resolveLocalImage` when the session supplied one;
+ *  3. for a completed `read`-kind call that produced no image content at all,
+ *     the tool call's `locations` — the only place such agents name the file
+ *     they just viewed. Kind-gated so a write/search call that happens to
+ *     mention an image path never grows an image card.
  */
-export function extractToolCallContentImages(content: unknown): string[] {
-  if (!Array.isArray(content)) return [];
+export function extractToolCallContentImages(
+  content: unknown,
+  context: ToolCallImageContext = {},
+): string[] {
   const images: string[] = [];
-  for (const entry of content) {
-    if (!entry || typeof entry !== "object") continue;
-    const e = entry as Record<string, unknown>;
-    if (e.type !== "content") continue;
-    const inner = e.content;
-    if (!inner || typeof inner !== "object") continue;
-    const block = inner as Record<string, unknown>;
-    if (block.type !== "image") continue;
-    if (typeof block.data !== "string" || block.data.length === 0) continue;
-    const mime = typeof block.mimeType === "string" ? block.mimeType : "image/png";
-    images.push(`data:${mime};base64,${block.data}`);
+  const seen = new Set<string>();
+  const seenSources = new Set<string>();
+  const push = (dataUrl: string | undefined): void => {
+    if (!dataUrl || seen.has(dataUrl)) return;
+    seen.add(dataUrl);
+    images.push(dataUrl);
+  };
+  const resolveSource = (source: string): void => {
+    if (!context.resolveLocalImage || seenSources.has(source)) return;
+    seenSources.add(source);
+    push(context.resolveLocalImage(source));
+  };
+  if (Array.isArray(content)) {
+    for (const entry of content) {
+      if (!entry || typeof entry !== "object") continue;
+      const e = entry as Record<string, unknown>;
+      if (e.type !== "content") continue;
+      const inner = e.content;
+      if (!inner || typeof inner !== "object") continue;
+      const block = inner as Record<string, unknown>;
+      if (block.type !== "image") continue;
+      if (typeof block.data === "string" && block.data.length > 0) {
+        const mime = typeof block.mimeType === "string" ? block.mimeType : "image/png";
+        push(`data:${mime};base64,${block.data}`);
+        continue;
+      }
+      const uri = normalizeToolText(typeof block.uri === "string" ? block.uri : undefined);
+      if (uri) resolveSource(uri);
+    }
+  }
+  if (
+    images.length === 0 &&
+    context.status === "success" &&
+    (context.kind ?? "").toLowerCase() === "read"
+  ) {
+    for (const location of context.locations ?? []) resolveSource(location.path);
   }
   return images;
 }

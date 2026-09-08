@@ -11,14 +11,14 @@ use std::time::{Duration, Instant};
 
 use crate::backend::{
     Backend, BackendOptions, CancelToken, HelloInfo, InputOptions, InstalledAppCache,
-    KeyboardAction, PointerAction, is_computer_use_overlay_title,
+    KeyboardAction, PointerAction, SnapshotOutcome, is_computer_use_overlay_title,
 };
 use crate::capture::CaptureResult;
 use crate::elements::SnapshotCache;
 use crate::protocol::actions::{
-    AccessibilityState, Capabilities, Delivered, ElementAction, FindElementsInput,
-    FindElementsResult, InputMode, InteractiveResult, LaunchResult, PermissionState, Permissions,
-    Refusal, RefusalCode, Verified, Verify,
+    Capabilities, Delivered, ElementAction, FindElementsInput, FindElementsResult, InputMode,
+    InteractiveResult, LaunchResult, PermissionState, Permissions, Refusal, RefusalCode, Verified,
+    Verify,
 };
 use crate::protocol::window::{WindowInfo, WindowRef, WindowSource};
 use crate::protocol::{ErrorCode, HelperError, Result};
@@ -323,6 +323,7 @@ impl Backend for LinuxBackend {
                     PermissionState::NotRequired
                 },
             },
+            screen_locked: false,
             notes,
         }
     }
@@ -382,7 +383,7 @@ impl Backend for LinuxBackend {
         window: &WindowInfo,
         max_nodes: usize,
         cancel: &CancelToken,
-    ) -> Result<AccessibilityState> {
+    ) -> Result<SnapshotOutcome> {
         self.block_on(atspi::snapshot_tree(
             &self.elements,
             window,
@@ -504,6 +505,7 @@ impl Backend for LinuxBackend {
         window: &WindowInfo,
         element_id: &str,
         action: ElementAction,
+        _cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         self.block_on(atspi::invoke_element(
             &self.elements,
@@ -518,6 +520,7 @@ impl Backend for LinuxBackend {
         window: &WindowInfo,
         element_id: &str,
         value: &str,
+        _cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         self.block_on(atspi::set_element_value(
             &self.elements,
@@ -527,7 +530,16 @@ impl Backend for LinuxBackend {
         ))
     }
 
-    fn launch_app(&self, app: &str, cancel: &CancelToken) -> Result<LaunchResult> {
+    /// `mode` is accepted for contract parity. Neither `gio launch` nor a bare
+    /// exec offers a "do not activate" switch and the resulting window normally
+    /// takes focus, so the launch is reported as foreground rather than
+    /// claiming a background delivery it cannot guarantee.
+    fn launch_app(
+        &self,
+        app: &str,
+        _mode: InputMode,
+        cancel: &CancelToken,
+    ) -> Result<LaunchResult> {
         let app = validate_launch_target(app)?;
         let before: HashSet<i64> = self
             .list_windows()?
@@ -585,19 +597,12 @@ impl Backend for LinuxBackend {
                 })
                 .cloned();
             if let Some(window) = window {
-                return Ok(LaunchResult {
-                    ok: true,
-                    window: Some(window),
-                    note: None,
-                });
+                return Ok(LaunchResult::launched(Some(window), Delivered::Foreground));
             }
             thread::sleep(Duration::from_millis(100));
         }
-        Ok(LaunchResult {
-            ok: true,
-            window: None,
-            note: Some("Application launched, but no window appeared within 3 seconds.".into()),
-        })
+        Ok(LaunchResult::launched(None, Delivered::Foreground)
+            .with_note("Application launched, but no window appeared within 3 seconds."))
     }
 }
 

@@ -63,7 +63,6 @@ import {
   parseClaudeQuestions,
   readParentToolUseId,
   startClaudeTurn,
-  supportsNativeGoalFrames,
   type ClaudeMapperState,
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
@@ -945,13 +944,6 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // Bundled skills are reported both here and in the slash-command list;
       // this set is what splits them out as model-invoked (streaming) skills.
       this.captureSkillNames(message.skills);
-      // Whether this CLI streams `active_goal` goal-evaluation frames decides
-      // how the mapper may resolve an armed goal (frames own the lifecycle;
-      // older builds fall back to turn-end completion). No init yet leaves it
-      // undefined and the mapper on legacy behavior.
-      this.mapperState.cliReportsNativeGoalFrames = supportsNativeGoalFrames(
-        message.claude_code_version,
-      );
     }
 
     if (message.type === "system" && message.subtype === "session_state_changed") {

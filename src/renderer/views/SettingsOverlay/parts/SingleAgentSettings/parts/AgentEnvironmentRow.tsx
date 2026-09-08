@@ -1,6 +1,6 @@
-import { Button, Tooltip } from "@heroui/react";
+import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { AlertTriangle, ArrowUpCircle, Download } from "lucide-react";
+import { AlertTriangle, ArrowUpCircle, ChevronDown, Download } from "lucide-react";
 import {
   formatUpdateCommandLine,
   isNewerVersion,
@@ -14,7 +14,7 @@ import type {
 } from "@/shared/contracts";
 import { envLabelForStatus, statusUpdateScope } from "@/renderer/utils/acpRegistryAuth";
 import { PixelLoader } from "@/renderer/components/common";
-import { formatAgentMetadataSummary } from "./authHelpers";
+import { formatAgentMetadataSummary, statusNeedsInteractiveLogin } from "./authHelpers";
 
 export function AgentInstallEnvironmentRow(props: {
   agentLabel: string;
@@ -77,6 +77,8 @@ export interface AgentEnvironmentRuntimes {
 export function AgentEnvironmentRow(props: {
   agentLabel: string;
   status: AgentStatus;
+  /** Replaces the env/Default label when one runtime owns this row. */
+  title?: string;
   runtimes?: AgentEnvironmentRuntimes | undefined;
   authMethods: ReadonlyArray<AgentOwnedAuthMethod | AgentTerminalAuthMethod>;
   canLogout: boolean;
@@ -110,18 +112,24 @@ export function AgentEnvironmentRow(props: {
   const { status, authMethods } = props;
   const hasAnyMethod = authMethods.length > 0;
   const isAuthenticated = status.authState === "authenticated";
+  // `authMethods` may be borrowed from another env of the same install, so an
+  // `unknown` status with no methods of its own still counts as needing login.
+  // An uninstalled runtime row offers Install, not Login.
   const isMissing =
-    status.authState === "missing" ||
-    (status.authState === "unknown" && hasAnyMethod && status.acpSessionEstablished !== true);
+    status.installed &&
+    (statusNeedsInteractiveLogin(status) ||
+      (status.authState === "unknown" && hasAnyMethod && status.acpSessionEstablished !== true));
   const env = envLabelForStatus(status);
-  const canLogout = isAuthenticated && props.canLogout;
-  const canReLogin = isAuthenticated && !canLogout && hasAnyMethod;
-  const canLogin = (isMissing || canReLogin) && hasAnyMethod;
+  const canLogout = status.installed && isAuthenticated && !isMissing && props.canLogout;
+  const canReLogin =
+    status.installed && isAuthenticated && !isMissing && !canLogout && hasAnyMethod;
+  const canLogin = status.installed && (isMissing || canReLogin) && hasAnyMethod;
   const loginLabel = canReLogin ? t`Re-login` : t`Login`;
   const pendingLabel = canLogout ? t`Logging out` : t`Logging in`;
 
-  const hasMultipleMethods = authMethods.length > 1;
-  const singleMethod = !hasMultipleMethods ? authMethods[0] : undefined;
+  const defaultMethod = authMethods[0];
+  const extraMethods = authMethods.slice(1);
+  const hasMultipleMethods = extraMethods.length > 0;
 
   // Only override with the out-of-band account on an env that is itself signed
   // in — otherwise a not-authenticated row (e.g. a WSL distro pending login)
@@ -190,22 +198,18 @@ export function AgentEnvironmentRow(props: {
 
   const envOrAgentLabel = env || t`Agent`;
   const description = isMissing
-    ? hasMultipleMethods
-      ? env
-        ? t`Choose how to sign in for ${env}.`
-        : t`Choose how to sign in.`
-      : singleMethod
-        ? env
-          ? t`Complete ${singleMethod.name} sign-in for ${env}.`
-          : t`Complete ${singleMethod.name} sign-in.`
-        : t`${envOrAgentLabel} needs authentication.`
+    ? defaultMethod
+      ? env && !props.title
+        ? t`Complete ${defaultMethod.name} sign-in for ${env}.`
+        : t`Complete ${defaultMethod.name} sign-in.`
+      : t`${envOrAgentLabel} needs authentication.`
     : "";
 
   return (
     <div className="@container flex flex-col py-1.5 px-2 -mx-2 hover:bg-surface-secondary/40 rounded-lg transition-colors group/env">
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2 text-sm font-medium @max-[400px]:flex-wrap">
-          <span className="shrink-0 text-foreground/90">{env || t`Default`}</span>
+          <span className="shrink-0 text-foreground/90">{props.title ?? (env || t`Default`)}</span>
           {props.isRedetecting ? (
             <PixelLoader size="xs" />
           ) : (
@@ -302,34 +306,52 @@ export function AgentEnvironmentRow(props: {
             </div>
           ) : (
             <>
-              {canLogin && hasMultipleMethods
-                ? authMethods.map((method) => (
-                    <Button
-                      key={method.id}
-                      size="sm"
-                      variant="tertiary"
-                      className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
-                      aria-label={
-                        env
-                          ? t`${loginLabel} ${method.name} ${env}`
-                          : t`${loginLabel} ${method.name}`
-                      }
-                      onPress={() => props.onLogin(method)}
-                    >
-                      {method.name}
-                    </Button>
-                  ))
-                : null}
-              {canLogin && !hasMultipleMethods && singleMethod ? (
+              {canLogin && defaultMethod ? (
                 <Button
                   size="sm"
                   variant="tertiary"
                   className="h-6 min-h-6 px-2 py-0 text-[10px] text-muted hover:text-foreground"
-                  aria-label={env ? t`${loginLabel} ${env}` : loginLabel}
-                  onPress={() => props.onLogin(singleMethod)}
+                  aria-label={
+                    hasMultipleMethods
+                      ? env
+                        ? `${defaultMethod.name} (${env})`
+                        : defaultMethod.name
+                      : env
+                        ? t`${loginLabel} ${env}`
+                        : loginLabel
+                  }
+                  onPress={() => props.onLogin(defaultMethod)}
                 >
-                  {loginLabel}
+                  {hasMultipleMethods ? defaultMethod.name : loginLabel}
                 </Button>
+              ) : null}
+              {canLogin && extraMethods.length > 0 ? (
+                <Dropdown>
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    isIconOnly
+                    className="h-6 min-h-6 min-w-6 px-0 text-muted hover:text-foreground"
+                    aria-label={env ? t`More sign-in methods ${env}` : t`More sign-in methods`}
+                  >
+                    <ChevronDown className="size-3" />
+                  </Button>
+                  <Dropdown.Popover placement="bottom end">
+                    <Dropdown.Menu
+                      aria-label={t`Sign-in methods`}
+                      onAction={(key) => {
+                        const method = extraMethods.find((entry) => entry.id === String(key));
+                        if (method) props.onLogin(method);
+                      }}
+                    >
+                      {extraMethods.map((method) => (
+                        <Dropdown.Item key={method.id} id={method.id} textValue={method.name}>
+                          <Label>{method.name}</Label>
+                        </Dropdown.Item>
+                      ))}
+                    </Dropdown.Menu>
+                  </Dropdown.Popover>
+                </Dropdown>
               ) : null}
               {canLogout ? (
                 <Button

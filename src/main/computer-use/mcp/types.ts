@@ -120,7 +120,7 @@ export type ComputerUsePerformStep =
 
 export interface ComputerUseDeliveryReport {
   delivered: ComputerUseDeliveryMode;
-  route: "accessibility" | "message" | "event" | "input";
+  route: "accessibility" | "message" | "event" | "input" | "launch";
   target?: { kind: string; id: string; role?: string; name?: string };
   verified: "confirmed" | "unverified" | "unchanged";
   notes?: string[];
@@ -140,6 +140,7 @@ export const COMPUTER_USE_REFUSAL_CODES = [
   "element_action_unsupported",
   "unsupported_button",
   "capability_unavailable",
+  "screen_locked",
 ] as const;
 
 export interface ComputerUseRefusal {
@@ -213,7 +214,7 @@ export interface ComputerUseDriver {
     text?: string;
     window: ComputerUseWindow;
   }): Promise<ComputerUseFindElementsResult | ComputerUseInteractiveResult>;
-  getWindow(input: { app?: string; id: number }): Promise<ComputerUseWindow>;
+  getWindow(input: { app?: string; id: number; title?: string }): Promise<ComputerUseWindow>;
   getWindowState(input: {
     format?: "jpeg" | "png";
     include_screenshot?: boolean;
@@ -227,10 +228,17 @@ export interface ComputerUseDriver {
     element_id: string;
     window: ComputerUseWindow;
   }): Promise<ComputerUseInteractiveResult>;
-  launchApp(input: { app: string }): Promise<{
-    ok: true;
+  launchApp(input: { app: string; mode?: ComputerUseDeliveryMode }): Promise<{
+    /** False only when the launch was refused, e.g. `screen_locked`. */
+    ok: boolean;
     window?: ComputerUseWindow | null;
     note?: string;
+    /**
+     * Whether the launch really took the user's focus. Absent on hosts that
+     * predate the field, which the activity overlay treats as foreground.
+     */
+    delivery?: ComputerUseDeliveryReport;
+    refused?: ComputerUseRefusal;
   }>;
   listApps(input?: ComputerUseListAppsInput): Promise<ComputerUseApp[]>;
   listWindows(): Promise<ComputerUseWindow[]>;

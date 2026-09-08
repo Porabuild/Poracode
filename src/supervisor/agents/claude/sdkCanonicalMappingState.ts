@@ -135,22 +135,17 @@ export interface ClaudeMapperState {
    * with `value: null` (the evaluator's "met" verdict); a turn `result` no
    * longer completes the goal. Cleared with the goal (see clearActiveGoal), so
    * one confirmed goal never vouches for the next one.
+   *
+   * These frames are opportunistic: current CLIs stream goal verdicts only to
+   * their own interactive surface, so over the SDK transport this normally
+   * stays false even for a goal that is armed and running. Its absence must
+   * never be read as "the CLI refused the goal".
    */
   sawActiveGoalMessage?: boolean;
   /**
-   * True when the session's CLI is new enough to report every goal evaluation
-   * as an `active_goal` frame (captured from the `init` message's
-   * `claude_code_version`; undefined when no init arrived). On such a CLI the
-   * legacy complete-on-turn-end fallback is wrong in BOTH directions: a clean
-   * turn end with no frame means the CLI never actually armed the goal (the
-   * workspace-trust or hooks gate refuses `/goal` with a printed reason) — not
-   * that the goal was achieved. Only truly frame-less CLIs fall back.
-   */
-  cliReportsNativeGoalFrames?: boolean;
-  /**
-   * Legacy (no native `active_goal` frames) only: a clean turn `result`
-   * arrived while background work was still live (subagent tasks, and plain
-   * backgrounded Bash via the level signal), so the goal was held active
+   * Set when a clean turn `result` arrived while background work was still
+   * live (subagent tasks, and plain backgrounded Bash via the level signal)
+   * and no `active_goal` verdict had been seen, so the goal was held active
    * instead of completed. The goal completes after the last live task drains
    * and the session's resume grace expires — unless a new turn starts first.
    */
@@ -189,7 +184,7 @@ export interface ClaudeMapperState {
    * tasks are filtered out. Per CLI process: reset to empty whenever the
    * session's CLI process (re)starts and let the next level repopulate it.
    *
-   * This is the "is background work still running" signal that holds a legacy
+   * This is the "is background work still running" signal that holds a
    * goal open across a clean turn end — subagent tasks are also tracked here
    * when the CLI emits the level, but the {@link activeSubAgentTaskToTool}
    * edge maps remain the source of truth for those (older CLIs emit the edges

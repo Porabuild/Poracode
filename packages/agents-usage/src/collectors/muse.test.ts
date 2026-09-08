@@ -78,6 +78,19 @@ describe("parseMuseUsage", () => {
 });
 
 describe("collectMuse", () => {
+  it("prefers a captured dashboard session over the CLI token", async () => {
+    const urls: string[] = [];
+    const host = createFakeHost({
+      secrets: { muse: { cookie: "llm_sess=abc" } },
+      tokens: { muse: { accessToken: "dca:probe" } },
+      routes: { "https://dev.meta.ai/": { status: 200, body: "<html></html>" } },
+      onRequest: (req) => urls.push(req.url),
+    });
+    await collectMuse(host);
+    expect(urls).toContain("https://dev.meta.ai/");
+    expect(urls).not.toContain(MUSE_KEY_ENDPOINT);
+  });
+
   it("returns auth-missing without a stored CLI token", async () => {
     const snap = await collectMuse(createFakeHost());
     expect(snap).toMatchObject({ providerId: "muse", status: "auth-missing", windows: [] });

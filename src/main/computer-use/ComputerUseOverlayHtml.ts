@@ -1,5 +1,12 @@
 export const COMPUTER_USE_OVERLAY_TITLE = "Poracode Computer Use Overlay";
 
+/**
+ * The badge's exit link navigates to this URL in a new window so the main
+ * process can intercept it in `setWindowOpenHandler` — the page itself stays a
+ * sandboxed data: URL with no preload and no privileged API.
+ */
+export const OVERLAY_EXIT_URL = "poracode-computer-use-overlay://exit";
+
 const TAKEOVER_OVERLAY_HTML = `<!doctype html>
 <html>
   <head>
@@ -48,6 +55,11 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
+/**
+ * The badge window is sized and positioned by the main process to hug this
+ * chip, so the chip fills the window: every pixel of it is visible, and the
+ * window can take mouse events without swallowing clicks on invisible space.
+ */
 export function createBadgeOverlayUrl(target?: string): string {
   const label = target
     ? `Poracode is controlling ${escapeHtml(target)} in the background`
@@ -62,25 +74,44 @@ export function createBadgeOverlayUrl(target?: string): string {
       * { box-sizing: border-box; }
       html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
       .badge {
-        position: fixed;
-        top: 16px;
-        left: 50%;
-        transform: translateX(-50%);
-        max-width: min(420px, calc(100vw - 32px));
-        padding: 8px 12px;
-        overflow: hidden;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        height: 100%;
+        padding: 0 8px 0 14px;
         border: 1px solid rgba(92, 167, 255, 0.65);
-        border-radius: 999px;
+        border-radius: 10px;
         background: rgba(8, 12, 20, 0.9);
         color: #f7f9fc;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
         font: 600 12px/1.25 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        cursor: default;
+        user-select: none;
       }
+      .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .exit {
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        color: rgba(247, 249, 252, 0.6);
+        font: 400 12px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .exit:hover { background: rgba(92, 167, 255, 0.25); color: #f7f9fc; }
     </style>
   </head>
-  <body><div class="badge">${label}</div></body>
+  <body>
+    <div class="badge">
+      <span class="label">${label}</span>
+      <a class="exit" href="${OVERLAY_EXIT_URL}" target="_blank" title="Exit computer use" aria-label="Exit computer use">&#10005;</a>
+    </div>
+  </body>
 </html>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }

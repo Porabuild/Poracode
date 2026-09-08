@@ -54,6 +54,7 @@ type TestableAcpSession = {
   resolveServerRequest(requestId: string, response: unknown): Promise<void>;
   handlePermissionRequest(params: RequestPermissionRequest): Promise<unknown>;
   handleSessionUpdate(params: { update: unknown }): void;
+  getBackgroundTasks(): readonly import("@/shared/contracts").BackgroundTask[];
   handleStderrTurnSignalLine(line: string): void;
   ingestExternalSessionUpdate(notification: SessionNotification): void;
   attachExternalSessionUpdateSource(source: {
@@ -198,6 +199,7 @@ function makeConfigSyncSession(
   session["stderrChunks"] = [];
   session["emptyResponseErrorResolver"] = undefined;
   session["mapperState"] = undefined;
+  session["reportedBackgroundTasks"] = [];
   session["acpTerminals"] = new Map();
   session["acpTerminalSeq"] = 0;
   session["releasedAcpTerminalOutput"] = new Map();
@@ -3557,6 +3559,44 @@ describe("ACP turn config sync", () => {
 
     resolvePrompt({ stopReason: "end_turn" });
     await turn;
+  });
+
+  it("mirrors background_tasks.changed events from a text-stream extension", () => {
+    const { listener, session } = makeConfigSyncSession({
+      textStreamExtension: {
+        id: "test.backgroundTasks",
+        trackToolCall(input) {
+          return [
+            {
+              type: "background_tasks.changed",
+              threadId: input.state.threadId,
+              tasks: [{ taskId: "task-1", kind: "command", description: "cargo test" }],
+            },
+          ];
+        },
+      },
+    });
+
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "tc-1",
+        title: "cargo test",
+        kind: "execute",
+        status: "completed",
+        rawInput: { command: "cargo test" },
+      },
+    });
+
+    expect(session.getBackgroundTasks()).toEqual([
+      { taskId: "task-1", kind: "command", description: "cargo test" },
+    ]);
+    expect(listener.onRuntimeEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "background_tasks.changed",
+        tasks: [{ taskId: "task-1", kind: "command", description: "cargo test" }],
+      }),
+    );
   });
 
   it("treats an interrupt-triggered prompt abort as a cancelled turn", async () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentStatus } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { defaultAntigravityCapabilities } from "./detection";
-import { applyAntigravityAcpStatus } from "./acp";
+import { applyAntigravityAcpStatus, preferDefaultAntigravityAcpAuthMethod } from "./acp";
 
 function cliStatus(installed: boolean): AgentStatus {
   return {
@@ -40,6 +40,19 @@ function acpStatus(installed: boolean): AgentStatus {
     },
   };
 }
+
+describe("preferDefaultAntigravityAcpAuthMethod", () => {
+  it("puts personal Google OAuth first when Chat advertises several methods", () => {
+    expect(
+      preferDefaultAntigravityAcpAuthMethod([
+        { id: "oauth-business", name: "Log in with Gemini Enterprise" },
+        { id: "gemini-api-key", name: "Gemini API Key" },
+        { id: "oauth-personal", name: "Log in with Google" },
+        { id: "agent-platform", name: "Gemini Enterprise Agent Platform" },
+      ])?.map((method) => method.id),
+    ).toEqual(["oauth-personal", "oauth-business", "gemini-api-key", "agent-platform"]);
+  });
+});
 
 describe("Antigravity runtime detection", () => {
   it("reports a CLI-only install as Terminal-only", () => {

@@ -41,31 +41,58 @@ export function createAgentRegistry(): AgentAdapter[] {
  * instance's id resolve to its adapter via `kind === "acp-generic:<id>"`.
  */
 export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentAdapter[] {
+  return buildAgentRegistryEntries(userInstances).map((entry) => entry.adapter);
+}
+
+/**
+ * One registry adapter plus the persisted config that produced it. `inputKey`
+ * is a stable serialization of that config (empty for built-ins that take no
+ * instance), so a caller holding a live adapter map can keep the existing
+ * instance — and the install/auth state its `detectInstall` already learned —
+ * whenever the key is unchanged, instead of replacing it with a fresh adapter
+ * that has not probed anything yet.
+ */
+export interface AgentRegistryEntry {
+  adapter: AgentAdapter;
+  inputKey: string;
+}
+
+function instanceInputKey(instance: AgentInstanceConfig | undefined): string {
+  return instance ? JSON.stringify(instance) : "";
+}
+
+export function buildAgentRegistryEntries(
+  userInstances: AgentInstanceConfig[],
+): AgentRegistryEntry[] {
   const antigravityAcpInstance = userInstances.find(
     (instance) =>
       instance.id === ANTIGRAVITY_ACP_REGISTRY_ID &&
       instance.driver === "acp-generic" &&
       instance.enabled !== false,
   );
-  const builtIns = [
-    createClaudeAdapter(),
-    createCopilotAdapter(),
-    createCodexAdapter(),
-    createGeminiAdapter(),
-    createQwenAdapter(),
-    createQoderAdapter(),
-    createGrokAdapter(),
-    createKimiAdapter(),
-    createMuseAdapter(),
-    createAntigravityAdapter(antigravityAcpInstance),
-    createCommandCodeAdapter(),
-    createCursorAdapter(),
-    createOpenCodeAdapter(),
-    createPiAdapter(),
-    createFactoryAdapter(),
+  const builtIn = (adapter: AgentAdapter): AgentRegistryEntry => ({ adapter, inputKey: "" });
+  const builtIns: AgentRegistryEntry[] = [
+    builtIn(createClaudeAdapter()),
+    builtIn(createCopilotAdapter()),
+    builtIn(createCodexAdapter()),
+    builtIn(createGeminiAdapter()),
+    builtIn(createQwenAdapter()),
+    builtIn(createQoderAdapter()),
+    builtIn(createGrokAdapter()),
+    builtIn(createKimiAdapter()),
+    builtIn(createMuseAdapter()),
+    {
+      adapter: createAntigravityAdapter(antigravityAcpInstance),
+      inputKey: instanceInputKey(antigravityAcpInstance),
+    },
+    builtIn(createCommandCodeAdapter()),
+    builtIn(createCursorAdapter()),
+    builtIn(createOpenCodeAdapter()),
+    builtIn(createPiAdapter()),
+    builtIn(createFactoryAdapter()),
   ];
   const firstClassRegistryIds = new Set(
-    builtIns.flatMap((adapter) =>
+    builtIns.flatMap(({ adapter }) =>
       adapter.firstClassAcpRegistryId ? [adapter.firstClassAcpRegistryId] : [],
     ),
   );
@@ -80,7 +107,10 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
         inst.driver === "acp-generic" &&
         !firstClassRegistryIds.has(inst.id),
     )
-    .map((inst) => (acpRegistryAdapterFactories.get(inst.id) ?? createAcpGenericAdapter)(inst));
+    .map((inst): AgentRegistryEntry => ({
+      adapter: (acpRegistryAdapterFactories.get(inst.id) ?? createAcpGenericAdapter)(inst),
+      inputKey: instanceInputKey(inst),
+    }));
   // One entry per multi-profile provider. Everything else here is generic, so
   // giving a new provider profiles means adding its factory below (and its
   // `driver` to `AGENT_PROFILE_DRIVERS`) — not another filter/flatMap block.
@@ -90,9 +120,14 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
   };
   const profileAdapters = userInstances
     .filter((inst) => inst.enabled !== false && profileAdapterFactories[inst.driver] !== undefined)
-    .flatMap((inst) => {
+    .flatMap((inst): AgentRegistryEntry[] => {
       try {
-        return [profileAdapterFactories[inst.driver]!(inst)];
+        return [
+          {
+            adapter: profileAdapterFactories[inst.driver]!(inst),
+            inputKey: instanceInputKey(inst),
+          },
+        ];
       } catch (error) {
         // A profile missing its credential or config is skipped, not fatal:
         // one broken profile must not take the whole registry down.
@@ -104,10 +139,10 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
         return [];
       }
     });
-  const adapters = [...builtIns, ...profileAdapters, ...userAdapters];
-  const kinds = new Set(adapters.map((a) => a.kind));
-  if (kinds.size !== adapters.length) {
+  const entries = [...builtIns, ...profileAdapters, ...userAdapters];
+  const kinds = new Set(entries.map((entry) => entry.adapter.kind));
+  if (kinds.size !== entries.length) {
     throw new Error("Duplicate agent kind in registry");
   }
-  return adapters;
+  return entries;
 }

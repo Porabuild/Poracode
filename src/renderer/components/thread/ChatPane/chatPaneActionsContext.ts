@@ -42,6 +42,12 @@ export type ChatPaneActions = {
    * dir so `images/1.jpg` from image_gen resolves under ~/.grok/sessions/…).
    */
   markdownImageRoots?: readonly string[] | undefined;
+  /**
+   * Provider-owned rewrite applied to transcript markdown before rendering
+   * (e.g. Antigravity task-notification blocks → readable callouts). Absent
+   * for providers whose transcripts need no rewriting.
+   */
+  formatTranscriptMarkdown?: ((text: string) => string) | undefined;
   /** Resolve an image held on a remote project's host. */
   remoteLocalImageUrl?: ((url: string) => string) | undefined;
   /** Resolve an inline-image reference held in a remote host's transcript. */

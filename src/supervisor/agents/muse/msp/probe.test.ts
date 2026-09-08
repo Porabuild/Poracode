@@ -20,15 +20,25 @@ class ScriptedServeHost implements MuseMspTransport {
   readonly written: Array<MspRpcRequest | MspRpcNotification | MspRpcSuccess | MspRpcErrorFrame> =
     [];
   listener: MuseMspTransportListener | undefined;
+  private listIndex = 0;
+  private readonly catalogs: ReadonlyArray<Record<string, unknown>>;
   constructor(
-    private readonly catalog: Record<string, unknown>,
+    catalog: Record<string, unknown> | ReadonlyArray<Record<string, unknown>>,
     private readonly failHandshake = false,
     private readonly initSchema: Record<string, unknown> = {
       fingerprint: MSP_SCHEMA_FINGERPRINT,
       version: MSP_SCHEMA_VERSION,
     },
     private readonly neverAnswer = false,
-  ) {}
+  ) {
+    this.catalogs = Array.isArray(catalog) ? catalog : [catalog];
+  }
+
+  private catalogForList(): Record<string, unknown> {
+    const index = Math.min(this.listIndex, this.catalogs.length - 1);
+    this.listIndex += 1;
+    return this.catalogs[index] ?? {};
+  }
 
   setListener(listener: MuseMspTransportListener): void {
     this.listener = listener;
@@ -63,7 +73,8 @@ class ScriptedServeHost implements MuseMspTransport {
         );
       }
     } else if (method === "model/list" && typeof id === "number") {
-      queueMicrotask(() => this.listener?.onMessage({ jsonrpc: "2.0", id, result: this.catalog }));
+      const result = this.catalogForList();
+      queueMicrotask(() => this.listener?.onMessage({ jsonrpc: "2.0", id, result }));
     }
     // `initialized` and anything else need no answer.
   }
@@ -105,7 +116,10 @@ const LIVE_CATALOG = {
 
 const location = { kind: "posix", path: "/tmp/proj" } as ProjectLocation;
 
-function spawnHostFor(catalog: Record<string, unknown>, failHandshake = false) {
+function spawnHostFor(
+  catalog: Record<string, unknown> | ReadonlyArray<Record<string, unknown>>,
+  failHandshake = false,
+) {
   const host = new ScriptedServeHost(catalog, failHandshake);
   const calls: Array<{ args: unknown }> = [];
   const spawnHost = async (...args: unknown[]) => {
@@ -121,6 +135,7 @@ describe("probeMuseModelCatalog", () => {
     const result = await probeMuseModelCatalog(location, {
       executablePath: "/usr/bin/muse",
       probeEnv: { MUSE_NO_AUTO_UPDATE: "1" },
+      settleMs: 0,
       spawnHost: spawnHost as never,
     });
     expect(result).toEqual({
@@ -148,12 +163,45 @@ describe("probeMuseModelCatalog", () => {
       extraEnv: { MUSE_NO_AUTO_UPDATE: "1" },
       serveArgs: ["serve", "--no-session-log", "--trust-workspace"],
     });
-    // Full handshake observed on the wire: initialize, initialized, model/list.
+    // Handshake plus a second list so a stale first snapshot cannot stick.
     expect(host.written.map((frame) => ("method" in frame ? frame.method : "<response>"))).toEqual([
       "initialize",
       "initialized",
       "model/list",
+      "model/list",
     ]);
+  });
+
+  it("keeps listing until the provider catalog grows past the stale cache", async () => {
+    const stale = {
+      ...LIVE_CATALOG,
+      models: [
+        {
+          ...LIVE_CATALOG.models[0],
+          modelId: "muse-spark-1.2",
+          displayLabel: "Muse Spark 1.2",
+          isDefault: false,
+        },
+        {
+          ...LIVE_CATALOG.models[1],
+          modelId: "muse-spark-1.2-contributor",
+          displayLabel: "Muse Spark 1.2 Contributor",
+        },
+      ],
+    };
+    const { host, spawnHost } = spawnHostFor([stale, LIVE_CATALOG, LIVE_CATALOG]);
+    const result = await probeMuseModelCatalog(location, {
+      executablePath: "/usr/bin/muse",
+      settleMs: 0,
+      spawnHost: spawnHost as never,
+    });
+    expect(result?.models.map((model) => model.id)).toEqual([
+      "muse-spark-1.3",
+      "muse-spark-1.3-contributor",
+    ]);
+    expect(
+      host.written.filter((frame) => "method" in frame && frame.method === "model/list"),
+    ).toHaveLength(3);
   });
 
   it("returns empty catalogs (caller decides the fallback)", async () => {
@@ -165,6 +213,7 @@ describe("probeMuseModelCatalog", () => {
     });
     const result = await probeMuseModelCatalog(location, {
       executablePath: "/usr/bin/muse",
+      settleMs: 0,
       spawnHost: spawnHost as never,
     });
     expect(result?.models).toEqual([]);
@@ -218,6 +267,7 @@ describe("probeMuseModelCatalog", () => {
     try {
       const result = await probeMuseModelCatalog(location, {
         executablePath: "/usr/bin/muse",
+        settleMs: 0,
         spawnHost,
       });
       expect(result?.models).toHaveLength(2);

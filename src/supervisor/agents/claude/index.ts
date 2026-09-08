@@ -117,7 +117,7 @@ function resolveInstanceEnv(
  * list (the user can still pick the Claude models). Profiles may also provide
  * per-model effort choices for their external model ids.
  */
-function overrideProfileCapabilities(
+export function overrideProfileCapabilities(
   base: AgentCapability,
   models: ClaudeProfileModel[] | undefined,
   efforts: readonly string[] | undefined,
@@ -150,17 +150,16 @@ function overrideProfileCapabilities(
   }
 
   if (models && models.length > 0) {
-    const existingIds = new Set(caps.models.map((model) => model.id));
-    const additions: AgentCapability["models"] = [];
+    const merged = new Map(caps.models.map((model) => [model.id, model]));
+    const configuredIds = new Set<string>();
     for (const model of models) {
       const id = model.id.trim();
-      if (!id || existingIds.has(id)) continue;
-      existingIds.add(id);
-      additions.push({ id, label: model.label?.trim() || id });
+      if (!id || configuredIds.has(id)) continue;
+      configuredIds.add(id);
+      // Explicit profile labels take precedence over SDK alias display names.
+      merged.set(id, { id, label: model.label?.trim() || id });
     }
-    if (additions.length > 0) {
-      caps = { ...caps, models: [...caps.models, ...additions] };
-    }
+    caps = { ...caps, models: [...merged.values()] };
   }
 
   if (defaultEffort && caps.efforts.includes(defaultEffort)) {

@@ -62,16 +62,12 @@ function hasVars(method: AcpAuthMethod): boolean {
   return "vars" in method;
 }
 
-function isKeyLikeAgentMethod(method: AcpAuthMethod): boolean {
-  if (!isAcpAgentAuthMethod(method)) return false;
-  return /\b(api[-_\s]*key|token|secret)\b/iu.test(`${method.id} ${method.name}`);
-}
-
 /**
  * Some ACP agents advertise both an env_var method and a typeless "agent"
  * method for the same credential — the agent-owned one is a stub whose
  * `authenticate()` just acks. Drop those duplicates so the UI shows only the
- * real flow.
+ * real flow. A standalone API-key agent method (no env-var twin) is a real
+ * `authenticate()` option and must stay visible.
  */
 export function dedupeAcpAuthMethods(methods: readonly AcpAuthMethod[]): AcpAuthMethod[] {
   const normalized = methods.map(normalizeAcpAuthMethod);
@@ -81,7 +77,6 @@ export function dedupeAcpAuthMethods(methods: readonly AcpAuthMethod[]): AcpAuth
   return normalized.filter(
     (method) =>
       (isAcpEnvVarAuthMethod(method) || !hasVars(method)) &&
-      !isKeyLikeAgentMethod(method) &&
       !(isAcpAgentAuthMethod(method) && envVarNames.has(method.name)),
   );
 }

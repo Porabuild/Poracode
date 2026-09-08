@@ -9,8 +9,11 @@ import type {
 } from "../mcp/types";
 import { HelperUnavailableError } from "./helper";
 
+// The helper is what provides every background and element route, so when it
+// is gone foreground really is all that is left. Say that as a degraded state
+// that needs the user's decision, not as a retry an agent should just take.
 const BACKGROUND_HINT =
-  'Retry with mode:"foreground" (takes over the real mouse/keyboard and shows the takeover border).';
+  'The bundled native helper is unavailable, so this host has no background or element route at all. mode:"foreground" is the only one left and it takes over the user\'s real mouse and keyboard: tell the user Computer Use is running degraded and ask before using it.';
 
 function refusal(
   window: ComputerUseWindow,

@@ -25,9 +25,26 @@ fn reports_tcc_state_and_returns_structured_permission_failures() {
             .all(|window| window.title != "Poracode Computer Use Overlay")
     );
     let launch_error = backend
-        .launch_app("../Untrusted.app", &CancelToken::default())
+        .launch_app(
+            "../Untrusted.app",
+            InputMode::Background,
+            &CancelToken::default(),
+        )
         .expect_err("relative launch path must be rejected");
     assert_eq!(launch_error.code, ErrorCode::InvalidInput);
+    // The lock state depends on the machine running the suite: background
+    // control stays available either way, but the hello flag and the session
+    // notes must agree with each other.
+    if hello.screen_locked {
+        assert!(
+            backend
+                .session_notes()
+                .iter()
+                .any(|note| note == "screen_locked")
+        );
+    } else {
+        assert!(backend.session_notes().is_empty());
+    }
     let Some(window) = windows.first() else {
         return;
     };

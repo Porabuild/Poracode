@@ -25,6 +25,7 @@ import {
   capabilitiesForPresentation,
   filterHiddenModels,
   modelSelectionFor,
+  withModelVisible,
 } from "@/shared/agentSelection";
 import type { ComposerControl } from "./ThreadComposer";
 import { formatEffortLabel, supportsUsableFastMode } from "./threadDraftViewHelpers";
@@ -379,7 +380,14 @@ export function buildControls(
     agentStatus.capabilities,
     presentationMode,
   );
-  const filteredCaps = filterHiddenModels(presentationCapabilities, hiddenModelIds);
+  // The model a thread already runs with stays selectable in its own composer
+  // even if it is hidden for this surface — otherwise the picker has no entry
+  // to label it from and shows the raw model id.
+  const filteredCaps = withModelVisible(
+    filterHiddenModels(presentationCapabilities, hiddenModelIds),
+    presentationCapabilities,
+    thread.config?.model,
+  );
   const effectiveConfig = normalizeCursorComposerConfig(
     thread.agentKind,
     thread.config,

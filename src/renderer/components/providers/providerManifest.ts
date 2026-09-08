@@ -19,6 +19,12 @@ export interface RendererProviderManifest {
   resolveMarkdownImageRoots?: (
     input: ProviderMarkdownImageRootsInput,
   ) => readonly string[] | undefined;
+  /**
+   * Rewrite provider-native blocks a transcript can still carry (vendor task
+   * reports, system-message envelopes) into plain markdown before chat renders
+   * it. Shared chat code applies this blindly; the provider owns the format.
+   */
+  formatTranscriptMarkdown?: (text: string) => string;
 }
 
 const manifestModules = import.meta.glob<RendererProviderManifest>("./*/manifest.ts", {

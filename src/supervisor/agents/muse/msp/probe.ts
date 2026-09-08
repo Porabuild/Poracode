@@ -26,8 +26,81 @@ export interface ProbeMuseModelCatalogOptions {
   signal?: AbortSignal;
   clientName?: string;
   clientVersion?: string;
+  /**
+   * Pause between `model/list` snapshots while the host's provider catalog
+   * finishes loading. Muse 1.0.x first answers from a stale 2-row cache
+   * (Spark 1.2 only), then expands to the live 1.3 catalog ~250ms later.
+   * v1 has no catalog subscription, so one immediate list can lock Settings
+   * onto the old rows. Tests set `0` to stay synchronous.
+   */
+  settleMs?: number;
   /** Seam for tests — defaults to spawning a real `muse serve` host. */
   spawnHost?: typeof spawnMuseServeHost;
+}
+
+/** Observed Muse 1.0.3 cache→network catalog expand is ~250ms. */
+const MUSE_CATALOG_SETTLE_MS = 200;
+const MUSE_CATALOG_SETTLE_BUDGET_MS = 1_200;
+
+function museCatalogKey(catalog: MuseProbedCatalog): string {
+  return catalog.models.map((model) => model.id).join("\0");
+}
+
+function parseMuseCatalog(result: Record<string, unknown>): MuseProbedCatalog {
+  const parsed = parseMspModelListResult(result);
+  return {
+    models: parsed.models.map((model) => ({
+      id: model.modelId,
+      label: model.displayLabel,
+      contextLimit: model.contextLimit,
+      isDefault: model.isDefault,
+    })),
+    source: parsed.source,
+    providerId: parsed.providerId,
+    profileId: parsed.profileId,
+  };
+}
+
+async function delayMs(ms: number, signal?: AbortSignal): Promise<void> {
+  if (ms <= 0 || signal?.aborted) return;
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    if (typeof timer.unref === "function") timer.unref();
+    if (!signal) return;
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/**
+ * Re-read `model/list` until two snapshots agree, or the settle budget
+ * expires. Empty catalogs are returned immediately so unauthenticated
+ * hosts still fall through to the static picker.
+ */
+async function readSettledMuseCatalog(
+  client: MuseMspClient,
+  options: { settleMs: number; signal?: AbortSignal },
+): Promise<MuseProbedCatalog> {
+  const list = async () => parseMuseCatalog(await client.request("model/list"));
+  let current = await list();
+  if (current.models.length === 0 || options.signal?.aborted) return current;
+
+  const deadline = Date.now() + MUSE_CATALOG_SETTLE_BUDGET_MS;
+  while (Date.now() < deadline && !options.signal?.aborted) {
+    await delayMs(options.settleMs, options.signal);
+    if (options.signal?.aborted) return current;
+    const next = await list();
+    if (next.models.length > current.models.length) {
+      current = next;
+      continue;
+    }
+    if (museCatalogKey(next) === museCatalogKey(current)) return next;
+    current = next;
+  }
+  return current;
 }
 
 /**
@@ -82,19 +155,10 @@ export async function probeMuseModelCatalog(
             `pinned version ${MSP_SCHEMA_VERSION}.`,
         );
       }
-      const result = await client!.request("model/list");
-      const parsed = parseMspModelListResult(result);
-      return {
-        models: parsed.models.map((model) => ({
-          id: model.modelId,
-          label: model.displayLabel,
-          contextLimit: model.contextLimit,
-          isDefault: model.isDefault,
-        })),
-        source: parsed.source,
-        providerId: parsed.providerId,
-        profileId: parsed.profileId,
-      };
+      return await readSettledMuseCatalog(client!, {
+        ...(options.signal ? { signal: options.signal } : {}),
+        settleMs: options.settleMs ?? MUSE_CATALOG_SETTLE_MS,
+      });
     })();
 
     const abortPromise = options.signal

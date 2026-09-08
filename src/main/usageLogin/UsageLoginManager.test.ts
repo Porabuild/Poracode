@@ -3,7 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage";
-import { hasUsageSecret } from "@/shared/usageSecretStore";
+import { getUsageSecret, hasUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
+import { startUsageLoginCookieMirror } from "./UsageLoginCookieMirror";
+import { PROVIDER_CONFIGS } from "./providerLoginConfigs";
 
 vi.mock("electron", () => ({
   clipboard: { writeText: vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined) },
@@ -185,6 +187,41 @@ describe("UsageLoginManager GitHub device flow", () => {
 
     await expect(promise).resolves.toEqual({ ok: false, error: "Login timed out" });
     expect(hasUsageSecret(cacheDir, "copilot")).toBe(false);
+  });
+});
+
+describe("Muse dashboard session", () => {
+  it("mirrors the real auth cookie using the same provider config as logout", async () => {
+    const config = PROVIDER_CONFIGS.muse;
+    if (config?.kind !== "cookie") throw new Error("Missing Muse cookie config");
+    expect(config.loginUrl).toBe("https://dev.meta.ai/usage");
+    expect(config.authCookiePattern.test("llm_sess")).toBe(true);
+    expect(config.authCookiePattern.test("datr")).toBe(false);
+    expect(config.validateTabUrl?.("https://dev.meta.ai/usage/?team_id=778899")).toBe(true);
+    expect(config.validateTabUrl?.("https://dev.meta.ai/login")).toBe(false);
+    setUsageSecret(cacheDir, "muse", "cookie", "llm_sess=old");
+    let changed: ((...args: unknown[]) => void) | undefined;
+    const stop = startUsageLoginCookieMirror({
+      cacheDir,
+      debounceMs: 1,
+      targets: [{ providerId: "muse", config }],
+      session: {
+        cookies: {
+          get: async () => [{ name: "llm_sess", value: "renewed" }],
+          on: (_event: string, listener: (...args: unknown[]) => void) => {
+            changed = listener;
+          },
+          removeListener: () => {},
+        },
+      } as unknown as Parameters<typeof startUsageLoginCookieMirror>[0]["session"],
+    });
+    try {
+      changed?.({}, { name: "llm_sess", value: "renewed" }, "explicit", false);
+      await vi.runAllTimersAsync();
+      expect(getUsageSecret(cacheDir, "muse", "cookie")).toBe("llm_sess=renewed");
+    } finally {
+      stop();
+    }
   });
 });
 

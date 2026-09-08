@@ -42,6 +42,7 @@ import {
   buildAgentCommand,
   batchWslCommandsAsync,
   quotePosixShellArg,
+  type AcpSessionUpdateTransform,
   type AgentAdapter,
   type AgentEnvContext,
   type CommandSpec,
@@ -84,6 +85,8 @@ export interface AcpGenericAdapterOptions {
    * `AcpStructuredSessionOptions.stderrTurnSignalParser`.
    */
   stderrTurnSignalParser?: (line: string) => "background-wait" | undefined;
+  /** Provider-owned rewrite of inbound `session/update` notifications. */
+  sessionUpdateTransform?: AcpSessionUpdateTransform;
 }
 
 export function createAcpGenericAdapter(
@@ -169,15 +172,24 @@ export function createAcpGenericAdapter(
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
       const command = buildGenericCommand(input.projectLocation, cfg, instance);
-      return createAcpStructuredSession(command, input, {
-        ...(options.sessionBehavior ? { behavior: options.sessionBehavior } : {}),
-        ...(options.textStreamExtension
-          ? { textStreamExtension: options.textStreamExtension }
-          : {}),
-        ...(options.stderrTurnSignalParser
-          ? { stderrTurnSignalParser: options.stderrTurnSignalParser }
-          : {}),
-      });
+      return createAcpStructuredSession(
+        command,
+        {
+          ...input,
+          ...(options.sessionUpdateTransform
+            ? { acpSessionUpdateTransform: options.sessionUpdateTransform }
+            : {}),
+        },
+        {
+          ...(options.sessionBehavior ? { behavior: options.sessionBehavior } : {}),
+          ...(options.textStreamExtension
+            ? { textStreamExtension: options.textStreamExtension }
+            : {}),
+          ...(options.stderrTurnSignalParser
+            ? { stderrTurnSignalParser: options.stderrTurnSignalParser }
+            : {}),
+        },
+      );
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);

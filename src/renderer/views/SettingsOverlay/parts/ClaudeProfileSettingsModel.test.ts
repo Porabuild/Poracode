@@ -157,8 +157,8 @@ describe("ClaudeProfileSettingsModel", () => {
       expect(byKey.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("qwen3.8-max");
       expect(byKey.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("qwen3.8-max");
       expect(byKey.ANTHROPIC_DEFAULT_FABLE_MODEL).toBeUndefined();
-      expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("qwen3.6-flash");
-      expect(byKey.CLAUDE_CODE_SUBAGENT_MODEL).toBe("qwen3.7-max");
+      expect(byKey.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("qwen3.8-flash");
+      expect(byKey.CLAUDE_CODE_SUBAGENT_MODEL).toBe("qwen3.8-flash");
       expect(byKey.CLAUDE_CODE_MAX_CONTEXT_TOKENS).toBe("983616");
     });
 

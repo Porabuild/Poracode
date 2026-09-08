@@ -71,6 +71,7 @@ describe("threadGalleryImages", () => {
       imageUrlForPath: (p) => `https://desktop/images?path=${encodeURIComponent(p)}`,
     });
     expect(gallery[0]!.src).toBe("https://desktop/images?path=%2Ftmp%2Fa.png");
+    expect(gallery[0]).toMatchObject({ fileName: "a.png", mime: "image/png" });
   });
 
   it("collects assistant image blocks and markdown images newest-first", () => {
@@ -93,6 +94,7 @@ describe("threadGalleryImages", () => {
     // Newest display position first: structured blocks paint after inline
     // markdown, so the block leads when iterating newest-first.
     expect(gallery[0]!.src).toBe("data:image/png;base64,AAA");
+    expect(gallery[0]).toMatchObject({ fileName: "gen-png.png", mime: "image/png" });
     expect(gallery[1]!.src).toBe("https://example.test/x.png");
   });
 
@@ -206,6 +208,30 @@ describe("threadGalleryImages", () => {
         },
       }),
     ).toThrow("resolver failed");
+  });
+
+  it("retains Markdown and HTML image metadata through opaque remote URLs", () => {
+    const out = extractMarkdownGalleryImages(
+      '![preview](images/original.webp) <img src="/tmp/animation.gif" alt="Animation">',
+      {
+        projectRoot: "/proj",
+        remoteLocalImageUrl: () => "https://desktop/images?token=opaque",
+      },
+    );
+    expect(out).toEqual([
+      {
+        src: "https://desktop/images?token=opaque",
+        alt: "preview",
+        fileName: "original.webp",
+        mime: "image/webp",
+      },
+      {
+        src: "https://desktop/images?token=opaque",
+        alt: "Animation",
+        fileName: "animation.gif",
+        mime: "image/gif",
+      },
+    ]);
   });
 
   it("skips non-image relative targets", () => {

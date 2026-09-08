@@ -129,8 +129,6 @@ const messages = {
     "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
 
   // ── Claude ────────────────────────────────────────────────
-  "claude.goal.noVerdict":
-    "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run",
 
   // ── ACP ───────────────────────────────────────────────────
   "acp.authenticationUnverified":
@@ -174,6 +172,9 @@ const messages = {
   "remote.session.expired": "Pairing expired — pair again to reconnect.",
   "remote.server.unreachable":
     "Can't reach the remote server. Check that it is online, then reconnect it.",
+
+  // ── Thread runtime notices ────────────────────────────────
+  "thread.compact.noop": "Nothing to compact yet — the conversation is still small.",
 } as const;
 
 // ---------------------------------------------------------------------------

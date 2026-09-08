@@ -71,7 +71,7 @@ pub fn probe_background(window_id: i64) -> Option<Refusal> {
             return Some(Refusal::new(
                 RefusalCode::TargetNotResponding,
                 "The target window did not answer a bounded message probe.",
-                "Wait for the app to respond, then retry or use mode:\"foreground\".",
+                "Wait for the app to respond and retry, or reach it through find_elements + invoke_element, which does not depend on the window answering messages.",
             ));
         }
     }

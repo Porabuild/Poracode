@@ -231,6 +231,7 @@ describe("browser MCP tool registry", () => {
     const formatted = formatToolResult("api", result);
 
     expect(BROWSER_MCP_INSTRUCTIONS).toContain("call browser.api");
+    expect(BROWSER_MCP_INSTRUCTIONS).toContain("load the browser-control skill by name");
     expect(BROWSER_MCP_INSTRUCTIONS).toContain("browser.enable");
     expect(BROWSER_MCP_INSTRUCTIONS).toContain("browser.disable");
     expect(formatted.content[0]?.type).toBe("text");
