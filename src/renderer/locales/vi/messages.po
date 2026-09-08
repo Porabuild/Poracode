@@ -12499,6 +12499,10 @@ msgstr "Chuyển đổi chế độ: {title}"
 msgid "Switch project"
 msgstr "Chuyển đổi dự án"
 
+#: src/renderer/commands/registry.ts
+msgid "Switch the active Markdown file between source and preview"
+msgstr "Chuyển đổi tệp Markdown đang mở giữa mã nguồn và bản xem trước"
+
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "Chuyển cuộc trò chuyện này sang chế độ tác nhân"
@@ -13356,6 +13360,10 @@ msgstr "Chuyển đổi chế độ Nhanh"
 #: src/renderer/commands/registry.ts
 msgid "Toggle File Tree"
 msgstr "Bật/tắt cây tập tin"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle Markdown Preview"
+msgstr "Bật/tắt bản xem trước Markdown"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."

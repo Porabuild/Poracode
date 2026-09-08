@@ -14,8 +14,8 @@ import {
 } from "@/renderer/state/fileEditorSelectors";
 import type { ProjectLocation } from "@/shared/contracts";
 import { createLspFileUri } from "@/shared/lsp";
-import { getBasename } from "@/shared/pathUtils";
-import { getLanguageFromPath, isMarkdownFile } from "./parts/langMap";
+import { getBasename, isMarkdownFile } from "@/shared/pathUtils";
+import { getLanguageFromPath } from "./parts/langMap";
 import { defineAppThemes, useResolvedTheme } from "./parts/monacoThemes";
 import { SortableTab } from "./parts/SortableTab";
 import { EditorToolbar } from "./parts/EditorToolbar";
@@ -69,22 +69,13 @@ export function FileEditorPane(props: {
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
   const theme = useResolvedTheme();
 
-  const [showPreview, setShowPreview] = useState(false);
-
   const isMarkdown = activePath ? isMarkdownFile(activePath) : false;
 
   const { notifyDidSave } = useLspSync({ monaco: monacoInstance, activePath, bufferStatus });
 
-  // The preview follows the active file and the store's preview target; the
-  // user can still toggle it per file via setShowPreview, which leaves this
-  // key untouched. Reset during render instead of an effect so switching files
-  // never paints one frame with the previous file's toggle.
-  const previewSyncKey = `${activePath ?? ""}\0${isMarkdown ? "1" : "0"}\0${markdownPreviewPath ?? ""}`;
-  const [prevPreviewSyncKey, setPrevPreviewSyncKey] = useState(previewSyncKey);
-  if (prevPreviewSyncKey !== previewSyncKey) {
-    setPrevPreviewSyncKey(previewSyncKey);
-    setShowPreview(!!activePath && isMarkdown && markdownPreviewPath === activePath);
-  }
+  // Derived from the store so the eye button, the shortcut, and fresh mounts
+  // always agree on the preview state.
+  const showPreview = Boolean(activePath && isMarkdown && markdownPreviewPath === activePath);
 
   async function handleSave(path: string) {
     try {
@@ -93,6 +84,10 @@ export function FileEditorPane(props: {
     } catch (error) {
       toast.danger(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  function togglePreview() {
+    useFileEditorStore.getState().toggleMarkdownPreview();
   }
 
   function handleCloseTab(path: string) {
@@ -138,7 +133,7 @@ export function FileEditorPane(props: {
           isMarkdown={isMarkdown}
           showPreview={showPreview}
           onSave={() => void handleSave(activePath)}
-          onTogglePreview={() => setShowPreview((visible) => !visible)}
+          onTogglePreview={togglePreview}
         />
       ) : null}
 
@@ -147,7 +142,7 @@ export function FileEditorPane(props: {
           isDirty={isDirty}
           isMarkdown={isMarkdown}
           showPreview={showPreview}
-          setShowPreview={setShowPreview}
+          onTogglePreview={togglePreview}
           activePath={activePath}
           headerNeedsTrafficLightPad={props.headerNeedsTrafficLightPad ?? false}
           onSave={(path) => void handleSave(path)}
@@ -174,7 +169,7 @@ export function FileEditorPane(props: {
               <EditorToolbar
                 isMarkdown={isMarkdown}
                 showPreview={showPreview}
-                setShowPreview={setShowPreview}
+                onTogglePreview={togglePreview}
                 isDirty={isDirty}
                 activePath={activePath}
                 onSave={() => void handleSave(activePath)}
@@ -208,7 +203,7 @@ function TabStripHeader(props: {
   isDirty: boolean;
   isMarkdown: boolean;
   showPreview: boolean;
-  setShowPreview: React.Dispatch<React.SetStateAction<boolean>>;
+  onTogglePreview: () => void;
   activePath: string | null;
   headerNeedsTrafficLightPad: boolean;
   onSave: (path: string) => void;
@@ -252,7 +247,7 @@ function TabStripHeader(props: {
         <EditorToolbar
           isMarkdown={props.isMarkdown}
           showPreview={props.showPreview}
-          setShowPreview={props.setShowPreview}
+          onTogglePreview={props.onTogglePreview}
           isDirty={props.isDirty}
           activePath={props.activePath}
           onSave={() => props.activePath && props.onSave(props.activePath)}

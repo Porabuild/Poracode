@@ -12499,6 +12499,10 @@ msgstr "모드 전환: {title}"
 msgid "Switch project"
 msgstr "프로젝트 전환"
 
+#: src/renderer/commands/registry.ts
+msgid "Switch the active Markdown file between source and preview"
+msgstr "활성 Markdown 파일을 소스와 미리보기 간에 전환합니다"
+
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "이 채팅을 에이전트 모드로 전환하세요"
@@ -13356,6 +13360,10 @@ msgstr "빠른 모드 전환"
 #: src/renderer/commands/registry.ts
 msgid "Toggle File Tree"
 msgstr "파일 트리 표시 전환"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle Markdown Preview"
+msgstr "Markdown 미리보기 전환"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."

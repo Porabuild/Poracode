@@ -9,6 +9,7 @@ import { readBridge } from "../bridge";
 import { captureProductEvent } from "../analytics/productAnalytics";
 import { captureRendererException } from "../diagnostics/sentry";
 import { hasUnresolvedConflicts } from "@/renderer/utils/mergeConflicts";
+import { isMarkdownFile } from "@/shared/pathUtils";
 import { useGitStore } from "./gitStore";
 import { resolveAbsolutePath } from "@/renderer/utils/resolveAbsolutePath";
 
@@ -131,6 +132,12 @@ interface FileEditorStoreState {
   pinTab: (path: string) => void;
   setOverlayMode: (mode: FileEditorOverlayMode | null) => void;
   setActivePath: (path: string | null) => void;
+  /**
+   * Toggle the active file's Markdown preview. Shared by the eye button and the
+   * `editor.toggle-markdown-preview` keybinding so they can't diverge. No-op
+   * unless the active file is Markdown.
+   */
+  toggleMarkdownPreview: () => void;
   /**
    * Switch to the adjacent open tab in `tabs` order, wrapping at the ends.
    * No-op with fewer than two tabs. Mirrors the tab strip's click-to-activate
@@ -523,6 +530,14 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
   pinTab: (path) => set((state) => (state.previewTab === path ? { previewTab: null } : {})),
   setOverlayMode: (overlayMode) => set({ overlayMode }),
   setActivePath: (activePath) => set({ activePath }),
+  toggleMarkdownPreview: () =>
+    set((state) => {
+      const path = state.activePath;
+      if (!path || !isMarkdownFile(path)) return {};
+      return {
+        markdownPreviewPath: state.markdownPreviewPath === path ? null : path,
+      };
+    }),
   cycleTab: (direction) =>
     set((state) => {
       if (state.tabs.length < 2) return {};

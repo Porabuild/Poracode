@@ -281,6 +281,61 @@ describe("fileEditorStore preview tabs", () => {
   });
 });
 
+describe("fileEditorStore toggleMarkdownPreview", () => {
+  beforeEach(() => {
+    useFileEditorStore.setState({
+      rootContext: null,
+      overlayMode: "fullscreen",
+      tabs: [],
+      activePath: null,
+      previewTab: null,
+      markdownPreviewPath: null,
+      buffers: {},
+      refreshToken: 0,
+      pendingReveal: null,
+    });
+  });
+
+  function seed(activePath: string, markdownPreviewPath: string | null = null) {
+    useFileEditorStore.setState({
+      tabs: [activePath],
+      activePath,
+      markdownPreviewPath,
+      buffers: { [activePath]: makeBuffer(activePath) },
+    });
+  }
+
+  it("turns the preview on for the active markdown file and back off", () => {
+    seed("README.md");
+
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBe("README.md");
+
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBeNull();
+  });
+
+  it("retargets the preview when a different markdown tab toggles it on", () => {
+    seed("b.md", "a.md");
+
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBe("b.md");
+  });
+
+  it("is a no-op for non-markdown active files", () => {
+    seed("a.ts", "kept.md");
+
+    useFileEditorStore.getState().toggleMarkdownPreview();
+
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBe("kept.md");
+  });
+
+  it("is a no-op without an active file", () => {
+    useFileEditorStore.getState().toggleMarkdownPreview();
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBeNull();
+  });
+});
+
 describe("fileEditorStore cycleTab", () => {
   beforeEach(() => {
     useFileEditorStore.setState({

@@ -12498,6 +12498,10 @@ msgstr "切换模式：{title}"
 msgid "Switch project"
 msgstr "切换项目"
 
+#: src/renderer/commands/registry.ts
+msgid "Switch the active Markdown file between source and preview"
+msgstr "在源代码和预览之间切换当前 Markdown 文件"
+
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "将此聊天切换到代理模式"
@@ -13355,6 +13359,10 @@ msgstr "切换快速模式"
 #: src/renderer/commands/registry.ts
 msgid "Toggle File Tree"
 msgstr "切换文件树"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle Markdown Preview"
+msgstr "切换 Markdown 预览"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."

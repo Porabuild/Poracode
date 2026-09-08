@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
+import { buildCommandRegistry } from "@/renderer/commands/registry";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
 
 const layout = vi.hoisted(() => ({ compact: false }));
@@ -120,5 +121,49 @@ describe("FileEditorOverlay", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(within(main).getByPlaceholderText("Search files")).toBeInTheDocument();
     expect(within(main).queryByTestId("monaco-editor")).not.toBeInTheDocument();
+  });
+
+  it("drives the markdown preview toggle through the store shared with the keybinding", async () => {
+    const view = render(<FileEditorOverlay onClose={() => {}} />);
+
+    // Desktop layout: the project tree sits in the sidebar, outside `main`.
+    fireEvent.click(screen.getByText("README.md"));
+    await waitFor(() => {
+      expect(screen.getByTestId("monaco-editor")).toBeInTheDocument();
+    });
+
+    // The toolbar eye button writes the same store flag the command toggles.
+    fireEvent.click(screen.getByRole("button", { name: "Show preview" }));
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBe("README.md");
+    expect(screen.getByRole("button", { name: "Show source" })).toBeInTheDocument();
+
+    // Running editor.toggle-markdown-preview — what the Ctrl+Shift+V binding
+    // dispatches — flips the shared flag back, and the button follows it.
+    const command = buildCommandRegistry().find(
+      (item) => item.id === "editor.toggle-markdown-preview",
+    );
+    expect(command).toBeDefined();
+    act(() => {
+      void command?.run();
+    });
+
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBeNull();
+    expect(screen.getByRole("button", { name: "Show preview" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Show source" })).not.toBeInTheDocument();
+
+    // A fresh mount derives from the store instead of restarting locally, so
+    // the preview survives unmount/remount and the first toggle still flips.
+    act(() => {
+      void command?.run();
+    });
+    view.unmount();
+    render(<FileEditorOverlay onClose={() => {}} />);
+
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBe("README.md");
+    expect(screen.getByRole("button", { name: "Show source" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show source" }));
+    expect(useFileEditorStore.getState().markdownPreviewPath).toBeNull();
+    expect(screen.getByRole("button", { name: "Show preview" })).toBeInTheDocument();
   });
 });
