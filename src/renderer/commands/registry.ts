@@ -3,6 +3,11 @@ import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
 import { parseDraftProjectId } from "@/shared/paneId";
 import { buildWorktreeLocation } from "@/shared/worktree";
+import { isMarkdownFile } from "@/shared/pathUtils";
+import {
+  EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID,
+  EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN,
+} from "@/shared/keybindings";
 import type { AgentSlashCommand, Project, Thread } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -81,6 +86,11 @@ export function buildWhenContext(
   const element = target instanceof Element ? target : document.activeElement;
   const inputFocus = isTextInputElement(element);
   const editorFocus = isEditorFocusElement(element);
+  const markdownActive = Boolean(fileEditor.activePath && isMarkdownFile(fileEditor.activePath));
+  // Mirrors the pane hosts: fullscreen OverlayShell, modal, and panel all mount
+  // the editor only while a root context and an overlay mode are set, so
+  // activePath alone (which survives closing) is not proof the editor is open.
+  const editorSurfaceOpen = Boolean(fileEditor.rootContext && fileEditor.overlayMode);
   const terminalFocus = isTerminalFocusElement(element);
   const composerFocus = Boolean(
     element?.closest("[data-poracode-composer], .poracode-composer-shell"),
@@ -93,6 +103,8 @@ export function buildWhenContext(
     paletteOpen,
     inputFocus,
     editorFocus,
+    markdownActive,
+    editorSurfaceOpen,
     composerFocus,
     editorOpen: Boolean(fileEditor.activePath || fileEditor.rootContext),
     terminalFocus,
@@ -355,6 +367,17 @@ function baseCommands(): AppCommand[] {
         const editor = useFileEditorStore.getState();
         if (editor.activePath) void editor.saveFile(editor.activePath);
       },
+    },
+    {
+      id: EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID,
+      title: msg`Toggle Markdown Preview`,
+      subtitle: msg`Switch the active Markdown file between source and preview`,
+      group: msg`Editor`,
+      keywords: ["markdown", "preview"],
+      // Shares the eye button's store toggle; scope documented on
+      // EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN.
+      when: EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN,
+      run: () => useFileEditorStore.getState().toggleMarkdownPreview(),
     },
     {
       id: "editor.close",

@@ -12498,6 +12498,10 @@ msgstr "Changer de mode : {title}"
 msgid "Switch project"
 msgstr "Changer de projet"
 
+#: src/renderer/commands/registry.ts
+msgid "Switch the active Markdown file between source and preview"
+msgstr "Bascule le fichier Markdown actif entre le code source et l'aperçu"
+
 #: src/renderer/components/providers/standardGuiSlashCommands.ts
 msgid "Switch this chat to agent mode"
 msgstr "Passer ce chat en mode agent"
@@ -13355,6 +13359,10 @@ msgstr "Activer/désactiver le mode rapide"
 #: src/renderer/commands/registry.ts
 msgid "Toggle File Tree"
 msgstr "Basculer l'arborescence de fichiers"
+
+#: src/renderer/commands/registry.ts
+msgid "Toggle Markdown Preview"
+msgstr "Basculer l'aperçu Markdown"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/ModelVisibilityDropdown.tsx
 msgid "Toggle models off to hide them from the selector."
