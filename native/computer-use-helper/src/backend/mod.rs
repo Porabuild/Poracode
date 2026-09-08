@@ -232,6 +232,17 @@ pub fn capability_unavailable(window: WindowInfo, what: &str) -> InteractiveResu
     )
 }
 
+/// The accessibility tree for a window, plus notes about how it was read.
+///
+/// Notes are caveats an agent needs alongside the tree — for instance that a
+/// page container arrived empty and may still be filling in. They travel in
+/// `WindowStateResult::notes`, an existing field, so a new caveat needs no
+/// contract change.
+pub struct SnapshotOutcome {
+    pub state: AccessibilityState,
+    pub notes: Vec<String>,
+}
+
 pub trait Backend: Send + Sync {
     fn hello(&self) -> HelloInfo;
 
@@ -268,7 +279,7 @@ pub trait Backend: Send + Sync {
         window: &WindowInfo,
         _max_nodes: usize,
         _cancel: &CancelToken,
-    ) -> Result<AccessibilityState> {
+    ) -> Result<SnapshotOutcome> {
         let _ = window;
         Err(HelperError::internal(
             "accessibility tree is not available on this platform",

@@ -8,11 +8,15 @@ use atspi::proxy::component::ComponentProxy;
 use atspi::proxy::editable_text::EditableTextProxy;
 use atspi::proxy::text::TextProxy;
 use atspi::proxy::value::ValueProxy;
-use atspi::{CoordType, Interface, ObjectRefOwned, ScrollType, State};
+use atspi::{CoordType, Interface, ObjectRefOwned, ScrollType, State, StateSet};
 use zbus::names::BusName;
 use zbus::proxy::CacheProperties;
 
-use crate::backend::{CancelToken, capability_unavailable};
+use crate::backend::{CancelToken, SnapshotOutcome, capability_unavailable};
+use crate::elements::page::{
+    PAGE_ABSENT, PAGE_ABSENT_TTL, PAGE_WAIT_BUDGET, PAGE_WAIT_POLL, missing_content, page_note,
+    pid_logged, record_pid,
+};
 use crate::elements::{MAX_TREE_BYTES, Snapshot, SnapshotCache, canonical_role, render_tree};
 use crate::protocol::actions::{
     AccessibilityState, Delivery, DeliveryTarget, ElementAction, ElementBounds, ElementInfo,
@@ -331,24 +335,28 @@ async fn element_info(
     ))
 }
 
-async fn build_snapshot(
+/// Canonical roles of an AT-SPI web page container: Chromium and Electron
+/// expose "document web" (and "document frame" for subframes), Firefox
+/// exposes "document frame".
+const PAGE_ROLES: &[&str] = &["documentweb", "documentframe"];
+
+async fn walk(
+    connection: &zbus::Connection,
+    root: &AccessibleWindow,
     window: &WindowInfo,
     max_nodes: usize,
     cancel: &CancelToken,
 ) -> Result<Snapshot<Handle>> {
-    let atspi = connect().await?;
-    let root = resolve(window).await?;
     let mut snapshot = Snapshot::new(window.id);
     let mut discovered = Vec::new();
-    let mut queue = VecDeque::from([(root.handle, 0u32, Vec::<usize>::new())]);
+    let mut queue = VecDeque::from([(root.handle.clone(), 0u32, Vec::<usize>::new())]);
     while let Some((handle, depth, path)) = queue.pop_front() {
         cancel.check()?;
         if discovered.len() >= max_nodes {
             snapshot.truncated = true;
             break;
         }
-        let Ok((info, children)) = element_info(atspi.connection(), &handle, window, depth).await
-        else {
+        let Ok((info, children)) = element_info(connection, &handle, window, depth).await else {
             continue;
         };
         discovered.push((path.clone(), info, handle));
@@ -372,12 +380,48 @@ async fn build_snapshot(
     Ok(snapshot)
 }
 
+async fn build_snapshot(
+    window: &WindowInfo,
+    max_nodes: usize,
+    cancel: &CancelToken,
+) -> Result<Snapshot<Handle>> {
+    let atspi = connect().await?;
+    let root = resolve(window).await?;
+    let mut snapshot = walk(atspi.connection(), &root, window, max_nodes, cancel).await?;
+    // Wait for page content that may still be exposing itself (see
+    // `elements::page`); `set_session_accessibility` in `connect` is the ask
+    // that starts it. The wait blocks this request's dedicated runtime
+    // between walks only.
+    if let Some(pid) = window.pid
+        && !snapshot.truncated
+        && missing_content(&snapshot, PAGE_ROLES).is_some()
+        && !pid_logged(&PAGE_ABSENT, pid, PAGE_ABSENT_TTL)
+    {
+        let deadline = tokio::time::Instant::now() + PAGE_WAIT_BUDGET;
+        while missing_content(&snapshot, PAGE_ROLES).is_some()
+            && tokio::time::Instant::now() < deadline
+        {
+            cancel.check()?;
+            tokio::time::sleep(
+                PAGE_WAIT_POLL.min(deadline.saturating_duration_since(tokio::time::Instant::now())),
+            )
+            .await;
+            cancel.check()?;
+            snapshot = walk(atspi.connection(), &root, window, max_nodes, cancel).await?;
+        }
+        if missing_content(&snapshot, PAGE_ROLES).is_some() {
+            record_pid(&PAGE_ABSENT, pid, PAGE_ABSENT_TTL);
+        }
+    }
+    Ok(snapshot)
+}
+
 pub async fn snapshot_tree(
     cache: &SnapshotCache<Handle>,
     window: &WindowInfo,
     max_nodes: usize,
     cancel: &CancelToken,
-) -> Result<AccessibilityState> {
+) -> Result<SnapshotOutcome> {
     let snapshot = build_snapshot(window, max_nodes, cancel).await?;
     let (tree, text_truncated) = render_tree(&snapshot.elements, MAX_TREE_BYTES);
     let state = AccessibilityState {
@@ -387,8 +431,9 @@ pub async fn snapshot_tree(
         element_count: snapshot.elements.len(),
         truncated: snapshot.truncated || text_truncated,
     };
+    let notes = page_note(&snapshot, PAGE_ROLES).into_iter().collect();
     cache.insert(snapshot);
-    Ok(state)
+    Ok(SnapshotOutcome { state, notes })
 }
 
 pub async fn find_elements(
@@ -642,9 +687,50 @@ pub async fn set_element_value(
     ))
 }
 
+/// True when AT-SPI already reports the window active or focused. Either flag
+/// means this window is the one the app would deliver input to, which is all
+/// the focus write in [`focus_window`] exists to achieve.
+fn window_active(state: &StateSet) -> bool {
+    state.contains(State::Active) || state.contains(State::Focused)
+}
+
+async fn window_state(connection: &zbus::Connection, handle: &Handle) -> Result<StateSet> {
+    accessible(connection, handle)
+        .await?
+        .get_state()
+        .await
+        .map_err(|error| atspi_error("read window state", error))
+}
+
+/// The delivery for a focus request. A window that had to be grabbed claims
+/// only what AT-SPI accepted, marked `in_app_focus_changed`; one that was
+/// already the active window changed nothing and must carry neither the note
+/// nor an unverified verdict for a state that was just read.
+fn focus_delivery(changed: bool) -> Delivery {
+    let delivery = Delivery::foreground(Route::Accessibility).with_verified(if changed {
+        Verified::Unverified
+    } else {
+        Verified::Confirmed
+    });
+    if changed {
+        delivery.with_note("in_app_focus_changed")
+    } else {
+        delivery
+    }
+}
+
 pub async fn focus_window(window: &WindowInfo) -> Result<InteractiveResult> {
     let atspi = connect().await?;
     let resolved = resolve(window).await?;
+    if window_active(&window_state(atspi.connection(), &resolved.handle).await?) {
+        // The window is already the app's active one. Skip the grab — and with
+        // it the focus change that never happened — so reaching the window the
+        // app is already on costs no focus write at all.
+        return Ok(InteractiveResult::delivered(
+            resolved.info,
+            focus_delivery(false),
+        ));
+    }
     let focused = component(atspi.connection(), &resolved.handle)
         .await?
         .grab_focus()
@@ -658,12 +744,7 @@ pub async fn focus_window(window: &WindowInfo) -> Result<InteractiveResult> {
     }
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_millis(500);
     loop {
-        let state = accessible(atspi.connection(), &resolved.handle)
-            .await?
-            .get_state()
-            .await
-            .map_err(|error| atspi_error("verify focused window", error))?;
-        if state.contains(State::Active) || state.contains(State::Focused) {
+        if window_active(&window_state(atspi.connection(), &resolved.handle).await?) {
             break;
         }
         if tokio::time::Instant::now() >= deadline {
@@ -680,16 +761,16 @@ pub async fn focus_window(window: &WindowInfo) -> Result<InteractiveResult> {
     }
     Ok(InteractiveResult::delivered(
         resolved.info,
-        Delivery::foreground(Route::Accessibility)
-            .with_verified(Verified::Unverified)
-            .with_note("in_app_focus_changed"),
+        focus_delivery(true),
     ))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{element_role, same_element};
-    use crate::protocol::actions::{ElementBounds, ElementInfo};
+    use super::{element_role, focus_delivery, same_element, window_active};
+    use crate::elements::canonical_role;
+    use crate::protocol::actions::{Delivered, ElementBounds, ElementInfo, Route, Verified};
+    use atspi::{State, StateSet};
 
     fn element() -> ElementInfo {
         ElementInfo {
@@ -730,5 +811,44 @@ mod tests {
         let mut replaced = element();
         replaced.automation_id = Some("other-button".into());
         assert!(!same_element(&cached, &replaced));
+    }
+
+    #[test]
+    fn window_active_accepts_either_focus_flag() {
+        assert!(window_active(&StateSet::new(State::Active)));
+        assert!(window_active(&StateSet::new(State::Focused)));
+        assert!(window_active(&StateSet::new(
+            State::Active | State::Focused
+        )));
+        assert!(!window_active(&StateSet::empty()));
+    }
+
+    /// The page-content wait keys off canonical roles, so the platform role
+    /// vocabulary must keep landing in [`super::PAGE_ROLES`] if role
+    /// canonicalization ever changes.
+    #[test]
+    fn page_roles_cover_the_at_spi_page_containers() {
+        for role in ["document web", "document frame"] {
+            assert!(
+                super::PAGE_ROLES.contains(&canonical_role(role).as_str()),
+                "{role} canonicalizes outside PAGE_ROLES"
+            );
+        }
+    }
+
+    /// The note claims a focus change, so it belongs only to the delivery that
+    /// actually grabbed, and the already-focused case is the one state the
+    /// helper read directly.
+    #[test]
+    fn only_a_real_grab_reports_in_app_focus_changed() {
+        let grabbed = focus_delivery(true);
+        assert_eq!(grabbed.verified, Verified::Unverified);
+        assert_eq!(grabbed.notes, vec!["in_app_focus_changed".to_string()]);
+        assert_eq!(grabbed.delivered, Delivered::Foreground);
+        assert_eq!(grabbed.route, Route::Accessibility);
+
+        let already = focus_delivery(false);
+        assert_eq!(already.verified, Verified::Confirmed);
+        assert!(already.notes.is_empty());
     }
 }

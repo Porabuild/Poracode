@@ -272,6 +272,288 @@ fn rect(id: i64) -> RECT {
     rect
 }
 
+/// Window proc for the class-chain test. Deliberately stateless — the main
+/// harness counters are shared with the test above, and Rust runs tests in
+/// parallel.
+unsafe extern "system" fn chain_window_proc(
+    hwnd: HWND,
+    message: u32,
+    wparam: WPARAM,
+    lparam: LPARAM,
+) -> LRESULT {
+    if message == WM_DESTROY {
+        // SAFETY: this ends the message loop on the owning test thread.
+        unsafe { PostQuitMessage(0) };
+        return LRESULT(0);
+    }
+    // SAFETY: unhandled messages are delegated to the system window proc.
+    unsafe { DefWindowProcW(hwnd, message, wparam, lparam) }
+}
+
+/// A top-level window of one class hosting a child of another, so a delivery
+/// can be aimed at a child whose class differs from its frame's — the shape
+/// Chromium resolves a page-area target to.
+struct ChainedWindow {
+    child: i64,
+    thread: Option<thread::JoinHandle<()>>,
+    window: i64,
+}
+
+impl ChainedWindow {
+    fn spawn(root_class: &'static str, child_class: &'static str, title: &'static str) -> Self {
+        let (tx, rx) = mpsc::sync_channel(1);
+        let thread = thread::spawn(move || {
+            let root_class: Vec<u16> = root_class.encode_utf16().chain([0]).collect();
+            let child_class: Vec<u16> = child_class.encode_utf16().chain([0]).collect();
+            let title: Vec<u16> = title.encode_utf16().chain([0]).collect();
+            // SAFETY: class strings stay alive through registration/window creation,
+            // and every created HWND is owned by this message-loop thread.
+            unsafe {
+                let module = GetModuleHandleW(None).unwrap();
+                let root = WNDCLASSW {
+                    lpfnWndProc: Some(chain_window_proc),
+                    hInstance: HINSTANCE(module.0),
+                    lpszClassName: PCWSTR(root_class.as_ptr()),
+                    ..Default::default()
+                };
+                assert_ne!(RegisterClassW(&root), 0);
+                let child = WNDCLASSW {
+                    lpfnWndProc: Some(chain_window_proc),
+                    hInstance: HINSTANCE(module.0),
+                    lpszClassName: PCWSTR(child_class.as_ptr()),
+                    ..Default::default()
+                };
+                assert_ne!(RegisterClassW(&child), 0);
+                let window = CreateWindowExW(
+                    WS_EX_NOACTIVATE,
+                    PCWSTR(root_class.as_ptr()),
+                    PCWSTR(title.as_ptr()),
+                    WS_OVERLAPPEDWINDOW,
+                    1100,
+                    400,
+                    300,
+                    200,
+                    None,
+                    None,
+                    Some(HINSTANCE(module.0)),
+                    None,
+                )
+                .unwrap();
+                let child = CreateWindowExW(
+                    WINDOW_EX_STYLE::default(),
+                    PCWSTR(child_class.as_ptr()),
+                    w!(""),
+                    WS_CHILD | WS_VISIBLE,
+                    12,
+                    18,
+                    200,
+                    120,
+                    Some(window),
+                    None,
+                    Some(HINSTANCE(module.0)),
+                    None,
+                )
+                .unwrap();
+                let _ = ShowWindow(window, SW_SHOWNOACTIVATE);
+                tx.send((window.0 as isize as i64, child.0 as isize as i64))
+                    .unwrap();
+                let mut message = MSG::default();
+                while GetMessageW(&mut message, None, 0, 0) != BOOL(0) {
+                    let _ = TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                }
+            }
+        });
+        let (window, child) = rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        Self {
+            child,
+            thread: Some(thread),
+            window,
+        }
+    }
+}
+
+impl Drop for ChainedWindow {
+    fn drop(&mut self) {
+        // SAFETY: the id is the live top-level HWND created by the test thread.
+        let _ = unsafe {
+            PostMessageW(
+                Some(HWND(self.window as isize as *mut _)),
+                WM_CLOSE,
+                WPARAM(0),
+                LPARAM(0),
+            )
+        };
+        if let Some(thread) = self.thread.take() {
+            thread.join().unwrap();
+        }
+    }
+}
+
+/// Chromium resolves a page-area target to a render-widget descendant whose
+/// own class is not the frame's, so the note must come from the whole class
+/// chain — and must stay absent for ordinary class chains.
+/// Center of `child` in the frame coordinates a pointer action takes.
+fn center(child: i64, frame: i64) -> (f64, f64) {
+    let child = rect(child);
+    let frame = rect(frame);
+    (
+        f64::from(child.left + (child.right - child.left) / 2 - frame.left),
+        f64::from(child.top + (child.bottom - child.top) / 2 - frame.top),
+    )
+}
+
+fn carries_note(notes: &[String], note: &str) -> bool {
+    notes.iter().any(|carried| carried == note)
+}
+
+#[test]
+fn notes_chromium_class_chains_but_not_ordinary_ones() {
+    const CHROMIUM_NOTE: &str = "chromium_synthetic_input_may_be_ignored";
+    let backend = WindowsBackend::new();
+    let chromium = ChainedWindow::spawn(
+        "Chrome_WidgetWin_1",
+        "Chrome_RenderWidgetHostHWND",
+        "Poracode Chromium Class Test",
+    );
+    let plain = ChainedWindow::spawn(
+        "PoracodePlainFrame",
+        "PoracodePlainChild",
+        "Poracode Plain Class Test",
+    );
+    let window = backend
+        .resolve_window(&WindowRef {
+            app: None,
+            id: chromium.window,
+            title: Some("Poracode Chromium Class Test".into()),
+        })
+        .unwrap();
+    let (x, y) = center(chromium.child, chromium.window);
+    let options = InputOptions {
+        mode: InputMode::Background,
+        verify: Verify::None,
+    };
+
+    let clicked = backend
+        .pointer(
+            &window,
+            PointerAction::Click {
+                x,
+                y,
+                button: MouseButton::Left,
+                count: 1,
+            },
+            options,
+            &CancelToken::default(),
+        )
+        .unwrap();
+    assert!(
+        clicked.ok,
+        "background click was refused: {:?}",
+        clicked.refused
+    );
+    let notes = clicked.delivery.expect("click was delivered").notes;
+    assert!(
+        carries_note(&notes, CHROMIUM_NOTE),
+        "a click on a Chrome_WidgetWin descendant must carry the note: {notes:?}"
+    );
+
+    let scrolled = backend
+        .pointer(
+            &window,
+            PointerAction::Scroll {
+                x,
+                y,
+                dx: 0.0,
+                dy: -240.0,
+            },
+            options,
+            &CancelToken::default(),
+        )
+        .unwrap();
+    assert!(
+        scrolled.ok,
+        "background scroll was refused: {:?}",
+        scrolled.refused
+    );
+    let notes = scrolled.delivery.expect("scroll was delivered").notes;
+    assert!(
+        carries_note(&notes, CHROMIUM_NOTE),
+        "a scroll on a Chrome_WidgetWin descendant must carry the note: {notes:?}"
+    );
+
+    let dragged = backend
+        .pointer(
+            &window,
+            PointerAction::Drag {
+                from: (x, y),
+                to: (x + 8.0, y + 8.0),
+                steps: Some(2),
+            },
+            options,
+            &CancelToken::default(),
+        )
+        .unwrap();
+    assert!(
+        dragged.ok,
+        "background drag was refused: {:?}",
+        dragged.refused
+    );
+    let notes = dragged.delivery.expect("drag was delivered").notes;
+    assert!(
+        carries_note(&notes, CHROMIUM_NOTE),
+        "a drag on a Chrome_WidgetWin descendant must carry the note: {notes:?}"
+    );
+
+    let typed = backend
+        .keyboard(
+            &window,
+            KeyboardAction::Type("hi".into()),
+            options,
+            &CancelToken::default(),
+        )
+        .unwrap();
+    assert!(
+        typed.ok,
+        "background typing was refused: {:?}",
+        typed.refused
+    );
+    let notes = typed.delivery.expect("typing was delivered").notes;
+    assert!(
+        carries_note(&notes, CHROMIUM_NOTE),
+        "typing into a Chrome_WidgetWin window must carry the note: {notes:?}"
+    );
+
+    // The same gestures on an ordinary class chain stay clean.
+    let plain_window = backend
+        .resolve_window(&WindowRef {
+            app: None,
+            id: plain.window,
+            title: Some("Poracode Plain Class Test".into()),
+        })
+        .unwrap();
+    let (x, y) = center(plain.child, plain.window);
+    let clicked = backend
+        .pointer(
+            &plain_window,
+            PointerAction::Click {
+                x,
+                y,
+                button: MouseButton::Left,
+                count: 1,
+            },
+            options,
+            &CancelToken::default(),
+        )
+        .unwrap();
+    assert!(clicked.ok, "plain click was refused: {:?}", clicked.refused);
+    let notes = clicked.delivery.expect("plain click was delivered").notes;
+    assert!(
+        !carries_note(&notes, CHROMIUM_NOTE),
+        "an ordinary class chain must not carry the note: {notes:?}"
+    );
+}
+
 #[test]
 fn drives_a_window_in_the_background_without_changing_foreground() {
     CLICKS.store(0, Ordering::SeqCst);
@@ -509,7 +791,8 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
 
     let accessibility = backend
         .snapshot_tree(&window, 200, &CancelToken::default())
-        .unwrap();
+        .unwrap()
+        .state;
     let found = backend
         .find_elements(
             &window,
@@ -563,7 +846,8 @@ fn drives_a_window_in_the_background_without_changing_foreground() {
     assert!(set.ok, "set_element_value was refused: {:?}", set.refused);
     let updated = backend
         .snapshot_tree(&window, 200, &CancelToken::default())
-        .unwrap();
+        .unwrap()
+        .state;
     assert!(updated.tree.contains("set through UIA"));
     assert_eq!(rect(test.edit).right - rect(test.edit).left, 220);
 

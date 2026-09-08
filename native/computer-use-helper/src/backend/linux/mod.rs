@@ -11,14 +11,14 @@ use std::time::{Duration, Instant};
 
 use crate::backend::{
     Backend, BackendOptions, CancelToken, HelloInfo, InputOptions, InstalledAppCache,
-    KeyboardAction, PointerAction, is_computer_use_overlay_title,
+    KeyboardAction, PointerAction, SnapshotOutcome, is_computer_use_overlay_title,
 };
 use crate::capture::CaptureResult;
 use crate::elements::SnapshotCache;
 use crate::protocol::actions::{
-    AccessibilityState, Capabilities, Delivered, ElementAction, FindElementsInput,
-    FindElementsResult, InputMode, InteractiveResult, LaunchResult, PermissionState, Permissions,
-    Refusal, RefusalCode, Verified, Verify,
+    Capabilities, Delivered, ElementAction, FindElementsInput, FindElementsResult, InputMode,
+    InteractiveResult, LaunchResult, PermissionState, Permissions, Refusal, RefusalCode, Verified,
+    Verify,
 };
 use crate::protocol::window::{WindowInfo, WindowRef, WindowSource};
 use crate::protocol::{ErrorCode, HelperError, Result};
@@ -383,7 +383,7 @@ impl Backend for LinuxBackend {
         window: &WindowInfo,
         max_nodes: usize,
         cancel: &CancelToken,
-    ) -> Result<AccessibilityState> {
+    ) -> Result<SnapshotOutcome> {
         self.block_on(atspi::snapshot_tree(
             &self.elements,
             window,

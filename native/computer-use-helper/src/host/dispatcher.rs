@@ -393,7 +393,9 @@ pub fn dispatch_request(
             }
             cancel.check()?;
             let accessibility = if input.wants_text() {
-                Some(backend.snapshot_tree(&window, input.tree_max_nodes(), cancel)?)
+                let snapshot = backend.snapshot_tree(&window, input.tree_max_nodes(), cancel)?;
+                notes.extend(snapshot.notes);
+                Some(snapshot.state)
             } else {
                 None
             };
@@ -594,13 +596,16 @@ mod tests {
             _window: &crate::protocol::window::WindowInfo,
             _max_nodes: usize,
             _cancel: &CancelToken,
-        ) -> Result<crate::protocol::actions::AccessibilityState> {
-            Ok(crate::protocol::actions::AccessibilityState {
-                source: "test".into(),
-                tree: "window \"test\"".into(),
-                snapshot_id: "snap-1".into(),
-                element_count: 1,
-                truncated: false,
+        ) -> Result<crate::backend::SnapshotOutcome> {
+            Ok(crate::backend::SnapshotOutcome {
+                state: crate::protocol::actions::AccessibilityState {
+                    source: "test".into(),
+                    tree: "window \"test\"".into(),
+                    snapshot_id: "snap-1".into(),
+                    element_count: 1,
+                    truncated: false,
+                },
+                notes: Vec::new(),
             })
         }
         fn activate(
