@@ -8,7 +8,7 @@ use atspi::proxy::component::ComponentProxy;
 use atspi::proxy::editable_text::EditableTextProxy;
 use atspi::proxy::text::TextProxy;
 use atspi::proxy::value::ValueProxy;
-use atspi::{CoordType, Interface, ObjectRefOwned, ScrollType, State};
+use atspi::{CoordType, Interface, ObjectRefOwned, ScrollType, State, StateSet};
 use zbus::names::BusName;
 use zbus::proxy::CacheProperties;
 
@@ -642,9 +642,50 @@ pub async fn set_element_value(
     ))
 }
 
+/// True when AT-SPI already reports the window active or focused. Either flag
+/// means this window is the one the app would deliver input to, which is all
+/// the focus write in [`focus_window`] exists to achieve.
+fn window_active(state: &StateSet) -> bool {
+    state.contains(State::Active) || state.contains(State::Focused)
+}
+
+async fn window_state(connection: &zbus::Connection, handle: &Handle) -> Result<StateSet> {
+    accessible(connection, handle)
+        .await?
+        .get_state()
+        .await
+        .map_err(|error| atspi_error("read window state", error))
+}
+
+/// The delivery for a focus request. A window that had to be grabbed claims
+/// only what AT-SPI accepted, marked `in_app_focus_changed`; one that was
+/// already the active window changed nothing and must carry neither the note
+/// nor an unverified verdict for a state that was just read.
+fn focus_delivery(changed: bool) -> Delivery {
+    let delivery = Delivery::foreground(Route::Accessibility).with_verified(if changed {
+        Verified::Unverified
+    } else {
+        Verified::Confirmed
+    });
+    if changed {
+        delivery.with_note("in_app_focus_changed")
+    } else {
+        delivery
+    }
+}
+
 pub async fn focus_window(window: &WindowInfo) -> Result<InteractiveResult> {
     let atspi = connect().await?;
     let resolved = resolve(window).await?;
+    if window_active(&window_state(atspi.connection(), &resolved.handle).await?) {
+        // The window is already the app's active one. Skip the grab — and with
+        // it the focus change that never happened — so reaching the window the
+        // app is already on costs no focus write at all.
+        return Ok(InteractiveResult::delivered(
+            resolved.info,
+            focus_delivery(false),
+        ));
+    }
     let focused = component(atspi.connection(), &resolved.handle)
         .await?
         .grab_focus()
@@ -658,12 +699,7 @@ pub async fn focus_window(window: &WindowInfo) -> Result<InteractiveResult> {
     }
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_millis(500);
     loop {
-        let state = accessible(atspi.connection(), &resolved.handle)
-            .await?
-            .get_state()
-            .await
-            .map_err(|error| atspi_error("verify focused window", error))?;
-        if state.contains(State::Active) || state.contains(State::Focused) {
+        if window_active(&window_state(atspi.connection(), &resolved.handle).await?) {
             break;
         }
         if tokio::time::Instant::now() >= deadline {
@@ -680,16 +716,15 @@ pub async fn focus_window(window: &WindowInfo) -> Result<InteractiveResult> {
     }
     Ok(InteractiveResult::delivered(
         resolved.info,
-        Delivery::foreground(Route::Accessibility)
-            .with_verified(Verified::Unverified)
-            .with_note("in_app_focus_changed"),
+        focus_delivery(true),
     ))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{element_role, same_element};
-    use crate::protocol::actions::{ElementBounds, ElementInfo};
+    use super::{element_role, focus_delivery, same_element, window_active};
+    use crate::protocol::actions::{Delivered, ElementBounds, ElementInfo, Route, Verified};
+    use atspi::{State, StateSet};
 
     fn element() -> ElementInfo {
         ElementInfo {
@@ -730,5 +765,31 @@ mod tests {
         let mut replaced = element();
         replaced.automation_id = Some("other-button".into());
         assert!(!same_element(&cached, &replaced));
+    }
+
+    #[test]
+    fn window_active_accepts_either_focus_flag() {
+        assert!(window_active(&StateSet::new(State::Active)));
+        assert!(window_active(&StateSet::new(State::Focused)));
+        assert!(window_active(&StateSet::new(
+            State::Active | State::Focused
+        )));
+        assert!(!window_active(&StateSet::empty()));
+    }
+
+    /// The note claims a focus change, so it belongs only to the delivery that
+    /// actually grabbed, and the already-focused case is the one state the
+    /// helper read directly.
+    #[test]
+    fn only_a_real_grab_reports_in_app_focus_changed() {
+        let grabbed = focus_delivery(true);
+        assert_eq!(grabbed.verified, Verified::Unverified);
+        assert_eq!(grabbed.notes, vec!["in_app_focus_changed".to_string()]);
+        assert_eq!(grabbed.delivered, Delivered::Foreground);
+        assert_eq!(grabbed.route, Route::Accessibility);
+
+        let already = focus_delivery(false);
+        assert_eq!(already.verified, Verified::Confirmed);
+        assert!(already.notes.is_empty());
     }
 }
