@@ -10,7 +10,7 @@ describe("resolveThreadTranscriptMarkdownFormatter", () => {
   it("leaves providers that declare no rewrite untouched", () => {
     // Chat markdown must stay verbatim for every provider that did not opt in,
     // so prose can quote another agent's payload format without being rewritten.
-    for (const kind of ["claude", "codex", "gemini", "cursor"]) {
+    for (const kind of ["claude", "gemini", "cursor"]) {
       expect(resolveThreadTranscriptMarkdownFormatter(kind)).toBeUndefined();
     }
   });

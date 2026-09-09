@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectPathRef } from "./parseProjectPathRef";
-import {
-  AUTO_PATH_FILE_HREF_PREFIX,
-  remarkAutolinkProjectPaths,
-} from "./remarkAutolinkProjectPaths";
+import { remarkAutolinkProjectPaths } from "./remarkAutolinkProjectPaths";
+import { AUTO_PATH_FILE_HREF_PREFIX } from "./markdownPathRefs";
 
 interface MdNode {
   type: string;

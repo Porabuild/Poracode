@@ -1,14 +1,5 @@
 import { PROJECT_PATH_TOKEN_SOURCE, type ProjectPathRef } from "./parseProjectPathRef";
-
-/**
- * Sentinel URL prefixes used to mark links injected by `remarkAutolinkProjectPaths`,
- * so the markdown anchor renderer can route them to file/folder chip components
- * instead of treating them as user-authored markdown links.
- */
-export const AUTO_PATH_FILE_PREFIX = "poracode:path:";
-export const AUTO_PATH_FOLDER_PREFIX = "poracode:folder:";
-export const AUTO_PATH_FILE_HREF_PREFIX = "https://poracode.local/path/";
-export const AUTO_PATH_FOLDER_HREF_PREFIX = "https://poracode.local/folder/";
+import { pathRefUrl } from "./markdownPathRefs";
 
 interface MdNode {
   type: string;
@@ -86,18 +77,4 @@ function transformText(text: string, options: PluginOptions): MdNode[] {
     out.push({ type: "text", value: text.slice(cursor) });
   }
   return out;
-}
-
-function pathRefUrl(ref: ProjectPathRef): string {
-  const target =
-    ref.kind === "file"
-      ? `${ref.path}${
-          ref.line !== undefined
-            ? `:${ref.line}${ref.endLine !== undefined ? `-${ref.endLine}` : ""}`
-            : ""
-        }`
-      : ref.path;
-  return ref.kind === "file"
-    ? `${AUTO_PATH_FILE_HREF_PREFIX}${encodeURIComponent(target)}`
-    : `${AUTO_PATH_FOLDER_HREF_PREFIX}${encodeURIComponent(target)}`;
 }
