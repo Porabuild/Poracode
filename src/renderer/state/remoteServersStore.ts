@@ -845,21 +845,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               })();
             };
             const resumePendingTruncateReloads = (): void => {
-              // A failed authoritative reload keeps its pending seq for a
-              // deduped follow-up, and offline/online backoff resets preserve
-              // it while re-arming the bounded budget — but nothing restarted
-              // it on the next healthy reconnect. A regular WS resume without
-              // `resync-required` leaves the stale transcript in place forever
-              // (the truncation event already advanced the resume cursor and
-              // will never repeat, and the restore hook skips its open when
-              // the global openThread already matches). Restart outstanding
-              // recoveries here, on the real online transition, through the
-              // same owned + bounded gate so a replacement lease is never
-              // cleared by a stale completion and exhausted budgets stay
-              // parked without a fetch storm. Only still-subscribed threads
-              // of the current server restart; unsubscribed pending stays
-              // queued until its thread resubscribes (its open fetches fresh
-              // history then).
+              // A consumed truncate will not replay after reconnect. Retry its
+              // outstanding baseline through the same bounded gate, but only
+              // for threads that still have a live subscription.
               if (!isCurrent() || entry.socket !== socket) return;
               if (get().runtime[server.desktopId]?.status !== "online") return;
               if (!get().servers.some((candidate) => candidate.desktopId === server.desktopId)) {
@@ -894,6 +882,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 );
               }
               startHealthProbe(socket);
+              if (get().runtime[server.desktopId]?.status !== "online") {
+                resetTruncateReloadBackoff(server.desktopId);
+              }
               setSocketStatus("online");
               resumePendingTruncateReloads();
             };
