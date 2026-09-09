@@ -1,3 +1,4 @@
+import { composerDraftStorage } from "../composerDraftStorage";
 import {
   type AgentInstanceId,
   type AppView,
@@ -408,6 +409,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     }),
   deleteThread: (threadId) =>
     set((state) => {
+      composerDraftStorage()?.remove("thread", threadId);
       clearRuntimeStructuralChangeHint(threadId);
       const nextThreads = state.threads.filter((thread) => thread.id !== threadId);
 

@@ -253,22 +253,20 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
   // Unsent composer content survives leaving this thread. The primary GUI pane
-  // keeps this section mounted across thread switches, so the thread-keyed
-  // layout effects below save and restore without exposing another thread's
-  // editor state for a paint.
+  // keeps this section mounted across thread switches; restore before paint
+  // without exposing another thread's editor state.
   const saveThreadDraftContent = useAppStore((s) => s.saveThreadDraftContent);
   const clearThreadDraftContent = useAppStore((s) => s.clearThreadDraftContent);
   // The MentionInput owns the live editor DOM; mirror its latest serialized
-  // segments here (updated on every text change) so the unmount cleanup can read
-  // them without touching a possibly-detached editor ref. Attachments are synced
-  // every render below.
+  // segments here for draft checkpoints without reading a detached editor.
+  // Attachments are synced every render below.
   const latestSegmentsRef = useRef<PromptSegment[]>([]);
   const attachmentsRef = useRef(attachments.attachments);
   attachmentsRef.current = attachments.attachments;
   // True only while a real submit is in flight. Terminal/CLI threads clear the
   // composer *after* the send resolves (the synchronous pre-send clear below is
-  // GUI-only), so without this guard, navigating away mid-send would unmount and
-  // re-save the just-sent text as a stale draft. Reset every time (success or
+  // GUI-only), so skip checkpoints while the old text awaits acknowledgement.
+  // Reset every time (success or
   // failure) because this composer is reused for the next message.
   const submittedRef = useRef(false);
   const composerSessionRef = useRef({ threadId: thread.id });
@@ -648,8 +646,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
 
   // Restore an unsent draft saved the last time this thread's composer was
   // active. useLayoutEffect runs before paint so the previous thread's editor
-  // content is cleared before the new thread is visible. Consume the entry so
-  // a later real send doesn't resurrect it.
+  // content is cleared before the new thread is visible. The checkpoint stays
+  // available until the user clears or submits the draft.
   //
   // A terminal thread that is still `launching` hides the whole composer (so the
   // MentionInput — and `mentionRef` — does not exist yet). Restoring into a null
@@ -703,7 +701,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     if (saved.attachments.length > 0) {
       attachments.restore(saved.attachments);
     }
-    clearThreadDraftContent(thread.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset/restore is keyed to the active thread and editor mount; attachment/editor methods are read from this render
   }, [editorMounted, thread.id]);
 
@@ -747,28 +744,28 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     setComposerCollapsed(compactLayout || collapseTerminalComposerSetting);
   }, [compactLayout, collapseTerminalComposerSetting]);
 
-  // Save whatever is left in the composer when this thread's section unmounts
-  // (navigating to another thread/pane). A cleared composer leaves both refs
-  // empty, so a just-sent message is not re-saved; an in-flight submit is
-  // skipped via submittedRef because its text has already been handed off.
-  useLayoutEffect(() => {
-    const tid = thread.id;
-    return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- reading the latest refs at unmount is the point: they mirror the live composer state
-      if (submittedRef.current) return;
-      // Stash path-only attachment copies: `previewUrl` object URLs belong to
-      // this composer's live session and are revoked when it clears/unmounts.
-      const content = {
-        segments: latestSegmentsRef.current,
-        attachments: attachmentsRef.current.map(storableAttachment),
-      };
-      if (isDraftContentNonEmpty(content)) {
-        saveThreadDraftContent(tid, content);
-      } else {
-        clearThreadDraftContent(tid);
-      }
+  function checkpointDraft() {
+    if (restoredThreadIdRef.current !== thread.id || submittedRef.current) return;
+    const content = {
+      segments: latestSegmentsRef.current,
+      attachments: attachmentsRef.current.map(storableAttachment),
     };
-  }, [thread.id, saveThreadDraftContent, clearThreadDraftContent]);
+    if (isDraftContentNonEmpty(content)) saveThreadDraftContent(thread.id, content);
+    else clearThreadDraftContent(thread.id);
+  }
+
+  useEffect(() => {
+    // A thread switch clears/restores attachments in a layout effect. Wait for
+    // that commit before reading their live refs; never checkpoint the old pane.
+    let active = true;
+    queueMicrotask(() => {
+      if (active && composerSessionRef.current.threadId === thread.id) checkpointDraft();
+    });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- checkpoint reads live refs for this composer session
+  }, [thread.id, attachments.attachments]);
 
   useEffect(() => {
     if (thread.status !== "working") setIsInterrupting(false);
@@ -1046,6 +1043,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         onTextChange={(hasText) => {
                           setHasContent(hasText);
                           latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
+                          checkpointDraft();
                         }}
                         onSubmit={submitPrompt}
                         onPasteImage={(file: File) => {

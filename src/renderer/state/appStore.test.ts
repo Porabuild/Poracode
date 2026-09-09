@@ -1,3 +1,4 @@
+import { composerDraftStorage } from "./composerDraftStorage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { findPaneSlotId, type PaneLayout } from "@/shared/paneLayout";
@@ -26,6 +27,56 @@ describe("appStore runtime config sync", () => {
       view: { kind: "home" },
     }));
     usePanelStore.getState().setGitHubActionsContext(null);
+  });
+
+  it("does not write the full app snapshot when only a draft changes", () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    const project = useAppStore
+      .getState()
+      .addProject({ kind: "posix", path: "/draft-write-probe" });
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      for (const text of ["a", "ab", "abc"]) {
+        useAppStore.getState().saveDraftContent(project.id, {
+          segments: [{ kind: "text", content: text }],
+          attachments: [],
+        });
+      }
+      composerDraftStorage()?.flush();
+      expect(writes.mock.calls.filter(([name]) => name === "poracode-app-v2")).toHaveLength(0);
+      expect(
+        writes.mock.calls.filter(([name]) => name.startsWith("poracode-composer-draft-v1:")),
+      ).toHaveLength(1);
+      useAppStore.getState().renameProject(project.id, "Renamed");
+      expect(writes.mock.calls.filter(([name]) => name === "poracode-app-v2")).toHaveLength(1);
+    } finally {
+      writes.mockRestore();
+      useAppStore.getState().clearDraftContent(project.id);
+    }
+  });
+
+  it.each(["thread", "project"] as const)("removes durable drafts when deleting a %s", (kind) => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/draft-fixture" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "claude",
+      config: { model: "test-model" },
+      prompt: "fixture",
+    });
+    const draft = { segments: [{ kind: "text" as const, content: "unsent" }], attachments: [] };
+    useAppStore.getState().saveDraftContent(project.id, draft);
+    useAppStore.getState().saveThreadDraftContent(thread.id, draft);
+    composerDraftStorage()?.flush();
+    // Include a newer checkpoint still awaiting its timer.
+    useAppStore.getState().saveThreadDraftContent(thread.id, draft);
+    if (kind === "project") useAppStore.getState().deleteProject(project.id);
+    else useAppStore.getState().deleteThread(thread.id);
+    composerDraftStorage()?.flush();
+    expect(composerDraftStorage()?.load("thread")[thread.id]).toBeUndefined();
+    expect(composerDraftStorage()?.load("project")[project.id]).toEqual(
+      kind === "project" ? undefined : draft,
+    );
+    useAppStore.getState().clearDraftContent(project.id);
   });
 
   it("keeps a newer reconnect marker when an older launch finishes", () => {

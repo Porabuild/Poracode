@@ -152,6 +152,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   };
   let clearedBeforeSendSettled = false;
   ctx.submittedRef.current = true;
+  useAppStore.getState().clearThreadDraftContent(thread.id);
   ctx.setIsSubmitting(true);
   if (!usesTerminalPresentation) {
     useAppStore.getState().requestChatScrollToBottom(thread.id);
@@ -227,15 +228,12 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     })
     .catch((error: unknown) => {
       // Leave the prompt intact so the user can retry.
+      useAppStore.getState().saveThreadDraftContent(thread.id, {
+        segments: submittedInputSegments,
+        attachments: submittedAttachments.map(storableAttachment),
+      });
       if (ctx.isCurrentSession()) {
         restoreSubmittedComposer();
-      } else {
-        // Stash path-only attachment copies: `previewUrl` object URLs belong to
-        // the composer session that submitted and are revoked when it clears.
-        useAppStore.getState().saveThreadDraftContent(thread.id, {
-          segments: submittedInputSegments,
-          attachments: submittedAttachments.map(storableAttachment),
-        });
       }
       toast.danger(friendlyError(error));
     })

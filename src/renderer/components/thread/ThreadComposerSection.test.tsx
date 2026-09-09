@@ -1,3 +1,4 @@
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
@@ -248,6 +249,8 @@ describe("ThreadComposerSection", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   beforeEach(() => {
+    composerDraftStorage()?.flush();
+    localStorage.clear();
     useSharedSettings.setState({
       collapseTerminalComposer: false,
       disabledBuiltInMcpServers: {},
@@ -790,8 +793,10 @@ describe("ThreadComposerSection", () => {
     await waitFor(() => {
       expect(screen.getByRole("textbox").textContent).toContain("half-written thought");
     });
-    // The draft is consumed on restore so a later real send can't resurrect it.
-    expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+    // Active drafts retain their checkpoint until cleared or submitted.
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "half-written thought" },
+    ]);
   });
 
   it("appends rapid queued inputs to an existing draft as separate blocks", async () => {
@@ -1003,7 +1008,9 @@ describe("ThreadComposerSection", () => {
       "src",
       "poracode-local://local/C:/attachments/reverted.png",
     );
-    expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "reverted draft" },
+    ]);
     fireEvent.click(screen.getByText("send"));
     await waitFor(() =>
       expect(onSubmitInput).toHaveBeenCalledWith("reverted draft", [
@@ -1134,7 +1141,9 @@ describe("ThreadComposerSection", () => {
     expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
       { kind: "text", content: "first thread draft" },
     ]);
-    expect(useAppStore.getState().threadDraftContents[secondGuiThread.id]).toBeUndefined();
+    expect(useAppStore.getState().threadDraftContents[secondGuiThread.id]?.segments).toEqual([
+      { kind: "text", content: "second thread draft" },
+    ]);
   });
 
   it("restores an unsent image attachment preview after switching threads", async () => {
@@ -1345,6 +1354,19 @@ describe("ThreadComposerSection", () => {
     ]);
   });
 
+  it("checkpoints an active GUI draft before unmount and removes it after sending", async () => {
+    const { onSubmitInput } = renderComposer();
+    typeComposerText(screen.getByRole("textbox"), "reload 日本語");
+    window.dispatchEvent(new Event("pagehide"));
+    expect(composerDraftStorage()?.load("thread")[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "reload 日本語" },
+    ]);
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => expect(onSubmitInput).toHaveBeenCalled());
+    composerDraftStorage()?.flush();
+    expect(composerDraftStorage()?.load("thread")[guiThread.id]).toBeUndefined();
+  });
+
   it("does not leave a draft behind once the message is sent", async () => {
     const { unmount, onSubmitInput } = renderComposer();
 
@@ -1364,7 +1386,7 @@ describe("ThreadComposerSection", () => {
 
   it("does not re-save an in-flight terminal send as a stale draft when navigating away", async () => {
     // Terminal threads clear the composer only after the send resolves, so the
-    // unmount cleanup must skip saving while a submit is in flight.
+    // checkpoint must skip saving while a submit is in flight.
     let resolveSubmit: (() => void) | undefined;
     const onSubmitInput = vi.fn<(prompt: string, segments?: unknown) => Promise<void>>(
       () =>
@@ -1427,7 +1449,9 @@ describe("ThreadComposerSection", () => {
     await waitFor(() => {
       expect(screen.getByRole("textbox").textContent).toContain("resume me");
     });
-    expect(useAppStore.getState().threadDraftContents[terminalThread.id]).toBeUndefined();
+    expect(useAppStore.getState().threadDraftContents[terminalThread.id]?.segments).toEqual([
+      { kind: "text", content: "resume me" },
+    ]);
   });
 
   it("clears the GUI ACP composer as soon as a direct send starts", async () => {
@@ -1577,6 +1601,8 @@ describe("ThreadComposerSection", () => {
       expect(savedDraft?.attachments[0]?.path).toBe(
         "C:\\attachments\\thread-gui-idle\\image-1.png",
       );
+      composerDraftStorage()?.flush();
+      expect(composerDraftStorage()?.load("thread")[guiThread.id]).toEqual(savedDraft);
     } finally {
       Reflect.deleteProperty(URL, "createObjectURL");
       Reflect.deleteProperty(URL, "revokeObjectURL");
