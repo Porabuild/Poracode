@@ -6,6 +6,7 @@ import com.poracode.app.model.asObjectOrNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -16,7 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Strict 15-variant sealed union + invalid mutations + mixed batch.
+ * Strict 16-variant sealed union + invalid mutations + mixed batch.
  * Golden fixture: protocol/remote/v3/fixtures/runtime-events.json
  */
 class RuntimeEventStrictUnionTest {
@@ -27,10 +28,10 @@ class RuntimeEventStrictUnionTest {
     }
 
     @Test
-    fun allFifteenGoldenEventsParseAndReduce() {
+    fun allSixteenGoldenEventsParseAndReduce() {
         val array = RemoteJson.parseToJsonElement(readFixture("runtime-events.json")) as JsonArray
         // Fixture may include multiple examples per type (e.g. turn.completed states);
-        // the sealed union remains 15 discriminators.
+        // the sealed union remains 16 discriminators.
         val items = mutableListOf<PersistedRuntimeItem>()
         var domain = ThreadRuntimeDomainState()
         val parsedTypes = mutableListOf<String>()
@@ -56,11 +57,11 @@ class RuntimeEventStrictUnionTest {
                 "context.updated", "usage.spent",
                 "background_tasks.changed",
                 "request.opened", "request.resolved",
-                "warning", "error",
+                "warning", "runtime.truncated", "error",
             ),
             parsedTypes.toSet(),
         )
-        assertEquals(15, parsedTypes.toSet().size)
+        assertEquals(16, parsedTypes.toSet().size)
         assertTrue(items.any { it.type == "error" && it.state == "completed" })
         assertTrue(items.any { it.id == "item-fixture-assistant" && it.state == "completed" })
         assertEquals(false, domain.openTurn)
@@ -424,5 +425,197 @@ class RuntimeEventStrictUnionTest {
             items,
         )
         assertTrue(items.none { it.id == "r" })
+    }
+
+    // MARK: - runtime.truncated collector pass-through (actual GUI path)
+
+    @Test
+    fun runtimeTruncatedParsesStrictAndForwardsExactAnchors() {
+        val obj = buildJsonObject {
+            put("type", "runtime.truncated")
+            put("threadId", "t1")
+            put("itemId", "checkpoint")
+            put(
+                "removedCompletedTurnAnchors",
+                buildJsonArray {
+                    add(JsonPrimitive("a"))
+                    add(JsonPrimitive("b"))
+                },
+            )
+        }
+        val event = RuntimeEventReducer.parseRuntimeEvent(obj)
+        assertNotNull(event)
+        assertEquals("runtime.truncated", event!!.type)
+        assertEquals("checkpoint", event.itemId)
+        assertEquals(listOf("a", "b"), event.removedCompletedTurnAnchors)
+        // Canonical sealed variant is populated for the pass-through.
+        assertTrue(event.canonical is RuntimeEventSchema.CanonicalRuntimeEvent.RuntimeTruncated)
+    }
+
+    @Test
+    fun runtimeTruncatedEmptyAnchorsMeaningfulStillParses() {
+        val obj = buildJsonObject {
+            put("type", "runtime.truncated")
+            put("threadId", "t1")
+            put("itemId", "checkpoint")
+            put("removedCompletedTurnAnchors", buildJsonArray { })
+        }
+        val event = RuntimeEventReducer.parseRuntimeEvent(obj)
+        assertNotNull(event)
+        assertEquals(emptyList<String>(), event!!.removedCompletedTurnAnchors)
+    }
+
+    @Test
+    fun runtimeTruncatedMalformedSkipped() {
+        fun envelope(mutate: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit) =
+            buildJsonObject {
+                put("type", "runtime.truncated")
+                put("threadId", "t1")
+                put("itemId", "checkpoint")
+                put("removedCompletedTurnAnchors", buildJsonArray { add(JsonPrimitive("a")) })
+                mutate()
+            }
+        // Missing itemId.
+        assertNull(
+            RuntimeEventReducer.parseRuntimeEvent(
+                buildJsonObject {
+                    put("type", "runtime.truncated")
+                    put("threadId", "t1")
+                    put("removedCompletedTurnAnchors", buildJsonArray { })
+                },
+            ),
+        )
+        // Empty itemId (would false-positive missing-checkpoint catchup).
+        assertNull(RuntimeEventReducer.parseRuntimeEvent(envelope { put("itemId", "") }))
+        // Missing anchors.
+        assertNull(
+            RuntimeEventReducer.parseRuntimeEvent(
+                buildJsonObject {
+                    put("type", "runtime.truncated")
+                    put("threadId", "t1")
+                    put("itemId", "checkpoint")
+                },
+            ),
+        )
+        // Anchors not an array.
+        assertNull(
+            RuntimeEventReducer.parseRuntimeEvent(
+                envelope { put("removedCompletedTurnAnchors", "removed") },
+            ),
+        )
+        // Anchors null.
+        assertNull(
+            RuntimeEventReducer.parseRuntimeEvent(
+                envelope { put("removedCompletedTurnAnchors", JsonNull) },
+            ),
+        )
+        // Non-string anchor entry.
+        assertNull(
+            RuntimeEventReducer.parseRuntimeEvent(
+                buildJsonObject {
+                    put("type", "runtime.truncated")
+                    put("threadId", "t1")
+                    put("itemId", "checkpoint")
+                    put("removedCompletedTurnAnchors", buildJsonArray { add(JsonPrimitive(1)) })
+                },
+            ),
+        )
+        // Null anchor entry.
+        assertNull(
+            RuntimeEventReducer.parseRuntimeEvent(
+                buildJsonObject {
+                    put("type", "runtime.truncated")
+                    put("threadId", "t1")
+                    put("itemId", "checkpoint")
+                    put(
+                        "removedCompletedTurnAnchors",
+                        JsonArray(listOf(JsonNull)),
+                    )
+                },
+            ),
+        )
+    }
+
+    @Test
+    fun runtimeTruncatedMixedBatchPreservesWireOrderAndSkipsInvalid() {
+        val envelope = buildJsonObject {
+            put("type", "thread-runtime-events")
+            put("threadId", "t1")
+            put(
+                "events",
+                buildJsonArray {
+                    add(
+                        buildJsonObject {
+                            put("type", "runtime.truncated")
+                            put("threadId", "t1")
+                            put("itemId", "checkpoint")
+                            put("removedCompletedTurnAnchors", buildJsonArray { })
+                        },
+                    )
+                    add(
+                        buildJsonObject {
+                            put("type", "item.updated")
+                            put("threadId", "t1")
+                            put("itemId", "a")
+                        },
+                    )
+                    add(
+                        buildJsonObject {
+                            put("type", "content.delta")
+                            put("threadId", "t1")
+                            put("itemId", "a")
+                            put("stream", "assistant_text")
+                            put("delta", "hi")
+                        },
+                    )
+                    add(
+                        buildJsonObject {
+                            put("type", "runtime.truncated")
+                            put("threadId", "t1")
+                            put("itemId", "")
+                            put("removedCompletedTurnAnchors", buildJsonArray { })
+                        },
+                    )
+                },
+            )
+        }
+        val batches = RuntimeEventReducer.collectRuntimeEvents(envelope)
+        assertEquals(1, batches.size)
+        assertEquals(
+            listOf("runtime.truncated", "content.delta"),
+            batches[0].events.map { it.type },
+        )
+        assertEquals("checkpoint", batches[0].events[0].itemId)
+        assertEquals(emptyList<String>(), batches[0].events[0].removedCompletedTurnAnchors)
+    }
+
+    @Test
+    fun runtimeTruncatedLegacyApplyIsNoOpWithoutSeqGuards() {
+        // Documents why legacy apply must NOT destructively prune: no
+        // per-thread watermark here, and prune-to-index is not idempotent.
+        // The actual GUI reduces via RichReducer behind controller seq gates.
+        val items = mutableListOf(
+            PersistedRuntimeItem(id = "checkpoint", type = "assistant_message", state = "completed"),
+            PersistedRuntimeItem(id = "removed", type = "assistant_message", state = "completed"),
+        )
+        val domain = ThreadRuntimeDomainState()
+        val event = RuntimeEventReducer.parseRuntimeEvent(
+            buildJsonObject {
+                put("type", "runtime.truncated")
+                put("threadId", "t1")
+                put("itemId", "checkpoint")
+                put("removedCompletedTurnAnchors", buildJsonArray { add(JsonPrimitive("removed")) })
+            },
+        )!!
+        val beforeItems = items.toList()
+        val nextDomain = RuntimeEventReducer.applyBatch(
+            events = listOf(event),
+            threadId = "t1",
+            items = items,
+            domain = domain,
+            nowEpochMs = 1L,
+        )
+        assertEquals(beforeItems, items)
+        assertEquals(domain, nextDomain)
     }
 }

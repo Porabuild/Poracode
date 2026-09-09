@@ -9,9 +9,10 @@ import com.poracode.app.protocol.RuntimeEventValidators.strictString
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * Strict 15-variant runtime event schema (TS `runtimeEventSchema` parity).
+ * Strict 16-variant runtime event schema (TS `runtimeEventSchema` parity).
  * Unknown/malformed events are skipped by returning null from [parseCanonical].
  *
  * Zod rules enforced via [RuntimeEventValidators]:
@@ -142,6 +143,19 @@ object RuntimeEventSchema {
             override val raw: JsonObject,
         ) : CanonicalRuntimeEvent()
 
+        /**
+         * Host-issued checkpoint rollback. Strict: `itemId` must be a
+         * non-empty string (empty would never match a loaded checkpoint and
+         * would false-positive the missing-checkpoint catchup); anchors must
+         * be present as an array of strings (empty array is meaningful).
+         */
+        data class RuntimeTruncated(
+            override val threadId: String,
+            val itemId: String,
+            val removedCompletedTurnAnchors: List<String>,
+            override val raw: JsonObject,
+        ) : CanonicalRuntimeEvent()
+
         data class BackgroundTasksChanged(
             override val threadId: String,
             val tasks: List<BackgroundTask>,
@@ -258,6 +272,19 @@ object RuntimeEventSchema {
                 val message = objectMap.requireString("message") ?: return null
                 CanonicalRuntimeEvent.Warning(threadId, message, objectMap)
             }
+            "runtime.truncated" -> {
+                val itemId = objectMap.requireString("itemId") ?: return null
+                if (itemId.isEmpty()) return null
+                val rawAnchors = objectMap["removedCompletedTurnAnchors"] as? JsonArray
+                    ?: return null
+                val anchors = ArrayList<String>(rawAnchors.size)
+                for (element in rawAnchors) {
+                    val anchor = (element as? JsonPrimitive)
+                        ?.takeIf { it.isString }?.content ?: return null
+                    anchors += anchor
+                }
+                CanonicalRuntimeEvent.RuntimeTruncated(threadId, itemId, anchors, objectMap)
+            }
             "error" -> {
                 val message = objectMap.requireString("message") ?: return null
                 CanonicalRuntimeEvent.Error(threadId, message, objectMap)
@@ -333,6 +360,11 @@ object RuntimeEventSchema {
         )
         is CanonicalRuntimeEvent.Warning -> RuntimeEventReducer.RuntimeEvent(
             type = "warning", threadId = c.threadId, message = c.message,
+            raw = c.raw, canonical = c,
+        )
+        is CanonicalRuntimeEvent.RuntimeTruncated -> RuntimeEventReducer.RuntimeEvent(
+            type = "runtime.truncated", threadId = c.threadId, itemId = c.itemId,
+            removedCompletedTurnAnchors = c.removedCompletedTurnAnchors,
             raw = c.raw, canonical = c,
         )
         is CanonicalRuntimeEvent.Error -> RuntimeEventReducer.RuntimeEvent(

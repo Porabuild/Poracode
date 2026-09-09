@@ -98,6 +98,21 @@ sealed interface RichRuntimeEvent {
         override val threadKey: RichThreadKey,
         val message: String,
     ) : RichRuntimeEvent
+
+    /**
+     * Host-issued checkpoint rollback: every runtime item after [itemId] was
+     * deleted on the host and the completed turns anchored on those items went
+     * with them. [removedCompletedTurnAnchors] is the server-declared, exact
+     * set of anchor ids the host deleted in the same transaction — clients
+     * prune by this set instead of local orphan detection, so turns anchored
+     * in older unloaded pages survive. An empty list is still meaningful:
+     * items were removed but no completed turns were anchored on them.
+     */
+    data class RuntimeTruncated(
+        override val threadKey: RichThreadKey,
+        val itemId: String,
+        val removedCompletedTurnAnchors: List<String>,
+    ) : RichRuntimeEvent
 }
 
 object RichEventDecoder {
@@ -133,6 +148,7 @@ object RichEventDecoder {
                 ?.let { RichRuntimeEvent.Warning(key, it) }
             "error" -> objectValue.requiredString("message")
                 ?.let { RichRuntimeEvent.Error(key, it) }
+            "runtime.truncated" -> decodeRuntimeTruncated(key, objectValue)
             else -> null
         }
     }
@@ -225,6 +241,24 @@ object RichEventDecoder {
         val outcome = value.requiredString("outcome")?.let(RichRequestOutcome::fromWire)
             ?: return null
         return RichRuntimeEvent.RequestResolved(key, RichWireRequestId.Text(rawId), outcome)
+    }
+
+    private fun decodeRuntimeTruncated(
+        key: RichThreadKey,
+        value: JsonObject,
+    ): RichRuntimeEvent? {
+        // Strict: checkpoint must be non-empty; anchors must be present as an
+        // array of strings (empty array is meaningful — items removed, no
+        // completed turns anchored on them). Malformed → null (dropped,
+        // matching the per-event `?: continue` pattern upstream).
+        val itemId = value.requiredString("itemId", allowEmpty = false) ?: return null
+        val rawAnchors = value["removedCompletedTurnAnchors"] ?: return null
+        val array = rawAnchors.arrayOrNull() ?: return null
+        val anchors = ArrayList<String>(array.size)
+        for (element in array) {
+            anchors += element.stringOrNull() ?: return null
+        }
+        return RichRuntimeEvent.RuntimeTruncated(key, itemId, anchors)
     }
 
     private fun decodeUsageSpent(
