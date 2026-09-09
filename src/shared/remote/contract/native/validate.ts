@@ -22,6 +22,7 @@ const PORTABLE_VALIDATORS = new Set([
   "push.routing.identifier-no-controls",
   "push.web.endpoint-https",
   "string.trim",
+  "terminal.cursor.baseline-chunk-utf16",
   "terminal.cursor.output-data-utf16",
   "terminal.cursor.output-range",
   "terminal.cursor.ready-range-utf16",

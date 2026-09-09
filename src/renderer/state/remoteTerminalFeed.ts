@@ -1,5 +1,6 @@
 import {
   createTerminalFeed,
+  type TerminalCursorSyncFeedVersion,
   type TerminalFeedListener,
   type TerminalSocketSender,
 } from "@/shared/remote/terminalFeed";
@@ -28,7 +29,7 @@ function feedFor(desktopId: string) {
 export function setRemoteTerminalSocketSender(
   desktopId: string,
   next: TerminalSocketSender | null,
-  options?: { readonly cursorSyncVersion?: 1 },
+  options?: { readonly cursorSyncVersion?: TerminalCursorSyncFeedVersion },
 ): void {
   feedFor(desktopId).setSender(next, options);
 }

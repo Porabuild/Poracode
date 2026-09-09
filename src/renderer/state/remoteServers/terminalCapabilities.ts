@@ -1,23 +1,38 @@
 import type { TerminalSocketSender } from "@/shared/remote/terminalFeed";
 import type { RemoteSocketLike } from "./types";
-import { TERMINAL_CURSOR_SYNC_VERSION } from "@/shared/remote/protocol";
+import {
+  TERMINAL_CURSOR_SYNC_VERSION,
+  TERMINAL_CURSOR_SYNC_V2_VERSION,
+} from "@/shared/remote/protocol";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 
 /** Connection-local, never persisted: a reconnect must revalidate support. */
 export interface TerminalConnectionCapabilities {
-  readonly cursorSyncVersion?: typeof TERMINAL_CURSOR_SYNC_VERSION;
+  readonly cursorSyncVersion?: 1 | 2;
 }
 
 type Environment = Awaited<ReturnType<RemoteDesktopClient["environment"]>>;
 
+const SUPPORTED_CURSOR_SYNC_VERSIONS = [
+  TERMINAL_CURSOR_SYNC_VERSION,
+  TERMINAL_CURSOR_SYNC_V2_VERSION,
+] as const;
+
+/**
+ * Pick the newest advertised cursor-sync version this build supports.
+ * Negotiated from the fresh per-connection descriptor only — never persisted —
+ * so an old host keeps v1 and a v2-capable host upgrades on the next connect.
+ */
 export function terminalCapabilitiesFromEnvironment(
   environment: Environment,
 ): TerminalConnectionCapabilities {
-  return environment.capabilities?.terminalCursorSync?.versions.includes(
-    TERMINAL_CURSOR_SYNC_VERSION,
-  )
-    ? { cursorSyncVersion: TERMINAL_CURSOR_SYNC_VERSION }
-    : {};
+  const advertised = environment.capabilities?.terminalCursorSync?.versions ?? [];
+  const supported = SUPPORTED_CURSOR_SYNC_VERSIONS.filter((version) =>
+    advertised.includes(version),
+  );
+  // Newest supported advertised version; the tuple is ordered ascending.
+  const newest = supported[supported.length - 1];
+  return newest === undefined ? {} : { cursorSyncVersion: newest };
 }
 
 /** Reuse only the descriptor just fetched for this initial connection.

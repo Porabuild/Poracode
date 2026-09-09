@@ -213,7 +213,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       await fetch(new URL("/.well-known/poracode/environment", info.httpBaseUrl))
     ).json();
     expect(env).toMatchObject({
-      capabilities: { terminalCursorSync: { versions: [1] } },
+      capabilities: { terminalCursorSync: { versions: [1, 2] } },
     });
 
     const token = await issueAccessToken(info, ["session:read", "terminal:read"]);
@@ -816,7 +816,12 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       cursorSync: {
         version: 1,
         watchId: "w-unsupported",
-        result: { status: "error", code: "unavailable", retryable: false },
+        result: {
+          status: "error",
+          code: "unavailable",
+          reason: "unsupported-version",
+          retryable: false,
+        },
       },
     });
     expect(callSupervisor).not.toHaveBeenCalled();
@@ -1383,7 +1388,12 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       cursorSync: {
         version: 1,
         watchId: "w-v99",
-        result: { status: "error", code: "unavailable", retryable: false },
+        result: {
+          status: "error",
+          code: "unavailable",
+          reason: "unsupported-version",
+          retryable: false,
+        },
       },
     });
     expect(remoteWebSocketServerMessageSchema.parse(rejected)).toEqual(rejected);
@@ -1452,7 +1462,12 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       cursorSync: {
         version: 1,
         watchId: "w-legacy-v99",
-        result: { status: "error", code: "unavailable", retryable: false },
+        result: {
+          status: "error",
+          code: "unavailable",
+          reason: "unsupported-version",
+          retryable: false,
+        },
       },
     });
     expect(callSupervisor).not.toHaveBeenCalled();
@@ -1574,7 +1589,12 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       cursorSync: {
         version: 1,
         watchId: "w-sync-throw",
-        result: { status: "error", code: "unavailable", retryable: false },
+        result: {
+          status: "error",
+          code: "unavailable",
+          reason: "unsupported-version",
+          retryable: false,
+        },
       },
     });
     expect(callSupervisor).not.toHaveBeenCalled();
@@ -1670,7 +1690,12 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
         cursorSync: {
           version: 1,
           watchId: "w-async-v99",
-          result: { status: "error", code: "unavailable", retryable: false },
+          result: {
+            status: "error",
+            code: "unavailable",
+            reason: "unsupported-version",
+            retryable: false,
+          },
         },
       });
       // No supervisor snapshot for unsupported positive version.

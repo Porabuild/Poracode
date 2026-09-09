@@ -438,6 +438,18 @@ function syntheticRoots(): NativeSchemaRoot[] {
       required: ["fromCursor", "toCursor", "data"],
       additionalProperties: false,
     }),
+    semantic("terminal.cursor.baseline-chunk-utf16", {
+      type: "object",
+      properties: {
+        chunkIndex: { type: "integer" },
+        chunkCount: { type: "integer" },
+        fromCursor: { type: "integer" },
+        toCursor: { type: "integer" },
+        data: { type: "string" },
+      },
+      required: ["chunkIndex", "chunkCount", "fromCursor", "toCursor", "data"],
+      additionalProperties: false,
+    }),
     semantic("thread.goal.objective.trim", {
       type: "object",
       properties: { action: { type: "string" }, objective: { type: "string" } },
@@ -705,6 +717,16 @@ function mutationCases(wsFixtures: readonly string[]): HarnessCodecCase[] {
       id: "synthetic.semantic.terminal.cursor.ready-range-utf16",
       positives: [{ raw: json({ fromCursor: 4, toCursor: 6, data: "😀" }) }],
       negatives: [json({ fromCursor: 4, toCursor: 5, data: "😀" })],
+    },
+    {
+      id: "synthetic.semantic.terminal.cursor.baseline-chunk-utf16",
+      positives: [
+        { raw: json({ chunkIndex: 0, chunkCount: 2, fromCursor: 4, toCursor: 6, data: "😀" }) },
+      ],
+      negatives: [
+        json({ chunkIndex: 2, chunkCount: 2, fromCursor: 4, toCursor: 6, data: "😀" }),
+        json({ chunkIndex: 0, chunkCount: 2, fromCursor: 4, toCursor: 5, data: "😀" }),
+      ],
     },
     {
       id: "synthetic.semantic.thread.goal.objective.trim",

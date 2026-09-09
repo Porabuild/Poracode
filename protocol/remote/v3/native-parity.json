@@ -3322,6 +3322,18 @@
             "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt"
           ]
         }
+      },
+      {
+        "id": "terminal-watch-baseline-ack",
+        "batch": "terminal",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        }
       }
     ],
     "webSocketServerMessages": [
@@ -3491,6 +3503,18 @@
             "android/app/src/main/kotlin/com/poracode/app/transport/terminal/ProductionTerminalWatchTransport.kt",
             "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt"
           ]
+        }
+      },
+      {
+        "id": "terminal-watch-baseline-chunk",
+        "batch": "terminal",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
         }
       }
     ],

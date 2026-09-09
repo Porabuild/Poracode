@@ -33,10 +33,18 @@
       "reconnectRecovery": "fetch-thread-scrollback-then-watch",
       "cursorSync": {
         "capability": "terminalCursorSync",
-        "versions": [1],
+        "versions": [1, 2],
         "optIn": true,
         "reliableCongestion": "disconnect",
-        "legacyCongestion": "lossy-skip"
+        "legacyCongestion": "lossy-skip",
+        "v2": {
+          "baselineDelivery": "chunked",
+          "chunkByteBounds": { "min": 1024, "max": 65536, "default": 8192 },
+          "windowByteBounds": { "min": 1024, "max": 262144, "default": 8192 },
+          "ackMessages": true,
+          "resume": "generation-and-cursor",
+          "controlFrameBypass": "half-window"
+        }
       }
     },
     "pairingCredential": {
@@ -1032,7 +1040,8 @@
       "terminal-watch",
       "terminal-unwatch",
       "git-state-interests",
-      "thread-item-interests"
+      "thread-item-interests",
+      "terminal-watch-baseline-ack"
     ],
     "serverMessages": [
       "ready",
@@ -1043,7 +1052,8 @@
       "browser-frame",
       "browser-mirror-status",
       "terminal-output",
-      "terminal-watch-result"
+      "terminal-watch-result",
+      "terminal-watch-baseline-chunk"
     ],
     "replayableEventTypes": [
       "thread-runtime-event",
@@ -1085,7 +1095,8 @@
       "browser-frame",
       "browser-mirror-status",
       "terminal-output",
-      "terminal-watch-result"
+      "terminal-watch-result",
+      "terminal-watch-baseline-chunk"
     ]
   }
 }

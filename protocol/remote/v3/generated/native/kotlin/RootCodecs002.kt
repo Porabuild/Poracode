@@ -419,8 +419,8 @@ val RemoteRootCodecs.routeU2ETokenU2DExchangeU2EResponse: RemoteRootCodec<Routet
 val RemoteRootCodecs.routeU2EWebsocketU2DTicketU2EResponse: RemoteRootCodec<RoutewebsocketU2DTicketResponse_b9dfb5a053>
     get() = RemoteRootCodec("route.websocket-ticket.response", serializer<RoutewebsocketU2DTicketResponse_b9dfb5a053>(), schema_b9dfb5a053707da9)
 
-val RemoteRootCodecs.websocketU2EClient: RemoteRootCodec<WebSocketClientMessage_4dde56e240>
-    get() = RemoteRootCodec("websocket.client", serializer<WebSocketClientMessage_4dde56e240>(), schema_4dde56e240bff50e)
+val RemoteRootCodecs.websocketU2EClient: RemoteRootCodec<WebSocketClientMessage_872dc7baba>
+    get() = RemoteRootCodec("websocket.client", serializer<WebSocketClientMessage_872dc7baba>(), schema_872dc7babad00cd3)
 
 val RemoteRootCodecs.websocketU2EClientU2EBrowserU2DInput: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D4_d550ef9994>
     get() = RemoteRootCodec("websocket.client.browser-input", serializer<WebSocketClientMessageU2DOptionU2D4_d550ef9994>(), schema_d550ef9994fd388f)
@@ -431,8 +431,8 @@ val RemoteRootCodecs.websocketU2EClientU2EBrowserU2DUnwatch: RemoteRootCodec<Web
 val RemoteRootCodecs.websocketU2EClientU2EBrowserU2DWatch: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D2_2b7b34c95b>
     get() = RemoteRootCodec("websocket.client.browser-watch", serializer<WebSocketClientMessageU2DOptionU2D2_2b7b34c95b>(), schema_2b7b34c95b23bb0d)
 
-val RemoteRootCodecs.websocketU2EClientU2EGitU2DStateU2DInterests: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D7_d2299af726>
-    get() = RemoteRootCodec("websocket.client.git-state-interests", serializer<WebSocketClientMessageU2DOptionU2D7_d2299af726>(), schema_d2299af726097d6c)
+val RemoteRootCodecs.websocketU2EClientU2EGitU2DStateU2DInterests: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D8_d2299af726>
+    get() = RemoteRootCodec("websocket.client.git-state-interests", serializer<WebSocketClientMessageU2DOptionU2D8_d2299af726>(), schema_d2299af726097d6c)
 
 val RemoteRootCodecs.websocketU2EClientU2EPing: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D1_1709690cf0>
     get() = RemoteRootCodec("websocket.client.ping", serializer<WebSocketClientMessageU2DOptionU2D1_1709690cf0>(), schema_1709690cf0edf961)
@@ -440,11 +440,11 @@ val RemoteRootCodecs.websocketU2EClientU2EPing: RemoteRootCodec<WebSocketClientM
 val RemoteRootCodecs.websocketU2EClientU2ETerminalU2DUnwatch: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D6_5af10e67b4>
     get() = RemoteRootCodec("websocket.client.terminal-unwatch", serializer<WebSocketClientMessageU2DOptionU2D6_5af10e67b4>(), schema_5af10e67b405a136)
 
-val RemoteRootCodecs.websocketU2EClientU2ETerminalU2DWatch: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D5_863be77948>
-    get() = RemoteRootCodec("websocket.client.terminal-watch", serializer<WebSocketClientMessageU2DOptionU2D5_863be77948>(), schema_863be77948ff8e01)
+val RemoteRootCodecs.websocketU2EClientU2ETerminalU2DWatch: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D5_838adcbcaf>
+    get() = RemoteRootCodec("websocket.client.terminal-watch", serializer<WebSocketClientMessageU2DOptionU2D5_838adcbcaf>(), schema_838adcbcaff5f551)
 
-val RemoteRootCodecs.websocketU2EClientU2EThreadU2DItemU2DInterests: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D8_93bef3a552>
-    get() = RemoteRootCodec("websocket.client.thread-item-interests", serializer<WebSocketClientMessageU2DOptionU2D8_93bef3a552>(), schema_93bef3a552bf787e)
+val RemoteRootCodecs.websocketU2EClientU2ETerminalU2DWatchU2DBaselineU2DAck: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D7_3f58316dbb>
+    get() = RemoteRootCodec("websocket.client.terminal-watch-baseline-ack", serializer<WebSocketClientMessageU2DOptionU2D7_3f58316dbb>(), schema_3f58316dbb160752)
 
-val RemoteRootCodecs.websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_c2dab68871>
-    get() = RemoteRootCodec("websocket.server", serializer<WebSocketServerMessage_c2dab68871>(), schema_c2dab688715f1ae7)
+val RemoteRootCodecs.websocketU2EClientU2EThreadU2DItemU2DInterests: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D9_93bef3a552>
+    get() = RemoteRootCodec("websocket.client.thread-item-interests", serializer<WebSocketClientMessageU2DOptionU2D9_93bef3a552>(), schema_93bef3a552bf787e)

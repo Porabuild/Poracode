@@ -4,7 +4,7 @@ import type {
   RemoteWebSocketClientMessage,
   RemoteWebSocketServerMessage,
 } from "./protocol";
-import { TERMINAL_CURSOR_SYNC_VERSION } from "./protocol";
+import { TERMINAL_CURSOR_SYNC_VERSION, TERMINAL_CURSOR_SYNC_V2_VERSION } from "./protocol";
 import {
   TERMINAL_WATCH_DEFAULT_LIMITS,
   TERMINAL_WATCH_DEFAULT_RETRY,
@@ -13,6 +13,7 @@ import {
   type TerminalWatchLimits,
   type TerminalWatchRetryOptions,
 } from "./terminalFeedWatch";
+import { TerminalWatchSessionV2, type TerminalWatchV2RequestOptions } from "./terminalFeedWatchV2";
 
 /**
  * Client half of live terminal streaming, shared by browser and Electron remote
@@ -69,9 +70,17 @@ export interface TerminalFeedListener {
 
 export type TerminalSocketSender = (message: RemoteWebSocketClientMessage) => boolean;
 
+/** Per-connection cursor-sync version, sent with each `terminal-watch`.
+ * Version 2 opts watches into chunked baselines + resume (see
+ * `terminalFeedWatchV2.ts`); a v2 watch that the server explicitly rejects
+ * (`reason: "unsupported-version"`) downgrades to v1 on the same connection. */
+export type TerminalCursorSyncFeedVersion =
+  | typeof TERMINAL_CURSOR_SYNC_VERSION
+  | typeof TERMINAL_CURSOR_SYNC_V2_VERSION;
+
 /** Per-connection cursor-sync opt-in, sent with each `terminal-watch`. */
 export interface TerminalFeedSenderOptions {
-  readonly cursorSyncVersion?: typeof TERMINAL_CURSOR_SYNC_VERSION;
+  readonly cursorSyncVersion?: TerminalCursorSyncFeedVersion;
 }
 
 export interface TerminalFeedOptions {
@@ -127,12 +136,16 @@ export function createTerminalFeed(options: TerminalFeedOptions = {}): TerminalF
   const listeners = new Map<string, Set<TerminalFeedListener>>();
   /** Cursor-sync sessions; only present while the connection opted in. */
   const sessions = new Map<string, TerminalWatchSession>();
+  /** Ids whose sessions were explicitly downgraded to v1 by the server
+   * (`reason: "unsupported-version"`); cleared on reset/new connections. */
+  const downgradedToV1 = new Set<string>();
   /** Per-terminal epoch bumped by emitReset. A fanout that started before a
    * reset stops delivering when it sees a new epoch: listeners not yet reached
    * must not receive pre-reset bytes after onReset. */
   const resetEpochs = new Map<string, number>();
   let sender: TerminalSocketSender | null = null;
   let cursorSyncActive = false;
+  let senderVersion: TerminalCursorSyncFeedVersion = TERMINAL_CURSOR_SYNC_VERSION;
 
   /** Deliver to the listener list as it was when the fanout began. A listener
    * added mid-fanout (inside another listener's callback) is served by its own
@@ -152,54 +165,85 @@ export function createTerminalFeed(options: TerminalFeedOptions = {}): TerminalF
     }
   };
 
-  const createSession = (id: string): TerminalWatchSession =>
-    new TerminalWatchSession({
-      host: {
-        sendWatch: (watchId) => {
-          const message: RemoteWebSocketClientMessage = {
-            type: "terminal-watch",
-            id,
-            cursorSync: { version: TERMINAL_CURSOR_SYNC_VERSION, watchId },
-          };
-          sender?.(message);
-        },
-        sendUnwatch: () => {
-          sender?.({ type: "terminal-unwatch", id });
-        },
-        deliverOutput: (data) => {
-          fanout(id, (listener) => listener.onOutput(data));
-        },
-        deliverSnapshot: (snapshot) => {
-          fanout(id, (listener) => listener.onSnapshot?.(snapshot));
-        },
-        deliverWatchError: (error) => {
-          fanout(id, (listener) => listener.onWatchError?.(error));
-        },
+  const createSession = (id: string): TerminalWatchSession => {
+    const v1Host = {
+      sendWatch: (watchId: string) => {
+        const message: RemoteWebSocketClientMessage = {
+          type: "terminal-watch",
+          id,
+          cursorSync: { version: TERMINAL_CURSOR_SYNC_VERSION, watchId },
+        };
+        sender?.(message);
       },
+      sendUnwatch: () => {
+        sender?.({ type: "terminal-unwatch", id });
+      },
+      deliverOutput: (data: string) => {
+        fanout(id, (listener) => listener.onOutput(data));
+      },
+      deliverSnapshot: (snapshot: RemoteTerminalWatchResultReady) => {
+        fanout(id, (listener) => listener.onSnapshot?.(snapshot));
+      },
+      deliverWatchError: (error: RemoteTerminalWatchResultError) => {
+        fanout(id, (listener) => listener.onWatchError?.(error));
+      },
+    };
+    if (senderVersion === TERMINAL_CURSOR_SYNC_V2_VERSION && !downgradedToV1.has(id)) {
+      const sendWatchV2 = (watchId: string, v2Options: TerminalWatchV2RequestOptions) => {
+        const message: RemoteWebSocketClientMessage = {
+          type: "terminal-watch",
+          id,
+          cursorSync: { version: TERMINAL_CURSOR_SYNC_V2_VERSION, watchId, ...v2Options },
+        };
+        sender?.(message);
+      };
+      return new TerminalWatchSessionV2({
+        host: { ...v1Host, sendWatchV2 },
+        sendAck: (watchId: string, throughCursor: number) => {
+          sender?.({
+            type: "terminal-watch-baseline-ack",
+            id,
+            cursorSync: { version: TERMINAL_CURSOR_SYNC_V2_VERSION, watchId, throughCursor },
+          });
+        },
+        generateWatchId,
+        schedule,
+        limits,
+        retry,
+      });
+    }
+    return new TerminalWatchSession({
+      host: v1Host,
       generateWatchId,
       schedule,
       limits,
       retry,
     });
+  };
 
   return {
     setSender(next, senderOptions) {
       // Suspension retains the cache's mode so resets still invalidate it.
-      // The next live socket must negotiate its own mode afresh.
-      const wantCursorSync =
-        next === null
-          ? cursorSyncActive
-          : senderOptions?.cursorSyncVersion === TERMINAL_CURSOR_SYNC_VERSION;
+      // The next live socket must negotiate its own mode afresh. Absent
+      // option = the legacy live-only feed (no cursorSync on the wire).
+      const wantVersion = next === null ? senderVersion : senderOptions?.cursorSyncVersion;
+      const wantCursorSync = next === null ? cursorSyncActive : wantVersion !== undefined;
       // Idempotent: re-activating the same socket with the same mode must not
       // resend watches (and must not retransmit history). A null -> callback
       // transition is a change and still rewatches.
-      if (next === sender && wantCursorSync === cursorSyncActive) return;
+      if (next === sender && wantCursorSync === cursorSyncActive && wantVersion === senderVersion) {
+        return;
+      }
       sender = next;
       cursorSyncActive = wantCursorSync;
+      senderVersion = wantVersion ?? TERMINAL_CURSOR_SYNC_VERSION;
       if (!next) {
         for (const session of sessions.values()) session.suspend();
         return;
       }
+      // A new connection re-negotiates: explicit downgrades were per-connection
+      // verdicts and the fresh descriptor decides the version again.
+      downgradedToV1.clear();
       for (const id of listeners.keys()) {
         if (wantCursorSync) {
           let session = sessions.get(id);
@@ -284,9 +328,34 @@ export function createTerminalFeed(options: TerminalFeedOptions = {}): TerminalF
       }
       if (message.type === "terminal-watch-result") {
         if (cursorSyncActive) {
-          sessions
-            .get(message.id)
-            ?.handleResult(message.cursorSync.watchId, message.cursorSync.result);
+          const session = sessions.get(message.id);
+          if (
+            session instanceof TerminalWatchSessionV2 &&
+            message.cursorSync.result.status === "error" &&
+            message.cursorSync.result.reason === "unsupported-version"
+          ) {
+            // Explicit downgrade: the server rejected v2 for this watch.
+            // Swap in a v1 session on the same connection — one extra round
+            // trip, no persisted state; the v1 baseline re-downloads the
+            // full retained tail (the exceptional path pays v1 cost).
+            downgradedToV1.add(message.id);
+            session.dispose();
+            const v1Session = createSession(message.id);
+            sessions.set(message.id, v1Session);
+            v1Session.rearm();
+            return true;
+          }
+          session?.handleResult(message.cursorSync.watchId, message.cursorSync.result);
+        }
+        return true;
+      }
+      if (message.type === "terminal-watch-baseline-chunk") {
+        // v2-only frame; only sessions that requested v2 can be addressed.
+        if (cursorSyncActive) {
+          const session = sessions.get(message.id);
+          if (session instanceof TerminalWatchSessionV2) {
+            session.handleChunk(message.cursorSync.watchId, message.cursorSync);
+          }
         }
         return true;
       }
@@ -326,6 +395,7 @@ export function createTerminalFeed(options: TerminalFeedOptions = {}): TerminalF
       listeners.clear();
       for (const session of sessions.values()) session.dispose();
       sessions.clear();
+      downgradedToV1.clear();
       resetEpochs.clear();
     },
   };

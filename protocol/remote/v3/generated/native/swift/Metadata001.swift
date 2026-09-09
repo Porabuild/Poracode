@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 10
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 3
-  public static let sourceHash = "sha256:e046ecddebc969133a5f393498bae56af0dafef3184d639884d2e0ff734ebee5"
-  public static let manifestHash = "sha256:76777c456b8b6447caf6ba86af3f3c97449c6fa37c209a0d32aa125526566682"
+  public static let sourceHash = "sha256:413b7a38c40e7c431296840e07d6c8c89144ebcaef34f3f4a0b95fcbd05dead3"
+  public static let manifestHash = "sha256:d8b8c47b8c931997a6856b6d27e68fd264c3b11d65c12f0d5405a02480ac84c2"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -183,11 +183,12 @@ public enum RemoteContractMetadata {
     .init(direction: "client", type: "browser-input", modelType: "WebSocketClientMessageU2DOptionU2D4_d550ef9994"),
     .init(direction: "client", type: "browser-unwatch", modelType: "WebSocketClientMessageU2DOptionU2D3_0e8f58f429"),
     .init(direction: "client", type: "browser-watch", modelType: "WebSocketClientMessageU2DOptionU2D2_2b7b34c95b"),
-    .init(direction: "client", type: "git-state-interests", modelType: "WebSocketClientMessageU2DOptionU2D7_d2299af726"),
+    .init(direction: "client", type: "git-state-interests", modelType: "WebSocketClientMessageU2DOptionU2D8_d2299af726"),
     .init(direction: "client", type: "ping", modelType: "WebSocketClientMessageU2DOptionU2D1_1709690cf0"),
     .init(direction: "client", type: "terminal-unwatch", modelType: "WebSocketClientMessageU2DOptionU2D6_5af10e67b4"),
-    .init(direction: "client", type: "terminal-watch", modelType: "WebSocketClientMessageU2DOptionU2D5_863be77948"),
-    .init(direction: "client", type: "thread-item-interests", modelType: "WebSocketClientMessageU2DOptionU2D8_93bef3a552"),
+    .init(direction: "client", type: "terminal-watch", modelType: "WebSocketClientMessageU2DOptionU2D5_838adcbcaf"),
+    .init(direction: "client", type: "terminal-watch-baseline-ack", modelType: "WebSocketClientMessageU2DOptionU2D7_3f58316dbb"),
+    .init(direction: "client", type: "thread-item-interests", modelType: "WebSocketClientMessageU2DOptionU2D9_93bef3a552"),
     .init(direction: "server", type: "browser-frame", modelType: "WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac"),
     .init(direction: "server", type: "browser-mirror-status", modelType: "WebSocketServerMessageU2DOptionU2D7_0ad133ee58"),
     .init(direction: "server", type: "browser-state", modelType: "WebSocketServerMessageU2DOptionU2D5_bd23acb1d6"),
@@ -196,6 +197,7 @@ public enum RemoteContractMetadata {
     .init(direction: "server", type: "ready", modelType: "WebSocketServerMessageU2DOptionU2D1_13762c62f0"),
     .init(direction: "server", type: "resync-required", modelType: "WebSocketServerMessageU2DOptionU2D3_67185a3945"),
     .init(direction: "server", type: "terminal-output", modelType: "WebSocketServerMessageU2DOptionU2D8_95d0adeb5b"),
-    .init(direction: "server", type: "terminal-watch-result", modelType: "WebSocketServerMessageU2DOptionU2D9_a7af012dd2"),
+    .init(direction: "server", type: "terminal-watch-baseline-chunk", modelType: "WebSocketServerMessageU2DOptionU2D10_e65689e97e"),
+    .init(direction: "server", type: "terminal-watch-result", modelType: "WebSocketServerMessageU2DOptionU2D9_4655073d71"),
   ]
 }

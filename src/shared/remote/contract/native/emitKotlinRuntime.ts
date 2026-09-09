@@ -101,6 +101,7 @@ ${validators.join("\n")}
         "terminal.cursor.output-data-utf16" -> item?.get("cursorSync")?.let { syncValue -> val sync = obj(syncValue) ?: fail(id, path); val from = long(sync["fromCursor"]); val to = long(sync["toCursor"]); val data = str(item["data"]); if (from == null || to == null || data == null || from > to || to - from != data.length.toLong()) fail(id, path) }
         "terminal.cursor.output-range" -> { val from = long(item?.get("fromCursor")); val to = long(item?.get("toCursor")); if (from == null || to == null || from > to) fail(id, path) }
         "terminal.cursor.ready-range-utf16" -> { val from = long(item?.get("fromCursor")); val to = long(item?.get("toCursor")); val data = str(item?.get("data")); if (from == null || to == null || data == null || from > to || to - from != data.length.toLong()) fail(id, path) }
+        "terminal.cursor.baseline-chunk-utf16" -> { val index = long(item?.get("chunkIndex")); val count = long(item?.get("chunkCount")); val from = long(item?.get("fromCursor")); val to = long(item?.get("toCursor")); val data = str(item?.get("data")); if (index == null || count == null || from == null || to == null || data == null || index >= count || from > to || to - from != data.length.toLong()) fail(id, path) }
         "thread.goal.objective.trim" -> if (str(item?.get("action")) == "edit" && str(item?.get("objective"))?.let(RemoteECMAScriptTrim::trim).isNullOrEmpty()) fail(id, path)
         "void-envelope.omit-result", "void-result.omit-field" -> if (has("result")) fail(id, path)
         else -> fail(id, path)

@@ -18,6 +18,7 @@ import {
 } from "@/shared/remote";
 import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
+import { TerminalBaselineStreamScheduler } from "./server/terminalBaselineStream";
 import type {
   BackgroundTask,
   McpLaunchSnapshot,
@@ -360,6 +361,8 @@ export class RemoteAccessServer {
   private readonly terminalWatches = new Map<WebSocket, Set<string>>();
   /** Opt-in reliable (cursor-sync) watch state, keyed per connection/terminal. */
   private readonly terminalCursorSync = new TerminalCursorSyncRegistry();
+  /** Cursor-sync v2 chunked-baseline delivery scheduler. */
+  private readonly terminalBaselineStreams: TerminalBaselineStreamScheduler;
   /** Per-connection Git interests, so PR bodies only reach clients that asked. */
   private readonly gitStateInterests = new Map<WebSocket, readonly GitStateInterest[]>();
   private readonly supervisorEventListeners = new Set<(event: RemoteBroadcastEvent) => void>();
@@ -379,6 +382,15 @@ export class RemoteAccessServer {
       getHttpBaseUrl: () => this.info?.httpBaseUrl,
       options,
       auth: this.auth,
+    });
+    this.terminalBaselineStreams = new TerminalBaselineStreamScheduler({
+      isCurrent: (ws, terminalId, watchId, epoch) =>
+        this.terminalCursorSync.isCurrent(ws, terminalId, watchId, epoch),
+      sendRaw: (ws, data) => {
+        if (ws.readyState !== WebSocket.OPEN) return false;
+        ws.send(data);
+        return true;
+      },
     });
     this.wss = new WebSocketServer({
       noServer: true,
@@ -415,6 +427,7 @@ export class RemoteAccessServer {
       clientLiveness: this.clientLiveness,
       terminalWatches: this.terminalWatches,
       terminalCursorSync: this.terminalCursorSync,
+      terminalBaselineStreams: this.terminalBaselineStreams,
       gitStateInterests: this.gitStateInterests,
       itemInterests: this.itemInterests,
       eventBuffer: this.eventBuffer,
@@ -560,6 +573,7 @@ export class RemoteAccessServer {
     this.clientLiveness.clear();
     this.terminalWatches.clear();
     this.terminalCursorSync.clearAll();
+    this.terminalBaselineStreams.clearAll();
     this.gitStateInterests.clear();
     this.supervisorEventListeners.clear();
     this.itemInterests.clear();

@@ -30773,10 +30773,10 @@
     "routes": 62,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 36,
-    "webSocketClientMessages": 8,
-    "webSocketServerMessages": 9
+    "webSocketClientMessages": 9,
+    "webSocketServerMessages": 10
   },
-  "manifestHash": "sha256:76777c456b8b6447caf6ba86af3f3c97449c6fa37c209a0d32aa125526566682",
+  "manifestHash": "sha256:d8b8c47b8c931997a6856b6d27e68fd264c3b11d65c12f0d5405a02480ac84c2",
   "protocolVersion": 10,
-  "sourceHash": "sha256:e046ecddebc969133a5f393498bae56af0dafef3184d639884d2e0ff734ebee5"
+  "sourceHash": "sha256:413b7a38c40e7c431296840e07d6c8c89144ebcaef34f3f4a0b95fcbd05dead3"
 }

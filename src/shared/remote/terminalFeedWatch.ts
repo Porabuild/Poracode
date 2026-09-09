@@ -119,18 +119,18 @@ const CLIENT_UNAVAILABLE_STOP: RemoteTerminalWatchResultError = {
   retryable: false,
 };
 
-const CLIENT_UNAVAILABLE_RETRYABLE: RemoteTerminalWatchResultError = {
+export const CLIENT_UNAVAILABLE_RETRYABLE: RemoteTerminalWatchResultError = {
   status: "error",
   code: "unavailable",
   retryable: true,
 };
 
 export class TerminalWatchSession {
-  private readonly host: TerminalWatchHost;
-  private readonly generateWatchId: () => string;
-  private readonly schedule: TerminalWatchScheduler;
-  private readonly limits: TerminalWatchLimits;
-  private readonly retry: TerminalWatchRetryOptions;
+  protected readonly host: TerminalWatchHost;
+  protected readonly generateWatchId: () => string;
+  protected readonly schedule: TerminalWatchScheduler;
+  protected readonly limits: TerminalWatchLimits;
+  protected readonly retry: TerminalWatchRetryOptions;
 
   /** Installed snapshot position; `generation: null` is replace-only. */
   private position: TerminalPosition | null = null;
@@ -143,12 +143,12 @@ export class TerminalWatchSession {
   /** True from `begin()` until the attempt's own baseline installs. While set,
    * all tagged frames for the current watchId buffer regardless of any cache
    * retained from a previous attempt/connection. */
-  private awaitingBaseline = false;
+  protected awaitingBaseline = false;
   private pending: TerminalWatchFrame[] = [];
   private pendingUnits = 0;
 
-  private currentWatchId: string | null = null;
-  private cancelBaselineTimer: (() => void) | null = null;
+  protected currentWatchId: string | null = null;
+  protected cancelBaselineTimer: (() => void) | null = null;
   private cancelRetryTimer: (() => void) | null = null;
   private retryAttempt = 0;
   private resyncs = 0;
@@ -157,13 +157,13 @@ export class TerminalWatchSession {
    * session must never act again — callbacks during delivery can unsubscribe
    * and re-watch the same id, and the old session would otherwise keep
    * sending watches/unwatches that clobber the new one. */
-  private disposed = false;
+  protected disposed = false;
   /** Set while the sender is down; no timers or sends may be scheduled. */
-  private suspended = false;
+  protected suspended = false;
 
   /** Non-retryable stop: cache is kept for late listeners; re-arm only via
    * rearm()/restart() (new connection / reset / new watch). */
-  private stopped = false;
+  protected stopped = false;
   private lastStopError: RemoteTerminalWatchResultError | null = null;
 
   constructor(deps: TerminalWatchDeps) {
@@ -303,7 +303,7 @@ export class TerminalWatchSession {
   /** True when the just-retired attempt may still own the recovery: no
    * callback has stopped, disposed, suspended this session or begun a newer
    * attempt in the meantime. */
-  private canScheduleRetry(): boolean {
+  protected canScheduleRetry(): boolean {
     return !this.stopped && !this.disposed && !this.suspended && this.currentWatchId === null;
   }
 
@@ -325,10 +325,17 @@ export class TerminalWatchSession {
       this.host.deliverWatchError(CLIENT_UNAVAILABLE_RETRYABLE);
       if (this.canScheduleRetry()) this.scheduleRetry();
     });
+    this.sendCurrentWatch(watchId);
+  }
+
+  /** The wire request for the current attempt. The default sends the v1
+   * cursor-sync watch; the v2 session overrides this to add resume/bounds
+   * (see `terminalFeedWatchV2.ts`). */
+  protected sendCurrentWatch(watchId: string): void {
     this.host.sendWatch(watchId);
   }
 
-  private scheduleRetry(): void {
+  protected scheduleRetry(): void {
     this.retryAttempt += 1;
     if (this.retryAttempt > this.retry.maxAttempts) {
       this.stop(CLIENT_UNAVAILABLE_STOP);
@@ -348,7 +355,7 @@ export class TerminalWatchSession {
 
   /** Gap / generation change / overflow / broken tagging: resnapshot with a
    * fresh watchId. Bounded — never a busy loop, never guessed bytes. */
-  private resync(): void {
+  protected resync(): void {
     if (this.stopped) return;
     this.resyncs += 1;
     if (this.resyncs > this.retry.maxResyncs) {
@@ -489,17 +496,17 @@ export class TerminalWatchSession {
     this.clearPending();
   }
 
-  private clearPending(): void {
+  protected clearPending(): void {
     this.pending = [];
     this.pendingUnits = 0;
   }
 
-  private cancelBaseline(): void {
+  protected cancelBaseline(): void {
     this.cancelBaselineTimer?.();
     this.cancelBaselineTimer = null;
   }
 
-  private cancelRetry(): void {
+  protected cancelRetry(): void {
     this.cancelRetryTimer?.();
     this.cancelRetryTimer = null;
   }

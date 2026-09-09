@@ -16,6 +16,7 @@ import {
   remoteTerminalWatchResultReadySchema,
   remoteWebSocketServerMessageSchema,
   TERMINAL_CURSOR_SYNC_VERSION,
+  TERMINAL_CURSOR_SYNC_V2_VERSION,
 } from "@/shared/remote";
 
 vi.mock("../../db", () => ({
@@ -359,13 +360,18 @@ describe("terminal cursor helpers", () => {
   });
 
   it("keeps supported versions at capability 1 and rejects others", () => {
-    expect(TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS).toEqual([TERMINAL_CURSOR_SYNC_VERSION]);
+    expect(TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS).toEqual([
+      TERMINAL_CURSOR_SYNC_VERSION,
+      TERMINAL_CURSOR_SYNC_V2_VERSION,
+    ]);
     expect(isSupportedTerminalCursorSyncVersion(1)).toBe(true);
-    expect(isSupportedTerminalCursorSyncVersion(2)).toBe(false);
+    expect(isSupportedTerminalCursorSyncVersion(2)).toBe(true);
     expect(isSupportedTerminalCursorSyncVersion(0)).toBe(false);
+    expect(isSupportedTerminalCursorSyncVersion(3)).toBe(false);
     expect(unsupportedCursorSyncVersionResult()).toEqual({
       status: "error",
       code: "unavailable",
+      reason: "unsupported-version",
       retryable: false,
     });
   });

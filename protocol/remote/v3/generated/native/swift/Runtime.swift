@@ -91,6 +91,7 @@ public enum RemoteSemanticValidator {
     "push.routing.identifier-no-controls",
     "push.web.endpoint-https",
     "string.trim",
+    "terminal.cursor.baseline-chunk-utf16",
     "terminal.cursor.output-data-utf16",
     "terminal.cursor.output-range",
     "terminal.cursor.ready-range-utf16",
@@ -117,6 +118,7 @@ public enum RemoteSemanticValidator {
     case "terminal.cursor.output-data-utf16": if let sync = object(item?["cursorSync"] ?? .null), let from = int(sync["fromCursor"]), let to = int(sync["toCursor"]), let data = string(item?["data"]), from <= to && to - from == Int64(data.utf16.count) {} else if item?["cursorSync"] != nil { try fail(id, path) }
     case "terminal.cursor.output-range": guard let from = int(item?["fromCursor"]), let to = int(item?["toCursor"]), from <= to else { try fail(id, path) }
     case "terminal.cursor.ready-range-utf16": guard let from = int(item?["fromCursor"]), let to = int(item?["toCursor"]), let data = string(item?["data"]), from <= to && to - from == Int64(data.utf16.count) else { try fail(id, path) }
+    case "terminal.cursor.baseline-chunk-utf16": guard let index = int(item?["chunkIndex"]), let count = int(item?["chunkCount"]), let from = int(item?["fromCursor"]), let to = int(item?["toCursor"]), let data = string(item?["data"]), index < count, from <= to, to - from == Int64(data.utf16.count) else { try fail(id, path) }
     case "thread.goal.objective.trim": if string(item?["action"]) == "edit" && string(item?["objective"]).map { RemoteECMAScriptTrim.trim($0).isEmpty } != false { try fail(id, path) }
     case "void-envelope.omit-result", "void-result.omit-field": if item?["result"] != nil { try fail(id, path) }
     default: try fail(id, path)

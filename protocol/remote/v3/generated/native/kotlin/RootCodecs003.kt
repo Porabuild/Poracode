@@ -5,6 +5,9 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_e9a499aee9>
+    get() = RemoteRootCodec("websocket.server", serializer<WebSocketServerMessage_e9a499aee9>(), schema_e9a499aee9cc5592)
+
 val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DFrame: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac>
     get() = RemoteRootCodec("websocket.server.browser-frame", serializer<WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac>(), schema_8f58c1d1acd8bc3c)
 
@@ -29,5 +32,8 @@ val RemoteRootCodecs.websocketU2EServerU2EResyncU2DRequired: RemoteRootCodec<Web
 val RemoteRootCodecs.websocketU2EServerU2ETerminalU2DOutput: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D8_95d0adeb5b>
     get() = RemoteRootCodec("websocket.server.terminal-output", serializer<WebSocketServerMessageU2DOptionU2D8_95d0adeb5b>(), schema_95d0adeb5b1f4c44)
 
-val RemoteRootCodecs.websocketU2EServerU2ETerminalU2DWatchU2DResult: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D9_a7af012dd2>
-    get() = RemoteRootCodec("websocket.server.terminal-watch-result", serializer<WebSocketServerMessageU2DOptionU2D9_a7af012dd2>(), schema_a7af012dd26c2f45)
+val RemoteRootCodecs.websocketU2EServerU2ETerminalU2DWatchU2DBaselineU2DChunk: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D10_e65689e97e>
+    get() = RemoteRootCodec("websocket.server.terminal-watch-baseline-chunk", serializer<WebSocketServerMessageU2DOptionU2D10_e65689e97e>(), schema_e65689e97e7d91c3)
+
+val RemoteRootCodecs.websocketU2EServerU2ETerminalU2DWatchU2DResult: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D9_4655073d71>
+    get() = RemoteRootCodec("websocket.server.terminal-watch-result", serializer<WebSocketServerMessageU2DOptionU2D9_4655073d71>(), schema_4655073d71f8e50b)

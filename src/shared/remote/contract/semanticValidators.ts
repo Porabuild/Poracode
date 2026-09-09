@@ -16,6 +16,7 @@ import {
   remotePushRegistrationRoutingSchema,
   remotePushRegistrationSchema,
   remoteTerminalOutputCursorSyncV1Schema,
+  remoteTerminalWatchBaselineChunkSchema,
   remoteTerminalWatchResultReadySchema,
   remoteWebPushSubscriptionSchema,
   remoteWebSocketServerMessageSchema,
@@ -155,6 +156,14 @@ const REGISTERED: ReadonlyArray<{
     validator: {
       id: "terminal.cursor.output-range",
       reason: "terminal output cursor ranges are ordered",
+    },
+  },
+  {
+    schema: remoteTerminalWatchBaselineChunkSchema,
+    validator: {
+      id: "terminal.cursor.baseline-chunk-utf16",
+      reason:
+        "baseline chunks are index-ordered, cursor ranges are ordered, and data length is measured in UTF-16 code units",
     },
   },
 ];
