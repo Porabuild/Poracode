@@ -1,3 +1,5 @@
+import type { REMOTE_PROTOCOL_VERSION } from "../versions";
+
 export type NativeLanguage = "swift" | "kotlin";
 
 export type JsonSchema = Readonly<Record<string, unknown>>;
@@ -50,7 +52,8 @@ export interface NativeProcedureIr {
 
 export interface NativeBindingIr {
   readonly contract: "poracode.remote";
-  readonly protocolVersion: 9;
+  /** Tracks the live wire protocol constant; never widened to `number`. */
+  readonly protocolVersion: typeof REMOTE_PROTOCOL_VERSION;
   readonly bindingFormatVersion: 2;
   readonly generatorVersion: 3;
   readonly manifestFormatVersion: 1;

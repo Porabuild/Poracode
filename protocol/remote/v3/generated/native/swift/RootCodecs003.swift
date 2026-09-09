@@ -193,7 +193,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DStartU2DExistingU2ERequest: RemoteRootCodec<RoutethreadU2DStartU2DExistingRequest_af6694125b> = .init(id: "route.thread-start-existing.request", schema: RemoteSchemas.schema_af6694125b1ce1b5)
+  static let routeU2EThreadU2DStartU2DExistingU2ERequest: RemoteRootCodec<RoutethreadU2DStartU2DExistingRequest_847ec48826> = .init(id: "route.thread-start-existing.request", schema: RemoteSchemas.schema_847ec488263c8777)
 }
 
 public extension RemoteRootCodecs {

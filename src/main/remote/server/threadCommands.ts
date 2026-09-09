@@ -23,11 +23,13 @@ import {
 } from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { ipcProcedureMap, parseRemoteProcedureResultValue } from "@/shared/ipc";
+import { FILE_SAVE_CONFLICT_MESSAGE } from "@/shared/fileSaveErrors";
 import { msg } from "@/shared/messages";
 import {
   dbDeleteProject,
   dbDeleteThread,
   dbGetProjects,
+  dbGetThread,
   dbGetThreads,
   dbUpdateProject,
   dbUpsertProject,
@@ -109,7 +111,12 @@ export async function runRemoteProcedure(
       500,
     );
   }
-  const raw = await ctx.options.callSupervisor(name, parsedPayload);
+  let raw: unknown;
+  try {
+    raw = await ctx.options.callSupervisor(name, parsedPayload);
+  } catch (error) {
+    throw mapSupervisorProcedureError(name, error);
+  }
   try {
     return parseRemoteProcedureResultValue(resultSchema, raw);
   } catch {
@@ -119,6 +126,30 @@ export async function runRemoteProcedure(
       500,
     );
   }
+}
+
+/** The only procedures whose known domain error is mapped for remote clients. */
+const FILE_SAVE_PROCEDURES = new Set<string>(["writeProjectFile", "writeExternalFile"]);
+
+/**
+ * Supervisor IPC deliberately serializes failures as plain `error.message`
+ * strings (see `handleSupervisorIpcFailure`), so this passthrough receives no
+ * typed errors. For the editor-save procedures only, the save-conflict domain
+ * message is recognized by exact equality with the canonical constant and
+ * re-emitted as an actionable `409 file_save_conflict`. Every other failure —
+ * any other procedure, near-miss messages included — is returned untouched so
+ * `writeError` keeps redacting it as a generic 500; supervisor internals must
+ * never leak through this boundary.
+ */
+function mapSupervisorProcedureError(procedure: string, error: unknown): unknown {
+  if (
+    FILE_SAVE_PROCEDURES.has(procedure) &&
+    error instanceof Error &&
+    error.message === FILE_SAVE_CONFLICT_MESSAGE
+  ) {
+    return new RemoteHttpError("file_save_conflict", FILE_SAVE_CONFLICT_MESSAGE, 409);
+  }
+  return error;
 }
 
 const PROJECT_ENTRY_PROCEDURES = new Set([
@@ -359,6 +390,34 @@ export async function applyRemoteThreadCommand(
       return false;
     }
   }
+}
+
+/** Empty-prompt reopen takes launch state from the host, never a stale client. */
+export async function ensureRemoteThreadRunning(
+  ctx: RemoteServerContext,
+  threadId: string,
+  initialSize: StartThreadPayload["initialSize"],
+): Promise<StartThreadResult> {
+  const thread = dbGetThread(threadId);
+  if (!thread) throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+  const project = dbGetProjects().find((entry) => entry.id === thread.projectId);
+  if (!project) throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+  const mcpSnapshot =
+    ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
+  return ctx.options.callSupervisor("ensureThreadRunning", {
+    threadId,
+    projectLocation: thread.worktreePath
+      ? buildWorktreeLocation(project.location, thread.worktreePath)
+      : project.location,
+    agentKind: thread.agentKind,
+    ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
+    config: thread.config,
+    prompt: "",
+    initialSize,
+    ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+    ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
+    ...mcpSnapshot,
+  });
 }
 
 async function startRemoteThread(

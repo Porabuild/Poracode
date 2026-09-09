@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { MOCK_AGENTS_ENV } from "@/supervisor/agentLaunchGuard";
 import { CursorSdkWorkerRpcError } from "./sdkWorkerClient";
 import type { AgentStatus } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
@@ -19,6 +20,10 @@ function worker(input: {
 }
 
 describe("probeCursorSdkRuntime", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("probes models inside the target runtime and always disposes the worker", async () => {
     const handle = worker({
       probe: async () => ({
@@ -284,6 +289,43 @@ describe("probeCursorSdkRuntime", () => {
     await pending;
 
     expect(handle.terminate).toHaveBeenCalledOnce();
+    expect(handle.dispose).toHaveBeenCalledOnce();
+  });
+
+  it("refuses to spawn the SDK worker in a mock QA session", async () => {
+    vi.stubEnv(MOCK_AGENTS_ENV, "1");
+    vi.stubEnv("PORACODE_IS_DEV", "1");
+    const spawnWorker = vi.fn<
+      () => Promise<{
+        probe: () => Promise<never>;
+        dispose: () => Promise<void>;
+      }>
+    >();
+
+    await expect(probeCursorSdkRuntime({ envKind: "posix" }, { spawnWorker })).resolves.toEqual({
+      installed: false,
+      authState: "unknown",
+      models: [],
+      diagnosticMessage: expect.stringContaining(MOCK_AGENTS_ENV),
+    });
+    expect(spawnWorker).not.toHaveBeenCalled();
+  });
+
+  it("still spawns the SDK worker without the flag (real-mode parity)", async () => {
+    vi.stubEnv(MOCK_AGENTS_ENV, "");
+    const handle = worker({
+      probe: async () => ({
+        models: [{ id: "composer-2.5", displayName: "Composer 2.5" }],
+        sdkVersion: "1.0.24",
+        source: "global-npm",
+      }),
+    });
+    const spawnWorker = vi.fn<() => Promise<typeof handle>>(async () => handle);
+
+    await expect(
+      probeCursorSdkRuntime({ envKind: "posix" }, { spawnWorker }),
+    ).resolves.toMatchObject({ installed: true, models: [{ id: "composer-2.5" }] });
+    expect(spawnWorker).toHaveBeenCalledOnce();
     expect(handle.dispose).toHaveBeenCalledOnce();
   });
 });

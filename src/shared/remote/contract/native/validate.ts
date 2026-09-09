@@ -1,5 +1,6 @@
 import { buildRemoteV3AuthorityInput, manifestHashOf, sourceHashOf } from "../hashes";
 import { compareUnicodeCodePoints } from "../unicodeOrder";
+import { REMOTE_PROTOCOL_VERSION } from "../versions";
 import type {
   JsonSchema,
   NativeBindingIr,
@@ -210,7 +211,7 @@ export function parseNativeBindingIr(raw: unknown, manifest: unknown): NativeBin
   const item = record(raw, "binding IR");
   if (item.contract !== "poracode.remote")
     throw new Error("binding IR contract must be poracode.remote");
-  if (item.protocolVersion !== 9)
+  if (item.protocolVersion !== REMOTE_PROTOCOL_VERSION)
     throw new Error(`unsupported protocol version ${String(item.protocolVersion)}`);
   if (item.bindingFormatVersion !== 2)
     throw new Error(`unsupported binding format ${String(item.bindingFormatVersion)}`);
@@ -305,7 +306,7 @@ export function parseNativeBindingIr(raw: unknown, manifest: unknown): NativeBin
 
   return {
     contract: "poracode.remote",
-    protocolVersion: 9,
+    protocolVersion: REMOTE_PROTOCOL_VERSION,
     bindingFormatVersion: 2,
     generatorVersion: 3,
     manifestFormatVersion: 1,

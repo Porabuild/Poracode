@@ -111,14 +111,14 @@ export function useMobilePageHistory(compactLayout: boolean): void {
   const settingsSection = usePanelStore((state) => state.settingsSection);
   const githubActionsContext = usePanelStore((state) => state.githubActionsContext);
   const projectSettingsId = usePanelStore((state) => state.projectSettingsId);
-  const applyingHistoryRef = useRef(false);
+  const applyingHistoryRef = useRef<{ page: MobileUtilityPage | null } | null>(null);
   const previousPageRef = useRef<MobileUtilityPage | null>(page);
 
   useLayoutEffect(() => {
     if (!compactLayout) return;
     const entry = readHistoryEntry();
     if (entry === null) return;
-    applyingHistoryRef.current = true;
+    applyingHistoryRef.current = { page: entry.page };
     previousPageRef.current = entry.page;
     applyHistoryEntry(entry);
   }, [compactLayout]);
@@ -127,7 +127,7 @@ export function useMobilePageHistory(compactLayout: boolean): void {
     if (!compactLayout) return;
     const onPopState = () => {
       const entry = readHistoryEntry();
-      applyingHistoryRef.current = true;
+      applyingHistoryRef.current = { page: entry?.page ?? null };
       previousPageRef.current = entry?.page ?? null;
       applyHistoryEntry(entry);
     };
@@ -136,15 +136,23 @@ export function useMobilePageHistory(compactLayout: boolean): void {
   }, [compactLayout]);
 
   useEffect(() => {
+    // Restoration runs in a layout effect. Its synchronous store write can
+    // leave this commit's passive effect holding the previous page snapshot.
+    // Wait for the matching render rather than consuming the restoration and
+    // pushing the restored page again on the next commit.
+    if (page !== usePanelStore.getState().mobileUtilityPage) return;
     if (!compactLayout) {
       if (page !== null) usePanelStore.setState({ mobileUtilityPage: null });
       return;
     }
 
-    if (applyingHistoryRef.current) {
-      applyingHistoryRef.current = false;
-      previousPageRef.current = page;
-      return;
+    const restoration = applyingHistoryRef.current;
+    if (restoration) {
+      applyingHistoryRef.current = null;
+      if (restoration.page === page) {
+        previousPageRef.current = page;
+        return;
+      }
     }
 
     const previousPage = previousPageRef.current;

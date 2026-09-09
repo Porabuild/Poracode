@@ -15072,6 +15072,35 @@
               {
                 "additionalProperties": true,
                 "properties": {
+                  "itemId": {
+                    "type": "string"
+                  },
+                  "removedCompletedTurnAnchors": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "threadId": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "runtime.truncated",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "threadId",
+                  "itemId",
+                  "removedCompletedTurnAnchors"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
                   "message": {
                     "type": "string"
                   },
@@ -15922,6 +15951,35 @@
                   "threadId",
                   "requestId",
                   "outcome"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              {
+                "additionalProperties": true,
+                "properties": {
+                  "itemId": {
+                    "type": "string"
+                  },
+                  "removedCompletedTurnAnchors": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "threadId": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "const": "runtime.truncated",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "threadId",
+                  "itemId",
+                  "removedCompletedTurnAnchors"
                 ],
                 "type": "object",
                 "x-poracode-unknownFields": "strip"
@@ -18198,6 +18256,19 @@
         "capabilities": {
           "additionalProperties": true,
           "properties": {
+            "browserForward": {
+              "additionalProperties": true,
+              "properties": {
+                "versions": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "versions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "pushRouting": {
               "additionalProperties": true,
               "properties": {
@@ -18271,7 +18342,7 @@
           "type": "string"
         },
         "protocolVersion": {
-          "const": 9,
+          "const": 10,
           "type": "number"
         }
       },
@@ -18349,6 +18420,19 @@
         "capabilities": {
           "additionalProperties": true,
           "properties": {
+            "browserForward": {
+              "additionalProperties": true,
+              "properties": {
+                "versions": {
+                  "$ref": "#/$defs/__schema0"
+                }
+              },
+              "required": [
+                "versions"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
             "pushRouting": {
               "additionalProperties": true,
               "properties": {
@@ -18422,7 +18506,7 @@
           "type": "string"
         },
         "protocolVersion": {
-          "const": 9,
+          "const": 10,
           "type": "number"
         }
       },
@@ -29629,6 +29713,10 @@
           },
           "type": "object"
         },
+        "ensureRunning": {
+          "const": true,
+          "type": "boolean"
+        },
         "initialSize": {
           "additionalProperties": true,
           "properties": {
@@ -30576,12 +30664,12 @@
     "procedures": 100,
     "replayableEventTypes": 15,
     "routes": 61,
-    "runtimeEventTypes": 15,
+    "runtimeEventTypes": 16,
     "voidProcedureResults": 36,
     "webSocketClientMessages": 8,
     "webSocketServerMessages": 9
   },
-  "manifestHash": "sha256:17211d0f9667ac6d07ddba8bdf445f1d7ae8d7f959c3d049098021688b3a71ef",
-  "protocolVersion": 9,
-  "sourceHash": "sha256:19ac4727f9f36256a23a9d35740babb66a2412c1aaf3534a2b83cae859b192f3"
+  "manifestHash": "sha256:4b6e0108410f094193c3b1ee8170c38ac179b29d88e67cde60a808ab1dd63a58",
+  "protocolVersion": 10,
+  "sourceHash": "sha256:491fb54d4aa081c41e66a7bd5011e209711d0d09b66b8c417dde703717cf6a88"
 }

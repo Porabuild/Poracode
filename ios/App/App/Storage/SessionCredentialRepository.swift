@@ -33,9 +33,15 @@ enum SessionCredentialLegacyMigration {
         var bound = profile
         if bound.protocolVersion == 0 {
             bound.protocolVersion = ProtocolConstants.remoteProtocolVersion
-        }
-        guard bound.protocolVersion == ProtocolConstants.remoteProtocolVersion else {
-            return .inconsistent
+        } else if bound.protocolVersion == PreservedPairingUpgrade.previousReleasedProtocolVersion {
+            // Safely decodable v9 split-v1 is preserved for verified upgrade
+            // recovery — never rebound here. The bootstrap path verifies a fresh
+            // environment handshake (host identity + scopes) against a live v10
+            // server before persisting any updated binding.
+        } else {
+            guard bound.protocolVersion == ProtocolConstants.remoteProtocolVersion else {
+                return .inconsistent
+            }
         }
 
         return .migrated(SessionCredentials(profile: bound, accessToken: token))
@@ -449,6 +455,24 @@ actor SessionCredentialRepository: SessionCredentialStore {
         case .inconsistent:
             return .localStoreInconsistent
         case .migrated(let credentials):
+            // Preserved v9 split-v1: persist as v2 protocol-9 and report mismatch
+            // (bytes preserved for verified upgrade). Never report compatible.
+            if credentials.profile.protocolVersion
+                == PreservedPairingUpgrade.previousReleasedProtocolVersion
+            {
+                let data = try JSONDecoding.encoder.encode(credentials.asDocument())
+                try clearance.keychain.save(account: clearance.credentialsAccount, data: data)
+                guard let verified = try clearance.loadV2(),
+                      case .protocolMismatch(let loaded) = clearance.decodeV2NonDestructive(
+                          verified
+                      ),
+                      loaded.accessToken == credentials.accessToken,
+                      loaded.profile.desktopId == credentials.profile.desktopId
+                else {
+                    return .localStoreInconsistent
+                }
+                return .protocolMismatch(loaded)
+            }
             let data = try JSONDecoding.encoder.encode(credentials.asDocument())
             try clearance.keychain.save(account: clearance.credentialsAccount, data: data)
             guard let verified = try clearance.loadV2() else {

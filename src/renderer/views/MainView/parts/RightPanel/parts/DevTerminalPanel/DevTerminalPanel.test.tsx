@@ -7,6 +7,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { clearEagerShellStart } from "@/renderer/utils/shellUtils";
 import { DevTerminalPanel } from "./DevTerminalPanel";
 
 const { bridge, remote, layouts, toast } = vi.hoisted(() => ({
@@ -40,12 +41,8 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
 
-vi.mock("@/renderer/utils/shellUtils", async (importActual) => ({
-  ...(await importActual<typeof import("@/renderer/utils/shellUtils")>()),
-  startShellWithCurrentSettings: (payload: unknown) => bridge.startShell(payload),
-}));
-
-vi.mock("@/renderer/state/remoteTerminalFeed", () => ({
+vi.mock("@/renderer/state/remoteTerminalFeed", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/state/remoteTerminalFeed")>()),
   watchRemoteTerminal: remote.watchTerminal,
 }));
 
@@ -148,6 +145,7 @@ describe("DevTerminalPanel", () => {
     layouts.bottomOnTerminalResize = undefined;
     layouts.mobileProjectTabs = [];
     toast.danger.mockReset();
+    clearEagerShellStart(tab.id);
     resetStores();
   });
 
@@ -189,6 +187,36 @@ describe("DevTerminalPanel", () => {
     };
     expect(layouts.bottomWatchTerminal?.(tab.id, listener)).toBe(unsubscribe);
     expect(remote.watchTerminal).toHaveBeenCalledWith("desktop-1", tab.id, listener);
+  });
+
+  it("preserves the started shell when the panel remounts on the same tab", async () => {
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    const { unmount } = render(<DevTerminalPanel hideHeader />);
+
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(1));
+    unmount();
+
+    render(<DevTerminalPanel hideHeader />);
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(1));
+
+    // The backend PTY is still alive; re-issuing startShell would kill it and
+    // drop its retained scrollback (fresh shell welcome on remount).
+    expect(bridge.startShell).toHaveBeenCalledTimes(1);
+  });
+
+  it("dedupes concurrent resizes while the shell start is in flight", async () => {
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    render(<DevTerminalPanel hideHeader />);
+
+    // The start never resolves, so the second resize races an in-flight mark.
+    bridge.startShell.mockReturnValueOnce(new Promise(() => {}));
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(1));
+    expect(bridge.startShell).toHaveBeenCalledTimes(1);
   });
 
   it("reports a failed remote shell start and allows the terminal to retry", async () => {

@@ -228,6 +228,8 @@ interface StartRemoteThreadCommon {
 }
 
 export interface StartRemoteThreadInput extends StartRemoteThreadCommon {
+  /** Reopen from host-owned state without replacing another client's live runtime. */
+  readonly ensureRunning?: true;
   readonly projectLocation: ProjectLocation;
   readonly initialSize?: TerminalSize | undefined;
   readonly sessionRef?: StartThreadPayload["sessionRef"] | undefined;
@@ -669,6 +671,7 @@ export class RemoteDesktopClient {
         ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
         ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
         ...(input.providerSwitch ? { providerSwitch: input.providerSwitch } : {}),
+        ...(input.ensureRunning ? { ensureRunning: true } : {}),
       },
     });
     return parseResponse(z.object({ threadId: z.string() }), result, "thread");

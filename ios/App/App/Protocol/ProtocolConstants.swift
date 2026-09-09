@@ -1,11 +1,12 @@
 import Foundation
 
 /// Mirrors `PORACODE_REMOTE_PROTOCOL_VERSION` in `src/shared/remote/protocol.ts`.
-/// Protocol v9 added `executionEnvironment` to thread configs (snapshots and
-/// mutation payloads). Guarded against drift by
-/// `protocol/remote/v3/native-protocol-version.test.ts`.
+/// Protocol v10 coordinates destructive truncate synchronization: hosts
+/// broadcast `runtime.truncated` (server-declared removed-turn anchors) that
+/// v9 clients never applied, so mixed generations refuse to pair. Guarded
+/// against drift by `protocol/remote/v3/native-protocol-version.test.ts`.
 enum ProtocolConstants {
-    static let remoteProtocolVersion = 9
+    static let remoteProtocolVersion = 10
     static let commandIdHeader = "x-poracode-command-id"
     static let bearerTokenType = "Bearer"
 

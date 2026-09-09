@@ -56,7 +56,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/start",
     auth: "bearer",
     scopes: ["session:operate"],
-    idempotency: "command-id-header",
+    idempotency: "command-id-header-unless-ensure-running",
     request: { bodyKind: "json", jsonSchema: startExistingThreadBodySchema },
     response: {
       wireKind: "json",

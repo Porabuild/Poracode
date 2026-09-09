@@ -18,9 +18,12 @@ import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } f
 import { sharedSettingsSchema } from "../settings";
 import { userNotificationSchema } from "../threadNotification";
 
-// v9 carries the selected execution environment in thread snapshots and
-// mutation payloads. Older clients would silently drop a pinned WSL distro.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 9;
+// v10 coordinates destructive truncate synchronization: hosts publish the
+// canonical `runtime.truncated` broadcast (with server-declared removed-turn
+// anchors) that older peers never applied. Parse tolerance alone would leave
+// v9 clients permanently divergent after a checkpoint revert, so the version
+// advances and exact-match pairing refuses mixed generations instead.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 10;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([
@@ -141,9 +144,18 @@ export const remotePushRoutingCapabilitySchema = z.object({
 });
 export type RemotePushRoutingCapability = z.infer<typeof remotePushRoutingCapabilitySchema>;
 
+/** Origin-bound browser entry support, independent of raw TCP forwarding.
+ * A supported host may still report that its DNS/TLS deployment is unconfigured. */
+export const REMOTE_BROWSER_FORWARD_VERSION = 1 as const;
+export const remoteBrowserForwardCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteBrowserForwardCapability = z.infer<typeof remoteBrowserForwardCapabilitySchema>;
+
 export const remoteEnvironmentCapabilitiesSchema = z.object({
   terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
   pushRouting: remotePushRoutingCapabilitySchema.optional(),
+  browserForward: remoteBrowserForwardCapabilitySchema.optional(),
 });
 export type RemoteEnvironmentCapabilities = z.infer<typeof remoteEnvironmentCapabilitiesSchema>;
 

@@ -7,6 +7,7 @@ import type { GitStatePatch } from "@/shared/gitState";
 import type { UserNotification } from "@/shared/threadNotification";
 import {
   BACKEND_RENDERER_STREAM_VERSION,
+  isSupervisorEventGap,
   type BackendRendererStreamInfo,
 } from "@/shared/backendHostProtocol";
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
@@ -146,6 +147,15 @@ const bridge: ElectronHostBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.backendRendererStreamChanged, handler);
     return () => {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendRendererStreamChanged, handler);
+    };
+  },
+  onSupervisorEventGap(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, gap: unknown) => {
+      if (isSupervisorEventGap(gap)) listener(gap);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.backendSupervisorEventGap, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendSupervisorEventGap, handler);
     };
   },
   onSupervisorEvent(listener) {

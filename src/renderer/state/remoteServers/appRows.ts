@@ -1,7 +1,7 @@
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "../appStore";
 import { useRemoteServersStore } from "../remoteServersStore";
-import { projectRemoteProject, projectRemoteThread } from "../remoteProjection";
+import { projectRemoteProject, projectRemoteThread, remoteThreadId } from "../remoteProjection";
 import { refreshGitProject } from "../gitRefresh";
 import { useGitStore } from "../gitStore";
 import { filterSyncedRemoteProjects } from "./projectSync";
@@ -52,11 +52,17 @@ function withoutWorkspace(project: Project): Project {
  * Mirror a server's snapshot into the app store, restricted to the projects the
  * user syncs. Threads of an unsynced project are dropped too — without their
  * project row they would be orphans in the sidebar.
+ *
+ * `preserveThreadIds` names threads whose live mirrored rows a stale snapshot
+ * must not overwrite (see `reconcileThreadRowsWithAppliedEvents`): when other
+ * rows change in the same snapshot, these keep the app-store row the live
+ * event stream already applied, identity included.
  */
 export function syncRemoteAppRows(
   desktopId: string,
   allProjects?: readonly Project[],
   allThreads?: readonly Thread[],
+  options: { readonly preserveThreadIds?: ReadonlySet<string> } = {},
 ): void {
   const remoteState = useRemoteServersStore.getState();
   const excluded = remoteState.excludedProjectIds[desktopId];
@@ -99,8 +105,16 @@ export function syncRemoteAppRows(
       ...(current?.mcpServers ? { mcpServers: current.mcpServers } : {}),
     };
   });
-  const projectedThreads = threads?.map((thread) => projectRemoteThread(desktopId, thread));
   const appState = useAppStore.getState();
+  const projectedThreads = threads?.map((thread) => {
+    if (options.preserveThreadIds?.has(thread.id)) {
+      const liveRow = appState.threads.find(
+        (candidate) => candidate.id === remoteThreadId(desktopId, thread.id),
+      );
+      if (liveRow) return liveRow;
+    }
+    return projectRemoteThread(desktopId, thread);
+  });
   const projectedThreadIds = new Set(projectedThreads?.map((thread) => thread.id) ?? []);
   if (projectedProjects) {
     const projectedProjectIds = new Set(projectedProjects.map((project) => project.id));

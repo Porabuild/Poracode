@@ -3,6 +3,7 @@ import { Readable, Writable } from "node:stream";
 import { ClientSideConnection, ndJsonStream, PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
 import type { AgentCapability, ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import {
   dedupeAcpAuthMethods,
   probeAcpCapabilities,
@@ -84,6 +85,14 @@ async function probeCopilotModelEfforts(
   signal?: AbortSignal,
 ): Promise<{ defaultEffort?: string; modelEfforts?: Record<string, string[]> }> {
   if (signal?.aborted) return {};
+  // Mock-QA enforcement: the sweep starts a real `copilot` ACP session, so
+  // mock sessions refuse it; the probe reports no efforts like any other
+  // spawn failure (the refusal must not reject the capability probe).
+  try {
+    assertAgentLaunchAllowed("session-probe");
+  } catch {
+    return {};
+  }
   const spec = buildCopilotCommand(location, ["--acp", "--stdio"], executablePath);
   const sessionCwd = getAgentProbeCwd(location);
   const spawnCwd = resolveProbeSpawnCwd(location, spec.cwd);

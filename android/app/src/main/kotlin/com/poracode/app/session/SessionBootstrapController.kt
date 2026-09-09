@@ -1,5 +1,9 @@
 package com.poracode.app.session
 
+import com.poracode.app.model.RemoteClientException
+import com.poracode.app.storage.MultiHostCredentialRepository
+import com.poracode.app.storage.StoredProtocolUpgrade
+import com.poracode.app.transport.RemoteApiGatewayFactory
 import com.poracode.app.protocol.RemoteAccessScopes
 import com.poracode.app.storage.SessionCredentialLoadOutcome
 import com.poracode.app.storage.SessionCredentialRepository
@@ -19,6 +23,7 @@ internal class SessionBootstrapController(
     private val hosts: HostSessionController,
     private val live: LiveConnectionController,
     private val ioDispatcher: CoroutineDispatcher,
+    private val apiFactory: RemoteApiGatewayFactory,
     private val hasEndpointPermission: (String) -> Boolean,
     private val updateState: ((AppSession.UiState) -> AppSession.UiState) -> Unit,
 ) {
@@ -49,6 +54,7 @@ internal class SessionBootstrapController(
                 updateState { it.copy(phase = AppSession.Phase.LocalStoreInconsistent) }
                 return@launch
             }
+            if (!owner.isCurrent(token)) return@launch
             when (outcome) {
                 SessionCredentialLoadOutcome.Empty ->
                     updateState { it.copy(phase = AppSession.Phase.NeedsPairing) }
@@ -74,15 +80,49 @@ internal class SessionBootstrapController(
                     live.connectWithStoredSession(loaded.profile, loaded.accessToken)
                 }
 
-                is SessionCredentialLoadOutcome.Rejected.ProtocolMismatch ->
+                is SessionCredentialLoadOutcome.Rejected.ProtocolMismatch -> {
+                    val stored = outcome.credentials
                     updateState {
                         it.copy(
-                            profile = outcome.credentials.profile,
+                            profile = stored.profile,
                             phase = AppSession.Phase.ProtocolIncompatible,
                             canSessionRead = false,
                             canSessionOperate = false,
                         )
                     }
+                    val repository = credentials as? MultiHostCredentialRepository ?: return@launch
+                    if (stored.profile.protocolVersion != StoredProtocolUpgrade.PREVIOUS_VERSION) return@launch
+                    if (!hasEndpointPermission(stored.profile.httpBaseUrl)) {
+                        updateState { it.copy(phase = AppSession.Phase.LocalNetworkPermissionRequired) }
+                        return@launch
+                    }
+                    updateState { it.copy(phase = AppSession.Phase.ReconnectingStored) }
+                    try {
+                        val upgraded = upgradeStoredPairing(
+                            repository, stored, apiFactory, ioDispatcher,
+                            isCurrent = { owner.isCurrent(token) },
+                        ) ?: return@launch
+                        if (!owner.isCurrent(token)) return@launch
+                        hosts.refreshCatalog()
+                        if (!owner.isCurrent(token)) return@launch
+                        live.accessToken = upgraded.accessToken
+                        live.connectWithStoredSession(upgraded.profile, upgraded.accessToken)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        if (!owner.isCurrent(token)) return@launch
+                        val phase = when {
+                            error is StoredPairingUpgradePersistenceFailure ->
+                                AppSession.Phase.LocalStoreInconsistent
+                            error is RemoteClientException && error.isUnauthorized ->
+                                AppSession.Phase.SessionExpired
+                            error is RemoteClientException && error.code == "protocol_version_mismatch" ->
+                                AppSession.Phase.ProtocolIncompatible
+                            else -> AppSession.Phase.ReconnectingStored
+                        }
+                        updateState { it.copy(phase = phase, globalError = error.message) }
+                    }
+                }
 
                 SessionCredentialLoadOutcome.Rejected.FutureDocument,
                 SessionCredentialLoadOutcome.Rejected.Corrupt,

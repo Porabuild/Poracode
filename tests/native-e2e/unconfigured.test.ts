@@ -21,8 +21,21 @@ describe("catalogued route fixtures", () => {
       wsl: unknown[];
       updatedAt: string;
     };
-    expect(body.windows).toEqual([]);
     expect(body.wsl).toEqual([]);
+    expect(body.windows).toHaveLength(1);
+    const native = body.windows[0] as {
+      kind: string;
+      installed: boolean;
+      envKind: string;
+      capabilities: { presentationModes: string[]; models: { id: string }[] };
+    };
+    expect(native).toMatchObject({
+      kind: "codex",
+      installed: true,
+      envKind: "posix",
+    });
+    expect(native.capabilities.presentationModes).toEqual(["gui", "terminal"]);
+    expect(native.capabilities.models).toEqual([{ id: "gpt-5", label: "Fixture model" }]);
     expect(body.updatedAt).toBe("2026-08-12T10:03:00.000Z");
     const record = harness.lab.ledger.snapshot().operations["route:agent-statuses"];
     expect(record?.attempted).toBeGreaterThan(0);

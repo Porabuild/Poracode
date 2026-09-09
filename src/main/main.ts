@@ -42,7 +42,7 @@ import {
 } from "./computer-use";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { showOsNotification } from "./osNotifications";
-import { createMainWindow } from "./window/createMainWindow";
+import { createMainWindow, saveWindowBounds } from "./window/createMainWindow";
 import { createMainWindowCloseLifecycle } from "./window/mainWindowClose";
 import { requestTrackedRendererReload } from "./window/windowHardening";
 import {
@@ -71,7 +71,6 @@ import {
   type SupervisorEvent,
 } from "@/shared/ipc";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
-import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import { readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
@@ -92,6 +91,7 @@ import { shouldUseMockKeychain } from "./mockKeychain";
 import { APP_QUIT_CLEANUP_TIMEOUT_MS, raceWithTimeout } from "./appQuitCleanup";
 import { BackendHostClient } from "./backend/BackendHostClient";
 import { BackendStateStore } from "./backend/BackendStateStore";
+import { RendererEventInterestRegistry } from "./backend/rendererEventInterestRegistry";
 import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
 import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
@@ -218,7 +218,7 @@ let browserExtractWindow: BrowserWindow | null = null;
 let backendHostClient: BackendHostClient | null = null;
 let backendStateStore: BackendStateStore | null = null;
 let backendRendererStreamInfo: BackendRendererStreamInfo | null = null;
-let clearRendererEventInterests: (() => void) | null = null;
+let clearRendererEventInterests: ((senderId?: number) => void) | null = null;
 // Retained module-scope so the native Tray icon stays reachable from GC.
 let tray: TrayHandle | null = null;
 let quickComposerShortcutManager: QuickComposerShortcutManager | null = null;
@@ -431,7 +431,6 @@ function commonAppWindowOptions() {
     posthogHost,
     posthogKey,
     sentryEnabled,
-    ...(backendRendererStreamInfo ? { rendererStream: backendRendererStreamInfo } : {}),
     browserUserAgent,
     openDevTools: process.env.PORACODE_DISABLE_DEVTOOLS !== "1",
     ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
@@ -496,6 +495,8 @@ function forwardAgentStatusEventToQuickComposer(event: SupervisorEvent): void {
 function createMainAppWindow(showOnReady = true): BrowserWindow {
   const windowChrome = resolveWindowChromeOptions();
   let window: BrowserWindow;
+  // Captured before any close path can destroy the webContents the id reads from.
+  let windowSenderId: number | undefined;
   const closeLifecycle = createMainWindowCloseLifecycle({
     isQuitting: () => isQuitting,
     closeToTrayEnabled: isCloseToTrayEnabled,
@@ -516,20 +517,21 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
       const wasMainWindow = mainWindow === window;
       if (wasMainWindow) mainWindow = null;
       mainRendererReady = false;
-      clearRendererEventInterests?.();
+      if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
       closeLifecycle.handleClosed();
     },
     onClose: (event) => closeLifecycle.handleClose(event),
     onRendererProcessGone: (details, intent) => {
       mainRendererReady = false;
-      clearRendererEventInterests?.();
+      if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
       captureRendererProcessGone(details, "renderer", intent);
     },
   });
+  windowSenderId = window.webContents.id;
   window.webContents.on("did-start-loading", () => {
     if (mainWindow === window) {
       mainRendererReady = false;
-      clearRendererEventInterests?.();
+      if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
     }
   });
   return window;
@@ -750,11 +752,12 @@ if (!hasSingleInstanceLock) {
         cacheDir: join(paths.baseDir, "ssh-runtime-bundles"),
       });
 
-      let rendererEventInterests: LiveEventInterests = {
-        terminalThreadIds: [],
-        runtimeThreadIds: [],
-        allRuntimeEvents: false,
-      };
+      // Per-window renderer event interests: every window that publishes a
+      // snapshot keeps its own entry, so one window can never starve
+      // another's desktop-IPC fallback. The host routes the union.
+      const rendererEventInterestRegistry = new RendererEventInterestRegistry(() => {
+        void syncBackendEventInterests().catch(reportEventInterestSyncError);
+      });
       let trayProjects: Project[] = [];
       let trayThreads: Thread[] = [];
       let autoUpdaterController!: ReturnType<typeof createAutoUpdaterController>;
@@ -763,7 +766,12 @@ if (!hasSingleInstanceLock) {
       let supervisorClient: BackendHostClient;
       const dispatchBackendSupervisorEvent = (
         event: SupervisorEvent,
-        rendererDeliveredDirect = false,
+        // BackendHostClient still passes the legacy rendererDeliveredDirect
+        // flag positionally; the host no longer emits it. Renderer windows
+        // dedupe IPC copies by rendererSequence while their direct stream is
+        // connected, so every routed event is relayed — suppressing on
+        // another window's stream delivery starved a WS-down window silently.
+        _rendererDeliveredDirect: boolean,
         rendererSequence?: number,
       ): void => {
         if (event.type === "crossagent-selection-used") {
@@ -795,18 +803,12 @@ if (!hasSingleInstanceLock) {
           return;
         }
         handleSupervisorEventForSleep(event);
-        if (!rendererDeliveredDirect) {
-          if (rendererSequence === undefined) {
-            mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
-          } else {
-            mainWindow?.webContents.send(
-              IPC_EVENT_CHANNELS.supervisorEvent,
-              event,
-              rendererSequence,
-            );
-          }
-          forwardAgentStatusEventToQuickComposer(event);
+        if (rendererSequence === undefined) {
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
+        } else {
+          mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event, rendererSequence);
         }
+        forwardAgentStatusEventToQuickComposer(event);
       };
       const handleBackendReset = (): void => {
         workingThreads.clear();
@@ -861,6 +863,15 @@ if (!hasSingleInstanceLock) {
           captureMainException(error, tags);
         },
         onEvent: dispatchBackendSupervisorEvent,
+        onSupervisorEventGap: (gap) => {
+          // A window whose direct stream is down rebuilds from persisted
+          // state on this signal; windows with a healthy stream ignore it.
+          for (const window of [mainWindow, quickComposerWindow, browserExtractWindow]) {
+            if (window && !window.isDestroyed()) {
+              window.webContents.send(IPC_EVENT_CHANNELS.backendSupervisorEventGap, gap);
+            }
+          }
+        },
         onReset: handleBackendReset,
         handleNativeRequest: (request) => {
           switch (request.operation) {
@@ -915,11 +926,17 @@ if (!hasSingleInstanceLock) {
               void Promise.all([
                 backendHost.callDatabase("dbGetProjects", {}),
                 backendHost.callDatabase("dbGetThreads", {}),
-              ]).then(([projects, threads]) => {
-                trayProjects = projects;
-                trayThreads = threads;
-                tray?.refreshMenu();
-              });
+              ])
+                .then(([projects, threads]) => {
+                  trayProjects = projects;
+                  trayThreads = threads;
+                  tray?.refreshMenu();
+                })
+                .catch((error) => {
+                  // The host can exit mid-refresh during shutdown; report
+                  // instead of surfacing an unhandled rejection.
+                  captureMainException(error, { "poracode.feature_area": "tray" });
+                });
               return;
             case "shared-settings-changed":
               updatePowerSaveBlocker();
@@ -960,26 +977,23 @@ if (!hasSingleInstanceLock) {
             IPC_EVENT_CHANNELS.backendRendererStreamChanged,
             info,
           );
+          browserExtractWindow?.webContents.send(
+            IPC_EVENT_CHANNELS.backendRendererStreamChanged,
+            info,
+          );
         },
       });
       const syncBackendEventInterests = (): Promise<void> =>
-        backendHost.setEventInterests(rendererEventInterests);
+        backendHost.setEventInterests(rendererEventInterestRegistry.snapshot());
       const reportEventInterestSyncError = (error: unknown): void => {
         captureMainException(error, { "poracode.feature_area": "live-event-routing" });
       };
-      clearRendererEventInterests = () => {
-        if (
-          rendererEventInterests.terminalThreadIds.length === 0 &&
-          rendererEventInterests.runtimeThreadIds.length === 0
-        ) {
+      clearRendererEventInterests = (senderId?: number) => {
+        if (senderId === undefined) {
+          rendererEventInterestRegistry.releaseAll();
           return;
         }
-        rendererEventInterests = {
-          terminalThreadIds: [],
-          runtimeThreadIds: [],
-          allRuntimeEvents: false,
-        };
-        void syncBackendEventInterests().catch(reportEventInterestSyncError);
+        rendererEventInterestRegistry.release(senderId);
       };
       backendHostClient = backendHost;
       supervisorClient = backendHost;
@@ -1125,13 +1139,12 @@ if (!hasSingleInstanceLock) {
           onSharedSettingsChanged: handleSharedSettingsChanged,
           onKeybindingsChanged: (file) => quickComposerShortcutManager?.apply(file),
           setGlobalShortcutsSuspended: (suspended) => globalShortcut.setSuspended(suspended),
-          setRendererEventInterests: async (interests) => {
-            rendererEventInterests = {
+          setRendererEventInterests: async (interests, sender) => {
+            rendererEventInterestRegistry.set(sender ?? null, {
               terminalThreadIds: interests.terminalThreadIds,
               runtimeThreadIds: interests.runtimeThreadIds,
               allRuntimeEvents: false,
-            };
-            await syncBackendEventInterests();
+            });
           },
           extractBrowserToWindow,
           injectBrowserToMain,
@@ -1225,12 +1238,18 @@ if (!hasSingleInstanceLock) {
       initialMainWindow.once("ready-to-show", () => {
         setTimeout(() => {
           const attachmentPaths = requirePoracodePaths();
-          void backendHost.callDatabase("dbGetThreads", {}).then((threads) =>
-            cleanupOrphanedAttachments(
-              attachmentPaths.attachmentsDir,
-              threads.map((thread) => thread.id),
-            ),
-          );
+          void backendHost
+            .callDatabase("dbGetThreads", {})
+            .then((threads) =>
+              cleanupOrphanedAttachments(
+                attachmentPaths.attachmentsDir,
+                threads.map((thread) => thread.id),
+              ),
+            )
+            .catch((error) => {
+              // Same shutdown-race shape as the tray refresh above.
+              captureMainException(error, { "poracode.feature_area": "attachments-cleanup" });
+            });
         }, 0);
       });
 
@@ -1267,6 +1286,9 @@ if (!hasSingleInstanceLock) {
         if (quitCleanupStarted) return;
         quitCleanupStarted = true;
         event.preventDefault();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          saveWindowBounds(mainWindow, shellState, "window-bounds");
+        }
         quickComposerShortcutManager?.dispose();
         quickComposerShortcutManager = null;
         if (quickComposerDismissTimer) clearTimeout(quickComposerDismissTimer);
@@ -1300,7 +1322,7 @@ if (!hasSingleInstanceLock) {
         tray?.destroy();
         tray = null;
         void raceWithTimeout(
-          sshDispose
+          Promise.all([sshDispose, shellState.close()])
             .then(() => backendHost.disposeAsync())
             .catch((error) => {
               captureMainException(error, { "poracode.feature_area": "backend-host" });

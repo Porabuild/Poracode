@@ -1,8 +1,10 @@
-import { act } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { resizeTerminalPayloadSchema } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
+import type { RemoteTerminalWatchResultReady } from "@/shared/remote/protocol";
 // ── Hoisted state shared between mock factories and test code ────
 const { state } = vi.hoisted(() => ({
   state: {
@@ -14,6 +16,16 @@ const { state } = vi.hoisted(() => ({
     interestContinuous: false,
     interestRelease: vi.fn<() => void>(),
     interestReady: Promise.resolve(),
+    /** Every terminal.write call, in order. */
+    writeLog: [] as Array<{ data: string; hasCallback: boolean }>,
+    /** Write callbacks pending their simulated parse completion (FIFO). */
+    pendingWriteCallbacks: [] as Array<() => void>,
+    /** Parser handlers registered through terminal.parser. */
+    parserHandlers: [] as Array<{
+      kind: "csi" | "osc" | "dcs";
+      id: unknown;
+      callback: (...args: never[]) => boolean;
+    }>,
     bridge: {
       readTerminalScrollback: vi.fn<() => Promise<string>>().mockResolvedValue(""),
       writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -30,9 +42,34 @@ vi.mock("@xterm/xterm", () => ({
   Terminal: class MockTerminal {
     open = vi.fn<(element: Element) => void>();
     loadAddon = vi.fn<(addon: unknown) => void>();
-    write = vi.fn<(data: string) => void>();
+    write = vi.fn<(data: string, callback?: () => void) => void>((data, callback) => {
+      state.writeLog.push({ data, hasCallback: callback !== undefined });
+      if (callback) {
+        state.pendingWriteCallbacks.push(callback);
+      }
+    });
     reset = vi.fn<() => void>();
     dispose = vi.fn<() => void>();
+    parser = {
+      registerCsiHandler: vi.fn<
+        (id: unknown, callback: (...args: never[]) => boolean) => { dispose: () => void }
+      >((id, callback) => {
+        state.parserHandlers.push({ kind: "csi", id, callback });
+        return { dispose: vi.fn<() => void>() };
+      }),
+      registerOscHandler: vi.fn<
+        (id: unknown, callback: (...args: never[]) => boolean) => { dispose: () => void }
+      >((id, callback) => {
+        state.parserHandlers.push({ kind: "osc", id, callback });
+        return { dispose: vi.fn<() => void>() };
+      }),
+      registerDcsHandler: vi.fn<
+        (id: unknown, callback: (...args: never[]) => boolean) => { dispose: () => void }
+      >((id, callback) => {
+        state.parserHandlers.push({ kind: "dcs", id, callback });
+        return { dispose: vi.fn<() => void>() };
+      }),
+    };
     onData = vi.fn<(handler: (data: string) => void) => { dispose: () => void }>(() => ({
       dispose: vi.fn<() => void>(),
     }));
@@ -150,12 +187,43 @@ function emitEvent(event: SupervisorEvent) {
   }
 }
 
-/** Flush microtasks plus a rAF window so scrollback hydration / activity callbacks settle. */
+/**
+ * Flush microtasks plus a rAF window so scrollback hydration / activity
+ * callbacks settle. Hydration writes drain in FIFO order (barrier → replay →
+ * completion); a callback can queue more writes, so drain in rounds after
+ * yielding to the microtasks that materialize them (initializeViewport runs
+ * on `eventInterest.ready.then`, the bridge read resolves on further
+ * microtasks — draining before those run would find an empty queue).
+ */
 async function flushFrame() {
   await act(async () => {
+    // Several microtask hops materialize the chain (interest.ready →
+    // initializeViewport → bridge read → gate.begin), so keep yielding and
+    // draining for a bounded number of rounds instead of breaking on the
+    // first empty queue.
+    for (let round = 0; round < 10; round += 1) {
+      await Promise.resolve();
+      while (state.pendingWriteCallbacks.length > 0) {
+        const callback = state.pendingWriteCallbacks.shift();
+        callback?.();
+        await Promise.resolve();
+      }
+    }
     await new Promise<void>((resolve) => {
       setTimeout(() => resolve(), 16);
     });
+  });
+}
+
+/** Run exactly `count` pending write callbacks (one hydration step each). */
+async function runWriteCallbacks(count: number) {
+  await act(async () => {
+    for (let i = 0; i < count; i += 1) {
+      await Promise.resolve();
+      const callback = state.pendingWriteCallbacks.shift();
+      callback?.();
+      await Promise.resolve();
+    }
   });
 }
 
@@ -195,7 +263,14 @@ describe("XTermSurface", () => {
     state.isMac = false;
     state.interestContinuous = false;
     state.interestReady = Promise.resolve();
+    state.writeLog = [];
+    state.pendingWriteCallbacks = [];
+    state.parserHandlers = [];
     vi.clearAllMocks();
+    // clearAllMocks does not discard unconsumed mockResolvedValueOnce entries;
+    // restore the default scrollback answer so a Once queued by a previous
+    // test cannot leak into this one.
+    state.bridge.readTerminalScrollback.mockReset().mockResolvedValue("");
     useThreadOutputStore.setState({ buffers: {} });
     state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent) => void) => {
       state.eventListeners.push(listener);
@@ -250,7 +325,9 @@ describe("XTermSurface", () => {
     await flushFrame();
 
     expect(state.bridge.readTerminalScrollback).toHaveBeenCalledWith({ threadId: "test-1" });
-    expect(terminal().write).toHaveBeenCalledWith("existing output");
+    // The replay goes through the gate barrier (empty write first), then the
+    // transcript with a parse-completion callback.
+    expect(terminal().write).toHaveBeenCalledWith("existing output", expect.any(Function));
   });
 
   it("hydrates from the renderer accumulator when present and skips the bridge replay", async () => {
@@ -260,7 +337,10 @@ describe("XTermSurface", () => {
     render(<XTermSurface terminalId="test-1" />);
     await flushFrame();
 
-    expect(terminal().write).toHaveBeenCalledWith("accumulated history\nframe2");
+    expect(terminal().write).toHaveBeenCalledWith(
+      "accumulated history\nframe2",
+      expect.any(Function),
+    );
     // The accumulator is the source of truth; the stale bridge transcript must
     // not be replayed on top of it.
     expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
@@ -274,7 +354,10 @@ describe("XTermSurface", () => {
     await flushFrame();
 
     expect(state.bridge.readTerminalScrollback).toHaveBeenCalledWith({ threadId: "test-1" });
-    expect(terminal().write).toHaveBeenCalledWith("authoritative hidden output");
+    expect(terminal().write).toHaveBeenCalledWith(
+      "authoritative hidden output",
+      expect.any(Function),
+    );
     expect(terminal().write).not.toHaveBeenCalledWith("stale visible frame");
   });
 
@@ -426,7 +509,7 @@ describe("XTermSurface", () => {
     await flushFrame();
 
     expect(state.bridge.readTerminalScrollback).toHaveBeenCalledWith({ threadId: "test-1" });
-    expect(terminal().write).toHaveBeenCalledWith("authoritative full frame");
+    expect(terminal().write).toHaveBeenCalledWith("authoritative full frame", expect.any(Function));
   });
 
   it("does not rehydrate stale scrollback after a thread-reset", async () => {
@@ -510,6 +593,241 @@ describe("XTermSurface", () => {
     await flushFrame();
 
     expect(terminal().write).toHaveBeenCalledWith("after reset");
+  });
+
+  // ── Replay query-reply gate ──────────────────────────────────
+
+  it("hydrates through the gate barrier and registers reply suppression", async () => {
+    state.bridge.readTerminalScrollback.mockResolvedValueOnce("replayed frame\x1b[0c");
+
+    render(<XTermSurface terminalId="test-1" />);
+    await flushFrame();
+
+    // Barrier (empty write) first, then the replay with a completion callback.
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", "replayed frame\x1b[0c"]);
+    expect(state.writeLog.every((entry) => entry.hasCallback)).toBe(true);
+    // Reply-capable families registered through the public parser API.
+    const registered = state.parserHandlers.map(
+      (handler) => `${handler.kind}:${JSON.stringify(handler.id)}`,
+    );
+    expect(registered).toContain('csi:{"final":"c"}');
+    expect(registered).toContain('csi:{"prefix":"?","final":"h"}');
+    expect(registered).toContain('dcs:{"intermediates":"$","final":"q"}');
+    expect(registered).toContain("osc:52");
+  });
+
+  it("drops a replayed device reply at onData but keeps typing flowing mid-hydration", async () => {
+    let resolveScrollback: (value: string) => void = () => {};
+    state.bridge.readTerminalScrollback.mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        resolveScrollback = resolve;
+      }),
+    );
+
+    render(<XTermSurface terminalId="test-1" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    resolveScrollback("historical\x1b[0c");
+    // Advance one write callback: the barrier fired and the replay is parsing.
+    await runWriteCallbacks(1);
+
+    const onData = terminal().onData.mock.calls[0]![0] as unknown as (data: string) => void;
+    const csiC = state.parserHandlers.find(
+      (handler) => handler.kind === "csi" && (handler.id as { final?: string }).final === "c",
+    );
+    expect(csiC).toBeDefined();
+
+    // The parser dispatch marks the reply scope and passes through; the
+    // built-in's stale DA1 reply is emitted (and dropped) inside that scope.
+    act(() => {
+      expect(csiC?.callback([] as never)).toBe(false);
+      onData("\x1b[?1;2c");
+    });
+    expect(state.bridge.writeTerminal).not.toHaveBeenCalled();
+
+    // The scope clears on the next microtask — before any user-input
+    // macrotask — so ordinary typing in the same hydration window flows.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => onData("ls\n"));
+    expect(state.bridge.writeTerminal).toHaveBeenCalledWith({ threadId: "test-1", data: "ls\n" });
+
+    // Once the replay has parsed, live replies are forwarded again.
+    await flushFrame();
+    act(() => onData("\x1b[?1;2c"));
+    expect(state.bridge.writeTerminal).toHaveBeenCalledWith({
+      threadId: "test-1",
+      data: "\x1b[?1;2c",
+    });
+  });
+
+  it("buffers live output during hydration and flushes it after the replay parses", async () => {
+    let resolveScrollback: (value: string) => void = () => {};
+    state.bridge.readTerminalScrollback.mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        resolveScrollback = resolve;
+      }),
+    );
+
+    render(<XTermSurface terminalId="test-1" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      emitEvent({
+        type: "thread-output",
+        threadId: "test-1",
+        data: "live1",
+        outputLength: 5,
+        terminalInstanceId: "gen-test",
+      });
+    });
+    resolveScrollback("replayed");
+    await flushFrame();
+
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", "replayed", "live1"]);
+  });
+
+  it("wipes a queued replay on thread-reset and keeps live output flowing", async () => {
+    const onReset = vi.fn<() => void>();
+    let resolveScrollback: (value: string) => void = () => {};
+    state.bridge.readTerminalScrollback.mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        resolveScrollback = resolve;
+      }),
+    );
+
+    render(<XTermSurface terminalId="test-1" onReset={onReset} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    resolveScrollback("stale\x1b[0c");
+    await runWriteCallbacks(1);
+
+    act(() => {
+      emitEvent({ type: "thread-reset", threadId: "test-1" });
+    });
+    act(() => {
+      emitEvent({
+        type: "thread-output",
+        threadId: "test-1",
+        data: "fresh",
+        outputLength: 5,
+        terminalInstanceId: "gen-test",
+      });
+    });
+    await flushFrame();
+
+    // Reset count: the barrier's before-reset, the thread-reset itself, and
+    // the gate's cancel cleanup after the stale replay chunk finished parsing.
+    expect(terminal().reset).toHaveBeenCalledTimes(3);
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", "stale\x1b[0c", "fresh"]);
+    expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  it("hydrates a caller-supplied snapshot through the gate barrier", async () => {
+    render(<XTermSurface terminalId="test-1" initialScrollback={"snapshot\x1b[0c"} />);
+    await flushFrame();
+
+    expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", "snapshot\x1b[0c"]);
+  });
+
+  it("skips hydration writes for an empty caller-supplied snapshot", async () => {
+    render(<XTermSurface terminalId="test-1" initialScrollback="" />);
+    await flushFrame();
+
+    expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
+    expect(state.writeLog).toEqual([]);
+  });
+
+  it("shows watch failures and clears the status when the stream recovers", async () => {
+    let listener: TerminalFeedListener | undefined;
+    const outputSource = (next: TerminalFeedListener) => {
+      listener = next;
+      return () => undefined;
+    };
+    render(<XTermSurface terminalId="test-1" outputSource={outputSource} initialScrollback="" />);
+    await flushFrame();
+    act(() => listener?.onWatchError?.({ status: "error", code: "unavailable", retryable: true }));
+    expect(screen.getByRole("status")).toHaveTextContent("Reconnecting to terminal…");
+    act(() => listener?.onWatchError?.({ status: "error", code: "forbidden", retryable: false }));
+    expect(screen.getByRole("status")).toHaveTextContent("Terminal access denied.");
+    act(() =>
+      listener?.onSnapshot?.({
+        status: "ready",
+        generation: "recovered",
+        fromCursor: 0,
+        toCursor: 0,
+        data: "",
+        processState: "running",
+        terminalSize: null,
+      }),
+    );
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("uses an immediate feed snapshot instead of stale caller scrollback", async () => {
+    const snapshot: RemoteTerminalWatchResultReady = {
+      status: "ready",
+      generation: "remote-pty",
+      fromCursor: 0,
+      toCursor: 7,
+      data: "history",
+      processState: "running",
+      terminalSize: null,
+    };
+    const outputSource = (listener: TerminalFeedListener) => {
+      expect(listener.onSnapshot).toBeTypeOf("function");
+      listener.onSnapshot?.(snapshot);
+      listener.onOutput("live suffix");
+      return () => undefined;
+    };
+    render(
+      <XTermSurface terminalId="test-1" outputSource={outputSource} initialScrollback="stale" />,
+    );
+    await flushFrame();
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", "history", "live suffix"]);
+    expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
+  });
+
+  it("gates a remote snapshot's query replies and flushes subsequent live output after parsing", async () => {
+    let listener: TerminalFeedListener | undefined;
+    const outputSource = (next: TerminalFeedListener) => {
+      listener = next;
+      return () => undefined;
+    };
+    render(<XTermSurface terminalId="test-1" outputSource={outputSource} initialScrollback="" />);
+    await flushFrame();
+    expect(listener?.onSnapshot).toBeTypeOf("function");
+    const data = "history\x1b[6n";
+    act(() => {
+      listener?.onSnapshot?.({
+        status: "ready",
+        generation: "remote-pty",
+        fromCursor: 0,
+        toCursor: data.length,
+        data,
+        processState: "running",
+        terminalSize: null,
+      });
+      listener?.onOutput("new output");
+    });
+    await runWriteCallbacks(1);
+    const onData = terminal().onData.mock.calls[0]![0] as unknown as (data: string) => void;
+    const csiN = state.parserHandlers.find(
+      (handler) => handler.kind === "csi" && (handler.id as { final?: string }).final === "n",
+    );
+    act(() => {
+      expect(csiN?.callback([] as never)).toBe(false);
+      onData("\x1b[1;1R");
+    });
+    expect(state.bridge.writeTerminal).not.toHaveBeenCalled();
+    await flushFrame();
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", data, "new output"]);
   });
 
   // ── Activity / bell / title callbacks ───────────────────────────

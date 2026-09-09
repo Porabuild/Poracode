@@ -1,7 +1,6 @@
 import { BrowserWindow, screen, type Rectangle, type RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
-import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import { installSessionPermissions } from "../browser/permissions";
 import { showAndFocusWindow } from "./showAndFocusWindow";
 import {
@@ -29,7 +28,6 @@ export interface CreateQuickComposerWindowOptions {
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
-  rendererStream?: BackendRendererStreamInfo;
   browserUserAgent: string;
   onClosed(): void;
   onRendererProcessGone?: (
@@ -113,7 +111,6 @@ export function createQuickComposerWindow(
         posthogHost: options.posthogHost,
         posthogKey: options.posthogKey,
         sentryEnabled: options.sentryEnabled,
-        ...(options.rendererStream ? { rendererStream: options.rendererStream } : {}),
       }),
     },
   });

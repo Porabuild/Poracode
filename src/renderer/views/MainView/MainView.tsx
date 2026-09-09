@@ -17,6 +17,7 @@ import { AppDndProvider, CompactDndProvider } from "@/renderer/dnd";
 
 import { useKeyboardShortcuts } from "@/renderer/hooks/useKeyboardShortcuts";
 import { useGitRefresh } from "@/renderer/hooks/useGitRefresh";
+import { useRestoredRemoteThreadLifecycle } from "@/renderer/hooks/useRestoredRemoteThreadLifecycle";
 import { useRightPanelThreadLock } from "@/renderer/hooks/useRightPanelThreadLock";
 import { useThreadLifecycle } from "@/renderer/hooks/useThreadLifecycle";
 import { useDndHandlers } from "@/renderer/hooks/useDndHandlers";
@@ -67,13 +68,13 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
   useMobilePageHistory(compactLayout);
 
   useThreadLifecycle(storeHydrated && runtimeSnapshotsReady);
+  useRestoredRemoteThreadLifecycle(storeHydrated && runtimeSnapshotsReady);
   useKeyboardShortcuts();
   useGitRefresh(storeHydrated && !(compactLayout && isBrowserClientRuntime()));
   useRightPanelThreadLock();
   useBrowserSync();
 
   useLayoutEffect(() => {
-    if (!isBrowserClientRuntime()) return;
     let active = true;
     const finishRemoteServerHydration = () => {
       if (!active) return;

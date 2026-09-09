@@ -1,3 +1,4 @@
+import { applyRuntimeTruncation } from "./runtimeTruncation";
 import type {
   BackgroundTask,
   RuntimeEvent,
@@ -474,6 +475,7 @@ function eventAffectsStructuralVersion(event: RuntimeEvent): boolean {
     case "item.updated":
     case "item.completed":
     case "turn.completed":
+    case "runtime.truncated":
     case "error":
       return true;
     default:
@@ -491,6 +493,9 @@ function applyRuntimeEventToRuntimeState(
   }
 
   switch (event.type) {
+    case "runtime.truncated":
+      return applyRuntimeTruncation(state, threadId, event);
+
     case "session.started":
     case "warning":
       // No item state to mutate. Status flows through the existing thread-state channel.

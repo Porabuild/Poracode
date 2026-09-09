@@ -57,6 +57,8 @@ export const REMOTE_PROCEDURE_ROUTES = {
 /** Project-aware procedures intentionally dispatched or disabled outside the bridge router. */
 export const NON_ROUTER_PROJECT_PROCEDURES = {
   startThread: "explicit-remote-thread-launch",
+  // The remote reopen endpoint resolves persisted launch state on the host.
+  ensureThreadRunning: "remote-server-internal",
   cloneRepo: "remote-projects-use-project-command",
   relocateProject: "explicit-remote-project-command",
   extractContext: "remote-control-hidden",

@@ -39,20 +39,21 @@ const killed = { reason: "killed", exitCode: 9 } satisfies RenderProcessGoneDeta
 
 describe("renderer termination intent wiring", () => {
   it("keeps renderer stream credentials out of process arguments", () => {
-    const args = buildRendererAdditionalArguments({
+    const options = {
       appVersion: "1.0.0",
       isDev: false,
-      windowKind: "main",
-      channel: "stable",
+      windowKind: "main" as const,
+      channel: "stable" as const,
       posthogEnableDev: false,
       posthogEnabled: false,
       posthogHost: "",
       posthogKey: "",
       sentryEnabled: false,
       rendererStream: { version: 2, url: "ws://127.0.0.1:1234/events", token: "secret" },
-    });
+    };
+    const args = buildRendererAdditionalArguments(options);
 
-    expect(args).toContain("--lc-backend-live-version=2");
+    expect(args.filter((arg) => arg.startsWith("--lc-backend"))).toEqual([]);
     expect(args.join(" ")).not.toContain("secret");
     expect(args.join(" ")).not.toContain("127.0.0.1:1234");
   });

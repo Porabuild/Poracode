@@ -1890,6 +1890,653 @@ final class AppSessionCompositionTests: XCTestCase {
     // Cancellation paths must not flip to transport network error UI.
     XCTAssertNotEqual(session.state.projectsLoadState, .failed("Network request failed."))
   }
+
+  // MARK: Preserved-pairing upgrade (v9 disk → v10 live, verified only)
+
+  @MainActor
+  private func makeProfileV9(
+    desktopId: String = "desk-a",
+    endpoint: String = "https://a.test"
+  ) -> ConnectionProfile {
+    ConnectionProfile(
+      desktopId: desktopId,
+      label: "Desktop A",
+      httpBaseURL: endpoint,
+      wsBaseURL: endpoint.replacingOccurrences(of: "https://", with: "wss://"),
+      appVersion: "1.0.0",
+      hostMode: nil,
+      platform: "macOS",
+      scopes: ["session:read", "session:operate"],
+      tokenExpiresAt: nil,
+      pairedAt: Date(timeIntervalSince1970: 1_700_000_000),
+      protocolVersion: PreservedPairingUpgrade.previousReleasedProtocolVersion
+    )
+  }
+
+  @MainActor
+  private func seedRegistryV9(
+    _ catalog: HostCatalog,
+    profile: ConnectionProfile,
+    token: String,
+    id: UInt64 = 1
+  ) async throws -> HostRecord {
+    let record = HostRecord(connectionId: ClientConnectionID(), profile: profile)
+    let activated = try await catalog.activate(id: id, kind: .add)
+    XCTAssertTrue(activated)
+    let result = try await catalog.pairAdd(record: record, token: token, owning: id)
+    XCTAssertEqual(result, .applied)
+    return record
+  }
+
+  func testPreservedV9DiskToLive10VerifiedUpgradePersistsV10AndConnects() async throws {
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+      api.snapshotResult = .success(makeShell(seq: 7))
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let profile9 = makeProfileV9()
+    let seeded = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: profile9, token: "tok-9")
+    await session.bootstrap()
+    XCTAssertEqual(session.phase, .ready)
+    XCTAssertEqual(session.profile?.desktopId, "desk-a")
+    XCTAssertEqual(
+      session.profile?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+    XCTAssertEqual(session.state.accessToken, "tok-9")
+    XCTAssertNotNil(session.state.api, "authority installed only after verified handshake")
+    let durable = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(durable.selected?.connectionId, seeded.connectionId)
+    XCTAssertEqual(
+      durable.selected?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+    let persistedToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+    XCTAssertEqual(persistedToken, "tok-9")
+  }
+
+  func testPreservedV9SourceV2ImportThenVerifiedUpgrade() async throws {
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+      api.snapshotResult = .success(makeShell(seq: 3))
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    // Disk: single-host v2 doc at protocol 9, empty multi-host registry.
+    let profile9 = makeProfileV9()
+    let doc9 = SessionCredentialDocument(
+      version: SessionCredentialDocument.currentVersion,
+      protocolVersion: PreservedPairingUpgrade.previousReleasedProtocolVersion,
+      profile: profile9,
+      accessToken: "tok-v2-9"
+    )
+    try await repo.seedV2Document(try JSONDecoding.encoder.encode(doc9))
+    await session.bootstrap()
+    XCTAssertEqual(session.phase, .ready)
+    XCTAssertEqual(session.profile?.desktopId, "desk-a")
+    XCTAssertEqual(
+      session.profile?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+    XCTAssertEqual(session.state.accessToken, "tok-v2-9")
+    let durable = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(
+      durable.selected?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+    XCTAssertEqual(durable.selected?.desktopId, "desk-a")
+  }
+
+  func testPreservedV9SplitV1ImportThenVerifiedUpgrade() async throws {
+    let keychain = InMemoryKeychainIO()
+    let suite = "poracode.tests.upgrade.splitv1.\(UUID().uuidString)"
+    let repo = SessionCredentialRepository(suiteName: suite, keychain: keychain)
+    defer { Task { await repo.wipeSuiteForTests() } }
+    let directory = FileManager.default.temporaryDirectory
+      .appendingPathComponent("poracode-upgrade-splitv1-\(suite)", isDirectory: true)
+    let catalog = HostCatalog(
+      directory: directory,
+      vaultIO: keychain,
+      sourceKeychain: keychain,
+      defaults: HostSourceDefaults(
+        value: UserDefaults(suiteName: suite) ?? .standard),
+      suiteName: suite
+    )
+    defer { Task { await catalog.wipeForTests() } }
+    // Disk: split-v1 profile at 9 + legacy token.
+    let profile9 = makeProfileV9()
+    let legacyDoc = ConnectionStoreDocument(version: 1, profile: profile9)
+    await repo.seedLegacyProfileDocument(try JSONDecoding.encoder.encode(legacyDoc))
+    try await repo.seedLegacyToken("tok-split-9")
+    // Legacy single-host load must surface mismatch (not corrupt) for upgrade.
+    let bootId: UInt64 = 1
+    let activated = try await repo.activate(id: bootId, kind: .bootstrapLoad)
+    XCTAssertTrue(activated)
+    guard case .protocolMismatch(let creds) = try await repo.loadOutcome(owning: bootId) else {
+      return XCTFail("split-v1 9 must load as protocolMismatch for verified upgrade")
+    }
+    XCTAssertEqual(creds.accessToken, "tok-split-9")
+    XCTAssertEqual(
+      creds.profile.protocolVersion,
+      PreservedPairingUpgrade.previousReleasedProtocolVersion)
+    // Production bootstrap via the same catalog: import then verified upgrade.
+    let session = AppSession(
+      dependencies: SessionDependencies.testing(
+        credentialStore: repo,
+        hostCatalog: catalog,
+        makeAPI: { e, t in
+          let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+          api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+          api.snapshotResult = .success(makeShell(seq: 5))
+          return api
+        },
+        makeSocket: { _ in FakeLiveSocket() }
+      )
+    )
+    await session.bootstrap()
+    XCTAssertEqual(session.phase, .ready)
+    XCTAssertEqual(session.state.accessToken, "tok-split-9")
+    let durable = try await catalog.snapshot()
+    XCTAssertEqual(
+      durable.selected?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+  }
+
+  func testPreservedV9Live9RemainsIncompatiblePreservingBytes() async throws {
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .failure(RemoteClientError.protocolMismatch(found: 9))
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let profile9 = makeProfileV9()
+    let seeded = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: profile9, token: "tok-9")
+    await session.bootstrap()
+    XCTAssertEqual(session.phase, .protocolIncompatible)
+    XCTAssertEqual(
+      session.profile?.protocolVersion,
+      PreservedPairingUpgrade.previousReleasedProtocolVersion)
+    XCTAssertNil(session.state.accessToken, "authority stays blocked without verified handshake")
+    XCTAssertNil(session.state.api)
+    let durable = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(durable.selected?.connectionId, seeded.connectionId)
+    XCTAssertEqual(
+      durable.selected?.protocolVersion,
+      PreservedPairingUpgrade.previousReleasedProtocolVersion,
+      "live 9 must never trigger a durable rebind")
+    let live9Token = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+    XCTAssertEqual(live9Token, "tok-9")
+  }
+
+  func testPreservedV9OfflineParksRetryableWithoutWrite() async throws {
+    let online = false
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      if online {
+        api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+        api.snapshotResult = .success(makeShell(seq: 7))
+      } else {
+        api.environmentResult = .failure(
+          RemoteClientError(message: "Network request failed.", status: 0, code: "network"))
+      }
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let profile9 = makeProfileV9()
+    let seeded = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: profile9, token: "tok-9")
+    let bytesBefore = try await session.deps.hostCatalog.registryRawData()
+    await session.bootstrap()
+    // Retryable park: no terminal phase, no authority, bootstrap stays open.
+    XCTAssertEqual(session.phase, .connecting)
+    XCTAssertFalse(session.state.bootstrapCompleted)
+    XCTAssertNil(session.state.accessToken)
+    XCTAssertNil(session.state.api)
+    XCTAssertEqual(
+      session.profile?.protocolVersion,
+      PreservedPairingUpgrade.previousReleasedProtocolVersion)
+    let durable = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(
+      durable.selected?.protocolVersion,
+      PreservedPairingUpgrade.previousReleasedProtocolVersion)
+    let offlineToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+    XCTAssertEqual(offlineToken, "tok-9",
+      "pre-commit offline must preserve stored token bytes")
+    let bytesAfterOffline = try await session.deps.hostCatalog.registryRawData()
+    XCTAssertEqual(bytesAfterOffline, bytesBefore,
+      "parked retry must not rewrite durable bytes")
+  }
+
+  func testPreservedV9OfflineForegroundOnlineUpgrades() async throws {
+    var online = false
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      if online {
+        api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+        api.snapshotResult = .success(makeShell(seq: 7))
+      } else {
+        api.environmentResult = .failure(
+          RemoteClientError(message: "Network request failed.", status: 0, code: "network"))
+      }
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let seeded = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: makeProfileV9(), token: "tok-9")
+    let bytesBefore = try await session.deps.hostCatalog.registryRawData()
+    await session.bootstrap()
+    XCTAssertEqual(session.phase, .connecting)
+    XCTAssertFalse(session.state.bootstrapCompleted)
+    let bytesParked = try await session.deps.hostCatalog.registryRawData()
+    XCTAssertEqual(bytesParked, bytesBefore, "offline park must not rewrite durable bytes")
+    // Foreground with the current-10 authenticated server retries verified.
+    online = true
+    session.handleScenePhase(.background)
+    session.handleScenePhase(.active)
+    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
+      session.phase == .ready
+        && session.profile?.protocolVersion == ProtocolConstants.remoteProtocolVersion
+    }
+    XCTAssertEqual(session.phase, .ready)
+    XCTAssertEqual(session.profile?.desktopId, "desk-a")
+    XCTAssertEqual(
+      session.profile?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+    XCTAssertEqual(session.state.accessToken, "tok-9")
+    XCTAssertNotNil(session.state.api, "authority installed only after verified handshake")
+    let durable = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(durable.selected?.connectionId, seeded.connectionId)
+    XCTAssertEqual(
+      durable.selected?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+    let upgradedToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+    XCTAssertEqual(upgradedToken, "tok-9")
+  }
+
+  func testPreservedV9BackgroundDuringSnapshotForegroundRetriesWithoutStaleInstall() async throws {
+    let gate = AsyncGate()
+    var gateSnapshots = true
+    var apis: [FakeRemoteAPI] = []
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+      api.snapshotResult = .success(makeShell(seq: 9))
+      if gateSnapshots {
+        api.snapshotGateSkipCount = 0
+        api.snapshotGate = gate
+      }
+      apis.append(api)
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let seeded = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: makeProfileV9(), token: "tok-9")
+    async let boot: Void = session.bootstrap()
+    try await gate.waitUntilWaiting()
+    session.handleScenePhase(.background)
+    session.handleScenePhase(.active)
+    gateSnapshots = false
+    for api in apis { api.snapshotGate = nil }
+    await gate.resume()
+    await boot
+    // The background-stalled proof must not install stale state; the
+    // foreground retry upgrades verified with the same stored token.
+    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
+      session.phase == .ready
+        && session.profile?.protocolVersion == ProtocolConstants.remoteProtocolVersion
+    }
+    XCTAssertEqual(session.phase, .ready)
+    XCTAssertEqual(
+      session.profile?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+    XCTAssertEqual(session.state.accessToken, "tok-9")
+    XCTAssertGreaterThanOrEqual(apis.count, 2, "foreground must retry with a fresh handshake")
+    let durable = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(durable.selected?.connectionId, seeded.connectionId)
+    XCTAssertEqual(
+      durable.selected?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+    let finalToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+    XCTAssertEqual(finalToken, "tok-9")
+  }
+
+  func testPreservedV9SameIdTokenReplacementAbandonsWithoutOverwrite() async throws {
+    let gate = AsyncGate()
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentGate = gate
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+      api.snapshotResult = .success(makeShell(seq: 9))
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let seeded = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: makeProfileV9(), token: "tok-9")
+    async let boot: Void = session.bootstrap()
+    try await gate.waitUntilWaiting()
+    // Same-id re-pair rotates the vault token and renames the record while the
+    // upgrade handshake is suspended precommit, under newer catalog ownership.
+    // Seeded with id 1 and the upgrade began with the next id, so 100+
+    // is unambiguously newer regardless of the bootstrap allocation.
+    var rotated = makeProfileV9()
+    rotated.label = "Desktop A Renamed"
+    let rotatedRecord = HostRecord(connectionId: seeded.connectionId, profile: rotated)
+    let rotationActivated = try await session.deps.hostCatalog.activate(id: 100, kind: .add)
+    XCTAssertTrue(rotationActivated)
+    let rotationResult = try await session.deps.hostCatalog.pairAdd(
+      record: rotatedRecord, token: "tok-rotated", owning: 100)
+    XCTAssertEqual(rotationResult, .applied)
+    await gate.resume()
+    await boot
+    // The stale handshake must not clobber the newer token or metadata, and
+    // must not rebind the rotated v9 binding to v10.
+    let durable = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(durable.selected?.connectionId, seeded.connectionId)
+    XCTAssertEqual(durable.selected?.label, "Desktop A Renamed")
+    XCTAssertEqual(
+      durable.selected?.protocolVersion,
+      PreservedPairingUpgrade.previousReleasedProtocolVersion)
+    let preservedRotation = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+    XCTAssertEqual(preservedRotation, "tok-rotated",
+      "same-id token replacement must survive a stale precommit handshake")
+  }
+
+  func testPreservedV9FailureNeverWritesWrongProfile() async throws {
+    // Expired token: public environment still 200 (proves nothing about the
+    // token), but the authenticated snapshot 401 must block the durable rebind.
+    // `environment()` is auth:"public" — a fake environment 401 alone would
+    // not prove revocation handling.
+    do {
+      let (session, repo, _) = try await makeSession { e, t in
+        let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+        api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+        api.snapshotResult = .failure(
+          RemoteClientError(message: "expired", status: 401, code: "unauthorized"))
+        return api
+      }
+      defer {
+        Task {
+          await repo.wipeSuiteForTests()
+          await session.deps.hostCatalog.wipeForTests()
+        }
+      }
+      let seeded = try await seedRegistryV9(
+        session.deps.hostCatalog, profile: makeProfileV9(), token: "tok-9")
+      await session.bootstrap()
+      XCTAssertEqual(session.phase, .sessionExpired)
+      XCTAssertNil(session.state.api)
+      XCTAssertNil(
+        session.state.accessToken, "revoked token must not install authority")
+      let durable = try await session.deps.hostCatalog.snapshot()
+      XCTAssertEqual(
+        durable.selected?.protocolVersion,
+        PreservedPairingUpgrade.previousReleasedProtocolVersion)
+      let revokedToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+      XCTAssertEqual(revokedToken, "tok-9")
+    }
+    // Identity mismatch: endpoint now serves a different desktop → no write.
+    do {
+      let (session, repo, _) = try await makeSession { e, t in
+        let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+        api.environmentResult = .success(makeEnvironment(desktopId: "desk-other"))
+        api.snapshotResult = .success(makeShell(seq: 1))
+        return api
+      }
+      defer {
+        Task {
+          await repo.wipeSuiteForTests()
+          await session.deps.hostCatalog.wipeForTests()
+        }
+      }
+      let seeded = try await seedRegistryV9(
+        session.deps.hostCatalog, profile: makeProfileV9(), token: "tok-9")
+      await session.bootstrap()
+      XCTAssertEqual(session.phase, .protocolIncompatible)
+      XCTAssertNil(session.state.accessToken)
+      let durable = try await session.deps.hostCatalog.snapshot()
+      XCTAssertEqual(durable.selected?.connectionId, seeded.connectionId)
+      XCTAssertEqual(durable.selected?.desktopId, "desk-a")
+      XCTAssertEqual(
+        durable.selected?.protocolVersion,
+        PreservedPairingUpgrade.previousReleasedProtocolVersion,
+        "desktopId mismatch must never rebind the wrong profile")
+    }
+  }
+
+  func testPreservedV9CancelNeverWritesWrongProfile() async throws {
+    let gate = AsyncGate()
+    var envAPIs: [FakeRemoteAPI] = []
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentGate = gate
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+      api.snapshotResult = .success(makeShell(seq: 9))
+      envAPIs.append(api)
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let seeded = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: makeProfileV9(), token: "tok-9")
+    async let boot: Void = session.bootstrap()
+    try await gate.waitUntilWaiting()
+    // Host switch wins while the upgrade handshake is suspended pre-commit:
+    // bump the session generation so the suspended handshake becomes stale.
+    // Boundary: this proves pre-commit cancel never writes. Once pairAdd
+    // commits, durable bytes stay upgraded even when the install is abandoned.
+    _ = session.state.operationOwner.begin(.switchHost)
+    await gate.resume()
+    await boot
+    let durable = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(
+      durable.selected?.protocolVersion,
+      PreservedPairingUpgrade.previousReleasedProtocolVersion,
+      "pre-commit superseded handshake must never persist a rebind")
+    let cancelledToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+    XCTAssertEqual(cancelledToken, "tok-9")
+    XCTAssertTrue(envAPIs.count >= 1)
+    _ = seeded
+  }
+
+  func testPreservedUpgradeTransportEnvironmentPublicSnapshotProtected() async throws {
+    // Actual transport proof: environment is public (200 even with a bad
+    // token; `auth:"public"`, `httpRouter.ts`), snapshot is bearer-protected
+    // (401 with the same bad token; `auth:"bearer"`, `session:read`).
+    let envJSON = """
+      {
+        "protocolVersion": \(ProtocolConstants.remoteProtocolVersion),
+        "desktopId": "desk-a",
+        "label": "Desktop A",
+        "appVersion": "1.0.0",
+        "auth": {
+          "policy": "remote-reachable",
+          "bootstrapMethods": ["one-time-token"],
+          "sessionMethods": ["bearer-access-token"],
+          "scopes": ["session:read", "session:operate"]
+        },
+        "endpoints": {
+          "httpBaseUrl": "https://a.test/",
+          "wsBaseUrl": "wss://a.test/"
+        }
+      }
+      """
+    PreservedUpgradeRouteURLProtocol.reset(
+      environmentBody: Data(envJSON.utf8),
+      snapshotStatus: 401,
+      snapshotBody: Data(#"{"error":{"code":"unauthorized","message":"expired"}}"#.utf8)
+    )
+    defer { PreservedUpgradeRouteURLProtocol.resetEmpty() }
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [PreservedUpgradeRouteURLProtocol.self]
+    let session = URLSession(configuration: config)
+    // Same expired token for both routes: public succeeds, protected rejects.
+    let client = RemoteAPIClient(
+      endpoint: "https://a.test", accessToken: "tok-expired", session: session)
+    let environment = try await client.environment()
+    XCTAssertEqual(environment.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+    XCTAssertEqual(environment.desktopId, "desk-a")
+    do {
+      _ = try await client.snapshot()
+      XCTFail("expired token must fail the protected snapshot read")
+    } catch let error as RemoteClientError {
+      XCTAssertTrue(error.isUnauthorized, "snapshot 401 must read as unauthorized")
+      XCTAssertEqual(error.status, 401)
+    }
+    let paths = PreservedUpgradeRouteURLProtocol.requests.compactMap(\.url?.path)
+    XCTAssertTrue(paths.contains(where: { $0.contains("environment") }))
+    XCTAssertTrue(paths.contains("/api/snapshot"))
+    // The protected read carried the bad bearer token and was rejected —
+    // the public descriptor succeeding with the same token proves nothing
+    // about the token.
+    let snapshotRequest = try XCTUnwrap(
+      PreservedUpgradeRouteURLProtocol.requests.first(where: {
+        $0.url?.path == "/api/snapshot"
+      }))
+    XCTAssertEqual(
+      snapshotRequest.value(forHTTPHeaderField: "Authorization"), "Bearer tok-expired")
+    // Public route needs no token at all.
+    PreservedUpgradeRouteURLProtocol.requests = []
+    let anonClient = RemoteAPIClient(endpoint: "https://a.test", session: session)
+    let anonEnv = try await anonClient.environment()
+    XCTAssertEqual(anonEnv.desktopId, "desk-a")
+  }
+
+  func testPreservedV9ExpiredTokenViaTransportBlocksDurableWrite() async throws {
+    // End-to-end on real transport: live v10 env 200 (public) + snapshot 401
+    // (protected) with the stored token must expire without a durable rebind.
+    let envJSON = """
+      {
+        "protocolVersion": \(ProtocolConstants.remoteProtocolVersion),
+        "desktopId": "desk-a",
+        "label": "Desktop A",
+        "appVersion": "1.0.0",
+        "auth": {
+          "policy": "remote-reachable",
+          "bootstrapMethods": ["one-time-token"],
+          "sessionMethods": ["bearer-access-token"],
+          "scopes": ["session:read", "session:operate"]
+        },
+        "endpoints": {
+          "httpBaseUrl": "https://a.test/",
+          "wsBaseUrl": "wss://a.test/"
+        }
+      }
+      """
+    PreservedUpgradeRouteURLProtocol.reset(
+      environmentBody: Data(envJSON.utf8),
+      snapshotStatus: 401,
+      snapshotBody: Data(#"{"error":{"code":"unauthorized","message":"expired"}}"#.utf8)
+    )
+    defer { PreservedUpgradeRouteURLProtocol.resetEmpty() }
+    let (session, repo, _) = try await makeSession { endpoint, token in
+      let config = URLSessionConfiguration.ephemeral
+      config.protocolClasses = [PreservedUpgradeRouteURLProtocol.self]
+      let client = RemoteAPIClient(
+        endpoint: endpoint, accessToken: token,
+        session: URLSession(configuration: config))
+      return RemoteAPIClientBox(client, richChatEndpoint: nil, accessToken: token)
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    let seeded = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: makeProfileV9(), token: "tok-expired")
+    await session.bootstrap()
+    XCTAssertEqual(session.phase, .sessionExpired)
+    XCTAssertNil(session.state.api, "no authority installs before the authenticated proof")
+    XCTAssertNil(session.state.accessToken)
+    let durable = try await session.deps.hostCatalog.snapshot()
+    XCTAssertEqual(
+      durable.selected?.protocolVersion,
+      PreservedPairingUpgrade.previousReleasedProtocolVersion,
+      "expired token must not rebind to v10")
+    let expiredToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+    XCTAssertEqual(expiredToken, "tok-expired")
+    XCTAssertTrue(
+      PreservedUpgradeRouteURLProtocol.requests.contains(where: {
+        $0.url?.path == "/api/snapshot"
+      }),
+      "upgrade must attempt the authenticated read before any write")
+  }
+
+  func testPreservedPairingUpgradeVerifyGates() {
+    let stored9 = ConnectionProfile(
+      desktopId: "desk-a",
+      label: "A",
+      httpBaseURL: "https://a.test",
+      wsBaseURL: "wss://a.test",
+      appVersion: "1.0.0",
+      scopes: ["session:read"],
+      pairedAt: Date(timeIntervalSince1970: 1_700_000_000),
+      protocolVersion: PreservedPairingUpgrade.previousReleasedProtocolVersion
+    )
+    let live10 = RemoteEnvironmentDescriptor(
+      protocolVersion: ProtocolConstants.remoteProtocolVersion,
+      hostMode: nil,
+      desktopId: "desk-a",
+      label: "A",
+      appVersion: "2.0.0",
+      platform: "macOS",
+      auth: .init(
+        policy: ProtocolConstants.authPolicy,
+        bootstrapMethods: [ProtocolConstants.bootstrapMethod],
+        sessionMethods: [ProtocolConstants.sessionMethod],
+        scopes: ProtocolConstants.standardScopes
+      ),
+      endpoints: .init(httpBaseUrl: "https://a.test", wsBaseUrl: "wss://a.test")
+    )
+    XCTAssertTrue(PreservedPairingUpgrade.verify(stored: stored9, environment: live10))
+    // Live 9 never verifies.
+    var live9 = live10
+    live9.protocolVersion = 9
+    XCTAssertFalse(PreservedPairingUpgrade.verify(stored: stored9, environment: live9))
+    // Wrong host never verifies (host-switch guard).
+    var otherDesk = live10
+    otherDesk.desktopId = "desk-other"
+    XCTAssertFalse(PreservedPairingUpgrade.verify(stored: stored9, environment: otherDesk))
+    // Stored without read never verifies (scope guard, no old cache adoption).
+    var noRead = stored9
+    noRead.scopes = ["session:operate"]
+    XCTAssertFalse(PreservedPairingUpgrade.verify(stored: noRead, environment: live10))
+    // Stored current protocol is not an upgrade candidate.
+    var stored10 = stored9
+    stored10.protocolVersion = ProtocolConstants.remoteProtocolVersion
+    XCTAssertFalse(PreservedPairingUpgrade.verify(stored: stored10, environment: live10))
+  }
 }
 
 // MARK: - Deterministic wait helpers
@@ -2132,5 +2779,63 @@ final class GatedSnapshotAPI: SessionRemoteAPI {
   }
   func interruptThread(threadId: String) async throws {
     try await inner.interruptThread(threadId: threadId)
+  }
+}
+
+// MARK: - Preserved-upgrade transport routing (actual URLProtocol)
+
+/// Routes by path so one stub proves the auth boundary on real transport:
+/// environment is public (200 regardless of Authorization), snapshot is
+/// bearer-protected (configured status, 401 for an expired token).
+final class PreservedUpgradeRouteURLProtocol: URLProtocol {
+  nonisolated(unsafe) static var environmentBody: Data = Data()
+  nonisolated(unsafe) static var snapshotStatus: Int = 401
+  nonisolated(unsafe) static var snapshotBody: Data = Data()
+  nonisolated(unsafe) static var requests: [URLRequest] = []
+
+  override class func canInit(with request: URLRequest) -> Bool { true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+  override func startLoading() {
+    Self.requests.append(request)
+    let path = request.url?.path ?? ""
+    if path.contains("environment") {
+      let response = HTTPURLResponse(
+        url: request.url!, statusCode: 200, httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"])!
+      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      client?.urlProtocol(self, didLoad: Self.environmentBody)
+      client?.urlProtocolDidFinishLoading(self)
+    } else if path == "/api/snapshot" {
+      let response = HTTPURLResponse(
+        url: request.url!, statusCode: Self.snapshotStatus, httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"])!
+      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      client?.urlProtocol(self, didLoad: Self.snapshotBody)
+      client?.urlProtocolDidFinishLoading(self)
+    } else {
+      let response = HTTPURLResponse(
+        url: request.url!, statusCode: 404, httpVersion: nil,
+        headerFields: ["Content-Type": "application/json"])!
+      client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+      client?.urlProtocol(self, didLoad: Data(#"{"error":{"code":"x","message":"x"}}"#.utf8))
+      client?.urlProtocolDidFinishLoading(self)
+    }
+  }
+
+  override func stopLoading() {}
+
+  static func reset(environmentBody: Data, snapshotStatus: Int, snapshotBody: Data) {
+    self.environmentBody = environmentBody
+    self.snapshotStatus = snapshotStatus
+    self.snapshotBody = snapshotBody
+    self.requests = []
+  }
+
+  static func resetEmpty() {
+    self.environmentBody = Data()
+    self.snapshotStatus = 401
+    self.snapshotBody = Data()
+    self.requests = []
   }
 }

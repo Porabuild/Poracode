@@ -1,9 +1,9 @@
 /** Tracks remote shell ownership and keeps routing stable across failed operations. */
 export class RemoteTerminalOwnership<Owner> {
-  private readonly owners = new Map<string, Owner>();
+  private readonly owners = new Map<string, { readonly owner: Owner }>();
 
   owner(terminalId: string): Owner | undefined {
-    return this.owners.get(terminalId);
+    return this.owners.get(terminalId)?.owner;
   }
 
   async start<Result>(
@@ -11,11 +11,13 @@ export class RemoteTerminalOwnership<Owner> {
     owner: Owner,
     operation: () => Promise<Result>,
   ): Promise<Result> {
-    this.owners.set(terminalId, owner);
+    // Each start has its own identity, even if the id and host are reused.
+    const entry = { owner };
+    this.owners.set(terminalId, entry);
     try {
       return await operation();
     } catch (error) {
-      this.owners.delete(terminalId);
+      if (this.owners.get(terminalId) === entry) this.owners.delete(terminalId);
       throw error;
     }
   }
@@ -24,10 +26,10 @@ export class RemoteTerminalOwnership<Owner> {
     terminalId: string,
     operation: (owner: Owner) => Promise<Result>,
   ): Promise<{ readonly routed: false } | { readonly routed: true; readonly result: Result }> {
-    const owner = this.owners.get(terminalId);
-    if (owner === undefined) return { routed: false };
-    const result = await operation(owner);
-    this.owners.delete(terminalId);
+    const entry = this.owners.get(terminalId);
+    if (!entry) return { routed: false };
+    const result = await operation(entry.owner);
+    if (this.owners.get(terminalId) === entry) this.owners.delete(terminalId);
     return { routed: true, result };
   }
 
@@ -37,7 +39,7 @@ export class RemoteTerminalOwnership<Owner> {
 
   releaseOwnedBy(owner: Owner): void {
     for (const [terminalId, candidate] of this.owners) {
-      if (candidate === owner) this.owners.delete(terminalId);
+      if (candidate.owner === owner) this.owners.delete(terminalId);
     }
   }
 

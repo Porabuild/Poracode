@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { forgetShellLaunch } from "@/renderer/utils/shellStartRegistry";
 
 export interface DevTerminalTab {
   id: string;
@@ -180,6 +181,10 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
         const projectTabs = removed ? tabs.filter((t) => t.projectId === removed.projectId) : tabs;
         activeTabId = projectTabs.at(-1)?.id ?? null;
       }
+      // Tab state owns shell identity: dropping a tab forgets its deferred
+      // start mark (split included) so no caller can leak a suppression.
+      if (removed) forgetShellLaunch(tabId);
+      if (removed?.splitId) forgetShellLaunch(removed.splitId);
       const tabActivity = { ...state.tabActivity };
       delete tabActivity[tabId];
       if (removed?.splitId) delete tabActivity[removed.splitId];
@@ -228,6 +233,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
 
     // Also collect split shell IDs for cleanup
     const splitIds = removedTabs.filter((t) => t.splitId).map((t) => t.splitId!);
+    for (const id of [...removed, ...splitIds]) forgetShellLaunch(id);
 
     set((state) => {
       const tabs = state.tabs.filter((t) => t.projectId !== projectId);
@@ -260,6 +266,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
     if (removed.length === 0) return removed;
 
     const splitIds = removedTabs.filter((t) => t.splitId).map((t) => t.splitId!);
+    for (const id of [...removed, ...splitIds]) forgetShellLaunch(id);
 
     set((state) => {
       const tabs = state.tabs.filter((t) => t.worktreePath !== worktreePath);
@@ -298,6 +305,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
     const tab = get().tabs.find((t) => t.id === tabId);
     const splitId = tab?.splitId;
     if (!splitId) return undefined;
+    forgetShellLaunch(splitId);
     set((state) => {
       const tabs: DevTerminalTab[] = state.tabs.map((t) => {
         if (t.id !== tabId) return t;
@@ -392,6 +400,10 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
 
 export function resetDevTerminalStore(): void {
   clearStreaming([...streamingTimers.keys()]);
+  for (const tab of useDevTerminalStore.getState().tabs) {
+    forgetShellLaunch(tab.id);
+    if (tab.splitId) forgetShellLaunch(tab.splitId);
+  }
   useDevTerminalStore.setState({
     isOpen: false,
     explicitlyOpened: false,

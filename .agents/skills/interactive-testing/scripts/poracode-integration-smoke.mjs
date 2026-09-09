@@ -13,6 +13,7 @@ import {
   manualGates,
   productionRoots,
 } from "./smoke-scenarios.mjs";
+import { finalizeManualOutcomes, recordManualGate } from "./smoke-gate-outcomes.mjs";
 import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
 import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 
@@ -239,10 +240,7 @@ async function runSmoke(plan) {
       .map((value) => value.trim())
       .filter(Boolean),
   );
-  for (const item of report.manual) {
-    if (mode === "mock") item.status = "mocked";
-    else if (acknowledged.has(item.gate)) item.status = "acknowledged";
-  }
+  finalizeManualOutcomes(report, { mode, acknowledged });
   report.finishedAt = new Date().toISOString();
   const reportPath = join(outDir, "smoke-report.json");
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -1456,13 +1454,15 @@ async function runMockIntegrations(report, client, gates) {
   const passed = [];
   for (const gate of gates) {
     try {
+      // A previous gate may leave Settings covering the next gate's draft controls.
+      await resetDrivenState(client);
       const detail = await runMockGate(client, gate, fixture);
-      report.manual.find((item) => item.gate === gate).status = "mocked";
-      report.manual.find((item) => item.gate === gate).detail = detail;
+      recordManualGate(report, gate, "mocked", detail);
       passed.push(gate);
       console.log(`MOCK PASS: ${gate} - ${detail}`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
+      recordManualGate(report, gate, "fail", detail);
       report.automated.push({ id: `mock:${gate}`, status: "fail", detail });
       console.log(`MOCK FAIL: ${gate} - ${detail}`);
     }
@@ -1666,6 +1666,15 @@ async function runMockGate(client, gate, fixture) {
     case "project-mutations":
       assert(fixture.project.id === "smoke-project", "isolated project fixture is not selected");
       return "isolated seeded project was loaded and selected";
+    case "quick-composer":
+      // The quick composer window only opens through the real global shortcut
+      // or tray menu, so no deterministic mock check exists for it.
+      throw new Error(
+        "quick-composer has no deterministic mock check; remaining coverage: opening via the " +
+          "real global shortcut or tray menu, drag/reopen and dismissal motion, control exercise, " +
+          "submit, and thread handoff to the main window. Exercise it as a real manual gate " +
+          "(--windowKind quickComposer in a --mode real run).",
+      );
     case "provider-live": {
       const state = await evaluate(
         client,
@@ -1734,13 +1743,30 @@ async function runMockGate(client, gate, fixture) {
       );
       return "runtime request store and resolution IPC contract were checked";
     }
-    case "terminal-pty":
+    case "terminal-pty": {
       assert(fixture.bridgeKeys.includes("startThread"), "thread launch bridge is missing");
-      assert(
-        /\bCLI\b/i.test(await evaluate(client, "document.body.innerText")),
-        "terminal presentation control did not render",
+      await evaluate(
+        client,
+        `window.__poracodeDev.stores.app.getState().openDraft(${JSON.stringify(fixture.project.id)})`,
+      );
+      await waitForValue(
+        () =>
+          evaluate(
+            client,
+            `(() => {
+              const tab = document.querySelector('[data-draft-controls] [role="tab"][data-tab-id="terminal"]');
+              if (!tab) return false;
+              const rect = tab.getBoundingClientRect();
+              const style = getComputedStyle(tab);
+              return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden"
+                && !tab.disabled && tab.getAttribute("aria-disabled") !== "true";
+            })()`,
+          ),
+        (visible) => visible === true,
+        "visible, enabled terminal presentation control in the fixture draft",
       );
       return "terminal launch contract and entry point were checked without spawning a real provider";
+    }
     case "visual-a11y": {
       const result = await evaluate(
         client,
@@ -1760,7 +1786,7 @@ async function runMockGate(client, gate, fixture) {
       return "interactive labels and dark-theme baseline were checked";
     }
     default:
-      return `mock gate acknowledged: ${gate}`;
+      throw new Error(`mock gate "${gate}" is unknown or has no deterministic mock implementation`);
   }
 }
 
@@ -1907,8 +1933,14 @@ function printReport(report, reportPath) {
   }
   for (const item of report.manual) {
     const statusLabel =
-      item.status === "acknowledged" ? "ACK" : item.status === "mocked" ? "MOCK" : "MANUAL";
-    console.log(`${statusLabel}: ${item.gate}`);
+      item.status === "acknowledged"
+        ? "ACK"
+        : item.status === "mocked"
+          ? "MOCK"
+          : item.status === "fail"
+            ? "FAIL"
+            : "MANUAL";
+    console.log(`${statusLabel}: ${item.gate}${item.status === "fail" ? ` - ${item.detail}` : ""}`);
   }
   console.log(`Console/runtime errors: ${report.errors.length}`);
   console.log(`Report: ${reportPath}`);

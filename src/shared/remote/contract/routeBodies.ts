@@ -53,6 +53,8 @@ export const threadCommandBodySchema = z.discriminatedUnion("kind", [
 export const startExistingThreadBodySchema = z.object({
   ...startThreadPayloadSchema.shape,
   threadId: z.string().min(1),
+  /** Reopen without new input; uses host state and preserves any live runtime. */
+  ensureRunning: z.literal(true).optional(),
 });
 
 export const projectNotesReadResultSchema = z.object({

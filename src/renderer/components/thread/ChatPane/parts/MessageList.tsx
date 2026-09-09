@@ -174,6 +174,14 @@ export function MessageList({
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [revertError, setRevertError] = useState<string | null>(null);
   const revertingRef = useRef(false);
+  const revertProgressRef = useRef<{
+    threadId: string;
+    itemId: string;
+    userItemId: string;
+    providerRolledBack: boolean;
+    filesRestored: boolean;
+    restoredContent: MessageItemPayload["content"] | undefined;
+  } | null>(null);
 
   const snapshotMeasurements = useCallback(
     (instance: LegendListRef, scrollElement: HTMLDivElement) => {
@@ -355,9 +363,24 @@ export function MessageList({
                 (block) => ({ ...block }),
               )
             : undefined;
+        if (
+          revertProgressRef.current?.threadId !== threadId ||
+          revertProgressRef.current.itemId !== itemId ||
+          revertProgressRef.current.userItemId !== userItemId
+        ) {
+          revertProgressRef.current = {
+            threadId,
+            itemId,
+            userItemId,
+            providerRolledBack: false,
+            filesRestored: false,
+            restoredContent,
+          };
+        }
+        const progress = revertProgressRef.current;
         const revert = checkpointActions ?? readBridge();
-        let providerRollbackSucceeded = rollbackTurns === 0;
-        if (rollbackTurns > 0) {
+        let providerRollbackSucceeded = progress.providerRolledBack || rollbackTurns === 0;
+        if (rollbackTurns > 0 && !progress.providerRolledBack) {
           try {
             await revert.rollbackThreadConversation({
               threadId,
@@ -365,6 +388,7 @@ export function MessageList({
               ...(threadConfig ? { config: threadConfig } : {}),
             });
             providerRollbackSucceeded = true;
+            progress.providerRolledBack = true;
           } catch (error) {
             console.warn(
               "[checkpoint] provider rollback failed; continuing with local revert",
@@ -372,18 +396,19 @@ export function MessageList({
             );
           }
         }
-        if (projectLocation && checkpoint) {
+        if (projectLocation && checkpoint && !progress.filesRestored) {
           await revert.restoreFileCheckpoint({
             threadId,
             checkpointItemId: itemId,
             projectLocation,
           });
+          progress.filesRestored = true;
         }
-        if (restoredContent?.length) {
-          useRevertedPromptStore.getState().restore(threadId, restoredContent);
-        }
-        state.truncateThreadRuntimeAfter(threadId, itemId);
         await readBridge().dbTruncateThreadRuntimeAfter({ threadId, itemId });
+        if (progress.restoredContent?.length) {
+          useRevertedPromptStore.getState().restore(threadId, progress.restoredContent);
+        }
+        revertProgressRef.current = null;
         const thread = state.threads.find((item) => item.id === threadId);
         captureProductEvent("thread.checkpoint_reverted", {
           ...(thread ? threadProductProperties(thread) : {}),

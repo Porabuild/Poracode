@@ -1,6 +1,7 @@
 package com.poracode.app.session
 
 import com.poracode.app.protocol.AppLifecycleGate
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.RemoteAccessScopes
 import com.poracode.app.protocol.ThreadHydrationCoordinator
 import com.poracode.app.storage.SessionCredentialRepository
@@ -298,6 +299,7 @@ class AppSession(
             hosts = hosts,
             live = live,
             ioDispatcher = ioDispatcher,
+            apiFactory = apiFactory,
             hasEndpointPermission = hasEndpointPermission,
             updateState = { _state.update(it) },
         )
@@ -445,8 +447,13 @@ class AppSession(
         events.bindReplayHost(credentials.profile.desktopId)
         live.destroyLiveForHostSwap()
         owner.bumpSessionGeneration()
-        live.accessToken = credentials.accessToken
         _state.update { SessionStateTransitions.installingHost(it, credentials.profile) }
+        if (credentials.profile.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) {
+            live.accessToken = null
+            bootstrap()
+            return
+        }
+        live.accessToken = credentials.accessToken
         if (!hasEndpointPermission(credentials.profile.httpBaseUrl)) {
             _state.update { it.copy(phase = Phase.LocalNetworkPermissionRequired) }
             return

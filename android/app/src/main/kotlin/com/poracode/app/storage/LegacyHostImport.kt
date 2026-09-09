@@ -4,7 +4,6 @@ import android.content.Context
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.HostRecord
 import com.poracode.app.model.RemoteJson
-import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.security.AccessTokenCipher
 import com.poracode.app.security.TokenCipher
 import java.io.File
@@ -60,9 +59,9 @@ class AndroidLegacyHostSource(
             ?: runCatching { v1Cipher.decrypt(document.encryptedAccessToken) }.getOrNull()
             ?: return null
         val protocol = document.protocolVersion ?: document.profile.protocolVersion
-        if (protocol != 0 && protocol != ProtocolConstants.REMOTE_PROTOCOL_VERSION) return null
+        val binding = StoredProtocolUpgrade.importedBinding(protocol) ?: return null
         return SessionCredentials(
-            document.profile.copy(protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION),
+            document.profile.copy(protocolVersion = binding),
             token,
         )
     }
@@ -75,8 +74,9 @@ class AndroidLegacyHostSource(
             is TokenLoadOutcome.Loaded -> result.token
             else -> return null
         }
+        val binding = StoredProtocolUpgrade.importedBinding(decodedProfile.protocolVersion) ?: return null
         return SessionCredentials(
-            decodedProfile.copy(protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION),
+            decodedProfile.copy(protocolVersion = binding),
             decodedToken,
         )
     }

@@ -12,6 +12,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import type { AgentSlashCommand, ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { resolveNodeForDistro } from "../../wsl/runtime";
 import { resolveProbeSpawnCwd } from "../probeCwd";
 import { buildCodexAppServerCommand } from "./argv";
@@ -460,6 +461,10 @@ async function runWithCodexAppServer<T>(
     });
     const spawnCwd = resolveProbeSpawnCwd(location, cmd.cwd);
 
+    // Mock-QA enforcement: the probe starts a real Codex app-server and runs
+    // the initialize handshake, so mock sessions refuse it; the probe fails
+    // like any other spawn error.
+    assertAgentLaunchAllowed("session-probe");
     appServer = spawn(cmd.command, cmd.args, {
       cwd: spawnCwd ?? undefined,
       env: { ...process.env, ...cmd.env, TERM: "xterm-256color" },

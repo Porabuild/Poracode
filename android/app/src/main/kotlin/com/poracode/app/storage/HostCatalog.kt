@@ -5,6 +5,7 @@ import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.HostCatalogSnapshot
 import com.poracode.app.model.HostRecord
 import com.poracode.app.model.HostRegistryDocument
+import com.poracode.app.protocol.ProtocolConstants
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.sync.Mutex
@@ -140,6 +141,31 @@ class HostCatalog(
         )
     }
 
+    /** Rebind a verified saved host without changing its identity, token or selection. */
+    suspend fun upgradeProtocol(
+        expected: SessionCredentials,
+        owning: HostOperationReceipt,
+    ): HostMutationResult = mutate(owning, HostOperationKind.Add) { document ->
+        val selected = document.selectedConnectionId?.let(document::host) ?: return@mutate null
+        if (selected.asProfile() != expected.profile ||
+            selected.protocolVersion != StoredProtocolUpgrade.PREVIOUS_VERSION ||
+            vault.load(HostVault.account(selected.connectionId))?.toString(Charsets.UTF_8) !=
+                expected.accessToken
+        ) return@mutate null
+        TransactionPlan(
+            kind = HostTransactionJournal.Kind.Add,
+            connectionId = selected.connectionId,
+            document = document.copy(hosts = document.hosts.map {
+                if (it.connectionId == selected.connectionId) {
+                    it.copy(
+                        protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
+                        browserForwardVersions = emptyList(),
+                    )
+                } else it
+            }),
+        )
+    }
+
     suspend fun select(
         connectionId: ClientConnectionId,
         owning: HostOperationReceipt,
@@ -218,7 +244,7 @@ class HostCatalog(
     private suspend fun mutate(
         owning: HostOperationReceipt,
         expected: HostOperationKind,
-        build: suspend (HostRegistryDocument) -> TransactionPlan,
+        build: suspend (HostRegistryDocument) -> TransactionPlan?,
     ): HostMutationResult = mutex.withLock {
         recoverLocked()
         val current = if (expected == HostOperationKind.Rename) {
@@ -230,6 +256,7 @@ class HostCatalog(
             return@withLock HostMutationResult.RejectedBeforeApply
         }
         val plan = build(registry.load() ?: HostRegistryDocument())
+            ?: return@withLock HostMutationResult.RejectedBeforeApply
         val journal = HostTransactionJournal.make(
             operationId = owning.id,
             kind = plan.kind,

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import type { BrowserPanelManager } from "../browser";
 import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
@@ -29,9 +30,12 @@ import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
+  remoteForwardBaseUrl,
   resolveRemoteAccessPort,
 } from "./config";
 import { readOrCreateRemoteAccessIdentity } from "./identity";
+import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
+import { readOrCreateForwardOriginSecret } from "./portForward/forwardOriginSecret";
 import { setImagePreviewGenerator, type ImagePreviewGenerator } from "./server/imagePreview";
 import { getRemoteAccessPairingInfo } from "./pairingInfo";
 import { createPortForwarding, type PortForwarding } from "./portForward/portForwarding";
@@ -74,6 +78,8 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly paths: Pick<PoracodePaths, "baseDir" | "settingsPath">;
   readonly devServerUrl?: string;
   readonly callSupervisor: RemoteAccessServerOptions["callSupervisor"];
+  /** Backend-owned truncate: one DB mutation + one `runtime.truncated` publication. */
+  readonly truncateThreadRuntime: RemoteAccessServerOptions["truncateThreadRuntime"];
   readonly dispatchThreadCommand: NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>;
   readonly getBrowserPanelManager?: () => BrowserPanelManager | null;
   readonly browser?: RemoteBrowserGatewayLike;
@@ -344,6 +350,15 @@ export function createDesktopRemoteAccessController(
       const identity = readOrCreateRemoteAccessIdentity(options.paths.baseDir);
       const remoteHost = remoteAccessHost();
       const port = await resolveRemoteAccessPort({ host: remoteHost });
+      // Dedicated persistent origin secret + configured HTTPS base → the
+      // browser-forward child-origin identity. A malformed explicit
+      // PORACODE_REMOTE_FORWARD_BASE_URL fails startup loudly; absence only
+      // disables browser-origin forwarding (raw TCP keeps working).
+      const forwardOrigin = createForwardOriginIdentity({
+        baseUrl: remoteForwardBaseUrl(),
+        originSecret: readOrCreateForwardOriginSecret(options.paths.baseDir),
+        serverId: identity.desktopId,
+      });
       const advertisedHost = remoteAccessAdvertisedHost({ bindHost: remoteHost });
       const advertisedResolution = await resolveAdvertisedBaseUrl(port);
       attempt.tailscaleServeUrl = advertisedResolution.tailscaleServeUrl ?? null;
@@ -367,6 +382,7 @@ export function createDesktopRemoteAccessController(
       portForwarding ??= createPortForwarding({
         bindHost: remoteHost,
         remoteAccessPort: port,
+        ...(forwardOrigin ? { forwardOrigin } : {}),
       });
       attempt.forwarding = portForwarding;
       const pushStore = new PushRegistrationStore(options.paths.baseDir);
@@ -416,6 +432,7 @@ export function createDesktopRemoteAccessController(
         ...(trustedCorsOrigins ? { trustedCorsOrigins } : {}),
         ...(devWebAppUrl ? { devWebAppUrl } : {}),
         callSupervisor: options.callSupervisor,
+        truncateThreadRuntime: options.truncateThreadRuntime,
         dispatchThreadCommand: options.dispatchThreadCommand,
         resolveMcpLaunchSnapshot: (projectId) => {
           const settings = readSharedSettingsFile(options.paths.settingsPath);
@@ -428,6 +445,14 @@ export function createDesktopRemoteAccessController(
             : {}),
         portForward: portForwarding.gateway,
         portProxy: portForwarding.proxy,
+        ...(forwardOrigin
+          ? {
+              forwardOrigin,
+              // Per-instance credential the relay v2 local adapter presents
+              // over loopback for trusted forward dispatch.
+              forwardDispatchKey: randomBytes(32).toString("base64url"),
+            }
+          : {}),
         gitSummaries: () => remoteGitSummaries,
         gitState: options.gitStateService,
         settings: {

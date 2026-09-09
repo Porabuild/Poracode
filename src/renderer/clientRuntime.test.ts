@@ -20,6 +20,7 @@ function electronHost(arch: string): ElectronHostBridge {
     arch,
     platform: "win32",
     onSupervisorEvent: () => () => {},
+    onSupervisorEventGap: () => () => {},
     onBackendRendererStreamChanged: () => () => {},
     getBackendRendererStreamInfo: async () => null,
     invokeProcedure: async () => undefined,

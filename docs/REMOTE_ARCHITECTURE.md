@@ -79,15 +79,16 @@ The platform implementations are parallel in responsibility, not source code:
 
 Both apps currently implement pairing, persisted hosts, bounded snapshots,
 thread history/actions, ordered live events, reconnect, and resynchronization
-through handwritten remote-v3 models. That is an implemented feature slice,
+through generated codecs and app-owned domain models. That is an implemented feature slice,
 not evidence of complete protocol coverage.
 
 ## Remote-v3 contract boundary
 
 `protocol/remote/v3/manifest.json` is the canonical language-neutral inventory.
-Protocol v3 currently describes:
+The `v3` directory name is retained; the current wire protocol version is 9.
+The inventory describes:
 
-- 56 HTTP routes;
+- 61 HTTP routes;
 - 100 supervisor procedures;
 - 8 client-to-server WebSocket messages; and
 - 9 server-to-client WebSocket messages.
@@ -100,12 +101,12 @@ side-effect free and rejects missing, extra, or stale generated artifacts.
 
 The generated inventory carries separate compatibility identities:
 
-- wire `protocolVersion` (currently 3);
+- wire `protocolVersion` (currently 10);
 - generator and binding-format versions (binding format currently 2); and
 - hashes of the source contract and manifest.
 
 The binding format must change when IR layout, schema naming, or omitted-versus-
-null representation changes, even when the wire protocol stays at v3. A native
+null representation changes, even when the wire protocol version is unchanged. A native
 binding bundle must embed the matching version/hash identity so stale Swift or
 Kotlin output cannot silently compile against a newer contract.
 
@@ -146,8 +147,20 @@ The v3 transport includes:
 Clients preserve a configured endpoint base path when appending discovery, API,
 and WebSocket paths. They reject unsafe redirects and public cleartext
 connections. Direct LAN, VPN, or Tailscale connectivity is the default. A relay
-is only a transport tunnel: it does not terminate Poracode authorization or own
-project/thread state.
+forwards transport traffic; the host still enforces Poracode authorization and
+owns project/thread state. The relay terminates visitor HTTP/WebSocket
+connections and can read forwarded credentials and payloads. It must be trusted;
+the relay framing does not provide end-to-end encryption.
+
+The self-hostable relay transport has its own wire version
+(`PORACODE_RELAY_PROTOCOL_VERSION`, currently 3). Protocol 3 preserves binary
+WebSocket payloads exactly: they travel between host and relay as binary
+control-socket messages framed by `relayBinaryFrame`, while text payloads keep
+the unchanged JSON `ws-data` frame. A protocol-2 peer cannot preserve those
+semantics, so a v3 host against a v2 relay (or a v3 relay against a v2 host)
+fails registration instead of pairing with silent byte corruption. Within a
+version, relay frames are added only additively and must be droppable by older
+peers (`req-cancel`, introduced in v2 and retained in v3, followed that rule).
 
 The remote host remains the source of truth after reconnect. A client may replay
 from its last applied sequence only while the server confirms that replay is
@@ -181,9 +194,15 @@ host during confirmation.
   `session:read` to `projects:manage` (matching `browseHostDirectory`), so a
   minimal read token can no longer read `~/.ssh/id_rsa` etc. off the host.
 - **Rate-limit key behind relay (medium, security).** The pairing rate limiter
-  keyed on `remoteAddress`, which is always loopback behind the relay; the relay
-  host adapter now forwards a per-visitor `x-forwarded-for` and the server keys
-  the bucket on it for loopback hops, restoring per-client throttling.
+  keyed on `remoteAddress`, which is always loopback behind the relay. The relay
+  now mints an opaque per-visitor `clientId` — an HMAC of the visitor's real
+  socket address under a per-relay salt, never derived from spoofable visitor
+  headers and never a raw address — frames it on `req`/`ws-open`, and the host
+  adapter forwards it as the stable `x-forwarded-for` the server keys loopback
+  buckets on. The identity is stable across a visitor's requests and WebSockets;
+  an earlier draft keyed it on the relay's per-request frame id, which handed
+  every request a fresh bucket and silently disabled the limiter. Relays too old
+  to send `clientId` share one conservative bucket instead.
 - **Headless data-dir lock + host binding (high, stability/bug).** The headless
   CLI takes an exclusive `server.lock` (stale-pid reclaim) so it can't co-open
   the desktop's live data dir with a mismatched secret key; the relay adapter's

@@ -162,11 +162,18 @@ try {
     // nothing touches the real user profile. Real mode intentionally keeps the
     // real home so provider credentials that live under it (e.g. ~/.kimi-code)
     // resolve — only Poracode's own state stays isolated via PORACODE_BASE_DIR.
+    //
+    // PORACODE_MOCK_AGENTS additionally makes the supervisor refuse to spawn
+    // any real provider CLI (thread launches, one-shots, auth flows). The
+    // HOME/keychain sandbox does not extend to spawned CLIs — without this a
+    // mock-mode "Launch thread" used to execute the real provider binary with
+    // real credentials (2026-09-08 QA incident).
     const identityEnv =
       mode === "real"
         ? {}
         : {
             ...(process.platform === "darwin" ? { PORACODE_USE_MOCK_KEYCHAIN: "1" } : {}),
+            PORACODE_MOCK_AGENTS: "1",
             HOME: homeDir,
             USERPROFILE: homeDir,
             LOCALAPPDATA: localAppDataDir,

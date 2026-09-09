@@ -31,7 +31,7 @@ describe("remote WS/runtime inventory goldens", () => {
       };
     };
     expect(manifest.formatVersion).toBe(1);
-    expect(manifest.protocolVersion).toBe(9);
+    expect(manifest.protocolVersion).toBe(10);
 
     const client = discriminatedTypes(remoteWebSocketClientMessageSchema);
     const server = discriminatedTypes(remoteWebSocketServerMessageSchema);
@@ -50,7 +50,7 @@ describe("remote WS/runtime inventory goldens", () => {
     );
     expect(REMOTE_CONTRACT_INVENTORY.runtimeEventTypes).toBe(runtime.length);
     expect(REMOTE_CONTRACT_INVENTORY.replayableEventTypes).toBe(15);
-    expect(REMOTE_CONTRACT_INVENTORY.runtimeEventTypes).toBe(15);
+    expect(REMOTE_CONTRACT_INVENTORY.runtimeEventTypes).toBe(16);
     expect(REMOTE_CONTRACT_INVENTORY.webSocketClientMessages).toBe(8);
     expect(REMOTE_CONTRACT_INVENTORY.webSocketServerMessages).toBe(9);
   });

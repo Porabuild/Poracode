@@ -61,6 +61,28 @@ export class LabRouteWorkspace {
     switch (routeId) {
       case "settings-read":
         return this.settings ?? generatedJsonResponse(routeId);
+      case "agent-statuses":
+        // Cached native (POSIX) record rides in the legacy `windows` array.
+        // The foundation scenario emits no agent-status socket events, so a
+        // native client can only hydrate its catalog through this HTTP base.
+        // Capabilities match the fixture thread (gui-capable, gpt-5 model).
+        return {
+          updatedAt: "2026-08-12T10:03:00.000Z",
+          windows: [
+            {
+              kind: "codex",
+              label: "Codex",
+              installed: true,
+              authState: "authenticated",
+              envKind: "posix",
+              capabilities: {
+                presentationModes: ["gui", "terminal"],
+                models: [{ id: "gpt-5", label: "Fixture model" }],
+              },
+            },
+          ],
+          wsl: [],
+        };
       case "settings-write": {
         const baseline = this.settings ?? (generatedJsonResponse("settings-read") as object);
         const previous = (baseline as { settings: Record<string, unknown> }).settings;

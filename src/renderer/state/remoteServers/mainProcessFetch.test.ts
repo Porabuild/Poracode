@@ -50,6 +50,7 @@ describe("remote server fetch transport", () => {
     const host = {
       ...electronBridge,
       onSupervisorEvent: () => () => {},
+      onSupervisorEventGap: () => () => {},
       onBackendRendererStreamChanged: () => () => {},
       getBackendRendererStreamInfo: async () => null,
       invokeProcedure: async (name: keyof PoracodeBridge, args: unknown[]) => {

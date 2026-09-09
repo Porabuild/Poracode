@@ -126,6 +126,12 @@
     "message": "Fixture warning"
   },
   {
+    "type": "runtime.truncated",
+    "threadId": "thread-fixture-001",
+    "itemId": "item-fixture-012",
+    "removedCompletedTurnAnchors": ["item-fixture-013", "item-fixture-015"]
+  },
+  {
     "type": "error",
     "threadId": "thread-fixture-001",
     "message": "Fixture error"

@@ -22,7 +22,10 @@ export type RemoteResponseWireKind =
   | "redirect-html"
   | "procedure-result";
 
-export type RemoteIdempotency = "command-id-header" | "command-id-header-for-start-kind";
+export type RemoteIdempotency =
+  | "command-id-header"
+  | "command-id-header-for-start-kind"
+  | "command-id-header-unless-ensure-running";
 
 /** Protocol-level compatibility for unknown object fields on the wire. */
 export type RemoteProtocolUnknownFieldPolicy = "ignore" | "reject";

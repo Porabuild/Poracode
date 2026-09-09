@@ -6,6 +6,7 @@ import {
   Ellipsis,
   ExternalLink,
   Loader2,
+  Network,
   Plug,
   PlugZap,
   Plus,
@@ -22,7 +23,7 @@ import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebar
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
-import { buildEnterUrl, buildForwardUrl, isDirectEndpoint } from "@/renderer/pwa/portForward";
+import { buildEnterUrl, buildRawTcpUrl, isDirectEndpoint } from "@/renderer/pwa/portForward";
 import {
   selectBrowserBridgeServer,
   useRemoteServersStore,
@@ -199,12 +200,22 @@ export function PortsPanel() {
   const direct = server ? isDirectEndpoint(server.endpoint) : false;
   const host = server ? new URL(server.endpoint).hostname : "";
 
+  // Definitive browser-entry unavailability. A host that last reported no
+  // browser-forward support needs an update; a capable host with an unconfigured
+  // origin deployment reports the same server code, so keep the copy distinct.
+  function browserUnavailableNotice(): string {
+    return server?.browserForwardAvailable === false
+      ? t`This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop.`
+      : t`Browser forwarding isn't set up on this desktop.`;
+  }
+
   function describeError(error: unknown): string {
     if (error instanceof RemoteClientError) {
       if (error.status === 404) return t`Update Poracode on your desktop to use port forwarding.`;
       if (error.code === "ports_unavailable") {
         return t`Port forwarding isn't available on this desktop.`;
       }
+      if (error.code === "forward_browser_unavailable") return browserUnavailableNotice();
     }
     return friendlyError(error);
   }
@@ -276,17 +287,16 @@ export function PortsPanel() {
       .catch((error: unknown) => toast.danger(friendlyError(error)));
   }
 
-  function openForwardTarget(enterPath: string | undefined, listenPort: number): void {
+  // Browser entry only ever opens the fresh server-issued enter URL. When the
+  // host doesn't issue one there is no raw-HTTP fallback — the forward stays
+  // active and the definitive reason is surfaced instead.
+  function openForwardTarget(enterPath: string | undefined): void {
     if (!server) return;
-    if (enterPath) {
+    if (server.browserForwardAvailable === true && enterPath) {
       openForwardUrl(buildEnterUrl(server.endpoint, enterPath));
       return;
     }
-    if (direct) {
-      openForwardUrl(buildForwardUrl(host, listenPort));
-      return;
-    }
-    toast.warning(t`Update Poracode on your desktop to use port forwarding.`);
+    toast.warning(browserUnavailableNotice());
   }
 
   function startForward(targetPort: number): void {
@@ -301,7 +311,7 @@ export function PortsPanel() {
           ),
           result.forward,
         ]);
-        openForwardTarget(result.enterPath, result.forward.listenPort);
+        openForwardTarget(result.enterPath);
         load();
       })
       .catch((error: unknown) => toast.danger(describeError(error)))
@@ -324,16 +334,20 @@ export function PortsPanel() {
 
   function openActiveForward(forward: ActivePortForward): void {
     if (!server) return;
+    if (server.browserForwardAvailable !== true) {
+      toast.warning(browserUnavailableNotice());
+      return;
+    }
     setOpeningForwardId(forward.id);
     void withClient(server.desktopId, (client) => client.enterPortForward(forward.id))
-      .then((result) => openForwardTarget(result.enterPath, forward.listenPort))
+      .then((result) => openForwardTarget(result.enterPath))
       .catch((error: unknown) => {
         if (error instanceof RemoteClientError && error.code === "forward_not_found") {
           load();
           return;
         }
-        if (direct) {
-          openForwardUrl(buildForwardUrl(host, forward.listenPort));
+        if (error instanceof RemoteClientError && error.code === "forward_browser_unavailable") {
+          toast.warning(describeError(error));
           return;
         }
         toast.danger(describeError(error));
@@ -343,11 +357,8 @@ export function PortsPanel() {
 
   function copyForwardUrl(forward: ActivePortForward): void {
     if (!server) return;
-    if (direct) {
-      void navigator.clipboard
-        .writeText(buildForwardUrl(host, forward.listenPort))
-        .then(() => toast.success(t`Copied`))
-        .catch((error: unknown) => toast.danger(friendlyError(error)));
+    if (server.browserForwardAvailable !== true) {
+      toast.warning(browserUnavailableNotice());
       return;
     }
     setCopyingForwardId(forward.id);
@@ -361,9 +372,25 @@ export function PortsPanel() {
           load();
           return;
         }
+        if (error instanceof RemoteClientError && error.code === "forward_browser_unavailable") {
+          toast.warning(describeError(error));
+          return;
+        }
         toast.danger(describeError(error));
       })
       .finally(() => setCopyingForwardId(null));
+  }
+
+  // Explicit, separately labeled raw-TCP copy. Never used by Open; only
+  // meaningful on a direct endpoint where the desktop's LAN address is real.
+  function copyRawForwardAddress(forward: ActivePortForward): void {
+    if (!server) return;
+    void navigator.clipboard
+      .writeText(buildRawTcpUrl(host, forward.listenPort))
+      .then(() =>
+        toast.success(t`Copied raw TCP address (LAN only) — opens outside the isolated forward.`),
+      )
+      .catch((error: unknown) => toast.danger(friendlyError(error)));
   }
 
   const visibleDetected = detected.filter(
@@ -426,11 +453,7 @@ export function PortsPanel() {
                     key={forward.id}
                     forward={forward}
                     compact={compact}
-                    meta={
-                      direct
-                        ? buildForwardUrl(host, forward.listenPort)
-                        : t`localhost:${forward.targetPort} on desktop`
-                    }
+                    meta={t`localhost:${forward.targetPort} on desktop`}
                     opening={openingForwardId === forward.id}
                     onOpen={() => openActiveForward(forward)}
                     onActions={() => setActionForward(forward)}
@@ -510,10 +533,17 @@ export function PortsPanel() {
             />
             <SidebarButton
               icon={<Copy className="size-4" />}
-              label={t`Copy URL`}
+              label={t`Copy link`}
               isDisabled={copyingForwardId === actionForward.id}
               onPress={() => copyForwardUrl(actionForward)}
             />
+            {direct ? (
+              <SidebarButton
+                icon={<Network className="size-4" />}
+                label={t`Copy raw address`}
+                onPress={() => copyRawForwardAddress(actionForward)}
+              />
+            ) : null}
             <SidebarButton
               icon={<Unplug className="size-4 text-danger" />}
               label={<span className="text-danger">{t`Stop forwarding`}</span>}

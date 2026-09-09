@@ -165,6 +165,7 @@ function createCursorSyncServer(
   overrides: Partial<RemoteAccessServerOptions> = {},
 ): RemoteAccessServer {
   const server = new RemoteAccessServer({
+    truncateThreadRuntime: () => {},
     appVersion: "1.0.0",
     identity: { desktopId: "desktop-test", label: "Test Desktop" },
     host: "127.0.0.1",
@@ -195,6 +196,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
     const onEventInterestsChanged =
       vi.fn<NonNullable<RemoteAccessServerOptions["onEventInterestsChanged"]>>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -369,6 +371,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       return "" as never;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -422,6 +425,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
 
   it("keeps legacy terminal watchers on the lossy congestion path", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -476,6 +480,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       return "" as never;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -574,6 +579,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       return "" as never;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -631,6 +637,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       return "" as never;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -709,6 +716,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       outputLength: 110,
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -772,6 +780,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       throw new Error("snapshot must not run for unsupported version");
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -843,6 +852,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       });
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -968,6 +978,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       return "" as never;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1037,6 +1048,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       outputLength: 100 + "old-gui-scrollback".length,
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1102,6 +1114,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
     const onEventInterestsChanged =
       vi.fn<NonNullable<RemoteAccessServerOptions["onEventInterestsChanged"]>>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1223,6 +1236,7 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
       return "" as never;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",

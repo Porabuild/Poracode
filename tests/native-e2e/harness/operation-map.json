@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
   "contract": "poracode.remote",
-  "protocolVersion": 9,
+  "protocolVersion": 10,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:50eda066b0b8762cf0ce92df881b6aa54603f4c2c0de7958c2f0500fd0499e2b",
-  "keyCount": 208,
+  "manifestHash": "sha256:2a9455aad65ad8d320cf6b7b807c36adb1b8355f211ff72d83017ef3503ab78a",
+  "keyCount": 209,
   "counts": {
     "route": 61,
     "procedure": 100,
     "ws-client": 8,
     "ws-server": 9,
     "replay": 15,
-    "runtime": 15
+    "runtime": 16
   },
   "operations": {
     "procedure:beginMcpServerOauth": {
@@ -753,6 +753,10 @@
     "runtime:request.resolved": {
       "kind": "runtime",
       "id": "request.resolved"
+    },
+    "runtime:runtime.truncated": {
+      "kind": "runtime",
+      "id": "runtime.truncated"
     },
     "runtime:session.exited": {
       "kind": "runtime",

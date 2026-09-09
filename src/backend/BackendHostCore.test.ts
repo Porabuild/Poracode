@@ -5,6 +5,15 @@ const mocks = vi.hoisted(() => ({
   initDatabase: vi.fn<(path: string, options?: { schemaMode?: "migrate" | "validate" }) => void>(),
   closeDatabase: vi.fn<() => void>(),
   dbMarkLiveThreadsInactive: vi.fn<() => void>(),
+  dbTruncateThreadRuntimeAfter: vi.fn<
+    (
+      threadId: string,
+      itemId: string,
+    ) => {
+      truncated: boolean;
+      removedCompletedTurnAnchors: string[];
+    }
+  >(),
   persistSupervisorEvent: vi.fn<(event: SupervisorEvent) => void>(),
   start: vi.fn<() => void>(),
   dispose: vi.fn<() => void>(),
@@ -19,6 +28,7 @@ vi.mock("@/main/db", () => ({
   initDatabase: mocks.initDatabase,
   closeDatabase: mocks.closeDatabase,
   dbMarkLiveThreadsInactive: mocks.dbMarkLiveThreadsInactive,
+  dbTruncateThreadRuntimeAfter: mocks.dbTruncateThreadRuntimeAfter,
   dbAppendThreadTerminalOutput: vi.fn<() => void>(),
   dbClearThreadTerminalScrollback: vi.fn<() => void>(),
 }));
@@ -366,5 +376,109 @@ describe("BackendHostCore", () => {
     expect(router.filter(output)).toBeNull();
     router.dispose();
     vi.useRealTimers();
+  });
+
+  describe("truncateThreadRuntime", () => {
+    function createHost(onEvent: (event: SupervisorEvent) => void): BackendHostCore {
+      return new BackendHostCore({
+        baseDir: "/data",
+        dbPath: "/data/state.sqlite",
+        supervisor: {
+          appVersion: "test",
+          isDev: false,
+          supervisorPath: "/supervisor.cjs",
+          wslHelpersDir: "/wsl",
+          secretStorageKey: "secret",
+        },
+        onEvent,
+        onReset: vi.fn<() => void>(),
+      });
+    }
+
+    it("publishes exactly one runtime.truncated event with the exact removed anchors", () => {
+      const onEvent = vi.fn<(event: SupervisorEvent) => void>();
+      const host = createHost(onEvent);
+      mocks.dbTruncateThreadRuntimeAfter.mockReturnValue({
+        truncated: true,
+        removedCompletedTurnAnchors: ["item-c", "item-d"],
+      });
+
+      const result = host.truncateThreadRuntime("thread-1", "item-b");
+
+      expect(mocks.dbTruncateThreadRuntimeAfter).toHaveBeenCalledExactlyOnceWith(
+        "thread-1",
+        "item-b",
+      );
+      expect(onEvent).toHaveBeenCalledOnce();
+      expect(onEvent.mock.calls[0]?.[0]).toEqual({
+        type: "thread-runtime-event",
+        threadId: "thread-1",
+        event: {
+          type: "runtime.truncated",
+          threadId: "thread-1",
+          itemId: "item-b",
+          removedCompletedTurnAnchors: ["item-c", "item-d"],
+        },
+      });
+      expect(result).toEqual({
+        truncated: true,
+        removedCompletedTurnAnchors: ["item-c", "item-d"],
+      });
+    });
+
+    it("publishes even when an actual truncation removed no completed turns", () => {
+      const onEvent = vi.fn<(event: SupervisorEvent) => void>();
+      const host = createHost(onEvent);
+      mocks.dbTruncateThreadRuntimeAfter.mockReturnValue({
+        truncated: true,
+        removedCompletedTurnAnchors: [],
+      });
+
+      host.truncateThreadRuntime("thread-1", "item-b");
+
+      expect(onEvent).toHaveBeenCalledOnce();
+      expect(onEvent.mock.calls[0]?.[0]).toMatchObject({
+        type: "thread-runtime-event",
+        event: { type: "runtime.truncated", removedCompletedTurnAnchors: [] },
+      });
+    });
+
+    it("never publishes when the mutation was a no-op", () => {
+      const onEvent = vi.fn<(event: SupervisorEvent) => void>();
+      const host = createHost(onEvent);
+      mocks.dbTruncateThreadRuntimeAfter.mockReturnValue({
+        truncated: false,
+        removedCompletedTurnAnchors: [],
+      });
+
+      const result = host.truncateThreadRuntime("thread-1", "item-b");
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expect(result).toEqual({ truncated: false, removedCompletedTurnAnchors: [] });
+    });
+
+    it("does not republish when a re-applied truncate becomes a no-op", () => {
+      const onEvent = vi.fn<(event: SupervisorEvent) => void>();
+      const host = createHost(onEvent);
+      mocks.dbTruncateThreadRuntimeAfter
+        .mockReturnValueOnce({ truncated: true, removedCompletedTurnAnchors: ["item-c"] })
+        .mockReturnValue({ truncated: false, removedCompletedTurnAnchors: [] });
+
+      host.truncateThreadRuntime("thread-1", "item-b");
+      host.truncateThreadRuntime("thread-1", "item-b");
+
+      expect(onEvent).toHaveBeenCalledOnce();
+    });
+
+    it("never publishes when the transaction fails", () => {
+      const onEvent = vi.fn<(event: SupervisorEvent) => void>();
+      const host = createHost(onEvent);
+      mocks.dbTruncateThreadRuntimeAfter.mockImplementation(() => {
+        throw new Error("transaction failed");
+      });
+
+      expect(() => host.truncateThreadRuntime("thread-1", "item-b")).toThrow("transaction failed");
+      expect(onEvent).not.toHaveBeenCalled();
+    });
   });
 });

@@ -12,7 +12,7 @@ export {
   clearPendingRuntimeEvents,
   isThreadVisible,
 } from "./sync";
-export type { RemoteDispatchHooks } from "./sync";
+export type { ApplyThreadSnapshotResult, RemoteDispatchHooks } from "./sync";
 export {
   collectRuntimeEventsFromSupervisoryMessage,
   requestsFromRuntimeItems,

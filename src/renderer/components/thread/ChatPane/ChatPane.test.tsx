@@ -253,7 +253,8 @@ describe("ChatPane", () => {
         dbSetState: vi
           .fn<(key: string, value: string) => Promise<void>>()
           .mockResolvedValue(undefined),
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbTruncateThreadRuntimeAfter:
+          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2159,7 +2160,8 @@ describe("ChatPane", () => {
     Object.assign(window, {
       poracode: {
         rollbackThreadConversation,
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbTruncateThreadRuntimeAfter:
+          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2207,7 +2209,8 @@ describe("ChatPane", () => {
     Object.assign(window, {
       poracode: {
         rollbackThreadConversation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbTruncateThreadRuntimeAfter:
+          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2251,7 +2254,8 @@ describe("ChatPane", () => {
     Object.assign(window, {
       poracode: {
         rollbackThreadConversation,
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbTruncateThreadRuntimeAfter:
+          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2273,7 +2277,12 @@ describe("ChatPane", () => {
 
     // Simulate a runtime update removing the source message while the provider responds.
     await act(async () => {
-      useAppStore.getState().truncateThreadRuntimeAfter(thread.id, "assistant-1");
+      useAppStore.getState().applyRuntimeEvent(thread.id, {
+        type: "runtime.truncated",
+        threadId: thread.id,
+        itemId: "assistant-1",
+        removedCompletedTurnAnchors: [],
+      });
       finishRollback();
     });
     await waitFor(() =>
@@ -2288,13 +2297,15 @@ describe("ChatPane", () => {
 
   it("releases the revert guard after a persistence failure so confirmation can retry", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
+    const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const restoreFileCheckpoint = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const dbTruncateThreadRuntimeAfter = vi
-      .fn<() => Promise<void>>()
-      .mockRejectedValueOnce(new Error("Checkpoint save failed"))
-      .mockResolvedValue(undefined);
+      .fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation)
+      .mockRejectedValueOnce(new Error("Checkpoint save failed"));
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        rollbackThreadConversation,
+        restoreFileCheckpoint,
         dbTruncateThreadRuntimeAfter,
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -2304,22 +2315,73 @@ describe("ChatPane", () => {
     seedAssistantMessage(thread.id, "First answer", "assistant-1");
     seedUserMessage(thread.id, "Follow-up prompt", "user-2");
     seedAssistantMessage(thread.id, "Second answer", "assistant-2");
-    renderChatPane(thread);
+    useAppStore.setState({
+      fileCheckpointsByThread: {
+        [thread.id]: {
+          "assistant-1": {
+            threadId: thread.id,
+            checkpointItemId: "assistant-1",
+            ref: "refs/checkpoints/first",
+            commit: "abc123",
+            capturedAt: "2026-09-09T00:00:00Z",
+          },
+        },
+      },
+    });
+    renderChatPane(thread, { checkpointProjectLocation: project.location });
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
     fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
     fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
     expect(await screen.findByText("Checkpoint save failed")).toBeInTheDocument();
     expect(dbTruncateThreadRuntimeAfter).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Follow-up prompt")).toBeInTheDocument();
+    expect(screen.getByText("Second answer")).toBeInTheDocument();
+    expect(useRevertedPromptStore.getState().byThread[thread.id]).toBeUndefined();
 
     fireEvent.click(screen.getByRole("button", { name: "Revert" }));
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Revert" })).not.toBeInTheDocument(),
     );
     expect(dbTruncateThreadRuntimeAfter).toHaveBeenCalledTimes(2);
+    expect(rollbackThreadConversation).toHaveBeenCalledTimes(1);
+    expect(restoreFileCheckpoint).toHaveBeenCalledTimes(1);
     expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
       { kind: "text", text: "Follow-up prompt" },
     ]);
+  });
+
+  it("does not truncate newer live messages when the revert acknowledgement arrives late", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    let acknowledge!: () => void;
+    const dbTruncateThreadRuntimeAfter = vi.fn<typeof publishRuntimeTruncation>(async (input) => {
+      await publishRuntimeTruncation(input);
+      await new Promise<void>((resolve) => {
+        acknowledge = resolve;
+      });
+    });
+    Object.assign(window.poracode!, {
+      rollbackThreadConversation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      dbTruncateThreadRuntimeAfter,
+    });
+    seedUserMessage(thread.id, "Initial prompt", "user-1");
+    seedAssistantMessage(thread.id, "First answer", "assistant-1");
+    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+    seedAssistantMessage(thread.id, "Second answer", "assistant-2");
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
+    await waitFor(() => expect(dbTruncateThreadRuntimeAfter).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      seedUserMessage(thread.id, "New prompt from another client", "user-new");
+      acknowledge();
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Revert" })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText("New prompt from another client")).toBeInTheDocument();
+    expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
   });
 
   it("rolls back provider by completed turns instead of assistant message count", async () => {
@@ -2328,7 +2390,8 @@ describe("ChatPane", () => {
     Object.assign(window, {
       poracode: {
         rollbackThreadConversation,
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbTruncateThreadRuntimeAfter:
+          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2373,7 +2436,8 @@ describe("ChatPane", () => {
         rollbackThreadConversation: vi
           .fn<() => Promise<void>>()
           .mockRejectedValue(new Error("Codex does not support checkpoint rollback.")),
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbTruncateThreadRuntimeAfter:
+          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2485,6 +2549,21 @@ function chatPaneProps(thread: Thread): Parameters<typeof ChatPane>[0] {
 }
 
 const PLAN_ITEM_ID = "plan-1";
+
+async function publishRuntimeTruncation({
+  threadId,
+  itemId,
+}: {
+  threadId: string;
+  itemId: string;
+}): Promise<void> {
+  useAppStore.getState().applyRuntimeEvent(threadId, {
+    type: "runtime.truncated",
+    threadId,
+    itemId,
+    removedCompletedTurnAnchors: [],
+  });
+}
 
 function seedPlanItem(
   threadId: string,

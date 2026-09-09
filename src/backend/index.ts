@@ -11,8 +11,9 @@ import {
 } from "@/shared/backendHostProtocol";
 import { BackendEventRouter, BackendHostCore } from "./BackendHostCore";
 import { BackendDesktopServices } from "./BackendDesktopServices";
-import { applyElectronIpcBackpressure } from "./electronIpcBackpressure";
 import { BackendRendererStream } from "./BackendRendererStream";
+import { createBackendHostShedPolicy, createSupervisorEventRelay } from "./supervisorEventRelay";
+import { shutdownBackendHost } from "./shutdown";
 import { callDatabaseRpc } from "@/main/db/databaseRpc";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
@@ -43,6 +44,12 @@ const pendingNativeRequests = new Map<
 >();
 let shuttingDown = false;
 
+// Shed logging is throttled because sheds arrive per enqueue during a burst —
+// a line per shed would be stderr lines per frame exactly when I/O is worst.
+let shedLogCount = 0;
+let shedLogBytes = 0;
+let shedLogAt = 0;
+
 const sender = new SupervisorIpcSender<BackendHostOutboundMessage>({
   send: (message, callback) => {
     if (!process.connected || !process.send) {
@@ -57,12 +64,26 @@ const sender = new SupervisorIpcSender<BackendHostOutboundMessage>({
   onFatalError: () => {
     void shutdown(1, false);
   },
-  onBackpressureChange: (paused) => {
-    applyElectronIpcBackpressure({
-      paused,
-      setSupervisorOutputBackpressured: (value) =>
-        backendHost?.supervisorClient.setOutputBackpressured(value),
-    });
+  // A stalled desktop consumer must not pause the shared supervisor. Bulk
+  // renderer content may shed oldest-first — each shed batch inserts a
+  // supervisor-event-gap signal ahead of the surviving traffic, and the
+  // desktop relay rebuilds affected windows from persisted state. This
+  // containment is per-traffic-class: a queue saturated by non-replayable
+  // traffic alone (replies, thread-state, crossagent, native, errors) still
+  // fails closed, so an arbitrary IPC stall is not fully isolated.
+  backpressureTimeoutMs: null,
+  shedPolicy: createBackendHostShedPolicy(),
+  onMessagesShed: ({ count, bytes }) => {
+    shedLogCount += count;
+    shedLogBytes += bytes;
+    const now = Date.now();
+    if (shedLogAt !== 0 && now - shedLogAt < 5_000) return;
+    shedLogAt = now;
+    console.error(
+      `[backend-host] shed ${shedLogCount} queued renderer events (${shedLogBytes} bytes) under desktop-IPC backpressure; gap recovery signals emitted.`,
+    );
+    shedLogCount = 0;
+    shedLogBytes = 0;
   },
 });
 
@@ -137,6 +158,13 @@ function replyFailure(replyTo: string, error: unknown): void {
   send(reply);
 }
 
+const relaySupervisorEvent = createSupervisorEventRelay({
+  publishToRendererStream: (event) => rendererStream?.publish(event),
+  observeEvent: (event) => desktopServices?.observeSupervisorEvent(event),
+  filterForIpcConsumers: (event) => eventRouter.filter(event),
+  sendToMain: send,
+});
+
 async function initialize(
   request: Extract<BackendHostRequest, { operation: "initialize" }>,
 ): Promise<unknown> {
@@ -156,19 +184,7 @@ async function initialize(
       reportError,
     },
     onEvent: (event) => {
-      const rendererDelivery = rendererStream?.publish(event);
-      const rendererDeliveredDirect = rendererDelivery?.delivered ?? false;
-      desktopServices?.observeSupervisorEvent(event);
-      const filtered = eventRouter.filter(event);
-      if (!filtered) return;
-      if (rendererDeliveredDirect && isBulkRendererEvent(filtered)) return;
-      send({
-        version: BACKEND_HOST_PROTOCOL_VERSION,
-        kind: "supervisor-event",
-        event: filtered,
-        ...(rendererDelivery ? { rendererSequence: rendererDelivery.sequence } : {}),
-        ...(rendererDeliveredDirect ? { rendererDeliveredDirect: true } : {}),
-      });
+      relaySupervisorEvent(event);
     },
     onReset: () => {
       // Match the headless host: no `thread-exited` is emitted for sessions
@@ -176,18 +192,7 @@ async function initialize(
       // also drop its cached background-task levels here.
       desktopServices?.handleSupervisorReset();
       for (const event of desktopServices?.markLiveThreadsInactive() ?? []) {
-        const filtered = eventRouter.filter(event);
-        if (filtered) {
-          const rendererDelivery = rendererStream?.publish(filtered);
-          const rendererDeliveredDirect = rendererDelivery?.delivered ?? false;
-          send({
-            version: BACKEND_HOST_PROTOCOL_VERSION,
-            kind: "supervisor-event",
-            event: filtered,
-            ...(rendererDelivery ? { rendererSequence: rendererDelivery.sequence } : {}),
-            ...(rendererDeliveredDirect ? { rendererDeliveredDirect: true } : {}),
-          });
-        }
+        relaySupervisorEvent(event);
       }
       send({
         version: BACKEND_HOST_PROTOCOL_VERSION,
@@ -280,6 +285,11 @@ async function handleRequest(request: BackendHostRequest): Promise<unknown> {
       await desktopServices?.startBackgroundServices();
       return null;
     case "call-supervisor": {
+      // SupervisorClient.call autostarts the child on first use; it must not
+      // spawn before the ingress is up or it would start without the
+      // app-controls MCP env. Same single-flight gate as start/restart —
+      // after the first success this await is a resolved promise.
+      await desktopServices?.prepareSupervisor();
       const supervisorRequest = request.payload;
       const payload = supervisorRequest.payload as { shellId?: string; threadId?: string };
       const bootstrapThreadId =
@@ -310,6 +320,19 @@ async function handleRequest(request: BackendHostRequest): Promise<unknown> {
       }
     }
     case "call-database": {
+      // Truncate is intercepted at the request owner: locally-acting renderer
+      // windows reach the truncate through this RPC, so it must flow through
+      // the backend-owned operation (one DB mutation → one `runtime.truncated`
+      // event) instead of the bare DB call, which would mutate silently and
+      // never reach the other windows or remote clients. The RPC reply keeps
+      // its public void shape; the anchors travel on the event.
+      if (request.payload.name === "dbTruncateThreadRuntimeAfter") {
+        host.truncateThreadRuntime(
+          request.payload.payload.threadId,
+          request.payload.payload.itemId,
+        );
+        return null;
+      }
       const result = callDatabaseRpc(request.payload);
       desktopServices?.databaseChanged(request.payload);
       return result;
@@ -379,15 +402,29 @@ async function shutdown(exitCode: number, flush: boolean): Promise<void> {
     pending.reject(new Error("Backend host is shutting down."));
   }
   pendingNativeRequests.clear();
-  await desktopServices?.dispose();
-  desktopServices = null;
-  await rendererStream?.dispose();
-  rendererStream = null;
-  backendHost?.disposeSupervisor();
-  if (flush && process.connected) await sender.flushAndWait(1_000);
-  backendHost?.closeDatabase();
-  backendHost = null;
-  process.exit(exitCode);
+  await shutdownBackendHost({
+    steps: [
+      async () => {
+        await desktopServices?.dispose();
+        desktopServices = null;
+      },
+      async () => {
+        await rendererStream?.dispose();
+        rendererStream = null;
+      },
+      () => backendHost?.disposeSupervisor(),
+      async () => {
+        if (flush && process.connected) await sender.flushAndWait(1_000);
+      },
+      () => {
+        backendHost?.closeDatabase();
+        backendHost = null;
+      },
+    ],
+    exitCode,
+    reportError: (error) => console.error("[backend] shutdown failed:", error),
+    exit: (code) => process.exit(code),
+  });
 }
 
 process.on("disconnect", () => {
@@ -401,12 +438,3 @@ process.on("SIGINT", () => {
 process.on("SIGTERM", () => {
   void shutdown(0, true);
 });
-
-function isBulkRendererEvent(event: import("@/shared/ipc").SupervisorEvent): boolean {
-  return (
-    event.type === "thread-output" ||
-    event.type === "thread-runtime-event" ||
-    event.type === "thread-runtime-events" ||
-    event.type === "thread-runtime-events-multi"
-  );
-}

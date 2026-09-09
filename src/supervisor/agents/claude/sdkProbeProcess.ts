@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import type { SpawnOptions, SpawnedProcess } from "@anthropic-ai/claude-agent-sdk";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { buildAgentCommand, definedEnv } from "../base";
 
 function isEpipeError(error: Error): boolean {
@@ -15,6 +16,11 @@ function isEpipeError(error: Error): boolean {
  * probe child while preserving all other stream errors.
  */
 export function spawnClaudeProbeProcess(options: SpawnOptions): SpawnedProcess {
+  // Mock-QA enforcement: this funnel executes the real Claude CLI for the SDK
+  // probe (init handshake, model catalog, and the one-off fast-mode turn on a
+  // cache miss), so mock sessions refuse it; the probe fails like any other
+  // spawn error.
+  assertAgentLaunchAllowed("session-probe");
   // On Windows, route through the shared launch builder so npm `.cmd` shims are
   // rewritten to `node.exe cli.mjs` and the probe child spawns no console window.
   let command = options.command;

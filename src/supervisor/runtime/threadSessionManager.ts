@@ -547,6 +547,34 @@ export class ThreadSessionManager {
     }
   }
 
+  /** Reopen is desired state, not permission to replace another client's runtime. */
+  async ensureThreadRunning(payload: StartThreadPayload): Promise<StartThreadResult> {
+    if (this.disposed) throw new Error("ThreadSessionManager is disposed.");
+    const threadId = payload.threadId;
+    if (
+      !threadId ||
+      payload.prompt.length > 0 ||
+      payload.segments?.length ||
+      payload.providerSwitch
+    ) {
+      throw new Error("Thread reopen requires an existing id and no new input or provider switch.");
+    }
+    // Inspect and acquire the same start lock synchronously: two clients must
+    // not both observe an absent session and replace each other's new runtime.
+    const pending = this.startLocks.get(threadId);
+    if (pending) {
+      await pending;
+    } else {
+      const current = this.sessions.get(threadId);
+      if (!current || current.status === "inactive") await this.startThread(payload);
+    }
+    const current = this.sessions.get(threadId);
+    if (!current || current.status === "inactive") {
+      throw new Error("Thread reopen did not leave a running session.");
+    }
+    return { threadId };
+  }
+
   async startThread(payload: StartThreadPayload): Promise<StartThreadResult> {
     if (this.disposed) {
       throw new Error("ThreadSessionManager is disposed.");

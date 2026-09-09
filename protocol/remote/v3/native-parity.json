@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "contract": "poracode.remote.native-parity",
-  "protocolVersion": 9,
+  "protocolVersion": 10,
   "entries": {
     "httpRoutes": [
       {
@@ -4001,9 +4001,12 @@
         },
         "android": {
           "disposition": "planned",
-          "evidence": []
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventSchema.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeThreadState.kt"
+          ]
         },
-        "note": "Protocol v9 adds live background-task levels inside the replayable thread-runtime-event envelopes and thread snapshots. Neither native client reduces this event nor renders a background-tasks surface yet."
+        "note": "Protocol v9 adds live background-task levels inside the replayable thread-runtime-event envelopes and thread snapshots. Android decodes the event strictly and reduces it into session-scoped background-task state (replace/drain, not persisted, not rendered); iOS does not reduce it yet; no native client renders a background-tasks surface."
       },
       {
         "id": "request.opened",
@@ -4042,6 +4045,19 @@
             "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
           ]
         }
+      },
+      {
+        "id": "runtime.truncated",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "note": "Host-issued checkpoint rollback broadcast introduced with remote protocol v10. Hosts publish the event only for an actual transactional truncation — a missing or already-last checkpoint removes nothing and is never broadcast. Native reducers must apply the server-declared removedCompletedTurnAnchors prune and pin the level-event replay rule before flipping to implemented."
       },
       {
         "id": "warning",

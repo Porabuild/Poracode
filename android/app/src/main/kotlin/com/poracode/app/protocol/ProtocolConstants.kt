@@ -5,7 +5,13 @@ package com.poracode.app.protocol
  * `src/shared/remote/protocol.ts` / `protocol/remote/v3/manifest.json`.
  */
 object ProtocolConstants {
-    const val REMOTE_PROTOCOL_VERSION = 8
+    /**
+     * Exact-match generation shared with the host (`PORACODE_REMOTE_PROTOCOL_VERSION`).
+     * v10 coordinates destructive truncate synchronization: hosts broadcast
+     * `runtime.truncated` (server-declared removed-turn anchors) that v9
+     * clients never applied, so mixed generations refuse to pair.
+     */
+    const val REMOTE_PROTOCOL_VERSION = 10
     const val COMMAND_ID_HEADER = "x-poracode-command-id"
     const val BEARER_TOKEN_TYPE = "Bearer"
 

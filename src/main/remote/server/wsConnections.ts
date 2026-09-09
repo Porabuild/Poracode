@@ -10,10 +10,8 @@ import {
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
 import type { RemoteBrowserFrame } from "../RemoteBrowserGateway";
 import type { RemoteServerContext } from "./context";
-import { isReservedForwardProxyPath, proxyForwardedWebSocketUpgrade } from "./portForwardProxy";
 import { MAX_JSON_BODY_BYTES } from "./requestBody";
-import { projectGitStatePatchForInterests } from "./gitStateProjection";
-import { filterEventForItemInterests } from "./itemInterestFilter";
+import { replayEvents } from "./eventReplay";
 import {
   buildTerminalWatchResultMessage,
   composeTerminalWatchReadyResult,
@@ -230,20 +228,12 @@ export async function handleUpgrade(
   try {
     const url = new URL(req.url ?? "/", ctx.requireInfo().httpBaseUrl);
     if (url.pathname !== "/ws") {
-      // Not the app's own WebSocket endpoint: the only other legitimate
-      // upgrade is a forwarded dev server's own WebSocket (e.g. Vite/webpack
-      // HMR) reached through an authenticated `lc_forward` session. Anything
-      // else (no session, no PortProxy wired up on this host, or a path
-      // reserved for the app itself — see `isReservedForwardProxyPath`, kept
-      // in sync with the HTTP proxy fallthrough in `httpRouter`) is dropped,
-      // matching the pre-existing behavior for unknown upgrade paths.
-      const targetPort = isReservedForwardProxyPath(url.pathname)
-        ? null
-        : (ctx.options.portProxy?.resolveSession(req.headers.cookie) ?? null);
-      if (targetPort) {
-        proxyForwardedWebSocketUpgrade(req, socket, head, targetPort);
-        return;
-      }
+      // Not the app's own WebSocket endpoint. Forwarded applications' own
+      // sockets (e.g. Vite/webpack HMR) are reached on their isolated child
+      // origins, dispatched by `forwardOriginDispatch` before this function
+      // runs — on the API/PWA origin there is no proxy fallback, so any other
+      // upgrade path is dropped, matching the pre-existing behavior for
+      // unknown upgrade paths.
       socket.destroy();
       return;
     }
@@ -274,6 +264,7 @@ function handleConnection(
   initialItemInterests: ReadonlySet<string> | null,
 ): void {
   ctx.clients.set(ws, session);
+  ctx.replayingClients.add(ws);
   ctx.clientLiveness.set(ws, true);
   ctx.terminalWatches.set(ws, new Set());
   if (initialItemInterests && session.scopes.includes("session:read")) {
@@ -299,6 +290,7 @@ function handleConnection(
     expiryTimer.unref?.();
   };
   ws.on("close", () => {
+    ctx.replayingClients.delete(ws);
     if (expiryTimer) {
       clearTimeout(expiryTimer);
       expiryTimer = null;
@@ -321,6 +313,14 @@ function handleConnection(
     ws.terminate();
   });
   ws.on("message", (data) => {
+    // Revocation/expiry starts an asynchronous close handshake. A peer can
+    // still transmit frames during it, but no longer has authority to do work.
+    if (
+      ws.readyState !== WebSocket.OPEN ||
+      ctx.clients.get(ws) !== session ||
+      session.expiresAtMs <= Date.now()
+    )
+      return;
     try {
       const message = remoteWebSocketClientMessageSchema.parse(
         JSON.parse(data.toString()) as unknown,
@@ -415,10 +415,12 @@ function handleConnection(
 
   ctx.send(ws, { type: "ready", seq: ctx.seq });
   if (lastSeenSeq === null || lastSeenSeq === ctx.seq) {
+    ctx.replayingClients.delete(ws);
     // No client cursor, or the client is already current — nothing to replay.
     return;
   }
   if (lastSeenSeq > ctx.seq) {
+    ctx.replayingClients.delete(ws);
     // Seq regressed below the client's cursor: `ctx.seq` is in-memory and
     // resets to 0 on restart while bearer sessions persist, so a client
     // reconnecting with a higher lastSeenSeq to a restarted server would
@@ -431,37 +433,7 @@ function handleConnection(
     return;
   }
 
-  const replay = ctx.eventBuffer.filter((entry) => entry.seq > lastSeenSeq);
-  if (replay.length !== ctx.seq - lastSeenSeq) {
-    ctx.send(ws, {
-      type: "resync-required",
-      seq: ctx.seq,
-      reason: "Event replay window expired; request a fresh snapshot.",
-    });
-    return;
-  }
-  for (const entry of replay) {
-    // A reconnecting client has not re-declared its Git interests yet, so a
-    // replayed patch is scoped to "nothing requested" and drops pull-request
-    // bodies. The client re-declares on open, which triggers a fresh fetch of
-    // whatever review it is actually looking at.
-    const itemScoped = filterEventForItemInterests(entry.event, ctx.itemInterests.get(ws) ?? null);
-    const event =
-      itemScoped.type === "remote-git-state"
-        ? {
-            ...itemScoped,
-            patch: projectGitStatePatchForInterests(
-              itemScoped.patch,
-              ctx.gitStateInterests.get(ws) ?? [],
-            ),
-          }
-        : itemScoped;
-    ctx.send(ws, {
-      type: "event",
-      seq: entry.seq,
-      event,
-    });
-  }
+  replayEvents(ctx, ws, lastSeenSeq);
 }
 
 export function sweepWebSocketLiveness(

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { saveUploadedAttachmentFile } from "@/main/attachments/attachmentStorage";
 import {
   dbGetProject,
@@ -19,6 +20,11 @@ import {
 } from "@/main/sharedSettingsFile";
 import { createPersistentRemoteAuthStore } from "@/main/remote/auth";
 import { readOrCreateRemoteAccessIdentity } from "@/main/remote/identity";
+import {
+  createForwardOriginIdentity,
+  type ForwardOriginIdentity,
+} from "@/main/remote/portForward/forwardOriginIdentity";
+import { readOrCreateForwardOriginSecret } from "@/main/remote/portForward/forwardOriginSecret";
 import { createPortForwarding } from "@/main/remote/portForward/portForwarding";
 import {
   createPushGateway,
@@ -33,6 +39,7 @@ import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
+  remoteForwardBaseUrl,
   resolveRemoteAccessPort,
 } from "@/main/remote/config";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -93,6 +100,13 @@ export interface HeadlessRemoteHostOptions {
 export interface HeadlessRemoteHost {
   /** The server instance, for session inspection (listAccessSessions, …). */
   readonly server: RemoteAccessServer;
+  /**
+   * The host's dedicated persistent forward origin secret (canonical base64url
+   * of 32 random bytes). Exposed for the relay v2 composition integration —
+   * relay registration will carry it so the relay can derive/validate the
+   * forward owner label. Never logged; same trust boundary as the data dir.
+   */
+  readonly forwardOriginSecret: string;
   /** Starts the HTTP/WS server. The supervisor starts on its first call. Idempotent. */
   start(): Promise<RemoteAccessServerInfo>;
   /** Stops the server, kills the supervisor, and closes the database. */
@@ -284,9 +298,25 @@ export async function createHeadlessRemoteHost(
       : remoteAccessAdvertisedHost({ bindHost: host }));
   const pairingAppUrl = options.pairingAppUrl ?? remoteAccessPairingAppUrl();
 
+  // Dedicated persistent origin secret + configured HTTPS base → the
+  // browser-forward child-origin identity. Created always (the relay v2
+  // registration will carry the same secret); a malformed explicit
+  // PORACODE_REMOTE_FORWARD_BASE_URL fails startup loudly, absence only
+  // disables browser-origin forwarding (raw TCP keeps working).
+  const forwardOriginSecret = readOrCreateForwardOriginSecret(paths.baseDir);
+  const forwardDispatchKey = randomBytes(32).toString("base64url");
+  let relayForwardOrigin: ForwardOriginIdentity | null = null;
+  let relayPublicOrigin: string | null = null;
+  const forwardOrigin = createForwardOriginIdentity({
+    baseUrl: remoteForwardBaseUrl(),
+    originSecret: forwardOriginSecret,
+    serverId: identity.desktopId,
+  });
+
   const portForwarding = createPortForwarding({
     bindHost: host,
     remoteAccessPort: port,
+    ...(forwardOrigin ? { forwardOrigin } : {}),
   });
   const mcpSettings = createRemoteMcpSettingsGateway({
     readSettings: () => readSharedSettingsFile(paths.settingsPath),
@@ -315,6 +345,9 @@ export async function createHeadlessRemoteHost(
     advertisedHost,
     ...(pairingAppUrl ? { pairingAppUrl } : {}),
     callSupervisor: (name, payload) => supervisorClient.call(name, payload),
+    truncateThreadRuntime: (threadId, itemId) => {
+      backendHost.truncateThreadRuntime(threadId, itemId);
+    },
     resolveMcpLaunchSnapshot: (projectId) =>
       resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
     settings: {
@@ -340,6 +373,10 @@ export async function createHeadlessRemoteHost(
     },
     portForward: portForwarding.gateway,
     portProxy: portForwarding.proxy,
+    ...(forwardOrigin ? { forwardOrigin } : {}),
+    forwardDispatchKey,
+    getRelayForwardOrigin: () => relayForwardOrigin,
+    getRelayPublicOrigin: () => relayPublicOrigin,
   });
   serverRef = server;
 
@@ -347,6 +384,7 @@ export async function createHeadlessRemoteHost(
   let relayHandle: RelayHostHandle | null = null;
   return {
     server,
+    forwardOriginSecret,
     async start() {
       if (!started) {
         await durableServices?.startIngress();
@@ -365,8 +403,17 @@ export async function createHeadlessRemoteHost(
           secret: options.relaySecret,
           label: identity.label,
           localHttpUrl,
+          forwardOriginSecret,
+          forwardDispatchKey,
+          onForwardOrigin: (registeredOrigin) => {
+            relayForwardOrigin = registeredOrigin;
+            if (!registeredOrigin) relayPublicOrigin = null;
+          },
           ...(options.reportError ? { reportError: (e) => options.reportError?.(e) } : {}),
-          ...(options.onRelayRegistered ? { onRegistered: options.onRelayRegistered } : {}),
+          onRegistered: (publicUrl) => {
+            relayPublicOrigin = new URL(publicUrl).origin;
+            options.onRelayRegistered?.(publicUrl);
+          },
         });
       }
       return info;

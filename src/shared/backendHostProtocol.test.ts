@@ -5,6 +5,7 @@ import {
   createBackendServiceRequest,
   isBackendHostRequest,
   isBackendHostOutboundMessage,
+  isSupervisorEventGap,
 } from "./backendHostProtocol";
 
 describe("backendHostProtocol", () => {
@@ -84,5 +85,28 @@ describe("backendHostProtocol", () => {
         rendererSequence: 1.5,
       }),
     ).toBe(false);
+  });
+
+  it("accepts shed-recovery gap signals only at the current protocol version", () => {
+    // The gap kind is the desktop-IPC shed recovery contract. A reader that
+    // predates it would silently drop the unknown kind and re-open the
+    // silent-loss window, so stale-version envelopes are rejected loudly.
+    const gap = {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "supervisor-event-gap",
+      fromSequence: 12,
+      toSequence: 40,
+    };
+    expect(isBackendHostOutboundMessage(gap)).toBe(true);
+    expect(
+      isBackendHostOutboundMessage({ ...gap, version: BACKEND_HOST_PROTOCOL_VERSION - 1 }),
+    ).toBe(false);
+    expect(isBackendHostOutboundMessage({ ...gap, fromSequence: 41 })).toBe(false);
+    expect(isBackendHostOutboundMessage({ ...gap, toSequence: 12.5 })).toBe(false);
+    expect(isBackendHostOutboundMessage({ ...gap, fromSequence: -1 })).toBe(false);
+    expect(isBackendHostOutboundMessage({ ...gap, toSequence: "40" })).toBe(false);
+    expect(isSupervisorEventGap({ fromSequence: 0, toSequence: 0 })).toBe(true);
+    expect(isSupervisorEventGap({ fromSequence: 5 })).toBe(false);
+    expect(isSupervisorEventGap(null)).toBe(false);
   });
 });

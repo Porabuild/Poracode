@@ -50,6 +50,7 @@ export interface RemoteServerContext {
   readonly wss: WebSocketServer;
   readonly security: RemoteServerSecurity;
   readonly clients: Map<WebSocket, AuthenticatedRemoteSession>;
+  readonly replayingClients: Set<WebSocket>;
   readonly clientLiveness: Map<WebSocket, boolean>;
   readonly terminalWatches: Map<WebSocket, Set<string>>;
   /** Opt-in reliable terminal watches (cursor-sync v1). */
@@ -81,8 +82,9 @@ export interface RemoteServerContext {
   requirePushRegistrations(): NonNullable<RemoteAccessServerOptions["pushRegistrations"]>;
   publishSupervisorEvent(event: RemoteBroadcastEvent): void;
   publishThreadsChanged(threadIds: readonly string[]): void;
+  scopeEventForClient(event: RemoteBroadcastEvent, client: WebSocket): RemoteBroadcastEvent;
   send(ws: WebSocket, message: RemoteWebSocketServerMessage): void;
-  sendRaw(ws: WebSocket, data: string): boolean;
+  sendRaw(ws: WebSocket, data: string, onSent?: (error?: Error) => void): boolean;
   /**
    * Recomputes aggregate live-stream demand and notifies the backend host.
    * Awaitable so reliable terminal watches can establish the interest barrier
