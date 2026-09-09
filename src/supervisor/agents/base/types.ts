@@ -139,6 +139,12 @@ export interface StructuredSessionHandle {
    * Providers that expose this let the runtime skip the interrupt-drain steer
    * path. When no turn is in flight, implementations fall back to `startTurn`
    * semantics so turn accounting stays correct.
+   *
+   * Resolving this promise acknowledges input acceptance. If an accepted input
+   * awaits a subsequent turn inside the provider, keep status `working` across
+   * the preceding turn's completion and emit `turn.started` for the new reply.
+   * Do not report `idle` until that accepted work finishes: runtime schedulers
+   * use settled status to decide when another ordinary startTurn is safe.
    */
   steerTurn?(
     prompt: string,

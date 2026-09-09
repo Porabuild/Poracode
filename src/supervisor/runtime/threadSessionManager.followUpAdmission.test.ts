@@ -34,6 +34,50 @@ async function flushMicrotasks(): Promise<void> {
   for (let index = 0; index < 20; index += 1) await Promise.resolve();
 }
 
+it("waits for an accepted native follow-up while the provider remains busy between turns", async () => {
+  const { manager, session, startTurn, steerTurn, finish } = createHarness();
+  const queue = followUpQueueFor(manager);
+  const turnEvent = (
+    event:
+      | Omit<Extract<RuntimeEvent, { type: "turn.started" }>, "threadId">
+      | Omit<Extract<RuntimeEvent, { type: "turn.completed" }>, "threadId">,
+  ) => queue.onStructuredRuntimeEvent(session, { ...event, threadId: session.threadId });
+  session.status = "working";
+  turnEvent({ type: "turn.started", turnId: "initial-turn" });
+
+  try {
+    await manager.queueThreadFollowUp({
+      threadId: session.threadId,
+      prompt: "FIFO follow-up",
+      config: session.config,
+    });
+    await manager.setPendingSteer({
+      threadId: session.threadId,
+      prompt: "provider-queued follow-up",
+      config: session.config,
+    });
+    expect(steerTurn).toHaveBeenCalledOnce();
+
+    // Acceptance has settled, but the provider still owns work for its next
+    // turn. It keeps working status while closing the preceding canonical turn.
+    turnEvent({ type: "turn.completed", turnId: "initial-turn", state: "completed" });
+    await flushMicrotasks();
+    expect(startTurn).not.toHaveBeenCalled();
+
+    turnEvent({ type: "turn.started", turnId: "native-follow-up" });
+    await flushMicrotasks();
+    expect(startTurn).not.toHaveBeenCalled();
+    turnEvent({ type: "turn.completed", turnId: "native-follow-up", state: "completed" });
+    session.status = "idle";
+    queue.onStructuredUpdate(session, "idle");
+    await vi.waitFor(() => expect(startTurn).toHaveBeenCalledOnce());
+    expect(startTurn.mock.calls[0]?.[0]).toBe("FIFO follow-up");
+  } finally {
+    finish();
+    await manager.dispose();
+  }
+});
+
 it("waits for queued turn admission before steering another prompt", async () => {
   const { manager, session, startTurn, steerTurn, finish } = createHarness();
   const queuedAdmission = Promise.withResolvers<void>();
