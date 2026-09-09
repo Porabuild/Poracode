@@ -320,7 +320,10 @@ compatible, no quality change):
 
 5. Delta coalescing at flush (#3, one line) + desktop ETag cache (#4) + launch-event wait (#5) — quick wins first.
 6. Cursor-sync v2 (#1) + snapshot scrollback omission (#2) — the measured-blocker fix; include the design's byte-budgeted chunked baseline with credit window and idle/progress-based baseline deadline replacing the flat 10 s.
-7. Waterfall work (#6, #8) + deflate window (#7).
+7. ~~Waterfall work (#6, #8) + deflate window (#7)~~ — DONE (commits `5af17eef8`,
+   `7edd2ef1e`): deflate window removed; `connectServer` overlaps the environment probe
+   with the first snapshot refresh; `resyncOpenThread` fetches interested threads'
+   histories concurrently and applies in original order.
 8. Relay streaming HTTP/SSE (additive v3 capability frames) — pairs with WS4.
 9. Then measure: re-run the calibrated shaper harness (`tests/native-e2e/constrainedNetwork.test.ts`, profiles incl. `rtt1500ms-32kbps`) against the real UI cold-start; record p50/p95 time-to-interactive and bytes before/after. Deferred v11 items (#10) stay deferred.
 
