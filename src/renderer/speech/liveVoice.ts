@@ -29,6 +29,7 @@ export const useLiveVoice = create<VoiceState>(() => idle);
 
 interface MediaSession {
   threadId: string;
+  scopeId: string;
   connectionId: string;
   stream?: MediaStream;
   peer?: RTCPeerConnection;
@@ -38,6 +39,12 @@ interface MediaSession {
   timeout?: ReturnType<typeof setTimeout>;
   requested: boolean;
   abort: AbortController;
+}
+
+interface PendingStart {
+  generation: number;
+  threadId: string;
+  scopeId: string;
 }
 
 interface StartVoiceOptions {
@@ -51,16 +58,26 @@ interface StartVoiceOptions {
 /** One microphone owner per renderer, including the draft-to-thread transition. */
 export class LiveVoiceController {
   private session: MediaSession | undefined;
+  private pendingStart: PendingStart | undefined;
   private generation = 0;
 
   async start(options: StartVoiceOptions): Promise<void> {
     const generation = ++this.generation;
+    const scopeId = options.scopeId ?? options.threadId;
+    const pendingStart: PendingStart = {
+      generation,
+      threadId: options.threadId,
+      scopeId,
+    };
+    this.pendingStart = pendingStart;
     const previous = this.session;
     this.session = undefined;
     if (previous) await this.release(previous);
-    if (generation !== this.generation) return;
+    if (generation !== this.generation || this.pendingStart !== pendingStart) return;
+    this.pendingStart = undefined;
     const session: MediaSession = {
       threadId: options.threadId,
+      scopeId,
       connectionId: crypto.randomUUID(),
       requested: false,
       abort: new AbortController(),
@@ -69,7 +86,7 @@ export class LiveVoiceController {
     useLiveVoice.setState({
       ...idle,
       threadId: options.threadId,
-      scopeId: options.scopeId ?? options.threadId,
+      scopeId,
       phase: "connecting",
     });
     const current = () => this.session === session && generation === this.generation;
@@ -202,14 +219,21 @@ export class LiveVoiceController {
 
   stop(): Promise<void> {
     ++this.generation;
+    this.pendingStart = undefined;
     const session = this.session;
     this.session = undefined;
     useLiveVoice.setState(idle);
     return session ? this.release(session) : Promise.resolve();
   }
 
-  stopThread(threadId: string): void {
-    if (this.session?.threadId === threadId) void this.stop();
+  stopThread(threadId: string, scopeId?: string): void {
+    const matchesOwner = (owner: { threadId: string; scopeId: string }) =>
+      owner.threadId === threadId && (scopeId === undefined || owner.scopeId === scopeId);
+    if (this.session && matchesOwner(this.session)) {
+      void this.stop();
+      return;
+    }
+    if (this.pendingStart && matchesOwner(this.pendingStart)) void this.stop();
   }
 
   toggleMuted(): void {

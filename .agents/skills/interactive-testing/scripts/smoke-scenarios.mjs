@@ -13,7 +13,12 @@ export const functionalAreas = [
   {
     id: "live-voice",
     title: "Subscription live voice, microphone ownership, WebRTC, and transcripts",
-    patterns: [/liveVoice/i, /LiveVoiceControls/],
+    patterns: [
+      /liveVoice/i,
+      /LiveVoiceControls/,
+      /ThreadDraftComposerArea/,
+      /composer\/useAttachments/,
+    ],
     automated: ["baseline"],
     manual: ["live-voice", "provider-live", "ipc-roundtrip", "changed-surface"],
   },

@@ -20,7 +20,10 @@ vi.mock("@/renderer/bridge", () => ({
 vi.mock("@/renderer/state/appStore", () => ({
   useAppStore: {
     getState: () => ({
-      threads: [{ id: "thread", config: { model: "example" } }],
+      threads: [
+        { id: "thread", config: { model: "example" } },
+        { id: "new-thread", config: { model: "example" } },
+      ],
       view: { kind: "thread", panes: ["thread"] },
     }),
     subscribe: mocks.subscribeView,
@@ -186,6 +189,49 @@ describe("live voice media ownership", () => {
     expect(track.stop).toHaveBeenCalledOnce();
     expect(mocks.connect).not.toHaveBeenCalled();
     expect(useLiveVoice.getState().phase).toBe("idle");
+  });
+
+  it("cancels a pending start while an older owner's release is unresolved", async () => {
+    await controller.start(options);
+    const release = deferred<void>();
+    mocks.disconnect.mockReturnValueOnce(release.promise);
+
+    const starting = controller.start({
+      ...options,
+      threadId: "new-thread",
+      scopeId: "new-owner",
+    });
+    await vi.waitFor(() => expect(mocks.disconnect).toHaveBeenCalledOnce());
+
+    controller.stopThread("new-thread", "new-owner");
+    release.resolve();
+    await starting;
+
+    expect(capture).toHaveBeenCalledOnce();
+    expect(mocks.connect).toHaveBeenCalledOnce();
+    expect(useLiveVoice.getState().phase).toBe("idle");
+  });
+
+  it("does not let a stale owner cancel a newer pending start", async () => {
+    await controller.start(options);
+    const release = deferred<void>();
+    mocks.disconnect.mockReturnValueOnce(release.promise);
+
+    const starting = controller.start({
+      ...options,
+      threadId: "new-thread",
+      scopeId: "new-owner",
+    });
+    await vi.waitFor(() => expect(mocks.disconnect).toHaveBeenCalledOnce());
+
+    controller.stopThread("thread");
+    controller.stopThread("new-thread", "stale-owner");
+    release.resolve();
+    await starting;
+
+    expect(capture).toHaveBeenCalledTimes(2);
+    expect(useLiveVoice.getState().threadId).toBe("new-thread");
+    expect(mocks.error).not.toHaveBeenCalled();
   });
 
   it("releases a late signaling answer after cancellation", async () => {

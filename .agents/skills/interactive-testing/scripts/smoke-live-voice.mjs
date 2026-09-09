@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
+import { mockDraftVoicePermissionGate } from "./smoke-live-voice-draft.mjs";
 
 /** Deterministic composer/media cleanup coverage without microphone or provider access. */
 export async function mockLiveVoiceGate({
@@ -95,7 +96,15 @@ export async function mockLiveVoiceGate({
     assert.equal(await run(`window.__liveVoiceSmoke.stopped`), 2);
     assert.equal(await run(`window.__liveVoiceSmoke.voice.useLiveVoice.getState().phase`), "idle");
     await screenshot(client, join(outDir, "live-voice-idle.png"));
-    return "composer start/cancel, late capture cleanup, mute/unmute, and hangup passed with synthetic media; no real microphone or provider used";
+    await mockDraftVoicePermissionGate({
+      client,
+      evaluate,
+      waitForValue,
+      screenshot,
+      outDir,
+      fixture,
+    });
+    return "composer start/cancel, late capture cleanup, mute/unmute, hangup, and preservation/reopening of text and attachment drafts edited during pending microphone permission passed with synthetic media; no real microphone or provider used";
   } finally {
     await run(`(async () => {
       const s = window.__liveVoiceSmoke;
