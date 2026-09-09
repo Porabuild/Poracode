@@ -284,12 +284,17 @@ providers; no provider branch in shared files.
 Implement §4.3 wins in ranked order; every change additive or client-only; zero quality
 degradation (lossless merges, authoritative supersets, negotiated capabilities):
 
-**Status 2026-09-09: quick wins landed** (commits `5af17eef8`, `937bf2606`): §4.3 #3
-delta coalescing, #7 deflate window, #4 ETag cache (client side), plus WS5-1 the
-supervisor→backend shed policy + `backpressureTimeoutMs: null` with recovery signal
-(`supervisor-output-shed` → renderer-stream/remote `resync-required`). Deferred within
-WS3: the launch poll loop's event-wait redesign — its cost is now mostly absorbed by
-the ETag cache.
+**Status 2026-09-09 (2): cursor-sync v2 server + web clients LANDED** (commit `cd9505310`,
+per `RESUME-V2-DESIGN.md`): wire-v2 chunked baseline (envelope-byte budget, code-point
+aligned, ACK credit window, control-frame bypass, per-connection stream caps,
+round-robin drain), resume from the retained cache cursor, idle-based deadline resets,
+and explicit `unsupported-version` downgrade. Renderer capabilities pick the newest
+advertised version per connection. 32 new/updated tests; full protocol + remote suites
+(968) green. Remaining in this lane: (a) WS3 #2 snapshot scrollback omission
+(`omitScrollback` for v2 watches — the baseline no longer needs the inlined tail),
+(b) native iOS/Android adoption of v2 (ledger entries are `planned`), (c) the
+constrained-shaper E2E runs (`slowLinkColdStartV2` / `slowLinkResumeDelta`) against a
+real host to record before/after p50/p95.
 
 **WS3-A: agent-statuses payload split — IMPLEMENTED (commit 23d145e0c).**
 Measured breakdown of `GET /api/agent-statuses` (230 KB raw / 39.4 KB gzipped, 15
