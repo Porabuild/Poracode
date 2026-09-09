@@ -10,6 +10,7 @@ logs/
 *.tsbuildinfo
 build/icon-trimmed.png
 build/icons/
+branding/assets/out/
 # heroui-agents-md
 .heroui-docs/
 .tmp/
