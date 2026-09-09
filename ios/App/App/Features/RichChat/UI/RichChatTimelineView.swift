@@ -42,6 +42,8 @@ struct RichChatTimelineView: View {
   @State private var completedInitialScroll = false
 
   var body: some View {
+    let projection = controller.state.timeline
+    let actions = timelineActions(for: projection)
     ScrollViewReader { proxy in
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 6) {
@@ -58,7 +60,7 @@ struct RichChatTimelineView: View {
             .buttonStyle(.bordered)
             .disabled(controller.state.isLoadingOlder)
           }
-          if let entries = controller.state.timeline?.visibleEntries {
+          if let entries = projection?.visibleEntries {
             ForEach(entries, id: \.stableID) { entry in
               RichChatTimelineEntryView(
                 entry: entry,
@@ -95,7 +97,7 @@ struct RichChatTimelineView: View {
           completedInitialScroll = true
         }
       }
-      .onChange(of: latestRuntimeItem) { _, item in
+      .onChange(of: projection?.rawItems.last) { _, item in
         guard
           RichChatTimelineScrollPolicy.shouldFollowBottom(
             isFollowingBottom: followsBottom,
@@ -158,41 +160,25 @@ struct RichChatTimelineView: View {
     }
   }
 
-  private var latestRuntimeItem: RichRuntimeItem? {
-    controller.state.timeline?.rawItems.last
-  }
-
-  /// The action is offered only while the host is operable, no mutation is
-  /// already running, and no authoritative read is replacing the transcript.
-  private var actions: RichChatTimelineActions {
-    let rawItems = controller.state.timeline?.rawItems ?? []
-    let common = RichChatTimelineActions(
-      lastVisibleItemID: lastItemID,
-      rawItems: rawItems,
-      completedTurns: controller.state.completedTurns,
-      checkpoints: checkpointController.state.collection,
-      isTurnActive: controller.state.transcript?.openTurn == true,
-      requestRevert: nil,
-      requestTruncate: nil
-    )
-    guard canOperate, !isRefreshing, !isBusy else {
-      return common
-    }
+  private func timelineActions(for projection: RichTimelineProjection?) -> RichChatTimelineActions {
+    let allowsActions = canOperate && !isRefreshing && !isBusy
     return RichChatTimelineActions(
-      lastVisibleItemID: lastItemID,
-      rawItems: rawItems,
-      completedTurns: controller.state.completedTurns,
+      lastVisibleItemID: projection?.visibleEntries.last?.lastItemID,
+      rawItems: projection?.rawItems ?? [],
+      completedTurns: controller.state.displayedCompletedTurns(in: projection),
       checkpoints: checkpointController.state.collection,
       isTurnActive: controller.state.transcript?.openTurn == true,
-      requestRevert: allowsCheckpointRevert ? { plan in revertIntent = plan } : nil,
-      requestTruncate: { itemID in
-        let eligible = RichChatTruncateEligibility.isEligible(
-          itemID: itemID,
-          lastVisibleItemID: lastItemID
-        )
-        guard eligible else { return }
-        truncateIntent = RichChatTruncateIntent(id: itemID)
-      }
+      requestRevert: allowsActions && allowsCheckpointRevert
+        ? { plan in revertIntent = plan } : nil,
+      requestTruncate: allowsActions
+        ? { itemID in
+          let eligible = RichChatTruncateEligibility.isEligible(
+            itemID: itemID,
+            lastVisibleItemID: lastItemID
+          )
+          guard eligible else { return }
+          truncateIntent = RichChatTruncateIntent(id: itemID)
+        } : nil
     )
   }
 
@@ -224,7 +210,8 @@ struct RichChatTimelineView: View {
   private func confirmRevert(_ selectedPlan: RichChatMessageRevertPlan) {
     revertIntent = nil
     guard canOperate, !isRefreshing, !isBusy,
-      let currentPlan = actions.revertPlan(itemID: selectedPlan.userItemID),
+      let currentPlan = timelineActions(for: controller.state.timeline).revertPlan(
+        itemID: selectedPlan.userItemID),
       currentPlan == selectedPlan
     else { return }
     Task {

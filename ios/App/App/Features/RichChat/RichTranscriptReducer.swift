@@ -86,6 +86,7 @@ enum RichRuntimeEvent: Sendable, Equatable {
     requestID: RichRequestID,
     outcome: RichRequestOutcome
   )
+  case runtimeTruncated(threadID: String, itemID: String, removedCompletedTurnAnchors: [String])
   case contextUpdated(threadID: String, usage: RichContextUsage)
   /// Strictly decoded and sequence-consumed, but deliberately payload-free: the
   /// desktop host usage ledger owns accounting and no native surface reports it.
@@ -100,7 +101,8 @@ enum RichRuntimeEvent: Sendable, Equatable {
       .itemStarted(let id, _, _, _, _), .itemUpdated(let id, _, _),
       .itemCompleted(let id, _, _), .contentDelta(let id, _, _, _),
       .requestOpened(let id, _, _, _), .requestResolved(let id, _, _),
-      .contextUpdated(let id, _), .usageSpent(let id), .warning(let id):
+      .contextUpdated(let id, _), .runtimeTruncated(let id, _, _), .usageSpent(let id),
+      .warning(let id):
       id
     }
   }
@@ -180,6 +182,14 @@ enum RichRuntimeEventDecoder {
         let outcome = RichRequestOutcome(rawValue: outcomeText)
       else { break }
       return .requestResolved(threadID: threadID, requestID: requestID, outcome: outcome)
+    case "runtime.truncated":
+      guard let itemID = RichDecoding.requiredString(object, "itemId"),
+        let values = object["removedCompletedTurnAnchors"]?.arrayValue
+      else { break }
+      let anchors = values.compactMap { $0.stringValue }
+      guard anchors.count == values.count else { break }
+      return .runtimeTruncated(
+        threadID: threadID, itemID: itemID, removedCompletedTurnAnchors: anchors)
     case "context.updated":
       guard let usage = RichContextUsage.decode(object["usage"]) else { break }
       return .contextUpdated(threadID: threadID, usage: usage)
@@ -314,6 +324,12 @@ struct RichTranscriptState: Sendable, Equatable {
       )
     case .requestResolved(_, let requestID, _):
       openRequests = RichRequestQueue.resolve(openRequests, id: requestID)
+    case .runtimeTruncated(_, let itemID, _):
+      guard let index = orderedItemIDs.firstIndex(of: itemID) else { return }
+      for removedID in orderedItemIDs.dropFirst(index + 1) {
+        itemsByID.removeValue(forKey: removedID)
+      }
+      orderedItemIDs = Array(orderedItemIDs.prefix(index + 1))
     case .contextUpdated, .usageSpent, .warning:
       // No item/transcript mutation by design. Context occupancy is thread-domain
       // state owned by the transcript controller; `usage.spent` belongs to the

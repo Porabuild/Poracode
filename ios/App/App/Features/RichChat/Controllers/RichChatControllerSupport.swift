@@ -56,6 +56,7 @@ extension RichChatSessionAccess {
 enum RichChatAuthoritativeRefreshReason: Equatable, Sendable {
   case ambiguousMutation
   case conversationChanged
+  case transcriptInvalidated
   case terminalCursorInvalidated
 }
 

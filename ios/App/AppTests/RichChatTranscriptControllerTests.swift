@@ -1,6 +1,10 @@
 import XCTest
 
-@testable import App
+#if canImport(App)
+  @testable import App
+#elseif canImport(RichChatDomain)
+  @testable import RichChatDomain
+#endif
 
 @MainActor
 final class RichChatTranscriptControllerTests: XCTestCase {
@@ -367,5 +371,174 @@ final class RichChatTranscriptControllerTests: XCTestCase {
 
     XCTAssertNil(controller.state.transcript?.openTurn)
     XCTAssertEqual(controller.state.liveSequence, -1)
+  }
+
+  // MARK: - history turn baseline (status-derived openTurn)
+
+  /// The snapshot status is the only authoritative open-turn evidence a history
+  /// install has; every live-turn status must open the marker even though the
+  /// persisted rows only carry completed turns.
+  func testInitialHistoryLoadSeedsOpenTurnAcrossActiveStatusDomain() async throws {
+    for status in ["launching", "working", "needs_approval", "needs_reply"] {
+      let gateway = RichChatControllerGatewayFake()
+      await gateway.configureHistory(.value(Self.history(status: status)))
+      let controller = RichChatTranscriptController(gateway: gateway)
+      let target = RichChatControllerTestValues.target()
+      controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+      await controller.loadHistory()
+
+      XCTAssertEqual(
+        controller.state.transcript?.openTurn, true,
+        "\(status) is a live-turn status and must open the marker on first open")
+      XCTAssertEqual(controller.state.loadState, .loaded)
+    }
+  }
+
+  func testInitialHistoryLoadClosesMarkerAcrossInactiveStatusDomain() async throws {
+    for status in ["idle", "finished", "error", "inactive"] {
+      let gateway = RichChatControllerGatewayFake()
+      await gateway.configureHistory(.value(Self.history(status: status)))
+      let controller = RichChatTranscriptController(gateway: gateway)
+      let target = RichChatControllerTestValues.target()
+      controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+      await controller.loadHistory()
+
+      XCTAssertEqual(
+        controller.state.transcript?.openTurn, false,
+        "\(status) is a settled status and must not open the marker")
+    }
+  }
+
+  func testForegroundHistoryRefreshKeepsActiveTurnOpen() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(Self.history(status: "idle")))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+    controller.receiveLiveEvents(
+      [.turnStarted(threadID: target.threadID, turnID: "live")],
+      sequence: 11,
+      target: target
+    )
+    XCTAssertEqual(controller.state.transcript?.openTurn, true)
+
+    // Foreground refresh (`refreshAuthoritativeHistory`) mid-turn: the fresh
+    // snapshot still reports a working thread, so the marker must survive the
+    // authoritative rebuild instead of being reset with the transcript.
+    await gateway.configureHistory(.value(Self.history(status: "working")))
+    await controller.loadHistory()
+
+    XCTAssertEqual(
+      controller.state.transcript?.openTurn, true,
+      "a working-status refresh must not close the live open turn")
+  }
+
+  func testFreshIdleHistoryClosesPreviouslyActiveTurn() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(Self.history(status: "working")))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+    XCTAssertEqual(controller.state.transcript?.openTurn, true)
+
+    // The turn genuinely ended while the marker was open: the fresh idle
+    // status is authoritative and must close it (capturing the prior marker
+    // would resurrect a finished turn).
+    await gateway.configureHistory(.value(Self.history(status: "idle")))
+    await controller.loadHistory()
+
+    XCTAssertEqual(
+      controller.state.transcript?.openTurn, false,
+      "a settled-status refresh must close the stale open turn")
+  }
+
+  func testNewerBufferedTurnCompletedOverridesActiveBaseline() async throws {
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(Self.history(status: "working")), barrier: barrier)
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    // A stale (<= snapshotSeq) end is dropped by the authoritative install;
+    // a buffered end newer than the snapshot wins over the working baseline.
+    controller.receiveLiveEvents(
+      [.turnCompleted(threadID: target.threadID, turnID: "stale", state: .completed)],
+      sequence: 9,
+      target: target
+    )
+    controller.receiveLiveEvents(
+      [.turnCompleted(threadID: target.threadID, turnID: "fresh", state: .completed)],
+      sequence: 11,
+      target: target
+    )
+    await barrier.release()
+    await loading.value
+
+    XCTAssertEqual(
+      controller.state.transcript?.openTurn, false,
+      "a buffered turn end newer than the snapshot must override the active baseline")
+    XCTAssertEqual(controller.state.liveSequence, 11)
+  }
+
+  func testNewerBufferedTurnStartedOverridesIdleBaseline() async throws {
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(Self.history(status: "idle")), barrier: barrier)
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    controller.receiveLiveEvents(
+      [.turnStarted(threadID: target.threadID, turnID: "fresh")],
+      sequence: 11,
+      target: target
+    )
+    await barrier.release()
+    await loading.value
+
+    XCTAssertEqual(
+      controller.state.transcript?.openTurn, true,
+      "a buffered turn start newer than the snapshot must override the idle baseline")
+    XCTAssertEqual(controller.state.liveSequence, 11)
+  }
+
+  func testPaginationKeepsClosedBaselineClosed() async throws {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(Self.history(status: "idle")))
+    await gateway.configurePage(
+      .value(
+        RemoteRuntimeItemsPage(
+          items: [RichChatControllerTestValues.persistedItem(id: "older")],
+          nextCursor: nil
+        )))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+    await controller.loadHistory()
+
+    await controller.loadOlder()
+
+    XCTAssertEqual(controller.state.transcript?.orderedItemIDs, ["older", "history"])
+    // The page response carries no status, so pagination preserves an open
+    // marker but has nothing to derive a closed one from — it must simply
+    // never fabricate one (every consumer gates on `openTurn == true`).
+    XCTAssertNotEqual(
+      controller.state.transcript?.openTurn, true,
+      "pagination has no status evidence and must not fabricate an open turn")
+  }
+
+  private static func history(status: String, sequence: Int = 10) -> RemoteThreadSnapshot {
+    var snapshot = RichChatControllerTestValues.history(sequence: sequence)
+    snapshot.thread.status = status
+    return snapshot
   }
 }
