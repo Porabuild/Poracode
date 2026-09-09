@@ -187,6 +187,35 @@ and `-parallel-testing-enabled NO`. Builds are complete; there is no outstanding
 Do not claim a completion percentage without a fixed, weighted acceptance checklist.
 The correct present status is finished recovery checkpoint, incomplete production review.
 
+**2026-09-09 update:** a 13-lane deep review (backend concurrency, relay, protocol wire,
+renderer, parity, iOS, Android, compound checkpoint, supervisor, simplification, UX states,
+versioning, QA/proof) plus fresh verification runs is complete. Its findings register,
+staged workstreams, acceptance gates and manual QA matrix supersede the ordered-work list
+above: see [V2_PRODUCTION_PLAN.md](V2_PRODUCTION_PLAN.md). Notably: one deterministic test
+failure now exists in `src/main/remote` (PWA checkpoint-revert test, 403 scope mismatch,
+introduced in `1de973a21`), and the review confirmed the unbounded iOS buffers at three
+sites and the absent cursor-resume implementation.
+
+**2026-09-09 WS2 stages 1–2 implemented and committed.** Backend-owned compound
+`revertCheckpoint` (journal migration 45, working-status refusal, per-thread
+revert lock, frozen turn counts, at-most-once provider rollback, key
+replay/resume) with 11 fault-injection tests; 689 tests / 66 files green.
+Electron isolated smoke PASS. W-Rel-2: server-side truncate converged live on
+Android; 45 s partition recovered without crash — new findings: Android HTTP
+requests can fail ~2 min post-partition (typed banner, eventual recovery) and
+the thread header keeps a stale "working" badge across partitions; 32 kbps
+cold-start projection ~17–19 s dominated by the 39.4 KB agent-statuses payload.
+**2026-09-09 WS1 + manual QA executed.** WS1 hotfixes landed uncommitted (red test fixed —
+`src/main/remote` 494/494; boot-time `in_progress` receipt purge + tests; desktop renderer
+stream size cap + resync parity + tests; typecheck/lint/format green). Manual QA ran against
+the retained live stack: web pairing/streaming/draft-reload/restored-view live follow-up and
+git/diff PASS; Android two-client live convergence PASS; iOS simulator launch hits the
+correct "Repair required" fail-safe (simulator Keychain lost the saved credential — repair
+NOT performed per the no-repair rule; saved-pairing journey still needs a fresh install).
+New finding: the web composer stop control's hit target renders below the fold at 390×844.
+Full record: `tmp/v2-production-review/qa-ws1/QA-EXECUTION-RECORD.md`. Concurrent
+crossagentMcp work appeared in the working tree during the session and was left untouched.
+
 ## Resource ownership and safe continuation
 
 Revalidate every PID/port/session before use; recorded identifiers are not permanent.
