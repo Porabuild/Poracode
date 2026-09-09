@@ -1,3 +1,4 @@
+import pluginManifest from "../../../resources/plugins/subagent-delegation/plugin.json";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CROSSAGENT_PROVIDER_SESSION_ID_ARG, CrossagentMcpIngress } from "./CrossagentMcpIngress";
 import type { SubagentRunManager } from "./SubagentRunManager";
@@ -256,7 +257,10 @@ describe("CrossagentMcpIngress", () => {
   it("returns instructions with the routing guide on initialize", async () => {
     const res = await rpc("initialize");
     const body = await res.json();
-    expect(body.result.serverInfo.name).toBe("crossagents");
+    expect(body.result.serverInfo).toEqual({
+      name: "crossagents",
+      version: pluginManifest.version,
+    });
     expect(body.result.instructions).toContain(CROSSAGENT_MCP_INSTRUCTIONS_BASE);
     expect(body.result.instructions).toContain("PREFER codex for search.");
   });
@@ -273,6 +277,7 @@ describe("CrossagentMcpIngress", () => {
       "list_routing_preferences",
       "list_runs",
       "remove_routing_preference",
+      "run_workflow",
       "set_routing_preference",
       "spawn_agent",
       "steer_agent",
@@ -293,6 +298,17 @@ describe("CrossagentMcpIngress", () => {
 
     const call = await rpc("tools/call", { name: "spawn_agent", arguments: {} });
     expect((await call.json()).result).toMatchObject({ isError: true });
+    expect(listBody.result.tools.map((tool: { name: string }) => tool.name)).not.toContain(
+      "run_workflow",
+    );
+    const workflowCall = await rpc("tools/call", {
+      name: "run_workflow",
+      arguments: { action: "start", tasks: [] },
+    });
+    expect((await workflowCall.json()).result).toMatchObject({
+      isError: true,
+      content: [{ type: "text", text: "Tool disabled by Poracode: run_workflow" }],
+    });
     const batchCall = await rpc("tools/call", { name: "spawn_agents", arguments: {} });
     expect((await batchCall.json()).result).toMatchObject({ isError: true });
   });

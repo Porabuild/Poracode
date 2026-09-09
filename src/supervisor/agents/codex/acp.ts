@@ -83,6 +83,8 @@ const CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS = 250;
 const CODEX_RESUME_STATUS_REPLAY_SUPPRESSION_MS = 500;
 const CODEX_FORK_NOTIFICATION_BUFFER_LIMIT = 100;
 const CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS = 2_000;
+const CODEX_DISPOSE_TIMEOUT_MS = 10_000;
+const CODEX_DISPOSE_POLL_MS = 100;
 const CODEX_EVENT_DEBUG_ENV = "PORACODE_DEBUG_CODEX_EVENTS";
 
 type CodexEventDebugDirection =
@@ -165,6 +167,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private readonly releaseAppServer: () => void;
   private listener: StructuredSessionListener | undefined;
   private isDisposed = false;
+  private disposePromise: Promise<void> | undefined;
   private activated = false;
   private remoteThreadId: string | undefined;
   private rolloutPath: string | undefined;
@@ -1051,15 +1054,29 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     return this.rpc.ownsThread(providerSessionId);
   }
 
-  async dispose(): Promise<void> {
-    if (this.isDisposed) {
-      return;
-    }
+  dispose(): Promise<void> {
+    this.disposePromise ??= this.disposeOnce().catch((error) => {
+      // A failed confirmation must retain the lease and be retryable.
+      this.disposePromise = undefined;
+      throw error;
+    });
+    return this.disposePromise;
+  }
+
+  private async disposeOnce(): Promise<void> {
     this.isDisposed = true;
+    const deadline = Date.now() + CODEX_DISPOSE_TIMEOUT_MS;
+    const requestTimeout = (): number => {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        throw new Error("Codex thread did not stop before the disposal deadline.");
+      }
+      return Math.min(CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS, remaining);
+    };
 
     this.clearPendingSystemErrorFallback();
     const remoteThreadId = this.remoteThreadId;
-    if (remoteThreadId) {
+    if (remoteThreadId && this.rpc.ownsThread(remoteThreadId)) {
       const activeTurnIds = new Set(this.activeTurnIds);
       if (this.activeTurnId) {
         activeTurnIds.add(this.activeTurnId);
@@ -1069,7 +1086,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           .request(
             "thread/read",
             { threadId: remoteThreadId, includeTurns: true },
-            CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+            requestTimeout(),
           )
           .catch(() => undefined);
         for (const turn of result?.thread?.turns ?? []) {
@@ -1078,16 +1095,42 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           }
         }
       }
+      let interruptFailure: Error | undefined;
       for (const activeTurnId of activeTurnIds) {
         if (!this.rpc.ownsThread(remoteThreadId)) {
           break;
         }
-        await this.interruptActiveTurn(
-          remoteThreadId,
-          activeTurnId,
-          CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
-          () => this.rpc.ownsThread(remoteThreadId),
-        ).catch(() => undefined);
+        await this.interruptActiveTurn(remoteThreadId, activeTurnId, requestTimeout(), () =>
+          this.rpc.ownsThread(remoteThreadId),
+        ).catch((error) => {
+          if (this.rpc.ownsThread(remoteThreadId)) {
+            interruptFailure = error instanceof Error ? error : new Error(String(error));
+          }
+        });
+      }
+      if (activeTurnIds.size > 0 || this.currentThreadStatus.type === "active") {
+        // Interrupt ACKs acknowledge the request; only a fresh provider read
+        // confirms that execution stopped before this pooled lease is released.
+        while (this.rpc.ownsThread(remoteThreadId)) {
+          const result = await this.rpc.request(
+            "thread/read",
+            { threadId: remoteThreadId, includeTurns: true },
+            requestTimeout(),
+          );
+          if (!this.rpc.ownsThread(remoteThreadId)) break;
+          if (!result.thread?.status || !Array.isArray(result.thread.turns)) {
+            throw new Error("Codex did not return thread shutdown status.");
+          }
+          if (
+            result.thread.status.type !== "active" &&
+            result.thread.turns.every((turn) => turn.status !== "inProgress")
+          )
+            break;
+          // Completion can race an interrupt and make its turn id stale. A
+          // confirmed idle thread is safe; a failed interrupt on live work is not.
+          if (interruptFailure) throw interruptFailure;
+          await new Promise<void>((resolve) => setTimeout(resolve, CODEX_DISPOSE_POLL_MS));
+        }
       }
       // Re-check ownership *after* the interrupt round-trip: a force-stopped
       // session is replaced while this teardown drains, and the replacement
@@ -1096,12 +1139,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       // strand it on "working" with no output.
       if (this.rpc.ownsThread(remoteThreadId)) {
         await this.rpc
-          .request(
-            "thread/unsubscribe",
-            { threadId: remoteThreadId },
-            CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
-          )
-          .catch(() => undefined);
+          .request("thread/unsubscribe", { threadId: remoteThreadId }, requestTimeout())
+          .catch((error) => {
+            if (this.rpc.ownsThread(remoteThreadId)) throw error;
+          });
       }
     }
     this.rpc.dispose(new Error("Codex app-server session disposed."));

@@ -1465,3 +1465,63 @@ it.each(["wait_for_agent", "wait_for_agents"])(
     expect(waitForMany).not.toHaveBeenCalled();
   },
 );
+
+describe("compact result spawn contract", () => {
+  it.each([{ prompt: "go" }, { tasks: [{ prompt: "one" }, { prompt: "two" }] }])(
+    "validates result_mode before starting %j",
+    async (shape) => {
+      const { ctx } = makeToolContext();
+      const spawn = vi.fn<SubagentRunManager["spawn"]>();
+      const spawnMany = vi.fn<SubagentRunManager["spawnMany"]>();
+      ctx.runManager = { spawn, spawnMany } as unknown as SubagentRunManager;
+      const result = await dispatchTool(
+        "spawn_agent",
+        { ...shape, result_mode: "invalid", background: true },
+        ctx,
+      );
+      expect(result.isError).toBe(true);
+      expect(spawn).not.toHaveBeenCalled();
+      expect(spawnMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it("applies a batch compact default and rejects an invalid task override atomically", async () => {
+    const { ctx } = makeToolContext();
+    const spawnMany = vi.fn<SubagentRunManager["spawnMany"]>(() => [
+      { runId: "a" },
+      { runId: "b" },
+    ]);
+    ctx.runManager = { spawnMany } as unknown as SubagentRunManager;
+    await dispatchTool(
+      "spawn_agent",
+      { result_mode: "compact", background: true, tasks: [{ prompt: "one" }, { prompt: "two" }] },
+      ctx,
+    );
+    expect(spawnMany.mock.calls[0]![1].map((task) => task.resultMode)).toEqual([
+      "compact",
+      "compact",
+    ]);
+    spawnMany.mockClear();
+    const result = await dispatchTool(
+      "spawn_agent",
+      {
+        result_mode: "compact",
+        background: true,
+        tasks: [{ prompt: "one" }, { prompt: "two", result_mode: "wrong" }],
+      },
+      ctx,
+    );
+    expect(result.isError).toBe(true);
+    expect(spawnMany).not.toHaveBeenCalled();
+  });
+});
+
+it("advertises workflow-specific retries and continuation", () => {
+  const workflow = TOOLS.find((tool) => tool.name === "run_workflow")!;
+  expect(workflow.inputSchema).toMatchObject({
+    properties: {
+      tasks: { items: { properties: { retry_on: { enum: ["startup"] } } } },
+      timeout_s: { description: expect.stringContaining("run_workflow action=wait") },
+    },
+  });
+});

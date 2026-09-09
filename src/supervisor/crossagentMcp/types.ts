@@ -14,6 +14,7 @@ import type {
   CrossagentRankSource,
 } from "@/shared/crossagentRanking";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import type { CompactResult } from "./compactResult";
 
 /** Terminal states a subagent run can settle into. */
 export type SubagentRunStatus = "running" | "completed" | "failed" | "cancelled";
@@ -179,6 +180,8 @@ export interface ExplicitSpawnAgentSelection {
 /** Arguments accepted by `spawn_agent` / `run_agent`. */
 export interface SpawnAgentRequest extends SpawnAgentSelection {
   prompt: string;
+  /** Ask the worker to prepare a structured final report; reads omit narration by default. */
+  resultMode?: "compact";
   name?: string;
   /**
    * Run without blocking the parent agent. Background runs remain tied to the
@@ -221,6 +224,10 @@ export interface SubagentWaitOptions {
 /** Result of `wait_for_agent` / `run_agent`. */
 export interface SubagentWaitResult {
   status: SubagentRunStatus;
+  /** Worker-authored claims, validated structurally but not independently verified. */
+  result?: CompactResult;
+  /** Missing/invalid reports remain explicit; callers can retrieve the transcript. */
+  result_error?: string;
   /**
    * Assistant text after `afterOutputChars`, tail-clipped (tight while running,
    * generous once settled). `fullOutput` returns the entire accumulated

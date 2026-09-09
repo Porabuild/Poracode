@@ -61,3 +61,7 @@ Durable notifications, host-managed pipeline stages and goal-pause races remain 
 The follow-up reran the deterministic measurement and actual installed-skill resolution tests: both passed and all payload sizes above reproduced exactly. Added regression coverage exercises progress → quiet → settlement with a nonzero Unicode cursor, mixed running/completed `wait_mode=any` results, approval resolution, clipping and complete retrieval of long output. No additional runtime defect was found.
 
 The same nine-file verification command now reports **272 passed, 1 existing Windows-only skip**. Typecheck and touched-file type-aware lint passed. The previous independent review remains applicable to the unchanged implementation; the follow-up changes only regression coverage and this evidence. These checks do not establish universal absence of bugs, live model quality parity, or billable-quota savings.
+
+## Subsequent user preference
+
+The temporary `~/.agents/skills/subagent-delegation` and `parallel-review` overrides described above were removed at the user’s request. The only custom delegation skill now maintained is `~/.poracode/skills/glm-flash-delegation/SKILL.md`; bundled skills remain in the plugin package. See [workflow follow-up](CROSSAGENTS_WORKFLOWS.md) for subsequent compact reports and host scheduling.

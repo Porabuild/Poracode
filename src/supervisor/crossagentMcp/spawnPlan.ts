@@ -6,6 +6,7 @@ import type { AgentAdapter } from "@/supervisor/agents/base";
 import { SubagentSpawnError } from "./errors";
 import { buildUnrestrictedChildConfig, resolveSubagentExecution } from "./types";
 import type { SpawnAgentRequest, SpawnAgentSelection } from "./types";
+import { compactResultPrompt } from "./compactResult";
 
 export interface ResolvedSpawnAttempt {
   adapter: AgentAdapter;
@@ -24,6 +25,7 @@ export interface ResolvedSpawnAttempt {
 
 export interface PreparedSubagentRun {
   prompt: string;
+  resultMode?: "compact";
   projectLocation: ProjectLocation;
   background: boolean;
   retryMode: "startup" | "any-failure";
@@ -55,7 +57,8 @@ export function prepareSubagentRun(
   );
 
   return {
-    prompt,
+    prompt: request.resultMode === "compact" ? compactResultPrompt(prompt) : prompt,
+    ...(request.resultMode ? { resultMode: request.resultMode } : {}),
     projectLocation: parent.projectLocation,
     background: request.background === true,
     retryMode: request.retryMode ?? "startup",

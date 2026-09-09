@@ -82,6 +82,7 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "addstyle",
   ],
   crossagents: [
+    "run_workflow",
     "list_agents",
     "get_agent",
     "spawn_agent",

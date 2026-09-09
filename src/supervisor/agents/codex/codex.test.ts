@@ -1018,7 +1018,9 @@ describe("CodexStructuredSession", () => {
       ownsThread: () => true,
       request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
         requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
-        return Promise.resolve({});
+        return Promise.resolve(
+          method === "thread/read" ? { thread: { status: { type: "idle" }, turns: [] } } : {},
+        );
       },
       dispose: rpcDispose,
     };
@@ -1030,6 +1032,11 @@ describe("CodexStructuredSession", () => {
       {
         method: "turn/interrupt",
         params: { threadId: "provider-thread", turnId: "turn-1" },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "thread/read",
+        params: { threadId: "provider-thread", includeTurns: true },
         timeoutMs: 2_000,
       },
       {
@@ -1061,7 +1068,12 @@ describe("CodexStructuredSession", () => {
       ownsThread: () => true,
       request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
         requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
-        if (method === "thread/read") return Promise.reject(new Error("read unavailable"));
+        if (method === "thread/read") {
+          if (!requests.some((request) => request.method === "turn/interrupt")) {
+            return Promise.reject(new Error("read unavailable"));
+          }
+          return Promise.resolve({ thread: { status: { type: "idle" }, turns: [] } });
+        }
         return Promise.resolve({});
       },
       dispose: () => {},
@@ -1098,6 +1110,9 @@ describe("CodexStructuredSession", () => {
       request: (method: string, params: Record<string, unknown>, timeoutMs?: number) => {
         requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
         if (method === "thread/read") {
+          if (requests.some((request) => request.method === "turn/interrupt")) {
+            return Promise.resolve({ thread: { status: { type: "idle" }, turns: [] } });
+          }
           return Promise.resolve({
             thread: {
               turns: [
@@ -1129,6 +1144,11 @@ describe("CodexStructuredSession", () => {
       {
         method: "turn/interrupt",
         params: { threadId: "provider-thread", turnId: "turn-live-2" },
+        timeoutMs: 2_000,
+      },
+      {
+        method: "thread/read",
+        params: { threadId: "provider-thread", includeTurns: true },
         timeoutMs: 2_000,
       },
       {
