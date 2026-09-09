@@ -276,11 +276,42 @@ providers; no provider branch in shared files.
 Implement §4.3 wins in ranked order; every change additive or client-only; zero quality
 degradation (lossless merges, authoritative supersets, negotiated capabilities):
 
-1. Delta coalescing at flush (#3, one line) + desktop ETag cache (#4) + launch-event wait (#5) — quick wins first.
-2. Cursor-sync v2 (#1) + snapshot scrollback omission (#2) — the measured-blocker fix; include the design's byte-budgeted chunked baseline with credit window and idle/progress-based baseline deadline replacing the flat 10 s.
-3. Waterfall work (#6, #8) + deflate window (#7).
-4. Relay streaming HTTP/SSE (additive v3 capability frames) — pairs with WS4.
-5. Then measure: re-run the calibrated shaper harness (`tests/native-e2e/constrainedNetwork.test.ts`, profiles incl. `rtt1500ms-32kbps`) against the real UI cold-start; record p50/p95 time-to-interactive and bytes before/after. Deferred v11 items (#10) stay deferred.
+**Status 2026-09-09: quick wins landed** (commits `5af17eef8`, `937bf2606`): §4.3 #3
+delta coalescing, #7 deflate window, #4 ETag cache (client side), plus WS5-1 the
+supervisor→backend shed policy + `backpressureTimeoutMs: null` with recovery signal
+(`supervisor-output-shed` → renderer-stream/remote `resync-required`). Deferred within
+WS3: the launch poll loop's event-wait redesign — its cost is now mostly absorbed by
+the ETag cache.
+
+**WS3-A: agent-statuses payload split — measured, designed, ready to implement.**
+Measured breakdown of `GET /api/agent-statuses` (230 KB raw / 39.4 KB gzipped, 15
+detected agents on the QA host): `capabilities.slashCommands` dominates (28.6 KB for
+Claude alone — 55 skill definitions embedding full SKILL.md descriptions in `label`);
+`settingDefs` ~0.9 KB per agent; model catalogs are tiny (367 B). The fat fields are
+consumed only by the renderer's "/" menu and settings surfaces; native clients
+consumer model lists, auth states, and versions. Implementation (additive, wire-v10
+compatible, no quality change):
+
+1. Manifest: add optional query param `slashCommands` to the `agent-statuses` route
+   and a new route `GET /api/agents/{kind}/slash-commands` (contract in
+   `src/shared/remote/contract/routes/`), then `pnpm run protocol:remote:v3:generate`
+   - native-parity ledger update (additive → binding format unchanged).
+2. Server (`snapshots.ts`/agent-statuses handler): when `slashCommands=omit` is
+   passed, drop the field; new route serves one agent's catalog from the same source.
+3. Renderer: `agentStatusesStore` requests `slashCommands=omit`; the composer "/"
+   menu lazily fetches and caches the open thread's agent catalog (one ~30 KB fetch
+   per agent, on first use, instead of ~230 KB raw for all agents on every cold
+   start).
+4. Natives: adopt later or never — absent optional field decodes fine; without the
+   flag they keep today's fat payload.
+   Cold-start effect at 1500 ms/32 kbps: agent-statuses drops from ~39 KB to ~4–6 KB
+   gzipped, removing ~9 s of the projected 17–19 s cold start.
+
+5. Delta coalescing at flush (#3, one line) + desktop ETag cache (#4) + launch-event wait (#5) — quick wins first.
+6. Cursor-sync v2 (#1) + snapshot scrollback omission (#2) — the measured-blocker fix; include the design's byte-budgeted chunked baseline with credit window and idle/progress-based baseline deadline replacing the flat 10 s.
+7. Waterfall work (#6, #8) + deflate window (#7).
+8. Relay streaming HTTP/SSE (additive v3 capability frames) — pairs with WS4.
+9. Then measure: re-run the calibrated shaper harness (`tests/native-e2e/constrainedNetwork.test.ts`, profiles incl. `rtt1500ms-32kbps`) against the real UI cold-start; record p50/p95 time-to-interactive and bytes before/after. Deferred v11 items (#10) stay deferred.
 
 **Gate:** 32 kbps / 1.5 s RTT GUI cold start converges inside the 10 s budget (or the
 deadline is explicitly redesigned with evidence); transcript/terminal content byte-exact;
