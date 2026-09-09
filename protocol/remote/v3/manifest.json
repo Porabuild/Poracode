@@ -407,7 +407,7 @@
       "path": "/api/threads/{threadId}/history",
       "auth": "bearer",
       "scopes": ["session:read"],
-      "queryParameters": ["runtimePage", "targetTimelineEntryCount"]
+      "queryParameters": ["runtimePage", "targetTimelineEntryCount", "omitScrollback"]
     },
     {
       "id": "thread-start-existing",

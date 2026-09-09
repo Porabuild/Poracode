@@ -353,8 +353,8 @@ val RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EResponse: RemoteRootCode
 val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EPath: RemoteRootCodec<RouterequestU2DResolvePath_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-history.path", serializer<RouterequestU2DResolvePath_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
-val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryQuery_ce0c89ac5e>
-    get() = RemoteRootCodec("route.thread-history.query", serializer<RoutethreadU2DHistoryQuery_ce0c89ac5e>(), schema_ce0c89ac5eec78ba)
+val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryQuery_34b5fda496>
+    get() = RemoteRootCodec("route.thread-history.query", serializer<RoutethreadU2DHistoryQuery_34b5fda496>(), schema_34b5fda496bc72d8)
 
 val RemoteRootCodecs.routeU2EThreadU2DHistoryU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryResponse_8621b3e8b7>
     get() = RemoteRootCodec("route.thread-history.response", serializer<RoutethreadU2DHistoryResponse_8621b3e8b7>(), schema_8621b3e8b778a6f9)

@@ -42,7 +42,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/history",
     auth: "bearer",
     scopes: ["session:read"],
-    queryParameters: ["runtimePage", "targetTimelineEntryCount"],
+    queryParameters: ["runtimePage", "targetTimelineEntryCount", "omitScrollback"],
     request: { bodyKind: "empty", querySchema: threadHistoryQuerySchema },
     response: {
       wireKind: "json",

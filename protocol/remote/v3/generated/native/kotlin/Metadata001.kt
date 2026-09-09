@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 10
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:413b7a38c40e7c431296840e07d6c8c89144ebcaef34f3f4a0b95fcbd05dead3"
-    const val manifestHash = "sha256:d8b8c47b8c931997a6856b6d27e68fd264c3b11d65c12f0d5405a02480ac84c2"
+    const val sourceHash = "sha256:17044295fb76b6bf526f06be3e87443ea83621d11bf9c7e4ddd211139976ab38"
+    const val manifestHash = "sha256:f87d0b28101deede72e2060d530142e53bf91324c2e2d786e19d4fe7e597762f"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -71,7 +71,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("thread-close", "POST", "/api/threads/{threadId}/close", "bearer", listOf("session:operate"), "json", "json", 200, "RoutehostU2DUpdateU2DInstallResponse_81055c9199", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-command", "POST", "/api/threads/{threadId}/command", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DCommandRequest_37bea14e33", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-goal", "POST", "/api/threads/{threadId}/goal", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DGoalRequest_54c8350637", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
-        RemoteRouteDescriptor("thread-history", "GET", "/api/threads/{threadId}/history", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutethreadU2DHistoryResponse_8621b3e8b7", listOf(RemoteQueryParameterDescriptor("runtimePage", "string", true, false), RemoteQueryParameterDescriptor("targetTimelineEntryCount", "int", true, false))),
+        RemoteRouteDescriptor("thread-history", "GET", "/api/threads/{threadId}/history", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutethreadU2DHistoryResponse_8621b3e8b7", listOf(RemoteQueryParameterDescriptor("runtimePage", "string", true, false), RemoteQueryParameterDescriptor("targetTimelineEntryCount", "int", true, false), RemoteQueryParameterDescriptor("omitScrollback", "0-or-1", true, false))),
         RemoteRouteDescriptor("thread-history-items", "GET", "/api/threads/{threadId}/history/items", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutethreadU2DHistoryU2DItemsResponse_57033b19c3", listOf(RemoteQueryParameterDescriptor("beforePosition", "int", true, false), RemoteQueryParameterDescriptor("limit", "int", false, false), RemoteQueryParameterDescriptor("targetTimelineEntryCount", "int", true, false))),
         RemoteRouteDescriptor("thread-interrupt", "POST", "/api/threads/{threadId}/interrupt", "bearer", listOf("session:operate"), "json", "json", 200, "RoutehostU2DUpdateU2DInstallResponse_81055c9199", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-runtime-truncate", "POST", "/api/threads/{threadId}/runtime/truncate", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DRuntimeU2DTruncateRequest_228757711c", "RouteportU2DUnforwardResponse_badd682f35", listOf()),

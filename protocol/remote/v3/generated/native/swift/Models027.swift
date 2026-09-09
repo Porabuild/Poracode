@@ -43,16 +43,19 @@ public enum RoutethreadU2DHistoryQueryU2DRuntimePage_8795ea0289: String, Codable
   case n1 = "1"
 }
 
-public struct RoutethreadU2DHistoryQuery_ce0c89ac5e: Codable, Sendable, RemoteModelMetadata {
+public struct RoutethreadU2DHistoryQuery_34b5fda496: Codable, Sendable, RemoteModelMetadata {
+  public var omitScrollback: RemoteField<Bool> = .missing
   public var runtimePage: RemoteField<RoutethreadU2DHistoryQueryU2DRuntimePage_8795ea0289> = .missing
   public var targetTimelineEntryCount: RemoteField<Int64> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "omitScrollback", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "runtimePage", typeName: "RoutethreadU2DHistoryQueryU2DRuntimePage_8795ea0289", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "targetTimelineEntryCount", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 100, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
+    case omitScrollback = "omitScrollback"
     case runtimePage = "runtimePage"
     case targetTimelineEntryCount = "targetTimelineEntryCount"
   }

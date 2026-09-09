@@ -137,6 +137,12 @@ export function isRemoteTransportFailure(error: unknown): boolean {
 
 export interface ThreadHistoryOptions {
   readonly targetTimelineEntryCount?: number;
+  /**
+   * WS3 #2: skip the inlined `terminalScrollback` — cursor-sync clients
+   * render the terminal from the watch baseline instead, so inlining the
+   * tail transfers the same bytes twice.
+   */
+  readonly omitScrollback?: boolean;
 }
 
 function parseJsonResponse(text: string, response: Response): unknown {
@@ -649,6 +655,7 @@ export class RemoteDesktopClient {
       ...(options.targetTimelineEntryCount !== undefined
         ? { targetTimelineEntryCount: String(options.targetTimelineEntryCount) }
         : {}),
+      ...(options.omitScrollback ? { omitScrollback: "1" } : {}),
     });
     return remoteThreadSnapshotSchema.parse(
       await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/history?${search}`),
