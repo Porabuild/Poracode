@@ -68,6 +68,13 @@ struct PortForwardingView: View {
           .padding(.vertical, 20)
         }
       case .none, .ready:
+        if let notice = projection.noticeMessage {
+          Section {
+            Label(notice, systemImage: "info.circle")
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+          }
+        }
         if !projection.active.isEmpty {
           Section(PortForwardingStrings.active) {
             ForEach(projection.active) { row in
@@ -162,6 +169,13 @@ struct PortForwardingView: View {
 
   private var canUse: Bool {
     access?.capabilities.contains(.forward) == true
+  }
+
+  /// Menu-level pre-disable for the browser actions. The row tap and the
+  /// gateway stay authoritative: an unadvertised host still shows the page and
+  /// explains via the notice when opening is attempted.
+  private var canUseBrowserEntry: Bool {
+    access?.browserForwardEntry == true
   }
 
   private var manualPortValid: Bool {
@@ -263,13 +277,13 @@ struct PortForwardingView: View {
           } label: {
             Label(PortForwardingStrings.openInBrowser, systemImage: "safari")
           }
-          .disabled(!row.canOpen || row.isBusy)
+          .disabled(!row.canOpen || row.isBusy || !canUseBrowserEntry)
           Button {
             copyURL(row)
           } label: {
             Label(PortForwardingStrings.copyURL, systemImage: "doc.on.doc")
           }
-          .disabled(row.isBusy || copyAddress == nil)
+          .disabled(row.isBusy || copyAddress == nil || !canUseBrowserEntry)
           Button(role: .destructive) {
             run { await controller.stop(forwardID: row.id) }
           } label: {

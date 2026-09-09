@@ -41,6 +41,14 @@ struct ProjectShellTerminalView: View {
     content
       .navigationTitle(title ?? TerminalStrings.shellTitle)
       .navigationBarTitleDisplayMode(.inline)
+      .toolbar {
+        ToolbarItem(placement: .principal) {
+          Text(title ?? TerminalStrings.shellTitle)
+            .font(.headline)
+            .foregroundStyle(shell.phase == .live ? .white : .primary)
+            .accessibilityAddTraits(.isHeader)
+        }
+      }
       .task(id: activationID) { startIfPossible() }
       .onChange(of: session.phase) { updateAccess() }
       .onChange(of: session.socketState) { updateAccess() }

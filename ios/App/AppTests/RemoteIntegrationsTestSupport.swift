@@ -204,7 +204,7 @@ func remoteIntegrationsLease(
 
 func remoteIntegrationsAccess(
   _ lease: RemoteIntegrationsHostLease,
-  protocolVersion: Int = 8,
+  protocolVersion: Int = ProtocolConstants.remoteProtocolVersion,
   isOnline: Bool = true,
   isReady: Bool = true,
   capabilities: Set<RemoteIntegrationsCapability> = Set(RemoteIntegrationsCapability.allCases)

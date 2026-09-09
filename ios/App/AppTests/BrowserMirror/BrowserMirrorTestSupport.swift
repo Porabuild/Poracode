@@ -31,7 +31,7 @@ enum BrowserMirrorTestValues {
   ) -> BrowserMirrorHostAccess {
     BrowserMirrorHostAccess(
       lease: lease,
-      protocolVersion: 8,
+      protocolVersion: ProtocolConstants.remoteProtocolVersion,
       isOnline: online,
       isReady: ready,
       isForeground: foreground,

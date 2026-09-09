@@ -59,9 +59,23 @@ final class NativeJourneyUITests: XCTestCase {
 
     let projectFilter = app.buttons["native-e2e.project-filter"]
     XCTAssertTrue(projectFilter.waitForExistence(timeout: 5))
-    XCTAssertGreaterThanOrEqual(projectFilter.frame.width, 44)
-    XCTAssertGreaterThanOrEqual(projectFilter.frame.height, 44)
-    projectFilter.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+    // Probe the physical target: native toolbar AX frames can describe only chrome.
+    var filterTargetResults: [Bool] = []
+    for offset in [CGVector(dx: -21, dy: 0), CGVector(dx: 21, dy: 0),
+                   CGVector(dx: 0, dy: -21), CGVector(dx: 0, dy: 21)] {
+      projectFilter.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        .withOffset(offset).tap()
+      let sheet = app.navigationBars["Filter projects"]
+      let opened = sheet.waitForExistence(timeout: 3)
+      filterTargetResults.append(opened)
+      print("FILTER_TARGET_PROBE dx=\(offset.dx) dy=\(offset.dy) opened=\(opened)")
+      if opened {
+        app.buttons["native-e2e.project-filter.done"].tap()
+        await fulfillment(of: [XCTNSPredicateExpectation(
+          predicate: NSPredicate(format: "exists == false"), object: sheet)], timeout: 5)
+      }
+    }
+    projectFilter.tap()
     XCTAssertTrue(app.navigationBars["Filter projects"].waitForExistence(timeout: 5))
     let projectFilterDone = app.buttons["native-e2e.project-filter.done"]
     XCTAssertTrue(projectFilterDone.waitForExistence(timeout: 5))
@@ -82,6 +96,11 @@ final class NativeJourneyUITests: XCTestCase {
     attachScreenshot("02-authoritative-history")
 
     let message = "Native journey message"
+    // The thread composer starts collapsed as a "Message" pill; expanding it
+    // is what reveals the identified text field.
+    let composerCollapsed = app.buttons["native-e2e.composer-collapsed"]
+    XCTAssertTrue(composerCollapsed.waitForExistence(timeout: 10))
+    composerCollapsed.tap()
     let composer = app.textFields["native-e2e.composer"]
     XCTAssertTrue(composer.waitForExistence(timeout: 10))
     composer.tap()
@@ -163,11 +182,15 @@ final class NativeJourneyUITests: XCTestCase {
     XCTAssertEqual(collision.operationJournal.filter { $0.operationId == "ws:connect" }.count, 1)
     XCTAssertFalse(collision.operationJournal.contains { $0.operationId == "route:thread-send" })
     attachScreenshot("05-second-host-isolated")
+    XCTAssertTrue(filterTargetResults.allSatisfy { $0 },
+                  "The filter target must accept taps 21 points from its center in every direction")
   }
 
   private func confirmPairingIfNeeded() {
     let confirm = app.buttons["native-e2e.pair.confirm"]
     if confirm.waitForExistence(timeout: 2) {
+      XCTAssertTrue(["Confirm", "Connect anyway"].contains(confirm.label))
+      XCTAssertTrue(app.buttons["Cancel"].exists)
       confirm.tap()
       app.tap()
       return

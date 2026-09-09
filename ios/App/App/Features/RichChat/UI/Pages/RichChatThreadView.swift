@@ -6,6 +6,7 @@ struct RichChatThreadView: View {
   let title: String
 
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.colorScheme) private var inheritedColorScheme
   @Environment(\.dismiss) private var dismiss
   @State private var pageState: RichChatThreadPageState
   @State private var isConfirmingClose = false
@@ -70,6 +71,7 @@ struct RichChatThreadView: View {
         }
       }
     }
+    .environment(\.colorScheme, isTerminal ? .dark : inheritedColorScheme)
     .confirmationDialog(
       RichChatStrings.closeThreadConfirmationTitle,
       isPresented: $isConfirmingClose,

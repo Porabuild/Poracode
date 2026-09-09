@@ -53,6 +53,81 @@ final class PortForwardingControllerTests: XCTestCase {
     XCTAssertEqual(controller.snapshot, .empty)
     XCTAssertEqual(controller.loadState, .idle)
     XCTAssertEqual(controller.operation, .none)
+    XCTAssertNil(controller.notice)
+  }
+
+  func testUnavailableBrowserEntryAfterStartKeepsForwardAndShowsNotice() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    // The host advertises browser entry but it is not configured: start
+    // commits, the auto-open is refused definitely, and the forward stays.
+    await gateway.setOpenFailure(.forwardingUnavailable)
+    await controller.start(port: 3000)
+    XCTAssertEqual(controller.snapshot.forwards.map(\.targetPort), [3000, 5173])
+    XCTAssertEqual(controller.loadState, .ready)
+    XCTAssertEqual(controller.operation, .none)
+    XCTAssertEqual(controller.notice, .forwardingUnavailable)
+
+    let projection = PortForwardingViewProjection(
+      controller: controller, access: PortForwardingTestValues.access())
+    XCTAssertEqual(projection.gate, .ready)
+    XCTAssertEqual(
+      projection.noticeMessage,
+      PortForwardingStrings.failure(.forwardingUnavailable))
+    XCTAssertEqual(projection.active.count, 2)
+  }
+
+  func testUnsupportedBrowserEntryOpenShowsNoticeAndKeepsList() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    await gateway.setFailure(.browserEntryUnsupported)
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertEqual(controller.loadState, .ready)
+    XCTAssertEqual(controller.snapshot.forwards.map(\.targetPort), [5173])
+    XCTAssertEqual(controller.notice, .browserEntryUnsupported)
+    XCTAssertEqual(controller.operation, .none)
+  }
+
+  func testSuccessfulOpenClearsTheNotice() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    await gateway.setFailure(.forwardingUnavailable)
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertEqual(controller.notice, .forwardingUnavailable)
+    await gateway.setFailure(nil)
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertNil(controller.notice)
+    XCTAssertEqual(controller.loadState, .ready)
+  }
+
+  func testOSBrowserRefusalStillFailsThePage() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    // The OS browser refusing an open is a distinct failure with its own copy
+    // and keeps the existing page-level load-failed behavior.
+    await gateway.setFailure(.browserUnavailable)
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertEqual(controller.loadState, .failed(.browserUnavailable))
+    XCTAssertNil(controller.notice)
+  }
+
+  func testAmbiguousOpenStillFailsThePage() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    await gateway.setFailure(.ambiguousMutation)
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertEqual(controller.loadState, .failed(.ambiguousMutation))
+    XCTAssertNil(controller.notice)
   }
 
   func testViewProjectionGatesForwardedPortAndExposesAccessibleValues() async throws {

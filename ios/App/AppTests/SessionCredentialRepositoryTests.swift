@@ -348,6 +348,58 @@ final class SessionCredentialRepositoryTests: XCTestCase {
         XCTAssertEqual(_eq2, data)
     }
 
+    /// The previous released binding (protocol 8). Apps upgraded from the
+    /// v8 pairing must be told to re-pair — never silently reconnect — and
+    /// the stored bytes must survive untouched until then.
+    func testStoredPreviousProtocolVersionRejectedBytesPreserved() async throws {
+        let (repo, _, _) = makeRepo()
+        defer { Task { await repo.wipeSuiteForTests() } }
+
+        let stale = SessionCredentialDocument(
+            version: SessionCredentialDocument.currentVersion,
+            protocolVersion: 8,
+            profile: makeProfile(protocolVersion: 8),
+            accessToken: "tok-8"
+        )
+        let data = try JSONDecoding.encoder.encode(stale)
+        try await repo.seedV2Document(data)
+        let activated_bootstrapLoad_1 = try await repo.activate(id: 1, kind: .bootstrapLoad)
+        XCTAssertTrue(activated_bootstrapLoad_1)
+        let outcome = try await repo.loadOutcome(owning: 1)
+        guard case .protocolMismatch(let creds) = outcome else {
+            return XCTFail("expected protocolMismatch, got \(outcome)")
+        }
+        XCTAssertEqual(creds.accessToken, "tok-8")
+        XCTAssertEqual(creds.profile.protocolVersion, 8)
+        let raw = try await repo.v2RawData()
+        XCTAssertEqual(raw, data, "stored v8 binding must remain byte-identical")
+    }
+
+    /// Legacy unbound profiles (stored before protocol binding existed, or by
+    /// older migrations) carry protocolVersion 0 and rebind to the current
+    /// protocol instead of being rejected.
+    func testLegacyUnboundProtocolZeroRebindsToCurrent() async throws {
+        let (repo, _, _) = makeRepo()
+        defer { Task { await repo.wipeSuiteForTests() } }
+
+        let document = ConnectionStoreDocument(
+            version: 1,
+            profile: makeProfile(protocolVersion: 0)
+        )
+        let data = try JSONDecoding.encoder.encode(document)
+        await repo.seedLegacyProfileDocument(data)
+        try await repo.seedLegacyToken("legacy-tok")
+
+        let activated_bootstrapLoad_1 = try await repo.activate(id: 1, kind: .bootstrapLoad)
+        XCTAssertTrue(activated_bootstrapLoad_1)
+        guard case .compatible(let loaded) = try await repo.loadOutcome(owning: 1) else {
+            return XCTFail("expected unbound profile to rebind")
+        }
+        XCTAssertEqual(loaded.accessToken, "legacy-tok")
+        XCTAssertEqual(
+            loaded.profile.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+    }
+
     func testLegacyIncompatibleProtocolPreservesBytes() async throws {
         let (repo, _, _) = makeRepo()
         defer { Task { await repo.wipeSuiteForTests() } }
@@ -494,7 +546,7 @@ final class SessionCredentialOwnershipTests: XCTestCase {
         let api = FakeRemoteAPI()
         api.environmentResult = .success(
             RemoteEnvironmentDescriptor(
-                protocolVersion: 8,
+                protocolVersion: ProtocolConstants.remoteProtocolVersion,
                 hostMode: nil,
                 desktopId: "desk-a",
                 label: "Desktop A",

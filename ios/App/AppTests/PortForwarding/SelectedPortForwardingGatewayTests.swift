@@ -18,7 +18,8 @@ final class SelectedPortForwardingGatewayTests: XCTestCase {
       (
         PortForwardingHostAccess(
           lease: PortForwardingTestValues.lease(), protocolVersion: 2, isOnline: true,
-          isReady: true, isForeground: true, capabilities: [.forward]),
+          isReady: true, isForeground: true, capabilities: [.forward],
+          browserForwardEntry: true),
         .protocolIncompatible
       ),
     ]
@@ -119,6 +120,53 @@ final class SelectedPortForwardingGatewayTests: XCTestCase {
         forwardID: PortForwardingTestValues.forwardID,
         lease: PortForwardingTestValues.lease())
     }
+  }
+
+  func testBrowserEntryRejectionIsDefiniteForwardingUnavailableNotAmbiguous() async throws {
+    let api = PortForwardingRemoteAPISpy()
+    let box = PortForwardingSelectionBox(
+      .init(access: PortForwardingTestValues.access(), api: api))
+    let gateway = SelectedPortForwardingGateway { box.selection }
+    await api.setOutcome(
+      .failure(.rejected(statusCode: 503, code: "forward_browser_unavailable")))
+
+    // Both the start auto-open and the explicit open must read the definite
+    // configuration failure — never the ambiguous-mutation path.
+    await assertFailure(.forwardingUnavailable) {
+      try await gateway.open(
+        forwardID: PortForwardingTestValues.forwardID,
+        lease: PortForwardingTestValues.lease())
+    }
+    await assertFailure(.forwardingUnavailable) {
+      _ = try await gateway.start(port: 3000, lease: PortForwardingTestValues.lease())
+    }
+  }
+
+  func testOpenRequiresAdvertisedBrowserEntryWithoutTouchingTransport() async throws {
+    let api = PortForwardingRemoteAPISpy()
+    let closed = PortForwardingSelectionBox(
+      .init(
+        access: PortForwardingTestValues.access(browserForwardEntry: false), api: api))
+    let gated = SelectedPortForwardingGateway { closed.selection }
+    await assertFailure(.browserEntryUnsupported) {
+      try await gated.open(
+        forwardID: PortForwardingTestValues.forwardID,
+        lease: PortForwardingTestValues.lease())
+    }
+    let calls = await api.recordedCalls()
+    XCTAssertTrue(calls.isEmpty)
+
+    // Raw operations stay available on the same unadvertised host.
+    let box = PortForwardingSelectionBox(
+      .init(
+        access: PortForwardingTestValues.access(browserForwardEntry: false), api: api))
+    let raw = SelectedPortForwardingGateway { box.selection }
+    _ = try await raw.scan(lease: PortForwardingTestValues.lease())
+    _ = try await raw.start(port: 3000, lease: PortForwardingTestValues.lease())
+    try await raw.stop(
+      forwardID: PortForwardingTestValues.forwardID, lease: PortForwardingTestValues.lease())
+    let rawCalls = await api.recordedCalls()
+    XCTAssertEqual(rawCalls, [.portsRead, .portForward, .portUnforward])
   }
 
   private func assertFailure(

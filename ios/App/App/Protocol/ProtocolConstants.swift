@@ -1,8 +1,11 @@
 import Foundation
 
 /// Mirrors `PORACODE_REMOTE_PROTOCOL_VERSION` in `src/shared/remote/protocol.ts`.
+/// Protocol v9 added `executionEnvironment` to thread configs (snapshots and
+/// mutation payloads). Guarded against drift by
+/// `protocol/remote/v3/native-protocol-version.test.ts`.
 enum ProtocolConstants {
-    static let remoteProtocolVersion = 8
+    static let remoteProtocolVersion = 9
     static let commandIdHeader = "x-poracode-command-id"
     static let bearerTokenType = "Bearer"
 

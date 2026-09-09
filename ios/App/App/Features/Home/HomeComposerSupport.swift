@@ -91,7 +91,8 @@ extension HomeQuickComposeView {
           browserMcp: object["browserMcp"]?.boolValue,
           crossagentMcp: object["crossagentMcp"]?.boolValue,
           computerUse: object["computerUse"]?.boolValue,
-          chromeMcp: object["chromeMcp"]?.boolValue
+          chromeMcp: object["chromeMcp"]?.boolValue,
+          executionEnvironment: Self.draftExecutionEnvironment(object)
         )
       )
     }
@@ -124,6 +125,19 @@ extension HomeQuickComposeView {
         effort: defaultEffort(for: agent, modelID: model.modelID)
       )
     )
+  }
+
+  /// Draft configs share the thread-config shape (`providerDraftConfigSchema`),
+  /// so a saved draft can pin the WSL execution environment. Dropping it here
+  /// would silently retarget a pinned distro on the next quick compose.
+  private static func draftExecutionEnvironment(
+    _ object: [String: JSONValue]
+  ) -> RemoteExecutionEnvironment? {
+    guard let environment = object["executionEnvironment"]?.objectValue,
+      let kind = environment["kind"]?.stringValue,
+      let distro = environment["distro"]?.stringValue
+    else { return nil }
+    return RemoteExecutionEnvironment(kind: kind, distro: distro)
   }
 
   private func launchModel(
@@ -217,7 +231,8 @@ extension ThreadConfig {
       browserMcp: configuration.browserMcp,
       crossagentMcp: configuration.crossagentMcp,
       computerUse: configuration.computerUse,
-      chromeMcp: configuration.chromeMcp
+      chromeMcp: configuration.chromeMcp,
+      executionEnvironment: configuration.executionEnvironment
     )
   }
 }
@@ -237,7 +252,8 @@ extension ThreadLaunchConfiguration {
       browserMcp: configuration.browserMcp,
       crossagentMcp: configuration.crossagentMcp,
       computerUse: configuration.computerUse,
-      chromeMcp: configuration.chromeMcp
+      chromeMcp: configuration.chromeMcp,
+      executionEnvironment: configuration.executionEnvironment
     )
   }
 }

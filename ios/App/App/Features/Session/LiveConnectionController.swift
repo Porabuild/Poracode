@@ -168,10 +168,17 @@ struct LiveConnectionController {
         let task = Task { @MainActor in
             defer { host.bootstrapNetworkTask.clearIfCurrent(installToken) }
             do {
+                // Discarded result: this handshake drives 401/compatibility
+                // phase handling only.
                 _ = try await host.state.api?.environment()
                 guard host.state.operationOwner.isCurrent(ownerEpoch),
                       host.state.workGeneration == gen
                 else { return }
+                // Browser-entry authority is owned by the reconnect funnel
+                // (recordSocketState → fresh `.online` epoch), so a handshake
+                // captured before the socket is online — or across a
+                // backgrounded park that defers the first online — can never
+                // retain authority.
                 try Task.checkCancellation()
                 await connectAndStart(generation: gen, ownerEpoch: ownerEpoch)
             } catch is CancellationError {
@@ -226,6 +233,17 @@ struct LiveConnectionController {
             _ = host.state.liveLifecycle.decideSocketStart()
             return
         }
+        // Paths that arrive without current-epoch capability authority (host
+        // switch, durable reconcile, retry after a failed read) fetch it once
+        // through the shared funnel. Current-epoch authority — resolved or in
+        // flight — short-circuits, so this is never a per-retry or per-action
+        // request; a failed or cancelled read leaves the slot unknown
+        // (absence is never inferred from a network error), and every fresh
+        // socket `.online` is owned by the reconnect funnel in
+        // AppSession.recordSocketState.
+        if let connectionID = host.state.selectedConnectionId {
+            host.refreshBrowserForwardAuthority(for: connectionID)
+        }
         host.state.projectsLoadState = .loading
         let endpoint = await api.httpEndpoint
         // Open the boundary buffer before the fetch so a frame delivered while the
@@ -233,6 +251,13 @@ struct LiveConnectionController {
         let captured = host.beginReplayInstall(apiEndpoint: endpoint)
         do {
             let snap = try await api.snapshot()
+            // The shell snapshot carries no agent statuses and the host's
+            // bounded replay window may have already evicted the per-agent
+            // history, so a fresh client fetches the authoritative base while
+            // the install buffer is open: live frames buffered during either
+            // fetch reapply on top of the base at commit and can never be
+            // masked by it.
+            let agentBase = try? await AgentStatusHydration.fetch(api: api)
             try Task.checkCancellation()
             if let ownerEpoch {
                 guard host.state.operationOwner.isCurrent(ownerEpoch),
@@ -251,7 +276,8 @@ struct LiveConnectionController {
                 snap,
                 captured: captured,
                 currentAPIEndpoint: endpoint,
-                isInitialBootstrap: true
+                isInitialBootstrap: true,
+                agentBase: agentBase
             ) else { return }
             host.state.phase = .ready
             await startWebSocket(api: api, generation: gen)
@@ -374,6 +400,10 @@ struct LiveConnectionController {
     /// foreground / work generation / API + socket identity, then replace shell
     /// lists, replayed Git state, and (when allowed) the cursor in one commit.
     ///
+    /// `agentBase` (bootstrap only) installs the authoritative agent-status
+    /// base into the prepared replay *before* the boundary buffer applies, so
+    /// buffered live events land on top of it.
+    ///
     /// Returns false when nothing was installed — no partial state, no cursor move.
     @discardableResult
     func applyShellSnapshot(
@@ -381,14 +411,15 @@ struct LiveConnectionController {
         captured: ReplayInstallIdentity,
         currentAPIEndpoint: String?,
         isInitialBootstrap: Bool,
-        preserveCursorIfOpenThread: Bool = true
+        preserveCursorIfOpenThread: Bool = true,
+        agentBase: SessionAgentStatuses? = nil
     ) async -> Bool {
         let hasOpen = host.state.openThreadId != nil
         let decision = ShellRefreshCursorPolicy.decision(
             hasOpenThread: hasOpen && preserveCursorIfOpenThread,
             isInitialBootstrap: isInitialBootstrap
         )
-        let prepared: PreparedReplayInstall
+        var prepared: PreparedReplayInstall
         do {
             prepared = try HostSnapshotInstall.prepare(shell: snap, existing: host.state.replay)
         } catch {
@@ -396,6 +427,9 @@ struct LiveConnectionController {
             host.abortReplayInstall(captured)
             host.state.globalError = error.localizedDescription
             return false
+        }
+        if let agentBase {
+            AgentStatusHydration.install(agentBase, into: &prepared.replay)
         }
         guard let commit = host.commitReplayInstall(
             prepared,

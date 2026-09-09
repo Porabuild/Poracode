@@ -36,6 +36,13 @@ extension AppSession {
       && state.phase != .sessionExpired
       && state.phase != .protocolIncompatible
       && state.phase != .localStoreInconsistent
+    // Browser entry exists only when this connection's own handshake
+    // advertised it in the current online epoch; anything else (unknown,
+    // stale from a reconnect, foreign) reads closed.
+    let browserForwardEntry =
+      state.browserForwardEntry?.connectionID == connectionID
+      && state.browserForwardEntry?.onlineEpoch == state.browserForwardOnlineEpoch
+      && state.browserForwardEntry?.advertised == true
     return PortForwardingHostAccess(
       lease: PortForwardingHostLease(
         connectionID: connectionID,
@@ -45,7 +52,8 @@ extension AppSession {
       isOnline: isOnline,
       isReady: isOnline && state.phase == .ready,
       isForeground: isForeground,
-      capabilities: profileCapabilities.intersection(registryCapabilities)
+      capabilities: profileCapabilities.intersection(registryCapabilities),
+      browserForwardEntry: browserForwardEntry
     )
   }
 
@@ -101,7 +109,8 @@ final class PortForwardingSelectionStore {
       isOnline: access.isOnline,
       isReady: access.isReady,
       isForeground: access.isForeground,
-      capabilities: access.capabilities.intersection(resolved.access.capabilities)
+      capabilities: access.capabilities.intersection(resolved.access.capabilities),
+      browserForwardEntry: access.browserForwardEntry && resolved.access.browserForwardEntry
     )
     return PortForwardingTransportSelection(access: exact, api: resolved.api)
   }
@@ -177,9 +186,12 @@ final class PortForwardingComposition {
   var currentLease: PortForwardingHostLease? { store.access?.lease }
 
   /// Resolves a forward's entry address for Copy URL. Lives here — not on the
-  /// controller — so the controller never holds a URL-bearing value.
+  /// controller — so the controller never holds a URL-bearing value. Gated on
+  /// this host advertising browser entry, exactly like Open.
   func entryAddress(forForwardID forwardID: String) async -> URL? {
-    guard let selection = store.selection() else { return nil }
+    guard let selection = store.selection(), selection.access.browserForwardEntry else {
+      return nil
+    }
     return try? await selection.api.remoteEntryURL(forwardID: forwardID)
   }
 

@@ -91,6 +91,7 @@ struct OnboardingPendingPairingCard: View {
           lineWidth: 1
         )
     }
+    .accessibilityElement(children: .contain)
     .accessibilityLabel(OnboardingStrings.pendingAccessibility(pending.hostDisplay))
   }
 }

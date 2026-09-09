@@ -25,7 +25,9 @@ actor SelectedPortForwardingGateway: PortForwardingGateway {
 
   func open(forwardID: String, lease: PortForwardingHostLease) async throws {
     guard !forwardID.isEmpty else { throw PortForwardingFailure.invalidRequest }
-    try await execute(lease: lease) { try await $0.remoteOpen(forwardID: forwardID) }
+    try await execute(
+      lease: lease, requiresBrowserEntry: true
+    ) { try await $0.remoteOpen(forwardID: forwardID) }
   }
 
   func stop(forwardID: String, lease: PortForwardingHostLease) async throws {
@@ -35,14 +37,18 @@ actor SelectedPortForwardingGateway: PortForwardingGateway {
 
   private func execute<Value: Sendable>(
     lease: PortForwardingHostLease,
+    requiresBrowserEntry: Bool = false,
     operation: @escaping @Sendable (any PortForwardingRemoteAPI) async throws -> Value
   ) async throws -> Value {
     try Task.checkCancellation()
     let selection = try await current(lease)
+    if requiresBrowserEntry {
+      try Self.requireBrowserEntry(selection.access)
+    }
     do {
       let value = try await operation(selection.api)
       try Task.checkCancellation()
-      try await requireCurrent(lease)
+      try await requireCurrent(lease, requiresBrowserEntry: requiresBrowserEntry)
       return value
     } catch is CancellationError {
       throw CancellationError()
@@ -67,7 +73,9 @@ actor SelectedPortForwardingGateway: PortForwardingGateway {
     return selection
   }
 
-  private func requireCurrent(_ lease: PortForwardingHostLease) async throws {
+  private func requireCurrent(
+    _ lease: PortForwardingHostLease, requiresBrowserEntry: Bool = false
+  ) async throws {
     guard let selection = await selectionProvider(),
       selection.access.lease == lease,
       selection.access.protocolVersion == PortForwardingRemoteV3Contract.protocolVersion,
@@ -77,6 +85,18 @@ actor SelectedPortForwardingGateway: PortForwardingGateway {
       selection.access.capabilities.contains(.forward)
     else {
       throw CancellationError()
+    }
+    if requiresBrowserEntry {
+      try Self.requireBrowserEntry(selection.access)
+    }
+  }
+
+  /// Browser entry requires this host's own environment handshake to advertise
+  /// it (`capabilities.browserForward` version 1). Raw list/start/stop never
+  /// consult this: an unadvertised host still forwards ports.
+  private static func requireBrowserEntry(_ access: PortForwardingHostAccess) throws {
+    guard access.browserForwardEntry else {
+      throw PortForwardingFailure.browserEntryUnsupported
     }
   }
 
@@ -109,6 +129,10 @@ actor SelectedPortForwardingGateway: PortForwardingGateway {
         .missingScope
       } else if status == 403 {
         .authorizationDenied
+      } else if status == 503,
+        code == PortForwardingRemoteV3Contract.browserEntryUnavailableCode
+      {
+        .forwardingUnavailable
       } else {
         .rejected(statusCode: status, code: sanitized(code))
       }

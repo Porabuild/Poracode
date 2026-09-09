@@ -73,3 +73,24 @@ struct AgentStatusRecord: Sendable, Equatable {
     return try items.map { try AgentStatusRecord(wire: $0) }
   }
 }
+
+/// Authoritative installed-agent lists from `GET /api/agent-statuses`.
+///
+/// Hydration base for `HostReplayState`: the shell snapshot carries no agent
+/// statuses and a fresh client's replay cursor (or the host's bounded replay
+/// window) can skip the per-agent `agent-status-updated` history entirely, so
+/// this endpoint is the only bootstrap source for the cached detection lists.
+struct SessionAgentStatuses: Sendable, Equatable {
+  let windows: [AgentStatusRecord]
+  let wsl: [AgentStatusRecord]
+
+  /// Strict projection of the canonical endpoint response. Both lists are
+  /// required — the generated codec rejects a response missing either one.
+  init(canonicalData data: Data) throws {
+    guard let wire = try JSONDecoding.decode(JSONValue.self, from: data).objectValue else {
+      throw GitStateDecoding.invalid("AgentStatuses")
+    }
+    self.windows = try AgentStatusRecord.list(wire: wire["windows"], field: "AgentStatuses.windows")
+    self.wsl = try AgentStatusRecord.list(wire: wire["wsl"], field: "AgentStatuses.wsl")
+  }
+}

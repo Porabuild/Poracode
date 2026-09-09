@@ -9,12 +9,12 @@ struct HomeProjectFilterMenu: View {
 
   var body: some View {
     PoracodeToolbarIconButton(
+      title: HomeStrings.filterProjects,
       systemImage: "line.3.horizontal.decrease",
       color: selectedProjectIDs.isEmpty ? .secondary : .primary
     ) {
       presentation = .filter
     }
-    .accessibilityLabel(HomeStrings.filterProjects)
     .accessibilityIdentifier("native-e2e.project-filter")
     .sheet(item: $presentation) { _ in
       HomeProjectFilterDrawer(

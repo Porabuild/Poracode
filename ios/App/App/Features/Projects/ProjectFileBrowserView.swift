@@ -82,13 +82,23 @@ struct ProjectFileBrowserView: View {
         }
       }
       if query.isEmpty {
-        directoryHeader
+        // At the project root there is no parent row, so the header-only
+        // section renders nothing but a whitespace band above the entries;
+        // it is only meaningful inside a nested directory.
+        if ProjectWorkspacePath.parent(of: currentDirectory) != nil {
+          directoryHeader
+        }
         treeContent
       } else {
         searchContent
       }
     }
     .listStyle(.sidebar)
+    // Matches ProjectGitSidebarView: the sidebar list style reserves a top
+    // scroll-content margin that shows as a dead band under the navigation
+    // bar; the Git mode already removes it, so Files gets the same
+    // first-section placement when switching modes.
+    .contentMargins(.top, 0, for: .scrollContent)
     .navigationTitle(ProjectWorkspaceStrings.files)
     .navigationBarTitleDisplayMode(.inline)
   }

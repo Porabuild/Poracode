@@ -69,6 +69,43 @@ final class ThreadWorktreeMoveTests: XCTestCase {
     )
   }
 
+  /// v9: the worktree-move restart must re-emit the thread's pinned WSL
+  /// execution environment — the host replaces the config wholesale, so
+  /// dropping it here would silently retarget the default distro.
+  func testWorktreeMoveRestartRequestPreservesPinnedExecutionEnvironment() throws {
+    var pinned = thread(status: "idle")
+    pinned.config = try JSONDecoding.decode(
+      ThreadConfig.self,
+      from: try remoteFixtureData("thread-config-execution-environment.json")
+    )
+    let plan = ThreadWorktreeMovePlan(
+      thread: pinned,
+      project: project(
+        location: .wsl(
+          distro: "Ubuntu-22.04",
+          linuxPath: "/repo",
+          uncPath: #"\\wsl.localhost\Ubuntu-22.04\repo"#,
+          remoteServerId: "desktop"
+        )
+      ),
+      branch: "poracode/mobile-abcdef",
+      sourceBranch: "main",
+      mode: .clean
+    )
+
+    let request = plan.restartRequest(worktreePath: "/repo/.poracode/worktrees/mobile")
+    XCTAssertEqual(
+      request.config.executionEnvironment,
+      RemoteExecutionEnvironment(kind: "wsl", distro: "Ubuntu-22.04"))
+
+    let body = try threadLifecycleJSONObject(
+      try GeneratedRemoteV3Contract.threadStartExistingRequest(request, commandID: "move-1").body)
+    let config = try XCTUnwrap(body["config"] as? [String: Any])
+    let environment = try XCTUnwrap(config["executionEnvironment"] as? [String: Any])
+    XCTAssertEqual(environment["kind"] as? String, "wsl")
+    XCTAssertEqual(environment["distro"] as? String, "Ubuntu-22.04")
+  }
+
   func testGeneratedBranchUsesTheNativeMobileNamespace() {
     let id = UUID(uuidString: "ABCDEF12-3456-7890-ABCD-EF1234567890")!
     XCTAssertEqual(ThreadWorktreeBranchName.generate(id: id), "poracode/mobile-abcdef")

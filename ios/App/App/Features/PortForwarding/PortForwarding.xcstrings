@@ -247,6 +247,88 @@
         }
       }
     },
+    "port-forwarding.browser-entry-unsupported": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update Poracode on your desktop to open forwards in the browser."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktualisieren Sie Poracode auf Ihrem Desktop, um Weiterleitungen im Browser zu öffnen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actualiza Poracode en tu escritorio para abrir reenvíos en el navegador."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mettez à jour Poracode sur votre bureau pour ouvrir les redirections dans le navigateur."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブラウザで転送を開くには、デスクトップの Poracode をアップデートしてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "브라우저에서 포워딩을 열려면 데스크톱의 Poracode를 업데이트하세요."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zaktualizuj Poracode na komputerze, aby otwierać przekierowania w przeglądarce."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atualize o Poracode no seu desktop para abrir encaminhamentos no navegador."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обновите Poracode на десктопе, чтобы открывать перенаправления в браузере."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yönlendirmeleri tarayıcıda açmak için masaüstünüzdeki Poracode'u güncelleyin."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Оновіть Poracode на комп'ютері, щоб відкривати переспрямування у браузері."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cập nhật Poracode trên máy tính của bạn để mở các chuyển tiếp trong trình duyệt."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在桌面设备上更新 Poracode 以在浏览器中打开转发。"
+          }
+        }
+      }
+    },
     "port-forwarding.browser-unavailable": {
       "localizations": {
         "en": {
@@ -1063,6 +1145,88 @@
           "stringUnit": {
             "state": "translated",
             "value": "已转发"
+          }
+        }
+      }
+    },
+    "port-forwarding.forwarding-unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browser forwarding isn't set up on this desktop."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browser-Weiterleitung ist auf diesem Desktop nicht eingerichtet."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El reenvío por navegador no está configurado en este escritorio."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La redirection par navigateur n’est pas configurée sur ce bureau."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このデスクトップではブラウザ転送が設定されていません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 데스크톱에서는 브라우저 포워딩이 설정되지 않았습니다."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Przekierowywanie przez przeglądarkę nie jest skonfigurowane na tym komputerze."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O encaminhamento pelo navegador não está configurado neste desktop."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенаправление через браузер не настроено на этом десктопе."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarayıcı yönlendirmesi bu masaüstünde ayarlanmamış."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Переспрямування через браузер не налаштовано на цьому комп'ютері."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chuyển tiếp qua trình duyệt chưa được thiết lập trên máy tính này."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此桌面设备上未设置浏览器转发。"
           }
         }
       }

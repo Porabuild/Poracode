@@ -13,6 +13,8 @@ protocol SessionRemoteAPI: AnyObject {
         scopes: [String]
     ) async throws -> RemoteAccessTokenResult
     func snapshot() async throws -> RemoteShellSnapshot
+    /// Authoritative installed-agent lists for bootstrap/resync hydration.
+    func agentStatuses() async throws -> SessionAgentStatuses
     func threadHistory(
         threadId: String,
         targetTimelineEntryCount: Int?
@@ -84,6 +86,10 @@ final class RemoteAPIClientBox: SessionRemoteAPI {
 
     func snapshot() async throws -> RemoteShellSnapshot {
         try await client.snapshot()
+    }
+
+    func agentStatuses() async throws -> SessionAgentStatuses {
+        try await client.agentStatuses()
     }
 
     func threadHistory(

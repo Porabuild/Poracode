@@ -174,6 +174,11 @@ final class AppSession {
     var paginationTask = OwnedTaskSlot()
     /// Background join + socket suspend (owned; cancelled on next background/unpair).
     var backgroundSuspendTask = OwnedTaskSlot()
+    /// Browser-capability refresh (one environment handshake per online
+    /// epoch of the selected host). Cancelled with background / stale-work
+    /// sweeps; a cancelled read never writes, and epoch fencing drops any
+    /// result that lands after a further reconnect or host swap anyway.
+    var browserForwardAuthorityTask = OwnedTaskSlot()
 
     // MARK: - Init
 
@@ -281,6 +286,7 @@ final class AppSession {
         excluding: TaskCancelExclusion = .none
     ) async {
         let cancelled = cancelAllForegroundNetworkTasks(excluding: excluding)
+        browserForwardAuthorityTask.cancelCurrent()
         state.isResyncing = false
         state.hydrationBuffer.discard()
         // Invalidate any in-flight authoritative install so it cannot commit.
@@ -303,6 +309,7 @@ final class AppSession {
     func cancelBackgroundSensitiveTasks() -> [any SendableTask] {
         // Synchronous generation bump so in-flight completions go stale immediately.
         _ = state.operationOwner.bumpWorkGeneration()
+        browserForwardAuthorityTask.cancelCurrent()
         state.pendingPairing = nil
         // Synchronously invalidate any in-flight authoritative install: a commit
         // arriving after this point must not write into the backgrounded session.
@@ -413,9 +420,101 @@ final class AppSession {
         if case .host(let id) = key {
             state.hostSocketStates[id] = value
         }
-        if key == sessionPool.currentKey() {
-            state.socketState = value
+        guard key == sessionPool.currentKey() else { return }
+        let previous = state.socketState
+        state.socketState = value
+        // Browser-entry authority is bound to the selected host's online
+        // session. Leaving `.online` drops retained handshake authority, and
+        // a fresh `.online` opens a new epoch and refetches exactly once.
+        // Resumed pooled sockets reconnect through this funnel without
+        // passing connectAndStart, so this is the one place that sees every
+        // reconnect; raw list/start/stop never consult the capability.
+        if value == .online {
+            guard previous != .online else { return }
+            state.beginBrowserForwardOnlineEpoch()
+            if let connectionID = state.selectedConnectionId {
+                refreshBrowserForwardAuthority(for: connectionID)
+            }
+        } else {
+            state.invalidateBrowserForwardAuthority()
         }
+    }
+
+    /// One environment handshake per online epoch of the selected host, from
+    /// a single funnel. Called on every fresh `.online` of the selected
+    /// host's socket (reconnect funnel above) and by `connectAndStart` when
+    /// no current-epoch authority exists (host switch, durable reconcile,
+    /// retry after a failed read). Resolved or in-flight authority for this
+    /// epoch short-circuits the call — never one request per action, never
+    /// one per connect retry.
+    ///
+    /// The slot is invalidated before the fetch, so browser entry reads
+    /// closed until this epoch's own handshake lands. Only a successful
+    /// environment is recorded: a failed or cancelled read leaves the slot
+    /// unknown (absence is never inferred from a network error), and a
+    /// completion whose epoch or connection has moved on is dropped without
+    /// writing. All mutations stay MainActor-isolated.
+    func refreshBrowserForwardAuthority(for connectionID: ClientConnectionID) {
+        guard state.selectedConnectionId == connectionID,
+              !state.hasBrowserForwardAuthority(for: connectionID)
+        else { return }
+        let epoch = state.browserForwardOnlineEpoch
+        state.invalidateBrowserForwardAuthority()
+        guard let api = state.api else { return }
+        // The slot is MainActor-exclusive and nothing else installs into it,
+        // so the token `install` is about to return is predictable and can
+        // ride inside the marker as this request's unique identity.
+        let marker = BrowserForwardRefreshPending(
+            connectionID: connectionID,
+            onlineEpoch: epoch,
+            requestToken: browserForwardAuthorityTask.token &+ 1
+        )
+        state.browserForwardRefresh = marker
+        var installToken: UInt64 = 0
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.browserForwardAuthorityTask.clearIfCurrent(installToken) }
+            let environment = try? await api.environment()
+            let isCurrentInstall = self.browserForwardAuthorityTask.isCurrent(installToken)
+            self.finishBrowserForwardRefresh(
+                environment,
+                marker: marker,
+                isCurrentInstall: isCurrentInstall
+            )
+        }
+        installToken = browserForwardAuthorityTask.install(task)
+        assert(installToken == marker.requestToken, "Marker token must match the install")
+    }
+
+    /// Applies a completed capability handshake if this exact request still
+    /// owns the refresh. Cleanup and apply are ownership-fenced:
+    ///
+    /// - The pending marker is released only on an exact whole-struct match
+    ///   (connection, epoch, request token). Host switches overwrite the
+    ///   marker with another connection's key and can re-reserve the original
+    ///   key later (pooled-host A→B→A) while the original request is still
+    ///   suspended — a token mismatch then refuses the release, so a late
+    ///   cancelled completion can never clear a newer request's reservation.
+    /// - Only the installed task may apply its result, and a cancelled task
+    ///   never writes — even when the transport delivered a buffered value
+    ///   despite cancellation: the sweep that cancelled it (background,
+    ///   unpair, host swap, re-pair) owns invalidation, and epoch reuse after
+    ///   `resetForUnpair` must not let a pre-cancel result repopulate
+    ///   authority.
+    private func finishBrowserForwardRefresh(
+        _ environment: RemoteEnvironmentDescriptor?,
+        marker: BrowserForwardRefreshPending,
+        isCurrentInstall: Bool
+    ) {
+        if state.browserForwardRefresh == marker {
+            state.browserForwardRefresh = nil
+        }
+        guard isCurrentInstall, !Task.isCancelled else { return }
+        guard state.browserForwardOnlineEpoch == marker.onlineEpoch,
+              state.selectedConnectionId == marker.connectionID,
+              let environment
+        else { return }
+        state.noteBrowserForwardEntry(environment, connectionID: marker.connectionID)
     }
 
 }

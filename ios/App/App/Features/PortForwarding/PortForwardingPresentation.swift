@@ -31,6 +31,9 @@ struct PortForwardingViewProjection: Equatable, Sendable {
   let active: [PortForwardingActiveRow]
   let isScanning: Bool
   let failureMessage: String?
+  /// Non-fatal browser-entry explanation shown beside a ready list; never
+  /// drives the gate.
+  let noticeMessage: String?
   let gate: PortForwardingGate
 
   @MainActor
@@ -67,6 +70,11 @@ struct PortForwardingViewProjection: Equatable, Sendable {
       failureMessage = PortForwardingStrings.failure(failure)
     } else {
       failureMessage = nil
+    }
+    if let notice = controller.notice {
+      noticeMessage = PortForwardingStrings.failure(notice)
+    } else {
+      noticeMessage = nil
     }
 
     let visibleDetected = detected.filter { $0.canStart || $0.isBusy }

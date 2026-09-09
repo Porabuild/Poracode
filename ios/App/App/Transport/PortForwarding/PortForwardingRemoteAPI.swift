@@ -126,7 +126,17 @@ struct GeneratedPortForwardingRemoteAPI: PortForwardingRemoteAPI, Sendable {
       throw CancellationError()
     } catch let error as PortForwardingTransportError {
       switch error {
-      case .rejected(let statusCode, _):
+      case .rejected(let statusCode, let code):
+        // A parsed 503 `forward_browser_unavailable` is the server's definitive
+        // answer to this exact mutation (browser entry is not configured), so it
+        // is a definite configuration failure. Carved out before the generic
+        // >=500 rule, which keeps every other 5xx — and network/timeout —
+        // ambiguous exactly as before.
+        if statusCode == 503,
+          code == PortForwardingRemoteV3Contract.browserEntryUnavailableCode
+        {
+          throw error
+        }
         if RemoteMutationClassification.classify(statusCode: statusCode)
           == .requestMayHaveCommitted
         {

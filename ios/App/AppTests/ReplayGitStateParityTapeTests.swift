@@ -11,7 +11,9 @@ final class ReplayGitStateParityTapeTests: XCTestCase {
     XCTAssertEqual(
       try fixtureInt(tape["protocolVersion"]), ProtocolConstants.remoteProtocolVersion
     )
-    XCTAssertEqual(ProtocolConstants.remoteProtocolVersion, 8)
+    // Deliberate generation pin: the v9 wire contract. Raise consciously with
+    // the next protocol bump and the committed tape together.
+    XCTAssertEqual(ProtocolConstants.remoteProtocolVersion, 9)
   }
 
   // MARK: - Lifecycle (thread-reset / thread-exited)

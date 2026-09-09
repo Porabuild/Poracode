@@ -257,7 +257,7 @@ private struct PushHarness {
     -> RemoteEnvironmentDescriptor
   {
     RemoteEnvironmentDescriptor(
-      protocolVersion: 8,
+      protocolVersion: ProtocolConstants.remoteProtocolVersion,
       hostMode: nil,
       desktopId: desktopId,
       label: desktopId,

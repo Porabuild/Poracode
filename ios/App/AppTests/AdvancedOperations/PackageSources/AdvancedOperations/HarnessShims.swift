@@ -18,7 +18,11 @@ struct RemoteClientError: Error, Equatable, Sendable {
 }
 
 enum ProtocolConstants {
-  static let remoteProtocolVersion = 8
+  /// Harness mirror of `ios/App/App/Protocol/ProtocolConstants.swift`. The
+  /// compiled feature contracts compare the generated bindings metadata
+  /// against this value, so it must move together with the app constant on
+  /// every protocol bump (a stale value fails the package contract tests).
+  static let remoteProtocolVersion = 9
   static let bearerTokenType = "Bearer"
 }
 

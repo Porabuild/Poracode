@@ -53,6 +53,35 @@ struct CompletedTurnRecord: Sendable, Equatable {
     var endedAt: Int?
 }
 
+/// Browser-origin forward-entry advertising captured from exactly one
+/// environment handshake, keyed to the connection whose desktop produced it
+/// and to the online session epoch it was captured in.
+struct BrowserForwardEntryState: Equatable, Sendable {
+    var connectionID: ClientConnectionID
+    var advertised: Bool
+    /// Online-session epoch this handshake belongs to (the value of
+    /// `SessionRuntimeState.browserForwardOnlineEpoch` when it was recorded).
+    /// Authority from an older epoch never reads open: every reconnect of the
+    /// selected host's socket opens a new epoch.
+    var onlineEpoch: UInt64 = 0
+}
+
+/// Capability refresh in flight for one online epoch. Satisfies the connect
+/// funnel's "authority already handled" check so a connect attempt and the
+/// reconnect funnel never double-fetch the same epoch's handshake.
+///
+/// `requestToken` is the refresh task's OwnedTaskSlot install token. Cleanup
+/// releases a marker only on an exact whole-struct match, so a late
+/// cancelled completion can never release a newer request's reservation —
+/// including the pooled-host A→B→A case where a host switch away and back
+/// re-reserves the same (connection, epoch) key while the original request
+/// is still suspended.
+struct BrowserForwardRefreshPending: Equatable, Sendable {
+    var connectionID: ClientConnectionID
+    var onlineEpoch: UInt64
+    var requestToken: UInt64
+}
+
 /// Mutable session domain state owned by `AppSession` and mutated by focused controllers.
 @MainActor
 struct SessionRuntimeState {
@@ -64,6 +93,23 @@ struct SessionRuntimeState {
     var hostsLRU: [ClientConnectionID] = []
     var socketState: RemoteWebSocketClient.ConnectionState = .idle
     var hostSocketStates: [ClientConnectionID: RemoteWebSocketClient.ConnectionState] = [:]
+    /// Newest handshake authority for browser-origin forward entry, keyed to
+    /// the connection that produced it and to the online epoch it was
+    /// captured in. `nil`, a foreign key, or an older epoch reads as "not
+    /// advertised": browser entry stays closed until this host's own fresh
+    /// handshake supplies authority. Raw TCP forwarding never consults this.
+    var browserForwardEntry: BrowserForwardEntryState?
+    /// Monotonic epoch of the selected host's online session. Bumped every
+    /// time the selected host's socket reaches `.online` — a fresh
+    /// connection, reconnect, or foreground resume — and reset on unpair.
+    /// Handshake authority never crosses an epoch boundary, so a capability
+    /// captured before a reconnect can never authorize actions on the new
+    /// online session.
+    var browserForwardOnlineEpoch: UInt64 = 0
+    /// Capability refresh in flight for one epoch; `nil` when none. Dedupes
+    /// the connect funnel's probe against the reconnect funnel so one epoch
+    /// costs exactly one environment handshake.
+    var browserForwardRefresh: BrowserForwardRefreshPending?
 
     var snapshot: RemoteShellSnapshot?
     /// Latest authoritative shell snapshot for each paired host. The selected
@@ -153,6 +199,59 @@ struct SessionRuntimeState {
         isLoadingOlder = false
     }
 
+    /// Records browser-origin forward-entry advertising from a completed
+    /// environment handshake, keyed to the connection that produced it (so a
+    /// host switch can never serve one desktop's capability to another) and
+    /// stamped with the current online epoch (so a result can never outlive
+    /// the online session it was fetched in). A nil connection or descriptor
+    /// clears the slot.
+    mutating func noteBrowserForwardEntry(
+        _ descriptor: RemoteEnvironmentDescriptor?, connectionID: ClientConnectionID?
+    ) {
+        guard let connectionID else {
+            browserForwardEntry = nil
+            return
+        }
+        browserForwardEntry = BrowserForwardEntryState(
+            connectionID: connectionID,
+            advertised: descriptor?.advertisesBrowserForwardEntry == true,
+            onlineEpoch: browserForwardOnlineEpoch
+        )
+    }
+
+    /// Whether fresh handshake authority exists for exactly this connection
+    /// in the current online epoch — either a completed environment result or
+    /// a refresh still in flight for this epoch (any request token). Authority
+    /// retained from an older epoch (any socket reconnect, suspend, or
+    /// failure) never satisfies a new connection attempt.
+    func hasBrowserForwardAuthority(for connectionID: ClientConnectionID) -> Bool {
+        if let refresh = browserForwardRefresh,
+          refresh.connectionID == connectionID,
+          refresh.onlineEpoch == browserForwardOnlineEpoch
+        {
+            return true
+        }
+        let entry = browserForwardEntry
+        return entry?.connectionID == connectionID
+            && entry?.onlineEpoch == browserForwardOnlineEpoch
+    }
+
+    /// The selected host's socket left `.online` (reconnect, suspend,
+    /// failure, stop): retained handshake authority is dropped immediately so
+    /// browser entry reads closed for the remainder of this connection
+    /// attempt. Raw list/start/stop never consult this.
+    mutating func invalidateBrowserForwardAuthority() {
+        browserForwardEntry = nil
+    }
+
+    /// The selected host's socket reached `.online` again: open a new epoch
+    /// and drop everything captured before it. The caller then refetches the
+    /// environment exactly once for this epoch (the reconnect funnel).
+    mutating func beginBrowserForwardOnlineEpoch() {
+        browserForwardOnlineEpoch &+= 1
+        browserForwardEntry = nil
+    }
+
     mutating func resetForUnpair() {
         api = nil
         accessToken = nil
@@ -161,6 +260,9 @@ struct SessionRuntimeState {
         hosts = []
         hostsLRU = []
         hostSocketStates = [:]
+        browserForwardEntry = nil
+        browserForwardOnlineEpoch = 0
+        browserForwardRefresh = nil
         snapshot = nil
         hostSnapshots = [:]
         clearThreadSurface()

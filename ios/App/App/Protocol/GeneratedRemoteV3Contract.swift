@@ -5,7 +5,9 @@ import Foundation
 /// Hash-derived generated model names must remain behind this boundary. App code exchanges
 /// canonical JSON data and continues to project it into the stable domain models it owns.
 enum GeneratedRemoteV3Contract {
-  static let expectedProtocolVersion = 8
+  /// Aliased to the app-owned primary constant so a future protocol bump
+  /// stays a one-line change in `ProtocolConstants`.
+  static let expectedProtocolVersion = ProtocolConstants.remoteProtocolVersion
   static let expectedBindingFormatVersion = 2
   static let expectedGeneratorVersion = 3
   static let expectedNativeBundleManifestFormatVersion = 1
@@ -179,6 +181,28 @@ enum GeneratedRemoteV3Contract {
       boundary: "WebSocket ticket response"
     )
   }
+
+  /// Canonical `GET /api/agent-statuses` response. Session-core hydration reads
+  /// this route directly instead of depending on the Settings transport.
+  static func agentStatusesResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse,
+      boundary: "agent statuses response"
+    )
+  }
+
+  /// Generated path for `agent-statuses`, validated against the bearer +
+  /// `session:read` shape the session code depends on.
+  static let agentStatusesRoutePath: String = {
+    guard let route = RemoteContractMetadata.routes.first(where: { $0.id == "agent-statuses" }),
+      route.auth == "bearer",
+      route.scopes == ["session:read"],
+      route.method == "GET"
+    else {
+      preconditionFailure("Generated remote-v3 route metadata is incompatible: agent-statuses")
+    }
+    return route.path
+  }()
 
   static func pushRegisterRequest(_ data: Data) throws -> Data {
     try canonicalData(

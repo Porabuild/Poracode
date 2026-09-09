@@ -86,7 +86,7 @@ final class SettingsIntegrationsQualityGatesTests: XCTestCase {
       appVersion: "1",
       scopes: ["session:read", "session:operate"],
       pairedAt: Date(timeIntervalSince1970: 0),
-      protocolVersion: 8
+      protocolVersion: ProtocolConstants.remoteProtocolVersion
     )
     session.state.selectedConnectionId = connectionID
     session.state.hosts = [

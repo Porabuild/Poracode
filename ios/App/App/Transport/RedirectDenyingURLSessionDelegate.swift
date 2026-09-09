@@ -25,6 +25,9 @@ enum RemoteURLSessions {
         requestTimeout: TimeInterval = RemoteSocketPolicy.requestTimeoutSeconds
     ) -> URLSession {
         let config = URLSessionConfiguration.ephemeral
+        // The default cache declines larger history responses. Keep enough
+        // memory for useful conditional reads, without persisting API bodies.
+        config.urlCache = URLCache(memoryCapacity: 16 * 1024 * 1024, diskCapacity: 0)
         config.timeoutIntervalForRequest = requestTimeout
         config.timeoutIntervalForResource = requestTimeout
         config.httpShouldSetCookies = false

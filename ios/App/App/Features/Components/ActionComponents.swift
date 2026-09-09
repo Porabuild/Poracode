@@ -7,19 +7,21 @@ enum PoracodeActionTone {
 
 /// Lets the navigation toolbar own its native Liquid Glass shape and hit area.
 /// Supplying custom glass here would create a second circle inside toolbar chrome.
+/// Uses the standard icon-only Button convention so the system toolbar hosts it
+/// like a native bar button; the localized title doubles as the accessibility
+/// label while only the symbol renders.
 struct PoracodeToolbarIconButton: View {
+  let title: String
   let systemImage: String
   var color: Color = .secondary
   let action: () -> Void
 
   var body: some View {
-    Button(action: action) {
-      Image(systemName: systemImage)
-        .frame(width: 18, height: 18)
-    }
-    .buttonBorderShape(.circle)
-    .foregroundStyle(color)
-    .tint(color)
+    Button(title, systemImage: systemImage, action: action)
+      .labelStyle(.iconOnly)
+      .buttonBorderShape(.circle)
+      .foregroundStyle(color)
+      .tint(color)
   }
 }
 
