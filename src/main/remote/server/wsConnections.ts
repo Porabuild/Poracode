@@ -54,7 +54,10 @@ export const DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES = 4 * 1024 * 1024;
 export const REMOTE_PER_MESSAGE_DEFLATE = {
   serverNoContextTakeover: true,
   clientNoContextTakeover: true,
-  serverMaxWindowBits: 10,
+  // No `serverMaxWindowBits` cap: the default 15-bit window compresses the
+  // large frames that dominate weak links (terminal baselines, item events)
+  // 30-50% smaller than the earlier 10-bit cap, and `noContextTakeover` still
+  // bounds per-message memory.
   concurrencyLimit: 4,
   threshold: 1024,
   zlibDeflateOptions: { level: 3 },

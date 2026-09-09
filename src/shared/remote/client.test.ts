@@ -1050,3 +1050,61 @@ describe("RemoteDesktopClient", () => {
     expect(Array.from(requestBody!)).toEqual([1, 2, 3]);
   });
 });
+
+describe("RemoteDesktopClient ETag revalidation cache", () => {
+  const endpoint = "http://127.0.0.1:38987/";
+  // Minimal body that satisfies remoteShellSnapshotSchema.
+  const snapshotBody = {
+    snapshotSeq: 1,
+    projects: [],
+    threads: [],
+    runtimeSummariesByThread: {},
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+
+  function jsonResponse(status: number, bodyText: string, headers: Record<string, string> = {}) {
+    // 304 responses must carry no body per the fetch spec.
+    return new Response(status === 304 || status === 204 ? null : bodyText, {
+      status,
+      headers,
+    });
+  }
+
+  it("stores an ETag on a full GET and replays the cached body on a matching 304", async () => {
+    const responses = [
+      jsonResponse(200, JSON.stringify(snapshotBody), { etag: 'W/"abc"' }),
+      jsonResponse(304, ""),
+    ];
+    const fetch = vi.fn<RemoteFetch>(() => Promise.resolve(responses.shift()!));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+    const first = await client.snapshot();
+    expect(first).toMatchObject({ snapshotSeq: 1 });
+
+    const second = await client.snapshot();
+    expect(second).toMatchObject({ snapshotSeq: 1 });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const [, secondInit] = vi.mocked(fetch).mock.calls[1]!;
+    const secondHeaders = (secondInit ? secondInit.headers : {}) as Record<string, string>;
+    expect(secondHeaders["if-none-match"]).toBe('W/"abc"');
+  });
+
+  it("does not cache non-GET requests or responses without an ETag", async () => {
+    const fetch = vi.fn<RemoteFetch>(() =>
+      Promise.resolve(jsonResponse(200, JSON.stringify(snapshotBody))),
+    );
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    await client.snapshot();
+    await client.snapshot();
+    for (const [, init] of vi.mocked(fetch).mock.calls) {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      expect(headers["if-none-match"]).toBeUndefined();
+    }
+  });
+
+  it("still fails loudly on a bare 304 with no cached entry", async () => {
+    const fetch = vi.fn<RemoteFetch>(() => Promise.resolve(jsonResponse(304, "")));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    await expect(client.snapshot()).rejects.toMatchObject({ code: "not_modified" });
+  });
+});

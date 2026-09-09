@@ -272,6 +272,9 @@ export interface RemoteDesktopClientOptions {
 
 const DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 60_000;
 const DEFAULT_REMOTE_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
+/** Bounded revalidating-GET cache: shell snapshot, agent statuses, and one
+ * thread history per open thread fit far below this; eviction is oldest-first. */
+const ETAG_CACHE_MAX_ENTRIES = 32;
 
 /**
  * Long-running server operations (clone, push, PR creation, commit, sync,
@@ -314,6 +317,20 @@ export class RemoteDesktopClient {
     this.onRequestSuccess = options.onRequestSuccess;
     this.onRequestError = options.onRequestError;
   }
+
+  /**
+   * Revalidating GET cache for the large read endpoints (shell snapshot,
+   * agent statuses, thread history). The server answers conditional requests
+   * with `304` and no body, so a cache hit skips the full payload download —
+   * the single largest cold-start and refresh cost on weak links. Bounded to
+   * `ETAG_CACHE_MAX_ENTRIES` with insertion-order eviction, and inherently
+   * credential-scoped: `accessToken` is fixed per client instance, so the
+   * cache dies with the credential that authorized its bodies.
+   */
+  private readonly etagCache = new Map<
+    string,
+    { readonly etag: string; readonly parsed: unknown }
+  >();
 
   async environment(): Promise<RemoteEnvironmentDescriptor> {
     let raw: unknown;
@@ -1035,6 +1052,11 @@ export class RemoteDesktopClient {
     if (this.accessToken) {
       headers.authorization = `Bearer ${this.accessToken}`;
     }
+    const method = init.method ?? "GET";
+    const cached = method === "GET" ? this.etagCache.get(path) : undefined;
+    if (cached) {
+      headers["if-none-match"] = cached.etag;
+    }
     const effectiveTimeoutMs = init.timeoutMs ?? this.requestTimeoutMs;
     const controller = new AbortController();
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -1072,11 +1094,18 @@ export class RemoteDesktopClient {
       // otherwise parse to `{}` and fail schema validation with a confusing
       // error. Fail loudly instead.
       if (response.status === 304) {
-        throw new RemoteClientError(
-          "Remote request returned 304 without a cached body.",
-          304,
-          "not_modified",
-        );
+        // Conditional GET revalidated clean: the cached body is the answer.
+        // Without a cache entry this is a protocol error (a bare 304 carries
+        // no body and would parse to `{}`), so fail loudly.
+        if (!cached) {
+          throw new RemoteClientError(
+            "Remote request returned 304 without a cached body.",
+            304,
+            "not_modified",
+          );
+        }
+        this.onRequestSuccess?.();
+        return cached.parsed;
       }
       const body = await Promise.race([
         readBoundedResponseBody(response, this.maxResponseBodyBytes),
@@ -1091,6 +1120,18 @@ export class RemoteDesktopClient {
           response.status,
           error.success ? error.data.error.code : "request_failed",
         );
+      }
+      if (method === "GET") {
+        const etag = response.headers.get("etag");
+        if (etag) {
+          this.etagCache.delete(path);
+          this.etagCache.set(path, { etag, parsed });
+          while (this.etagCache.size > ETAG_CACHE_MAX_ENTRIES) {
+            const oldest = this.etagCache.keys().next().value;
+            if (oldest === undefined) break;
+            this.etagCache.delete(oldest);
+          }
+        }
       }
       this.onRequestSuccess?.();
       return parsed;
