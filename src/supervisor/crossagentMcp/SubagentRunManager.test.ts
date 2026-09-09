@@ -646,6 +646,63 @@ describe("SubagentRunManager", () => {
     expect(polled.output.length).toBeLessThan(2500);
   });
 
+  it("quiet monitoring reduces payload without consuming evidence or hiding requests", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const text = "Investigating the owned change. ".repeat(100);
+    h.handles[0]!.emit({
+      type: "content.delta",
+      threadId: "child",
+      itemId: "m",
+      stream: "assistant_text",
+      delta: text,
+    });
+    const progress = h.manager.getStatus(runId, PARENT, { afterOutputChars: 0 });
+    const quiet = await h.manager.waitFor(runId, 0, PARENT, {
+      outputMode: "quiet",
+      afterOutputChars: 0,
+    });
+    expect(quiet).toEqual({ status: "running", output: "", total_output_chars: 0 });
+    expect(JSON.stringify(quiet).length).toBeLessThan(JSON.stringify(progress).length / 10);
+    expect(h.handles[0]!.disposed).toBe(false);
+    h.handles[0]!.openRequest("approval");
+    expect(
+      h.manager.getStatus(runId, PARENT, { outputMode: "quiet", afterOutputChars: 7 }),
+    ).toEqual({
+      status: "running",
+      output: "",
+      total_output_chars: 7,
+      pending_requests: 1,
+    });
+    expect(
+      h.manager.getStatus(runId, PARENT, { outputMode: "quiet", fullOutput: true }).output,
+    ).toBe(text);
+    h.handles[0]!.completeTurn("completed");
+    const completed = await h.manager.waitFor(runId, 0, PARENT, {
+      outputMode: "quiet",
+      afterOutputChars: quiet.total_output_chars!,
+    });
+    expect(completed.output).toBe(text);
+    expect(completed.status).toBe("completed");
+    expect(completed.total_output_chars).toBe(text.length);
+    expect(completed).toEqual(h.manager.getStatus(runId, PARENT, { afterOutputChars: 0 }));
+  });
+
+  it("quiet monitoring preserves ownership errors and failed-run diagnostics", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    expect(h.manager.getStatus(runId, "foreign", { outputMode: "quiet" })).toEqual({
+      status: "failed",
+      output: `Unknown run_id: ${runId}`,
+    });
+    h.handles[0]!.listener!.onError("verification failed");
+    const quiet = h.manager.getStatus(runId, PARENT, { outputMode: "quiet", afterOutputChars: 0 });
+    expect(quiet).toEqual(h.manager.getStatus(runId, PARENT, { afterOutputChars: 0 }));
+    expect(quiet.error?.message).toContain("verification failed");
+  });
+
   it("wait-any returns when one child settles and leaves the others running", async () => {
     const h = makeHarness();
     const runs = h.manager.spawnMany(PARENT, [

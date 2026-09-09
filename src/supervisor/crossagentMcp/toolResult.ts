@@ -46,6 +46,7 @@ export function parseWaitOptions(
   args: Record<string, unknown>,
   runId?: string,
 ): SubagentWaitOptions {
+  const outputMode = parseOutputMode(args);
   if (args.full_output === true) return { fullOutput: true };
   const cursors = args.after_output_chars_by_run;
   const runCursor =
@@ -54,10 +55,19 @@ export function parseWaitOptions(
       : undefined;
   const afterOutputChars = runCursor ?? finiteNumber(args.after_output_chars);
   return {
+    ...(outputMode ? { outputMode } : {}),
     fullOutput: false,
     afterOutputChars:
       afterOutputChars !== undefined && Number.isInteger(afterOutputChars)
         ? Math.max(0, afterOutputChars)
         : 0,
   };
+}
+
+export function parseOutputMode(args: Record<string, unknown>): SubagentWaitOptions["outputMode"] {
+  const mode = args.output_mode;
+  if (mode !== undefined && mode !== "quiet" && mode !== "progress") {
+    throw new Error("output_mode must be quiet or progress");
+  }
+  return mode;
 }

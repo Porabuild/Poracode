@@ -208,6 +208,8 @@ export interface SubagentAttemptResult {
 
 /** Options accepted by the wait/status read paths. */
 export interface SubagentWaitOptions {
+  /** Suppress running narration without consuming its cursor; fullOutput wins. */
+  outputMode?: "quiet" | "progress";
   /** Return the entire accumulated transcript instead of the incremental tail. */
   fullOutput?: boolean;
   /** Return output produced after this caller-owned character offset. */
@@ -225,7 +227,9 @@ export interface SubagentWaitResult {
    * transcript instead.
    */
   output: string;
-  /** Full run transcript length and cursor for the next incremental read. */
+  /** Pending requests remain visible when running narration is suppressed. */
+  pending_requests?: number;
+  /** Next read cursor; quiet running reads preserve the requested offset. */
   total_output_chars?: number;
   error?: {
     message: string;

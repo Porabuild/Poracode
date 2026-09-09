@@ -5,38 +5,12 @@ description: "Get independent reviews of the same work from several agents, then
 
 # Parallel Review
 
-Several agents reading the same diff for different risks catch more than one agent reading it once. The value comes from independence — separate lanes, separate prompts, no shared conclusions — and from you verifying what comes back.
+Follow the subagent-delegation core skill, including explicit user authorization and live tool availability. Use one risk-based independent review wave. Select only useful lenses: correctness/lifecycle, security/trust, tests/compatibility, or simplification/performance. Merge adjacent lenses for small changes.
 
-## Split by dimension, not by file
+Assign each reviewer exact read-only files/resources and a distinct lens; overlap only for meaningful cross-boundary risks. Give the intent, relevant diff and acceptance criteria without another reviewer's conclusions. Require file:line, a concrete failure or cost, severity, evidence and the smallest fix. Target at most 500 words, retaining every critical finding and linking longer evidence. Reviewers own investigation and focused proof, not edits or a narrated search log.
 
-Give each reviewer one lens: correctness and regressions, security and trust boundaries, performance, tests, API or
-schema compatibility. Overlapping lenses produce three copies of the same easy finding and no coverage of the hard one.
+Submit independent lanes together through `spawn_agent` with `tasks`, review tags and specific names. Use background runs only while useful independent work remains. At synchronization, batch `run_ids` in `wait_for_agent`. A transport-bounded wait returning `running` is not a stall: continue waiting for required results, without extra status polling or timeout cancellation. Use quiet output only when advertised by the live schema; otherwise use incremental cursors. Completion never injects a parent message automatically.
 
-Pick lenses that fit the change. A migration deserves a compatibility reviewer; a parser deserves an input-handling
-one.
+Validate every returned claim against real code and guards. Agreement is not proof. Resolve disagreements by checking the execution path. Fix confirmed findings, test the integrated changes, and reuse passing checks only for unchanged inputs and dependencies. Request only a correction-delta review when fixes change meaningful behavior or boundaries; do not restart the full wave.
 
-## Brief them independently
-
-Every prompt is self-contained: what changed, where to look, which lens is theirs, and what a finding must include —
-file, line, concrete failure scenario, not a style preference. Do not paste your own conclusions; a reviewer told what
-you already believe will agree with you.
-
-Keep review lanes read-only. Reviewers report; they do not edit the tree, and their prompt must not authorize writes.
-
-Submit the lanes together in one `spawn_agent` call so they actually run in parallel, and tag them for review so
-routing can pick suitable providers.
-
-## Reconcile what returns
-
-Wait once at the synchronization point, then treat every finding as a claim to check, not a fact. Open the file and
-confirm the failure is real and reachable. Confident agents report bugs that the surrounding code already prevents.
-
-Two reviewers agreeing is not evidence — they may share a blind spot or a wrong assumption. Two disagreeing is useful:
-work out which one read the code correctly.
-
-Drop what does not survive verification. A review that forwards every claim wastes the user's time more than no review.
-
-## Output
-
-One ranked list of verified findings, most severe first, each with the file, the failure it causes, and the evidence
-you checked yourself. Say which dimensions were covered and which reviewer came back empty — an empty lane is a result.
+Return one ranked list of verified findings with file references and evidence, or state no findings. Include covered dimensions, actual verification and remaining limits.
