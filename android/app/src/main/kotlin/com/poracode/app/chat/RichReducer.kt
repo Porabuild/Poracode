@@ -98,6 +98,7 @@ object RichReducer {
                 val next = RichRequestQueue.resolve(state.openRequests, event.id)
                 if (next === state.openRequests) state else state.copy(openRequests = next)
             }
+            is RichRuntimeEvent.RuntimeTruncated -> reduceTruncated(state, event)
             is RichRuntimeEvent.Error -> appendError(state, event.message)
         }
     }
@@ -221,6 +222,56 @@ object RichReducer {
             drop += id
         }
         return drop
+    }
+
+    private fun reduceTruncated(
+        state: RichThreadState,
+        event: RichRuntimeEvent.RuntimeTruncated,
+    ): RichThreadState {
+        // Exact server-declared anchor prune, independent of checkpoint
+        // presence: drop only turns whose non-null anchor is in the removed
+        // set. Null anchors always survive, as do turns anchored in older
+        // unloaded pages (anchor not in the set). An empty removed set is NOT
+        // a no-op for the whole event — the tail below may still prune.
+        var turns = state.completedTurns
+        var anchorsPruned = false
+        if (event.removedCompletedTurnAnchors.isNotEmpty() && turns.isNotEmpty()) {
+            val removed = event.removedCompletedTurnAnchors.toSet()
+            val kept = turns.filterNot { it.anchorItemId != null && it.anchorItemId in removed }
+            if (kept.size != turns.size) {
+                turns = kept
+                anchorsPruned = true
+            }
+        }
+        // Known-loaded tail prune only: the checkpoint must be in the loaded
+        // window and not already last. An absent checkpoint means a paged
+        // client cannot identify the deleted tail locally — no item mutation
+        // (the controller requests one authoritative catchup instead).
+        // Replaying a truncate after newer messages would delete them; the
+        // controller's snapshot/live sequence gates reject those old events.
+        val index = state.orderedItemIds.indexOf(event.itemId)
+        if (index < 0 || index == state.orderedItemIds.lastIndex) {
+            if (!anchorsPruned) return state
+            return state.copy(
+                completedTurns = turns,
+                structuralVersion = state.structuralVersion + 1,
+            )
+        }
+        val removedIds = state.orderedItemIds.subList(index + 1, state.orderedItemIds.size).toSet()
+        return state.copy(
+            orderedItemIds = state.orderedItemIds.subList(0, index + 1).toList(),
+            itemsById = state.itemsById - removedIds,
+            completedTurns = turns,
+            // Single structural invalidation even when both tail and anchors
+            // pruned; same-batch truncate→new-message ordering is preserved by
+            // reduceAll folding in wire order (no coalescing here).
+            structuralVersion = state.structuralVersion + 1,
+            // Deliberately untouched: openRequests. No backend contract
+            // declares request invalidation on truncate; blindly clearing
+            // newer requests would lose request.opened events that arrived
+            // after the truncate in the same batch or via replay. The
+            // authoritative snapshot reinstall rehydrates open requests.
+        )
     }
 
     private fun appendError(state: RichThreadState, message: String): RichThreadState {

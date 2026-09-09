@@ -32,9 +32,7 @@ class RichChatController(
     private val owner = RichChatOperationOwner()
     private val sendMutex = Mutex()
     private var threadGeneration = 0L
-    private val bufferedFrames = ArrayDeque<RichChatLiveFrame>()
-    private var bufferedFrameOverflow = false
-    private var lastAcceptedSequence: Int? = null
+    private val frameBuffer = RichChatLiveFrameBuffer()
 
     @Synchronized
     fun selectThread(threadId: String): RichChatOperationResult<RichChatThreadLease> {
@@ -47,7 +45,7 @@ class RichChatController(
         threadGeneration += 1L
         val lease = RichChatThreadLease(host, threadId, threadGeneration)
         owner.invalidateAll()
-        resetLiveTracking()
+        frameBuffer.reset()
         mutableSelection.value = lease
         mutableState.value = RichChatControllerState(
             selection = lease,
@@ -60,7 +58,7 @@ class RichChatController(
     fun closeThread() {
         threadGeneration += 1L
         owner.invalidateAll()
-        resetLiveTracking()
+        frameBuffer.reset()
         mutableSelection.value = null
         mutableState.value = RichChatControllerState()
     }
@@ -131,20 +129,14 @@ class RichChatController(
         if (!isSelected(source) || snapshot.key != source.key || !session.isCurrent(source.host)) {
             return false
         }
-        val replay = bufferedFrames.toList()
-        val needsFollowUp = bufferedFrameOverflow
-        bufferedFrames.clear()
-        bufferedFrameOverflow = false
-        var transcript = snapshot.state
-        replay.forEach { frame ->
-            if (frame.sequence == null || frame.sequence > snapshot.snapshotSeq) {
-                transcript = reduceLiveFrame(transcript, frame)
-            }
-        }
-        lastAcceptedSequence = maxOf(
-            snapshot.snapshotSeq,
-            lastAcceptedSequence ?: snapshot.snapshotSeq,
-        )
+        // Buffered truncate whose checkpoint is outside the freshly installed
+        // window needs one authoritative catchup. Frames at or below
+        // snapshotSeq were already reflected in the snapshot and are dropped
+        // without catchup (per-thread installed baseline gate).
+        val replayed = frameBuffer.replayAfterSnapshot(snapshot)
+        val transcript = replayed.transcript
+        val truncationCatchup = replayed.truncationCatchup
+        val needsFollowUp = replayed.hadOverflow
         mutableState.update {
             it.copy(
                 transcript = transcript,
@@ -159,7 +151,7 @@ class RichChatController(
                     RichChatLoadPhase.Loaded
                 },
                 failure = null,
-                needsAuthoritativeRefresh = needsFollowUp,
+                needsAuthoritativeRefresh = needsFollowUp || truncationCatchup,
             )
         }
         return true
@@ -185,7 +177,7 @@ class RichChatController(
         ) {
             return false
         }
-        if (sequence != null && lastAcceptedSequence?.let { sequence <= it } == true) {
+        if (frameBuffer.isStale(sequence)) {
             return false
         }
         val frame = RichChatLiveFrame(sequence, events, pendingSteer)
@@ -193,23 +185,34 @@ class RichChatController(
         mutableState.update { current ->
             val transcript = current.transcript
             if (transcript == null) {
-                buffer(frame)
+                frameBuffer.buffer(frame)
                 accepted = true
                 return@update current.copy(
                     needsAuthoritativeRefresh = current.needsAuthoritativeRefresh ||
-                        bufferedFrameOverflow,
+                        frameBuffer.overflow,
                 )
             }
-            if (OP_HISTORY in current.activeOperations) buffer(frame)
+            if (OP_HISTORY in current.activeOperations) frameBuffer.buffer(frame)
             accepted = true
             val next = reduceLiveFrame(transcript, frame)
+            // Missing checkpoint on a loaded transcript → one authoritative
+            // catchup via the existing flag. Deduped (boolean OR) and bounded
+            // downstream by MAX_CONSECUTIVE_REFRESHES; the install path clears
+            // it on success and replays buffered frames with the snapshotSeq
+            // filter, so no loops and no lost newer events. Old replays never
+            // reach here (sequence <= lastAcceptedSequence dropped above).
+            // While OP_HISTORY is active the frame is also buffered, and the
+            // post-install replay recomputes this flag from the fresh window,
+            // so a stale-window false positive is discarded, not re-requested.
+            val truncationCatchup = frameNeedsTruncationCatchup(next, frame)
             current.copy(
                 transcript = next,
                 needsAuthoritativeRefresh = current.needsAuthoritativeRefresh ||
-                    bufferedFrameOverflow,
+                    frameBuffer.overflow ||
+                    truncationCatchup,
             )
         }
-        if (accepted && sequence != null) lastAcceptedSequence = sequence
+        if (accepted) frameBuffer.markAccepted(sequence)
         return accepted
     }
 
@@ -308,7 +311,7 @@ class RichChatController(
     fun enterBackground() {
         lifecycle.enterBackground()
         owner.invalidateAll()
-        resetLiveTracking()
+        frameBuffer.reset()
         val selected = mutableSelection.value?.let {
             threadGeneration += 1L
             it.copy(generation = threadGeneration)
@@ -443,20 +446,6 @@ class RichChatController(
         }
     }
 
-    private fun buffer(frame: RichChatLiveFrame) {
-        if (bufferedFrames.size == MAX_BUFFERED_LIVE_FRAMES) {
-            bufferedFrameOverflow = true
-            return
-        }
-        bufferedFrames.addLast(frame)
-    }
-
-    private fun resetLiveTracking() {
-        bufferedFrames.clear()
-        bufferedFrameOverflow = false
-        lastAcceptedSequence = null
-    }
-
     private fun clearActive(kind: String) {
         mutableState.update {
             it.copy(
@@ -483,6 +472,5 @@ class RichChatController(
         const val OP_COMMAND = "command"
         const val OP_CLOSE = "thread-close"
         const val OP_REQUEST = "request"
-        private const val MAX_BUFFERED_LIVE_FRAMES = 512
     }
 }

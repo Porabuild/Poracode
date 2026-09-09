@@ -17,7 +17,7 @@ import kotlinx.serialization.json.put
  *
  * TS-equivalent foundation (`runtimeEvent.ts` + iOS RuntimeEventReducer):
  * - unwrap `thread-runtime-event` / `thread-runtime-events` / `thread-runtime-events-multi`
- * - **strict sealed union of 15 variants**; unknown/malformed skipped
+ * - **strict sealed union of 16 variants**; unknown/malformed skipped
  * - `item.updated` requires payload **key presence** (JsonNull distinct from absent)
  * - never fabricate stubs for missing items on updated/completed/delta
  * - empty completed reasoning dropped
@@ -27,6 +27,11 @@ import kotlinx.serialization.json.put
  * - turn open/closed, context.updated merge, usage.spent intentional no-op
  * - background_tasks.changed replaces session-scoped background tasks;
  *   session.exited drains them (domain state only — no transcript items)
+ * - `runtime.truncated` is collector pass-through only here: the legacy item
+ *   list has no per-thread seq watermark, and prune-to-index is NOT idempotent
+ *   after new messages, so legacy `apply` must NOT destructively prune. The
+ *   actual RichChat GUI reduces via `RichReducer.reduceTruncated` behind
+ *   `RichChatController` seq gates (`lastAcceptedSequence` + `snapshotSeq`).
  * - hide `pending_request` transcript rows; recover open requests from them on hydrate
  */
 object RuntimeEventReducer {
@@ -50,6 +55,8 @@ object RuntimeEventReducer {
         val message: String? = null,
         /** Parsed live background tasks for `background_tasks.changed`. */
         val tasks: List<BackgroundTask>? = null,
+        /** Server-declared removed anchors for `runtime.truncated` (exact set). */
+        val removedCompletedTurnAnchors: List<String>? = null,
         val raw: JsonObject = JsonObject(emptyMap()),
         /** Populated when parse produced a strict sealed variant. */
         val canonical: RuntimeEventSchema.CanonicalRuntimeEvent? = null,
@@ -107,9 +114,11 @@ object RuntimeEventReducer {
     }
 
     /**
-     * Parse a runtime event object against the strict 15-variant sealed union.
+     * Parse a runtime event object against the strict 16-variant sealed union.
      * Unknown / malformed / missing required fields → null (skipped).
      * `item.updated` **requires** payload key presence on the wire (JsonNull distinct).
+     * `runtime.truncated` requires a non-empty `itemId` plus a
+     * `removedCompletedTurnAnchors` string array (empty array is meaningful).
      */
     fun parseRuntimeEvent(objectMap: JsonObject): RuntimeEvent? {
         val canonical = RuntimeEventSchema.parseCanonical(objectMap) ?: return null
@@ -243,6 +252,14 @@ object RuntimeEventReducer {
                 if (state == "interrupted" || state == "cancelled") {
                     pruneTrailingInterruptedReasoning(items)
                 }
+            }
+
+            "runtime.truncated" -> {
+                // Intentional legacy no-op: prune-to-index is NOT idempotent
+                // after new messages, and this list has no per-thread seq
+                // watermark. The actual RichChat GUI reduces the exact event
+                // via RichReducer behind controller seq gates; the collector
+                // above preserves it in wire order for that path.
             }
 
             else -> {
