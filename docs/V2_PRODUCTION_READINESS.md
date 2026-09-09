@@ -70,29 +70,28 @@ also found that UI-local retry progress cannot guarantee idempotency after remou
 or across clients. A backend-owned compound checkpoint operation remains required;
 canonical transcript publication alone does not close that correctness gate.
 
-Ready work is checkpointed in fourteen local provisional commits through `6f95e7c0f`.
-Temporary output, SwiftPM build trees, and generated branding exports are excluded
-from Git. These checkpoints do not close the final verification gates.
+The complete working tree was provisionally checkpointed in `1de973a21` (342 files).
+Final saved-pairing and reconnect corrections are recorded in the following local
+recovery commit. No changes were pushed. See [the final agent handoff](V2_AGENT_HANDOFF.md)
+for the current evidence, ownership and ordered remaining work; earlier entries below
+are historical checkpoints, not current production sign-off.
 
-At the native checkpoint, iOS source and its isolated build snapshot matched across 945 files. The full
-AppTests target passes 1,227 tests with zero failures after updating one stale
-protocol-generation test pin. This includes active-turn recovery and nine checkpoint
-recovery tests covering replay, missing checkpoints, cancellation and bounded refresh.
-Android's full suite passes 1,115 tests with zero failures; lint and debug assembly
-also pass. Its checkpoint consumer and cohesive live-frame buffer extraction are
-committed in `e48118dc0`; the final coordinator cleanup changed comments only.
-Installing that APK over the existing protocol-v9 pairing exposed an upgrade blocker:
-Android rejects the saved protocol pin before contacting the now-compatible v10 host.
-The pairing is retained but cannot reconnect. Both native platforms have corresponding
-saved-binding guards; safe fresh-handshake migration is now being implemented and
-requires new tests/builds and preserved-data live acceptance.
+Final verification: iOS AppTests 1,240 passed, zero failed/skipped, with all 946
+source-manifest entries matching the repository and isolated build snapshot. Three
+existing URLProtocol Sendable warnings remain. Android 1,128 unit tests passed;
+`:app:lintDebug` and `:app:assembleDebug` succeeded. Installing the final APK over the
+existing saved protocol-v9 pairing upgraded its pin to v10 without re-pairing and
+restored the existing home and GUI transcript. Both portrait screenshots were inspected.
+iOS preserved-upgrade behavior has integration coverage, but a real saved-pairing
+upgrade UI journey is still required.
 
-The renderer's canonical deletion tests pass, and restored-view subscription/replay
-integration is under final review. Real two-client backend publication passes;
-this does not prove complete GUI convergence or compound revert idempotency.
-Fresh protocol-v10 multi-client manual acceptance remains required. Native evidence:
-`gui-priority/ios-truncate-consumer/FULL-NATIVE-RESULT.json` and
-`gui-priority/android-truncate-consumer/FINAL-GATES.md`.
+Web restored-view and truncation recovery passed 178 tests across five suites.
+Healthy reconnect re-arms bounded pending recovery; stale ownership cannot clear a
+replacement request. Real v10 web reload and subsequent GUI reply were verified.
+Generated remote-v3 contracts are current. Two distinct paired credentials receive the
+canonical deletion event; compound provider/file/history revert idempotency remains
+an open backend correctness gate. These results do not establish full cross-platform
+production readiness.
 
 The checkpoint history below records earlier evidence; it is not final-tree sign-off.
 
