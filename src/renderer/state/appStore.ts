@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
 import type { Thread } from "@/shared/contracts";
 import { createDbStorage } from "./dbStorage";
-import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { createAppStorePartializer } from "./appStorePersistence";
 import { createDraftSlice } from "./slices/draftSlice";
 import { normalizeStoredThreadStatus } from "./slices/helpers";
 import { createLaunchSlice } from "./slices/launchSlice";
@@ -72,44 +72,7 @@ export const useAppStore = create<AppStoreState>()(
             ),
           };
         },
-        partialize: (state) => {
-          const persistRemoteRows = isBrowserClientRuntime();
-          const view = state.view;
-          const hasRemoteView =
-            (view.kind === "draft" &&
-              state.projects.some(
-                (project) => project.id === view.projectId && project.remoteServerId,
-              )) ||
-            (view.kind === "thread" &&
-              view.panes.some((paneId) =>
-                state.threads.some((thread) => thread.id === paneId && thread.remoteServerId),
-              ));
-          const hasPendingWorktreeView =
-            view.kind === "thread" &&
-            view.panes.some((paneId) =>
-              state.threads.some(
-                (thread) => thread.id === paneId && state.provisioningWorktreeThreadIds[thread.id],
-              ),
-            );
-          return {
-            projects: persistRemoteRows
-              ? state.projects
-              : state.projects.filter((project) => !project.remoteServerId),
-            // Worktree-provisioning rows are renderer-only placeholders. If one
-            // survived a restart, `launching` would hydrate as `inactive` and
-            // reopening it would launch the agent in the base checkout.
-            threads: state.threads.filter(
-              (thread) =>
-                (persistRemoteRows || !thread.remoteServerId) &&
-                !state.provisioningWorktreeThreadIds[thread.id],
-            ),
-            view:
-              (!persistRemoteRows && hasRemoteView) || hasPendingWorktreeView
-                ? { kind: "home" as const }
-                : view,
-            groupLayouts: state.groupLayouts,
-          };
-        },
+        partialize: createAppStorePartializer(),
       },
     ),
   ),

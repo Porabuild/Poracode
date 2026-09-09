@@ -1,3 +1,4 @@
+import { composerDraftStorage } from "../composerDraftStorage";
 import type {
   Project,
   ProjectDraftConfig,
@@ -143,6 +144,8 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
         state.threads.filter((thread) => thread.projectId === projectId).map((thread) => thread.id),
       );
 
+      composerDraftStorage()?.remove("project", projectId);
+      for (const threadId of projectThreadIds) composerDraftStorage()?.remove("thread", threadId);
       const nextThreads = state.threads.filter((thread) => thread.projectId !== projectId);
 
       const nextPendingThreadLaunches = Object.fromEntries(

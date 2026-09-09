@@ -838,6 +838,7 @@ export function ThreadDraftComposerArea(props: {
 
     resetDraftRefs();
     submittedRef.current = true;
+    clearDraftContent(props.project.id);
     setIsSubmitting(true);
     const useWorktree = branchSelection?.isWorktree ?? props.worktreeMode;
     if (props.supportsModePicker) {
@@ -872,11 +873,10 @@ export function ThreadDraftComposerArea(props: {
     // return void or a promise; Promise.resolve normalizes both.
     void Promise.resolve(startResult).catch(() => {
       submittedRef.current = false;
-      // resetDraftRefs() above cleared the snapshot the unmount-cleanup save
-      // reads. The prompt is still in the editor, so re-capture it — otherwise
-      // navigating away without another edit would silently drop it.
+      // Restore the checkpoint from the editor after a failed launch.
       latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
       attachmentsRef.current = attachments.attachments;
+      checkpointDraft();
       setIsSubmitting(false);
     });
   }
@@ -949,7 +949,6 @@ export function ThreadDraftComposerArea(props: {
     if (saved.attachments.length > 0) {
       attachments.restore(saved.attachments);
     }
-    clearDraftContent(props.project.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-time mount restore
   }, []);
 
@@ -1062,23 +1061,27 @@ export function ThreadDraftComposerArea(props: {
     pendingFallbackComposerInputs,
   ]);
 
+  function checkpointDraft() {
+    if (submittedRef.current) return;
+    const content = {
+      segments: latestSegmentsRef.current,
+      attachments: attachmentsRef.current.map(storableAttachment),
+    };
+    if (isDraftContentNonEmpty(content)) saveDraftContent(props.project.id, content);
+    else clearDraftContent(props.project.id);
+  }
+
+  useEffect(() => {
+    checkpointDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- text is checkpointed by onTextChange; attachments update after commit
+  }, [attachments.attachments]);
+
   useEffect(() => {
     const pid = props.project.id;
     return () => {
-      if (submittedRef.current) return;
-      if (useAppStore.getState().consumeDraftContentDiscard(pid)) return;
-      // Stash path-only attachment copies: `previewUrl` object URLs belong to
-      // this composer's live session and are revoked when it unmounts.
-      const content = {
-        segments: latestSegmentsRef.current,
-        attachments: attachmentsRef.current.map(storableAttachment),
-      };
-      if (isDraftContentNonEmpty(content)) {
-        saveDraftContent(pid, content);
-      }
+      useAppStore.getState().consumeDraftContentDiscard(pid);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup-only effect keyed on project
-  }, [props.project.id, saveDraftContent]);
+  }, [props.project.id]);
 
   useEffect(() => {
     setSlashActiveIndex(0);
@@ -1228,6 +1231,7 @@ export function ThreadDraftComposerArea(props: {
               setHasContent(hasText);
               const segments = mentionRef.current?.serializeSegments() ?? [];
               latestSegmentsRef.current = segments;
+              checkpointDraft();
             }}
             mcpMentions={composerMcpMentions}
             pluginMentions={composerPluginMentions}
