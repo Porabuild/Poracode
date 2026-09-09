@@ -59,6 +59,10 @@ import {
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import {
+  applyCachedSlashCommandCatalogs,
+  fetchSlashCommandCatalog,
+} from "@/renderer/state/remoteServers/slashCommandCatalogs";
+import {
   runtimePageOverlapsExistingTranscript,
   seedOlderThreadRuntimeItemsCursor,
 } from "@/renderer/state/chatRuntimePersister";
@@ -1378,7 +1382,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         const [environment, snapshot, agentStatuses] = await Promise.all([
           client.environment(),
           client.snapshot(),
-          client.agentStatuses(),
+          client
+            .agentStatuses({ omitSlashCommands: true })
+            .then((statuses) => applyCachedSlashCommandCatalogs(normalized, statuses)),
         ]);
         const record: RemoteServerRecord = {
           desktopId: environment.desktopId,
@@ -1618,6 +1624,37 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             desktopId,
             Math.max(remoteServerSnapshotSeqByDesktopId.get(desktopId) ?? 0, snapshot.snapshotSeq),
           );
+          // WS3-A: the agent-statuses fetch omitted slash-command catalogs, so
+          // the opened thread's agent catalog is fetched once, on first use.
+          const openedThread = snapshot.thread;
+          if (openedThread.agentKind) {
+            const catalogScope = currentServer.endpoint;
+            void fetchSlashCommandCatalog(catalogScope, openedThread.agentKind, () =>
+              withClient(desktopId, (client) =>
+                client.agentSlashCommands(openedThread.agentKind),
+              ).then((result) => result.commands),
+            )
+              .then(() => {
+                const statuses = get().runtime[desktopId]?.agentStatuses;
+                if (!statuses) return;
+                const patched = applyCachedSlashCommandCatalogs(catalogScope, statuses);
+                set((state) => {
+                  const latest = state.runtime[desktopId];
+                  if (!latest || latest.agentStatuses !== statuses) return state;
+                  return {
+                    runtime: {
+                      ...state.runtime,
+                      [desktopId]: { ...latest, agentStatuses: patched },
+                    },
+                  };
+                });
+                useAgentStatusesStore.getState().setAgentStatuses(patched.windows);
+              })
+              .catch(() => {
+                // Slash commands stay absent until the next open/refresh; the
+                // menu must not crash or toast for a lazy enhancement.
+              });
+          }
           await startRemoteServerEventStream(currentServer);
           const eventSocket = remoteServerEventSockets.get(desktopId)?.socket;
           if (eventSocket) activateRemoteTerminalFeed(desktopId, eventSocket);
@@ -1768,7 +1805,14 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             const [snapshot, agentStatuses] =
               options.includeAgentStatuses === false
                 ? [await snapshotPromise, cached()?.agentStatuses]
-                : await Promise.all([snapshotPromise, client.agentStatuses()]);
+                : await Promise.all([
+                    snapshotPromise,
+                    client
+                      .agentStatuses({ omitSlashCommands: true })
+                      .then((statuses) =>
+                        applyCachedSlashCommandCatalogs(server.endpoint, statuses),
+                      ),
+                  ]);
             // Drop a stale (superseded) result so out-of-order resolutions don't
             // regress the UI or the seq cursor.
             if (!isLatest()) return;

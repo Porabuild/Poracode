@@ -108,6 +108,18 @@
         }
       },
       {
+        "id": "agent-slash-commands",
+        "batch": "settings-integrations",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        }
+      },
+      {
         "id": "host-update",
         "batch": "settings-integrations",
         "ios": {

@@ -5,6 +5,15 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DFrame: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac>
+    get() = RemoteRootCodec("websocket.server.browser-frame", serializer<WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac>(), schema_8f58c1d1acd8bc3c)
+
+val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DMirrorU2DStatus: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D7_0ad133ee58>
+    get() = RemoteRootCodec("websocket.server.browser-mirror-status", serializer<WebSocketServerMessageU2DOptionU2D7_0ad133ee58>(), schema_0ad133ee5894107b)
+
+val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DState: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D5_bd23acb1d6>
+    get() = RemoteRootCodec("websocket.server.browser-state", serializer<WebSocketServerMessageU2DOptionU2D5_bd23acb1d6>(), schema_bd23acb1d60bc91b)
+
 val RemoteRootCodecs.websocketU2EServerU2EEvent: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D2_8f72d27346>
     get() = RemoteRootCodec("websocket.server.event", serializer<WebSocketServerMessageU2DOptionU2D2_8f72d27346>(), schema_8f72d273465cb93f)
 

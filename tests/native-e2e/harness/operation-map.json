@@ -6,7 +6,7 @@
   "manifestHash": "sha256:2a9455aad65ad8d320cf6b7b807c36adb1b8355f211ff72d83017ef3503ab78a",
   "keyCount": 209,
   "counts": {
-    "route": 61,
+    "route": 62,
     "procedure": 100,
     "ws-client": 8,
     "ws-server": 9,
@@ -477,6 +477,10 @@
     "route:agent-statuses": {
       "kind": "route",
       "id": "agent-statuses"
+    },
+    "route:agent-slash-commands": {
+      "kind": "route",
+      "id": "agent-slash-commands"
     },
     "route:attachment-upload": {
       "kind": "route",

@@ -209,6 +209,18 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let routeU2EAgentU2DSlashU2DCommandsU2EPath: RemoteRootCodec<RouteagentU2DSlashU2DCommandsPath_626533cdf1> = .init(id: "route.agent-slash-commands.path", schema: RemoteSchemas.schema_626533cdf183bb99)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EAgentU2DSlashU2DCommandsU2EResponse: RemoteRootCodec<RouteagentU2DSlashU2DCommandsResponse_d50d163800> = .init(id: "route.agent-slash-commands.response", schema: RemoteSchemas.schema_d50d16380040f1f2)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EAgentU2DStatusesU2EQuery: RemoteRootCodec<RouteagentU2DStatusesQuery_b09b259cd2> = .init(id: "route.agent-statuses.query", schema: RemoteSchemas.schema_b09b259cd2bbc25d)
+}
+
+public extension RemoteRootCodecs {
   static let routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_01e28f839d> = .init(id: "route.agent-statuses.response", schema: RemoteSchemas.schema_01e28f839d243220)
 }
 
@@ -434,16 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EPushU2DRegisterU2EResponse: RemoteRootCodec<RoutepushU2DRegisterResponse_9633843f8b> = .init(id: "route.push-register.response", schema: RemoteSchemas.schema_9633843f8b51827f)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EPushU2DUnregisterU2ERequest: RemoteRootCodec<RoutepushU2DUnregisterRequest_8f934fd77b> = .init(id: "route.push-unregister.request", schema: RemoteSchemas.schema_8f934fd77b3e45dd)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EPushU2DUnregisterU2EResponse: RemoteRootCodec<RoutepushU2DRegisterResponse_9633843f8b> = .init(id: "route.push-unregister.response", schema: RemoteSchemas.schema_9633843f8b51827f)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2ERequestU2DResolveU2EPath: RemoteRootCodec<RouterequestU2DResolvePath_09b78d9c1d> = .init(id: "route.request-resolve.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
 }

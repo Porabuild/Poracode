@@ -178,6 +178,8 @@ export const browserStateResultSchema = z.object({
 });
 
 export const threadHistoryQuerySchema = decodedThreadHistoryQuerySchema;
+export { decodedAgentStatusesQuerySchema as agentStatusesQuerySchema } from "./queryCodecs";
+export { remoteAgentSlashCommandsSchema } from "../protocol";
 export const threadHistoryItemsQuerySchema = decodedThreadHistoryItemsQuerySchema;
 
 export const remoteShellSnapshotWireSchema = remoteShellSnapshotSchema

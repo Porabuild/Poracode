@@ -53,6 +53,15 @@ val RemoteRootCodecs.procedureU2EWriteProjectFileU2ERequest: RemoteRootCodec<Pro
 val RemoteRootCodecs.procedureU2EWriteProjectFileU2EResult: RemoteRootCodec<ProcedurewriteExternalFileResult_c5c2ecebba>
     get() = RemoteRootCodec("procedure.writeProjectFile.result", serializer<ProcedurewriteExternalFileResult_c5c2ecebba>(), schema_c5c2ecebbae5cd01)
 
+val RemoteRootCodecs.routeU2EAgentU2DSlashU2DCommandsU2EPath: RemoteRootCodec<RouteagentU2DSlashU2DCommandsPath_626533cdf1>
+    get() = RemoteRootCodec("route.agent-slash-commands.path", serializer<RouteagentU2DSlashU2DCommandsPath_626533cdf1>(), schema_626533cdf183bb99)
+
+val RemoteRootCodecs.routeU2EAgentU2DSlashU2DCommandsU2EResponse: RemoteRootCodec<RouteagentU2DSlashU2DCommandsResponse_d50d163800>
+    get() = RemoteRootCodec("route.agent-slash-commands.response", serializer<RouteagentU2DSlashU2DCommandsResponse_d50d163800>(), schema_d50d16380040f1f2)
+
+val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EQuery: RemoteRootCodec<RouteagentU2DStatusesQuery_b09b259cd2>
+    get() = RemoteRootCodec("route.agent-statuses.query", serializer<RouteagentU2DStatusesQuery_b09b259cd2>(), schema_b09b259cd2bbc25d)
+
 val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_01e28f839d>
     get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_01e28f839d>(), schema_01e28f839d243220)
 
@@ -439,12 +448,3 @@ val RemoteRootCodecs.websocketU2EClientU2EThreadU2DItemU2DInterests: RemoteRootC
 
 val RemoteRootCodecs.websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_c2dab68871>
     get() = RemoteRootCodec("websocket.server", serializer<WebSocketServerMessage_c2dab68871>(), schema_c2dab688715f1ae7)
-
-val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DFrame: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac>
-    get() = RemoteRootCodec("websocket.server.browser-frame", serializer<WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac>(), schema_8f58c1d1acd8bc3c)
-
-val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DMirrorU2DStatus: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D7_0ad133ee58>
-    get() = RemoteRootCodec("websocket.server.browser-mirror-status", serializer<WebSocketServerMessageU2DOptionU2D7_0ad133ee58>(), schema_0ad133ee5894107b)
-
-val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DState: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D5_bd23acb1d6>
-    get() = RemoteRootCodec("websocket.server.browser-state", serializer<WebSocketServerMessageU2DOptionU2D5_bd23acb1d6>(), schema_bd23acb1d60bc91b)

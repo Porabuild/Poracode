@@ -1,5 +1,21 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct RouteterminalU2DWriteRequest_6c6fca7050: Codable, Sendable, RemoteModelMetadata {
+  public var data: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "data", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case data = "data"
+  }
+}
+
+public enum RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_6a0abedb39: String, Codable, Sendable {
+  case deleteU2DWorktreeU2DGroup = "delete-worktree-group"
+}
+
 public struct RoutethreadU2DCommandRequestU2DOptionU2D10_09765c7778: Codable, Sendable, RemoteModelMetadata {
   public var kind: RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_6a0abedb39
   public var projectId: String
@@ -427,16 +443,4 @@ public enum RoutethreadU2DGoalRequestU2DOptionU2D2U2DAction_2d862d697d: String, 
   case pause = "pause"
   case resume = "resume"
   case clear = "clear"
-}
-
-public struct RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a: Codable, Sendable, RemoteModelMetadata {
-  public var action: RoutethreadU2DGoalRequestU2DOptionU2D2U2DAction_2d862d697d
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "action", typeName: "RoutethreadU2DGoalRequestU2DOptionU2D2U2DAction_2d862d697d", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case action = "action"
-  }
 }

@@ -7,6 +7,7 @@ import {
   REMOTE_STANDARD_SCOPES,
   filterKnownRemoteAccessScopes,
   isRemoteProcedure,
+  remoteAgentSlashCommandsSchema,
   remoteAgentStatusesSchema,
   remoteAccessTokenResultSchema,
   remoteBrowserStateSchema,
@@ -30,6 +31,7 @@ import {
   remoteWebSocketTicketResultSchema,
   toWebSocketUrl,
   type RemoteAccessScope,
+  type RemoteAgentSlashCommands,
   type RemoteAgentStatuses,
   type RemoteAccessTokenResult,
   type RemoteBrowserCommand,
@@ -400,11 +402,21 @@ export class RemoteDesktopClient {
     );
   }
 
-  async agentStatuses(): Promise<RemoteAgentStatuses> {
+  async agentStatuses(options: { omitSlashCommands?: boolean } = {}): Promise<RemoteAgentStatuses> {
+    // WS3-A payload split: slash-command catalogs dominate this response, so
+    // clients that fetch them lazily pass omitSlashCommands to skip them.
+    const path = options.omitSlashCommands
+      ? "/api/agent-statuses?slashCommands=0"
+      : "/api/agent-statuses";
+    return parseResponse(remoteAgentStatusesSchema, await this.requestJson(path), "agent statuses");
+  }
+
+  /** One agent's slash-command catalog (WS3-A lazy fetch partner). */
+  async agentSlashCommands(kind: string): Promise<RemoteAgentSlashCommands> {
     return parseResponse(
-      remoteAgentStatusesSchema,
-      await this.requestJson("/api/agent-statuses"),
-      "agent statuses",
+      remoteAgentSlashCommandsSchema,
+      await this.requestJson(`/api/agents/${encodeURIComponent(kind)}/slash-commands`),
+      "agent slash commands",
     );
   }
 

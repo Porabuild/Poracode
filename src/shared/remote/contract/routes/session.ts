@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import { defineRoute } from "../helpers";
 import {
   emptyJsonObjectSchema,
@@ -11,6 +13,7 @@ import {
   projectNotesWriteBodySchema,
   providerUsageResponseSchema,
   remoteAccessTokenResultSchema,
+  remoteAgentSlashCommandsSchema,
   remoteAgentStatusesSchema,
   remoteEnvironmentDescriptorSchema,
   remoteHostUpdateStateSchema,
@@ -116,11 +119,31 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/agent-statuses",
     auth: "bearer",
     scopes: ["session:read"],
-    request: { bodyKind: "empty" },
+    // WS3-A payload split: `slashCommands=0` omits the per-agent slash-command
+    // catalogs (the dominant payload bulk) so clients can fetch one agent's
+    // catalog lazily from agent-slash-commands instead.
+    queryParameters: ["slashCommands"],
+    request: {
+      bodyKind: "empty",
+      querySchema: z.object({ slashCommands: z.boolean().optional() }),
+    },
     response: {
       wireKind: "json",
       status: 200,
       jsonSchema: remoteAgentStatusesSchema,
+    },
+  }),
+  defineRoute({
+    id: "agent-slash-commands",
+    method: "GET",
+    path: "/api/agents/{kind}/slash-commands",
+    auth: "bearer",
+    scopes: ["session:read"],
+    request: { bodyKind: "empty" },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: remoteAgentSlashCommandsSchema,
     },
   }),
   defineRoute({
