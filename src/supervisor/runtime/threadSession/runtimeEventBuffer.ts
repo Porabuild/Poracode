@@ -1,5 +1,6 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { coalesceRuntimeEvents } from "@/shared/coalesce";
 
 const RUNTIME_EVENT_BATCH_MS = 16;
 
@@ -8,6 +9,12 @@ const RUNTIME_EVENT_BATCH_MS = 16;
  * single-thread tick uses the cheap `thread-runtime-event(s)` envelope; a
  * multi-thread tick collapses into one `thread-runtime-events-multi` envelope
  * to keep IPC round-trips bounded when many threads stream concurrently.
+ *
+ * Consecutive `content.delta` events for the same item and stream are merged
+ * at this boundary: a token-sized delta otherwise rides a ~250-byte envelope
+ * end to end (persisted copies are coalesced separately), and every consumer
+ * already merges identical-shape deltas on apply, so the merged form is
+ * byte-compatible downstream.
  */
 export class RuntimeEventBuffer {
   private readonly pending = new Map<string, RuntimeEvent[]>();
@@ -38,10 +45,11 @@ export class RuntimeEventBuffer {
     // active stream cases stay on the cheaper non-array envelope.
     if (this.pending.size === 1) {
       for (const [threadId, events] of this.pending) {
-        if (events.length === 1) {
-          this.emit({ type: "thread-runtime-event", threadId, event: events[0]! });
-        } else if (events.length > 1) {
-          this.emit({ type: "thread-runtime-events", threadId, events: [...events] });
+        const merged = coalesceRuntimeEvents(events);
+        if (merged.length === 1) {
+          this.emit({ type: "thread-runtime-event", threadId, event: merged[0]! });
+        } else if (merged.length > 1) {
+          this.emit({ type: "thread-runtime-events", threadId, events: merged });
         }
       }
       this.pending.clear();
@@ -52,7 +60,7 @@ export class RuntimeEventBuffer {
     // streams produce one round-trip per 16ms tick instead of 6-8.
     const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
     for (const [threadId, events] of this.pending) {
-      if (events.length > 0) batches.push({ threadId, events: [...events] });
+      if (events.length > 0) batches.push({ threadId, events: coalesceRuntimeEvents(events) });
     }
     if (batches.length > 0) {
       this.emit({ type: "thread-runtime-events-multi", batches });
