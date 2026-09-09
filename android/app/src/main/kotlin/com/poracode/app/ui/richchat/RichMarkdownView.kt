@@ -213,7 +213,20 @@ private data class RichInlineToken(
 private fun inlineToken(source: String, index: Int): RichInlineToken? {
     fun delimited(marker: String, style: SpanStyle): RichInlineToken? {
         if (!source.startsWith(marker, index)) return null
-        val end = source.indexOf(marker, index + marker.length)
+        val underscore = marker[0] == '_'
+        if (underscore && (
+                source.getOrNull(index - 1)?.isMarkdownWordCharacter() == true ||
+                    source.getOrNull(index + marker.length)?.let { it == '_' || it.isWhitespace() } == true
+                )
+        ) return null
+        var end = source.indexOf(marker, index + marker.length)
+        while (underscore && end >= 0 && (
+                source.getOrNull(end - 1)?.let { it == '_' || it.isWhitespace() } == true ||
+                    source.getOrNull(end + marker.length)?.isMarkdownWordCharacter() == true
+                )
+        ) {
+            end = source.indexOf(marker, end + marker.length)
+        }
         if (end <= index + marker.length) return null
         return RichInlineToken(
             source.substring(index + marker.length, end),
@@ -244,3 +257,12 @@ private fun inlineToken(source: String, index: Int): RichInlineToken? {
     delimited("_", SpanStyle(fontStyle = FontStyle.Italic))?.let { return it }
     return null
 }
+
+/** Underscores inside identifiers are text, including Unicode combining marks. */
+private fun Char.isMarkdownWordCharacter(): Boolean = isLetterOrDigit() || this == '_' ||
+    when (category) {
+        CharCategory.NON_SPACING_MARK,
+        CharCategory.COMBINING_SPACING_MARK,
+        CharCategory.ENCLOSING_MARK -> true
+        else -> false
+    }
