@@ -1,4 +1,5 @@
 import type { ProjectLocation } from "@/shared/contracts";
+import { assertAgentLaunchAllowed } from "./agentLaunchGuard";
 import {
   resolveAgentProjectLocation,
   resolveOneShotEffectiveModel,
@@ -84,6 +85,8 @@ export async function generateTitle(
   if (!adapter.runOneShot && !adapter.buildOneShotCommand) {
     throw new Error(`${adapter.label} does not support one-shot generation`);
   }
+  // Structured one-shots may reuse a server and bypass the CLI spawn funnel.
+  assertAgentLaunchAllowed("one-shot");
   const signal = timeoutSignal(TITLE_GEN_TIMEOUT_MS);
   const executionLocation = await resolveAgentProjectLocation(adapter, location, undefined, signal);
   const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {

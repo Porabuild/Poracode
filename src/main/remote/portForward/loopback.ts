@@ -83,6 +83,15 @@ export interface ConnectLoopbackOptions {
   readonly timeoutMs?: number;
   /** Loopback families to skip entirely — see {@link shadowedLoopbackHost}. */
   readonly exclude?: readonly LoopbackHost[];
+  /** Cancels the dial chain: destroys the in-flight attempt's socket and never
+   * tries the next family, rejecting with a cancellation error. An already-
+   * aborted signal rejects without dialing at all. Covers the dial only — once
+   * connected, the socket is the caller's to manage. */
+  readonly signal?: AbortSignal;
+}
+
+function dialCancelledError(port: number): Error {
+  return new Error(`Cancelled connecting to port ${port} on loopback.`);
 }
 
 /**
@@ -102,7 +111,7 @@ export function connectLoopback(
   port: number,
   options?: ConnectLoopbackOptions,
 ): Promise<LoopbackConnection> {
-  const { timeoutMs, exclude } = options ?? {};
+  const { timeoutMs, exclude, signal } = options ?? {};
   const hosts = orderedLoopbackHosts(port, exclude);
 
   const attempt = (index: number): Promise<LoopbackConnection> => {
@@ -111,12 +120,26 @@ export function connectLoopback(
       return Promise.reject(new Error(`No loopback host accepted a connection on port ${port}.`));
     }
     return new Promise((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(dialCancelledError(port));
+        return;
+      }
       const socket = connect({ host, port });
       let settled = false;
+      const releaseAbort = () => signal?.removeEventListener("abort", onAbort);
+
+      const onAbort = () => {
+        if (settled) return;
+        settled = true;
+        releaseAbort();
+        socket.destroy();
+        reject(dialCancelledError(port));
+      };
 
       const onFailure = (error: Error) => {
         if (settled) return;
         settled = true;
+        releaseAbort();
         socket.destroy();
         if (index + 1 < hosts.length) {
           resolve(attempt(index + 1));
@@ -135,11 +158,13 @@ export function connectLoopback(
       socket.once("connect", () => {
         if (settled) return;
         settled = true;
+        releaseAbort();
         socket.removeAllListeners("timeout");
         socket.removeAllListeners("error");
         rememberLoopbackHost(port, host);
         resolve({ socket, host });
       });
+      signal?.addEventListener("abort", onAbort);
     });
   };
 

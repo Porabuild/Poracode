@@ -154,6 +154,68 @@ describe("BackendRendererStream", () => {
     await expect(nextUnexpectedResponse(socket)).resolves.toBe(401);
   });
 
+  it("keeps reporting aggregate delivery after a sibling client disconnects", async () => {
+    // Pins why the host-IPC fallback can never trust publish()'s `delivered`:
+    // the disconnected window is removed from the client map, so the host
+    // cannot see that it missed the event (MC-1 mechanism).
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+    const first = await readyClient(info, [], ["thread-1"]);
+    const second = await readyClient(info, [], ["thread-1"]);
+    expect(stream.getDiagnostics().connectedClients).toBe(2);
+
+    second.socket.close();
+    await vi.waitFor(() => expect(stream.getDiagnostics().connectedClients).toBe(1));
+
+    const result = stream.publish({
+      type: "thread-state",
+      threadId: "thread-1",
+      status: "working",
+      attention: "none",
+      canResumeWithConfig: false,
+    });
+    expect(result.delivered).toBe(true);
+    await expect(nextMessage(first.socket)).resolves.toMatchObject({
+      type: "event",
+      event: { type: "thread-state", threadId: "thread-1" },
+    });
+  });
+
+  it("reports delivered=false when no ready client is connected", async () => {
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+    const client = await readyClient(info, [], ["thread-1"]);
+    client.socket.close();
+    await vi.waitFor(() => expect(stream.getDiagnostics().connectedClients).toBe(0));
+
+    const result = stream.publish({
+      type: "thread-state",
+      threadId: "thread-1",
+      status: "working",
+      attention: "none",
+      canResumeWithConfig: false,
+    });
+    expect(result.delivered).toBe(false);
+  });
+
+  it("does not report delivery when no ready client's router passes the event", async () => {
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+    await readyClient(info, ["thread-1"], []);
+
+    const result = stream.publish({
+      type: "thread-output",
+      threadId: "thread-hidden",
+      data: "no",
+      outputLength: 2,
+      terminalInstanceId: "gen-test",
+    });
+    expect(result.delivered).toBe(false);
+  });
+
   it("bounds replay and reports when a client must resynchronize", async () => {
     const stream = new BackendRendererStream();
     streams.push(stream);
@@ -200,6 +262,27 @@ function connect(
     socket.once("open", () => resolve({ socket, hello }));
     socket.once("error", reject);
   });
+}
+
+/** Connects, authenticates, and registers interests, settling after the ack. */
+async function readyClient(
+  info: { url: string; token: string },
+  terminalThreadIds: string[],
+  runtimeThreadIds: string[],
+): Promise<{ socket: WebSocket }> {
+  const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+  await hello;
+  socket.send(
+    JSON.stringify({
+      version: 2,
+      type: "interests",
+      terminalThreadIds,
+      runtimeThreadIds,
+      lastSeq: 0,
+    }),
+  );
+  await nextMessage(socket);
+  return { socket };
 }
 
 function nextMessage(socket: WebSocket): Promise<Record<string, unknown>> {

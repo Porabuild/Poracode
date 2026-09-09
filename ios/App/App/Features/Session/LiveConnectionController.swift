@@ -26,12 +26,27 @@ struct LiveConnectionController {
             let catalog = try await host.deps.hostCatalog.snapshot()
             host.applyCatalogSnapshot(catalog)
             if let selected = catalog.selected {
-                guard selected.protocolVersion == ProtocolConstants.remoteProtocolVersion else {
-                    host.state.profile = selected.asProfile()
-                    host.state.bootstrapCompleted = true
-                    host.state.phase = .protocolIncompatible
-                    host.state.globalError =
-                        "Stored host protocol is incompatible. Remove the desktop and pair again."
+                // Preserved-pairing upgrade: safely decodable v9 bindings get
+                // a verified upgrade (public descriptor + authenticated read
+                // before any durable rebind). All other mismatches stay
+                // terminal incompatible.
+                if selected.protocolVersion != ProtocolConstants.remoteProtocolVersion {
+                    guard PreservedPairingUpgrade.isEligibleStoredProtocol(
+                        selected.protocolVersion
+                    ) else {
+                        host.state.profile = selected.asProfile()
+                        host.state.bootstrapCompleted = true
+                        host.state.phase = .protocolIncompatible
+                        host.state.globalError =
+                            "Stored host protocol is incompatible. Remove the desktop and pair again."
+                        return
+                    }
+                    await attemptPreservedPairingUpgrade(
+                        selected: selected,
+                        generation: began.workGeneration,
+                        ownerEpoch: began.epoch,
+                        operationId: began.operationId
+                    )
                     return
                 }
                 guard let token = try await host.deps.hostCatalog.token(
@@ -68,6 +83,28 @@ struct LiveConnectionController {
 
     }
 
+    /// Verified upgrade for a safely decodable v9 preserved pairing.
+    /// Delegates to the focused `PreservedPairingUpgradeController` (public
+    /// descriptor + authenticated read before any durable rebind; ownership
+    /// fenced before every mutation). See that file for boundary semantics:
+    /// pre-commit failure/cancel/switch never writes — transport/cancel parks
+    /// retryable (`bootstrapCompleted` false) for a foreground/relaunch
+    /// bootstrap retry; post-commit durable bytes stay upgraded even when the
+    /// install is abandoned.
+    private func attemptPreservedPairingUpgrade(
+        selected: HostRecord,
+        generation gen: Int,
+        ownerEpoch: Int,
+        operationId: UInt64
+    ) async {
+        await PreservedPairingUpgradeController(host: host).run(
+            selected: selected,
+            generation: gen,
+            ownerEpoch: ownerEpoch,
+            operationId: operationId
+        )
+    }
+
     func handleScenePhase(_ phase: ScenePhase) {
         switch phase {
         case .background:
@@ -102,6 +139,26 @@ struct LiveConnectionController {
             // Drop any pending background teardown; its generation gate is the backstop.
             host.backgroundSuspendTask.cancelCurrent()
             let actions = host.state.liveLifecycle.noteForeground()
+            // Preserved-upgrade recovery: a precommit offline/cancel parks with
+            // !bootstrapCompleted + connecting and no authority. Retry the
+            // verified handshake through the existing bootstrap funnel; skip
+            // the generic durable reconcile here, which would install the
+            // unverified v9 binding without the environment/snapshot proof.
+            // A background-stalled probe settling while foregrounded dispatches
+            // its own retry after this bootstrap settles (see the upgrade
+            // controller), so no poll or hot loop here. The pool gate is
+            // released first in the same task so the retry's socket start is
+            // not refused by the background gate.
+            if !host.state.bootstrapCompleted {
+                let gen = host.state.workGeneration
+                let startLive = actions.startLiveSession
+                Task { @MainActor [host] in
+                    await host.sessionPool.handleForeground(
+                        startLiveSession: startLive, workGeneration: gen)
+                    await host.bootstrap()
+                }
+                break
+            }
             // Non-cancellable durable mutations may have finished while backgrounded.
             Task { @MainActor [host] in
                 await SessionDurableReconcile.reconcileLiveWithDurable(host: host)

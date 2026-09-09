@@ -25,12 +25,13 @@ data class RoutethreadU2DSendRequest_e88be6f845(
 typealias RoutethreadU2DStartU2DExistingRequestU2DDisabledBuiltInMcpTools_fdad254a8b = Map<String, List<String>>
 
 @Serializable
-data class RoutethreadU2DStartU2DExistingRequest_af6694125b(
+data class RoutethreadU2DStartU2DExistingRequest_847ec48826(
     @SerialName("agentInstanceId") val agentInstanceId: RemoteField<String> = RemoteField.Missing,
     @SerialName("agentKind") val agentKind: String,
     @SerialName("config") val config: ProcedurerollbackThreadConversationRequestU2DConfig_023567f089,
     @SerialName("disabledBuiltInMcpServerIds") val disabledBuiltInMcpServerIds: RemoteField<List<RoutesettingsU2DReadResponseU2DSettingsU2DDisabledBuiltInMcpServersU2DPropertyU2DName_13f43aaaf5>> = RemoteField.Missing,
     @SerialName("disabledBuiltInMcpTools") val disabledBuiltInMcpTools: RemoteField<RoutethreadU2DStartU2DExistingRequestU2DDisabledBuiltInMcpTools_fdad254a8b> = RemoteField.Missing,
+    @SerialName("ensureRunning") val ensureRunning: RemoteField<RouteportU2DUnforwardResponseU2DOk_d2dd3595e1> = RemoteField.Missing,
     @SerialName("initialSize") val initialSize: RouteterminalU2DResizeRequest_55ee222c09,
     @SerialName("invariantDisabledBuiltInMcpServerIds") val invariantDisabledBuiltInMcpServerIds: RemoteField<List<RoutesettingsU2DReadResponseU2DSettingsU2DDisabledBuiltInMcpServersU2DPropertyU2DName_13f43aaaf5>> = RemoteField.Missing,
     @SerialName("mcpServers") val mcpServers: RemoteField<List<ProcedurebeginMcpServerOauthRequestU2DServer_c04b1452d1>> = RemoteField.Missing,
@@ -51,6 +52,7 @@ data class RoutethreadU2DStartU2DExistingRequest_af6694125b(
             RemoteFieldDescriptor("config", "ProcedurerollbackThreadConversationRequestU2DConfig_023567f089", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("disabledBuiltInMcpServerIds", "List<RoutesettingsU2DReadResponseU2DSettingsU2DDisabledBuiltInMcpServersU2DPropertyU2DName_13f43aaaf5>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("disabledBuiltInMcpTools", "RoutethreadU2DStartU2DExistingRequestU2DDisabledBuiltInMcpTools_fdad254a8b", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("ensureRunning", "RouteportU2DUnforwardResponseU2DOk_d2dd3595e1", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("initialSize", "RouteterminalU2DResizeRequest_55ee222c09", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("invariantDisabledBuiltInMcpServerIds", "List<RoutesettingsU2DReadResponseU2DSettingsU2DDisabledBuiltInMcpServersU2DPropertyU2DName_13f43aaaf5>", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("mcpServers", "List<ProcedurebeginMcpServerOauthRequestU2DServer_c04b1452d1>", false, false, null, null, null, null, null, null, null, null, listOf()),

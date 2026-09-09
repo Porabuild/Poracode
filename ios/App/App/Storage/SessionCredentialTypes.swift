@@ -59,6 +59,54 @@ enum SessionCredentialLoadOutcome: Sendable, Equatable {
     case localStoreInconsistent
 }
 
+// MARK: - Preserved-pairing upgrade (v9 → current, verified only)
+
+/// Verified upgrade recovery for the immediately previous released protocol.
+///
+/// Safely decodable protocol-9 bindings are NEVER rebound blindly. They are
+/// eligible ONLY for a fresh public `environment()` descriptor (live
+/// current-protocol server, matching `desktopId`, still advertising
+/// `session:read`) FOLLOWED BY an authenticated `snapshot()` read with the
+/// stored token proving it still grants `session:read`. `environment()` is
+/// `auth: "public"` and `auth.scopes` is the server's *supported* scopes, not
+/// the token's granted scopes — it can never prove expiry/revocation. The
+/// updated binding persists only after both succeed; command/access authority
+/// stays blocked until then. Pre-commit live-v9/offline/failure/cancel/switch
+/// never writes; once the journaled `.add` commits, durable bytes stay
+/// upgraded even when a stale generation abandons the install.
+enum PreservedPairingUpgrade: Sendable {
+    /// Immediately previous released remote protocol. Literal on purpose:
+    /// only this generation is safely decodable for upgrade; older/future
+    /// bindings stay terminal incompatible/corrupt. Do not generalize to
+    /// `current - 1` — that would silently admit unreviewed generations.
+    static let previousReleasedProtocolVersion = 9
+
+    static func isEligibleStoredProtocol(_ version: Int) -> Bool {
+        version == previousReleasedProtocolVersion
+    }
+
+    /// Pure gate for the bootstrap upgrade attempt. No I/O, no capability
+    /// adoption: `environment` must be the fresh public descriptor for the
+    /// stored host's endpoint. It checks server support only; token validity
+    /// is proven separately by the authenticated `snapshot()` before any write.
+    static func verify(
+        stored: ConnectionProfile,
+        environment: RemoteEnvironmentDescriptor
+    ) -> Bool {
+        guard stored.protocolVersion == previousReleasedProtocolVersion else { return false }
+        guard environment.protocolVersion == ProtocolConstants.remoteProtocolVersion else {
+            return false
+        }
+        guard !stored.desktopId.isEmpty, environment.desktopId == stored.desktopId else {
+            return false
+        }
+        guard ScopeCapabilities.from(scopes: stored.scopes).canRead else { return false }
+        let advertised = Set(RemoteAccessScopes.filterKnown(environment.auth.scopes))
+        guard advertised.contains("session:read") else { return false }
+        return true
+    }
+}
+
 // MARK: - Operation identity (MainActor-allocated, repository-enforced)
 
 /// Kind of durable mutation. IDs are allocated on MainActor; the repository never invents a second clock.

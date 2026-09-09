@@ -147,11 +147,6 @@ export interface RuntimeEventSlice {
     threadId: string,
     options?: { readonly preserveObservedLive?: boolean },
   ): void;
-  /**
-   * Revert the visible chat transcript to a checkpoint item, preserving that
-   * item and everything before it. Used by GUI chat checkpoints.
-   */
-  truncateThreadRuntimeAfter(threadId: string, checkpointItemId: string): void;
   /** Replace the persisted item list for a thread (used during DB hydration). */
   hydrateThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
   /** Prepend an older persisted page while preserving newer live items. */
@@ -290,51 +285,6 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         runtimeStructuralVersionByThread: {
           ...state.runtimeStructuralVersionByThread,
           [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
-        },
-      };
-    }),
-
-  truncateThreadRuntimeAfter: (threadId, checkpointItemId) =>
-    set((state) => {
-      const itemIds = state.runtimeItemIdsByThread[threadId];
-      const items = state.runtimeItemsByIdByThread[threadId];
-      if (!itemIds?.length || !items) return {};
-
-      const checkpointIndex = itemIds.indexOf(checkpointItemId);
-      if (checkpointIndex < 0 || checkpointIndex === itemIds.length - 1) return {};
-
-      const keptIds = itemIds.slice(0, checkpointIndex + 1);
-      const keptIdSet = new Set(keptIds);
-      const keptItems: Record<string, RuntimeChatItem> = {};
-      for (const id of keptIds) {
-        const item = items[id];
-        if (item) keptItems[id] = item;
-      }
-
-      const completedTurns = state.runtimeCompletedTurnsByThread[threadId] ?? [];
-      const keptCompletedTurns = completedTurns.filter(
-        (turn) => turn.anchorItemId === null || keptIdSet.has(turn.anchorItemId),
-      );
-      return {
-        runtimeItemIdsByThread: {
-          ...state.runtimeItemIdsByThread,
-          [threadId]: keptIds,
-        },
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: keptItems,
-        },
-        runtimeRequestsByThread: {
-          ...state.runtimeRequestsByThread,
-          [threadId]: [],
-        },
-        runtimeStructuralVersionByThread: {
-          ...state.runtimeStructuralVersionByThread,
-          [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
-        },
-        runtimeCompletedTurnsByThread: {
-          ...state.runtimeCompletedTurnsByThread,
-          [threadId]: keptCompletedTurns,
         },
       };
     }),

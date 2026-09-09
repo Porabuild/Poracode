@@ -6,14 +6,14 @@ import XCTest
 /// through the production decoders and appliers. The tape is the only source of
 /// truth here — no expected values are re-authored in Swift.
 final class ReplayGitStateParityTapeTests: XCTestCase {
-  func testTapeStaysOnProtocolV3() throws {
+  func testTapeMatchesProtocolGeneration() throws {
     let tape = try replayGitStateParityTape()
     XCTAssertEqual(
       try fixtureInt(tape["protocolVersion"]), ProtocolConstants.remoteProtocolVersion
     )
-    // Deliberate generation pin: the v9 wire contract. Raise consciously with
+    // Deliberate generation pin: the v10 wire contract. Raise consciously with
     // the next protocol bump and the committed tape together.
-    XCTAssertEqual(ProtocolConstants.remoteProtocolVersion, 9)
+    XCTAssertEqual(ProtocolConstants.remoteProtocolVersion, 10)
   }
 
   // MARK: - Lifecycle (thread-reset / thread-exited)

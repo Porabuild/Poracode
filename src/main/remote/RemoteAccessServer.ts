@@ -46,9 +46,18 @@ import type {
 import { buildPairingUrl } from "@/shared/remote/pairingUrl";
 import { RemoteHttpError, RemoteAuthStore, type AuthenticatedRemoteSession } from "./auth";
 import type { RemoteAccessIdentity } from "./identity";
+import {
+  FORWARD_ORIGIN_UNAVAILABLE,
+  type ForwardOriginAvailability,
+  type ForwardOriginIdentity,
+} from "./portForward/forwardOriginIdentity";
 import type { PortProxy } from "./portForward/portProxy";
 import type { RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
 import type { RemotePortForwardGateway } from "./RemotePortForwardGateway";
+import {
+  handleRemoteAccessHttpRequest,
+  handleRemoteAccessUpgrade,
+} from "./server/forwardOriginDispatch";
 import { normalizeHostForUrl, RemoteServerSecurity } from "./server/security";
 import type {
   BufferedSupervisorEvent,
@@ -58,11 +67,9 @@ import type {
 import {
   DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES,
   DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES,
-  handleUpgrade,
   REMOTE_PER_MESSAGE_DEFLATE,
   WebSocketHeartbeat,
 } from "./server/wsConnections";
-import { handleHttp } from "./server/httpRouter";
 import { persistSupervisorEvent } from "./server/runtimePersistence";
 import { projectGitStatePatchForInterests } from "./server/gitStateProjection";
 import { filterEventForItemInterests } from "./server/itemInterestFilter";
@@ -117,6 +124,8 @@ export interface RemoteAccessServerOptions {
   readonly tailscaleHttpBaseUrl?: string;
   readonly pairingAppUrl?: string;
   readonly trustedCorsOrigins?: readonly string[];
+  /** Authenticated relay registration origin, cleared when registration is lost. */
+  readonly getRelayPublicOrigin?: () => string | null;
   readonly tokenExchangeRateLimit?: {
     readonly maxAttempts: number;
     readonly windowMs: number;
@@ -167,6 +176,14 @@ export interface RemoteAccessServerOptions {
     payload: IpcProcedurePayload<Name>,
   ): Promise<IpcProcedureResult<Name>>;
   /**
+   * Single-mutation owner for checkpoint truncates: performs the database
+   * write and publishes one canonical `runtime.truncated` event through the
+   * host event funnel. Required — the HTTP truncate route must never be able
+   * to mutate without broadcasting, so a host without a publication owner
+   * cannot accept truncates at all.
+   */
+  truncateThreadRuntime(threadId: string, itemId: string): void;
+  /**
    * Forwards a thread-metadata command to the desktop renderer, which owns
    * thread metadata and persists it. Returns false when no renderer window is
    * available to receive the command.
@@ -179,13 +196,29 @@ export interface RemoteAccessServerOptions {
   /** Local dev-server discovery + raw TCP port forwarding. Absent on hosts
    * that don't support it (returns 503). */
   readonly portForward?: RemotePortForwardGateway;
-  /** Authenticated HTTP/WS reverse-proxy session layer sitting in front of
-   * `portForward`'s raw TCP forwards (see `/forward/<id>/enter` and the proxy
-   * fallthrough in `httpRouter`). Absent on hosts that don't support it
-   * (`POST /api/ports/enter` returns 503; the proxy fallthrough and enter
-   * route simply have no session to resolve, so they behave as if no forward
-   * were ever opened). */
+  /** Origin-bound proxy session layer for `portForward`'s raw TCP forwards
+   * (enter tokens → one-use child-origin exchange → `__Host-` cookie
+   * sessions). Absent on hosts that don't support it (`POST /api/ports/enter`
+   * returns 503). */
   readonly portProxy?: PortProxy;
+  /**
+   * Configured browser-forward child-origin identity (isolated HTTPS origins
+   * under `baseUrl`, owned via the persistent origin secret). Absent = browser
+   * forwarding unavailable: `enterPath` is omitted from forward creation, the
+   * browser entry routes fail with `forward_browser_unavailable`, and raw TCP
+   * forwarding keeps working. Never inferred from visitor headers.
+   */
+  readonly forwardOrigin?: ForwardOriginIdentity;
+  /** Current authenticated relay registration; null after disconnect or policy loss. */
+  readonly getRelayForwardOrigin?: () => ForwardOriginIdentity | null;
+  /**
+   * Per-instance random 256-bit credential (base64url) the relay v2 local
+   * adapter must present over loopback (reserved `x-poracode-forward-*`
+   * headers) to inject a trusted forward context. Generated in the
+   * composition root alongside `forwardOrigin`; never accepted from a
+   * non-loopback peer or without a constant-time match.
+   */
+  readonly forwardDispatchKey?: string;
   /**
    * Remote-editable desktop settings (AI helpers, agent/model configuration,
    * and persistent composer MCP enablement). `update` merges a patch into the
@@ -321,6 +354,7 @@ export class RemoteAccessServer {
   private readonly security: RemoteServerSecurity;
   private readonly heartbeat: WebSocketHeartbeat;
   private readonly clients = new Map<WebSocket, AuthenticatedRemoteSession>();
+  private readonly replayingClients = new Set<WebSocket>();
   private readonly clientLiveness = new Map<WebSocket, boolean>();
   /** Per-connection terminal ids the client opted into live `terminal-output` for. */
   private readonly terminalWatches = new Map<WebSocket, Set<string>>();
@@ -357,11 +391,15 @@ export class RemoteAccessServer {
       clientLiveness: this.clientLiveness,
     });
     this.context = this.buildContext();
+    // Forward child-origin dispatch runs in front of the app's own HTTP/WS
+    // routing: a recognized child origin (or any authority inside the
+    // configured forward namespace) is proxied or bounded-errored there and
+    // NEVER falls through to Poracode API/PWA handlers.
     this.server = createServer((req, res) => {
-      void handleHttp(this.context, req, res);
+      void handleRemoteAccessHttpRequest(this.context, req, res);
     });
     this.server.on("upgrade", (req, socket, head) => {
-      void handleUpgrade(this.context, req, socket, head);
+      handleRemoteAccessUpgrade(this.context, req, socket, head);
     });
   }
 
@@ -373,6 +411,7 @@ export class RemoteAccessServer {
       wss: this.wss,
       security: this.security,
       clients: this.clients,
+      replayingClients: this.replayingClients,
       clientLiveness: this.clientLiveness,
       terminalWatches: this.terminalWatches,
       terminalCursorSync: this.terminalCursorSync,
@@ -394,8 +433,9 @@ export class RemoteAccessServer {
       requirePushRegistrations: () => this.requirePushRegistrations(),
       publishSupervisorEvent: (event) => this.publishSupervisorEvent(event),
       publishThreadsChanged: (threadIds) => this.publishThreadsChanged(threadIds),
+      scopeEventForClient: (event, client) => this.scopeEventForClient(event, client),
       send: (ws, message) => this.send(ws, message),
-      sendRaw: (ws, data) => this.sendRaw(ws, data),
+      sendRaw: (ws, data, onSent) => this.sendRaw(ws, data, onSent),
       notifyEventInterestsChanged: () => this.notifyEventInterestsChanged(),
       waitForSupervisorEvent: (match, timeoutMs) => this.waitForSupervisorEvent(match, timeoutMs),
     };
@@ -516,6 +556,7 @@ export class RemoteAccessServer {
       client.terminate();
     }
     this.clients.clear();
+    this.replayingClients.clear();
     this.clientLiveness.clear();
     this.terminalWatches.clear();
     this.terminalCursorSync.clearAll();
@@ -544,6 +585,16 @@ export class RemoteAccessServer {
 
   getInfo(): RemoteAccessServerInfo | null {
     return this.info;
+  }
+
+  /**
+   * Availability facts for the versioned browser-forward capability descriptor
+   * (the protocol/codegen integration is coordinator-owned; this is the host
+   * hook). `available` distinguishes isolated browser-origin forwarding from
+   * raw TCP forwarding, which stays available regardless.
+   */
+  forwardOriginAvailability(): ForwardOriginAvailability {
+    return this.options.portProxy?.forwardOriginAvailability() ?? FORWARD_ORIGIN_UNAVAILABLE;
   }
 
   listAccessSessions(): RemoteAccessSessionSummary[] {
@@ -607,6 +658,7 @@ export class RemoteAccessServer {
       // and later-reconnecting clients converge on the same self-healing path:
       // refetch authoritative state over HTTP.
       this.options.onOversizedEventDropped?.({ type: event.type, bytes: capped.bytes });
+      this.replayingClients.clear();
       this.broadcast({
         type: "resync-required",
         seq,
@@ -622,6 +674,7 @@ export class RemoteAccessServer {
     // content differs — which keeps the replay contiguity check valid.
     if (this.needsPerClientScoping(capped.event)) {
       for (const client of this.clients.keys()) {
+        if (this.replayingClients.has(client)) continue;
         const scoped = this.scopeEventForClient(capped.event, client);
         this.sendRaw(
           client,
@@ -864,6 +917,7 @@ export class RemoteAccessServer {
    * serialize a large body once instead of per send. */
   private broadcastRaw(data: string): void {
     for (const client of this.clients.keys()) {
+      if (this.replayingClients.has(client)) continue;
       this.sendRaw(client, data);
     }
   }
@@ -872,7 +926,7 @@ export class RemoteAccessServer {
     this.sendRaw(ws, JSON.stringify(message));
   }
 
-  private sendRaw(ws: WebSocket, data: string): boolean {
+  private sendRaw(ws: WebSocket, data: string, onSent?: (error?: Error) => void): boolean {
     if (ws.readyState !== WebSocket.OPEN) return false;
     const maxBuffered =
       this.options.maxWebSocketOutboundBufferBytes ?? DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES;
@@ -881,7 +935,8 @@ export class RemoteAccessServer {
       return false;
     }
     try {
-      ws.send(data);
+      if (onSent) ws.send(data, onSent);
+      else ws.send(data);
       return true;
     } catch {
       this.dropWebSocketClient(ws);
@@ -891,6 +946,7 @@ export class RemoteAccessServer {
 
   private dropWebSocketClient(ws: WebSocket): void {
     this.clients.delete(ws);
+    this.replayingClients.delete(ws);
     this.clientLiveness.delete(ws);
     this.terminalWatches.delete(ws);
     this.terminalCursorSync.clearConnection(ws);

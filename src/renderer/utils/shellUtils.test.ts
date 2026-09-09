@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import type { TerminalSocketSender } from "@/shared/remote/terminalFeed";
 import type { SupervisorEvent } from "@/shared/ipc";
 
 const bridge = vi.hoisted(() => ({
@@ -34,9 +35,12 @@ import {
   buildScriptWithExitOnSuccess,
   clearEagerShellStart,
   closeThreads,
+  noteShellExited,
   runShellScriptToCompletion,
+  startDeferredPanelShell,
   startShellWithCurrentSettings,
   startShellWithToast,
+  wasShellStartedDeferred,
   wasShellStartedEagerly,
   writeScriptToShell,
   writeScriptToShellThenExitOnSuccess,
@@ -609,6 +613,187 @@ describe("writeScriptToShellThenExitOnSuccess", () => {
     expect(() => detach()).not.toThrow();
     expect(onExit).not.toHaveBeenCalled();
   });
+
+  describe("completion marker recovery across snapshots", () => {
+    const desktopId = "desktop-snap";
+    const shellId = "shell:snap";
+
+    type WatchSender = TerminalSocketSender;
+
+    function lastWatchId(sender: Mock<WatchSender>): string {
+      for (let index = sender.mock.calls.length - 1; index >= 0; index -= 1) {
+        const message = sender.mock.calls[index]?.[0];
+        if (message?.type === "terminal-watch" && message.id === shellId && message.cursorSync) {
+          return message.cursorSync.watchId!;
+        }
+      }
+      throw new Error(`no cursor-sync watch sent for ${shellId}`);
+    }
+
+    function deliverReady(
+      sender: Mock<WatchSender>,
+      input: {
+        data: string;
+        processState?: "running" | "exited";
+        generation?: string;
+        fromCursor?: number;
+      },
+    ): void {
+      handleRemoteTerminalServerMessage(desktopId, {
+        type: "terminal-watch-result",
+        id: shellId,
+        cursorSync: {
+          version: 1,
+          watchId: lastWatchId(sender),
+          result: {
+            status: "ready",
+            generation: input.generation ?? "gen-1",
+            fromCursor: input.fromCursor ?? 0,
+            toCursor: (input.fromCursor ?? 0) + input.data.length,
+            data: input.data,
+            processState: input.processState ?? "running",
+            terminalSize: null,
+          },
+        },
+      });
+    }
+
+    function deliverLive(sender: Mock<WatchSender>, data: string, fromCursor: number): void {
+      handleRemoteTerminalServerMessage(desktopId, {
+        type: "terminal-output",
+        id: shellId,
+        data,
+        cursorSync: {
+          version: 1,
+          watchId: lastWatchId(sender),
+          generation: "gen-1",
+          fromCursor,
+          toCursor: fromCursor + data.length,
+        },
+      });
+    }
+
+    interface Started {
+      sender: Mock<WatchSender>;
+      token: string;
+      onCommandComplete: ReturnType<typeof vi.fn<(exitCode: number) => void>>;
+      onOutput: ReturnType<typeof vi.fn<(output: string) => void>>;
+      onExit: ReturnType<typeof vi.fn<(exitCode: number | null) => void>>;
+    }
+
+    /** Attaches the writer, covers its baseline, waits out the readiness
+     * timer, and returns the state once the command has been written. */
+    function startWrittenCommand(): Started {
+      const sender = vi.fn<WatchSender>(() => true);
+      setRemoteTerminalSocketSender(desktopId, sender, { cursorSyncVersion: 1 });
+      const onExit = vi.fn<(exitCode: number | null) => void>();
+      const onCommandComplete = vi.fn<(exitCode: number) => void>();
+      const onOutput = vi.fn<(output: string) => void>();
+      writeScriptToShellThenExitOnSuccess(
+        shellId,
+        "npm ci",
+        "posix",
+        onExit,
+        onCommandComplete,
+        desktopId,
+        { onOutput, onReset: () => undefined },
+      );
+
+      deliverReady(sender, { data: "$ " });
+      deliverLive(sender, "npm warn deprecated", 2);
+      vi.advanceTimersByTime(250);
+      expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
+      const token = /poracode-shell-complete=([^:]+):/u.exec(lastWrite())?.[1];
+      expect(token).toBeTruthy();
+      return { sender, token: token!, onCommandComplete, onOutput, onExit };
+    }
+
+    /** Simulates a reconnect: a new sender identity re-arms the watch, and the
+     * fresh baseline carries the full retained tail (`fromCursor: 0`). */
+    function reconnect(
+      baselineTail: string,
+      processState: "running" | "exited",
+    ): Mock<WatchSender> {
+      const sender = vi.fn<WatchSender>(() => true);
+      setRemoteTerminalSocketSender(desktopId, sender, { cursorSyncVersion: 1 });
+      deliverReady(sender, { data: baselineTail, processState });
+      return sender;
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      resetRemoteTerminalFeed();
+    });
+    afterEach(() => {
+      resetRemoteTerminalFeed();
+      vi.useRealTimers();
+    });
+
+    it("recovers command completion from a reconnect baseline without replaying history", () => {
+      const started = startWrittenCommand();
+      deliverLive(started.sender, "added 1 package", 21);
+      expect(started.onOutput).toHaveBeenCalledExactlyOnceWith("added 1 package");
+
+      reconnect(
+        `$ npm warn deprecatedadded 1 package\u001B]777;poracode-shell-complete=${started.token}:0\u0007`,
+        "running",
+      );
+
+      expect(started.onCommandComplete).toHaveBeenCalledExactlyOnceWith(0);
+      // Baseline bytes are scanned for the marker, never replayed as output…
+      expect(started.onOutput).toHaveBeenCalledExactlyOnceWith("added 1 package");
+      // …and history never re-executes the command.
+      expect(bridge.writeTerminal).toHaveBeenCalledTimes(1);
+      expect(started.onExit).not.toHaveBeenCalled();
+    });
+
+    it("recovers from a retained exited baseline", () => {
+      const started = startWrittenCommand();
+
+      reconnect(
+        `$ npm warn deprecated\u001B]777;poracode-shell-complete=${started.token}:1\u0007`,
+        "exited",
+      );
+
+      expect(started.onCommandComplete).toHaveBeenCalledExactlyOnceWith(1);
+      expect(started.onExit).not.toHaveBeenCalled();
+    });
+
+    it("waits for the full exit code when live output splits it before the terminator", () => {
+      const started = startWrittenCommand();
+      const marker = `\u001B]777;poracode-shell-complete=${started.token}:`;
+      deliverLive(started.sender, `${marker}1`, 21);
+      expect(started.onCommandComplete).not.toHaveBeenCalled();
+
+      deliverLive(started.sender, `27\u0007`, 21 + marker.length + 1);
+
+      expect(started.onCommandComplete).toHaveBeenCalledExactlyOnceWith(127);
+    });
+
+    it("ignores a foreign token in the baseline and completes on the live marker", () => {
+      const started = startWrittenCommand();
+
+      const tail = `$ npm warn deprecated\u001B]777;poracode-shell-complete=pc_other:0\u0007`;
+      const resumed = reconnect(tail, "running");
+      vi.advanceTimersByTime(2000);
+      expect(started.onCommandComplete).not.toHaveBeenCalled();
+
+      deliverLive(
+        resumed,
+        `\u001B]777;poracode-shell-complete=${started.token}:0\u0007`,
+        tail.length,
+      );
+      expect(started.onCommandComplete).toHaveBeenCalledExactlyOnceWith(0);
+    });
+
+    it("never reads the echoed command text as a completion marker", () => {
+      const started = startWrittenCommand();
+      deliverLive(started.sender, lastWrite(), 21);
+      vi.advanceTimersByTime(2000);
+
+      expect(started.onCommandComplete).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("runShellScriptToCompletion", () => {
@@ -680,5 +865,104 @@ describe("runShellScriptToCompletion", () => {
     await expect(running).resolves.toBeUndefined();
     expect(sender).toHaveBeenCalledWith({ type: "terminal-unwatch", id: shellId });
     expect(bridge.onSupervisorEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("startDeferredPanelShell", () => {
+  const projectLocation = { kind: "posix" as const, path: "/repo" };
+
+  beforeEach(() => {
+    waitForPendingSharedSettings.mockReset().mockResolvedValue(undefined);
+    bridge.startShell.mockReset().mockResolvedValue(undefined);
+    clearEagerShellStart("shell:deferred");
+  });
+
+  it("marks the shell synchronously, before pending settings resolve", () => {
+    waitForPendingSharedSettings.mockReturnValueOnce(new Promise(() => {}));
+
+    void startDeferredPanelShell({ shellId: "shell:deferred", projectLocation });
+
+    // The panel's guard reads this mark on a concurrent resize callback, so it
+    // must exist before the first await lets another callback run.
+    expect(wasShellStartedDeferred("shell:deferred")).toBe(true);
+    expect(bridge.startShell).not.toHaveBeenCalled();
+  });
+
+  it("keeps the mark on success and clears it on failure so the panel can retry", async () => {
+    await startDeferredPanelShell({ shellId: "shell:deferred", projectLocation });
+    expect(wasShellStartedDeferred("shell:deferred")).toBe(true);
+
+    bridge.startShell.mockRejectedValueOnce(new Error("offline"));
+    await expect(
+      startDeferredPanelShell({ shellId: "shell:deferred", projectLocation }),
+    ).rejects.toThrow("offline");
+    expect(wasShellStartedDeferred("shell:deferred")).toBe(false);
+
+    await startDeferredPanelShell({ shellId: "shell:deferred", projectLocation });
+    expect(bridge.startShell).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not re-mark a start whose shell exited while it was in flight", async () => {
+    let resolveStart!: () => void;
+    bridge.startShell.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveStart = resolve;
+      }),
+    );
+    const pending = startDeferredPanelShell({ shellId: "shell:deferred", projectLocation });
+
+    noteShellExited("shell:deferred");
+    resolveStart();
+    await pending;
+
+    expect(wasShellStartedDeferred("shell:deferred")).toBe(false);
+  });
+
+  it("clears the mark when the shell exits", async () => {
+    await startDeferredPanelShell({ shellId: "shell:deferred", projectLocation });
+    expect(wasShellStartedDeferred("shell:deferred")).toBe(true);
+
+    noteShellExited("shell:deferred");
+
+    expect(wasShellStartedDeferred("shell:deferred")).toBe(false);
+  });
+
+  it("clearEagerShellStart also forgets the deferred mark", async () => {
+    await startDeferredPanelShell({ shellId: "shell:deferred", projectLocation });
+    expect(wasShellStartedDeferred("shell:deferred")).toBe(true);
+
+    clearEagerShellStart("shell:deferred");
+
+    expect(wasShellStartedDeferred("shell:deferred")).toBe(false);
+  });
+
+  it("clears the mark when the supervisor reports the shell exited", async () => {
+    // Fresh module instance so the exit listener binds to this test's bridge
+    // wiring instead of whatever an earlier test registered.
+    vi.resetModules();
+    supervisorHandlers.length = 0;
+    bridge.onSupervisorEvent.mockReset().mockImplementation((handler) => {
+      supervisorHandlers.push(handler);
+      return () => {
+        const index = supervisorHandlers.indexOf(handler);
+        if (index >= 0) supervisorHandlers.splice(index, 1);
+      };
+    });
+    const fresh = await import("./shellUtils");
+
+    await fresh.startDeferredPanelShell({ shellId: "shell:deferred", projectLocation });
+    expect(fresh.wasShellStartedDeferred("shell:deferred")).toBe(true);
+
+    emit({ type: "thread-exited", threadId: "shell:deferred", exitCode: 0 });
+
+    expect(fresh.wasShellStartedDeferred("shell:deferred")).toBe(false);
+    expect(supervisorHandlers).toHaveLength(1);
+  });
+
+  it("marks only the wrapper — plain startShell stays unmarked", async () => {
+    await startShellWithCurrentSettings({ shellId: "shell:other", projectLocation });
+
+    expect(wasShellStartedDeferred("shell:other")).toBe(false);
+    expect(wasShellStartedDeferred("shell:deferred")).toBe(false);
   });
 });

@@ -244,6 +244,7 @@
 		A10000000000000000000029 /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000029 /* SessionState.swift */; };
 		A1000000000000000000002A /* PairingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000002A /* PairingCoordinator.swift */; };
 		A1000000000000000000002B /* LiveConnectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000002B /* LiveConnectionController.swift */; };
+		A10000000000000000000129 /* PreservedPairingUpgradeController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000129 /* PreservedPairingUpgradeController.swift */; };
 		A1000000000000000000002C /* ThreadController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000002C /* ThreadController.swift */; };
 		A1000000000000000000002D /* SessionEventRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000002D /* SessionEventRouter.swift */; };
 		A1000000000000000000002E /* ResyncEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000002E /* ResyncEngine.swift */; };
@@ -1000,6 +1001,7 @@
 		B10000000000000000000029 /* SessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionState.swift; sourceTree = "<group>"; };
 		B1000000000000000000002A /* PairingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingCoordinator.swift; sourceTree = "<group>"; };
 		B1000000000000000000002B /* LiveConnectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveConnectionController.swift; sourceTree = "<group>"; };
+		B10000000000000000000129 /* PreservedPairingUpgradeController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreservedPairingUpgradeController.swift; sourceTree = "<group>"; };
 		B1000000000000000000002C /* ThreadController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadController.swift; sourceTree = "<group>"; };
 		B1000000000000000000002D /* SessionEventRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionEventRouter.swift; sourceTree = "<group>"; };
 		B1000000000000000000002E /* ResyncEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResyncEngine.swift; sourceTree = "<group>"; };
@@ -2242,6 +2244,7 @@
 				B10000000000000000000029 /* SessionState.swift */,
 				B1000000000000000000002A /* PairingCoordinator.swift */,
 				B1000000000000000000002B /* LiveConnectionController.swift */,
+				B10000000000000000000129 /* PreservedPairingUpgradeController.swift */,
 				B1000000000000000000002C /* ThreadController.swift */,
 				B1000000000000000000011C /* ThreadControllerMutations.swift */,
 				B1000000000000000000002D /* SessionEventRouter.swift */,
@@ -3166,6 +3169,7 @@
 				A10000000000000000000029 /* SessionState.swift in Sources */,
 				A1000000000000000000002A /* PairingCoordinator.swift in Sources */,
 				A1000000000000000000002B /* LiveConnectionController.swift in Sources */,
+				A10000000000000000000129 /* PreservedPairingUpgradeController.swift in Sources */,
 				A1000000000000000000002C /* ThreadController.swift in Sources */,
 				A1000000000000000000002D /* SessionEventRouter.swift in Sources */,
 				A1000000000000000000002E /* ResyncEngine.swift in Sources */,

@@ -9,6 +9,7 @@ import { RelayServer } from "./relayServer";
  *   PORACODE_RELAY_HOST            bind host (default 0.0.0.0)
  *   PORACODE_RELAY_PORT            bind port (default 38990)
  *   PORACODE_RELAY_PUBLIC_BASE_URL public base advertised to hosts/devices
+ *   PORACODE_RELAY_FORWARD_BASE_URL HTTPS origin with wildcard DNS/TLS for forwards
  */
 async function main(): Promise<void> {
   const port = Number(process.env.PORACODE_RELAY_PORT?.trim() || "38990");
@@ -17,6 +18,9 @@ async function main(): Promise<void> {
     port: Number.isSafeInteger(port) ? port : 38990,
     ...(process.env.PORACODE_RELAY_PUBLIC_BASE_URL?.trim()
       ? { publicBaseUrl: process.env.PORACODE_RELAY_PUBLIC_BASE_URL.trim() }
+      : {}),
+    ...(process.env.PORACODE_RELAY_FORWARD_BASE_URL?.trim()
+      ? { forwardBaseUrl: process.env.PORACODE_RELAY_FORWARD_BASE_URL.trim() }
       : {}),
   });
   const info = await relay.start();

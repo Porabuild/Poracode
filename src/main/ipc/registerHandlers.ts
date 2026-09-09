@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { ipcMain, type WebContents } from "electron";
 import {
   ipcProcedureMap,
   IPC_WINDOW_CHANNELS,
@@ -19,26 +19,35 @@ interface RegisterIpcHandlersOptions {
 }
 
 export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
-  const invoke = async (name: IpcProcedureName, args: unknown[]): Promise<unknown> => {
+  // Main-local handlers may need the invoking webContents (per-window state
+  // such as renderer event interests); supervisor procedures ignore it.
+  const invoke = async (
+    name: IpcProcedureName,
+    args: unknown[],
+    sender?: WebContents,
+  ): Promise<unknown> => {
     const procedure = ipcProcedureMap[name];
     if (!procedure) throw new Error(`Unknown client procedure: ${String(name)}`);
     const payload = parseIpcProcedureArgs(name, args);
     if (procedure.transport === "main-local") {
       const handler = options.localHandlers[name as keyof MainLocalIpcHandlerMap] as (
         payload: unknown,
+        sender?: WebContents,
       ) => unknown;
-      return handler(payload);
+      return handler(payload, sender);
     }
     return options.callSupervisor(name as SupervisorProcedureName, payload as never);
   };
   const procedureNames = Object.keys(ipcProcedureMap) as IpcProcedureName[];
   for (const name of procedureNames) {
     const procedure = ipcProcedureMap[name];
-    ipcMain.handle(procedure.channel, (_event, ...args: unknown[]) => invoke(name, args));
+    ipcMain.handle(procedure.channel, (event, ...args: unknown[]) =>
+      invoke(name, args, event.sender),
+    );
   }
   ipcMain.handle(
     IPC_WINDOW_CHANNELS.clientProcedureInvoke,
-    (_event, request: { name?: unknown; args?: unknown }) => {
+    (event, request: { name?: unknown; args?: unknown }) => {
       if (
         typeof request?.name !== "string" ||
         !Object.hasOwn(ipcProcedureMap, request.name) ||
@@ -46,7 +55,7 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
       ) {
         throw new Error("Invalid client procedure request.");
       }
-      return invoke(request.name as IpcProcedureName, request.args);
+      return invoke(request.name as IpcProcedureName, request.args, event.sender);
     },
   );
 }

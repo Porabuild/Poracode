@@ -44,7 +44,10 @@ import {
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 import { dbTruncateRuntimeItemsPayloadSchema } from "@/shared/ipc/schemas";
-import { projectNotesWriteBodySchema } from "@/shared/remote/contract/routeBodies";
+import {
+  projectNotesWriteBodySchema,
+  startExistingThreadBodySchema,
+} from "@/shared/remote/contract/routeBodies";
 import {
   remoteMcpSettingsCommandSchema,
   remoteMcpSettingsOperationSchema,
@@ -58,7 +61,6 @@ import {
   dbGetThread,
   dbGetThreads,
   dbSetProjectNotes,
-  dbTruncateThreadRuntimeAfter,
 } from "../../db";
 import {
   getProfileCoreStats,
@@ -71,6 +73,10 @@ import {
   assertRemoteThreadCommandExperimentSafe,
   assertRemoteThreadStartExperimentSafe,
 } from "../experimentOwnership";
+import {
+  FORWARD_ORIGIN_UNAVAILABLE,
+  type ForwardOriginIdentity,
+} from "../portForward/forwardOriginIdentity";
 import {
   buildForwardEnterErrorPageHtml,
   buildLocalPairingIconSvg,
@@ -93,11 +99,6 @@ import {
 } from "./httpResponses";
 import { writeLocalImageFile } from "./localImageFile";
 import { parseImageRefPath, resolveImageRef } from "./imageRefProjection";
-import {
-  buildForwardSessionCookieHeader,
-  isReservedForwardProxyPath,
-  proxyForwardedHttpRequest,
-} from "./portForwardProxy";
 import { readAttachmentBody, readJsonBody } from "./requestBody";
 import { DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT } from "./security";
 import {
@@ -110,6 +111,7 @@ import {
 import {
   applyRemoteThreadCommand,
   applyRemoteThreadSwitch,
+  ensureRemoteThreadRunning,
   runProjectCommand,
   runRemoteProcedure,
 } from "./threadCommands";
@@ -272,6 +274,7 @@ export async function handleHttp(
   ctx: RemoteServerContext,
   req: IncomingMessage,
   res: ServerResponse,
+  forwardOrigin: ForwardOriginIdentity | null = ctx.options.forwardOrigin ?? null,
 ): Promise<void> {
   const corsAllowed = ctx.security.applyCors(req, res);
   if (req.method === "OPTIONS") {
@@ -289,21 +292,6 @@ export async function handleHttp(
 
   try {
     const url = new URL(req.url ?? "/", ctx.requireInfo().httpBaseUrl);
-    // Lazily resolve the forward session at most once per request, and only for
-    // the two branches that consume it (the static-asset branch and the reverse-
-    // proxy fallthrough) — the vast majority of requests hit an explicit app
-    // route above and never touch it. Memoized (not `??=`) because `null` is a
-    // real "no session" result that must not trigger a re-resolve, and because
-    // `resolveSession` slides the session's TTL, so it must run at most once.
-    let sessionResolved = false;
-    let sessionPort: number | null = null;
-    const forwardTargetPort = (): number | null => {
-      if (!sessionResolved) {
-        sessionResolved = true;
-        sessionPort = ctx.options.portProxy?.resolveSession(req.headers.cookie) ?? null;
-      }
-      return sessionPort;
-    };
     if (
       req.method === "GET" &&
       (url.pathname === "/.well-known/poracode/environment" ||
@@ -318,16 +306,9 @@ export async function handleHttp(
       return;
     }
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
-      // A forwarded development server owns `/` while its HttpOnly session is
-      // active. Without a valid forward session, `/` is the canonical Poracode
-      // app entry below.
-      if (url.pathname === "/") {
-        const targetPort = forwardTargetPort();
-        if (targetPort) {
-          proxyForwardedHttpRequest(req, res, targetPort);
-          return;
-        }
-      }
+      // The canonical Poracode app entry. Forwarded development servers are no
+      // longer reachable on this (PWA/API) origin at all — they live on their
+      // own isolated child origins, dispatched before this router runs.
       if (ctx.options.devWebAppUrl) {
         const target = new URL(ctx.options.devWebAppUrl);
         target.pathname = "/";
@@ -348,16 +329,6 @@ export async function handleHttp(
       return;
     }
     if (req.method === "GET" && isBuiltClientAssetPath(url.pathname)) {
-      // An active forward session wins over the bundled canonical client: a
-      // forwarded dev server's own `/assets/*` and `/icons/*` files must
-      // stay reachable rather than being shadowed by this reservation. No
-      // session (or no `portProxy` wired up) falls through to the client lookup
-      // exactly as before this feature existed.
-      const targetPort = forwardTargetPort();
-      if (targetPort) {
-        proxyForwardedHttpRequest(req, res, targetPort);
-        return;
-      }
       if (tryServeBuiltClientApp(url.pathname, res)) {
         return;
       }
@@ -383,19 +354,36 @@ export async function handleHttp(
     // GET), so this is deliberately not scope-gated: the capability is the
     // one-time-ish `fwt` token itself, minted server-side by a bearer-gated
     // route (`POST /api/ports/forward` or `POST /api/ports/enter`).
+    //
+    // Two-hop entry into the forward's ISOLATED child origin: this API-origin
+    // route validates the token and redirects (no-store, no referrer) to the
+    // child origin's one-use exchange, which is what mints the `__Host-`
+    // session cookie there. No cookie is ever minted on the API origin.
     const forwardEnterMatch =
       req.method === "GET" ? /^\/forward\/([^/]+)\/enter$/.exec(url.pathname) : null;
     if (forwardEnterMatch) {
+      const availability =
+        ctx.options.portProxy?.forwardOriginAvailability(forwardOrigin) ??
+        FORWARD_ORIGIN_UNAVAILABLE;
+      if (!availability.available) {
+        throw new RemoteHttpError(
+          "forward_browser_unavailable",
+          "Browser forwarding requires a configured forward origin on this host.",
+          503,
+        );
+      }
       const forwardId = decodeURIComponent(forwardEnterMatch[1] ?? "");
       const token = url.searchParams.get("fwt") ?? "";
-      const consumed = ctx.options.portProxy?.consumeEnterToken(forwardId, token) ?? null;
-      if (!consumed) {
+      const exchange = ctx.requirePortProxy().beginExchange(forwardId, token);
+      if (!exchange) {
         writeHtml(res, 400, buildForwardEnterErrorPageHtml());
         return;
       }
       res.writeHead(302, {
-        location: "/",
-        "set-cookie": buildForwardSessionCookieHeader(consumed.sessionId, consumed.maxAgeMs),
+        location: exchange.exchangeUrl,
+        "cache-control": "no-store",
+        "referrer-policy": "no-referrer",
+        "x-content-type-options": "nosniff",
       });
       res.end();
       return;
@@ -559,6 +547,7 @@ export async function handleHttp(
       if (!resolved) {
         throw new RemoteHttpError("image_not_found", "No inline image at that reference.", 404);
       }
+      res.appendHeader("Vary", "Authorization");
       res.writeHead(200, {
         "content-type": resolved.mime,
         "content-length": resolved.data.length,
@@ -801,10 +790,13 @@ export async function handleHttp(
       ctx.security.requireBearer(req, ["ports:forward"]);
       const { targetPort } = remotePortForwardRequestSchema.parse(await readJsonBody(req));
       const forward = await ctx.requirePortForwardGateway().startForward(targetPort);
-      // `portProxy` is absent on a host that only has the raw-TCP gateway
-      // wired up (e.g. an older build mid-rollout); `enterPath` is then
-      // omitted rather than the whole response failing.
-      const enterPath = ctx.options.portProxy?.issueEnterToken(forward.id).path;
+      // Browser-origin entry needs a configured forward origin; the raw TCP
+      // forward is returned either way. `portProxy` absent (host without the
+      // proxy wired up) also omits `enterPath` rather than failing.
+      const enterPath =
+        (ctx.options.portProxy?.forwardOriginAvailability(forwardOrigin).available ?? false)
+          ? ctx.requirePortProxy().issueEnterToken(forward.id, forwardOrigin).path
+          : undefined;
       writeJson(
         res,
         200,
@@ -821,7 +813,17 @@ export async function handleHttp(
       if (ctx.requirePortForwardGateway().getForward(id) === null) {
         throw new RemoteHttpError("forward_not_found", "Port forward not found.", 404);
       }
-      const { path } = ctx.requirePortProxy().issueEnterToken(id);
+      const availability =
+        ctx.options.portProxy?.forwardOriginAvailability(forwardOrigin) ??
+        FORWARD_ORIGIN_UNAVAILABLE;
+      if (!availability.available) {
+        throw new RemoteHttpError(
+          "forward_browser_unavailable",
+          "Browser forwarding requires a configured forward origin on this host.",
+          503,
+        );
+      }
+      const { path } = ctx.requirePortProxy().issueEnterToken(id, forwardOrigin);
       writeJson(res, 200, remotePortEnterResultSchema.parse({ enterPath: path }));
       return;
     }
@@ -951,7 +953,8 @@ export async function handleHttp(
     }
     if (req.method === "POST" && url.pathname === "/api/threads/start") {
       ctx.security.requireBearer(req, ["session:operate"]);
-      const payload = startThreadPayloadSchema.parse(await readJsonBody(req));
+      const body = await readJsonBody(req);
+      const payload = startThreadPayloadSchema.parse(body);
       const threadId = payload.threadId;
       if (!threadId) {
         throw new RemoteHttpError(
@@ -965,6 +968,26 @@ export async function handleHttp(
         throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
       }
       assertRemoteThreadStartExperimentSafe(threadId);
+      if (startExistingThreadBodySchema.parse(body).ensureRunning) {
+        if (
+          payload.prompt ||
+          payload.segments?.length ||
+          payload.providerSwitch ||
+          payload.userMessageItemId
+        ) {
+          throw new RemoteHttpError(
+            "invalid_reopen",
+            "Thread reopen cannot include new input or a provider switch.",
+            400,
+          );
+        }
+        // Legacy clients reused their creation receipt here. Reopen is an
+        // ensure-running operation, so a durable completed receipt cannot
+        // represent its result after a later unload or process restart.
+        const result = await ensureRemoteThreadRunning(ctx, threadId, payload.initialSize);
+        writeJson(res, 200, result);
+        return;
+      }
       const mcpSnapshot =
         ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
       const result = await runIdempotentRemoteMutation(req, url.pathname, () =>
@@ -993,7 +1016,10 @@ export async function handleHttp(
         ...(typeof body === "object" && body !== null ? body : {}),
         threadId: truncateThreadId,
       });
-      dbTruncateThreadRuntimeAfter(payload.threadId, payload.itemId);
+      // One mutation + one canonical `runtime.truncated` publication, owned by
+      // the host composition — this route never writes the DB directly, so a
+      // remote truncate reaches every other client exactly like a local one.
+      ctx.options.truncateThreadRuntime(payload.threadId, payload.itemId);
       ctx.publishThreadsChanged([payload.threadId]);
       writeJson(res, 200, { ok: true });
       return;
@@ -1099,18 +1125,6 @@ export async function handleHttp(
           ? await runIdempotentRemoteMutation(req, url.pathname, dispatch)
           : await dispatch();
         writeJson(res, 200, result);
-        return;
-      }
-    }
-    // Reverse-proxy fallthrough: anything above is a reserved app route (see
-    // `isReservedForwardProxyPath`), so only reachable here for a path a
-    // forwarded dev server itself owns. An `lc_forward` session cookie
-    // resolves it straight to that dev server; no session (or no `portProxy`
-    // wired up on this host) 404s exactly as before this feature existed.
-    if (!isReservedForwardProxyPath(url.pathname)) {
-      const targetPort = forwardTargetPort();
-      if (targetPort) {
-        proxyForwardedHttpRequest(req, res, targetPort);
         return;
       }
     }

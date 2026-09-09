@@ -44,9 +44,9 @@ function isLoopbackAddress(address: string | undefined): boolean {
  * a forwarding header and take its first hop (the original client) instead;
  * direct LAN connections fall back to the socket's remote address.
  *
- * NOTE: `relayHost` (owned by another agent, `src/server`) must populate
- * `x-forwarded-for` with the visitor address for this to distinguish devices;
- * if the header is absent this degrades gracefully to the loopback address.
+ * relayHost supplies an opaque identity derived from the relay socket peer.
+ * Old relays share a conservative bucket. Without this header, requests use
+ * the loopback address.
  */
 function resolveRateLimitClient(req: IncomingMessage): string {
   const remoteAddress = req.socket.remoteAddress ?? "unknown";
@@ -119,11 +119,17 @@ export class RemoteServerSecurity {
       `authorization, content-type, ${REMOTE_COMMAND_ID_HEADER}`,
     );
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    // An absent Origin is a distinct cache variant too (native vs browser).
+    res.setHeader("Vary", "Origin");
     const origin = this.trustedRequestOrigin(req);
     if (origin === false) return false;
     if (origin) {
       res.setHeader("Access-Control-Allow-Origin", origin);
-      res.setHeader("Vary", "Origin");
+    }
+    if (req.method === "OPTIONS" && origin) {
+      // Reuse the CORS permission check without another network round trip.
+      // Every actual request still validates its origin and bearer credential.
+      res.setHeader("Access-Control-Max-Age", "600");
     }
     return true;
   }
@@ -141,6 +147,8 @@ export class RemoteServerSecurity {
   private isTrustedCorsOrigin(origin: string): boolean {
     if (NATIVE_WEBVIEW_ORIGINS.has(origin)) return true;
     if (isLoopbackWebOrigin(origin)) return true;
+    const relayOrigin = this.ctx.options.getRelayPublicOrigin?.();
+    if (relayOrigin && normalizeCorsOrigin(relayOrigin) === origin) return true;
     const key = this.ctx.getHttpBaseUrl();
     let cache = this.trustedCorsOrigins;
     if (!cache || cache.key !== key) {

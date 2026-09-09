@@ -52,7 +52,9 @@ const CLIENT_OPTIMIZED_DEPS = [
   "react",
   "react-dom",
   "react-dom/client",
-  "react-markdown",
+  // AppLocaleProvider shares HeroUI's locale context; prepare this direct
+  // entry too because dependency discovery is disabled for deferred graphs.
+  "react-aria-components/I18nProvider",
   "react/compiler-runtime",
   "react/jsx-dev-runtime",
   "react/jsx-runtime",

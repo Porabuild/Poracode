@@ -92,6 +92,7 @@ vi.mock("./config", () => ({
   remoteAccessAdvertisedHost: () => "127.0.0.1",
   remoteAccessHost: () => "127.0.0.1",
   remoteAccessPairingAppUrl: () => undefined,
+  remoteForwardBaseUrl: () => undefined,
   resolveRemoteAccessPort: () => h.resolveRemoteAccessPort(),
 }));
 
@@ -231,6 +232,7 @@ function createController(
     },
     ...(devServerUrl ? { devServerUrl } : {}),
     callSupervisor,
+    truncateThreadRuntime: vi.fn<DesktopRemoteAccessControllerOptions["truncateThreadRuntime"]>(),
     dispatchThreadCommand: vi.fn<DesktopRemoteAccessControllerOptions["dispatchThreadCommand"]>(
       () => true,
     ),

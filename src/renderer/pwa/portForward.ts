@@ -12,7 +12,11 @@ export function isDirectEndpoint(endpoint: string): boolean {
   return true;
 }
 
-export function buildForwardUrl(advertisedHost: string, listenPort: number): string {
+/**
+ * Explicit raw-TCP address for a forwarded port. Reachable only from the same
+ * network as the desktop; never a substitute for the isolated browser entry URL.
+ */
+export function buildRawTcpUrl(advertisedHost: string, listenPort: number): string {
   return `http://${advertisedHost}:${listenPort}/`;
 }
 

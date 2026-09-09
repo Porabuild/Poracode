@@ -27,6 +27,7 @@ export class ElectronBackendTransport {
   private info: BackendRendererStreamInfo | null = null;
   private socket: WebSocket | null = null;
   private connectPromise: Promise<WebSocket> | null = null;
+  private refreshingInfo = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private lastSequence = 0;
   private directEventsConnected = false;
@@ -43,13 +44,29 @@ export class ElectronBackendTransport {
       }
       this.dispatch(event);
     });
+    host.onSupervisorEventGap(() => {
+      if (this.directEventsConnected) return;
+      // Even a trailing shed event needs recovery. Keep the cursor unchanged:
+      // retained events inside a merged loss range must still be delivered.
+      this.dispatchRebuildForInterests();
+    });
     host.onBackendRendererStreamChanged((info) => this.replaceInfo(info));
-    void host
+    this.refreshInfo();
+  }
+
+  private refreshInfo(): void {
+    if (this.refreshingInfo) return;
+    this.refreshingInfo = true;
+    const previousInfo = this.info;
+    void this.host
       .getBackendRendererStreamInfo()
       .then((info) => {
-        if (info) this.replaceInfo(info);
+        if (info && this.info === previousInfo) this.replaceInfo(info);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        this.refreshingInfo = false;
+      });
   }
 
   subscribe(listener: (event: SupervisorEvent) => void): () => void {
@@ -192,12 +209,16 @@ export class ElectronBackendTransport {
     }
     if (message.type === "resync-required") {
       this.lastSequence = message.latestSeq;
-      for (const threadId of this.interests.terminalThreadIds) {
-        this.dispatch({ type: "thread-scrollback-resync", threadId });
-      }
-      for (const threadId of this.interests.runtimeThreadIds) {
-        this.dispatch({ type: "thread-reset", threadId });
-      }
+      this.dispatchRebuildForInterests();
+    }
+  }
+
+  private dispatchRebuildForInterests(): void {
+    for (const threadId of this.interests.terminalThreadIds) {
+      this.dispatch({ type: "thread-scrollback-resync", threadId });
+    }
+    for (const threadId of this.interests.runtimeThreadIds) {
+      this.dispatch({ type: "thread-reset", threadId });
     }
   }
 
@@ -210,6 +231,7 @@ export class ElectronBackendTransport {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
+      this.refreshInfo();
       void this.connect().catch(() => undefined);
     }, RECONNECT_DELAY_MS);
   }

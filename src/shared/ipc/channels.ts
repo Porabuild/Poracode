@@ -19,6 +19,7 @@ export const IPC_EVENT_CHANNELS = {
   quickComposerSubmit: createChannel("quickComposerSubmit"),
   quickComposerDismissRequested: createChannel("quickComposerDismissRequested"),
   backendRendererStreamChanged: createChannel("backendRendererStreamChanged"),
+  backendSupervisorEventGap: createChannel("backendSupervisorEventGap"),
 } as const;
 
 export const IPC_WINDOW_CHANNELS = {

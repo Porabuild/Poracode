@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "../../src/shared/remote/protocol.ts";
 import { LOOPBACK_HOST } from "./harness/constants.ts";
 import { detectHeadlessServerEntrypoint, findRepoRoot } from "./harness/paths.ts";
 import { ProcessCleanup } from "./harness/processCleanup.ts";
@@ -81,7 +82,7 @@ describe("real production host smoke", () => {
         protocolVersion: number;
         endpoints: unknown;
       };
-      expect(descriptor.protocolVersion).toBe(8);
+      expect(descriptor.protocolVersion).toBe(PORACODE_REMOTE_PROTOCOL_VERSION);
 
       const pairing = await host.pair();
       const credential = pairingTokenFromUrl(pairing.pairingUrl);

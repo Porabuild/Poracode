@@ -11,6 +11,10 @@ interface MultiHostCredentialRepository : SessionCredentialRepository {
     suspend fun catalogSnapshot(): HostCatalogSnapshot
     suspend fun credentialsFor(id: ClientConnectionId): SessionCredentials?
     fun beginHostOperation(kind: HostOperationKind): HostOperationReceipt
+    suspend fun upgradeProtocol(
+        expected: SessionCredentials,
+        owning: HostOperationReceipt,
+    ): HostMutationResult = HostMutationResult.RejectedBeforeApply
     suspend fun selectHost(id: ClientConnectionId, owning: HostOperationReceipt): HostMutationResult
     suspend fun removeHost(id: ClientConnectionId, owning: HostOperationReceipt): HostMutationResult
     suspend fun renameHost(
@@ -39,7 +43,9 @@ class HostCatalogCredentialRepository(
 
     override suspend fun loadOutcome(): SessionCredentialLoadOutcome = try {
         catalog.recover()
-        catalog.importLegacyIfNeeded()
+        if (catalog.importLegacyIfNeeded() == LegacyHostImport.Outcome.SourceInconsistent) {
+            return SessionCredentialLoadOutcome.Rejected.LegacyInconsistent
+        }
         val selected = catalog.snapshot().selected ?: return SessionCredentialLoadOutcome.Empty
         val token = catalog.token(selected.connectionId)
             ?: return SessionCredentialLoadOutcome.Rejected.LocalStoreInconsistent
@@ -89,6 +95,11 @@ class HostCatalogCredentialRepository(
 
     override fun beginHostOperation(kind: HostOperationKind): HostOperationReceipt =
         catalog.begin(kind)
+
+    override suspend fun upgradeProtocol(
+        expected: SessionCredentials,
+        owning: HostOperationReceipt,
+    ): HostMutationResult = catalog.upgradeProtocol(expected, owning)
 
     override suspend fun selectHost(
         id: ClientConnectionId,

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { isReservedForwardProxyPath } from "./server/portForwardProxy";
 import { builtClientHtmlFile, isBuiltClientAssetPath, isLegacyClientPath } from "./staticClientApp";
 
 describe("built canonical client", () => {
@@ -26,13 +25,5 @@ describe("built canonical client", () => {
     expect(isBuiltClientAssetPath("/assets/client.js")).toBe(true);
     expect(isBuiltClientAssetPath("/icons/icon-192.png")).toBe(true);
     expect(isBuiltClientAssetPath("/api/icons/icon-192.png")).toBe(false);
-  });
-
-  it("never forwards canonical or migration routes to a proxied development server", () => {
-    expect(isReservedForwardProxyPath("/desktop")).toBe(true);
-    expect(isReservedForwardProxyPath("/desktop/projects/example")).toBe(true);
-    expect(isReservedForwardProxyPath("/app")).toBe(true);
-    expect(isReservedForwardProxyPath("/app/threads/example")).toBe(true);
-    expect(isReservedForwardProxyPath("/")).toBe(true);
   });
 });

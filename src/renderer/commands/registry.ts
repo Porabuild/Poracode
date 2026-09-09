@@ -365,7 +365,11 @@ function baseCommands(): AppCommand[] {
       when: "editorOpen",
       run: () => {
         const editor = useFileEditorStore.getState();
-        if (editor.activePath) void editor.saveFile(editor.activePath);
+        if (editor.activePath) {
+          void editor
+            .saveFile(editor.activePath)
+            .catch((error) => toast.danger(error instanceof Error ? error.message : String(error)));
+        }
       },
     },
     {

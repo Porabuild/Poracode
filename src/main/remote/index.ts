@@ -4,6 +4,8 @@ export * from "./RemoteBrowserGateway";
 export * from "./RemotePortForwardGateway";
 export * from "./auth";
 export * from "./identity";
+export * from "./portForward/forwardOriginIdentity";
+export * from "./portForward/forwardOriginSecret";
 export * from "./portForward/portForwarding";
 export * from "./portForward/portProxy";
 export * from "./push";

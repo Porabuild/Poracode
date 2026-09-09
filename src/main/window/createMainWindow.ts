@@ -3,7 +3,6 @@ import { BrowserWindow, screen, type RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { PoracodeWindowKind } from "@/shared/ipc";
 import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
-import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import { installSessionPermissions } from "../browser/permissions";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "./windowMaterial";
 import {
@@ -49,10 +48,19 @@ function getSavedWindowBounds(state: ShellStateStore, stateKey: string): WindowB
   }
 }
 
-function saveWindowBounds(window: BrowserWindow, state: ShellStateStore, stateKey: string): void {
+export function saveWindowBounds(
+  window: BrowserWindow,
+  state: ShellStateStore,
+  stateKey: string,
+): void {
+  if (window.isDestroyed()) return;
+  state.set(stateKey, captureWindowBounds(window));
+}
+
+function captureWindowBounds(window: BrowserWindow): string {
   const isMaximized = window.isMaximized();
   const { x, y, width, height } = window.getNormalBounds();
-  state.set(stateKey, JSON.stringify({ x, y, width, height, isMaximized }));
+  return JSON.stringify({ x, y, width, height, isMaximized });
 }
 
 export interface CreateMainWindowOptions {
@@ -74,7 +82,6 @@ export interface CreateMainWindowOptions {
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
-  rendererStream?: BackendRendererStreamInfo;
   windowChromeHeight: number;
   browserUserAgent: string;
   /** Saved appearance, so the native window opens matching the theme. */
@@ -158,7 +165,6 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
         posthogHost: options.posthogHost,
         posthogKey: options.posthogKey,
         sentryEnabled: options.sentryEnabled,
-        ...(options.rendererStream ? { rendererStream: options.rendererStream } : {}),
       }),
     },
   });
@@ -215,29 +221,35 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
   });
 
   let boundsTimer: ReturnType<typeof setTimeout> | null = null;
+  let pendingBounds: string | null = null;
+  const flushBounds = () => {
+    if (boundsTimer) clearTimeout(boundsTimer);
+    boundsTimer = null;
+    if (boundsStateKey && pendingBounds !== null) {
+      options.state.set(boundsStateKey, pendingBounds);
+      pendingBounds = null;
+    }
+  };
   const debouncedSave = () => {
-    if (boundsTimer) {
-      clearTimeout(boundsTimer);
-    }
-    if (boundsStateKey) {
-      boundsTimer = setTimeout(() => saveWindowBounds(window, options.state, boundsStateKey), 500);
-    }
+    if (!boundsStateKey || window.isDestroyed()) return;
+    pendingBounds = captureWindowBounds(window);
+    if (boundsTimer) clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(flushBounds, 500);
   };
   window.on("resize", debouncedSave);
   window.on("move", debouncedSave);
   window.on("maximize", debouncedSave);
   window.on("unmaximize", debouncedSave);
   window.on("close", (event) => {
-    if (boundsTimer) {
-      clearTimeout(boundsTimer);
-    }
-    if (boundsStateKey) {
-      saveWindowBounds(window, options.state, boundsStateKey);
-    }
+    if (boundsStateKey) pendingBounds = captureWindowBounds(window);
+    flushBounds();
     options.onClose?.(event);
     noteRendererWindowClose(window, event);
   });
-  window.on("closed", options.onClosed);
+  window.on("closed", () => {
+    flushBounds();
+    options.onClosed();
+  });
 
   return window;
 }

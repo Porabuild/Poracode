@@ -28,8 +28,9 @@ function feedFor(desktopId: string) {
 export function setRemoteTerminalSocketSender(
   desktopId: string,
   next: TerminalSocketSender | null,
+  options?: { readonly cursorSyncVersion?: 1 },
 ): void {
-  feedFor(desktopId).setSender(next);
+  feedFor(desktopId).setSender(next, options);
 }
 
 export function watchRemoteTerminal(

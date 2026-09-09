@@ -20,6 +20,7 @@ import {
   type BackendServiceProcedureName,
   type BackendServiceResult,
   type BackendRendererStreamInfo,
+  type SupervisorEventGap,
 } from "@/shared/backendHostProtocol";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import type {
@@ -32,13 +33,24 @@ import { terminateChildProcessTree } from "@/shared/processTree";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
+// Bound initialization separately from long-running runtime requests.
+export const BACKEND_HOST_INITIALIZATION_DEADLINE_MS = 60_000;
 const RESTART_DELAY_MS = 1_000;
+const RESTART_MAX_DELAY_MS = 8_000;
+// Five failed attempts allow 15s of backoff; five hung attempts take at most 315s.
+const MAX_INITIALIZATION_FAILURES = 5;
 const DISPOSE_TIMEOUT_MS = 1_000;
-export const BACKEND_HOST_INIT_WAIT_TIMEOUT_MS = 15_000;
+// Covers one 60s hung attempt, its 1s backoff, and 29s of replacement startup.
+export const BACKEND_HOST_INIT_WAIT_TIMEOUT_MS = 90_000;
 
 interface PendingRequest {
   resolve(value: unknown): void;
   reject(reason?: unknown): void;
+}
+
+interface InitializationWaiter {
+  resolve(): void;
+  reject(error: Error): void;
 }
 
 export interface BackendHostClientOptions {
@@ -47,13 +59,15 @@ export interface BackendHostClientOptions {
   resolveExtraEnv(): Record<string, string>;
   assignPid?(pid: number): Promise<void>;
   reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
-  /** Override for tests so recovery timeouts do not need fake 15s timers. */
+  /** Override for tests so recovery timeouts do not need fake waiter timers. */
   initWaitTimeoutMs?: number;
   onEvent(
     event: SupervisorEvent,
     rendererDeliveredDirect: boolean,
     rendererSequence?: number,
   ): void;
+  /** Renderer-stream sequences the desktop-IPC fallback lost to host shedding; windows must rebuild. */
+  onSupervisorEventGap?(gap: SupervisorEventGap): void;
   onReset(): void;
   handleNativeRequest?(request: BackendNativeRequest): Promise<unknown> | unknown;
   onNativeEvent?(event: BackendNativeEvent): void;
@@ -72,6 +86,17 @@ function pipeChildStreamsToParent(child: ChildProcess): void {
  * Versioned, bounded desktop transport for the out-of-process backend host.
  * The renderer-facing Electron main process owns only this proxy; SQLite event
  * durability and the supervisor/agent tree run in the backend child.
+ *
+ * Initialization recovery is bounded: every failed initialization (a rejected
+ * or hung initialize, a hung pid assignment, a crashed child, or a failed
+ * fork) is retried with exponential backoff for at most
+ * {@link MAX_INITIALIZATION_FAILURES} consecutive attempts before recovery
+ * stops with a fatal error. Callers parked in `waitUntilInitialized` survive
+ * transient failures — including spawn failures — within their own wait
+ * budget instead of failing on the first bad attempt. Each child generation
+ * issues at most one `start-supervisor`: a lifecycle caller parked across a
+ * recovery shares the respawn's automatic restart instead of double-starting
+ * the supervisor.
  */
 export class BackendHostClient {
   private child: ChildProcess | null = null;
@@ -82,8 +107,18 @@ export class BackendHostClient {
   private readonly pendingRequests = new Map<string, PendingRequest>();
   private readonly startedGate: Promise<void>;
   private resolveStartedGate!: () => void;
+  private readonly initializationWaiters = new Set<InitializationWaiter>();
+  /** True while the current child completed initialization; reset on exit or spawn failure. */
+  private initializationSucceeded = false;
+  private initializationFailures = 0;
+  private fatalInitializationError: Error | null = null;
+  /** Child terminated because its initialization failed; its exit is expected, not a crash. */
+  private dismissedChild: ChildProcess | null = null;
   private currentExtraEnv: Record<string, string> = {};
   private supervisorStarted = false;
+  /** Settled or in-flight start-supervisor for {@link supervisorStartFlightChild}. */
+  private supervisorStartFlight: Promise<unknown> | null = null;
+  private supervisorStartFlightChild: ChildProcess | null = null;
   private eventInterests: BackendEventInterests = {
     terminalThreadIds: [],
     runtimeThreadIds: [],
@@ -93,9 +128,6 @@ export class BackendHostClient {
   private disposed = false;
   private rendererStreamInfo: BackendRendererStreamInfo | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
-  private recoveryGate: Promise<void> | null = null;
-  private resolveRecoveryGate: (() => void) | null = null;
-  private rejectRecoveryGate: ((error: Error) => void) | null = null;
 
   constructor(private readonly options: BackendHostClientOptions) {
     this.initializePromise.catch(() => undefined);
@@ -157,45 +189,118 @@ export class BackendHostClient {
     });
     this.sender = sender;
 
-    child.on("message", (message: unknown) => this.handleMessage(message));
+    child.on("message", (message: unknown) => {
+      // A replaced child can still emit in-flight messages; they must never
+      // mutate the state of the current child.
+      if (this.child !== child) return;
+      this.handleMessage(message);
+    });
     child.on("error", (error) => this.reportProcessError(error));
     child.on("exit", (code) => this.handleExit(child, code));
 
-    this.initializePromise = Promise.all([
-      this.request({
-        version: BACKEND_HOST_PROTOCOL_VERSION,
-        id: randomUUID(),
-        operation: "initialize",
-        payload: this.options.initialize,
-      }),
-      assignmentPromise,
-    ]).then(async ([result]) => {
+    this.initializePromise = this.runInitialization(child, assignmentPromise);
+    this.initializePromise.catch(() => undefined);
+    if (this.supervisorStarted) {
+      void this.initializePromise
+        .then(() => {
+          if (this.disposed || this.child !== child) return;
+          return this.ensureSupervisorStartForChild();
+        })
+        .catch((error) => this.reportProcessError(error));
+    }
+  }
+
+  private async runInitialization(
+    child: ChildProcess,
+    assignmentPromise: Promise<void>,
+  ): Promise<unknown> {
+    // Cover PID assignment and interest synchronization as well as the initial reply.
+    // Late settlements must not revive an expired attempt or count its failure twice.
+    let failureHandled = false;
+    const deadline = Promise.withResolvers<never>();
+    const deadlineError = new Error(
+      `Backend host initialization did not complete within ${BACKEND_HOST_INITIALIZATION_DEADLINE_MS}ms.`,
+    );
+    const deadlineTimer = setTimeout(() => {
+      if (failureHandled || this.disposed || this.child !== child) return;
+      failureHandled = true;
+      deadline.reject(deadlineError);
+      this.handleInitializationFailure(child, deadlineError);
+    }, BACKEND_HOST_INITIALIZATION_DEADLINE_MS);
+    deadlineTimer.unref?.();
+    try {
+      const [result] = await Promise.race([
+        Promise.all([
+          this.request({
+            version: BACKEND_HOST_PROTOCOL_VERSION,
+            id: randomUUID(),
+            operation: "initialize",
+            payload: this.options.initialize,
+          }),
+          assignmentPromise,
+        ]),
+        deadline.promise,
+      ]);
+      // An expired attempt is dead even while this.child still points at the
+      // terminated child during the respawn backoff.
+      if (this.disposed || failureHandled || this.child !== child) return result;
       this.rendererStreamInfo = parseRendererStreamInfo(result);
       if (this.rendererStreamInfo) this.options.onRendererStreamInfo?.(this.rendererStreamInfo);
       await this.syncEventInterests(true);
+      // The deadline can fire while the interests sync is in flight; a reply
+      // that races the kill must not mark the failed attempt ready.
+      if (this.disposed || failureHandled || this.child !== child) return result;
+      this.initializationSucceeded = true;
+      this.initializationFailures = 0;
+      this.settleInitializationWaiters((waiter) => waiter.resolve());
       return result;
-    });
-    this.initializePromise.catch(() => undefined);
-    if (this.recoveryGate) {
-      void this.initializePromise.then(
-        () => {
-          this.resolveRecoveryGate?.();
-          this.clearRecoveryGate();
-        },
-        (error: unknown) => {
-          const initializationError =
-            error instanceof Error ? error : new Error("Backend host initialization failed.");
-          this.rejectRecoveryGate?.(initializationError);
-          this.clearRecoveryGate();
-          if (this.child === child) terminateChildProcessTree(child);
-        },
-      );
+    } catch (error) {
+      if (!failureHandled) {
+        failureHandled = true;
+        this.handleInitializationFailure(
+          child,
+          error instanceof Error ? error : new Error("Backend host initialization failed."),
+        );
+      }
+      throw error;
+    } finally {
+      clearTimeout(deadlineTimer);
     }
-    if (this.supervisorStarted) {
-      void this.initializePromise
-        .then(() => this.sendSupervisorLifecycleRequest("start-supervisor"))
-        .catch((error) => this.reportProcessError(error));
+  }
+
+  private handleInitializationFailure(child: ChildProcess, error: Error): void {
+    if (this.disposed) return;
+    if (this.child === child) {
+      // The child is still alive, so the failure is a reply (or a request
+      // timeout) carrying the actual reason — report it and stop the child.
+      this.reportProcessError(error);
+      this.dismissedChild = child;
+      // Settle this attempt's in-flight requests now: the respawn can win the
+      // race against the terminated child's exit, whose handler would
+      // otherwise never see them.
+      this.rejectPendingRequests(error);
+      terminateChildProcessTree(child);
     }
+    this.countInitializationFailureAndRecover(error);
+  }
+
+  private countInitializationFailureAndRecover(lastError: Error): void {
+    this.initializationFailures += 1;
+    if (this.initializationFailures >= MAX_INITIALIZATION_FAILURES) {
+      this.giveUpInitialization(lastError);
+      return;
+    }
+    this.scheduleSpawnRetry();
+  }
+
+  private giveUpInitialization(lastError: Error): void {
+    const fatal = new Error(
+      `Backend host failed to initialize after ${MAX_INITIALIZATION_FAILURES} consecutive attempts: ${lastError.message}`,
+    );
+    this.fatalInitializationError = fatal;
+    this.clearRestartTimer();
+    this.reportProcessError(fatal);
+    this.settleInitializationWaiters((waiter) => waiter.reject(fatal));
   }
 
   private handleMessage(message: unknown): void {
@@ -223,6 +328,9 @@ export class BackendHostClient {
           );
         }
         return;
+      case "supervisor-event-gap":
+        this.options.onSupervisorEventGap?.(message);
+        return;
       case "supervisor-reset":
         this.options.onReset();
         return;
@@ -249,11 +357,17 @@ export class BackendHostClient {
     if (this.child !== child) return;
     this.child = null;
     this.sender = null;
+    this.initializationSucceeded = false;
     const error = new Error(`Backend host exited with code ${code ?? "unknown"}.`);
     this.rejectPendingRequests(error);
     this.options.onReset();
+    if (this.dismissedChild === child) {
+      // Deliberately terminated after a failed initialization — recovery is
+      // already owned (and bounded) by the initialization failure path.
+      this.dismissedChild = null;
+      return;
+    }
     if (this.disposed) return;
-    this.beginRecovery();
     this.reportProcessError(error);
     this.scheduleSpawnRetry();
   }
@@ -264,58 +378,65 @@ export class BackendHostClient {
     this.initializePromise = Promise.reject(error);
     this.initializePromise.catch(() => undefined);
     this.reportProcessError(error);
-    this.rejectRecoveryGate?.(error);
-    this.clearRecoveryGate();
     if (this.disposed) return;
-    this.beginRecovery();
-    this.scheduleSpawnRetry();
+    // Same survival contract as every other initialization failure: parked
+    // waiters stay parked across the backoff and are settled by the retry,
+    // the bounded give-up, or their own wait budget.
+    this.countInitializationFailureAndRecover(error);
   }
 
   private scheduleSpawnRetry(): void {
-    if (this.restartTimer) clearTimeout(this.restartTimer);
+    if (this.disposed || this.fatalInitializationError) return;
+    this.clearRestartTimer();
+    const backoffExponent = Math.max(this.initializationFailures - 1, 0);
+    const delay = Math.min(RESTART_DELAY_MS * 2 ** backoffExponent, RESTART_MAX_DELAY_MS);
     this.restartTimer = setTimeout(() => {
       this.restartTimer = null;
       if (this.disposed) return;
       this.spawn();
-    }, RESTART_DELAY_MS);
+    }, delay);
     this.restartTimer.unref?.();
+  }
+
+  private clearRestartTimer(): void {
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.restartTimer = null;
   }
 
   private reportProcessError(error: unknown): void {
     this.options.reportError?.(error, { "poracode.feature_area": "backend-host" });
   }
 
-  private beginRecovery(): void {
-    if (this.recoveryGate) return;
-    this.recoveryGate = new Promise<void>((resolve, reject) => {
-      this.resolveRecoveryGate = resolve;
-      this.rejectRecoveryGate = reject;
+  private settleInitializationWaiters(settle: (waiter: InitializationWaiter) => void): void {
+    const waiters = [...this.initializationWaiters];
+    this.initializationWaiters.clear();
+    for (const waiter of waiters) settle(waiter);
+  }
+
+  private waitUntilInitialized(): Promise<void> {
+    if (this.disposed) return Promise.reject(new Error("Backend host disposed."));
+    if (this.fatalInitializationError) return Promise.reject(this.fatalInitializationError);
+    if (this.initializationSucceeded) return Promise.resolve();
+    return new Promise<void>((resolve, reject) => {
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const waiter: InitializationWaiter = {
+        resolve: () => {
+          if (timeoutId !== undefined) clearTimeout(timeoutId);
+          resolve();
+        },
+        reject: (error: Error) => {
+          if (timeoutId !== undefined) clearTimeout(timeoutId);
+          reject(error);
+        },
+      };
+      timeoutId = setTimeout(() => {
+        timeoutId = undefined;
+        this.initializationWaiters.delete(waiter);
+        reject(new Error("Backend host initialization timed out."));
+      }, this.options.initWaitTimeoutMs ?? BACKEND_HOST_INIT_WAIT_TIMEOUT_MS);
+      timeoutId.unref?.();
+      this.initializationWaiters.add(waiter);
     });
-    this.recoveryGate.catch(() => undefined);
-  }
-
-  private clearRecoveryGate(): void {
-    this.recoveryGate = null;
-    this.resolveRecoveryGate = null;
-    this.rejectRecoveryGate = null;
-  }
-
-  private async waitUntilInitialized(): Promise<void> {
-    const recovery = this.recoveryGate;
-    const ready = (recovery ?? Promise.resolve()).then(() => this.initializePromise);
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    try {
-      await new Promise<void>((resolve, reject) => {
-        timeoutId = setTimeout(() => {
-          reject(new Error("Backend host initialization timed out."));
-        }, this.options.initWaitTimeoutMs ?? BACKEND_HOST_INIT_WAIT_TIMEOUT_MS);
-        timeoutId.unref?.();
-        void ready.then(() => resolve(), reject);
-      });
-    } finally {
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
-      void ready.catch(() => undefined);
-    }
   }
 
   private rejectPendingRequests(error: Error): void {
@@ -409,12 +530,37 @@ export class BackendHostClient {
     await this.syncEventInterests();
   }
 
+  /**
+   * Sends `start-supervisor` at most once per child generation and shares the
+   * flight with every requester for that child: the respawn hook and a
+   * lifecycle caller parked across the recovery must not double-start the
+   * supervisor, which the backend restarts unconditionally. A failed flight is
+   * released so a later explicit caller can retry; a settled one stays cached
+   * so repeated starts on a healthy child are idempotent.
+   */
+  private ensureSupervisorStartForChild(): Promise<unknown> {
+    if (this.supervisorStartFlight && this.supervisorStartFlightChild === this.child) {
+      return this.supervisorStartFlight;
+    }
+    const child = this.child;
+    const flight = this.sendSupervisorLifecycleRequest("start-supervisor");
+    this.supervisorStartFlight = flight;
+    this.supervisorStartFlightChild = child;
+    void flight.catch(() => {
+      if (this.supervisorStartFlightChild === child) {
+        this.supervisorStartFlight = null;
+        this.supervisorStartFlightChild = null;
+      }
+    });
+    return flight;
+  }
+
   async startSupervisor(): Promise<void> {
     this.supervisorStarted = true;
     this.currentExtraEnv = this.options.resolveExtraEnv();
     this.resolveStartedGate();
     await this.waitUntilInitialized();
-    await this.sendSupervisorLifecycleRequest("start-supervisor");
+    await this.ensureSupervisorStartForChild();
   }
 
   async restartSupervisor(): Promise<void> {
@@ -422,6 +568,8 @@ export class BackendHostClient {
     this.currentExtraEnv = this.options.resolveExtraEnv();
     this.resolveStartedGate();
     await this.waitUntilInitialized();
+    // Explicit restart keeps force semantics: it never reuses the cached
+    // start flight and always re-issues the request.
     await this.sendSupervisorLifecycleRequest("restart-supervisor");
   }
 
@@ -481,23 +629,25 @@ export class BackendHostClient {
     if (this.disposed) return;
     this.disposed = true;
     this.resolveStartedGate();
-    this.rejectRecoveryGate?.(new Error("Backend host disposed."));
-    this.clearRecoveryGate();
-    if (this.restartTimer) clearTimeout(this.restartTimer);
-    this.restartTimer = null;
+    this.settleInitializationWaiters((waiter) =>
+      waiter.reject(new Error("Backend host disposed.")),
+    );
+    this.clearRestartTimer();
     const child = this.child;
     if (!child) return;
 
     try {
       await Promise.race([
-        this.initializePromise.then(() =>
-          this.request({
-            version: BACKEND_HOST_PROTOCOL_VERSION,
-            id: randomUUID(),
-            operation: "dispose",
-            payload: {},
-          }),
-        ),
+        this.initializePromise
+          .then(() =>
+            this.request({
+              version: BACKEND_HOST_PROTOCOL_VERSION,
+              id: randomUUID(),
+              operation: "dispose",
+              payload: {},
+            }),
+          )
+          .catch(() => undefined),
         new Promise<void>((resolve) => setTimeout(resolve, DISPOSE_TIMEOUT_MS)),
       ]);
     } finally {

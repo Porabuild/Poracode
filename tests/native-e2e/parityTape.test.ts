@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "../../src/shared/remote/protocol.ts";
 import { buildParitySnapshot } from "./harness/paritySnapshot.ts";
 import {
   loadCanonicalParityTape,
@@ -14,7 +15,7 @@ describe("canonical replay/Git parity tape", () => {
     const families = new Set(tape.cases.map((entry) => entry.family));
 
     expect(tape.id).toBe("remote-v3-replay-git-state-parity");
-    expect(tape.protocolVersion).toBe(8);
+    expect(tape.protocolVersion).toBe(PORACODE_REMOTE_PROTOCOL_VERSION);
     expect(families).toEqual(
       new Set([
         "lifecycle",

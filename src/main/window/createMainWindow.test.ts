@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const installSessionPermissions = vi.hoisted(() => vi.fn<() => void>());
 const dbGetState = vi.hoisted(() => vi.fn<() => string | null>(() => null));
@@ -62,6 +62,8 @@ vi.mock("../browser/permissions", () => ({
 }));
 
 describe("createMainWindow", () => {
+  afterEach(() => vi.useRealTimers());
+
   beforeEach(() => {
     vi.clearAllMocks();
     browserWindowOptions = null;
@@ -166,5 +168,47 @@ describe("createMainWindow", () => {
       [killed, undefined],
       [killed, "window-close"],
     ]);
+  });
+
+  it("persists the last resize when destruction bypasses close without reading a dead window", async () => {
+    vi.useFakeTimers();
+    const { createMainWindow } = await import("./createMainWindow");
+    const onClosed = vi.fn<() => void>();
+    const window = createMainWindow({
+      state: { get: dbGetState, set: dbSetState },
+      title: "Poracode",
+      isDev: false,
+      channel: "stable",
+      preloadPath: "/tmp/preload.cjs",
+      rendererHtmlPath: "/tmp/index.html",
+      appVersion: "1.2.1",
+      posthogEnableDev: false,
+      posthogEnabled: false,
+      posthogHost: "",
+      posthogKey: "",
+      sentryEnabled: false,
+      windowChromeHeight: 32,
+      browserUserAgent: "Poracode",
+      appearance: "dark",
+      sidebarTranslucency: false,
+      onClosed,
+    });
+    windowHandlers.resize?.();
+    const bounds = { x: 134, y: 35, width: 1206, height: 824 };
+    vi.mocked(window.getNormalBounds).mockReturnValue(bounds);
+    windowHandlers.resize?.();
+    expect(dbSetState).not.toHaveBeenCalled();
+    vi.mocked(window.isDestroyed).mockReturnValue(true);
+    vi.mocked(window.getNormalBounds).mockImplementation(() => {
+      throw new Error("Object has been destroyed");
+    });
+    windowHandlers.closed?.();
+    windowHandlers.resize?.();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(dbSetState).toHaveBeenCalledExactlyOnceWith(
+      "window-bounds",
+      JSON.stringify({ ...bounds, isMaximized: false }),
+    );
+    expect(onClosed).toHaveBeenCalledOnce();
   });
 });

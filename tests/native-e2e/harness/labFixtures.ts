@@ -120,7 +120,10 @@ export function buildReplayableEvent(
           label: "Codex",
           installed: true,
           authState: "authenticated",
-          capabilities: {},
+          capabilities: {
+            presentationModes: ["gui", "terminal"],
+            models: [{ id: "gpt-5", label: "Fixture model" }],
+          },
         },
       };
     case "windows-agent-statuses":

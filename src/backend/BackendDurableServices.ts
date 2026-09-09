@@ -60,7 +60,8 @@ export class BackendDurableServices {
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
   readonly appControls: AppControlsMcpIngress;
-  private ingressStarted = false;
+  /** Settled or in-flight shared ingress start; cleared on failure so it can retry. */
+  private ingressStart: Promise<void> | null = null;
   private backgroundStarted = false;
 
   constructor(private readonly options: BackendDurableServicesOptions) {
@@ -168,10 +169,23 @@ export class BackendDurableServices {
       : {};
   }
 
-  async startIngress(): Promise<void> {
-    if (this.ingressStarted) return;
-    this.ingressStarted = true;
-    await this.appControls.start();
+  /**
+   * Single-flight start of the app-controls ingress. Concurrent callers share
+   * one attempt, and a failed attempt is forgotten so a later caller retries
+   * it instead of being locked out forever — supervisor start-up is gated on
+   * this (the child only receives the app-controls MCP env when ingress is
+   * already up), so a swallowed failure here would leave the device
+   * permanently ingress-less.
+   */
+  startIngress(): Promise<void> {
+    this.ingressStart ??= this.appControls.start().then(
+      () => undefined,
+      (error: unknown) => {
+        this.ingressStart = null;
+        throw error;
+      },
+    );
+    return this.ingressStart;
   }
 
   startBackgroundServices(): void {

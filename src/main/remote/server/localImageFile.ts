@@ -61,6 +61,7 @@ export async function writeLocalImageFile(
     throw new RemoteHttpError("image_too_large", "The image file is too large.", 413);
   }
   const data = await readFile(filePath);
+  res.appendHeader("Vary", "Authorization");
   res.writeHead(200, {
     "content-type": contentType,
     "content-length": data.length,

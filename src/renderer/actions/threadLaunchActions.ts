@@ -135,6 +135,9 @@ export async function performInitialThreadLaunch(input: {
         threadId: owner.remoteId,
         projectLocation: unprojectProjectLocation(projectLocation),
         ...startInput,
+        ...(!prompt && !segments?.length && !providerSwitch && !optimisticUserMessageItemId
+          ? { ensureRunning: true as const }
+          : {}),
         ...(startInput.segments
           ? {
               segments: unprojectRemoteThreadMentionSegments(

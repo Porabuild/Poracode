@@ -74,13 +74,12 @@ export class BackendDesktopServices {
   private readonly browser: BackendRemoteBrowserProxy;
   private readonly stopProjectionWatch: () => void;
   private updateStatus: RemoteHostUpdateStatus | null = null;
-  private started = false;
 
   constructor(private readonly options: BackendDesktopServicesOptions) {
     const { initialize, host } = options;
     const desktop = initialize.desktop;
     const supervisor = host.supervisorClient;
-    this.browser = new BackendRemoteBrowserProxy(options.requestNative);
+    this.browser = new BackendRemoteBrowserProxy(options.requestNative, options.reportError);
     this.stopProjectionWatch = onProjectThreadDataChanged(() => {
       options.emitNativeEvent({ type: "database-projection-changed" });
     });
@@ -119,7 +118,21 @@ export class BackendDesktopServices {
       },
       hasRendererWindow: true,
       openThreadInUi: (threadId) => {
-        void options.requestNative({ operation: "open-thread", payload: { threadId } });
+        // Fire-and-forget: the durable side only needs the acknowledgment.
+        // Without an explicit settlement a rejection would escape as an
+        // unhandled rejection and tear down the shared backend process.
+        void options.requestNative({ operation: "open-thread", payload: { threadId } }).then(
+          () => undefined,
+          (error: unknown) => {
+            const detail = error instanceof Error ? error.message : String(error);
+            options.reportError(
+              new Error(`Failed to open thread "${threadId}" in the desktop UI: ${detail}`),
+              {
+                "poracode.feature_area": "remote-access",
+              },
+            );
+          },
+        );
         return true;
       },
       notifyUser: async (payload) => {
@@ -176,6 +189,9 @@ export class BackendDesktopServices {
           paths: { baseDir: initialize.baseDir, settingsPath: desktop.settingsPath },
           ...(desktop.devServerUrl ? { devServerUrl: desktop.devServerUrl } : {}),
           callSupervisor: (name, payload) => supervisor.call(name, payload),
+          truncateThreadRuntime: (threadId, itemId) => {
+            host.truncateThreadRuntime(threadId, itemId);
+          },
           dispatchThreadCommand,
           browser: this.browser,
           notifySharedSettingsChanged: (settings) =>
@@ -200,7 +216,21 @@ export class BackendDesktopServices {
                 .requestNative({ operation: "check-for-update", payload: {} })
                 .then(() => undefined),
             install: () => {
-              void options.requestNative({ operation: "install-update", payload: {} });
+              // Fire-and-forget: the updater surfaces progress on its own; a
+              // rejection here must still be settled so it cannot become an
+              // unhandled rejection in the shared backend process.
+              void options.requestNative({ operation: "install-update", payload: {} }).then(
+                () => undefined,
+                (error: unknown) => {
+                  const detail = error instanceof Error ? error.message : String(error);
+                  options.reportError(
+                    new Error(`Failed to install the pending update: ${detail}`),
+                    {
+                      "poracode.feature_area": "updates",
+                    },
+                  );
+                },
+              );
             },
           },
         })
@@ -211,9 +241,13 @@ export class BackendDesktopServices {
     return this.durable.getSupervisorExtraEnv();
   }
 
+  /**
+   * Supervisor start-up must wait for the app-controls ingress: the child
+   * resolves its extra env (the MCP URL/token) at spawn. Ownership is the
+   * durable layer's single-flight start — a failed attempt is retried here on
+   * the next supervisor start rather than latched off.
+   */
   async prepareSupervisor(): Promise<void> {
-    if (this.started) return;
-    this.started = true;
     await this.durable.startIngress();
   }
 

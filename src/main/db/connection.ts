@@ -62,9 +62,8 @@ export function initDatabase(
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
 
-  // Desktop main migrates before it starts BackendHost. Both processes then
-  // keep WAL connections open, so read-then-write transactions must use
-  // BEGIN IMMEDIATE to reserve the single writer before taking a snapshot.
+  // Read-then-write transactions use BEGIN IMMEDIATE to reserve SQLite's
+  // single writer before taking a snapshot.
 
   _sqlite = sqlite;
 

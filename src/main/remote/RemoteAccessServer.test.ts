@@ -53,6 +53,7 @@ import {
   dbGetLatestThreadGoalItem,
   dbGetLatestThreadRuntimeAnchorItemId,
   dbGetThreadRuntimeItems,
+  dbGetThreadRuntimeItem,
   dbGetThreadRuntimeItemsPage,
   dbGetThreadRuntimeSummaries,
   dbGetThreadTerminalScrollbackRecord,
@@ -66,7 +67,10 @@ import {
   dbUpsertThread,
 } from "../db";
 import { RemoteAuthStore } from "./auth";
+import { deriveForwardOwner, ForwardOriginPolicy } from "./portForward/forwardOrigin";
+import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
 import { PortProxy } from "./portForward/portProxy";
+import { rawRequestWithAuthority } from "./portForward/testFixtures";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -98,6 +102,7 @@ vi.mock("../db", () => {
     dbGetLatestThreadGoalItem: vi.fn<() => unknown>(() => null),
     dbGetLatestThreadRuntimeAnchorItemId: vi.fn<() => null>(() => null),
     dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
+    dbGetThreadRuntimeItem: vi.fn<(...args: unknown[]) => unknown>(() => undefined),
     dbGetThreadRuntimeItemsPage: vi.fn<() => { items: unknown[]; nextCursor: number | null }>(
       () => ({ items: [], nextCursor: null }),
     ),
@@ -516,11 +521,66 @@ function rawGet(url: URL): Promise<{ status: number; headers: IncomingHttpHeader
   });
 }
 
-/** Extracts the `lc_forward` cookie value from a raw `Set-Cookie` header. */
+/** Extracts the `__Host-poracode-forward` cookie value from a raw `Set-Cookie`
+ * header. */
 function extractForwardCookieValue(setCookieHeader: string): string {
-  const match = /^lc_forward=([^;]+)/.exec(setCookieHeader);
-  if (!match?.[1]) throw new Error(`Expected an lc_forward cookie, got: ${setCookieHeader}`);
+  const match = /^__Host-poracode-forward=([^;]+)/.exec(setCookieHeader);
+  if (!match?.[1]) {
+    throw new Error(`Expected a __Host-poracode-forward cookie, got: ${setCookieHeader}`);
+  }
   return match[1];
+}
+
+/** Known fixture origin secret (32 identical bytes) — never a real credential. */
+const TEST_ORIGIN_SECRET = Buffer.alloc(32, 1).toString("base64url");
+const TEST_BASE = "https://apps.example.test";
+const TEST_POLICY = new ForwardOriginPolicy(TEST_BASE);
+const TEST_OWNER = deriveForwardOwner(TEST_ORIGIN_SECRET, "desktop-test");
+
+function makeForwardOrigin() {
+  return createForwardOriginIdentity({
+    baseUrl: TEST_BASE,
+    originSecret: TEST_ORIGIN_SECRET,
+    serverId: "desktop-test",
+  })!;
+}
+
+function childOriginFor(forwardId: string): string {
+  return TEST_POLICY.originFor(TEST_OWNER, forwardId);
+}
+
+function childAuthorityFor(forwardId: string): string {
+  return new URL(childOriginFor(forwardId)).host;
+}
+
+/** Drives the two-hop browser entry (API-origin enter → child-origin
+ * exchange) and returns the child-bound session cookie. */
+async function enterChildOrigin(
+  serverPort: number,
+  enterPath: string,
+  forwardId: string,
+): Promise<{ childOrigin: string; childAuthority: string; cookie: string }> {
+  const info = childOriginFor(forwardId);
+  const authority = childAuthorityFor(forwardId);
+  const entryResponse = await rawGet(new URL(enterPath, `http://127.0.0.1:${serverPort}`));
+  expect(entryResponse.status).toBe(302);
+  expect(entryResponse.headers["set-cookie"]).toBeUndefined();
+  expect(entryResponse.headers["cache-control"]).toBe("no-store");
+  const location = new URL(entryResponse.headers.location!);
+  expect(location.origin).toBe(info);
+  const exchangeResponse = await rawRequestWithAuthority({
+    port: serverPort,
+    path: location.pathname + location.search,
+    authority,
+    headers: { origin: info },
+  });
+  expect(exchangeResponse.status).toBe(302);
+  const setCookie = exchangeResponse.headers["set-cookie"]?.[0]!;
+  return {
+    childOrigin: info,
+    childAuthority: authority,
+    cookie: `__Host-poracode-forward=${extractForwardCookieValue(setCookie)}`,
+  };
 }
 
 describe("RemoteAccessServer", () => {
@@ -531,6 +591,7 @@ describe("RemoteAccessServer", () => {
     });
     const install = vi.fn<() => void>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -576,6 +637,7 @@ describe("RemoteAccessServer", () => {
     });
     const port = (blocker.address() as AddressInfo).port;
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -606,6 +668,7 @@ describe("RemoteAccessServer", () => {
       }),
     ]);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -642,6 +705,7 @@ describe("RemoteAccessServer", () => {
       createTestThread({ id: "thread-legacy", status: "launching", presentationMode: "gui" }),
     ]);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -675,6 +739,7 @@ describe("RemoteAccessServer", () => {
       }),
     ]);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -709,6 +774,7 @@ describe("RemoteAccessServer", () => {
       }),
     ]);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -759,6 +825,7 @@ describe("RemoteAccessServer", () => {
   it("rotates the desktop pairing code after exchange and rejects replay", async () => {
     const onPairingChanged = vi.fn<() => void>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -819,6 +886,7 @@ describe("RemoteAccessServer", () => {
       async () => "" as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -953,6 +1021,7 @@ describe("RemoteAccessServer", () => {
     vi.mocked(dbGetThreadRuntimeItemsPage).mockReturnValue(tailPage);
 
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1027,6 +1096,7 @@ describe("RemoteAccessServer", () => {
     vi.mocked(dbGetThread).mockReturnValueOnce(working).mockReturnValue(idle);
 
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1056,6 +1126,7 @@ describe("RemoteAccessServer", () => {
       resolveTaskRead = resolve;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1099,6 +1170,7 @@ describe("RemoteAccessServer", () => {
     const thread = createTestThread({ id: "thread-background-batch", status: "working" });
     vi.mocked(dbGetThread).mockReturnValue(thread);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1151,6 +1223,7 @@ describe("RemoteAccessServer", () => {
     const thread = createTestThread({ id: "thread-background-reset", status: "working" });
     vi.mocked(dbGetThread).mockReturnValue(thread);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1224,6 +1297,7 @@ describe("RemoteAccessServer", () => {
       },
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1278,6 +1352,7 @@ describe("RemoteAccessServer", () => {
       ),
     };
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1342,6 +1417,7 @@ describe("RemoteAccessServer", () => {
 
   it("serves and guards the image-reference endpoint", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1371,6 +1447,21 @@ describe("RemoteAccessServer", () => {
     // These tests have no DB attached, so a well-formed reference resolves to
     // nothing — which must be a clean 404 rather than a crash.
     expect((await fetch(refUrl('["images",0]'))).status).toBe(404);
+    const imageBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    vi.mocked(dbGetThreadRuntimeItem).mockReturnValueOnce({
+      id: "item-1",
+      type: "assistant_message",
+      state: "completed",
+      streams: {},
+      payload: { images: [`data:image/png;base64,${imageBytes.toString("base64")}`] },
+    });
+    const image = await fetch(refUrl('["images",0]'), {
+      headers: { origin: "http://localhost:3100" },
+    });
+    expect(image.status).toBe(200);
+    expect(image.headers.get("vary")).toBe("Origin, Authorization");
+    expect(image.headers.get("access-control-allow-origin")).toBe("http://localhost:3100");
+    expect(Buffer.from(await image.arrayBuffer())).toEqual(imageBytes);
   });
 
   it("serves local image files over the authenticated image endpoint", async () => {
@@ -1379,6 +1470,7 @@ describe("RemoteAccessServer", () => {
     const imagePath = join(dir, "pixel.png");
     writeFileSync(imagePath, pngBytes);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1403,10 +1495,11 @@ describe("RemoteAccessServer", () => {
     const headerUrl = new URL("/api/files/image", info.httpBaseUrl);
     headerUrl.searchParams.set("path", imagePath);
     const headerResponse = await fetch(headerUrl, {
-      headers: { authorization: `Bearer ${token}` },
+      headers: { authorization: `Bearer ${token}`, origin: "http://localhost:3100" },
     });
     expect(headerResponse.status).toBe(200);
     expect(headerResponse.headers.get("content-type")).toBe("image/png");
+    expect(headerResponse.headers.get("vary")).toBe("Origin, Authorization");
   });
 
   it("rejects local image requests without a valid access token", async () => {
@@ -1414,6 +1507,7 @@ describe("RemoteAccessServer", () => {
     const imagePath = join(dir, "pixel.png");
     writeFileSync(imagePath, Buffer.from("png"));
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1436,6 +1530,7 @@ describe("RemoteAccessServer", () => {
     const textPath = join(dir, "notes.txt");
     writeFileSync(textPath, Buffer.from("hello"));
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1463,6 +1558,7 @@ describe("RemoteAccessServer", () => {
       () => "C:\\attachments\\notes.md",
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1497,6 +1593,7 @@ describe("RemoteAccessServer", () => {
 
   it("drops websocket clients when outbound sends fail", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1537,6 +1634,7 @@ describe("RemoteAccessServer", () => {
     const onEventInterestsChanged =
       vi.fn<NonNullable<RemoteAccessServerOptions["onEventInterestsChanged"]>>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1597,6 +1695,7 @@ describe("RemoteAccessServer", () => {
 
   it("scopes transcript content per connection without breaking approvals or replay", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1733,6 +1832,7 @@ describe("RemoteAccessServer", () => {
 
   it("replaces inline images with references on the live event stream", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1792,6 +1892,7 @@ describe("RemoteAccessServer", () => {
 
   it("gzips and revalidates the shell snapshot", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1806,7 +1907,7 @@ describe("RemoteAccessServer", () => {
       headers: { authorization: `Bearer ${token}`, "accept-encoding": "gzip" },
     });
     expect(first.status).toBe(200);
-    expect(first.headers.get("vary")).toBe("Accept-Encoding");
+    expect(first.headers.get("vary")).toBe("Origin, Accept-Encoding, Authorization");
     const etag = first.headers.get("etag");
     expect(etag).toBeTruthy();
     // The snapshot still parses through the transparent gzip decode.
@@ -1819,9 +1920,12 @@ describe("RemoteAccessServer", () => {
         authorization: `Bearer ${token}`,
         "accept-encoding": "gzip",
         "if-none-match": etag!,
+        origin: "http://localhost:3100",
       },
     });
     expect(second.status).toBe(304);
+    expect(second.headers.get("vary")).toBe("Origin, Accept-Encoding, Authorization");
+    expect(second.headers.get("access-control-allow-origin")).toBe("http://localhost:3100");
     expect(await second.text()).toBe("");
 
     // A stale tag from a different body must not be honored.
@@ -1834,6 +1938,7 @@ describe("RemoteAccessServer", () => {
 
   it("keeps clients connected when a runtime event exceeds the outbound budget", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1904,6 +2009,7 @@ describe("RemoteAccessServer", () => {
     const onOversizedEventDropped =
       vi.fn<NonNullable<RemoteAccessServerOptions["onOversizedEventDropped"]>>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1944,6 +2050,7 @@ describe("RemoteAccessServer", () => {
 
   it("drops websocket clients before outbound buffers grow without bound", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1979,6 +2086,7 @@ describe("RemoteAccessServer", () => {
 
   it("closes clients that exceed the inbound websocket payload limit", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -1999,6 +2107,7 @@ describe("RemoteAccessServer", () => {
   it("closes websocket clients when their access session expires", async () => {
     const authStore = new RemoteAuthStore();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2040,6 +2149,7 @@ describe("RemoteAccessServer", () => {
       async () => undefined as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2068,6 +2178,7 @@ describe("RemoteAccessServer", () => {
 
   it("terminates half-open websocket clients that do not pong", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2098,6 +2209,7 @@ describe("RemoteAccessServer", () => {
 
   it("limits CORS to trusted origins", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2136,6 +2248,7 @@ describe("RemoteAccessServer", () => {
     // The Vite-served canonical browser app pairs without an explicit
     // pairingAppUrl/trustedCorsOrigins entry.
     const devServer = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-dev", label: "Dev Desktop" },
       isDev: true,
@@ -2155,6 +2268,7 @@ describe("RemoteAccessServer", () => {
     // The same localhost app can pair with a packaged/headless app. The app can
     // be on another machine; authentication still requires its pairing token.
     const prodServer = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-prod", label: "Prod Desktop" },
       host: "127.0.0.1",
@@ -2180,10 +2294,23 @@ describe("RemoteAccessServer", () => {
     });
     expect(prodPreflight.status).toBe(204);
     expect(prodPreflight.headers.get("access-control-allow-origin")).toBe("http://localhost:3100");
+    expect(prodPreflight.headers.get("access-control-max-age")).toBe("600");
+    const deniedPreflight = await fetch(new URL("/api/snapshot", prodInfo.httpBaseUrl), {
+      method: "OPTIONS",
+      headers: { origin: "https://untrusted.example", "access-control-request-method": "GET" },
+    });
+    expect(deniedPreflight.status).toBe(403);
+    expect(deniedPreflight.headers.get("access-control-max-age")).toBeNull();
+    // Preflight caching never authorizes the actual request.
+    const unauthenticated = await fetch(new URL("/api/snapshot", prodInfo.httpBaseUrl), {
+      headers: { origin: "http://localhost:3100" },
+    });
+    expect(unauthenticated.status).toBe(401);
   });
 
   it("advertises a full advertisedBaseUrl over host/port (https → wss)", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "0.0.0.0",
@@ -2208,6 +2335,7 @@ describe("RemoteAccessServer", () => {
     const port = await getFreePort();
     const advertised = "https://tunnel.example.com";
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2230,6 +2358,7 @@ describe("RemoteAccessServer", () => {
 
   it("accepts websocket upgrades from arbitrary origins with one-use tickets", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2278,6 +2407,7 @@ describe("RemoteAccessServer", () => {
 
   it("points dev pairing links at the canonical dev app origin", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2302,6 +2432,7 @@ describe("RemoteAccessServer", () => {
 
   it("points production pairing links at the hosted Poracode app", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2329,6 +2460,7 @@ describe("RemoteAccessServer", () => {
       throw new Error("supervisor must not be reached for an unauthenticated call");
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2387,6 +2519,7 @@ describe("RemoteAccessServer", () => {
       } as never;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2588,6 +2721,7 @@ describe("RemoteAccessServer", () => {
     vi.mocked(dbGetProjects).mockReturnValue([createTestProject()]);
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2625,6 +2759,7 @@ describe("RemoteAccessServer", () => {
       throw new Error("supervisor should not be reached without projects:manage");
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2663,6 +2798,7 @@ describe("RemoteAccessServer", () => {
       throw new Error(`unexpected supervisor call: ${name}`);
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2718,6 +2854,7 @@ describe("RemoteAccessServer", () => {
       throw new Error(`unexpected supervisor call: ${name}`);
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2761,6 +2898,7 @@ describe("RemoteAccessServer", () => {
       throw new Error(`unexpected supervisor call: ${name}`);
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2800,6 +2938,7 @@ describe("RemoteAccessServer", () => {
       throw new Error(`unexpected supervisor call: ${name}`);
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2835,6 +2974,7 @@ describe("RemoteAccessServer", () => {
 
   it("rate limits pairing token exchange attempts", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2867,6 +3007,7 @@ describe("RemoteAccessServer", () => {
 
   it("keys the pairing rate limit per forwarded client behind a loopback relay hop", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2906,6 +3047,7 @@ describe("RemoteAccessServer", () => {
 
   it("only buffers and broadcasts remotely-consumed supervisor events", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2938,6 +3080,7 @@ describe("RemoteAccessServer", () => {
 
   it("forces a resync when a reconnecting client's cursor exceeds a reset stream", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -2981,17 +3124,24 @@ describe("RemoteAccessServer", () => {
     ws.close();
   });
 
-  it("lists access sessions and closes active sockets when revoked", async () => {
+  it("stops accepting websocket work immediately when an access session is revoked", async () => {
+    const onEventInterestsChanged =
+      vi.fn<NonNullable<RemoteAccessServerOptions["onEventInterestsChanged"]>>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
       port: 0,
+      onEventInterestsChanged,
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
     });
     servers.push(server);
     const info = await server.start();
     const { ws } = await openPairedSocket(info);
+    const serverSocket = [
+      ...(server as unknown as { clients: Map<WebSocket, unknown> }).clients.keys(),
+    ][0]!;
     const [session] = server.listAccessSessions();
     expect(session).toMatchObject({
       client: { label: "Test mobile", deviceType: "mobile" },
@@ -3003,7 +3153,22 @@ describe("RemoteAccessServer", () => {
         resolve({ code, reason: reason.toString() });
       });
     });
+    // Keep the close frame unread while the peer sends another valid message.
+    // The server must withdraw authority before the close handshake finishes.
+    ws.pause();
     expect(server.revokeAccessSession(session!.id)).toBe(true);
+    expect(serverSocket.readyState).toBe(WebSocket.CLOSING);
+    onEventInterestsChanged.mockClear();
+    try {
+      const delivered = new Promise<void>((resolve) =>
+        serverSocket.once("message", () => resolve()),
+      );
+      ws.send(JSON.stringify({ type: "thread-item-interests", threadIds: ["revoked-work"] }));
+      await delivered;
+      expect(onEventInterestsChanged).not.toHaveBeenCalled();
+    } finally {
+      ws.resume();
+    }
     await expect(close).resolves.toMatchObject({
       code: 1008,
       reason: "Remote access session revoked",
@@ -3036,6 +3201,7 @@ describe("RemoteAccessServer", () => {
       async () => ({ threadId: "thread-remote" }) as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3102,6 +3268,82 @@ describe("RemoteAccessServer", () => {
     ]);
   });
 
+  it("reopens with host-owned state despite a legacy creation receipt", async () => {
+    const project = createTestProject();
+    const thread = createTestThread({
+      id: "reopen-existing",
+      projectId: project.id,
+      status: "inactive",
+      config: { model: "host-model" },
+      sessionRef: { providerSessionId: "host-session", discoveredAt: "2026-09-08T00:00:00.000Z" },
+      worktreePath: "/repo/worktrees/current",
+      presentationMode: "gui",
+    });
+    vi.mocked(dbGetProjects).mockReturnValue([project]);
+    vi.mocked(dbGetThread).mockReturnValue(thread);
+    vi.mocked(dbClaimRemoteCommand).mockReturnValue({ state: "conflict" });
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+      async () => ({ threadId: thread.id }) as never,
+    );
+    const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:operate"]);
+    const request = (overrides: Record<string, unknown> = {}) =>
+      fetch(new URL("/api/threads/start", info.httpBaseUrl), {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          "x-poracode-command-id": `thread-start:${thread.id}`,
+        },
+        body: JSON.stringify({
+          threadId: thread.id,
+          projectLocation: { kind: "posix", path: "/stale" },
+          agentKind: thread.agentKind,
+          config: { model: "stale-model" },
+          prompt: "",
+          ensureRunning: true,
+          sessionRef: {
+            providerSessionId: "stale-session",
+            discoveredAt: "2026-09-08T00:00:00.000Z",
+          },
+          initialSize: { cols: 80, rows: 24 },
+          ...overrides,
+        }),
+      });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await request();
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ threadId: thread.id });
+    }
+    for (const invalid of [{ prompt: "new input" }, { userMessageItemId: "new-message" }]) {
+      const response = await request(invalid);
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({ error: { code: "invalid_reopen" } });
+    }
+    expect(dbClaimRemoteCommand).not.toHaveBeenCalled();
+    expect(callSupervisor).toHaveBeenCalledTimes(2);
+    expect(callSupervisor).toHaveBeenLastCalledWith(
+      "ensureThreadRunning",
+      expect.objectContaining({
+        threadId: thread.id,
+        projectLocation: { ...project.location, path: thread.worktreePath },
+        config: thread.config,
+        sessionRef: thread.sessionRef,
+        prompt: "",
+        presentationMode: "gui",
+      }),
+    );
+  });
+
   it("runs new-worktree setup on the host before launching the remote thread", async () => {
     const project = createTestProject({
       scripts: { actions: [], setupScript: "pnpm install" },
@@ -3116,6 +3358,7 @@ describe("RemoteAccessServer", () => {
       NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>
     >(() => true);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3200,6 +3443,7 @@ describe("RemoteAccessServer", () => {
       return undefined as never;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3247,6 +3491,7 @@ describe("RemoteAccessServer", () => {
       NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>
     >(() => true);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3288,7 +3533,26 @@ describe("RemoteAccessServer", () => {
   });
 
   it("truncates durable remote runtime history during a PWA checkpoint revert", async () => {
-    const server = new RemoteAccessServer({
+    // The route delegates to the injected host operation, which owns the DB
+    // mutation and publishes the canonical event; mirror it here so the
+    // broadcast flow under test matches the real composition.
+    let server: RemoteAccessServer;
+    const truncateThreadRuntime = vi.fn<RemoteAccessServerOptions["truncateThreadRuntime"]>(
+      (threadId, itemId) => {
+        server.publishSupervisorEvent({
+          type: "thread-runtime-event",
+          threadId,
+          event: {
+            type: "runtime.truncated",
+            threadId,
+            itemId,
+            removedCompletedTurnAnchors: [],
+          },
+        });
+      },
+    );
+    server = new RemoteAccessServer({
+      truncateThreadRuntime,
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3300,29 +3564,74 @@ describe("RemoteAccessServer", () => {
     servers.push(server);
     const info = await server.start();
     const token = await issueAccessToken(info, ["session:operate"]);
+    const ticket = await issueWebSocketTicket(info, token);
+    const wsUrl = new URL("/ws", info.wsBaseUrl);
+    wsUrl.searchParams.set("ticket", ticket);
+    const ws = new WebSocket(wsUrl);
+    const readWs = createWsReader(ws);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        ws.once("open", resolve);
+        ws.once("error", reject);
+      });
+      await expect(readWs()).resolves.toMatchObject({ type: "ready" });
 
-    const response = await fetch(
-      new URL("/api/threads/thread-1/runtime/truncate", info.httpBaseUrl),
-      {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${token}`,
-          "content-type": "application/json",
+      const response = await fetch(
+        new URL("/api/threads/thread-1/runtime/truncate", info.httpBaseUrl),
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ itemId: "user-2" }),
         },
-        body: JSON.stringify({ itemId: "user-2" }),
-      },
-    );
+      );
 
-    expect(response.status).toBe(200);
-    expect(dbTruncateThreadRuntimeAfter).toHaveBeenCalledWith("thread-1", "user-2");
+      expect(response.status).toBe(200);
+      // The route never writes the DB directly — the injected operation is the
+      // single mutation + publication owner.
+      expect(truncateThreadRuntime).toHaveBeenCalledWith("thread-1", "user-2");
+      expect(dbTruncateThreadRuntimeAfter).not.toHaveBeenCalled();
+      // The canonical truncate rides the replayable runtime-event stream so
+      // connected clients converge, followed by the sidebar refresh signal.
+      await expect(readWs()).resolves.toMatchObject({
+        type: "event",
+        event: {
+          type: "thread-runtime-event",
+          threadId: "thread-1",
+          event: {
+            type: "runtime.truncated",
+            threadId: "thread-1",
+            itemId: "user-2",
+            removedCompletedTurnAnchors: [],
+          },
+        },
+      });
+      await expect(readWs()).resolves.toMatchObject({
+        type: "event",
+        event: { type: "remote-threads-changed", threadIds: ["thread-1"] },
+      });
+    } finally {
+      ws.close();
+    }
   });
 
   it("only restarts existing remote threads through the legacy start endpoint", async () => {
-    mockThreadDb([createTestThread()]);
+    const project = createTestProject({ location: { kind: "posix", path: "/repo" } });
+    vi.mocked(dbGetProjects).mockReturnValue([project]);
+    mockThreadDb([
+      createTestThread({
+        projectId: project.id,
+        config: { model: "gpt-5" },
+        presentationMode: "terminal",
+      }),
+    ]);
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
       async () => ({ threadId: "thread-1" }) as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3404,6 +3713,7 @@ describe("RemoteAccessServer", () => {
       async () => result as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3468,6 +3778,7 @@ describe("RemoteAccessServer", () => {
       return { threadId: "thread-1" } as never;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3565,6 +3876,7 @@ describe("RemoteAccessServer", () => {
       throw new Error("no such adapter");
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3626,6 +3938,7 @@ describe("RemoteAccessServer", () => {
     mockThreadDb([createTestThread({ presentationMode: "gui" })]);
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3662,6 +3975,7 @@ describe("RemoteAccessServer", () => {
   it("rejects internal provider-switch metadata on the new-thread command route", async () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3694,6 +4008,7 @@ describe("RemoteAccessServer", () => {
     const db = mockThreadDb([createTestThread({ presentationMode: "terminal" })]);
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3738,6 +4053,7 @@ describe("RemoteAccessServer", () => {
       return { threadId: "thread-1" } as never;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3784,6 +4100,7 @@ describe("RemoteAccessServer", () => {
       async () => ({ threadId: "thread-fork" }) as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -3846,6 +4163,7 @@ describe("RemoteAccessServer", () => {
       async () => undefined as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4006,6 +4324,7 @@ describe("RemoteAccessServer", () => {
       NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>
     >(() => true);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4045,6 +4364,7 @@ describe("RemoteAccessServer", () => {
     const db = mockThreadDb([createTestThread({ status: "finished" })]);
     const dispatched: unknown[] = [];
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4096,6 +4416,7 @@ describe("RemoteAccessServer", () => {
       NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>
     >(() => true);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4191,6 +4512,7 @@ describe("RemoteAccessServer", () => {
       async () => undefined as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4257,6 +4579,7 @@ describe("RemoteAccessServer", () => {
       projects = projects.map((entry) => (entry.id === parsed.id ? parsed : entry));
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4436,6 +4759,7 @@ describe("RemoteAccessServer", () => {
           : undefined) as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4535,6 +4859,7 @@ describe("RemoteAccessServer", () => {
     } as unknown as BrowserPanelManager;
 
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4658,6 +4983,7 @@ describe("RemoteAccessServer", () => {
     const targetPort = (echo.address() as AddressInfo).port;
 
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4754,6 +5080,7 @@ describe("RemoteAccessServer", () => {
 
   it("returns ports_unavailable when no port-forward gateway is injected", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4773,11 +5100,13 @@ describe("RemoteAccessServer", () => {
     });
   });
 
-  it("proxies HTTP requests to a forwarded dev server through an authenticated enter-token/cookie session", async () => {
+  it("proxies HTTP requests to a forwarded dev server through the isolated child-origin session", async () => {
     const upstream = await startUpstreamHttpServer();
     const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
-    const portProxy = new PortProxy({ gateway });
+    const forwardOrigin = makeForwardOrigin();
+    const portProxy = new PortProxy({ gateway, forwardOrigin });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4785,9 +5114,11 @@ describe("RemoteAccessServer", () => {
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
       portForward: gateway,
       portProxy,
+      forwardOrigin,
     });
     servers.push(server);
     const info = await server.start();
+    const serverPort = Number(new URL(info.httpBaseUrl).port);
 
     const token = await issueAccessToken(info, ["ports:forward"]);
     const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
@@ -4816,37 +5147,35 @@ describe("RemoteAccessServer", () => {
     const enterMintResult = (await enterMintResponse.json()) as { enterPath: string };
     expect(enterMintResult.enterPath).not.toBe(forwardResult.enterPath);
 
-    const enterResponse = await rawGet(new URL(enterMintResult.enterPath, info.httpBaseUrl));
-    expect(enterResponse.status).toBe(302);
-    expect(enterResponse.headers.location).toBe("/");
-    const setCookie = enterResponse.headers["set-cookie"]?.[0];
-    expect(setCookie).toBeTruthy();
-    expect(setCookie).toContain("HttpOnly");
-    expect(setCookie).toContain("SameSite=Lax");
-    expect(setCookie).toContain("Path=/");
-    expect(setCookie).not.toContain("Secure");
-    expect(setCookie).not.toContain("Domain=");
-    const cookieHeader = `lc_forward=${extractForwardCookieValue(setCookie!)}`;
+    // Two-hop entry: the API-origin enter route redirects (no cookie!) to the
+    // isolated child origin's exchange, which mints the __Host- session there.
+    const session = await enterChildOrigin(
+      serverPort,
+      enterMintResult.enterPath,
+      forwardResult.forward.id,
+    );
 
-    const rootResponse = await fetch(new URL("/", info.httpBaseUrl), {
-      headers: { cookie: cookieHeader },
+    const rootResponse = await rawRequestWithAuthority({
+      port: serverPort,
+      path: "/",
+      authority: session.childAuthority,
+      headers: { cookie: session.cookie },
     });
     expect(rootResponse.status).toBe(200);
-    await expect(rootResponse.json()).resolves.toEqual({
-      url: "/",
-      host: `localhost:${upstream.port}`,
-    });
+    await expect(rootResponse.text()).resolves.toContain('"url":"/"');
+    await expect(rootResponse.text()).resolves.toContain(`"host":"localhost:${upstream.port}"`);
 
     // Absolute nested path + query string proxy verbatim, and the upstream
     // sees the rewritten Host (not the remote-access server's own host:port).
-    const nestedResponse = await fetch(new URL("/some/nested/path?q=1", info.httpBaseUrl), {
-      headers: { cookie: cookieHeader },
+    const nestedResponse = await rawRequestWithAuthority({
+      port: serverPort,
+      path: "/some/nested/path?q=1",
+      authority: session.childAuthority,
+      headers: { cookie: session.cookie },
     });
     expect(nestedResponse.status).toBe(200);
-    await expect(nestedResponse.json()).resolves.toEqual({
-      url: "/some/nested/path?q=1",
-      host: `localhost:${upstream.port}`,
-    });
+    await expect(nestedResponse.text()).resolves.toContain('"url":"/some/nested/path?q=1"');
+    await expect(nestedResponse.text()).resolves.toContain(`"host":"localhost:${upstream.port}"`);
 
     await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
   });
@@ -4856,12 +5185,14 @@ describe("RemoteAccessServer", () => {
   // can end up bound to `::1` only on some systems, so the HTTP reverse proxy
   // must fall back from 127.0.0.1 to ::1, not just the raw TCP forward.
   it.skipIf(!ipv6Supported)(
-    "proxies HTTP requests to an IPv6-only forwarded dev server through an authenticated enter-token/cookie session",
+    "proxies HTTP requests to an IPv6-only forwarded dev server through the isolated child-origin session",
     async () => {
       const upstream = await startUpstreamHttpServer("::1");
       const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
-      const portProxy = new PortProxy({ gateway });
+      const forwardOrigin = makeForwardOrigin();
+      const portProxy = new PortProxy({ gateway, forwardOrigin });
       const server = new RemoteAccessServer({
+        truncateThreadRuntime: () => {},
         appVersion: "1.0.0",
         identity: { desktopId: "desktop-test", label: "Test Desktop" },
         host: "127.0.0.1",
@@ -4869,16 +5200,16 @@ describe("RemoteAccessServer", () => {
         callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
         portForward: gateway,
         portProxy,
+        forwardOrigin,
       });
       servers.push(server);
       const info = await server.start();
+      const serverPort = Number(new URL(info.httpBaseUrl).port);
 
       const token = await issueAccessToken(info, ["ports:forward"]);
-      const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
-
       const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
         method: "POST",
-        headers,
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
         body: JSON.stringify({ targetPort: upstream.port }),
       });
       const forwardResult = (await forwardResponse.json()) as {
@@ -4886,30 +5217,32 @@ describe("RemoteAccessServer", () => {
         enterPath: string;
       };
 
-      const enterResponse = await rawGet(new URL(forwardResult.enterPath, info.httpBaseUrl));
-      expect(enterResponse.status).toBe(302);
-      const setCookie = enterResponse.headers["set-cookie"]?.[0];
-      expect(setCookie).toBeTruthy();
-      const cookieHeader = `lc_forward=${extractForwardCookieValue(setCookie!)}`;
-
-      const rootResponse = await fetch(new URL("/", info.httpBaseUrl), {
-        headers: { cookie: cookieHeader },
+      const session = await enterChildOrigin(
+        serverPort,
+        forwardResult.enterPath,
+        forwardResult.forward.id,
+      );
+      const rootResponse = await rawRequestWithAuthority({
+        port: serverPort,
+        path: "/",
+        authority: session.childAuthority,
+        headers: { cookie: session.cookie },
       });
       expect(rootResponse.status).toBe(200);
-      await expect(rootResponse.json()).resolves.toEqual({
-        url: "/",
-        host: `localhost:${upstream.port}`,
-      });
+      await expect(rootResponse.text()).resolves.toContain('"url":"/"');
+      await expect(rootResponse.text()).resolves.toContain(`"host":"localhost:${upstream.port}"`);
 
       await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
     },
   );
 
-  it("lets an active forward session win over bundled client assets and preserves the no-session 404 fallback", async () => {
+  it("keeps forwarded assets on the child origin and never proxies the API origin", async () => {
     const upstream = await startUpstreamHttpServer();
     const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
-    const portProxy = new PortProxy({ gateway });
+    const forwardOrigin = makeForwardOrigin();
+    const portProxy = new PortProxy({ gateway, forwardOrigin });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4917,39 +5250,48 @@ describe("RemoteAccessServer", () => {
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
       portForward: gateway,
       portProxy,
+      forwardOrigin,
     });
     servers.push(server);
     const info = await server.start();
+    const serverPort = Number(new URL(info.httpBaseUrl).port);
 
     const token = await issueAccessToken(info, ["ports:forward"]);
-    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
     const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
       method: "POST",
-      headers,
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
       body: JSON.stringify({ targetPort: upstream.port }),
     });
-    const forwardResult = (await forwardResponse.json()) as { enterPath: string };
-    const enterResponse = await rawGet(new URL(forwardResult.enterPath, info.httpBaseUrl));
-    const cookieHeader = `lc_forward=${extractForwardCookieValue(enterResponse.headers["set-cookie"]![0]!)}`;
+    const forwardResult = (await forwardResponse.json()) as {
+      forward: { id: string };
+      enterPath: string;
+    };
+    const session = await enterChildOrigin(
+      serverPort,
+      forwardResult.enterPath,
+      forwardResult.forward.id,
+    );
 
-    // With a valid forward session cookie, `/assets/app.js` reaches the
-    // forwarded dev server: the upstream stand-in echoes the request
-    // url/host as distinctive JSON, which is nothing the bundled client would
-    // ever serve at that path.
-    const assetWithSession = await fetch(new URL("/assets/app.js", info.httpBaseUrl), {
-      headers: { cookie: cookieHeader },
+    // On the child origin, `/assets/app.js` reaches the forwarded dev server:
+    // the upstream stand-in echoes the request url/host as distinctive JSON,
+    // which is nothing the bundled client would ever serve at that path.
+    const assetOnChild = await rawRequestWithAuthority({
+      port: serverPort,
+      path: "/assets/app.js",
+      authority: session.childAuthority,
+      headers: { cookie: session.cookie },
     });
-    expect(assetWithSession.status).toBe(200);
-    await expect(assetWithSession.json()).resolves.toEqual({
-      url: "/assets/app.js",
-      host: `localhost:${upstream.port}`,
-    });
+    expect(assetOnChild.status).toBe(200);
+    await expect(assetOnChild.text()).resolves.toContain('"url":"/assets/app.js"');
 
-    // Without a session cookie, `/assets/*` keeps falling through to the
-    // bundled-client lookup — which 404s here since there is no built renderer
-    // dist in this test environment — exactly as before this feature existed.
-    const assetWithoutSession = await fetch(new URL("/assets/app.js", info.httpBaseUrl));
-    expect(assetWithoutSession.status).toBe(404);
+    // On the API/PWA origin there is no proxy fallback at all: `/assets/*`
+    // falls through to the bundled-client lookup — which 404s here since
+    // there is no built renderer dist in this test environment — exactly as
+    // if no forward existed, even with a valid child-origin cookie attached.
+    const assetOnApiOrigin = await fetch(new URL("/assets/app.js", info.httpBaseUrl), {
+      headers: { cookie: session.cookie },
+    });
+    expect(assetOnApiOrigin.status).toBe(404);
 
     await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
   });
@@ -4957,8 +5299,10 @@ describe("RemoteAccessServer", () => {
   it("rejects an invalid or expired forward enter token with a plain error page and no cookie", async () => {
     const upstream = await startUpstreamHttpServer();
     const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
-    const portProxy = new PortProxy({ gateway, enterTokenTtlMs: 0 });
+    const forwardOrigin = makeForwardOrigin();
+    const portProxy = new PortProxy({ gateway, forwardOrigin, enterTokenTtlMs: 0 });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -4966,6 +5310,7 @@ describe("RemoteAccessServer", () => {
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
       portForward: gateway,
       portProxy,
+      forwardOrigin,
     });
     servers.push(server);
     const info = await server.start();
@@ -4993,11 +5338,13 @@ describe("RemoteAccessServer", () => {
     await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
   });
 
-  it("invalidates a forward's cookie sessions as soon as the forward is stopped", async () => {
+  it("invalidates a forward's child-origin sessions as soon as the forward is stopped", async () => {
     const upstream = await startUpstreamHttpServer();
     const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
-    const portProxy = new PortProxy({ gateway });
+    const forwardOrigin = makeForwardOrigin();
+    const portProxy = new PortProxy({ gateway, forwardOrigin });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5005,9 +5352,11 @@ describe("RemoteAccessServer", () => {
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
       portForward: gateway,
       portProxy,
+      forwardOrigin,
     });
     servers.push(server);
     const info = await server.start();
+    const serverPort = Number(new URL(info.httpBaseUrl).port);
 
     const token = await issueAccessToken(info, ["ports:forward"]);
     const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
@@ -5020,11 +5369,17 @@ describe("RemoteAccessServer", () => {
       forward: { id: string };
       enterPath: string;
     };
-    const enterResponse = await rawGet(new URL(forwardResult.enterPath, info.httpBaseUrl));
-    const cookieHeader = `lc_forward=${extractForwardCookieValue(enterResponse.headers["set-cookie"]![0]!)}`;
+    const session = await enterChildOrigin(
+      serverPort,
+      forwardResult.enterPath,
+      forwardResult.forward.id,
+    );
 
-    const beforeStop = await fetch(new URL("/", info.httpBaseUrl), {
-      headers: { cookie: cookieHeader },
+    const beforeStop = await rawRequestWithAuthority({
+      port: serverPort,
+      path: "/",
+      authority: session.childAuthority,
+      headers: { cookie: session.cookie },
     });
     expect(beforeStop.status).toBe(200);
 
@@ -5035,16 +5390,23 @@ describe("RemoteAccessServer", () => {
     });
     expect(unforwardResponse.status).toBe(200);
 
-    const afterStop = await fetch(new URL("/", info.httpBaseUrl), {
-      headers: { cookie: cookieHeader },
+    // The recognized child origin never falls through after revocation: the
+    // stale session gets a bounded error, never the Poracode PWA page.
+    const afterStop = await rawRequestWithAuthority({
+      port: serverPort,
+      path: "/",
+      authority: session.childAuthority,
+      headers: { cookie: session.cookie },
     });
-    expect(afterStop.status).toBe(200);
-    await expect(afterStop.text()).resolves.toContain("<!doctype html>");
+    expect(afterStop.status).toBe(404);
+    const body = await afterStop.text();
+    expect(body).toContain("forward_not_found");
+    expect(body).not.toContain("<!doctype html>");
 
     await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
   });
 
-  it("proxies WebSocket upgrades (e.g. Vite/webpack HMR) to a forwarded dev server via the cookie session", async () => {
+  it("proxies WebSocket upgrades (e.g. Vite/webpack HMR) on the child origin via the origin-bound session", async () => {
     const upstreamWss = new WebSocketServer({ port: 0, host: "127.0.0.1" });
     await new Promise<void>((resolve) => upstreamWss.once("listening", resolve));
     upstreamWss.on("connection", (ws) => {
@@ -5053,8 +5415,10 @@ describe("RemoteAccessServer", () => {
     const upstreamPort = (upstreamWss.address() as AddressInfo).port;
 
     const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
-    const portProxy = new PortProxy({ gateway });
+    const forwardOrigin = makeForwardOrigin();
+    const portProxy = new PortProxy({ gateway, forwardOrigin });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5062,9 +5426,11 @@ describe("RemoteAccessServer", () => {
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
       portForward: gateway,
       portProxy,
+      forwardOrigin,
     });
     servers.push(server);
     const info = await server.start();
+    const serverPort = Number(new URL(info.httpBaseUrl).port);
 
     const token = await issueAccessToken(info, ["ports:forward"]);
     const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
@@ -5073,13 +5439,27 @@ describe("RemoteAccessServer", () => {
       headers,
       body: JSON.stringify({ targetPort: upstreamPort }),
     });
-    const forwardResult = (await forwardResponse.json()) as { enterPath: string };
-    const enterResponse = await rawGet(new URL(forwardResult.enterPath, info.httpBaseUrl));
-    const cookieValue = extractForwardCookieValue(enterResponse.headers["set-cookie"]![0]!);
+    const forwardResult = (await forwardResponse.json()) as {
+      forward: { id: string };
+      enterPath: string;
+    };
+    const session = await enterChildOrigin(
+      serverPort,
+      forwardResult.enterPath,
+      forwardResult.forward.id,
+    );
 
+    // Browser WebSocket: dials loopback but presents the child authority and
+    // the exact child Origin (enforced), with the origin-bound session cookie.
     const wsUrl = new URL("/anything", info.httpBaseUrl);
     wsUrl.protocol = "ws:";
-    const client = new WebSocket(wsUrl, { headers: { cookie: `lc_forward=${cookieValue}` } });
+    const client = new WebSocket(wsUrl, {
+      headers: {
+        host: session.childAuthority,
+        origin: session.childOrigin,
+        cookie: session.cookie,
+      },
+    });
     await new Promise<void>((resolve, reject) => {
       client.once("open", resolve);
       client.once("error", reject);
@@ -5092,14 +5472,31 @@ describe("RemoteAccessServer", () => {
     expect(echoed).toBe("ping-through-the-proxy");
     client.close();
 
+    // A foreign Origin is rejected even with the session cookie.
+    const foreign = new WebSocket(wsUrl, {
+      headers: {
+        host: session.childAuthority,
+        origin: "https://evil.example",
+        cookie: session.cookie,
+      },
+    });
+    await expect(
+      new Promise<void>((resolve, reject) => {
+        foreign.once("open", resolve);
+        foreign.once("error", reject);
+      }),
+    ).rejects.toBeInstanceOf(Error);
+
     await new Promise<void>((resolve) => upstreamWss.close(() => resolve()));
   });
 
-  it("does not proxy reserved app routes even with a valid forward session cookie", async () => {
+  it("never lets a child-origin session cookie satisfy or proxy reserved app routes on the API origin", async () => {
     const upstream = await startUpstreamHttpServer();
     const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
-    const portProxy = new PortProxy({ gateway });
+    const forwardOrigin = makeForwardOrigin();
+    const portProxy = new PortProxy({ gateway, forwardOrigin });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5107,9 +5504,11 @@ describe("RemoteAccessServer", () => {
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
       portForward: gateway,
       portProxy,
+      forwardOrigin,
     });
     servers.push(server);
     const info = await server.start();
+    const serverPort = Number(new URL(info.httpBaseUrl).port);
 
     const token = await issueAccessToken(info, ["ports:forward"]);
     const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
@@ -5118,22 +5517,38 @@ describe("RemoteAccessServer", () => {
       headers,
       body: JSON.stringify({ targetPort: upstream.port }),
     });
-    const forwardResult = (await forwardResponse.json()) as { enterPath: string };
-    const enterResponse = await rawGet(new URL(forwardResult.enterPath, info.httpBaseUrl));
-    const cookieHeader = `lc_forward=${extractForwardCookieValue(enterResponse.headers["set-cookie"]![0]!)}`;
+    const forwardResult = (await forwardResponse.json()) as {
+      forward: { id: string };
+      enterPath: string;
+    };
+    const session = await enterChildOrigin(
+      serverPort,
+      forwardResult.enterPath,
+      forwardResult.forward.id,
+    );
 
-    // `/api/snapshot` is a reserved app route: a forward session cookie alone
-    // must not satisfy it — it still requires its own bearer token.
+    // `/api/snapshot` on the API origin is a reserved app route: a forward
+    // session cookie alone must not satisfy it — it still requires its own
+    // bearer token.
     const snapshotResponse = await fetch(new URL("/api/snapshot", info.httpBaseUrl), {
-      headers: { cookie: cookieHeader },
+      headers: { cookie: session.cookie },
     });
     expect(snapshotResponse.status).toBe(401);
+
+    // And `/` on the API origin serves the Poracode app entry, never the
+    // forwarded dev server — the session is bound to the child origin only.
+    const rootResponse = await fetch(new URL("/", info.httpBaseUrl), {
+      headers: { cookie: session.cookie },
+    });
+    expect(rootResponse.status).toBe(200);
+    await expect(rootResponse.text()).resolves.toContain("<!doctype html>");
 
     await new Promise<void>((resolve) => upstream.server.close(() => resolve()));
   });
 
   it("404s the proxy fallthrough path when there is no forward session cookie", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5158,6 +5573,7 @@ describe("RemoteAccessServer", () => {
       return stored;
     });
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5259,6 +5675,7 @@ describe("RemoteAccessServer", () => {
     });
     const stored = pickRemoteSettings(defaultSharedSettings);
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5344,6 +5761,7 @@ describe("RemoteAccessServer", () => {
     vi.mocked(dbGetProjectNotes).mockReturnValue(notes);
 
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5435,6 +5853,7 @@ describe("RemoteAccessServer", () => {
       scheduleRuns.filter((run) => run.scheduleId === id),
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5533,6 +5952,7 @@ describe("RemoteAccessServer", () => {
     const requestCheck = vi.fn<(projectId: string, prNumber: number) => void>();
     const syncAgent = vi.fn<(agent: PrWatchAgentSync) => void>();
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5633,6 +6053,7 @@ describe("RemoteAccessServer", () => {
 
   it("serves profile devices/stats reads and the identity write, gated by scope", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5754,6 +6175,7 @@ describe("RemoteAccessServer", () => {
       },
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -5945,6 +6367,7 @@ describe("RemoteAccessServer", () => {
       async () => undefined as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -6047,6 +6470,7 @@ describe("RemoteAccessServer", () => {
       async () => undefined as never,
     );
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -6093,6 +6517,7 @@ describe("RemoteAccessServer", () => {
 
   it("rejects settings endpoints when no gateway is configured", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -6122,6 +6547,7 @@ describe("RemoteAccessServer", () => {
 
   it("rejects browser endpoints when no gateway is configured", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -6156,6 +6582,7 @@ describe("RemoteAccessServer", () => {
       remove: vi.fn<(deviceId: string, routing?: unknown) => void>(),
     };
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -6250,6 +6677,7 @@ describe("RemoteAccessServer", () => {
       remove: vi.fn<(deviceId: string, routing?: unknown) => void>(),
     };
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",
@@ -6284,6 +6712,7 @@ describe("RemoteAccessServer", () => {
 
   it("rejects push endpoints when no registration sink is configured", async () => {
     const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "127.0.0.1",

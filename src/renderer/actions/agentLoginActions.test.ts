@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import type { TerminalSocketSender } from "@/shared/remote/terminalFeed";
 import type { Project } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 
@@ -74,8 +75,53 @@ vi.mock("@/renderer/utils/shellUtils", () => ({
 }));
 
 import { toast } from "@heroui/react";
+import {
+  handleRemoteTerminalServerMessage,
+  resetRemoteTerminalFeed,
+  setRemoteTerminalSocketSender,
+} from "@/renderer/state/remoteTerminalFeed";
+import type { RemoteTerminalWatchResultReady } from "@/shared/remote/protocol";
 import { antigravityCliInstallCommand } from "@/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall";
 import { runAgentInstallCommand, runAgentLoginCommand } from "./agentLoginActions";
+
+type WatchSender = TerminalSocketSender;
+
+/** The watchId of the most recent cursor-sync watch the feed sent for `shellId`. */
+function lastWatchId(sender: Mock<WatchSender>, shellId: string): string {
+  for (let index = sender.mock.calls.length - 1; index >= 0; index -= 1) {
+    const message = sender.mock.calls[index]?.[0];
+    if (message?.type === "terminal-watch" && message.id === shellId && message.cursorSync) {
+      return message.cursorSync.watchId!;
+    }
+  }
+  throw new Error(`no cursor-sync watch sent for ${shellId}`);
+}
+
+function deliverReady(
+  sender: Mock<WatchSender>,
+  shellId: string,
+  input: {
+    data: string;
+    processState?: "running" | "exited";
+    generation?: string;
+    fromCursor?: number;
+  },
+): void {
+  const ready: RemoteTerminalWatchResultReady = {
+    status: "ready",
+    generation: input.generation ?? "gen-1",
+    fromCursor: input.fromCursor ?? 0,
+    toCursor: (input.fromCursor ?? 0) + input.data.length,
+    data: input.data,
+    processState: input.processState ?? "running",
+    terminalSize: null,
+  };
+  handleRemoteTerminalServerMessage("desktop-1", {
+    type: "terminal-watch-result",
+    id: shellId,
+    cursorSync: { version: 1, watchId: lastWatchId(sender, shellId), result: ready },
+  });
+}
 
 const wslProject: Project = {
   id: "project",
@@ -108,6 +154,23 @@ const posixProject: Project = {
   },
   createdAt: new Date(0).toISOString(),
 };
+
+const remoteProject: Project = {
+  id: "remote-project",
+  remoteServerId: "desktop-1",
+  name: "Remote Project",
+  location: {
+    kind: "posix",
+    path: "/remote/project",
+    remoteServerId: "desktop-1",
+  },
+  createdAt: new Date(0).toISOString(),
+};
+
+afterEach(() => {
+  resetRemoteTerminalFeed();
+  vi.useRealTimers();
+});
 
 function emit(event: SupervisorEvent) {
   for (const handler of supervisorHandlers) handler(event);
@@ -552,5 +615,150 @@ describe("runAgentLoginCommand", () => {
     expect(startShellWithCurrentSettingsMock.mock.calls[0]?.[0]).not.toHaveProperty(
       "windowsShellRuntime",
     );
+  });
+
+  describe("completion marker recovery across snapshots", () => {
+    function startRemoteLogin(): { shellId: string; token: string } {
+      runAgentLoginCommand({
+        label: "Grok",
+        command: "grok login",
+        project: remoteProject,
+      });
+      const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+      expect(shellId).toBeTruthy();
+      const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+      const token = /poracode-login-complete=([^:]+):/u.exec(script)?.[1];
+      expect(token).toBeTruthy();
+      return { shellId: shellId!, token: token! };
+    }
+
+    it("completes when a fresh-watch baseline already contains this action's marker", () => {
+      resetRemoteTerminalFeed();
+      const sender = vi.fn<WatchSender>(() => true);
+      setRemoteTerminalSocketSender("desktop-1", sender, { cursorSyncVersion: 1 });
+      const { shellId, token } = startRemoteLogin();
+
+      // The command finished while the socket was down; the reconnect baseline
+      // (full retained tail) is the only delivery of the marker bytes.
+      deliverReady(sender, shellId, {
+        data: `Signing you in…\u001B]777;poracode-login-complete=${token}:0\u0007`,
+      });
+
+      expect(loginTerminalStore.markFailed).not.toHaveBeenCalled();
+      expect(loginTerminalStore.close).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1200);
+      expect(loginTerminalStore.close).toHaveBeenCalledTimes(1);
+    });
+
+    it("completes from a retained exited baseline and ignores a foreign token", () => {
+      resetRemoteTerminalFeed();
+      const sender = vi.fn<WatchSender>(() => true);
+      setRemoteTerminalSocketSender("desktop-1", sender, { cursorSyncVersion: 1 });
+      const { shellId, token } = startRemoteLogin();
+
+      deliverReady(sender, shellId, {
+        data: `\u001B]777;poracode-login-complete=lc_other-action:0\u0007`,
+      });
+      vi.advanceTimersByTime(2000);
+      expect(loginTerminalStore.markFailed).not.toHaveBeenCalled();
+      expect(loginTerminalStore.close).not.toHaveBeenCalled();
+
+      const recovered = vi.fn<WatchSender>(() => true);
+      setRemoteTerminalSocketSender("desktop-1", recovered, { cursorSyncVersion: 1 });
+      deliverReady(recovered, shellId, {
+        data: `\u001B]777;poracode-login-complete=${token}:1\u0007`,
+        processState: "exited",
+        generation: "gen-2",
+      });
+      expect(loginTerminalStore.markFailed).toHaveBeenCalledWith(shellId, 1);
+    });
+
+    it("waits for the full exit code when live output splits it before the terminator", () => {
+      runAgentLoginCommand({
+        label: "Grok",
+        command: "grok login",
+        project: wslProject,
+      });
+      const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+      const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+      const token = /poracode-login-complete=([^:]+):/u.exec(script)?.[1];
+
+      emit({
+        type: "thread-output",
+        threadId: shellId!,
+        data: `\u001B]777;poracode-login-complete=${token}:1`,
+        outputLength: 0,
+        terminalInstanceId: "gen-test",
+      });
+      vi.advanceTimersByTime(2000);
+      // "1" alone is not an exit code: the marker has no terminator yet.
+      expect(loginTerminalStore.markFailed).not.toHaveBeenCalled();
+
+      emit({
+        type: "thread-output",
+        threadId: shellId!,
+        data: `2\u0007`,
+        outputLength: 0,
+        terminalInstanceId: "gen-test",
+      });
+      expect(loginTerminalStore.markFailed).toHaveBeenCalledWith(shellId, 12);
+    });
+
+    it("scans a whole oversized live chunk instead of only its trailing window", () => {
+      runAgentLoginCommand({
+        label: "Grok",
+        command: "grok login",
+        project: wslProject,
+      });
+      const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+      const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+      const token = /poracode-login-complete=([^:]+):/u.exec(script)?.[1];
+
+      emit({
+        type: "thread-output",
+        threadId: shellId!,
+        data: `${"x".repeat(2000)}\u001B]777;poracode-login-complete=${token}:0\u0007`,
+        outputLength: 0,
+        terminalInstanceId: "gen-test",
+      });
+      vi.advanceTimersByTime(1200);
+      expect(loginTerminalStore.close).toHaveBeenCalledTimes(1);
+    });
+
+    it("never completes from the echoed command text or after force close", () => {
+      runAgentLoginCommand({
+        label: "Grok",
+        command: "grok login",
+        project: wslProject,
+      });
+      const shellId = loginTerminalStore.open.mock.calls[0]?.[0].shellId;
+      const script = writeScriptToShellMock.mock.calls[0]?.[1] ?? "";
+
+      // The echoed command line spells the marker with `\033` text, not a raw
+      // ESC byte — it must never be read as a real completion signal.
+      emit({
+        type: "thread-output",
+        threadId: shellId!,
+        data: script,
+        outputLength: 0,
+        terminalInstanceId: "gen-test",
+      });
+      vi.advanceTimersByTime(2000);
+      expect(loginTerminalStore.markFailed).not.toHaveBeenCalled();
+      expect(loginTerminalStore.close).not.toHaveBeenCalled();
+
+      loginTerminalStore.active?.onForceClose?.();
+      emit({
+        type: "thread-output",
+        threadId: shellId!,
+        data: `before-close\u001B]777;poracode-login-complete=x:0\u0007after-close\u001B]777;poracode-login-complete=${
+          /poracode-login-complete=([^:]+):/u.exec(script)?.[1]
+        }:0\u0007`,
+        outputLength: 0,
+        terminalInstanceId: "gen-test",
+      });
+      expect(loginTerminalStore.markFailed).not.toHaveBeenCalled();
+      expect(loginTerminalStore.close).not.toHaveBeenCalled();
+    });
   });
 });

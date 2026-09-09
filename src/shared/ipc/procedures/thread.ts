@@ -199,6 +199,12 @@ export const threadProcedures = {
     "supervisor",
     startThreadPayloadSchema,
   ),
+  /** Reopen a stored thread without replacing an already-live runtime. */
+  ensureThreadRunning: definePayloadProcedure<StartThreadPayload, StartThreadResult, "supervisor">(
+    "ensureThreadRunning",
+    "supervisor",
+    startThreadPayloadSchema,
+  ),
   sendThreadInput: definePayloadProcedure<SendThreadInputPayload, void, "supervisor">(
     "sendThreadInput",
     "supervisor",

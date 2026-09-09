@@ -1,5 +1,6 @@
 import { authStateForPresentation, capabilitiesForPresentation } from "@/shared/agentSelection";
 import type { AgentCapability, AgentStatus, AuthState } from "@/shared/contracts";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { detectProbeLocation, type AgentEnvContext } from "../base";
 import { cursorSdkGuiCapabilities, type CursorSdkModel } from "./sdkModels";
 import { CURSOR_SDK_SESSION_PREFIX, type CursorStructuredRuntime } from "./structuredRuntime";
@@ -250,6 +251,10 @@ export async function probeCursorSdkRuntime(
   ctx?.signal?.addEventListener("abort", abortProbe, { once: true });
   try {
     ctx?.signal?.throwIfAborted();
+    // Mock-QA enforcement: the worker runs the real Cursor SDK (account and
+    // model-catalog requests), so mock sessions refuse it; the probe reports
+    // an unavailable runtime like any other worker boot failure.
+    assertAgentLaunchAllowed("session-probe");
     worker = await (dependencies.spawnWorker ?? spawnCursorSdkWorker)({
       projectLocation,
     });

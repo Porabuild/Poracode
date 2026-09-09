@@ -1,8 +1,10 @@
-import type { BackendRendererStreamInfo } from "./backendHostProtocol";
+import type { BackendRendererStreamInfo, SupervisorEventGap } from "./backendHostProtocol";
 import type { IpcProcedureName, PoracodeBridge, PoracodeInvokeBridge } from "./ipc";
 
 // Version 5 adds sequenced Electron supervisor-event fallback delivery.
-export const PORACODE_CLIENT_RUNTIME_VERSION = 5 as const;
+// Version 6 adds the supervisor-event-gap signal that makes desktop windows
+// rebuild after the backend host shed queued IPC copies under backpressure.
+export const PORACODE_CLIENT_RUNTIME_VERSION = 6 as const;
 
 export type ClientHost = "electron" | "browser";
 export type ClientSurface = "adaptive";
@@ -38,4 +40,5 @@ export type ElectronHostBridge = PoracodeNativeBridge & {
   invokeProcedure(name: IpcProcedureName, args: unknown[]): Promise<unknown>;
   getBackendRendererStreamInfo(): Promise<BackendRendererStreamInfo | null>;
   onBackendRendererStreamChanged(listener: (info: BackendRendererStreamInfo) => void): () => void;
+  onSupervisorEventGap(listener: (gap: SupervisorEventGap) => void): () => void;
 };

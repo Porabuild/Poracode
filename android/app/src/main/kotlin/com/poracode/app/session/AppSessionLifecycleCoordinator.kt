@@ -1,5 +1,6 @@
 package com.poracode.app.session
 
+import com.poracode.app.storage.StoredProtocolUpgrade
 import com.poracode.app.transport.ForegroundNetworkGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -47,6 +48,10 @@ internal class AppSessionLifecycleCoordinator(
         networkGate.openForForeground()
         live.openLifecycleGate()
         hosts.onForeground()
+        if (profile?.protocolVersion == StoredProtocolUpgrade.PREVIOUS_VERSION && live.api == null) {
+            bootstrap()
+            return
+        }
         if (current.phase == AppSession.Phase.Launching &&
             profile == null &&
             live.api == null &&
@@ -66,8 +71,14 @@ internal class AppSessionLifecycleCoordinator(
 
     fun onLocalNetworkPermissionGranted() {
         val profile = state().profile ?: return
-        val token = live.accessToken ?: return
         if (!hasEndpointPermission(profile.httpBaseUrl)) return
+        if (profile.protocolVersion == StoredProtocolUpgrade.PREVIOUS_VERSION && live.api == null) {
+            networkGate.openForForeground()
+            live.openLifecycleGate()
+            bootstrap()
+            return
+        }
+        val token = live.accessToken ?: return
         networkGate.openForForeground()
         live.openLifecycleGate()
         hosts.onForeground()

@@ -471,10 +471,12 @@ export function AppShell(props: {
   const layoutMetricsReady = shellWidth > 0;
 
   const panelVisibility = usePanelVisibility();
-  const rightPanelOpen = props.rightPanelOpen ?? panelVisibility.rightPanelOpen;
-  const gitPanelOpen = props.rightPanelOpen === undefined ? panelVisibility.gitPanelOpen : false;
-  const sidePanelOpen =
-    props.rightPanelOpen === undefined ? panelVisibility.sidePanelOpen : rightPanelOpen;
+  // Panel intent can outlive its desktop content when the viewport becomes
+  // compact. Only a panel rendered by this shell may own an overlay/backdrop.
+  const rightPanelOpen =
+    Boolean(rightPanel) && (props.rightPanelOpen ?? panelVisibility.rightPanelOpen);
+  const gitPanelOpen =
+    Boolean(gitPanel) && props.rightPanelOpen === undefined && panelVisibility.gitPanelOpen;
   const isBottom =
     props.rightPanelPlacement !== undefined
       ? props.rightPanelPlacement === "bottom"
@@ -486,7 +488,7 @@ export function AppShell(props: {
   // CONTENT_MIN_WIDTH, render them as a fixed overlay anchored to the right
   // edge (mirroring the sidebar's narrow overlay).
   const dockedRightPanelOpen = !isBottom && rightPanelOpen;
-  const wantsRightOverlay = sidePanelOpen;
+  const wantsRightOverlay = dockedRightPanelOpen || gitPanelOpen;
   // Compute the docked main width even when panels are currently overlaid, so
   // the transition between modes is driven by a stable signal.
   const wouldBeMainWidth = layoutMetricsReady
@@ -519,7 +521,6 @@ export function AppShell(props: {
     !prevRightOverlay.rightOverlayActive;
   const rightOverlayActive = computedRightOverlayActive && !shouldAutoHideRightOverlay;
   const rightOverlayReady = useTwoRafReady(rightOverlayActive);
-  const rightOverlayDisplayed = rightOverlayActive || rightOverlayMounted;
   const activeRightOverlaySlot: RightOverlaySlot | null = rightOverlayActive
     ? dockedRightPanelOpen
       ? "right"
@@ -528,6 +529,14 @@ export function AppShell(props: {
         : null
     : null;
   const displayedRightOverlaySlot = activeRightOverlaySlot ?? rightOverlaySlot;
+  const displayedOverlayContent =
+    displayedRightOverlaySlot === "right"
+      ? rightPanel
+      : displayedRightOverlaySlot === "git"
+        ? gitPanel
+        : null;
+  const rightOverlayDisplayed =
+    Boolean(displayedOverlayContent) && (rightOverlayActive || rightOverlayMounted);
   const rightOverlayReadyForDisplay = rightOverlayActive && rightOverlayReady;
   // Edge detectors: both derive from render inputs, so adjust during render.
   // `prevRightOverlay` must lag one commit behind (it feeds

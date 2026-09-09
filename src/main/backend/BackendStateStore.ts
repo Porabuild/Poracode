@@ -7,6 +7,8 @@ import type { BackendDatabaseCaller } from "@/shared/backendHostProtocol";
  */
 export class BackendStateStore {
   private readonly values = new Map<string, string | null>();
+  private readonly pendingWrites = new Set<Promise<void>>();
+  private closed = false;
 
   constructor(private readonly database: BackendDatabaseCaller) {}
 
@@ -23,8 +25,21 @@ export class BackendStateStore {
   }
 
   set(key: string, value: string): void {
+    if (this.closed) return;
     this.values.set(key, value);
-    void this.database.callDatabase("dbSetState", { key, value });
+    const write = this.database
+      .callDatabase("dbSetState", { key, value })
+      .catch((error: unknown) => {
+        console.warn("[poracode] failed to persist shell state", key, error);
+      })
+      .finally(() => this.pendingWrites.delete(write));
+    this.pendingWrites.add(write);
+  }
+
+  /** Drain saves before BackendHost disposal; later window-close events cannot enqueue more. */
+  async close(): Promise<void> {
+    this.closed = true;
+    await Promise.all(this.pendingWrites);
   }
 }
 

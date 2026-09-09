@@ -34,6 +34,7 @@ import {
 } from "../sharedSettingsFile";
 import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
 import type { KeybindingsFile } from "@/shared/keybindings";
+import type { RendererEventSender } from "../backend/rendererEventInterestRegistry";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
   defineMainLocalIpcHandlers,
@@ -78,6 +79,7 @@ interface CreateLocalIpcHandlersOptions {
   setGlobalShortcutsSuspended?(suspended: boolean): void;
   setRendererEventInterests(
     interests: IpcProcedurePayload<"setRendererEventInterests">,
+    sender?: RendererEventSender,
   ): Promise<void>;
   extractBrowserToWindow(): void;
   injectBrowserToMain(): void;
@@ -311,7 +313,8 @@ export function createLocalIpcHandlers(
     },
     setGlobalShortcutsSuspended: (payload) =>
       options.setGlobalShortcutsSuspended?.(payload.suspended),
-    setRendererEventInterests: (interests) => options.setRendererEventInterests(interests),
+    setRendererEventInterests: async (interests, sender?: RendererEventSender) =>
+      options.setRendererEventInterests(interests, sender),
     getRemoteAccessPairing: () => callService("getRemoteAccessPairing", {}),
     refreshRemoteAccessPairing: () => callService("refreshRemoteAccessPairing", {}),
     setRemoteAccessEnabled: (payload) => callService("setRemoteAccessEnabled", payload),

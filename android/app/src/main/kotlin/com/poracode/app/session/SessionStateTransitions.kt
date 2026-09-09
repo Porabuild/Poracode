@@ -1,6 +1,7 @@
 package com.poracode.app.session
 
 import com.poracode.app.model.ConnectionProfile
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.RemoteAccessScopes
 import com.poracode.app.protocol.ThreadRuntimeDomainState
 
@@ -10,8 +11,10 @@ object SessionStateTransitions {
             profile = profile,
             phase = AppSession.Phase.Connecting,
             sessionExpired = false,
-            canSessionRead = RemoteAccessScopes.canRead(profile.scopes),
-            canSessionOperate = RemoteAccessScopes.canOperate(profile.scopes),
+            canSessionRead = profile.protocolVersion == ProtocolConstants.REMOTE_PROTOCOL_VERSION &&
+                RemoteAccessScopes.canRead(profile.scopes),
+            canSessionOperate = profile.protocolVersion == ProtocolConstants.REMOTE_PROTOCOL_VERSION &&
+                RemoteAccessScopes.canOperate(profile.scopes),
             openThreadId = null,
             threadSnapshot = null,
             threadItems = emptyList(),

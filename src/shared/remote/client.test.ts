@@ -459,6 +459,29 @@ describe("RemoteDesktopClient", () => {
     expect(signal?.aborted).toBe(false);
   });
 
+  it("marks an automatic reopen explicitly without changing the legacy start shape", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        bodies.push(JSON.parse(init?.body as string));
+        return new Response(JSON.stringify({ threadId: "thread-1" }), { status: 200 });
+      },
+    );
+    const input = {
+      threadId: "thread-1",
+      projectLocation: { kind: "posix" as const, path: "/repo" },
+      agentKind: "codex" as const,
+      config: { model: "test" },
+      prompt: "",
+    };
+    await client.startThread({ ...input, ensureRunning: true });
+    await client.startThread(input);
+    expect(bodies[0]).toHaveProperty("ensureRunning", true);
+    expect(bodies[1]).not.toHaveProperty("ensureRunning");
+  });
+
   it("uses the optimistic message id as the remote send idempotency key", async () => {
     let commandId = "";
     const client = new RemoteDesktopClient(

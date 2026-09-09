@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { encodeRelayBinaryFrame } from "./relayBinaryFrame";
 
 /**
  * Relay transport for cross-network access (docs/REMOTE_ARCHITECTURE.md, Phase
@@ -12,15 +13,59 @@ import { z } from "zod";
  * nor `RemoteAccessServer` needs relay-specific code: the host adapter simply
  * proxies each framed request to the server's own loopback port.
  *
- * Auth is unchanged and end-to-end: the relay never sees pairing/bearer secrets
- * in cleartext beyond forwarding the Authorization header, and the host's
- * registration secret only prevents another process from hijacking a serverId.
+ * The host enforces application authentication. The relay terminates visitor
+ * HTTP/WS and can read forwarded credentials and application payloads, so it
+ * must be trusted; this framing does not provide end-to-end encryption. The
+ * registration secret prevents another process from hijacking a serverId.
  *
  * NOTE: this is the self-hostable transport. The managed, account-scoped
  * "cloud subscription" service (hosting, billing, per-account routing) layers on
  * top and is out of repo scope.
+ *
+ * Compatibility discipline: while the version is unchanged, frames are added
+ * ONLY additively — a new relay→host frame type must be one an older host can
+ * drop silently (the framed unions are parsed with `safeParse`, so an unknown
+ * discriminator is discarded), and a new host→relay frame must be droppable by
+ * an older relay the same way. `req-cancel` followed that rule in v2 (see its
+ * doc); anything that changes the meaning of an existing frame requires a
+ * version bump at `PORACODE_RELAY_PROTOCOL_VERSION`.
+ *
+ * Version 3 (binary ws-data fidelity): protocol 2 carried EVERY `ws-data`
+ * payload inside the JSON text frame, which UTF-8-coerces binary WebSocket
+ * messages (U+FFFD rewriting, inflated bodies, binary delivered as text).
+ * Protocol 3 carries binary payloads as binary control-socket messages framed
+ * by `relayBinaryFrame.ts` and keeps text payloads on the unchanged JSON
+ * frame. The bump is deliberate, not additive: a protocol-2 peer cannot
+ * preserve these semantics, so mixed pairing must FAIL at registration — a
+ * v3 host's `register` literal is rejected by an old relay, and an old host's
+ * `register` literal is rejected here — instead of silently corrupting bytes.
  */
-export const PORACODE_RELAY_PROTOCOL_VERSION = 1;
+export const PORACODE_RELAY_PROTOCOL_VERSION = 3;
+
+const relayHttpsOriginSchema = z
+  .string()
+  .url()
+  .refine((value) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" && url.origin === value;
+    } catch {
+      return false;
+    }
+  }, "Expected a canonical HTTPS origin.");
+
+/** Relay-derived routing context; visitor headers never supply these fields. */
+export const relayForwardContextSchema = z.object({
+  forwardId: z.string().regex(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/),
+  origin: relayHttpsOriginSchema,
+});
+export type RelayForwardContext = z.infer<typeof relayForwardContextSchema>;
+
+export const relayForwardOriginSchema = z.object({
+  baseUrl: relayHttpsOriginSchema,
+  ownerId: z.string().regex(/^[a-f0-9]{24}$/),
+});
+export type RelayForwardOrigin = z.infer<typeof relayForwardOriginSchema>;
 
 /** Default cap on a single tunneled HTTP body (request or response) in bytes. */
 export const DEFAULT_RELAY_MAX_BODY_BYTES = 64 * 1024 * 1024;
@@ -38,6 +83,11 @@ export const relayRegisterFrameSchema = z.object({
   serverId: z.string().min(1),
   /** Shared secret proving ownership of `serverId` (prevents hijacking). */
   secret: z.string().min(1),
+  /** Dedicated random32-byte namespace secret, independent of the relay password. */
+  originSecret: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/)
+    .optional(),
   label: z.string().min(1).optional(),
 });
 
@@ -46,6 +96,7 @@ export const relayRegisteredFrameSchema = z.object({
   t: z.literal("registered"),
   serverId: z.string().min(1),
   publicUrl: z.string().url(),
+  forwardOrigin: relayForwardOriginSchema.optional(),
 });
 
 /** Relay → host: a visitor HTTP request to proxy to the local server. */
@@ -54,10 +105,16 @@ export const relayRequestFrameSchema = z.object({
   id: z.string().min(1),
   method: z.string().min(1),
   /** Path + query, relative to the server root (the `/s/<id>` prefix stripped). */
-  path: z.string().min(1),
+  path: z.string().startsWith("/"),
   headers: z.record(z.string(), z.string()),
+  forward: relayForwardContextSchema.optional(),
   /** base64 request body, omitted when empty. */
   body: z.string().optional(),
+  /** Socket-derived opaque identity, stable across requests from one network
+   * peer. Hosts use a shared fallback for absent or unusable identities.
+   * Additive in v1: old hosts strip this field; old relays omit it. Updated
+   * hosts are required to enforce stable rate-limit buckets. */
+  clientId: z.string().min(1).max(128).optional(),
 });
 
 /** Host → relay: the response for a `req` frame. */
@@ -75,16 +132,6 @@ export const relayResponseFrameSchema = z.object({
    * don't send it still work (just without cookie passthrough).
    */
   setCookies: z.array(z.string()).optional(),
-  /**
-   * Set by the host when the visitor's browser should be bound to this host for
-   * subsequent prefixless requests (the host mints its own port-forward session
-   * cookie in this response). The relay reacts to this flag alone and mints its
-   * `RELAY_ROUTING_COOKIE_NAME` routing cookie — it does NOT inspect `setCookies`
-   * for the forward-session cookie itself, keeping all port-forward semantics in
-   * the host adapter (relayHost.ts) rather than the transport. Additive/optional
-   * so older hosts that don't send it still work (just without prefixless
-   * routing). */
-  bindVisitor: z.boolean().optional(),
   /** base64 response body. */
   body: z.string(),
 });
@@ -96,24 +143,84 @@ export const relayRequestErrorFrameSchema = z.object({
   message: z.string(),
 });
 
-/** Relay → host: a visitor opened a WebSocket. */
+/**
+ * Relay → host: stop working on the pending `req` with this id — the visitor
+ * went away (its connection closed before the relay could deliver a response)
+ * or the relay's own request deadline expired first. This aborts the local
+ * fetch/body read only; the host must NOT assume the visitor never received
+ * anything, and no already-accepted backend mutation is rolled back by it.
+ *
+ * Additive in protocol 2: hosts that predate this frame drop it silently (the
+ * discriminated union's `safeParse` fails on the unknown `t`), and older
+ * relays never send it — in that pairing an aborted visitor's request still
+ * unwinds via the host's own request timeout, exactly as before. New hosts
+ * handle both worlds, so no version bump.
+ */
+export const relayRequestCancelFrameSchema = z.object({
+  t: z.literal("req-cancel"),
+  id: z.string().min(1),
+});
+
+/**
+ * A relay WebSocket channel id, bounded by the protocol-3 binary envelope's
+ * own id rule. The host re-encodes a channel's id into every binary payload
+ * envelope (`encodeRelayBinaryFrame`), so the id must be exactly what the
+ * codec accepts — 1..128 UTF-8 bytes of well-formed UTF-8. Checked by calling
+ * the codec itself so the two boundaries cannot drift (zod's `string().max`
+ * counts UTF-16 code units, NOT UTF-8 bytes, and would silently under-count
+ * astral ids). Request-frame ids (`req`/`res`/`req-error`) are a separate,
+ * pre-existing protocol and stay unbounded.
+ */
+const relayChannelIdSchema = z.string().refine((value) => {
+  try {
+    encodeRelayBinaryFrame(value, new Uint8Array(0));
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+/**
+ * Relay → host: a visitor opened a WebSocket.
+ *
+ * The channel id is validated against the binary envelope's own id rule: the
+ * host re-encodes this id into every binary payload envelope it sends, so a
+ * channel id the envelope cannot carry would make that encode throw from
+ * inside the local socket's message callback. An invalid id drops the whole
+ * `ws-open` frame before any channel exists.
+ */
 export const relayWsOpenFrameSchema = z.object({
   t: z.literal("ws-open"),
-  id: z.string().min(1),
+  id: relayChannelIdSchema,
   /** Path + query (e.g. `/ws?ticket=...`). */
-  path: z.string().min(1),
+  path: z.string().startsWith("/"),
+  forward: relayForwardContextSchema.optional(),
   /**
    * The visitor's raw `Cookie` header, forwarded so the host's own local
    * WebSocket connection (e.g. a port-forwarded dev server reached through an
-   * `lc_forward` session, see `RELAY_FORWARD_SESSION_COOKIE_NAME`) can resolve
+   * `__Host-poracode-forward` session) can resolve
    * session auth exactly as a direct LAN WS upgrade would. The relay's own
    * `RELAY_ROUTING_COOKIE_NAME` cookie is stripped before this is populated.
    * Omitted when the visitor sent no cookies.
    */
   cookie: z.string().optional(),
+  /**
+   * The relay's socket-derived opaque visitor identity, same contract as on
+   * `req` frames (see above). Lets the host dial its own server's WebSocket
+   * with the same stable `x-forwarded-for` the visitor's HTTP requests carry,
+   * so one visitor reads as one client across both hops. Additive/optional;
+   * old relays omit it.
+   */
+  clientId: z.string().min(1).max(128).optional(),
 });
 
-/** Bidirectional: a WebSocket text frame for channel `id`. */
+/**
+ * Bidirectional: a WebSocket TEXT frame for channel `id`. Binary WebSocket
+ * payloads do NOT ride this frame — JSON strings cannot carry them losslessly
+ * (UTF-8 coercion rewrites invalid sequences). Since protocol 3, binary
+ * payloads travel as binary control-socket messages framed by
+ * `encodeRelayBinaryFrame`/`decodeRelayBinaryFrame` (relayBinaryFrame.ts).
+ */
 export const relayWsDataFrameSchema = z.object({
   t: z.literal("ws-data"),
   id: z.string().min(1),
@@ -139,6 +246,7 @@ export type RelayHostFrame = z.infer<typeof relayHostFrameSchema>;
 export const relayServerFrameSchema = z.discriminatedUnion("t", [
   relayRegisteredFrameSchema,
   relayRequestFrameSchema,
+  relayRequestCancelFrameSchema,
   relayWsOpenFrameSchema,
   relayWsDataFrameSchema,
   relayWsCloseFrameSchema,
@@ -146,6 +254,7 @@ export const relayServerFrameSchema = z.discriminatedUnion("t", [
 export type RelayServerFrame = z.infer<typeof relayServerFrameSchema>;
 
 export type RelayRequestFrame = z.infer<typeof relayRequestFrameSchema>;
+export type RelayRequestCancelFrame = z.infer<typeof relayRequestCancelFrameSchema>;
 export type RelayResponseFrame = z.infer<typeof relayResponseFrameSchema>;
 export type RelayWsOpenFrame = z.infer<typeof relayWsOpenFrameSchema>;
 export type RelayWsDataFrame = z.infer<typeof relayWsDataFrameSchema>;
@@ -184,49 +293,9 @@ export function parseRelayVisitorPath(
   return { serverId, path: match[2] && match[2].length > 0 ? match[2] : "/" };
 }
 
-/**
- * The desktop's port-forward proxy session cookie (see
- * `src/main/remote/portForward/portProxy.ts`'s `FORWARD_SESSION_COOKIE_NAME`).
- * Duplicated here rather than imported: this module is shared with the
- * standalone self-hosted relay server, which does not depend on `src/main`.
- * Keep the literal in sync if the desktop's cookie name ever changes.
- *
- * Consumed by the HOST adapter (`src/server/relay/relayHost.ts`), NOT the relay:
- * the host detects it in a tunneled response's `Set-Cookie` and signals the
- * relay via the response frame's `bindVisitor` flag to mint its own routing
- * cookie. The relay itself never inspects this cookie, so all port-forward
- * semantics stay in the host adapter that owns the local server's behavior.
- */
+/** Legacy cookie names retained only to strip stale routing credentials. */
 export const RELAY_FORWARD_SESSION_COOKIE_NAME = "lc_forward";
-
-/**
- * The relay's own routing cookie. Minted by the relay itself (never by a
- * host) the first time it observes `RELAY_FORWARD_SESSION_COOKIE_NAME` roll by
- * in a tunneled response, binding the visitor's browser to the `serverId` that
- * issued it. This lets prefixless requests/upgrades (e.g. Vite/webpack HMR
- * assets and sockets that don't carry the `/s/<id>` prefix) still route to the
- * right host. Always stripped from the `Cookie` header before a request is
- * framed to a host — hosts never need to see it.
- */
 export const RELAY_ROUTING_COOKIE_NAME = "lc_relay";
-
-/** Extracts a single cookie's value from a raw `Cookie` request header. */
-export function parseCookieValue(cookieHeader: string | undefined, name: string): string | null {
-  if (!cookieHeader) return null;
-  for (const crumb of cookieHeader.split(";")) {
-    const eq = crumb.indexOf("=");
-    if (eq === -1) continue;
-    const key = crumb.slice(0, eq).trim();
-    if (key !== name) continue;
-    const value = crumb.slice(eq + 1).trim();
-    try {
-      return decodeURIComponent(value);
-    } catch {
-      return value;
-    }
-  }
-  return null;
-}
 
 /**
  * Removes a single named cookie crumb from a raw `Cookie` header, leaving any
@@ -247,43 +316,4 @@ export function stripCookieCrumb(
       return key !== name;
     });
   return remaining.length > 0 ? remaining.join("; ") : undefined;
-}
-
-/** True when one of the raw `Set-Cookie` header values names cookie `name`. */
-export function setCookiesInclude(
-  setCookies: readonly string[] | undefined,
-  name: string,
-): boolean {
-  if (!setCookies) return false;
-  return setCookies.some((raw) => {
-    const eq = raw.indexOf("=");
-    const key = (eq === -1 ? raw : raw.slice(0, eq)).trim();
-    return key === name;
-  });
-}
-
-/**
- * Builds the `Set-Cookie` header the relay mints to bind a visitor's browser
- * to `serverId` for prefixless requests (see `RELAY_ROUTING_COOKIE_NAME`). No
- * `Secure` attribute: the relay listens plain HTTP behind a fronting TLS
- * proxy, so `Secure` would make browsers drop the cookie entirely. 12h
- * lifetime matches the desktop's own forward-session TTL.
- *
- * Known limitation (accepted v2 behavior, not a bug): this cookie is
- * `Path=/`, unscoped to a `serverId`, and shares its name across every host
- * registered on this relay origin. If two desktops (A and B) are paired
- * through the *same* relay origin and a browser has tabs open to both, then
- * opening a forward on B overwrites the browser's `lc_forward`/`lc_relay`
- * cookie jar entries that were pointing at A — there is no way to shard a
- * single cookie name per host with prefixless routing on one origin. A's
- * still-open tab keeps working against whatever forward/session was current
- * when it last loaded, then degrades (stale session, wrong upstream) until
- * the user reloads it — after which it too follows B, since the jar now only
- * remembers B. Last-enter-wins, and it self-heals on reload. Scoping relay
- * origins per-account/per-desktop (rather than sharing one relay origin
- * across independent desktops) avoids the collision entirely; that's expected
- * to be the common case, so this is not being fixed for v2.
- */
-export function buildRelayRoutingCookieHeader(serverId: string): string {
-  return `${RELAY_ROUTING_COOKIE_NAME}=${encodeURIComponent(serverId)}; Max-Age=43200; Path=/; HttpOnly; SameSite=Lax`;
 }

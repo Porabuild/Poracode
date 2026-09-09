@@ -84,9 +84,8 @@ export async function writeNegotiatedJson(
   // blind: `no-cache` still permits the conditional request that yields the 304.
   res.setHeader("Cache-Control", "private, no-cache");
   res.setHeader("ETag", etag);
-  // Caches keyed only on URL would otherwise be able to hand a gzip body to a
-  // client that cannot decode it.
-  res.setHeader("Vary", "Accept-Encoding");
+  // Cached bodies belong to the negotiated encoding and bearer credential.
+  res.appendHeader("Vary", "Accept-Encoding, Authorization");
 
   if (status === 200 && etagMatches(req, etag)) {
     res.statusCode = 304;

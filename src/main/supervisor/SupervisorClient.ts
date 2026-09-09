@@ -255,7 +255,7 @@ export class SupervisorClient {
 
     const id = randomUUID();
     const requestPayload =
-      type === "startThread" && this.options.prepareStartThread
+      (type === "startThread" || type === "ensureThreadRunning") && this.options.prepareStartThread
         ? this.options.prepareStartThread(payload as StartThreadPayload)
         : payload;
     const request: SupervisorRequest = {

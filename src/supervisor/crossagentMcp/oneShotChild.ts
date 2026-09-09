@@ -3,6 +3,7 @@ import { spawn as spawnPty, type IDisposable } from "node-pty";
 import { stripAnsi } from "@/shared/ansi";
 import type { ProjectLocation } from "@/shared/contracts";
 import { withCommandBaseSpawnEnv, type AgentAdapter } from "@/supervisor/agents/base";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { buildOneShotSpec } from "@/supervisor/oneShotSpawn";
 import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
 import { processEnvRecord } from "@/supervisor/processEnv";
@@ -118,6 +119,10 @@ export function runOneShotChild(params: OneShotChildParams): OneShotChildHandle 
 
   let transport: ChildTransport;
   try {
+    // Mock-QA enforcement: a one-shot subagent child is a real provider CLI
+    // run with real credentials, so mock sessions refuse it like thread
+    // launches; the catch below settles the attempt as failed.
+    assertAgentLaunchAllowed("one-shot-subagent");
     transport = cmd.pty ? spawnPtyTransport(spec) : spawnProcessTransport(spec);
   } catch (error) {
     params.onSettle({

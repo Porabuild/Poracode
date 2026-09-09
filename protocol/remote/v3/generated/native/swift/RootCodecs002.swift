@@ -161,7 +161,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_6b0fda0d6c> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_6b0fda0d6c836fc5)
+  static let procedureU2ESubagentSubscribeU2EResult: RemoteRootCodec<ProceduresubagentSubscribeResult_c72313d5ab> = .init(id: "procedure.subagentSubscribe.result", schema: RemoteSchemas.schema_c72313d5ab25c1ea)
 }
 
 public extension RemoteRootCodecs {
@@ -181,7 +181,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_4f27e10295> = .init(id: "procedure.workflowAgentChat.result", schema: RemoteSchemas.schema_4f27e102953dc17a)
+  static let procedureU2EWorkflowAgentChatU2EResult: RemoteRootCodec<ProcedureworkflowAgentChatResult_856c6768b5> = .init(id: "procedure.workflowAgentChat.result", schema: RemoteSchemas.schema_856c6768b537b62a)
 }
 
 public extension RemoteRootCodecs {
@@ -233,11 +233,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_064ac9cd11> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_064ac9cd11f5c227)
+  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_4e4377c7eb> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_4e4377c7eb625399)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_064ac9cd11> = .init(id: "route.environment.response", schema: RemoteSchemas.schema_064ac9cd11f5c227)
+  static let routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_4e4377c7eb> = .init(id: "route.environment.response", schema: RemoteSchemas.schema_4e4377c7eb625399)
 }
 
 public extension RemoteRootCodecs {

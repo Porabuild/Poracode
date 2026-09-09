@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import type { ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { buildAgentCommand } from "../../base";
 import { resolveProbeSpawnCwd } from "../../probeCwd";
 import { classifyMuseServeExit } from "./exitClassification";
@@ -68,6 +69,9 @@ export async function spawnMuseServeHost(
   });
   const spawnCwd = options.isolateCwd === false ? cmd.cwd : resolveProbeSpawnCwd(location, cmd.cwd);
   const ownedProcessGroup = process.platform !== "win32";
+  // Mock-QA enforcement: the session host is a real provider CLI process, so
+  // mock sessions refuse it whether it is spawned for a session or a probe.
+  assertAgentLaunchAllowed("session-host");
   const child = spawn(cmd.command, cmd.args, {
     ...(spawnCwd ? { cwd: spawnCwd } : {}),
     env: { ...process.env, ...cmd.env, TERM: "xterm-256color" },

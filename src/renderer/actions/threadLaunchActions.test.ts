@@ -853,11 +853,25 @@ describe("performInitialThreadLaunch host transport", () => {
       projectLocation: { kind: "posix", path: "/srv/repo" },
       agentKind: "codex",
       prompt: "",
+      ensureRunning: true,
       initialSize,
     });
     // The host resolves MCP from its own settings; clients must not inject any.
     expect(startInput).not.toHaveProperty("mcpServers");
     expect(mocks.bridge.startThread).not.toHaveBeenCalled();
+  });
+
+  it("keeps an empty launch carrying a user message on the mutation path", async () => {
+    await performInitialThreadLaunch({
+      thread: remoteThread,
+      projectLocation: { kind: "posix", path: "/srv/repo", remoteServerId: "d1" },
+      prompt: "",
+      userMessageItemId: "user-existing",
+      initialSize,
+    });
+    const input = mocks.remoteClient.startThread.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(input).not.toHaveProperty("ensureRunning");
+    expect(input).toHaveProperty("userMessageItemId", "user-existing");
   });
 
   it("forwards providerSwitch on a switched remote launch and drops the stale session", async () => {
@@ -883,6 +897,7 @@ describe("performInitialThreadLaunch host transport", () => {
     });
     // The new provider has no session to resume — the stale ref must not ship.
     expect(startInput).not.toHaveProperty("sessionRef");
+    expect(startInput).not.toHaveProperty("ensureRunning");
   });
 
   it("lets the supervisor order a switched prompt after the handoff divider", async () => {

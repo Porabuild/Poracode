@@ -30,10 +30,10 @@ const EXPECTED_COUNTS = {
   "ws-client": 8,
   "ws-server": 9,
   replay: 15,
-  runtime: 15,
+  runtime: 16,
 } as const;
 
-export const EXPECTED_OPERATION_KEY_COUNT = 208;
+export const EXPECTED_OPERATION_KEY_COUNT = 209;
 
 interface ProtocolInventoryHeader {
   readonly sourceHash: string;

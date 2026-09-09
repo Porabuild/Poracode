@@ -1,4 +1,9 @@
-import { closeDatabase, dbMarkLiveThreadsInactive, initDatabase } from "@/main/db";
+import {
+  closeDatabase,
+  dbMarkLiveThreadsInactive,
+  dbTruncateThreadRuntimeAfter,
+  initDatabase,
+} from "@/main/db";
 import { SupervisorClient, type SupervisorClientOptions } from "@/main/supervisor/SupervisorClient";
 import { persistSupervisorEvent } from "@/main/remote/server/runtimePersistence";
 import { TerminalScrollbackPersistence } from "@/main/remote/server/terminalScrollbackPersistence";
@@ -160,6 +165,48 @@ export class BackendHostCore {
       this.databaseOpen = false;
       throw error;
     }
+  }
+
+  /**
+   * Single-mutation owner for checkpoint truncates: the database is mutated
+   * exactly once here, then one canonical `runtime.truncated` event is
+   * published through the same funnel a supervisor event uses
+   * (`options.onEvent` reaches renderer windows, the remote server relay, and
+   * notification consumers in every composition). The event deliberately
+   * bypasses `persistSupervisorEvent` — the durable effect IS the
+   * transactional delete above, and routing a truncate back through
+   * `dbApplyThreadRuntimeEvents` would re-enter the runtime write queue that
+   * `dbTruncateThreadRuntimeAfter` just flushed.
+   *
+   * Publication is gated on an actual truncation: a missing checkpoint or an
+   * already-last checkpoint touches no rows at all, so no event is emitted —
+   * a broadcast no-op rollback could destructively delete newer client items
+   * when replayed. An actual truncation always publishes exactly one event,
+   * even when no completed turns were anchored on the removed items (an empty
+   * `removedCompletedTurnAnchors`).
+   */
+  truncateThreadRuntime(
+    threadId: string,
+    itemId: string,
+  ): {
+    truncated: boolean;
+    removedCompletedTurnAnchors: string[];
+  } {
+    const result = dbTruncateThreadRuntimeAfter(threadId, itemId);
+    if (!result.truncated) {
+      return result;
+    }
+    this.options.onEvent({
+      type: "thread-runtime-event",
+      threadId,
+      event: {
+        type: "runtime.truncated",
+        threadId,
+        itemId,
+        removedCompletedTurnAnchors: [...result.removedCompletedTurnAnchors],
+      },
+    });
+    return result;
   }
 
   startSupervisor(): void {

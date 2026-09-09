@@ -12,6 +12,7 @@ import {
   type UpdateStatus,
 } from "@/shared/ipc";
 import { readBridge } from "./bridge";
+import { hasClientCapability } from "./clientRuntime";
 import { showUserNotification } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
@@ -352,7 +353,7 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
       readBridge().onSupervisorEvent(handleSupervisorEvent),
       installRuntimeEventScheduling(),
-      installUpdateStatusSync(),
+      ...(hasClientCapability("nativeAppUpdates") ? [installUpdateStatusSync()] : []),
       // Thread-metadata commands issued from paired remote clients (mobile PWA).
       // They run through the same actions as local edits so persistence and
       // side effects (unload on archive, …) stay identical.

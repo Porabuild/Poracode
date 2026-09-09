@@ -41,7 +41,17 @@ import type { PoracodeChannel } from "./channel";
 
 /** Increment whenever the desktop/backend-host IPC envelope becomes incompatible. */
 // Version 3 carries renderer stream sequence numbers through the Electron IPC fallback.
-export const BACKEND_HOST_PROTOCOL_VERSION = 3 as const;
+// The optional `rendererDeliveredDirect` flag is no longer emitted: direct-stream
+// delivery cannot stand in for the anonymous IPC consumer, so the host relays every
+// routed event and renderers dedupe by `rendererSequence` (compatible shrink —
+// host and main always ship in the same bundle, and the flag was never validated).
+// Version 4 adds the `supervisor-event-gap` control kind announced when the host
+// sheds desktop-IPC copies of bulk renderer events. Host and main always ship in
+// one bundle, but a stale host child from an older build can outlive an update;
+// a pre-4 reader would validate version 3, silently drop the unknown kind, and
+// re-open the exact silent-loss window this signal closes — so the bump makes
+// that pairing fail loudly instead of losing terminal/runtime data quietly.
+export const BACKEND_HOST_PROTOCOL_VERSION = 4 as const;
 export const BACKEND_RENDERER_STREAM_VERSION = 2 as const;
 
 export interface BackendRendererStreamInfo {
@@ -332,6 +342,12 @@ export type BackendHostReply =
       error: string;
     };
 
+/** Renderer-stream sequence range the desktop-IPC fallback lost to shedding; both ends inclusive. */
+export interface SupervisorEventGap {
+  fromSequence: number;
+  toSequence: number;
+}
+
 export type BackendHostOutboundMessage =
   | BackendHostReply
   | {
@@ -339,8 +355,13 @@ export type BackendHostOutboundMessage =
       kind: "supervisor-event";
       event: SupervisorEvent;
       rendererSequence?: number;
+      /** Deprecated, no longer emitted. Kept so in-bundle readers of older envelopes stay type-compatible. */
       rendererDeliveredDirect?: boolean;
     }
+  | ({
+      version: typeof BACKEND_HOST_PROTOCOL_VERSION;
+      kind: "supervisor-event-gap";
+    } & SupervisorEventGap)
   | {
       version: typeof BACKEND_HOST_PROTOCOL_VERSION;
       kind: "supervisor-reset";
@@ -501,6 +522,8 @@ export function isBackendHostOutboundMessage(
             Number.isSafeInteger(message.rendererSequence) &&
             message.rendererSequence >= 0))
       );
+    case "supervisor-event-gap":
+      return isSupervisorEventGap(message);
     case "supervisor-reset":
       return true;
     case "native-request":
@@ -547,6 +570,19 @@ export function isBackendHostOutboundMessage(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+/** Validates the gap range carried by `supervisor-event-gap` envelopes and renderer bridges. */
+export function isSupervisorEventGap(value: unknown): value is SupervisorEventGap {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.fromSequence === "number" &&
+    Number.isSafeInteger(value.fromSequence) &&
+    value.fromSequence >= 0 &&
+    typeof value.toSequence === "number" &&
+    Number.isSafeInteger(value.toSequence) &&
+    value.toSequence >= value.fromSequence
+  );
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {

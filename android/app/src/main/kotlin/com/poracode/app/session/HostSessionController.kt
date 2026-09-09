@@ -4,6 +4,7 @@ import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.HostCatalogSnapshot
 import com.poracode.app.model.HostRecord
 import com.poracode.app.model.RemoteWebSocketServerMessage
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.storage.HostMutationResult
 import com.poracode.app.storage.HostOperationKind
 import com.poracode.app.storage.MultiHostCredentialRepository
@@ -200,6 +201,7 @@ class HostSessionController(
         val current = snapshot ?: refreshCatalog() ?: return
         val secondaryId = current.document.secondaryLru ?: return
         val secondary = current.document.host(secondaryId) ?: return
+        if (secondary.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) return
         if (!hasEndpointPermission(secondary.httpBaseUrl)) return
         val key = SessionPoolKey.Host(secondaryId)
         if (pool.liveKeys().contains(key)) return
@@ -226,6 +228,7 @@ class HostSessionController(
         val current = snapshot ?: refreshCatalog() ?: return
         current.hosts
             .filter { it.connectionId != current.selectedConnectionId }
+            .filter { it.protocolVersion == ProtocolConstants.REMOTE_PROTOCOL_VERSION }
             .filter { hasEndpointPermission(it.httpBaseUrl) }
             .filter { "session:read" in it.scopes }
             .forEach { host ->
