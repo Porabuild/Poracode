@@ -3,6 +3,8 @@ dist/
 release/
 .vite/
 coverage/
+# SwiftPM output, including standalone test packages.
+.build/
 *.log
 logs/
 *.tsbuildinfo
