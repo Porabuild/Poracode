@@ -186,6 +186,17 @@ async function initialize(
     onEvent: (event) => {
       relaySupervisorEvent(event);
     },
+    onSupervisorOutputShed: (threadIds) => {
+      // The supervisor shed terminal-output batches in transit; the events
+      // never persisted, so windows must rebuild those threads' output from
+      // the supervisor's authoritative scrollback via their gap recovery.
+      rendererStream?.broadcastResyncRequired();
+      reportError?.(
+        new Error(
+          `supervisor shed terminal output for ${threadIds.length} thread(s) under IPC backpressure`,
+        ),
+      );
+    },
     onReset: () => {
       // Match the headless host: no `thread-exited` is emitted for sessions
       // that died with the old supervisor, so the desktop remote server must

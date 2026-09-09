@@ -913,6 +913,17 @@ export class RemoteAccessServer {
     this.broadcastRaw(JSON.stringify(message));
   }
 
+  /**
+   * Asks every connected client to discard incremental state and refetch
+   * authoritative data. Used when the supervisor shed bulk traffic in transit
+   * (supervisor-output-shed): the events never reached persistence, so no
+   * replay can repair them — clients must resync terminal output from the
+   * supervisor, which remains the authoritative PTY source.
+   */
+  broadcastResyncRequired(reason: string): void {
+    this.broadcast({ type: "resync-required", seq: this.seq, reason });
+  }
+
   /** Fans an already-serialized message out to every client. Lets the caller
    * serialize a large body once instead of per send. */
   private broadcastRaw(data: string): void {

@@ -5,7 +5,7 @@ import { constants as osConstants, setPriority } from "node:os";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import type { StartThreadPayload } from "@/shared/contracts";
-import type {
+import {
   IpcProcedurePayload,
   IpcProcedureResult,
   SupervisorEvent,
@@ -13,6 +13,7 @@ import type {
   SupervisorProcedureName,
   SupervisorReply,
   SupervisorRequest,
+  isSupervisorOutputShedSignal,
 } from "@/shared/ipc";
 
 function isSupervisorReply(message: unknown): message is SupervisorReply {
@@ -84,6 +85,13 @@ export interface SupervisorClientOptions {
   assignPid?(pid: number): Promise<void>;
   reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
   onEvent(event: SupervisorEvent): void;
+  /**
+   * The supervisor shed queued terminal-output batches for these threads
+   * under IPC backpressure. The backend must ask connected clients to
+   * resynchronize those threads' terminal output from the supervisor, which
+   * keeps the authoritative PTY bytes; the events themselves never persisted.
+   */
+  onOutputShed?(threadIds: string[]): void;
   onReset(): void;
   /**
    * Invoked after every (re)spawn of the supervisor process — including
@@ -172,6 +180,10 @@ export class SupervisorClient {
     }
 
     child.on("message", (message: SupervisorReply | SupervisorEvent) => {
+      if (isSupervisorOutputShedSignal(message)) {
+        this.options.onOutputShed?.(message.threadIds);
+        return;
+      }
       if (isSupervisorReply(message)) {
         const pending = this.pendingRequests.get(message.replyTo);
         if (!pending) {

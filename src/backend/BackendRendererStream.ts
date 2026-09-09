@@ -118,15 +118,7 @@ export class BackendRendererStream {
       // reconnecting clients converge the same way: refetch authoritative
       // state from the backend host.
       this.diagnostics.resyncRequests += 1;
-      const payload = JSON.stringify({
-        version: BACKEND_RENDERER_STREAM_VERSION,
-        type: "resync-required",
-        latestSeq: this.sequence,
-      });
-      for (const [socket, client] of this.clients) {
-        if (!client.ready) continue;
-        this.send(socket, client, payload);
-      }
+      this.broadcastResyncRequired();
       return { delivered: false, sequence: seq };
     }
     this.replay.push({ seq, event: capped.event, bytes: capped.bytes });
@@ -154,6 +146,24 @@ export class BackendRendererStream {
       delivered = true;
     }
     return { delivered, sequence: seq };
+  }
+
+  /**
+   * Asks every ready renderer window to rebuild from authoritative state.
+   * Used when the supervisor shed bulk traffic in transit: the events never
+   * reached persistence or this stream, so no replay can repair them.
+   */
+  broadcastResyncRequired(): void {
+    this.diagnostics.resyncRequests += 1;
+    const payload = JSON.stringify({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "resync-required",
+      latestSeq: this.sequence,
+    });
+    for (const [socket, client] of this.clients) {
+      if (!client.ready) continue;
+      this.send(socket, client, payload);
+    }
   }
 
   retainTerminalBootstrap(threadId: string): void {

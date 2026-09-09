@@ -243,3 +243,28 @@ export type UpdateStatus =
   | { type: "downloaded"; version: string }
   | { type: "error"; message: string; messageKey?: never }
   | { type: "error"; messageKey: MessageKey; message?: never };
+
+/**
+ * Recovery signal the supervisor's IPC sender emits when a sustained
+ * backend-host stall forces it to shed queued terminal-output batches
+ * (oldest first) instead of failing fatally. The backend host responds by
+ * asking connected clients to resynchronize those threads' terminal output
+ * from the supervisor, which remains the authoritative source for PTY bytes.
+ */
+export type SupervisorOutputShedSignal = {
+  kind: "supervisor-output-shed";
+  /** Threads whose queued terminal output was shed, oldest shed first. */
+  threadIds: string[];
+};
+
+export function isSupervisorOutputShedSignal(
+  message: unknown,
+): message is SupervisorOutputShedSignal {
+  if (typeof message !== "object" || message === null) return false;
+  const candidate = message as Record<string, unknown>;
+  return (
+    candidate.kind === "supervisor-output-shed" &&
+    Array.isArray(candidate.threadIds) &&
+    candidate.threadIds.every((id) => typeof id === "string")
+  );
+}
