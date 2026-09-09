@@ -23,6 +23,7 @@ import {
   errorResult,
   jsonResult,
   parseWaitOptions,
+  parseOutputMode,
   parseWaitTimeoutMs,
   TIMEOUT_S_DESCRIPTION,
 } from "./toolResult";
@@ -66,25 +67,16 @@ const CROSSAGENTS_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("crossagents");
 
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
-  "Use the Crossagents MCP server to delegate lightweight, ephemeral work to the other AI agents connected to this Poracode session.",
-  `Before the first spawn_agent call, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} — it is this plugin's core skill.`,
-  "Every tool named below belongs to this server. Hosts that namespace MCP tools expose them under this server's name (for example `crossagents__list_agents` or `mcp__crossagents__list_agents`), so resolve each bare name against your own tool list and call the crossagents entry — never the same bare name under another server such as `poracode`.",
-  "Delegate only once the user has explicitly asked you to involve another agent in this thread, for example via an @Crossagents mention or a direct request to delegate or get a second opinion. That ask authorizes delegation for the rest of the thread, so later turns may spawn as the work requires; until then, never spawn subagents on your own initiative.",
-  "Call list_agents when provider selection matters; call get_agent only when you need one provider's detailed models, reasoning options, Fast availability, or permissions preset.",
-  "Classify every task with 1-5 concise lowercase tags and pass the same tags to list_agents and spawn_agent. Prefer this vocabulary when applicable: frontend, ui, design, backend, mobile, simulator, implementation, bugfix, review, testing, research, refactor, docs, devops, data. Crossagents learns tag-to-selection affinity from user-explicit selection choices without an extra model call.",
-  "Explicit provider, model, reasoning, and Fast values always win. When the user does not specify them, omit those fields and Crossagents will resolve matching manual task routes first, then learned task tags, global explicit Crossagents usage, frequently used and favorite composer selections, then built-in order.",
-  "When the user explicitly asks to always prefer a provider/model for a kind of task, call set_routing_preference with its tags and selection. This persistent manual override ranks before learned affinity. Use remove_routing_preference when the user asks to forget or reset it; do not create or remove persistent preferences without clear user intent.",
-  "This server hosts one delegation lane: ephemeral subagent runs whose output streams into your own thread.",
-  "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent for every background result the task requires. Each wait is bounded only to stay below the MCP client's transport timeout: status=running means the server kept the child active, and the elapsed wait does not by itself mean the run stalled. When its result is required, keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because 180 seconds or any other wait duration elapsed, it has not produced a final answer yet, or it is still investigating. Cancel only when the user explicitly asks or the task is no longer needed for a reason unrelated to elapsed time.",
-  "wait_for_agent and get_status support incremental output: pass the previous result's total_output_chars as after_output_chars on the next call, so repeated waits return only newer text and identical retries remain safe. Output is clipped to a short tail while the run is still working; clipped text requires full_output=true if genuinely needed.",
-  `Pass tasks=[...] to the same spawn_agent call to launch up to ${MAX_CONCURRENT_CHILDREN_PER_PARENT} independent agents in parallel. Each parent thread can have at most ${MAX_CONCURRENT_CHILDREN_PER_PARENT} running agents across all calls; wait for an existing run to finish before spawning beyond that limit.`,
-  "Use ordered fallbacks to retry startup failures on another model or provider. Retrying after a dispatched turn requires retry_on='any-failure' because it may repeat side effects.",
-  "Background runs also survive interruption of the current parent turn, but still stop when the parent thread closes.",
-  "Give each subagent a self-contained prompt — it does not share your conversation context.",
-  "Use steer_agent to send a follow-up message to a running child: corrections, new evidence, or narrowed scope. The child keeps its session and context and continues with your message. It is a message, not a result: keep waiting for the child to finish. list_runs.can_steer is false only while a child is still starting, has finished, or is processing a previous message.",
-  "For larger batches, call list_runs with include_capacity=true to inspect available_slots (a snapshot, not a reservation). Use wait_for_agent with run_ids and wait_mode='any' to collect the next completed result and refill free slots; omit already-settled runs from the next wait. Scope concurrent edits to distinct files or clearly separated responsibilities. Include the objective, relevant context, constraints, and acceptance checks in each prompt. Ask for findings with file references, verification evidence, and unresolved risks; validate the returned work before integrating it.",
-  "Always set name on spawn_agent and on every tasks=[...] entry: a short, specific label describing what that subagent will do (for example `Review runtime findings`). Users see this label in the thread; do not omit it or repeat provider/model/reasoning values there — Crossagents appends those automatically.",
-  "For long-lived, first-class app threads the user sees in the sidebar (optionally in their own git worktree) — e.g. one ticket or feature per thread — use the always-on `poracode` MCP server's thread tools (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread, stop_thread) instead.",
+  `Before the first spawn_agent, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} for workflow and verification guidance.`,
+  "Delegate only after an explicit user ask in this thread; it authorizes the rest of the thread. Before that, never spawn subagents on your own initiative.",
+  "Resolve tool names against this server (e.g. crossagents__list_agents), never the same bare name under another server.",
+  "Pass 1-5 task tags to list_agents and spawn_agent. Omit unspecified provider/model/reasoning/fast to use configured and learned routing; explicit selections win. get_agent supplies model and reasoning values. Change persistent routing preferences only on clear user intent.",
+  "Always set name on each task to describe its work; omit selection details because Crossagents appends those automatically. Give self-contained context, exact file/resource ownership, acceptance checks and a concise evidence-backed outcome. Children do not share your conversation. No overlapping writes; validate their work.",
+  `spawn_agent waits by default; tasks launches up to ${MAX_CONCURRENT_CHILDREN_PER_PARENT} independent agents together, also the running limit per parent. background=true returns immediately and never injects a new message into the parent. Runs survive parent-turn interruption but stop when its thread closes.`,
+  "At synchronization, batch required run_ids in wait_for_agent. Waits default to 120 seconds, capped at 240 for transport safety; keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because a wait timed out. Cancel only at user request or when work is no longer needed for reasons unrelated to elapsed time.",
+  "Use output_mode=quiet to suppress running narration without consuming unread evidence; errors and pending request counts remain visible. Settled output is unchanged. This reduces payload, not parent wakeups. Progress remains in the UI/logs. Pass total_output_chars back as after_output_chars (or after_output_chars_by_run for batches); full_output=true retrieves complete output. Legacy progress output clips running/settled tails at 1000/16000 characters.",
+  "list_runs include_capacity=true reports available_slots, not a reservation. wait_mode=any returns when one run settles; next wait includes only remaining running IDs. steer_agent is for new evidence, constraints or conflicts, not repeated status requests.",
+  "Fallback retries default to startup-only. retry_on=any-failure may repeat side effects and needs explicit justification and authority. Child permissions must stay within the user's authorized scope.",
 ].join(" ");
 
 export function buildSubagentInstructions(routingGuide?: string): string {
@@ -120,6 +112,13 @@ const SUBAGENT_SELECTION_PROPERTIES = {
     enum: ["full-access"],
     description: "Permission preset from get_agent. Defaults to full-access for subagents.",
   },
+} as const;
+
+const OUTPUT_MODE_PROPERTY = {
+  type: "string",
+  enum: ["quiet", "progress"],
+  description:
+    "quiet suppresses running narration and preserves the unread cursor; errors and pending request counts remain visible. Settled output is unchanged. progress is the legacy default; full_output overrides quiet.",
 } as const;
 
 const FULL_OUTPUT_PROPERTY = {
@@ -235,6 +234,7 @@ const RAW_TOOLS: ToolSpec[] = [
           description: TIMEOUT_S_DESCRIPTION,
         },
         full_output: FULL_OUTPUT_PROPERTY,
+        output_mode: OUTPUT_MODE_PROPERTY,
       },
       // No root-level union here: Cursor's backend rejects tool schemas that carry
       // `oneOf` at the root and fails the whole turn with a provider error. Callers
@@ -292,6 +292,7 @@ const RAW_TOOLS: ToolSpec[] = [
           description: TIMEOUT_S_DESCRIPTION,
         },
         full_output: FULL_OUTPUT_PROPERTY,
+        output_mode: OUTPUT_MODE_PROPERTY,
         after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
         after_output_chars_by_run: AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY,
         wait_mode: {
@@ -315,6 +316,7 @@ const RAW_TOOLS: ToolSpec[] = [
       properties: {
         run_id: { type: "string" },
         full_output: FULL_OUTPUT_PROPERTY,
+        output_mode: OUTPUT_MODE_PROPERTY,
         after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
       },
     },
@@ -621,6 +623,8 @@ async function spawnAgent(
   args: Record<string, unknown>,
   ctx: SubagentToolContext,
 ): Promise<McpToolResult> {
+  const outputMode = parseOutputMode(args);
+  const outputOptions = outputMode ? { outputMode } : {};
   const timeoutMs = parseWaitTimeoutMs(args);
   const background = args.background === true;
   const rosterCache = new Map<string, Promise<SpawnableAgent[]>>();
@@ -703,7 +707,7 @@ async function spawnAgent(
         runs.map(({ runId }) => runId),
         timeoutMs,
         ctx.parentThreadId,
-        { fullOutput: args.full_output === true, currentAttemptOnly: true },
+        { ...outputOptions, fullOutput: args.full_output === true, currentAttemptOnly: true },
       ),
     });
   }
@@ -720,6 +724,7 @@ async function spawnAgent(
     return jsonResult({ run_id: runId, status: "running", output: "" });
   }
   const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
+    ...outputOptions,
     fullOutput: args.full_output === true,
     currentAttemptOnly: true,
   });
@@ -804,6 +809,7 @@ export async function dispatchTool(
         return jsonResult({ run_ids: runs.map(({ runId }) => runId) });
       }
       case "wait_for_agent": {
+        parseOutputMode(args);
         if (args.wait_mode !== undefined && args.wait_mode !== "all" && args.wait_mode !== "any") {
           return errorResult("wait_mode must be all or any");
         }
@@ -834,6 +840,7 @@ export async function dispatchTool(
         );
       }
       case "wait_for_agents": {
+        parseOutputMode(args);
         const runIds = parseRunIds(args);
         return jsonResult(
           await ctx.runManager.waitForMany(

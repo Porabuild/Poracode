@@ -580,6 +580,7 @@ export class SubagentRunManager {
    */
   private waitResult(record: RunRecord, options?: SubagentWaitOptions): SubagentWaitResult {
     const fullOutput = options?.fullOutput === true;
+    const quiet = !fullOutput && options?.outputMode === "quiet" && record.status === "running";
     const incremental = !fullOutput && options?.afterOutputChars !== undefined;
     const cursorOffset = options?.afterOutputChars ?? 0;
     const displayOutput = [
@@ -605,12 +606,19 @@ export class SubagentRunManager {
     const delta = source;
     const tailCap =
       record.status === "running" ? MAX_RUNNING_OUTPUT_TAIL_CHARS : MAX_SETTLED_OUTPUT_TAIL_CHARS;
-    const output = fullOutput ? delta : clipOutputTail(delta, tailCap);
+    const output = quiet ? "" : fullOutput ? delta : clipOutputTail(delta, tailCap);
     const isCompleteTranscript = fullOutput || (!useCursorOutput && delta.length <= tailCap);
     return {
       status: record.status,
       output,
-      ...(incremental || !isCompleteTranscript ? { total_output_chars: total } : {}),
+      ...(quiet
+        ? { total_output_chars: Math.min(Math.max(0, cursorOffset), total) }
+        : incremental || !isCompleteTranscript
+          ? { total_output_chars: total }
+          : {}),
+      ...(quiet && record.pendingRequestIds.size > 0
+        ? { pending_requests: record.pendingRequestIds.size }
+        : {}),
       ...(record.error ? { error: record.error } : {}),
       ...(record.plan.attempts.length > 1
         ? {
