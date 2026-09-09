@@ -27,6 +27,7 @@ import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
 import { ThreadToolRail } from "./ThreadToolRail";
+import { PaneDragHandle } from "./PaneDragAndDrop";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 
 /**
@@ -389,10 +390,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
               agentLabel={agentStatus?.label}
               agentIcon={agentStatus?.icon}
             />
-            <div
-              ref={dragHandleRef}
-              className={`flex min-w-0 flex-1 items-center gap-2 ${dragHandleRef ? "cursor-grab active:cursor-grabbing" : ""}`}
-            >
+            {/* The drag handle is a dedicated element (see PaneDragHandle):
+                dnd-kit brands its activator element and never un-brands it, so
+                the persistent title strip must never be the activator. */}
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              {dragHandleRef ? <PaneDragHandle handleRef={dragHandleRef} /> : null}
               <Tooltip
                 delay={500}
                 isOpen={isTitleTooltipOpen}

@@ -3,6 +3,7 @@ import { TerminalSquare, X } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
+import { PaneDragHandle } from "./PaneDragAndDrop";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
 
 export type ThreadDraftDropIndicator =
@@ -33,9 +34,11 @@ export function ThreadDraftCompactHeader({
       className={`px-2 ${props.headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
     >
       <div
-        ref={dragHandleRef}
-        className={`${dragHandleRef ? "poracode-content-over-drag-region cursor-grab active:cursor-grabbing" : "poracode-content-over-drag-region--drag"} ${props.alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
+        className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} ${props.alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
       >
+        {/* Dedicated drag element — see PaneDragHandle for why the persistent
+            header strip must not be the dnd activator. */}
+        {dragHandleRef ? <PaneDragHandle handleRef={dragHandleRef} /> : null}
         <TerminalSquare className="size-3.5 shrink-0 text-muted/60" />
         <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight text-muted">
           <Trans>New thread</Trans>

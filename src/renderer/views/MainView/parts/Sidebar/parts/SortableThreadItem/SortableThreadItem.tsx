@@ -50,12 +50,23 @@ export function SortableThreadItem(props: {
   const hasDraft = useThreadHasDraft(thread.id);
   const compactLayout = useCompactLayout();
 
+  // dnd-kit brands the sortable's activator (`handle ?? element`) as a
+  // keyboard-draggable control — `aria-roledescription="draggable"`, drag
+  // instructions, and `aria-disabled=String(disabled)` — and never reverts
+  // those attributes. For a row that cannot drag that would paint an
+  // operable `SidebarButton` as a disabled draggable. Experiment candidates
+  // cannot drag (the experiment owns their order) and the compact provider
+  // ships no sensors, so those rows register without elements: no activator,
+  // no branding, and the button keeps sole ownership of the row's semantics.
+  // The registration itself stays so the sidebar's reorder handling still
+  // sees every row's id/index/group.
+  const rowCanDrag = !compactLayout && !isExperimentCandidate;
+
   const { ref, handleRef } = useSortable({
     id: `thread:${thread.id}`,
     index: props.threadIndex,
     type: "thread",
-    accept:
-      compactLayout || sortDisabled || isExperimentCandidate ? [] : ["thread", "worktree-group"],
+    accept: rowCanDrag && !sortDisabled ? ["thread", "worktree-group"] : [],
     group: props.group,
     // Automatic sort modes only disable reordering within the sidebar. Keep
     // ordinary threads draggable so they can still be dropped onto a pane.
@@ -106,7 +117,7 @@ export function SortableThreadItem(props: {
   );
 
   return (
-    <div ref={ref} className="relative w-full pb-0.5">
+    <div {...(rowCanDrag ? { ref } : {})} className="relative w-full pb-0.5">
       <ThreadContextMenu
         thread={thread}
         project={project}
@@ -114,7 +125,7 @@ export function SortableThreadItem(props: {
         showProjectActions={stacked}
       >
         <SidebarButton
-          ref={handleRef}
+          {...(rowCanDrag ? { ref: handleRef } : {})}
           className="poracode-sidebar-thread-row"
           size="xs"
           density={stacked ? "compact" : "default"}
