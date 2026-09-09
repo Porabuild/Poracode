@@ -10,7 +10,8 @@ import kotlinx.serialization.json.JsonElement
  * Screens never own decoding — [RuntimeEventReducer] + this state do.
  *
  * Mirrors the TS runtimeEventSlice fields needed for foundation correctness:
- * open requests, open-turn flag, context usage, and structural version.
+ * open requests, open-turn flag, context usage, background tasks, and
+ * structural version.
  * `usage.spent` is intentionally decoded but not retained: as on desktop, the
  * main-process usage ledger is authoritative and renderer state owns no ledger.
  */
@@ -20,6 +21,26 @@ data class ThreadRuntimeDomainState(
     val openTurn: Boolean? = null,
     val contextUsage: ThreadContextUsage? = null,
     val structuralVersion: Int = 0,
+    /**
+     * Live background work reported by `background_tasks.changed`.
+     * Session-scoped only: never hydrated from persisted state, and dropped
+     * when the session exits. null = no live list; an empty replacement list
+     * normalizes back to null. Reduced for parity only — no Android surface
+     * renders it yet (native-parity ledger).
+     */
+    val backgroundTasks: List<BackgroundTask>? = null,
+)
+
+/**
+ * One unit of provider-reported background work that outlives the turn that
+ * launched it (`background_tasks.changed` payload, TS `backgroundTaskSchema`).
+ * `kind` is a coarse, provider-agnostic class ("command" | "other") validated
+ * at parse time and stored verbatim; sub-agent runs are not reported here.
+ */
+data class BackgroundTask(
+    val taskId: String,
+    val kind: String,
+    val description: String,
 )
 
 data class OpenRuntimeRequest(
@@ -112,6 +133,15 @@ object RuntimeDomainReducer {
                 // continue through the existing thread-state path.
                 return state
             }
+            "session.exited" -> {
+                // Background work dies with the agent process; drop the list.
+                if (next.backgroundTasks == null) return state
+                next = next.copy(backgroundTasks = null)
+            }
+            "background_tasks.changed" -> {
+                val tasks = event.tasks ?: return state
+                next = replaceBackgroundTasks(next, tasks)
+            }
             "item.started", "item.updated", "item.completed", "error" -> {
                 structuralBump = true
             }
@@ -124,6 +154,23 @@ object RuntimeDomainReducer {
     }
 
     fun reset(): ThreadRuntimeDomainState = ThreadRuntimeDomainState()
+
+    /**
+     * REPLACE the thread's live background task list: an empty list drops the
+     * key and an unchanged list is a no-op. Never bumps structural version:
+     * the list is not a transcript grouping input.
+     */
+    private fun replaceBackgroundTasks(
+        state: ThreadRuntimeDomainState,
+        tasks: List<BackgroundTask>,
+    ): ThreadRuntimeDomainState {
+        val prev = state.backgroundTasks
+        if (tasks.isEmpty()) {
+            return if (prev == null) state else state.copy(backgroundTasks = null)
+        }
+        if (prev == tasks) return state
+        return state.copy(backgroundTasks = tasks.toList())
+    }
 
     fun mergeContextUsage(
         prev: ThreadContextUsage?,

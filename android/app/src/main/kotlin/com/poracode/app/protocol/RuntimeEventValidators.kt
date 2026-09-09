@@ -9,7 +9,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
 /**
- * Strict Zod-parity field readers for the 14-variant runtime event schema.
+ * Strict Zod-parity field readers for the 15-variant runtime event schema.
  *
  * Rules:
  * - strings never coerce from numbers/bools (JsonPrimitive.isString required)
@@ -154,6 +154,23 @@ internal object RuntimeEventValidators {
         if (payloadObj.containsKey("multiSelect")) {
             if (strictBoolean(payloadObj["multiSelect"]) == null) return false
         }
+        return true
+    }
+
+    val BACKGROUND_TASK_KINDS: Set<String> = setOf("command", "other")
+
+    /**
+     * Zod `backgroundTaskSchema` parity: taskId min(1), kind is the closed
+     * "command"|"other" enum, description any string. Unknown fields are
+     * stripped upstream (x-poracode-unknownFields), so extra keys pass.
+     */
+    fun validateBackgroundTask(task: JsonElement): Boolean {
+        val obj = task.asObjectOrNull() ?: return false
+        val taskId = obj.strictString("taskId") ?: return false
+        if (taskId.isEmpty()) return false
+        val kind = obj.strictString("kind") ?: return false
+        if (kind !in BACKGROUND_TASK_KINDS) return false
+        if (obj.strictString("description") == null) return false
         return true
     }
 

@@ -60,6 +60,7 @@ class SelectedProjectHostLeaseSource(initial: AppSession.UiState) {
             scopes = profile.scopes.toSet(),
             online = online,
             ready = ready,
+            browserForwardVersions = appState.liveBrowserForwardVersions,
         )
     }
 }

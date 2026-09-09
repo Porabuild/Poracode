@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">To przekierowanie portu już nie istnieje.</string>
     <string name="ports_failure_input">Wprowadź prawidłowy port od 1 do 65535.</string>
     <string name="ports_failure_response">Host zwrócił nieprawidłową odpowiedź przekierowania portów.</string>
+    <string name="ports_failure_browser_unavailable">Przekierowanie do przeglądarki nie jest skonfigurowane na tym komputerze.</string>
     <string name="ports_failure_ambiguous">Żądanie mogło zostać wykonane. Lista została odświeżona.</string>
     <string name="ports_failure_unavailable">Przekierowanie portów jest obecnie niedostępne.</string>
 </resources>

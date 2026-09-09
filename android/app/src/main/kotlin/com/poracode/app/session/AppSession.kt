@@ -64,6 +64,7 @@ class AppSession(
         val socketState: RemoteWebSocketClient.ConnectionState =
             RemoteWebSocketClient.ConnectionState.Idle,
         val socketDetail: String? = null,
+        val liveBrowserForwardVersions: Set<Int> = emptySet(),
         val snapshot: com.poracode.app.model.RemoteShellSnapshot? = null,
         val hostSnapshots: Map<
             com.poracode.app.model.ClientConnectionId,
@@ -72,6 +73,23 @@ class AppSession(
         val projectsLoadState: LoadState = LoadState.Idle,
         val projectsLoadError: String? = null,
         val globalError: String? = null,
+        /**
+         * Transient connection-health banner: transport failures published by
+         * the connection scope. Structurally separate from [globalError] so
+         * ownership is never decided by message text — a later authoritative
+         * snapshot retires this field and can never touch [globalError], so
+         * an unrelated thread/action failure (even with identical text)
+         * survives connection recovery. In-memory only; rendered by the home
+         * pane, never persisted.
+         */
+        val connectionError: String? = null,
+        /**
+         * Publication seq of [connectionError] from the connection event
+         * counter; null when nothing is claimed. Recovery compares it against
+         * the seq a snapshot attempt took at start, so a success that began
+         * before a newer failure never retires that failure.
+         */
+        val connectionErrorSeq: Long? = null,
         val sessionExpired: Boolean = false,
         val openThreadId: String? = null,
         val threadSnapshot: com.poracode.app.model.RemoteThreadSnapshot? = null,
@@ -143,8 +161,8 @@ class AppSession(
             deliverServerMessage = { events.handleServerMessage(it) },
             requestResync = { reason -> resync.launchResync(reason) },
             interestEpoch = interestEpoch,
-            onAuthoritativeBaseline = { resync.clearAuthoritativeRefreshRequired() },
-            onLiveSocketInstalled = { browserMirrorBridge.installOnLiveSocket() },
+            onAuthoritativeBaseline = { resync.clearAuthoritativeRefreshRequired() }, onLiveSocketInstalled = { browserMirrorBridge.installOnLiveSocket() },
+            agentStatusesBootstrap = AgentStatusesBootstrap(scope, ioDispatcher, begin = { events.beginAgentStatusesBase() }) { native, wsl -> events.seedAgentStatusesBase(native, wsl) },
         )
         events = SessionEventRouter(
             scope = scope,
@@ -202,6 +220,7 @@ class AppSession(
             hasAuthoritativeBaseline = {
                 live.lastSeenSeq != null && _state.value.snapshot != null
             },
+            nextSnapshotAttemptSeq = { live.nextSnapshotAttemptSeq() },
             fetchShell = { api -> withContext(ioDispatcher) { api.snapshot() } },
             fetchHistory = { api, id ->
                 withContext(ioDispatcher) {
@@ -211,41 +230,7 @@ class AppSession(
             onCommit = { commit ->
                 live.lastSeenSeq = commit.reconnectSeq
                 _state.update { s ->
-                    val base = s.copy(
-                        phase = AppSession.Phase.Ready,
-                        snapshot = commit.shell,
-                        projectsLoadState = if (commit.shell.projects.isEmpty() &&
-                            commit.shell.threads.isEmpty()
-                        ) {
-                            AppSession.LoadState.Empty
-                        } else {
-                            AppSession.LoadState.Loaded
-                        },
-                        projectsLoadError = null,
-                    )
-                    if (commit.history != null &&
-                        commit.openThreadId != null &&
-                        s.openThreadId == commit.openThreadId
-                    ) {
-                        val hydrated = ThreadController.hydrateFromHistory(
-                            history = commit.history,
-                            threadId = commit.openThreadId,
-                        )
-                        base.copy(
-                            threadSnapshot = commit.history,
-                            threadItems = hydrated.visible,
-                            threadOlderCursor = commit.history.runtimeNextCursor,
-                            threadLoadState = if (hydrated.visible.isEmpty()) {
-                                AppSession.LoadState.Empty
-                            } else {
-                                AppSession.LoadState.Loaded
-                            },
-                            threadLoadError = null,
-                            threadDomain = hydrated.domain,
-                        )
-                    } else {
-                        base
-                    }
+                    LiveSessionStateTransitions.authoritativeCommit(s, commit)
                 }
                 live.ensureLiveSocketAfterAuthoritativeCommit()
                 events.seedReplayAuthoritative(commit.shell)

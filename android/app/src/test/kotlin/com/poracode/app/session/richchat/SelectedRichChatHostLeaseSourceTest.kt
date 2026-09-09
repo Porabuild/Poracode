@@ -32,6 +32,7 @@ class SelectedRichChatHostLeaseSourceTest {
 
         source.update(state(HOST_A, profile, AppSession.Phase.Ready, online = false))
         assertTrue(source.state.value!!.generation > ready.generation)
+        assertEquals(ready.bindingGeneration, source.state.value!!.bindingGeneration)
 
         val offlineGeneration = source.state.value!!.generation
         source.update(
@@ -43,6 +44,7 @@ class SelectedRichChatHostLeaseSourceTest {
             ),
         )
         assertTrue(source.state.value!!.generation > offlineGeneration)
+        assertTrue(source.state.value!!.bindingGeneration > ready.bindingGeneration)
         assertEquals(setOf("session:read"), source.state.value!!.scopes)
     }
 
@@ -56,6 +58,7 @@ class SelectedRichChatHostLeaseSourceTest {
         source.update(state(HOST_B, profile(HOST_B), AppSession.Phase.Ready, online = true))
         val second = source.state.value!!
         assertTrue(second.generation > first.generation)
+        assertTrue(second.bindingGeneration > first.bindingGeneration)
 
         source.update(
             state(
@@ -66,6 +69,7 @@ class SelectedRichChatHostLeaseSourceTest {
             ),
         )
         assertTrue(source.state.value!!.generation > second.generation)
+        assertTrue(source.state.value!!.bindingGeneration > second.bindingGeneration)
         source.update(AppSession.UiState(phase = AppSession.Phase.NeedsPairing))
         assertNull(source.state.value)
     }

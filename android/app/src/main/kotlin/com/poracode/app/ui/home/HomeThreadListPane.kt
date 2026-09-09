@@ -245,17 +245,10 @@ internal fun ThreadListPane(
                 loadState = state.projectsLoadState,
                 socketState = state.socketState,
             )
-            state.globalError?.let { error ->
-                val errorDescription = stringResource(R.string.error_prefix, error)
-                Text(
-                    error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
-                        .semantics { contentDescription = errorDescription },
-                )
-            }
+            HomeFailureBanners(
+                globalError = state.globalError,
+                connectionError = state.connectionError,
+            )
             when {
                 entries.isNotEmpty() -> HomeThreadEntryList(
                     entries = entries,

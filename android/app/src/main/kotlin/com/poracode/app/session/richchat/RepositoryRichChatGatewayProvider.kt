@@ -1,5 +1,6 @@
 package com.poracode.app.session.richchat
 
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.storage.MultiHostCredentialRepository
 import com.poracode.app.transport.ForegroundNetworkGate
 import com.poracode.app.transport.RemoteApiClient
@@ -56,7 +57,7 @@ class RepositoryRichChatGatewayProvider(
         val credentials = withContext(ioDispatcher) {
             repository.credentialsFor(lease.connectionId)
         } ?: return null
-        if (credentials.profile.protocolVersion != 8) return null
+        if (credentials.profile.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) return null
         val endpoint = credentials.profile.httpBaseUrl
         val token = credentials.accessToken
         val http = RemoteApiClient(

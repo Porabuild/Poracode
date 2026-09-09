@@ -7,6 +7,7 @@ import com.poracode.app.model.RemoteRuntimeItemsPage
 import com.poracode.app.model.RemoteShellSnapshot
 import com.poracode.app.model.RemoteThreadSnapshot
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.transport.RemoteAgentStatuses
 import com.poracode.app.transport.RemoteApiGateway
 import com.poracode.app.transport.richchat.AttachmentUploadBody
 import com.poracode.app.transport.richchat.BinaryRequestPlan
@@ -231,6 +232,7 @@ private class FakeCoreGateway : RemoteApiGateway {
     ): RemoteAccessTokenResult = unused()
 
     override suspend fun snapshot(): RemoteShellSnapshot = unused()
+    override suspend fun agentStatuses(): RemoteAgentStatuses = unused()
     override suspend fun threadHistory(
         threadId: String,
         targetTimelineEntryCount: Int?,

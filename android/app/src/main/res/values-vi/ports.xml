@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">Chuyển tiếp cổng đó không còn tồn tại.</string>
     <string name="ports_failure_input">Nhập một cổng hợp lệ từ 1 đến 65535.</string>
     <string name="ports_failure_response">Máy chủ trả về phản hồi chuyển tiếp cổng không hợp lệ.</string>
+    <string name="ports_failure_browser_unavailable">Chưa thiết lập chuyển tiếp qua trình duyệt trên máy tính này.</string>
     <string name="ports_failure_ambiguous">Yêu cầu có thể đã hoàn tất. Danh sách đã được làm mới.</string>
     <string name="ports_failure_unavailable">Hiện không thể sử dụng tính năng chuyển tiếp cổng.</string>
 </resources>

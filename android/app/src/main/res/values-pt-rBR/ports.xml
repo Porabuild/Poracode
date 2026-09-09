@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">Esse encaminhamento de porta não existe mais.</string>
     <string name="ports_failure_input">Digite uma porta válida entre 1 e 65535.</string>
     <string name="ports_failure_response">O host retornou uma resposta de encaminhamento de portas inválida.</string>
+    <string name="ports_failure_browser_unavailable">O encaminhamento pelo navegador não está configurado neste computador.</string>
     <string name="ports_failure_ambiguous">A solicitação pode ter sido concluída. A lista foi atualizada.</string>
     <string name="ports_failure_unavailable">O encaminhamento de portas não está disponível no momento.</string>
 </resources>

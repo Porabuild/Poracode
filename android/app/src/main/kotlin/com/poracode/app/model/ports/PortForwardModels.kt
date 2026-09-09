@@ -30,6 +30,15 @@ sealed interface PortForwardFailure {
     data object NotFound : PortForwardFailure
     data object InvalidInput : PortForwardFailure
     data object InvalidResponse : PortForwardFailure
+
+    /**
+     * Definite browser-entry unavailability, distinct from [AmbiguousDelivery]
+     * (outcome unknown) and [Unavailable] (host/route unreachable): the host
+     * either does not advertise the isolated origin-bound entry or reports it
+     * unconfigured (503 `forward_browser_unavailable`). The forward itself and
+     * raw list/start/stop stay usable.
+     */
+    data object BrowserUnavailable : PortForwardFailure
     data object AmbiguousDelivery : PortForwardFailure
     data object Unavailable : PortForwardFailure
 }

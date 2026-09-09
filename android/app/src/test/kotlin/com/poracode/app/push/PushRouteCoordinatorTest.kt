@@ -2,6 +2,7 @@ package com.poracode.app.push
 
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.HostRecord
+import com.poracode.app.protocol.ProtocolConstants
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -238,7 +239,7 @@ class PushRouteCoordinatorTest {
             wsBaseUrl = "wss://10.0.0.2:9999/secret-token",
             appVersion = "1.5.0",
             pairedAtEpochMs = 0L,
-            protocolVersion = 8,
+            protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
         )
     }
 

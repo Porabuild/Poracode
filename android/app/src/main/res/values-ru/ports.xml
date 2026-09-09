@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">Эта переадресация порта больше не существует.</string>
     <string name="ports_failure_input">Введите допустимый порт от 1 до 65535.</string>
     <string name="ports_failure_response">Хост вернул недопустимый ответ переадресации портов.</string>
+    <string name="ports_failure_browser_unavailable">Переадресация в браузер не настроена на этом компьютере.</string>
     <string name="ports_failure_ambiguous">Запрос мог быть выполнен. Список обновлён.</string>
     <string name="ports_failure_unavailable">Переадресация портов сейчас недоступна.</string>
 </resources>

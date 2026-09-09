@@ -1,5 +1,6 @@
 package com.poracode.app.session.replay
 
+import com.poracode.app.model.AgentStatusEntry
 import com.poracode.app.model.GitStateJsonAdapter
 import com.poracode.app.model.RemoteShellSnapshot
 
@@ -71,6 +72,59 @@ class HostStateCache {
 
     fun replace(state: SequencedEventApplier.ReplayState) {
         stateRef = state
+    }
+
+    // Bootstrap/resync hydration of agent statuses (GET /api/agent-statuses base).
+    @Volatile
+    private var pendingAgentBaseTransitions: MutableList<SequencedEventApplier.Transition>? = null
+
+    val agentStatusesBasePending: Boolean
+        get() = pendingAgentBaseTransitions != null
+
+    /** Open the install-buffer boundary: live agent transitions queue until the base lands. */
+    fun beginAgentStatusesBase() {
+        if (pendingAgentBaseTransitions == null) pendingAgentBaseTransitions = mutableListOf()
+    }
+
+    /** Returns true when the transition was buffered (boundary open). */
+    fun bufferAgentStatusesTransition(transition: SequencedEventApplier.Transition): Boolean {
+        val buffer = pendingAgentBaseTransitions ?: return false
+        buffer.add(transition)
+        return true
+    }
+
+    /**
+     * Install the authoritative agent-statuses base fetched over HTTP, then
+     * apply buffered transitions in arrival order. The base REPLACES the
+     * merged map (and the WSL bulk list): identities the host no longer
+     * reports are pruned, and an empty base yields an empty map. Buffered
+     * live transitions re-apply on top, so newer events win.
+     */
+    fun seedAgentStatusesBase(
+        native: List<AgentStatusEntry>,
+        wsl: List<AgentStatusEntry>,
+    ) {
+        val buffered = pendingAgentBaseTransitions
+        pendingAgentBaseTransitions = null
+        var state = stateRef
+        val baseMap = linkedMapOf<String, AgentStatusEntry>()
+        for (entry in native) {
+            val normalized = if (entry.envKind == AgentStatusEntry.ENV_POSIX) {
+                entry
+            } else {
+                entry.copy(envKind = AgentStatusEntry.ENV_POSIX)
+            }
+            baseMap[normalized.identityKey] = normalized
+        }
+        state = state.copy(
+            mergedByUpdate = baseMap,
+            wslList = wsl,
+            wslLoaded = true,
+        )
+        for (transition in buffered.orEmpty()) {
+            state = SequencedEventApplier.apply(state, transition).state
+        }
+        if (state != stateRef) stateRef = state
     }
 
     /** Ensure a thread has a replay entry (preserving existing fields). */

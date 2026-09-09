@@ -4,6 +4,7 @@ import com.poracode.app.model.GitDiffBatchResult
 import com.poracode.app.model.GitDiffResult
 import com.poracode.app.model.GitFileContentResult
 import com.poracode.app.model.GitProjectSnapshotResult
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.git.GitProcedure
 import com.poracode.app.protocol.github.GithubProcedure
 import com.poracode.app.model.GitStatusDetail
@@ -130,7 +131,7 @@ class RepositoryProjectWorkspaceRemoteGatewayProvider(
         val credentials = withContext(ioDispatcher) {
             repository.credentialsFor(lease.connectionId)
         } ?: return null
-        if (credentials.profile.protocolVersion != 8) return null
+        if (credentials.profile.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) return null
         return factory.create(credentials.profile.httpBaseUrl, credentials.accessToken)
     }
 }

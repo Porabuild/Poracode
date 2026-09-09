@@ -2,6 +2,7 @@ package com.poracode.app.session.settingsintegrations
 
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.PosixProjectLocation
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.settingsintegrations.*
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -85,7 +86,10 @@ class SettingsIntegrationsSessionGatewayTest {
     }
 
     private fun lease(scopes: Set<String> = setOf("session:read", "session:operate")) =
-        SettingsIntegrationsLease(ClientConnectionId("00000000-0000-4000-8000-000000000001"), 1, 4, 8, scopes, true, true, owner)
+        SettingsIntegrationsLease(
+            ClientConnectionId("00000000-0000-4000-8000-000000000001"), 1, 4,
+            ProtocolConstants.REMOTE_PROTOCOL_VERSION, scopes, true, true, owner,
+        )
     private fun importItem() = SkillImportItem("/source", SkillImportMode.Copy, SkillScope.Project, owner)
     private fun install() = MarketplaceInstallRequest(owner, SkillMarketplace.SkillsSh, "demo", SkillScope.Project)
 }

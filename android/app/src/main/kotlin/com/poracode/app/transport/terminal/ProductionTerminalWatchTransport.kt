@@ -51,6 +51,7 @@ class ProductionTerminalWatchTransport(
     private var reconnectAttempt = 0
     private var foreground = true
     private var closed = false
+    private var environmentValidated = false
 
     override suspend fun watch(request: RichTerminalWatchRequest) {
         if (request.cursorSyncVersion != TerminalRemoteV3Codec.CURSOR_SYNC_VERSION) {
@@ -60,55 +61,10 @@ class ProductionTerminalWatchTransport(
         synchronized(lock) {
             check(!closed) { "terminal transport is closed" }
             target = next
+            environmentValidated = false
             generation += 1L
             reconnectAttempt = 0
             cancelConnectionLocked()
-        }
-        val environment = try {
-            http.requestText(ProtocolConstants.ENVIRONMENT_PATH)
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            observer().onStatus(
-                host,
-                next.terminalId,
-                next.watchId,
-                TerminalConnectionStatus(
-                    TerminalConnectionPhase.Failed,
-                    if ((error as? RemoteClientException)?.isUnauthorized == true) {
-                        TerminalConnectionFailure.Authentication
-                    } else {
-                        TerminalConnectionFailure.Network
-                    },
-                ),
-            )
-            throw error
-        }
-        val supportsCursorV1 = try {
-            TerminalRemoteV3Codec.supportsCursorV1(environment)
-        } catch (error: Exception) {
-            observer().onStatus(
-                host,
-                next.terminalId,
-                next.watchId,
-                TerminalConnectionStatus(
-                    TerminalConnectionPhase.Failed,
-                    TerminalConnectionFailure.Protocol,
-                ),
-            )
-            throw error
-        }
-        if (!supportsCursorV1) {
-            observer().onStatus(
-                host,
-                next.terminalId,
-                next.watchId,
-                TerminalConnectionStatus(
-                    TerminalConnectionPhase.Failed,
-                    TerminalConnectionFailure.Unsupported,
-                ),
-            )
-            throw RichChatGatewayException(409, "unsupported_capability", false)
         }
         launchConnect(next, reconnecting = false)
     }
@@ -186,6 +142,27 @@ class ProductionTerminalWatchTransport(
         }
         observer().onConnectionReset(host, expected.terminalId, expected.watchId, status(phase))
         try {
+            // Capability discovery is part of the retrying connection attempt. A
+            // transient preflight failure must not strand a retained shell until
+            // a user manually presses Reconnect.
+            if (synchronized(lock) { !environmentValidated }) {
+                val environment = http.requestText(ProtocolConstants.ENVIRONMENT_PATH)
+                if (!isCurrent(expected, gen)) return
+                val supported = try {
+                    TerminalRemoteV3Codec.supportsCursorV1(environment)
+                } catch (_: Exception) {
+                    fail(expected, gen, TerminalConnectionFailure.Protocol)
+                    return
+                }
+                if (!supported) {
+                    fail(expected, gen, TerminalConnectionFailure.Unsupported)
+                    return
+                }
+                synchronized(lock) {
+                    if (!isCurrentLocked(expected, gen)) return
+                    environmentValidated = true
+                }
+            }
             val ticket = http.websocketTicket()
             if (!isCurrent(expected, gen)) return
             val request = Request.Builder()

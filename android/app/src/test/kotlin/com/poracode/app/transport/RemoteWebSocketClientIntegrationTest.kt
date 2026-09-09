@@ -65,6 +65,7 @@ class RemoteWebSocketClientIntegrationTest {
             scopes: List<String>,
         ): RemoteAccessTokenResult = error("unused")
         override suspend fun snapshot(): RemoteShellSnapshot = error("unused")
+        override suspend fun agentStatuses(): RemoteAgentStatuses = error("unused")
         override suspend fun threadHistory(
             threadId: String,
             targetTimelineEntryCount: Int?,

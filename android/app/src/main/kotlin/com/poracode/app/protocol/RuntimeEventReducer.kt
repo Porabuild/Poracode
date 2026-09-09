@@ -17,7 +17,7 @@ import kotlinx.serialization.json.put
  *
  * TS-equivalent foundation (`runtimeEvent.ts` + iOS RuntimeEventReducer):
  * - unwrap `thread-runtime-event` / `thread-runtime-events` / `thread-runtime-events-multi`
- * - **strict sealed union of 14 variants**; unknown/malformed skipped
+ * - **strict sealed union of 15 variants**; unknown/malformed skipped
  * - `item.updated` requires payload **key presence** (JsonNull distinct from absent)
  * - never fabricate stubs for missing items on updated/completed/delta
  * - empty completed reasoning dropped
@@ -25,6 +25,8 @@ import kotlinx.serialization.json.put
  * - synthetic completed error item with injected UUID
  * - request.opened FIFO replace+append; request.resolved removal (via domain reducer)
  * - turn open/closed, context.updated merge, usage.spent intentional no-op
+ * - background_tasks.changed replaces session-scoped background tasks;
+ *   session.exited drains them (domain state only — no transcript items)
  * - hide `pending_request` transcript rows; recover open requests from them on hydrate
  */
 object RuntimeEventReducer {
@@ -46,6 +48,8 @@ object RuntimeEventReducer {
         val requestId: String? = null,
         val requestType: String? = null,
         val message: String? = null,
+        /** Parsed live background tasks for `background_tasks.changed`. */
+        val tasks: List<BackgroundTask>? = null,
         val raw: JsonObject = JsonObject(emptyMap()),
         /** Populated when parse produced a strict sealed variant. */
         val canonical: RuntimeEventSchema.CanonicalRuntimeEvent? = null,
@@ -103,7 +107,7 @@ object RuntimeEventReducer {
     }
 
     /**
-     * Parse a runtime event object against the strict 14-variant sealed union.
+     * Parse a runtime event object against the strict 15-variant sealed union.
      * Unknown / malformed / missing required fields → null (skipped).
      * `item.updated` **requires** payload key presence on the wire (JsonNull distinct).
      */

@@ -2,6 +2,7 @@ package com.poracode.app.transport
 
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.protocol.ProtocolConstants
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
@@ -39,7 +40,10 @@ class RemoteApiGeneratedContractTest {
                 accessToken = "access-secret",
                 client = OkHttpClient(),
             )
-            assertEquals(8, client.environment().protocolVersion)
+            assertEquals(
+                ProtocolConstants.REMOTE_PROTOCOL_VERSION,
+                client.environment().protocolVersion,
+            )
             assertEquals(42, client.snapshot().snapshotSeq)
             assertEquals(
                 "thread-fixture-001",

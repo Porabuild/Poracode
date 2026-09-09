@@ -1,5 +1,6 @@
 package com.poracode.app.transport.threads
 
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.session.threads.ThreadHostLease
 import com.poracode.app.storage.MultiHostCredentialRepository
 import kotlinx.coroutines.CoroutineDispatcher
@@ -15,7 +16,7 @@ class RepositoryThreadLifecycleGatewayProvider(
         val credentials = withContext(ioDispatcher) {
             repository.credentialsFor(lease.connectionId)
         } ?: return null
-        if (credentials.profile.protocolVersion != 8) return null
+        if (credentials.profile.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) return null
         return factory.create(credentials.profile.httpBaseUrl, credentials.accessToken)
     }
 }

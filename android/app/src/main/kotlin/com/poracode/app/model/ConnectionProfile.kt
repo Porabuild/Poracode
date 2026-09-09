@@ -23,6 +23,12 @@ data class ConnectionProfile(
     val tokenExpiresAt: String? = null,
     val pairedAtEpochMs: Long,
     val protocolVersion: Int = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
+    /**
+     * Handshake capability `capabilities.browserForward.versions`, captured at
+     * pairing like the other environment metadata. Empty on records from older
+     * hosts or app versions: browser entry unsupported, raw forwarding unaffected.
+     */
+    val browserForwardVersions: List<Int> = emptyList(),
 ) {
     companion object {
         /** Bump + migrate or invalidate when the persisted shape becomes incompatible. */

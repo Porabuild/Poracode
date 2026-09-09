@@ -40,6 +40,7 @@ class ResyncEngine(
     private val openThreadId: () -> String?,
     private val openThreadGeneration: () -> Int,
     private val hasAuthoritativeBaseline: () -> Boolean,
+    private val nextSnapshotAttemptSeq: () -> Long,
     private val fetchShell: suspend (RemoteApiGateway) -> RemoteShellSnapshot,
     private val fetchHistory: suspend (RemoteApiGateway, String) -> RemoteThreadSnapshot,
     private val onCommit: (ResyncCommit) -> Unit,
@@ -74,6 +75,13 @@ class ResyncEngine(
         val openThreadId: String?,
         val reconnectSeq: Int,
         val identity: ResyncIdentity,
+        /**
+         * Seq the fetch took from the connection event sequencer when it began
+         * (captured at the actual resync start, fresh per retry). A commit is
+         * recovery evidence only against connection-failure claims published
+         * before this seq — see [LiveSessionStateTransitions.connectionRecovered].
+         */
+        val snapshotAttemptSeq: Long,
     )
 
     data class CapturedIdentity(
@@ -198,6 +206,9 @@ class ResyncEngine(
 
         try {
             // Structured shell + history transaction — no detached child job.
+            // The attempt seq is taken at the actual fetch start so a commit
+            // can only retire connection claims that predate this resync.
+            val snapshotAttemptSeq = nextSnapshotAttemptSeq()
             val snap = fetchShell(client)
             val history: RemoteThreadSnapshot? = if (identity.openThreadId != null) {
                 fetchHistory(client, identity.openThreadId)
@@ -253,6 +264,7 @@ class ResyncEngine(
                         openThreadId = identity.openThreadId,
                         openGeneration = identity.openGeneration,
                     ),
+                    snapshotAttemptSeq = snapshotAttemptSeq,
                 ),
             )
 

@@ -39,7 +39,12 @@ class PortForwardController(
             )
             try {
                 val snapshot = resolve(captured).snapshot()
-                if (!isCurrent(captured)) return@launch
+                if (!isCurrent(captured)) {
+                    // Same-generation capability changes do not move the lease
+                    // key, so no external reset clears this state.
+                    mutableState.value = mutableState.value.copy(loading = false)
+                    return@launch
+                }
                 mutableState.value = mutableState.value.copy(
                     loading = false,
                     detected = snapshot.detected,
@@ -71,9 +76,35 @@ class PortForwardController(
             try {
                 val remote = resolve(captured)
                 val started = remote.start(targetPort)
-                if (!isCurrent(captured)) return@launch
-                val entry = started.browserEntryUrl ?: remote.browserEntry(started.forward.id)
-                if (!isCurrent(captured)) return@launch
+                if (!isCurrent(captured)) {
+                    // Same-generation capability changes do not move the lease
+                    // key, so no external reset clears this state.
+                    mutableState.value = mutableState.value.copy(starting = false)
+                    return@launch
+                }
+                // Raw creation is allowed on every host; only the browser entry is
+                // capability-gated. Never use an entry URL from a host that does
+                // not advertise the isolated origin-bound entry — older hosts still
+                // return a successful shared-origin enterPath here.
+                val entry = if (captured.browserEntrySupported) {
+                    started.browserEntryUrl ?: remote.browserEntry(started.forward.id)
+                } else {
+                    null
+                }
+                if (!isCurrent(captured)) {
+                    mutableState.value = mutableState.value.copy(starting = false)
+                    return@launch
+                }
+                if (entry == null) {
+                    // The forward exists on the host: keep it visible and report the
+                    // definite configuration error instead of an uncertain result.
+                    mutableState.value = mutableState.value.copy(
+                        starting = false,
+                        failure = PortForwardFailure.BrowserUnavailable,
+                    )
+                    refresh(preserveFailure = true)
+                    return@launch
+                }
                 mutableState.value = mutableState.value.copy(starting = false, failure = null)
                 openBrowser(entry)
                 refresh()
@@ -86,7 +117,12 @@ class PortForwardController(
                         starting = false,
                         failure = failure,
                     )
-                    if (failure == PortForwardFailure.AmbiguousDelivery) {
+                    if (
+                        failure == PortForwardFailure.AmbiguousDelivery ||
+                        failure == PortForwardFailure.BrowserUnavailable
+                    ) {
+                        // Both mean the creation committed: re-read the list while
+                        // keeping the failure card visible.
                         refresh(preserveFailure = true)
                     }
                 }
@@ -97,6 +133,13 @@ class PortForwardController(
     fun open(forwardId: String, openBrowser: (String) -> Unit) {
         if (forwardId.isBlank() || forwardId in forwardJobs) return
         val captured = requireLease() ?: return
+        if (!captured.browserEntrySupported) {
+            // Refuse locally instead of opening a shared-origin URL from an
+            // older host or calling a route it cannot serve.
+            mutableState.value =
+                mutableState.value.copy(failure = PortForwardFailure.BrowserUnavailable)
+            return
+        }
         setBusy(forwardId, true)
         forwardJobs[forwardId] = scope.launch {
             try {
@@ -198,7 +241,13 @@ class PortForwardController(
         val current = lease.value ?: return false
         return current.connectionId == captured.connectionId &&
             current.generation == captured.generation &&
-            current.online && current.ready && REQUIRED_SCOPE in current.scopes
+            current.online && current.ready && REQUIRED_SCOPE in current.scopes &&
+            // Capability is part of the gate: generation only moves on a
+            // binding change or an observed readiness downgrade, so a reconnect
+            // whose transient offline state was conflated away can change
+            // browserForwardVersions within one generation. The gate decision
+            // must follow the live lease, not the pre-reconnect capture.
+            current.browserForwardVersions == captured.browserForwardVersions
     }
 
     private fun isSameGeneration(captured: ProjectHostLease): Boolean {
@@ -221,6 +270,10 @@ class PortForwardController(
 private fun Throwable.asFailure(mutation: Boolean): PortForwardFailure {
     val remote = this as? RemoteClientException
     return when {
+        // Definite host-configuration error: the body was received and parsed, so
+        // it must be classified before the >=500 mutation-ambiguity rule can
+        // misreport a deterministic, retry-identical failure as "result uncertain".
+        remote?.code == "forward_browser_unavailable" -> PortForwardFailure.BrowserUnavailable
         remote?.status == 401 -> PortForwardFailure.Unauthorized
         remote?.status == 403 || remote?.code == "missing_scope" -> PortForwardFailure.MissingScope
         remote?.status == 404 -> PortForwardFailure.NotFound

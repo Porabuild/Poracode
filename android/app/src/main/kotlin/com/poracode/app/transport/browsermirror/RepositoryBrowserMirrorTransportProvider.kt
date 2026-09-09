@@ -1,6 +1,7 @@
 package com.poracode.app.transport.browsermirror
 
 import com.poracode.app.model.ClientConnectionId
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.session.browsermirror.BrowserMirrorHostLease
 import com.poracode.app.storage.MultiHostCredentialRepository
 import com.poracode.app.transport.ForegroundNetworkGate
@@ -26,7 +27,7 @@ class RepositoryBrowserMirrorTransportProvider(
         val credentials = withContext(ioDispatcher) {
             repository.credentialsFor(ClientConnectionId(lease.connectionId))
         } ?: return null
-        if (credentials.profile.protocolVersion != 8) return null
+        if (credentials.profile.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) return null
         val socket = wireSocketProvider() ?: return null
         val http = BrowserMirrorHttpClient(
             endpoint = credentials.profile.httpBaseUrl,

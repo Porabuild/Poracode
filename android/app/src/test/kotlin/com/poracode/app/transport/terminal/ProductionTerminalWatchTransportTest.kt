@@ -1,6 +1,7 @@
 package com.poracode.app.transport.terminal
 
 import com.poracode.app.model.ClientConnectionId
+import com.poracode.app.model.terminal.TerminalConnectionFailure
 import com.poracode.app.model.terminal.TerminalConnectionPhase
 import com.poracode.app.model.terminal.TerminalConnectionStatus
 import com.poracode.app.model.terminal.TerminalServerFrame
@@ -47,6 +48,105 @@ class ProductionTerminalWatchTransportTest {
         gate.closeAndCancelAll()
         scope.cancel()
         server.shutdown()
+    }
+
+    @Test
+    fun transientEnvironmentFailureRetriesBeforeOpeningSameTerminal() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(503).setBody("temporarily unavailable"))
+        server.enqueue(MockResponse().setBody(fixture("environment-terminal-cursor-sync.json")))
+        server.enqueue(ticket())
+        server.enqueue(MockResponse().withWebSocketUpgrade(
+            terminalServer(AtomicReference(), closeAfterBaseline = false, data = "restored"),
+        ))
+        val live = CountDownLatch(1)
+        val transport = ProductionTerminalWatchTransport(
+            host = RichChatHostKey(connectionId(), 9),
+            http = RemoteApiClient(
+                endpoint = server.url("/desktop-prefix").toString(),
+                accessToken = "secret-token",
+                networkGate = gate,
+            ),
+            client = OkHttpClient(),
+            scope = scope,
+            networkGate = gate,
+            observer = {
+                object : TerminalTransportObserver by NoOpTerminalTransportObserver {
+                    override fun onStatus(
+                        host: RichChatHostKey,
+                        terminalId: String,
+                        watchId: String,
+                        status: TerminalConnectionStatus,
+                    ) {
+                        if (status.phase == TerminalConnectionPhase.Live) live.countDown()
+                    }
+                }
+            },
+        )
+        try {
+            val request = RichTerminalWatchRequest("terminal-1", "watch-1")
+            runCatching { transport.watch(request) }
+            assertTrue(
+                "temporary environment failure must recover without manual watch",
+                live.await(5, TimeUnit.SECONDS),
+            )
+            val requests = List(4) { server.takeRequest(2, TimeUnit.SECONDS)!! }
+            assertEquals(requests[0].path, requests[1].path)
+            assertTrue(requests[0].path!!.contains("/.well-known/poracode/environment"))
+        } finally {
+            transport.close()
+        }
+    }
+
+    @Test
+    fun authenticationMalformedAndUnsupportedEnvironmentDoNotRetry() = runBlocking {
+        val cases = listOf(
+            MockResponse().setResponseCode(401) to TerminalConnectionFailure.Authentication,
+            MockResponse().setBody("invalid-json") to TerminalConnectionFailure.Protocol,
+            MockResponse().setBody(
+                fixture("environment-terminal-cursor-sync.json").replace("[1]", "[2]"),
+            ) to TerminalConnectionFailure.Unsupported,
+        )
+        for ((response, expectedFailure) in cases) {
+            val before = server.requestCount
+            server.enqueue(response)
+            val failed = CountDownLatch(1)
+            val failure = AtomicReference<TerminalConnectionFailure>()
+            val transport = ProductionTerminalWatchTransport(
+                host = RichChatHostKey(connectionId(), 9),
+                http = RemoteApiClient(
+                    endpoint = server.url("/desktop-prefix").toString(),
+                    accessToken = "secret-token",
+                    networkGate = gate,
+                ),
+                client = OkHttpClient(),
+                scope = scope,
+                networkGate = gate,
+                observer = {
+                    object : TerminalTransportObserver by NoOpTerminalTransportObserver {
+                        override fun onStatus(
+                            host: RichChatHostKey,
+                            terminalId: String,
+                            watchId: String,
+                            status: TerminalConnectionStatus,
+                        ) {
+                            if (status.phase == TerminalConnectionPhase.Failed) {
+                                failure.set(status.failure)
+                                failed.countDown()
+                            }
+                        }
+                    }
+                },
+            )
+            try {
+                transport.watch(RichTerminalWatchRequest("terminal-1", "watch-1"))
+                assertTrue("expected terminal failure", failed.await(2, TimeUnit.SECONDS))
+                assertEquals(expectedFailure, failure.get())
+                Thread.sleep(400) // Longer than the first transport retry delay.
+                assertEquals("no retry or ticket request", before + 1, server.requestCount)
+            } finally {
+                transport.close()
+            }
+        }
     }
 
     @Test

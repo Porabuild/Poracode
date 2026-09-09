@@ -85,7 +85,7 @@ class RemoteApiClientRedirectAndScopesTest {
                 .setBody(
                     """
                     {
-                      "protocolVersion": 8,
+                      "protocolVersion": ${ProtocolConstants.REMOTE_PROTOCOL_VERSION},
                       "desktopId": "desktop-fixture-001",
                       "label": "Fixture Mac",
                       "appVersion": "3.0.0-fixture",
@@ -198,6 +198,49 @@ class RemoteApiClientRedirectAndScopesTest {
         }
     }
 
+    /**
+     * A host still advertising the previous released generation (protocol 8 — deliberate
+     * literal) is exact-match rejected before pairing burns the one-time credential.
+     */
+    @Test
+    fun environmentAdvertisingPreviousGenerationProtocolIsRejected() {
+        runBlocking {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(
+                    """
+                    {
+                      "protocolVersion": 8,
+                      "desktopId": "desktop-fixture-001",
+                      "label": "Fixture Mac",
+                      "appVersion": "3.0.0-fixture",
+                      "auth": {
+                        "policy": "remote-reachable",
+                        "bootstrapMethods": ["one-time-token"],
+                        "sessionMethods": ["bearer-access-token"],
+                        "scopes": ["session:read"]
+                      },
+                      "endpoints": {
+                        "httpBaseUrl": "https://host.example/",
+                        "wsBaseUrl": "wss://host.example/"
+                      }
+                    }
+                    """.trimIndent(),
+                ),
+        )
+        try {
+            client(token = null).environment()
+            fail("expected protocol mismatch")
+        } catch (e: com.poracode.app.model.RemoteClientException) {
+            assertEquals("protocol_version_mismatch", e.code)
+        }
+        // Only the environment request was made; the token endpoint is untouched.
+        assertEquals(1, server.requestCount)
+        assertTrue(server.takeRequest().path!!.contains("environment"))
+        }
+    }
+
     @Test
     fun emptyOrAllUnknownScopesLeavesTokenEndpointUntouched() {
         runBlocking {
@@ -209,7 +252,7 @@ class RemoteApiClientRedirectAndScopesTest {
                 .setBody(
                     """
                     {
-                      "protocolVersion": 8,
+                      "protocolVersion": ${ProtocolConstants.REMOTE_PROTOCOL_VERSION},
                       "desktopId": "desktop-fixture-001",
                       "label": "Fixture Mac",
                       "appVersion": "3.0.0-fixture",

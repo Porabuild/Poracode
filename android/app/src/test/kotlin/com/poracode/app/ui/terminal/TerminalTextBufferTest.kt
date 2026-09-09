@@ -1,5 +1,10 @@
 package com.poracode.app.ui.terminal
 
+import com.poracode.app.chat.readRichFixture
+import com.poracode.app.chat.TerminalCursorReconciler
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
@@ -8,6 +13,64 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TerminalTextBufferTest {
+    @Test
+    fun cursorPaddingBoundsTheWholeDocumentAndKeepsTheRecentSuffix() {
+        val buffer = TerminalTextBuffer()
+        val paddedRow = " ".repeat(1_000) + "X\n"
+        val prefix = "oldest sentinel\n" + "\u001b[1000CX\n".repeat(500)
+        buffer.update(prefix)
+        val output = buffer.update(prefix + "tail 漢字🌐").lines.joinToString("\n")
+        assertTrue(output.length <= 2 * TerminalCursorReconciler.MAX_TRANSCRIPT_UTF16_UNITS)
+        assertFalse(output.contains("oldest sentinel"))
+        assertTrue(output.endsWith(paddedRow + paddedRow + "tail 漢字🌐"))
+    }
+
+    @Test
+    fun wideTextDoesNotLoseHalfItsConfiguredUtf16LineBudget() {
+        val source = "漢".repeat(8_192)
+        assertEquals(source, TerminalTextBuffer().update(source).lines.single())
+    }
+
+    @Test
+    fun eraseAndBaselineReplacementReleaseTheRenderedBudget() {
+        val buffer = TerminalTextBuffer()
+        val erase = "\u001b[1000CX\r\u001b[2K\r".repeat(500)
+        assertEquals(listOf("KEEP", "DONE"), buffer.update("KEEP\n" + erase + "DONE").lines)
+        val expanded = "\u001b[1000CX\n".repeat(500)
+        buffer.update(expanded)
+        assertEquals(listOf("fresh 漢字🌐"), buffer.update("fresh 漢字🌐").lines)
+        assertEquals(listOf("reset"), buffer.update("fresh 漢字🌐\u001b[2Jreset").lines)
+    }
+
+    @Test
+    fun sharedUnicodeColumnProjectionMatchesAtEveryUtf16Split() {
+        for (item in readRichFixture("terminal-unicode-projection.json").getValue("cases").jsonArray) {
+            val value = item.jsonObject
+            val source = value.getValue("input").jsonPrimitive.content
+            val expected = value.getValue("expected").jsonPrimitive.content
+            for (split in 0..source.length) {
+                val buffer = TerminalTextBuffer()
+                buffer.update(source.substring(0, split))
+                assertEquals(
+                    value.getValue("id").jsonPrimitive.content + " split=" + split,
+                    expected,
+                    buffer.update(source).lines.joinToString("\n"),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun trimmingDoesNotSplitSurrogatePairsOrWideCells() {
+        val buffer = TerminalTextBuffer(maxLineUtf16Units = 4)
+        assertEquals(listOf("🌐🌐"), buffer.update("🌐🌐🌐").lines)
+        assertEquals(listOf("X"), buffer.update("🌐🌐🌐\r\u001b[KX").lines)
+        assertTrue(
+            TerminalTextBuffer(maxLineUtf16Units = 4)
+                .update("e" + "\u0301".repeat(10)).lines.single().length <= 4,
+        )
+    }
+
     @Test
     fun incrementallyProjectsAnsiCarriageReturnBackspaceAndClearLine() {
         val buffer = TerminalTextBuffer()
@@ -19,7 +82,7 @@ class TerminalTextBufferTest {
         assertFalse(appended.lines.joinToString().contains('\u001b'))
 
         val cleared = buffer.update("before\u001b[2Kafter")
-        assertEquals(listOf("after"), cleared.lines)
+        assertEquals(listOf("      after"), cleared.lines)
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.ConnectionProfile
 import com.poracode.app.model.HostCatalogSnapshot
 import com.poracode.app.model.HostRegistryDocument
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.session.settings.SettingsHostLease
 import com.poracode.app.storage.CredentialMutationOutcome
 import com.poracode.app.storage.DurableOperationToken
@@ -72,7 +73,11 @@ class RepositorySettingsRemoteGatewayProviderTest {
         assertEquals(0, factoryCalls)
     }
 
-    private fun credentials(endpoint: String, token: String, protocol: Int = 8) =
+    private fun credentials(
+        endpoint: String,
+        token: String,
+        protocol: Int = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
+    ) =
         SessionCredentials(
             ConnectionProfile(
                 desktopId = endpoint,
@@ -94,7 +99,7 @@ private val connectionB = ClientConnectionId("20000000-0000-4000-8000-0000000000
 private fun lease(id: ClientConnectionId, generation: Long = 1) = SettingsHostLease(
     id,
     generation,
-    8,
+    ProtocolConstants.REMOTE_PROTOCOL_VERSION,
     setOf("session:read", "session:operate"),
     online = true,
     ready = true,

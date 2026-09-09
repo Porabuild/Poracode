@@ -1,10 +1,12 @@
 package com.poracode.app.transport.ports
 
+import com.poracode.app.model.RemoteClientException
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -69,6 +71,57 @@ class PortForwardRemoteApiClientTest {
             assertEquals("""{"id":"fw"}""", requests[3].body.readUtf8())
             assertEquals(4, server.requestCount)
             assertFalse(requests.any { it.body.readUtf8().contains("browser-secret") })
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun startMayOmitEnterPathAndEntrySurfacesDefiniteConfigurationError() = runBlocking {
+        val server = MockWebServer()
+        // Unconfigured host: start still succeeds and returns only the raw forward.
+        server.enqueue(
+            MockResponse().setBody(
+                """{"forward":{"id":"fw","targetPort":3000,"listenPort":49160,"createdAt":5}}""",
+            ),
+        )
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(503)
+                .setBody(
+                    """{"error":{"code":"forward_browser_unavailable",""" +
+                        """"message":"Browser forwarding is not configured."}}""",
+                ),
+        )
+        server.start()
+        try {
+            val client = PortForwardRemoteApiClient(
+                endpoint = server.url("/relay/desktop").toString(),
+                accessToken = "bearer-secret",
+            )
+            // Omitted enterPath is the unconfigured-host signal, not an error.
+            val started = client.start(3000)
+            assertEquals(3000, started.forward.targetPort)
+            assertNull(started.browserEntryUrl)
+            assertFalse(started.toString().contains("fwt"))
+
+            val error = runCatching { client.browserEntry("fw") }.exceptionOrNull()
+            assertTrue(error is RemoteClientException)
+            error as RemoteClientException
+            assertEquals(503, error.status)
+            assertEquals("forward_browser_unavailable", error.code)
+
+            val requests = List(2) { server.takeRequest() }
+            assertEquals(
+                listOf(
+                    "/relay/desktop/api/ports/forward",
+                    "/relay/desktop/api/ports/enter",
+                ),
+                requests.map { it.requestUrl!!.encodedPath },
+            )
+            requests.forEach { request ->
+                assertEquals("Bearer bearer-secret", request.getHeader("Authorization"))
+            }
         } finally {
             server.shutdown()
         }

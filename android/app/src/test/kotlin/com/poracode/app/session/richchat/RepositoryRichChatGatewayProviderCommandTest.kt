@@ -4,6 +4,7 @@ import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.ConnectionProfile
 import com.poracode.app.model.HostCatalogSnapshot
 import com.poracode.app.model.HostRegistryDocument
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.storage.CredentialMutationOutcome
 import com.poracode.app.storage.DurableOperationToken
 import com.poracode.app.storage.HostMutationResult
@@ -92,7 +93,7 @@ class RepositoryRichChatGatewayProviderCommandTest {
                 appVersion = "test",
                 scopes = listOf("session:operate"),
                 pairedAtEpochMs = 1,
-                protocolVersion = 8,
+                protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
             ),
             accessToken = token,
         )

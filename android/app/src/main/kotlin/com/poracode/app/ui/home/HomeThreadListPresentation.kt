@@ -122,6 +122,7 @@ internal object HomeThreadListPresentation {
                     crossagentMcp = draft.crossagentMcp,
                     computerUse = draft.computerUse,
                     chromeMcp = draft.chromeMcp,
+                    executionEnvironment = draft.executionEnvironment,
                 ),
             )
         }

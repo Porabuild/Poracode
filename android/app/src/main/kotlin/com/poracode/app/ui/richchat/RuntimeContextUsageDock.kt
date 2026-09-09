@@ -2,6 +2,7 @@ package com.poracode.app.ui.richchat
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,8 +38,13 @@ fun RuntimeContextUsageDock(
     contextKey: String,
     usage: RichContextUsage?,
     modifier: Modifier = Modifier,
+    controls: @Composable () -> Unit,
 ) {
-    val summary = RuntimeContextUsageLogic.summarize(usage) ?: return
+    val summary = RuntimeContextUsageLogic.summarize(usage)
+    if (summary == null) {
+        controls()
+        return
+    }
     var expanded by rememberSaveable(contextKey) { mutableStateOf(false) }
     val percentLabel = summary.percent?.let {
         stringResource(R.string.runtime_context_percent, it)
@@ -61,22 +67,25 @@ fun RuntimeContextUsageDock(
     )
 
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        FilterChip(
-            selected = expanded,
-            onClick = { expanded = !expanded },
-            label = { Text(percentLabel) },
-            leadingIcon = {
-                Icon(
-                    Icons.Outlined.DataUsage,
-                    contentDescription = null,
-                    tint = toneColor(summary.indicatorTone),
-                )
-            },
-            modifier = Modifier.semantics {
-                contentDescription = toggleLabel
-                stateDescription = summaryDescription
-            },
-        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = expanded,
+                onClick = { expanded = !expanded },
+                label = { Text(percentLabel) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Outlined.DataUsage,
+                        contentDescription = null,
+                        tint = toneColor(summary.indicatorTone),
+                    )
+                },
+                modifier = Modifier.semantics {
+                    contentDescription = toggleLabel
+                    stateDescription = summaryDescription
+                },
+            )
+            controls()
+        }
         if (expanded) {
             OutlinedCard(Modifier.fillMaxWidth()) {
                 Column(

@@ -406,6 +406,20 @@ class SessionEventRouter(
         lastSeededSnapshotSeq = shell.snapshotSeq
     }
 
+    /** Open the agent-statuses base install-buffer boundary before the HTTP fetch. */
+    fun beginAgentStatusesBase() {
+        replayController.beginAgentStatusesBase()
+    }
+
+    /** Install the authoritative GET agent-statuses base, then drain buffered live transitions. */
+    fun seedAgentStatusesBase(
+        native: List<com.poracode.app.model.AgentStatusEntry>,
+        wsl: List<com.poracode.app.model.AgentStatusEntry>,
+    ) {
+        replayController.seedAgentStatusesBase(native, wsl)
+        mirrorReplayCacheIntoState()
+    }
+
     /**
      * Mirror replay-cache effects into visible [AppSession.UiState]: thread-list
      * and rich-chat Git summaries, agent-status projection, and coalesced Git
@@ -413,6 +427,10 @@ class SessionEventRouter(
      * [onReplaySideEffects] so terminal/rich-chat controllers own their buffers.
      */
     private fun mirrorReplayIntoState(outcome: ReplayOutcome) {
+        mirrorReplayCacheIntoState(outcome.resetThreadIds)
+    }
+
+    private fun mirrorReplayCacheIntoState(resetThreadIds: Set<String> = emptySet()) {
         val replay = replayController.state
         updateState { s ->
             val cache = HostReplayCacheUi(
@@ -426,7 +444,7 @@ class SessionEventRouter(
             )
             var next = s.copy(hostReplay = cache)
             val openId = s.openThreadId
-            if (outcome.resetThreadIds.contains(openId)) {
+            if (resetThreadIds.contains(openId)) {
                 next = next.copy(
                     threadItems = emptyList(),
                     threadLoadState = AppSession.LoadState.Loading,

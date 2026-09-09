@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">该端口转发已不存在。</string>
     <string name="ports_failure_input">请输入 1 到 65535 之间的有效端口。</string>
     <string name="ports_failure_response">主机返回了无效的端口转发响应。</string>
+    <string name="ports_failure_browser_unavailable">此桌面设备尚未设置浏览器转发。</string>
     <string name="ports_failure_ambiguous">请求可能已完成。列表已刷新。</string>
     <string name="ports_failure_unavailable">端口转发当前不可用。</string>
 </resources>

@@ -1,6 +1,7 @@
 package com.poracode.app.transport
 
 import android.os.Build
+import com.poracode.app.model.GitStateJsonAdapter
 import com.poracode.app.model.RemoteAccessTokenResult
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.model.RemoteEnvironmentDescriptor
@@ -15,21 +16,18 @@ import com.poracode.app.protocol.PairingException
 import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.RemoteAccessScopes
 import com.poracode.app.protocol.RemoteSocketPolicy
-import java.io.IOException
+import com.poracode.app.protocol.settings.GeneratedRemoteV3SettingsContract
+import com.poracode.app.protocol.settings.SettingsRouteId
+import com.poracode.app.transport.settings.SettingsRemoteV3Adapters
 import java.net.URLEncoder
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import okhttp3.Call
-import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -48,7 +46,7 @@ import okhttp3.Response
  */
 class RemoteApiClient(
     endpoint: String,
-    private var accessToken: String? = null,
+    @Volatile private var accessToken: String? = null,
     client: OkHttpClient = defaultClient(),
     private val deviceLabel: String = "Poracode Android",
     /** Injectable for unit tests; production always uses [MAX_RESPONSE_BYTES]. */
@@ -62,9 +60,13 @@ class RemoteApiClient(
         .retryOnConnectionFailure(false)
         .build()
     private val responseDecoder = RemoteResponseDecoder(maxResponseBytes)
+    private val readCache = RemoteReadCache()
 
     override fun setAccessToken(token: String?) {
-        accessToken = token
+        synchronized(readCache) {
+            if (token != accessToken) readCache.clear()
+            accessToken = token
+        }
     }
 
     // --- Pairing / environment ---
@@ -134,6 +136,17 @@ class RemoteApiClient(
     override suspend fun snapshot(): RemoteShellSnapshot {
         val data = requestText(ProtocolConstants.SNAPSHOT_PATH)
         return RemoteV3TransportAdapters.snapshot(data)
+    }
+
+    override suspend fun agentStatuses(): RemoteAgentStatuses {
+        val route = GeneratedRemoteV3SettingsContract.route(SettingsRouteId.AgentStatuses)
+        val snapshot = SettingsRemoteV3Adapters.agentStatuses(
+            GeneratedRemoteV3SettingsContract.agentStatusesResponse(requestText(route.path)),
+        )
+        return RemoteAgentStatuses(
+            native = GitStateJsonAdapter.decodeAgentStatuses(JsonArray(snapshot.windows)),
+            wsl = GitStateJsonAdapter.decodeAgentStatuses(JsonArray(snapshot.wsl)),
+        )
     }
 
     override suspend fun threadHistory(
@@ -265,6 +278,12 @@ class RemoteApiClient(
         }
         CleartextPolicy.enforce(url.toString())
 
+        val canRevalidate = method == "GET" && authorized && jsonBody == null && extraHeaders.isEmpty() &&
+            (expectedStatus == null || expectedStatus == 200)
+        val (token, cachedRead) = synchronized(readCache) {
+            accessToken to if (canRevalidate) readCache.capture(url.toString()) else null
+        }
+
         val body = when {
             jsonBody != null -> jsonBody.toRequestBody(JSON_MEDIA)
             methodRequiresBody(method) -> EMPTY_BODY
@@ -278,13 +297,31 @@ class RemoteApiClient(
             requestBuilder.header("Content-Type", "application/json")
         }
         if (authorized) {
-            val token = accessToken
             if (!token.isNullOrBlank()) {
                 requestBuilder.header("Authorization", "Bearer $token")
             }
         }
-
-        return executeRequest(requestBuilder.build()) { responseDecoder.text(it, expectedStatus) }
+        cachedRead?.entry?.let { requestBuilder.header("If-None-Match", it.etag) }
+        val request = requestBuilder.build()
+        val deadlineNanos = client.callTimeoutMillis.takeIf { it > 0 }?.let {
+            System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(it.toLong())
+        }
+        val decode: (Response) -> String = { response ->
+            responseDecoder.text(response, expectedStatus).also { text ->
+                if (cachedRead != null) readCache.store(cachedRead, response, text)
+            }
+        }
+        val result = executeRemoteRequest(client, networkGate, request, deadlineNanos) { response ->
+            if (response.code == 304 && cachedRead != null) {
+                response.close()
+                readCache.body(cachedRead)
+            } else decode(response)
+        }
+        // A body may have been invalidated while the request was in flight.
+        // Retry only this safe GET, once, without its validator.
+        return result ?: executeRemoteRequest(
+            client, networkGate, request.newBuilder().removeHeader("If-None-Match").build(), deadlineNanos, decode,
+        )
     }
 
     /** Executes a bounded raw-body request without converting the upload or response to JSON. */
@@ -298,7 +335,7 @@ class RemoteApiClient(
         expectedStatus: Int? = null,
     ): String {
         val request = buildRawRequest(path, method, query, body, authorized, extraHeaders)
-        return executeRequest(request) { responseDecoder.text(it, expectedStatus) }
+        return executeRemoteRequest(client, networkGate, request) { responseDecoder.text(it, expectedStatus) }
     }
 
     /** Fetches binary data with early Content-Length rejection and an incremental hard cap. */
@@ -321,7 +358,7 @@ class RemoteApiClient(
                 requestBuilder.header("Authorization", "Bearer $it")
             }
         }
-        return executeRequest(requestBuilder.build()) { responseDecoder.binary(it, expectedStatus) }
+        return executeRemoteRequest(client, networkGate, requestBuilder.build()) { responseDecoder.binary(it, expectedStatus) }
     }
 
     private fun buildRawRequest(
@@ -347,58 +384,6 @@ class RemoteApiClient(
             }
         }
         return requestBuilder.build()
-    }
-
-    private suspend fun <Value> executeRequest(
-        request: Request,
-        process: (Response) -> Value,
-    ): Value {
-        if (!networkGate.isOpen) {
-            throw CancellationException("Foreground network gate closed")
-        }
-        return suspendCancellableCoroutine { cont ->
-            val call = client.newCall(request)
-            if (!networkGate.registerCall(call)) {
-                cont.resumeWithException(CancellationException("Foreground network gate closed"))
-                return@suspendCancellableCoroutine
-            }
-            cont.invokeOnCancellation {
-                networkGate.unregisterCall(call)
-                call.cancel()
-            }
-            call.enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    networkGate.unregisterCall(call)
-                    if (!cont.isActive) return
-                    if (call.isCanceled()) {
-                        cont.resumeWithException(
-                            CancellationException("OkHttp call cancelled"),
-                        )
-                        return
-                    }
-                    cont.resumeWithException(
-                        RemoteClientException(
-                            "Network request failed.",
-                            status = 0,
-                            code = "network",
-                        ),
-                    )
-                }
-
-                override fun onResponse(call: Call, response: Response) {
-                    networkGate.unregisterCall(call)
-                    if (!cont.isActive) {
-                        response.close()
-                        return
-                    }
-                    try {
-                        cont.resume(process(response))
-                    } catch (e: Exception) {
-                        if (cont.isActive) cont.resumeWithException(e)
-                    }
-                }
-            })
-        }
     }
 
     private fun endpointUrl(path: String): String {

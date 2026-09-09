@@ -55,9 +55,6 @@ class RichChatSessionComposition(
     private fun synchronizeSelection(state: AppSession.UiState, forceRefresh: Boolean = false) {
         runtime.reconcileSession()
         if (runtime.isProjectTerminalSurfacePresented) {
-            if (forceRefresh && runtime.terminal.state.value.lease != null) {
-                runtime.reconnectTerminal()
-            }
             return
         }
         val desiredTerminalId = desiredTerminalThreadId(state)

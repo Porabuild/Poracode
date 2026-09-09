@@ -184,6 +184,8 @@ private fun AdvancedFieldInput(
             },
             minLines = if (field.kind == AdvancedField.Kind.LongText) 3 else 1,
             keyboardOptions = KeyboardOptions(
+                // Short text fields contain paths, names, and identifiers.
+                autoCorrectEnabled = if (field.kind == AdvancedField.Kind.Text) false else null,
                 keyboardType = if (field.kind == AdvancedField.Kind.Decimal) {
                     KeyboardType.Decimal
                 } else {

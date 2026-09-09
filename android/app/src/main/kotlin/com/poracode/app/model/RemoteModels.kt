@@ -20,6 +20,8 @@ data class RemoteEnvironmentDescriptor(
     val platform: String? = null,
     val auth: Auth,
     val endpoints: Endpoints,
+    /** Additive capability declarations. `null` on older hosts: unknown, never "unsupported". */
+    val capabilities: Capabilities? = null,
 ) {
     @Serializable
     data class Auth(
@@ -34,6 +36,31 @@ data class RemoteEnvironmentDescriptor(
         val httpBaseUrl: String,
         val wsBaseUrl: String,
     )
+
+    @Serializable
+    data class Capabilities(
+        /**
+         * Origin-bound browser entry (`versions` contains
+         * [BROWSER_FORWARD_ENTRY_VERSION]). Declares protocol support only — a
+         * supporting host may still be deployment-unconfigured and reject entry
+         * with 503 `forward_browser_unavailable`. Absence must never be read as
+         * raw-TCP unavailability or as origin isolation.
+         */
+        val browserForward: VersionedCapability? = null,
+    )
+
+    @Serializable
+    data class VersionedCapability(
+        val versions: List<Int> = emptyList(),
+    )
+
+    companion object {
+        /**
+         * App-side pin of the host's `REMOTE_BROWSER_FORWARD_VERSION`: the
+         * entry path guaranteed to be origin-bound and isolated.
+         */
+        const val BROWSER_FORWARD_ENTRY_VERSION = 1
+    }
 }
 
 @Serializable
@@ -63,6 +90,18 @@ data class RemoteHttpErrorPayload(
 
 // MARK: - Shell snapshot
 
+/**
+ * Runtime environment pinned for a thread (v9 `executionEnvironment` in
+ * `threadConfigSchema`). The host replaces thread config wholesale on every
+ * config-carrying mutation, so omitting this field silently rebinds a pinned
+ * WSL distro to the host default.
+ */
+@Serializable
+data class RemoteExecutionEnvironment(
+    val kind: String,
+    val distro: String,
+)
+
 @Serializable
 data class ThreadConfig(
     val model: String = "default",
@@ -78,6 +117,7 @@ data class ThreadConfig(
     val crossagentMcp: Boolean? = null,
     val computerUse: Boolean? = null,
     val chromeMcp: Boolean? = null,
+    val executionEnvironment: RemoteExecutionEnvironment? = null,
 ) {
     fun toJsonObject(): JsonObject = buildJsonObject {
         put("model", model)
@@ -93,6 +133,15 @@ data class ThreadConfig(
         crossagentMcp?.let { put("crossagentMcp", it) }
         computerUse?.let { put("computerUse", it) }
         chromeMcp?.let { put("chromeMcp", it) }
+        executionEnvironment?.let { environment ->
+            put(
+                "executionEnvironment",
+                buildJsonObject {
+                    put("kind", environment.kind)
+                    put("distro", environment.distro)
+                },
+            )
+        }
     }
 }
 

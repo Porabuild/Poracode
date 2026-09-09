@@ -15,6 +15,7 @@ import com.poracode.app.model.settings.ProfileIdentitySnapshot
 import com.poracode.app.model.settings.ProfileStatsRequest
 import com.poracode.app.model.settings.ProfileTokenStatsSnapshot
 import com.poracode.app.model.settings.ProviderUsageSnapshot
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.transport.settings.SettingsRemoteGateway
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
@@ -27,7 +28,7 @@ internal val connectionB = ClientConnectionId("20000000-0000-4000-8000-000000000
 internal fun lease(
     connectionId: ClientConnectionId = connectionA,
     generation: Long = 1,
-    protocolVersion: Int = 8,
+    protocolVersion: Int = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
     scopes: Set<String> = setOf("session:read", "session:operate"),
     online: Boolean = true,
     ready: Boolean = true,
