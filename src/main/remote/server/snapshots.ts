@@ -1,6 +1,7 @@
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_PUSH_ROUTING_VERSION,
+  REMOTE_BROWSER_FORWARD_VERSION,
   REMOTE_STANDARD_SCOPES,
   remoteAgentStatusesSchema,
   remoteEnvironmentDescriptorSchema,
@@ -65,6 +66,9 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       wsBaseUrl: info.wsBaseUrl,
     },
     capabilities: {
+      ...(ctx.options.portProxy
+        ? { browserForward: { versions: [REMOTE_BROWSER_FORWARD_VERSION] } }
+        : {}),
       ...(ctx.options.pushRegistrations
         ? { pushRouting: { versions: [REMOTE_PUSH_ROUTING_VERSION] } }
         : {}),
@@ -134,13 +138,16 @@ export async function buildThreadSnapshot(
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
 
+  const readsTerminal = initialThread.presentationMode !== "gui";
   let terminalScrollback: string | undefined;
   let terminalSize: RemoteThreadSnapshot["terminalSize"] | undefined;
   let backgroundTasks: BackgroundTask[] = [];
   try {
     const [scrollback, size, tasks] = await Promise.all([
-      ctx.options.callSupervisor("readTerminalScrollback", { threadId }),
-      ctx.options.callSupervisor("readTerminalSize", { threadId }),
+      readsTerminal
+        ? ctx.options.callSupervisor("readTerminalScrollback", { threadId })
+        : undefined,
+      readsTerminal ? ctx.options.callSupervisor("readTerminalSize", { threadId }) : undefined,
       ctx.options.callSupervisor("readThreadBackgroundTasks", { threadId }),
     ]);
     terminalScrollback = scrollback || dbGetThreadTerminalScrollback(threadId);
@@ -153,7 +160,7 @@ export async function buildThreadSnapshot(
   }
   backgroundTasks = [...(ctx.backgroundTasksByThread.get(threadId) ?? backgroundTasks)];
 
-  // The terminal reads above cross an async supervisor boundary. Runtime and
+  // The supervisor reads above cross an async boundary. Runtime and
   // thread-state events can persist while they are in flight, so re-read the
   // row before taking the synchronous runtime snapshot; otherwise a completed
   // transcript can be returned with an older `working` status and the client
