@@ -87,4 +87,23 @@ class RichMarkdownParserTest {
         )
         assertEquals(5, rendered.spanStyles.size)
     }
+
+    @Test
+    fun underscoresInsideIdentifiersRemainLiteral() {
+        for (source in listOf("GUI_RESUME_OK", "file__name__part", "日本_語_名", "a\u0301_b_c")) {
+            val rendered = richInlineMarkdown(source)
+            assertEquals(source, rendered.text)
+            assertTrue(rendered.spanStyles.isEmpty())
+        }
+    }
+
+    @Test
+    fun underscoreEmphasisRequiresWordBoundariesAndKeepsInternalUnderscores() {
+        val rendered = richInlineMarkdown("(_italic_) __bold__ _file_name_ and `GUI_RESUME_OK`")
+        assertEquals("(italic) bold file_name and GUI_RESUME_OK", rendered.text)
+        assertEquals(4, rendered.spanStyles.size)
+        for (source in listOf("_ leading_", "_trailing _", "__word__suffix")) {
+            assertEquals(source, richInlineMarkdown(source).text)
+        }
+    }
 }
