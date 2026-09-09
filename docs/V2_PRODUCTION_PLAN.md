@@ -291,25 +291,28 @@ supervisor→backend shed policy + `backpressureTimeoutMs: null` with recovery s
 WS3: the launch poll loop's event-wait redesign — its cost is now mostly absorbed by
 the ETag cache.
 
-**WS3-A: agent-statuses payload split — measured, designed, ready to implement.**
+**WS3-A: agent-statuses payload split — IMPLEMENTED (commit 23d145e0c).**
 Measured breakdown of `GET /api/agent-statuses` (230 KB raw / 39.4 KB gzipped, 15
 detected agents on the QA host): `capabilities.slashCommands` dominates (28.6 KB for
 Claude alone — 55 skill definitions embedding full SKILL.md descriptions in `label`);
 `settingDefs` ~0.9 KB per agent; model catalogs are tiny (367 B). The fat fields are
 consumed only by the renderer's "/" menu and settings surfaces; native clients
-consumer model lists, auth states, and versions. Implementation (additive, wire-v10
+consumer model lists, auth states, and versions. Shipped (additive, wire-v10
 compatible, no quality change):
 
-1. Manifest: add optional query param `slashCommands` to the `agent-statuses` route
-   and a new route `GET /api/agents/{kind}/slash-commands` (contract in
-   `src/shared/remote/contract/routes/`), then `pnpm run protocol:remote:v3:generate`
-   - native-parity ledger update (additive → binding format unchanged).
-2. Server (`snapshots.ts`/agent-statuses handler): when `slashCommands=omit` is
-   passed, drop the field; new route serves one agent's catalog from the same source.
-3. Renderer: `agentStatusesStore` requests `slashCommands=omit`; the composer "/"
-   menu lazily fetches and caches the open thread's agent catalog (one ~30 KB fetch
-   per agent, on first use, instead of ~230 KB raw for all agents on every cold
-   start).
+1. ~~Manifest: add optional query param `slashCommands` to the `agent-statuses` route~~
+   — done: `slashCommands` 0-or-1 codec on `agent-statuses` + new route
+   `GET /api/agents/{kind}/slash-commands` (62 routes); artifacts regenerated;
+   native-parity ledger + operation-map updated (additive → binding format unchanged).
+2. ~~Server: drop the field when flagged; new route serves one agent's catalog~~ — done
+   (`buildAgentStatuses({omitSlashCommands})`, `buildAgentSlashCommands`, 404
+   `agent_not_found` for unknown kinds).
+3. ~~Renderer: request the slim payload; lazily fetch the open thread's catalog~~ — done:
+   desktop store + browser bridge request `slashCommands=0` and splice cached catalogs
+   (`slashCommandCatalogs.ts`: per-(endpoint, kind) cache, in-flight coalescing, failures
+   not cached); opening a thread fetches that thread's agent catalog on first use.
+   Client `GET`s gained a bounded ETag revalidation cache (32 entries) benefiting every
+   route, including the new catalog route.
 4. Natives: adopt later or never — absent optional field decodes fine; without the
    flag they keep today's fat payload.
    Cold-start effect at 1500 ms/32 kbps: agent-statuses drops from ~39 KB to ~4–6 KB

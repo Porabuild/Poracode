@@ -19,6 +19,17 @@ browser forwarding merely from that exploratory question.
 
 Branch: `poracode/v2`. Relevant local commits:
 
+- `23d145e0c`: WS3-A agent-statuses payload split — `slashCommands=0` slim payload,
+  new `GET /api/agents/{kind}/slash-commands` route (62 routes), ETag revalidation
+  cache on client GETs, renderer lazy per-agent catalog fetch.
+- `17ee21dbf`: receipts suite + revert-journal mocks (test coverage for earlier fixes).
+- `97d4b38f3`: Android session-layer data race fixes (`@Volatile` seq fields,
+  synchronized HostStateCache boundaries).
+- `937bf2606`: WS5-1 supervisor output shed policy under backend-IPC backpressure.
+- `5af17eef8`: WS3 quick wins — runtime-event delta coalescing, deflate window cap
+  removal, client ETag revalidation cache.
+- `3d92390c8`: checkpoint revert journaling (migration 45), broadcast event caps,
+  boot receipt purge.
 - `1de973a21`: complete provisional checkpoint, 342 files, including backend,
   protocol/generated contracts, relay, native clients and review work.
 - `5a57f6d3a`: final saved-pairing compilation/test cleanup and web reconnect recovery.
