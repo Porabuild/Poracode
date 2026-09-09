@@ -1,4 +1,3 @@
-// Inline rename input for tree entries. Restored from usage inference after crash recovery.
 import { useEffect, useRef } from "react";
 
 export function InlineNameInput(props: {
@@ -26,6 +25,9 @@ export function InlineNameInput(props: {
     <input
       ref={ref}
       type="text"
+      autoCapitalize="none"
+      autoCorrect="off"
+      spellCheck={false}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onBlur={() => (value.trim() ? onCommit(value.trim()) : onCancel())}

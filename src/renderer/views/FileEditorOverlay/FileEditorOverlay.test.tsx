@@ -123,6 +123,40 @@ describe("FileEditorOverlay", () => {
     expect(within(main).queryByTestId("monaco-editor")).not.toBeInTheDocument();
   });
 
+  it.each([false, true])(
+    "waits for file content before offering an editor (compact=%s)",
+    async (compact) => {
+      layout.compact = compact;
+      const pending = Promise.withResolvers<unknown>();
+      bridge.readProjectFile.mockReturnValueOnce(pending.promise);
+      let opening: Promise<unknown> | undefined;
+      act(() => {
+        opening = useFileEditorStore.getState().openFile("README.md", "fullscreen");
+      });
+      render(<FileEditorOverlay onClose={() => {}} />);
+      expect(screen.queryByTestId("monaco-editor")).not.toBeInTheDocument();
+      expect(screen.getByText("Loading editor…")).toBeInTheDocument();
+      act(() => useFileEditorStore.getState().updateBuffer("README.md", "stale editor callback"));
+      expect(useFileEditorStore.getState().buffers["README.md"]?.content).toBe("");
+      await act(async () => {
+        pending.resolve({
+          path: "README.md",
+          status: "ready",
+          content: "# Loaded",
+          modifiedAtMs: 8,
+        });
+        await opening;
+      });
+      expect(screen.getByTestId("monaco-editor")).toBeInTheDocument();
+      expect(useFileEditorStore.getState().buffers["README.md"]).toMatchObject({
+        content: "# Loaded",
+        savedContent: "# Loaded",
+        modifiedAtMs: 8,
+        isLoading: false,
+      });
+    },
+  );
+
   it("drives the markdown preview toggle through the store shared with the keybinding", async () => {
     const view = render(<FileEditorOverlay onClose={() => {}} />);
 

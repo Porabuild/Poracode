@@ -1,3 +1,4 @@
+import { FILE_SAVE_CONFLICT_MESSAGE } from "@/shared/fileSaveErrors";
 import type { Dirent, Stats } from "node:fs";
 import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -31,10 +32,26 @@ import { HOST_DRIVE_LIST_PATH } from "@/shared/contracts";
 import { isPdfPath } from "@/shared/promptContent";
 import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { ProjectSearchIndex } from "./ProjectSearchIndex";
+import {
+  BOM,
+  MAX_EDITABLE_FILE_SIZE,
+  isBinaryBuffer,
+  detectLineEnding,
+  buildWriteBuffer,
+} from "./projectFileContent";
+import { writeNativeEditorFile } from "./projectFileWrites";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 
-const BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 const MAX_HOST_BROWSE_ENTRIES = 4_000;
+
+// The deployed WSL bridge already reports commit-time conflicts with EMTIME.
+// Normalize that stable code before IPC reduces the error to its message.
+function rethrowWslFileWriteError(error: unknown): never {
+  if (error instanceof Error && "code" in error && error.code === "EMTIME") {
+    throw new Error(FILE_SAVE_CONFLICT_MESSAGE);
+  }
+  throw error;
+}
 
 /** Existing drive roots (C:\, D:\, …) as directory entries, for the picker. */
 async function listWindowsDriveRoots(): Promise<HostDirectoryEntry[]> {
@@ -53,7 +70,6 @@ async function listWindowsDriveRoots(): Promise<HostDirectoryEntry[]> {
   );
   return roots.filter((entry): entry is HostDirectoryEntry => entry !== null);
 }
-const MAX_EDITABLE_FILE_SIZE = 1_000_000;
 
 type RawFileRead =
   | { kind: "tooLarge"; modifiedAtMs: number }
@@ -94,40 +110,6 @@ function validateEntryName(name: string): string {
     throw new Error("Invalid name.");
   }
   return trimmed;
-}
-
-function isBinaryBuffer(buffer: Buffer): boolean {
-  for (const byte of buffer) {
-    if (byte === 0) return true;
-  }
-  return false;
-}
-
-function detectLineEnding(content: string): "lf" | "crlf" {
-  return content.includes("\r\n") ? "crlf" : "lf";
-}
-
-function normalizeContentForWrite(content: string, lineEnding: "lf" | "crlf"): string {
-  const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  return lineEnding === "crlf" ? normalized.replace(/\n/g, "\r\n") : normalized;
-}
-
-/**
- * Build the on-disk bytes for a save, preserving the original file's BOM
- * and line-ending convention. Throws if the original is not valid UTF-8.
- */
-function buildWriteBuffer(existingBuffer: Buffer, nextContent: string): Buffer {
-  const hasBom = existingBuffer.subarray(0, BOM.length).equals(BOM);
-  const contentBuffer = hasBom ? existingBuffer.subarray(BOM.length) : existingBuffer;
-  let existingContent = "";
-  try {
-    existingContent = new TextDecoder("utf-8", { fatal: true }).decode(contentBuffer);
-  } catch {
-    throw new Error("This file uses an unsupported encoding.");
-  }
-  const normalized = normalizeContentForWrite(nextContent, detectLineEnding(existingContent));
-  const nextBuffer = Buffer.from(normalized, "utf8");
-  return hasBom ? Buffer.concat([BOM, nextBuffer]) : nextBuffer;
 }
 
 function sortEntries(entries: ProjectTreeEntry[]): ProjectTreeEntry[] {
@@ -520,26 +502,7 @@ export class ProjectTreeService {
       return this.writeExternalFileWsl(payload.projectLocation, payload, this.requireWslClient());
     }
 
-    const fileStat = await stat(payload.absolutePath);
-    if (!fileStat.isFile()) {
-      throw new Error("Only files can be saved from the editor.");
-    }
-    if (Math.abs(fileStat.mtimeMs - payload.baseModifiedAtMs) > 1) {
-      throw new Error("The file changed on disk. Reload it before saving.");
-    }
-    if (fileStat.size > MAX_EDITABLE_FILE_SIZE) {
-      throw new Error("This file is too large to save from the editor.");
-    }
-
-    const existingBuffer = await readFile(payload.absolutePath);
-    if (isBinaryBuffer(existingBuffer)) {
-      throw new Error("Binary files cannot be saved from the editor.");
-    }
-
-    const nextBuffer = buildWriteBuffer(existingBuffer, payload.content);
-    await writeFile(payload.absolutePath, nextBuffer);
-    const nextStat = await stat(payload.absolutePath);
-    return { modifiedAtMs: nextStat.mtimeMs };
+    return writeNativeEditorFile(payload.absolutePath, payload);
   }
 
   private async writeExternalFileWsl(
@@ -555,16 +518,18 @@ export class ProjectTreeService {
       throw new Error("This file is too large to save from the editor.");
     }
     if (Math.abs(existing.mtimeMs - payload.baseModifiedAtMs) > 1) {
-      throw new Error("The file changed on disk. Reload it before saving.");
+      throw new Error(FILE_SAVE_CONFLICT_MESSAGE);
     }
     const existingBuffer = Buffer.from(existing.contentBase64, "base64");
     if (isBinaryBuffer(existingBuffer)) {
       throw new Error("Binary files cannot be saved from the editor.");
     }
     const nextBuffer = buildWriteBuffer(existingBuffer, payload.content);
-    const result = await wslClient.writeFile(externalLocation, payload.absolutePath, nextBuffer, {
-      expectedMtimeMs: existing.mtimeMs,
-    });
+    const result = await wslClient
+      .writeFile(externalLocation, payload.absolutePath, nextBuffer, {
+        expectedMtimeMs: existing.mtimeMs,
+      })
+      .catch(rethrowWslFileWriteError);
     return { modifiedAtMs: result.mtimeMs };
   }
 
@@ -716,30 +681,10 @@ export class ProjectTreeService {
       );
     }
 
-    const { fullPath, fileStat } = await this.statFollowingWslSymlinks(
-      payload.projectLocation,
-      path,
-    );
-    if (!fileStat.isFile()) {
-      throw new Error("Only files can be saved from the editor.");
-    }
-    if (Math.abs(fileStat.mtimeMs - payload.baseModifiedAtMs) > 1) {
-      throw new Error("The file changed on disk. Reload it before saving.");
-    }
-    if (fileStat.size > MAX_EDITABLE_FILE_SIZE) {
-      throw new Error("This file is too large to save from the editor.");
-    }
-
-    const existingBuffer = await readFile(fullPath);
-    if (isBinaryBuffer(existingBuffer)) {
-      throw new Error("Binary files cannot be saved from the editor.");
-    }
-
-    const nextBuffer = buildWriteBuffer(existingBuffer, payload.content);
-    await writeFile(fullPath, nextBuffer);
-    this.invalidateCaches(payload.projectLocation);
-    const nextStat = await stat(fullPath);
-    return { modifiedAtMs: nextStat.mtimeMs };
+    const { fullPath } = await this.statFollowingWslSymlinks(payload.projectLocation, path);
+    return writeNativeEditorFile(fullPath, payload, () => {
+      this.invalidateCaches(payload.projectLocation);
+    });
   }
 
   private async writeProjectFileWsl(
@@ -756,16 +701,18 @@ export class ProjectTreeService {
       throw new Error("This file is too large to save from the editor.");
     }
     if (Math.abs(existing.mtimeMs - payload.baseModifiedAtMs) > 1) {
-      throw new Error("The file changed on disk. Reload it before saving.");
+      throw new Error(FILE_SAVE_CONFLICT_MESSAGE);
     }
     const existingBuffer = Buffer.from(existing.contentBase64, "base64");
     if (isBinaryBuffer(existingBuffer)) {
       throw new Error("Binary files cannot be saved from the editor.");
     }
     const nextBuffer = buildWriteBuffer(existingBuffer, payload.content);
-    const result = await wslClient.writeFile(location, absolute, nextBuffer, {
-      expectedMtimeMs: existing.mtimeMs,
-    });
+    const result = await wslClient
+      .writeFile(location, absolute, nextBuffer, {
+        expectedMtimeMs: existing.mtimeMs,
+      })
+      .catch(rethrowWslFileWriteError);
     this.invalidateCaches(location);
     return { modifiedAtMs: result.mtimeMs };
   }

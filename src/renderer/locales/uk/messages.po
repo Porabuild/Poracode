@@ -2029,6 +2029,10 @@ msgstr "Браузер"
 msgid "Browser Control"
 msgstr "Керування браузером"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Browser forwarding isn't set up on this desktop."
+msgstr "Переспрямування через браузер не налаштовано на цьому комп'ютері."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Browser is open in a separate window"
 msgstr "Браузер відкритий в окремому вікні"
@@ -3414,6 +3418,10 @@ msgstr "Розмова"
 msgid "Copied"
 msgstr "Скопійовано"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
+msgstr "Скопійовано пряму TCP-адресу (лише локальна мережа) — відкривається поза ізольованим переспрямуванням."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
 msgstr "Скопійовано до буфера обміну"
@@ -3471,6 +3479,10 @@ msgstr "Копіювати ігноровані файли"
 msgid "Copy image"
 msgstr "Копіювати зображення"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy link"
+msgstr "Копіювати посилання"
+
 #: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
@@ -3488,6 +3500,10 @@ msgstr "Скопіювати токен підключення"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
 msgstr "Копіювати шлях"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy raw address"
+msgstr "Копіювати пряму адресу"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Relative Path"
@@ -3510,8 +3526,8 @@ msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Копіювати незакомічені зміни сюди (залишає їх у цій гілці)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "Copy URL"
-msgstr "Копіювати URL"
+#~ msgid "Copy URL"
+#~ msgstr "Копіювати URL"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
@@ -7590,6 +7606,10 @@ msgstr "Перемістити браузер у вікно"
 msgid "Move changes to a new worktree"
 msgstr "Перемістити зміни в новий worktree"
 
+#: src/renderer/components/thread/PaneDragAndDrop.tsx
+msgid "Move pane"
+msgstr "Перемістити панель"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 msgid "Move panel"
 msgstr "Перемістити панель"
@@ -10117,6 +10137,10 @@ msgstr "Перепідключіть сервер, щоб додавати пр�
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Reconnecting"
 #~ msgstr "Перепідключення"
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Reconnecting to terminal…"
+msgstr "Повторне підключення до термінала…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -12701,6 +12725,10 @@ msgstr "Укажіть цільовому провайдеру, що робит�
 msgid "Terminal"
 msgstr "Термінал"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal access denied."
+msgstr "Доступ до термінала заборонено."
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -12722,6 +12750,10 @@ msgstr "Ввід у термінал"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "Термінал не готовий — вибір додано в композер."
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal output is unavailable. Reconnect to try again."
+msgstr "Вивід термінала недоступний. Підключіться знову, щоб повторити спробу."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -13041,6 +13073,10 @@ msgstr "Цей комп’ютер"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Це підключення може переглядати проєкти, але не керувати ними. Створіть сполучення заново, щоб увімкнути керування."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+msgstr "Версія Poracode на цьому комп'ютері не підтримує переспрямування через браузер. Оновіть Poracode на комп'ютері."
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."

@@ -500,6 +500,30 @@ describe("ProjectTreeService WSL external files", () => {
     }
   });
 
+  it.each(["project", "external"] as const)(
+    "surfaces WSL commit-time conflicts through the %s editor without hiding other errors",
+    async (editor) => {
+      const location = makeWslLocation("/home/user/work/repo");
+      const absolutePath = "/home/user/work/repo/shared.txt";
+      bridge.files.set(absolutePath, { content: Buffer.from("before\n"), mtimeMs: 5000 });
+      const write = () => {
+        const payload = { projectLocation: location, content: "after\n", baseModifiedAtMs: 5000 };
+        return editor === "project"
+          ? service.writeProjectFile({ ...payload, path: "shared.txt" })
+          : service.writeExternalFile({ ...payload, absolutePath });
+      };
+      const commit = vi.spyOn(bridge, "writeFile");
+      commit.mockRejectedValueOnce(
+        Object.assign(new Error("file changed on disk since it was read"), { code: "EMTIME" }),
+      );
+      await expect(write()).rejects.toThrow("The file changed on disk. Reload it before saving.");
+      const denied = Object.assign(new Error("permission denied"), { code: "EACCES" });
+      commit.mockRejectedValueOnce(denied);
+      await expect(write()).rejects.toBe(denied);
+      expect(bridge.files.get(absolutePath)?.content.toString("utf8")).toBe("before\n");
+    },
+  );
+
   it("readExternalFile returns 'missing' when the WSL bridge reports ENOENT", async () => {
     const result = await service.readExternalFile({
       projectLocation: makeWslLocation("/home/user/work/repo"),

@@ -2029,6 +2029,10 @@ msgstr "Tarayıcı"
 msgid "Browser Control"
 msgstr "Tarayıcı Denetimi"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Browser forwarding isn't set up on this desktop."
+msgstr "Tarayıcı yönlendirme bu masaüstünde kurulu değil."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Browser is open in a separate window"
 msgstr "Tarayıcı ayrı bir pencerede açık"
@@ -3414,6 +3418,10 @@ msgstr "Konuşma"
 msgid "Copied"
 msgstr "Kopyalandı"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
+msgstr "Doğrudan TCP adresi kopyalandı (yalnızca LAN) — yalıtılmış yönlendirmenin dışında açılır."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
 msgstr "Panoya kopyalandı"
@@ -3471,6 +3479,10 @@ msgstr "Yoksayılan dosyaları kopyala"
 msgid "Copy image"
 msgstr "Görseli kopyala"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy link"
+msgstr "Bağlantıyı kopyala"
+
 #: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
@@ -3488,6 +3500,10 @@ msgstr "Eşleştirme token'ını kopyala"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
 msgstr "Yolu Kopyala"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy raw address"
+msgstr "Doğrudan adresi kopyala"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Relative Path"
@@ -3510,8 +3526,8 @@ msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Taahhüt edilmemiş değişiklikleri buraya kopyalayın (onları bu dalda tutar)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "Copy URL"
-msgstr "URL'yi kopyala"
+#~ msgid "Copy URL"
+#~ msgstr "URL'yi kopyala"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
@@ -7590,6 +7606,10 @@ msgstr "Tarayıcıyı pencereye taşı"
 msgid "Move changes to a new worktree"
 msgstr "Değişiklikleri yeni bir çalışma ağacına taşı"
 
+#: src/renderer/components/thread/PaneDragAndDrop.tsx
+msgid "Move pane"
+msgstr "Bölmeyi taşı"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 msgid "Move panel"
 msgstr "Paneli taşı"
@@ -10117,6 +10137,10 @@ msgstr "Proje eklemek için sunucuya yeniden bağlanın."
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Reconnecting"
 #~ msgstr "Yeniden bağlanıyor"
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Reconnecting to terminal…"
+msgstr "Terminale yeniden bağlanılıyor…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -12701,6 +12725,10 @@ msgstr "Hedef sağlayıcıya bundan sonra ne yapacağını söyleyin..."
 msgid "Terminal"
 msgstr "Terminal"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal access denied."
+msgstr "Terminale erişim reddedildi."
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -12722,6 +12750,10 @@ msgstr "Terminal girişi"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "Terminal hazır değil — seçim Composer'a eklendi."
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal output is unavailable. Reconnect to try again."
+msgstr "Terminal çıktısı kullanılamıyor. Tekrar denemek için yeniden bağlanın."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -13041,6 +13073,10 @@ msgstr "Bu bilgisayar"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Bu bağlantı projeleri görüntüleyebilir ancak yönetemez. Etkinleştirmek için yeniden eşleştirin."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+msgstr "Bu masaüstündeki Poracode sürümü tarayıcı yönlendirmeyi desteklemiyor. Poracode'yi masaüstünde güncelleyin."
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
