@@ -410,9 +410,11 @@ export class SteerCoordinator {
     if (session.status === "working" && session.structuredSession.steerTurn) {
       const admission = options?.awaitReplacement ? createPendingSteerAdmission() : undefined;
       if (!admission) {
-        // Preserve ordinary direct-steer fire-and-forget behavior. The
-        // coordinator's observed promise already owns failure reporting.
-        void this.steerStructuredTurn(session, turn);
+        // Ordinary composer steering still needs to retain the caller's
+        // direct-input reservation through provider admission. Some adapters
+        // await remote-session setup and settings synchronization before they
+        // can decide whether to steer or fall back to a fresh turn.
+        await this.steerStructuredTurn(session, turn);
         return;
       }
       const steer = this.steerStructuredTurn(session, turn);

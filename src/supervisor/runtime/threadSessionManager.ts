@@ -1165,6 +1165,15 @@ export class ThreadSessionManager {
       // preparing or admitting input so a late rejection cannot reset the new
       // session's direct barrier.
       await this.waitForPendingStart(payload.threadId);
+      // A queued turn can have invoked startTurn while the provider still
+      // reports idle. Steer must join that admission edge before it selects a
+      // submission path, otherwise it can evict the active queue owner and
+      // overlap the provider setup.
+      await this.followUpQueue.waitForQueuedTurnAdmission(payload.threadId);
+      // A fallback steer has the same asynchronous admission window after its
+      // startTurn is invoked. Wait for its canonical start before replacing or
+      // steering the session again.
+      await this.steerCoordinator.waitForPendingSteerAdmission(payload.threadId);
       const session = await this.findSessionAfterPendingStart(payload.threadId);
       if (!session) {
         throw new Error(`Unknown thread session: ${payload.threadId}`);

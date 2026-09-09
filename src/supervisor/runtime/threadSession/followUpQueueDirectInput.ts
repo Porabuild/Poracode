@@ -22,7 +22,14 @@ export class FollowUpQueueDirectInput {
   dispose(): void {
     this.directReservations.clear();
   }
-  /** Keep a direct submit/steer from racing the queue's readiness check. */
+  /**
+   * Keep a direct submit/steer from racing the queue's readiness check.
+   *
+   * Marking the lifecycle is not the handoff boundary: structured steer
+   * preparation can still await attachment rewriting or skill injection after
+   * this callback runs. The caller releases the reservation in its finally
+   * block once that prepared input has actually been handed to the provider.
+   */
   beginDirectInput(threadId: string): DirectInputReservation {
     this.directReservations.set(threadId, (this.directReservations.get(threadId) ?? 0) + 1);
     let marked = false;
@@ -31,7 +38,6 @@ export class FollowUpQueueDirectInput {
       markStarted: (session) => {
         if (released || marked) return;
         marked = true;
-        this.decrementReservation(threadId);
         const lifecycle = this.ctx.lifecycleFor(session);
         this.ctx.onStarted(session);
         lifecycle.direct = true;
@@ -44,7 +50,7 @@ export class FollowUpQueueDirectInput {
       release: () => {
         if (released) return;
         released = true;
-        if (!marked) this.decrementReservation(threadId);
+        this.decrementReservation(threadId);
         this.ctx.onChange(threadId);
       },
     };
@@ -54,12 +60,15 @@ export class FollowUpQueueDirectInput {
   noteDirectTurnSubmitted(session: SessionRuntime): void {
     const lifecycle = this.ctx.lifecycleFor(session);
     if (!lifecycle.direct) return;
-    if (lifecycle.directAwaitingReplacement) {
-      lifecycle.directAwaitingReplacement = false;
-      lifecycle.directCompletion = false;
-      lifecycle.turnCompleted = false;
-      delete lifecycle.turnId;
-    }
+    // A fresh start replaces any completed turn that caused a steer to fall
+    // back to normal delivery. Clear the old completion boundary before the
+    // provider's asynchronous startTurn admission begins; otherwise releasing
+    // the direct reservation while status is still idle can let the FIFO pump
+    // submit ahead of this replacement.
+    lifecycle.directAwaitingReplacement = false;
+    lifecycle.directCompletion = false;
+    lifecycle.turnCompleted = false;
+    delete lifecycle.turnId;
   }
 
   /** Native steer keeps the existing turn as its completion boundary. */

@@ -973,7 +973,7 @@ export class SpawnPipeline {
       if (!structuredSession) {
         throw new Error(`Thread ${session.threadId} cannot restart without a structured session.`);
       }
-      this.spawnThread({
+      const replacement = this.spawnThread({
         threadId: session.threadId,
         agentKind: session.agentKind,
         adapter: session.adapter,
@@ -1006,7 +1006,24 @@ export class SpawnPipeline {
           userMessageItemId: optimisticItemId,
           ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
         };
-        return await structuredSession.startTurn(prompt, launchConfig, turn.segments, startOptions);
+        try {
+          return await structuredSession.startTurn(
+            prompt,
+            launchConfig,
+            turn.segments,
+            startOptions,
+          );
+        } catch (error) {
+          // `spawnThread` has already replaced the old runtime in `sessions`.
+          // Settle a failed replacement here, where its identity is still
+          // available; the outer restart wrapper only knows the old session.
+          // A newer replacement may have won the race, so never mutate a
+          // runtime that is no longer current.
+          if (ctx.isCurrentSession(replacement)) {
+            ctx.failStructuredSession(replacement, error);
+          }
+          throw error;
+        }
       }
       return;
     }
