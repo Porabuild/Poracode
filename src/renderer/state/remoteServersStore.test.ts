@@ -1672,13 +1672,20 @@ describe("useRemoteServersStore", () => {
   });
 
   it("stops reconnecting when a persisted server reports the previous protocol", async () => {
-    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>();
-    const environment = vi.fn<RemoteDesktopClient["environment"]>(async () => {
-      throw new RemoteClientError(
+    const versionError = () =>
+      new RemoteClientError(
         "This app version is incompatible with that server.",
         409,
         "protocol_version_mismatch",
       );
+    // WS3 #6 overlaps the environment probe with the first snapshot refresh,
+    // so both requests fire once; the failed refresh and the probe land on the
+    // same error state, and neither is retried.
+    const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => {
+      throw versionError();
+    });
+    const environment = vi.fn<RemoteDesktopClient["environment"]>(async () => {
+      throw versionError();
     });
     useRemoteServersStore
       .getState()
@@ -1700,7 +1707,7 @@ describe("useRemoteServersStore", () => {
 
     await useRemoteServersStore.getState().connectAll();
 
-    expect(snapshot).not.toHaveBeenCalled();
+    expect(snapshot).toHaveBeenCalledTimes(1);
     expect(useRemoteServersStore.getState().runtime.d1).toMatchObject({
       status: "error",
       message: "This app version is incompatible with that server.",
@@ -3073,7 +3080,13 @@ describe("useRemoteServersStore", () => {
       }),
     });
 
-    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledTimes(2));
+    // Wait for the resynced snapshot to be applied (not just fetched): the
+    // fetch resolving and the apply completing are separate microtask hops.
+    await vi.waitFor(() =>
+      expect(useRemoteServersStore.getState().openThread?.thread.title).toBe(
+        "Remote rt-1 resynced",
+      ),
+    );
     expect(sync.applyThreadSnapshot).toHaveBeenCalledTimes(applyCallsBefore + 2);
     expect(useRemoteServersStore.getState().openThread?.thread.title).toBe("Remote rt-1 resynced");
   });

@@ -906,14 +906,22 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               if (threadIds.size === 0) return;
               resyncInFlight = true;
               try {
-                for (const threadId of threadIds) {
-                  let nextSnapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
-                  try {
-                    nextSnapshot = await client.threadHistory(threadId);
-                  } catch {
-                    continue;
-                  }
-                  if (!isCurrent() || entry.socket !== socket) continue;
+                // Fetch all interested threads concurrently (N−1 RTTs saved on
+                // server-restart resync), then apply in the original order so
+                // per-thread state transitions stay deterministic.
+                const fetched = await Promise.all(
+                  [...threadIds].map(async (threadId) => {
+                    try {
+                      return { threadId, snapshot: await client.threadHistory(threadId) };
+                    } catch {
+                      return null;
+                    }
+                  }),
+                );
+                for (const result of fetched) {
+                  if (!result) continue;
+                  const { threadId, snapshot: nextSnapshot } = result;
+                  if (!isCurrent() || entry.socket !== socket) return;
                   const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(
                     projectRemoteThreadSnapshot(server.desktopId, nextSnapshot),
                     {
@@ -1251,10 +1259,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             return;
           }
         }
+        // WS3 #6: probe the environment while the first snapshot refresh is
+        // in flight — one RTT saved per cold connect. Environment failures
+        // keep their classification below; the concurrent refreshServer owns
+        // visible snapshot errors either way.
+        const environmentPromise = get()
+          .clientFactory(server.endpoint, server.accessToken)
+          .environment();
+        const refreshPromise = get().refreshServer(server.desktopId);
         try {
-          const environment = await get()
-            .clientFactory(server.endpoint, server.accessToken)
-            .environment();
+          const environment = await environmentPromise;
           if (!canContinue()) return;
           initialTerminalCapabilities = terminalCapabilitiesFromEnvironment(environment);
           const keepsLocalAlias =
@@ -1285,9 +1299,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             setRemoteServerFailure(server.desktopId, "error", friendlyError(error));
             return;
           }
-          // refreshServer below owns other visible connection errors.
+          // refreshServer above owns other visible connection errors.
         }
-        await get().refreshServer(server.desktopId);
+        await refreshPromise;
         if (!canContinue()) return;
         await startRemoteServerEventStream(server, initialTerminalCapabilities);
         checkHostUpdateInBackground(server);
