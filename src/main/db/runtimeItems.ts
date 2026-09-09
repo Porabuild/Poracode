@@ -817,32 +817,60 @@ export function dbClearThreadRuntimeItems(threadId: string): void {
   getSqlite().prepare("DELETE FROM thread_runtime_items WHERE thread_id = ?").run(threadId);
 }
 
-export function dbTruncateThreadRuntimeAfter(threadId: string, itemId: string): void {
+/**
+ * Deletes the tail after the retained checkpoint and reports its removed turn
+ * anchors from the same transaction. Unrelated orphan turns survive. Callers
+ * publish a truncation only when rows were removed, so a no-op cannot later
+ * replay as a destructive client event.
+ */
+export function dbTruncateThreadRuntimeAfter(
+  threadId: string,
+  itemId: string,
+): {
+  truncated: boolean;
+  removedCompletedTurnAnchors: string[];
+} {
   runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
+  let truncated = false;
+  let removedCompletedTurnAnchors: string[] = [];
   sqlite
     .transaction(() => {
       const checkpoint = sqlite
         .prepare("SELECT position FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?")
         .get(threadId, itemId) as { position: number } | undefined;
       if (!checkpoint) return;
-      sqlite
-        .prepare("DELETE FROM thread_runtime_items WHERE thread_id = ? AND position > ?")
-        .run(threadId, checkpoint.position);
+      // Select and delete anchored turns before deleting their tail items;
+      // the shared subquery keeps both metadata and deletion scoped to this tail.
+      const removedTurnAnchors = (
+        sqlite
+          .prepare(
+            `SELECT anchor_item_id FROM thread_completed_turns
+             WHERE thread_id = ?
+               AND anchor_item_id IN (
+                 SELECT item_id FROM thread_runtime_items
+                 WHERE thread_id = ? AND position > ?
+               )`,
+          )
+          .all(threadId, threadId, checkpoint.position) as Array<{ anchor_item_id: string }>
+      ).map((row) => row.anchor_item_id);
       sqlite
         .prepare(
           `DELETE FROM thread_completed_turns
-         WHERE thread_id = ?
-           AND anchor_item_id IS NOT NULL
-           AND NOT EXISTS (
-             SELECT 1 FROM thread_runtime_items
-             WHERE thread_runtime_items.thread_id = thread_completed_turns.thread_id
-               AND thread_runtime_items.item_id = thread_completed_turns.anchor_item_id
+           WHERE thread_id = ? AND anchor_item_id IN (
+             SELECT item_id FROM thread_runtime_items
+             WHERE thread_id = ? AND position > ?
            )`,
         )
-        .run(threadId);
+        .run(threadId, threadId, checkpoint.position);
+      const deletedItems = sqlite
+        .prepare("DELETE FROM thread_runtime_items WHERE thread_id = ? AND position > ?")
+        .run(threadId, checkpoint.position);
+      truncated = deletedItems.changes > 0;
+      removedCompletedTurnAnchors = [...new Set(removedTurnAnchors)];
     })
     .immediate();
+  return { truncated, removedCompletedTurnAnchors };
 }
 
 /**
