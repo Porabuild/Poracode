@@ -44,7 +44,7 @@ class LiveConnectionController(
     var webSocket: RemoteEventSocket? = null
         private set
     var accessToken: String? = null
-    var lastSeenSeq: Int? = null
+    @Volatile var lastSeenSeq: Int? = null // reader-thread writes, Main reads
     private var pendingLiveClient: RemoteApiGateway? = null
 
     /** Claim/recovery ids and failure publication; see [ConnectionEventSequencer]. */

@@ -56,6 +56,8 @@ class SessionEventRouter(
         Boolean,
     ) -> Unit = { _, _ -> },
 ) {
+    /** Reader-thread writes, Main reads — see the volatile note on lastSeenSeq. */
+    @Volatile
     private var lastSeededSnapshotSeq: Int? = null
     private val notificationReplay = RemoteNotificationReplayGate()
     fun handleServerMessage(message: RemoteWebSocketServerMessage) {

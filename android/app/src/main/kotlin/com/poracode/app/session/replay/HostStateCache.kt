@@ -83,13 +83,18 @@ class HostStateCache {
 
     /** Open the install-buffer boundary: live agent transitions queue until the base lands. */
     fun beginAgentStatusesBase() {
-        if (pendingAgentBaseTransitions == null) pendingAgentBaseTransitions = mutableListOf()
+        synchronized(this) { if (pendingAgentBaseTransitions == null) pendingAgentBaseTransitions = mutableListOf() }
     }
 
-    /** Returns true when the transition was buffered (boundary open). */
+    /** Returns true when the transition was buffered (boundary open).
+     * Synchronized against [seedAgentStatusesBase]'s snapshot-and-close: the
+     * WebSocket reader thread appends here while Main seeds, and an unsynchronized
+     * append during seed's iteration would throw or silently lose the transition. */
     fun bufferAgentStatusesTransition(transition: SequencedEventApplier.Transition): Boolean {
-        val buffer = pendingAgentBaseTransitions ?: return false
-        buffer.add(transition)
+        synchronized(this) {
+            val buffer = pendingAgentBaseTransitions ?: return false
+            buffer.add(transition)
+        }
         return true
     }
 
@@ -104,8 +109,11 @@ class HostStateCache {
         native: List<AgentStatusEntry>,
         wsl: List<AgentStatusEntry>,
     ) {
-        val buffered = pendingAgentBaseTransitions
-        pendingAgentBaseTransitions = null
+        val buffered = synchronized(this) {
+            val buffered = pendingAgentBaseTransitions
+            pendingAgentBaseTransitions = null
+            buffered
+        }
         var state = stateRef
         val baseMap = linkedMapOf<String, AgentStatusEntry>()
         for (entry in native) {
