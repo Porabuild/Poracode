@@ -1,4 +1,7 @@
-import { REMOTE_BROWSER_FORWARD_VERSION } from "@/shared/remote/protocol";
+import {
+  REMOTE_BROWSER_FORWARD_VERSION,
+  TERMINAL_CURSOR_SYNC_V2_VERSION,
+} from "@/shared/remote/protocol";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { msg } from "@lingui/core/macro";
@@ -323,6 +326,10 @@ const remoteServerSnapshotSeqByDesktopId = new Map<string, number>();
  */
 const remoteThreadAppliedSeqByDesktopId = new Map<string, Map<string, number>>();
 const remoteServerThreadItemInterests = new Map<string, readonly string[]>();
+/** Desktops whose current connection negotiated cursor-sync v2: their thread
+ * history fetches may omit the inlined terminal scrollback (WS3 #2) because
+ * the chunked watch baseline carries the tail instead. */
+const remoteServerCursorSyncV2ByDesktopId = new Set<string>();
 const remoteServerIdentityGenerationByDesktopId = new Map<string, number>();
 
 function currentRemoteServerGeneration(desktopId: string): number {
@@ -651,7 +658,14 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       };
 
       const terminalConnections = createTerminalFeedConnections(
-        setRemoteTerminalSocketSender,
+        (desktopId, sender, capabilities) => {
+          if (capabilities.cursorSyncVersion === TERMINAL_CURSOR_SYNC_V2_VERSION) {
+            remoteServerCursorSyncV2ByDesktopId.add(desktopId);
+          } else {
+            remoteServerCursorSyncV2ByDesktopId.delete(desktopId);
+          }
+          setRemoteTerminalSocketSender(desktopId, sender, capabilities);
+        },
         (desktopId, socket) => remoteServerEventSockets.get(desktopId)?.socket === socket,
       );
       const activateRemoteTerminalFeed = terminalConnections.activate;
@@ -719,6 +733,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           entry.socket = null;
           clearRemoteServerEventSocketConnectTimeout(entry);
           clearRemoteServerEventSocketHealth(entry);
+          remoteServerCursorSyncV2ByDesktopId.delete(server.desktopId);
           setRemoteTerminalSocketSender(server.desktopId, null);
           syncDesktopBrowserBridgeClient(get());
           scheduleReconnect();
@@ -909,10 +924,17 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 // Fetch all interested threads concurrently (N−1 RTTs saved on
                 // server-restart resync), then apply in the original order so
                 // per-thread state transitions stay deterministic.
+                const omitScrollback = remoteServerCursorSyncV2ByDesktopId.has(server.desktopId);
                 const fetched = await Promise.all(
                   [...threadIds].map(async (threadId) => {
                     try {
-                      return { threadId, snapshot: await client.threadHistory(threadId) };
+                      return {
+                        threadId,
+                        snapshot: await client.threadHistory(
+                          threadId,
+                          ...(omitScrollback ? [{ omitScrollback: true }] : []),
+                        ),
+                      };
                     } catch {
                       return null;
                     }
@@ -1156,6 +1178,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 entry.socket = null;
                 clearRemoteServerEventSocketConnectTimeout(entry);
                 clearRemoteServerEventSocketHealth(entry);
+                remoteServerCursorSyncV2ByDesktopId.delete(server.desktopId);
                 setRemoteTerminalSocketSender(server.desktopId, null);
                 setRemoteServerFailure(
                   server.desktopId,
@@ -1174,6 +1197,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               // Stop automatic attempts, but retain terminal listeners so a
               // later explicit reconnect can install a fresh supported stream.
               remoteServerEventSockets.delete(server.desktopId);
+              remoteServerCursorSyncV2ByDesktopId.delete(server.desktopId);
               setRemoteTerminalSocketSender(server.desktopId, null);
               return;
             }
@@ -1571,7 +1595,14 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // A failed history fetch (server asleep/unreachable) must not reject.
           let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
           try {
-            snapshot = await withClient(desktopId, (client) => client.threadHistory(threadId));
+            // WS3 #2: cursor-sync v2 connections get the authoritative tail
+            // from the chunked watch baseline — never send it twice.
+            const omitScrollback = remoteServerCursorSyncV2ByDesktopId.has(desktopId);
+            snapshot = await withClient(desktopId, (client) =>
+              omitScrollback
+                ? client.threadHistory(threadId, { omitScrollback: true })
+                : client.threadHistory(threadId),
+            );
           } catch (error) {
             // Drop this thread's hydration interest even when superseded: a
             // refresh that cleared the open slice invalidates the request seq,

@@ -949,12 +949,14 @@ export async function handleHttp(
     if (req.method === "GET" && historyThreadId) {
       ctx.security.requireBearer(req, ["session:read"]);
       const targetTimelineEntryCount = url.searchParams.get("targetTimelineEntryCount");
+      const omitScrollback = url.searchParams.get("omitScrollback") === "1";
       await writeNegotiatedJsonResponse(
         req,
         res,
         200,
         await buildThreadSnapshot(ctx, historyThreadId, {
           runtimePage: url.searchParams.get("runtimePage") === "1",
+          ...(omitScrollback ? { omitScrollback } : {}),
           ...(targetTimelineEntryCount !== null
             ? {
                 targetTimelineEntryCount: remoteTimelineEntryCountSchema.parse(

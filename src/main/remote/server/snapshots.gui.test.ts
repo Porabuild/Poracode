@@ -69,4 +69,17 @@ describe("GUI snapshot supervisor reads", () => {
     expect(snapshot.terminalScrollback).toBe("live terminal history");
     expect(snapshot.terminalSize).toEqual({ cols: 80, rows: 24 });
   });
+
+  it("omits the inlined scrollback for cursor-sync clients but keeps the terminal size", async () => {
+    vi.mocked(dbGetThread).mockReturnValue({ ...thread, presentationMode: "terminal" });
+    const { ctx, callSupervisor } = context();
+    const snapshot = await buildThreadSnapshot(ctx, thread.id, { omitScrollback: true });
+    // WS3 #2: the watch baseline re-delivers the tail — never fetch or inline it.
+    expect(callSupervisor.mock.calls.map(([method]) => method)).toEqual([
+      "readTerminalSize",
+      "readThreadBackgroundTasks",
+    ]);
+    expect(snapshot.terminalScrollback).toBeUndefined();
+    expect(snapshot.terminalSize).toEqual({ cols: 80, rows: 24 });
+  });
 });

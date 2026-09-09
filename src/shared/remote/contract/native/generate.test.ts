@@ -53,8 +53,8 @@ describe("remote v3 native binding generator", () => {
       protocolVersion: 10,
       bindingFormatVersion: 2,
       generatorVersion: 3,
-      sourceHash: "sha256:413b7a38c40e7c431296840e07d6c8c89144ebcaef34f3f4a0b95fcbd05dead3",
-      manifestHash: "sha256:d8b8c47b8c931997a6856b6d27e68fd264c3b11d65c12f0d5405a02480ac84c2",
+      sourceHash: "sha256:17044295fb76b6bf526f06be3e87443ea83621d11bf9c7e4ddd211139976ab38",
+      manifestHash: "sha256:f87d0b28101deede72e2060d530142e53bf91324c2e2d786e19d4fe7e597762f",
       counts: {
         routes: 62,
         procedures: 100,

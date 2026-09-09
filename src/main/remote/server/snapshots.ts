@@ -179,6 +179,12 @@ export async function buildThreadSnapshot(
   options: {
     readonly runtimePage?: boolean;
     readonly targetTimelineEntryCount?: number;
+    /**
+     * WS3 #2: cursor-sync (v2) clients render the terminal from the watch
+     * baseline, which re-delivers the retained tail anyway — skip the
+     * inlined `terminalScrollback` here so the tail is never sent twice.
+     */
+    readonly omitScrollback?: boolean;
   } = {},
 ): Promise<RemoteThreadSnapshot> {
   const initialThread = dbGetThread(threadId);
@@ -192,17 +198,21 @@ export async function buildThreadSnapshot(
   let backgroundTasks: BackgroundTask[] = [];
   try {
     const [scrollback, size, tasks] = await Promise.all([
-      readsTerminal
+      readsTerminal && !options.omitScrollback
         ? ctx.options.callSupervisor("readTerminalScrollback", { threadId })
         : undefined,
       readsTerminal ? ctx.options.callSupervisor("readTerminalSize", { threadId }) : undefined,
       ctx.options.callSupervisor("readThreadBackgroundTasks", { threadId }),
     ]);
-    terminalScrollback = scrollback || dbGetThreadTerminalScrollback(threadId);
+    terminalScrollback = options.omitScrollback
+      ? undefined
+      : scrollback || dbGetThreadTerminalScrollback(threadId);
     terminalSize = size ?? undefined;
     backgroundTasks = Array.isArray(tasks) ? tasks : [];
   } catch {
-    terminalScrollback = dbGetThreadTerminalScrollback(threadId) || undefined;
+    terminalScrollback = options.omitScrollback
+      ? undefined
+      : dbGetThreadTerminalScrollback(threadId) || undefined;
     terminalSize = undefined;
     backgroundTasks = [];
   }

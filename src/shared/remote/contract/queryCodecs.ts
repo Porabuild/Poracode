@@ -131,6 +131,7 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
   "thread-history": [
     param("runtimePage", "string", true),
     param("targetTimelineEntryCount", "int", true),
+    param("omitScrollback", "0-or-1", true),
   ],
   "thread-history-items": [
     param("beforePosition", "int", true),
@@ -188,6 +189,9 @@ export const decodedPrWatchReadQuerySchema = z.object({
 export const decodedThreadHistoryQuerySchema = z.object({
   runtimePage: z.literal("1").optional(),
   targetTimelineEntryCount: z.number().int().min(1).max(100).optional(),
+  /** WS3 #2: cursor-sync clients get the authoritative tail from the watch
+   * baseline instead — skip the inlined terminalScrollback for this fetch. */
+  omitScrollback: z.boolean().optional(),
 });
 
 export const decodedThreadHistoryItemsQuerySchema = z.object({
