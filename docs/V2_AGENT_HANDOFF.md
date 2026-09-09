@@ -196,6 +196,12 @@ failure now exists in `src/main/remote` (PWA checkpoint-revert test, 403 scope m
 introduced in `1de973a21`), and the review confirmed the unbounded iOS buffers at three
 sites and the absent cursor-resume implementation.
 
+**2026-09-09 WS3 quick wins implemented and committed.** Delta coalescing at
+the supervisor broadcast boundary, WS deflate window cap removed, and a bounded
+ETag revalidation cache in RemoteDesktopClient (weak-link wire cost down on
+streaming, large frames, and repeated refreshes); 190/190 suites green. WS3
+remaining: cursor-sync v2, scrollback omission, agent-statuses slimming
+(39.4 KB measured cold-start culprit), waterfall parallelization.
 **2026-09-09 WS2 stages 1–2 implemented and committed.** Backend-owned compound
 `revertCheckpoint` (journal migration 45, working-status refusal, per-thread
 revert lock, frozen turn counts, at-most-once provider rollback, key

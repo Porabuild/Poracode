@@ -23,6 +23,14 @@ reverts, event caps, and receipt recovery`). Findings P0-1/2/4/7 closed.
   689 tests / 66 files green; typecheck exit 0. Remaining for full P0-3 closure:
   stage 3 (absolute provider anchors), stage 4 (compound wire route + renderer
   one-call swap + iOS migration).
+- **WS3 quick wins: DONE, committed** (`perf(remote): cut weak-link wire cost…`).
+  Implemented: broadcast-path delta coalescing (RuntimeEventBuffer.flush, 5
+  tests), WS deflate window cap removed (30–50% on large frames), bounded ETag
+  revalidation cache in RemoteDesktopClient (3 tests — also neutralizes most of
+  the launch poll loop's cost, deferring A1's event-wait redesign). 190/190
+  combined suites, typecheck clean. Still open in WS3: cursor-sync v2 (#1),
+  snapshot scrollback omission (#2), agent-statuses slimming (the measured
+  39.4 KB cold-start culprit), waterfall parallelization (#6/#8).
 - **Manual QA additions:** Electron isolated smoke PASS (0 console errors);
   W-Rel-2 executed — server-side truncate converged live on a second client;
   45 s partition produced no crash and eventual recovery. 32 kbps cold-start
