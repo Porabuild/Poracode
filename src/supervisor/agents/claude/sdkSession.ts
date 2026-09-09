@@ -63,6 +63,7 @@ import {
   parseClaudeQuestions,
   readParentToolUseId,
   startClaudeTurn,
+  steerClaudeTurn,
   type ClaudeMapperState,
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
@@ -316,6 +317,40 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     await this.syncUltracodeFlag(query);
     await this.syncFastMode(query);
 
+    const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
+    this.promptQueue.push(message);
+  }
+
+  /**
+   * Enqueue the user's message onto the turn already in flight instead of
+   * interrupting it. The Agent SDK runs in streaming-input mode, so pushing a
+   * second `SDKUserMessage` onto the prompt queue delivers it to the running
+   * session: Claude answers it as soon as it yields, and the work in progress
+   * — foreground Bash, subagents, tool calls — survives untouched.
+   *
+   * Falls back to `startTurn` when nothing is in flight, so turn accounting
+   * stays correct, and for slash commands, whose control-flow semantics
+   * (`/goal`, `/compact`, `/clear`) need a turn of their own.
+   */
+  async steerTurn(
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): Promise<void> {
+    if (this.disposed) return;
+    if (!this.currentTurnInFlight || prompt.trimStart().startsWith("/")) {
+      return this.startTurn(prompt, config, segments, options);
+    }
+    this.currentConfig = config;
+    // No `turn.started`: the in-flight turn keeps its lifecycle. Only the user
+    // row is painted, with a stable id so a later fallback to `startTurn`
+    // re-emits the same (deduped) item.
+    this.emitRuntimeEvents(
+      steerClaudeTurn(this.mapperState, prompt, segments, options?.userMessageItemId),
+    );
+    const query = await this.requireQuery();
+    await this.syncModel(query, config);
     const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
     this.promptQueue.push(message);
   }

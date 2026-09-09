@@ -737,8 +737,11 @@ describe("ClaudeSdkSession", () => {
     await session.openThread(config);
     await session.startTurn("first", config);
     await flushAsyncWork();
-    expect("steerTurn" in session).toBe(false);
 
+    // `steerTurn` now exists (the SDK's streaming input queues a mid-turn
+    // message instead of killing the turn), so the runtime prefers it. This
+    // interrupt path stays for the cases that still need it — Stop, rollback —
+    // and must keep preserving foreground work.
     await session.prepareSteerInterrupt!();
 
     expect(fake.backgroundTasks).toHaveBeenCalledTimes(1);
@@ -1933,5 +1936,88 @@ describe("ClaudeSdkSession", () => {
     expect(updates.at(-1)).toMatchObject({ status: "working" });
 
     await session.dispose();
+  });
+
+  it("steers an in-flight turn instead of starting a new one", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-steer",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    await session.openThread(config);
+    await session.startTurn("first", config);
+    runtimeEvents.length = 0;
+
+    await session.steerTurn("second", config);
+
+    // The in-flight turn keeps its lifecycle: no new turn is opened.
+    expect(runtimeEvents.some((event) => event.type === "turn.started")).toBe(false);
+    // ...and the steer message is painted exactly once.
+    expect(
+      runtimeEvents.filter(
+        (event) => event.type === "item.started" && event.itemType === "user_message",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("falls back to startTurn when no turn is in flight", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-steer-idle",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    await session.openThread(config);
+    await session.steerTurn("nothing running yet", config);
+
+    expect(runtimeEvents.some((event) => event.type === "turn.started")).toBe(true);
+  });
+
+  it("routes slash commands through startTurn even mid-turn", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    const runtimeEvents: RuntimeEvent[] = [];
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-steer-slash",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: (event) => runtimeEvents.push(event),
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    await session.openThread(config);
+    await session.startTurn("first", config);
+    runtimeEvents.length = 0;
+
+    await session.steerTurn("/compact", config);
+
+    // Slash commands carry control-flow semantics and need a turn of their own.
+    expect(runtimeEvents.some((event) => event.type === "turn.started")).toBe(true);
   });
 });
