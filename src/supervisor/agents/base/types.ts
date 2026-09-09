@@ -81,6 +81,8 @@ export interface StructuredSessionListener {
   onError(errorMessage: string): void;
   onUpdate(update: StructuredSessionUpdate): void;
   onRuntimeEvent?(event: RuntimeEvent): void;
+  /** Ephemeral live-conversation status, separate from persisted runtime events. */
+  onVoiceEvent?(event: import("@/shared/contracts/liveVoice").LiveVoiceEvent): void;
 }
 
 export interface StartTurnOptions {
@@ -145,6 +147,11 @@ export interface StructuredSessionHandle {
   getBackgroundTasks?(): readonly BackgroundTask[];
   interruptTurn?(): Promise<void>;
   controlGoal?(control: ThreadGoalControl): Promise<void>;
+  /** Negotiate live audio on this structured thread without launching another agent. */
+  connectVoice?(
+    input: Omit<import("@/shared/contracts/liveVoice").ConnectThreadVoicePayload, "threadId">,
+  ): Promise<import("@/shared/contracts/liveVoice").ConnectThreadVoiceResult>;
+  disconnectVoice?(connectionId: string): Promise<void>;
   /**
    * Close the provider's current canonical turn locally before a forced
    * process disposal. Implementations should complete any open items and mark

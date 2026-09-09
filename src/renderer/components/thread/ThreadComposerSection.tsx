@@ -23,6 +23,8 @@ import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMe
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
+import { LiveVoiceButton, LiveVoicePanel } from "../composer/LiveVoiceControls";
+import { liveVoice, useLiveVoice } from "@/renderer/speech/liveVoice";
 import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
@@ -198,6 +200,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSurface;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
+  const liveVoiceActive = useLiveVoice((state) => state.phase !== "idle");
+  useEffect(() => () => liveVoice.stopThread(thread.id), [thread.id]);
+  useEffect(() => {
+    if (thread.status === "inactive") liveVoice.stopThread(thread.id);
+  }, [thread.id, thread.status]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInterrupting, setIsInterrupting] = useState(false);
   const attachments = useAttachments({
@@ -758,6 +765,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     <>
       {thread.status !== "launching" || !usesTerminalPresentation ? (
         <div className="relative">
+          <LiveVoicePanel threadId={thread.id} />
           {/* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
               measures the real buttons without adding a line box above the composer. */}
           <ComposerBubbleRow threadId={thread.id}>
@@ -976,6 +984,26 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   stopPending={isInterrupting}
                   submitDisabled={!(hasContent || attachments.attachments.length > 0) || !canSubmit}
                   submitLabel={t`Send message`}
+                  {...(!hasContent &&
+                  attachments.attachments.length === 0 &&
+                  !usesRemoteTransport &&
+                  !usesTerminalPresentation &&
+                  showServerComposer &&
+                  effectiveAgentStatus?.capabilities.liveVoice
+                    ? {
+                        submitControl: (
+                          <LiveVoiceButton
+                            scopeId={thread.id}
+                            isDisabled={!canSubmit || thread.status !== "idle"}
+                            onStart={() => {
+                              const capability = effectiveAgentStatus.capabilities.liveVoice;
+                              if (capability)
+                                void liveVoice.start({ threadId: thread.id, capability });
+                            }}
+                          />
+                        ),
+                      }
+                    : {})}
                   onStop={canInterruptStructuredTurn ? handleInterrupt : undefined}
                   {...(() => {
                     const renderExtras = () => (
@@ -1018,7 +1046,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     const renderVoiceInput = () => (
                       <ComposerVoiceInput
                         key={thread.id}
-                        show={showVoiceInputButton}
+                        show={showVoiceInputButton && !liveVoiceActive}
                         isDisabled={
                           authRequired ||
                           isSubmitting ||

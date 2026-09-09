@@ -11,6 +11,14 @@ import { i18n } from "./i18n";
  * arguments resolved with the values passed to `msg()`.
  */
 const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "voice.unavailable": msg({ message: "Live voice is unavailable for this thread." }),
+  "voice.alreadyConnected": msg({ message: "A voice conversation is already active." }),
+  "voice.subscriptionRequired": msg({
+    message: "Live voice requires a subscription sign-in for this provider.",
+  }),
+  "voice.connectionTimeout": msg({ message: "The voice connection timed out. Try again." }),
+  "voice.connectionFailed": msg({ message: "The voice connection failed. Try again." }),
+  "voice.cancelled": msg({ message: "The voice connection was cancelled." }),
   "supervisor.sendTerminalInput": msg({ message: "Send terminal input" }),
   "git.commandFailed": msg({ message: "Git {command} failed: {detail}" }),
   "github.accountUnavailable": msg({
