@@ -790,22 +790,25 @@ export const ChatScrollControls = forwardRef<
   }
 
   const button = (
-    <Button
-      isIconOnly
-      variant="tertiary"
-      size="sm"
-      aria-label={t`Scroll to bottom`}
-      onPress={handleScrollButtonPress}
-      /* Same 28px glass pill as the composer bubbles. In the fallback it is
+    <span className="contents" aria-hidden={!showScrollDown}>
+      <Button
+        isIconOnly
+        variant="tertiary"
+        size="sm"
+        aria-label={t`Scroll to bottom`}
+        isDisabled={!showScrollDown}
+        onPress={handleScrollButtonPress}
+        /* Same 28px glass pill as the composer bubbles. In the fallback it is
          centered via a negative margin, not `-translate-x-1/2`: HeroUI's pressed
          state animates `transform`, which would fight a translate and snap the
          button sideways on click. */
-      className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} size-7 min-w-0 rounded-full text-muted transition-[opacity,color] duration-200 ease-out hover:text-foreground ${
-        bubbleSlot ? "" : "absolute bottom-4 left-1/2 z-10 -ml-3.5"
-      } ${showScrollDown ? "opacity-100" : "pointer-events-none opacity-0"}`}
-    >
-      <ArrowDown className="size-3.5" strokeWidth={2.5} />
-    </Button>
+        className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} size-7 min-w-0 rounded-full text-muted transition-[opacity,color] duration-200 ease-out hover:text-foreground ${
+          bubbleSlot ? "" : "absolute bottom-4 left-1/2 z-10 -ml-3.5"
+        } ${showScrollDown ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      >
+        <ArrowDown className="size-3.5" strokeWidth={2.5} />
+      </Button>
+    </span>
   );
 
   return bubbleSlot ? createPortal(button, bubbleSlot) : button;
