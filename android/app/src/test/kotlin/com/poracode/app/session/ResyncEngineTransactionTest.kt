@@ -44,6 +44,7 @@ class ResyncEngineTransactionTest {
             openThreadId = openThreadId,
             openThreadGeneration = { 0 },
             hasAuthoritativeBaseline = { true },
+            nextSnapshotAttemptSeq = { 0L },
             fetchShell = fetchShell,
             fetchHistory = fetchHistory,
             onCommit = onCommit,

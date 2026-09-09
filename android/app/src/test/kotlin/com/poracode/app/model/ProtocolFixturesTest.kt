@@ -1,5 +1,6 @@
 package com.poracode.app.model
 
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.transport.RemoteApiClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -14,7 +15,7 @@ class ProtocolFixturesTest {
     fun decodeEnvironmentFixture() {
         val json = readFixture("environment.json")
         val env = RemoteJson.decodeFromString(RemoteEnvironmentDescriptor.serializer(), json)
-        assertEquals(8, env.protocolVersion)
+        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, env.protocolVersion)
         assertEquals("desktop-fixture-001", env.desktopId)
         assertTrue(env.auth.scopes.contains("session:read"))
     }
@@ -23,7 +24,7 @@ class ProtocolFixturesTest {
     fun decodeEnvironmentForwardCompatible() {
         val json = readFixture("environment-forward-compatible.json")
         val env = RemoteJson.decodeFromString(RemoteEnvironmentDescriptor.serializer(), json)
-        assertEquals(8, env.protocolVersion)
+        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, env.protocolVersion)
     }
 
     @Test

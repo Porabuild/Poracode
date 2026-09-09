@@ -3,6 +3,7 @@ package com.poracode.app.session.settingsintegrations
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.PosixProjectLocation
 import com.poracode.app.model.RemoteClientException
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.settingsintegrations.McpOauthResult
 import com.poracode.app.protocol.settingsintegrations.McpServer
 import com.poracode.app.protocol.settingsintegrations.McpTransport
@@ -149,7 +150,8 @@ class SettingsIntegrationsControllerTest {
     private fun kotlinx.coroutines.test.TestScope.fixture(): Fixture {
         val session = MutableStateFlow<SettingsIntegrationsLease?>(
             SettingsIntegrationsLease(
-                ClientConnectionId("00000000-0000-4000-8000-000000000001"), 1, 9, 8,
+                ClientConnectionId("00000000-0000-4000-8000-000000000001"), 1, 9,
+                ProtocolConstants.REMOTE_PROTOCOL_VERSION,
                 setOf("session:read", "session:operate"), true, true, owner,
             ),
         )

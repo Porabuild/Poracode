@@ -5,6 +5,7 @@ import com.poracode.app.model.HostRecord
 import com.poracode.app.model.settings.AgentStatusesSnapshot
 import com.poracode.app.model.settings.HostSettingsSnapshot
 import com.poracode.app.model.settings.ProviderUsageSnapshot
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.session.AppSession
 import com.poracode.app.session.HostUiCatalog
 import com.poracode.app.session.settings.SettingsHostLease
@@ -25,7 +26,7 @@ class SettingsUiLogicTest {
         val lease = SettingsHostLease(
             connectionId = HOST_A,
             generation = 7,
-            protocolVersion = 8,
+            protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
             scopes = setOf("session:read", "session:operate"),
             online = true,
             ready = true,
@@ -146,7 +147,7 @@ class SettingsUiLogicTest {
         appVersion = version,
         scopes = listOf("session:read", "session:operate"),
         pairedAtEpochMs = 1,
-        protocolVersion = 8,
+        protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
     )
 
     companion object {

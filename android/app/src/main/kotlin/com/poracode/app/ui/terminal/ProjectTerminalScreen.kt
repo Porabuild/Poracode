@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.poracode.app.R
 import com.poracode.app.model.ProjectLocation
+import com.poracode.app.model.terminal.TerminalConnectionPhase
 import com.poracode.app.session.richchat.RichChatSessionRuntime
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
@@ -46,7 +47,7 @@ fun ProjectTerminalScreen(
         activationKey,
         initialCommand,
         terminalState.lease,
-        terminalState.watching,
+        terminalState.connection.phase,
     ) {
         val command = initialCommand ?: return@LaunchedEffect
         if (shouldSendProjectInitialCommand(
@@ -54,7 +55,7 @@ fun ProjectTerminalScreen(
                 sent = initialCommandSent,
                 hasLease = terminalState.lease != null,
                 freshLease = terminalState.lease != initialTerminalLease,
-                watching = terminalState.watching,
+                phase = terminalState.connection.phase,
             )
         ) {
             // At-most-once: a disconnected write can have an ambiguous outcome, so never replay it.
@@ -98,5 +99,6 @@ internal fun shouldSendProjectInitialCommand(
     sent: Boolean,
     hasLease: Boolean,
     freshLease: Boolean,
-    watching: Boolean,
-): Boolean = command.isNotBlank() && !sent && hasLease && freshLease && watching
+    phase: TerminalConnectionPhase,
+): Boolean = command.isNotBlank() && !sent && hasLease && freshLease &&
+    phase == TerminalConnectionPhase.Live

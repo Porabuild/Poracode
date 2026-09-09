@@ -31,6 +31,9 @@ internal fun HomeQuickComposeContextChips(
     ) {
         AssistChip(
             onClick = onPickWorktree,
+            // Measured last so the fixed-label chips keep their intrinsic
+            // width; a long branch name ellipsizes instead of starving them.
+            modifier = Modifier.weight(1f, fill = false),
             label = {
                 Text(
                     worktreeBranch
@@ -47,7 +50,11 @@ internal fun HomeQuickComposeContextChips(
             AssistChip(
                 onClick = onOpenControls,
                 label = {
-                    Text(stringResource(R.string.home_quick_compose_controls))
+                    Text(
+                        stringResource(R.string.home_quick_compose_controls),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 },
                 leadingIcon = {
                     Icon(Icons.Outlined.Tune, contentDescription = null)
@@ -58,7 +65,11 @@ internal fun HomeQuickComposeContextChips(
             AssistChip(
                 onClick = onOpenCommands,
                 label = {
-                    Text(stringResource(R.string.home_quick_compose_commands))
+                    Text(
+                        stringResource(R.string.home_quick_compose_commands),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 },
             )
         }

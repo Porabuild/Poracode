@@ -12,11 +12,13 @@ import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.RemoteThreadSnapshot
 import com.poracode.app.model.RemoteWebSocketServerMessage
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.storage.ConnectionMetadataStore
 import com.poracode.app.storage.InMemorySessionCredentialRepository
 import com.poracode.app.storage.SecureTokenStore
 import com.poracode.app.storage.SessionCredentials
 import com.poracode.app.storage.TokenLoadOutcome
+import com.poracode.app.transport.RemoteAgentStatuses
 import com.poracode.app.transport.RemoteApiGateway
 import com.poracode.app.transport.RemoteEventSocket
 import com.poracode.app.transport.RemoteWebSocketClient
@@ -201,6 +203,9 @@ class FakeApiGateway(
         return tokenResult.copy(scopes = scopes.ifEmpty { tokenResult.scopes })
     }
 
+    override suspend fun agentStatuses(): RemoteAgentStatuses =
+        RemoteAgentStatuses(emptyList(), emptyList())
+
     override suspend fun snapshot(): RemoteShellSnapshot {
         val n = snapshotCalls.incrementAndGet()
         val hold = snapshotHold
@@ -325,7 +330,7 @@ class FakeApiGateway(
             ),
         ): RemoteEnvironmentDescriptor =
             RemoteEnvironmentDescriptor(
-                protocolVersion = 8,
+                protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
                 hostMode = "desktop",
                 desktopId = desktopId,
                 label = label,

@@ -3,6 +3,7 @@ package com.poracode.app.ui.terminal
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -64,6 +65,10 @@ private fun arrowSuffix(key: TerminalVirtualKey): String? = when (key) {
  * On-screen Esc/Enter/Backspace/arrow row plus a stateful Ctrl modifier chip, mirroring the
  * iOS `TerminalKeyAccessory` so touch-only devices (no hardware keyboard) can drive interactive
  * terminal apps that rely on cursor navigation.
+ *
+ * [trailingContent] lets a screen append further terminal actions to the same single
+ * horizontally scrollable row; keeping one row bounds the vertical space the controls claim
+ * below the weighted output area on short heights (landscape, open keyboard).
  */
 @Composable
 fun TerminalKeyAccessory(
@@ -72,6 +77,7 @@ fun TerminalKeyAccessory(
     onCtrlToggle: () -> Unit,
     onKey: (TerminalVirtualKey) -> Unit,
     modifier: Modifier = Modifier,
+    trailingContent: (@Composable RowScope.() -> Unit)? = null,
 ) {
     Row(
         modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -116,5 +122,6 @@ fun TerminalKeyAccessory(
                 contentDescription = stringResource(R.string.terminal_key_arrow_right),
             )
         }
+        trailingContent?.invoke(this)
     }
 }

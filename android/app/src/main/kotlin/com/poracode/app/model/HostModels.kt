@@ -37,6 +37,8 @@ data class HostRecord(
     val pairedAtEpochMs: Long,
     val protocolVersion: Int,
     val lastSelectedAtEpochMs: Long? = null,
+    /** Mirrors [ConnectionProfile.browserForwardVersions]; see that field's contract. */
+    val browserForwardVersions: List<Int> = emptyList(),
 ) {
     constructor(
         connectionId: ClientConnectionId,
@@ -56,6 +58,7 @@ data class HostRecord(
         pairedAtEpochMs = profile.pairedAtEpochMs,
         protocolVersion = profile.protocolVersion,
         lastSelectedAtEpochMs = lastSelectedAtEpochMs,
+        browserForwardVersions = profile.browserForwardVersions,
     )
 
     fun asProfile(): ConnectionProfile = ConnectionProfile(
@@ -70,6 +73,7 @@ data class HostRecord(
         tokenExpiresAt = tokenExpiresAt,
         pairedAtEpochMs = pairedAtEpochMs,
         protocolVersion = protocolVersion,
+        browserForwardVersions = browserForwardVersions,
     )
 }
 

@@ -14,6 +14,7 @@ import com.poracode.app.protocol.settingsintegrations.SkillImportItem
 import com.poracode.app.protocol.settingsintegrations.SkillOwner
 import com.poracode.app.protocol.settingsintegrations.SkillScanRequest
 import com.poracode.app.protocol.settingsintegrations.SkillScanResult
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.transport.RemoteMutationClassification
 import com.poracode.app.transport.settingsintegrations.SettingsIntegrationsRemoteGateway
 import com.poracode.app.transport.settingsintegrations.SettingsIntegrationsRemoteGatewayProvider
@@ -139,7 +140,11 @@ class GeneratedSettingsIntegrationsSessionGateway(
     ) {
         val current = session.value
         if (current == null || current.key != lease.key) fail(409, "stale_lease")
-        if (current.protocolVersion != 8 || lease.protocolVersion != 8) fail(409, "protocol_version_mismatch")
+        if (current.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION ||
+            lease.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION
+        ) {
+            fail(409, "protocol_version_mismatch")
+        }
         if (!current.ready) fail(409, "session_not_ready")
         if (!current.online) fail(0, "offline")
         if (capability.scope !in current.scopes) fail(403, "missing_scope")

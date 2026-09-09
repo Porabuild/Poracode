@@ -22,6 +22,7 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
     private val mutableState = MutableStateFlow<RichChatHostLease?>(null)
     val state: StateFlow<RichChatHostLease?> = mutableState.asStateFlow()
     private var generation = 0L
+    private var bindingGeneration = 0L
     private var binding: HostBinding? = null
 
     init {
@@ -33,7 +34,10 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
         val connectionId = appState.hostCatalog.selectedConnectionId
         val profile = appState.profile
         if (connectionId == null || profile == null) {
-            if (binding != null || mutableState.value != null) generation += 1L
+            if (binding != null || mutableState.value != null) {
+                generation += 1L
+                bindingGeneration += 1L
+            }
             binding = null
             mutableState.value = null
             return
@@ -51,6 +55,7 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
         val online = ready &&
             appState.socketState == RemoteWebSocketClient.ConnectionState.Online
         val previous = mutableState.value
+        if (binding != nextBinding) bindingGeneration += 1L
         if (
             binding != nextBinding ||
             (previous != null && (previous.online && !online || previous.ready && !ready))
@@ -65,6 +70,7 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
             scopes = nextBinding.scopes,
             online = online,
             ready = ready,
+            bindingGeneration = bindingGeneration,
         )
     }
 }

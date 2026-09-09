@@ -2,6 +2,7 @@ package com.poracode.app.session.richchat
 
 import com.poracode.app.chat.RichEventDecoder
 import com.poracode.app.chat.RichPendingSteerDecoder
+import com.poracode.app.model.terminal.TerminalProcessState
 import com.poracode.app.protocol.RuntimeEventReducer
 import com.poracode.app.transport.richchat.TerminalStartInput
 import com.poracode.app.transport.terminal.TerminalTransportObserver
@@ -265,8 +266,27 @@ class RichChatSessionRuntime(
         chat.reconcileSession()
         val terminalLease = terminal.state.value.lease ?: return
         val current = session.value
-        if (current == null || current.key != terminalLease.host.key || !current.ready) {
+        if (current == null ||
+            current.connectionId != terminalLease.host.connectionId ||
+            current.bindingGeneration != terminalLease.host.bindingGeneration
+        ) {
+            terminalJob?.cancel()
+            terminalJob = null
             terminal.clearTerminal()
+            return
+        }
+        if (!current.online || !current.ready) {
+            terminalJob?.cancel()
+            terminalJob = null
+            terminal.suspendForReconnect()
+            return
+        }
+        if (projectTerminalSurfacePresented && lifecycle.isForeground &&
+            terminalJob?.isActive != true &&
+            terminal.state.value.processState != TerminalProcessState.Exited &&
+            (current.key != terminalLease.host.key || terminal.state.value.needsAuthoritativeRefresh)
+        ) {
+            reconnectTerminal()
         }
     }
 

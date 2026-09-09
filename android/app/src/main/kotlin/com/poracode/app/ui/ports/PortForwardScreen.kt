@@ -262,6 +262,7 @@ private fun failureLabel(failure: PortForwardFailure): String = stringResource(
         PortForwardFailure.NotFound -> R.string.ports_failure_not_found
         PortForwardFailure.InvalidInput -> R.string.ports_failure_input
         PortForwardFailure.InvalidResponse -> R.string.ports_failure_response
+        PortForwardFailure.BrowserUnavailable -> R.string.ports_failure_browser_unavailable
         PortForwardFailure.AmbiguousDelivery -> R.string.ports_failure_ambiguous
         PortForwardFailure.Unavailable -> R.string.ports_failure_unavailable
     },

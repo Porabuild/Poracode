@@ -351,9 +351,57 @@ class SessionCredentialRepositoryTest {
         assertEquals("{not-json", file.readText())
     }
 
+    /**
+     * Stored binding from the previous released generation (protocol 8) must reject as
+     * re-pair-needed while preserving the raw bytes — never silently rebound (8 is a
+     * deliberate literal: the previous generation, not the current constant).
+     */
     @Test
-    fun protocolMismatchRejectedPreservesCredentials() = runBlocking {
+    fun storedPreviousGenerationProtocolEightRejectedPreservesCredentials() = runBlocking {
         val dir = tmp.newFolder()
+        val v2 = FakeCipher("poracode_session_credentials_v2")
+        val plain = "previous-generation-token"
+        val enc = v2.encrypt(plain)
+        val doc = SessionCredentialDocumentV2(
+            version = 2,
+            profile = profile(protocolVersion = 8),
+            encryptedAccessToken = enc,
+            protocolVersion = 8,
+        )
+        val file = File(dir, SessionCredentialRepository.FILE_NAME)
+        val raw = RemoteJson.encodeToString(doc)
+        file.writeText(raw)
+        val r = repo(dir, v2 = v2)
+        val outcome = r.loadOutcome()
+        assertTrue(outcome is SessionCredentialLoadOutcome.Rejected.ProtocolMismatch)
+        outcome as SessionCredentialLoadOutcome.Rejected.ProtocolMismatch
+        assertEquals(plain, outcome.credentials.accessToken)
+        assertEquals(8, outcome.credentials.profile.protocolVersion)
+        // Bytes preserved: re-pair replaces them; nothing was rewritten behind the user's back.
+        assertEquals(raw, file.readText())
+        assertTrue(r.hasV2DocumentForTests())
+    }
+
+    /** Legacy unbound bindings (protocol 0) still rebind forward to the current generation. */
+    @Test
+    fun legacyUnboundProtocolZeroRebindsToCurrentGeneration() = runBlocking {
+        val dir = tmp.newFolder()
+        val legacyProfile = LegacyProfileFake().also { it.profile = profile(protocolVersion = 0) }
+        val legacyToken = LegacyTokenFake(File(dir, KeystoreSecureTokenStore.TOKEN_FILE_NAME))
+        legacyToken.saveAccessToken("legacy-access")
+        val r = repo(dir, legacyProfile = legacyProfile, legacyToken = legacyToken)
+        val outcome = r.loadOutcome()
+        assertTrue(outcome is SessionCredentialLoadOutcome.Loaded)
+        outcome as SessionCredentialLoadOutcome.Loaded
+        assertEquals("legacy-access", outcome.credentials.accessToken)
+        assertEquals(
+            ProtocolConstants.REMOTE_PROTOCOL_VERSION,
+            outcome.credentials.profile.protocolVersion,
+        )
+    }
+
+    @Test
+    fun protocolMismatchRejectedPreservesCredentials() = runBlocking {        val dir = tmp.newFolder()
         val v2 = FakeCipher("poracode_session_credentials_v2")
         val plain = "tok"
         val enc = v2.encrypt(plain)

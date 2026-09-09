@@ -12,6 +12,7 @@ import com.poracode.app.model.remoteintegrations.ScheduleHistoryStatus
 import com.poracode.app.model.remoteintegrations.ScheduleRun
 import com.poracode.app.model.remoteintegrations.ScheduleRecurrence
 import com.poracode.app.model.remoteintegrations.ScheduledTask
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.session.remoteintegrations.IntegrationGatewayException
 import com.poracode.app.session.remoteintegrations.IntegrationHostLease
 import com.poracode.app.session.remoteintegrations.IntegrationResult
@@ -84,7 +85,8 @@ class RemoteIntegrationsControllerTest {
     }
 
     private fun lease(generation: Long) = IntegrationHostLease(
-        ClientConnectionId("11111111-1111-4111-8111-111111111111"), generation, 8,
+        ClientConnectionId("11111111-1111-4111-8111-111111111111"), generation,
+        ProtocolConstants.REMOTE_PROTOCOL_VERSION,
         setOf("session:read", "session:operate", "projects:manage"), true, true,
     )
 

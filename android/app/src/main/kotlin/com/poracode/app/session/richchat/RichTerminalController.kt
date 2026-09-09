@@ -107,25 +107,34 @@ class RichTerminalController(
     suspend fun unwatchDetached(expected: RichTerminalLease): RichChatOperationResult<Unit> =
         detachedCleanup.unwatch(expected)
 
-    fun applyFrame(source: RichTerminalLease, frame: TerminalCursorFrame): Boolean {
-        val current = mutableState.value
-        val lease = current.lease ?: return false
-        if (!lifecycle.isForeground || source != lease || !session.isCurrent(source.host)) return false
-        if (frame.terminalId != lease.terminalId) return false
-        val cursor = current.cursor ?: return false
-        val result = TerminalCursorReconciler.reconcile(cursor, frame)
-        if (result.action == TerminalCursorAction.IGNORE) return false
-        mutableState.update {
-            if (it.lease != source || it.cursor?.watchId != cursor.watchId) {
-                it
-            } else {
-                it.copy(
-                    cursor = result.state,
-                    needsAuthoritativeRefresh = result.action == TerminalCursorAction.RESYNC,
-                )
-            }
+    /** Recheck authority inside the atomic update, including after a CAS retry. */
+    private fun updateWatch(
+        lease: RichTerminalLease,
+        watchId: String,
+        transform: (RichTerminalState) -> RichTerminalState?,
+    ): Boolean {
+        var applied = false
+        mutableState.update { current ->
+            val next = if (lifecycle.isForeground && session.isCurrent(lease.host) &&
+                current.connection.phase != TerminalConnectionPhase.Suspended &&
+                current.lease == lease && current.cursor?.watchId == watchId
+            ) transform(current) else null
+            applied = next != null
+            next ?: current
         }
-        return true
+        return applied
+    }
+
+    fun applyFrame(source: RichTerminalLease, frame: TerminalCursorFrame): Boolean {
+        if (frame.terminalId != source.terminalId) return false
+        return updateWatch(source, frame.watchId) { current ->
+            val cursor = current.cursor ?: return@updateWatch null
+            val result = TerminalCursorReconciler.reconcile(cursor, frame)
+            if (result.action == TerminalCursorAction.IGNORE) null else current.copy(
+                cursor = result.state,
+                needsAuthoritativeRefresh = result.action == TerminalCursorAction.RESYNC,
+            )
+        }
     }
 
     fun applyTransportFrame(sourceHost: RichChatHostKey, frame: TerminalServerFrame): Boolean {
@@ -135,8 +144,8 @@ class RichTerminalController(
             is TerminalServerFrame.Cursor -> {
                 val applied = applyFrame(lease, frame.frame)
                 if (applied && frame.frame.kind == com.poracode.app.chat.TerminalCursorFrameKind.BASELINE) {
-                    mutableState.update { current ->
-                        if (current.lease != lease) current else current.copy(
+                    updateWatch(lease, frame.frame.watchId) { current ->
+                        current.copy(
                             processState = frame.processState,
                             dimensions = frame.dimensions,
                             watchError = null,
@@ -146,17 +155,8 @@ class RichTerminalController(
                 applied
             }
             is TerminalServerFrame.WatchError -> {
-                val cursor = mutableState.value.cursor ?: return false
-                if (frame.error.terminalId != lease.terminalId ||
-                    frame.error.watchId != cursor.watchId
-                ) {
-                    return false
-                }
-                mutableState.update { current ->
-                    if (current.lease != lease || current.cursor?.watchId != cursor.watchId) current
-                    else current.copy(watchError = frame.error)
-                }
-                true
+                if (frame.error.terminalId != lease.terminalId) return false
+                updateWatch(lease, frame.error.watchId) { it.copy(watchError = frame.error) }
             }
         }
     }
@@ -167,15 +167,10 @@ class RichTerminalController(
         watchId: String,
         status: TerminalConnectionStatus,
     ): Boolean {
-        val current = mutableState.value
-        val lease = current.lease ?: return false
-        if (lease.host.key != sourceHost || lease.terminalId != terminalId ||
-            current.cursor?.watchId != watchId
-        ) {
-            return false
-        }
-        mutableState.update { latest ->
-            if (latest.lease != lease || latest.cursor?.watchId != watchId) latest else latest.copy(
+        val lease = mutableState.value.lease ?: return false
+        if (lease.host.key != sourceHost || lease.terminalId != terminalId) return false
+        return updateWatch(lease, watchId) { current ->
+            current.copy(
                 cursor = TerminalCursorState.watching(watchId),
                 connection = status,
                 needsAuthoritativeRefresh = false,
@@ -184,7 +179,6 @@ class RichTerminalController(
                 watchError = null,
             )
         }
-        return true
     }
 
     fun updateConnection(
@@ -193,22 +187,16 @@ class RichTerminalController(
         watchId: String,
         status: TerminalConnectionStatus,
     ): Boolean {
-        val current = mutableState.value
-        val lease = current.lease ?: return false
-        if (lease.host.key != sourceHost || lease.terminalId != terminalId ||
-            current.cursor?.watchId != watchId
-        ) {
-            return false
-        }
-        mutableState.update { latest ->
-            if (latest.lease != lease || latest.cursor?.watchId != watchId) latest
-            else latest.copy(
+        val lease = mutableState.value.lease ?: return false
+        if (lease.host.key != sourceHost || lease.terminalId != terminalId) return false
+        return updateWatch(lease, watchId) { current ->
+            current.copy(
                 connection = status,
                 watching = status.phase != TerminalConnectionPhase.Idle &&
-                    status.phase != TerminalConnectionPhase.Failed,
+                    status.phase != TerminalConnectionPhase.Failed &&
+                    status.phase != TerminalConnectionPhase.Suspended,
             )
         }
-        return true
     }
 
     suspend fun write(data: String): RichChatOperationResult<Unit> = writeMutex.withLock {
@@ -244,11 +232,21 @@ class RichTerminalController(
 
     fun enterBackground() {
         lifecycle.enterBackground()
+        suspendForReconnect()
+    }
+
+    fun suspendForReconnect() {
+        val current = mutableState.value
+        if (current.connection.phase == TerminalConnectionPhase.Suspended &&
+            !current.watching && current.activeOperations.isEmpty() &&
+            (current.lease == null || current.needsAuthoritativeRefresh)
+        ) return
+        // A transport's Suspended notification can arrive first. It does not
+        // replace invalidating controller operations and arming a fresh watch.
         bumpGenerationAndEpoch()
         mutableState.update {
             it.copy(
                 lease = it.lease?.copy(generation = generation),
-                cursor = null,
                 watching = false,
                 activeOperations = emptySet(),
                 failure = null,

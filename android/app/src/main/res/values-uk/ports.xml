@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">Цього перенаправлення порту більше не існує.</string>
     <string name="ports_failure_input">Введіть дійсний порт від 1 до 65535.</string>
     <string name="ports_failure_response">Хост повернув недійсну відповідь перенаправлення портів.</string>
+    <string name="ports_failure_browser_unavailable">Переадресацию в браузер не налаштовано на цьому комп’ютері.</string>
     <string name="ports_failure_ambiguous">Запит міг бути виконаний. Список оновлено.</string>
     <string name="ports_failure_unavailable">Перенаправлення портів зараз недоступне.</string>
 </resources>

@@ -25,6 +25,8 @@ data class RichChatHostLease(
     val scopes: Set<String>,
     val online: Boolean,
     val ready: Boolean,
+    /** Stable across transport reconnects; changes with endpoint, pairing or access binding. */
+    val bindingGeneration: Long = generation,
 ) {
     val key: RichChatHostKey get() = RichChatHostKey(connectionId, generation)
 }

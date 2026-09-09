@@ -11,7 +11,7 @@ class PortForwardResourceTest {
     fun allTwelveLocalesHaveExactNonEmptyKeyAndPlaceholderParity() {
         val root = File("src/main/res")
         val source = values(root.resolve("values/ports.xml"))
-        assertEquals(26, source.size)
+        assertEquals(27, source.size)
         LOCALES.forEach { locale ->
             val file = root.resolve("values-$locale/ports.xml")
             assertTrue("Missing $locale port resources", file.isFile)

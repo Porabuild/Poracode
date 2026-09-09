@@ -21,6 +21,36 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProjectLeaseAndRefreshTest {
     @Test
+    fun browserAuthorityComesFromLiveHandshakeRatherThanPersistedProfile() {
+        val saved = profile(connectionA).copy(browserForwardVersions = listOf(1))
+        val state = appState(connectionA, saved, AppSession.Phase.Ready, online = true)
+        val source = SelectedProjectHostLeaseSource(state)
+        assertFalse(source.state.value!!.browserEntrySupported)
+        source.update(state.copy(liveBrowserForwardVersions = setOf(1)))
+        assertTrue(source.state.value!!.browserEntrySupported)
+        source.update(state.copy(liveBrowserForwardVersions = setOf(2)))
+        assertFalse(source.state.value!!.browserEntrySupported)
+    }
+
+    @Test
+    fun capabilityChangeWithinGenerationKeepsLeaseKeyStableSoGatesMustCompareCapability() {
+        val state = appState(connectionA, profile(connectionA), AppSession.Phase.Ready, online = true)
+        val source = SelectedProjectHostLeaseSource(
+            state.copy(liveBrowserForwardVersions = setOf(1)),
+        )
+        val supported = source.state.value!!
+        // A conflated reconnect is observed only as Online→Online with the live
+        // capability cleared: no binding change and no observed offline
+        // downgrade, so the generation — and with it the lease key — is stable.
+        source.update(state.copy(liveBrowserForwardVersions = emptySet()))
+        val cleared = source.state.value!!
+        assertEquals(supported.generation, cleared.generation)
+        assertEquals(supported.key, cleared.key)
+        assertTrue(supported.browserEntrySupported)
+        assertFalse(cleared.browserEntrySupported)
+    }
+
+    @Test
     fun selectedHostLeaseRequiresReadyOnlineAndCarriesExactScopes() {
         val host = connectionA
         val profile = profile(host, scopes = listOf("session:read", "projects:manage"))

@@ -10,6 +10,7 @@ import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ProjectNotesReadResult
 import com.poracode.app.model.ProjectNotesWriteBody
 import com.poracode.app.model.ProjectSettings
+import com.poracode.app.model.RemoteEnvironmentDescriptor
 import kotlinx.coroutines.flow.StateFlow
 
 /** A lease is invalid as soon as the host session generation changes. */
@@ -19,8 +20,15 @@ data class ProjectHostLease(
     val scopes: Set<String>,
     val online: Boolean,
     val ready: Boolean,
+    /** Capability from this live connection's handshake; cleared while reconnecting. */
+    val browserForwardVersions: Set<Int> = emptySet(),
 ) {
     val key: ProjectSessionKey get() = ProjectSessionKey(connectionId, generation)
+
+    /** True when the host advertises the origin-bound browser entry this app speaks. */
+    val browserEntrySupported: Boolean
+        get() =
+            RemoteEnvironmentDescriptor.BROWSER_FORWARD_ENTRY_VERSION in browserForwardVersions
 }
 
 data class ProjectSessionKey(

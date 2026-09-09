@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">Diese Portweiterleitung existiert nicht mehr.</string>
     <string name="ports_failure_input">Gib einen gültigen Port zwischen 1 und 65535 ein.</string>
     <string name="ports_failure_response">Der Host hat eine ungültige Antwort zur Portweiterleitung zurückgegeben.</string>
+    <string name="ports_failure_browser_unavailable">Die Browser-Weiterleitung ist auf diesem Computer nicht eingerichtet.</string>
     <string name="ports_failure_ambiguous">Die Anfrage wurde möglicherweise abgeschlossen. Die Liste wurde aktualisiert.</string>
     <string name="ports_failure_unavailable">Portweiterleitung ist derzeit nicht verfügbar.</string>
 </resources>

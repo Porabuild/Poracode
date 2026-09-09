@@ -140,7 +140,31 @@ fun RichChatComposer(
             Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            RuntimeContextUsageDock(contextKey, contextUsage)
+            RuntimeContextUsageDock(contextKey, contextUsage) {
+                catalog?.let { controlCatalog ->
+                    val summary = buildList {
+                        add(controlCatalog.modelLabel(configuration.model))
+                        configuration.effort?.let {
+                            add(controlCatalog.effortLabel(configuration.model, it))
+                        }
+                    }.joinToString(" · ")
+                    val controlsDescription = stringResource(
+                        R.string.rich_chat_composer_controls_summary,
+                        summary,
+                    )
+                    AssistChip(
+                        onClick = { showControls = true },
+                        enabled = controlsEnabled,
+                        label = { Text(summary, maxLines = 1) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Tune, contentDescription = null)
+                        },
+                        modifier = Modifier
+                            .testTag("rich_chat_composer_controls")
+                            .semantics { contentDescription = controlsDescription },
+                    )
+                }
+            }
             if (slashSuggestions.isNotEmpty()) {
                 RichChatSlashSuggestions(
                     options = slashSuggestions,
@@ -159,29 +183,6 @@ fun RichChatComposer(
                         if (queuedSegments.none { it == option.segment }) onQueueSegment(option.segment)
                         onDraftChange(RichChatMentionCatalog.consumeTrailingMention(draft))
                     },
-                )
-            }
-            catalog?.let { controlCatalog ->
-                val summary = buildList {
-                    add(controlCatalog.modelLabel(configuration.model))
-                    configuration.effort?.let {
-                        add(controlCatalog.effortLabel(configuration.model, it))
-                    }
-                }.joinToString(" · ")
-                val controlsDescription = stringResource(
-                    R.string.rich_chat_composer_controls_summary,
-                    summary,
-                )
-                AssistChip(
-                    onClick = { showControls = true },
-                    enabled = controlsEnabled,
-                    label = { Text(summary, maxLines = 1) },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.Tune, contentDescription = null)
-                    },
-                    modifier = Modifier
-                        .testTag("rich_chat_composer_controls")
-                        .semantics { contentDescription = controlsDescription },
                 )
             }
             if (attachments.isNotEmpty()) {

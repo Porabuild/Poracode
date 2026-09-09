@@ -14,11 +14,11 @@ class GeneratedRemoteV3ManifestTest {
         )?.bufferedReader()?.use { it.readText() }
             ?: error("Missing generated/native/native-bindings.json")
         val manifest = JSONObject(raw)
-        assertEquals(8, manifest.getInt("protocolVersion"))
+        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, manifest.getInt("protocolVersion"))
         assertEquals(2, manifest.getInt("bindingFormatVersion"))
         assertEquals(3, manifest.getInt("generatorVersion"))
         assertEquals(1, manifest.getInt("formatVersion"))
-        assertEquals(8, RemoteContractMetadata.protocolVersion)
+        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, RemoteContractMetadata.protocolVersion)
         assertEquals(2, RemoteContractMetadata.bindingFormatVersion)
         assertEquals(3, RemoteContractMetadata.generatorVersion)
 

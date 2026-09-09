@@ -8,6 +8,7 @@ import com.poracode.app.model.RemoteThreadSnapshot
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.protocol.git.GitInterest
 import com.poracode.app.transport.ForegroundNetworkGate
+import com.poracode.app.transport.RemoteAgentStatuses
 import com.poracode.app.transport.RemoteApiGateway
 import com.poracode.app.transport.RemoteWebSocketClient
 import java.util.concurrent.CountDownLatch
@@ -59,6 +60,7 @@ class WsInterestFlushIntegrationTest {
             scopes: List<String>,
         ): RemoteAccessTokenResult = error("unused")
         override suspend fun snapshot(): RemoteShellSnapshot = error("unused")
+        override suspend fun agentStatuses(): RemoteAgentStatuses = error("unused")
         override suspend fun threadHistory(
             threadId: String,
             targetTimelineEntryCount: Int?,

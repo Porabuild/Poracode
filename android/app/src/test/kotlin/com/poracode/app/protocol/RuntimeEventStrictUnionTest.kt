@@ -16,7 +16,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Strict 14-variant sealed union + invalid mutations + mixed batch.
+ * Strict 15-variant sealed union + invalid mutations + mixed batch.
  * Golden fixture: protocol/remote/v3/fixtures/runtime-events.json
  */
 class RuntimeEventStrictUnionTest {
@@ -27,10 +27,10 @@ class RuntimeEventStrictUnionTest {
     }
 
     @Test
-    fun allFourteenGoldenEventsParseAndReduce() {
+    fun allFifteenGoldenEventsParseAndReduce() {
         val array = RemoteJson.parseToJsonElement(readFixture("runtime-events.json")) as JsonArray
         // Fixture may include multiple examples per type (e.g. turn.completed states);
-        // the sealed union remains 14 discriminators.
+        // the sealed union remains 15 discriminators.
         val items = mutableListOf<PersistedRuntimeItem>()
         var domain = ThreadRuntimeDomainState()
         val parsedTypes = mutableListOf<String>()
@@ -54,18 +54,26 @@ class RuntimeEventStrictUnionTest {
                 "item.started", "item.updated", "item.completed",
                 "content.delta",
                 "context.updated", "usage.spent",
+                "background_tasks.changed",
                 "request.opened", "request.resolved",
                 "warning", "error",
             ),
             parsedTypes.toSet(),
         )
-        assertEquals(14, parsedTypes.toSet().size)
+        assertEquals(15, parsedTypes.toSet().size)
         assertTrue(items.any { it.type == "error" && it.state == "completed" })
         assertTrue(items.any { it.id == "item-fixture-assistant" && it.state == "completed" })
         assertEquals(false, domain.openTurn)
         assertEquals(128, domain.contextUsage?.usedTokens)
         assertEquals(8192, domain.contextUsage?.maxTokens)
         assertTrue(domain.openRequests.isEmpty())
+        // The fixture's background_tasks.changed lands after session.exited, so
+        // its single live task survives to the final domain state (exact payload).
+        assertEquals(
+            listOf(BackgroundTask("task-fixture-001", "command", "pnpm test")),
+            domain.backgroundTasks,
+        )
+        assertTrue(items.none { it.id == "task-fixture-001" })
     }
 
     @Test

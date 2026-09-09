@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">そのポート転送は存在しません。</string>
     <string name="ports_failure_input">1～65535 の有効なポートを入力してください。</string>
     <string name="ports_failure_response">ホストから無効なポート転送レスポンスが返されました。</string>
+    <string name="ports_failure_browser_unavailable">このデスクトップではブラウザ転送が設定されていません。</string>
     <string name="ports_failure_ambiguous">リクエストは完了した可能性があります。一覧を更新しました。</string>
     <string name="ports_failure_unavailable">現在、ポート転送を利用できません。</string>
 </resources>

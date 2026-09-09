@@ -7,6 +7,7 @@ import com.poracode.app.model.remoteintegrations.PrWatchDraft
 import com.poracode.app.model.remoteintegrations.PrWatchKey
 import com.poracode.app.model.remoteintegrations.ScheduledTask
 import com.poracode.app.model.remoteintegrations.ScheduleRun
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.transport.RemoteMutationClassification
 import com.poracode.app.transport.remoteintegrations.RemoteIntegrationsGateway
 import com.poracode.app.transport.remoteintegrations.RemoteIntegrationsGatewayProvider
@@ -107,7 +108,9 @@ class GeneratedIntegrationSessionGateway(
         if (current == null || current.key != lease.key) {
             throw IntegrationGatewayException(409, "stale_lease", false)
         }
-        if (current.protocolVersion != 8 || lease.protocolVersion != 8) {
+        if (current.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION ||
+            lease.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION
+        ) {
             throw IntegrationGatewayException(409, "protocol_version_mismatch", false)
         }
         if (!current.ready) throw IntegrationGatewayException(409, "session_not_ready", false)

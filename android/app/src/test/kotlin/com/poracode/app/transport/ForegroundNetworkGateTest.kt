@@ -1,10 +1,15 @@
 package com.poracode.app.transport
 
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import okhttp3.Call
+import okhttp3.EventListener
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
@@ -21,46 +26,39 @@ class ForegroundNetworkGateTest {
     @Test
     fun backgroundDuringHttpRejectsAndCancelsActiveCall() = runBlocking {
         val server = MockWebServer()
-        server.enqueue(
-            MockResponse()
-                .setBodyDelay(2, TimeUnit.SECONDS)
-                .setBody(
-                    """{"protocolVersion":8,"desktopId":"d","label":"L","appVersion":"1","auth":{"scopes":["session:read"]}}""",
-                ),
-        )
+        server.enqueue(MockResponse().throttleBody(1, 2, TimeUnit.SECONDS).setBody("{}"))
         server.start()
         try {
             val gate = ForegroundNetworkGate()
-            val client = OkHttpClient.Builder()
-                .followRedirects(false)
-                .followSslRedirects(false)
-                .build()
-            val api = RemoteApiClient(
-                endpoint = server.url("/").toString().trimEnd('/'),
-                accessToken = "t",
-                client = client,
-                networkGate = gate,
-            )
-            val job = async {
-                try {
-                    api.environment()
-                    false
-                } catch (_: CancellationException) {
-                    true
-                } catch (_: Exception) {
-                    true
-                }
-            }
-            // Let the call register.
-            Thread.sleep(50)
+            val bodyReadStarted = CountDownLatch(1)
+            val client = OkHttpClient.Builder().eventListener(object : EventListener() {
+                override fun responseBodyStart(call: Call) { bodyReadStarted.countDown() }
+            }).build()
+            val api = RemoteApiClient(server.url("/").toString(), "fixture", client, networkGate = gate)
+            val job = async(Dispatchers.IO) { runCatching { api.requestText("/api/snapshot") } }
+            assertTrue(bodyReadStarted.await(5, TimeUnit.SECONDS))
+            assertEquals(1, gate.activeCallCountForTests())
             gate.closeAndCancelAll()
-            val cancelledOrFailed = job.await()
-            assertTrue(cancelledOrFailed)
+            val result = withTimeout(1_000) { job.await() }
+            assertTrue("Expected cancellation, received $result", result.exceptionOrNull() is CancellationException)
+            assertEquals(1, gate.cancelledCallCount.get())
             assertEquals(0, gate.activeCallCountForTests())
             assertFalse(gate.isOpen)
-        } finally {
-            server.shutdown()
-        }
+        } finally { server.shutdown() }
+    }
+
+    @Test
+    fun closedGateRejectsNewHttpWithoutSendingARequest() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val gate = ForegroundNetworkGate()
+            gate.closeAndCancelAll()
+            val api = RemoteApiClient(server.url("/").toString(), networkGate = gate)
+            val result = runCatching { api.requestText("/api/snapshot") }
+            assertTrue(result.exceptionOrNull() is CancellationException)
+            assertEquals(0, server.requestCount)
+        } finally { server.shutdown() }
     }
 
     @Test

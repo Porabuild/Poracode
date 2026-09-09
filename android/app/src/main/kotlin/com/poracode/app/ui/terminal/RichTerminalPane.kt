@@ -1,14 +1,14 @@
 package com.poracode.app.ui.terminal
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -53,6 +54,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,7 +71,6 @@ import com.poracode.app.transport.richchat.TerminalStartInput
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RichTerminalPane(
     runtime: RichChatSessionRuntime,
@@ -111,13 +112,36 @@ fun RichTerminalPane(
     val busy = state.activeOperations.isNotEmpty()
     val writable = canOperate && state.connection.phase == TerminalConnectionPhase.Live &&
         state.processState != TerminalProcessState.Exited
-    val isNearBottom by remember {
+    // Follow intent is a user signal kept separate from the layout-derived at-bottom check:
+    // a viewport shrink (open keyboard) or relayout must not stop following, while an
+    // explicit user drag into history must. A drag ending at the bottom (or scrolling back
+    // near the bottom) re-arms following; re-arming waits for the gesture to finish so an
+    // in-progress flick never toggles intent, and intent resets per terminal lease.
+    var followOutput by remember(state.lease?.terminalId) { mutableStateOf(true) }
+    var terminalDragActive by remember(state.lease?.terminalId) { mutableStateOf(false) }
+    val isAtBottom by remember {
         derivedStateOf {
             val info = listState.layoutInfo
             val last = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf true
-            val totalItems = info.totalItemsCount
-            last.index >= totalItems - 2
+            last.index >= info.totalItemsCount - 2
         }
+    }
+    LaunchedEffect(listState, state.lease?.terminalId) {
+        listState.interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is DragInteraction.Start -> {
+                    terminalDragActive = true
+                    followOutput = false
+                }
+                is DragInteraction.Stop, is DragInteraction.Cancel -> {
+                    terminalDragActive = false
+                    if (isAtBottom) followOutput = true
+                }
+            }
+        }
+    }
+    LaunchedEffect(isAtBottom, terminalDragActive) {
+        if (isAtBottom && !terminalDragActive) followOutput = true
     }
 
     LaunchedEffect(
@@ -146,10 +170,10 @@ fun RichTerminalPane(
         }
     }
 
-    LaunchedEffect(document.revision) {
-        // Only follow new output while already at (or near) the bottom, so a user who
-        // scrolled up to read history is not yanked back down by every new line.
-        if (document.lines.isNotEmpty() && isNearBottom) {
+    LaunchedEffect(document.revision, measuredSize.second) {
+        // Follow new output only while follow intent holds: still at the bottom, or pinned
+        // across keyboard/layout resizes. A user reading history is not yanked around.
+        if (document.lines.isNotEmpty() && followOutput) {
             listState.scrollToItem(document.lines.lastIndex)
         }
     }
@@ -171,7 +195,10 @@ fun RichTerminalPane(
         runtime.terminal.resize(columns, rows)
     }
 
-    Column(modifier.fillMaxSize()) {
+    // imePadding lifts the input/accessory rows above the keyboard (edge-to-edge +
+    // adjustResize), so the composer stays visible while typing and the weighted output
+    // keeps the remaining height instead of being covered.
+    Column(modifier.fillMaxSize().imePadding()) {
         TerminalStatusRow(
             phase = state.connection.phase,
             failure = state.connection.failure,
@@ -202,71 +229,54 @@ fun RichTerminalPane(
                 }
             }
         }
-        OutlinedTextField(
-            value = input,
-            onValueChange = { input = it.take(MAX_INPUT_UTF16_UNITS) },
-            enabled = writable,
-            label = { Text(stringResource(R.string.terminal_input_label)) },
-            placeholder = { Text(stringResource(R.string.terminal_input_placeholder)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            keyboardActions = KeyboardActions(onSend = {
-                sendInput(runtime, input, scope) { input = "" }
-            }),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-                .onPreviewKeyEvent { event ->
-                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                    val sequence = when (event.key) {
-                        Key.DirectionUp -> "\u001b[A"
-                        Key.DirectionDown -> "\u001b[B"
-                        Key.DirectionRight -> "\u001b[C"
-                        Key.DirectionLeft -> "\u001b[D"
-                        else -> return@onPreviewKeyEvent false
-                    }
-                    scope.launch { runtime.terminal.write(sequence) }
-                    true
-                },
-        )
-        FlowRow(
-            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+Row(
+            Modifier.fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            maxItemsInEachRow = 3,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Button(
-                enabled = writable && input.isNotEmpty(),
-                onClick = { sendInput(runtime, input, scope) { input = "" } },
-            ) { Text(stringResource(R.string.terminal_send)) }
+            OutlinedTextField(
+                value = input,
+                onValueChange = { input = it.take(MAX_INPUT_UTF16_UNITS) },
+                enabled = writable,
+                label = { Text(stringResource(R.string.terminal_input_label)) },
+                placeholder = { Text(stringResource(R.string.terminal_input_placeholder)) },
+                singleLine = true,
+                // Verbatim terminal input: no autocorrect/capitalization rewriting, but the
+                // default (Unicode) keyboard so any text can be typed. ImeAction.Send kept.
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.None,
+                    autoCorrectEnabled = false,
+                    imeAction = ImeAction.Send,
+                ),
+                keyboardActions = KeyboardActions(onSend = {
+                    sendInput(runtime, input, scope) { input = "" }
+                }),
+                modifier = Modifier
+                    .weight(1f)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                        val sequence = when (event.key) {
+                            Key.DirectionUp -> "\u001b[A"
+                            Key.DirectionDown -> "\u001b[B"
+                            Key.DirectionRight -> "\u001b[C"
+                            Key.DirectionLeft -> "\u001b[D"
+                            else -> return@onPreviewKeyEvent false
+                        }
+                        scope.launch { runtime.terminal.write(sequence) }
+                        true
+                    },
+            )
+            // Ctrl+C and Send stay visible right next to the composer on every screen size;
+            // less frequent management actions live at the end of the scrollable key row.
             OutlinedButton(
                 enabled = writable,
                 onClick = { scope.launch { runtime.terminal.write("\u0003") } },
             ) { Text(stringResource(R.string.terminal_control_c)) }
-            OutlinedButton(
-                enabled = writable,
-                onClick = { scope.launch { runtime.terminal.write("\t") } },
-            ) { Text(stringResource(R.string.terminal_tab)) }
-            OutlinedButton(
-                enabled = canStartProjectTerminal(
-                    canOperate = canOperate,
-                    busy = busy,
-                    hasTerminalLease = state.lease != null,
-                    hasProjectLocation = projectLocation != null,
-                ),
-                onClick = {
-                    val location = projectLocation ?: return@OutlinedButton
-                    scope.launch {
-                        runtime.startTerminal(
-                            terminalStartInput(location, measuredSize, density, terminalCellSize),
-                        )
-                    }
-                },
-            ) { Text(stringResource(R.string.terminal_start)) }
-            OutlinedButton(
-                enabled = canOperate && !busy && state.lease != null,
-                onClick = { showsCloseConfirmation = true },
-            ) { Text(stringResource(R.string.terminal_close)) }
+            Button(
+                enabled = writable && input.isNotEmpty(),
+                onClick = { sendInput(runtime, input, scope) { input = "" } },
+            ) { Text(stringResource(R.string.terminal_send)) }
         }
         TerminalKeyAccessory(
             isEnabled = writable,
@@ -278,6 +288,32 @@ fun RichTerminalPane(
                 scope.launch { runtime.terminal.write(sequence) }
             },
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            trailingContent = {
+                OutlinedButton(
+                    enabled = writable,
+                    onClick = { scope.launch { runtime.terminal.write("\t") } },
+                ) { Text(stringResource(R.string.terminal_tab)) }
+                OutlinedButton(
+                    enabled = canStartProjectTerminal(
+                        canOperate = canOperate,
+                        busy = busy,
+                        hasTerminalLease = state.lease != null,
+                        hasProjectLocation = projectLocation != null,
+                    ),
+                    onClick = {
+                        val location = projectLocation ?: return@OutlinedButton
+                        scope.launch {
+                            runtime.startTerminal(
+                                terminalStartInput(location, measuredSize, density, terminalCellSize),
+                            )
+                        }
+                    },
+                ) { Text(stringResource(R.string.terminal_start)) }
+                OutlinedButton(
+                    enabled = canOperate && !busy && state.lease != null,
+                    onClick = { showsCloseConfirmation = true },
+                ) { Text(stringResource(R.string.terminal_close)) }
+            },
         )
     }
     if (showsCloseConfirmation) {

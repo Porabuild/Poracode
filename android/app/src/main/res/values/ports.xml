@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">That port forward no longer exists.</string>
     <string name="ports_failure_input">Enter a valid port from 1 to 65535.</string>
     <string name="ports_failure_response">The host returned an invalid port-forwarding response.</string>
+    <string name="ports_failure_browser_unavailable">Browser forwarding isn’t set up on this desktop.</string>
     <string name="ports_failure_ambiguous">The request may have completed. The list was refreshed.</string>
     <string name="ports_failure_unavailable">Port forwarding is currently unavailable.</string>
 </resources>

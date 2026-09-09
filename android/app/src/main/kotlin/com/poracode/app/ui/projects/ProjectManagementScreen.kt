@@ -19,7 +19,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -43,6 +42,7 @@ import com.poracode.app.model.UpdateProject
 import com.poracode.app.session.projects.CatalogProject
 import com.poracode.app.session.projects.ProjectSessionRuntime
 import com.poracode.app.session.projects.ProjectSessionKey
+import com.poracode.app.ui.components.CompactAppBarTitle
 import com.poracode.app.ui.projects.workspace.ProjectWorkspaceScreen
 import com.poracode.app.ui.settings.GlobalMcpSettingsController
 import com.poracode.app.ui.settingsintegrations.SettingsIntegrationsPage
@@ -219,7 +219,7 @@ internal fun ProjectManagementScreen(
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(
+                        CompactAppBarTitle(
                             if (selected != null && detailPage != ProjectSettingsPage.Index) {
                                 stringResource(detailPage.title)
                             } else if (!expanded && selected != null) {

@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">Ese reenvío de puerto ya no existe.</string>
     <string name="ports_failure_input">Introduce un puerto válido entre 1 y 65535.</string>
     <string name="ports_failure_response">El host devolvió una respuesta de reenvío de puertos no válida.</string>
+    <string name="ports_failure_browser_unavailable">El reenvío por navegador no está configurado en este escritorio.</string>
     <string name="ports_failure_ambiguous">Es posible que la solicitud se completara. La lista se actualizó.</string>
     <string name="ports_failure_unavailable">El reenvío de puertos no está disponible en este momento.</string>
 </resources>

@@ -6,11 +6,12 @@ import com.poracode.app.protocol.RuntimeEventValidators.OptionalString
 import com.poracode.app.protocol.RuntimeEventValidators.optionalString
 import com.poracode.app.protocol.RuntimeEventValidators.requireString
 import com.poracode.app.protocol.RuntimeEventValidators.strictString
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Strict 14-variant runtime event schema (TS `runtimeEventSchema` parity).
+ * Strict 15-variant runtime event schema (TS `runtimeEventSchema` parity).
  * Unknown/malformed events are skipped by returning null from [parseCanonical].
  *
  * Zod rules enforced via [RuntimeEventValidators]:
@@ -140,6 +141,12 @@ object RuntimeEventSchema {
             val message: String,
             override val raw: JsonObject,
         ) : CanonicalRuntimeEvent()
+
+        data class BackgroundTasksChanged(
+            override val threadId: String,
+            val tasks: List<BackgroundTask>,
+            override val raw: JsonObject,
+        ) : CanonicalRuntimeEvent()
     }
 
     fun parseCanonical(objectMap: JsonObject): CanonicalRuntimeEvent? {
@@ -255,6 +262,21 @@ object RuntimeEventSchema {
                 val message = objectMap.requireString("message") ?: return null
                 CanonicalRuntimeEvent.Error(threadId, message, objectMap)
             }
+            "background_tasks.changed" -> {
+                // `tasks` is required and must be an array of strict task
+                // objects; an empty array is valid (host-driven drain).
+                val tasks = objectMap["tasks"] as? JsonArray ?: return null
+                val parsed = tasks.map { task ->
+                    if (!RuntimeEventValidators.validateBackgroundTask(task)) return null
+                    val obj = task.asObjectOrNull()!!
+                    BackgroundTask(
+                        taskId = obj.strictString("taskId")!!,
+                        kind = obj.strictString("kind")!!,
+                        description = obj.strictString("description")!!,
+                    )
+                }
+                CanonicalRuntimeEvent.BackgroundTasksChanged(threadId, parsed, objectMap)
+            }
             else -> null
         }
     }
@@ -315,6 +337,10 @@ object RuntimeEventSchema {
         )
         is CanonicalRuntimeEvent.Error -> RuntimeEventReducer.RuntimeEvent(
             type = "error", threadId = c.threadId, message = c.message,
+            raw = c.raw, canonical = c,
+        )
+        is CanonicalRuntimeEvent.BackgroundTasksChanged -> RuntimeEventReducer.RuntimeEvent(
+            type = "background_tasks.changed", threadId = c.threadId, tasks = c.tasks,
             raw = c.raw, canonical = c,
         )
     }

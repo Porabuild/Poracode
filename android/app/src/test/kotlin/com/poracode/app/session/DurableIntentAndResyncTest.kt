@@ -8,6 +8,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,6 +62,117 @@ class DurableIntentAndResyncTest {
             AppSession.PairingInput(manualBaseUrl = "https://host-a.test", manualToken = "a"),
         )
         advanceUntilIdle()
+    }
+
+    @Test
+    fun descriptorCompletingAfterDisconnectCannotRestoreBrowserAuthority() = runTest {
+        val (session, sockets, apis) = buildSession()
+        pairReady(session)
+        val api = apis.last()
+        api.environmentResponse = api.environmentResponse.copy(
+            capabilities = com.poracode.app.model.RemoteEnvironmentDescriptor.Capabilities(
+                browserForward = com.poracode.app.model.RemoteEnvironmentDescriptor.VersionedCapability(listOf(1)),
+            ),
+        )
+        val hold = CompletableDeferred<Unit>()
+        api.environmentHold = hold
+        val socket = requireNotNull(sockets.latest)
+        socket.emitState(com.poracode.app.transport.RemoteWebSocketClient.ConnectionState.Connecting)
+        socket.emitState(com.poracode.app.transport.RemoteWebSocketClient.ConnectionState.Online)
+        runCurrent()
+        socket.emitState(com.poracode.app.transport.RemoteWebSocketClient.ConnectionState.Connecting)
+        hold.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(session.state.value.liveBrowserForwardVersions.isEmpty())
+    }
+
+    @Test
+    fun browserCapabilityRefreshesAfterSocketReconnectAndFailsClosed() = runTest {
+        val (session, sockets, apis) = buildSession(apiConfigurer = { api ->
+            api.environmentResponse = api.environmentResponse.copy(
+                capabilities = com.poracode.app.model.RemoteEnvironmentDescriptor.Capabilities(
+                    browserForward = com.poracode.app.model.RemoteEnvironmentDescriptor.VersionedCapability(listOf(1)),
+                ),
+            )
+        })
+        pairReady(session)
+        assertEquals(setOf(1), session.state.value.liveBrowserForwardVersions)
+        val api = apis.last()
+        val socket = requireNotNull(sockets.latest)
+        socket.emitState(com.poracode.app.transport.RemoteWebSocketClient.ConnectionState.Connecting)
+        assertTrue(session.state.value.liveBrowserForwardVersions.isEmpty())
+        api.environmentResponse = api.environmentResponse.copy(capabilities = null)
+        socket.emitState(com.poracode.app.transport.RemoteWebSocketClient.ConnectionState.Online)
+        advanceUntilIdle()
+        assertTrue(session.state.value.liveBrowserForwardVersions.isEmpty())
+        api.environmentError = IllegalStateException("network unavailable")
+        socket.emitState(com.poracode.app.transport.RemoteWebSocketClient.ConnectionState.Connecting)
+        socket.emitState(com.poracode.app.transport.RemoteWebSocketClient.ConnectionState.Online)
+        advanceUntilIdle()
+        assertTrue(session.state.value.liveBrowserForwardVersions.isEmpty())
+        assertEquals(AppSession.Phase.Ready, session.state.value.phase)
+    }
+
+    @Test
+    fun deferredStoredSessionReconnectDoesNotReuseConnectTimeCapability() = runTest {
+        val credentials = InMemorySessionCredentialRepository()
+        credentials.credentials = com.poracode.app.storage.SessionCredentials(
+            profile = com.poracode.app.model.ConnectionProfile(
+                desktopId = "desktop-a",
+                label = "Host A",
+                httpBaseUrl = "https://host-a.test",
+                wsBaseUrl = "wss://host-a.test",
+                appVersion = "1.0.0",
+                scopes = listOf("session:read", "session:operate"),
+                pairedAtEpochMs = 1L,
+            ),
+            accessToken = "stored-a",
+        )
+        val snapHold = CompletableDeferred<Unit>()
+        val snapReached = CompletableDeferred<Unit>()
+        val configured = java.util.concurrent.atomic.AtomicBoolean(false)
+        val (session, _, apis) = buildSession(
+            credentials = credentials,
+            apiConfigurer = { api ->
+                // The connect-time environment advertises the browser entry.
+                api.environmentResponse = api.environmentResponse.copy(
+                    capabilities = com.poracode.app.model.RemoteEnvironmentDescriptor.Capabilities(
+                        browserForward =
+                            com.poracode.app.model.RemoteEnvironmentDescriptor.VersionedCapability(
+                                listOf(1),
+                            ),
+                    ),
+                )
+                // Hold only the bootstrap snapshot so the capability is cached
+                // before the app is backgrounded mid-connect.
+                if (configured.compareAndSet(false, true)) {
+                    api.snapshotHold = snapHold
+                    api.snapshotReachedHold = snapReached
+                }
+            },
+        )
+        session.bootstrap()
+        snapReached.await()
+        val api = apis.last()
+        assertEquals(1, api.environmentCalls.get())
+
+        // Background mid-bootstrap defers the first Online without a bound.
+        session.onAppBackground()
+        advanceUntilIdle()
+        snapHold.complete(Unit)
+        advanceUntilIdle()
+
+        // The host downgrades (or is swapped) during the suspended window.
+        api.environmentResponse = api.environmentResponse.copy(capabilities = null)
+
+        // Foreground: the deferred first Online must re-read the environment
+        // instead of trusting the connect-time cache.
+        session.onAppForeground()
+        advanceUntilIdle()
+
+        assertTrue(session.state.value.liveBrowserForwardVersions.isEmpty())
+        assertEquals(2, api.environmentCalls.get())
+        assertEquals(AppSession.Phase.Ready, session.state.value.phase)
     }
 
     @Test

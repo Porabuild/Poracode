@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">Cette redirection de port n’existe plus.</string>
     <string name="ports_failure_input">Saisissez un port valide entre 1 et 65535.</string>
     <string name="ports_failure_response">L’hôte a renvoyé une réponse de redirection de ports non valide.</string>
+    <string name="ports_failure_browser_unavailable">La redirection par navigateur n’est pas configurée sur cet ordinateur.</string>
     <string name="ports_failure_ambiguous">La requête a peut-être abouti. La liste a été actualisée.</string>
     <string name="ports_failure_unavailable">La redirection de ports est actuellement indisponible.</string>
 </resources>

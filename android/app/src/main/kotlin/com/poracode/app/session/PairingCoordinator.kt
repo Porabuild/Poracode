@@ -190,6 +190,9 @@ class PairingCoordinator(
                     tokenExpiresAt = tokenResult.expiresAt,
                     pairedAtEpochMs = System.currentTimeMillis(),
                     protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
+                    // Authoritative absence (older host) downgrades to no browser entry.
+                    browserForwardVersions =
+                        environment.capabilities?.browserForward?.versions.orEmpty(),
                 )
 
                 if (!owner.isCurrent(sessionToken)) return@launch

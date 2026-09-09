@@ -26,6 +26,7 @@ data class ProjectDraftConfig(
     val crossagentMcp: Boolean? = null,
     val computerUse: Boolean? = null,
     val chromeMcp: Boolean? = null,
+    val executionEnvironment: RemoteExecutionEnvironment? = null,
     val worktreeMode: Boolean? = null,
 )
 

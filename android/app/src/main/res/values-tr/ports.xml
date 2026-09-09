@@ -24,6 +24,7 @@
     <string name="ports_failure_not_found">Bu bağlantı noktası yönlendirmesi artık mevcut değil.</string>
     <string name="ports_failure_input">1 ile 65535 arasında geçerli bir bağlantı noktası girin.</string>
     <string name="ports_failure_response">Ana bilgisayar geçersiz bir bağlantı noktası yönlendirme yanıtı döndürdü.</string>
+    <string name="ports_failure_browser_unavailable">Tarayıcı yönlendirmesi bu masaüstü bilgisayarda yapılandırılmamış.</string>
     <string name="ports_failure_ambiguous">İstek tamamlanmış olabilir. Liste yenilendi.</string>
     <string name="ports_failure_unavailable">Bağlantı noktası yönlendirme şu anda kullanılamıyor.</string>
 </resources>

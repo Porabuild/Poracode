@@ -10,6 +10,16 @@ import com.poracode.app.model.ThreadConfig
 import kotlinx.serialization.json.JsonArray
 
 /**
+ * Cached installed-agent lists for bootstrap/resync hydration. The wire's
+ * `windows` array is the desktop's **native** environment (naming is legacy);
+ * `wsl` is the WSL distro scan.
+ */
+data class RemoteAgentStatuses(
+    val native: List<com.poracode.app.model.AgentStatusEntry>,
+    val wsl: List<com.poracode.app.model.AgentStatusEntry>,
+)
+
+/**
  * HTTP surface used by the session layer.
  * All operations are **suspend** and cancellation-aware: cancelling the calling
  * coroutine must cancel the underlying OkHttp [okhttp3.Call].
@@ -26,6 +36,8 @@ interface RemoteApiGateway {
     ): RemoteAccessTokenResult
 
     suspend fun snapshot(): RemoteShellSnapshot
+
+    suspend fun agentStatuses(): RemoteAgentStatuses
 
     suspend fun threadHistory(
         threadId: String,

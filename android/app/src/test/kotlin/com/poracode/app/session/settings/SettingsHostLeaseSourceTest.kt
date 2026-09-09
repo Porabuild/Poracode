@@ -1,5 +1,6 @@
 package com.poracode.app.session.settings
 
+import com.poracode.app.protocol.ProtocolConstants
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -36,7 +37,7 @@ class SettingsHostLeaseSourceTest {
 
     private fun binding(id: com.poracode.app.model.ClientConnectionId) = SettingsHostBinding(
         connectionId = id,
-        protocolVersion = 8,
+        protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
         endpoint = "https://host.test",
         pairedAtEpochMs = 1,
         tokenExpiresAt = null,

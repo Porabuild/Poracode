@@ -37,6 +37,7 @@ class LiveConnectionController(
     private val requestResync: (String) -> Unit,
     private val interestEpoch: InterestEpochGate,
     private val onAuthoritativeBaseline: () -> Unit = {}, private val onLiveSocketInstalled: () -> Unit = {},
+    private val agentStatusesBootstrap: AgentStatusesBootstrap? = null,
 ) {
     var api: RemoteApiGateway? = null
         private set
@@ -46,15 +47,84 @@ class LiveConnectionController(
     var lastSeenSeq: Int? = null
     private var pendingLiveClient: RemoteApiGateway? = null
 
+    /** Claim/recovery ids and failure publication; see [ConnectionEventSequencer]. */
+    private val connectionEvents = ConnectionEventSequencer(updateState)
+    /** Seq for an about-to-start resync fetch; see [ResyncEngine.ResyncCommit]. */
+    internal fun nextSnapshotAttemptSeq(): Long = connectionEvents.next()
+
+    // Foreground/background reconciliation. Lazy so `this` is never published
+    // from the constructor.
+    private val recovery: LiveForegroundRecovery by lazy {
+        LiveForegroundRecovery(this, lifecycleGate, scope, jobs, state)
+    }
+
+    // Foreground snapshot refresh and connection-recovery evidence pipeline;
+    // see [SnapshotRefresher]. Lazy so `this` is never published from the
+    // constructor.
+    private val snapshotRefresher by lazy {
+        SnapshotRefresher(
+            scope = scope,
+            jobs = jobs,
+            lifecycleGate = lifecycleGate,
+            ioDispatcher = ioDispatcher,
+            api = { api },
+            readScopes = { state().profile?.scopes.orEmpty() },
+            updateState = updateState,
+            applyShellSnapshot = ShellSnapshotApplier(::applyShellSnapshot),
+            handleApiException = ::handleApiException,
+            events = connectionEvents,
+        )
+    }
+
+    /**
+     * Single owner for every browser-capability transition: connect-time cache
+     * writes and invalidations, socket-state epoch bumps and clears, and
+     * refresh publication. The socket listener fires on the client's
+     * Dispatchers.IO scope while install/destroy paths and refresh completions
+     * run on Main, so the epoch alone cannot guard results: a refresh that
+     * reads a current epoch can still publish after a concurrent invalidation
+     * (check-then-publish), and MutableStateFlow equality can suppress an
+     * invalidation's clear emission while the external epoch moves. Holding
+     * [capabilityLock] across {guard, publication} and across every bump makes
+     * each transition indivisible: an invalidation either precedes the guard
+     * read (result rejected) or follows the publication entirely (its own
+     * emission supersedes). SessionOperationOwner identity does not
+     * discriminate a same-socket reconnect (socket/session ids only move on
+     * install/destroy), so within one socket the epoch — linearized here with
+     * the publication it guards — is the only authority for staleness.
+     */
+    private val capabilityLock = Any()
+    private var browserCapabilityEpoch = 0L
+    private var initialBrowserVersions: Set<Int>? = null
+
+    /** Capability from a previous connection/state is never authority for the next one. */
+    private fun invalidateBrowserCapability() {
+        synchronized(capabilityLock) {
+            browserCapabilityEpoch += 1
+            initialBrowserVersions = null
+            updateState { it.copy(liveBrowserForwardVersions = emptySet()) }
+        }
+    }
+
+    /**
+     * Drop the connect-time capability cache under the capability guard (see
+     * [capabilityLock]); entry point for [LiveForegroundRecovery] on background.
+     */
+    internal fun invalidateInitialCapabilityVersions() {
+        synchronized(capabilityLock) { initialBrowserVersions = null }
+    }
+
     fun installApi(endpoint: String, token: String): RemoteApiGateway {
         val client = apiFactory.create(endpoint, token)
         api = client
+        invalidateBrowserCapability()
         owner.bumpApiIdentity()
         accessToken = token
         return client
     }
 
     fun destroyLiveForHostSwap() {
+        invalidateBrowserCapability()
         // Must not cancel the exclusive PAIR/BOOTSTRAP job that is driving the swap.
         jobs.cancelLiveNetworkWork()
         owner.invalidateThread()
@@ -71,6 +141,7 @@ class LiveConnectionController(
     }
 
     fun destroyAllForUnpair() {
+        invalidateBrowserCapability()
         // Unpair job must keep running through durable clear — cancel live only.
         jobs.cancelLiveNetworkWork()
         owner.invalidateThread()
@@ -88,29 +159,23 @@ class LiveConnectionController(
 
     suspend fun connectWithStoredSession(profile: ConnectionProfile, token: String) {
         updateState {
-            it.copy(
-                phase = AppSession.Phase.ReconnectingStored,
-                socketState = RemoteWebSocketClient.ConnectionState.Connecting,
-                sessionExpired = false,
-                canSessionRead = RemoteAccessScopes.canRead(profile.scopes),
-                canSessionOperate = RemoteAccessScopes.canOperate(profile.scopes),
-            )
+            LiveSessionStateTransitions.reconnectingStored(it, profile)
         }
-        installApi(profile.httpBaseUrl, token)
+        val client = installApi(profile.httpBaseUrl, token)
         try {
-            withContext(ioDispatcher) { api?.environment() }
+            val environment = withContext(ioDispatcher) { client.environment() }
+            if (api !== client) return
+            synchronized(capabilityLock) {
+                initialBrowserVersions =
+                    environment.capabilities?.browserForward?.versions.orEmpty().toSet()
+            }
             startLiveSession()
         } catch (e: CancellationException) {
             throw e
         } catch (e: RemoteClientException) {
             if (e.code == "protocol_version_mismatch") {
                 updateState {
-                    it.copy(
-                        phase = AppSession.Phase.ProtocolIncompatible,
-                        globalError = e.message,
-                        projectsLoadState = AppSession.LoadState.Failed,
-                        projectsLoadError = e.message,
-                    )
+                    LiveSessionStateTransitions.bootstrapProtocolIncompatible(it, e.message)
                 }
                 return
             }
@@ -118,24 +183,23 @@ class LiveConnectionController(
                 surfaceSessionExpired(e.message)
                 startLiveSession()
             } else {
-                updateState { it.copy(globalError = e.message) }
+                connectionEvents.publishFailure(e.message)
                 startLiveSession()
             }
         } catch (e: Exception) {
-            updateState { it.copy(globalError = e.message) }
+            connectionEvents.publishFailure(e.message)
             startLiveSession()
         }
     }
+
 
     suspend fun startLiveSession() {
         val client = api ?: return
         if (!RemoteAccessScopes.canRead(state().profile?.scopes.orEmpty())) {
             updateState {
-                it.copy(
-                    phase = AppSession.Phase.Ready,
-                    projectsLoadState = AppSession.LoadState.Failed,
-                    projectsLoadError = SessionPolicies.MISSING_SCOPE_READ_MESSAGE,
-                    globalError = SessionPolicies.MISSING_SCOPE_READ_MESSAGE,
+                LiveSessionStateTransitions.missingReadScope(
+                    it,
+                    SessionPolicies.MISSING_SCOPE_READ_MESSAGE,
                 )
             }
             return
@@ -148,12 +212,15 @@ class LiveConnectionController(
             )
         }
         try {
+            val attemptSeq = connectionEvents.next()
             val snap = withContext(ioDispatcher) { client.snapshot() }
             applyShellSnapshot(
                 snap,
                 advanceGlobalCursor = GlobalCursorPolicy.bootstrapAdvancesGlobalCursor(),
+                recoveryAttemptSeq = attemptSeq,
             )
             onAuthoritativeBaseline()
+            agentStatusesBootstrap?.start(client)
             updateState {
                 it.copy(
                     phase = AppSession.Phase.Ready,
@@ -166,12 +233,7 @@ class LiveConnectionController(
         } catch (e: RemoteClientException) {
             if (e.code == "protocol_version_mismatch") {
                 updateState {
-                    it.copy(
-                        phase = AppSession.Phase.ProtocolIncompatible,
-                        globalError = e.message,
-                        projectsLoadState = AppSession.LoadState.Failed,
-                        projectsLoadError = e.message,
-                    )
+                    LiveSessionStateTransitions.bootstrapProtocolIncompatible(it, e.message)
                 }
                 return
             }
@@ -180,30 +242,23 @@ class LiveConnectionController(
                 lastSeenSeq = 0
                 startWebSocket(client)
             } else {
-                lastSeenSeq = 0
-                webSocket?.markSnapshotFailed()
-                updateState {
-                    it.copy(
-                        projectsLoadState = AppSession.LoadState.Failed,
-                        projectsLoadError = e.message,
-                        phase = AppSession.Phase.Ready,
-                        globalError = e.message,
-                    )
-                }
+                markBootstrapSnapshotFailed(e.message)
                 startWebSocket(client)
             }
         } catch (e: Exception) {
-            lastSeenSeq = 0
-            webSocket?.markSnapshotFailed()
-            updateState {
-                it.copy(
-                    projectsLoadState = AppSession.LoadState.Failed,
-                    projectsLoadError = e.message,
-                    phase = AppSession.Phase.Ready,
-                    globalError = e.message,
-                )
-            }
+            markBootstrapSnapshotFailed(e.message)
             startWebSocket(client)
+        }
+    }
+
+    /** Bootstrap snapshot failed (no protocol mismatch/expiry); claims connection scope. */
+    private fun markBootstrapSnapshotFailed(message: String?) {
+        lastSeenSeq = 0
+        webSocket?.markSnapshotFailed()
+        updateState {
+            LiveSessionStateTransitions.bootstrapSnapshotFailed(
+                it, message, connectionEvents.next(),
+            )
         }
     }
 
@@ -217,56 +272,77 @@ class LiveConnectionController(
         prev?.destroy()
         val socket = socketFactory.create(client)
         val sockId = owner.bumpSocketIdentity()
-        webSocket = socket
+        // A newly installed socket opens a fresh capability transition: any
+        // in-flight refresh from a previous socket is stale by definition.
+        synchronized(capabilityLock) {
+            browserCapabilityEpoch += 1
+            webSocket = socket
+        }
         socket.setListener(object : RemoteEventSocket.Listener {
             override fun onStateChanged(
                 state: RemoteWebSocketClient.ConnectionState,
                 detail: String?,
             ) {
-                if (!isCurrentLiveSocket(webSocket, socket, owner, bindSessionGen, sockId)) return
-                if (!lifecycleGate.isForeground &&
-                    state != RemoteWebSocketClient.ConnectionState.Suspended
-                ) {
-                    // No network result may mutate state after background unless restarted.
-                    return
-                }
-                updateState {
-                    it.copy(
-                        socketState = state,
-                        socketDetail = detail,
-                        sessionExpired = state ==
-                            RemoteWebSocketClient.ConnectionState.SessionExpired ||
-                            (
-                                it.sessionExpired &&
-                                    state != RemoteWebSocketClient.ConnectionState.Online
-                                ),
-                        phase = when {
-                            state == RemoteWebSocketClient.ConnectionState.SessionExpired ->
-                                AppSession.Phase.SessionExpired
-                            it.phase == AppSession.Phase.SessionExpired &&
-                                state == RemoteWebSocketClient.ConnectionState.Online ->
-                                AppSession.Phase.Ready
-                            it.phase == AppSession.Phase.ProtocolIncompatible ->
-                                AppSession.Phase.ProtocolIncompatible
-                            it.phase == AppSession.Phase.LocalStoreInconsistent ->
-                                AppSession.Phase.LocalStoreInconsistent
-                            else -> it.phase
-                        },
-                    )
+                val capabilityEpoch: Long
+                synchronized(capabilityLock) {
+                    // Recheck ownership and lifecycle after acquiring the
+                    // lock: either may have changed while this callback waited.
+                    if (!isCurrentLiveSocket(webSocket, socket, owner, bindSessionGen, sockId)) return
+                    if (!lifecycleGate.isForeground &&
+                        state != RemoteWebSocketClient.ConnectionState.Suspended
+                    ) return
+                    capabilityEpoch = ++browserCapabilityEpoch
+                    if (state == RemoteWebSocketClient.ConnectionState.Suspended) {
+                        // Suspension defers the next Online indefinitely: a
+                        // connect-time capability snapshot carries no freshness
+                        // guarantee across the suspension.
+                        initialBrowserVersions = null
+                    }
+                    updateState {
+                        LiveSessionStateTransitions.socketStateChanged(it, state, detail)
+                    }
                 }
                 if (state == RemoteWebSocketClient.ConnectionState.Online) {
-                    updateState {
-                        if (it.sessionExpired || it.phase == AppSession.Phase.SessionExpired) {
-                            it.copy(
-                                sessionExpired = false,
-                                phase = if (it.phase == AppSession.Phase.SessionExpired) {
-                                    AppSession.Phase.Ready
-                                } else {
-                                    it.phase
-                                },
-                            )
-                        } else {
-                            it
+                    val initialVersions: Set<Int>?
+                    synchronized(capabilityLock) {
+                        if (browserCapabilityEpoch != capabilityEpoch ||
+                            !isCurrentLiveSocket(webSocket, socket, owner, bindSessionGen, sockId)
+                        ) return
+                        initialVersions = initialBrowserVersions
+                        initialBrowserVersions = null
+                    }
+                    scope.launch {
+                        val versions = try {
+                            initialVersions ?: withContext(ioDispatcher) {
+                                client.environment().capabilities?.browserForward?.versions
+                                    .orEmpty().toSet()
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            emptySet()
+                        }
+                        // Guard + publication are one transition under the
+                        // owner: a concurrent state change can never slip
+                        // between the check and the write — it either runs
+                        // entirely before the guard (result rejected) or
+                        // entirely after the publication (its own clear
+                        // supersedes). Also rejects non-current sockets:
+                        // identity is stable across same-socket reconnects,
+                        // so the epoch carries that case and identity carries
+                        // socket swaps.
+                        synchronized(capabilityLock) {
+                            if (browserCapabilityEpoch == capabilityEpoch &&
+                                isCurrentLiveSocket(
+                                    webSocket,
+                                    socket,
+                                    owner,
+                                    bindSessionGen,
+                                    sockId,
+                                )
+                            ) {
+                                updateState { it.copy(liveBrowserForwardVersions = versions) }
+                            }
                         }
                     }
                 }
@@ -301,9 +377,16 @@ class LiveConnectionController(
         }
 
         when (lifecycleGate.actionForLiveStart()) {
-            AppLifecycleGate.StartAction.DoNotStart -> Unit
+            AppLifecycleGate.StartAction.DoNotStart -> {
+                // No start now and no bound on when (or from which host state)
+                // the first Online arrives: never reuse the connect-time cache.
+                synchronized(capabilityLock) { initialBrowserVersions = null }
+            }
             AppLifecycleGate.StartAction.LeaveSuspendedUntilForeground -> {
                 pendingLiveClient = client
+                // Deferred start carries no freshness guarantee for a cache
+                // captured before suspension (see closeLifecycleGate).
+                synchronized(capabilityLock) { initialBrowserVersions = null }
                 socket.armSuspended(startSeq)
             }
             AppLifecycleGate.StartAction.StartNow -> {
@@ -315,88 +398,35 @@ class LiveConnectionController(
     }
 
     /** Step 1 of background: close the lifecycle gate (no network cancel yet). */
-    fun closeLifecycleGate() {
-        lifecycleGate.onBackground()
-    }
+    fun closeLifecycleGate() = recovery.closeLifecycleGate()
 
     /** Must run synchronously at the start of every foreground recovery branch. */
-    fun openLifecycleGate() {
-        lifecycleGate.onForeground()
-    }
+    fun openLifecycleGate() = recovery.openLifecycleGate()
 
-    /**
-     * Cancel foreground network work, then suspend socket
-     * (ticket/connect/reconnect/health). Unpair is preserved by [SessionLifecycleJobs].
-     * @return cancelled jobs for join.
-     */
-    fun cancelAndSuspendForBackground(): List<kotlinx.coroutines.Job> {
-        val cancelled = jobs.cancelForegroundNetwork()
-        webSocket?.suspendForBackground()
-        return cancelled
-    }
+    /** @see LiveForegroundRecovery.cancelAndSuspendForBackground */
+    fun cancelAndSuspendForBackground(): List<kotlinx.coroutines.Job> =
+        recovery.cancelAndSuspendForBackground()
 
-    fun onBackground() {
-        closeLifecycleGate()
-        cancelAndSuspendForBackground()
-    }
+    fun onBackground() = recovery.onBackground()
 
+    /** @see LiveForegroundRecovery.onForeground */
     fun onForeground(
         resyncEngine: ResyncEngine,
         refreshSnapshot: () -> Unit,
-    ) {
-        if (!lifecycleGate.isForeground) {
-            lifecycleGate.onForeground()
-        }
-        // Authoritative recovery when background abandoned a resync gate.
-        // Must clear suspended and reconnect exactly once after success (no early deadlock).
-        if (resyncEngine.authoritativeRefreshRequired) {
-            resyncEngine.launchAuthoritativeForegroundRefreshIfNeeded()
-        }
-        // Reconcile socket: never leave ReconnectingStored/Connecting forever.
-        // Gate open alone does not reconnect — this controller owns restart.
-        when {
-            resyncEngine.pending -> {
-                // In-flight authoritative resync will resume the captured socket once.
-            }
-            webSocket != null -> {
-                webSocket?.resumeFromForeground()
-            }
-            api != null -> {
-                // Cold stored-session / pair snapshot background before socket creation,
-                // or cancelled mid-start: create/start exactly one socket.
-                val client = api
-                val phase = state().phase
-                val needsFullStart =
-                    state().snapshot == null ||
-                        phase == AppSession.Phase.ReconnectingStored ||
-                        phase == AppSession.Phase.Connecting ||
-                        phase == AppSession.Phase.Launching
-                if (needsFullStart) {
-                    lifecycleGate.noteLiveSessionDesired(true)
-                    val job = scope.launch { startLiveSession() }
-                    jobs.replace(SessionLifecycleJobs.LIVE_START, job)
-                } else if (lifecycleGate.liveSessionDesired && client != null) {
-                    startWebSocket(client)
-                } else if (phase == AppSession.Phase.Ready) {
-                    refreshSnapshot()
-                }
-            }
-        }
-    }
+    ) = recovery.onForeground(resyncEngine, refreshSnapshot)
 
     /**
      * After authoritative resync/foreground commit succeeds with no live socket
      * (e.g. cold stored-session backgrounded mid-bootstrap), install exactly one.
      */
-    fun ensureLiveSocketAfterAuthoritativeCommit() {
-        val client = api ?: return
-        if (webSocket != null) return
-        if (!lifecycleGate.isForeground) return
-        lifecycleGate.noteLiveSessionDesired(true)
-        startWebSocket(client)
-    }
+    fun ensureLiveSocketAfterAuthoritativeCommit() =
+        recovery.ensureLiveSocketAfterAuthoritativeCommit()
 
-    fun applyShellSnapshot(snap: RemoteShellSnapshot, advanceGlobalCursor: Boolean) {
+    fun applyShellSnapshot(
+        snap: RemoteShellSnapshot,
+        advanceGlobalCursor: Boolean,
+        recoveryAttemptSeq: Long? = null,
+    ) {
         if (advanceGlobalCursor) {
             lastSeenSeq = when (val current = lastSeenSeq) {
                 null -> snap.snapshotSeq
@@ -406,7 +436,7 @@ class LiveConnectionController(
         }
         updateState {
             val connectionId = it.hostCatalog.selectedConnectionId
-            it.copy(
+            val base = it.copy(
                 snapshot = snap,
                 hostSnapshots = if (connectionId == null) {
                     it.hostSnapshots
@@ -420,6 +450,8 @@ class LiveConnectionController(
                 },
                 projectsLoadError = null,
             )
+            if (recoveryAttemptSeq == null) base
+            else LiveSessionStateTransitions.connectionRecovered(base, recoveryAttemptSeq)
         }
     }
 
@@ -442,6 +474,12 @@ class LiveConnectionController(
     fun handleApiException(e: RemoteClientException) {
         if (e.isUnauthorized) {
             handleUnauthorized(e.message)
+        } else if (e.isTransportFailure) {
+            // Transient transport failure: claim it as connection scope so a
+            // later authoritative snapshot can retire the banner. Host domain
+            // failures are not connection-health evidence and stay on
+            // globalError.
+            connectionEvents.publishFailure(e.message)
         } else {
             updateState { it.copy(globalError = e.message) }
         }
@@ -456,37 +494,6 @@ class LiveConnectionController(
         webSocket?.setThreadItemInterests(ids)
     }
 
-    fun refreshSnapshot(onResult: ((Boolean) -> Unit)? = null): kotlinx.coroutines.Job? {
-        val client = api ?: return null
-        val scopes = state().profile?.scopes.orEmpty()
-        if (!RemoteAccessScopes.canRead(scopes)) {
-            updateState { it.copy(globalError = SessionPolicies.MISSING_SCOPE_READ_MESSAGE) }
-            return null
-        }
-        val job = scope.launch {
-            var success = false
-            try {
-                val snap = withContext(ioDispatcher) { client.snapshot() }
-                if (!lifecycleGate.isForeground) return@launch
-                applyShellSnapshot(
-                    snap,
-                    advanceGlobalCursor =
-                        GlobalCursorPolicy.ordinaryShellRefreshAdvancesGlobalCursor(),
-                )
-                success = true
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: RemoteClientException) {
-                if (!lifecycleGate.isForeground) return@launch
-                handleApiException(e)
-            } catch (e: Exception) {
-                if (!lifecycleGate.isForeground) return@launch
-                updateState { it.copy(globalError = e.message) }
-            } finally {
-                onResult?.invoke(success)
-            }
-        }
-        jobs.replace(SessionLifecycleJobs.SNAPSHOT, job)
-        return job
-    }
+    fun refreshSnapshot(onResult: ((Boolean) -> Unit)? = null): kotlinx.coroutines.Job? =
+        snapshotRefresher.refresh(onResult)
 }
