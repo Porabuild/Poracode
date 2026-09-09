@@ -31,6 +31,14 @@ reverts, event caps, and receipt recovery`). Findings P0-1/2/4/7 closed.
   combined suites, typecheck clean. Still open in WS3: cursor-sync v2 (#1),
   snapshot scrollback omission (#2), agent-statuses slimming (the measured
   39.4 KB cold-start culprit), waterfall parallelization (#6/#8).
+- **WS5-1: DONE, committed** (`fix(supervisor): shed terminal output…`).
+  Supervisor→backend overflow now sheds only terminal-output batches with a
+  merged-thread-id recovery signal (desktop: renderer-stream resync-required →
+  scrollback rebuild from the supervisor; headless: remote resync-required);
+  the fatal 30s backpressure timer is disabled. 5 regression tests; full
+  supervisor suite 4604 green. **WS7 Android races: DONE, committed** —
+  @Volatile seq fields + synchronized HostStateCache buffer; full Android
+  suite + lintDebug green.
 - **Manual QA additions:** Electron isolated smoke PASS (0 console errors);
   W-Rel-2 executed — server-side truncate converged live on a second client;
   45 s partition produced no crash and eventual recovery. 32 kbps cold-start

@@ -196,6 +196,15 @@ failure now exists in `src/main/remote` (PWA checkpoint-revert test, 403 scope m
 introduced in `1de973a21`), and the review confirmed the unbounded iOS buffers at three
 sites and the absent cursor-resume implementation.
 
+**2026-09-09 WS5-1 implemented and committed.** The supervisor→backend IPC sender
+now sheds only terminal-output batches under overflow (supervisor-output-shed
+recovery signal → renderer-stream/remote resync-required, supervisor stays the
+authoritative PTY source), and the 30s fatal backpressure timer is disabled —
+a backend stall no longer kills the supervisor and every agent. 5 regression
+tests; full supervisor suite 4604 green. WS7: three Android session-layer race
+fixes committed (@Volatile seq fields, synchronized HostStateCache agent-base
+buffer); full Android suite + lint green. WS3-A agent-statuses split designed
+with measured breakdown, ready to implement (plan §WS3).
 **2026-09-09 WS3 quick wins implemented and committed.** Delta coalescing at
 the supervisor broadcast boundary, WS deflate window cap removed, and a bounded
 ETag revalidation cache in RemoteDesktopClient (weak-link wire cost down on
