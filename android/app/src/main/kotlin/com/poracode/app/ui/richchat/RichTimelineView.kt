@@ -244,7 +244,9 @@ private fun RichTimelineItem(
                     )
                 }
             }
-            if (text.isNotBlank()) {
+            if (item.type == RichItemTypes.QUESTION_ANSWER) {
+                RichQuestionAnswerContent(RichQuestionAnswerPresentation.entries(item))
+            } else if (text.isNotBlank()) {
                 if (item.type == RichItemTypes.ASSISTANT_MESSAGE) {
                     RichMarkdownView(text)
                 } else {
@@ -275,7 +277,7 @@ private fun RichTimelineItem(
 @Composable
 private fun itemTypeLabel(type: String): String = stringResource(
     when (type) {
-        RichItemTypes.USER_MESSAGE -> R.string.rich_chat_you
+        RichItemTypes.USER_MESSAGE, RichItemTypes.QUESTION_ANSWER -> R.string.rich_chat_you
         RichItemTypes.ASSISTANT_MESSAGE -> R.string.rich_chat_assistant
         RichItemTypes.REASONING -> R.string.rich_chat_reasoning
         RichItemTypes.COMMAND_EXECUTION -> R.string.rich_chat_command
@@ -288,7 +290,7 @@ private fun itemTypeLabel(type: String): String = stringResource(
 
 @Composable
 private fun itemColor(item: RichRuntimeItem) = when (item.type) {
-    RichItemTypes.USER_MESSAGE -> MaterialTheme.colorScheme.primaryContainer
+    RichItemTypes.USER_MESSAGE, RichItemTypes.QUESTION_ANSWER -> MaterialTheme.colorScheme.primaryContainer
     RichItemTypes.ASSISTANT_MESSAGE -> MaterialTheme.colorScheme.surfaceContainer
     else -> MaterialTheme.colorScheme.surfaceContainerLow
 }
