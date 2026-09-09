@@ -19,6 +19,10 @@ browser forwarding merely from that exploratory question.
 
 Branch: `poracode/v2`. Relevant local commits:
 
+- `cd9505310`: WS3 #1 cursor-sync v2 — chunked baselines, resume, ACK credit
+  windows, heartbeat-safe scheduling; natives still on v1 (ledger `planned`).
+- `7edd2ef1e`: WS3 #6/#8 — cold-connect environment∥snapshot overlap and
+  parallel resync history fetches.
 - `23d145e0c`: WS3-A agent-statuses payload split — `slashCommands=0` slim payload,
   new `GET /api/agents/{kind}/slash-commands` route (62 routes), ETag revalidation
   cache on client GETs, renderer lazy per-agent catalog fetch.
