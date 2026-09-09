@@ -41,7 +41,8 @@ class HostCatalogCredentialRepository(
         return DurableOperationToken(receipt.id, kind)
     }
 
-    override suspend fun loadOutcome(): SessionCredentialLoadOutcome = try {
+    override suspend fun loadOutcome(): SessionCredentialLoadOutcome {
+        return try {
         catalog.recover()
         if (catalog.importLegacyIfNeeded() == LegacyHostImport.Outcome.SourceInconsistent) {
             return SessionCredentialLoadOutcome.Rejected.LegacyInconsistent
@@ -57,6 +58,7 @@ class HostCatalogCredentialRepository(
         }
     } catch (_: Exception) {
         SessionCredentialLoadOutcome.Rejected.LocalStoreInconsistent
+        }
     }
 
     override suspend fun commit(

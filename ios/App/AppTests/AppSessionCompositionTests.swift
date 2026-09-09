@@ -80,7 +80,8 @@ final class FakeRemoteAPI: SessionRemoteAPI {
     // deterministic.
     let captured: Result<RemoteEnvironmentDescriptor, Error>? =
       environmentResults.isEmpty ? nil : environmentResults.removeFirst()
-    let gate: AsyncGate? = environmentGates.isEmpty ? environmentGate : environmentGates.removeFirst()
+    let gate: AsyncGate? =
+      environmentGates.isEmpty ? environmentGate : environmentGates.removeFirst()
     if let gate { await gate.wait() }
     environmentCompletions += 1
     if let captured {
@@ -2116,18 +2117,27 @@ final class AppSessionCompositionTests: XCTestCase {
       durable.selected?.protocolVersion,
       PreservedPairingUpgrade.previousReleasedProtocolVersion)
     let offlineToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
-    XCTAssertEqual(offlineToken, "tok-9",
+    XCTAssertEqual(
+      offlineToken, "tok-9",
       "pre-commit offline must preserve stored token bytes")
     let bytesAfterOffline = try await session.deps.hostCatalog.registryRawData()
-    XCTAssertEqual(bytesAfterOffline, bytesBefore,
+    XCTAssertEqual(
+      bytesAfterOffline, bytesBefore,
       "parked retry must not rewrite durable bytes")
   }
 
-  func testPreservedV9OfflineForegroundOnlineUpgrades() async throws {
+  @MainActor
+  private final class PreservedUpgradeProbeState {
     var online = false
+    var gateSnapshots = true
+    var apis: [FakeRemoteAPI] = []
+  }
+
+  func testPreservedV9OfflineForegroundOnlineUpgrades() async throws {
+    let probe = PreservedUpgradeProbeState()
     let (session, repo, _) = try await makeSession { e, t in
       let api = FakeRemoteAPI(endpoint: e, accessToken: t)
-      if online {
+      if probe.online {
         api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
         api.snapshotResult = .success(makeShell(seq: 7))
       } else {
@@ -2151,7 +2161,7 @@ final class AppSessionCompositionTests: XCTestCase {
     let bytesParked = try await session.deps.hostCatalog.registryRawData()
     XCTAssertEqual(bytesParked, bytesBefore, "offline park must not rewrite durable bytes")
     // Foreground with the current-10 authenticated server retries verified.
-    online = true
+    probe.online = true
     session.handleScenePhase(.background)
     session.handleScenePhase(.active)
     try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
@@ -2174,17 +2184,16 @@ final class AppSessionCompositionTests: XCTestCase {
 
   func testPreservedV9BackgroundDuringSnapshotForegroundRetriesWithoutStaleInstall() async throws {
     let gate = AsyncGate()
-    var gateSnapshots = true
-    var apis: [FakeRemoteAPI] = []
+    let probe = PreservedUpgradeProbeState()
     let (session, repo, _) = try await makeSession { e, t in
       let api = FakeRemoteAPI(endpoint: e, accessToken: t)
       api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
       api.snapshotResult = .success(makeShell(seq: 9))
-      if gateSnapshots {
+      if probe.gateSnapshots {
         api.snapshotGateSkipCount = 0
         api.snapshotGate = gate
       }
-      apis.append(api)
+      probe.apis.append(api)
       return api
     }
     defer {
@@ -2199,8 +2208,8 @@ final class AppSessionCompositionTests: XCTestCase {
     try await gate.waitUntilWaiting()
     session.handleScenePhase(.background)
     session.handleScenePhase(.active)
-    gateSnapshots = false
-    for api in apis { api.snapshotGate = nil }
+    probe.gateSnapshots = false
+    for api in probe.apis { api.snapshotGate = nil }
     await gate.resume()
     await boot
     // The background-stalled proof must not install stale state; the
@@ -2213,7 +2222,7 @@ final class AppSessionCompositionTests: XCTestCase {
     XCTAssertEqual(
       session.profile?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
     XCTAssertEqual(session.state.accessToken, "tok-9")
-    XCTAssertGreaterThanOrEqual(apis.count, 2, "foreground must retry with a fresh handshake")
+    XCTAssertGreaterThanOrEqual(probe.apis.count, 2, "foreground must retry with a fresh handshake")
     let durable = try await session.deps.hostCatalog.snapshot()
     XCTAssertEqual(durable.selected?.connectionId, seeded.connectionId)
     XCTAssertEqual(
@@ -2264,7 +2273,8 @@ final class AppSessionCompositionTests: XCTestCase {
       durable.selected?.protocolVersion,
       PreservedPairingUpgrade.previousReleasedProtocolVersion)
     let preservedRotation = try await session.deps.hostCatalog.token(for: seeded.connectionId)
-    XCTAssertEqual(preservedRotation, "tok-rotated",
+    XCTAssertEqual(
+      preservedRotation, "tok-rotated",
       "same-id token replacement must survive a stale precommit handshake")
   }
 

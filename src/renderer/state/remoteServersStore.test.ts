@@ -4098,7 +4098,7 @@ describe("useRemoteServersStore", () => {
     useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
   });
 
-  it("parks an exhausted truncate reload across reconnects without a storm", async () => {
+  it("re-arms an exhausted truncate reload on reconnect without a fetch storm", async () => {
     vi.useFakeTimers();
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {
@@ -4106,7 +4106,7 @@ describe("useRemoteServersStore", () => {
       sockets.push(socket);
       return socket;
     });
-    const historySeq = { current: 30 };
+    const historySeq = { current: 10 };
     const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (id: string) => ({
       ...remoteThreadSnapshot(id),
       snapshotSeq: historySeq.current,
@@ -4148,12 +4148,15 @@ describe("useRemoteServersStore", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(threadHistory).toHaveBeenCalledTimes(3);
     expect(getTruncateNeededSeq("d1", "rt-1")).toBe(33);
-    // A healthy reconnect must not restart an exhausted budget.
+    // A real reconnect re-arms the budget. One failed recovery request must
+    // stay parked until another event or connectivity transition.
     sockets[0]?.onclose?.();
     await vi.advanceTimersByTimeAsync(2_000);
     await vi.advanceTimersByTimeAsync(0);
     expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
-    expect(threadHistory).toHaveBeenCalledTimes(3);
+    expect(threadHistory).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(threadHistory).toHaveBeenCalledTimes(4);
     expect(getTruncateNeededSeq("d1", "rt-1")).toBe(33);
     useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
   });
@@ -4166,7 +4169,7 @@ describe("useRemoteServersStore", () => {
       sockets.push(socket);
       return socket;
     });
-    const historySeq = { current: 30 };
+    const historySeq = { current: 10 };
     const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async (id: string) => ({
       ...remoteThreadSnapshot(id),
       snapshotSeq: historySeq.current,
