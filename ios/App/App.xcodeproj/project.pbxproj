@@ -453,6 +453,7 @@
 		A100000000000000000000C7 /* RichChatConversationControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000C7 /* RichChatConversationControllerTests.swift */; };
 		FE1000000002 /* ThreadRuntimeTruncateAndCloseReachabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2000000002 /* ThreadRuntimeTruncateAndCloseReachabilityTests.swift */; };
 		A100000000000000000000C8 /* RichChatTranscriptControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000C8 /* RichChatTranscriptControllerTests.swift */; };
+		3C330440AF5E98FA5937FB83 /* RichChatTruncationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB74C9800C6C0951B6A150BF /* RichChatTruncationTests.swift */; };
 		A100000000000000000000C9 /* RichChatAuxiliaryControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000C9 /* RichChatAuxiliaryControllerTests.swift */; };
 		A100000000000000000000CA /* RichChatPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000CA /* RichChatPresentationTests.swift */; };
 		A100000000000000000000CB /* ProjectWorkspaceTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000CB /* ProjectWorkspaceTestSupport.swift */; };
@@ -1204,6 +1205,7 @@
 		B100000000000000000000C7 /* RichChatConversationControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatConversationControllerTests.swift; sourceTree = "<group>"; };
 		FE2000000002 /* ThreadRuntimeTruncateAndCloseReachabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreadRuntimeTruncateAndCloseReachabilityTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000C8 /* RichChatTranscriptControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTranscriptControllerTests.swift; sourceTree = "<group>"; };
+		EB74C9800C6C0951B6A150BF /* RichChatTruncationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTruncationTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000C9 /* RichChatAuxiliaryControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatAuxiliaryControllerTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000CA /* RichChatPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatPresentationTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000CB /* ProjectWorkspaceTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceTestSupport.swift; sourceTree = "<group>"; };
@@ -2486,6 +2488,7 @@
 				B100000000000000000000C7 /* RichChatConversationControllerTests.swift */,
 				FE2000000002 /* ThreadRuntimeTruncateAndCloseReachabilityTests.swift */,
 				B100000000000000000000C8 /* RichChatTranscriptControllerTests.swift */,
+				EB74C9800C6C0951B6A150BF /* RichChatTruncationTests.swift */,
 				B100000000000000000000C9 /* RichChatAuxiliaryControllerTests.swift */,
 				B100000000000000000000CA /* RichChatPresentationTests.swift */,
 				B100000000000000000000CB /* ProjectWorkspaceTestSupport.swift */,
@@ -3622,6 +3625,7 @@
 				A100000000000000000000C7 /* RichChatConversationControllerTests.swift in Sources */,
 				FE1000000002 /* ThreadRuntimeTruncateAndCloseReachabilityTests.swift in Sources */,
 				A100000000000000000000C8 /* RichChatTranscriptControllerTests.swift in Sources */,
+				3C330440AF5E98FA5937FB83 /* RichChatTruncationTests.swift in Sources */,
 				A100000000000000000000C9 /* RichChatAuxiliaryControllerTests.swift in Sources */,
 				A100000000000000000000CA /* RichChatPresentationTests.swift in Sources */,
 				A100000000000000000000CB /* ProjectWorkspaceTestSupport.swift in Sources */,

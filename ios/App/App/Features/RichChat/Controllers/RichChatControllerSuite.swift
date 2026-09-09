@@ -20,7 +20,8 @@ final class RichChatControllerSuite {
   private(set) var scope = RichChatControllerScope()
 
   var requiresAuthoritativeRefresh: Bool {
-    conversation.state.requiresAuthoritativeRefresh
+    transcript.state.requiresAuthoritativeRefresh
+      || conversation.state.requiresAuthoritativeRefresh
       || requests.state.requiresAuthoritativeRefresh
       || checkpoints.state.requiresAuthoritativeRefresh
       || media.state.requiresAuthoritativeRefresh
@@ -40,7 +41,7 @@ final class RichChatControllerSuite {
       RichChatNoopRefreshRequester(),
     watchIDGenerator: any RichChatWatchIDGenerating = RichChatUUIDWatchIDGenerator()
   ) {
-    transcript = RichChatTranscriptController(gateway: gateway)
+    transcript = RichChatTranscriptController(gateway: gateway, refreshRequester: refreshRequester)
     conversation = RichChatConversationController(
       gateway: gateway,
       refreshRequester: refreshRequester

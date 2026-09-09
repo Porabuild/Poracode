@@ -21,11 +21,17 @@ struct RichChatTranscriptControllerState: Equatable, Sendable {
   var snapshotSequence: Int?
   var liveSequence: Int = -1
   var loadState: RichChatTranscriptLoadState = .idle
+  var requiresAuthoritativeRefresh = false
   var isLoadingOlder = false
   var pageFailure: RichChatControllerFailure?
 
   var timeline: RichTimelineProjection? {
     transcript.map { RichTimeline.project($0.itemsInOrder) }
+  }
+
+  func displayedCompletedTurns(in projection: RichTimelineProjection?) -> [RichCompletedTurn] {
+    guard !completedTurns.isEmpty, let projection else { return completedTurns }
+    return RichTimeline.resolveCompletedTurnAnchors(completedTurns, in: projection)
   }
 }
 
@@ -43,6 +49,8 @@ final class RichChatTranscriptController {
   private(set) var state = RichChatTranscriptControllerState()
 
   private let gateway: any RichChatHistoryGateway
+  private let refreshRequester: any RichChatAuthoritativeRefreshRequesting
+  private let refreshTask = RichChatControllerTaskSlot()
   private let historyTask = RichChatControllerTaskSlot()
   private let pageTask = RichChatControllerTaskSlot()
   private var revision: UInt64 = 0
@@ -50,12 +58,17 @@ final class RichChatTranscriptController {
   private var bufferedBatches: [RichChatBufferedRuntimeBatch] = []
   private var bufferedSequences: Set<Int> = []
 
-  init(gateway: any RichChatHistoryGateway) {
+  init(
+    gateway: any RichChatHistoryGateway,
+    refreshRequester: any RichChatAuthoritativeRefreshRequesting = RichChatNoopRefreshRequester()
+  ) {
     self.gateway = gateway
+    self.refreshRequester = refreshRequester
   }
 
   func activate(access: RichChatSessionAccess, threadID: String) {
     revision &+= 1
+    refreshTask.cancel()
     historyTask.cancel()
     pageTask.cancel()
     bufferedBatches.removeAll(keepingCapacity: true)
@@ -79,6 +92,7 @@ final class RichChatTranscriptController {
 
   func deactivate() {
     revision &+= 1
+    refreshTask.cancel()
     historyTask.cancel()
     pageTask.cancel()
     bufferedBatches.removeAll(keepingCapacity: false)
@@ -89,6 +103,7 @@ final class RichChatTranscriptController {
 
   func enterBackground() {
     revision &+= 1
+    refreshTask.cancel()
     isBackgrounded = true
     historyTask.cancel()
     pageTask.cancel()
@@ -174,8 +189,12 @@ final class RichChatTranscriptController {
       return
     }
     guard sequence > state.liveSequence else { return }
+    let alreadyRequiresRefresh = state.requiresAuthoritativeRefresh
     apply(events, receivedAtMilliseconds: receivedAtMilliseconds)
     state.liveSequence = sequence
+    if state.requiresAuthoritativeRefresh && !alreadyRequiresRefresh {
+      scheduleAuthoritativeRefresh()
+    }
   }
 
   func receivePendingSteer(
@@ -202,19 +221,31 @@ final class RichChatTranscriptController {
       )
       try Task.checkCancellation()
       let items = try RichChatRemoteModelBridge.items(history.runtimeItems)
-      let turns = try RichChatRemoteModelBridge.completedTurns(history.completedTurns)
+      var turns = try RichChatRemoteModelBridge.completedTurns(history.completedTurns)
       let context = try RichChatRemoteModelBridge.contextUsage(history.contextUsage)
       guard history.thread.id == target.threadID,
         owns(target: target, revision: owner)
       else { return }
       var transcript = RichTranscriptState(threadID: target.threadID, items: items)
+      // A snapshot carries no open-turn fact (only completed turns persist), so
+      // `history.thread.status` is the authoritative baseline for a mid-turn
+      // install. Seed it BEFORE replaying newer buffered batches so a buffered
+      // `turn.completed`/`turn.started` newer than the snapshot wins. Mirrors
+      // the web snapshot arbitration (`isThreadTurnActive` +
+      // `syncRuntimeTurnBoundaryFromSnapshot`).
+      transcript.apply(
+        Self.baselineTurnEvent(status: history.thread.status, threadID: target.threadID)
+      )
+      var needsCatchup = false
       var mergedContext = context
       var liveSequence = history.snapshotSeq
       for batch in bufferedBatches.sorted(by: { $0.sequence < $1.sequence })
       where batch.sequence > history.snapshotSeq {
-        for event in batch.events {
-          transcript.apply(event, receivedAtMilliseconds: batch.receivedAtMilliseconds)
-        }
+        needsCatchup =
+          Self.applyEvents(
+            batch.events, to: &transcript, turns: &turns,
+            receivedAtMilliseconds: batch.receivedAtMilliseconds
+          ) || needsCatchup
         mergedContext = Self.mergeContextUsage(
           batch.events,
           threadID: target.threadID,
@@ -223,18 +254,17 @@ final class RichChatTranscriptController {
         liveSequence = max(liveSequence, batch.sequence)
       }
       state.transcript = transcript
-      state.completedTurns = RichTimeline.resolveCompletedTurnAnchors(
-        turns,
-        in: RichTimeline.project(transcript.itemsInOrder)
-      )
+      state.completedTurns = turns
       state.contextUsage = mergedContext
       state.terminalScrollback = history.terminalScrollback
       state.olderCursor = history.runtimeNextCursor
       state.snapshotSequence = history.snapshotSeq
       state.liveSequence = liveSequence
       state.loadState = transcript.itemsInOrder.isEmpty ? .empty : .loaded
+      state.requiresAuthoritativeRefresh = needsCatchup
       bufferedBatches.removeAll(keepingCapacity: false)
       bufferedSequences.removeAll(keepingCapacity: false)
+      if needsCatchup { scheduleAuthoritativeRefresh() }
     } catch is CancellationError {
       guard owns(target: target, revision: owner) else { return }
       state.loadState = .idle
@@ -297,15 +327,78 @@ final class RichChatTranscriptController {
 
   private func apply(_ events: [RichRuntimeEvent], receivedAtMilliseconds: Int64) {
     guard var transcript = state.transcript else { return }
-    for event in events {
-      transcript.apply(event, receivedAtMilliseconds: receivedAtMilliseconds)
-    }
+    var turns = state.completedTurns
+    let needsCatchup = Self.applyEvents(
+      events, to: &transcript, turns: &turns,
+      receivedAtMilliseconds: receivedAtMilliseconds
+    )
+    state.completedTurns = turns
+    state.requiresAuthoritativeRefresh = state.requiresAuthoritativeRefresh || needsCatchup
     state.transcript = transcript
     state.contextUsage = Self.mergeContextUsage(
       events,
       threadID: transcript.threadID,
       into: state.contextUsage
     )
+  }
+
+  private static func applyEvents(
+    _ events: [RichRuntimeEvent],
+    to transcript: inout RichTranscriptState,
+    turns: inout [RichCompletedTurn],
+    receivedAtMilliseconds: Int64
+  ) -> Bool {
+    var needsCatchup = false
+    for event in events {
+      if case .runtimeTruncated(_, let itemID, let anchors) = event {
+        needsCatchup = needsCatchup || transcript.itemsByID[itemID] == nil
+        let removed = Set(anchors)
+        turns.removeAll { turn in
+          turn.anchorItemID.map { removed.contains($0) } ?? false
+        }
+      }
+      transcript.apply(event, receivedAtMilliseconds: receivedAtMilliseconds)
+    }
+    return needsCatchup
+  }
+
+  private func scheduleAuthoritativeRefresh() {
+    guard !refreshTask.isRunning, !isBackgrounded,
+      let target = state.target, state.requiresAuthoritativeRefresh
+    else { return }
+    refreshTask.launch { [weak self] in
+      guard let self else { return }
+      for _ in 0..<3 {
+        guard !Task.isCancelled, self.state.target == target,
+          !self.isBackgrounded, self.state.requiresAuthoritativeRefresh
+        else { return }
+        let previousSnapshot = self.state.snapshotSequence
+        await self.refreshRequester.requestRichChatRefresh(
+          target: target, reason: .transcriptInvalidated)
+        // Continue only when a new installed baseline still needs catchup.
+        // Failed/no-op requesters must not create a retry loop.
+        guard self.state.snapshotSequence != previousSnapshot else { return }
+      }
+    }
+  }
+
+  /// Whether a snapshot's `thread.status` implies a live turn: running
+  /// (`launching`/`working`) or blocked on the user (`needs_approval`/
+  /// `needs_reply`). Same domain as the host's `isThreadTurnActive`
+  /// (`src/shared/contracts/common.ts`); every other status (`idle`,
+  /// `finished`, `error`, `inactive`, …) authoritatively closes the marker.
+  private static func isTurnActiveStatus(_ status: String) -> Bool {
+    status == "launching" || status == "working"
+      || status == "needs_approval" || status == "needs_reply"
+  }
+
+  /// Synthetic reducer input pinning `openTurn` to the status baseline without
+  /// touching transcript items (`.completed` never prunes trailing reasoning).
+  private static func baselineTurnEvent(status: String, threadID: String) -> RichRuntimeEvent {
+    if isTurnActiveStatus(status) {
+      return .turnStarted(threadID: threadID, turnID: "history-baseline")
+    }
+    return .turnCompleted(threadID: threadID, turnID: "history-baseline", state: .completed)
   }
 
   /// Shallow-merges every `context.updated` report for this exact thread in wire
