@@ -2029,6 +2029,10 @@ msgstr "Navigateur"
 msgid "Browser Control"
 msgstr "Contrôle du navigateur"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Browser forwarding isn't set up on this desktop."
+msgstr "Le transfert par navigateur n'est pas configuré sur ce bureau."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Browser is open in a separate window"
 msgstr "Le navigateur est ouvert dans une fenêtre séparée"
@@ -3414,6 +3418,10 @@ msgstr "Conversation"
 msgid "Copied"
 msgstr "Copié"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
+msgstr "Adresse TCP directe copiée (LAN uniquement) — s'ouvre en dehors du transfert isolé."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
 msgstr "Copié dans le presse-papiers"
@@ -3471,6 +3479,10 @@ msgstr "Copier les fichiers ignorés"
 msgid "Copy image"
 msgstr "Copier l'image"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy link"
+msgstr "Copier le lien"
+
 #: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
@@ -3488,6 +3500,10 @@ msgstr "Copier le jeton d'association"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
 msgstr "Copier le chemin"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy raw address"
+msgstr "Copier l'adresse directe"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Relative Path"
@@ -3510,8 +3526,8 @@ msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Copiez les modifications non validées ici (les conserve sur cette branche)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "Copy URL"
-msgstr "Copier l'URL"
+#~ msgid "Copy URL"
+#~ msgstr "Copier l'URL"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
@@ -7589,6 +7605,10 @@ msgstr "Déplacer le navigateur vers une fenêtre"
 msgid "Move changes to a new worktree"
 msgstr "Déplacer les modifications vers un nouvel arbre de travail"
 
+#: src/renderer/components/thread/PaneDragAndDrop.tsx
+msgid "Move pane"
+msgstr "Déplacer le volet"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 msgid "Move panel"
 msgstr "Déplacer le panneau"
@@ -10116,6 +10136,10 @@ msgstr "Reconnectez le serveur pour ajouter des projets."
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Reconnecting"
 #~ msgstr "Reconnexion"
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Reconnecting to terminal…"
+msgstr "Reconnexion au terminal…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -12700,6 +12724,10 @@ msgstr "Dites au fournisseur cible quoi faire ensuite..."
 msgid "Terminal"
 msgstr "Terminal"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal access denied."
+msgstr "Accès au terminal refusé."
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -12721,6 +12749,10 @@ msgstr "Entrée du terminal"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "Terminal non prêt – sélection ajoutée au compositeur."
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal output is unavailable. Reconnect to try again."
+msgstr "La sortie du terminal est indisponible. Reconnectez-vous pour réessayer."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -13040,6 +13072,10 @@ msgstr "Cet ordinateur"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Cette connexion peut voir les projets, mais pas les gérer. Associez-la à nouveau pour l’activer."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+msgstr "La version de Poracode de ce bureau ne prend pas en charge le transfert par navigateur. Mettez à jour Poracode sur votre bureau."
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."

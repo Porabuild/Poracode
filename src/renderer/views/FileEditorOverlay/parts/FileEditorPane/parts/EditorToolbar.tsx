@@ -66,6 +66,8 @@ export function EditorToolbar(props: {
             <button
               type="button"
               className={`rounded p-0.5 ${isDirty ? "text-foreground" : "text-muted/40 pointer-events-none"}`}
+              aria-label={t`Save`}
+              disabled={!isDirty}
               onClick={onSave}
             >
               <Save className="size-3" />

@@ -337,7 +337,11 @@ function EditorBody(props: {
 
   return (
     <div className="min-h-0 flex-1 overflow-hidden">
-      {isPdf ? (
+      {bufferStatus === "loading" ? (
+        <div className="flex h-full items-center justify-center text-sm text-muted">
+          <Trans>Loading editor…</Trans>
+        </div>
+      ) : isPdf ? (
         <PdfBrowserPlaceholder path={activePath} projectLocation={projectLocation} />
       ) : bufferStatus === "ready" && showPreview && isMarkdown ? (
         <MarkdownPreview content={content ?? ""} />

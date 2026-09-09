@@ -2029,6 +2029,10 @@ msgstr "브라우저"
 msgid "Browser Control"
 msgstr "브라우저 제어"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Browser forwarding isn't set up on this desktop."
+msgstr "이 데스크톱에서는 브라우저 포워딩이 설정되어 있지 않습니다."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Browser is open in a separate window"
 msgstr "브라우저가 별도의 창에서 열려 있습니다"
@@ -3414,6 +3418,10 @@ msgstr "대화"
 msgid "Copied"
 msgstr "복사됨"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
+msgstr "직접 TCP 주소가 복사됨(LAN 전용) — 격리된 포워딩 밖에서 열립니다."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
 msgstr "클립보드에 복사됨"
@@ -3471,6 +3479,10 @@ msgstr "무시된 파일 복사"
 msgid "Copy image"
 msgstr "이미지 복사"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy link"
+msgstr "링크 복사"
+
 #: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
@@ -3488,6 +3500,10 @@ msgstr "페어링 토큰 복사"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
 msgstr "경로 복사"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy raw address"
+msgstr "직접 주소 복사"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Relative Path"
@@ -3510,8 +3526,8 @@ msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "커밋되지 않은 변경 사항을 여기에 복사합니다(이 브랜치에 유지)."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "Copy URL"
-msgstr "URL 복사"
+#~ msgid "Copy URL"
+#~ msgstr "URL 복사"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
@@ -7590,6 +7606,10 @@ msgstr "브라우저를 창으로 이동"
 msgid "Move changes to a new worktree"
 msgstr "변경 사항을 새 작업 트리로 이동"
 
+#: src/renderer/components/thread/PaneDragAndDrop.tsx
+msgid "Move pane"
+msgstr "창 이동"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 msgid "Move panel"
 msgstr "패널 이동"
@@ -10117,6 +10137,10 @@ msgstr "프로젝트를 추가하려면 서버에 다시 연결하세요."
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Reconnecting"
 #~ msgstr "다시 연결 중"
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Reconnecting to terminal…"
+msgstr "터미널에 다시 연결하는 중…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -12701,6 +12725,10 @@ msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요
 msgid "Terminal"
 msgstr "터미널"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal access denied."
+msgstr "터미널 접근이 거부되었습니다."
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -12722,6 +12750,10 @@ msgstr "터미널 입력"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "터미널이 준비되지 않음 - 작성기에 선택 항목이 추가되었습니다."
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal output is unavailable. Reconnect to try again."
+msgstr "터미널 출력을 사용할 수 없습니다. 다시 연결하여 재시도하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -13041,6 +13073,10 @@ msgstr "이 컴퓨터"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "이 연결은 프로젝트를 볼 수 있지만 관리할 수 없습니다. 활성화하려면 다시 페어링하세요."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+msgstr "이 데스크톱의 Poracode 버전은 브라우저 포워딩을 지원하지 않습니다. 데스크톱에서 Poracode를 업데이트하세요."
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."

@@ -2,6 +2,7 @@ import { toast } from "@heroui/react";
 import type { Project } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
+import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import { updateProjectScripts } from "@/renderer/actions/projectActions";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -93,7 +94,6 @@ export async function openFileInEditor(
   path: string,
   options?: OpenFileInEditorOptions,
 ): Promise<void> {
-  if (project.remoteServerId && (path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path))) return;
   const fileEditor = useFileEditorStore.getState();
   const targetContext = buildFileEditorContext(project, worktreePath, worktreeBranch);
   const currentRoot = fileEditor.rootContext;
@@ -125,7 +125,8 @@ export async function openFileInEditor(
     ...(gitDiff ? { gitDiff } : {}),
   };
   try {
-    await fileEditor.openFile(path, "modal", false, editorOptions);
+    const mode = isCompactLayoutViewport() ? "fullscreen" : "modal";
+    await fileEditor.openFile(path, mode, false, editorOptions);
   } catch (error) {
     captureRendererException(error, { featureArea: "file-editor" });
     toast.danger(error instanceof Error ? error.message : String(error));

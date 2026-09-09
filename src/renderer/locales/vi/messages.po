@@ -2029,6 +2029,10 @@ msgstr "Trình duyệt"
 msgid "Browser Control"
 msgstr "Điều khiển trình duyệt"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Browser forwarding isn't set up on this desktop."
+msgstr "Chuyển tiếp qua trình duyệt chưa được thiết lập trên máy tính này."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Browser is open in a separate window"
 msgstr "Trình duyệt đang mở trong một cửa sổ riêng"
@@ -3414,6 +3418,10 @@ msgstr "Cuộc trò chuyện"
 msgid "Copied"
 msgstr "Đã sao chép"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
+msgstr "Đã sao chép địa chỉ TCP trực tiếp (chỉ LAN) — mở bên ngoài chuyển tiếp cách ly."
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
 msgstr "Đã sao chép vào bộ nhớ tạm"
@@ -3471,6 +3479,10 @@ msgstr "Sao chép các tập tin bị bỏ qua"
 msgid "Copy image"
 msgstr "Sao chép hình ảnh"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy link"
+msgstr "Sao chép liên kết"
+
 #: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
@@ -3488,6 +3500,10 @@ msgstr "Sao chép token ghép đôi"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
 msgstr "Sao chép đường dẫn"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy raw address"
+msgstr "Sao chép địa chỉ trực tiếp"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Relative Path"
@@ -3510,8 +3526,8 @@ msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Sao chép các thay đổi chưa được cam kết tại đây (giữ chúng trên nhánh này)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "Copy URL"
-msgstr "Sao chép URL"
+#~ msgid "Copy URL"
+#~ msgstr "Sao chép URL"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
@@ -7590,6 +7606,10 @@ msgstr "Chuyển trình duyệt sang cửa sổ"
 msgid "Move changes to a new worktree"
 msgstr "Di chuyển các thay đổi sang một cây làm việc mới"
 
+#: src/renderer/components/thread/PaneDragAndDrop.tsx
+msgid "Move pane"
+msgstr "Di chuyển ngăn"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 msgid "Move panel"
 msgstr "Di chuyển bảng điều khiển"
@@ -10117,6 +10137,10 @@ msgstr "Kết nối lại máy chủ để thêm dự án."
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Reconnecting"
 #~ msgstr "Đang kết nối lại"
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Reconnecting to terminal…"
+msgstr "Đang kết nối lại với terminal…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -12701,6 +12725,10 @@ msgstr "Cho nhà cung cấp mục tiêu biết phải làm gì tiếp theo..."
 msgid "Terminal"
 msgstr "Terminal"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal access denied."
+msgstr "Quyền truy cập terminal bị từ chối."
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -12722,6 +12750,10 @@ msgstr "Đầu vào đầu cuối"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "Thiết bị đầu cuối chưa sẵn sàng - đã thêm lựa chọn vào trình soạn thảo."
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal output is unavailable. Reconnect to try again."
+msgstr "Không thể xem đầu ra terminal. Hãy kết nối lại để thử lần nữa."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -13041,6 +13073,10 @@ msgstr "Máy tính này"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý. Hãy ghép nối lại để bật."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+msgstr "Phiên bản Poracode trên máy tính này không hỗ trợ chuyển tiếp qua trình duyệt. Hãy cập nhật Poracode trên máy tính của bạn."
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."

@@ -2028,6 +2028,10 @@ msgstr "ブラウザ"
 msgid "Browser Control"
 msgstr "ブラウザ操作"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Browser forwarding isn't set up on this desktop."
+msgstr "このデスクトップではブラウザー転送が設定されていません。"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Browser is open in a separate window"
 msgstr "ブラウザは別のウィンドウで開いています"
@@ -3413,6 +3417,10 @@ msgstr "会話"
 msgid "Copied"
 msgstr "コピーされました"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
+msgstr "直接TCPアドレスをコピーしました（LANのみ）— 分離された転送の外側で開きます。"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"
 msgstr "クリップボードにコピーしました"
@@ -3470,6 +3478,10 @@ msgstr "無視されたファイルをコピーする"
 msgid "Copy image"
 msgstr "画像をコピー"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy link"
+msgstr "リンクをコピー"
+
 #: src/renderer/components/thread/ChatPane/parts/items/AssistantMessage.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/UserMessage.tsx
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
@@ -3487,6 +3499,10 @@ msgstr "ペアリングトークンをコピー"
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Path"
 msgstr "パスのコピー"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copy raw address"
+msgstr "直接アドレスをコピー"
 
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 msgid "Copy Relative Path"
@@ -3509,8 +3525,8 @@ msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "コミットされていない変更をここにコピーします (このブランチに保持します)"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "Copy URL"
-msgstr "URLをコピー"
+#~ msgid "Copy URL"
+#~ msgstr "URLをコピー"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not abort the merge: {detail}"
@@ -7588,6 +7604,10 @@ msgstr "ブラウザーをウィンドウに移動"
 msgid "Move changes to a new worktree"
 msgstr "変更を新しいワークツリーに移動する"
 
+#: src/renderer/components/thread/PaneDragAndDrop.tsx
+msgid "Move pane"
+msgstr "ペインを移動"
+
 #: src/renderer/components/layout/PanelDock/PanelSectionHeader.tsx
 msgid "Move panel"
 msgstr "パネルを移動"
@@ -10115,6 +10135,10 @@ msgstr "プロジェクトを追加するにはサーバーに再接続してく
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Reconnecting"
 #~ msgstr "再接続中"
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Reconnecting to terminal…"
+msgstr "ターミナルに再接続中…"
 
 #: src/mobile/components.tsx
 #~ msgid "Reconnecting to your desktop…"
@@ -12699,6 +12723,10 @@ msgstr "ターゲットプロバイダーに次に何をすべきかを伝えま
 msgid "Terminal"
 msgstr "ターミナル"
 
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal access denied."
+msgstr "ターミナルへのアクセスが拒否されました。"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -12720,6 +12748,10 @@ msgstr "ターミナル入力"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 msgid "Terminal not ready — added selection to composer."
 msgstr "ターミナルの準備ができていません — コンポーザーに選択を追加しました。"
+
+#: src/renderer/components/terminal/TerminalFeedStatus.tsx
+msgid "Terminal output is unavailable. Reconnect to try again."
+msgstr "ターミナルの出力を取得できません。再接続してもう一度お試しください。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -13039,6 +13071,10 @@ msgstr "このコンピューター"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "この接続ではプロジェクトを表示できますが、管理はできません。有効にするには再度ペアリングしてください。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
+msgstr "このデスクトップのPoracodeのバージョンはブラウザー転送に対応していません。デスクトップでPoracodeを更新してください。"
 
 #: src/mobile/QrScanner.tsx
 #~ msgid "This device has no usable camera. Enter the endpoint and token below to pair instead."
