@@ -14,6 +14,10 @@ const mocks = vi.hoisted(() => ({
       removedCompletedTurnAnchors: string[];
     }
   >(),
+  dbGetThread: vi.fn<(threadId: string) => null>(),
+  dbHasThreadRuntimeItem: vi.fn<(threadId: string, itemId: string) => boolean>(),
+  dbClaimCheckpointRevertOperation: vi.fn<() => never>(),
+  dbUpdateCheckpointRevertPhases: vi.fn<() => void>(),
   persistSupervisorEvent: vi.fn<(event: SupervisorEvent) => void>(),
   start: vi.fn<() => void>(),
   dispose: vi.fn<() => void>(),
@@ -29,6 +33,10 @@ vi.mock("@/main/db", () => ({
   closeDatabase: mocks.closeDatabase,
   dbMarkLiveThreadsInactive: mocks.dbMarkLiveThreadsInactive,
   dbTruncateThreadRuntimeAfter: mocks.dbTruncateThreadRuntimeAfter,
+  dbGetThread: mocks.dbGetThread,
+  dbHasThreadRuntimeItem: mocks.dbHasThreadRuntimeItem,
+  dbClaimCheckpointRevertOperation: mocks.dbClaimCheckpointRevertOperation,
+  dbUpdateCheckpointRevertPhases: mocks.dbUpdateCheckpointRevertPhases,
   dbAppendThreadTerminalOutput: vi.fn<() => void>(),
   dbClearThreadTerminalScrollback: vi.fn<() => void>(),
 }));
