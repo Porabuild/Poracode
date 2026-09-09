@@ -3,6 +3,7 @@ package com.poracode.app.ui.richchat
 import com.poracode.app.chat.RichContentBlock
 import com.poracode.app.chat.RichContentDecoder
 import com.poracode.app.chat.RichImagePolicy
+import com.poracode.app.chat.RichItemTypes
 import com.poracode.app.chat.RichRemoteImageRef
 import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.model.ProjectLocation
@@ -48,6 +49,9 @@ object RichChatUiLogic {
         "send" in activeOperations || hasOpenTurn
 
     fun itemText(item: RichRuntimeItem): String {
+        if (item.type == RichItemTypes.QUESTION_ANSWER) {
+            return RichQuestionAnswerPresentation.text(item)
+        }
         val streamed = preferredStreams.mapNotNull(item.streams::get)
             .filter(String::isNotBlank)
             .joinToString("\n")
