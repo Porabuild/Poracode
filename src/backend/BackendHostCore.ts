@@ -72,9 +72,17 @@ export interface BackendHostCoreOptions {
   dbPath: string;
   databaseSchemaMode?: "migrate" | "validate";
   markLiveThreadsInactiveOnOpen?: boolean;
-  supervisor: Omit<SupervisorClientOptions, "baseDir" | "onEvent" | "onReset">;
+  supervisor: Omit<SupervisorClientOptions, "baseDir" | "onEvent" | "onReset" | "onOutputShed">;
   onEvent(event: SupervisorEvent): void;
   onReset(): void;
+  /**
+   * The supervisor shed queued terminal-output batches for these threads
+   * under backend-IPC backpressure. Compositions ask their clients to
+   * resynchronize those threads' terminal output from the supervisor — the
+   * shed events never reached persistence, so without this the loss would
+   * be silent.
+   */
+  onSupervisorOutputShed?(threadIds: string[]): void;
 }
 
 /**
@@ -215,6 +223,7 @@ export class BackendHostCore {
           persistSupervisorEvent(event);
           options.onEvent(event);
         },
+        onOutputShed: (threadIds) => options.onSupervisorOutputShed?.(threadIds),
         onReset: options.onReset,
       });
     } catch (error) {

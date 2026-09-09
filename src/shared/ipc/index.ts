@@ -54,6 +54,8 @@ export {
   type ThreadOpenRequestedEvent,
   type SupervisorEvent,
   type SupervisorFlowControl,
+  isSupervisorOutputShedSignal,
+  type SupervisorOutputShedSignal,
   type SupervisorReply,
   type SupervisorRequest,
   type UpdateStatus,

@@ -188,6 +188,19 @@ export async function createHeadlessRemoteHost(
       pushCoordinator?.handleSupervisorEvent(event);
       threadNotifications?.handleSupervisorEvent(event);
     },
+    onSupervisorOutputShed: (threadIds) => {
+      // The supervisor shed terminal-output batches in transit; remote
+      // clients must resync those threads' terminal output from the
+      // supervisor, which keeps the authoritative PTY bytes.
+      options.reportError?.(
+        new Error(
+          `supervisor shed terminal output for ${threadIds.length} thread(s) under IPC backpressure`,
+        ),
+      );
+      serverRef?.broadcastResyncRequired(
+        "Terminal output was shed under backpressure; resynchronize from the host.",
+      );
+    },
     onReset: () => {
       // Match the desktop backend: a supervisor crash leaves durable rows
       // `working`, and without a renderer launch sweep those statuses stay

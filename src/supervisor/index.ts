@@ -1,4 +1,9 @@
-import type { SupervisorFlowControl, SupervisorReply, SupervisorRequest } from "@/shared/ipc";
+import type {
+  SupervisorFlowControl,
+  SupervisorOutputShedSignal,
+  SupervisorReply,
+  SupervisorRequest,
+} from "@/shared/ipc";
 import {
   captureSupervisorException,
   flushSupervisorSentry,
@@ -8,6 +13,7 @@ import { startDevOrphanWatchdog } from "./devOrphanWatchdog";
 import { createUncaughtStormDetector } from "./devUncaughtStorm";
 import { handleSupervisorIpcFailure } from "./ipcFailure";
 import { createSupervisorIpcHandlers } from "./ipcHandlers";
+import { createSupervisorOutputShedPolicy } from "./supervisorShedPolicy";
 import { SupervisorRuntime } from "./supervisorRuntime";
 import { configureSecretStorageKey } from "./secretStorage";
 import { SupervisorIpcSender } from "./supervisorIpcSender";
@@ -27,7 +33,17 @@ let downstreamIpcBackpressured = false;
 const applyIpcBackpressure = (): void => {
   runtimeForBackpressure?.setIpcBackpressured(localIpcBackpressured || downstreamIpcBackpressured);
 };
-const ipcSender = new SupervisorIpcSender({
+// The backend host is a replaceable consumer: a transient stall there must
+// never kill the supervisor (and with it every agent process). Terminal-output
+// batches — the only traffic the supervisor can authoritatively re-serve — are
+// shed oldest-first under overflow, announced by a supervisor-output-shed
+// signal the backend turns into client resyncs; all other traffic stays
+// fail-closed, and the fatal backpressure timer is disabled outright because
+// a dead backend host is already handled by the disconnect path.
+let shedLogCount = 0;
+let shedLogBytes = 0;
+let shedLogAt = 0;
+const ipcSender = new SupervisorIpcSender<SupervisorOutputShedSignal>({
   send: (message, callback) => {
     if (!process.connected || !process.send) {
       callback(new Error("Supervisor IPC channel is disconnected."));
@@ -44,6 +60,20 @@ const ipcSender = new SupervisorIpcSender({
   onBackpressureChange: (paused) => {
     localIpcBackpressured = paused;
     applyIpcBackpressure();
+  },
+  backpressureTimeoutMs: null,
+  shedPolicy: createSupervisorOutputShedPolicy(),
+  onMessagesShed: ({ count, bytes }) => {
+    shedLogCount += count;
+    shedLogBytes += bytes;
+    const now = Date.now();
+    if (shedLogAt !== 0 && now - shedLogAt < 5_000) return;
+    shedLogAt = now;
+    console.error(
+      `[supervisor] shed ${shedLogCount} queued terminal-output batches (${shedLogBytes} bytes) under backend-IPC backpressure; output-shed recovery signals emitted.`,
+    );
+    shedLogCount = 0;
+    shedLogBytes = 0;
   },
 });
 const runtime = new SupervisorRuntime((event) => ipcSender.emit(event));
