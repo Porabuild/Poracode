@@ -234,6 +234,67 @@ describe("live voice media ownership", () => {
     expect(mocks.error).not.toHaveBeenCalled();
   });
 
+  it("keeps the disconnect barrier through stop, cancellation, and another retry", async () => {
+    await controller.start(options);
+    const release = deferred<void>();
+    mocks.disconnect.mockReturnValueOnce(release.promise);
+
+    const stopping = controller.stop();
+    const canceled = controller.start({ ...options, scopeId: "canceled-draft" });
+    controller.stopScope("canceled-draft");
+    const starting = controller.start({ ...options, scopeId: "retry-draft" });
+    try {
+      await Promise.resolve();
+      expect(capture).toHaveBeenCalledOnce();
+      expect(mocks.connect).toHaveBeenCalledOnce();
+      expect(useLiveVoice.getState()).toMatchObject({
+        scopeId: "retry-draft",
+        phase: "connecting",
+      });
+    } finally {
+      release.resolve();
+      await Promise.all([stopping, canceled, starting]);
+    }
+
+    expect(capture).toHaveBeenCalledTimes(2);
+    expect(mocks.connect).toHaveBeenCalledTimes(2);
+    expect(useLiveVoice.getState().scopeId).toBe("retry-draft");
+  });
+
+  it("publishes the pending owner immediately and rejects stale controls during teardown", async () => {
+    await controller.start({ ...options, scopeId: "old-owner" });
+    const release = deferred<void>();
+    mocks.disconnect.mockReturnValueOnce(release.promise);
+    const starting = controller.start({
+      ...options,
+      threadId: "new-thread",
+      scopeId: "new-owner",
+    });
+    try {
+      expect(useLiveVoice.getState()).toMatchObject({
+        threadId: "new-thread",
+        scopeId: "new-owner",
+        phase: "connecting",
+      });
+      controller.stopScope("old-owner");
+      controller.stopThread("thread");
+      controller.toggleMuted("thread");
+      expect(useLiveVoice.getState().muted).toBe(false);
+      controller.toggleMuted("new-owner");
+      expect(useLiveVoice.getState().muted).toBe(true);
+      await Promise.resolve();
+      expect(capture).toHaveBeenCalledOnce();
+    } finally {
+      release.resolve();
+      await starting;
+    }
+
+    expect(useLiveVoice.getState()).toMatchObject({ scopeId: "new-owner", muted: true });
+    expect(track.enabled).toBe(false);
+    expect(capture).toHaveBeenCalledTimes(2);
+    expect(mocks.error).not.toHaveBeenCalled();
+  });
+
   it("releases a late signaling answer after cancellation", async () => {
     const answer = deferred<{ answerSdp: string }>();
     mocks.connect.mockReturnValueOnce(answer.promise);

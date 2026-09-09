@@ -28,7 +28,7 @@ export function LiveVoiceButton(props: {
           className="poracode-composer-send bg-success text-success-foreground"
           isDisabled={!active && props.isDisabled === true}
           onPress={() => {
-            if (active) void liveVoice.stop();
+            if (active) liveVoice.stopScope(props.scopeId);
             else props.onStart();
           }}
         >
@@ -72,7 +72,7 @@ export function LiveVoicePanel(props: { threadId: string }) {
         variant="ghost"
         aria-label={state.muted ? t`Unmute microphone` : t`Mute microphone`}
         aria-pressed={state.muted}
-        onPress={() => liveVoice.toggleMuted()}
+        onPress={() => liveVoice.toggleMuted(props.threadId)}
       >
         {state.muted ? <MicOff className="size-4" /> : <Mic className="size-4" />}
       </Button>
@@ -82,7 +82,7 @@ export function LiveVoicePanel(props: { threadId: string }) {
         variant="ghost"
         aria-label={t`End voice chat`}
         onPress={() => {
-          void liveVoice.stop();
+          liveVoice.stopThread(props.threadId);
         }}
       >
         <PhoneOff className="size-4" />

@@ -41,12 +41,6 @@ interface MediaSession {
   abort: AbortController;
 }
 
-interface PendingStart {
-  generation: number;
-  threadId: string;
-  scopeId: string;
-}
-
 interface StartVoiceOptions {
   threadId: string;
   scopeId?: string;
@@ -58,23 +52,13 @@ interface StartVoiceOptions {
 /** One microphone owner per renderer, including the draft-to-thread transition. */
 export class LiveVoiceController {
   private session: MediaSession | undefined;
-  private pendingStart: PendingStart | undefined;
+  private releasing: Promise<void> | undefined;
   private generation = 0;
 
   async start(options: StartVoiceOptions): Promise<void> {
     const generation = ++this.generation;
     const scopeId = options.scopeId ?? options.threadId;
-    const pendingStart: PendingStart = {
-      generation,
-      threadId: options.threadId,
-      scopeId,
-    };
-    this.pendingStart = pendingStart;
     const previous = this.session;
-    this.session = undefined;
-    if (previous) await this.release(previous);
-    if (generation !== this.generation || this.pendingStart !== pendingStart) return;
-    this.pendingStart = undefined;
     const session: MediaSession = {
       threadId: options.threadId,
       scopeId,
@@ -82,7 +66,10 @@ export class LiveVoiceController {
       requested: false,
       abort: new AbortController(),
     };
+    // Own the entire start, including time spent waiting for server teardown.
+    // Cancellation and visibility changes must target this owner immediately.
     this.session = session;
+    const releasing = this.releaseOwnedSession(previous);
     useLiveVoice.setState({
       ...idle,
       threadId: options.threadId,
@@ -104,6 +91,8 @@ export class LiveVoiceController {
       if (!visible && (threadExists || state.view !== initialView)) void this.stop();
     });
     try {
+      if (releasing) await releasing;
+      if (!current()) return;
       const microphoneDeviceId = useSharedSettings.getState().audio.microphoneDeviceId;
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -219,11 +208,10 @@ export class LiveVoiceController {
 
   stop(): Promise<void> {
     ++this.generation;
-    this.pendingStart = undefined;
     const session = this.session;
     this.session = undefined;
     useLiveVoice.setState(idle);
-    return session ? this.release(session) : Promise.resolve();
+    return this.releaseOwnedSession(session) ?? Promise.resolve();
   }
 
   stopThread(threadId: string, scopeId?: string): void {
@@ -231,18 +219,41 @@ export class LiveVoiceController {
       owner.threadId === threadId && (scopeId === undefined || owner.scopeId === scopeId);
     if (this.session && matchesOwner(this.session)) {
       void this.stop();
-      return;
     }
-    if (this.pendingStart && matchesOwner(this.pendingStart)) void this.stop();
   }
 
-  toggleMuted(): void {
-    if (!this.session) return;
+  /** Scope controls to their rendered owner, even if a newer pane has started. */
+  stopScope(scopeId: string): void {
+    if (this.ownsScope(scopeId)) void this.stop();
+  }
+
+  toggleMuted(scopeId?: string): void {
+    if (!this.session || (scopeId !== undefined && !this.ownsScope(scopeId))) return;
     const muted = !useLiveVoice.getState().muted;
     this.session.stream?.getAudioTracks().forEach((track) => {
       track.enabled = !muted;
     });
     useLiveVoice.setState({ muted });
+  }
+
+  private ownsScope(scopeId: string): boolean {
+    return this.session?.threadId === scopeId || this.session?.scopeId === scopeId;
+  }
+
+  private releaseOwnedSession(session?: MediaSession): Promise<void> | undefined {
+    if (!session) return this.releasing;
+    // Keep the barrier after stop() clears the owner. Stop/retry and replacement
+    // starts all wait for every outstanding disconnect, while local media is
+    // released synchronously by release().
+    const released = this.release(session);
+    const barrier = this.releasing
+      ? Promise.all([this.releasing, released]).then(() => {})
+      : released;
+    this.releasing = barrier;
+    void barrier.then(() => {
+      if (this.releasing === barrier) this.releasing = undefined;
+    });
+    return barrier;
   }
 
   private fail(error: unknown): void {
