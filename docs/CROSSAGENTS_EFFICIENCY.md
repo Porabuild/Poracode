@@ -1,6 +1,6 @@
 # Crossagents efficiency verification — 2026-09-09
 
-Implementation: `46767c260` on `poracode/v2`, based on `fa9469abb`. This is the bounded Crossagents handoff, not the paused production-review goal. No push or signed application-bundle modification.
+Implementation: `46767c260` on `poracode/v2`, based on `fa9469abb`. This is the bounded Crossagents handoff, not the paused production-review goal. Initial verification was local; publication was authorized in a follow-up. The signed application bundle remains unchanged.
 
 ## Delivered behavior
 
@@ -55,3 +55,9 @@ Backup: `~/.poracode/backups/crossagents-efficiency/20260909-092845/`. Poracode 
 The signed `/Applications/Poracode Nightly.app` remains unchanged. New app builds carry the updated MCP; existing servers need an app upgrade/restart, and sessions may need fresh tool discovery. Global skill instructions feature-detect the live schema and omit quiet on older servers. Global overrides must be kept in sync with future bundled skill changes.
 
 Durable notifications, host-managed pipeline stages and goal-pause races remain follow-ups. This work proves smaller monitoring payloads with preserved tested evidence, not universal task-quality parity or a billing reduction.
+
+## Pre-push confirmation
+
+The follow-up reran the deterministic measurement and actual installed-skill resolution tests: both passed and all payload sizes above reproduced exactly. Added regression coverage exercises progress → quiet → settlement with a nonzero Unicode cursor, mixed running/completed `wait_mode=any` results, approval resolution, clipping and complete retrieval of long output. No additional runtime defect was found.
+
+The same nine-file verification command now reports **272 passed, 1 existing Windows-only skip**. Typecheck and touched-file type-aware lint passed. The previous independent review remains applicable to the unchanged implementation; the follow-up changes only regression coverage and this evidence. These checks do not establish universal absence of bugs, live model quality parity, or billable-quota savings.

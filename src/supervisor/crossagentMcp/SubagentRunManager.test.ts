@@ -689,6 +689,60 @@ describe("SubagentRunManager", () => {
     expect(completed).toEqual(h.manager.getStatus(runId, PARENT, { afterOutputChars: 0 }));
   });
 
+  it("preserves mixed batch evidence across progress, quiet, approval resolution and settlement", async () => {
+    const h = makeHarness();
+    const runs = h.manager.spawnMany(PARENT, [
+      { agent: "codex", prompt: "one" },
+      { agent: "codex", prompt: "two" },
+    ]);
+    await flush();
+    const first = runs[0]!.runId;
+    const second = runs[1]!.runId;
+    const emit = (index: number, delta: string) =>
+      h.handles[index]!.emit({
+        type: "content.delta",
+        threadId: "child",
+        itemId: "m",
+        stream: "assistant_text",
+        delta,
+      });
+    emit(0, "Read ✅\n");
+    const consumed = h.manager.getStatus(first, PARENT, {
+      afterOutputChars: 0,
+    }).total_output_chars!;
+    const unread = "Evidence 🧪\n".repeat(2000);
+    emit(0, unread);
+    emit(1, "second result");
+    h.handles[0]!.openRequest("approval");
+    h.handles[1]!.completeTurn("completed");
+    const options = (id: string) => ({
+      outputMode: "quiet" as const,
+      afterOutputChars: id === first ? consumed : 0,
+    });
+    const mixed = await h.manager.waitForMany([first, second], 0, PARENT, options, "any");
+    expect(mixed[0]).toMatchObject({
+      status: "running",
+      output: "",
+      total_output_chars: consumed,
+      pending_requests: 1,
+    });
+    expect(mixed[1]).toMatchObject({ status: "completed", output: "second result" });
+    h.handles[0]!.emit({
+      type: "request.resolved",
+      threadId: "child",
+      requestId: "approval",
+      outcome: "accepted",
+    });
+    expect(h.manager.getStatus(first, PARENT, options(first)).pending_requests).toBeUndefined();
+    h.handles[0]!.completeTurn("completed");
+    const settled = h.manager.getStatus(first, PARENT, options(first));
+    expect(settled).toEqual(h.manager.getStatus(first, PARENT, { afterOutputChars: consumed }));
+    expect(settled.output).toContain("earlier chars omitted");
+    expect(h.manager.getStatus(first, PARENT, { ...options(first), fullOutput: true }).output).toBe(
+      "Read ✅\n" + unread,
+    );
+  });
+
   it("quiet monitoring preserves ownership errors and failed-run diagnostics", async () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
