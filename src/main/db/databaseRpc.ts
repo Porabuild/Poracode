@@ -60,7 +60,9 @@ export function callDatabaseRpc(call: BackendDatabaseCall): unknown {
     case "dbGetLatestThreadGoalItem":
       return dbGetLatestThreadGoalItem(call.payload.threadId);
     case "dbTruncateThreadRuntimeAfter":
-      return dbTruncateThreadRuntimeAfter(call.payload.threadId, call.payload.itemId);
+      // Mutation metadata is internal; preserve the public RPC's void response.
+      dbTruncateThreadRuntimeAfter(call.payload.threadId, call.payload.itemId);
+      return undefined;
     case "dbReplaceThreadRuntimeItems":
       return dbReplaceThreadRuntimeItems(call.payload.threadId, call.payload.items);
     case "dbGetThreadCompletedTurns":
