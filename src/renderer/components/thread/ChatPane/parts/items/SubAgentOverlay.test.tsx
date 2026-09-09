@@ -174,8 +174,10 @@ describe("SubAgentContent", () => {
     );
     expect(scroller).not.toBeNull();
     expect(scroller?.style.maskImage).toContain("var(--top-fade-size");
-    const scrollButton = screen.getByRole("button", { name: "Scroll to bottom" });
+    expect(screen.queryByRole("button", { name: "Scroll to bottom" })).toBeNull();
+    const scrollButton = view.container.querySelector('button[aria-label="Scroll to bottom"]');
     expect(scrollButton).toHaveClass("opacity-0");
+    expect(scrollButton).toBeDisabled();
 
     Object.defineProperties(scroller!, {
       clientHeight: { configurable: true, value: 200 },
@@ -187,7 +189,7 @@ describe("SubAgentContent", () => {
 
     await waitFor(() => expect(scrollButton).toHaveClass("opacity-100"));
     mockScrollToEnd.mockClear();
-    fireEvent.click(scrollButton);
+    fireEvent.click(screen.getByRole("button", { name: "Scroll to bottom" }));
     await waitFor(() => expect(mockScrollToEnd).toHaveBeenCalled());
   });
 
