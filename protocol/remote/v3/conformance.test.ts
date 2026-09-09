@@ -409,6 +409,14 @@ describe("language-neutral remote protocol v3 contract", () => {
           /req\.method === "POST" && commandThreadId/,
         ],
       ],
+      [
+        "GET /api/agents/{kind}/slash-commands",
+        [
+          /\/\^\\\/api\\\/agents\\\/\(\[\^\/\]\+\)\\\/slash-commands\$\//,
+          /req\.method === "GET" && url\.pathname\.match\(/,
+          /decodeURIComponent\(agentSlashCommandsMatch\[1\]!\)/,
+        ],
+      ],
     ]);
 
     const threadPostBlockStart = routerSource.indexOf("const THREAD_POST_ROUTES");

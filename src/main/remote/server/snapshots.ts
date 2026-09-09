@@ -8,6 +8,8 @@ import {
   remoteRuntimeItemsPageSchema,
   remoteShellSnapshotSchema,
   remoteThreadSnapshotSchema,
+  remoteAgentSlashCommandsSchema,
+  type RemoteAgentSlashCommands,
   type RemoteAgentStatuses,
   type RemoteEnvironmentDescriptor,
   type RemoteRuntimeItemsPage,
@@ -108,7 +110,10 @@ export function buildShellSnapshot(ctx: RemoteServerContext): RemoteShellSnapsho
   );
 }
 
-export async function buildAgentStatuses(ctx: RemoteServerContext): Promise<RemoteAgentStatuses> {
+export async function buildAgentStatuses(
+  ctx: RemoteServerContext,
+  options: { omitSlashCommands?: boolean } = {},
+): Promise<RemoteAgentStatuses> {
   const wslDistros = [
     ...new Set(
       dbGetProjects().flatMap((project) =>
@@ -117,12 +122,55 @@ export async function buildAgentStatuses(ctx: RemoteServerContext): Promise<Remo
     ),
   ];
   const statuses = await ctx.options.callSupervisor("getAgentStatuses", { wslDistros });
+  // WS3-A payload split: slash-command catalogs dominate this payload (they
+  // embed full skill descriptions for every detected agent). Clients that
+  // opt in fetch one agent's catalog lazily from agent-slash-commands
+  // instead of every agent's on every cold start.
+  const windows = options.omitSlashCommands
+    ? statuses.windows.map((entry) => ({
+        ...entry,
+        capabilities: { ...entry.capabilities, slashCommands: undefined },
+      }))
+    : statuses.windows;
+  const wsl = options.omitSlashCommands
+    ? statuses.wsl.map((entry) => ({
+        ...entry,
+        capabilities: { ...entry.capabilities, slashCommands: undefined },
+      }))
+    : statuses.wsl;
   return remoteAgentStatusesSchema.parse(
     withStableUpdatedAt("agent-statuses", {
-      windows: statuses.windows,
-      wsl: statuses.wsl,
+      windows,
+      wsl,
     }),
   );
+}
+
+/**
+ * One agent's slash-command catalog for the WS3-A lazy fetch. Reads the same
+ * supervisor detection as agent-statuses; `kind` matches the agent kind the
+ * client already sees there.
+ */
+export async function buildAgentSlashCommands(
+  ctx: RemoteServerContext,
+  kind: string,
+): Promise<RemoteAgentSlashCommands> {
+  const wslDistros = [
+    ...new Set(
+      dbGetProjects().flatMap((project) =>
+        project.location.kind === "wsl" ? [project.location.distro] : [],
+      ),
+    ),
+  ];
+  const statuses = await ctx.options.callSupervisor("getAgentStatuses", { wslDistros });
+  const entry = [...statuses.windows, ...statuses.wsl].find((candidate) => candidate.kind === kind);
+  if (!entry) {
+    throw new RemoteHttpError("agent_not_found", `No detected agent "${kind}".`, 404);
+  }
+  return remoteAgentSlashCommandsSchema.parse({
+    kind,
+    commands: entry.capabilities?.slashCommands ?? [],
+  });
 }
 
 export async function buildThreadSnapshot(

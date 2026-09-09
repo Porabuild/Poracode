@@ -103,6 +103,7 @@ import { readAttachmentBody, readJsonBody } from "./requestBody";
 import { DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT } from "./security";
 import {
   buildAgentStatuses,
+  buildAgentSlashCommands,
   buildShellSnapshot,
   buildThreadSnapshot,
   buildThreadRuntimeItemsPage,
@@ -418,7 +419,21 @@ export async function handleHttp(
     }
     if (req.method === "GET" && url.pathname === "/api/agent-statuses") {
       ctx.security.requireBearer(req, ["session:read"]);
-      await writeNegotiatedJsonResponse(req, res, 200, await buildAgentStatuses(ctx));
+      const omitSlashCommands = url.searchParams.get("slashCommands") === "0";
+      await writeNegotiatedJsonResponse(
+        req,
+        res,
+        200,
+        await buildAgentStatuses(ctx, { omitSlashCommands }),
+      );
+      return;
+    }
+    const agentSlashCommandsMatch =
+      req.method === "GET" && url.pathname.match(/^\/api\/agents\/([^/]+)\/slash-commands$/);
+    if (agentSlashCommandsMatch) {
+      ctx.security.requireBearer(req, ["session:read"]);
+      const kind = decodeURIComponent(agentSlashCommandsMatch[1]!);
+      await writeNegotiatedJsonResponse(req, res, 200, await buildAgentSlashCommands(ctx, kind));
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/host-update") {

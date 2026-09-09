@@ -53,17 +53,17 @@ describe("remote v3 native binding generator", () => {
       protocolVersion: 10,
       bindingFormatVersion: 2,
       generatorVersion: 3,
-      sourceHash: "sha256:491fb54d4aa081c41e66a7bd5011e209711d0d09b66b8c417dde703717cf6a88",
-      manifestHash: "sha256:4b6e0108410f094193c3b1ee8170c38ac179b29d88e67cde60a808ab1dd63a58",
+      sourceHash: "sha256:e046ecddebc969133a5f393498bae56af0dafef3184d639884d2e0ff734ebee5",
+      manifestHash: "sha256:76777c456b8b6447caf6ba86af3f3c97449c6fa37c209a0d32aa125526566682",
       counts: {
-        routes: 61,
+        routes: 62,
         procedures: 100,
         voidProcedureResults: 36,
         jsonProcedureResults: 64,
         webSocketClientVariants: 8,
         webSocketServerVariants: 9,
-        schemaRoots: 302,
-        structuralTypes: 756,
+        schemaRoots: 305,
+        structuralTypes: 759,
         semanticValidators: 16,
         swiftFiles: 43,
         kotlinFiles: 39,
@@ -259,7 +259,7 @@ describe("remote v3 native binding generator", () => {
     const output = buildNativeBindingOutput(ir, manifest).files;
     for (const language of ["swift", "kotlin"] as const) {
       const adapters = rootAdapters(graph, language);
-      expect(adapters).toHaveLength(302);
+      expect(adapters).toHaveLength(305);
       const source = Object.entries(output)
         .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
         .map(([, contents]) => contents)

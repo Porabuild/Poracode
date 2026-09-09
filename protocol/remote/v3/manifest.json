@@ -103,6 +103,14 @@
       "method": "GET",
       "path": "/api/agent-statuses",
       "auth": "bearer",
+      "scopes": ["session:read"],
+      "queryParameters": ["slashCommands"]
+    },
+    {
+      "id": "agent-slash-commands",
+      "method": "GET",
+      "path": "/api/agents/{kind}/slash-commands",
+      "auth": "bearer",
       "scopes": ["session:read"]
     },
     {
@@ -496,21 +504,81 @@
     }
   ],
   "procedures": [
-    { "name": "rollbackThreadConversation", "scope": "session:operate", "owner": "thread" },
-    { "name": "createFileCheckpoint", "scope": "session:operate", "owner": "thread" },
-    { "name": "finalizeFileCheckpoint", "scope": "session:operate", "owner": "thread" },
-    { "name": "listFileCheckpoints", "scope": "session:read", "owner": "thread" },
-    { "name": "restoreFileCheckpoint", "scope": "session:operate", "owner": "thread" },
-    { "name": "subagentSubscribe", "scope": "session:read", "owner": "thread" },
-    { "name": "subagentUnsubscribe", "scope": "session:read", "owner": "thread" },
-    { "name": "stageThreadInput", "scope": "session:operate", "owner": "thread" },
-    { "name": "workflowGetRun", "scope": "session:read", "owner": "location" },
-    { "name": "workflowAgentChat", "scope": "session:read", "owner": "location" },
-    { "name": "scanSkills", "scope": "session:read", "owner": "optionalProjectLocation" },
-    { "name": "listSkillMarketplace", "scope": "session:read", "owner": "none" },
-    { "name": "setSkillEnabled", "scope": "session:operate", "owner": "optionalProjectLocation" },
-    { "name": "deleteSkill", "scope": "session:operate", "owner": "optionalProjectLocation" },
-    { "name": "importSkills", "scope": "session:operate", "owner": "skillLocations" },
+    {
+      "name": "rollbackThreadConversation",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "createFileCheckpoint",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "finalizeFileCheckpoint",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "listFileCheckpoints",
+      "scope": "session:read",
+      "owner": "thread"
+    },
+    {
+      "name": "restoreFileCheckpoint",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "subagentSubscribe",
+      "scope": "session:read",
+      "owner": "thread"
+    },
+    {
+      "name": "subagentUnsubscribe",
+      "scope": "session:read",
+      "owner": "thread"
+    },
+    {
+      "name": "stageThreadInput",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "workflowGetRun",
+      "scope": "session:read",
+      "owner": "location"
+    },
+    {
+      "name": "workflowAgentChat",
+      "scope": "session:read",
+      "owner": "location"
+    },
+    {
+      "name": "scanSkills",
+      "scope": "session:read",
+      "owner": "optionalProjectLocation"
+    },
+    {
+      "name": "listSkillMarketplace",
+      "scope": "session:read",
+      "owner": "none"
+    },
+    {
+      "name": "setSkillEnabled",
+      "scope": "session:operate",
+      "owner": "optionalProjectLocation"
+    },
+    {
+      "name": "deleteSkill",
+      "scope": "session:operate",
+      "owner": "optionalProjectLocation"
+    },
+    {
+      "name": "importSkills",
+      "scope": "session:operate",
+      "owner": "skillLocations"
+    },
     {
       "name": "installMarketplaceSkill",
       "scope": "session:operate",
@@ -521,8 +589,16 @@
       "scope": "session:read",
       "owner": "optionalProjectLocation"
     },
-    { "name": "probeMcpServer", "scope": "session:operate", "owner": "optionalProjectLocation" },
-    { "name": "getMcpOauthStatus", "scope": "session:read", "owner": "optionalProjectLocation" },
+    {
+      "name": "probeMcpServer",
+      "scope": "session:operate",
+      "owner": "optionalProjectLocation"
+    },
+    {
+      "name": "getMcpOauthStatus",
+      "scope": "session:read",
+      "owner": "optionalProjectLocation"
+    },
     {
       "name": "beginMcpServerOauth",
       "scope": "session:operate",
@@ -539,59 +615,247 @@
       "scope": "session:operate",
       "owner": "optionalProjectLocation"
     },
-    { "name": "searchProjectFiles", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "listProjectTree", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "browseHostDirectory", "scope": "projects:manage", "owner": "none" },
-    { "name": "searchProjectTree", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "readProjectFile", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "readAbsoluteFile", "scope": "projects:manage", "owner": "projectLocation" },
-    { "name": "readExternalFile", "scope": "projects:manage", "owner": "projectLocation" },
-    { "name": "writeProjectFile", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "writeExternalFile", "scope": "projects:manage", "owner": "projectLocation" },
-    { "name": "createProjectEntry", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "renameProjectEntry", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "moveProjectEntry", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "deleteProjectEntry", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "detectSetupScript", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "getGitStatus", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "getGitDiff", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "getGitDiffBatch", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "getGitFileContent", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "gitListBranches", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "gitListWorktrees", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "gitProjectSnapshot", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "gitWorktreeStatusBatch", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "gitGetWorktreeSourceBranch", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "gitGetWorktreeOwner", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghCheckAvailable", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghGetPrForBranch", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghListPrs", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghListPullRequests", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghGetPrChecks", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghGetPrFiles", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghGetPrDiff", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghGetPrDetails", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghGetPrReviewComments", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghListAccounts", "scope": "session:read", "owner": "runtime" },
-    { "name": "ghListRepos", "scope": "session:read", "owner": "runtime" },
-    { "name": "ghListWorkflows", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghListWorkflowRuns", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghGetWorkflowRun", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "ghGetWorkflowDefinition", "scope": "session:read", "owner": "projectLocation" },
-    { "name": "gitStage", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "gitUnstage", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "gitRevert", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "gitStageAll", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "gitUnstageAll", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "gitRevertAll", "scope": "session:operate", "owner": "projectLocation" },
+    {
+      "name": "searchProjectFiles",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "listProjectTree",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "browseHostDirectory",
+      "scope": "projects:manage",
+      "owner": "none"
+    },
+    {
+      "name": "searchProjectTree",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "readProjectFile",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "readAbsoluteFile",
+      "scope": "projects:manage",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "readExternalFile",
+      "scope": "projects:manage",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "writeProjectFile",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "writeExternalFile",
+      "scope": "projects:manage",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "createProjectEntry",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "renameProjectEntry",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "moveProjectEntry",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "deleteProjectEntry",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "detectSetupScript",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "getGitStatus",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "getGitDiff",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "getGitDiffBatch",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "getGitFileContent",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitListBranches",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitListWorktrees",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitProjectSnapshot",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitWorktreeStatusBatch",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitGetWorktreeSourceBranch",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitGetWorktreeOwner",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghCheckAvailable",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghGetPrForBranch",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghListPrs",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghListPullRequests",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghGetPrChecks",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghGetPrFiles",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghGetPrDiff",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghGetPrDetails",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghGetPrReviewComments",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghListAccounts",
+      "scope": "session:read",
+      "owner": "runtime"
+    },
+    {
+      "name": "ghListRepos",
+      "scope": "session:read",
+      "owner": "runtime"
+    },
+    {
+      "name": "ghListWorkflows",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghListWorkflowRuns",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghGetWorkflowRun",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghGetWorkflowDefinition",
+      "scope": "session:read",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitStage",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitUnstage",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitRevert",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitStageAll",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitUnstageAll",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitRevertAll",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
     {
       "name": "gitCommit",
       "scope": "session:operate",
       "owner": "projectLocation",
       "timeout": "long"
     },
-    { "name": "gitInit", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "gitAddRemote", "scope": "session:operate", "owner": "projectLocation" },
+    {
+      "name": "gitInit",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitAddRemote",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
     {
       "name": "generateCommitMessage",
       "scope": "session:operate",
@@ -646,11 +910,31 @@
       "owner": "projectLocation",
       "timeout": "long"
     },
-    { "name": "gitSwitchBranch", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "gitDeleteBranch", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "gitAddWorktree", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "gitRemoveWorktree", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "gitPruneWorktrees", "scope": "session:operate", "owner": "projectLocation" },
+    {
+      "name": "gitSwitchBranch",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitDeleteBranch",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitAddWorktree",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitRemoveWorktree",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "gitPruneWorktrees",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
     {
       "name": "gitMergeToSource",
       "scope": "session:operate",
@@ -663,7 +947,11 @@
       "owner": "worktreeLocation",
       "timeout": "long"
     },
-    { "name": "gitAbortMerge", "scope": "session:operate", "owner": "worktreeLocation" },
+    {
+      "name": "gitAbortMerge",
+      "scope": "session:operate",
+      "owner": "worktreeLocation"
+    },
     {
       "name": "gitFinishMerge",
       "scope": "session:operate",
@@ -682,9 +970,21 @@
       "owner": "projectLocation",
       "timeout": "long"
     },
-    { "name": "ghClosePr", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "ghReopenPr", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "ghMarkPrReady", "scope": "session:operate", "owner": "projectLocation" },
+    {
+      "name": "ghClosePr",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghReopenPr",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghMarkPrReady",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
     {
       "name": "ghSubmitPrReview",
       "scope": "session:operate",
@@ -697,11 +997,31 @@
       "owner": "projectLocation",
       "timeout": "long"
     },
-    { "name": "ghPostPrComment", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "ghDispatchWorkflow", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "ghRerunWorkflowRun", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "ghCancelWorkflowRun", "scope": "session:operate", "owner": "projectLocation" },
-    { "name": "ghDeleteWorkflowRun", "scope": "session:operate", "owner": "projectLocation" }
+    {
+      "name": "ghPostPrComment",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghDispatchWorkflow",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghRerunWorkflowRun",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghCancelWorkflowRun",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    },
+    {
+      "name": "ghDeleteWorkflowRun",
+      "scope": "session:operate",
+      "owner": "projectLocation"
+    }
   ],
   "webSocket": {
     "clientMessages": [

@@ -35,6 +35,7 @@ import {
 import type { SharedSettingsInput } from "@/shared/settings";
 import { pickAndUploadBrowserFiles } from "@/renderer/utils/browserFilePicker";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { applyCachedSlashCommandCatalogs } from "@/renderer/state/remoteServers/slashCommandCatalogs";
 import { useBrowserMirrorStore } from "./browserMirror";
 import { readCachedBrowserThreadSnapshot } from "./offlineThreadCache";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
@@ -223,7 +224,11 @@ const remoteBridgeOverrides = {
   refreshProviderUsage: () => withClient((client) => client.providerUsage()),
   getUsageLoginState: () => Promise.resolve({ stored: {} }),
   refreshAgentStatuses: async (_wslDistros?: string[], _scope?: RefreshAgentScope) => {
-    const statuses = await withClient((client) => client.agentStatuses());
+    const statuses = await withClient((client) =>
+      client
+        .agentStatuses({ omitSlashCommands: true })
+        .then((fetched) => applyCachedSlashCommandCatalogs(client.endpoint, fetched)),
+    );
     const store = useAgentStatusesStore.getState();
     store.setAgentStatuses(statuses.windows);
     store.setWslAgentStatuses(statuses.wsl);

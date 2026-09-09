@@ -12,6 +12,7 @@ const MANIFEST_ROUTE_IDS = [
   "websocket-ticket",
   "shell-snapshot",
   "agent-statuses",
+  "agent-slash-commands",
   "host-update",
   "host-update-check",
   "host-update-install",

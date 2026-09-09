@@ -6733,4 +6733,64 @@ describe("RemoteAccessServer", () => {
       error: { code: "push_unavailable" },
     });
   });
+
+  it("serves the per-agent slash-command catalog and omits it from agent-statuses on request", async () => {
+    const agentStatus = {
+      kind: "claude",
+      label: "Claude Code",
+      installed: true,
+      authState: "authenticated",
+      envKind: "posix",
+      version: "2.1.266",
+      capabilities: {
+        models: [{ id: "m1", label: "M1" }],
+        efforts: [],
+        settingDefs: [],
+        slashCommands: [{ id: "review", label: "review — review the change" }],
+      },
+    };
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      truncateThreadRuntime: () => ({ truncated: false, removedCompletedTurnAnchors: [] }),
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
+        async () => ({ windows: [agentStatus], wsl: [] }) as never,
+      ),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const auth = { authorization: `Bearer ${token}` };
+
+    // Default payload keeps the catalogs.
+    const full = await (
+      await fetch(new URL("/api/agent-statuses", info.httpBaseUrl), { headers: auth })
+    ).json();
+    expect(full.windows[0].capabilities.slashCommands).toHaveLength(1);
+
+    // Opted-out payload omits them.
+    const slim = await (
+      await fetch(new URL("/api/agent-statuses?slashCommands=0", info.httpBaseUrl), {
+        headers: auth,
+      })
+    ).json();
+    expect(slim.windows[0].capabilities.slashCommands).toBeUndefined();
+
+    // The per-agent route serves the catalog.
+    const commandsResponse = await fetch(
+      new URL("/api/agents/claude/slash-commands", info.httpBaseUrl),
+      { headers: auth },
+    );
+    expect(commandsResponse.status).toBe(200);
+    const commands = await commandsResponse.json();
+    expect(commands).toMatchObject({ kind: "claude", commands: [{ id: "review" }] });
+
+    // Unknown kinds 404.
+    const missing = await fetch(new URL("/api/agents/unknown/slash-commands", info.httpBaseUrl), {
+      headers: auth,
+    });
+    expect(missing.status).toBe(404);
+  });
 });

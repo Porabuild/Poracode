@@ -1,5 +1,17 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a: Codable, Sendable, RemoteModelMetadata {
+  public var action: RoutethreadU2DGoalRequestU2DOptionU2D2U2DAction_2d862d697d
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "action", typeName: "RoutethreadU2DGoalRequestU2DOptionU2D2U2DAction_2d862d697d", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case action = "action"
+  }
+}
+
 public enum RoutethreadU2DGoalRequest_54c8350637: Codable, Sendable {
   case option1(RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491)
   case option2(RoutethreadU2DGoalRequestU2DOptionU2D2_43d29f1d5a)
@@ -432,8 +444,4 @@ public struct WebSocketClientMessageU2DOptionU2D3_0e8f58f429: Codable, Sendable,
   private enum CodingKeys: String, CodingKey {
     case typeValue = "type"
   }
-}
-
-public enum WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D1U2DKind_ef917452dc: String, Codable, Sendable {
-  case tap = "tap"
 }

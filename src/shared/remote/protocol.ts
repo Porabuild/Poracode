@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { sensitiveAgentSettingKeys } from "../agentSecrets";
 import {
+  agentSlashCommandSchema,
   agentStatusSchema,
   backgroundTaskSchema,
   cloneRepoSourceSchema,
@@ -816,6 +817,15 @@ export const remoteAgentStatusesSchema = z.object({
   updatedAt: z.string().min(1),
 });
 export type RemoteAgentStatuses = z.infer<typeof remoteAgentStatusesSchema>;
+
+/** Per-agent slash-command catalog for the WS3-A payload split: clients that
+ * request `slashCommands=omit` on agent-statuses fetch one agent's catalog
+ * lazily from this route instead of every agent's on every cold start. */
+export const remoteAgentSlashCommandsSchema = z.object({
+  kind: z.string().min(1),
+  commands: z.array(agentSlashCommandSchema),
+});
+export type RemoteAgentSlashCommands = z.infer<typeof remoteAgentSlashCommandsSchema>;
 
 export const remoteThreadSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),

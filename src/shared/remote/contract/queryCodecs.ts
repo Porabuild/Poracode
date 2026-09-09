@@ -137,6 +137,7 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
     param("limit", "int", false),
     param("targetTimelineEntryCount", "int", true),
   ],
+  "agent-statuses": [param("slashCommands", "0-or-1", true)],
 };
 
 /** WebSocket handshake query codecs from the protocol manifest. */
@@ -193,4 +194,8 @@ export const decodedThreadHistoryItemsQuerySchema = z.object({
   beforePosition: z.number().int().nonnegative().optional(),
   limit: z.number().int().min(1).max(500),
   targetTimelineEntryCount: z.number().int().min(1).max(100).optional(),
+});
+
+export const decodedAgentStatusesQuerySchema = z.object({
+  slashCommands: z.boolean().optional(),
 });
