@@ -1,8 +1,17 @@
 import {
   closeDatabase,
+  dbGetThread,
   dbMarkLiveThreadsInactive,
   dbTruncateThreadRuntimeAfter,
   initDatabase,
+  dbClaimCheckpointRevertOperation,
+  dbHasThreadRuntimeItem,
+  dbUpdateCheckpointRevertPhases,
+  type CheckpointRevertFilesPhase,
+  type CheckpointRevertOperationRow,
+  type CheckpointRevertOutcome,
+  type CheckpointRevertProviderPhase,
+  type CheckpointRevertTruncatePhase,
 } from "@/main/db";
 import { SupervisorClient, type SupervisorClientOptions } from "@/main/supervisor/SupervisorClient";
 import { persistSupervisorEvent } from "@/main/remote/server/runtimePersistence";
@@ -13,6 +22,50 @@ import {
   filterRuntimeEventsForLiveInterest,
   isBulkRuntimeContentEvent,
 } from "@/shared/liveEventInterests";
+import type { ProjectLocation } from "@/shared/contracts/common";
+import type { ThreadConfig } from "@/shared/contracts/config";
+
+export type RevertCheckpointRefusalReason = "THREAD_TURN_ACTIVE";
+
+/** Typed refusal for a revert the backend declined before any side effect. */
+export class RevertCheckpointRefusedError extends Error {
+  constructor(
+    public readonly reason: RevertCheckpointRefusalReason,
+    message: string,
+  ) {
+    super(message);
+    this.name = "RevertCheckpointRefusedError";
+  }
+}
+
+export interface RevertCheckpointInput {
+  threadId: string;
+  checkpointItemId: string;
+  /** Client-generated idempotency key: retries of the same logical revert
+   * replay the stored outcome instead of re-executing phases. */
+  operationKey: string;
+  /** Where the checkpoint's project lives; required for the file-restore
+   * phase. Frozen into the journal at claim time. */
+  projectLocation?: ProjectLocation;
+}
+
+export type RevertCheckpointOutcome =
+  | "completed"
+  | "completed_local_only"
+  | "ambiguous"
+  | "failed"
+  | "noop";
+
+export interface RevertCheckpointResult {
+  outcome: RevertCheckpointOutcome;
+  /** True when a settled journal row was replayed instead of re-executed. */
+  replayed: boolean;
+  numTurns: number;
+  providerPhase: CheckpointRevertProviderPhase;
+  filesPhase: CheckpointRevertFilesPhase;
+  truncatePhase: CheckpointRevertTruncatePhase;
+  removedCompletedTurnAnchors: string[];
+}
 
 export interface BackendHostCoreOptions {
   baseDir: string;
@@ -139,6 +192,10 @@ export class BackendHostCore {
   readonly supervisorClient: SupervisorClient;
   private readonly terminalScrollbackPersistence = new TerminalScrollbackPersistence();
   private databaseOpen = false;
+  /** Serializes checkpoint reverts per thread: two clients reverting the same
+   * thread run one after the other, and the second recount happens only after
+   * the first compound fully settles. */
+  private readonly revertLocks = new Map<string, Promise<unknown>>();
 
   constructor(private readonly options: BackendHostCoreOptions) {
     this.databaseOpen = true;
@@ -192,6 +249,36 @@ export class BackendHostCore {
     truncated: boolean;
     removedCompletedTurnAnchors: string[];
   } {
+    this.assertRevertAllowed(threadId);
+    return this.truncateThreadRuntimeOwned(threadId, itemId);
+  }
+
+  /** Guard for entry points that mutate a thread's checkpointed history: a
+   * turn-active thread can append items mid-operation, so a truncate here
+   * would delete a live turn's items or land under late provider events. */
+  private assertRevertAllowed(threadId: string): void {
+    const thread = dbGetThread(threadId);
+    if (!thread) {
+      // A missing thread row cascades to missing runtime items, so the
+      // truncate below is already a natural no-op; keep that contract.
+      return;
+    }
+    if (thread.status === "working" || thread.status === "launching") {
+      throw new RevertCheckpointRefusedError(
+        "THREAD_TURN_ACTIVE",
+        `Thread "${threadId}" is ${thread.status}; checkpoint reverts are refused until the turn settles.`,
+      );
+    }
+  }
+
+  /** Single DB mutation + canonical event; callers own the entry guards. */
+  private truncateThreadRuntimeOwned(
+    threadId: string,
+    itemId: string,
+  ): {
+    truncated: boolean;
+    removedCompletedTurnAnchors: string[];
+  } {
     const result = dbTruncateThreadRuntimeAfter(threadId, itemId);
     if (!result.truncated) {
       return result;
@@ -207,6 +294,199 @@ export class BackendHostCore {
       },
     });
     return result;
+  }
+
+  /**
+   * Backend-owned compound checkpoint revert: provider conversation rollback,
+   * file checkpoint restore, and durable transcript truncation run as one
+   * journaled operation instead of a client-orchestrated sequence.
+   *
+   * Invariants:
+   * - The destructive relative provider rollback runs at most once per
+   *   `operationKey`, with a turn count derived server-side from durable
+   *   state and frozen at claim time. Retries and crash resumes replay the
+   *   stored count instead of recounting a transcript the first attempt may
+   *   already have mutated (the over-rollback window).
+   * - Every phase write precedes its side effect, so the journal always
+   *   describes what a resumed attempt must not redo.
+   * - The whole operation is serialized per thread; a concurrent second
+   *   revert waits, then finds its checkpoint already removed (noop).
+   * - Provider failure on a capability-less provider keeps the established
+   *   `local_only` contract (files + transcript still revert); a timed-out
+   *   provider call settles `ambiguous` — the provider state is unknown, so
+   *   retries deliberately do not re-issue it.
+   */
+  async revertCheckpoint(input: RevertCheckpointInput): Promise<RevertCheckpointResult> {
+    const previous = this.revertLocks.get(input.threadId) ?? Promise.resolve();
+    const operation = previous.catch(() => {}).then(() => this.runRevertCheckpoint(input));
+    // The tracked (swallowed) twin keeps the lock map free of rejecting
+    // promises; the caller still receives `operation`'s rejection directly.
+    const tracked = operation.catch(() => {});
+    this.revertLocks.set(input.threadId, tracked);
+    void tracked.finally(() => {
+      if (this.revertLocks.get(input.threadId) === tracked) {
+        this.revertLocks.delete(input.threadId);
+      }
+    });
+    return operation;
+  }
+
+  private async runRevertCheckpoint(input: RevertCheckpointInput): Promise<RevertCheckpointResult> {
+    this.assertRevertAllowed(input.threadId);
+    if (!dbHasThreadRuntimeItem(input.threadId, input.checkpointItemId)) {
+      // Nothing addressable to revert: no journal row, no side effects, and a
+      // concurrent second client converges on this noop after the first
+      // operation truncated the tail.
+      return {
+        outcome: "noop",
+        replayed: false,
+        numTurns: 0,
+        providerPhase: "skipped_missing_checkpoint",
+        filesPhase: "skipped_missing_checkpoint",
+        truncatePhase: "noop",
+        removedCompletedTurnAnchors: [],
+      };
+    }
+
+    const thread = dbGetThread(input.threadId);
+    const claim = dbClaimCheckpointRevertOperation({
+      operationKey: input.operationKey,
+      threadId: input.threadId,
+      checkpointItemId: input.checkpointItemId,
+      projectLocationJson: input.projectLocation ? JSON.stringify(input.projectLocation) : null,
+      configJson: thread?.config ? JSON.stringify(thread.config) : null,
+    });
+    let row: CheckpointRevertOperationRow = claim.row;
+    const replayed = claim.kind === "replay";
+    if (replayed) {
+      return {
+        outcome: row.outcome as RevertCheckpointResult["outcome"],
+        replayed: true,
+        numTurns: row.numTurns,
+        providerPhase: row.providerPhase,
+        filesPhase: row.filesPhase,
+        truncatePhase: row.truncatePhase,
+        removedCompletedTurnAnchors: row.removedAnchors,
+      };
+    }
+
+    // Provider phase — at most once per operation key.
+    if (row.providerPhase === "pending") {
+      if (row.numTurns === 0) {
+        row = this.bumpPhase(input.operationKey, row, { providerPhase: "skipped_no_turns" });
+      } else {
+        try {
+          const payload: { threadId: string; numTurns: number; config?: ThreadConfig } = {
+            threadId: input.threadId,
+            numTurns: row.numTurns,
+          };
+          if (row.configJson) payload.config = JSON.parse(row.configJson) as ThreadConfig;
+          await this.supervisorClient.call("rollbackThreadConversation", payload);
+          row = this.bumpPhase(input.operationKey, row, { providerPhase: "completed" });
+        } catch (error) {
+          const ambiguous = error instanceof Error && error.message.includes("timed out");
+          row = this.bumpPhase(input.operationKey, row, {
+            providerPhase: ambiguous ? "ambiguous" : "failed",
+          });
+        }
+      }
+    }
+
+    // File restore phase — idempotent (git reset to a fixed checkpoint ref),
+    // so unlike the provider phase a `failed` attempt is re-attempted on an
+    // explicit retry.
+    if (row.filesPhase === "pending" || row.filesPhase === "failed") {
+      const projectLocation = row.projectLocationJson
+        ? (JSON.parse(row.projectLocationJson) as ProjectLocation)
+        : null;
+      if (!projectLocation) {
+        row = this.bumpPhase(input.operationKey, row, { filesPhase: "skipped_no_location" });
+      } else {
+        try {
+          await this.supervisorClient.call("restoreFileCheckpoint", {
+            threadId: input.threadId,
+            checkpointItemId: input.checkpointItemId,
+            projectLocation,
+          });
+          row = this.bumpPhase(input.operationKey, row, { filesPhase: "completed" });
+        } catch {
+          // Preserve the established contract: a failing file restore aborts
+          // the compound before the transcript is truncated.
+          row = this.bumpPhase(input.operationKey, row, {
+            filesPhase: "failed",
+            outcome: "failed",
+          });
+          return this.resultFromRow(row, replayed);
+        }
+      }
+    }
+
+    // Transcript truncation — the single-mutation owner publishes the one
+    // canonical `runtime.truncated` event; a replayed/resumed operation whose
+    // truncate already landed skips straight to settle.
+    let removedCompletedTurnAnchors = row.removedAnchors;
+    if (row.truncatePhase === "pending") {
+      const truncated = this.truncateThreadRuntimeOwned(input.threadId, input.checkpointItemId);
+      removedCompletedTurnAnchors = [...truncated.removedCompletedTurnAnchors];
+      row = this.bumpPhase(input.operationKey, row, {
+        truncatePhase: truncated.truncated ? "completed" : "noop",
+        removedAnchors: truncated.removedCompletedTurnAnchors,
+      });
+    }
+
+    const outcome: RevertCheckpointResult["outcome"] =
+      row.providerPhase === "ambiguous"
+        ? "ambiguous"
+        : row.providerPhase === "failed"
+          ? "completed_local_only"
+          : "completed";
+    this.bumpPhase(input.operationKey, row, { outcome });
+    return {
+      outcome,
+      replayed,
+      numTurns: row.numTurns,
+      providerPhase: row.providerPhase,
+      filesPhase: row.filesPhase,
+      truncatePhase: row.truncatePhase,
+      removedCompletedTurnAnchors,
+    };
+  }
+
+  private resultFromRow(
+    row: CheckpointRevertOperationRow,
+    replayed: boolean,
+  ): RevertCheckpointResult {
+    return {
+      outcome: row.outcome as RevertCheckpointResult["outcome"],
+      replayed,
+      numTurns: row.numTurns,
+      providerPhase: row.providerPhase,
+      filesPhase: row.filesPhase,
+      truncatePhase: row.truncatePhase,
+      removedCompletedTurnAnchors: row.removedAnchors,
+    };
+  }
+
+  private bumpPhase(
+    operationKey: string,
+    current: CheckpointRevertOperationRow,
+    update: {
+      providerPhase?: CheckpointRevertProviderPhase;
+      filesPhase?: CheckpointRevertFilesPhase;
+      truncatePhase?: CheckpointRevertTruncatePhase;
+      removedAnchors?: string[];
+      outcome?: CheckpointRevertOutcome;
+    },
+  ): CheckpointRevertOperationRow {
+    dbUpdateCheckpointRevertPhases(operationKey, update);
+    return {
+      ...current,
+      providerPhase: update.providerPhase ?? current.providerPhase,
+      filesPhase: update.filesPhase ?? current.filesPhase,
+      truncatePhase: update.truncatePhase ?? current.truncatePhase,
+      removedAnchors: update.removedAnchors ?? current.removedAnchors,
+      outcome: update.outcome ?? current.outcome,
+    };
   }
 
   startSupervisor(): void {

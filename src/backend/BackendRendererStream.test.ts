@@ -251,6 +251,110 @@ describe("BackendRendererStream", () => {
       resyncRequests: 1,
     });
   });
+
+  it("caps an oversized runtime event instead of disconnecting clients, and keeps it replayable", async () => {
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+    const client = await readyClient(info, [], ["thread-big"]);
+
+    stream.publish({
+      type: "thread-runtime-event",
+      threadId: "thread-big",
+      event: {
+        type: "item.completed",
+        threadId: "thread-big",
+        itemId: "item-1",
+        payload: { image: "A".repeat(2 * 1024 * 1024), label: "screenshot" },
+      },
+    });
+
+    // The event is delivered with its largest field withheld, the socket stays
+    // open, and the capped event is what lands in the replay buffer.
+    const message = await nextMessage(client.socket);
+    expect(message).toMatchObject({ type: "event", seq: 1 });
+    const supervisorEvent = message.event as {
+      event?: { payload?: { image?: unknown; label?: unknown } };
+    };
+    expect(supervisorEvent.event?.payload?.label).toBe("screenshot");
+    expect(supervisorEvent.event?.payload?.image).toMatchObject({
+      __poracodeOmitted: { bytes: expect.any(Number) },
+    });
+    expect(stream.getDiagnostics().slowClientDisconnects).toBe(0);
+
+    client.socket.close();
+    await vi.waitFor(() => expect(stream.getDiagnostics().connectedClients).toBe(0));
+    // Replay sends the retained event before the interests-ack, so collect raw
+    // messages from subscription time and expect the replay among them.
+    const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+    await hello;
+    const replayed: Record<string, unknown>[] = [];
+    socket.on("message", (data: Buffer) => {
+      try {
+        replayed.push(JSON.parse(data.toString()) as Record<string, unknown>);
+      } catch {
+        // Ignore non-JSON frames; the assertion below inspects JSON messages.
+      }
+    });
+    socket.send(
+      JSON.stringify({
+        version: 2,
+        type: "interests",
+        terminalThreadIds: [],
+        runtimeThreadIds: ["thread-big"],
+        lastSeq: 0,
+      }),
+    );
+    await vi.waitFor(() => expect(replayed.map((m) => m.type)).toContain("event"));
+    expect(replayed.find((m) => m.type === "event")).toMatchObject({ seq: 1 });
+    socket.close();
+  });
+
+  it("broadcasts resync-required and skips replay for an event nothing can shrink", async () => {
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+    const client = await readyClient(info, ["thread-1"], []);
+
+    stream.publish({
+      type: "thread-output",
+      threadId: "thread-1",
+      data: "x".repeat(2 * 1024 * 1024),
+      outputLength: 2 * 1024 * 1024,
+      terminalInstanceId: "gen-test",
+    });
+
+    await expect(nextMessage(client.socket)).resolves.toMatchObject({
+      type: "resync-required",
+      latestSeq: 1,
+    });
+    expect(stream.getDiagnostics().slowClientDisconnects).toBe(0);
+
+    // The undeliverable event never enters the replay buffer, so a client that
+    // replays from before it must get resync-required, not a silent skip.
+    const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+    await hello;
+    const reconnected: Record<string, unknown>[] = [];
+    socket.on("message", (data: Buffer) => {
+      try {
+        reconnected.push(JSON.parse(data.toString()) as Record<string, unknown>);
+      } catch {
+        // Ignore non-JSON frames; the assertion below inspects JSON messages.
+      }
+    });
+    socket.send(
+      JSON.stringify({
+        version: 2,
+        type: "interests",
+        terminalThreadIds: [],
+        runtimeThreadIds: [],
+        lastSeq: 0,
+      }),
+    );
+    await vi.waitFor(() => expect(reconnected.map((m) => m.type)).toContain("resync-required"));
+    expect(reconnected.find((m) => m.type === "resync-required")).toMatchObject({ latestSeq: 1 });
+    socket.close();
+  });
 });
 
 function connect(

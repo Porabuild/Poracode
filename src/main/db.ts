@@ -69,6 +69,20 @@ export {
   dbFailRemoteCommand,
 } from "./db/remoteCommandReceipts";
 
+export {
+  dbClaimCheckpointRevertOperation,
+  dbCountRollbackTurnsAfterCheckpoint,
+  dbGetCheckpointRevertOperation,
+  dbHasThreadRuntimeItem,
+  dbUpdateCheckpointRevertPhases,
+  type CheckpointRevertClaim,
+  type CheckpointRevertFilesPhase,
+  type CheckpointRevertOperationRow,
+  type CheckpointRevertOutcome,
+  type CheckpointRevertProviderPhase,
+  type CheckpointRevertTruncatePhase,
+} from "./db/checkpointRevertOperations";
+
 export { dbGetSchedules, dbGetSchedule, dbUpsertSchedule, dbDeleteSchedule } from "./db/schedules";
 
 export { dbGetPrWatches, dbGetPrWatch, dbUpsertPrWatch, dbDeletePrWatch } from "./db/prWatches";
