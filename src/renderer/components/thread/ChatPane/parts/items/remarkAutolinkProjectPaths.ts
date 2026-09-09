@@ -39,8 +39,13 @@ function visit(node: MdNode, options: PluginOptions): void {
     if (child.type === "text" && typeof child.value === "string") {
       next.push(...transformText(child.value, options));
     } else if (child.type === "link" && typeof child.url === "string") {
-      const ref = options.parsePathRef(child.url);
-      if (ref) child.url = pathRefUrl(ref);
+      // These destinations already carry URL identity. Filesystem normalization
+      // can collapse `https://` to `https:/` and misclassify an explicit file link
+      // as a folder while the project's root-name index is still unavailable.
+      if (!/^(?:https?:\/\/|poracode:)/i.test(child.url)) {
+        const ref = options.parsePathRef(child.url);
+        if (ref) child.url = pathRefUrl(ref);
+      }
       next.push(child);
     } else if (SKIP_PARENT_TYPES.has(child.type)) {
       next.push(child);

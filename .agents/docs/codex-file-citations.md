@@ -52,13 +52,22 @@ order and source/output purpose do not affect file opening. Other attributes are
 accepted but currently open the file without page, slide, or spreadsheet-cell
 navigation; the raw transcript retains their original values.
 
-The formatter emits the existing internal Markdown file-link representation.
+The formatter emits the internal Markdown file-link representation.
 The shared `markdownPathRefs` module owns its encoding/decoding, and both the
 full Markdown renderer and lazy plain-text fallback use that representation.
 Explicit references bypass heuristic file-extension/root-name inference. This
 matters for `.pptx`/`.pdf` and Windows paths containing spaces or parentheses:
 the previous generic autolinker picked up only the path suffix and classified
 the artifact as a folder.
+
+Markdown code boundaries come from the existing CommonMark parser, including
+list and blockquote containers. Complete directives are temporarily masked with
+the same number of UTF-16 code units for classification, preserving line breaks
+and source offsets. This keeps punctuation inside quoted attributes opaque.
+Only directives occupying Markdown text are replaced in the original source;
+the formatter does not serialize or rewrite surrounding Markdown. A list fence
+cannot leak inline-code state into a later paragraph, and unmatched prose
+backticks do not suppress subsequent citations.
 
 Literal code examples and escaped directives are preserved. Incomplete streaming
 tails and malformed directives stay visible until a complete valid directive
@@ -75,3 +84,23 @@ through the newly declared hook immediately; no migration or cache/version bump
 is needed. Existing internal link prefixes remain readable. Regression tests
 start from the previously stored response shape and exercise both render paths,
 actual file-open callbacks, literal examples, and streaming completion.
+
+The internal Markdown link boundary uses a distinct `v2/` payload for newly
+generated links: `https://poracode.local/path/v2/<encoded-path>`, with optional
+`line` and `endLine` query fields. Folder links use the matching `folder/v2/`
+prefix. The path is encoded independently, so a POSIX filename ending in
+`:2026` or `:20-26` is never interpreted as line metadata. Literal question
+marks, hashes, and percent sequences remain part of the encoded path.
+
+Both producers (provider formatting and generic path autolinking) use
+`pathRefUrl`; both consumers (full Markdown anchors and the lazy fallback)
+use `parsePathRefUrl`. Legacy HTTP links and `poracode:path:` /
+`poracode:folder:` sentinels retain their previous interpretation. Unsupported
+versions and malformed v2 payloads are rejected. This explicitly versions the
+derived link representation without changing the saved transcript or database
+version; stored legacy links are covered by decoder and renderer regressions.
+Generic path autolinking preserves existing HTTP and internal URL destinations
+before filesystem lookup, including while the project root-name index is absent.
+Project-path normalization preserves the leading double separator of external
+UNC paths. Paths within a network or WSL project still resolve relative to that
+project, while other network paths retain the host when opened.

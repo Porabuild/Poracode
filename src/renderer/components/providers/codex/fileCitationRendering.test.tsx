@@ -34,6 +34,92 @@ function makeActions(): ChatPaneActions {
 }
 
 describe("Codex file citation rendering", () => {
+  describe.each([
+    ["full Markdown", ItemMarkdownInner],
+    ["lazy fallback", ItemMarkdown],
+  ] as const)("review regressions in %s", (_, Renderer) => {
+    it("retains the network host when opening an out-of-project UNC citation", () => {
+      const actions = makeActions();
+      render(
+        <AppProvider>
+          <ChatPaneActionsContext.Provider value={actions}>
+            <Renderer
+              text={String.raw`Created :codex-file-citation{path="\\server\share\report.pdf" purpose="output"}.`}
+            />
+          </ChatPaneActionsContext.Provider>
+        </AppProvider>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "report.pdf" }));
+      expect(actions.openProjectRelativePath).toHaveBeenCalledExactlyOnceWith(
+        "//server/share/report.pdf",
+        undefined,
+      );
+    });
+
+    it.each(["report:2026", "report:20-26"])(
+      "opens the exact POSIX filename %s without a line number",
+      (filename) => {
+        const actions = makeActions();
+        const path = `/tmp/${filename}`;
+        render(
+          <AppProvider>
+            <ChatPaneActionsContext.Provider value={actions}>
+              <Renderer text={`Created :codex-file-citation{path="${path}" purpose="output"}.`} />
+            </ChatPaneActionsContext.Provider>
+          </AppProvider>,
+        );
+        const chip = screen.getByRole("button", { name: filename });
+        expect(chip).toHaveAttribute("title", path);
+        fireEvent.click(chip);
+        expect(actions.openProjectRelativePath).toHaveBeenCalledExactlyOnceWith(path, undefined);
+      },
+    );
+
+    it.each([
+      ["list-contained fence", "- ```text\n  example\n  ```"],
+      ["unmatched prose backtick", "An unmatched ` in the earlier paragraph."],
+    ])("opens a real citation after a %s", (_case, precedingText) => {
+      const actions = makeActions();
+      const path = `${projectPath}/report.pdf`;
+      const { container } = render(
+        <AppProvider>
+          <ChatPaneActionsContext.Provider value={actions}>
+            <Renderer
+              text={`${precedingText}\n\nCreated :codex-file-citation{path="${path}" purpose="output"}.`}
+            />
+          </ChatPaneActionsContext.Provider>
+        </AppProvider>,
+      );
+      expect(container).not.toHaveTextContent(":codex-file-citation");
+      fireEvent.click(screen.getByRole("button", { name: "report.pdf" }));
+      expect(actions.openProjectRelativePath).toHaveBeenCalledExactlyOnceWith(
+        "report.pdf",
+        undefined,
+      );
+    });
+  });
+
+  it("keeps blockquote indented code literal while rendering the following citation", () => {
+    const actions = makeActions();
+    const example = ':codex-file-citation{path="/tmp/example.pdf" purpose="output"}';
+    const { container } = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner
+            text={`>     ${example}\n\nCreated :codex-file-citation{path="/tmp/report.pdf" purpose="output"}.`}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+    expect(container.querySelector("blockquote pre code")).toHaveTextContent(example);
+    expect(container.querySelectorAll(".poracode-inline-path-chip")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "report.pdf" }));
+    expect(actions.openProjectRelativePath).toHaveBeenCalledExactlyOnceWith(
+      "/tmp/report.pdf",
+      undefined,
+    );
+  });
+
   it.each([
     ["full Markdown", ItemMarkdownInner],
     ["lazy fallback", ItemMarkdown],

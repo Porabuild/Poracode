@@ -1,7 +1,42 @@
+import { unified } from "unified";
+import remarkParse from "remark-parse";
 import { getBasename } from "@/shared/pathUtils";
 import { pathRefUrl } from "../../thread/ChatPane/parts/items/markdownPathRefs";
 
 const CITATION_START = ":codex-file-citation{";
+const CITATION_START_RE = /:codex-file-citation\{/g;
+
+interface MarkdownNode {
+  type: string;
+  children?: MarkdownNode[];
+  position?: MarkdownPosition;
+}
+
+interface MarkdownPosition {
+  start?: { offset?: number };
+  end?: { offset?: number };
+}
+
+interface SourceRange {
+  start: number;
+  end: number;
+}
+
+interface FileCitation {
+  start: number;
+  end: number;
+  markdown: string;
+}
+
+const markdownParser = unified().use(remarkParse).freeze();
+const STRUCTURAL_MARKDOWN_TYPES = new Set([
+  "definition",
+  "html",
+  "image",
+  "imageReference",
+  "link",
+  "linkReference",
+]);
 
 /**
  * Codex artifact skills emit file directives in assistant text, including saved
@@ -12,44 +47,125 @@ const CITATION_START = ":codex-file-citation{";
  */
 export function formatFileCitationMarkdown(text: string): string {
   if (!text.includes(CITATION_START)) return text;
-  const tokens = /^ {0,3}(?:> ?)*(`{3,}|~{3,})[^\r\n]*|`+|:codex-file-citation\{/gm;
-  let fence: string | undefined;
-  let inlineTicks = 0;
+  const citations = findFileCitations(text);
+  if (citations.length === 0) return text;
+
+  const textRanges = findMarkdownTextRanges(text, citations);
+  const replacements = citations.filter((citation) =>
+    textRanges.some((range) => citation.start >= range.start && citation.end <= range.end),
+  );
+  if (replacements.length === 0) return text;
+
   let cursor = 0;
   let result = "";
-  for (let match = tokens.exec(text); match; match = tokens.exec(text)) {
-    const token = match[0];
-    if (match[1]) {
-      const marker = match[1];
-      if (fence) {
-        if (
-          marker[0] === fence[0] &&
-          marker.length >= fence.length &&
-          token.slice(token.indexOf(marker) + marker.length).trim() === ""
-        ) {
-          fence = undefined;
-        }
-      } else if (!inlineTicks) {
-        fence = marker;
-      }
-      continue;
-    }
-    if (fence) continue;
-    if (token[0] === "`") {
-      if (inlineTicks === token.length) inlineTicks = 0;
-      else if (!inlineTicks && !isEscaped(text, match.index)) inlineTicks = token.length;
-      continue;
-    }
-    if (inlineTicks || isEscaped(text, match.index)) continue;
-    const lineStart = text.lastIndexOf("\n", match.index - 1) + 1;
-    if (/^(?: {4}|\t)/.test(text.slice(lineStart, match.index))) continue;
-    const citation = readCitation(text, tokens.lastIndex);
-    if (!citation) continue;
-    result += text.slice(cursor, match.index) + citation.markdown;
-    cursor = citation.end;
-    tokens.lastIndex = cursor;
+  for (const replacement of replacements) {
+    result += text.slice(cursor, replacement.start) + replacement.markdown;
+    cursor = replacement.end;
   }
-  return cursor ? result + text.slice(cursor) : text;
+  return result + text.slice(cursor);
+}
+
+function findFileCitations(text: string): FileCitation[] {
+  const citations: FileCitation[] = [];
+  CITATION_START_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = CITATION_START_RE.exec(text)) !== null) {
+    const start = match.index;
+    if (isEscaped(text, start)) continue;
+    const citation = readCitation(text, CITATION_START_RE.lastIndex);
+    if (!citation) continue;
+    citations.push({ start, end: citation.end, markdown: citation.markdown });
+    // A valid directive is opaque, so don't discover a directive-looking
+    // string inside one of its quoted values as a second replacement.
+    CITATION_START_RE.lastIndex = citation.end;
+  }
+  return citations;
+}
+
+function findMarkdownTextRanges(text: string, citations: readonly FileCitation[]): SourceRange[] {
+  // The parser must not interpret Markdown punctuation in quoted directive
+  // values. Masking keeps every offset stable and leaves line structure intact
+  // while allowing remark to classify all surrounding Markdown containers.
+  const maskedText = maskCitationRanges(text, citations);
+  let tree: MarkdownNode;
+  try {
+    tree = markdownParser.parse(maskedText) as MarkdownNode;
+  } catch {
+    // Display text is untrusted and may contain malformed Unicode. A parser
+    // failure must never make a valid transcript disappear or throw in render.
+    return [];
+  }
+
+  const ranges: SourceRange[] = [];
+  collectMarkdownTextRanges(tree, ranges);
+  return ranges;
+}
+
+function maskCitationRanges(text: string, citations: readonly FileCitation[]): string {
+  let cursor = 0;
+  let masked = "";
+  for (const citation of citations) {
+    masked += text.slice(cursor, citation.start);
+    masked += maskCitation(text.slice(citation.start, citation.end));
+    cursor = citation.end;
+  }
+  return masked + text.slice(cursor);
+}
+
+function maskCitation(text: string): string {
+  let atLineStart = true;
+  let masked = "";
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index];
+    if (char === "\r" || char === "\n") {
+      masked += char;
+      atLineStart = true;
+    } else if (atLineStart && (char === " " || char === "\t")) {
+      // Preserve indentation so a multiline directive keeps the same list,
+      // blockquote, or indented-code classification in the temporary parse.
+      masked += char;
+    } else {
+      // This intentionally operates on UTF-16 code units (no `u` flag), so
+      // source offsets remain stable for astral Unicode in quoted attributes.
+      masked += "x";
+      atLineStart = false;
+    }
+  }
+  return masked;
+}
+
+function collectMarkdownTextRanges(root: MarkdownNode, ranges: SourceRange[]): void {
+  // Transcripts may nest containers thousands of levels deep. Traverse without
+  // recursion so a valid Markdown tree cannot exhaust the renderer call stack.
+  const pending = [root];
+  while (pending.length > 0) {
+    const node = pending.pop()!;
+    if (
+      node.type === "code" ||
+      node.type === "inlineCode" ||
+      STRUCTURAL_MARKDOWN_TYPES.has(node.type)
+    ) {
+      continue;
+    }
+    if (node.type === "text") {
+      const range = getSourceRange(node.position);
+      if (range) ranges.push(range);
+      continue;
+    }
+    const children = node.children;
+    if (!children) continue;
+    for (let index = children.length - 1; index >= 0; index--) {
+      pending.push(children[index]!);
+    }
+  }
+}
+
+function getSourceRange(position: MarkdownPosition | undefined): SourceRange | null {
+  const start = position?.start?.offset;
+  const end = position?.end?.offset;
+  return typeof start === "number" && typeof end === "number" && start <= end
+    ? { start, end }
+    : null;
 }
 
 function isEscaped(text: string, index: number): boolean {

@@ -18,6 +18,21 @@ describe("explicit Markdown path references", () => {
     ]);
   });
 
+  it("tokenizes v2 links with punctuation and a colon-digit filename", () => {
+    const ref: ProjectPathRef = {
+      kind: "file",
+      path: String.raw`/tmp/report:20-26?draft#100% (copy)\final.ts`,
+      line: 4,
+      endLine: 9,
+    };
+    const href = pathRefUrl(ref);
+    expect(tokenizePlainText(`See [report](${href}).`, new Set())).toEqual([
+      { kind: "text", value: "See " },
+      ref,
+      { kind: "text", value: "." },
+    ]);
+  });
+
   it("keeps the pre-existing sentinel forms compatible", () => {
     expect(parsePathRefUrl("poracode:path:src/main.ts%3A12-18")).toEqual({
       kind: "file",

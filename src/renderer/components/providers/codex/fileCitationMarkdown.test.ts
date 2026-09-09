@@ -45,6 +45,20 @@ describe("Codex file citation markdown", () => {
 
   const citation = ':codex-file-citation{path="/tmp/report.pdf" purpose="output"}';
 
+  it("formats deeply nested containers without exhausting the renderer call stack", () => {
+    const prefix = "> ".repeat(5_000);
+    expect(formatFileCitationMarkdown(`${prefix}${citation}`)).toBe(
+      `${prefix}${formatFileCitationMarkdown(citation)}`,
+    );
+  });
+
+  it.each(["\n", "\r\n"])("keeps multiline attribute offsets intact with %j", (newline) => {
+    const multiline = citation.replace(' purpose="output"', `${newline}  purpose="output"`);
+    expect(formatFileCitationMarkdown(`- Created ${multiline}`)).toBe(
+      `- Created ${formatFileCitationMarkdown(citation)}`,
+    );
+  });
+
   it.each([
     `\`${citation}\``,
     `\`\`${citation}\`\``,
@@ -66,6 +80,60 @@ describe("Codex file citation markdown", () => {
       `\`${citation}\`\n\nCreated ${formatFileCitationMarkdown(citation)}, with matching ${formatFileCitationMarkdown(citation)}.`,
     );
     expect(formatFileCitationMarkdown(formatted)).toBe(formatted);
+  });
+
+  it("does not let a list-contained fence suppress a later citation", () => {
+    const text = `- \`\`\`text\n  ${citation}\n  \`\`\`\n\nCreated ${citation}.`;
+    expect(formatFileCitationMarkdown(text)).toBe(
+      `- \`\`\`text\n  ${citation}\n  \`\`\`\n\nCreated ${formatFileCitationMarkdown(citation)}.`,
+    );
+  });
+
+  it("treats an unmatched prose backtick as text and keeps scanning", () => {
+    const text = `A prose marker: \`\n\nCreated ${citation}.`;
+    expect(formatFileCitationMarkdown(text)).toBe(
+      `A prose marker: \`\n\nCreated ${formatFileCitationMarkdown(citation)}.`,
+    );
+  });
+
+  it("keeps blockquote-indented code literal while formatting a later quote paragraph", () => {
+    const text = `>     ${citation}\n>\n> Created ${citation}`;
+    expect(formatFileCitationMarkdown(text)).toBe(
+      `>     ${citation}\n>\n> Created ${formatFileCitationMarkdown(citation)}`,
+    );
+  });
+
+  it("handles nested list and blockquote fences using Markdown container boundaries", () => {
+    const text = `1. > \`\`\`markdown\n   > ${citation}\n   > \`\`\`\n\n1. > Created ${citation}`;
+    expect(formatFileCitationMarkdown(text)).toBe(
+      `1. > \`\`\`markdown\n   > ${citation}\n   > \`\`\`\n\n1. > Created ${formatFileCitationMarkdown(citation)}`,
+    );
+  });
+
+  it("does not parse quoted attribute punctuation as surrounding Markdown", () => {
+    const path = "/tmp/報告 [最終] (50%).pdf";
+    const backtick = "`";
+    const text = `Created :codex-file-citation{path="${path}" purpose="output" note="* [literal] (${backtick}quoted${backtick})"}.`;
+    const formatted = formatFileCitationMarkdown(text);
+    const href = formatted.match(/\]\(([^)]+)\)/)?.[1];
+    expect(parsePathRefUrl(href!)).toEqual({ kind: "file", path });
+    expect(formatted).not.toContain(":codex-file-citation");
+    expect(formatted).toContain("Created [報告 \\[最終\\] (50%).pdf]");
+  });
+
+  it("keeps an escaped directive literal without suppressing a later real one", () => {
+    const text = `\\${citation}\n\nCreated ${citation}`;
+    expect(formatFileCitationMarkdown(text)).toBe(
+      `\\${citation}\n\nCreated ${formatFileCitationMarkdown(citation)}`,
+    );
+  });
+
+  it("keeps an incomplete directive literal while formatting a later complete one", () => {
+    const incomplete = ':codex-file-citation{path="/tmp/report.pdf" purpose="output"';
+    const text = `${incomplete}\n\nCreated ${citation}`;
+    expect(formatFileCitationMarkdown(text)).toBe(
+      `${incomplete}\n\nCreated ${formatFileCitationMarkdown(citation)}`,
+    );
   });
 
   it.each([
