@@ -140,4 +140,115 @@ final class GeneratedThreadLifecycleContractTests: XCTestCase {
     XCTAssertThrowsError(
       try GeneratedRemoteV3Contract.validateThreadCommandResponse(Data(#"{"ok":false}"#.utf8)))
   }
+
+  // MARK: - v9 pinned execution environment (shared fixture round-trip)
+
+  /// The host replaces thread configs wholesale on every config-carrying
+  /// mutation. These tests pin that the WSL distro selected on the desktop
+  /// (`thread-config-execution-environment.json`) survives the native
+  /// snapshot → launch-config → wire-encode path, on the encoded JSON.
+  private func pinnedConfig() throws -> ThreadConfig {
+    try JSONDecoding.decode(
+      ThreadConfig.self,
+      from: try remoteFixtureData("thread-config-execution-environment.json")
+    )
+  }
+
+  private func pinnedEnvironment(_ config: [String: Any]) throws {
+    let environment = try XCTUnwrap(config["executionEnvironment"] as? [String: Any])
+    XCTAssertEqual(environment["kind"] as? String, "wsl")
+    XCTAssertEqual(environment["distro"] as? String, "Ubuntu-22.04")
+  }
+
+  func testPinnedExecutionEnvironmentSurvivesThreadDecodeAndStartEncoding() throws {
+    let configJSON = try XCTUnwrap(
+      JSONSerialization.jsonObject(
+        with: try remoteFixtureData("thread-config-execution-environment.json")
+      ) as? [String: Any]
+    )
+    var threadJSON: [String: Any] = ["config": configJSON]
+    threadJSON["id"] = "thread-pinned"
+    threadJSON["projectId"] = "project-1"
+    threadJSON["title"] = "Pinned"
+    threadJSON["agentKind"] = "claude"
+    threadJSON["status"] = "idle"
+    threadJSON["attention"] = "none"
+    threadJSON["createdAt"] = "2026-09-01T00:00:00Z"
+    threadJSON["updatedAt"] = "2026-09-01T00:00:00Z"
+
+    let thread = try JSONDecoding.decode(
+      RemoteThread.self, from: JSONSerialization.data(withJSONObject: threadJSON))
+    XCTAssertEqual(
+      thread.config.executionEnvironment,
+      RemoteExecutionEnvironment(kind: "wsl", distro: "Ubuntu-22.04"))
+
+    let request = ThreadStartExistingRequest(
+      threadID: thread.id,
+      projectLocation: .wsl(
+        distro: "Ubuntu-22.04",
+        linuxPath: "/repo",
+        uncPath: #"\\wsl.localhost\Ubuntu-22.04\repo"#
+      ),
+      agentKind: thread.agentKind,
+      config: thread.config.lifecycleLaunchConfiguration
+    )
+    let body = try threadLifecycleJSONObject(
+      try GeneratedRemoteV3Contract.threadStartExistingRequest(request, commandID: "start-1").body)
+    try pinnedEnvironment(try XCTUnwrap(body["config"] as? [String: Any]))
+  }
+
+  func testPinnedExecutionEnvironmentSurvivesRelaunchCommandEncoding() throws {
+    let request = ThreadRelaunchRequest(
+      projectID: "project-1",
+      agentKind: "claude",
+      config: try pinnedConfig().lifecycleLaunchConfiguration,
+      prompt: "continue"
+    )
+    let body = try threadLifecycleJSONObject(
+      try GeneratedRemoteV3Contract.threadCommandRequest(
+        threadID: "thread-pinned",
+        command: .start(request),
+        commandID: "start-2"
+      ).body)
+    try pinnedEnvironment(try XCTUnwrap(body["config"] as? [String: Any]))
+  }
+
+  func testPinnedExecutionEnvironmentSurvivesFastAndModelChangesThroughSendEncoding() throws {
+    // applyComposerControls projects the thread config into the launch model,
+    // the composer overrides model/fast on it, and openComposerControls maps
+    // it back before send/steer. The pinned distro must survive every hop.
+    var launch = try pinnedConfig().lifecycleLaunchConfiguration
+    launch.model = "next-model"
+    launch.fast = true
+    let edited = ThreadConfig(launch)
+
+    XCTAssertEqual(
+      edited.executionEnvironment, RemoteExecutionEnvironment(kind: "wsl", distro: "Ubuntu-22.04"))
+    XCTAssertEqual(edited.model, "next-model")
+    XCTAssertEqual(edited.fast, true)
+
+    let configObject = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: try JSONDecoding.encoder.encode(edited))
+        as? [String: Any])
+    let body: [String: Any] = ["prompt": "hi", "config": configObject]
+    let sent = try threadLifecycleJSONObject(
+      try GeneratedRemoteV3Contract.threadSendRequest(
+        JSONSerialization.data(withJSONObject: body)))
+    try pinnedEnvironment(try XCTUnwrap(sent["config"] as? [String: Any]))
+  }
+
+  func testNonWSLConfigOmitsExecutionEnvironmentOnTheWire() throws {
+    let request = ThreadStartExistingRequest(
+      threadID: "thread-native",
+      projectLocation: .posix(path: "/repo"),
+      agentKind: "claude",
+      config: ThreadLaunchConfiguration(model: "fixture-model")
+    )
+    let body = try threadLifecycleJSONObject(
+      try GeneratedRemoteV3Contract.threadStartExistingRequest(request, commandID: "start-3").body)
+    let config = try XCTUnwrap(body["config"] as? [String: Any])
+    XCTAssertFalse(
+      config.keys.contains("executionEnvironment"),
+      "native execution must not invent an execution environment")
+  }
 }

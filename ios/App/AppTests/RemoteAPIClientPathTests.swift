@@ -362,6 +362,36 @@ final class PairingScopeFlowTests: XCTestCase {
         )
     }
 
+    /// Rolling-upgrade guard: a host still advertising the previous released
+    /// protocol (8) is rejected exactly like any other mismatch, before the
+    /// one-time token is ever exchanged.
+    func testTokenNotCalledAfterPreviousProtocolMismatch() async throws {
+        CapturingURLProtocol.reset()
+        CapturingURLProtocol.responseStatus = 200
+        CapturingURLProtocol.responseBody = Data(
+            #"{"protocolVersion":8,"desktopId":"d","label":"L","appVersion":"1","auth":{"bootstrapMethods":["one-time-token"],"sessionMethods":["bearer-access-token"],"scopes":["session:read"]},"endpoints":{"httpBaseUrl":"https://h/","wsBaseUrl":"wss://h/"}}"#
+                .utf8
+        )
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [CapturingURLProtocol.self]
+        let session = URLSession(configuration: config)
+        let client = RemoteAPIClient(endpoint: "https://host.example", session: session)
+
+        do {
+            _ = try await client.environment()
+            XCTFail("expected protocol mismatch")
+        } catch let error as RemoteClientError {
+            XCTAssertEqual(error.code, "protocol_version_mismatch")
+        }
+
+        XCTAssertEqual(CapturingURLProtocol.requests.count, 1)
+        XCTAssertFalse(
+            CapturingURLProtocol.requests.contains(where: {
+                $0.url?.path.contains("/oauth/token") == true
+            })
+        )
+    }
+
     func testExchangeUsesIntersectedScopesFromEnvironment() async throws {
         // Preflight with partial known scopes; token request must request that intersection.
         CapturingURLProtocol.reset()
@@ -369,7 +399,7 @@ final class PairingScopeFlowTests: XCTestCase {
         CapturingURLProtocol.responseBody = Data(
             """
             {
-              "protocolVersion": 8,
+              "protocolVersion": \(ProtocolConstants.remoteProtocolVersion),
               "desktopId": "desktop-fixture-001",
               "label": "Fixture Mac",
               "appVersion": "3.0.0-fixture",
@@ -444,7 +474,7 @@ final class PairingScopeFlowTests: XCTestCase {
         CapturingURLProtocol.responseBody = Data(
             """
             {
-              "protocolVersion": 8,
+              "protocolVersion": \(ProtocolConstants.remoteProtocolVersion),
               "desktopId": "desktop-fixture-001",
               "label": "Fixture Mac",
               "appVersion": "3.0.0-fixture",
@@ -498,7 +528,7 @@ final class PairingScopeFlowTests: XCTestCase {
         CapturingURLProtocol.responseBody = Data(
             """
             {
-              "protocolVersion": 8,
+              "protocolVersion": \(ProtocolConstants.remoteProtocolVersion),
               "desktopId": "desktop-fixture-001",
               "label": "Fixture Mac",
               "appVersion": "3.0.0-fixture",

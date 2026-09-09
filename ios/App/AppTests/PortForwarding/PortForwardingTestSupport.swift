@@ -27,15 +27,17 @@ enum PortForwardingTestValues {
     online: Bool = true,
     ready: Bool = true,
     foreground: Bool = true,
-    scopes: Set<PortForwardingCapability> = [.forward]
+    scopes: Set<PortForwardingCapability> = [.forward],
+    browserForwardEntry: Bool = true
   ) -> PortForwardingHostAccess {
     PortForwardingHostAccess(
       lease: lease,
-      protocolVersion: 8,
+      protocolVersion: ProtocolConstants.remoteProtocolVersion,
       isOnline: online,
       isReady: ready,
       isForeground: foreground,
-      capabilities: scopes
+      capabilities: scopes,
+      browserForwardEntry: browserForwardEntry
     )
   }
 
@@ -133,8 +135,12 @@ actor PortForwardingRemoteAPISpy: PortForwardingRemoteAPI {
 actor PortForwardingGatewaySpy: PortForwardingGateway {
   private(set) var calls: [PortForwardingRoute] = []
   var failure: PortForwardingFailure?
+  /// Open-only failure, so the start-commits-then-auto-open-refused flow can
+  /// be driven without failing the start mutation itself.
+  var openFailure: PortForwardingFailure?
 
   func setFailure(_ value: PortForwardingFailure?) { failure = value }
+  func setOpenFailure(_ value: PortForwardingFailure?) { openFailure = value }
 
   func scan(lease _: PortForwardingHostLease) async throws -> PortForwardingSnapshot {
     calls.append(.portsRead)
@@ -155,6 +161,7 @@ actor PortForwardingGatewaySpy: PortForwardingGateway {
 
   func open(forwardID _: String, lease _: PortForwardingHostLease) async throws {
     calls.append(.portEnter)
+    if let openFailure { throw openFailure }
     if let failure { throw failure }
   }
 

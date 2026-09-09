@@ -83,10 +83,19 @@ struct ResyncEngine {
             let snap = try await api.snapshot()
             // Decode the additive Git fields before anything is committed. A
             // malformed field is a host failure (retried), never a partial install.
-            let preparedReplay = try HostSnapshotInstall.prepare(
+            var preparedReplay = try HostSnapshotInstall.prepare(
                 shell: snap,
                 existing: host.state.replay
             )
+            // A resync runs exactly when replay was lost or gapped, and the
+            // shell snapshot carries no agent statuses — reinstall the
+            // authoritative base into the prepared copy. Live frames are gated
+            // (coordinator pending) and the socket is suspended, so the fetch
+            // cannot race an applied event; a stale attempt is caught by the
+            // commit checks below. A failed fetch leaves the base empty.
+            if let agentBase = try? await AgentStatusHydration.fetch(api: api) {
+                AgentStatusHydration.install(agentBase, into: &preparedReplay.replay)
+            }
             try Task.checkCancellation()
             guard host.state.resyncAttemptId == attemptId,
                   workGen == host.state.workGeneration

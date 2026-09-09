@@ -210,7 +210,8 @@ extension ThreadConfig {
       browserMcp: browserMcp,
       crossagentMcp: crossagentMcp,
       computerUse: computerUse,
-      chromeMcp: chromeMcp
+      chromeMcp: chromeMcp,
+      executionEnvironment: executionEnvironment
     )
   }
 }

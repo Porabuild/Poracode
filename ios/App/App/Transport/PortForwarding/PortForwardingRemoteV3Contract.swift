@@ -57,7 +57,12 @@ enum PortForwardingContractError: Error, Equatable, Sendable {
 }
 
 enum PortForwardingRemoteV3Contract {
-  static let protocolVersion = 8
+  static let protocolVersion = ProtocolConstants.remoteProtocolVersion
+
+  /// Host error code for "browser-origin entry is not configured on this
+  /// desktop", answered as a definite 503 by `POST /api/ports/enter`. The raw
+  /// forward still exists; only the browser open is unavailable.
+  static let browserEntryUnavailableCode = "forward_browser_unavailable"
 
   static func metadata(for route: PortForwardingRoute) throws -> PortForwardingRouteMetadata {
     let expected = route.expected

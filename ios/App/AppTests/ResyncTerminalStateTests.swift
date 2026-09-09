@@ -138,7 +138,7 @@ final class ResyncTerminalStateTests: XCTestCase {
                     let api = FakeRemoteAPI(endpoint: e, accessToken: t)
                     api.environmentResult = .success(
                         RemoteEnvironmentDescriptor(
-                            protocolVersion: 8,
+                            protocolVersion: ProtocolConstants.remoteProtocolVersion,
                             hostMode: nil,
                             desktopId: "desk-a",
                             label: "A",
@@ -271,7 +271,7 @@ final class ResyncTerminalStateTests: XCTestCase {
                     let api = FakeRemoteAPI(endpoint: e, accessToken: t)
                     api.environmentResult = .success(
                         RemoteEnvironmentDescriptor(
-                            protocolVersion: 8,
+                            protocolVersion: ProtocolConstants.remoteProtocolVersion,
                             hostMode: nil,
                             desktopId: "desk-a",
                             label: "A",

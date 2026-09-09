@@ -51,7 +51,10 @@ actor PortForwardingExactHostTransportSource {
       isOnline: access.isOnline,
       isReady: access.isReady,
       isForeground: access.isForeground,
-      capabilities: access.capabilities.intersection(granted)
+      capabilities: access.capabilities.intersection(granted),
+      // The credential grant carries scopes only; browser-entry authority is
+      // the host's own handshake and carries through unchanged.
+      browserForwardEntry: access.browserForwardEntry
     )
     return PortForwardingTransportSelection(
       access: exact, api: try makeAPI(credential.endpoint, credential.token))

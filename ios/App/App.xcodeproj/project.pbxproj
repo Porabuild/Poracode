@@ -36,6 +36,8 @@
 		A10000000000000000000103 /* GitStateInterests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000103 /* GitStateInterests.swift */; };
 		A10000000000000000000102 /* GitStatePatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000102 /* GitStatePatch.swift */; };
 		A10000000000000000000101 /* AgentStatusRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000101 /* AgentStatusRecord.swift */; };
+		A10000000000000000000BA2 /* AgentStatusHydration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000BA2 /* AgentStatusHydration.swift */; };
+		A10000000000000000000BA3 /* AgentStatusHydrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000BA3 /* AgentStatusHydrationTests.swift */; };
 		A10000000000000000000100 /* GitThreadSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000100 /* GitThreadSummary.swift */; };
 		A10000000000000000000118 /* NotificationForegroundPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000118 /* NotificationForegroundPresentation.swift */; };
 		A10000000000000000000119 /* NotificationRouteStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000119 /* NotificationRouteStrings.swift */; };
@@ -529,17 +531,22 @@
 		A100000000000000000000FD /* Settings.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000FD /* Settings.xcstrings */; };
 		A20000000000000000000001 /* RichChatTerminalWebSocketTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* RichChatTerminalWebSocketTransport.swift */; };
 		A20000000000000000000002 /* TerminalANSIParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000002 /* TerminalANSIParser.swift */; };
+		D47D0529D24A4C2AACCE9012 /* TerminalUnicodeWidth.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47D0529D24A4C2AACCE9011 /* TerminalUnicodeWidth.swift */; };
 		A20000000000000000000003 /* TerminalTextSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000003 /* TerminalTextSurface.swift */; };
 		A20000000000000000000004 /* TerminalStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000004 /* TerminalStrings.swift */; };
 		A20000000000000000000005 /* RichTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* RichTerminalView.swift */; };
+		CE1000000000000000000001 /* TerminalCommandField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2000000000000000000001 /* TerminalCommandField.swift */; };
+		CE1000000000000000000002 /* TerminalCommandFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2000000000000000000002 /* TerminalCommandFieldTests.swift */; };
 		FE1000000004 /* ProjectShellTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2000000004 /* ProjectShellTerminalView.swift */; };
 		FE1000000003 /* ProjectShellTerminalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2000000003 /* ProjectShellTerminalSession.swift */; };
 		A20000000000000000000006 /* Terminal.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000006 /* Terminal.xcstrings */; };
+		D47D0529D24A4C2AACCE9014 /* TerminalUnicodeLicense.txt in Resources */ = {isa = PBXBuildFile; fileRef = D47D0529D24A4C2AACCE9013 /* TerminalUnicodeLicense.txt */; };
 		A20000000000000000000007 /* TerminalANSIParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000007 /* TerminalANSIParserTests.swift */; };
 		A20000000000000000000008 /* RichChatTerminalTransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* RichChatTerminalTransportTests.swift */; };
 		FE1000000005 /* TerminalStartReachabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2000000005 /* TerminalStartReachabilityTests.swift */; };
 		PU4000000000000000000001 /* PullRequestReviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU3000000000000000000001 /* PullRequestReviewTests.swift */; };
 		A20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */; };
+		D6A6717A27F452A1C207A201 /* RemoteAPIClientCompressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6A6717A27F452A1C207A202 /* RemoteAPIClientCompressionTests.swift */; };
 		A30000000000000000000001 /* ProjectWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000000000000000000001 /* ProjectWorkspaceView.swift */; };
 		PWPG20000000000000000001 /* ProjectWorkspacePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = PWPG10000000000000000001 /* ProjectWorkspacePage.swift */; };
 		PWVW20000000000000000001 /* ProjectWorkspaceSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PWVW10000000000000000001 /* ProjectWorkspaceSplitView.swift */; };
@@ -778,6 +785,8 @@
 		B10000000000000000000103 /* GitStateInterests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStateInterests.swift; sourceTree = "<group>"; };
 		B10000000000000000000102 /* GitStatePatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStatePatch.swift; sourceTree = "<group>"; };
 		B10000000000000000000101 /* AgentStatusRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentStatusRecord.swift; sourceTree = "<group>"; };
+		B10000000000000000000BA2 /* AgentStatusHydration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentStatusHydration.swift; sourceTree = "<group>"; };
+		B10000000000000000000BA3 /* AgentStatusHydrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentStatusHydrationTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000100 /* GitThreadSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitThreadSummary.swift; sourceTree = "<group>"; };
 		B10000000000000000000118 /* NotificationForegroundPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationForegroundPresentation.swift; sourceTree = "<group>"; };
 		B10000000000000000000119 /* NotificationRouteStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationRouteStrings.swift; sourceTree = "<group>"; };
@@ -1273,17 +1282,22 @@
 		B100000000000000000000FD /* Settings.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Settings.xcstrings; sourceTree = "<group>"; };
 		B20000000000000000000001 /* RichChatTerminalWebSocketTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalWebSocketTransport.swift; sourceTree = "<group>"; };
 		B20000000000000000000002 /* TerminalANSIParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalANSIParser.swift; sourceTree = "<group>"; };
+		D47D0529D24A4C2AACCE9011 /* TerminalUnicodeWidth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalUnicodeWidth.swift; sourceTree = "<group>"; };
 		B20000000000000000000003 /* TerminalTextSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTextSurface.swift; sourceTree = "<group>"; };
 		B20000000000000000000004 /* TerminalStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalStrings.swift; sourceTree = "<group>"; };
 		B20000000000000000000005 /* RichTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTerminalView.swift; sourceTree = "<group>"; };
+		CE2000000000000000000001 /* TerminalCommandField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalCommandField.swift; sourceTree = "<group>"; };
+		CE2000000000000000000002 /* TerminalCommandFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalCommandFieldTests.swift; sourceTree = "<group>"; };
 		FE2000000004 /* ProjectShellTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectShellTerminalView.swift; sourceTree = "<group>"; };
 		FE2000000003 /* ProjectShellTerminalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectShellTerminalSession.swift; sourceTree = "<group>"; };
 		B20000000000000000000006 /* Terminal.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Terminal.xcstrings; sourceTree = "<group>"; };
+		D47D0529D24A4C2AACCE9013 /* TerminalUnicodeLicense.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = TerminalUnicodeLicense.txt; sourceTree = "<group>"; };
 		B20000000000000000000007 /* TerminalANSIParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalANSIParserTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000008 /* RichChatTerminalTransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalTransportTests.swift; sourceTree = "<group>"; };
 		FE2000000005 /* TerminalStartReachabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalStartReachabilityTests.swift; sourceTree = "<group>"; };
 		PU3000000000000000000001 /* PullRequestReviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestReviewTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalLocalWebSocketTests.swift; sourceTree = "<group>"; };
+		D6A6717A27F452A1C207A202 /* RemoteAPIClientCompressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteAPIClientCompressionTests.swift; sourceTree = "<group>"; };
 		B30000000000000000000001 /* ProjectWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceView.swift; sourceTree = "<group>"; };
 		PWPG10000000000000000001 /* ProjectWorkspacePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspacePage.swift; sourceTree = "<group>"; };
 		PWVW10000000000000000001 /* ProjectWorkspaceSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceSplitView.swift; sourceTree = "<group>"; };
@@ -2025,9 +2039,11 @@
 			isa = PBXGroup;
 			children = (
 				B20000000000000000000002 /* TerminalANSIParser.swift */,
+				D47D0529D24A4C2AACCE9011 /* TerminalUnicodeWidth.swift */,
 				B20000000000000000000003 /* TerminalTextSurface.swift */,
 				B20000000000000000000004 /* TerminalStrings.swift */,
 				B20000000000000000000005 /* RichTerminalView.swift */,
+				CE2000000000000000000001 /* TerminalCommandField.swift */,
 				FE2000000004 /* ProjectShellTerminalView.swift */,
 				FE2000000003 /* ProjectShellTerminalSession.swift */,
 			);
@@ -2228,6 +2244,7 @@
 				B1000000000000000000011C /* ThreadControllerMutations.swift */,
 				B1000000000000000000002D /* SessionEventRouter.swift */,
 				B1000000000000000000002E /* ResyncEngine.swift */,
+				B10000000000000000000BA2 /* AgentStatusHydration.swift */,
 				B10000000000000000000039 /* SessionTaskScheduling.swift */,
 				B1000000000000000000003A /* SessionDurableReconcile.swift */,
 				B10000000000000000000046 /* SessionPool.swift */,
@@ -2312,6 +2329,7 @@
 				DB1000000000000000000003 /* ArchivedThreads.xcstrings */,
 				B100000000000000000000FD /* Settings.xcstrings */,
 				B20000000000000000000006 /* Terminal.xcstrings */,
+				D47D0529D24A4C2AACCE9013 /* TerminalUnicodeLicense.txt */,
 				B3000000000000000000000A /* ProjectWorkspace.xcstrings */,
 				PJ1000000000000000000006 /* ProjectSettings.xcstrings */,
 				DD1000000000000000000003 /* RichChatMessageActions.xcstrings */,
@@ -2488,14 +2506,17 @@
 				B100000000000000000000FC /* SettingsUICompositionTests.swift */,
 				B20000000000000000000007 /* TerminalANSIParserTests.swift */,
 				B20000000000000000000008 /* RichChatTerminalTransportTests.swift */,
+				CE2000000000000000000002 /* TerminalCommandFieldTests.swift */,
 				FE2000000005 /* TerminalStartReachabilityTests.swift */,
 				PU3000000000000000000001 /* PullRequestReviewTests.swift */,
 				B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */,
+				D6A6717A27F452A1C207A202 /* RemoteAPIClientCompressionTests.swift */,
 				B30000000000000000000009 /* ProjectWorkspacePresentationTests.swift */,
 				B60000000000000000000051 /* TerminalReplayBridgeTests.swift */,
 				B60000000000000000000052 /* ProjectReviewInterestOwnerTests.swift */,
 				B60000000000000000000053 /* RichChatTerminalControllerTests.swift */,
 				B60000000000000000000054 /* ReplayLifecycleHardeningTests.swift */,
+				B10000000000000000000BA3 /* AgentStatusHydrationTests.swift */,
 				D73000000000000000000001 /* RichChatComposerParityTests.swift */,
 				DB1000000000000000000004 /* ArchivedThreadsParityTests.swift */,
 				DD1000000000000000000004 /* RichChatMessageActionsTests.swift */,
@@ -2896,6 +2917,7 @@
 				DC1000000000000000000003 /* RichChatMessageActions.xcstrings in Resources */,
 				A100000000000000000000FD /* Settings.xcstrings in Resources */,
 				A20000000000000000000006 /* Terminal.xcstrings in Resources */,
+				D47D0529D24A4C2AACCE9014 /* TerminalUnicodeLicense.txt in Resources */,
 				A3000000000000000000000A /* ProjectWorkspace.xcstrings in Resources */,
 				PJ2000000000000000000006 /* ProjectSettings.xcstrings in Resources */,
 				D41000000000000000000003 /* notification.mp3 in Resources */,
@@ -2959,6 +2981,7 @@
 				A10000000000000000000103 /* GitStateInterests.swift in Sources */,
 				A10000000000000000000102 /* GitStatePatch.swift in Sources */,
 				A10000000000000000000101 /* AgentStatusRecord.swift in Sources */,
+				A10000000000000000000BA2 /* AgentStatusHydration.swift in Sources */,
 				A10000000000000000000100 /* GitThreadSummary.swift in Sources */,
 				A100000000000000000000FF /* GitStateModels.swift in Sources */,
 				A100000000000000000000FE /* GitStateKeys.swift in Sources */,
@@ -3446,9 +3469,11 @@
 				3DDC6AACA8A14E26820714A4 /* SelectedRemoteIntegrationsGateway.swift in Sources */,
 				A20000000000000000000001 /* RichChatTerminalWebSocketTransport.swift in Sources */,
 				A20000000000000000000002 /* TerminalANSIParser.swift in Sources */,
+				D47D0529D24A4C2AACCE9012 /* TerminalUnicodeWidth.swift in Sources */,
 				A20000000000000000000003 /* TerminalTextSurface.swift in Sources */,
 				A20000000000000000000004 /* TerminalStrings.swift in Sources */,
 				A20000000000000000000005 /* RichTerminalView.swift in Sources */,
+				CE1000000000000000000001 /* TerminalCommandField.swift in Sources */,
 				FE1000000004 /* ProjectShellTerminalView.swift in Sources */,
 				FE1000000003 /* ProjectShellTerminalSession.swift in Sources */,
 			);
@@ -3471,6 +3496,7 @@
 			files = (
 				E10000000000000000000002 /* PushAlertLocalizationTests.swift in Sources */,
 				A60000000000000000000054 /* ReplayLifecycleHardeningTests.swift in Sources */,
+				A10000000000000000000BA3 /* AgentStatusHydrationTests.swift in Sources */,
 				A60000000000000000000053 /* RichChatTerminalControllerTests.swift in Sources */,
 				A60000000000000000000051 /* TerminalReplayBridgeTests.swift in Sources */,
 				A60000000000000000000052 /* ProjectReviewInterestOwnerTests.swift in Sources */,
@@ -3616,9 +3642,11 @@
 				A100000000000000000000FC /* SettingsUICompositionTests.swift in Sources */,
 				A20000000000000000000007 /* TerminalANSIParserTests.swift in Sources */,
 				A20000000000000000000008 /* RichChatTerminalTransportTests.swift in Sources */,
+				CE1000000000000000000002 /* TerminalCommandFieldTests.swift in Sources */,
 				FE1000000005 /* TerminalStartReachabilityTests.swift in Sources */,
 				PU4000000000000000000001 /* PullRequestReviewTests.swift in Sources */,
 				A20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift in Sources */,
+				D6A6717A27F452A1C207A201 /* RemoteAPIClientCompressionTests.swift in Sources */,
 				A30000000000000000000009 /* ProjectWorkspacePresentationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

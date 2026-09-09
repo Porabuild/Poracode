@@ -16,6 +16,10 @@ struct PortForwardingHostAccess: Equatable, Sendable {
   let isReady: Bool
   let isForeground: Bool
   let capabilities: Set<PortForwardingCapability>
+  /// True only when this host's newest environment handshake advertised
+  /// browser-origin entry (`capabilities.browserForward` version 1). Gates the
+  /// browser open/copy actions only — raw list/start/stop never consult it.
+  let browserForwardEntry: Bool
 }
 
 struct PortForwardingHostCredentials: Sendable {
@@ -76,6 +80,17 @@ enum PortForwardingFailure: Error, Equatable, Sendable {
   case transport
   case ambiguousMutation
   case unsafeEntry
+  /// The host advertises browser entry but it is not configured: the definite
+  /// 503 `forward_browser_unavailable` answer to the enter mutation. The
+  /// forward itself was created and stays listed.
+  case forwardingUnavailable
+  /// This host does not advertise browser entry at the supported version
+  /// (older desktop build or unknown versions), so opening is refused locally
+  /// before any request. Raw forwarding stays available; update the desktop.
+  case browserEntryUnsupported
+  /// The OS browser refused to open an already-composed entry URL — distinct
+  /// from `.forwardingUnavailable` (server-side configuration) and from
+  /// `.browserEntryUnsupported` (host does not advertise entry).
   case browserUnavailable
 }
 

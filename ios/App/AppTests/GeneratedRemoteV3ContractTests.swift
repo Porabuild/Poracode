@@ -59,7 +59,7 @@ final class GeneratedRemoteV3ContractTests: XCTestCase {
     let environmentObject = try object(environment)
     XCTAssertNil(environmentObject["futureCapability"])
     let descriptor = try JSONDecoding.decode(RemoteEnvironmentDescriptor.self, from: environment)
-    XCTAssertEqual(descriptor.protocolVersion, 8)
+    XCTAssertEqual(descriptor.protocolVersion, ProtocolConstants.remoteProtocolVersion)
     let legacyEnvironment = try GeneratedRemoteV3Contract.environmentResponse(
       fixture("environment-forward-compatible.json"), legacy: true
     )
@@ -80,6 +80,37 @@ final class GeneratedRemoteV3ContractTests: XCTestCase {
     XCTAssertEqual(threads.first?["starred"] as? Bool, false)
     let projected = try JSONDecoding.decode(RemoteShellSnapshot.self, from: snapshot)
     XCTAssertEqual(projected.snapshotSeq, 42)
+  }
+
+  func testBrowserForwardCapabilityDecodesAndOnlyAPositiveSignalAdvertises() throws {
+    func descriptor(_ capabilitiesJSON: String) throws -> RemoteEnvironmentDescriptor {
+      let json = """
+        {
+          "protocolVersion": \(ProtocolConstants.remoteProtocolVersion),
+          "desktopId": "desktop", "label": "Desktop", "appVersion": "1",
+          "auth": {"bootstrapMethods": [], "sessionMethods": [], "scopes": []},
+          "endpoints": {"httpBaseUrl": "https://d.test", "wsBaseUrl": "wss://d.test"},
+          "capabilities": \(capabilitiesJSON)
+        }
+        """
+      return try JSONDecoding.decode(RemoteEnvironmentDescriptor.self, from: Data(json.utf8))
+    }
+
+    let advertised = try descriptor(
+      #"{"browserForward": {"versions": [1], "futureKey": true}, "futureCapability": {}}"#)
+    XCTAssertTrue(advertised.advertisesBrowserForwardEntry)
+    XCTAssertTrue(advertised.capabilities?.browserForward?.versions.contains(1) == true)
+    XCTAssertNil(advertised.capabilities?.pushRouting)
+
+    // Unknown versions, an empty list, and a missing capability all read as
+    // "not advertised" — never as raw-TCP unavailability or as isolation.
+    XCTAssertFalse(
+      try descriptor(#"{"browserForward": {"versions": [2]}}"#).advertisesBrowserForwardEntry)
+    XCTAssertFalse(
+      try descriptor(#"{"browserForward": {"versions": []}}"#).advertisesBrowserForwardEntry)
+    XCTAssertFalse(
+      try descriptor(#"{"pushRouting": {"versions": [1]}}"#).advertisesBrowserForwardEntry)
+    XCTAssertFalse(try descriptor(#"{}"#).advertisesBrowserForwardEntry)
   }
 
   func testHistorySendAndPushCanonicalRoutes() throws {

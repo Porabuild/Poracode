@@ -4,12 +4,12 @@ struct RichTerminalView: View {
   let controller: RichChatTerminalController
   let terminalID: String
   let canOperate: Bool
+  private let terminalBackground = Color(red: 0.035, green: 0.04, blue: 0.055)
 
   @State private var input = ""
   @State private var viewportSize: TerminalViewportSize?
   @State private var resizeTask: Task<Void, Never>?
   @State private var showsCloseConfirmation = false
-  @FocusState private var inputFocused: Bool
   @AppStorage private var storedTextSize: Int
   @ScaledMetric(relativeTo: .body) private var dynamicTypeScale: CGFloat = 1
 
@@ -33,7 +33,7 @@ struct RichTerminalView: View {
       VStack(spacing: 0) {
         statusBar
         ZStack {
-          Color(red: 0.035, green: 0.04, blue: 0.055)
+          terminalBackground
           TerminalTextSurface(
             transcript: controller.state.cursor?.transcript ?? "",
             accessibilityLabel: TerminalStrings.output,
@@ -56,7 +56,8 @@ struct RichTerminalView: View {
         if lifecycle == .watching { scheduleResize(for: proxy.size, force: true) }
       }
     }
-    .background(Color(red: 0.035, green: 0.04, blue: 0.055).ignoresSafeArea())
+    .background(terminalBackground.ignoresSafeArea())
+    .environment(\.colorScheme, .dark)
     .confirmationDialog(
       TerminalStrings.closeTitle,
       isPresented: $showsCloseConfirmation,
@@ -116,22 +117,32 @@ struct RichTerminalView: View {
 
   private var inputBar: some View {
     VStack(alignment: .leading, spacing: 8) {
-      if !canOperate {
+      // "Read-only" names an access problem, so it is claimed only while the
+      // transport is live. A lost host connection is an availability problem
+      // the status line already reports ("Reconnecting…"), and the operate
+      // grant is untouched by it.
+      if availability == .readOnly {
         Label(TerminalStrings.readOnly, systemImage: "lock")
           .font(.caption)
           .foregroundStyle(.secondary)
       }
       HStack(alignment: .bottom, spacing: 8) {
-        TextField(TerminalStrings.inputPlaceholder, text: $input, axis: .vertical)
-          .focused($inputFocused)
-          .font(.system(size: terminalPointSize, design: .monospaced))
-          .lineLimit(1...4)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          .submitLabel(.send)
-          .accessibilityLabel(TerminalStrings.input)
-          .onSubmit { sendCommand() }
-          .disabled(!canOperate || !isLive)
+        TerminalCommandField(
+          text: $input,
+          pointSize: terminalPointSize,
+          isDisabled: availability != .operable,
+          accessibilityLabel: TerminalStrings.input,
+          onSubmit: sendCommand
+        )
+        .overlay(alignment: .topLeading) {
+          if input.isEmpty {
+            Text(TerminalStrings.inputPlaceholder)
+              .font(.system(size: terminalPointSize, design: .monospaced))
+              .foregroundStyle(.tertiary)
+              .padding(.top, TerminalCommandFieldLayout.verticalInset)
+              .allowsHitTesting(false)
+          }
+        }
         Button(TerminalStrings.send, systemImage: "arrow.up.circle.fill") {
           sendCommand()
         }
@@ -160,6 +171,13 @@ struct RichTerminalView: View {
   /// A host-reported exit ends input even while the socket is still attached.
   private var isLive: Bool {
     controller.state.lifecycle == .watching && controller.state.exit == nil
+  }
+
+  /// Access (scope granted) vs availability (host reachable and process live):
+  /// only the former is described as read-only; the latter is left to the
+  /// status line.
+  private var availability: TerminalInputAvailability {
+    TerminalInputAvailability.resolve(canOperate: canOperate, isLive: isLive)
   }
 
   private var statusSymbol: String {

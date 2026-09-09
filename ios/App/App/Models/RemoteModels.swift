@@ -28,10 +28,29 @@ struct RemoteEnvironmentDescriptor: Codable, Sendable, Equatable {
 
     struct Capabilities: Codable, Sendable, Equatable {
         var pushRouting: VersionedCapability?
+        /// Additive since browser-origin forward entry shipped. Absent on older
+        /// hosts; unknown keys on newer hosts are ignored by the decoder.
+        var browserForward: VersionedCapability?
 
         struct VersionedCapability: Codable, Sendable, Equatable {
             var versions: [Int]
         }
+    }
+}
+
+extension RemoteEnvironmentDescriptor {
+    /// Frozen wire version for origin-bound browser forward entry
+    /// (`/forward/<id>/enter?fwt=…` two-hop exchange on the current route).
+    static let browserForwardEntryVersion = 1
+
+    /// True only when the environment handshake advertises browser-origin
+    /// forward entry at the supported version. A positive signal only: absence
+    /// or unknown versions mean "not advertised here" — never that raw TCP
+    /// forwarding is unavailable (the `ports:forward` scope stays that gate)
+    /// and never that entry is isolated.
+    var advertisesBrowserForwardEntry: Bool {
+        capabilities?.browserForward?.versions
+            .contains(Self.browserForwardEntryVersion) == true
     }
 }
 
@@ -58,6 +77,16 @@ struct RemoteHttpErrorPayload: Codable, Sendable {
 
 // MARK: - Shell snapshot
 
+/// Runtime environment pinned for a provider that cannot execute natively
+/// (`threadConfigSchema.executionEnvironment`, remote protocol v9). The host
+/// replaces thread configs wholesale on every config-carrying mutation, so
+/// this field must survive every native round-trip or a pinned distro is
+/// silently reset to the host default.
+struct RemoteExecutionEnvironment: Codable, Sendable, Hashable {
+    var kind: String
+    var distro: String
+}
+
 struct ThreadConfig: Codable, Sendable, Hashable {
     var model: String
     var effort: String?
@@ -72,6 +101,7 @@ struct ThreadConfig: Codable, Sendable, Hashable {
     var crossagentMcp: Bool?
     var computerUse: Bool?
     var chromeMcp: Bool?
+    var executionEnvironment: RemoteExecutionEnvironment?
 
     static let empty = ThreadConfig(model: "default")
 }

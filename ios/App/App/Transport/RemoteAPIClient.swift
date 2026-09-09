@@ -107,6 +107,14 @@ actor RemoteAPIClient: PushRemoteAPI {
         return try JSONDecoding.decode(RemoteShellSnapshot.self, from: canonical)
     }
 
+    /// GET `/api/agent-statuses` — authoritative installed-agent lists
+    /// (`session:read`). Hydration base for the replay agent-status cache.
+    func agentStatuses() async throws -> SessionAgentStatuses {
+        let data = try await requestData(path: GeneratedRemoteV3Contract.agentStatusesRoutePath)
+        let canonical = try GeneratedRemoteV3Contract.agentStatusesResponse(data)
+        return try SessionAgentStatuses(canonicalData: canonical)
+    }
+
     func threadHistory(
         threadId: String,
         targetTimelineEntryCount: Int? = nil

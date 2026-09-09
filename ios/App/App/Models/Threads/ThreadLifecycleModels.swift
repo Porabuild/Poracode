@@ -26,6 +26,7 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
   var crossagentMcp: Bool?
   var computerUse: Bool?
   var chromeMcp: Bool?
+  var executionEnvironment: RemoteExecutionEnvironment?
 
   init(
     model: String,
@@ -40,7 +41,8 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     browserMcp: Bool? = nil,
     crossagentMcp: Bool? = nil,
     computerUse: Bool? = nil,
-    chromeMcp: Bool? = nil
+    chromeMcp: Bool? = nil,
+    executionEnvironment: RemoteExecutionEnvironment? = nil
   ) {
     self.model = model
     self.effort = effort
@@ -55,6 +57,7 @@ struct ThreadLaunchConfiguration: Codable, Hashable, Sendable {
     self.crossagentMcp = crossagentMcp
     self.computerUse = computerUse
     self.chromeMcp = chromeMcp
+    self.executionEnvironment = executionEnvironment
   }
 }
 

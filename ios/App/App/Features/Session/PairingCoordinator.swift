@@ -281,6 +281,9 @@ struct PairingCoordinator {
 
         await client.setAccessToken(tokenResult.accessToken)
         host.state.profile = profile
+        // Retain this pairing handshake's browser-entry authority for the new
+        // connection; the follow-up connect skips its own probe.
+        host.state.noteBrowserForwardEntry(environment, connectionID: connectionId)
         host.state.accessToken = tokenResult.accessToken
         host.state.api = host.deps.makeAPI(endpoint, tokenResult.accessToken)
         host.state.lastSeenSeq = 0

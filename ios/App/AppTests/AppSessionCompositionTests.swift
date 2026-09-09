@@ -14,6 +14,17 @@ final class FakeRemoteAPI: SessionRemoteAPI {
   var environmentResult: Result<RemoteEnvironmentDescriptor, Error> = .failure(
     RemoteClientError.invalidResponse("unset")
   )
+  /// Holds `environment()` until released (deterministic capability-refresh
+  /// tests). FIFO `environmentResults` entries are returned before
+  /// `environmentResult` so consecutive epochs can see different hosts.
+  /// `environmentGates` gates requests one-by-one in call order (per-request
+  /// release order control); `environmentGate` is the fallback for every
+  /// request. `environmentCompletions` counts waiters that passed a gate,
+  /// giving tests an observable for "a suspended request has settled".
+  var environmentGate: AsyncGate?
+  var environmentGates: [AsyncGate?] = []
+  var environmentResults: [Result<RemoteEnvironmentDescriptor, Error>] = []
+  private(set) var environmentCompletions = 0
   var tokenResult: Result<RemoteAccessTokenResult, Error> = .failure(
     RemoteClientError.invalidResponse("unset")
   )
@@ -29,7 +40,15 @@ final class FakeRemoteAPI: SessionRemoteAPI {
   var sendGate: AsyncGate?
   var interruptGate: AsyncGate?
 
+  /// Failure by default so unrelated tests skip hydration without touching
+  /// replay state (hydration treats a failed fetch as absent, not empty).
+  var agentStatusesResult: Result<SessionAgentStatuses, Error> = .failure(
+    RemoteClientError.invalidResponse("unset")
+  )
+  var agentStatusesGate: AsyncGate?
+
   private(set) var snapshotCalls = 0
+  private(set) var agentStatusesCalls = 0
   private(set) var historyCalls: [String] = []
   private(set) var sendCalls = 0
   private(set) var interruptCalls = 0
@@ -51,7 +70,22 @@ final class FakeRemoteAPI: SessionRemoteAPI {
     accessToken = token
   }
 
+  private(set) var environmentCalls = 0
+
   func environment() async throws -> RemoteEnvironmentDescriptor {
+    environmentCalls += 1
+    // Capture this request's response and gate before waiting: concurrent
+    // waiters released by one gate resume in arbitrary order, so the FIFO
+    // queues must be consumed at call-entry (which callers sequence) to stay
+    // deterministic.
+    let captured: Result<RemoteEnvironmentDescriptor, Error>? =
+      environmentResults.isEmpty ? nil : environmentResults.removeFirst()
+    let gate: AsyncGate? = environmentGates.isEmpty ? environmentGate : environmentGates.removeFirst()
+    if let gate { await gate.wait() }
+    environmentCompletions += 1
+    if let captured {
+      return try captured.get()
+    }
     return try environmentResult.get()
   }
 
@@ -72,6 +106,12 @@ final class FakeRemoteAPI: SessionRemoteAPI {
     }
     snapshotCalls += 1
     return try snapshotResult.get()
+  }
+
+  func agentStatuses() async throws -> SessionAgentStatuses {
+    agentStatusesCalls += 1
+    if let agentStatusesGate { await agentStatusesGate.wait() }
+    return try agentStatusesResult.get()
   }
 
   func threadHistory(
@@ -229,7 +269,7 @@ func makeEnvironment(
   scopes: [String] = ProtocolConstants.standardScopes
 ) -> RemoteEnvironmentDescriptor {
   RemoteEnvironmentDescriptor(
-    protocolVersion: 8,
+    protocolVersion: ProtocolConstants.remoteProtocolVersion,
     hostMode: nil,
     desktopId: desktopId,
     label: label,
@@ -1983,6 +2023,7 @@ final class GatedHistoryAPI: SessionRemoteAPI {
     try await inner.exchangePairingCredential(credential: credential, scopes: scopes)
   }
   func snapshot() async throws -> RemoteShellSnapshot { try await inner.snapshot() }
+  func agentStatuses() async throws -> SessionAgentStatuses { try await inner.agentStatuses() }
   func threadHistory(threadId: String, targetTimelineEntryCount: Int?) async throws
     -> RemoteThreadSnapshot
   {
@@ -2027,6 +2068,7 @@ final class GatedPageAPI: SessionRemoteAPI {
     try await inner.exchangePairingCredential(credential: credential, scopes: scopes)
   }
   func snapshot() async throws -> RemoteShellSnapshot { try await inner.snapshot() }
+  func agentStatuses() async throws -> SessionAgentStatuses { try await inner.agentStatuses() }
   func threadHistory(threadId: String, targetTimelineEntryCount: Int?) async throws
     -> RemoteThreadSnapshot
   {
@@ -2071,6 +2113,7 @@ final class GatedSnapshotAPI: SessionRemoteAPI {
     await box.wait()
     return try await inner.snapshot()
   }
+  func agentStatuses() async throws -> SessionAgentStatuses { try await inner.agentStatuses() }
   func threadHistory(threadId: String, targetTimelineEntryCount: Int?) async throws
     -> RemoteThreadSnapshot
   {

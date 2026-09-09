@@ -794,6 +794,47 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(actions.contains("agentKind: launchAgentKind"))
   }
 
+  /// v9: quick-compose config edits round-trip through
+  /// `ThreadLaunchConfiguration(ThreadConfig)` → field overrides →
+  /// `ThreadConfig(ThreadLaunchConfiguration)`. A pinned WSL execution
+  /// environment must survive, including model/effort/fast overrides.
+  func testHomeComposerConfigEditRoundTripPreservesPinnedExecutionEnvironment() throws {
+    let config = try JSONDecoding.decode(
+      ThreadConfig.self,
+      from: try remoteFixtureData("thread-config-execution-environment.json")
+    )
+    let applied = ThreadLaunchConfiguration(config)
+    var target = applied
+    target.model = "next-model"
+    target.fast = true
+    let controls = ThreadConfig(target)
+
+    XCTAssertEqual(
+      controls.executionEnvironment,
+      RemoteExecutionEnvironment(kind: "wsl", distro: "Ubuntu-22.04"))
+    XCTAssertEqual(controls.model, "next-model")
+    XCTAssertEqual(controls.fast, true)
+  }
+
+  /// Guards the three hand-written copy sites in `HomeComposerSupport` —
+  /// the saved-draft rebuild and both `ThreadConfig` ↔
+  /// `ThreadLaunchConfiguration` wrappers — against dropping the v9 field in
+  /// a future field-by-field refactor.
+  func testHomeComposerSourceForwardsExecutionEnvironmentThroughEveryConfigCopy() throws {
+    let support = try Self.source("App/Features/Home/HomeComposerSupport.swift")
+    XCTAssertTrue(
+      support.contains("executionEnvironment: Self.draftExecutionEnvironment(object)"),
+      "saved draft configs must restore the pinned execution environment")
+    XCTAssertTrue(
+      support.contains("private static func draftExecutionEnvironment("))
+    XCTAssertEqual(
+      support.components(
+        separatedBy: "executionEnvironment: configuration.executionEnvironment"
+      ).count - 1,
+      2,
+      "both config wrappers must forward the execution environment")
+  }
+
   func testProviderHandoffIsReachableThroughTheNativeThreadMenu() throws {
     let actionMenu = try Self.source("App/Features/Threads/ThreadDetailActionMenu.swift")
     let menuContent = try Self.source(

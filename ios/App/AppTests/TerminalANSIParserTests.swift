@@ -3,6 +3,74 @@ import XCTest
 @testable import App
 
 final class TerminalANSIParserTests: XCTestCase {
+  func testCursorPaddingBoundsTheWholeDocumentAndKeepsTheRecentSuffix() {
+    let paddedRow = String(repeating: " ", count: 1_000) + "X\n"
+    let source = "oldest sentinel\n" + String(repeating: "\u{1B}[1000CX\n", count: 500) + "tail 漢字🌐"
+    let output = TerminalANSIParser.render(source).plainText
+    XCTAssertLessThanOrEqual(
+      output.utf16.count, 2 * TerminalCursorReconciler.maximumTranscriptUTF16Units)
+    XCTAssertFalse(output.contains("oldest sentinel"))
+    XCTAssertTrue(output.hasSuffix(paddedRow + paddedRow + "tail 漢字🌐"))
+  }
+
+  func testWidePlainTextUsesTheFullRetainedTranscriptBudget() {
+    let source = String(repeating: "漢", count: TerminalCursorReconciler.maximumTranscriptUTF16Units)
+    XCTAssertEqual(TerminalANSIParser.render(source).plainText, source)
+  }
+
+  func testErasingAndResettingReleaseTheRenderedBudget() {
+    let erasedRows = String(repeating: "\u{1B}[1000CX\r\u{1B}[2K\r", count: 500)
+    XCTAssertEqual(
+      TerminalANSIParser.render("KEEP\n" + erasedRows + "DONE").plainText, "KEEP\nDONE")
+    let expanded = String(repeating: "\u{1B}[1000CX\n", count: 500)
+    let wide = String(repeating: "漢", count: TerminalCursorReconciler.maximumTranscriptUTF16Units)
+    XCTAssertEqual(TerminalANSIParser.render(expanded + "\u{1B}[2J" + wide).plainText, wide)
+  }
+
+  func testSingleRowBudgetTrimmingPreservesCompleteWideCells() {
+    let wide = String(repeating: "漢", count: 190_000)
+    let output = TerminalANSIParser.render("\u{1B}[199999C" + wide + "\u{1B}[2D🌐").plainText
+    XCTAssertTrue(output.hasSuffix(String(wide.dropLast()) + "🌐"))
+    XCTAssertLessThanOrEqual(
+      output.utf16.count, 2 * TerminalCursorReconciler.maximumTranscriptUTF16Units)
+  }
+
+  func testTabAtTheFullRowBudgetTerminatesAndPreservesItsSpacing() {
+    let wide = String(repeating: "漢", count: 190_000)
+    let output = TerminalANSIParser.render("\u{1B}[199999C" + wide + "\tZ").plainText
+    XCTAssertTrue(output.hasSuffix(wide + String(repeating: " ", count: 8) + "Z"))
+    XCTAssertLessThanOrEqual(
+      output.utf16.count, 2 * TerminalCursorReconciler.maximumTranscriptUTF16Units)
+  }
+
+  func testHostileCursorArgumentsStayInsideTheRetainedTranscriptBudget() {
+    let rendered = TerminalANSIParser.render(
+      "a\u{1B}[\(Int.max)Cy\u{1B}[\(Int.min)Gz"
+    ).plainText
+    XCTAssertTrue(rendered.hasPrefix("z"))
+    XCTAssertTrue(rendered.hasSuffix("y"))
+    XCTAssertLessThanOrEqual(
+      rendered.utf16.count, TerminalCursorReconciler.maximumTranscriptUTF16Units + 1)
+  }
+
+  func testLargeUniformTranscriptKeepsItsTextAndOneStyleRun() {
+    let source = String(repeating: "漢字🌐 plain ", count: 10_000)
+    let rendered = TerminalANSIParser.render(source)
+    XCTAssertEqual(rendered.plainText, source)
+    XCTAssertEqual(rendered.runs.count, 1)
+  }
+
+  func testSharedUnicodeColumnProjection() throws {
+    let fixture = try loadRichChatFixture("terminal-unicode-projection.json")
+    for item in try richFixtureArray(try XCTUnwrap(fixture["cases"])) {
+      let value = try richFixtureObject(item)
+      let source = try XCTUnwrap(value["input"]?.stringValue)
+      let expected = try XCTUnwrap(value["expected"]?.stringValue)
+      XCTAssertEqual(
+        TerminalANSIParser.render(source).plainText, expected, value["id"]?.stringValue ?? "")
+    }
+  }
+
   func testSGRStylesAreRenderedWithoutEscapeText() {
     let rendered = TerminalANSIParser.render("plain \u{1B}[31;1mred\u{1B}[0m done")
 
@@ -17,6 +85,16 @@ final class TerminalANSIParserTests: XCTestCase {
     let rendered = TerminalANSIParser.render("progress 10%\rprogress 20%\nabc\u{8}Z")
 
     XCTAssertEqual(rendered.plainText, "progress 20%\nabZ")
+  }
+
+  func testCRLFOutputSurvivesTheNextPromptRedraw() {
+    // Swift treats CRLF as one Character. A PTY's line ending must advance
+    // the row before the shell redraws its prompt with carriage return.
+    let rendered = TerminalANSIParser.render(
+      "welcome\r\nPORACODE_NATIVE_QA_20260908\r\n\rprompt > \u{1B}[K"
+    )
+
+    XCTAssertEqual(rendered.plainText, "welcome\nPORACODE_NATIVE_QA_20260908\nprompt > ")
   }
 
   func testEraseLineAndClearScreenApplyTerminalProjection() {

@@ -75,6 +75,80 @@ final class PortForwardingHTTPTests: XCTestCase {
     XCTAssertEqual(PortForwardingURLSessionHTTPClient.maximumAttempts, 1)
   }
 
+  func testEnterBrowserUnavailable503IsDefiniteAndNeverOpensTheBrowser() async throws {
+    PortForwardingURLProtocol.handler = { request in
+      guard request.url?.path == "/relay/host/api/ports/enter" else {
+        throw URLError(.badURL)
+      }
+      let body = #"{"error":{"code":"forward_browser_unavailable","message":"no"}}"#
+      return (503, Data(body.utf8), [:])
+    }
+    let browser = PortForwardingBrowserRecorder()
+    let api = try makeAPI(browser: browser)
+    do {
+      _ = try await api.remoteEntryURL(forwardID: PortForwardingTestValues.forwardID)
+      XCTFail("Expected the definite forwarding rejection")
+    } catch let error as PortForwardingTransportError {
+      // The parsed 503 carries its definitive code: a configuration failure,
+      // never the ambiguous-mutation path.
+      XCTAssertEqual(error, .rejected(statusCode: 503, code: "forward_browser_unavailable"))
+    }
+    XCTAssertEqual(PortForwardingURLProtocol.requests.count, 1)
+    XCTAssertNil(browser.openedURL())
+  }
+
+  func testEnterForwardingUnavailableIsDefiniteThroughOpen() async throws {
+    PortForwardingURLProtocol.handler = { request in
+      guard request.url?.path == "/relay/host/api/ports/enter" else {
+        throw URLError(.badURL)
+      }
+      let body = #"{"error":{"code":"forward_browser_unavailable","message":"no"}}"#
+      return (503, Data(body.utf8), [:])
+    }
+    let browser = PortForwardingBrowserRecorder()
+    let api = try makeAPI(browser: browser)
+    do {
+      try await api.remoteOpen(forwardID: PortForwardingTestValues.forwardID)
+      XCTFail("Expected the definite forwarding rejection")
+    } catch let error as PortForwardingTransportError {
+      XCTAssertEqual(error, .rejected(statusCode: 503, code: "forward_browser_unavailable"))
+    }
+    XCTAssertNil(browser.openedURL())
+  }
+
+  func testEnterOther503StaysAmbiguous() async throws {
+    PortForwardingURLProtocol.handler = { request in
+      guard request.url?.path == "/relay/host/api/ports/enter" else {
+        throw URLError(.badURL)
+      }
+      let body = #"{"error":{"code":"ports_unavailable","message":"no"}}"#
+      return (503, Data(body.utf8), [:])
+    }
+    let api = try makeAPI(browser: PortForwardingBrowserRecorder())
+    do {
+      _ = try await api.remoteEntryURL(forwardID: PortForwardingTestValues.forwardID)
+      XCTFail("Expected ambiguous mutation")
+    } catch let error as PortForwardingTransportError {
+      XCTAssertEqual(error, .ambiguousMutation)
+    }
+  }
+
+  func testEnter500WithoutRecognizableCodeStaysAmbiguous() async throws {
+    PortForwardingURLProtocol.handler = { request in
+      guard request.url?.path == "/relay/host/api/ports/enter" else {
+        throw URLError(.badURL)
+      }
+      return (500, Data("{}".utf8), [:])
+    }
+    let api = try makeAPI(browser: PortForwardingBrowserRecorder())
+    do {
+      _ = try await api.remoteEntryURL(forwardID: PortForwardingTestValues.forwardID)
+      XCTFail("Expected ambiguous mutation")
+    } catch let error as PortForwardingTransportError {
+      XCTAssertEqual(error, .ambiguousMutation)
+    }
+  }
+
   func testReadTransportFailureIsNotAmbiguous() async throws {
     PortForwardingURLProtocol.handler = { _ in throw URLError(.notConnectedToInternet) }
     let api = try makeAPI(browser: PortForwardingBrowserRecorder())

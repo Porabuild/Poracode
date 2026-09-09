@@ -8,6 +8,13 @@ final class PortForwardingController {
   private(set) var snapshot: PortForwardingSnapshot = .empty
   private(set) var loadState: PortForwardingLoadState = .idle
   private(set) var operation: PortForwardingOperation = .none
+  /// Non-fatal browser-entry explanation shown beside a ready list. Set when
+  /// opening a forward is refused because browser entry is unavailable on this
+  /// desktop — not configured (`.forwardingUnavailable`) or not advertised by
+  /// this host (`.browserEntryUnsupported`). The forward exists either way, so
+  /// the page never degrades to the load-failed gate for these; cleared when
+  /// an open succeeds, a fatal failure replaces the page, or the lease changes.
+  private(set) var notice: PortForwardingFailure?
   private let gateway: any PortForwardingGateway
 
   init(lease: PortForwardingHostLease, gateway: any PortForwardingGateway) {
@@ -21,6 +28,7 @@ final class PortForwardingController {
     snapshot = .empty
     loadState = .idle
     operation = .none
+    notice = nil
   }
 
   func scan() async {
@@ -58,6 +66,7 @@ final class PortForwardingController {
     } catch is CancellationError {
     } catch {
       guard lease == captured else { return }
+      notice = nil
       loadState = .failed(.map(error))
     }
     // A newly started forward opens immediately, mirroring the mobile web list.
@@ -78,9 +87,18 @@ final class PortForwardingController {
     do {
       try await gateway.open(forwardID: forwardID, lease: captured)
       try Task.checkCancellation()
+      if lease == captured { notice = nil }
     } catch is CancellationError {
+    } catch let failure as PortForwardingFailure
+      where failure == .forwardingUnavailable || failure == .browserEntryUnsupported
+    {
+      // Definite browser-entry refusal for a forward that exists: keep the
+      // page and list ready and explain beside them instead of failing load.
+      guard lease == captured else { return }
+      notice = failure
     } catch {
       guard lease == captured else { return }
+      notice = nil
       loadState = .failed(.map(error))
     }
     if lease == captured, markOperation { operation = .none }
@@ -102,6 +120,7 @@ final class PortForwardingController {
     } catch is CancellationError {
     } catch {
       guard lease == captured else { return }
+      notice = nil
       loadState = .failed(.map(error))
     }
     if lease == captured { operation = .none }

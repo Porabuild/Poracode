@@ -12,7 +12,7 @@ struct RemoteIntegrationsRouteMetadata: Equatable, Sendable {
 /// Stable names for the generated remote-v3 codecs used by native remote integrations.
 /// Hash-derived generated symbols remain confined to this boundary.
 enum RemoteIntegrationsRemoteV3Contract {
-  static let protocolVersion = 8
+  static let protocolVersion = ProtocolConstants.remoteProtocolVersion
 
   static let routes: [RemoteIntegrationsRouteMetadata] = [
     route("host-update", "GET", "/api/host-update", .projectsManage, 200, "empty"),
