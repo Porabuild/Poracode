@@ -49,8 +49,9 @@ describe("database migration registry", () => {
       [42, "main-created thread ownership"],
       [43, "terminal scrollback"],
       [44, "repair divergent schema 32 and 33"],
+      [45, "checkpoint revert operations journal"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(44);
+    expect(LATEST_SCHEMA_VERSION).toBe(45);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

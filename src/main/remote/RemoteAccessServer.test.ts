@@ -3563,7 +3563,7 @@ describe("RemoteAccessServer", () => {
     });
     servers.push(server);
     const info = await server.start();
-    const token = await issueAccessToken(info, ["session:operate"]);
+    const token = await issueAccessToken(info, ["session:read", "session:operate"]);
     const ticket = await issueWebSocketTicket(info, token);
     const wsUrl = new URL("/ws", info.wsBaseUrl);
     wsUrl.searchParams.set("ticket", ticket);

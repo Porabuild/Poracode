@@ -10,6 +10,7 @@ import {
   type BackendRendererStreamInfo,
 } from "@/shared/backendHostProtocol";
 import { BackendEventRouter } from "./BackendHostCore";
+import { capBroadcastEvent, maxBroadcastEventBytes } from "@/main/remote/server/eventSizeGuard";
 
 const MAX_REPLAY_EVENTS = 500;
 const MAX_REPLAY_BYTES = 8 * 1024 * 1024;
@@ -103,25 +104,45 @@ export class BackendRendererStream {
 
   publish(event: SupervisorEvent): { delivered: boolean; sequence: number } {
     const seq = ++this.sequence;
-    const encoded = JSON.stringify({
-      version: BACKEND_RENDERER_STREAM_VERSION,
-      type: "event",
-      seq,
-      event,
+    // One oversized event would trip `send`'s budget on every connected
+    // renderer and then again on replay after they reconnect, so cap it at the
+    // publish boundary exactly like the remote transport. Image refs stay
+    // inline here (the desktop IPC contract keeps full bytes); withheld fields
+    // self-heal from the local DB on the next hydration.
+    const capped = capBroadcastEvent(event, maxBroadcastEventBytes(MAX_CLIENT_BUFFERED_BYTES), {
+      projectImageRefs: false,
     });
-    const bytes = Buffer.byteLength(encoded);
-    this.replay.push({ seq, event, bytes });
-    this.replayBytes += bytes;
+    if (capped.kind === "undeliverable") {
+      // Nothing about this event fits any client budget. `seq` has still
+      // advanced, so leaving it out of the replay makes connected and
+      // reconnecting clients converge the same way: refetch authoritative
+      // state from the backend host.
+      this.diagnostics.resyncRequests += 1;
+      const payload = JSON.stringify({
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "resync-required",
+        latestSeq: this.sequence,
+      });
+      for (const [socket, client] of this.clients) {
+        if (!client.ready) continue;
+        this.send(socket, client, payload);
+      }
+      return { delivered: false, sequence: seq };
+    }
+    this.replay.push({ seq, event: capped.event, bytes: capped.bytes });
+    this.replayBytes += capped.bytes;
     this.trimReplay();
 
     let delivered = false;
     for (const [socket, client] of this.clients) {
       if (!client.ready) continue;
-      const filtered = client.router.filter(event);
+      const filtered = client.router.filter(capped.event);
       if (!filtered) continue;
+      // Reuse the cap's serialization when filtering left the event untouched
+      // so a multi-megabyte body is never stringified twice.
       const payload =
-        filtered === event
-          ? encoded
+        filtered === capped.event
+          ? `{"version":${BACKEND_RENDERER_STREAM_VERSION},"type":"event","seq":${seq},"event":${capped.json}}`
           : JSON.stringify({
               version: BACKEND_RENDERER_STREAM_VERSION,
               type: "event",
@@ -287,7 +308,10 @@ export class BackendRendererStream {
   }
 
   private replayFrom(socket: WebSocket, state: ClientState, lastSeq: number): void {
-    const oldest = this.replay[0]?.seq ?? this.sequence;
+    // An empty buffer must read as "nothing is replayable", not "the client is
+    // current": `?? this.sequence` would let a stale client skip replay and be
+    // acknowledged as up to date while events were silently dropped.
+    const oldest = this.replay[0]?.seq ?? this.sequence + 1;
     if (lastSeq < oldest - 1) {
       this.diagnostics.resyncRequests += 1;
       this.send(
@@ -371,6 +395,9 @@ export class BackendRendererStream {
 
   private trimReplay(): void {
     while (this.replay.length > MAX_REPLAY_EVENTS || this.replayBytes > MAX_REPLAY_BYTES) {
+      // Never evict the newest entry: an empty buffer would leave reconnecting
+      // clients with nothing to replay and no oldest-seq boundary to detect it.
+      if (this.replay.length <= 1) break;
       const removed = this.replay.shift();
       if (!removed) break;
       this.replayBytes -= removed.bytes;

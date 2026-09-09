@@ -290,6 +290,22 @@ export function initDatabase(
   const receiptCutoff = Date.now() - REMOTE_COMMAND_RECEIPTS_RETENTION_DAYS * 86_400_000;
   sqlite.prepare("DELETE FROM remote_command_receipts WHERE updated_at < ?").run(receiptCutoff);
 
+  // No command can still be executing across a process restart, so every
+  // receipt left `in_progress` on disk is stale; keeping it would 409 every
+  // deterministic client retry until the retention cutoff. `failed` rows
+  // survive so callers keep their typed failure until retention expires.
+  sqlite.prepare("DELETE FROM remote_command_receipts WHERE state = 'in_progress'").run();
+
+  // Bound the revert journal: settled operations are replay history and age
+  // out with the same retention window. `running` rows are kept regardless of
+  // age — they are the only durable record of an interrupted compound revert
+  // and the resume path needs their frozen plan.
+  sqlite
+    .prepare(
+      "DELETE FROM checkpoint_revert_operations WHERE outcome != 'running' AND updated_at < ?",
+    )
+    .run(receiptCutoff);
+
   console.log("[db] initialized");
   return sqlite;
 }
