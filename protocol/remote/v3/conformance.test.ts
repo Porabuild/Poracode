@@ -17,6 +17,7 @@ import {
   remoteWebSocketClientMessageSchema,
   remoteWebSocketServerMessageSchema,
   TERMINAL_CURSOR_SYNC_VERSION,
+  TERMINAL_CURSOR_SYNC_V2_VERSION,
 } from "../../../src/shared/remote/protocol";
 import { readRemoteImageRef, remoteImageRefPath } from "../../../src/shared/remote/imageRef";
 import { isRemoteOmittedField } from "../../../src/shared/remote/omittedPayload";
@@ -115,6 +116,25 @@ const manifestSchema = z
                 optIn: z.literal(true),
                 reliableCongestion: z.literal("disconnect"),
                 legacyCongestion: z.literal("lossy-skip"),
+                v2: z
+                  .object({
+                    baselineDelivery: z.literal("chunked"),
+                    chunkByteBounds: z.object({
+                      min: z.number().int().positive(),
+                      max: z.number().int().positive(),
+                      default: z.number().int().positive(),
+                    }),
+                    windowByteBounds: z.object({
+                      min: z.number().int().positive(),
+                      max: z.number().int().positive(),
+                      default: z.number().int().positive(),
+                    }),
+                    ackMessages: z.literal(true),
+                    resume: z.literal("generation-and-cursor"),
+                    controlFrameBypass: z.literal("half-window"),
+                  })
+                  .strict()
+                  .optional(),
               })
               .strict()
               .optional(),
@@ -612,7 +632,7 @@ describe("language-neutral remote protocol v3 contract", () => {
 
     expect(manifest.compatibility.terminalOutput.cursorSync).toMatchObject({
       capability: "terminalCursorSync",
-      versions: [TERMINAL_CURSOR_SYNC_VERSION],
+      versions: [TERMINAL_CURSOR_SYNC_VERSION, TERMINAL_CURSOR_SYNC_V2_VERSION],
       optIn: true,
     });
   });
@@ -623,6 +643,7 @@ describe("language-neutral remote protocol v3 contract", () => {
     expect(manifest.formatVersion).toBe(1);
     expect(manifest.compatibility.terminalOutput.cursorSync?.versions).toEqual([
       TERMINAL_CURSOR_SYNC_VERSION,
+      TERMINAL_CURSOR_SYNC_V2_VERSION,
     ]);
 
     const withCapability = remoteEnvironmentDescriptorSchema.parse(
@@ -634,7 +655,7 @@ describe("language-neutral remote protocol v3 contract", () => {
 
     const cursorSyncSource = readSource("src/main/remote/server/terminalCursorSync.ts");
     expect(cursorSyncSource).toMatch(
-      /export const TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS = \[TERMINAL_CURSOR_SYNC_VERSION\]/,
+      /export const TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS = \[\s*TERMINAL_CURSOR_SYNC_VERSION,\s*TERMINAL_CURSOR_SYNC_V2_VERSION,?\s*\]/,
     );
     expect(cursorSyncSource).toContain("isSupportedTerminalCursorSyncVersion");
     expect(cursorSyncSource).toContain("generation: null");
@@ -644,6 +665,9 @@ describe("language-neutral remote protocol v3 contract", () => {
     const protocolSource = readSource("src/shared/remote/protocol.ts");
     expect(protocolSource).toContain(
       `export const TERMINAL_CURSOR_SYNC_VERSION = ${TERMINAL_CURSOR_SYNC_VERSION} as const`,
+    );
+    expect(protocolSource).toContain(
+      `export const TERMINAL_CURSOR_SYNC_V2_VERSION = ${TERMINAL_CURSOR_SYNC_V2_VERSION} as const`,
     );
     // Request schema accepts positive versions (not only literal 1).
     expect(protocolSource).toContain("remoteTerminalCursorSyncRequestSchema");

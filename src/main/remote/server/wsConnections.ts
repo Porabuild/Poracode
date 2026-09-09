@@ -3,8 +3,10 @@ import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket } from "ws";
 import {
+  TERMINAL_CURSOR_SYNC_V2_VERSION,
   remoteThreadItemInterestsSchema,
   remoteWebSocketClientMessageSchema,
+  type RemoteTerminalCursorSyncRequest,
   type RemoteTerminalWatchResult,
 } from "@/shared/remote";
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
@@ -14,6 +16,7 @@ import { MAX_JSON_BODY_BYTES } from "./requestBody";
 import { replayEvents } from "./eventReplay";
 import {
   buildTerminalWatchResultMessage,
+  composeTerminalBaselineStream,
   composeTerminalWatchReadyResult,
   forbiddenWatchResult,
   isSupportedTerminalCursorSyncVersion,
@@ -127,9 +130,9 @@ async function handleReliableTerminalWatch(
   ws: WebSocket,
   session: AuthenticatedRemoteSession,
   terminalId: string,
-  watchId: string,
-  version: number,
+  cursorSync: RemoteTerminalCursorSyncRequest,
 ): Promise<void> {
+  const { watchId, version } = cursorSync;
   if (!isSupportedTerminalCursorSyncVersion(version)) {
     // Replacement semantics: an unsupported positive version must not leave a
     // prior reliable *or* legacy stream for this terminal alive, and must never
@@ -161,7 +164,9 @@ async function handleReliableTerminalWatch(
   }
 
   // Rewatch replaces prior reliable state for this terminal id (new epoch).
-  const epoch = ctx.terminalCursorSync.setReliable(ws, terminalId, { version: 1, watchId });
+  // Version 2 baselines stream through the credit-windowed scheduler; the
+  // registration (epochs, barrier, tagging) is identical to v1.
+  const epoch = ctx.terminalCursorSync.setReliable(ws, terminalId, { version, watchId });
   ctx.terminalWatches.get(ws)?.add(terminalId);
 
   const stillCurrent = () => ctx.terminalCursorSync.isCurrent(ws, terminalId, watchId, epoch);
@@ -216,6 +221,31 @@ async function handleReliableTerminalWatch(
 
   if (result.status === "error") {
     failSetup(result);
+    return;
+  }
+
+  if (version === TERMINAL_CURSOR_SYNC_V2_VERSION) {
+    // Chunked v2 delivery: pre-stream errors already ran through failSetup,
+    // so from here the baseline reaches the client as ordered chunks under
+    // the credit window (or the socket dies trying — never a silent gap).
+    const stream = composeTerminalBaselineStream({
+      terminalId,
+      watchId,
+      result,
+      resume: cursorSync.resume,
+      maxChunkBytes: cursorSync.maxChunkBytes,
+      maxWindowBytes: cursorSync.maxWindowBytes,
+    });
+    ctx.terminalBaselineStreams.enqueue(ws, {
+      terminalId,
+      watchId,
+      epoch,
+      messages: stream.messages,
+      messageBytes: stream.messageBytes,
+      throughCursors: stream.throughCursors,
+      finalCursor: stream.finalCursor,
+      windowBytes: stream.windowBytes,
+    });
     return;
   }
 
@@ -305,6 +335,7 @@ function handleConnection(
     ctx.options.gitState?.clearInterests(gitStateInterestOwnerId);
     ctx.terminalWatches.delete(ws);
     ctx.terminalCursorSync.clearConnection(ws);
+    ctx.terminalBaselineStreams.clearConnection(ws);
     ctx.clients.delete(ws);
     ctx.clientLiveness.delete(ws);
     void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
@@ -329,6 +360,7 @@ function handleConnection(
         JSON.parse(data.toString()) as unknown,
       );
       if (message.type === "ping") {
+        ctx.terminalBaselineStreams.noteControlSend(ws);
         ctx.send(ws, {
           type: "pong",
           ...(message.id ? { id: message.id } : {}),
@@ -376,14 +408,9 @@ function handleConnection(
         if (message.cursorSync) {
           // Fire-and-forget setup; swallow rejections so a late throw cannot
           // become an unhandled promise rejection on the host process.
-          void handleReliableTerminalWatch(
-            ctx,
-            ws,
-            session,
-            message.id,
-            message.cursorSync.watchId,
-            message.cursorSync.version,
-          ).catch(() => {});
+          void handleReliableTerminalWatch(ctx, ws, session, message.id, message.cursorSync).catch(
+            () => {},
+          );
           return;
         }
         if (!session.scopes.includes("terminal:read")) return;
@@ -397,6 +424,16 @@ function handleConnection(
         ctx.terminalWatches.get(ws)?.delete(message.id);
         ctx.terminalCursorSync.clearReliable(ws, message.id);
         void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+      }
+      if (message.type === "terminal-watch-baseline-ack") {
+        // Credit release for a v2 chunked baseline. Stale watchIds are
+        // ignored inside the scheduler.
+        ctx.terminalBaselineStreams.acknowledge(
+          ws,
+          message.id,
+          message.cursorSync.watchId,
+          message.cursorSync.throughCursor,
+        );
       }
       if (message.type === "thread-item-interests") {
         if (!session.scopes.includes("session:read")) return;

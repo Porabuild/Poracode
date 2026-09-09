@@ -29,8 +29,8 @@ const DISPOSITIONS = ["implemented", "planned", "desktop-only", "unsupported-by-
 const EXPECTED_COUNTS = {
   httpRoutes: 62,
   procedures: 100,
-  webSocketClientMessages: 8,
-  webSocketServerMessages: 9,
+  webSocketClientMessages: 9,
+  webSocketServerMessages: 10,
   replayableEventTypes: 15,
   runtimeEventTypes: 16,
 } as const;

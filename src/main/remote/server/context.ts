@@ -20,6 +20,7 @@ import type { RemotePortForwardGateway } from "../RemotePortForwardGateway";
 import type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "../RemoteAccessServer";
 import type { RemoteServerSecurity } from "./security";
 import type { TerminalCursorSyncRegistry } from "./terminalCursorSync";
+import type { TerminalBaselineStreamScheduler } from "./terminalBaselineStream";
 
 export type RemoteBroadcastEvent =
   | SupervisorEvent
@@ -53,8 +54,10 @@ export interface RemoteServerContext {
   readonly replayingClients: Set<WebSocket>;
   readonly clientLiveness: Map<WebSocket, boolean>;
   readonly terminalWatches: Map<WebSocket, Set<string>>;
-  /** Opt-in reliable terminal watches (cursor-sync v1). */
+  /** Opt-in reliable terminal watches (cursor-sync v1/v2). */
   readonly terminalCursorSync: TerminalCursorSyncRegistry;
+  /** Cursor-sync v2 chunked-baseline delivery (credit-windowed streaming). */
+  readonly terminalBaselineStreams: TerminalBaselineStreamScheduler;
   /** Git-state interests declared by each connection, so pull-request bodies are
    * only sent to the client that asked for them. */
   readonly gitStateInterests: Map<WebSocket, readonly GitStateInterest[]>;

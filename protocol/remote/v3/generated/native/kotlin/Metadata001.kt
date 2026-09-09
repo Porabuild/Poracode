@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 10
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:e046ecddebc969133a5f393498bae56af0dafef3184d639884d2e0ff734ebee5"
-    const val manifestHash = "sha256:76777c456b8b6447caf6ba86af3f3c97449c6fa37c209a0d32aa125526566682"
+    const val sourceHash = "sha256:413b7a38c40e7c431296840e07d6c8c89144ebcaef34f3f4a0b95fcbd05dead3"
+    const val manifestHash = "sha256:d8b8c47b8c931997a6856b6d27e68fd264c3b11d65c12f0d5405a02480ac84c2"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -188,11 +188,12 @@ object RemoteContractMetadata {
         RemoteWebSocketVariantDescriptor("client", "browser-input", "WebSocketClientMessageU2DOptionU2D4_d550ef9994"),
         RemoteWebSocketVariantDescriptor("client", "browser-unwatch", "WebSocketClientMessageU2DOptionU2D3_0e8f58f429"),
         RemoteWebSocketVariantDescriptor("client", "browser-watch", "WebSocketClientMessageU2DOptionU2D2_2b7b34c95b"),
-        RemoteWebSocketVariantDescriptor("client", "git-state-interests", "WebSocketClientMessageU2DOptionU2D7_d2299af726"),
+        RemoteWebSocketVariantDescriptor("client", "git-state-interests", "WebSocketClientMessageU2DOptionU2D8_d2299af726"),
         RemoteWebSocketVariantDescriptor("client", "ping", "WebSocketClientMessageU2DOptionU2D1_1709690cf0"),
         RemoteWebSocketVariantDescriptor("client", "terminal-unwatch", "WebSocketClientMessageU2DOptionU2D6_5af10e67b4"),
-        RemoteWebSocketVariantDescriptor("client", "terminal-watch", "WebSocketClientMessageU2DOptionU2D5_863be77948"),
-        RemoteWebSocketVariantDescriptor("client", "thread-item-interests", "WebSocketClientMessageU2DOptionU2D8_93bef3a552"),
+        RemoteWebSocketVariantDescriptor("client", "terminal-watch", "WebSocketClientMessageU2DOptionU2D5_838adcbcaf"),
+        RemoteWebSocketVariantDescriptor("client", "terminal-watch-baseline-ack", "WebSocketClientMessageU2DOptionU2D7_3f58316dbb"),
+        RemoteWebSocketVariantDescriptor("client", "thread-item-interests", "WebSocketClientMessageU2DOptionU2D9_93bef3a552"),
         RemoteWebSocketVariantDescriptor("server", "browser-frame", "WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac"),
         RemoteWebSocketVariantDescriptor("server", "browser-mirror-status", "WebSocketServerMessageU2DOptionU2D7_0ad133ee58"),
         RemoteWebSocketVariantDescriptor("server", "browser-state", "WebSocketServerMessageU2DOptionU2D5_bd23acb1d6"),
@@ -201,6 +202,7 @@ object RemoteContractMetadata {
         RemoteWebSocketVariantDescriptor("server", "ready", "WebSocketServerMessageU2DOptionU2D1_13762c62f0"),
         RemoteWebSocketVariantDescriptor("server", "resync-required", "WebSocketServerMessageU2DOptionU2D3_67185a3945"),
         RemoteWebSocketVariantDescriptor("server", "terminal-output", "WebSocketServerMessageU2DOptionU2D8_95d0adeb5b"),
-        RemoteWebSocketVariantDescriptor("server", "terminal-watch-result", "WebSocketServerMessageU2DOptionU2D9_a7af012dd2"),
+        RemoteWebSocketVariantDescriptor("server", "terminal-watch-baseline-chunk", "WebSocketServerMessageU2DOptionU2D10_e65689e97e"),
+        RemoteWebSocketVariantDescriptor("server", "terminal-watch-result", "WebSocketServerMessageU2DOptionU2D9_4655073d71"),
     )
 }

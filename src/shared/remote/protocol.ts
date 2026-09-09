@@ -122,6 +122,13 @@ export type RemoteClientMetadata = z.infer<typeof remoteClientMetadataSchema>;
  * by Zod (and ignored by older clients).
  */
 export const TERMINAL_CURSOR_SYNC_VERSION = 1 as const;
+/**
+ * Cursor-sync v2: byte-budgeted chunked baseline delivery with resume and ACK
+ * credit windows (see `terminalBaselineStream.ts` / `terminalFeedWatchV2.ts`).
+ * Additive only — the per-watch `version` in `terminal-watch` is the framing
+ * contract, so version-1 watches never receive v2 frames.
+ */
+export const TERMINAL_CURSOR_SYNC_V2_VERSION = 2 as const;
 
 /** Positive capability version integers; unknown future versions are accepted. */
 export const remoteCapabilityVersionsSchema = z.array(z.number().int().positive()).min(1);
@@ -171,11 +178,26 @@ export type RemoteTerminalCursor = z.infer<typeof remoteTerminalCursorSchema>;
 /**
  * Client opt-in on `terminal-watch`. Accepts any positive version so unsupported
  * future values are explicit server errors rather than silent schema drops.
- * Servers advertise supported versions via environment capabilities (currently [1]).
+ * Servers advertise supported versions via environment capabilities.
+ *
+ * v2 fields (`maxChunkBytes` / `maxWindowBytes` / `resume`) are ignored by
+ * version-1 servers (Zod strips unknown object keys) and read only when
+ * `version` is 2. `resume` presents the client's retained cache position so
+ * the server can serve the uncovered suffix; absent means a cold baseline.
  */
 export const remoteTerminalCursorSyncRequestSchema = z.object({
   version: z.number().int().positive(),
   watchId: z.string().min(1),
+  /** Max ENCODED JSON envelope bytes per baseline chunk (v2). */
+  maxChunkBytes: z.number().int().min(1).optional(),
+  /** Max unacknowledged ENCODED baseline bytes in flight (v2). */
+  maxWindowBytes: z.number().int().min(1).optional(),
+  resume: z
+    .object({
+      generation: z.string().min(1),
+      cursor: remoteTerminalCursorSchema,
+    })
+    .optional(),
 });
 export type RemoteTerminalCursorSyncRequest = z.infer<typeof remoteTerminalCursorSyncRequestSchema>;
 
@@ -225,6 +247,9 @@ export const remoteTerminalWatchResultErrorSchema = z.object({
   status: z.literal("error"),
   code: z.enum(["forbidden", "not-found", "unavailable"]),
   retryable: z.boolean(),
+  /** Optional machine-readable cause, e.g. `unsupported-version` — lets a v2
+   * client distinguish "downgrade host" from other non-retryable stops. */
+  reason: z.string().min(1).optional(),
 });
 export type RemoteTerminalWatchResultError = z.infer<typeof remoteTerminalWatchResultErrorSchema>;
 
@@ -254,6 +279,60 @@ export const remoteTerminalOutputCursorSyncV1Schema = z
   });
 export type RemoteTerminalOutputCursorSyncV1 = z.infer<
   typeof remoteTerminalOutputCursorSyncV1Schema
+>;
+
+/**
+ * One ordered slice of a cursor-sync v2 baseline (see
+ * `remoteTerminalCursorSyncRequestSchema` v2 fields). The last chunk
+ * (`chunkIndex === chunkCount - 1`) completes the baseline — there is no
+ * separate completion frame. Chunk ranges are contiguous and code-point
+ * aligned: `chunk k+1.from === chunk k.to`, and a boundary never splits a
+ * surrogate pair. A fully up-to-date resume is one chunk with empty `data`
+ * and `fromCursor === toCursor === resume.cursor` ("you are current" plus a
+ * processState/terminalSize refresh — distinct from v1's empty-terminal
+ * baseline at the origin).
+ */
+export const remoteTerminalWatchBaselineChunkSchema = z
+  .object({
+    version: z.literal(TERMINAL_CURSOR_SYNC_V2_VERSION),
+    watchId: z.string().min(1),
+    /** Null = replace-only window (SQLite fallback), still chunked. */
+    generation: z.string().min(1).nullable(),
+    chunkIndex: z.number().int().nonnegative(),
+    chunkCount: z.number().int().positive(),
+    fromCursor: remoteTerminalCursorSchema,
+    toCursor: remoteTerminalCursorSchema,
+    data: z.string(),
+    processState: z.enum(["running", "exited"]),
+    terminalSize: terminalSizeSchema.nullable(),
+    /** True = delta from the client's resume cursor; false = full window. */
+    resumeServed: z.boolean(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.chunkIndex >= value.chunkCount) {
+      ctx.addIssue({
+        code: "custom",
+        message: "chunkIndex must be < chunkCount",
+        path: ["chunkIndex"],
+      });
+    }
+    if (value.fromCursor > value.toCursor) {
+      ctx.addIssue({
+        code: "custom",
+        message: "fromCursor must be <= toCursor",
+        path: ["fromCursor"],
+      });
+    }
+    if (value.toCursor - value.fromCursor !== value.data.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "toCursor - fromCursor must equal data.length (JS UTF-16 code units)",
+        path: ["data"],
+      });
+    }
+  });
+export type RemoteTerminalWatchBaselineChunk = z.infer<
+  typeof remoteTerminalWatchBaselineChunkSchema
 >;
 
 export const remoteEnvironmentDescriptorSchema = z.object({
@@ -1119,6 +1198,18 @@ export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
     cursorSync: remoteTerminalCursorSyncRequestSchema.optional(),
   }),
   z.object({ type: z.literal("terminal-unwatch"), id: z.string().min(1) }),
+  // Cursor-sync v2 only: per-chunk client ACK releasing baseline credit.
+  // Never sent for version-1 watches, so old servers never see it (and an
+  // unknown client message type is already safely ignored server-side).
+  z.object({
+    type: z.literal("terminal-watch-baseline-ack"),
+    id: z.string().min(1),
+    cursorSync: z.object({
+      version: z.literal(TERMINAL_CURSOR_SYNC_V2_VERSION),
+      watchId: z.string().min(1),
+      throughCursor: remoteTerminalCursorSchema,
+    }),
+  }),
   z.object({
     type: z.literal("git-state-interests"),
     interests: z.array(gitStateInterestSchema).max(500),
@@ -1203,7 +1294,9 @@ export const remoteWebSocketServerMessageSchema = z.discriminatedUnion("type", [
     }),
   // Authoritative snapshot/error for an opt-in `terminal-watch` with cursorSync.
   // Not sent for legacy watches. Clients buffer live output until this arrives
-  // and reconcile by cursor ranges.
+  // and reconcile by cursor ranges. For a version-2 watch the baseline travels
+  // as `terminal-watch-baseline-chunk` messages instead; this frame remains the
+  // pre-stream error channel (and the v1 single-shot baseline).
   z.object({
     type: z.literal("terminal-watch-result"),
     id: z.string().min(1),
@@ -1212,6 +1305,13 @@ export const remoteWebSocketServerMessageSchema = z.discriminatedUnion("type", [
       watchId: z.string().min(1),
       result: remoteTerminalWatchResultSchema,
     }),
+  }),
+  // Cursor-sync v2 chunked baseline. Sent only for watches whose request
+  // declared version 2, so version-1 clients never observe this message type.
+  z.object({
+    type: z.literal("terminal-watch-baseline-chunk"),
+    id: z.string().min(1),
+    cursorSync: remoteTerminalWatchBaselineChunkSchema,
   }),
 ]);
 export type RemoteWebSocketServerMessage = z.infer<typeof remoteWebSocketServerMessageSchema>;
