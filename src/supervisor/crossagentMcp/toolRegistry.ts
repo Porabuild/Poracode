@@ -27,7 +27,9 @@ import {
   parseWaitTimeoutMs,
   TIMEOUT_S_DESCRIPTION,
 } from "./toolResult";
-import { parseRunIds, parseSpawnRequest, parseSpawnRequests } from "./toolRequests";
+import { parseRunIds, parseSpawnRequests } from "./toolRequests";
+import { resolveSelectionArgs, spawnAgent } from "./toolSpawn";
+import { dispatchWorkflow } from "./toolWorkflow";
 import { rankingCandidateOf, resolveSubagentExecution } from "./types";
 import type {
   McpToolResult,
@@ -67,7 +69,7 @@ const CROSSAGENTS_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("crossagents");
 
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
-  `Before the first spawn_agent, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} for workflow and verification guidance.`,
+  `Before the first delegation, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} for workflow and verification guidance.`,
   "Delegate only after an explicit user ask in this thread; it authorizes the rest of the thread. Before that, never spawn subagents on your own initiative.",
   "Resolve tool names against this server (e.g. crossagents__list_agents), never the same bare name under another server.",
   "Pass 1-5 task tags to list_agents and spawn_agent. Omit unspecified provider/model/reasoning/fast to use configured and learned routing; explicit selections win. get_agent supplies model and reasoning values. Change persistent routing preferences only on clear user intent.",
@@ -75,6 +77,7 @@ export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   `spawn_agent waits by default; tasks launches up to ${MAX_CONCURRENT_CHILDREN_PER_PARENT} independent agents together, also the running limit per parent. background=true returns immediately and never injects a new message into the parent. Runs survive parent-turn interruption but stop when its thread closes.`,
   "At synchronization, batch required run_ids in wait_for_agent. Waits default to 120 seconds, capped at 240 for transport safety; keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because a wait timed out. Cancel only at user request or when work is no longer needed for reasons unrelated to elapsed time.",
   "Use output_mode=quiet to suppress running narration without consuming unread evidence; errors and pending request counts remain visible. Settled output is unchanged. This reduces payload, not parent wakeups. Progress remains in the UI/logs. Pass total_output_chars back as after_output_chars (or after_output_chars_by_run for batches); full_output=true retrieves complete output. Legacy progress output clips running/settled tails at 1000/16000 characters.",
+  "Prefer result_mode=compact on spawn_agent: the worker authors its final report; default reads return it without consuming transcript evidence. Invalid reports surface result_error. full_output retrieves retained evidence; output_mode=progress restores narration. For known dependencies, run_workflow validates and schedules stages, forwards compact reports and returns sink/blocking reports. Use its action wait/status/cancel/list with workflow_id. Foreground start waits; background=true is for useful independent work. Workflows are memory-only and never resume the parent automatically.",
   "list_runs include_capacity=true reports available_slots, not a reservation. wait_mode=any returns when one run settles; next wait includes only remaining running IDs. steer_agent is for new evidence, constraints or conflicts, not repeated status requests.",
   "Fallback retries default to startup-only. retry_on=any-failure may repeat side effects and needs explicit justification and authority. Child permissions must stay within the user's authorized scope.",
 ].join(" ");
@@ -154,6 +157,12 @@ const TASK_TAGS_PROPERTY = {
 const SUBAGENT_TASK_PROPERTIES = {
   ...SUBAGENT_SELECTION_PROPERTIES,
   prompt: { type: "string", description: "Self-contained task for the subagent." },
+  result_mode: {
+    type: "string",
+    enum: ["compact"],
+    description:
+      "Worker authors a structured final report. Reads return that report, not narration; full_output retrieves evidence. Missing/invalid reports are explicit errors. Omit for legacy output.",
+  },
   tags: TASK_TAGS_PROPERTY,
   name: {
     type: "string",
@@ -189,6 +198,58 @@ const SUBAGENT_REQUEST_PROPERTIES = {
 } as const;
 
 const RAW_TOOLS: ToolSpec[] = [
+  {
+    name: "run_workflow",
+    description:
+      "Manage a host-scheduled task graph (native macOS/Linux only; Windows/WSL unsupported). start validates all stages and declared write scopes before launch; dependencies receive worker-authored compact reports. Failed checks, important findings or invalid reports block downstream work. No automatic publication or parent-message injection. Requires the same delegation authorization as spawn_agent.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["start", "status", "wait", "cancel", "list"],
+          default: "start",
+        },
+        workflow_id: { type: "string", description: "Required for status, wait and cancel." },
+        background: {
+          type: "boolean",
+          description:
+            "On start, return immediately only when useful independent work remains. Default waits for completion, attention or timeout.",
+        },
+        ...SUBAGENT_SELECTION_PROPERTIES,
+        tasks: {
+          type: "array",
+          minItems: 1,
+          maxItems: 16,
+          items: {
+            type: "object",
+            required: ["id", "prompt", "write_scope"],
+            properties: {
+              ...SUBAGENT_TASK_PROPERTIES,
+              retry_on: {
+                type: "string",
+                enum: ["startup"],
+                description: "Workflows retry startup failures only.",
+              },
+              id: { type: "string" },
+              depends_on: { type: "array", items: { type: "string" } },
+              write_scope: {
+                type: "array",
+                items: { type: "string" },
+                description:
+                  "Exact project-relative files/directories owned by this task. [] means read-only. Concurrent scopes must not overlap.",
+              },
+            },
+          },
+        },
+        timeout_s: {
+          type: "number",
+          description:
+            "Max seconds for this call (default 120, cap 240). Timeout leaves stages running; continue with run_workflow action=wait and workflow_id when results remain required.",
+        },
+      },
+    },
+  },
   {
     name: "list_agents",
     description:
@@ -324,7 +385,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "list_runs",
     description:
-      "List this parent thread's subagent runs, including background work, current status, and retry attempt. With include_capacity=true, return { runs, capacity: { running, limit, available_slots } } to plan the next batch.",
+      "List this parent thread's subagent runs, including background work, current status, and retry attempt. With include_capacity=true, return { runs, capacity: { running, stopping?, limit, available_slots } }; stopping workers retain their slots until cleanup succeeds.",
     inputSchema: { type: "object", properties: { include_capacity: { type: "boolean" } } },
   },
   {
@@ -368,8 +429,14 @@ const BASE_TOOLS: ToolSpec[] = RAW_TOOLS.map((tool) => ({
       : {
           readOnlyHint: false,
           destructiveHint:
-            tool.name === "spawn_agent" || tool.name === "steer_agent" || tool.name === "cancel",
-          openWorldHint: tool.name === "spawn_agent" || tool.name === "steer_agent",
+            tool.name === "spawn_agent" ||
+            tool.name === "run_workflow" ||
+            tool.name === "steer_agent" ||
+            tool.name === "cancel",
+          openWorldHint:
+            tool.name === "spawn_agent" ||
+            tool.name === "run_workflow" ||
+            tool.name === "steer_agent",
         },
 }));
 
@@ -530,207 +597,6 @@ export interface SubagentToolContext {
   removeRoutingOverride?: (tags: readonly string[]) => void | Promise<void>;
 }
 
-interface ResolvedSelectionArgs {
-  args: Record<string, unknown>;
-  tags: string[];
-  explicitFields: ExplicitSpawnAgentSelection["explicitFields"];
-}
-
-function resolveSelectionArgs(
-  args: Record<string, unknown>,
-  agents: readonly SpawnableAgent[],
-): ResolvedSelectionArgs {
-  const requestedProvider =
-    typeof args.provider === "string" && args.provider.length > 0 ? args.provider : undefined;
-  const requestedModel =
-    typeof args.model === "string" && args.model.length > 0 ? args.model : undefined;
-  const requestedReasoning =
-    typeof args.reasoning === "string" && args.reasoning.length > 0 ? args.reasoning : undefined;
-  const requestedFast = typeof args.fast === "boolean" ? args.fast : undefined;
-  const tags = normalizeCrossagentTags(args.tags);
-  const explicitFields = {
-    provider: requestedProvider !== undefined,
-    model: requestedModel !== undefined,
-    effort: requestedReasoning !== undefined,
-    fast: requestedFast !== undefined,
-  };
-  const eligibleAgents = agents.flatMap((candidate) => {
-    if (requestedProvider && candidate.provider.value !== requestedProvider) return [];
-    const preference = candidate.preference;
-    const modelIds = requestedModel
-      ? [requestedModel]
-      : [
-          ...new Set([
-            ...(preference?.model ? [preference.model] : []),
-            candidate.defaultModel,
-            ...candidate.models.map((model) => model.value),
-          ]),
-        ];
-    const model = modelIds
-      .map((modelId) => candidate.models.find((option) => option.value === modelId))
-      .find(
-        (option) =>
-          option !== undefined &&
-          (!requestedReasoning || option.reasoning.values.includes(requestedReasoning)) &&
-          (requestedFast !== true || option.fast?.available === true),
-      );
-    return model ? [{ agent: candidate, model }] : [];
-  });
-  const selected = eligibleAgents[0];
-  if (!selected) {
-    if (requestedProvider) {
-      throw new Error(
-        `Provider or requested selection is not currently available: ${requestedProvider}`,
-      );
-    }
-    throw new Error("No available Crossagents provider supports the requested selection");
-  }
-  const { agent, model: modelOption } = selected;
-  const provider = agent.provider.value;
-
-  const preferred = agent.preference ?? {
-    rank: 1,
-    source: "built-in" as const,
-    usageCount: 0,
-    model: agent.defaultModel,
-    fast: false,
-    matchedTags: [],
-    learnedTags: [],
-  };
-  const model = modelOption.value;
-  const usePreferredDetails = preferred.model === model;
-  const reasoning =
-    requestedReasoning ??
-    (usePreferredDetails ? preferred.reasoning : undefined) ??
-    modelOption.reasoning.default;
-  const fast =
-    requestedFast !== undefined ? requestedFast : usePreferredDetails ? preferred.fast : false;
-
-  return {
-    explicitFields,
-    tags,
-    args: {
-      ...args,
-      provider,
-      model,
-      ...(reasoning ? { reasoning } : {}),
-      fast,
-    },
-  };
-}
-
-async function spawnAgent(
-  args: Record<string, unknown>,
-  ctx: SubagentToolContext,
-): Promise<McpToolResult> {
-  const outputMode = parseOutputMode(args);
-  const outputOptions = outputMode ? { outputMode } : {};
-  const timeoutMs = parseWaitTimeoutMs(args);
-  const background = args.background === true;
-  const rosterCache = new Map<string, Promise<SpawnableAgent[]>>();
-  const agentsFor = (selectionArgs: Record<string, unknown>) => {
-    const selectionTags = normalizeCrossagentTags(selectionArgs.tags);
-    const key = selectionTags.join("\0");
-    const cached = rosterCache.get(key);
-    if (cached) return cached;
-    const pending = ctx.listSpawnableAgents(selectionTags);
-    rosterCache.set(key, pending);
-    return pending;
-  };
-
-  // The published schema is union-free for Cursor compatibility, so the
-  // either/or contract is enforced here: a call carrying both shapes is
-  // ambiguous and must fail instead of silently picking one branch.
-  if (args.tasks !== undefined && args.prompt !== undefined) {
-    return errorResult("Pass either prompt or tasks, not both.");
-  }
-  if (Array.isArray(args.tasks)) {
-    const tasks = args.tasks;
-    if (tasks.length > MAX_CONCURRENT_CHILDREN_PER_PARENT) {
-      return errorResult(`tasks supports at most ${MAX_CONCURRENT_CHILDREN_PER_PARENT} entries`);
-    }
-    const batchSelection = {
-      ...(typeof args.provider === "string" ? { provider: args.provider } : {}),
-      ...(typeof args.model === "string" ? { model: args.model } : {}),
-      ...(typeof args.reasoning === "string" ? { reasoning: args.reasoning } : {}),
-      ...(typeof args.fast === "boolean" ? { fast: args.fast } : {}),
-      ...(typeof args.permissions === "string" ? { permissions: args.permissions } : {}),
-    };
-    const resolvedTasks: Array<ResolvedSelectionArgs | null> = await Promise.all(
-      tasks.map(async (task) => {
-        if (!task || typeof task !== "object" || Array.isArray(task)) {
-          return null;
-        }
-        const { provider, model, reasoning, fast, permissions, ...taskProperties } = task as Record<
-          string,
-          unknown
-        >;
-        const taskArgs = {
-          ...batchSelection,
-          ...taskProperties,
-          ...(typeof provider === "string" && provider.length > 0 ? { provider } : {}),
-          ...(typeof model === "string" && model.length > 0 ? { model } : {}),
-          ...(typeof reasoning === "string" && reasoning.length > 0 ? { reasoning } : {}),
-          ...(typeof fast === "boolean" ? { fast } : {}),
-          ...(typeof permissions === "string" ? { permissions } : {}),
-        };
-        return resolveSelectionArgs(taskArgs, await agentsFor(taskArgs));
-      }),
-    );
-    const requests = parseSpawnRequests({
-      ...args,
-      tasks: resolvedTasks.map((entry, index) => entry?.args ?? tasks[index]),
-    }).map((request) => {
-      const { background: _taskBackground, ...rest } = request;
-      return background ? { ...rest, background: true as const } : rest;
-    });
-    const runs = ctx.runManager.spawnMany(ctx.parentThreadId, requests);
-    const explicitSelections = requests.flatMap((request, index) => {
-      const explicitFields = resolvedTasks[index]?.explicitFields;
-      const tags = resolvedTasks[index]?.tags ?? [];
-      return explicitFields && Object.values(explicitFields).some(Boolean)
-        ? [{ selection: request, explicitFields, tags }]
-        : [];
-    });
-    if (explicitSelections.length > 0) ctx.recordExplicitSelections?.(explicitSelections);
-    if (background) {
-      return jsonResult({
-        runs: runs.map(({ runId }) => ({
-          run_id: runId,
-          status: "running",
-          output: "",
-        })),
-      });
-    }
-    return jsonResult({
-      runs: await ctx.runManager.waitForMany(
-        runs.map(({ runId }) => runId),
-        timeoutMs,
-        ctx.parentThreadId,
-        { ...outputOptions, fullOutput: args.full_output === true, currentAttemptOnly: true },
-      ),
-    });
-  }
-
-  const resolved = resolveSelectionArgs(args, await agentsFor(args));
-  const request = parseSpawnRequest(resolved.args);
-  const { runId } = ctx.runManager.spawn(ctx.parentThreadId, request);
-  if (Object.values(resolved.explicitFields).some(Boolean)) {
-    ctx.recordExplicitSelections?.([
-      { selection: request, explicitFields: resolved.explicitFields, tags: resolved.tags },
-    ]);
-  }
-  if (background) {
-    return jsonResult({ run_id: runId, status: "running", output: "" });
-  }
-  const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
-    ...outputOptions,
-    fullOutput: args.full_output === true,
-    currentAttemptOnly: true,
-  });
-  return jsonResult({ run_id: runId, ...result });
-}
-
 async function setRoutingPreference(
   args: Record<string, unknown>,
   ctx: SubagentToolContext,
@@ -798,6 +664,8 @@ export async function dispatchTool(
         return await removeRoutingPreference(args, ctx);
       case "spawn_agent":
         return await spawnAgent(args, ctx);
+      case "run_workflow":
+        return await dispatchWorkflow(args, ctx);
       // Hidden compatibility aliases for provider sessions initialized against
       // the earlier, wider tool catalog.
       case "spawn_agents": {

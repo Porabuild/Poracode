@@ -2,7 +2,15 @@ import { MAX_CONCURRENT_CHILDREN_PER_PARENT } from "./SubagentRunManager";
 import { SubagentSpawnError } from "./errors";
 import type { SpawnAgentRequest } from "./types";
 
+export function parseResultMode(args: Record<string, unknown>): "compact" | undefined {
+  if (args.result_mode !== undefined && args.result_mode !== "compact") {
+    throw new SubagentSpawnError("result_mode must be compact");
+  }
+  return args.result_mode;
+}
+
 export function parseSpawnRequest(args: Record<string, unknown>): SpawnAgentRequest {
+  parseResultMode(args);
   const agent = typeof args.provider === "string" ? args.provider : "";
   const prompt = typeof args.prompt === "string" ? args.prompt : "";
   if (!agent) throw new SubagentSpawnError("provider is required");
@@ -52,6 +60,7 @@ export function parseSpawnRequest(args: Record<string, unknown>): SpawnAgentRequ
   return {
     agent,
     prompt,
+    ...(args.result_mode === "compact" ? { resultMode: "compact" as const } : {}),
     ...(typeof args.model === "string" ? { model: args.model } : {}),
     ...(typeof args.reasoning === "string" ? { effort: args.reasoning } : {}),
     ...(args.fast === true ? { fast: true } : {}),

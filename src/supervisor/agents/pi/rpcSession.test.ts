@@ -183,6 +183,51 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     await session.dispose();
   }
 
+  it("shares concurrent disposal until the RPC process has exited", async () => {
+    const { session, events } = await createSession();
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const originalClose = PiRpcClient.prototype.close;
+    const close = vi
+      .spyOn(PiRpcClient.prototype, "close")
+      .mockImplementationOnce(async function (this: PiRpcClient) {
+        await pending;
+        await originalClose.call(this);
+      });
+    try {
+      const first = session.dispose();
+      expect(session.dispose()).toBe(first);
+      expect(events.some((event) => event.type === "session.exited")).toBe(false);
+      release();
+      await first;
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(events.filter((event) => event.type === "session.exited")).toHaveLength(1);
+    } finally {
+      release();
+      close.mockRestore();
+      await session.dispose();
+    }
+  });
+
+  it("retries an unconfirmed RPC shutdown without reporting an early session exit", async () => {
+    const { session, events } = await createSession();
+    const close = vi
+      .spyOn(PiRpcClient.prototype, "close")
+      .mockRejectedValueOnce(new Error("Still alive"));
+    try {
+      await expect(session.dispose()).rejects.toThrow("Still alive");
+      expect(events.some((event) => event.type === "session.exited")).toBe(false);
+      await session.dispose();
+      expect(close).toHaveBeenCalledTimes(2);
+      expect(events.filter((event) => event.type === "session.exited")).toHaveLength(1);
+    } finally {
+      close.mockRestore();
+      await session.dispose();
+    }
+  });
+
   it("streams a turn into canonical events and publishes session ref + context", async () => {
     const { session, events, updates } = await createSession();
     await session.startTurn?.("hello", { model: "mock/model", effort: "off" });

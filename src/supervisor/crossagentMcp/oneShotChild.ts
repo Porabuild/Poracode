@@ -47,12 +47,14 @@ export interface OneShotChildParams {
 }
 
 export interface OneShotChildHandle {
+  /** Resolves only after exit-derived settlement (or a synchronous spawn failure). */
+  readonly closed: Promise<void>;
   /** SIGTERM now, SIGKILL after a grace period. Idempotent. */
   cancel(): void;
 }
 
 /** A no-op handle returned when spawning failed synchronously (already settled). */
-const NOOP_HANDLE: OneShotChildHandle = { cancel: () => {} };
+const NOOP_HANDLE: OneShotChildHandle = { closed: Promise.resolve(), cancel: () => {} };
 
 /** Terminal result computed by a transport from its exit signal. */
 interface SettleResult {
@@ -148,6 +150,8 @@ function driveChild(
   params: OneShotChildParams,
 ): OneShotChildHandle {
   let settled = false;
+  let cancelRequested = false;
+  const { promise: closed, resolve: resolveClosed } = Promise.withResolvers<void>();
   let killTimer: ReturnType<typeof setTimeout> | undefined;
   let flushTimer: ReturnType<typeof setTimeout> | undefined;
   let buffer = "";
@@ -170,12 +174,16 @@ function driveChild(
     settled = true;
     clearTimeout(lifetimeTimer);
     if (killTimer) clearTimeout(killTimer);
-    flush();
-    params.onSettle(
-      result.errorMessage
-        ? { status: result.status, errorMessage: result.errorMessage }
-        : { status: result.status },
-    );
+    try {
+      flush();
+      params.onSettle(
+        result.errorMessage
+          ? { status: result.status, errorMessage: result.errorMessage }
+          : { status: result.status },
+      );
+    } finally {
+      resolveClosed();
+    }
   };
 
   transport.onData((chunk) => {
@@ -193,12 +201,13 @@ function driveChild(
   transport.write(input);
 
   const cancel = () => {
-    if (settled) return;
-    transport.kill();
+    if (settled || cancelRequested) return;
+    cancelRequested = true;
     killTimer = armUnref(setTimeout(() => transport.killForce(), KILL_GRACE_MS));
+    transport.kill();
   };
 
-  return { cancel };
+  return { closed, cancel };
 }
 
 /** child_process lane: pipe stdio, accumulate stderr, settle from close/error. */
@@ -211,6 +220,7 @@ function spawnProcessTransport(spec: SpawnSpec): ChildTransport {
   });
 
   const stderrChunks: string[] = [];
+  let processError: Error | undefined;
   child.stderr?.on("data", (data: Buffer) => {
     stderrChunks.push(data.toString());
   });
@@ -227,9 +237,14 @@ function spawnProcessTransport(spec: SpawnSpec): ChildTransport {
       child.stdout?.on("data", (data: Buffer) => cb(data.toString()));
     },
     onExit(cb) {
-      child.on("error", (err) => cb({ status: "failed", errorMessage: err.message }));
+      // An error can describe a failed signal or write while the process still runs.
+      child.on("error", (err) => {
+        processError = err;
+      });
       child.on("close", (code) => {
-        if (code === 0) {
+        if (processError) {
+          cb({ status: "failed", errorMessage: processError.message });
+        } else if (code === 0) {
           cb({ status: "completed" });
         } else {
           const tail = stderrChunks.join("").slice(-STDERR_TAIL_CHARS).trim();
@@ -241,7 +256,7 @@ function spawnProcessTransport(spec: SpawnSpec): ChildTransport {
       child.kill("SIGTERM");
     },
     killForce() {
-      if (!child.killed) child.kill("SIGKILL");
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     },
   };
 }

@@ -292,7 +292,13 @@ describe("OpencodeSdkSession", () => {
       })
       .mockResolvedValueOnce({
         eventClient: secondEvent,
-        client: { session: { promptAsync } },
+        client: {
+          session: {
+            promptAsync,
+            abort: async () => ({ data: true }),
+            status: async () => ({ data: {} }),
+          },
+        },
         baseUrl: "http://127.0.0.1:2",
         handle: {},
         onServerExit: () => vi.fn<() => void>(),
@@ -786,6 +792,8 @@ describe("OpencodeSdkSession", () => {
       client: {
         command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
         session: {
+          abort: async () => ({ data: true }),
+          status: async () => ({ data: {} }),
           create: vi
             .fn<() => Promise<{ data: { id: string } }>>()
             .mockResolvedValue({ data: { id: "ses_test" } }),
@@ -1496,6 +1504,7 @@ describe("OpencodeSdkSession", () => {
             .fn<(input: unknown) => Promise<{ data: { id: string } }>>()
             .mockResolvedValue({ data: { id: "ses_steer" } }),
           abort,
+          status: async () => ({ data: {} }),
           promptAsync,
         },
       },

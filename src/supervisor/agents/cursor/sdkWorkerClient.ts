@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ProjectLocation } from "@/shared/contracts";
+import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { buildAgentCommand } from "../base";
 import {
@@ -84,6 +85,20 @@ export class CursorSdkWorkerRpcError extends Error {
   }
 }
 
+/** A failed boot still owns its worker when process shutdown could not be confirmed. */
+export class CursorSdkWorkerStartupError extends Error {
+  constructor(
+    startupError: unknown,
+    cleanupError: unknown,
+    readonly worker: Pick<CursorSdkWorkerClient, "dispose">,
+  ) {
+    super(startupError instanceof Error ? startupError.message : String(startupError), {
+      cause: new AggregateError([startupError, cleanupError], "Cursor SDK worker startup failed."),
+    });
+    this.name = "CursorSdkWorkerStartupError";
+  }
+}
+
 interface PendingRequest {
   resolve(value: unknown): void;
   reject(error: Error): void;
@@ -114,6 +129,11 @@ export async function spawnCursorSdkWorker(
     return client;
   } catch (error) {
     client.terminate();
+    try {
+      await client.dispose();
+    } catch (cleanupError) {
+      throw new CursorSdkWorkerStartupError(error, cleanupError, client);
+    }
     throw error;
   }
 }
@@ -223,7 +243,10 @@ export class CursorSdkWorkerClient {
   }
 
   dispose(): Promise<void> {
-    this.disposePromise ??= this.disposeOnce();
+    this.disposePromise ??= this.disposeOnce().catch((error: unknown) => {
+      this.disposePromise = undefined;
+      throw error;
+    });
     return this.disposePromise;
   }
 
@@ -257,17 +280,24 @@ export class CursorSdkWorkerClient {
   }
 
   private async disposeOnce(): Promise<void> {
-    if (this.terminated) return;
-    try {
-      await this.request("dispose", {});
-    } catch {
-      // A dead worker is already disposed from the host's perspective.
+    if (!this.terminated) {
+      try {
+        await this.request("dispose", {}, Math.min(this.requestTimeoutMs, 3_000));
+      } catch {
+        // A stalled RPC still requires confirmed process termination below.
+      }
     }
+    this.terminated = true;
+    this.rejectAll(new Error("Cursor SDK worker terminated."));
     this.child.stdin?.end();
-    this.terminate();
+    await awaitProcessTermination(this.child, { ownedProcessGroup: this.useProcessGroup });
   }
 
-  private request<Result>(method: string, params: unknown): Promise<Result> {
+  private request<Result>(
+    method: string,
+    params: unknown,
+    timeoutMs = this.requestTimeoutMs,
+  ): Promise<Result> {
     if (this.terminated) {
       return Promise.reject(new Error("Cursor SDK worker is not running."));
     }
@@ -287,7 +317,7 @@ export class CursorSdkWorkerClient {
         }
         this.pending.delete(id);
         reject(error);
-      }, this.requestTimeoutMs);
+      }, timeoutMs);
       timeout.unref?.();
       this.pending.set(id, {
         resolve: (value) => resolve(value as Result),
@@ -402,12 +432,12 @@ export class CursorSdkWorkerClient {
   private fail(error: Error): void {
     if (this.terminated) return;
     this.terminated = true;
-    this.transportError = error;
+    if (!this.disposePromise) this.transportError = error;
     this.rejectReady?.(error);
     this.resolveReady = undefined;
     this.rejectReady = undefined;
     this.rejectAll(error);
-    for (const listener of this.transportErrorListeners) {
+    for (const listener of this.disposePromise ? [] : this.transportErrorListeners) {
       try {
         listener(error);
       } catch {

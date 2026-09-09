@@ -6,7 +6,7 @@ import type {
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
-import { terminateChildProcessTree } from "@/shared/processTree";
+import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import {
   batchWslCommandsAsync,
   createKnownSessionRef,
@@ -151,6 +151,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private attention: "none" | "working" | "needs_approval" | "needs_reply" = "none";
   private activated = false;
   private disposed = false;
+  private disposePromise: Promise<void> | undefined;
   private transportErrorReported = false;
   private transportCloseReported = false;
   private pendingCompact: { turnId: string; timer: NodeJS.Timeout } | undefined;
@@ -492,8 +493,15 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     await this.resolveUserInput(pending, response);
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    this.disposePromise ??= this.disposeOnce().catch((error: unknown) => {
+      this.disposePromise = undefined;
+      throw error;
+    });
+    return this.disposePromise;
+  }
+
+  private async disposeOnce(): Promise<void> {
     this.disposed = true;
     this.clearPendingCompact();
     this.emitMany(closePlanAggregator(this.planAggregator));
@@ -508,8 +516,17 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     this.pendingRequests.clear();
     if (this.activeTurnId) this.completeTurn(this.activeTurnId, "cancelled");
     this.client.dispose();
-    terminateChildProcessTree(this.child, { ownedProcessGroup: process.platform !== "win32" });
-    this.killSurvivingWslHost();
+    const stops = await Promise.allSettled([
+      awaitProcessTermination(this.child, { ownedProcessGroup: process.platform !== "win32" }),
+      this.killSurvivingWslHost(),
+    ]);
+    const failures = stops.filter((stop) => stop.status === "rejected");
+    if (failures.length) {
+      throw new AggregateError(
+        failures.map((stop) => stop.reason),
+        "Muse MSP shutdown failed.",
+      );
+    }
     this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "disposed" });
     this.listener.onClose();
   }
@@ -519,15 +536,16 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
    * signal the Linux-side `muse serve` it launched — a surviving host keeps
    * its sessions locked (`session/resume` then fails `sessionInUse` forever)
    * and leaks CPU. The host carries a unique cookie in its environ; sweep
-   * /proc for it and kill what matches. Best-effort: the bridge may be gone
-   * (app teardown) or the process may already be dead.
+   * /proc for it and kill what matches, then confirm no owned host remains.
    */
-  private killSurvivingWslHost(): void {
+  private async killSurvivingWslHost(): Promise<void> {
     const location = this.input.projectLocation;
     if (location.kind !== "wsl") return;
-    void batchWslCommandsAsync(location.distro, [
-      `pids=$(grep -ls ${quotePosixShellArg(this.hostCookie)} /proc/[0-9]*/environ 2>/dev/null | tr -dc '0-9\\n '); [ -n "$pids" ] && kill -9 $pids 2>/dev/null; true`,
-    ]).catch(() => {});
+    const findOwned = `grep -Fls -- ${quotePosixShellArg(this.hostCookie)} /proc/[0-9]*/environ 2>/dev/null | tr -dc '0-9\\n '`;
+    const [result] = await batchWslCommandsAsync(location.distro, [
+      `pids=$(${findOwned}); [ -z "$pids" ] || kill -9 $pids 2>/dev/null; i=0; while [ "$i" -lt 30 ]; do pids=$(${findOwned}); [ -z "$pids" ] && exit 0; sleep 0.1; i=$((i + 1)); done; exit 1`,
+    ]);
+    if (!result?.ok) throw new Error("Muse MSP WSL host termination could not be confirmed.");
   }
 
   private requireSessionId(): string {

@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { randomBytes, randomUUID } from "node:crypto";
+import pluginManifest from "../../../resources/plugins/subagent-delegation/plugin.json";
 import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp";
 import type { CrossagentRoutingOverride } from "@/shared/settings";
 import type { SubagentRunManager } from "./SubagentRunManager";
@@ -32,6 +33,7 @@ const MAX_BODY = 1024 * 1024;
 const MCP_PROTOCOL_VERSION = "2025-03-26";
 export const CROSSAGENT_PROVIDER_SESSION_ID_ARG = "__poracode_provider_session_id";
 const TOOL_PERMISSION_ALIASES = new Map([
+  ["run_workflow", "spawn_agent"],
   ["spawn_agents", "spawn_agent"],
   ["wait_for_agents", "wait_for_agent"],
   ["run_agent", "spawn_agent"],
@@ -324,7 +326,7 @@ export class CrossagentMcpIngress {
           result: {
             protocolVersion: MCP_PROTOCOL_VERSION,
             capabilities: { tools: {} },
-            serverInfo: { name: "crossagents", version: "1.0.0" },
+            serverInfo: { name: "crossagents", version: pluginManifest.version },
             instructions: buildSubagentInstructions(this.deps.getRoutingGuide?.()),
           },
         };

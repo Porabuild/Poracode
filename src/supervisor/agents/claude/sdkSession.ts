@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ChildProcess } from "node:child_process";
+import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import type {
   CanUseTool,
   Options as ClaudeQueryOptions,
@@ -25,7 +25,7 @@ import type {
   TurnState,
 } from "@/shared/contracts";
 import { areAgentSlashCommandsEqual } from "@/shared/contracts";
-import { terminateChildProcessTree } from "@/shared/processTree";
+import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import { buildClaudeMcpServers } from "../userMcp";
 import {
   createKnownSessionRef,
@@ -101,11 +101,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private promptQueue = new AsyncPromptQueue();
   private queryRuntime: Query | undefined;
   private queryReady: Promise<Query> | undefined;
-  // OS processes the SDK spawned through our custom spawn hook (win32 native +
-  // WSL). Captured so dispose() can force-kill the whole tree; the SDK's own
-  // Query.close() only ends the immediate child after a grace window. See
-  // trackSpawnedProcess.
+  // Query.close() initiates shutdown; captured children prove it has finished.
   private readonly spawnedProcesses = new Set<ChildProcess>();
+  private readonly ownedProcessGroups = new WeakSet<ChildProcess>();
+  private readonly processTerminations = new Map<ChildProcess, Promise<void>>();
+  private disposal: Promise<void> | undefined;
   private streamStarted = false;
   private disposed = false;
   private sessionId: string | undefined;
@@ -567,9 +567,43 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    if (this.disposal) return this.disposal;
+    const firstDisposal = !this.disposed;
     this.disposed = true;
+    const disposal = Promise.resolve()
+      .then(async () => {
+        if (firstDisposal) this.closeSessionResources();
+        // Query creation can still be resolving the executable or spawning its child.
+        await this.queryReady?.catch(() => undefined);
+        let closeFailure: { error: unknown } | undefined;
+        try {
+          this.queryRuntime?.close();
+        } catch (error) {
+          closeFailure = { error };
+        }
+        while (this.spawnedProcesses.size > 0 || this.processTerminations.size > 0) {
+          const pending = new Set(this.processTerminations.values());
+          for (const child of this.spawnedProcesses)
+            pending.add(this.terminateSpawnedProcess(child));
+          const outcomes = await Promise.allSettled(pending);
+          const failure = outcomes.find((outcome) => outcome.status === "rejected");
+          if (failure?.status === "rejected") throw failure.reason;
+        }
+        if (closeFailure) throw closeFailure.error;
+        this.queryRuntime = undefined;
+        this.queryReady = undefined;
+        this.listener?.onClose();
+      })
+      .catch((error: unknown) => {
+        this.disposal = undefined;
+        throw error;
+      });
+    this.disposal = disposal;
+    return disposal;
+  }
+
+  private closeSessionResources(): void {
     this.stopGoalTracking();
     this.flushDeferredCompletion();
     for (const [requestId, pending] of this.pendingRequests) {
@@ -590,48 +624,50 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.pendingRequests.clear();
     this.emitRuntimeEvents(closeClaudeOpenItems(this.mapperState, { closePlan: true }));
     this.promptQueue.close();
-    try {
-      this.queryRuntime?.close();
-    } catch {
-      // ignore
-    }
-    // Query.close() only ends the immediate child — and only after a ~2s
-    // stdin-EOF grace — so on Windows it orphans claude's descendant tool
-    // processes, and for WSL it kills the host wsl.exe relay rather than the
-    // in-distro tree. Force-kill the captured process tree so a removed /
-    // archived / unloaded / app-closed GUI Claude thread can't keep running
-    // tools and modifying files. Mirrors the ACP and Codex structured sessions.
-    for (const child of [...this.spawnedProcesses]) {
-      this.killSpawnedProcess(child);
-    }
-    this.listener?.onClose();
   }
 
   /**
-   * Record an OS process spawned by the SDK through our custom spawn hook so
-   * {@link dispose} can force-kill its tree. The process drops out of the set on
-   * its own exit. If a spawn races in after disposal, kill it immediately so it
-   * can't outlive the session.
+   * Prevent new SDK children after shutdown begins, and retain raced children
+   * until their process termination has been confirmed.
    */
-  private trackSpawnedProcess(proc: SpawnedProcess): SpawnedProcess {
+  private spawnTrackedProcess(
+    spawn: () => SpawnedProcess,
+    ownedProcessGroup = false,
+  ): SpawnedProcess {
+    if (this.disposed) throw new Error("ClaudeSdkSession cannot spawn after disposal.");
+    const proc = spawn();
     const child = proc as unknown as ChildProcess;
+    if (ownedProcessGroup) this.ownedProcessGroups.add(child);
     this.spawnedProcesses.add(child);
     const forget = (): void => {
-      this.spawnedProcesses.delete(child);
+      // A detached leader can exit while its descendants still own the process group.
+      if (!ownedProcessGroup) this.spawnedProcesses.delete(child);
     };
     child.once("exit", forget);
     if (this.disposed) {
-      this.killSpawnedProcess(child);
+      // Disposal observes the same promise; keep failed children available for retry.
+      void this.terminateSpawnedProcess(child).catch(() => {});
     }
     return proc;
   }
 
-  private killSpawnedProcess(child: ChildProcess): void {
-    this.spawnedProcesses.delete(child);
-    // Windows: taskkill /T /F reaps the whole tree. POSIX: best-effort kill of
-    // the captured process (the SDK's own teardown handles the rest).
-    // terminateChildProcessTree swallows its own errors, so no guard is needed.
-    terminateChildProcessTree(child);
+  private terminateSpawnedProcess(child: ChildProcess): Promise<void> {
+    const pending = this.processTerminations.get(child);
+    if (pending) return pending;
+    const termination = Promise.resolve()
+      .then(() =>
+        awaitProcessTermination(child, {
+          ownedProcessGroup: this.ownedProcessGroups.has(child),
+        }),
+      )
+      .then(() => {
+        this.spawnedProcesses.delete(child);
+      })
+      .finally(() => {
+        this.processTerminations.delete(child);
+      });
+    this.processTerminations.set(child, termination);
+    return termination;
   }
 
   private requireQuery(): Promise<Query> {
@@ -640,6 +676,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   private startQuery(resumeSessionId: string | undefined, resumeSessionAt?: string): void {
+    if (this.disposed) throw new Error("ClaudeSdkSession cannot open a disposed session.");
     if (this.streamStarted) return;
     this.streamStarted = true;
     // The `background_tasks_changed` level is per CLI process: it is not
@@ -665,8 +702,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         this.currentConfig.model,
         this.currentConfig.contextSize,
       );
-      // POSIX: the SDK spawns the `claude` CLI internally, so its env is what
-      // determines PATH for the child. Prefer the project-scoped shell env
+      // The SDK's spawn options determine PATH for the child. Prefer the project-scoped shell env
       // captured by `primeProjectShellEnv` (fnm / asdf / mise / volta cd-hooks
       // applied at the project root) over Electron's `process.env`, which on
       // macOS-from-Finder is launchd's skeleton PATH and pins the CLI to
@@ -738,13 +774,28 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         case "wsl": {
           const location = this.input.projectLocation;
           spawnClaudeCodeProcess = (spawnOptions) =>
-            this.trackSpawnedProcess(spawnClaudeInWsl(location, spawnOptions));
+            this.spawnTrackedProcess(() => spawnClaudeInWsl(location, spawnOptions));
           break;
         }
         case "windows": {
           const location = this.input.projectLocation;
           spawnClaudeCodeProcess = (spawnOptions) =>
-            this.trackSpawnedProcess(spawnClaudeNative(location, spawnOptions));
+            this.spawnTrackedProcess(() => spawnClaudeNative(location, spawnOptions));
+          break;
+        }
+        case "posix": {
+          spawnClaudeCodeProcess = (spawnOptions) =>
+            this.spawnTrackedProcess(
+              () =>
+                spawnChild(spawnOptions.command, spawnOptions.args, {
+                  cwd: spawnOptions.cwd,
+                  env: spawnOptions.env,
+                  signal: spawnOptions.signal,
+                  stdio: ["pipe", "pipe", "pipe"],
+                  detached: true,
+                }) as unknown as SpawnedProcess,
+              true,
+            );
           break;
         }
       }
@@ -777,9 +828,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           : {}),
         ...(claudeExecutablePath ? { pathToClaudeCodeExecutable: claudeExecutablePath } : {}),
         ...(hasMcpServers ? ({ mcpServers } as Partial<ClaudeQueryOptions>) : {}),
-        ...(spawnClaudeCodeProcess ? { spawnClaudeCodeProcess } : {}),
+        spawnClaudeCodeProcess,
       };
 
+      if (this.disposed) throw new Error("ClaudeSdkSession was disposed during query creation.");
       this.queryRuntime = query({ prompt: this.promptQueue, options });
       this.appliedModel = model;
       this.appliedPermissionMode = permissionMode;

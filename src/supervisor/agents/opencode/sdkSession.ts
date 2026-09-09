@@ -70,6 +70,9 @@ import {
   type OpenCodePromptPart,
 } from "./promptParts";
 
+const OPENCODE_DISPOSE_TIMEOUT_MS = 10_000;
+const OPENCODE_DISPOSE_POLL_MS = 100;
+
 interface PendingPermission {
   kind: "permission";
   requestID: string;
@@ -157,6 +160,9 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   private sessionHasPermissionOverride = false;
   private activated = false;
   private disposed = false;
+  private disposePromise: Promise<void> | undefined;
+  /** Unlike local force-completion, only provider idle confirms work has stopped. */
+  private turnRequiresShutdownConfirmation = false;
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
   private currentSlashCommands: AgentSlashCommand[] | undefined;
   /** True between `startTurn`'s promptAsync and the next SSE idle signal. */
@@ -264,6 +270,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       const id = existingData?.id;
       if (!id) throw new Error("opencode session.get returned no id");
       this.rememberSessionId(id);
+      this.turnRequiresShutdownConfirmation = this.isGui;
       this.sessionHasPermissionOverride = existingData.permission !== undefined;
       this.appliedPermissionSyncKey = undefined;
       if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id);
@@ -314,7 +321,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
-    const acquired = this.requireAcquired();
+    this.requireAcquired();
     const sessionID = this.requireSessionId();
     this.currentConfig = config;
 
@@ -350,6 +357,9 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     const variant = config.effort && config.effort.length > 0 ? config.effort : undefined;
 
     const sendParts = async (promptParts: OpenCodePromptPart[]): Promise<void> => {
+      // Permission synchronization or fallback preparation can outlive disposal.
+      const acquired = this.requireAcquired();
+      this.turnRequiresShutdownConfirmation = true;
       await acquired.client.session.promptAsync({
         directory: this.sdkDirectory,
         sessionID,
@@ -581,9 +591,20 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     return this.readThread();
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    this.disposePromise ??= this.disposeOnce().catch((error) => {
+      // Keep the lease and allow shutdown to be retried after a failed abort.
+      this.disposePromise = undefined;
+      throw error;
+    });
+    return this.disposePromise;
+  }
+
+  private async disposeOnce(): Promise<void> {
     this.disposed = true;
+    if (this.acquired && this.sessionId && this.turnRequiresShutdownConfirmation) {
+      await this.stopSessionForDisposal(this.acquired, this.sessionId);
+    }
 
     this.unsubscribeEvents?.();
     this.unsubscribeEvents = undefined;
@@ -596,14 +617,48 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
 
     if (this.acquired) {
-      try {
-        await this.acquired.dispose();
-      } finally {
-        this.acquired = undefined;
-      }
+      await this.acquired.dispose();
+      this.acquired = undefined;
     }
 
     this.listener?.onClose();
+  }
+
+  private async stopSessionForDisposal(
+    acquired: AcquiredOpenCodeServer,
+    sessionID: string,
+  ): Promise<void> {
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => {
+        const error = new Error("OpenCode session did not stop before the disposal deadline.");
+        controller.abort(error);
+        reject(error);
+      }, OPENCODE_DISPOSE_TIMEOUT_MS);
+    });
+    const stop = async (): Promise<void> => {
+      const options = { signal: controller.signal, throwOnError: true } as const;
+      await acquired.client.session.abort({ directory: this.sdkDirectory, sessionID }, options);
+      while (true) {
+        controller.signal.throwIfAborted();
+        const result = await acquired.client.session.status(
+          { directory: this.sdkDirectory },
+          options,
+        );
+        if (!result.data) throw new Error("OpenCode did not return session shutdown status.");
+        // OpenCode removes idle sessions from this sparse status map.
+        const status = result.data[sessionID];
+        if (!status || status.type === "idle") return;
+        await new Promise<void>((resolve) => setTimeout(resolve, OPENCODE_DISPOSE_POLL_MS));
+      }
+    };
+    try {
+      await Promise.race([stop(), deadline]);
+      this.turnRequiresShutdownConfirmation = false;
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
   }
 
   // ── Internal helpers ─────────────────────────────────────────────────
@@ -881,6 +936,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
 
     if (event.type === "session.status") {
+      this.turnRequiresShutdownConfirmation = event.properties.status.type !== "idle";
       const upd = mapStatusUpdate(event.properties);
       this.listener?.onUpdate({
         ...(this.pendingRequestStatus() ?? upd),
@@ -1005,6 +1061,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
    * `turn.completed` from their canonical mappers.
    */
   private emitTurnCompletedIfActive(): void {
+    this.turnRequiresShutdownConfirmation = false;
     if (!this.turnActive) return;
     this.turnActive = false;
     this.emitRuntimeEvents([
