@@ -290,11 +290,13 @@ aligned, ACK credit window, control-frame bypass, per-connection stream caps,
 round-robin drain), resume from the retained cache cursor, idle-based deadline resets,
 and explicit `unsupported-version` downgrade. Renderer capabilities pick the newest
 advertised version per connection. 32 new/updated tests; full protocol + remote suites
-(968) green. Remaining in this lane: (a) WS3 #2 snapshot scrollback omission
-(`omitScrollback` for v2 watches — the baseline no longer needs the inlined tail),
-(b) native iOS/Android adoption of v2 (ledger entries are `planned`), (c) the
-constrained-shaper E2E runs (`slowLinkColdStartV2` / `slowLinkResumeDelta`) against a
-real host to record before/after p50/p95.
+(968) green. **WS3 #2 snapshot scrollback omission — LANDED** (commit `4aa5b80af`): `thread-history`
+accepts `omitScrollback=1`; the renderer tracks which desktops negotiated cursor-sync v2
+and skips the inlined tail on hydration/resync so the watch baseline is the single copy.
+v1 clients unchanged. Remaining in this lane: (a) native iOS/Android adoption of v2
+(ledger entries are `planned`), (b) the constrained-shaper E2E runs
+(`slowLinkColdStartV2` / `slowLinkResumeDelta`) against a real host to record
+before/after p50/p95.
 
 **WS3-A: agent-statuses payload split — IMPLEMENTED (commit 23d145e0c).**
 Measured breakdown of `GET /api/agent-statuses` (230 KB raw / 39.4 KB gzipped, 15

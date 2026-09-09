@@ -19,6 +19,8 @@ browser forwarding merely from that exploratory question.
 
 Branch: `poracode/v2`. Relevant local commits:
 
+- `4aa5b80af`: WS3 #2 — thread-history `omitScrollback` for v2 clients; the
+  watch baseline is the only copy of the terminal tail.
 - `cd9505310`: WS3 #1 cursor-sync v2 — chunked baselines, resume, ACK credit
   windows, heartbeat-safe scheduling; natives still on v1 (ledger `planned`).
 - `7edd2ef1e`: WS3 #6/#8 — cold-connect environment∥snapshot overlap and
