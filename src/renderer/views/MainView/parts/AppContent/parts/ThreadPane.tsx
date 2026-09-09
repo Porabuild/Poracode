@@ -1,4 +1,4 @@
-import { startTransition, useRef } from "react";
+import { startTransition } from "react";
 import { Trans } from "@lingui/react/macro";
 import type {
   PromptSegment,
@@ -18,8 +18,8 @@ import type { ContinueIntent } from "@/renderer/components/thread/ContinueInProv
 import { ThreadView } from "@/renderer/components/thread/ThreadView";
 import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
 import type { RemoteTerminalTransport } from "@/renderer/components/thread/TerminalPane";
-import { useDraggable, useDroppable } from "@dnd-kit/react";
-import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
+import { useIsDraggingPane, usePaneDropIndicatorState } from "@/renderer/dnd";
+import { usePaneDragAndDrop } from "@/renderer/components/thread/PaneDragAndDrop";
 import {
   useThreadAgentStatuses,
   useProjectAgentStatuses,
@@ -83,19 +83,11 @@ export function ThreadPane(props: {
   } = useThreadPendingLaunch(props.threadId);
   const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = getAppState();
 
-  const paneElementRef = useRef<HTMLDivElement>(null);
-  const { handleRef } = useDraggable({
-    id: `pane:${props.threadId}`,
-    type: "pane",
-    data: { type: "pane", paneId: props.threadId } satisfies DragSourceData,
-    disabled: props.paneCount <= 1,
-    element: paneElementRef,
-  });
-  useDroppable({
-    id: `pane-drop:${props.threadId}`,
-    accept: ["pane", "thread", "new-thread"],
-    data: { type: "pane-drop-zone", paneId: props.threadId },
-    element: paneElementRef,
+  const { paneElementRef, dragHandleRef } = usePaneDragAndDrop({
+    paneId: props.threadId,
+    // The unavailable-worktree placeholder below renders no pane header, so it
+    // has no drag handle to attach.
+    handleRendered: props.paneCount > 1 && !(experiment && !thread?.worktreePath),
   });
 
   const isDragging = useIsDraggingPane(props.threadId);
@@ -157,7 +149,7 @@ export function ThreadPane(props: {
       dropIndicator={dropIndicator}
       paneCount={props.paneCount}
       headerNeedsTrafficLightPad={props.headerNeedsTrafficLightPad}
-      {...(props.paneCount > 1 ? { dragHandleRef: handleRef } : {})}
+      {...(props.paneCount > 1 ? { dragHandleRef } : {})}
       droppableRef={paneElementRef}
       onClose={props.onClose}
       {...(!experiment

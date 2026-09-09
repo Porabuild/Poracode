@@ -2,9 +2,10 @@ import { forwardRef, type ReactNode } from "react";
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { Project, Thread } from "@/shared/contracts";
+import type { Experiment, Project, Thread } from "@/shared/contracts";
 import { openFilesPanel } from "@/renderer/actions/panelActions";
 import { openTerminal } from "@/renderer/actions/terminalActions";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { SortableThreadItem } from "./SortableThreadItem";
 
 type MockContextMenuItem = {
@@ -175,7 +176,7 @@ vi.mock("@/renderer/state/gitStore", () => {
   };
 });
 
-function makeThread(): Thread {
+function makeThread(overrides: Partial<Thread> = {}): Thread {
   return {
     id: "thread-1",
     projectId: "project-1",
@@ -190,6 +191,7 @@ function makeThread(): Thread {
     starred: false,
     createdAt: "2026-03-21T10:00:00.000Z",
     updatedAt: "2026-03-21T10:00:00.000Z",
+    ...overrides,
   };
 }
 
@@ -306,6 +308,59 @@ describe("SortableThreadItem", () => {
 
     expect(handle).toBeInstanceOf(HTMLDivElement);
     expect(handle).toHaveTextContent("Thread 1");
+  });
+
+  it("hands the row element and handle to dnd-kit only while the row can drag", () => {
+    useExperimentStore.setState({
+      experiments: {
+        "experiment-1": {
+          id: "experiment-1",
+          projectId: project.id,
+          title: "Experiment",
+          status: "running",
+          candidates: [],
+          createdAt: "2026-09-08T10:00:00.000Z",
+          updatedAt: "2026-09-08T10:00:00.000Z",
+        } as unknown as Experiment,
+      },
+    });
+
+    // Experiment candidates cannot drag (the experiment owns their order).
+    render(
+      <SortableThreadItem
+        thread={makeThread({ groupId: "experiment-1" })}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+    expect(sortableRefMock).not.toHaveBeenCalled();
+    expect(sortableHandleRefMock).not.toHaveBeenCalled();
+    expect(sortableOptionsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ accept: [], disabled: true }),
+    );
+
+    // The compact provider ships no sensors, so nothing can drag there either.
+    layoutMock.compact = true;
+    render(
+      <SortableThreadItem
+        thread={makeThread()}
+        threadIndex={1}
+        project={project}
+        showWorktreeBadge={false}
+        editingThreadId={null}
+        setEditingThreadId={vi.fn<(id: string | null) => void>()}
+        group="project-entries:project-1"
+      />,
+    );
+    expect(sortableRefMock).not.toHaveBeenCalled();
+    expect(sortableHandleRefMock).not.toHaveBeenCalled();
+    expect(sortableOptionsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ accept: [], disabled: false }),
+    );
   });
 
   it("keeps automatic-sort rows draggable into panes while disabling sidebar reordering", () => {
