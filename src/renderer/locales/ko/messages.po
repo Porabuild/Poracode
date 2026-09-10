@@ -7412,6 +7412,10 @@ msgstr "메시지 작업"
 #~ msgid "Message the remote agent…"
 #~ msgstr "원격 에이전트에 메시지 보내기…"
 
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Messages could not be loaded."
+msgstr "메시지를 불러올 수 없습니다."
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
 msgstr "보낸 메시지"
@@ -10743,6 +10747,7 @@ msgstr "목표 재개"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx

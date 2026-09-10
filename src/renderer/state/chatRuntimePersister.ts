@@ -141,14 +141,23 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
     return;
   }
 
+  // Surface loading/error for the pane's first read so an opening thread does
+  // not flash a false "No messages yet" (WS6). Only meaningful while the
+  // transcript is still empty; a re-hydration of a retained thread is silent.
+  const isEmptyBefore =
+    (useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0) === 0;
+  if (isEmptyBefore) useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
   const hydration = hydrateThreadRuntimeItemsFromDb(threadId);
   pendingThreadRuntimeHydrations.set(threadId, hydration);
   try {
     const completed = await hydration;
     if (completed) {
       hydratedThreadRuntimeIds.add(threadId);
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
       evictOversizedInactiveThreadRuntimeItems([threadId]);
       evictInactiveThreadRuntimeItems();
+    } else if (isEmptyBefore) {
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
     }
   } finally {
     pendingThreadRuntimeHydrations.delete(threadId);

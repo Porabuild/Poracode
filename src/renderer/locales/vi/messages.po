@@ -7412,6 +7412,10 @@ msgstr "Thao tác tin nhắn"
 #~ msgid "Message the remote agent…"
 #~ msgstr "Nhắn cho tác nhân từ xa…"
 
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Messages could not be loaded."
+msgstr "Không thể tải các tin nhắn."
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
 msgstr "Tin nhắn đã gửi"
@@ -10743,6 +10747,7 @@ msgstr "Tiếp tục mục tiêu"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx

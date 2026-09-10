@@ -126,6 +126,14 @@ export interface RuntimeEventSlice {
   fileCheckpointsByThread: Record<string, Record<string, FileCheckpointRecord>>;
   /** Completed turn file diffs keyed by the turn anchor/checkpoint item id. */
   fileCheckpointTurnsByThread: Record<string, Record<string, FileCheckpointTurn>>;
+  /**
+   * Transcript hydration status driven by chatRuntimePersister: "pending"
+   * while the first DB read for a pane is in flight, "failed" when it errored
+   * (retryable), absent when idle or complete. Lets the pane show loading and
+   * retry states instead of a false "No messages yet" (WS6).
+   */
+  runtimeHydrationStatus: Record<string, "pending" | "failed">;
+  setRuntimeHydrationStatus(threadId: string, status: "pending" | "failed" | null): void;
   applyRuntimeEvent(threadId: string, event: RuntimeEvent): void;
   applyRuntimeEvents(threadId: string, events: RuntimeEvent[]): void;
   /**
@@ -201,6 +209,7 @@ export function createInitialRuntimeEventState(): Pick<
   | "runtimeOpenTurnByThread"
   | "fileCheckpointsByThread"
   | "fileCheckpointTurnsByThread"
+  | "runtimeHydrationStatus"
 > {
   return {
     runtimeItemIdsByThread: {},
@@ -213,11 +222,25 @@ export function createInitialRuntimeEventState(): Pick<
     runtimeOpenTurnByThread: {},
     fileCheckpointsByThread: {},
     fileCheckpointTurnsByThread: {},
+    runtimeHydrationStatus: {},
   };
 }
 
 export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) => ({
   ...createInitialRuntimeEventState(),
+
+  setRuntimeHydrationStatus: (threadId, status) =>
+    set((state) => {
+      if (status === null) {
+        if (!(threadId in state.runtimeHydrationStatus)) return {};
+        const { [threadId]: _removed, ...runtimeHydrationStatus } = state.runtimeHydrationStatus;
+        return { runtimeHydrationStatus };
+      }
+      if (state.runtimeHydrationStatus[threadId] === status) return {};
+      return {
+        runtimeHydrationStatus: { ...state.runtimeHydrationStatus, [threadId]: status },
+      };
+    }),
 
   applyRuntimeEvent: (threadId, event) =>
     set((state) => applyRuntimeEventsToState(state, threadId, [event])),

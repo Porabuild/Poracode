@@ -303,6 +303,33 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Creating worktree…")).not.toBeInTheDocument();
   });
 
+  it("shows loading and retry states instead of a false empty hint while hydrating", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+    expect(screen.getByText("No messages yet")).toBeInTheDocument();
+
+    // First read in flight: the empty hint is suppressed, loading shows.
+    useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "pending" } });
+    await waitFor(() => expect(screen.queryByText("No messages yet")).not.toBeInTheDocument());
+    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+
+    // Failed read: error with retry; retrying re-runs the hydration.
+    useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "failed" } });
+    await waitFor(() =>
+      expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledTimes(2));
+
+    // Success clears the status back to the honest empty state.
+    useAppStore.setState({ runtimeHydrationStatus: {} });
+    await waitFor(() => expect(screen.getByText("No messages yet")).toBeInTheDocument());
+    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
+  });
+
   it("shows connecting without starting a working timer during GUI reconnect", () => {
     const thread = { ...makeThread(), status: "idle" as const };
     useAppStore.setState({
