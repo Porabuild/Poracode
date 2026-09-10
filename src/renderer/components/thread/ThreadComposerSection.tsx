@@ -13,6 +13,8 @@ import { ChevronDown, Monitor, Settings2, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import type { FollowUpBehavior } from "@/shared/settings";
+import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
 import {
   changeThreadConfig,
@@ -23,6 +25,8 @@ import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMe
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
+import { LiveVoiceButton, LiveVoicePanel } from "../composer/LiveVoiceControls";
+import { liveVoice, useLiveVoice } from "@/renderer/speech/liveVoice";
 import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
@@ -111,10 +115,11 @@ type ThreadComposerSectionProps = {
   /**
    * Optional override for the thread-input submit. Desktop omits this so the
    * composer calls `submitThreadInput` from the actions module directly. Mobile
-   * injects its own wrapper so it can collapse the floating dock after the send
-   * resolves and route through the mobile transport.
+   * injects its own transport for the remote surface.
    */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
+  /** Called after a send is accepted, including queued and steered sends. */
+  onSubmitSuccess?: (() => void) | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
   saveClipboardImage?: SaveClipboardImage | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
@@ -198,6 +203,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSurface;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
+  const liveVoiceActive = useLiveVoice((state) => state.phase !== "idle");
+  const threadVoiceActive = useLiveVoice(
+    (state) => state.threadId === thread.id && state.phase !== "idle",
+  );
+  useEffect(() => () => liveVoice.stopThread(thread.id), [thread.id]);
+  useEffect(() => {
+    if (thread.status === "inactive") liveVoice.stopThread(thread.id);
+  }, [thread.id, thread.status]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInterrupting, setIsInterrupting] = useState(false);
   const attachments = useAttachments({
@@ -408,6 +421,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     thread.sessionRef !== undefined &&
     (thread.status === "idle" ||
       thread.status === "needs_reply" ||
+      (!usesTerminalPresentation && thread.status === "needs_approval") ||
       thread.status === "error" ||
       canQueueServerInput);
   const canSubmitTerminalInput =
@@ -489,6 +503,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     (canSubmitServerInput || canSubmitTerminalInput) && !isSubmitting && !authRequired;
   const canInterruptStructuredTurn = canShowRuntimeChrome && thread.status === "working";
   const pendingSteer = useAppStore((s) => s.pendingSteerByThreadId[thread.id]);
+  const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
+  const followUpQueue = useThreadFollowUpQueue(thread.id, !usesTerminalPresentation);
   const visiblePendingSteer = useDelayedPendingSteer(pendingSteer);
   const usesPendingSteerPath =
     !isConnecting && !usesTerminalPresentation && thread.status === "working";
@@ -503,6 +519,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const hideActionDocks = props.hideActionDocks === true;
   const composerRuntimeRequest = hideActionDocks ? undefined : activeRuntimeRequest;
   const composerPendingSteer = hideActionDocks ? undefined : visiblePendingSteer;
+  const composerFollowUpQueue = hideActionDocks ? undefined : followUpQueue;
   const showAuthInComposer = authRequired && !hideActionDocks;
   const reportedContextUsage = useAppStore((s) =>
     canShowRuntimeChrome ? s.runtimeContextByThread[thread.id] : undefined,
@@ -548,7 +565,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     return readBridge().writeTerminal({ threadId: thread.id, data });
   }
 
-  function submitPrompt(segments: PromptSegment[]) {
+  function submitPrompt(segments: PromptSegment[], behavior: FollowUpBehavior = followUpBehavior) {
     const composerSession = composerSessionRef.current;
     submitComposerPrompt(segments, {
       thread,
@@ -556,7 +573,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       presentationMode,
       usesTerminalPresentation,
       canSubmit,
-      usesPendingSteerPath,
+      usesPendingSteerPath:
+        usesPendingSteerPath ||
+        (!usesTerminalPresentation && behavior === "queue" && activeRuntimeRequest !== undefined),
+      followUpBehavior: behavior,
       needsFocusBeforeInput,
       activeRuntimeRequest,
       approvalDenyOption,
@@ -573,6 +593,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       requestOpenControl: (target) =>
         setControlOpenRequest((prev) => ({ target, nonce: (prev?.nonce ?? 0) + 1 })),
       onSubmitInput: props.onSubmitInput,
+      onSubmitSuccess: props.onSubmitSuccess,
     });
   }
 
@@ -758,6 +779,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     <>
       {thread.status !== "launching" || !usesTerminalPresentation ? (
         <div className="relative">
+          <LiveVoicePanel threadId={thread.id} />
           {/* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
               measures the real buttons without adding a line box above the composer. */}
           <ComposerBubbleRow threadId={thread.id}>
@@ -802,60 +824,51 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     authRequired ? "auth-required" : "auth-ready",
                   ].join("|")}
                   fixedContent={
-                    hasActiveSubAgent ||
-                    hasBackgroundTasks ||
-                    showContextInComposer ||
-                    showErrorInComposer ||
-                    showGoalInComposer ||
-                    showTodoInComposer ||
-                    showAuthInComposer ||
-                    composerPendingSteer ||
-                    composerRuntimeRequest ||
-                    showCommandPanel ? (
-                      <ThreadComposerDocks
-                        hasActiveSubAgent={hasActiveSubAgent}
-                        hasBackgroundTasks={hasBackgroundTasks}
-                        showContextInComposer={showContextInComposer}
-                        showErrorInComposer={showErrorInComposer}
-                        showGoalInComposer={showGoalInComposer}
-                        showTodoInComposer={showTodoInComposer}
-                        authRequired={showAuthInComposer}
-                        showCommandPanel={showCommandPanel}
-                        threadId={thread.id}
-                        projectLocation={projectLocation}
-                        threadConfig={thread.config}
-                        worktreePath={thread.worktreePath}
-                        branchName={branchName}
-                        agentStatus={effectiveAgentStatus}
-                        project={project}
-                        contextSummary={contextSummary}
-                        errorDockStates={errorDockStates}
-                        goalDockState={goalDockState}
-                        todoDockState={todoDockState}
-                        todoDockCollapsed={todoDockCollapsed}
-                        pendingSteer={composerPendingSteer}
-                        activeRuntimeRequest={composerRuntimeRequest}
-                        filteredCommands={filteredCommands}
-                        slashActiveIndex={slashActiveIndex}
-                        commandListId={commandListId}
-                        onCloseContextDock={() => setContextDockOpen(false)}
-                        onDismissError={props.onDismissError}
-                        onGoalDockDismiss={props.onGoalDockDismiss}
-                        onTodoDockCollapsedChange={props.onTodoDockCollapsedChange}
-                        {...(props.onTodoDockRetire
-                          ? { onTodoDockRetire: props.onTodoDockRetire }
-                          : {})}
-                        onCancelPendingSteer={() => clearThreadPendingSteer(thread.id)}
-                        {...(props.onOpenProjectRelativePath
-                          ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
-                          : {})}
-                        onSlashActiveIndexChange={setSlashActiveIndex}
-                        onSelectCommand={(cmd) => {
-                          mentionRef.current?.insertSlashCommand(cmd);
-                          setSlashQuery(null);
-                        }}
-                      />
-                    ) : null
+                    <ThreadComposerDocks
+                      hasActiveSubAgent={hasActiveSubAgent}
+                      hasBackgroundTasks={hasBackgroundTasks}
+                      showContextInComposer={showContextInComposer}
+                      showErrorInComposer={showErrorInComposer}
+                      showGoalInComposer={showGoalInComposer}
+                      showTodoInComposer={showTodoInComposer}
+                      authRequired={showAuthInComposer}
+                      showCommandPanel={showCommandPanel}
+                      threadId={thread.id}
+                      projectLocation={projectLocation}
+                      threadConfig={thread.config}
+                      worktreePath={thread.worktreePath}
+                      branchName={branchName}
+                      agentStatus={effectiveAgentStatus}
+                      project={project}
+                      contextSummary={contextSummary}
+                      errorDockStates={errorDockStates}
+                      goalDockState={goalDockState}
+                      todoDockState={todoDockState}
+                      todoDockCollapsed={todoDockCollapsed}
+                      pendingSteer={composerPendingSteer}
+                      followUpQueue={composerFollowUpQueue}
+                      onRestoreComposerFocus={() => mentionRef.current?.focus()}
+                      activeRuntimeRequest={composerRuntimeRequest}
+                      filteredCommands={filteredCommands}
+                      slashActiveIndex={slashActiveIndex}
+                      commandListId={commandListId}
+                      onCloseContextDock={() => setContextDockOpen(false)}
+                      onDismissError={props.onDismissError}
+                      onGoalDockDismiss={props.onGoalDockDismiss}
+                      onTodoDockCollapsedChange={props.onTodoDockCollapsedChange}
+                      {...(props.onTodoDockRetire
+                        ? { onTodoDockRetire: props.onTodoDockRetire }
+                        : {})}
+                      onCancelPendingSteer={() => clearThreadPendingSteer(thread.id)}
+                      {...(props.onOpenProjectRelativePath
+                        ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
+                        : {})}
+                      onSlashActiveIndexChange={setSlashActiveIndex}
+                      onSelectCommand={(cmd) => {
+                        mentionRef.current?.insertSlashCommand(cmd);
+                        setSlashQuery(null);
+                      }}
+                    />
                   }
                   attachmentBar={
                     <AttachmentBar
@@ -911,6 +924,17 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           .catch((error: unknown) => toast.danger(friendlyError(error)));
                       }}
                       onInterceptKey={(e) => {
+                        if (!usesTerminalPresentation && e.key === "Enter") {
+                          if (e.nativeEvent.isComposing || e.keyCode === 229) return true;
+                          if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+                            e.preventDefault();
+                            submitPrompt(
+                              mentionRef.current?.serializeSegments() ?? [],
+                              followUpBehavior === "queue" ? "steer" : "queue",
+                            );
+                            return true;
+                          }
+                        }
                         if (
                           !usesTerminalPresentation &&
                           handleComposerControlShortcut(e, {
@@ -975,7 +999,41 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   promptDisabled={!(showServerComposer || showTerminalComposer)}
                   stopPending={isInterrupting}
                   submitDisabled={!(hasContent || attachments.attachments.length > 0) || !canSubmit}
-                  submitLabel={t`Send message`}
+                  submitLabel={
+                    usesPendingSteerPath ||
+                    (!usesTerminalPresentation && activeRuntimeRequest !== undefined)
+                      ? followUpBehavior === "queue"
+                        ? t`Queue message`
+                        : t`Steer current turn`
+                      : t`Send message`
+                  }
+                  hideSubmitButton={
+                    threadVoiceActive &&
+                    !hasContent &&
+                    attachments.attachments.length === 0 &&
+                    !canInterruptStructuredTurn
+                  }
+                  {...(!threadVoiceActive &&
+                  !hasContent &&
+                  attachments.attachments.length === 0 &&
+                  !usesRemoteTransport &&
+                  !usesTerminalPresentation &&
+                  showServerComposer &&
+                  effectiveAgentStatus?.capabilities.liveVoice
+                    ? {
+                        submitControl: (
+                          <LiveVoiceButton
+                            scopeId={thread.id}
+                            isDisabled={!canSubmit || thread.status !== "idle"}
+                            onStart={() => {
+                              const capability = effectiveAgentStatus.capabilities.liveVoice;
+                              if (capability)
+                                void liveVoice.start({ threadId: thread.id, capability });
+                            }}
+                          />
+                        ),
+                      }
+                    : {})}
                   onStop={canInterruptStructuredTurn ? handleInterrupt : undefined}
                   {...(() => {
                     const renderExtras = () => (
@@ -1018,7 +1076,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     const renderVoiceInput = () => (
                       <ComposerVoiceInput
                         key={thread.id}
-                        show={showVoiceInputButton}
+                        show={showVoiceInputButton && !liveVoiceActive}
                         isDisabled={
                           authRequired ||
                           isSubmitting ||

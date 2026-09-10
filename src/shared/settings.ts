@@ -109,12 +109,19 @@ export type CrossagentSelectionUsageEntryKey = z.infer<
   typeof crossagentSelectionUsageEntryKeySchema
 >;
 
-export const crossagentRoutingOverrideSchema = z.object({
-  tags: z.array(z.string().min(1).max(32)).min(1).max(5),
+export const crossagentRoutingSelectionSchema = z.object({
   agentKind: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH),
   modelId: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH).optional(),
   effort: z.string().min(1).max(MAX_CROSSAGENT_SELECTION_VALUE_LENGTH).optional(),
   fast: z.boolean().optional(),
+});
+export type CrossagentRoutingSelection = z.infer<typeof crossagentRoutingSelectionSchema>;
+
+export const crossagentRoutingOverrideSchema = z.object({
+  tags: z.array(z.string().min(1).max(32)).min(1).max(5),
+  ...crossagentRoutingSelectionSchema.shape,
+  fallbacks: z.array(crossagentRoutingSelectionSchema).max(3).optional(),
+  retryMode: z.enum(["startup", "any-failure"]).optional(),
   updatedAt: z.number().int().nonnegative(),
 });
 export type CrossagentRoutingOverride = z.infer<typeof crossagentRoutingOverrideSchema>;
@@ -143,6 +150,9 @@ export type BrowserLinkOpenTarget = z.infer<typeof browserLinkOpenTargetSchema>;
 
 export const browserLinkPresentationModeSchema = z.enum(["panel", "overlay"]);
 export type BrowserLinkPresentationMode = z.infer<typeof browserLinkPresentationModeSchema>;
+
+export const followUpBehaviorSchema = z.enum(["steer", "queue"]);
+export type FollowUpBehavior = z.infer<typeof followUpBehaviorSchema>;
 
 const browserSettingsSchema = z.object({
   /**
@@ -387,6 +397,8 @@ export const sharedSettingsSchema = z.object({
   agentInstances: agentInstanceConfigMapSchema,
   /** When true, the composer in terminal-native threads starts collapsed. */
   collapseTerminalComposer: z.boolean(),
+  /** Default action for GUI messages sent while an agent is working. */
+  followUpBehavior: followUpBehaviorSchema,
   /**
    * Where a thread's informational docks (goal, plan, agents, background
    * tasks) live: stacked above the composer, or in the right panel's Docks tab
@@ -750,6 +762,7 @@ export const defaultSharedSettings: SharedSettings = {
   acpRegistryAutoInstallOptOuts: [],
   agentInstances: {},
   collapseTerminalComposer: true,
+  followUpBehavior: "steer",
   threadDocksPlacement: "right",
   threadDocksOrder: [...THREAD_DOCK_KINDS],
   cliPickerTarget: "ask",
@@ -953,11 +966,20 @@ function migrateRetiredQwenPreviewModel(settings: SharedSettings): SharedSetting
     crossagentSelectionUsage: settings.crossagentSelectionUsage.filter(
       (entry) => !isRetiredQwenSelection(entry.agentKind, entry.modelId),
     ),
-    crossagentRoutingOverrides: settings.crossagentRoutingOverrides.map((entry) =>
-      entry.agentKind === "qwen" && entry.modelId === QWEN_RETIRED_PREVIEW_MODEL_ID
-        ? { ...entry, modelId: QWEN_DEFAULT_MODEL_ID }
-        : entry,
-    ),
+    crossagentRoutingOverrides: settings.crossagentRoutingOverrides.map((entry) => {
+      const migratedFallbacks = entry.fallbacks?.map((fallback) =>
+        fallback.agentKind === "qwen" && fallback.modelId === QWEN_RETIRED_PREVIEW_MODEL_ID
+          ? { ...fallback, modelId: QWEN_DEFAULT_MODEL_ID }
+          : fallback,
+      );
+      const primary =
+        entry.agentKind === "qwen" && entry.modelId === QWEN_RETIRED_PREVIEW_MODEL_ID
+          ? { ...entry, modelId: QWEN_DEFAULT_MODEL_ID }
+          : entry;
+      return migratedFallbacks !== undefined
+        ? { ...primary, fallbacks: migratedFallbacks }
+        : primary;
+    }),
   };
 }
 
@@ -1046,8 +1068,13 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
       settings.recentModels,
       settings.agentSelectionUsage,
       settings.crossagentSelectionUsage,
-      settings.crossagentRoutingOverrides,
     ].some((entries) => entries.some((entry) => entry.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND)) ||
+    settings.crossagentRoutingOverrides.some(
+      (entry) =>
+        entry.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND ||
+        entry.fallbacks?.some((fallback) => fallback.agentKind === LEGACY_ANTIGRAVITY_ACP_KIND) ===
+          true,
+    ) ||
     [
       settings.commitGenProvider,
       settings.titleGenProvider,
@@ -1213,7 +1240,12 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
         recentModels: settings.recentModels.map(migrateEntry),
         agentSelectionUsage: settings.agentSelectionUsage.map(migrateEntry),
         crossagentSelectionUsage: settings.crossagentSelectionUsage.map(migrateEntry),
-        crossagentRoutingOverrides: settings.crossagentRoutingOverrides.map(migrateEntry),
+        crossagentRoutingOverrides: settings.crossagentRoutingOverrides.map((entry) => ({
+          ...migrateEntry(entry),
+          ...(entry.fallbacks
+            ? { fallbacks: entry.fallbacks.map((fallback) => migrateEntry(fallback)) }
+            : {}),
+        })),
         commitGenProvider: migrateProvider(settings.commitGenProvider),
         titleGenProvider: migrateProvider(settings.titleGenProvider),
         conflictResolverProvider: migrateProvider(settings.conflictResolverProvider),
@@ -1415,15 +1447,37 @@ function migrateAntigravityAcpAliasState(settings: SharedSettings): {
     agentSelectionUsage: migrated.agentSelectionUsage.map(normalizeSelectionEntry),
     crossagentSelectionUsage: migrated.crossagentSelectionUsage.map(normalizeSelectionEntry),
     crossagentRoutingOverrides: migrated.crossagentRoutingOverrides.map((entry) => {
-      if (!entry.modelId || entry.agentKind !== "antigravity") return entry;
+      const normalizeFallback = (fallback: CrossagentRoutingSelection) => {
+        if (fallback.agentKind !== "antigravity" || !fallback.modelId) return fallback;
+        const selection = normalizePersistedAntigravityModelSelection(
+          fallback.modelId,
+          fallback.effort,
+        );
+        return selection.model === fallback.modelId
+          ? fallback
+          : {
+              ...fallback,
+              modelId: selection.model,
+              ...(selection.effort ? { effort: selection.effort } : {}),
+            };
+      };
+      if (!entry.modelId || entry.agentKind !== "antigravity") {
+        return entry.fallbacks
+          ? { ...entry, fallbacks: entry.fallbacks.map(normalizeFallback) }
+          : entry;
+      }
       const selection = normalizePersistedAntigravityModelSelection(entry.modelId, entry.effort);
-      return selection.model === entry.modelId
-        ? entry
-        : {
-            ...entry,
-            modelId: selection.model,
-            ...(selection.effort ? { effort: selection.effort } : {}),
-          };
+      const primary =
+        selection.model === entry.modelId
+          ? entry
+          : {
+              ...entry,
+              modelId: selection.model,
+              ...(selection.effort ? { effort: selection.effort } : {}),
+            };
+      return primary.fallbacks
+        ? { ...primary, fallbacks: primary.fallbacks.map(normalizeFallback) }
+        : primary;
     }),
     commitGenModel: commitGen.model,
     commitGenEffort: commitGen.effort,

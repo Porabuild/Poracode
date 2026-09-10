@@ -1,4 +1,8 @@
 import type {
+  ThreadRealtimeStartParams,
+  ThreadRealtimeStartResponse,
+  ThreadRealtimeStopParams,
+  ThreadRealtimeStopResponse,
   ConfigRequirementsReadResponse,
   GetAccountParams,
   GetAccountResponse,
@@ -83,6 +87,11 @@ export type {
 };
 
 export interface CodexClientRequestMap {
+  "thread/realtime/start": {
+    params: ThreadRealtimeStartParams;
+    result: ThreadRealtimeStartResponse;
+  };
+  "thread/realtime/stop": { params: ThreadRealtimeStopParams; result: ThreadRealtimeStopResponse };
   initialize: { params: InitializeRequestParams; result: InitializeResponse };
   "skills/list": { params: SkillsListParams; result: SkillsListResponse };
   "thread/start": { params: ThreadStartParams; result: ThreadStartResponse };

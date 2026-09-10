@@ -8,6 +8,7 @@ import {
 } from "@/renderer/components/layout/paneSizeStorage";
 import { useAppStore, type AppStoreState } from "./appStore";
 import { usePanelStore } from "./panelStore";
+import { useThreadFollowUpQueueStore } from "./threadFollowUpQueueStore";
 
 describe("appStore runtime config sync", () => {
   beforeEach(() => {
@@ -23,6 +24,7 @@ describe("appStore runtime config sync", () => {
       view: { kind: "home" },
     }));
     usePanelStore.getState().setGitHubActionsContext(null);
+    useThreadFollowUpQueueStore.getState().reset();
   });
 
   it("keeps a newer reconnect marker when an older launch finishes", () => {
@@ -191,11 +193,16 @@ describe("appStore runtime config sync", () => {
     useAppStore.setState({
       pendingLaunchUserMessageItemIds: { [thread.id]: "user-message" },
     });
+    useThreadFollowUpQueueStore.getState().setQueue(thread.id, {
+      paused: true,
+      items: [{ id: "queued", prompt: "Unsent", stagedAt: 1 }],
+    });
 
     useAppStore.getState().deleteProject(project.id);
 
     expect(useAppStore.getState().provisioningWorktreeThreadIds[thread.id]).toBeUndefined();
     expect(useAppStore.getState().pendingLaunchUserMessageItemIds[thread.id]).toBeUndefined();
+    expect(useThreadFollowUpQueueStore.getState().byThread[thread.id]?.queue).toBeNull();
   });
 
   it("rehydrates the previous v4 shape without provisional launch maps", () => {
@@ -759,8 +766,13 @@ describe("appStore runtime config sync", () => {
       view: { kind: "thread", panes: [t1.id, t2.id] as [string, ...string[]] },
     }));
 
+    const queue = { paused: true, items: [{ id: "queued", prompt: "Unsent", stagedAt: 1 }] };
+    useThreadFollowUpQueueStore.getState().setQueue(t1.id, queue);
+    useThreadFollowUpQueueStore.getState().setQueue(t2.id, queue);
     useAppStore.getState().deleteThread(t1.id);
     expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [t2.id] });
+    expect(useThreadFollowUpQueueStore.getState().byThread[t1.id]?.queue).toBeNull();
+    expect(useThreadFollowUpQueueStore.getState().byThread[t2.id]?.queue).toEqual(queue);
   });
 
   it("working→idle on non-visible thread sets finished", () => {

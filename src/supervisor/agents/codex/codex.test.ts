@@ -14,11 +14,17 @@ import {
   parseCodexLoginStatusOutput,
 } from "./detection";
 import { CodexStructuredSession } from "./acp";
-import { CodexRpcResponseError, type CodexAppServerRpcListener } from "./appServerRpc";
+import { CodexLiveVoice } from "./liveVoice";
+import {
+  CodexRpcResponseError,
+  type CodexAppServerRpc,
+  type CodexAppServerRpcListener,
+} from "./appServerRpc";
 import { createCodexMapperState, CodexUsageScopeTracker } from "./canonicalMapping";
 import type { CodexThreadStatus } from "./acpProtocol";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { RuntimeEvent, ToolCallPayload } from "@/shared/contracts";
+
 import { codexIntentFor } from "./plugin/intentMap";
 import {
   mapCodexModels,
@@ -31,6 +37,20 @@ import { buildCodexTurnInput } from "./acpTurn";
 import { CodexStdioTransport } from "./stdioTransport";
 import { CodexSubAgentRouter } from "./subAgentRouting";
 import type { StructuredSessionUpdate } from "../base";
+
+/** These focused fixtures bypass the private constructor; install owned helpers centrally. */
+function createSessionShell(): Record<string, unknown> {
+  const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+  const request: CodexAppServerRpc["request"] = (method, params, timeoutMs) =>
+    (session["rpc"] as CodexAppServerRpc).request(method, params, timeoutMs);
+  session["liveVoice"] = new CodexLiveVoice(
+    { request },
+    "local-thread",
+    () => {},
+    () => {},
+  );
+  return session;
+}
 
 describe("createCodexAdapter skill roots", () => {
   it("declares Codex's native shared .agents root", () => {
@@ -945,7 +965,7 @@ describe("CodexStructuredSession", () => {
   };
 
   function makeStructuredSession(requests: CodexRequestRecord[]): CodexStructuredSession {
-    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const session = createSessionShell();
 
     session["threadId"] = "local-thread";
     session["remoteThreadId"] = "provider-thread";
@@ -1000,6 +1020,20 @@ describe("CodexStructuredSession", () => {
 
     expect(structuredSession.ownsProviderSession("provider-thread")).toBe(true);
     expect(structuredSession.ownsProviderSession("unrelated-thread")).toBe(false);
+  });
+
+  it("rejects voice setup while an execution turn is active without changing settings", async () => {
+    const requests: CodexRequestRecord[] = [];
+    const session = makeStructuredSession(requests);
+    (session as unknown as { activeTurnIds: Set<string> }).activeTurnIds.add("active-turn");
+    await expect(
+      session.connectVoice({
+        connectionId: "1d15cb50-19ab-481d-9bea-a40fa1f50e54",
+        offerSdp: "offer",
+        config: { model: "example" },
+      }),
+    ).rejects.toThrow("unavailable");
+    expect(requests).toEqual([]);
   });
 
   it("interrupts its provider turn and releases its shared-server lease once", async () => {
@@ -2416,7 +2450,7 @@ describe("CodexStructuredSession", () => {
   });
 
   it("wires RPC notifications and transport lifecycle callbacks into the session", () => {
-    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const session = createSessionShell();
     let rpcListener: CodexAppServerRpcListener | undefined;
     const handleNotification =
       vi.fn<(method: string, params: Record<string, unknown> | undefined) => void>();
@@ -2466,7 +2500,7 @@ describe("CodexStructuredSession", () => {
     runtimeEvents: RuntimeEvent[];
     updates: Array<Record<string, unknown>>;
   } {
-    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const session = createSessionShell();
     const runtimeEvents: RuntimeEvent[] = [];
     const updates: Array<Record<string, unknown>> = [];
     session["threadId"] = "local-thread";
@@ -2763,7 +2797,7 @@ describe("CodexStructuredSession", () => {
   });
 
   it("does not surface resume-time active status as new work", async () => {
-    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const session = createSessionShell();
     const updates: StructuredSessionUpdate[] = [];
     const runtimeEvents: RuntimeEvent[] = [];
     const requests: CodexRequestRecord[] = [];
@@ -2883,7 +2917,7 @@ describe("CodexStructuredSession", () => {
   });
 
   it("keeps live status on lifecycle notifications instead of startup thread/read", async () => {
-    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const session = createSessionShell();
     const updates: StructuredSessionUpdate[] = [];
     const runtimeEvents: RuntimeEvent[] = [];
     const requests: CodexRequestRecord[] = [];
@@ -2970,7 +3004,7 @@ describe("CodexStructuredSession", () => {
   });
 
   it("emits completion idle even when a status idle already arrived", () => {
-    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const session = createSessionShell();
     const updates: StructuredSessionUpdate[] = [];
     const runtimeEvents: RuntimeEvent[] = [];
     const onMessage = (message: unknown) =>
@@ -3018,7 +3052,7 @@ describe("CodexStructuredSession", () => {
   });
 
   it("emits completion idle for Codex turn completion notifications without params", () => {
-    const session = Object.create(CodexStructuredSession.prototype) as Record<string, unknown>;
+    const session = createSessionShell();
     const updates: StructuredSessionUpdate[] = [];
     const onMessage = (message: unknown) =>
       dispatchNotification(session as unknown as CodexStructuredSession, message);

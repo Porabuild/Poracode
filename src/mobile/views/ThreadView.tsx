@@ -253,20 +253,16 @@ export function ThreadView(props: ThreadViewProps) {
       });
   }
 
-  // Collapse the floating dock (and drop the keyboard) after a message actually
-  // sends. Wrapping onSubmitInput keeps this behavior mobile-local — the shared
-  // renderer composer stays unaware of the dock. Only the resolved (successful)
-  // path collapses; a rejected send leaves the composer expanded for retry.
-  // Sending from the compact summary line is already collapsed, so this is a
-  // harmless no-op there.
-  const handleSubmitInput = (prompt: string, segments?: PromptSegment[]) =>
-    props.onSubmitInput(prompt, segments).then(() => {
-      setComposerExpanded(false);
-      const active = document.activeElement;
-      if (active instanceof HTMLElement && active.closest(".m-thread-compose-dock")) {
-        active.blur();
-      }
-    });
+  // Collapse the floating dock (and drop the keyboard) after any successful
+  // send. The shared submit pipeline invokes this for ordinary, steered, and
+  // queued messages, so every mobile submission gets the same behavior.
+  const handleSubmitSuccess = () => {
+    setComposerExpanded(false);
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active.closest(".m-thread-compose-dock")) {
+      active.blur();
+    }
+  };
 
   const commonProps = {
     threadId: thread.id,
@@ -275,7 +271,8 @@ export function ThreadView(props: ThreadViewProps) {
     projectLocation,
     paneCount: 1,
     terminalPaneRef,
-    onSubmitInput: handleSubmitInput,
+    onSubmitInput: props.onSubmitInput,
+    onSubmitSuccess: handleSubmitSuccess,
     ...(props.onOpenThread ? { onOpenThread: props.onOpenThread } : {}),
     ...(props.onOpenWorkspaceFile ? { onOpenProjectRelativePath: props.onOpenWorkspaceFile } : {}),
     ...(props.onOpenWorkspaceFolder
@@ -311,6 +308,10 @@ export function ThreadView(props: ThreadViewProps) {
         <>
           <ComposerActionDocks
             thread={thread}
+            onRestoreComposerFocus={() => {
+              setComposerExpanded(true);
+              useAppStore.getState().requestComposerFocus(thread.id);
+            }}
             agentStatus={agentStatus}
             project={project}
             dockState={dockState}

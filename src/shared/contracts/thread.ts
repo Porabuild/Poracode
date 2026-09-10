@@ -311,6 +311,43 @@ export const clearPendingSteerPayloadSchema = z.object({
 });
 export type ClearPendingSteerPayload = z.infer<typeof clearPendingSteerPayloadSchema>;
 
+export const removeQueuedThreadFollowUpPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  id: z.string().min(1),
+});
+export type RemoveQueuedThreadFollowUpPayload = z.infer<
+  typeof removeQueuedThreadFollowUpPayloadSchema
+>;
+
+/** Move one pending item before another, or to the tail (null). IDs prevent stale clients from replacing the FIFO. */
+export const reorderQueuedThreadFollowUpPayloadSchema =
+  removeQueuedThreadFollowUpPayloadSchema.extend({
+    beforeId: z.string().min(1).nullable(),
+  });
+export type ReorderQueuedThreadFollowUpPayload = z.infer<
+  typeof reorderQueuedThreadFollowUpPayloadSchema
+>;
+
+export const editQueuedThreadFollowUpPayloadSchema = removeQueuedThreadFollowUpPayloadSchema.extend(
+  {
+    /** Optional concurrency token; older clients can still edit without one. */
+    expectedStagedAt: z.number().finite().optional(),
+    prompt: z.string().min(1),
+    segments: z.array(promptSegmentSchema).optional(),
+  },
+);
+export type EditQueuedThreadFollowUpPayload = z.infer<typeof editQueuedThreadFollowUpPayloadSchema>;
+
+export const resumeThreadFollowUpsPayloadSchema = z.object({
+  threadId: z.string().min(1),
+});
+export type ResumeThreadFollowUpsPayload = z.infer<typeof resumeThreadFollowUpsPayloadSchema>;
+
+export const getThreadFollowUpQueuePayloadSchema = z.object({
+  threadId: z.string().min(1),
+});
+export type GetThreadFollowUpQueuePayload = z.infer<typeof getThreadFollowUpQueuePayloadSchema>;
+
 /**
  * Renderer-visible representation of the single staged steer message that
  * sits in the supervisor between user submit-while-working and the agent
@@ -325,6 +362,31 @@ export interface PendingSteerState {
   segments?: PromptSegment[];
   /** Wall-clock timestamp the slot was staged or last edited. */
   stagedAt: number;
+}
+
+/** Wire-safe representation of one staged follow-up in a structured thread. */
+export const pendingSteerStateSchema = z
+  .object({
+    id: z.string().min(1),
+    prompt: z.string(),
+    segments: z.array(promptSegmentSchema).optional(),
+    stagedAt: z.number().int().nonnegative(),
+  })
+  .transform(({ id, prompt, segments, stagedAt }): PendingSteerState => ({
+    id,
+    prompt,
+    ...(segments !== undefined ? { segments } : {}),
+    stagedAt,
+  }));
+
+/** Ordered follow-up work retained by the supervisor for a GUI thread. */
+export const threadFollowUpQueueStateSchema = z.object({
+  items: z.array(pendingSteerStateSchema),
+  paused: z.boolean(),
+});
+export interface ThreadFollowUpQueueState {
+  items: PendingSteerState[];
+  paused: boolean;
 }
 
 /**

@@ -5,6 +5,7 @@ import {
   type RemoteShellSnapshot,
 } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { resetDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -106,6 +107,7 @@ export function applyShellSnapshot(snapshot: RemoteShellSnapshot): void {
 /** Drop everything tied to the previous desktop when switching/unpairing. */
 export function resetRemoteStores(): void {
   clearPendingRuntimeEvents();
+  useThreadFollowUpQueueStore.getState().reset();
   // Renderer workspace stores are process-global because Electron has one
   // local desktop. The PWA can switch among several desktops, so none of their
   // cached notes, files, Git state, drafts, or terminal tabs may cross that

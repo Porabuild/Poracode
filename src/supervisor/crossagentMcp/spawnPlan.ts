@@ -50,9 +50,16 @@ export function prepareSubagentRun(
 
   const selections: SpawnAgentSelection[] = [request, ...(request.fallbacks ?? [])];
   const runName = request.name?.trim();
-  const attempts = selections.map((selection) =>
-    resolveAttempt(deps, parent.config, selection, runName),
-  );
+  const attempts = selections.map((selection, index) => {
+    try {
+      return resolveAttempt(deps, parent.config, selection, runName);
+    } catch (err) {
+      if (index === 0) throw err;
+      const role = `fallbacks[${index - 1}]`;
+      const message = err instanceof SubagentSpawnError ? err.message : String(err);
+      throw new SubagentSpawnError(`${role}: ${message}`);
+    }
+  });
 
   return {
     prompt,

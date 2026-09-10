@@ -81,6 +81,8 @@ export interface StructuredSessionListener {
   onError(errorMessage: string): void;
   onUpdate(update: StructuredSessionUpdate): void;
   onRuntimeEvent?(event: RuntimeEvent): void;
+  /** Ephemeral live-conversation status, separate from persisted runtime events. */
+  onVoiceEvent?(event: import("@/shared/contracts/liveVoice").LiveVoiceEvent): void;
 }
 
 export interface StartTurnOptions {
@@ -91,6 +93,19 @@ export interface StartTurnOptions {
    * payload only — never painted into the chat's user_message item.
    */
   inlineInstructions?: string;
+}
+
+/** Result used by provider controls that complete without opening a turn. */
+export interface StructuredTurnResult {
+  outcome: "completed-without-turn";
+}
+
+export function isCompletedWithoutTurn(result: unknown): result is StructuredTurnResult {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    (result as { outcome?: unknown }).outcome === "completed-without-turn"
+  );
 }
 
 export interface ThreadHistoryEntry {
@@ -118,7 +133,7 @@ export interface StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void>;
+  ): Promise<void | StructuredTurnResult>;
   /**
    * Steer the in-flight turn: enqueue a new user message onto the running
    * turn WITHOUT interrupting it (no subagents killed, no error result). The
@@ -126,13 +141,19 @@ export interface StructuredSessionHandle {
    * Providers that expose this let the runtime skip the interrupt-drain steer
    * path. When no turn is in flight, implementations fall back to `startTurn`
    * semantics so turn accounting stays correct.
+   *
+   * Resolving this promise acknowledges input acceptance. If an accepted input
+   * awaits a subsequent turn inside the provider, keep status `working` across
+   * the preceding turn's completion and emit `turn.started` for the new reply.
+   * Do not report `idle` until that accepted work finishes: runtime schedulers
+   * use settled status to decide when another ordinary startTurn is safe.
    */
   steerTurn?(
     prompt: string,
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void>;
+  ): Promise<void | StructuredTurnResult>;
   /**
    * Best-effort provider preparation immediately before the shared runtime
    * interrupts an in-flight turn for steering. Providers can preserve work
@@ -145,6 +166,11 @@ export interface StructuredSessionHandle {
   getBackgroundTasks?(): readonly BackgroundTask[];
   interruptTurn?(): Promise<void>;
   controlGoal?(control: ThreadGoalControl): Promise<void>;
+  /** Negotiate live audio on this structured thread without launching another agent. */
+  connectVoice?(
+    input: Omit<import("@/shared/contracts/liveVoice").ConnectThreadVoicePayload, "threadId">,
+  ): Promise<import("@/shared/contracts/liveVoice").ConnectThreadVoiceResult>;
+  disconnectVoice?(connectionId: string): Promise<void>;
   /**
    * Close the provider's current canonical turn locally before a forced
    * process disposal. Implementations should complete any open items and mark

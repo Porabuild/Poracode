@@ -20,6 +20,9 @@ function normalizeChatPath(raw: string, options: { preserveAbsolute: boolean }):
   }
   s = s.replace(/^\.\//, "").replace(/\\/g, "/");
   const collapsed = s.replace(/\/+/g, "/");
+  // The leading double separator identifies a network host. Keep that root
+  // when opening an absolute UNC path outside the active project.
+  if (options.preserveAbsolute && /^\/\/[^/]/.test(s)) return `/${collapsed}`;
   return options.preserveAbsolute ? collapsed : collapsed.replace(/^\/+/, "");
 }
 

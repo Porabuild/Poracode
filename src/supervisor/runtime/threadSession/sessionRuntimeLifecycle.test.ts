@@ -11,12 +11,14 @@ import {
   SessionRuntimeLifecycle,
   type SessionRuntimeLifecycleContext,
 } from "./sessionRuntimeLifecycle";
+import { FollowUpQueueCoordinator } from "./followUpQueueCoordinator";
 
 function createHarness(
   options: {
     withPty?: boolean;
     withStructuredSession?: boolean;
     session?: Partial<SessionRuntime>;
+    followUpQueue?: SessionRuntimeLifecycleContext["followUpQueue"];
   } = {},
 ) {
   let structuredListener: StructuredSessionListener | undefined;
@@ -96,6 +98,10 @@ function createHarness(
   const append = vi.fn<SessionRuntimeLifecycleContext["runtimeEventRouter"]["append"]>();
   const maybeDrainPendingSteer =
     vi.fn<SessionRuntimeLifecycleContext["steerCoordinator"]["maybeDrainPendingSteer"]>();
+  const noteSteerTurnStarted =
+    vi.fn<
+      NonNullable<SessionRuntimeLifecycleContext["steerCoordinator"]["noteSteerTurnStarted"]>
+    >();
   const clearStructuredInterruptWatchdog =
     vi.fn<
       SessionRuntimeLifecycleContext["structuredInterruptWatchdog"]["clearStructuredInterruptWatchdog"]
@@ -114,7 +120,8 @@ function createHarness(
     ptyLifecycle: { track, resolveExit, kill },
     outputPipeline: { emitState, updateState, handlePtyData, clearSessionTimers },
     runtimeEventRouter: { flush, append },
-    steerCoordinator: { maybeDrainPendingSteer },
+    steerCoordinator: { maybeDrainPendingSteer, noteSteerTurnStarted },
+    ...(options.followUpQueue ? { followUpQueue: options.followUpQueue } : {}),
     structuredInterruptWatchdog: {
       clearStructuredInterruptWatchdog,
     },
@@ -152,6 +159,7 @@ function createHarness(
       flush,
       append,
       maybeDrainPendingSteer,
+      noteSteerTurnStarted,
       clearStructuredInterruptWatchdog,
       emit,
       failStructuredSession,
@@ -162,6 +170,94 @@ function createHarness(
 }
 
 describe("SessionRuntimeLifecycle", () => {
+  it("keeps replayed turn and request barriers when attaching the queue", async () => {
+    let queue!: FollowUpQueueCoordinator;
+    const h = createHarness({
+      withPty: false,
+      followUpQueue: {
+        onSessionAttached: (session) => queue.onSessionAttached(session),
+        onSessionClosing: (id, session) => queue.onSessionClosing(id, session),
+        onStructuredRuntimeEvent: (session, event) =>
+          queue.onStructuredRuntimeEvent(session, event),
+        onStructuredUpdate: (session, status) => queue.onStructuredUpdate(session, status),
+      },
+    });
+    const start = vi.fn<() => Promise<void>>(async () => {});
+    h.structuredSession.startTurn = start;
+    queue = new FollowUpQueueCoordinator({
+      sessions: h.sessions,
+      emit: h.mocks.emit,
+      waitForPendingStart: async () => {},
+      isCurrentSession: (session) => h.sessions.get(session.threadId) === session,
+      prepareTurn: async (_session, payload) => ({
+        prompt: payload.prompt,
+        config: payload.config,
+      }),
+      startStructuredTurn: start,
+      steer: async () => {},
+    });
+    h.mocks.updateState.mockImplementation((session, status) => {
+      session.status = status;
+    });
+    let listener!: StructuredSessionListener;
+    h.mocks.setListener.mockImplementation((value) => {
+      listener = value;
+      listener.onRuntimeEvent?.({
+        type: "turn.started",
+        threadId: h.session.threadId,
+        turnId: "replayed",
+      });
+      listener.onRuntimeEvent?.({
+        type: "request.opened",
+        threadId: h.session.threadId,
+        requestId: "approval",
+        requestType: "command_execution_approval",
+        payload: { summary: "Read a file" },
+      });
+      listener.onUpdate({ status: "idle", attention: "none" });
+    });
+    try {
+      h.lifecycle.attach(h.session);
+      await queue.queueThreadFollowUp({
+        threadId: h.session.threadId,
+        prompt: "next",
+        config: h.session.config,
+      });
+      expect(start).not.toHaveBeenCalled();
+      listener.onRuntimeEvent?.({
+        type: "turn.completed",
+        threadId: h.session.threadId,
+        turnId: "replayed",
+        state: "completed",
+      });
+      await Promise.resolve();
+      expect(start).not.toHaveBeenCalled();
+      listener.onRuntimeEvent?.({
+        type: "request.resolved",
+        threadId: h.session.threadId,
+        requestId: "approval",
+        outcome: "declined",
+      });
+      await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(1));
+    } finally {
+      queue.dispose();
+    }
+  });
+
+  it("notifies steer admission on the canonical turn-start event", () => {
+    const h = createHarness({ withPty: false });
+    h.lifecycle.attach(h.session);
+
+    h.structuredListener?.onRuntimeEvent?.({
+      type: "turn.started",
+      threadId: h.session.threadId,
+      turnId: "replacement",
+    });
+
+    expect(h.mocks.noteSteerTurnStarted).toHaveBeenCalledTimes(1);
+    expect(h.mocks.noteSteerTurnStarted).toHaveBeenCalledWith(h.session);
+  });
+
   it("registers and emits before binding handles, then starts ref discovery", () => {
     const harness = createHarness();
     const order: string[] = [];

@@ -1,9 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ProjectPathRef } from "./parseProjectPathRef";
-import {
-  AUTO_PATH_FILE_HREF_PREFIX,
-  remarkAutolinkProjectPaths,
-} from "./remarkAutolinkProjectPaths";
+import { remarkAutolinkProjectPaths } from "./remarkAutolinkProjectPaths";
+import { pathRefUrl } from "./markdownPathRefs";
 
 interface MdNode {
   type: string;
@@ -13,6 +11,27 @@ interface MdNode {
 }
 
 describe("remarkAutolinkProjectPaths", () => {
+  it.each([
+    "https://example.test/report.pdf",
+    "https://poracode.local/path/v2/%2Ftmp%2Freport%3A2026?line=12",
+    "https://poracode.local/path/v3/%2Ftmp%2Freport.pdf",
+    "poracode:path:src%2Fmain.ts%3A12-18",
+  ])("preserves URL identity before heuristic filesystem lookup: %s", (url) => {
+    const parsePathRef = vi.fn<(token: string) => ProjectPathRef | null>((path) => ({
+      kind: "folder",
+      path,
+    }));
+    const tree: MdNode = {
+      type: "root",
+      children: [{ type: "link", url, children: [{ type: "text", value: "report" }] }],
+    };
+
+    remarkAutolinkProjectPaths({ parsePathRef })(tree);
+
+    expect(parsePathRef).not.toHaveBeenCalled();
+    expect(tree.children?.[0]?.url).toBe(url);
+  });
+
   it("detects bare filename references in plain text", () => {
     const tree: MdNode = {
       type: "root",
@@ -37,7 +56,7 @@ describe("remarkAutolinkProjectPaths", () => {
     })(tree);
 
     expect(tree.children?.[0]?.children?.[0]?.url).toBe(
-      `${AUTO_PATH_FILE_HREF_PREFIX}${encodeURIComponent("BrowserPanelManager.ts:288")}`,
+      pathRefUrl({ kind: "file", path: "BrowserPanelManager.ts", line: 288 }),
     );
   });
 
@@ -66,9 +85,7 @@ describe("remarkAutolinkProjectPaths", () => {
     })(tree);
 
     expect(tree.children?.[0]?.children?.[0]?.url).toBe(
-      `${AUTO_PATH_FILE_HREF_PREFIX}${encodeURIComponent(
-        "src/supervisor/agents/acp/session.ts:945",
-      )}`,
+      pathRefUrl({ kind: "file", path: "src/supervisor/agents/acp/session.ts", line: 945 }),
     );
   });
 
@@ -97,7 +114,7 @@ describe("remarkAutolinkProjectPaths", () => {
 
     const linkNode = tree.children?.[0]?.children?.find((child) => child.type === "link");
     expect(linkNode?.url).toBe(
-      `${AUTO_PATH_FILE_HREF_PREFIX}${encodeURIComponent("/home/me/repo/src/foo.ts:42")}`,
+      pathRefUrl({ kind: "file", path: "/home/me/repo/src/foo.ts", line: 42 }),
     );
   });
 
@@ -130,9 +147,12 @@ describe("remarkAutolinkProjectPaths", () => {
     })(tree);
 
     expect(tree.children?.[0]?.children?.[1]?.url).toBe(
-      `${AUTO_PATH_FILE_HREF_PREFIX}${encodeURIComponent(
-        "src/renderer/components/thread/ChatPane/chatPaneSelectors.ts:157-172",
-      )}`,
+      pathRefUrl({
+        kind: "file",
+        path: "src/renderer/components/thread/ChatPane/chatPaneSelectors.ts",
+        line: 157,
+        endLine: 172,
+      }),
     );
   });
 });

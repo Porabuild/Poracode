@@ -5,6 +5,7 @@ import { experimentProcedures } from "./procedures/experiment";
 import { githubProcedures } from "./procedures/github";
 import { gitProcedures } from "./procedures/git";
 import { lspProcedures } from "./procedures/lsp";
+import { liveVoiceProcedures } from "./procedures/liveVoice";
 import { mcpProcedures } from "./procedures/mcp";
 import { pluginProcedures } from "./procedures/plugins";
 import { profileProcedures } from "./procedures/profile";
@@ -21,6 +22,7 @@ import { usageProcedures } from "./procedures/usage";
 export const groupedIpcProcedures = {
   app: appProcedures,
   thread: threadProcedures,
+  liveVoice: liveVoiceProcedures,
   git: gitProcedures,
   experiment: experimentProcedures,
   github: githubProcedures,
@@ -43,6 +45,7 @@ export const groupedIpcProcedures = {
 export const ipcProcedureMap = {
   ...appProcedures,
   ...threadProcedures,
+  ...liveVoiceProcedures,
   ...gitProcedures,
   ...experimentProcedures,
   ...githubProcedures,

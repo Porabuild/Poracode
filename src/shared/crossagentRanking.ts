@@ -99,6 +99,7 @@ export interface RankedCrossagentCandidate {
     effort?: string;
     fast: boolean;
   };
+  matchedOverride?: CrossagentRoutingOverride;
 }
 
 export interface CrossagentRankingPreferences {
@@ -780,6 +781,7 @@ function providerPreference(
       matchedTags: manualOverride.tags,
       tagScore: 0,
       bucket: RANK_BUCKET.manualOverride,
+      matchedOverride: manualOverride.override,
     };
   }
   if (contextualProviderUsage.length > 0) {

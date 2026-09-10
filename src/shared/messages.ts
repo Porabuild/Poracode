@@ -8,6 +8,12 @@
  */
 
 const messages = {
+  "voice.unavailable": "Live voice is unavailable for this thread.",
+  "voice.alreadyConnected": "A voice conversation is already active.",
+  "voice.subscriptionRequired": "Live voice requires a subscription sign-in for this provider.",
+  "voice.connectionTimeout": "The voice connection timed out. Try again.",
+  "voice.connectionFailed": "The voice connection failed. Try again.",
+  "voice.cancelled": "The voice connection was cancelled.",
   "supervisor.sendTerminalInput": "Send terminal input",
   // ── Git: general ──────────────────────────────────────────
   "git.commandFailed": "Git {command} failed: {detail}",
@@ -127,6 +133,17 @@ const messages = {
     "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
   "supervisor.forkTranscriptUnavailable":
     "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs.",
+  "supervisor.followUpQueue.guiOnly": "Queued follow-ups are only supported for chat threads.",
+  "supervisor.followUpQueue.sessionUnavailable":
+    "The thread session is not available for queued follow-ups.",
+  "supervisor.followUpQueue.unsupported": "This thread does not support queued follow-ups.",
+  "supervisor.followUpQueue.itemNotFound": "Queued follow-up not found: {id}.",
+  "supervisor.followUpQueue.itemChanged": "This queued follow-up changed. Reopen it before saving.",
+  "supervisor.followUpQueue.itemInFlight": "This queued follow-up is already being sent.",
+  "supervisor.steer.cleared": "Steer was cancelled before the message was sent.",
+  "supervisor.steer.replaced": "Steer was replaced by a newer message.",
+  "supervisor.steer.notAdmitted": "The replacement message could not be sent.",
+  "supervisor.steer.notReady": "This thread is not ready for Steer.",
 
   // ── Claude ────────────────────────────────────────────────
 
@@ -249,12 +266,42 @@ const pullDirtyWorktreePattern =
   /(?:\bgit\s+pull\b[\s\S]*(?:local changes|unstaged changes|would be overwritten)|cannot pull\b[\s\S]*(?:changes|stash)|local changes[\s\S]*(?:before|during)[\s\S]*(?:merge|pull)|please commit or stash[\s\S]*(?:merge|pull))/i;
 const acpAuthenticationUnverifiedPattern =
   /^(.+) reported authentication success, but Poracode could not verify it\. Configure \1 directly, then try again\.$/;
+const followUpQueueItemNotFoundPattern = /^Queued follow-up not found: (.+)\.$/;
 
 const errorPatterns: Array<{
   test: RegExp;
   key: MessageKey;
   params?: (raw: string) => Record<string, string>;
 }> = [
+  { test: /^Steer was cancelled before the message was sent\.$/, key: "supervisor.steer.cleared" },
+  { test: /^Steer was replaced by a newer message\.$/, key: "supervisor.steer.replaced" },
+  { test: /^The replacement message could not be sent\.$/, key: "supervisor.steer.notAdmitted" },
+  { test: /^This thread is not ready for Steer\.$/, key: "supervisor.steer.notReady" },
+  {
+    test: /^Queued follow-ups are only supported for chat threads\.$/,
+    key: "supervisor.followUpQueue.guiOnly",
+  },
+  {
+    test: /^The thread session is not available for queued follow-ups\.$/,
+    key: "supervisor.followUpQueue.sessionUnavailable",
+  },
+  {
+    test: /^This thread does not support queued follow-ups\.$/,
+    key: "supervisor.followUpQueue.unsupported",
+  },
+  {
+    test: followUpQueueItemNotFoundPattern,
+    key: "supervisor.followUpQueue.itemNotFound",
+    params: (raw) => ({ id: raw.match(followUpQueueItemNotFoundPattern)?.[1] ?? "?" }),
+  },
+  {
+    test: /^This queued follow-up changed\. Reopen it before saving\.$/,
+    key: "supervisor.followUpQueue.itemChanged",
+  },
+  {
+    test: /^This queued follow-up is already being sent\.$/,
+    key: "supervisor.followUpQueue.itemInFlight",
+  },
   {
     test: acpAuthenticationUnverifiedPattern,
     key: "acp.authenticationUnverified",
@@ -332,6 +379,7 @@ const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
   project_has_running_threads: "remote.project.runningThreads",
   experiment_owned: "remote.project.experimentsOwned",
   worktree_threads_changed: "remote.worktree.threadsChanged",
+  follow_up_queue_unsupported: "supervisor.followUpQueue.unsupported",
 };
 
 function remoteErrorMessageKey(error: unknown): MessageKey | undefined {
@@ -441,6 +489,12 @@ export function friendlyErrorWithDetail(err: unknown): { summary: string; detail
     if (pattern.test.test(rawSummary)) {
       return { summary: msg(pattern.key, pattern.params?.(rawSummary)), details };
     }
+  }
+
+  // Supervisor errors cross IPC as source-language strings. Static catalog
+  // messages can be translated exactly without parsing provider error prose.
+  for (const key of Object.keys(messages) as MessageKey[]) {
+    if (rawSummary === messages[key]) return { summary: msg(key), details };
   }
 
   return { summary: rawSummary, details };

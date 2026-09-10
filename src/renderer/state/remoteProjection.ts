@@ -1,4 +1,4 @@
-import type { Project, PromptSegment, Thread } from "@/shared/contracts";
+import type { Project, PromptSegment, Thread, ThreadFollowUpQueueState } from "@/shared/contracts";
 import type { PersistedRuntimeItem } from "@/shared/ipc/schemas";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
@@ -78,6 +78,9 @@ export function projectRemoteThreadSnapshot(
     ...snapshot,
     thread: projectRemoteThread(remoteServerId, snapshot.thread),
     runtimeItems: projectRemoteRuntimeItems(remoteServerId, snapshot.runtimeItems),
+    ...(snapshot.followUpQueue !== undefined
+      ? { followUpQueue: projectRemoteFollowUpQueue(remoteServerId, snapshot.followUpQueue) }
+      : {}),
   };
 }
 
@@ -151,6 +154,16 @@ export function projectRemoteThreadEvent(remoteServerId: string, value: unknown)
       events: event.events.map((item) => projectRemoteRuntimeEvent(remoteServerId, item)),
     };
   }
+  if (event.type === "thread-follow-up-queue") {
+    return {
+      ...event,
+      ...threadIdPatch(remoteServerId, event),
+      queue: projectRemoteFollowUpQueue(
+        remoteServerId,
+        event.queue as ThreadFollowUpQueueState | null,
+      ),
+    };
+  }
   if (event.type === "thread-pending-steer") {
     const pending = event.pending;
     return {
@@ -169,6 +182,24 @@ export function projectRemoteThreadEvent(remoteServerId: string, value: unknown)
     };
   }
   return projectRemoteRuntimeEvent(remoteServerId, event);
+}
+
+export function projectRemoteFollowUpQueue(
+  remoteServerId: string,
+  queue: ThreadFollowUpQueueState | null,
+): ThreadFollowUpQueueState | null {
+  if (!queue || !Array.isArray(queue.items)) return null;
+  return {
+    ...queue,
+    items: queue.items.map((item) => ({
+      ...item,
+      ...(item.segments
+        ? {
+            segments: projectRemoteSegmentList(remoteServerId, item.segments) as PromptSegment[],
+          }
+        : {}),
+    })),
+  };
 }
 
 function projectRemoteRuntimeEvent(remoteServerId: string, value: unknown): unknown {

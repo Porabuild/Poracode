@@ -178,7 +178,13 @@ describe("agent command builders", () => {
 
     const { cmd, cmdArgs } = parseWindowsSpec(spec);
     expect(cmd).toBe("codex");
-    expect(cmdArgs).toEqual(["--enable", "goals", "app-server"]);
+    expect(cmdArgs).toEqual([
+      "--enable",
+      "goals",
+      "-c",
+      "features.realtime_conversation=true",
+      "app-server",
+    ]);
     expect(cmdArgs).not.toContain("--listen");
     expect(cmdArgs).not.toContain("--remote");
     expect(cmdArgs).not.toContain("--session-source");
@@ -322,6 +328,8 @@ describe("agent command builders", () => {
       "/home/demo/.local/bin/codex",
       "--enable",
       "goals",
+      "-c",
+      "features.realtime_conversation=true",
       "app-server",
     ]);
   });

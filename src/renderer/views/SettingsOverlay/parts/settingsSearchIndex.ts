@@ -309,6 +309,13 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
   // Threads
   {
     section: "threads",
+    anchor: "threads.followUpBehavior",
+    title: msg`Follow-up behavior`,
+    keywords:
+      "chat message agent working steer queue follow-up current response next response shortcut ctrl enter cmd enter",
+  },
+  {
+    section: "threads",
     anchor: "threads.unloadIdleThreadsAfter",
     title: msg`Unload idle threads after`,
     description: msg`Hidden resumable threads are swept every 5 minutes and unloaded after this idle age.`,

@@ -20,6 +20,27 @@ describe("useAttachments", () => {
     Reflect.deleteProperty(URL, "revokeObjectURL");
   });
 
+  it("exposes every attachment to deferred readers before React commits the update", () => {
+    const { result } = renderHook(() => useAttachments());
+    const readAttachments = result.current.getAttachments;
+    const readSegments = result.current.toSegments;
+
+    act(() => {
+      result.current.addFiles(["C:\\first.txt"]);
+      result.current.addFiles(["C:\\second.txt"]);
+      expect(readAttachments().map((attachment) => attachment.path)).toEqual([
+        "C:\\first.txt",
+        "C:\\second.txt",
+      ]);
+      expect(readSegments()).toEqual([
+        { kind: "attachment", path: "C:\\first.txt", mimeType: "text/plain" },
+        { kind: "attachment", path: "C:\\second.txt", mimeType: "text/plain" },
+      ]);
+    });
+
+    expect(result.current.attachments).toHaveLength(2);
+  });
+
   it("uses the remote image saver for pasted images", async () => {
     const saveImage = vi.fn<SaveClipboardImage>(async () =>
       Promise.resolve("/Users/host/.poracode/attachments/draft/image.png"),

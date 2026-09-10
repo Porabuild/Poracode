@@ -34,6 +34,7 @@ import { continuesInPlace } from "@/shared/continueProviderRanking";
 import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollowUpQueueStore";
 import {
   runtimePageOverlapsExistingTranscript,
   seedOlderThreadRuntimeItemsCursor,
@@ -681,6 +682,7 @@ export function useRemoteDesktop() {
         applyThreadSnapshot(cached.snapshot, { fromServer: false });
       }
     }
+    const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(threadId);
     try {
       const client = options.client ?? clientFor(desktop);
       const useNarrowPwaPage =
@@ -707,7 +709,14 @@ export function useRemoteDesktop() {
       });
       setThreadSnapshot(next);
       // A fresh server history IS authoritative (fromServer defaults to true).
-      applyThreadSnapshot(next, { fromServer: true });
+      const socket = socketCoordinatorRef.current;
+      applyThreadSnapshot(next, {
+        fromServer: true,
+        ...(socket?.desktopId === desktop.desktopId
+          ? { lastSeenEventSeq: socket.coordinator.getLastSeenSeq() }
+          : {}),
+        followUpQueueSnapshotGuard,
+      });
       // Throttle the full-transcript write while the thread is actively
       // streaming: during a run the blob is re-fetched and rewritten on every
       // ~1s refresh. Non-running statuses (including the final post-run

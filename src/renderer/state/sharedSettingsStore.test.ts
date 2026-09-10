@@ -16,6 +16,7 @@ describe("sharedSettingsStore", () => {
     useSharedSettings.setState({
       themeMode: "dark",
       staleThreadUnloadMinutes: 20,
+      followUpBehavior: "steer",
       audio: {
         showVoiceInputButton: true,
         microphoneDeviceId: "",
@@ -97,6 +98,15 @@ describe("sharedSettingsStore", () => {
   it("updates the stale thread unload timing", () => {
     useSharedSettings.getState().setStaleThreadUnloadMinutes(30);
     expect(useSharedSettings.getState().staleThreadUnloadMinutes).toBe(30);
+  });
+
+  it("updates and persists follow-up behavior", () => {
+    useSharedSettings.getState().setFollowUpBehavior("queue");
+
+    expect(useSharedSettings.getState().followUpBehavior).toBe("queue");
+    expect(JSON.parse(localStorage.getItem("poracode-shared-settings") ?? "null")).toMatchObject({
+      followUpBehavior: "queue",
+    });
   });
 
   it("shows and hides sidebar shortcuts", () => {
