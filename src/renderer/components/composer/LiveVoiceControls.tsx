@@ -50,6 +50,7 @@ export function LiveVoicePanel(props: { threadId: string }) {
   const { t } = useLingui();
   const state = useLiveVoice();
   if (state.threadId !== props.threadId || state.phase === "idle") return null;
+  const endLabel = state.phase === "connecting" ? t`Cancel voice connection` : t`End voice chat`;
   return (
     <div data-live-voice="" className="flex items-center gap-2 border-b border-border/50 px-3 py-2">
       <AudioLines className="size-4 shrink-0 text-success" />
@@ -63,8 +64,6 @@ export function LiveVoicePanel(props: { threadId: string }) {
             <Trans>Live voice</Trans>
           )}
         </div>
-        {state.userText ? <p className="line-clamp-1 text-muted">{state.userText}</p> : null}
-        {state.assistantText ? <p className="line-clamp-2">{state.assistantText}</p> : null}
       </div>
       <Button
         isIconOnly
@@ -80,7 +79,7 @@ export function LiveVoicePanel(props: { threadId: string }) {
         isIconOnly
         size="sm"
         variant="ghost"
-        aria-label={t`End voice chat`}
+        aria-label={endLabel}
         onPress={() => {
           liveVoice.stopThread(props.threadId);
         }}

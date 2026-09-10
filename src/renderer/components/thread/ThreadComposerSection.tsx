@@ -201,6 +201,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const liveVoiceActive = useLiveVoice((state) => state.phase !== "idle");
+  const threadVoiceActive = useLiveVoice(
+    (state) => state.threadId === thread.id && state.phase !== "idle",
+  );
   useEffect(() => () => liveVoice.stopThread(thread.id), [thread.id]);
   useEffect(() => {
     if (thread.status === "inactive") liveVoice.stopThread(thread.id);
@@ -984,7 +987,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   stopPending={isInterrupting}
                   submitDisabled={!(hasContent || attachments.attachments.length > 0) || !canSubmit}
                   submitLabel={t`Send message`}
-                  {...(!hasContent &&
+                  hideSubmitButton={
+                    threadVoiceActive &&
+                    !hasContent &&
+                    attachments.attachments.length === 0 &&
+                    !canInterruptStructuredTurn
+                  }
+                  {...(!threadVoiceActive &&
+                  !hasContent &&
                   attachments.attachments.length === 0 &&
                   !usesRemoteTransport &&
                   !usesTerminalPresentation &&

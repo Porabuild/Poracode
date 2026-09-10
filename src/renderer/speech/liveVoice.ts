@@ -12,8 +12,6 @@ interface VoiceState {
   scopeId: string | null;
   phase: "idle" | "connecting" | "connected";
   muted: boolean;
-  userText: string;
-  assistantText: string;
 }
 
 const idle: VoiceState = {
@@ -21,8 +19,6 @@ const idle: VoiceState = {
   scopeId: null,
   phase: "idle",
   muted: false,
-  userText: "",
-  assistantText: "",
 };
 /** Media and connection state are intentionally never persisted. */
 export const useLiveVoice = create<VoiceState>(() => idle);
@@ -173,10 +169,7 @@ export class LiveVoiceController {
         const voice = event.event;
         if (voice.type === "closed") void this.stop();
         else if (voice.type === "error") this.fail(new Error(voice.message));
-        else
-          useLiveVoice.setState(
-            voice.role === "user" ? { userText: voice.text } : { assistantText: voice.text },
-          );
+        // Transcripts already stream into the chat timeline through runtime events.
       });
       session.timeout = setTimeout(() => {
         if (current()) this.fail(new Error(msg("voice.connectionTimeout")));

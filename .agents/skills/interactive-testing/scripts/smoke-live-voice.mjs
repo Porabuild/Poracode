@@ -54,6 +54,10 @@ export async function mockLiveVoiceGate({
       Boolean,
       "voice cancellation control",
     );
+    assert.equal(
+      await run(`document.querySelectorAll('button[aria-label="Cancel voice connection"]').length`),
+      1,
+    );
     await run(`document.querySelector('button[aria-label="Cancel voice connection"]').click()`);
     await run(`(() => {
       const s = window.__liveVoiceSmoke;
@@ -77,6 +81,56 @@ export async function mockLiveVoiceGate({
       () => run(`Boolean(window.__liveVoiceSmoke.prepared)`),
       Boolean,
       "media acquisition",
+    );
+    await run(`(() => {
+      const s = window.__liveVoiceSmoke;
+      s.voice.useLiveVoice.setState({ phase: 'connected' });
+      const items = [
+        ['voice-smoke-user', 'user_message', 'Can you hear me?'],
+        ['voice-smoke-assistant', 'assistant_message', 'Yes, I can hear you.'],
+      ];
+      window.__poracodeDev.stores.app.getState().applyRuntimeEvents(s.threadId,
+        items.flatMap(([itemId, itemType, text]) => [
+          { type: 'item.started', threadId: s.threadId, itemId, itemType,
+            payload: { content: [{ kind: 'text', text }], displayAuthoritative: true, turnIndependent: true } },
+          { type: 'item.completed', threadId: s.threadId, itemId },
+        ]));
+    })()`);
+    await waitForValue(
+      () => run(`document.querySelectorAll('button[aria-label="End voice chat"]').length`),
+      (count) => count === 1,
+      "one hang-up control for the active voice session",
+    );
+    await waitForValue(
+      () => run(`document.body.innerText.split('Yes, I can hear you.').length - 1`),
+      (count) => count === 1,
+      "voice transcript appears once in the chat timeline",
+    );
+    assert.equal(
+      await run(`document.querySelector('[data-live-voice]').innerText.trim()`),
+      "Live voice",
+    );
+    const editor = `[...document.querySelectorAll('[data-composer-input-anchor] [contenteditable="true"]')].find(el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden')`;
+    await run(`${editor}.focus()`);
+    await client.send("Input.insertText", { text: "Typed follow-up during voice" });
+    await waitForValue(
+      () =>
+        run(`Boolean(document.querySelector('button[aria-label="Send message"]:not(:disabled)'))`),
+      Boolean,
+      "typed input restores Send while voice remains active",
+    );
+    assert.equal(
+      await run(`document.querySelectorAll('button[aria-label="End voice chat"]').length`),
+      1,
+    );
+    await screenshot(client, join(outDir, "live-voice-compact.png"));
+    await run(
+      `(() => { const el = ${editor}; el.textContent = ''; el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' })); })()`,
+    );
+    await waitForValue(
+      () => run(`document.querySelectorAll('button[aria-label="Send message"]').length`),
+      (count) => count === 0,
+      "empty voice composer keeps only the dedicated voice controls",
     );
     await run(`document.querySelector('button[aria-label="Mute microphone"]').click()`);
     await waitForValue(
@@ -104,7 +158,7 @@ export async function mockLiveVoiceGate({
       outDir,
       fixture,
     });
-    return "composer start/cancel, late capture cleanup, mute/unmute, hangup, and preservation/reopening of text and attachment drafts edited during pending microphone permission passed with synthetic media; no real microphone or provider used";
+    return "single compact voice controls, typed Send during voice, start/cancel, late capture cleanup, mute/unmute, hangup, and preservation/reopening of text and attachment drafts edited during pending microphone permission passed with synthetic media; no real microphone or provider used";
   } finally {
     await run(`(async () => {
       const s = window.__liveVoiceSmoke;
