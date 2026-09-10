@@ -335,6 +335,34 @@ describe("rankCrossagentCandidates", () => {
     });
   });
 
+  it("carries the exact matched manual override on only its selected primary", () => {
+    const broadOverride = {
+      tags: ["frontend"],
+      agentKind: "claude",
+      fallbacks: [{ agentKind: "codex", modelId: "gpt" }],
+      updatedAt: 20,
+    };
+    const exactOverride = {
+      tags: ["frontend", "ui"],
+      agentKind: "kimi",
+      modelId: "k3",
+      fallbacks: [{ agentKind: "claude", modelId: "sonnet" }],
+      updatedAt: 10,
+    };
+
+    const ranked = rankCrossagentCandidates(candidates, {
+      crossagentSelectionUsage: [],
+      routingOverrides: [broadOverride, exactOverride],
+      favoriteModels: [],
+      agentSelectionUsage: [],
+      contextTags: ["frontend", "ui"],
+    });
+
+    expect(ranked[0]?.provider).toBe("kimi");
+    expect(ranked[0]?.matchedOverride).toBe(exactOverride);
+    expect(ranked.find((entry) => entry.provider === "codex")?.matchedOverride).toBeUndefined();
+  });
+
   it("ignores manual routes whose provider or selection is unavailable", () => {
     const ranked = rankCrossagentCandidates(candidates.slice(0, 2), {
       crossagentSelectionUsage: [],
