@@ -210,16 +210,27 @@ export class ElectronBackendTransport {
     }
     if (message.type === "resync-required") {
       this.lastSequence = message.latestSeq;
-      this.dispatchRebuildForInterests();
+      this.dispatchRebuildForInterests(
+        message.threadIds && message.threadIds.length > 0 ? new Set(message.threadIds) : undefined,
+      );
     }
   }
 
-  private dispatchRebuildForInterests(): void {
+  /**
+   * Rebuilds subscribed threads after unrecoverable stream loss. Without a
+   * loss scope every subscribed thread resets (legacy semantics — the safe
+   * fallback); a scope narrows the reset to the threads this window actually
+   * subscribes to, so one thread's lost events no longer wipe every open
+   * transcript (WS6 P1-10).
+   */
+  private dispatchRebuildForInterests(lostThreadIds?: ReadonlySet<string>): void {
+    const inScope = (threadId: string): boolean =>
+      lostThreadIds === undefined || lostThreadIds.has(threadId);
     for (const threadId of this.interests.terminalThreadIds) {
-      this.dispatch({ type: "thread-scrollback-resync", threadId });
+      if (inScope(threadId)) this.dispatch({ type: "thread-scrollback-resync", threadId });
     }
     for (const threadId of this.interests.runtimeThreadIds) {
-      this.dispatch({ type: "thread-reset", threadId });
+      if (inScope(threadId)) this.dispatch({ type: "thread-reset", threadId });
     }
   }
 
@@ -282,8 +293,21 @@ type BackendRendererMessage =
   | BackendRendererReply
   | {
       version: typeof BACKEND_RENDERER_STREAM_VERSION;
-      type: "hello" | "interests-ack" | "resync-required";
+      type: "hello" | "interests-ack";
       latestSeq: number;
+    }
+  | {
+      version: typeof BACKEND_RENDERER_STREAM_VERSION;
+      type: "resync-required";
+      latestSeq: number;
+      /**
+       * Loss scope hint from the host (WS6 P1-10): threads whose events are
+       * unrecoverable by replay. Absent or empty keeps the legacy meaning —
+       * rebuild every subscribed thread; the host cannot always attribute a
+       * gap to specific threads. A present list narrows the rebuild to the
+       * intersection with this window's subscriptions only.
+       */
+      threadIds?: string[];
     }
   | {
       version: typeof BACKEND_RENDERER_STREAM_VERSION;
@@ -313,10 +337,16 @@ function isBackendRendererMessage(value: unknown): value is BackendRendererMessa
       typeof (message.event as { type?: unknown }).type === "string"
     );
   }
+  if (message.type === "resync-required") {
+    if (typeof message.latestSeq !== "number") return false;
+    return (
+      message.threadIds === undefined ||
+      (Array.isArray(message.threadIds) &&
+        message.threadIds.every((threadId) => typeof threadId === "string"))
+    );
+  }
   return (
-    (message.type === "hello" ||
-      message.type === "interests-ack" ||
-      message.type === "resync-required") &&
+    (message.type === "hello" || message.type === "interests-ack") &&
     typeof message.latestSeq === "number"
   );
 }

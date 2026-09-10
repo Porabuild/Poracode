@@ -176,6 +176,47 @@ describe("ElectronBackendTransport event handoff", () => {
     await flush();
   });
 
+  it("narrows a resync-required rebuild to the lost threads this window subscribes to", async () => {
+    const { host } = makeHost();
+    const transport = new ElectronBackendTransport(host);
+    const events: SupervisorEvent[] = [];
+    transport.subscribe((event) => events.push(event));
+    await transport.setEventInterests({
+      terminalThreadIds: ["terminal-1"],
+      runtimeThreadIds: ["thread-1", "thread-2"],
+    });
+    await flush();
+    const socket = FakeWebSocket.instances[0]!;
+    socket.open();
+    socket.message({ version: 2, type: "interests-ack", latestSeq: 0 });
+
+    // The scope is a narrowing hint: threads this window does not subscribe
+    // to are ignored, subscribed threads in scope rebuild, and thread-2
+    // (subscribed but unscathed) keeps its transcript.
+    socket.message({
+      version: 2,
+      type: "resync-required",
+      latestSeq: 3,
+      threadIds: ["thread-1", "terminal-1", "thread-unknown"],
+    });
+
+    expect(events).toEqual([
+      { type: "thread-scrollback-resync", threadId: "terminal-1" },
+      { type: "thread-reset", threadId: "thread-1" },
+    ]);
+
+    // Absent scope keeps the legacy fail-safe: every subscribed thread resets.
+    socket.message({ version: 2, type: "resync-required", latestSeq: 4 });
+
+    expect(events).toEqual([
+      { type: "thread-scrollback-resync", threadId: "terminal-1" },
+      { type: "thread-reset", threadId: "thread-1" },
+      { type: "thread-scrollback-resync", threadId: "terminal-1" },
+      { type: "thread-reset", threadId: "thread-1" },
+      { type: "thread-reset", threadId: "thread-2" },
+    ]);
+  });
+
   it("keeps accepting the IPC fallback until the direct stream acknowledges interests", async () => {
     const { host, invokeProcedure, fallback } = makeHost();
     const transport = new ElectronBackendTransport(host);
