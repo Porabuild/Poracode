@@ -133,6 +133,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbGetThreadRuntimeItemsPage",
   "dbGetLatestThreadGoalItem",
   "dbTruncateThreadRuntimeAfter",
+  "revertCheckpoint",
   "dbReplaceThreadRuntimeItems",
   "dbGetThreadCompletedTurns",
   "dbReplaceThreadCompletedTurns",

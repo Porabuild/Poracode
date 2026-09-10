@@ -118,9 +118,10 @@ final class RichChatMessageActionsTests: XCTestCase {
     XCTAssertTrue(components.contains("UIPasteboard.general.string = text"))
     XCTAssertTrue(components.contains("actions.revertPlan(itemID: item.id)"))
     XCTAssertTrue(timeline.contains("conversation.revertToCheckpoint("))
-    XCTAssertTrue(controller.contains("try? await gateway.rollbackRichConversation("))
-    XCTAssertTrue(controller.contains("try await gateway.restoreRichCheckpoint("))
-    XCTAssertTrue(controller.contains("try await gateway.truncateRichRuntime("))
+    // WS2 stage 4: one compound call, and the legacy three-call flow is gone.
+    XCTAssertTrue(controller.contains("gateway.checkpointRevert("))
+    XCTAssertFalse(controller.contains("try await gateway.restoreRichCheckpoint("))
+    XCTAssertFalse(controller.contains("try await gateway.truncateRichRuntime("))
     XCTAssertTrue(textComponents.contains("struct RichChatMessageText: View"))
     XCTAssertTrue(textComponents.contains("fullHeight > collapsedHeight + 0.5"))
     XCTAssertTrue(textComponents.contains("expanded ? RichChatStrings.hideDetails"))

@@ -99,6 +99,7 @@ describe("ipcProcedureMap", () => {
       requestRelaunch: vi.fn<() => void>(),
       backendServices: { callService: vi.fn<() => Promise<never>>() } as never,
       database: { callDatabase: vi.fn<() => Promise<never>>() } as never,
+      revertCheckpoint: vi.fn<() => Promise<never>>(),
     });
 
     expect(Object.keys(handlers).sort()).toEqual([...MAIN_LOCAL_PROCEDURE_NAMES].sort());

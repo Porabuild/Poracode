@@ -2145,7 +2145,7 @@ describe("ChatPane", () => {
     );
   });
 
-  it("shows checkpoint buttons on later user messages and reverts to before that prompt", async () => {
+  it("shows checkpoint buttons on later user messages and reverts with one compound call", async () => {
     const thread = {
       ...makeThread(),
       status: "idle" as const,
@@ -2156,12 +2156,26 @@ describe("ChatPane", () => {
         sandboxMode: "workspace-write",
       },
     };
-    const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    // The host owns the compound; the client sees one call plus the canonical
+    // runtime.truncated event the backend publishes.
+    const revertCheckpoint = vi
+      .fn<
+        (input: {
+          threadId: string;
+          checkpointItemId: string;
+          operationKey: string;
+        }) => Promise<{ outcome: string }>
+      >()
+      .mockImplementation(async (input) => {
+        await publishRuntimeTruncation({
+          threadId: input.threadId,
+          itemId: input.checkpointItemId,
+        });
+        return { outcome: "completed" };
+      });
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation,
-        dbTruncateThreadRuntimeAfter:
-          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
+        revertCheckpoint,
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2188,10 +2202,10 @@ describe("ChatPane", () => {
     fireEvent.click(screen.getByRole("button", { name: "Revert" }));
 
     await waitFor(() =>
-      expect(rollbackThreadConversation).toHaveBeenCalledWith({
+      expect(revertCheckpoint).toHaveBeenCalledWith({
         threadId: thread.id,
-        numTurns: 1,
-        config: thread.config,
+        checkpointItemId: "assistant-1",
+        operationKey: `checkpoint-revert.${thread.id}.assistant-1`,
       }),
     );
     await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
@@ -2208,9 +2222,13 @@ describe("ChatPane", () => {
     const thread = { ...makeThread(), status: "idle" as const };
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-        dbTruncateThreadRuntimeAfter:
-          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
+        revertCheckpoint: vi
+          .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+          .mockImplementation(async ({ threadId }) => {
+            // The click targets the checkpoint before "Follow-up prompt".
+            await publishRuntimeTruncation({ threadId, itemId: "assistant-1" });
+            return { outcome: "completed" };
+          }),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2242,20 +2260,18 @@ describe("ChatPane", () => {
     ]);
   });
 
-  it("snapshots the clicked steer and ignores repeat confirms during rollback", async () => {
+  it("restores the prompt snapshot taken before the compound call, not a late rewrite", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
-    let finishRollback!: () => void;
-    const rollbackThreadConversation = vi.fn<() => Promise<void>>(
+    let finishRevert!: () => void;
+    const revertCheckpoint = vi.fn<(input: { threadId: string }) => Promise<{ outcome: string }>>(
       () =>
-        new Promise<void>((resolve) => {
-          finishRollback = resolve;
+        new Promise<{ outcome: string }>((resolve) => {
+          finishRevert = () => resolve({ outcome: "completed" });
         }),
     );
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation,
-        dbTruncateThreadRuntimeAfter:
-          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
+        revertCheckpoint,
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2271,19 +2287,19 @@ describe("ChatPane", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Revert to this checkpoint" })[1]!);
     const confirm = await screen.findByRole("button", { name: "Revert" });
     fireEvent.click(confirm);
-    fireEvent.click(confirm);
-    expect(rollbackThreadConversation).toHaveBeenCalledTimes(1);
+    expect(revertCheckpoint).toHaveBeenCalledTimes(1);
     expect(useRevertedPromptStore.getState().byThread[thread.id]).toBeUndefined();
 
-    // Simulate a runtime update removing the source message while the provider responds.
+    // A late runtime event rewrites the source message while the compound is
+    // in flight; the composer must still get the pre-revert snapshot.
     await act(async () => {
       useAppStore.getState().applyRuntimeEvent(thread.id, {
-        type: "runtime.truncated",
+        type: "item.completed",
         threadId: thread.id,
-        itemId: "assistant-1",
-        removedCompletedTurnAnchors: [],
+        itemId: "user-3",
+        payload: { content: [{ kind: "text", text: "Rewritten in flight" }] },
       });
-      finishRollback();
+      finishRevert();
     });
     await waitFor(() =>
       expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
@@ -2295,18 +2311,15 @@ describe("ChatPane", () => {
     );
   });
 
-  it("releases the revert guard after a persistence failure so confirmation can retry", async () => {
+  it("shows the failure and lets confirmation retry after a failed compound", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
-    const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-    const restoreFileCheckpoint = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
-    const dbTruncateThreadRuntimeAfter = vi
-      .fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation)
-      .mockRejectedValueOnce(new Error("Checkpoint save failed"));
+    const revertCheckpoint = vi
+      .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+      .mockRejectedValueOnce(new Error("The checkpoint could not be restored."))
+      .mockResolvedValue({ outcome: "completed" });
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation,
-        restoreFileCheckpoint,
-        dbTruncateThreadRuntimeAfter,
+        revertCheckpoint,
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2333,8 +2346,7 @@ describe("ChatPane", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
     fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
-    expect(await screen.findByText("Checkpoint save failed")).toBeInTheDocument();
-    expect(dbTruncateThreadRuntimeAfter).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("The checkpoint could not be restored.")).toBeInTheDocument();
     expect(screen.getByText("Follow-up prompt")).toBeInTheDocument();
     expect(screen.getByText("Second answer")).toBeInTheDocument();
     expect(useRevertedPromptStore.getState().byThread[thread.id]).toBeUndefined();
@@ -2343,26 +2355,30 @@ describe("ChatPane", () => {
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Revert" })).not.toBeInTheDocument(),
     );
-    expect(dbTruncateThreadRuntimeAfter).toHaveBeenCalledTimes(2);
-    expect(rollbackThreadConversation).toHaveBeenCalledTimes(1);
-    expect(restoreFileCheckpoint).toHaveBeenCalledTimes(1);
+    expect(revertCheckpoint).toHaveBeenCalledTimes(2);
     expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
       { kind: "text", text: "Follow-up prompt" },
     ]);
   });
 
-  it("does not truncate newer live messages when the revert acknowledgement arrives late", async () => {
+  it("does not converge the transcript until the compound call settles", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     let acknowledge!: () => void;
-    const dbTruncateThreadRuntimeAfter = vi.fn<typeof publishRuntimeTruncation>(async (input) => {
-      await publishRuntimeTruncation(input);
-      await new Promise<void>((resolve) => {
-        acknowledge = resolve;
-      });
-    });
-    Object.assign(window.poracode!, {
-      rollbackThreadConversation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      dbTruncateThreadRuntimeAfter,
+    const revertCheckpoint = vi.fn<(input: { threadId: string }) => Promise<{ outcome: string }>>(
+      async ({ threadId }) => {
+        await publishRuntimeTruncation({ threadId, itemId: "assistant-1" });
+        await new Promise<void>((resolve) => {
+          acknowledge = resolve;
+        });
+        return { outcome: "completed" };
+      },
+    );
+    Object.assign(window, {
+      poracode: {
+        revertCheckpoint,
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
     });
     seedUserMessage(thread.id, "Initial prompt", "user-1");
     seedAssistantMessage(thread.id, "First answer", "assistant-1");
@@ -2372,7 +2388,7 @@ describe("ChatPane", () => {
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
     fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
     fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
-    await waitFor(() => expect(dbTruncateThreadRuntimeAfter).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(revertCheckpoint).toHaveBeenCalledTimes(1));
     await act(async () => {
       seedUserMessage(thread.id, "New prompt from another client", "user-new");
       acknowledge();
@@ -2384,60 +2400,17 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
   });
 
-  it("rolls back provider by completed turns instead of assistant message count", async () => {
+  it("reverts silently when the compound settles local_only", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
-    const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const revertCheckpoint = vi
+      .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+      .mockImplementation(async ({ threadId }) => {
+        await publishRuntimeTruncation({ threadId, itemId: "assistant-1" });
+        return { outcome: "completed_local_only" };
+      });
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation,
-        dbTruncateThreadRuntimeAfter:
-          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
-        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      },
-    });
-    seedUserMessage(thread.id, "Initial prompt", "user-1");
-    seedAssistantMessage(thread.id, "First answer", "assistant-1");
-    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
-    seedAssistantMessage(thread.id, "Second answer part one", "assistant-2a");
-    seedAssistantMessage(thread.id, "Second answer part two", "assistant-2b");
-    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
-      {
-        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
-        endedAt: new Date("2026-05-01T12:00:05.000Z").getTime(),
-        anchorItemId: "assistant-1",
-      },
-      {
-        startedAt: new Date("2026-05-01T12:01:00.000Z").getTime(),
-        endedAt: new Date("2026-05-01T12:01:05.000Z").getTime(),
-        anchorItemId: "assistant-2b",
-      },
-    ]);
-
-    renderChatPane(thread);
-    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
-
-    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
-
-    await waitFor(() =>
-      expect(rollbackThreadConversation).toHaveBeenCalledWith({
-        threadId: thread.id,
-        numTurns: 1,
-        config: thread.config,
-      }),
-    );
-  });
-
-  it("continues local checkpoint revert when provider rollback fails", async () => {
-    const thread = { ...makeThread(), status: "idle" as const };
-    Object.assign(window, {
-      poracode: {
-        rollbackThreadConversation: vi
-          .fn<() => Promise<void>>()
-          .mockRejectedValue(new Error("Codex does not support checkpoint rollback.")),
-        dbTruncateThreadRuntimeAfter:
-          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
+        revertCheckpoint,
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2454,9 +2427,7 @@ describe("ChatPane", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
 
     await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
-    expect(
-      screen.queryByText("Codex does not support checkpoint rollback."),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("does not support checkpoint rollback")).not.toBeInTheDocument();
     expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
     expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
       { kind: "text", text: "Follow-up prompt" },
@@ -2503,6 +2474,20 @@ describe("ChatPane", () => {
 
   it("skips checkpoint confirmation after the user opts out", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
+    Object.assign(window, {
+      poracode: {
+        revertCheckpoint: vi
+          .fn<
+            (input: { threadId: string; checkpointItemId: string }) => Promise<{ outcome: string }>
+          >()
+          .mockImplementation(async ({ threadId, checkpointItemId }) => {
+            await publishRuntimeTruncation({ threadId, itemId: checkpointItemId });
+            return { outcome: "completed" };
+          }),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
     seedUserMessage(thread.id, "Initial prompt", "user-1");
     seedAssistantMessage(thread.id, "First answer", "assistant-1");
     seedUserMessage(thread.id, "Follow-up prompt", "user-2");

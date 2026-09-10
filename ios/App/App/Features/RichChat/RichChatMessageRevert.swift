@@ -75,7 +75,4 @@ enum RichChatMessageCopyEligibility {
 
 struct RichChatCheckpointRevertInput: Equatable, Sendable {
   let checkpointItemID: String
-  let rollbackTurnCount: Int
-  let config: [String: RichJSON]?
-  let projectLocation: ProjectLocation?
 }

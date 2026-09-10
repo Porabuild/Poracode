@@ -216,29 +216,19 @@ final class RichChatConversationController {
 
   @discardableResult
   func revertToCheckpoint(_ input: RichChatCheckpointRevertInput) async -> Bool {
-    guard !input.checkpointItemID.isEmpty, input.rollbackTurnCount >= 0 else {
+    guard !input.checkpointItemID.isEmpty else {
       state.failure = .invalidRequest
       return false
     }
     await runMutation(.revertCheckpoint, refreshOnSuccess: true) { gateway, target in
-      if input.rollbackTurnCount > 0 {
-        // Match the PWA: provider rollback is best-effort. File restore and
-        // authoritative runtime truncation still proceed when a provider does
-        // not support rollback or rejects it.
-        try? await gateway.rollbackRichConversation(
-          target: target,
-          turnCount: input.rollbackTurnCount,
-          config: input.config
-        )
-      }
-      if let projectLocation = input.projectLocation {
-        try await gateway.restoreRichCheckpoint(
-          target: target,
-          itemID: input.checkpointItemID,
-          projectLocation: projectLocation
-        )
-      }
-      try await gateway.truncateRichRuntime(target: target, after: input.checkpointItemID)
+      // WS2 stage 4: the host owns the compound — provider rollback, file
+      // restore and transcript truncation run as one journaled operation, so
+      // the client is down to a single idempotent call.
+      try await gateway.checkpointRevert(
+        target: target,
+        itemID: input.checkpointItemID,
+        operationKey: "checkpoint-revert.\(target.threadID).\(input.checkpointItemID)"
+      )
     }
     return state.lastCompletedOperation == .revertCheckpoint && state.failure == nil
   }

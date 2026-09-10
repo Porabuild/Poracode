@@ -84,6 +84,7 @@ export class ElectronBackendTransport {
   }
 
   operationFor(name: IpcProcedureName): BackendRendererRequestOperation | null {
+    if (name === "revertCheckpoint") return "revert-checkpoint";
     if (ipcProcedureMap[name].transport === "supervisor") return "supervisor";
     if (isDirectRendererDatabaseProcedure(name)) return "database";
     if (isDirectRendererServiceProcedure(name)) return "service";

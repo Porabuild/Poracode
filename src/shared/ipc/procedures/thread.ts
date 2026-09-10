@@ -1,5 +1,7 @@
 import {
   authenticateAcpAgentPayloadSchema,
+  checkpointRevertPayloadSchema,
+  checkpointRevertResultSchema,
   clearPendingSteerPayloadSchema,
   controlThreadGoalPayloadSchema,
   closeThreadPayloadSchema,
@@ -40,6 +42,8 @@ import type {
   BackgroundTask,
   ClearPendingSteerPayload,
   ControlThreadGoalPayload,
+  CheckpointRevertPayload,
+  CheckpointRevertResult,
   CloseThreadPayload,
   CreateRevertAnchorPayload,
   CreateRevertAnchorResult,
@@ -252,6 +256,16 @@ export const threadProcedures = {
     restoreToRevertAnchorPayloadSchema,
     omittedResultSchema,
   ),
+  /**
+   * WS2 stage 4: the backend-owned compound checkpoint revert. Renderers call
+   * this ONE procedure; the backend host executes provider rollback, file
+   * restore and transcript truncation as a single journaled operation.
+   */
+  revertCheckpoint: definePayloadProcedure<
+    CheckpointRevertPayload,
+    CheckpointRevertResult,
+    "main-local"
+  >("revertCheckpoint", "main-local", checkpointRevertPayloadSchema, checkpointRevertResultSchema),
   setPendingSteer: definePayloadProcedure<SetPendingSteerPayload, void, "supervisor">(
     "setPendingSteer",
     "supervisor",

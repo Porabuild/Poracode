@@ -240,6 +240,12 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
     try await mutation("checkpoint-restore")
   }
 
+  func checkpointRevert(
+    target _: RichChatThreadTarget, itemID _: String, operationKey _: String
+  ) async throws {
+    try await mutation("checkpoint-revert")
+  }
+
   func resolveRichRequest(
     target _: RichChatThreadTarget,
     resolution _: RichChatRequestResolution

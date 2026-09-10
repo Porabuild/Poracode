@@ -77,6 +77,8 @@ enum RichChatTransportFailure: Error, Sendable, Equatable {
   case invalidResponse
   case rawTransportUnavailable
   case ambiguousOutcome
+  /// The compound checkpoint revert settled `failed` on the server.
+  case revertFailed
 }
 
 struct RichChatPreparedJSONRoute: Sendable, Equatable {

@@ -57,6 +57,7 @@ import {
   retagCrossagentSelectionUsageEntry,
 } from "@/shared/crossagentRanking";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
+import type { CheckpointRevertResult } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 import type { SshConnectionManager } from "../ssh/SshConnectionManager";
@@ -87,6 +88,12 @@ interface CreateLocalIpcHandlersOptions {
   requestRelaunch(): void;
   database: BackendDatabaseCaller;
   backendServices: BackendServiceCaller;
+  /** WS2 stage 4: forwards the compound checkpoint revert to the backend host. */
+  revertCheckpoint(input: {
+    threadId: string;
+    checkpointItemId: string;
+    operationKey: string;
+  }): Promise<CheckpointRevertResult>;
 }
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
@@ -459,6 +466,7 @@ export function createLocalIpcHandlers(
     dbGetLatestThreadGoalItem: (payload) => callDatabase("dbGetLatestThreadGoalItem", payload),
     dbTruncateThreadRuntimeAfter: (payload) =>
       callDatabase("dbTruncateThreadRuntimeAfter", payload),
+    revertCheckpoint: (payload) => options.revertCheckpoint(payload),
     dbReplaceThreadRuntimeItems: (payload) => callDatabase("dbReplaceThreadRuntimeItems", payload),
     dbGetThreadCompletedTurns: (payload) => callDatabase("dbGetThreadCompletedTurns", payload),
     dbReplaceThreadCompletedTurns: (payload) =>

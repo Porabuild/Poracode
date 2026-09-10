@@ -57,6 +57,21 @@ extension GeneratedRemoteV3Contract {
     )
   }
 
+  static func richCheckpointRevert(
+    threadID: String, checkpointItemID: String, operationKey: String
+  ) throws -> RichChatPreparedJSONRoute {
+    try richThreadRoute(
+      threadID: threadID,
+      body: .object([
+        "checkpointItemId": .string(checkpointItemID),
+        "operationKey": .string(operationKey),
+      ]),
+      pathCodec: RemoteRootCodecs.routeU2EThreadU2DCheckpointU2DRevertU2EPath,
+      bodyCodec: RemoteRootCodecs.routeU2EThreadU2DCheckpointU2DRevertU2ERequest,
+      boundary: "thread checkpoint revert"
+    )
+  }
+
   static func richThreadCommand(threadID: String, command: RichChatThreadCommand) throws
     -> RichChatPreparedJSONRoute
   {
@@ -285,6 +300,10 @@ extension GeneratedRemoteV3Contract {
       _ = try canonicalData(
         data, codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DTruncateU2EResponse,
         boundary: "runtime truncate response")
+    case .checkpointRevert:
+      _ = try canonicalData(
+        data, codec: RemoteRootCodecs.routeU2EThreadU2DCheckpointU2DRevertU2EResponse,
+        boundary: "checkpoint revert response")
     case .threadCommand:
       _ = try canonicalData(
         data, codec: RemoteRootCodecs.routeU2EThreadU2DCommandU2EResponse,
@@ -392,6 +411,7 @@ enum RichChatMutationOperation: Sendable {
   case interrupt
   case closeThread
   case truncate
+  case checkpointRevert
   case threadCommand
   case goal
   case steerSet
