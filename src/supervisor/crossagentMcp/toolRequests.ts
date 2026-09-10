@@ -1,8 +1,12 @@
 import { MAX_CONCURRENT_CHILDREN_PER_PARENT } from "./SubagentRunManager";
 import { SubagentSpawnError } from "./errors";
-import type { SpawnAgentRequest } from "./types";
+import type { SpawnAgentRequest, SpawnAgentSelection } from "./types";
 
-export function parseSpawnRequest(args: Record<string, unknown>): SpawnAgentRequest {
+export function parseSpawnRequest(
+  args: Record<string, unknown>,
+  inheritedFallbacks?: SpawnAgentSelection[],
+  inheritedRetryMode?: "startup" | "any-failure",
+): SpawnAgentRequest {
   const agent = typeof args.provider === "string" ? args.provider : "";
   const prompt = typeof args.prompt === "string" ? args.prompt : "";
   if (!agent) throw new SubagentSpawnError("provider is required");
@@ -47,7 +51,18 @@ export function parseSpawnRequest(args: Record<string, unknown>): SpawnAgentRequ
         ...(fallback.fast === true ? { fast: true } : {}),
       };
     });
+  } else if (inheritedFallbacks !== undefined) {
+    fallbacks = inheritedFallbacks;
   }
+
+  const explicitRetryMode =
+    args.retry_on === "any-failure"
+      ? "any-failure"
+      : args.retry_on === "startup"
+        ? "startup"
+        : undefined;
+  const retryMode =
+    args.fallbacks !== undefined ? explicitRetryMode : (explicitRetryMode ?? inheritedRetryMode);
 
   return {
     agent,
@@ -57,12 +72,20 @@ export function parseSpawnRequest(args: Record<string, unknown>): SpawnAgentRequ
     ...(args.fast === true ? { fast: true } : {}),
     ...(typeof args.name === "string" ? { name: args.name } : {}),
     ...(args.background === true ? { background: true } : {}),
-    ...(fallbacks ? { fallbacks } : {}),
-    ...(args.retry_on === "any-failure" ? { retryMode: "any-failure" as const } : {}),
+    ...(fallbacks !== undefined ? { fallbacks } : {}),
+    ...(retryMode ? { retryMode } : {}),
   };
 }
 
-export function parseSpawnRequests(args: Record<string, unknown>): SpawnAgentRequest[] {
+interface InheritedFallback {
+  fallbacks: SpawnAgentSelection[] | undefined;
+  retryMode: "startup" | "any-failure" | undefined;
+}
+
+export function parseSpawnRequests(
+  args: Record<string, unknown>,
+  inherited?: InheritedFallback[],
+): SpawnAgentRequest[] {
   if (!Array.isArray(args.tasks) || args.tasks.length === 0) {
     throw new SubagentSpawnError("tasks must be a non-empty array");
   }
@@ -75,7 +98,12 @@ export function parseSpawnRequests(args: Record<string, unknown>): SpawnAgentReq
     if (!task || typeof task !== "object" || Array.isArray(task)) {
       throw new SubagentSpawnError(`tasks[${index}] must be an object`);
     }
-    return parseSpawnRequest(task as Record<string, unknown>);
+    const inheritedForTask = inherited?.[index];
+    return parseSpawnRequest(
+      task as Record<string, unknown>,
+      inheritedForTask?.fallbacks,
+      inheritedForTask?.retryMode,
+    );
   });
 }
 
