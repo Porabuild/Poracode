@@ -285,6 +285,22 @@ function evictThreadRuntimeItems(threadId: string): void {
   useAppStore.getState().evictThreadRuntimeItems(threadId);
 }
 
+/**
+ * WS6 P1-10: a `thread-reset` (loss-range rebuild) wipes the in-memory
+ * transcript. Without clearing the hydration marker, the next ChatPane mount
+ * early-returns "already hydrated" and the transcript would stay empty.
+ * Re-seeds the thread from the local DB, which still holds the events the
+ * live stream lost (the backend persists them before broadcast).
+ */
+export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): Promise<void> {
+  hydratedThreadRuntimeIds.delete(threadId);
+  olderRuntimePageCursorByThread.delete(threadId);
+  // An in-flight older page from before the reset must not prepend across the
+  // reset boundary or write back its stale cursor after the fresh read.
+  cancelPendingOlderRuntimePage(threadId);
+  await hydrateThreadRuntimeItems(threadId);
+}
+
 function cancelPendingOlderRuntimePage(threadId: string): void {
   const pending = pendingOlderRuntimePages.get(threadId);
   if (pending) pending.cancelled = true;

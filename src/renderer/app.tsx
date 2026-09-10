@@ -40,7 +40,10 @@ import { applyAgentStatusSupervisorEvent } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
-import { evictOversizedInactiveThreadRuntimeItems } from "./state/chatRuntimePersister";
+import {
+  evictOversizedInactiveThreadRuntimeItems,
+  rehydrateThreadRuntimeItemsAfterReset,
+} from "./state/chatRuntimePersister";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { usePrWatchAgentSync } from "@/renderer/hooks/usePrWatchAgentSync";
@@ -256,6 +259,10 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
     useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
     useAppStore.getState().clearAllPendingSteer(event.threadId);
     clearRuntimeItemStoreSelectorCacheForThread(event.threadId);
+    // WS6 P1-10: the reset wiped the in-memory transcript; re-seed from the
+    // local DB (overlap-aware merge) so a loss-range rebuild or fresh spawn
+    // converges to the backend-persisted state instead of an empty pane.
+    rehydrateThreadRuntimeItemsAfterReset(event.threadId).catch(() => undefined);
   }
   if (event.type === "thread-exited") {
     useAppStore.getState().markThreadExited(event.threadId);

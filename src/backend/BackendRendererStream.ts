@@ -18,6 +18,10 @@ import { capBroadcastEvent, maxBroadcastEventBytes } from "@/main/remote/server/
 // streaming load long before the bytes mattered).
 const MAX_REPLAY_EVENTS = 4_000;
 const MAX_REPLAY_BYTES = 8 * 1024 * 1024;
+/** Bound for the resync-hint accumulation. Dropping the oldest hints only
+ * degrades a very stale window to the safe absent/empty fallback: a full
+ * subscribed rebuild. */
+const MAX_LOST_THREAD_IDS = 512;
 const MIN_CLIENT_BUFFERED_BYTES = 128 * 1024;
 const MAX_CLIENT_BUFFERED_BYTES = 1024 * 1024;
 // WS5: supervisor flow-control watermarks. When any ready renderer holds more
@@ -67,6 +71,34 @@ export class BackendRendererStream {
   private readonly clients = new Map<WebSocket, ClientState>();
   private readonly terminalBootstrapTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly replay: ReplayEntry[] = [];
+  /**
+   * Loss scope for the next `resync-required` broadcast to ready windows:
+   * threads of events that fit no client budget (plus supervisor-shed ids).
+   * Evicted events are not here — ready clients processed them live before
+   * eviction. Cleared once broadcast; ready windows' loss is exactly this
+   * batch (WS6 P1-10).
+   */
+  private readonly pendingBroadcastLosses = new Set<string>();
+  /**
+   * threadId -> highest seq whose event is unrecoverable by replay (evicted
+   * from the window, or never fit any budget). Drives the per-client loss
+   * scope when a reconnecting client detects a gap, so the hint reflects
+   * exactly what THAT client missed: entries above its cursor plus the
+   * surviving replay window. Never cleared by broadcasts — a reconnector
+   * must see losses a broadcast already healed for other windows.
+   *
+   * Wire contract: an absent or empty `threadIds` on `resync-required` keeps
+   * the legacy "rebuild every subscribed thread" meaning — a client whose
+   * gap predates the recorded losses cannot be narrowed safely, and losing a
+   * hint must never skip recovery. A present list is a narrowing hint only:
+   * receivers intersect it with their own subscriptions and MUST treat
+   * unknown ids as "rebuild anyway" (fail open, not closed).
+   */
+  private readonly unrecoverableBySeq = new Map<string, number>();
+  /** Lowest seq in [unrecoverableBySeq], or null when empty. Lets the gap
+   * path detect that the recorded losses do not reach back to a client's
+   * cursor and refuse to narrow. */
+  private minUnrecoverableSeq: number | null = null;
   private pressured = false;
   private replayBytes = 0;
   private sequence = 0;
@@ -149,6 +181,8 @@ export class BackendRendererStream {
       // advanced, so leaving it out of the replay makes connected and
       // reconnecting clients converge the same way: refetch authoritative
       // state from the backend host.
+      recordSupervisorEventThreadIds(this.pendingBroadcastLosses, event);
+      this.recordUnrecoverableEvent(event, seq);
       this.diagnostics.resyncRequests += 1;
       this.broadcastResyncRequired();
       return { delivered: false, sequence: seq };
@@ -190,12 +224,20 @@ export class BackendRendererStream {
    * Used when the supervisor shed bulk traffic in transit: the events never
    * reached persistence or this stream, so no replay can repair them.
    */
-  broadcastResyncRequired(): void {
+  broadcastResyncRequired(additionalThreadIds?: readonly string[]): void {
     this.diagnostics.resyncRequests += 1;
+    // Ready windows are current, so their loss is exactly this pending batch;
+    // clearing it never starves reconnectors, who read unrecoverableBySeq.
+    if (additionalThreadIds) {
+      for (const threadId of additionalThreadIds) this.pendingBroadcastLosses.add(threadId);
+    }
+    const threadIds = [...this.pendingBroadcastLosses];
+    this.pendingBroadcastLosses.clear();
     const payload = JSON.stringify({
       version: BACKEND_RENDERER_STREAM_VERSION,
       type: "resync-required",
       latestSeq: this.sequence,
+      ...(threadIds.length > 0 ? { threadIds } : {}),
     });
     for (const [socket, client] of this.clients) {
       if (!client.ready) continue;
@@ -361,6 +403,7 @@ export class BackendRendererStream {
     const oldest = this.replay[0]?.seq ?? this.sequence + 1;
     if (lastSeq < oldest - 1) {
       this.diagnostics.resyncRequests += 1;
+      const threadIds = this.gapLossScope(lastSeq);
       this.send(
         socket,
         state,
@@ -368,6 +411,7 @@ export class BackendRendererStream {
           version: BACKEND_RENDERER_STREAM_VERSION,
           type: "resync-required",
           latestSeq: this.sequence,
+          ...(threadIds.length > 0 ? { threadIds } : {}),
         }),
       );
       return;
@@ -439,6 +483,75 @@ export class BackendRendererStream {
     return true;
   }
 
+  /** Records every thread of an event as unrecoverable from seq onward. */
+  private recordUnrecoverableEvent(event: SupervisorEvent, seq: number): void {
+    const ids = new Set<string>();
+    recordSupervisorEventThreadIds(ids, event);
+    for (const threadId of ids) this.recordUnrecoverableThread(threadId, seq);
+  }
+
+  private recordUnrecoverableThread(threadId: string, seq: number): void {
+    const existing = this.unrecoverableBySeq.get(threadId);
+    if (existing !== undefined) {
+      if (existing >= seq) return;
+      this.unrecoverableBySeq.set(threadId, seq);
+      // Raising an entry can retire the recorded minimum; a stale-low min
+      // would claim coverage the map no longer has and narrow unsoundly.
+      if (existing === this.minUnrecoverableSeq) {
+        this.minUnrecoverableSeq = null;
+        for (const value of this.unrecoverableBySeq.values()) {
+          this.minUnrecoverableSeq =
+            this.minUnrecoverableSeq === null ? value : Math.min(this.minUnrecoverableSeq, value);
+        }
+      }
+      return;
+    }
+    if (this.unrecoverableBySeq.size >= MAX_LOST_THREAD_IDS) {
+      // Drop the oldest loss. The gap path notices the resulting coverage
+      // hole via minUnrecoverableSeq and falls back to a full rebuild —
+      // dropping a hint degrades to safe, never to silent staleness.
+      let oldestKey: string | undefined;
+      let oldestSeq = Number.POSITIVE_INFINITY;
+      for (const [key, value] of this.unrecoverableBySeq) {
+        if (value < oldestSeq) {
+          oldestSeq = value;
+          oldestKey = key;
+        }
+      }
+      if (oldestKey !== undefined) this.unrecoverableBySeq.delete(oldestKey);
+      this.minUnrecoverableSeq = null;
+      for (const value of this.unrecoverableBySeq.values()) {
+        this.minUnrecoverableSeq =
+          this.minUnrecoverableSeq === null ? value : Math.min(this.minUnrecoverableSeq, value);
+      }
+    }
+    this.unrecoverableBySeq.set(threadId, seq);
+    this.minUnrecoverableSeq =
+      this.minUnrecoverableSeq === null ? seq : Math.min(this.minUnrecoverableSeq, seq);
+  }
+
+  /**
+   * The loss scope for ONE reconnecting client: threads with unrecoverable
+   * events above its cursor, plus every thread carried by the surviving
+   * replay window it is about to skip. Empty when the recorded losses do not
+   * reach back to the client's cursor — the gap may then hold unrecorded
+   * threads, and only the legacy full rebuild is sound.
+   */
+  private gapLossScope(lastSeq: number): string[] {
+    if (this.minUnrecoverableSeq === null || this.minUnrecoverableSeq > lastSeq + 1) {
+      return [];
+    }
+    const scope = new Set<string>();
+    for (const entry of this.replay) {
+      if (entry.seq <= lastSeq) continue;
+      recordSupervisorEventThreadIds(scope, entry.event);
+    }
+    for (const [threadId, seq] of this.unrecoverableBySeq) {
+      if (seq > lastSeq) scope.add(threadId);
+    }
+    return [...scope];
+  }
+
   private trimReplay(): void {
     while (this.replay.length > MAX_REPLAY_EVENTS || this.replayBytes > MAX_REPLAY_BYTES) {
       // Never evict the newest entry: an empty buffer would leave reconnecting
@@ -446,9 +559,25 @@ export class BackendRendererStream {
       if (this.replay.length <= 1) break;
       const removed = this.replay.shift();
       if (!removed) break;
+      this.recordUnrecoverableEvent(removed.event, removed.seq);
       this.replayBytes -= removed.bytes;
       this.diagnostics.replayEvictions += 1;
     }
+  }
+}
+
+/**
+ * Collects every thread a supervisor event touches. Events without a thread
+ * (agent statuses, usage snapshots) cannot lose transcript content, so they
+ * contribute nothing to the lost-thread scope.
+ */
+function recordSupervisorEventThreadIds(into: Set<string>, event: SupervisorEvent): void {
+  if (event.type === "thread-runtime-events-multi") {
+    for (const batch of event.batches) into.add(batch.threadId);
+    return;
+  }
+  if ("threadId" in event && typeof event.threadId === "string") {
+    into.add(event.threadId);
   }
 }
 

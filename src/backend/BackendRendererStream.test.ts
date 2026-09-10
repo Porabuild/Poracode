@@ -394,7 +394,182 @@ describe("BackendRendererStream", () => {
     expect(reconnected.find((m) => m.type === "resync-required")).toMatchObject({ latestSeq: 1 });
     socket.close();
   });
+
+  it("carries the current loss batch to ready windows and the full loss map to reconnectors", async () => {
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+
+    // An event nothing can shrink is never replayable: its thread lands in the
+    // loss scope that ships with the broadcast.
+    const client = await readyClient(info, ["thread-1"], []);
+    stream.publish({
+      type: "thread-output",
+      threadId: "thread-1",
+      data: "x".repeat(2 * 1024 * 1024),
+      outputLength: 2 * 1024 * 1024,
+      terminalInstanceId: "gen-test",
+    });
+    await expect(nextMessage(client.socket)).resolves.toMatchObject({
+      type: "resync-required",
+      latestSeq: 1,
+      threadIds: ["thread-1"],
+    });
+
+    // A second undeliverable event broadcasts only ITS batch: the ready
+    // window already recovered thread-1, so it must not rebuild it again.
+    stream.publish({
+      type: "thread-output",
+      threadId: "thread-2",
+      data: "y".repeat(2 * 1024 * 1024),
+      outputLength: 2 * 1024 * 1024,
+      terminalInstanceId: "gen-test",
+    });
+    await expect(nextMessage(client.socket)).resolves.toMatchObject({
+      type: "resync-required",
+      threadIds: ["thread-2"],
+    });
+
+    // A reconnecting client whose cursor predates both losses still gets both
+    // ids: broadcast clearing must never starve the gap path.
+    const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+    await hello;
+    socket.send(
+      JSON.stringify({
+        version: 2,
+        type: "interests",
+        terminalThreadIds: [],
+        runtimeThreadIds: ["thread-1", "thread-2"],
+        lastSeq: 0,
+      }),
+    );
+    const gap = await nextMessage(socket);
+    expect(gap).toMatchObject({ type: "resync-required", latestSeq: 2 });
+    expect([...(gap.threadIds as string[])]).toEqual(["thread-1", "thread-2"]);
+    socket.close();
+  });
+
+  it("records every batch thread of an undeliverable multi-thread event as lost", async () => {
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+    const client = await readyClient(info, [], ["thread-m1", "thread-m2"]);
+    // A `content.delta` string is not a payload-withholding candidate, so the
+    // combined event cannot shrink under the per-event budget (512 KB) and is
+    // undeliverable.
+    const bulky = "m".repeat(400 * 1024);
+
+    stream.publish({
+      type: "thread-runtime-events-multi",
+      batches: [
+        {
+          threadId: "thread-m1",
+          events: [
+            {
+              type: "content.delta",
+              threadId: "thread-m1",
+              itemId: "i1",
+              stream: "assistant_text",
+              delta: bulky,
+            },
+          ],
+        },
+        {
+          threadId: "thread-m2",
+          events: [
+            {
+              type: "content.delta",
+              threadId: "thread-m2",
+              itemId: "i2",
+              stream: "assistant_text",
+              delta: bulky,
+            },
+          ],
+        },
+      ],
+    });
+
+    await expect(nextMessage(client.socket)).resolves.toMatchObject({
+      type: "resync-required",
+      threadIds: expect.arrayContaining(["thread-m1", "thread-m2"]),
+    });
+  });
+
+  it("narrows a reconnect gap to exactly the threads that client missed", async () => {
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+    // 601 events evict (seqs 1..601, distinct threads); the map caps at 512
+    // entries and drops the 89 oldest losses, leaving seqs 90..601 recorded.
+    for (let index = 0; index < 4_601; index += 1) {
+      stream.publish({
+        type: "thread-state",
+        threadId: `thread-${index}`,
+        status: "working",
+        attention: "none",
+        canResumeWithConfig: false,
+      });
+    }
+
+    // A cursor older than the recorded losses cannot be narrowed safely — the
+    // gap may hold the cap-dropped threads — so no hint travels.
+    const ancient = await connectWindow(info, ["thread-4600"], 0);
+    expect(ancient.gap).toMatchObject({ type: "resync-required", latestSeq: 4_601 });
+    expect(ancient.gap.threadIds).toBeUndefined();
+    ancient.socket.close();
+
+    // A cursor inside the surviving window replays normally — no resync.
+    const mid = await connectWindow(info, ["thread-4600"], 700);
+    expect(mid.gap).toMatchObject({ type: "event", seq: 701 });
+    mid.socket.close();
+
+    // A gapped cursor the loss map still covers gets the precise scope: the
+    // surviving-window threads it will skip plus evicted threads above its
+    // cursor, and never a thread it already processed.
+    const covered = await connectWindow(info, ["thread-4600"], 300);
+    expect(covered.gap).toMatchObject({ type: "resync-required", latestSeq: 4_601 });
+    const hint = covered.gap.threadIds as string[];
+    expect(hint).toContain("thread-300");
+    expect(hint).toContain("thread-4600");
+    expect(hint).not.toContain("thread-0");
+    expect(hint).not.toContain("thread-299");
+    covered.socket.close();
+  });
+
+  it("forwards supervisor-shed thread ids through the resync broadcast", async () => {
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+    const client = await readyClient(info, ["shed-1", "shed-2"], []);
+
+    stream.broadcastResyncRequired(["shed-1", "shed-2"]);
+
+    await expect(nextMessage(client.socket)).resolves.toMatchObject({
+      type: "resync-required",
+      threadIds: ["shed-1", "shed-2"],
+    });
+  });
 });
+
+/** Connects with a cursor and captures the first post-interests message. */
+async function connectWindow(
+  info: { url: string; token: string },
+  runtimeThreadIds: string[],
+  lastSeq: number,
+): Promise<{ socket: WebSocket; gap: Record<string, unknown> }> {
+  const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+  await hello;
+  socket.send(
+    JSON.stringify({
+      version: 2,
+      type: "interests",
+      terminalThreadIds: [],
+      runtimeThreadIds,
+      lastSeq,
+    }),
+  );
+  return { socket, gap: await nextMessage(socket) };
+}
 
 function connect(
   url: string,
