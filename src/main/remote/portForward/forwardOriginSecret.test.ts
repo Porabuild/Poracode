@@ -43,11 +43,11 @@ describe("forward origin secret persistence", () => {
 
   it("concurrent creators converge on a single secret", async () => {
     const baseDir = tempBaseDir();
-    const [a, b, c] = await Promise.all([
-      readOrCreateForwardOriginSecret(baseDir),
-      readOrCreateForwardOriginSecret(baseDir),
-      readOrCreateForwardOriginSecret(baseDir),
-    ]);
+    // Creation is synchronous; the guarantee under test is that repeated
+    // reads converge on the persisted secret, not wall-clock concurrency.
+    const a = readOrCreateForwardOriginSecret(baseDir);
+    const b = readOrCreateForwardOriginSecret(baseDir);
+    const c = readOrCreateForwardOriginSecret(baseDir);
     expect(a).toBe(b);
     expect(b).toBe(c);
     expect(readOrCreateForwardOriginSecret(baseDir)).toBe(a);
