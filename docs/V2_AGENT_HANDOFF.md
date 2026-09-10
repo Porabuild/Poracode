@@ -21,6 +21,9 @@ Branch: `poracode/v2`. Relevant local commits:
 
 - `4aa5b80af`: WS3 #2 — thread-history `omitScrollback` for v2 clients; the
   watch baseline is the only copy of the terminal tail.
+- `de4d189c7`: WS5 remainder — serialize-once replay, shed-at-source
+  flow control replacing the PTY pause (P1-2), idempotent supervisor
+  start (P1-3), 4,000-entry replay windows + O(1) replay seek (P1-9).
 - `f7b91457c`: WS4 relay hardening — per-channel congestion eviction
   (P1-5), zombie-channel host notification (P1-6), req/res frame
   pre-measurement (P1-7), per-clientId admission caps 16/32 + global 256

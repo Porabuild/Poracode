@@ -362,11 +362,18 @@ slow-client suite); streaming design from WS3.4 lands behind the capability gate
 
 ### WS5 — Multi-client responsiveness (supervisor + backend) — ~5–8 d
 
-1. Shed policy for `thread-output`/bulk runtime batches on the supervisor→backend sender + `backpressureTimeoutMs: null` (P1-1).
-2. Serialize once: pre-serialized string reused for sizing; project image refs at backend ingest instead of post-IPC (supervisor lane finding 1, ~50–250 ms stalls per multi-MB event today).
-3. Wire backend-host pressure into `setOutputBackpressured`; replace PTY pause for rebuildable terminal bytes with bounded buffer + drop-with-resync (P1-2).
-4. Make `SupervisorClient.start()` idempotent (P1-3).
-5. Adaptive/remote replay-window sizing or delta exclusion so reconnect-under-load doesn't force full resync (P1-9).
+**Status 2026-09-09: items 1–5 LANDED** (item 1 = WS5-1 `937bf2606`; items 2–5 =
+`de4d189c7`): replay buffers store each event's ingest-time serialization and reuse it
+unless per-client filtering rewrote the event (item 2); downstream renderer pressure
+flows to the supervisor, which sheds rebuildable terminal output at the source via the
+IPC sender's eager-shed mode — the PTY-pause chain was removed entirely so agent
+processes never stall behind a slow consumer (item 3, P1-2); `SupervisorClient.start()`
+is idempotent with an explicit `restart()` for force semantics (item 4, P1-3); the
+remote + renderer replay windows widened 500→4,000 entries with the remote replay pump
+seeking by index (byte budgets unchanged) so reconnect-under-load survives small-event
+bursts without full resync (item 5, P1-9). Full unit suite 12,080 green; native-e2e 145
+green; lint/fmt/typecheck clean. Gate (8 agents + 4 clients + 1 stalled) still to be
+recorded as a measured load profile.
 
 **Gate:** 8 concurrent streaming agents + 4 active GUI clients with one stalled client:
 no agent death, no >1-frame stall on healthy clients, stop/steer latency bounded; memory
