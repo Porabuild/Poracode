@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "contract": "poracode.remote",
-  "protocolVersion": 10,
+  "protocolVersion": 11,
   "wireFormat": {
     "http": "application/json",
     "webSocket": "json-text-frames",
@@ -11,8 +11,8 @@
   },
   "compatibility": {
     "versionPolicy": "exact",
-    "minimumAcceptedProtocolVersion": 10,
-    "maximumAcceptedProtocolVersion": 10,
+    "minimumAcceptedProtocolVersion": 11,
+    "maximumAcceptedProtocolVersion": 11,
     "unknownObjectFields": "ignore",
     "unknownAdvertisedScopes": "filter",
     "unknownClientRequestedScopes": "reject",

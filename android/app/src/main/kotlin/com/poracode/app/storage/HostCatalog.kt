@@ -148,7 +148,7 @@ class HostCatalog(
     ): HostMutationResult = mutate(owning, HostOperationKind.Add) { document ->
         val selected = document.selectedConnectionId?.let(document::host) ?: return@mutate null
         if (selected.asProfile() != expected.profile ||
-            selected.protocolVersion != StoredProtocolUpgrade.PREVIOUS_VERSION ||
+            !StoredProtocolUpgrade.isEligibleStoredProtocol(selected.protocolVersion) ||
             vault.load(HostVault.account(selected.connectionId))?.toString(Charsets.UTF_8) !=
                 expected.accessToken
         ) return@mutate null

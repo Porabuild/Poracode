@@ -7,11 +7,10 @@ package com.poracode.app.protocol
 object ProtocolConstants {
     /**
      * Exact-match generation shared with the host (`PORACODE_REMOTE_PROTOCOL_VERSION`).
-     * v10 coordinates destructive truncate synchronization: hosts broadcast
-     * `runtime.truncated` (server-declared removed-turn anchors) that v9
-     * clients never applied, so mixed generations refuse to pair.
+     * v11 adds the daily usage-window enum. Older native bindings reject it,
+     * so mixed generations refuse to pair.
      */
-    const val REMOTE_PROTOCOL_VERSION = 10
+    const val REMOTE_PROTOCOL_VERSION = 11
     const val COMMAND_ID_HEADER = "x-poracode-command-id"
     const val BEARER_TOKEN_TYPE = "Bearer"
 

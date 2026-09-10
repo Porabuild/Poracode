@@ -1,0 +1,262 @@
+[
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call",
+      "toolCallId": "call_HEcSHR9hna4Kb0wwPtLGieVR",
+      "title": "Ran explore subagent Calculate 11 times 13",
+      "rawInput": {
+        "title": "Calculate 11 times 13",
+        "task": "Calculate 11 * 13. Return only the numerical result. Do not run commands or modify files.",
+        "profile": "subagent_explore",
+        "is_background": true
+      },
+      "_meta": {
+        "cognition.ai/inferenceToolName": "run_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call",
+      "toolCallId": "call_aDtjH10lN1J0a2VeH5FDelix",
+      "title": "Ran explore subagent Calculate 12 times 14",
+      "rawInput": {
+        "title": "Calculate 12 times 14",
+        "task": "Calculate 12 * 14. Return only the numerical result. Do not run commands or modify files.",
+        "profile": "subagent_explore",
+        "is_background": true
+      },
+      "_meta": {
+        "cognition.ai/inferenceToolName": "run_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "call_HEcSHR9hna4Kb0wwPtLGieVR",
+      "status": "in_progress",
+      "_meta": {
+        "cognition.ai/inferenceToolName": "run_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "d42a8a5f",
+      "status": "in_progress",
+      "_meta": {
+        "cognition.ai/subagent_started": {
+          "agentId": "d42a8a5f",
+          "title": "Calculate 11 times 13",
+          "task": "Calculate 11 * 13. Return only the numerical result. Do not run commands or modify files.",
+          "profile": "Explore",
+          "depth": 1,
+          "isBackground": true,
+          "model": "Subagent Default"
+        }
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "call_HEcSHR9hna4Kb0wwPtLGieVR",
+      "status": "completed",
+      "content": [
+        {
+          "type": "content",
+          "content": {
+            "type": "text",
+            "text": "Background subagent started."
+          }
+        }
+      ],
+      "_meta": {
+        "cognition.ai/inferenceToolName": "run_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "call_aDtjH10lN1J0a2VeH5FDelix",
+      "status": "in_progress",
+      "_meta": {
+        "cognition.ai/inferenceToolName": "run_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "516e3d1a",
+      "status": "in_progress",
+      "_meta": {
+        "cognition.ai/subagent_started": {
+          "agentId": "516e3d1a",
+          "title": "Calculate 12 times 14",
+          "task": "Calculate 12 * 14. Return only the numerical result. Do not run commands or modify files.",
+          "profile": "Explore",
+          "depth": 1,
+          "isBackground": true,
+          "model": "Subagent Default"
+        }
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "call_aDtjH10lN1J0a2VeH5FDelix",
+      "status": "completed",
+      "content": [
+        {
+          "type": "content",
+          "content": {
+            "type": "text",
+            "text": "Background subagent started."
+          }
+        }
+      ],
+      "_meta": {
+        "cognition.ai/inferenceToolName": "run_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "516e3d1a",
+      "status": "completed",
+      "_meta": {
+        "cognition.ai/subagent_completed": {
+          "agentId": "516e3d1a",
+          "success": true,
+          "summary": "168",
+          "depth": 1
+        }
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "d42a8a5f",
+      "status": "completed",
+      "_meta": {
+        "cognition.ai/subagent_completed": {
+          "agentId": "d42a8a5f",
+          "success": true,
+          "summary": "143",
+          "depth": 1
+        }
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call",
+      "toolCallId": "call_c05bFV4ZL5RElWwXBTxioBF6",
+      "title": "Checked on subagent Calculate 11 times 13",
+      "rawInput": {
+        "agent_id": "d42a8a5f",
+        "block": true,
+        "timeout": 600
+      },
+      "_meta": {
+        "cognition.ai/inferenceToolName": "read_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call",
+      "toolCallId": "call_48vAgYNvubZn09hFD3ts9B8Z",
+      "title": "Checked on subagent Calculate 12 times 14",
+      "rawInput": {
+        "agent_id": "516e3d1a",
+        "block": true,
+        "timeout": 600
+      },
+      "_meta": {
+        "cognition.ai/inferenceToolName": "read_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "call_c05bFV4ZL5RElWwXBTxioBF6",
+      "status": "in_progress",
+      "_meta": {
+        "cognition.ai/inferenceToolName": "read_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "call_c05bFV4ZL5RElWwXBTxioBF6",
+      "status": "completed",
+      "content": [
+        {
+          "type": "content",
+          "content": {
+            "type": "text",
+            "text": "Subagent completed."
+          }
+        }
+      ],
+      "_meta": {
+        "cognition.ai/inferenceToolName": "read_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "call_48vAgYNvubZn09hFD3ts9B8Z",
+      "status": "in_progress",
+      "_meta": {
+        "cognition.ai/inferenceToolName": "read_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "call_48vAgYNvubZn09hFD3ts9B8Z",
+      "status": "completed",
+      "content": [
+        {
+          "type": "content",
+          "content": {
+            "type": "text",
+            "text": "Subagent completed."
+          }
+        }
+      ],
+      "_meta": {
+        "cognition.ai/inferenceToolName": "read_subagent"
+      }
+    }
+  }
+]

@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "contract": "poracode.remote.native-parity",
-  "protocolVersion": 10,
+  "protocolVersion": 11,
   "entries": {
     "httpRoutes": [
       {
@@ -186,7 +186,9 @@
           "disposition": "implemented",
           "evidence": [
             "ios/App/App/Transport/Settings/SettingsRemoteAPI.swift",
-            "ios/App/App/Features/Settings/UI/SettingsHostView.swift"
+            "ios/App/App/Features/Settings/UI/SettingsHostView.swift",
+            "ios/App/App/Features/Settings/UI/SettingsUsagePresentation.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatProviderUsage.swift"
           ]
         },
         "android": {

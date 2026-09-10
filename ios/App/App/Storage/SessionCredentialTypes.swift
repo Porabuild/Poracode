@@ -75,14 +75,15 @@ enum SessionCredentialLoadOutcome: Sendable, Equatable {
 /// never writes; once the journaled `.add` commits, durable bytes stay
 /// upgraded even when a stale generation abandons the install.
 enum PreservedPairingUpgrade: Sendable {
-    /// Immediately previous released remote protocol. Literal on purpose:
-    /// only this generation is safely decodable for upgrade; older/future
-    /// bindings stay terminal incompatible/corrupt. Do not generalize to
+    /// The previously supported stored generation remains eligible alongside
+    /// the explicitly reviewed v10 binding. Older/future generations remain
+    /// incompatible. Do not generalize to
     /// `current - 1` — that would silently admit unreviewed generations.
     static let previousReleasedProtocolVersion = 9
 
     static func isEligibleStoredProtocol(_ version: Int) -> Bool {
-        version == previousReleasedProtocolVersion
+        // v10 changed broadcasts, not the stored host/token binding.
+        version == previousReleasedProtocolVersion || version == 10
     }
 
     /// Pure gate for the bootstrap upgrade attempt. No I/O, no capability
@@ -93,7 +94,7 @@ enum PreservedPairingUpgrade: Sendable {
         stored: ConnectionProfile,
         environment: RemoteEnvironmentDescriptor
     ) -> Bool {
-        guard stored.protocolVersion == previousReleasedProtocolVersion else { return false }
+        guard isEligibleStoredProtocol(stored.protocolVersion) else { return false }
         guard environment.protocolVersion == ProtocolConstants.remoteProtocolVersion else {
             return false
         }

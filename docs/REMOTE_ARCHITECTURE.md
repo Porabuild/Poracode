@@ -101,7 +101,7 @@ side-effect free and rejects missing, extra, or stale generated artifacts.
 
 The generated inventory carries separate compatibility identities:
 
-- wire `protocolVersion` (currently 10);
+- wire `protocolVersion` (currently 11);
 - generator and binding-format versions (binding format currently 2); and
 - hashes of the source contract and manifest.
 

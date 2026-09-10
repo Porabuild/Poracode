@@ -4023,6 +4023,7 @@ msgstr "최근 본 다음 채팅으로 순환"
 msgid "Cycle to the previous recently viewed chat"
 msgstr "최근 본 이전 채팅으로 순환"
 
+#: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Daily"
 msgstr "매일"
@@ -4373,6 +4374,14 @@ msgstr "장치 및 도구"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "이 데스크톱에 연결할 수 있는 동안 기기를 페어링할 수 있습니다."
+
+#: src/renderer/components/providers/devin/manifest.ts
+msgid "Devin"
+msgstr "Devin"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Devin CLI with terminal and structured chat support."
+msgstr "터미널 및 구조화된 채팅을 지원하는 Devin CLI."
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -6284,6 +6293,10 @@ msgstr "전역 설정 상속(현재 {0})"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "저장소 초기화"
+
+#: src/renderer/components/providers/devin/modelPricing.ts
+msgid "Input / output prices per 1M tokens. Ranges cover model variants."
+msgstr "100만 토큰당 입력/출력 가격입니다. 가격 범위에는 모델의 여러 변형이 포함됩니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"

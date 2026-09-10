@@ -210,6 +210,7 @@ enum SettingsUsagePresentation {
     let hour: TimeInterval = 3_600
     let day: TimeInterval = 86_400
     switch id {
+    case "daily": return day
     case "session-5h": return 5 * hour
     case "weekly", "weekly-opus", "weekly-sonnet", "weekly-fable": return 7 * day
     case "monthly", "cursor-auto", "cursor-api", "factory:premium":

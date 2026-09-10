@@ -66,7 +66,7 @@ const ledgerSchema = z
   .object({
     formatVersion: z.literal(1),
     contract: z.literal("poracode.remote.native-parity"),
-    protocolVersion: z.literal(10),
+    protocolVersion: z.literal(11),
     entries: z
       .object({
         httpRoutes: z.array(entrySchema),
@@ -82,7 +82,7 @@ const ledgerSchema = z
 
 const manifestSchema = z.object({
   contract: z.literal("poracode.remote"),
-  protocolVersion: z.literal(10),
+  protocolVersion: z.literal(11),
   httpRoutes: z.array(z.object({ id: z.string().min(1) })),
   procedures: z.array(z.object({ name: z.string().min(1) })),
   webSocket: z.object({
@@ -226,7 +226,7 @@ describe("remote v3 native parity planning ledger", () => {
   it("keeps generated cardinalities aligned without treating metadata as implementation", () => {
     const generated = z
       .object({
-        protocolVersion: z.literal(10),
+        protocolVersion: z.literal(11),
         inventory: z.object({
           routes: z.number().int(),
           procedures: z.number().int(),
@@ -250,7 +250,7 @@ describe("remote v3 native parity planning ledger", () => {
   it("cross-checks native E2E transport coverage for every route and procedure", () => {
     const operationMap = z
       .object({
-        protocolVersion: z.literal(10),
+        protocolVersion: z.literal(11),
         counts: z.object({ route: z.number().int(), procedure: z.number().int() }).passthrough(),
         operations: z.record(z.string(), z.object({ kind: z.string(), id: z.string() })),
       })

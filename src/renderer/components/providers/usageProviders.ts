@@ -112,6 +112,7 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   zai: {
     rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
+  devin: { rings: { outer: ["daily"], inner: ["weekly"] } },
   // Kimi For Coding reads the Kimi Code CLI credential automatically; the
   // API-key paste is the fallback for users without a CLI sign-in. The 5h
   // request rate limit is the fast outer ring, the weekly membership quota the

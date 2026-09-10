@@ -349,7 +349,7 @@ it("a runtime truncate on one client reaches a second connected client as runtim
         "One production headless host, two independently paired device credentials, two live WS connections (actor + observer with declared thread-item-interests). Runtime items seeded via the production DB writers against the host SQLite file; no provider or supervisor thread was started.",
       regressionContract:
         "A truncate must yield exactly one transcript-effective runtime.truncated signal (with server-declared removedCompletedTurnAnchors) for subscribed clients, plus the sidebar remote-threads-changed refresh.",
-      protocolVersion: 10,
+      protocolVersion: 11,
     });
 
     // THE PRODUCER CONTRACT: the subscribed open-thread client received the

@@ -5,6 +5,10 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_744f57e3eb025261: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_26f96950d20651b3, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_745963f66484f8a1: RemoteSchema by lazy {
     RemoteSchema(type = "object", additionalSchema = schema_c1d4a9f752e166b1, propertyNames = schema_bf0b727f7b1c6d07, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -81,10 +85,6 @@ internal val schema_7b88ef93ea82dd5b: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("config", "prompt"), properties = mapOf("config" to schema_023567f0898d4d6d, "prompt" to schema_36fea325bf1aca70, "segments" to schema_4392338ffc80bed7), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
-internal val schema_7be168d0c02a30f1: RemoteSchema by lazy {
-    RemoteSchema(unionKind = "anyOf", options = listOf(schema_9fef93fbe5070566, schema_b305c5dcc2d06cc2, schema_f6a941e10f9feb27, schema_38c5e1151393f6bd, schema_3c594c99571d82f9), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
 internal val schema_7c8fd050dd5e98a8: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("Bearer")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -115,6 +115,10 @@ internal val schema_7e386bfca48a8819: RemoteSchema by lazy {
 
 internal val schema_7e3e58fba723ce2c: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("watch"), properties = mapOf("watch" to schema_4e69a9e2508b7f12), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_7e8114c3dda52277: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("session-5h"), JsonPrimitive("daily"), JsonPrimitive("weekly"), JsonPrimitive("weekly-opus"), JsonPrimitive("weekly-sonnet"), JsonPrimitive("weekly-fable"), JsonPrimitive("monthly"), JsonPrimitive("extra-usage"), JsonPrimitive("cursor-auto"), JsonPrimitive("cursor-api")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_7eb7e8f44a304273: RemoteSchema by lazy {
@@ -187,6 +191,10 @@ internal val schema_82e8027595898a28: RemoteSchema by lazy {
 
 internal val schema_82fdb789883e6159: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("kind", "tabId"), properties = mapOf("kind" to schema_6801e053c0220116, "tabId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_832a7f0ba23ec5a6: RemoteSchema by lazy {
+    RemoteSchema(type = "number", literals = listOf(JsonPrimitive(11.0)), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_833ef472e7760fae: RemoteSchema by lazy {
@@ -439,12 +447,4 @@ internal val schema_93bef3a552bf787e: RemoteSchema by lazy {
 
 internal val schema_93ea7778107ef974: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("createdAt", "done", "id", "text"), properties = mapOf("createdAt" to schema_36fea325bf1aca70, "done" to schema_feeb8bb50144d96d, "id" to schema_36fea325bf1aca70, "text" to schema_bf0b727f7b1c6d07), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_941a12a3ce0aadca: RemoteSchema by lazy {
-    RemoteSchema(unionKind = "anyOf", options = listOf(schema_bf0b727f7b1c6d07, schema_3d06117798bf5171), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_949f0ec1c2b67829: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("ready"), JsonPrimitive("binary"), JsonPrimitive("too_large"), JsonPrimitive("unsupported"), JsonPrimitive("missing")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

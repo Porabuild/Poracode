@@ -33,10 +33,10 @@ enum SessionCredentialLegacyMigration {
         var bound = profile
         if bound.protocolVersion == 0 {
             bound.protocolVersion = ProtocolConstants.remoteProtocolVersion
-        } else if bound.protocolVersion == PreservedPairingUpgrade.previousReleasedProtocolVersion {
-            // Safely decodable v9 split-v1 is preserved for verified upgrade
+        } else if PreservedPairingUpgrade.isEligibleStoredProtocol(bound.protocolVersion) {
+            // Safely decodable reviewed split-v1 is preserved for verified upgrade
             // recovery — never rebound here. The bootstrap path verifies a fresh
-            // environment handshake (host identity + scopes) against a live v10
+            // environment handshake (host identity + scopes) against a compatible live
             // server before persisting any updated binding.
         } else {
             guard bound.protocolVersion == ProtocolConstants.remoteProtocolVersion else {
@@ -455,10 +455,9 @@ actor SessionCredentialRepository: SessionCredentialStore {
         case .inconsistent:
             return .localStoreInconsistent
         case .migrated(let credentials):
-            // Preserved v9 split-v1: persist as v2 protocol-9 and report mismatch
+            // Preserved reviewed split-v1: persist as v2 with its original protocol and report mismatch
             // (bytes preserved for verified upgrade). Never report compatible.
-            if credentials.profile.protocolVersion
-                == PreservedPairingUpgrade.previousReleasedProtocolVersion
+            if PreservedPairingUpgrade.isEligibleStoredProtocol(credentials.profile.protocolVersion)
             {
                 let data = try JSONDecoding.encoder.encode(credentials.asDocument())
                 try clearance.keychain.save(account: clearance.credentialsAccount, data: data)

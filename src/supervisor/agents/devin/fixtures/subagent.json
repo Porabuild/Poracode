@@ -1,0 +1,85 @@
+[
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call",
+      "toolCallId": "call_UgBPxLaMRLrEjmuN1XbrTXbE",
+      "title": "Ran explore subagent Calculate multiplication",
+      "rawInput": {
+        "title": "Calculate multiplication",
+        "task": "Calculate 11 * 13. Return only the numeric result. Do not run commands or modify files.",
+        "profile": "subagent_explore",
+        "is_background": false
+      },
+      "_meta": {
+        "cognition.ai/inferenceToolName": "run_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "call_UgBPxLaMRLrEjmuN1XbrTXbE",
+      "status": "in_progress",
+      "_meta": {
+        "cognition.ai/inferenceToolName": "run_subagent"
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "a0c86937",
+      "status": "in_progress",
+      "_meta": {
+        "cognition.ai/subagent_started": {
+          "agentId": "a0c86937",
+          "title": "Calculate multiplication",
+          "task": "Calculate 11 * 13. Return only the numeric result. Do not run commands or modify files.",
+          "profile": "Explore",
+          "depth": 1,
+          "isBackground": false,
+          "model": "Subagent Default"
+        }
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "a0c86937",
+      "status": "completed",
+      "_meta": {
+        "cognition.ai/subagent_completed": {
+          "agentId": "a0c86937",
+          "success": true,
+          "summary": "143",
+          "depth": 1
+        }
+      }
+    }
+  },
+  {
+    "sessionId": "fixture-session",
+    "update": {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "call_UgBPxLaMRLrEjmuN1XbrTXbE",
+      "status": "completed",
+      "content": [
+        {
+          "type": "content",
+          "content": {
+            "type": "text",
+            "text": "Subagent completed:\n143"
+          }
+        }
+      ],
+      "_meta": {
+        "cognition.ai/inferenceToolName": "run_subagent"
+      }
+    }
+  }
+]
