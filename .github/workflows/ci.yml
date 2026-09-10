@@ -63,6 +63,9 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      - name: Release version regression tests
+        run: node --test scripts/resolve-release-version.test.mjs
+
   fmt:
     name: Format
     runs-on: ubuntu-latest
