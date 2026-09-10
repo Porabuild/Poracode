@@ -8,6 +8,7 @@ import {
   allRuntimeEventFixtures,
   buildReplayableEvent,
   FIXTURE_PROJECT_ID,
+  FIXTURE_TERMINAL_ID,
   FIXTURE_THREAD_ID,
 } from "../harness/labFixtures.ts";
 import { CLIENT_WS_FIXTURES } from "../harness/wsFixtures.ts";
@@ -152,6 +153,28 @@ export async function exerciseCoreWebSocket(
   assert.equal(((await first.next()) as { type: string }).type, "terminal-watch-result");
   harness.lab.emit({ kind: "terminal-output", data: "fixture terminal" });
   assert.equal(((await first.next()) as { type: string }).type, "terminal-output");
+  // Cursor-sync v2: the same watch re-requested with version 2 streams the
+  // baseline as ordered chunks; the client acks each chunk's cursor.
+  first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["terminal-watch-v2"]));
+  const firstChunk = (await first.next()) as {
+    type: string;
+    cursorSync?: { watchId: string; toCursor: number; chunkCount: number };
+  };
+  assert.equal(firstChunk.type, "terminal-watch-baseline-chunk");
+  first.ws.send(
+    JSON.stringify({
+      type: "terminal-watch-baseline-ack",
+      id: FIXTURE_TERMINAL_ID,
+      cursorSync: {
+        version: 2,
+        watchId: firstChunk.cursorSync!.watchId,
+        throughCursor: firstChunk.cursorSync!.toCursor,
+      },
+    }),
+  );
+  for (let remaining = firstChunk.cursorSync!.chunkCount - 1; remaining > 0; remaining -= 1) {
+    assert.equal(((await first.next()) as { type: string }).type, "terminal-watch-baseline-chunk");
+  }
   first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES.ping));
   assert.equal(((await first.next()) as { type: string }).type, "pong");
   first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["terminal-unwatch"]));

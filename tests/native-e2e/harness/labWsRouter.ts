@@ -184,6 +184,28 @@ export function handleClientMessage(
     if (connection.session.scopes.includes("terminal:read")) {
       connection.terminalWatches.add(id);
       const cursorSync = parsed.cursorSync;
+      if (cursorSync && cursorSync.version === 2) {
+        // v2 framing: the same fixture window travels as one chunk (11 units
+        // fit any accepted chunk budget); the client acks its cursor.
+        runtime.send(connection.ws, {
+          type: "terminal-watch-baseline-chunk",
+          id,
+          cursorSync: {
+            version: 2,
+            watchId: cursorSync.watchId,
+            generation: "instance-fixture-aaa",
+            chunkIndex: 0,
+            chunkCount: 1,
+            fromCursor: 0,
+            toCursor: 11,
+            data: "hello world",
+            processState: "running",
+            terminalSize: { cols: 120, rows: 30 },
+            resumeServed: false,
+          },
+        });
+        return;
+      }
       if (cursorSync) {
         runtime.send(connection.ws, {
           type: "terminal-watch-result",

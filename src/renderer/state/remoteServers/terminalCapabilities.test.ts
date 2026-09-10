@@ -12,12 +12,21 @@ function environment(versions?: number[]): Environment {
   return (versions ? { capabilities: { terminalCursorSync: { versions } } } : {}) as Environment;
 }
 
-it("opts in only when the descriptor advertises supported version 1", () => {
+it("opts in at the newest advertised version this build supports", () => {
+  // v2-capable host: pick 2 (chunked baselines + resume).
   expect(terminalCapabilitiesFromEnvironment(environment([1, 2]))).toEqual({
+    cursorSyncVersion: 2,
+  });
+  expect(terminalCapabilitiesFromEnvironment(environment([2]))).toEqual({
+    cursorSyncVersion: 2,
+  });
+  // v1-only host stays on v1.
+  expect(terminalCapabilitiesFromEnvironment(environment([1]))).toEqual({
     cursorSyncVersion: 1,
   });
-  expect(terminalCapabilitiesFromEnvironment(environment([2]))).toEqual({});
   expect(terminalCapabilitiesFromEnvironment(environment())).toEqual({});
+  // Nothing advertised intersects this build's supported set.
+  expect(terminalCapabilitiesFromEnvironment(environment([3, 4]))).toEqual({});
 });
 
 it("reuses a freshly fetched initial descriptor without a duplicate request", async () => {

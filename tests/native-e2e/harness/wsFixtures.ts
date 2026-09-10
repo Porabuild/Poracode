@@ -14,6 +14,16 @@ export const CLIENT_WS_FIXTURES = {
     id: FIXTURE_TERMINAL_ID,
     cursorSync: { version: 1, watchId: "watch-fixture-001" },
   },
+  "terminal-watch-v2": {
+    type: "terminal-watch",
+    id: FIXTURE_TERMINAL_ID,
+    cursorSync: {
+      version: 2,
+      watchId: "watch-fixture-002",
+      maxChunkBytes: 8192,
+      maxWindowBytes: 8192,
+    },
+  },
   "terminal-unwatch": { type: "terminal-unwatch", id: FIXTURE_TERMINAL_ID },
   "git-state-interests": {
     type: "git-state-interests",

@@ -293,10 +293,15 @@ advertised version per connection. 32 new/updated tests; full protocol + remote 
 (968) green. **WS3 #2 snapshot scrollback omission — LANDED** (commit `4aa5b80af`): `thread-history`
 accepts `omitScrollback=1`; the renderer tracks which desktops negotiated cursor-sync v2
 and skips the inlined tail on hydration/resync so the watch baseline is the single copy.
-v1 clients unchanged. Remaining in this lane: (a) native iOS/Android adoption of v2
-(ledger entries are `planned`), (b) the constrained-shaper E2E runs
-(`slowLinkColdStartV2` / `slowLinkResumeDelta`) against a real host to record
-before/after p50/p95.
+v1 clients unchanged. **Measured on a real host + real PTY** (`tests/native-e2e/cursorSyncV2.test.ts`,
+evidence `tmp/v2-production-review/shared-host/cursor-sync-v2-*.json`): through the
+design-worst shape (32 kbps, 1.5 s RTT, 131,072-unit window) the v1 probe measured
+3 attempts / 0 installed / first error at 10.0 s; v2 installs exactly once, zero
+watch errors, 36 chunks + 36 ACKs, wire 110,262 B, completion in a single 42.2 s
+transfer — and a reconnecting v2 client then receives only the uncovered suffix
+(660 units vs the full window). Remaining in this lane: (a) native iOS/Android
+adoption of v2 (ledger entries are `planned`), (b) heartbeat-coexistence E2E with a
+real `RemoteSocketHealthMonitor` attached (design §12.2).
 
 **WS3-A: agent-statuses payload split — IMPLEMENTED (commit 23d145e0c).**
 Measured breakdown of `GET /api/agent-statuses` (230 KB raw / 39.4 KB gzipped, 15
