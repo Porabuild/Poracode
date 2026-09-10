@@ -73,6 +73,10 @@
     <string name="rich_chat_restore_checkpoint_message">Pliki w projekcie zostaną przywrócone do tego punktu kontrolnego. Późniejsze wiadomości w rozmowie nie zostaną usunięte.</string>
     <string name="rich_chat_rollback_title">Cofnąć o jedną turę?</string>
     <string name="rich_chat_rollback_message">Rozmowa dostawcy zostanie cofnięta o jedną ukończoną turę. Odśwież przed kontynuowaniem.</string>
+    <string name="rich_chat_revert_to_checkpoint">Przywróć punkt kontrolny</string>
+    <string name="rich_chat_revert_title">Przywrócić punkt kontrolny?</string>
+    <string name="rich_chat_revert_message">Rozmowa cofnie się do stanu sprzed tej wiadomości, pliki zostaną przywrócone do punktu kontrolnego, jeśli istnieje migawka, a późniejsze elementy zostaną usunięte.</string>
+    <string name="rich_chat_revert">Przywróć</string>
     <string name="rich_chat_rollback">Cofnij</string>
     <string name="rich_chat_truncate_from_here">Obetnij od tego miejsca</string>
     <string name="rich_chat_truncate_title">Obciąć tę rozmowę?</string>

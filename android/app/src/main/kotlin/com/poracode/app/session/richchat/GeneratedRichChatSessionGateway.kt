@@ -16,6 +16,7 @@ import com.poracode.app.transport.richchat.RichChatInvalidResponseException
 import com.poracode.app.transport.richchat.RichChatMutationOutcomeUnknownException
 import com.poracode.app.transport.richchat.RichChatRemoteRejectedException
 import com.poracode.app.transport.richchat.RichChatRemoteTransport
+import com.poracode.app.transport.richchat.RichChatRevertFailedException
 import com.poracode.app.transport.richchat.RichChatTransportUnavailableException
 import com.poracode.app.transport.richchat.RuntimeImagePathSegment
 import com.poracode.app.transport.richchat.TerminalStartInput
@@ -155,6 +156,16 @@ class GeneratedRichChatSessionGateway(
         payload: JsonObject,
     ) = invokeThreadProcedure(lease, threadId, payload, RichChatCapability.Operate, true) {
         rich.rollbackThreadConversation(payload)
+    }
+
+    override suspend fun checkpointRevert(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ) {
+        invokeThreadProcedure(lease, threadId, payload, RichChatCapability.Operate, true) {
+            rich.checkpointRevert(threadId, payload)
+        }
     }
 
     override suspend fun createCheckpoint(
@@ -410,6 +421,8 @@ private fun RemoteClientException.sanitized(mutation: Boolean): RichChatGatewayE
 private fun Exception.sanitized(mutation: Boolean): RichChatGatewayException = when (this) {
     is RichChatAuthorizationException -> RichChatGatewayException(status, "forbidden", false, this)
     is RichChatRemoteRejectedException -> RichChatGatewayException(status, "remote_error", false, this)
+    is RichChatRevertFailedException ->
+        RichChatGatewayException(null, "checkpoint_revert_failed", false, this)
     is RichChatMutationOutcomeUnknownException ->
         RichChatGatewayException(null, "outcome_unknown", true, this)
     is RichChatTransportUnavailableException -> RichChatGatewayException(0, "network", mutation, this)

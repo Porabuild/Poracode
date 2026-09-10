@@ -25,6 +25,13 @@ Branch: `poracode/v2`. Relevant local commits:
   `POST /api/threads/{id}/checkpoint-revert` (`RichChatConversationController`
   single `gateway.checkpointRevert`). iOS build + full suite, Android
   unit/lint/build, unit 12,090 and native-e2e 149 green.
+- WS2 stage 5: Android adoption of the compound route — generated-codec facade
+  (`GeneratedRemoteV3RichChatContract.checkpointRevert`), transport call with
+  command-id header and outcome decode (`RichChatRevertFailedException` for
+  definite failures), gateway + `RichCheckpointController.revert`, and a
+  desktop-parity per-prompt revert action in the Android timeline with a
+  deterministic operation key and all-locale strings. `native-parity.json`
+  thread-checkpoint-revert is now `implemented` for iOS and Android.
 - `28f48ba89`: WS2 stage 3 — provider revert anchors (`createRevertAnchor` /
   `restoreToRevertAnchor`) on Claude/Codex/OpenCode with journaled absolute
   targets (migration 46), idempotent re-restore on resume, legacy relative

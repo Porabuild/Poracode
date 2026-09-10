@@ -30,6 +30,48 @@ class GeneratedRichChatRemoteTransport(
         mutate("runtimeTruncate", threadPath(route, "runtime/truncate"))
     }
 
+    /**
+     * Compound checkpoint revert (WS2): one idempotent POST for provider rollback,
+     * file restore, and transcript truncation. The command-id header keys server-side
+     * journaling, so a retry after a lost response replays the same operation.
+     */
+    override suspend fun checkpointRevert(threadId: String, payload: JsonObject): String {
+        val operationKey = (payload["operationKey"] as? JsonPrimitive)
+            ?.takeIf { it.isString }
+            ?.takeIf { it.content.isNotEmpty() }
+            ?.content
+            ?: throw RichChatInvalidRequestException("Checkpoint revert requires an operation key.")
+        val route = prepare { GeneratedRemoteV3RichChatContract.checkpointRevert(threadId, payload) }
+        val metadata = wireMetadata("thread-checkpoint-revert", "json", "json")
+        if (
+            metadata.method != "POST" ||
+            metadata.path != CHECKPOINT_REVERT_PATH ||
+            metadata.auth != "bearer" ||
+            metadata.successStatus != 200
+        ) {
+            throw RichChatInvalidRequestException("Rich-chat route metadata is incompatible.")
+        }
+        val raw = executeOperation("checkpointRevert", mutating = true) {
+            http.requestText(
+                metadata.path.replace(
+                    "{threadId}",
+                    encode(route.pathValues.getValue("threadId")),
+                ),
+                method = "POST",
+                jsonBody = route.body,
+                extraHeaders = mapOf(
+                    ProtocolConstants.COMMAND_ID_HEADER to "checkpoint-revert:$operationKey",
+                ),
+            )
+        }
+        val canonical = try {
+            GeneratedRemoteV3RichChatContract.validateMutationResponse("checkpointRevert", raw)
+        } catch (_: RemoteClientException) {
+            throw RichChatMutationOutcomeUnknownException("checkpointRevert")
+        }
+        return decodeRevertOutcome(canonical)
+    }
+
     override suspend fun threadCommand(threadId: String, command: JsonObject) {
         val route = prepare { GeneratedRemoteV3RichChatContract.threadCommand(threadId, command) }
         val metadata = wireMetadata("thread-command", "json", "json")
@@ -222,6 +264,23 @@ class GeneratedRichChatRemoteTransport(
         if (result !== JsonNull) throw RichChatMutationOutcomeUnknownException(name)
     }
 
+    private fun decodeRevertOutcome(canonical: String): String {
+        val response = try {
+            Json.parseToJsonElement(canonical) as? JsonObject
+        } catch (_: Exception) {
+            null
+        } ?: throw RichChatMutationOutcomeUnknownException("checkpointRevert")
+        val outcome = (response["outcome"] as? JsonPrimitive)
+            ?.takeIf { it.isString }
+            ?.content
+            ?: throw RichChatMutationOutcomeUnknownException("checkpointRevert")
+        return when (outcome) {
+            "completed", "completed_local_only", "noop" -> outcome
+            "ambiguous" -> throw RichChatMutationOutcomeUnknownException("checkpointRevert")
+            else -> throw RichChatRevertFailedException()
+        }
+    }
+
     private suspend fun procedureObject(name: String, payload: JsonObject): JsonObject {
         val mutating = name != "listFileCheckpoints"
         val result = procedure(name, payload, mutating)
@@ -344,5 +403,6 @@ class GeneratedRichChatRemoteTransport(
     private companion object {
         const val PROCEDURE_PATH = "/api/git/call"
         const val THREAD_COMMAND_PATH = "/api/threads/{threadId}/command"
+        const val CHECKPOINT_REVERT_PATH = "/api/threads/{threadId}/checkpoint-revert"
     }
 }

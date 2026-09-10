@@ -129,6 +129,12 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
         payload: JsonObject,
     ) = call("rollback")
 
+    override suspend fun checkpointRevert(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ) = call("checkpoint-revert")
+
     override suspend fun createCheckpoint(
         lease: RichChatHostLease,
         threadId: String,

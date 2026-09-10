@@ -62,6 +62,16 @@ class RichCheckpointController(
             gateway.rollback(lease.host, lease.threadId, payload)
         }
 
+    /**
+     * WS2 compound revert: one idempotent host call covering provider rollback,
+     * file restore, and transcript truncation. The authoritative refresh flag
+     * re-pulls history; the live `runtime.truncated` feed also converges clients.
+     */
+    suspend fun revert(payload: JsonObject): RichChatOperationResult<Unit> =
+        unitMutation(OP_REVERT, authoritativeRefresh = true) { lease ->
+            gateway.checkpointRevert(lease.host, lease.threadId, payload)
+        }
+
     suspend fun stageInput(payload: JsonObject): RichChatOperationResult<Unit> =
         unitMutation(OP_STAGE, authoritativeRefresh = false) { lease ->
             gateway.stageInput(lease.host, lease.threadId, payload)
@@ -208,6 +218,7 @@ class RichCheckpointController(
         const val OP_FINALIZE = "checkpoint-finalize"
         const val OP_RESTORE = "checkpoint-restore"
         const val OP_ROLLBACK = "conversation-rollback"
+        const val OP_REVERT = "checkpoint-revert"
         const val OP_STAGE = "input-stage"
     }
 }

@@ -49,6 +49,13 @@ object GeneratedRemoteV3RichChatContract {
         buildJsonObject { put("itemId", itemId) },
     )
 
+    fun checkpointRevert(threadId: String, payload: JsonObject): JsonRoute = threadMutation(
+        RemoteRootCodecs.routeU2EThreadU2DCheckpointU2DRevertU2EPath,
+        RemoteRootCodecs.routeU2EThreadU2DCheckpointU2DRevertU2ERequest,
+        threadId,
+        payload,
+    )
+
     fun threadCommand(threadId: String, command: JsonObject): JsonRoute {
         val projectedThreadId = command["threadId"]?.let { value ->
             (value as? JsonPrimitive)?.takeIf { it.isString }?.content
@@ -132,6 +139,7 @@ object GeneratedRemoteV3RichChatContract {
     fun validateMutationResponse(operation: String, raw: String): String {
         val codec = when (operation) {
             "runtimeTruncate" -> RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DTruncateU2EResponse
+            "checkpointRevert" -> RemoteRootCodecs.routeU2EThreadU2DCheckpointU2DRevertU2EResponse
             "threadCommand" -> RemoteRootCodecs.routeU2EThreadU2DCommandU2EResponse
             "threadGoal" -> RemoteRootCodecs.routeU2EThreadU2DGoalU2EResponse
             "steerSet" -> RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2EResponse

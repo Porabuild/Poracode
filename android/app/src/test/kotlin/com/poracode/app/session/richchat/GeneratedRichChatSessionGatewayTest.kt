@@ -13,6 +13,7 @@ import com.poracode.app.transport.richchat.AttachmentUploadBody
 import com.poracode.app.transport.richchat.BinaryRequestPlan
 import com.poracode.app.transport.richchat.RequestResolution
 import com.poracode.app.transport.richchat.RichChatRemoteTransport
+import com.poracode.app.transport.richchat.RichChatRevertFailedException
 import com.poracode.app.transport.richchat.RuntimeImagePathSegment
 import com.poracode.app.transport.richchat.TerminalStartInput
 import com.poracode.app.transport.richchat.ThreadGoalUpdate
@@ -22,7 +23,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -116,6 +119,53 @@ class GeneratedRichChatSessionGatewayTest {
         assertEquals(2, result.turns.size)
         assertTrue(result.turns.all { it.threadId == "thread-rich" && it.isTurn })
         assertEquals(1, specialized.listCalls)
+    }
+
+    @Test
+    fun checkpointRevertGuardsThreadIdAndReachesTransport() = runTest {
+        val host = richLease()
+        val specialized = FakeSpecializedTransport()
+        val gateway = generatedGateway(host, FakeCoreGateway(), specialized)
+        val payload = buildJsonObject {
+            put("threadId", "thread-a")
+            put("checkpointItemId", "assistant-1")
+            put("operationKey", "checkpoint-revert.thread-a.assistant-1")
+        }
+
+        val mismatch = expectGatewayFailure {
+            gateway.checkpointRevert(host, "thread-b", payload)
+        }
+        assertEquals(400, mismatch.statusCode)
+        assertEquals("invalid_request", mismatch.code)
+        assertEquals(0, specialized.revertCalls)
+
+        gateway.checkpointRevert(host, "thread-a", payload)
+        assertEquals(1, specialized.revertCalls)
+    }
+
+    @Test
+    fun checkpointRevertFailureIsDefiniteAndNeverFlaggedAsCommitted() = runTest {
+        val host = richLease()
+        val specialized = FakeSpecializedTransport().apply {
+            revertFailure = RichChatRevertFailedException()
+        }
+        val gateway = generatedGateway(host, FakeCoreGateway(), specialized)
+
+        val error = expectGatewayFailure {
+            gateway.checkpointRevert(
+                host,
+                "thread-a",
+                buildJsonObject {
+                    put("threadId", "thread-a")
+                    put("checkpointItemId", "assistant-1")
+                    put("operationKey", "checkpoint-revert.thread-a.assistant-1")
+                },
+            )
+        }
+
+        assertEquals("checkpoint_revert_failed", error.code)
+        assertFalse(error.requestMayHaveCommitted)
+        assertEquals(1, specialized.revertCalls)
     }
 
     @Test
@@ -273,8 +323,16 @@ private class FakeCoreGateway : RemoteApiGateway {
 private class FakeSpecializedTransport : RichChatRemoteTransport {
     var checkpointList = JsonObject(emptyMap())
     var listCalls = 0
+    var revertCalls = 0
+    var revertFailure: Exception? = null
 
     override suspend fun truncateRuntime(threadId: String, itemId: String) = Unit
+    override suspend fun checkpointRevert(threadId: String, payload: JsonObject): String {
+        revertCalls += 1
+        revertFailure?.let { throw it }
+        return "completed"
+    }
+
     override suspend fun updateThreadGoal(threadId: String, update: ThreadGoalUpdate) = Unit
     override suspend fun setSteer(threadId: String, input: ThreadSteerInput) = Unit
     override suspend fun clearSteer(threadId: String) = Unit

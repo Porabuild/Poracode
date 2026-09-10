@@ -68,6 +68,10 @@
     <string name="rich_chat_restore_checkpoint_message">项目文件将恢复到此检查点。之后的对话消息不会被删除。</string>
     <string name="rich_chat_rollback_title">回退一轮？</string>
     <string name="rich_chat_rollback_message">提供方对话将回退一个已完成轮次。继续前请刷新。</string>
+    <string name="rich_chat_revert_to_checkpoint">回退到检查点</string>
+    <string name="rich_chat_revert_title">回退到检查点？</string>
+    <string name="rich_chat_revert_message">对话将回退到此提示之前的状态；若存在快照，文件将恢复到检查点，并移除其后的运行时条目。</string>
+    <string name="rich_chat_revert">回退</string>
     <string name="rich_chat_rollback">回退</string>
     <string name="rich_chat_truncate_from_here">从此处截断</string>
     <string name="rich_chat_truncate_title">截断此对话？</string>

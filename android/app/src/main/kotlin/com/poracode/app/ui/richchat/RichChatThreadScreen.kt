@@ -127,6 +127,7 @@ fun RichChatThreadScreen(
     val mutating = state.activeOperations.any { it != "history" && it != "older" }
     val title = thread?.title?.ifBlank { null } ?: stringResource(R.string.rich_chat_conversation)
     var pendingTruncateItemId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
+    var pendingRevertItemId by rememberSaveable(threadId) { mutableStateOf<String?>(null) }
     var showCloseDialog by rememberSaveable(threadId) { mutableStateOf(false) }
     val canMutate = canOperate && state.selection != null && !mutating && !refreshing
     val closeThreadLabel = stringResource(R.string.rich_chat_close_thread)
@@ -368,6 +369,40 @@ fun RichChatThreadScreen(
                     },
                 )
             }
+            pendingRevertItemId?.let { userItemId ->
+                AlertDialog(
+                    onDismissRequest = { pendingRevertItemId = null },
+                    title = { Text(stringResource(R.string.rich_chat_revert_title)) },
+                    text = { Text(stringResource(R.string.rich_chat_revert_message)) },
+                    dismissButton = {
+                        TextButton(onClick = { pendingRevertItemId = null }) {
+                            Text(stringResource(R.string.rich_chat_cancel))
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            enabled = !mutating,
+                            onClick = {
+                                val items = state.transcript?.itemsInOrder.orEmpty()
+                                val checkpointItemId =
+                                    RichChatUiLogic.revertCheckpointItemId(items, userItemId)
+                                val selection = state.selection
+                                pendingRevertItemId = null
+                                if (checkpointItemId != null && selection != null) {
+                                    scope.launch {
+                                        runtime.checkpoints.revert(
+                                            RichChatUiLogic.checkpointRevertPayload(
+                                                selection.threadId,
+                                                checkpointItemId,
+                                            ),
+                                        )
+                                    }
+                                }
+                            },
+                        ) { Text(stringResource(R.string.rich_chat_revert)) }
+                    },
+                )
+            }
             if (showCloseDialog) {
                 AlertDialog(
                     onDismissRequest = { showCloseDialog = false },
@@ -414,6 +449,9 @@ fun RichChatThreadScreen(
                 RichChatLoadPhase.Loaded -> {
                     val transcript = state.transcript ?: return@Column
                     BoxWithConstraints(Modifier.fillMaxSize()) {
+                        val revertableItemIds = remember(transcript.itemsInOrder) {
+                            RichChatUiLogic.revertableUserItemIds(transcript.itemsInOrder)
+                        }
                         val controlContent: @Composable (Modifier) -> Unit = { controlModifier ->
                             RichChatControlPanel(
                                 runtime = runtime,
@@ -439,8 +477,10 @@ fun RichChatThreadScreen(
                                     state.loadingOlder || refreshing,
                                     runtime,
                                     onLoadOlder = { scope.launch { runtime.chat.loadOlder() } },
-                                    canTruncate = canMutate,
+                                    canMutate = canMutate,
                                     onTruncateItem = { pendingTruncateItemId = it },
+                                    revertableItemIds = revertableItemIds,
+                                    onRevertItem = { pendingRevertItemId = it },
                                     modifier = Modifier.weight(1f),
                                 )
                                 VerticalDivider()
@@ -459,8 +499,10 @@ fun RichChatThreadScreen(
                                     state.loadingOlder || refreshing,
                                     runtime,
                                     onLoadOlder = { scope.launch { runtime.chat.loadOlder() } },
-                                    canTruncate = canMutate,
+                                    canMutate = canMutate,
                                     onTruncateItem = { pendingTruncateItemId = it },
+                                    revertableItemIds = revertableItemIds,
+                                    onRevertItem = { pendingRevertItemId = it },
                                     modifier = Modifier.weight(1f),
                                 )
                                 RichChatCompactControlDock(

@@ -68,6 +68,10 @@
     <string name="rich_chat_restore_checkpoint_message">Los archivos del proyecto se restaurarán a este punto de control. Los mensajes posteriores no se eliminarán.</string>
     <string name="rich_chat_rollback_title">¿Retroceder un turno?</string>
     <string name="rich_chat_rollback_message">La conversación del proveedor retrocederá un turno completado. Actualiza antes de continuar.</string>
+    <string name="rich_chat_revert_to_checkpoint">Revertir al punto de control</string>
+    <string name="rich_chat_revert_title">¿Revertir al punto de control?</string>
+    <string name="rich_chat_revert_message">La conversación retrocede al estado anterior a este mensaje, los archivos se restauran al punto de control si existe una instantánea y se eliminan los elementos posteriores.</string>
+    <string name="rich_chat_revert">Revertir</string>
     <string name="rich_chat_rollback">Retroceder</string>
     <string name="rich_chat_truncate_from_here">Truncar desde aquí</string>
     <string name="rich_chat_truncate_title">¿Truncar esta conversación?</string>

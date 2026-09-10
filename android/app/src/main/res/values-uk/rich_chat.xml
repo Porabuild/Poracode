@@ -68,6 +68,10 @@
     <string name="rich_chat_restore_checkpoint_message">Файли проєкту буде відновлено до цієї точки. Пізніші повідомлення не буде видалено.</string>
     <string name="rich_chat_rollback_title">Відкотити один хід?</string>
     <string name="rich_chat_rollback_message">Розмова провайдера повернеться на один завершений хід. Оновіть дані перед продовженням.</string>
+    <string name="rich_chat_revert_to_checkpoint">Відкотити до контрольної точки</string>
+    <string name="rich_chat_revert_title">Відкотити до контрольної точки?</string>
+    <string name="rich_chat_revert_message">Розмову буде відкотито до стану перед цим запитом, файли буде відновлено за контрольною точкою, якщо є знімок, а пізніші елементи буде видалено.</string>
+    <string name="rich_chat_revert">Відкотити</string>
     <string name="rich_chat_rollback">Відкотити</string>
     <string name="rich_chat_truncate_from_here">Обрізати звідси</string>
     <string name="rich_chat_truncate_title">Обрізати цю розмову?</string>

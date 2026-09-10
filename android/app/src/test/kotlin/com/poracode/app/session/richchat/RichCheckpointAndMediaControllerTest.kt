@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -70,6 +71,65 @@ class RichCheckpointAndMediaControllerTest {
         assertTrue((result.failure as RichChatOperationFailure.Remote).requestMayHaveCommitted)
         assertEquals(1, gateway.calls.count { it == "checkpoint-restore" })
         assertTrue(controller.state.value.needsAuthoritativeRefresh)
+    }
+
+    @Test
+    fun compoundRevertReachesTheGatewayOnceAndRequestsAuthoritativeRefresh() = runTest {
+        val host = richLease()
+        val session = MutableStateFlow<RichChatHostLease?>(host)
+        val selection = MutableStateFlow<RichChatThreadLease?>(
+            RichChatThreadLease(host, "thread-a", 1),
+        )
+        val gateway = FakeRichChatSessionGateway()
+        val controller = RichCheckpointController(
+            session,
+            selection,
+            gateway,
+            ForegroundOperationRegistry(),
+        )
+        val payload = com.poracode.app.ui.richchat.RichChatUiLogic.checkpointRevertPayload(
+            "thread-a",
+            "assistant-1",
+        )
+
+        val result = controller.revert(payload)
+
+        assertTrue(result is RichChatOperationResult.Success)
+        assertEquals(listOf("checkpoint-revert"), gateway.calls)
+        assertEquals(
+            "checkpoint-revert.thread-a.assistant-1",
+            payload.getValue("operationKey").jsonPrimitive.content,
+        )
+        assertTrue(controller.state.value.needsAuthoritativeRefresh)
+    }
+
+    @Test
+    fun failedCompoundRevertIsDefiniteWithoutForcingRefresh() = runTest {
+        val host = richLease()
+        val session = MutableStateFlow<RichChatHostLease?>(host)
+        val selection = MutableStateFlow<RichChatThreadLease?>(
+            RichChatThreadLease(host, "thread-a", 1),
+        )
+        val gateway = FakeRichChatSessionGateway()
+        gateway.unitHandler = { name ->
+            if (name == "checkpoint-revert") {
+                throw RichChatGatewayException(null, "checkpoint_revert_failed", false)
+            }
+        }
+        val controller = RichCheckpointController(
+            session,
+            selection,
+            gateway,
+            ForegroundOperationRegistry(),
+        )
+        val payload = JsonObject(mapOf("threadId" to kotlinx.serialization.json.JsonPrimitive("thread-a")))
+
+        val result = controller.revert(payload) as RichChatOperationResult.Failed
+
+        assertTrue(result.failure is RichChatOperationFailure.Remote)
+        assertFalse((result.failure as RichChatOperationFailure.Remote).requestMayHaveCommitted)
+        assertEquals(1, gateway.calls.count { it == "checkpoint-revert" })
+        assertFalse(controller.state.value.needsAuthoritativeRefresh)
     }
 
     @Test

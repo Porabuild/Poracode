@@ -129,6 +129,50 @@ class GeneratedRemoteV3RichChatContractTest {
     }
 
     @Test
+    fun checkpointRevertProjectsCompoundRouteAndValidatesOutcomeEnvelope() {
+        val route = GeneratedRemoteV3RichChatContract.checkpointRevert(
+            "thread /東京",
+            buildJsonObject {
+                put("threadId", "thread /東京")
+                put("checkpointItemId", "assistant-1")
+                put("operationKey", "checkpoint-revert.3f2504e0.assistant-1")
+            },
+        )
+        assertEquals("thread /東京", route.pathValues.getValue("threadId"))
+        val body = objectValue(route.body)
+        assertEquals("assistant-1", body.getValue("checkpointItemId").jsonPrimitive.content)
+        assertEquals(
+            "checkpoint-revert.3f2504e0.assistant-1",
+            body.getValue("operationKey").jsonPrimitive.content,
+        )
+
+        val metadata = GeneratedRemoteV3RichChatContract.routeMetadata("thread-checkpoint-revert")
+        assertEquals("POST", metadata.method)
+        assertEquals("/api/threads/{threadId}/checkpoint-revert", metadata.path)
+        assertEquals("bearer", metadata.auth)
+        assertEquals(200, metadata.successStatus)
+
+        val canonical = GeneratedRemoteV3RichChatContract.validateMutationResponse(
+            "checkpointRevert",
+            """
+                {"outcome":"completed","replayed":false,"numTurns":1,
+                 "providerPhase":"completed","filesPhase":"completed",
+                 "truncatePhase":"completed","removedCompletedTurnAnchors":[]}
+            """.trimIndent(),
+        )
+        assertEquals(
+            "completed",
+            objectValue(canonical).getValue("outcome").jsonPrimitive.content,
+        )
+        assertInvalid {
+            GeneratedRemoteV3RichChatContract.validateMutationResponse(
+                "checkpointRevert",
+                """{"outcome":"completed"}""",
+            )
+        }
+    }
+
+    @Test
     fun rejectsMaliciousBodiesAndResponsesWithoutReflectingPayloads() {
         val secret = "do-not-reflect-this-secret"
         val failures = listOf(

@@ -163,6 +163,7 @@ interface RichChatSessionGateway {
     )
 
     suspend fun rollback(lease: RichChatHostLease, threadId: String, payload: JsonObject)
+    suspend fun checkpointRevert(lease: RichChatHostLease, threadId: String, payload: JsonObject)
     suspend fun createCheckpoint(
         lease: RichChatHostLease,
         threadId: String,

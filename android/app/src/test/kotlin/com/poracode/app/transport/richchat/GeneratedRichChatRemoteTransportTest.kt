@@ -348,6 +348,75 @@ class GeneratedRichChatRemoteTransportTest {
     }
 
     @Test
+    fun checkpointRevertPostsCompoundRouteWithCommandIdAndDecodesOutcomes() = runBlocking {
+        fun result(outcome: String) = buildJsonObject {
+            put("outcome", outcome)
+            put("replayed", outcome == "noop")
+            put("numTurns", 1)
+            put("providerPhase", "completed")
+            put("filesPhase", "completed")
+            put("truncatePhase", "completed")
+            put("removedCompletedTurnAnchors", kotlinx.serialization.json.JsonArray(emptyList()))
+        }.toString()
+        val server = MockWebServer()
+        listOf(result("completed"), result("noop"), result("failed"), result("ambiguous"))
+            .forEach { server.enqueue(MockResponse().setBody(it)) }
+        server.start()
+        try {
+            val transport = transport(server)
+            val payload = buildJsonObject {
+                put("threadId", "thread /東京")
+                put("checkpointItemId", "assistant-1")
+                put("operationKey", "checkpoint-revert.3f2504e0.assistant-1")
+            }
+            assertEquals("completed", transport.checkpointRevert("thread /東京", payload))
+            assertEquals("noop", transport.checkpointRevert("thread /東京", payload))
+            val failed = runCatching { transport.checkpointRevert("thread /東京", payload) }
+                .exceptionOrNull()
+            assertTrue(failed is RichChatRevertFailedException)
+            val ambiguous = runCatching { transport.checkpointRevert("thread /東京", payload) }
+                .exceptionOrNull()
+            assertTrue(ambiguous is RichChatMutationOutcomeUnknownException)
+
+            repeat(2) {
+                val request = server.takeRequest()
+                assertEquals(
+                    "/base/api/threads/thread%20%2F%E6%9D%B1%E4%BA%AC/checkpoint-revert",
+                    request.requestUrl!!.encodedPath,
+                )
+                assertEquals(
+                    "checkpoint-revert:checkpoint-revert.3f2504e0.assistant-1",
+                    request.getHeader("x-poracode-command-id"),
+                )
+                assertEquals("assistant-1", body(request).getValue("checkpointItemId").jsonPrimitive.content)
+            }
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun checkpointRevertWithoutOperationKeyIsInvalidBeforeAnyRequest() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val error = runCatching {
+                transport(server).checkpointRevert(
+                    "thread",
+                    buildJsonObject {
+                        put("threadId", "thread")
+                        put("checkpointItemId", "assistant-1")
+                    },
+                )
+            }.exceptionOrNull()
+            assertTrue(error is RichChatInvalidRequestException)
+            assertEquals(0, server.requestCount)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun disconnectedMutationHasUnknownOutcomeAndIsNotRetried() = runBlocking {
         val server = MockWebServer()
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST))
