@@ -77,6 +77,13 @@ export interface RelayServerInfo {
 interface RegisteredHost {
   readonly control: WebSocket;
   readonly forwardOwnerId?: string;
+  /**
+   * P1-5: outbound bytes enqueued per visitor channel on the SHARED control
+   * socket since the buffer last fully drained. Identifies the flood source
+   * for channel-only eviction so congestion never has to kill the control
+   * socket (and every other channel + request with it).
+   */
+  readonly channelBytes: Map<string, number>;
 }
 
 /**
@@ -92,6 +99,7 @@ interface SecretBinding {
 
 interface PendingRequest {
   readonly serverId: string;
+  readonly clientId: string;
   readonly timer: ReturnType<typeof setTimeout>;
   resolve(result: {
     status: number;
@@ -105,7 +113,30 @@ interface PendingRequest {
 interface VisitorChannel {
   readonly serverId: string;
   readonly socket: WebSocket;
+  readonly clientId: string;
 }
+
+/**
+ * P1-8: per-owner admission caps. One clientId (a stable socket-peer identity)
+ * can hold at most 16 concurrent relayed HTTP requests and 32 open channels;
+ * the whole relay bounds pending requests globally. Over-cap HTTP gets 429 and
+ * an over-cap channel upgrade gets 1013, so one visitor cannot monopolize the
+ * shared host link.
+ */
+const RELAY_MAX_PENDING_PER_CLIENT = 16;
+const RELAY_MAX_PENDING_TOTAL = 256;
+const RELAY_MAX_CHANNELS_PER_CLIENT = 32;
+
+/** The only 502 bodies a visitor can ever see: the deliberate transport
+ * verdicts. Anything else (internal exception text) becomes "relay error". */
+const SAFE_RELAY_502_TEXTS = new Set([
+  "Host disconnected.",
+  "server offline",
+  "Relay request timed out.",
+  "Visitor disconnected.",
+  "request too large for the relay link",
+  "response too large for the relay link",
+]);
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 const DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 30_000;
@@ -310,6 +341,20 @@ export class RelayServer {
     // to cancel and no `req-cancel` may go out.
     if (visitorGone) return;
     const id = randomUUID();
+    const clientId = this.visitorClientId(req);
+    // P1-8: per-owner admission before any host work is charged.
+    let pendingForClient = 0;
+    for (const pending of this.pending.values()) {
+      if (pending.clientId === clientId) pendingForClient += 1;
+    }
+    if (
+      pendingForClient >= RELAY_MAX_PENDING_PER_CLIENT ||
+      this.pending.size >= RELAY_MAX_PENDING_TOTAL
+    ) {
+      res.writeHead(429, { "content-type": "text/plain" });
+      res.end("relay admission limit");
+      return;
+    }
     const headers: Record<string, string> = {};
     for (const [key, value] of Object.entries(req.headers)) {
       if (typeof value === "string") headers[key] = value;
@@ -322,6 +367,26 @@ export class RelayServer {
       else delete headers.cookie;
     }
     const path = `${dispatchPath}${url.search}`;
+    // P1-7: build and pre-measure the exact frame the host will receive. The
+    // body is already bounded by maxBodyBytes, but base64 expansion, JSON
+    // escaping, and headers can push the frame past the host's receive limit —
+    // which would kill the shared control socket for everyone. Fail THIS
+    // request with 413 instead of dispatching it.
+    const reqFrameText = JSON.stringify({
+      t: "req",
+      id,
+      method: req.method ?? "GET",
+      path,
+      headers,
+      clientId,
+      ...(dispatch.forward ? { forward: dispatch.forward } : {}),
+      ...(body.length > 0 ? { body: body.toString("base64") } : {}),
+    });
+    if (Buffer.byteLength(reqFrameText) > this.controlFrameLimit) {
+      res.writeHead(413, { "content-type": "text/plain" });
+      res.end("request too large for the relay link");
+      return;
+    }
     try {
       const result = await new Promise<{
         status: number;
@@ -349,6 +414,7 @@ export class RelayServer {
         }, this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
         this.pending.set(id, {
           serverId,
+          clientId,
           timer,
           resolve: (value) => {
             clearTimeout(timer);
@@ -366,16 +432,7 @@ export class RelayServer {
             this.sendToHost(host, { t: "req-cancel", id });
           }
         };
-        const sent = this.sendToHost(host, {
-          t: "req",
-          id,
-          method: req.method ?? "GET",
-          path,
-          headers,
-          clientId: this.visitorClientId(req),
-          ...(dispatch.forward ? { forward: dispatch.forward } : {}),
-          ...(body.length > 0 ? { body: body.toString("base64") } : {}),
-        });
+        const sent = this.sendRaw(host.control, reqFrameText);
         if (!sent) {
           abandon(new Error("server offline"));
         }
@@ -392,8 +449,14 @@ export class RelayServer {
       // The visitor is gone: nothing is left to answer, and a canceled id's
       // late host response was already dropped by the missing pending entry.
       if (visitorGone) return;
+      // Only the stable transport verdicts reach the visitor verbatim;
+      // arbitrary internal error text collapses to a generic body.
+      const text =
+        error instanceof Error && SAFE_RELAY_502_TEXTS.has(error.message)
+          ? error.message
+          : "relay error";
       res.writeHead(502, { "content-type": "text/plain" });
-      res.end(error instanceof Error ? error.message : "relay error");
+      res.end(text);
     } finally {
       // The exchange is over — neither a disconnect nor a cancel can change it.
       onVisitorGone = null;
@@ -501,7 +564,10 @@ export class RelayServer {
           visitor.serverId === serverId &&
           !this.sendRaw(visitor.socket, decoded.data)
         ) {
+          // P1-6: the visitor socket is gone mid-forward — tell the host so
+          // its channel entry and local socket do not leak as zombies.
           this.visitors.delete(decoded.id);
+          this.sendFrame(control, { t: "ws-close", id: decoded.id });
         }
         return;
       }
@@ -541,7 +607,11 @@ export class RelayServer {
         }
         serverId = frame.serverId;
         this.removeHost(frame.serverId);
-        this.hosts.set(frame.serverId, { control, ...(forwardOwnerId ? { forwardOwnerId } : {}) });
+        this.hosts.set(frame.serverId, {
+          control,
+          channelBytes: new Map(),
+          ...(forwardOwnerId ? { forwardOwnerId } : {}),
+        });
         if (forwardOwnerId) this.forwardOwners.set(forwardOwnerId, frame.serverId);
         this.sendFrame(control, {
           t: "registered",
@@ -582,7 +652,9 @@ export class RelayServer {
       if (frame.t === "ws-data") {
         const visitor = this.visitors.get(frame.id);
         if (visitor && visitor.serverId === serverId && !this.sendRaw(visitor.socket, frame.data)) {
+          // P1-6: same zombie-channel cleanup as the binary branch above.
           this.visitors.delete(frame.id);
+          this.sendFrame(control, { t: "ws-close", id: frame.id });
         }
         return;
       }
@@ -649,8 +721,18 @@ export class RelayServer {
     forward: RelayForwardContext | undefined,
   ): void {
     this.trackWebSocket(visitor);
+    // P1-8: bound concurrent channels per owner — one visitor cannot hold
+    // unbounded local sockets on the host through the shared relay.
+    let channelsForClient = 0;
+    for (const channel of this.visitors.values()) {
+      if (channel.clientId === clientId) channelsForClient += 1;
+    }
+    if (channelsForClient >= RELAY_MAX_CHANNELS_PER_CLIENT) {
+      visitor.close(1013, "relay admission limit");
+      return;
+    }
     const id = randomUUID();
-    this.visitors.set(id, { serverId, socket: visitor });
+    this.visitors.set(id, { serverId, socket: visitor, clientId });
     if (
       !this.sendToHost(host, {
         t: "ws-open",
@@ -680,8 +762,11 @@ export class RelayServer {
           this.rejectOversizeVisitor(host, id, visitor);
           return;
         }
-        if (!this.sendRaw(host.control, encodeRelayBinaryFrame(id, bytes))) {
-          if (this.visitors.delete(id)) visitor.close(1012, "server offline");
+        if (!this.forwardChannelFrame(host, serverId, id, encodeRelayBinaryFrame(id, bytes))) {
+          // The frame was refused under congestion: the channel was evicted
+          // (channel-only) to protect the shared control socket, or the host
+          // is gone and dropHostTraffic already cleaned every channel up.
+          visitor.close(1013, "relay link congestion");
         }
         return;
       }
@@ -693,8 +778,8 @@ export class RelayServer {
         this.rejectOversizeVisitor(host, id, visitor);
         return;
       }
-      if (!this.sendRaw(host.control, framed) && this.visitors.delete(id)) {
-        visitor.close(1012, "server offline");
+      if (!this.forwardChannelFrame(host, serverId, id, framed)) {
+        visitor.close(1013, "relay link congestion");
       }
     });
     visitor.on("close", () => {
@@ -716,6 +801,84 @@ export class RelayServer {
     if (!this.visitors.delete(id)) return;
     this.sendToHost(host, { t: "ws-close", id, reason: RELAY_WS_PAYLOAD_TOO_LARGE_REASON });
     visitor.close(1009, RELAY_WS_PAYLOAD_TOO_LARGE_REASON);
+  }
+
+  /**
+   * P1-5: forward one visitor-channel frame onto the SHARED host control
+   * socket with per-channel byte accounting. When the control budget is
+   * exhausted the worst contributor (usually the flooding channel itself) is
+   * evicted — its visitor terminated and the host told to drop the channel —
+   * instead of terminating the control socket, which would disconnect every
+   * other channel and in-flight request of the host. `sendRaw`'s kill remains
+   * only for closed/dead sockets; a host that never drains eventually loses
+   * each flooding channel and nothing else.
+   */
+  private forwardChannelFrame(
+    host: RegisteredHost,
+    serverId: string,
+    channelId: string,
+    data: string | Uint8Array,
+  ): boolean {
+    const bytes = typeof data === "string" ? Buffer.byteLength(data) : data.byteLength;
+    const control = host.control;
+    if (control.readyState !== WebSocket.OPEN) return false;
+    if (control.bufferedAmount + bytes > this.outboundBufferLimit) {
+      const worst = this.worstChannelId(host, channelId);
+      this.evictChannel(host, serverId, worst);
+      if (worst !== channelId) this.evictChannel(host, serverId, channelId);
+      return false;
+    }
+    if (!this.sendRaw(control, data)) return false;
+    if (control.bufferedAmount === 0) {
+      host.channelBytes.clear(); // fully drained: start the accounting window fresh
+    }
+    host.channelBytes.set(channelId, (host.channelBytes.get(channelId) ?? 0) + bytes);
+    return true;
+  }
+
+  private worstChannelId(host: RegisteredHost, fallback: string): string {
+    let worst: string = fallback;
+    let worstBytes = -1;
+    for (const [id, bytes] of host.channelBytes) {
+      if (bytes > worstBytes) {
+        worst = id;
+        worstBytes = bytes;
+      }
+    }
+    return worst;
+  }
+
+  /** Channel-only eviction: stop forwarding, tell the host to drop the channel
+   * (a tiny frame that is enqueued even while the buffer is over its soft
+   * limit — the host reads it as soon as the flood drains), then cut the
+   * visitor socket so its close cannot double-report. */
+  private evictChannel(host: RegisteredHost, serverId: string, channelId: string): void {
+    const visitor = this.visitors.get(channelId);
+    if (!visitor || visitor.serverId !== serverId) {
+      host.channelBytes.delete(channelId);
+      return;
+    }
+    this.visitors.delete(channelId);
+    host.channelBytes.delete(channelId);
+    this.sendFrameForced(host.control, {
+      t: "ws-close",
+      id: channelId,
+      reason: "relay link congestion",
+    });
+    visitor.socket.terminate();
+  }
+
+  /** Enqueue a tiny control frame bypassing the outbound soft limit — eviction
+   * notices must reach the host for the drain to start. Never used for bulk
+   * channel traffic. */
+  private sendFrameForced(control: WebSocket, frame: RelayServerFrame): boolean {
+    if (control.readyState !== WebSocket.OPEN) return false;
+    try {
+      control.send(JSON.stringify(frame));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private dropHostTraffic(serverId: string, reason: string): void {

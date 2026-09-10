@@ -381,14 +381,28 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
       if (pendingRequests.get(frame.id) === entry) {
         pendingRequests.delete(frame.id);
         if (control === sourceControl) {
-          sendOn(sourceControl, {
-            t: "res",
+          // P1-7: pre-measure the exact frame. The body is bounded by
+          // maxBodyBytes, but base64 expansion, JSON escaping, and headers can
+          // push the frame past the relay's receive limit — which would kill
+          // the shared control socket for every channel and request. Fail this
+          // one request instead.
+          const resFrame = {
+            t: "res" as const,
             id: frame.id,
             status: response.status,
             headers: responseHeaders,
             ...(setCookies.length > 0 ? { setCookies } : {}),
             body: Buffer.from(buffer).toString("base64"),
-          });
+          };
+          if (Buffer.byteLength(JSON.stringify(resFrame)) > controlFrameLimit) {
+            sendOn(sourceControl, {
+              t: "req-error",
+              id: frame.id,
+              message: "response too large for the relay link",
+            });
+            return;
+          }
+          sendOn(sourceControl, resFrame);
         }
       }
     } catch (error) {

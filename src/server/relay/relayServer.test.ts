@@ -626,6 +626,245 @@ describe("relay end-to-end", () => {
     expect(state.pending.size).toBe(0);
   });
 
+  it("evicts only the flooding channel when the host control link is congested", async () => {
+    const relay = new RelayServer({
+      host: "127.0.0.1",
+      port: 0,
+      requestTimeoutMs: 60_000,
+      maxWebSocketPayloadBytes: 4096,
+      maxWebSocketOutboundBufferBytes: 4096,
+    });
+    const relayInfo = await relay.start();
+    cleanups.push(() => relay.dispose());
+    const control = await openRawHost(relayInfo.port, "srv-congested");
+
+    const openVisitor = async (name: string): Promise<WebSocket> => {
+      const visitor = new WebSocket(`ws://127.0.0.1:${relayInfo.port}/s/srv-congested/${name}`);
+      cleanups.push(() => visitor.close());
+      await new Promise<void>((resolve, reject) => {
+        visitor.once("open", resolve);
+        visitor.once("error", reject);
+      });
+      return visitor;
+    };
+    // Frames may land before a reader attaches (ws drops unlistened
+    // messages), so collect them through a permanent queued listener.
+    const hostFrames: Array<{ t: string; id?: string; reason?: string; data?: string }> = [];
+    const frameWaiters: Array<{
+      readonly predicate: (frame: { t: string; id?: string }) => boolean;
+      readonly resolve: (frame: { t: string; id?: string; reason?: string; data?: string }) => void;
+    }> = [];
+    const onHostFrame = (data: RawData) => {
+      const parsed = JSON.parse(String(data)) as {
+        t: string;
+        id?: string;
+        reason?: string;
+        data?: string;
+      };
+      hostFrames.push(parsed);
+      for (const waiter of [...frameWaiters]) {
+        if (!waiter.predicate(parsed)) continue;
+        frameWaiters.splice(frameWaiters.indexOf(waiter), 1);
+        waiter.resolve(parsed);
+      }
+    };
+    control.on("message", onHostFrame);
+    cleanups.push(() => {
+      control.off("message", onHostFrame);
+    });
+    const nextHostFrame = async (
+      predicate: (frame: { t: string; id?: string }) => boolean,
+    ): Promise<{ t: string; id?: string; reason?: string; data?: string }> => {
+      const existing = hostFrames.find(predicate);
+      if (existing) return existing;
+      return await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("timed out waiting for host frame")), 5000);
+        frameWaiters.push({
+          predicate,
+          resolve: (frame) => {
+            clearTimeout(timer);
+            resolve(frame);
+          },
+        });
+      });
+    };
+
+    const visitorA = await openVisitor("pipe-a");
+    const visitorB = await openVisitor("pipe-b");
+    const openA = (await nextHostFrame((frame) => frame.t === "ws-open")) as {
+      t: string;
+      id: string;
+    };
+    const openB = (await nextHostFrame(
+      (frame) => frame.t === "ws-open" && frame.id !== openA.id,
+    )) as { t: string; id: string };
+    expect(openA.t).toBe("ws-open");
+    expect(openB.t).toBe("ws-open");
+
+    // Simulate a congested host control link (receiver not draining).
+    const state = relay as unknown as {
+      hosts: Map<string, { control: WebSocket; channelBytes: Map<string, number> }>;
+      visitors: Map<string, unknown>;
+    };
+    const hostEntry = state.hosts.get("srv-congested")!;
+    Object.defineProperty(hostEntry.control, "bufferedAmount", {
+      configurable: true,
+      value: 8192,
+    });
+
+    // Channel A sends into the congested link: it is evicted alone — the
+    // control socket, channel B, and any in-flight requests are untouched.
+    const closedA = waitRelaySocketClose(visitorA);
+    visitorA.send("flood");
+    const closeFrame = await nextHostFrame((frame) => frame.t === "ws-close");
+    expect(closeFrame).toMatchObject({
+      t: "ws-close",
+      id: openA.id,
+      reason: "relay link congestion",
+    });
+    expect(await closedA).toMatchObject({ code: 1006 });
+    expect(hostEntry.control.readyState).toBe(WebSocket.OPEN);
+    expect(state.visitors.has(openA.id)).toBe(false);
+
+    // After the link drains, the healthy channel still delivers end to end.
+    Object.defineProperty(hostEntry.control, "bufferedAmount", {
+      configurable: true,
+      value: 0,
+    });
+    visitorB.send("hello");
+    const data = await nextHostFrame((frame) => frame.t === "ws-data" && frame.id === openB.id);
+    expect(data).toMatchObject({ t: "ws-data", data: "hello" });
+  });
+
+  it("tells the host to drop a channel when the visitor socket dies mid-forward", async () => {
+    const relay = new RelayServer({ host: "127.0.0.1", port: 0, requestTimeoutMs: 60_000 });
+    const relayInfo = await relay.start();
+    cleanups.push(() => relay.dispose());
+    const control = await openRawHost(relayInfo.port, "srv-zombie");
+
+    const visitor = new WebSocket(`ws://127.0.0.1:${relayInfo.port}/s/srv-zombie/pipe`);
+    cleanups.push(() => visitor.close());
+    await new Promise<void>((resolve, reject) => {
+      visitor.once("open", resolve);
+      visitor.once("error", reject);
+    });
+    // The frame may land before a reader attaches; poll the buffered frames.
+    let opened: { t: string; id: string } | undefined;
+    await expect
+      .poll(() => {
+        const state = relay as unknown as { visitors: Map<string, unknown> };
+        if (state.visitors.size > 0 && !opened) {
+          opened = { t: "ws-open", id: [...state.visitors.keys()][0]! };
+        }
+        return state.visitors.size;
+      })
+      .toBe(1);
+    const channelId = opened!.id;
+    expect(opened!.t).toBe("ws-open");
+
+    // The visitor socket can no longer accept writes (vanished mid-forward).
+    const state = relay as unknown as { visitors: Map<string, { socket: WebSocket }> };
+    const entry = state.visitors.get(channelId);
+    expect(entry).toBeDefined();
+    entry!.socket.send = (() => {
+      throw new Error("socket gone");
+    }) as WebSocket["send"];
+
+    control.send(JSON.stringify({ t: "ws-data", id: channelId, data: "payload" }));
+    // The buffered ws-open frame may still be in flight ahead of the close.
+    let closeFrame = (await readRawHostFrame(control)) as { t: string; id: string };
+    while (closeFrame.t !== "ws-close") {
+      closeFrame = (await readRawHostFrame(control)) as { t: string; id: string };
+    }
+    expect(closeFrame.id).toBe(channelId);
+    expect(state.visitors.has(channelId)).toBe(false);
+  });
+
+  it("rejects a request whose relay frame would exceed the host receive limit with 413", async () => {
+    const relay = new RelayServer({
+      host: "127.0.0.1",
+      port: 0,
+      requestTimeoutMs: 60_000,
+      maxWebSocketPayloadBytes: 2048,
+      maxWebSocketOutboundBufferBytes: 4096,
+    });
+    const relayInfo = await relay.start();
+    cleanups.push(() => relay.dispose());
+    await openRawHost(relayInfo.port, "srv-oversize");
+
+    // The body alone is bounded, but base64 expansion plus headers plus JSON
+    // escaping push this frame past the host's receive limit. It must fail
+    // THIS request with 413, never kill the shared control socket.
+    const response = await fetch(`http://127.0.0.1:${relayInfo.port}/s/srv-oversize/api/snapshot`, {
+      method: "POST",
+      body: "x".repeat(4096),
+    });
+    expect(response.status).toBe(413);
+    await expect(response.text()).resolves.toContain("request too large for the relay link");
+    const state = relay as unknown as {
+      hosts: Map<string, { control: WebSocket }>;
+      pending: Map<string, unknown>;
+    };
+    expect(state.hosts.get("srv-oversize")!.control.readyState).toBe(WebSocket.OPEN);
+    expect(state.pending.size).toBe(0);
+  });
+
+  it("admits at most 16 concurrent relayed requests per visitor and rejects the rest with 429", async () => {
+    const relay = new RelayServer({ host: "127.0.0.1", port: 0, requestTimeoutMs: 60_000 });
+    const relayInfo = await relay.start();
+    cleanups.push(() => relay.dispose());
+    await openRawHost(relayInfo.port, "srv-capped");
+
+    // The raw host never answers, so all 16 admitted requests stay pending.
+    const unawaited: Array<Promise<Response>> = [];
+    for (let index = 0; index < 16; index += 1) {
+      unawaited.push(
+        fetch(`http://127.0.0.1:${relayInfo.port}/s/srv-capped/api/snapshot?i=${index}`).catch(
+          () => undefined as unknown as Response,
+        ),
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const overflow = await fetch(
+      `http://127.0.0.1:${relayInfo.port}/s/srv-capped/api/snapshot?overflow`,
+    );
+    expect(overflow.status).toBe(429);
+    await expect(overflow.text()).resolves.toContain("relay admission limit");
+    const state = relay as unknown as { pending: Map<string, unknown> };
+    expect(state.pending.size).toBe(16);
+  });
+
+  it("caps concurrent channels per visitor with a 1013 close (32 per client)", async () => {
+    const relay = new RelayServer({ host: "127.0.0.1", port: 0, requestTimeoutMs: 60_000 });
+    const relayInfo = await relay.start();
+    cleanups.push(() => relay.dispose());
+    await openRawHost(relayInfo.port, "srv-chan-cap");
+
+    const sockets: WebSocket[] = [];
+    const openVisitor = (): Promise<WebSocket> => {
+      const visitor = new WebSocket(
+        `ws://127.0.0.1:${relayInfo.port}/s/srv-chan-cap/ch-${randomUUID()}`,
+      );
+      cleanups.push(() => visitor.close());
+      return new Promise<WebSocket>((resolve, reject) => {
+        visitor.once("open", () => resolve(visitor));
+        visitor.once("error", reject);
+      });
+    };
+    for (let index = 0; index < 32; index += 1) {
+      sockets.push(await openVisitor());
+    }
+    // The 33rd channel from the same client (same loopback address, so the
+    // same stable clientId) is refused with the RFC "try again later" code.
+    const over = await openVisitor();
+    const closed = waitRelaySocketClose(over);
+    expect(await closed).toMatchObject({ code: 1013, reason: "relay admission limit" });
+    for (const socket of sockets) {
+      expect(socket.readyState).toBe(WebSocket.OPEN);
+    }
+  });
+
   it("ignores HTTP responses from a different registered host", async () => {
     const relay = new RelayServer({
       host: "127.0.0.1",
