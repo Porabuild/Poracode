@@ -1222,7 +1222,11 @@ describe("ThreadSlashCommands", () => {
         "src",
         "poracode-local://local/C:/attachments/draft-project-1/image-1.png",
       );
-      expect(useAppStore.getState().draftContents[draftProject.id]).toBeUndefined();
+      // Drafts persist as the composer's crash-recovery mirror (cleared on
+      // submit, not on mount-restore); the mirror carries the durable path.
+      const mirrored = useAppStore.getState().draftContents[draftProject.id];
+      expect(mirrored?.attachments[0]?.path).toBe("C:\\attachments\\draft-project-1\\image-1.png");
+      expect(mirrored?.attachments[0]).not.toHaveProperty("previewUrl");
       unmountRestored();
     } finally {
       Reflect.deleteProperty(URL, "createObjectURL");
