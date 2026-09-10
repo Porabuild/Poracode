@@ -17,6 +17,10 @@ import {
 import { ConstrainedTcpProxy } from "./helpers/constrainedTcpProxy.ts";
 import { expectOk } from "./helpers/sharedHostWorkload.ts";
 import { writeExperimentArtifact } from "./helpers/experimentArtifacts.ts";
+import {
+  REMOTE_SOCKET_POLICY,
+  RemoteSocketHealthMonitor,
+} from "../../src/shared/remote/socketPolicy.ts";
 
 /**
  * Cursor-sync v2 on a real host + real PTY (RESUME-V2-DESIGN §12).
@@ -358,3 +362,167 @@ it("serves a resuming v2 client only the uncovered suffix on a real host", async
     }
   }
 }, 90_000);
+
+it("delivers the app heartbeat mid-baseline through the 32 kbps link", async () => {
+  const repoRoot = findRepoRoot();
+  const cleanup = new ProcessCleanup();
+  const clients: ProfileClient[] = [];
+  const feed = createTerminalFeed();
+  let host: RealHostHandle | undefined;
+  let proxy: ConstrainedTcpProxy | undefined;
+  try {
+    host = await startRealHost({
+      port: await allocateLoopbackPort(),
+      cleanup,
+      baseDirRoot: join(repoRoot, "tmp", ".tmp", "cursor-sync-v2-qa"),
+    });
+    const credential = await acquireDeviceCredential(host, "cursor-sync-v2-heartbeat");
+    const healthy = await ProfileClient.create({ handle: host, label: "healthy", ...credential });
+    clients.push(healthy);
+    const snapshot = await healthy.fetchJson("snapshot", "/api/snapshot");
+    expectOk(snapshot.status, "snapshot", snapshot.body);
+    const project = (snapshot.body as { projects: Array<{ location: unknown }> }).projects[0]!;
+
+    const payload = randomBytes(96 * 1024).toString("base64");
+    const path = join((project.location as { path: string }).path, "cursor-v2-hb.txt");
+    writeFileSync(path, payload);
+    const shellId = "cursor-v2-hb-shell";
+    const started = await healthy.fetchJson("start", "/api/terminal/start", {
+      method: "POST",
+      body: { shellId, projectLocation: project.location },
+    });
+    expectOk(started.status, "terminal start", started.body);
+    expect((await healthy.watchTerminalReliable(shellId, "healthy-watch")).status).toBe("ready");
+    const quoted = `'${path.replaceAll("'", "'\\''")}'`;
+    const written = await healthy.fetchJson("write", `/api/threads/${shellId}/terminal/write`, {
+      method: "POST",
+      body: { data: `cat ${quoted}; printf '\\nHB-%s\\n' 'READY'\r` },
+    });
+    expectOk(written.status, "terminal write", written.body);
+    await expect
+      .poll(() => healthy.terminalState("healthy-watch")?.assembledText, { timeout: 20_000 })
+      .toContain("HB-READY\r\n");
+
+    proxy = await ConstrainedTcpProxy.start({
+      label: "v2-heartbeat-32kbps",
+      upstreamHost: "127.0.0.1",
+      upstreamPort: host.hostPort,
+      oneWayDelayMs: 750,
+      bytesPerSecond: 4000,
+    });
+    const slow = await ProfileClient.create({
+      handle: proxy.wrapHandle(host),
+      label: "slow-hb",
+      ...credential,
+    });
+    clients.push(slow);
+
+    // The production policy, verbatim: the shared monitor class with its
+    // 5 s deadline, probed on the 25 s production cadence (plus one early
+    // probe so at least one round trip lands strictly mid-stream).
+    let dead = false;
+    const monitor = new RemoteSocketHealthMonitor<WebSocket>({
+      isCurrent: (socket) => socket === slow.ws,
+      isOpen: (socket) => socket.readyState === WebSocket.OPEN,
+      send: (socket, text) => {
+        socket.send(text);
+      },
+      onDead: () => {
+        dead = true;
+      },
+    });
+    const roundTrips: Array<{ at: number; midStream: boolean; rttMs: number }> = [];
+    let streamCompletedAt = Number.POSITIVE_INFINITY;
+    let installed = 0;
+    const startedAt = performance.now();
+    let probeCount = 0;
+
+    slow.ws.on("message", (raw) => {
+      const parsed = remoteWebSocketServerMessageSchema.safeParse(JSON.parse(raw.toString()));
+      if (!parsed.success) return;
+      const message = parsed.data;
+      if (message.type === "pong") {
+        const rttMs = Date.now() - (message.sentAt ?? 0);
+        roundTrips.push({
+          at: performance.now() - startedAt,
+          midStream: !Number.isFinite(streamCompletedAt),
+          rttMs,
+        });
+        monitor.acceptPong(message.id);
+        return;
+      }
+      feed.handleServerMessage(message);
+    });
+    feed.watch(shellId, {
+      onOutput: () => {},
+      onReset: () => {},
+      onExited: () => {},
+      onSnapshot: () => {
+        installed += 1;
+        streamCompletedAt = performance.now() - startedAt;
+      },
+      onWatchError: () => {},
+    });
+    feed.setSender(
+      (message) => {
+        if (slow.ws.readyState !== WebSocket.OPEN) return false;
+        slow.ws.send(JSON.stringify(message));
+        return true;
+      },
+      { cursorSyncVersion: 2 },
+    );
+
+    const probe = () => {
+      probeCount += 1;
+      monitor.probe(slow.ws);
+    };
+    const earlyProbe = setTimeout(probe, 10_000);
+    const cadenceProbe = setTimeout(probe, REMOTE_SOCKET_POLICY.healthPingIntervalMs);
+    const lateProbe = setTimeout(probe, 40_000);
+
+    await expect.poll(() => installed, { timeout: 90_000, interval: 500 }).toBe(1);
+    await new Promise((resolve) => setTimeout(resolve, 6_000)); // let the last deadline lapse
+    clearTimeout(earlyProbe);
+    clearTimeout(cadenceProbe);
+    clearTimeout(lateProbe);
+
+    expect(installed).toBe(1);
+    expect(dead).toBe(false);
+    expect(slow.ws.readyState).toBe(WebSocket.OPEN);
+    expect(probeCount).toBeGreaterThanOrEqual(2);
+    expect(roundTrips.some((trip) => trip.midStream)).toBe(true);
+    // Design §12.2: every pong < 5 s deadline, asserted at 4.6 s margin.
+    for (const trip of roundTrips) {
+      expect(trip.rttMs).toBeLessThan(4_600);
+    }
+    writeExperimentArtifact(repoRoot, "cursor-sync-v2-heartbeat.json", {
+      profile: { rttMs: 1500, bitsPerSecond: 32_000 },
+      probes: probeCount,
+      roundTrips: roundTrips.map((trip) => ({
+        atMs: Math.round(trip.at),
+        midStream: trip.midStream,
+        rttMs: Math.round(trip.rttMs),
+      })),
+      dead,
+      scope:
+        "Real host + real PTY; production RemoteSocketHealthMonitor (5 s deadline) probing on the production cadence while a full v2 baseline streams through the shaped link.",
+    });
+    feed.setSender(null);
+  } finally {
+    feed.reset();
+    feed.setSender(null);
+    try {
+      await closeProfileClients(clients);
+    } finally {
+      try {
+        await proxy?.close();
+      } finally {
+        try {
+          await host?.stop();
+        } finally {
+          await cleanup.shutdown();
+        }
+      }
+    }
+  }
+}, 150_000);
