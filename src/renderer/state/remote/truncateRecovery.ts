@@ -81,6 +81,29 @@ export function shouldSuppressTruncatedReplay(
   return installed !== undefined && eventSeq <= installed;
 }
 
+/** True when this thread's bounded reload budget is spent with an uncovered
+ * truncation still pending: the transcript may not reflect a server-side
+ * deletion and the pane surfaces a resync banner (WS6). */
+export function isTruncateReloadBudgetExhausted(
+  desktopId: string,
+  remoteThreadId: string,
+): boolean {
+  const key = truncateReloadKey(desktopId, remoteThreadId);
+  return (
+    (truncateReloadAttemptsByKey.get(key) ?? 0) >= MAX_TRUNCATE_RELOAD_ATTEMPTS &&
+    truncateReloadPendingSeqByKey.has(key)
+  );
+}
+
+function syncTruncateReloadExhausted(desktopId: string, remoteThreadId: string): void {
+  useAppStore
+    .getState()
+    .setTruncateReloadExhausted(
+      `${desktopId}\u0000${remoteThreadId}`,
+      isTruncateReloadBudgetExhausted(desktopId, remoteThreadId),
+    );
+}
+
 /** True when the projected transcript already contains the checkpoint. */
 export function isTruncateCheckpointLoaded(
   projectedThreadId: string,
@@ -178,9 +201,11 @@ export function finishTruncateReload(
   if (covers) {
     truncateReloadAttemptsByKey.delete(key);
     truncateReloadPendingSeqByKey.delete(key);
+    syncTruncateReloadExhausted(lease.desktopId, lease.remoteThreadId);
     return { stale: false, covered: true };
   }
   truncateReloadAttemptsByKey.set(key, (truncateReloadAttemptsByKey.get(key) ?? 0) + 1);
+  syncTruncateReloadExhausted(lease.desktopId, lease.remoteThreadId);
   return { stale: false, covered: false };
 }
 
@@ -204,6 +229,10 @@ export function resetTruncateRecoveryEpoch(desktopId: string): void {
   for (const key of [...truncateReloadPendingSeqByKey.keys()]) {
     if (key.startsWith(`${desktopId}\0`)) truncateReloadPendingSeqByKey.delete(key);
   }
+  for (const key of [...truncateReloadAttemptsByKey.keys()]) {
+    if (!key.startsWith(`${desktopId}\0`)) continue;
+    syncTruncateReloadExhausted(desktopId, key.slice(desktopId.length + 1));
+  }
 }
 
 /** Backoff-only reset: offline drop / online recovery. Re-arms bounded
@@ -216,7 +245,9 @@ export function resetTruncateReloadBackoff(desktopId: string): void {
     if (key.startsWith(`${desktopId}\0`)) truncateReloadOwnerByKey.delete(key);
   }
   for (const key of [...truncateReloadAttemptsByKey.keys()]) {
-    if (key.startsWith(`${desktopId}\0`)) truncateReloadAttemptsByKey.delete(key);
+    if (!key.startsWith(`${desktopId}\0`)) continue;
+    truncateReloadAttemptsByKey.delete(key);
+    syncTruncateReloadExhausted(desktopId, key.slice(desktopId.length + 1));
   }
 }
 

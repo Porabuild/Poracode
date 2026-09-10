@@ -2427,6 +2427,42 @@ describe("ChatPane", () => {
     expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
   });
 
+  it("locks the revert dialog actions while the compound is in flight", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    let settle!: (value: { outcome: string }) => void;
+    const revertCheckpoint = vi
+      .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            settle = resolve;
+          }),
+      );
+    Object.assign(window, {
+      poracode: {
+        revertCheckpoint,
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
+    seedUserMessage(thread.id, "Initial prompt", "user-1");
+    seedAssistantMessage(thread.id, "First answer", "assistant-1");
+    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
+
+    // In flight: confirm shows progress and both actions are locked.
+    await screen.findByText("Reverting…");
+    expect(screen.getByRole("button", { name: "Reverting…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+
+    settle({ outcome: "completed" });
+    await waitFor(() => expect(screen.queryByText("Reverting…")).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  });
+
   it("reverts silently when the compound settles local_only", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     const revertCheckpoint = vi

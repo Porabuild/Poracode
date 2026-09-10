@@ -760,6 +760,10 @@ msgstr "Для замороженного источника worktree требу
 msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 msgstr "Заблокированный экран полностью останавливает управление рабочим столом, поэтому во время сеанса управления компьютером дисплей остаётся включённым. Вы по-прежнему можете заблокировать экран вручную."
 
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+msgstr "Не удалось подтвердить удаление сообщений. Обновите, чтобы пересинхронизировать переписку."
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "Профиль с таким именем уже существует."
@@ -10185,6 +10189,7 @@ msgid "Redact notification content"
 msgstr "Скрывать содержимое уведомлений"
 
 #. Button: re-fetch provider usage now
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -10704,6 +10709,10 @@ msgstr "Разреши конфликты в этом worktree. Сначала �
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "Разрешает конфликты слияния во время rebase или слияния."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Resolving…"
+msgstr "Отправка ответа…"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Restart Poracode"
 msgstr "Перезапустить Poracode"
@@ -10835,6 +10844,10 @@ msgstr "Откатить к контрольной точке?"
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Revert to this checkpoint"
 msgstr "Откатить к этой контрольной точке"
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+msgid "Reverting…"
+msgstr "Откат…"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Review and track work across your GitHub accounts."
@@ -11584,6 +11597,10 @@ msgstr "Сервер {target} работает на этом компьютер�
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Server base URL"
 msgstr "Базовый URL сервера"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Server offline — this conversation may be out of date."
+msgstr "Сервер офлайн — эта переписка может быть устаревшей."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."

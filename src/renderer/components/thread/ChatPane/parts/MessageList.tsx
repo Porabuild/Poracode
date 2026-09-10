@@ -163,6 +163,7 @@ export function MessageList({
   );
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [revertError, setRevertError] = useState<string | null>(null);
+  const [revertInFlight, setRevertInFlight] = useState(false);
 
   const snapshotMeasurements = useCallback(
     (instance: LegendListRef, scrollElement: HTMLDivElement) => {
@@ -393,6 +394,7 @@ export function MessageList({
   const confirmRevert = useCallback(() => {
     if (!pendingRevert) return;
     setRevertError(null);
+    setRevertInFlight(true);
     void performRevert(pendingRevert.itemId, pendingRevert.userItemId)
       .then((performed) => {
         if (!performed) return;
@@ -406,6 +408,9 @@ export function MessageList({
       .catch((error) => {
         console.warn("[checkpoint] failed to revert checkpoint", error);
         setRevertError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        setRevertInFlight(false);
       });
   }, [dontAskAgain, pendingRevert, performRevert, threadId]);
 
@@ -485,6 +490,7 @@ export function MessageList({
       <RevertCheckpointDialog
         isOpen={pendingRevert !== null}
         dontAskAgain={dontAskAgain}
+        isInFlight={revertInFlight}
         checkpointGuard={checkpointGuard ?? DEFAULT_CHECKPOINT_GUARD}
         canRestoreFiles={projectLocation !== undefined && pendingCheckpoint !== undefined}
         errorMessage={revertError ?? undefined}

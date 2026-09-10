@@ -760,6 +760,10 @@ msgstr "고정된 작업 트리 소스에는 전체 커밋 해시가 필요합�
 msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 msgstr "화면이 잠기면 데스크톱 제어가 모두 중단되므로 컴퓨터 사용 세션이 실행되는 동안 디스플레이를 켜 둡니다. 직접 화면을 잠그는 것은 여전히 가능합니다."
 
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+msgstr "메시지 삭제를 확인하지 못했습니다. 새로고침하여 이 대화를 다시 동기화하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "같은 이름의 프로필이 이미 있습니다."
@@ -10185,6 +10189,7 @@ msgid "Redact notification content"
 msgstr "알림 내용 가리기"
 
 #. Button: re-fetch provider usage now
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -10704,6 +10709,10 @@ msgstr "이 작업 트리의 충돌을 해결하세요. 먼저 Git 상태와 진
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "리베이스 또는 병합 중 병합 충돌을 해결합니다."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Resolving…"
+msgstr "처리 중…"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Restart Poracode"
 msgstr "Poracode 다시 시작"
@@ -10835,6 +10844,10 @@ msgstr "체크포인트로 되돌리시겠습니까?"
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Revert to this checkpoint"
 msgstr "이 체크포인트로 되돌리기"
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+msgid "Reverting…"
+msgstr "되돌리는 중…"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Review and track work across your GitHub accounts."
@@ -11584,6 +11597,10 @@ msgstr "서버 {target}은(는) 이 컴퓨터에서 실행되며 WSL 프로젝�
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Server base URL"
 msgstr "서버 기본 URL"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Server offline — this conversation may be out of date."
+msgstr "서버가 오프라인입니다. 이 대화는 최신 상태가 아닐 수 있습니다."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."

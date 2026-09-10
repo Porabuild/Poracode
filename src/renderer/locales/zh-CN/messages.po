@@ -760,6 +760,10 @@ msgstr "冻结的工作树源需要完整的提交哈希"
 msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 msgstr "屏幕锁定后将无法进行任何桌面操作，因此在计算机操作会话运行期间会保持显示器常亮。你仍然可以自行锁定屏幕。"
 
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+msgstr "无法确认一条消息删除。请刷新以重新同步此对话。"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "已存在同名的配置文件。"
@@ -10184,6 +10188,7 @@ msgid "Redact notification content"
 msgstr "隐藏通知内容"
 
 #. Button: re-fetch provider usage now
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -10703,6 +10708,10 @@ msgstr "解决此工作树中的冲突。首先检查 Git 状态和正在进行�
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "解决变基或合并期间的合并冲突。"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Resolving…"
+msgstr "正在处理…"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Restart Poracode"
 msgstr "重新启动 Poracode"
@@ -10834,6 +10843,10 @@ msgstr "恢复到此检查点？"
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Revert to this checkpoint"
 msgstr "恢复到此检查点"
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+msgid "Reverting…"
+msgstr "正在回退…"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Review and track work across your GitHub accounts."
@@ -11583,6 +11596,10 @@ msgstr "服务器 {target} 在本机运行，WSL 项目无法使用。"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Server base URL"
 msgstr "服务器基础 URL"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Server offline — this conversation may be out of date."
+msgstr "服务器离线——此对话可能不是最新。"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
