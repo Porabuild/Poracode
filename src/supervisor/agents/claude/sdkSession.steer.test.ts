@@ -9,7 +9,7 @@ const sdk = vi.hoisted(() => ({
   query: vi.fn<(input: { prompt: AsyncIterable<SDKUserMessage> }) => Query>(),
 }));
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({ query: sdk.query }));
-vi.mock("../binaryResolver", () => ({ resolveAgentBinaryPath: () => undefined }));
+vi.mock("../binaryResolver", () => ({ resolveAgentBinaryPath: () => "/test-bin/claude" }));
 
 const config: ThreadConfig = { model: "sonnet", mode: "agent", approvalPolicy: "acceptEdits" };
 const sessions: ClaudeSdkSession[] = [];
