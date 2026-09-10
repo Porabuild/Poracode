@@ -32,6 +32,12 @@ Branch: `poracode/v2`. Relevant local commits:
   desktop-parity per-prompt revert action in the Android timeline with a
   deterministic operation key and all-locale strings. `native-parity.json`
   thread-checkpoint-revert is now `implemented` for iOS and Android.
+- WS2 stage 6: the 13-scenario fault-injection matrix is closed out. New pins:
+  settled revert replay after a host restart keeps turns appended since
+  (`revertCheckpoint.test.ts`, scenarios 3/8/9 host side) and `runtime.truncated`
+  is pinned non-sheddable single and batched (`supervisorEventRelay.test.ts`,
+  scenario 11). The remaining scenarios were already covered by stages 1–5
+  (mapping recorded in `docs/V2_PRODUCTION_PLAN.md` WS2 stage 6).
 - `28f48ba89`: WS2 stage 3 — provider revert anchors (`createRevertAnchor` /
   `restoreToRevertAnchor`) on Claude/Codex/OpenCode with journaled absolute
   targets (migration 46), idempotent re-restore on resume, legacy relative

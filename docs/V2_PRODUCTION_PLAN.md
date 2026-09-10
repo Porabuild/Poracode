@@ -320,6 +320,22 @@ checkpoint-revert:<key>`, outcome decode: `completed`/`completed_local_only`/`no
   thread-checkpoint-revert flipped to `implemented` for both iOS (stage 4) and Android
   with production evidence paths; `native-parity.test.ts` green. Remaining: stage 6
   fault-injection matrix.
+- **Stage 6 — DONE** (fault-injection matrix): the 13-scenario matrix is covered.
+  Host journal suite `src/backend/revertCheckpoint.test.ts` (14 tests): crash after
+  anchor journal / after provider phase / after files with restart-resume (scenarios
+  1–2), ambiguous provider never re-executes (4), two concurrent reverts serialize
+  with one provider restore and one event (5), settled replay without side effects
+  and key reuse for a different checkpoint rejected, settled replay after a host
+  restart keeps turns appended since — no resurrection (3, 8, 9 host side),
+  active-turn and launching refusal (7), noop without side effects (10). W9 prompt
+  rescue is renderer-side and pinned by ChatPane ("restores the prompt snapshot taken
+  before the compound call"); route-level replay + failed-row retry pinned by
+  `tests/native-e2e/checkpointRevertRoute.test.ts`; the command-id claim matrix
+  (in-flight / settled replay / crash purge) lives in `remoteCommandReceipts.test.ts`
+  (6); shed policy pins `runtime.truncated` non-sheddable — single and batched with
+  bulk content — in `supervisorEventRelay.test.ts` (11); protocol version gate +
+  v45→v46 migration + parity checks (12); iOS ambiguous/background controller tests
+  and the Android compound adoption tests (13, completed in stage 5).
 - **Stage 3** — capability-shaped provider hooks `createRevertAnchor` / `restoreToRevertAnchor` (idempotent absolute restore) in the base session surface; Claude/Codex/OpenCode implementations (each already computes an absolute target internally); ACP family declares absence → existing `local_only` gating. No provider names in shared code.
 - **Stage 4** — backend-host protocol 4→5 + compound remote route `POST /api/threads/{id}/checkpoint-revert` (`command-id-header`); renderer one-call swap (delete `revertingRef`/`revertProgressRef`); iOS migrates off its three-call replica.
 - **Stage 5** — protocol regen (manifest/IR/schema/Swift/Kotlin), `native-parity.json` update, Android adoption.

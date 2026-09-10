@@ -35,7 +35,11 @@ import {
   type RevertCheckpointResult,
 } from "./BackendHostCore";
 import { nativeBindingEnv, sqliteAvailable, testThread } from "@/main/db/runtimeItems.testFixtures";
-import { dbAppendThreadCompletedTurn, dbApplyThreadRuntimeEvents } from "@/main/db/runtimeItems";
+import {
+  dbAppendThreadCompletedTurn,
+  dbApplyThreadRuntimeEvents,
+  dbGetThreadRuntimeItems,
+} from "@/main/db/runtimeItems";
 import { dbUpsertProject, dbUpsertThread, dbGetThread } from "@/main/db/projectsThreads";
 import type { ProviderRevertAnchor, Thread } from "@/shared/contracts";
 import type { ProjectLocation } from "@/shared/contracts/common";
@@ -353,6 +357,48 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     expect(replay.outcome).toBe("completed");
     expect(supervisorHarness.calls.length).toBe(callsAfterFirst);
     expect(events.length).toBe(eventsAfterFirst);
+  });
+
+  it("replays a settled revert after a host restart and keeps turns appended since", async () => {
+    seedThread({ status: "idle" });
+    seedTranscript(1);
+    const first = await host!.revertCheckpoint(revertInput("op-restart-replay"));
+    expect(first.outcome).toBe("completed");
+    const callsAfterFirst = supervisorHarness.calls.length;
+
+    // After the settled revert, new turns arrive from the provider (the user
+    // continued on another client). A journaled replay must not delete them.
+    dbApplyThreadRuntimeEvents(
+      "thread-1",
+      ["late-1", "late-2"].map((itemId) => ({
+        type: "item.started" as const,
+        threadId: "thread-1",
+        itemId,
+        itemType: "assistant_message" as const,
+      })),
+    );
+    dbAppendThreadCompletedTurn("thread-1", {
+      startedAt: "2026-01-01T00:01:00.000Z",
+      endedAt: "2026-01-01T00:01:00.500Z",
+      anchorItemId: "late-2",
+    });
+
+    reopenDatabase();
+    const restarted = makeHost((event) => events.push(event));
+    try {
+      const replay = await restarted.revertCheckpoint(revertInput("op-restart-replay"));
+      // The restarted host serves the stored receipt: settled outcome, no
+      // provider round-trip, and no second truncation event.
+      expect(replay.replayed).toBe(true);
+      expect(replay.outcome).toBe("completed");
+      expect(supervisorHarness.calls).toHaveLength(callsAfterFirst);
+      expect(truncateEvents()).toHaveLength(1);
+      const itemIds = dbGetThreadRuntimeItems("thread-1").map((item) => item.id);
+      expect(itemIds).toContain("late-1");
+      expect(itemIds).toContain("late-2");
+    } finally {
+      restarted.dispose();
+    }
   });
 
   it("rejects reusing an operation key for a different checkpoint", async () => {
