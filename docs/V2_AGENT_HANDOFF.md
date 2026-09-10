@@ -21,6 +21,10 @@ Branch: `poracode/v2`. Relevant local commits:
 
 - `4aa5b80af`: WS3 #2 — thread-history `omitScrollback` for v2 clients; the
   watch baseline is the only copy of the terminal tail.
+- `f7b91457c`: WS4 relay hardening — per-channel congestion eviction
+  (P1-5), zombie-channel host notification (P1-6), req/res frame
+  pre-measurement (P1-7), per-clientId admission caps 16/32 + global 256
+  with 429/1013 (P1-8), allowlisted 502 bodies.
 - `a15836117`: WS3 §12.2 heartbeat-coexistence E2E — worst mid-stream pong
   RTT 2,302 ms through the 32 kbps shape; production monitor never fired.
 - `a6c565ba1`: cursor-sync v2 real-host E2E (cold start + resume) and the
