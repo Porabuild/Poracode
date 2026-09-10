@@ -21,6 +21,12 @@ Branch: `poracode/v2`. Relevant local commits:
 
 - `4aa5b80af`: WS3 #2 — thread-history `omitScrollback` for v2 clients; the
   watch baseline is the only copy of the terminal tail.
+- `a15836117`: WS3 §12.2 heartbeat-coexistence E2E — worst mid-stream pong
+  RTT 2,302 ms through the 32 kbps shape; production monitor never fired.
+- `a6c565ba1`: cursor-sync v2 real-host E2E (cold start + resume) and the
+  native-e2e harness refresh (212-key operation map, lab v2 chunking,
+  coverage pins); two pre-existing branch check fixes (`56e5a3517`,
+  `38fee497e`).
 - `cd9505310`: WS3 #1 cursor-sync v2 — chunked baselines, resume, ACK credit
   windows, heartbeat-safe scheduling; natives still on v1 (ledger `planned`).
 - `7edd2ef1e`: WS3 #6/#8 — cold-connect environment∥snapshot overlap and
