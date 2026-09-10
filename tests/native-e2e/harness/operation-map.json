@@ -3,13 +3,13 @@
   "contract": "poracode.remote",
   "protocolVersion": 10,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:2a9455aad65ad8d320cf6b7b807c36adb1b8355f211ff72d83017ef3503ab78a",
-  "keyCount": 209,
+  "manifestHash": "sha256:dce0d9b359037f9e45298b50fcefd9fd5bc1db08edbf38e1f3b7027039159c34",
+  "keyCount": 212,
   "counts": {
     "route": 62,
     "procedure": 100,
-    "ws-client": 8,
-    "ws-server": 9,
+    "ws-client": 9,
+    "ws-server": 10,
     "replay": 15,
     "runtime": 16
   },
@@ -474,13 +474,13 @@
       "kind": "replay",
       "id": "wsl-agent-statuses"
     },
-    "route:agent-statuses": {
-      "kind": "route",
-      "id": "agent-statuses"
-    },
     "route:agent-slash-commands": {
       "kind": "route",
       "id": "agent-slash-commands"
+    },
+    "route:agent-statuses": {
+      "kind": "route",
+      "id": "agent-statuses"
     },
     "route:attachment-upload": {
       "kind": "route",
@@ -814,6 +814,10 @@
       "kind": "ws-client",
       "id": "terminal-watch"
     },
+    "ws-client:terminal-watch-baseline-ack": {
+      "kind": "ws-client",
+      "id": "terminal-watch-baseline-ack"
+    },
     "ws-client:thread-item-interests": {
       "kind": "ws-client",
       "id": "thread-item-interests"
@@ -849,6 +853,10 @@
     "ws-server:terminal-output": {
       "kind": "ws-server",
       "id": "terminal-output"
+    },
+    "ws-server:terminal-watch-baseline-chunk": {
+      "kind": "ws-server",
+      "id": "terminal-watch-baseline-chunk"
     },
     "ws-server:terminal-watch-result": {
       "kind": "ws-server",
