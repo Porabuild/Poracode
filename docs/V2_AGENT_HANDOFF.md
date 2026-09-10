@@ -19,6 +19,13 @@ browser forwarding merely from that exploratory question.
 
 Branch: `poracode/v2`. Relevant local commits:
 
+- `28f48ba89`: WS2 stage 3 — provider revert anchors (`createRevertAnchor` /
+  `restoreToRevertAnchor`) on Claude/Codex/OpenCode with journaled absolute
+  targets (migration 46), idempotent re-restore on resume, legacy relative
+  fallback preserved for capability-less providers, and the compound wire route
+  `POST /api/threads/{id}/checkpoint-revert` (63 routes / 213 keys, protocol
+  artifacts + native-parity ledger regenerated). Renderer one-call swap + iOS
+  migration remain stage 4; Android adoption stage 5.
 - WS5 acceptance-gate load profile: `tests/native-e2e/sharedHostLoadProfile.test.ts`
   records the 8 streaming agents + 4 GUI clients + 1 stalled client gate against a real
   host (8 × 24,000 incompressible lines delivered complete; truncate fan-out p95 ≤ 1 ms;
