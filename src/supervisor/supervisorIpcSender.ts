@@ -95,8 +95,21 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
   private waitingForDrain = false;
   private draining = false;
   private failed = false;
+  private eagerShed = false;
 
   constructor(private readonly options: SupervisorIpcSenderOptions<AdditionalMessage>) {}
+
+  /**
+   * Downstream consumers report pressure through this (P1-2). While set,
+   * incoming policy-approved messages are shed at the source — dropped and
+   * announced with a recovery signal — instead of being queued behind traffic
+   * the consumer is not draining. Rebuildable terminal bytes never stall
+   * their producers for a slow consumer: the bounded queue plus shed is the
+   * buffer, and the recovery signal is the resync.
+   */
+  setEagerShed(paused: boolean): void {
+    this.eagerShed = paused;
+  }
 
   emit(event: SupervisorEvent): void {
     if (event.type === "thread-output") {
@@ -201,6 +214,13 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
 
   private enqueueEntry(entry: QueueEntry<AdditionalMessage>, front = false): void {
     if (this.failed) return;
+    if (this.eagerShed) {
+      const policy = this.options.shedPolicy;
+      if (policy?.isSheddable(entry.message)) {
+        this.shedIncoming(entry, policy);
+        return;
+      }
+    }
     const maxMessages = this.options.maxQueuedMessages ?? IPC_MAX_QUEUED_MESSAGES;
     const maxBytes = this.options.maxQueuedBytes ?? IPC_MAX_QUEUED_BYTES;
     if (this.queue.length + 1 > maxMessages || this.queuedBytes + entry.bytes > maxBytes) {
@@ -222,6 +242,32 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     if (front) this.queue.unshift(entry);
     else this.queue.push(entry);
     this.queuedBytes += entry.bytes;
+    this.drain();
+  }
+
+  /** P1-2 eager shed: drop one rebuildable message under downstream pressure,
+   * announcing the loss with a recovery signal merged into any leading marker
+   * so sustained pressure collapses into one growing signal. */
+  private shedIncoming(
+    entry: QueueEntry<AdditionalMessage>,
+    policy: SupervisorIpcShedPolicy<AdditionalMessage>,
+  ): void {
+    const leading = this.queue[0];
+    const merging = leading && policy.isRecoverySignal(leading.message) ? leading.message : null;
+    const signal: QueueEntry<AdditionalMessage> = {
+      message: policy.createRecoverySignal([entry.message], merging),
+      bytes: 0,
+      retries: 0,
+    };
+    signal.bytes = estimateMessageBytes(signal.message);
+    if (merging && leading) {
+      this.queuedBytes -= leading.bytes;
+      this.queue[0] = signal;
+    } else {
+      this.queue.unshift(signal);
+    }
+    this.queuedBytes += signal.bytes;
+    this.options.onMessagesShed?.({ count: 1, bytes: entry.bytes });
     this.drain();
   }
 

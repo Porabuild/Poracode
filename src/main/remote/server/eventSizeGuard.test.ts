@@ -166,6 +166,7 @@ describe("trimEventBuffer", () => {
     seq,
     bytes,
     event: { type: "thread-reset", threadId: `thread-${seq}` },
+    json: "",
   });
 
   it("drops the oldest entries past the count limit", () => {

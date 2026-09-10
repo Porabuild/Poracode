@@ -158,8 +158,22 @@ function replyFailure(replyTo: string, error: unknown): void {
   send(reply);
 }
 
+// WS5 P1-2: renderer-stream pressure (a slow renderer window) flows to the
+// supervisor as flow control, which sheds rebuildable terminal output at the
+// source instead of letting the queue grow until overflow shedding kicks in.
+let supervisorBackpressured = false;
 const relaySupervisorEvent = createSupervisorEventRelay({
-  publishToRendererStream: (event) => rendererStream?.publish(event),
+  publishToRendererStream: (event) => {
+    const result = rendererStream?.publish(event);
+    if (rendererStream) {
+      const pressured = rendererStream.isBackpressured();
+      if (pressured !== supervisorBackpressured) {
+        supervisorBackpressured = pressured;
+        backendHost?.setSupervisorOutputBackpressured(pressured);
+      }
+    }
+    return result;
+  },
   observeEvent: (event) => desktopServices?.observeSupervisorEvent(event),
   filterForIpcConsumers: (event) => eventRouter.filter(event),
   sendToMain: send,

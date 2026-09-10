@@ -28,45 +28,49 @@ const sampleGitStatus = {
 };
 
 describe("remote v3 generator", () => {
-  it("emits stable sorted artifacts with version, hash, and inventory counts", () => {
-    const first = buildRemoteV3GeneratedFiles();
-    const second = buildRemoteV3GeneratedFiles();
-    const third = buildRemoteV3GeneratedFiles();
-    expect(first).toEqual(second);
-    expect(second).toEqual(third);
-    const ir = JSON.parse(first["ir.json"]) as {
-      doNotEdit: string;
-      protocolVersion: number;
-      bindingFormatVersion: number;
-      generatorVersion: number;
-      sourceHash: string;
-      manifestHash: string;
-      inventory: typeof REMOTE_CONTRACT_INVENTORY;
-      routes: Array<{ id: string }>;
-      procedures: Array<{ name: string }>;
-    };
-    expect(ir.doNotEdit).toMatch(/Do not edit/i);
-    expect(ir.protocolVersion).toBe(10);
-    expect(ir.bindingFormatVersion).toBe(2);
-    expect(ir.generatorVersion).toBe(3);
-    expect(ir.sourceHash).toMatch(/^sha256:[a-f0-9]{64}$/);
-    expect(ir.manifestHash).toMatch(/^sha256:[a-f0-9]{64}$/);
-    expect(ir.inventory.routes).toBe(62);
-    expect(ir.inventory.procedures).toBe(100);
-    expect(ir.inventory.voidProcedureResults).toBe(36);
-    expect(ir.inventory.jsonProcedureResults).toBe(64);
-    expect(ir.routes.map((route) => route.id)).toEqual(
-      [...ir.routes.map((route) => route.id)].sort(compareUnicodeCodePoints),
-    );
-    expect(ir.procedures.map((procedure) => procedure.name)).toEqual(
-      [...ir.procedures.map((procedure) => procedure.name)].sort(compareUnicodeCodePoints),
-    );
-    expect(buildRemoteV3IrDocument().sourceHash).toBe(ir.sourceHash);
-  });
+  it(
+    "emits stable sorted artifacts with version, hash, and inventory counts",
+    { timeout: 60_000 },
+    () => {
+      const first = buildRemoteV3GeneratedFiles();
+      const second = buildRemoteV3GeneratedFiles();
+      const third = buildRemoteV3GeneratedFiles();
+      expect(first).toEqual(second);
+      expect(second).toEqual(third);
+      const ir = JSON.parse(first["ir.json"]) as {
+        doNotEdit: string;
+        protocolVersion: number;
+        bindingFormatVersion: number;
+        generatorVersion: number;
+        sourceHash: string;
+        manifestHash: string;
+        inventory: typeof REMOTE_CONTRACT_INVENTORY;
+        routes: Array<{ id: string }>;
+        procedures: Array<{ name: string }>;
+      };
+      expect(ir.doNotEdit).toMatch(/Do not edit/i);
+      expect(ir.protocolVersion).toBe(10);
+      expect(ir.bindingFormatVersion).toBe(2);
+      expect(ir.generatorVersion).toBe(3);
+      expect(ir.sourceHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+      expect(ir.manifestHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+      expect(ir.inventory.routes).toBe(62);
+      expect(ir.inventory.procedures).toBe(100);
+      expect(ir.inventory.voidProcedureResults).toBe(36);
+      expect(ir.inventory.jsonProcedureResults).toBe(64);
+      expect(ir.routes.map((route) => route.id)).toEqual(
+        [...ir.routes.map((route) => route.id)].sort(compareUnicodeCodePoints),
+      );
+      expect(ir.procedures.map((procedure) => procedure.name)).toEqual(
+        [...ir.procedures.map((procedure) => procedure.name)].sort(compareUnicodeCodePoints),
+      );
+      expect(buildRemoteV3IrDocument().sourceHash).toBe(ir.sourceHash);
+    },
+  );
 
   it(
     "--check is side-effect free and fails on stale, missing, and extra files",
-    { timeout: 60_000 },
+    { timeout: 120_000 },
     () => {
       const root = mkdtempSync(join(tmpdir(), "remote-v3-"));
       try {

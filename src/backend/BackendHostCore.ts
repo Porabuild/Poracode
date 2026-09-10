@@ -502,8 +502,17 @@ export class BackendHostCore {
     this.supervisorClient.start();
   }
 
+  /**
+   * WS5 P1-2: forward downstream renderer-stream pressure to the supervisor.
+   * The supervisor sheds rebuildable terminal output at the source instead of
+   * pausing PTYs, so agent processes never stall behind a slow consumer.
+   */
+  setSupervisorOutputBackpressured(paused: boolean): void {
+    this.supervisorClient.setOutputBackpressured(paused);
+  }
+
   restartSupervisor(): void {
-    this.supervisorClient.start();
+    this.supervisorClient.restart();
   }
 
   disposeSupervisor(): void {

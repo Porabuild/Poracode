@@ -120,9 +120,7 @@ export class ThreadSessionManager {
   private readonly startLocks = new Map<string, Promise<void>>();
   private readonly pendingStartInterrupts = new Set<string>();
   private readonly pendingStartAborts = new Set<string>();
-  private readonly ptyLifecycle = new PtyLifecycle((error) => {
-    console.warn("[supervisor] PTY flow control failed:", error);
-  });
+  private readonly ptyLifecycle = new PtyLifecycle();
   private readonly logWriter = new BufferedLogWriter();
   private readonly outputPipeline: ThreadOutputPipeline;
   private readonly runtimeEventRouter: RuntimeEventRouter;
@@ -1269,10 +1267,6 @@ export class ThreadSessionManager {
     }
     if (retained) this.exitedShellSnapshots.delete(threadId);
     return null;
-  }
-
-  setPtyOutputPaused(paused: boolean): void {
-    this.ptyLifecycle.setOutputPaused(paused);
   }
 
   private retainExitedShellSnapshot(shell: ShellSessionRuntime): void {

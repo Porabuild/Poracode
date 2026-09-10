@@ -27,19 +27,16 @@ initializeSupervisorSentry({
 configureSecretStorageKey(process.env.PORACODE_SECRET_STORAGE_KEY);
 delete process.env.PORACODE_SECRET_STORAGE_KEY;
 
-let runtimeForBackpressure: SupervisorRuntime | undefined;
-let localIpcBackpressured = false;
-let downstreamIpcBackpressured = false;
-const applyIpcBackpressure = (): void => {
-  runtimeForBackpressure?.setIpcBackpressured(localIpcBackpressured || downstreamIpcBackpressured);
-};
 // The backend host is a replaceable consumer: a transient stall there must
 // never kill the supervisor (and with it every agent process). Terminal-output
 // batches — the only traffic the supervisor can authoritatively re-serve — are
 // shed oldest-first under overflow, announced by a supervisor-output-shed
 // signal the backend turns into client resyncs; all other traffic stays
 // fail-closed, and the fatal backpressure timer is disabled outright because
-// a dead backend host is already handled by the disconnect path.
+// a dead backend host is already handled by the disconnect path. Downstream
+// pressure (P1-2) sheds those batches at the source instead of pausing PTYs:
+// pausing would block agent processes on a full kernel PTY buffer, while the
+// shed + recovery signal lets every client converge from authoritative state.
 let shedLogCount = 0;
 let shedLogBytes = 0;
 let shedLogAt = 0;
@@ -57,10 +54,6 @@ const ipcSender = new SupervisorIpcSender<SupervisorOutputShedSignal>({
   onFatalError: () => {
     void shutdownSupervisor(1);
   },
-  onBackpressureChange: (paused) => {
-    localIpcBackpressured = paused;
-    applyIpcBackpressure();
-  },
   backpressureTimeoutMs: null,
   shedPolicy: createSupervisorOutputShedPolicy(),
   onMessagesShed: ({ count, bytes }) => {
@@ -77,7 +70,6 @@ const ipcSender = new SupervisorIpcSender<SupervisorOutputShedSignal>({
   },
 });
 const runtime = new SupervisorRuntime((event) => ipcSender.emit(event));
-runtimeForBackpressure = runtime;
 
 const handlers = createSupervisorIpcHandlers(runtime);
 
@@ -118,8 +110,10 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
 
 process.on("message", (message: SupervisorRequest | SupervisorFlowControl) => {
   if ("control" in message) {
-    downstreamIpcBackpressured = message.paused;
-    applyIpcBackpressure();
+    // P1-2: downstream pressure sheds rebuildable terminal output at the
+    // source; PTYs keep running so agent processes never stall on a full
+    // kernel buffer behind a slow consumer.
+    ipcSender.setEagerShed(message.paused);
     return;
   }
   void handleRequest(message)
