@@ -6,7 +6,11 @@ import {
 } from "@/shared/contracts";
 import type { DbPersistExperimentStatePayload } from "@/shared/ipc";
 import { getSqlite } from "./connection";
-import { acknowledgeMirroredThreadIds, isMainCreatedThreadUnmirrored } from "./mainCreatedThreads";
+import {
+  acknowledgeMirroredThreadIds,
+  forgetMainCreatedThread,
+  isMainCreatedThreadUnmirrored,
+} from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
 import {
@@ -18,6 +22,64 @@ import {
 
 /** Renderer snapshots never own `thread_status_source`; see ThreadUpsertOptions. */
 const THREAD_SYNC_OPTIONS = { writeThreadStatusSource: false } as const;
+
+/**
+ * Row-scoped sibling of [dbSyncAll]: the renderer diffs its store against the
+ * last persisted snapshot and ships only changed rows plus explicit deletions.
+ * Explicit deletes are intentional renderer deletions, so the unmirrored
+ * main-created-thread guard does not apply — but the ownership marker is
+ * cleared so the guard cannot resurrect the row later.
+ */
+export function dbSyncChanges(payload: {
+  projects: Project[];
+  threads: Thread[];
+  deletedProjectIds: string[];
+  deletedThreadIds: string[];
+  viewJson: string;
+}): void {
+  const sqlite = getSqlite();
+  sqlite
+    .transaction(() => {
+      const deleteProject = sqlite.prepare("DELETE FROM projects WHERE id = ?");
+      const deleteProjectNotes = sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?");
+      for (const projectId of payload.deletedProjectIds) {
+        deleteProject.run(projectId);
+        deleteProjectNotes.run(projectId);
+      }
+      const upsertProject = prepareProjectUpsertStatement(sqlite);
+      for (let i = 0; i < payload.projects.length; i++) {
+        runProjectUpsert(upsertProject, payload.projects[i]!, i);
+      }
+
+      const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
+      for (const threadId of payload.deletedThreadIds) {
+        deleteThread.run(threadId);
+        forgetMainCreatedThread(threadId);
+      }
+      const upsertThread = prepareThreadUpsertStatement(sqlite, THREAD_SYNC_OPTIONS);
+      for (let i = 0; i < payload.threads.length; i++) {
+        runThreadUpsert(upsertThread, payload.threads[i]!, i, THREAD_SYNC_OPTIONS);
+      }
+      acknowledgeMirroredThreadIds(payload.threads.map((thread) => thread.id));
+
+      sqlite
+        .prepare(
+          "INSERT INTO app_state (key, value) VALUES ('view', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        )
+        .run(payload.viewJson);
+    })
+    .immediate();
+  for (const threadId of payload.deletedThreadIds) dbDiscardThreadRuntimeWrites(threadId);
+  // View-only writes (navigation, layout) must not wake the projection watch.
+  if (
+    payload.projects.length > 0 ||
+    payload.threads.length > 0 ||
+    payload.deletedProjectIds.length > 0 ||
+    payload.deletedThreadIds.length > 0
+  ) {
+    notifyProjectThreadDataChanged();
+  }
+}
 
 /**
  * Bulk-sync the full project and thread lists from the renderer store.

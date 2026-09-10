@@ -8,6 +8,16 @@ const bridge = vi.hoisted(() => ({
   dbGetState: vi.fn<(key: string) => Promise<string | null>>(),
   dbSetState: vi.fn<(key: string, value: string) => Promise<void>>(),
   dbSyncAll: vi.fn<(projects: unknown[], threads: unknown[], viewJson: string) => Promise<void>>(),
+  dbSyncChanges:
+    vi.fn<
+      (payload: {
+        projects: unknown[];
+        threads: unknown[];
+        deletedProjectIds: string[];
+        deletedThreadIds: string[];
+        viewJson: string;
+      }) => Promise<void>
+    >(),
 }));
 
 vi.mock("../bridge", () => ({
@@ -30,10 +40,11 @@ describe("createDbStorage", () => {
     bridge.dbGetState.mockReset().mockResolvedValue(null);
     bridge.dbSetState.mockReset().mockResolvedValue(undefined);
     bridge.dbSyncAll.mockReset().mockResolvedValue(undefined);
+    bridge.dbSyncChanges.mockReset().mockResolvedValue(undefined);
     window.poracode = {} as typeof window.poracode;
   });
 
-  it("skips duplicate app metadata writes before dbSyncAll", async () => {
+  it("skips duplicate app metadata writes before any SQLite call", async () => {
     const storage = createDbStorage<{
       projects: unknown[];
       threads: unknown[];
@@ -55,13 +66,54 @@ describe("createDbStorage", () => {
     });
 
     expect(bridge.dbSyncAll).toHaveBeenCalledTimes(1);
+    expect(bridge.dbSyncChanges).not.toHaveBeenCalled();
 
     await storage.setItem("poracode-app-v2", {
       state: { projects, threads: [...threads], view, groupLayouts },
       version: 5,
     });
 
-    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(2);
+    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(1);
+    expect(bridge.dbSyncChanges).toHaveBeenCalledTimes(1);
+  });
+
+  it("ships only changed rows and explicit deletions after the first full sync", async () => {
+    const storage = createDbStorage();
+    const project = { id: "project-1" };
+    const untouched = { id: "thread-kept", title: "kept" };
+    const removed = { id: "thread-gone", title: "gone" };
+    await storage.setItem("poracode-app-v2", {
+      state: {
+        projects: [project],
+        threads: [untouched, removed],
+        view: { kind: "home" },
+        groupLayouts: {},
+      },
+      version: 5,
+    });
+    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(1);
+
+    const edited = { id: "thread-kept", title: "kept (edited)" };
+    const added = { id: "thread-new", title: "new" };
+    await storage.setItem("poracode-app-v2", {
+      state: {
+        projects: [project],
+        threads: [edited, added],
+        view: { kind: "thread", panes: ["thread-new"] },
+        groupLayouts: {},
+      },
+      version: 5,
+    });
+
+    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(1);
+    expect(bridge.dbSyncChanges).toHaveBeenCalledTimes(1);
+    expect(bridge.dbSyncChanges).toHaveBeenCalledWith({
+      projects: [],
+      threads: [edited, added],
+      deletedProjectIds: [],
+      deletedThreadIds: ["thread-gone"],
+      viewJson: '{"kind":"thread","panes":["thread-new"]}',
+    });
   });
 
   it("does not echo the hydrated app snapshot back to SQLite", async () => {
@@ -127,8 +179,15 @@ describe("createDbStorage", () => {
     releaseFirstWrite?.();
     await Promise.all([first, second, final]);
 
-    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(2);
-    expect(bridge.dbSyncAll).toHaveBeenLastCalledWith([], [{ id: "final" }], '{"kind":"home"}');
+    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(1);
+    expect(bridge.dbSyncChanges).toHaveBeenCalledTimes(1);
+    expect(bridge.dbSyncChanges).toHaveBeenCalledWith({
+      projects: [],
+      threads: [{ id: "final" }],
+      deletedProjectIds: [],
+      deletedThreadIds: ["first"],
+      viewJson: '{"kind":"home"}',
+    });
   });
 
   it("allows an identical snapshot to retry after persistence fails", async () => {

@@ -454,6 +454,9 @@ export function createLocalIpcHandlers(
     dbSyncAll: async (payload) => {
       await callDatabase("dbSyncAll", payload);
     },
+    dbSyncChanges: async (payload) => {
+      await callDatabase("dbSyncChanges", payload);
+    },
     dbPersistExperimentState: async (payload) => {
       await callDatabase("dbPersistExperimentState", payload);
       const paths = options.requirePoracodePaths();

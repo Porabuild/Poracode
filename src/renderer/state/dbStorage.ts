@@ -180,7 +180,7 @@ class AppStoreWriteQueue {
       if (operation.kind === "write") {
         if (!isSameAppStoreValue(this.lastPersisted, operation.value)) {
           try {
-            await saveAppStore(operation.value);
+            await saveAppStore(operation.value, this.lastPersisted);
             this.lastPersisted = operation.value;
           } catch {
             this.lastPersisted = undefined;
@@ -243,8 +243,20 @@ async function loadAppStore(): Promise<StorageValue<unknown> | null> {
   };
 }
 
-/** Parse the Zustand persist payload and write to SQLite. */
-async function saveAppStore(value: StorageValue<unknown>): Promise<void> {
+/**
+ * Parse the Zustand persist payload and write to SQLite.
+ *
+ * With a previously persisted snapshot, only rows whose object identity changed
+ * ship over IPC (`dbSyncChanges`): the store replaces row objects exactly when
+ * their content changes, so reference inequality is a precise change signal and
+ * a 1k-thread host persists one dirty row instead of re-upserting every row.
+ * The first write after startup (no snapshot yet) and error recovery fall back
+ * to the full `dbSyncAll`.
+ */
+async function saveAppStore(
+  value: StorageValue<unknown>,
+  previous?: StorageValue<unknown>,
+): Promise<void> {
   let state:
     | {
         projects?: Project[];
@@ -265,13 +277,24 @@ async function saveAppStore(value: StorageValue<unknown>): Promise<void> {
     throw error;
   }
 
+  const projects = state.projects ?? [];
+  const threads = state.threads ?? [];
+  const changes = previous ? appStoreRowChanges(previous, projects, threads) : null;
+
   const writes: Promise<void>[] = [
-    readBridge()
-      .dbSyncAll(state.projects ?? [], state.threads ?? [], viewJson)
-      .catch((error) => {
-        reportPersistError("projects/threads/view", error);
-        throw error;
-      }),
+    (changes
+      ? readBridge().dbSyncChanges({
+          projects: changes.projects,
+          threads: changes.threads,
+          deletedProjectIds: changes.deletedProjectIds,
+          deletedThreadIds: changes.deletedThreadIds,
+          viewJson,
+        })
+      : readBridge().dbSyncAll(projects, threads, viewJson)
+    ).catch((error) => {
+      reportPersistError("projects/threads/view", error);
+      throw error;
+    }),
   ];
   if (groupLayoutsJson !== undefined) {
     writes.push(
@@ -286,6 +309,38 @@ async function saveAppStore(value: StorageValue<unknown>): Promise<void> {
   const results = await Promise.allSettled(writes);
   const failure = results.find((result) => result.status === "rejected");
   if (failure?.status === "rejected") throw failure.reason;
+}
+
+interface AppStoreRowChanges {
+  projects: Project[];
+  threads: Thread[];
+  deletedProjectIds: string[];
+  deletedThreadIds: string[];
+}
+
+/**
+ * Diffs the current project/thread rows against the last persisted snapshot.
+ * Row objects are recreated only when their content changes, so reference
+ * inequality covers both edits and additions; deletions are ids present before
+ * and absent now.
+ */
+function appStoreRowChanges(
+  previous: StorageValue<unknown>,
+  projects: Project[],
+  threads: Thread[],
+): AppStoreRowChanges {
+  const prevState = previous.state as { projects?: Project[]; threads?: Thread[] } | undefined;
+  const prevProjects = new Map((prevState?.projects ?? []).map((project) => [project.id, project]));
+  const prevThreads = new Map((prevState?.threads ?? []).map((thread) => [thread.id, thread]));
+  const projectIds = new Set(projects.map((project) => project.id));
+  const threadIds = new Set(threads.map((thread) => thread.id));
+
+  return {
+    projects: projects.filter((project) => prevProjects.get(project.id) !== project),
+    threads: threads.filter((thread) => prevThreads.get(thread.id) !== thread),
+    deletedProjectIds: [...prevProjects.keys()].filter((projectId) => !projectIds.has(projectId)),
+    deletedThreadIds: [...prevThreads.keys()].filter((threadId) => !threadIds.has(threadId)),
+  };
 }
 
 async function removeAppStore(): Promise<void> {

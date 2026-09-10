@@ -57,6 +57,7 @@ const SHELL_PROJECTION_DATABASE_CALLS: ReadonlySet<BackendDatabaseCall["name"]> 
   "dbUpsertThread",
   "dbDeleteThread",
   "dbSyncAll",
+  "dbSyncChanges",
   "dbPersistExperimentState",
 ]);
 
@@ -299,23 +300,29 @@ export class BackendDesktopServices {
 
   databaseChanged(call: BackendDatabaseCall): void {
     if (!affectsShellProjection(call.name)) return;
-    if (
+    // A row-scoped sync (dbSyncChanges) may carry only a view update; the
+    // payload tells whether any project or thread rows actually changed.
+    const changedProjects =
       call.name === "dbUpsertProject" ||
       call.name === "dbDeleteProject" ||
-      call.name === "dbSyncAll"
-    ) {
+      call.name === "dbSyncAll" ||
+      (call.name === "dbSyncChanges" &&
+        (call.payload.projects.length > 0 || call.payload.deletedProjectIds.length > 0));
+    const changedThreads =
+      call.name === "dbUpsertThread" ||
+      call.name === "dbDeleteThread" ||
+      call.name === "dbSyncAll" ||
+      call.name === "dbPersistExperimentState" ||
+      (call.name === "dbSyncChanges" &&
+        (call.payload.threads.length > 0 || call.payload.deletedThreadIds.length > 0));
+    if (changedProjects) {
       const projects = dbGetProjects();
       this.remote?.getServer()?.publishSupervisorEvent({
         type: "remote-projects-changed",
         projects: remoteProjectCommandResultSchema.parse({ projects }).projects,
       });
     }
-    if (
-      call.name === "dbUpsertThread" ||
-      call.name === "dbDeleteThread" ||
-      call.name === "dbSyncAll" ||
-      call.name === "dbPersistExperimentState"
-    ) {
+    if (changedThreads) {
       this.remote?.getServer()?.publishSupervisorEvent({
         type: "remote-threads-changed",
         threadIds: dbGetThreads().map((thread) => thread.id),
