@@ -25,6 +25,7 @@ interface FakeServer {
   readonly issuePairingUrl: ReturnType<typeof vi.fn>;
   readonly listAccessSessions: ReturnType<typeof vi.fn>;
   readonly publishSupervisorEvent: ReturnType<typeof vi.fn>;
+  readonly clearBackgroundTaskLevels: ReturnType<typeof vi.fn>;
 }
 
 interface FakeForwarding {
@@ -149,6 +150,7 @@ vi.mock("./RemoteAccessServer", () => ({
     );
     readonly listAccessSessions = vi.fn<() => unknown[]>(() => []);
     readonly publishSupervisorEvent = vi.fn<(event: unknown) => void>();
+    readonly clearBackgroundTaskLevels = vi.fn<() => void>();
 
     constructor(readonly options: RemoteAccessServerOptions) {
       h.servers.push(this);
@@ -630,6 +632,25 @@ describe("DesktopRemoteAccessController", () => {
       summaries,
     });
     expect(h.servers[0]?.options.gitSummaries?.()).toEqual(summaries);
+  });
+
+  it("clears supervisor-owned follow-up queues when the supervisor resets", async () => {
+    const controller = createController();
+    await controller.setEnabled(true);
+    h.getThreads.mockReturnValue([{ id: "thread-1" }, { id: "thread-2" }]);
+
+    controller.handleSupervisorReset();
+
+    expect(h.servers[0]?.publishSupervisorEvent).toHaveBeenCalledWith({
+      type: "thread-follow-up-queue",
+      threadId: "thread-1",
+      queue: null,
+    });
+    expect(h.servers[0]?.publishSupervisorEvent).toHaveBeenCalledWith({
+      type: "thread-follow-up-queue",
+      threadId: "thread-2",
+      queue: null,
+    });
   });
 
   it("starts only when persisted enabled and preserves the setting on boot failure", async () => {

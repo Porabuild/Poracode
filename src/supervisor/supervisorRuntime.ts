@@ -578,6 +578,52 @@ export class SupervisorRuntime {
     return process.platform === "win32" ? this.getCachedAvailableWindowsShells() : [];
   }
 
+  queueThreadFollowUp(
+    payload: Parameters<ThreadSessionManager["queueThreadFollowUp"]>[0],
+  ): ReturnType<ThreadSessionManager["queueThreadFollowUp"]> {
+    return this.threadSessionManager.queueThreadFollowUp(payload);
+  }
+
+  reorderQueuedThreadFollowUp(
+    input: Parameters<ThreadSessionManager["reorderQueuedThreadFollowUp"]>[0],
+  ) {
+    return this.threadSessionManager.reorderQueuedThreadFollowUp(input);
+  }
+
+  editQueuedThreadFollowUp(
+    payload: Parameters<ThreadSessionManager["editQueuedThreadFollowUp"]>[0],
+  ) {
+    return this.threadSessionManager.editQueuedThreadFollowUp(payload);
+  }
+
+  steerQueuedThreadFollowUp(
+    payload: Parameters<ThreadSessionManager["steerQueuedThreadFollowUp"]>[0],
+  ) {
+    return this.threadSessionManager.steerQueuedThreadFollowUp(payload);
+  }
+
+  removeQueuedThreadFollowUp(
+    payload: Parameters<ThreadSessionManager["removeQueuedThreadFollowUp"]>[0],
+  ): ReturnType<ThreadSessionManager["removeQueuedThreadFollowUp"]> {
+    return this.threadSessionManager.removeQueuedThreadFollowUp(payload);
+  }
+
+  pauseThreadFollowUps(input: { threadId: string; id: string }) {
+    return this.threadSessionManager.pauseThreadFollowUps(input);
+  }
+
+  resumeThreadFollowUps(
+    threadId: Parameters<ThreadSessionManager["resumeThreadFollowUps"]>[0],
+  ): ReturnType<ThreadSessionManager["resumeThreadFollowUps"]> {
+    return this.threadSessionManager.resumeThreadFollowUps(threadId);
+  }
+
+  getThreadFollowUpQueue(
+    threadId: Parameters<ThreadSessionManager["getThreadFollowUpQueue"]>[0],
+  ): ReturnType<ThreadSessionManager["getThreadFollowUpQueue"]> {
+    return this.threadSessionManager.getThreadFollowUpQueue(threadId);
+  }
+
   private getCachedAvailableWindowsShells() {
     const now = Date.now();
     if (this.availableWindowsShellsCache && now - this.availableWindowsShellsCache.ts < 60_000) {

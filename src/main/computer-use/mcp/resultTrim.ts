@@ -79,6 +79,19 @@ function trimDelivery(
 }
 
 /**
+ * `mode:"passive"` / `mode:"interactive"` is an internal lane label. Agents
+ * read it as a takeover hint next to `mode:"foreground"`, and it never
+ * changes, so MCP results omit it. Delivery is `delivery.delivered`. The one
+ * exception is a perform batch's top-level `mode:"batch"`: a structural marker
+ * for the result shape (per-step records), not a lane label, and it names no
+ * takeover route.
+ */
+export function omitLaneMode<T extends { mode?: unknown }>(value: T): Omit<T, "mode"> {
+  const { mode: _mode, ...rest } = value;
+  return rest;
+}
+
+/**
  * Drops an observation's window when it repeats a window the result already
  * states at the top level (or the one the caller passed in).
  */
@@ -87,8 +100,10 @@ export function trimObservation(
   window: ComputerUseWindow | null | undefined,
 ): ComputerUseObservation {
   if (!observation.ok) return observation;
-  if (!windowAddsNothing(window, observation.state.window)) return observation;
-  const { window: _window, ...state } = observation.state;
+  if (!windowAddsNothing(window, observation.state.window)) {
+    return { ok: true, state: omitLaneMode(observation.state) as ComputerUseWindowState };
+  }
+  const { window: _window, ...state } = omitLaneMode(observation.state);
   return { ok: true, state: state as ComputerUseWindowState };
 }
 
@@ -107,7 +122,7 @@ export function trimInteractiveResult(
   result: ComputerUseInteractiveResult,
   options: TrimInteractiveOptions = {},
 ): Record<string, unknown> {
-  const { window, ...rest } = result;
+  const { window, ...rest } = omitLaneMode(result);
   const known = window ?? options.requestedWindow ?? undefined;
   const echo =
     options.alwaysEchoWindow === true

@@ -90,7 +90,8 @@ const execFileAsync = promisify(execFile);
 // v25 discards terminal auth environments with obsolete updater-disable values.
 // v26 refreshes model aliases and configured profile labels.
 // v27 coalesces resolved model aliases with their selectable catalog entries.
-export const STATUS_CACHE_VERSION = 27;
+// v28 re-probes live voice instead of retaining old capability negatives.
+export const STATUS_CACHE_VERSION = 28;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

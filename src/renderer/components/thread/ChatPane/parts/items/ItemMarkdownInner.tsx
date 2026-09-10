@@ -34,21 +34,12 @@ import { ImageCard } from "./ImageCard";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
-import {
-  formatTaskNotifications,
-  normalizeGfmTableSeparators,
-  normalizeShortCodeFenceClosers,
-} from "./ItemMarkdown";
+import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
 import { imageViewSourceFromMarkdownImage } from "./imageViewSource";
 import { normalizeHighlightLanguage } from "./languageDetect";
 import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
-import {
-  AUTO_PATH_FILE_PREFIX,
-  AUTO_PATH_FILE_HREF_PREFIX,
-  AUTO_PATH_FOLDER_PREFIX,
-  AUTO_PATH_FOLDER_HREF_PREFIX,
-  remarkAutolinkProjectPaths,
-} from "./remarkAutolinkProjectPaths";
+import { remarkAutolinkProjectPaths } from "./remarkAutolinkProjectPaths";
+import { parsePathRefUrl } from "./markdownPathRefs";
 
 type RemarkPlugins = NonNullable<ComponentProps<typeof Streamdown>["remarkPlugins"]>;
 type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugins"]>;
@@ -180,9 +171,10 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
     ? getProjectFsPath(actions.projectLocation)
     : undefined;
   const extraRoots = actions?.markdownImageRoots;
+  const formatTranscript = actions?.formatTranscriptMarkdown ?? identityMarkdown;
   const markdownText = rewriteMarkdownLocalImageUrls(
     normalizeIncompleteProjectLinkTail(
-      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(formatTaskNotifications(text))),
+      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(formatTranscript(text))),
     ),
     {
       ...(projectRoot ? { projectRoot } : {}),
@@ -439,37 +431,13 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
   const href = props.href?.trim() ?? "";
   if (!href) return <span>{props.children}</span>;
 
-  if (
-    actions?.projectLocation &&
-    (href.startsWith(AUTO_PATH_FILE_PREFIX) || href.startsWith(AUTO_PATH_FILE_HREF_PREFIX))
-  ) {
-    const rest = decodeAutoPathHref(
-      href.startsWith(AUTO_PATH_FILE_HREF_PREFIX)
-        ? href.slice(AUTO_PATH_FILE_HREF_PREFIX.length)
-        : href.slice(AUTO_PATH_FILE_PREFIX.length),
+  const explicitPathRef = parsePathRefUrl(href);
+  if (explicitPathRef) {
+    return actions?.projectLocation ? (
+      renderPathChip(explicitPathRef, actions.projectLocation, actions)
+    ) : (
+      <span>{props.children}</span>
     );
-    const lineMatch = rest.match(/^(.+):(\d+)(?:-(\d+))?$/);
-    const path = lineMatch ? lineMatch[1]! : rest;
-    const ref: ProjectPathRef = lineMatch
-      ? {
-          kind: "file",
-          path,
-          line: Number.parseInt(lineMatch[2]!, 10),
-          ...(lineMatch[3] ? { endLine: Number.parseInt(lineMatch[3], 10) } : {}),
-        }
-      : { kind: "file", path };
-    return renderPathChip(ref, actions.projectLocation, actions);
-  }
-  if (
-    actions?.projectLocation &&
-    (href.startsWith(AUTO_PATH_FOLDER_PREFIX) || href.startsWith(AUTO_PATH_FOLDER_HREF_PREFIX))
-  ) {
-    const path = decodeAutoPathHref(
-      href.startsWith(AUTO_PATH_FOLDER_HREF_PREFIX)
-        ? href.slice(AUTO_PATH_FOLDER_HREF_PREFIX.length)
-        : href.slice(AUTO_PATH_FOLDER_PREFIX.length),
-    );
-    return renderPathChip({ kind: "folder", path }, actions.projectLocation, actions);
   }
 
   if (/^(https?|mailto):/i.test(href)) {
@@ -535,14 +503,6 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
   );
 }
 
-function decodeAutoPathHref(encoded: string): string {
-  try {
-    return decodeURIComponent(encoded);
-  } catch {
-    return encoded;
-  }
-}
-
 function normalizeIncompleteProjectLinkTail(text: string): string {
   return text.replace(/\[([^\]\n]+)\]\((?:\/|file:[^\s)]*)?$/u, "$1");
 }
@@ -594,4 +554,9 @@ function flattenMdChildren(node: ReactNode): string {
     return flattenMdChildren(p.children);
   }
   return "";
+}
+
+/** No provider rewrite: transcript markdown renders exactly as recorded. */
+function identityMarkdown(text: string): string {
+  return text;
 }

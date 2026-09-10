@@ -6,6 +6,7 @@ import {
   REMOTE_PROCEDURE_SPECS,
   REMOTE_STANDARD_SCOPES,
   filterKnownRemoteAccessScopes,
+  isRemoteFollowUpQueueProcedure,
   isRemoteProcedure,
   remoteAgentStatusesSchema,
   remoteAccessTokenResultSchema,
@@ -89,6 +90,7 @@ import {
   type ScheduledTask,
   type ScheduledTaskInput,
 } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { readBoundedResponseBody } from "@/shared/http";
 
 export class RemoteClientError extends Error {
@@ -787,14 +789,36 @@ export class RemoteDesktopClient {
    */
   async callRemoteProcedure(procedure: string, payload: unknown): Promise<unknown> {
     const spec = isRemoteProcedure(procedure) ? REMOTE_PROCEDURE_SPECS[procedure] : undefined;
-    const result = (await this.requestJson("/api/git/call", {
-      method: "POST",
-      body: { procedure, payload },
-      ...(spec && "timeout" in spec && spec.timeout === "long"
-        ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
-        : {}),
-    })) as { result: unknown };
-    return result.result;
+    try {
+      const result = (await this.requestJson("/api/git/call", {
+        method: "POST",
+        body: { procedure, payload },
+        ...(spec && "timeout" in spec && spec.timeout === "long"
+          ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
+          : {}),
+      })) as { result: unknown };
+      return result.result;
+    } catch (error) {
+      // The remote protocol remains additive within v9. A v9 host from before
+      // queued follow-ups knows the passthrough endpoint but rejects these new
+      // procedure names; turn that capability miss into a stable, actionable
+      // error. Never retry through setPendingSteer: queue and steer have
+      // intentionally different semantics.
+      if (
+        isRemoteFollowUpQueueProcedure(procedure) &&
+        error instanceof RemoteClientError &&
+        ((error.status === 403 && error.code === "git_procedure_not_allowed") ||
+          (error.status === 404 && error.code === "not_found"))
+      ) {
+        throw new RemoteClientError(
+          msg("supervisor.followUpQueue.unsupported"),
+          501,
+          "follow_up_queue_unsupported",
+          { cause: error },
+        );
+      }
+      throw error;
+    }
   }
 
   /**

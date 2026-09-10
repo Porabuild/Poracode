@@ -321,6 +321,10 @@ export const agentCapabilitySchema = z.object({
    */
   readsImageAttachmentsFromHost: z.boolean().optional(),
   liveInputMode: liveInputModeSchema.default("terminal"),
+  /** The structured runtime can negotiate a live audio conversation using its existing account. */
+  liveVoice: z
+    .object({ transport: z.literal("webrtc"), dataChannel: z.string().min(1) })
+    .optional(),
   presentationMode: threadPresentationModeSchema.default("terminal"),
   /**
    * Modes the adapter supports. When >1, the new-thread picker exposes a

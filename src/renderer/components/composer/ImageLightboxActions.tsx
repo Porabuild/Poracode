@@ -1,23 +1,15 @@
-import { toast } from "@heroui/react";
+import { Button, Tooltip, toast } from "@heroui/react";
+import { Copy, Download } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
-import { ContextMenuSurface } from "@/renderer/components/common/ContextMenu";
 import { fetchImageBytes, toClipboardPngBytes } from "@/renderer/utils/imageActions";
 import { imageUrlMetadata } from "@/renderer/utils/imageUrlMetadata";
 import type { LightboxImage } from "./ImageLightbox";
 
-export function ImageLightboxMenu({
-  image,
-  position,
-  onClose,
-}: {
-  image: LightboxImage;
-  position: { x: number; y: number };
-  onClose: () => void;
-}) {
+export function ImageLightboxActions({ image }: { image: LightboxImage }) {
   const { t } = useLingui();
 
-  async function runAction(action: string) {
+  async function runAction(action: "copy" | "save") {
     const metadata = imageUrlMetadata(image.src, image.alt);
     const mime = image.mime ?? metadata.mime;
     const fileName = image.fileName ?? metadata.fileName;
@@ -37,15 +29,31 @@ export function ImageLightboxMenu({
   }
 
   return (
-    <ContextMenuSurface
-      position={position}
-      items={[
-        { id: "copy", label: t`Copy image` },
-        { id: "save", label: t`Save image` },
-      ]}
-      onAction={(action) => void runAction(action)}
-      onClose={onClose}
-      withBackdrop
-    />
+    <>
+      <Tooltip>
+        <Button
+          isIconOnly
+          variant="ghost"
+          className="poracode-image-lightbox__zoom-button"
+          aria-label={t`Copy image`}
+          onPress={() => void runAction("copy")}
+        >
+          <Copy className="size-4" />
+        </Button>
+        <Tooltip.Content>{t`Copy image`}</Tooltip.Content>
+      </Tooltip>
+      <Tooltip>
+        <Button
+          isIconOnly
+          variant="ghost"
+          className="poracode-image-lightbox__zoom-button"
+          aria-label={t`Save image`}
+          onPress={() => void runAction("save")}
+        >
+          <Download className="size-4" />
+        </Button>
+        <Tooltip.Content>{t`Save image`}</Tooltip.Content>
+      </Tooltip>
+    </>
   );
 }

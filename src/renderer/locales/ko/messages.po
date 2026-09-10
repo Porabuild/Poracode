@@ -778,6 +778,10 @@ msgid "a supported coding agent"
 msgstr "지원되는 코딩 에이전트"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "이미 음성 대화가 진행 중입니다."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "작업 트리 소유자에는 고정된 소스 브랜치가 필요합니다"
 
@@ -2159,6 +2163,7 @@ msgstr "원격 서버에 연결할 수 없습니다. 온라인 상태인지 확�
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2207,6 +2212,10 @@ msgstr "선택기 취소"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Cancel removing project"
 msgstr "프로젝트 제거 취소"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "음성 연결 취소"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2496,6 +2505,10 @@ msgstr "새 풀 리퀘스트에서 Poracode가 수행할 작업을 선택하세�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose when this machine stays awake."
 msgstr "이 기기가 깨어 있는 상태를 유지할 시점을 선택하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "에이전트가 작업 중일 때 보낸 채팅 메시지를 현재 응답에 반영할지, 다음 응답을 위해 대기열에 넣을지 선택합니다. {followUpShortcut}는 반대 동작을 사용합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2873,6 +2886,10 @@ msgstr "워크플로 패널 닫기"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "닫힘"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3259,6 +3276,10 @@ msgstr "연결됨"
 msgid "Connecting to the desktop browser…"
 msgstr "데스크톱 브라우저에 연결 중…"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "음성 연결 중…"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
 msgstr "연결 중..."
@@ -3461,7 +3482,7 @@ msgstr "복사 실패"
 msgid "Copy ignored files"
 msgstr "무시된 파일 복사"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -3841,6 +3862,10 @@ msgstr "AI로 우승자 선택"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crowned"
 msgstr "선택됨"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
@@ -4675,6 +4700,11 @@ msgstr "MCP 서버 편집"
 msgid "Edit profile"
 msgstr "프로필 편집"
 
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "대기 중인 후속 메시지 편집"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Edit schedule"
@@ -4814,6 +4844,10 @@ msgstr "활성화된 플러그인은 새 스레드에서도 계속 켜져 있습
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "<0>쿠키</0> 및 <1>저장</1>을 활성화합니다. 쿠키는 세션 토큰을 포함할 수 있으며 저장소는 종종 인증 상태를 유지합니다. 에이전트와 에이전트가 방문하는 사이트를 모두 신뢰할 때만 활성화됩니다."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "음성 채팅 종료"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -4977,7 +5011,7 @@ msgid "Exclude patterns"
 msgstr "패턴 제외"
 
 #. placeholder {0}: parsed.exitCode
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 msgid "Exit code {0}"
 msgstr "종료 코드 {0}"
 
@@ -5173,7 +5207,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "실패"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
@@ -5532,6 +5566,11 @@ msgstr "이 프로젝트의 작업 트리를 보관하는 폴더입니다. 전�
 #: src/mobile/views/ThreadView.tsx
 msgid "Follow up..."
 msgstr "후속 질문..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "후속 동작 방식"
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -6746,6 +6785,18 @@ msgstr "실시간"
 msgid "Live {0}"
 msgstr "실시간 {0}"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "실시간 음성"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "이 스레드에서는 실시간 음성을 사용할 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "실시간 음성을 사용하려면 이 제공업체의 구독 계정으로 로그인해야 합니다."
+
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
 msgstr "로드 중"
@@ -7358,6 +7409,10 @@ msgstr "마이크 액세스가 꺼져 있습니다."
 msgid "Microphone input level"
 msgstr "마이크 입력 레벨"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "마이크 음소거됨"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "마이크 권한이 거부되었습니다."
@@ -7615,6 +7670,10 @@ msgstr "변경사항 이동 중…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "마이크 음소거"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7812,6 +7871,7 @@ msgstr "그룹에 새 탭"
 #: src/mobile/WideShell.tsx
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
@@ -8335,8 +8395,8 @@ msgid "No threads yet."
 msgstr "아직 스레드가 없습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
-msgstr "판정이 도착하지 않았습니다 — CLI가 /goal을 차단했거나(작업 공간 신뢰 또는 후크 설정) 평가기를 실행할 수 없습니다"
+#~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+#~ msgstr "판정이 도착하지 않았습니다 — CLI가 /goal을 차단했거나(작업 공간 신뢰 또는 후크 설정) 평가기를 실행할 수 없습니다"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -9081,6 +9141,7 @@ msgid "Pause goal"
 msgstr "목표 일시 중지"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9860,6 +9921,14 @@ msgstr "Qoder CLI"
 msgid "Questions"
 msgstr "질문"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "대기열에 추가"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "메시지 대기열에 추가"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "대기열에 있음"
@@ -9869,6 +9938,18 @@ msgstr "대기열에 있음"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0}: v{1} 업데이트 대기 중"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "대기 중인 후속 메시지를 찾을 수 없습니다: {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "대기 중인 후속 메시지"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "대기 중인 후속 메시지는 채팅 스레드에서만 지원됩니다."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10309,6 +10390,10 @@ msgstr "프로젝트 제거"
 msgid "Remove Project"
 msgstr "프로젝트 제거"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "대기 중인 후속 메시지 제거"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "단축키 제거"
@@ -10421,6 +10506,10 @@ msgstr "{0} 재정렬"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "{label} 재정렬"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "대기 중인 후속 메시지 순서 변경"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10591,6 +10680,10 @@ msgstr "재개"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "목표 재개"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "대기 중인 후속 메시지 재개"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10916,6 +11009,7 @@ msgstr "채도와 밝기"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -10960,7 +11054,7 @@ msgstr "Cursor SDK API 키 저장"
 msgid "Save File"
 msgstr "파일 저장"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "이미지 저장"
 
@@ -12059,6 +12153,10 @@ msgstr "우선순위와 다음 단계로 하루를 시작하세요."
 msgid "Start from scratch"
 msgstr "처음부터 시작하세요"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "실시간 음성 시작"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12172,6 +12270,27 @@ msgstr "상태:"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "stdio (local command)"
 msgstr "stdio(로컬 명령)"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "현재 응답에 반영"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "현재 턴에 반영"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "대기 중인 후속 메시지로 방향 전환"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "메시지를 보내기 전에 방향 수정이 취소되었습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "방향 수정이 새 메시지로 대체되었습니다."
 
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
@@ -12522,7 +12641,7 @@ msgstr "작업 {id}"
 msgid "Task match"
 msgstr "작업 일치"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 msgid "Task Notification"
 msgstr "작업 알림"
 
@@ -12733,6 +12852,10 @@ msgstr "원격 Poracode 서버가 페어링 자격 증명을 반환하지 않았
 msgid "The remote server returned no pairing credential."
 msgstr "원격 서버에서 페어링 자격 증명을 반환하지 않았습니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "대체 메시지를 보낼 수 없습니다."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "디스크에 있는 저장소 위치입니다. 폴더를 옮겼다면 업데이트하세요."
@@ -12809,6 +12932,10 @@ msgstr "SSH 터널이 호환되지 않는 Poracode 서버에 연결되었습니�
 msgid "the target provider"
 msgstr "대상 공급자"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "대기 중인 후속 메시지에 스레드 세션을 사용할 수 없습니다."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "스레드가 새 브랜치의 별도 작업 트리에서 실행됩니다."
@@ -12824,6 +12951,18 @@ msgstr "업데이트 작업에 실패했습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "업데이트 서비스를 일시적으로 사용할 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "음성 연결에 실패했습니다. 다시 시도하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "음성 연결 시간이 초과되었습니다. 다시 시도하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "음성 연결이 취소되었습니다."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -12940,6 +13079,10 @@ msgstr "이 기기"
 msgid "This machine"
 msgstr "이 기기"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "이 메시지는 더 이상 대기열에 없습니다. 편집 중인 내용은 계속 복사할 수 있습니다."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "이 이름은 기본 제공 MCP 서버용으로 예약되어 있습니다."
@@ -12994,6 +13137,15 @@ msgstr "이 프로젝트"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "이 프로젝트의 원격 서버가 오프라인입니다. 스레드를 시작하려면 다시 연결하세요."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "대기열의 이 후속 메시지가 변경되었습니다. 저장하기 전에 다시 여세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "이 대기 중인 후속 메시지는 이미 전송 중입니다."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "이 원격 프로젝트를 사용할 수 없습니다. 환경에 다시 연결한 후 다시 시도하세요."
@@ -13028,6 +13180,14 @@ msgstr "이 서버는 이 컴퓨터에서 실행되며 WSL 프로젝트에서는
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "이 시스템 전역 단축키를 사용할 수 없습니다. 다른 키 조합을 선택하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "이 스레드는 대기 중인 후속 메시지를 지원하지 않습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "이 스레드는 아직 방향 수정을 받을 준비가 되지 않았습니다."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
@@ -13401,7 +13561,7 @@ msgstr "SSH를 통해 연결할 수 없습니다."
 msgid "Unable to copy desktop endpoint."
 msgstr "데스크톱 엔드포인트를 복사할 수 없습니다."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to copy image."
 msgstr "이미지를 복사할 수 없습니다."
 
@@ -13575,7 +13735,7 @@ msgstr "{0} 자격 증명을 저장할 수 없습니다."
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Claude {displayLabel} 프로필을 저장할 수 없습니다."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "이미지를 저장할 수 없습니다."
 
@@ -13780,6 +13940,10 @@ msgstr "완료 표시 해제"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "완료 표시 해제"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "마이크 음소거 해제"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

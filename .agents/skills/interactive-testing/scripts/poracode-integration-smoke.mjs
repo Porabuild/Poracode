@@ -15,6 +15,7 @@ import {
 } from "./smoke-scenarios.mjs";
 import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
 import { resolveDebugConnection } from "./poracode-debug-session.mjs";
+import { mockLiveVoiceGate } from "./smoke-live-voice.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "../../../../");
@@ -1476,6 +1477,8 @@ async function runMockIntegrations(report, client, gates) {
 
 async function runMockGate(client, gate, fixture) {
   switch (gate) {
+    case "live-voice":
+      return mockLiveVoiceGate({ client, evaluate, waitForValue, screenshot, outDir, fixture });
     case "changed-surface":
       return "covered by baseline and diff-selected automated scenarios";
     case "file-editor": {

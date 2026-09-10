@@ -9,12 +9,14 @@ import { createHeadlessRemoteHost, resolveLocalProxyBase } from "./createHeadles
 const h = vi.hoisted(() => ({
   tmpBase: "",
   capturedOnEvent: undefined as ((event: unknown) => void) | undefined,
+  capturedOnReset: undefined as (() => void) | undefined,
   supervisorStart: vi.fn<(baseDir: string) => void>(),
   supervisorDispose: vi.fn<() => void>(),
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
   initDatabase: vi.fn<(dbPath: string) => void>(),
   closeDatabase: vi.fn<() => void>(),
   projects: [] as unknown[],
+  threads: [] as unknown[],
   sharedSettings: {
     mcpServers: [] as unknown[],
     disabledBuiltInMcpServers: {} as Record<string, boolean>,
@@ -44,7 +46,7 @@ vi.mock("@/main/db", () => ({
   dbGetPrWatch: vi.fn<() => unknown>(() => null),
   dbUpsertPrWatch: vi.fn<() => void>(),
   dbDeletePrWatch: vi.fn<() => void>(),
-  dbGetThreads: vi.fn<() => unknown[]>(() => []),
+  dbGetThreads: vi.fn<() => unknown[]>(() => h.threads),
   dbGetThread: vi.fn<() => unknown>(() => null),
   dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
   dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
@@ -75,8 +77,9 @@ vi.mock("@/main/supervisor/SupervisorClient", () => ({
     start = h.supervisorStart;
     dispose = h.supervisorDispose;
     call = h.supervisorCall;
-    constructor(options: { onEvent: (event: unknown) => void }) {
+    constructor(options: { onEvent: (event: unknown) => void; onReset: () => void }) {
       h.capturedOnEvent = options.onEvent;
+      h.capturedOnReset = options.onReset;
     }
   },
 }));
@@ -116,6 +119,7 @@ describe("createHeadlessRemoteHost", () => {
   beforeEach(() => {
     h.tmpBase = mkdtempSync(join(tmpdir(), "lc-headless-"));
     h.capturedOnEvent = undefined;
+    h.capturedOnReset = undefined;
     h.supervisorStart.mockReset();
     h.supervisorDispose.mockReset();
     h.initDatabase.mockReset();
@@ -123,6 +127,7 @@ describe("createHeadlessRemoteHost", () => {
     h.supervisorCall.mockReset();
     h.supervisorCall.mockResolvedValue({});
     h.projects = [];
+    h.threads = [];
     h.sharedSettings = { mcpServers: [], disabledBuiltInMcpServers: {} };
   });
 
@@ -169,6 +174,27 @@ describe("createHeadlessRemoteHost", () => {
     h.capturedOnEvent?.({ type: "thread-status" });
 
     expect(publish).toHaveBeenCalledWith({ type: "thread-status" });
+    await host.dispose();
+  });
+
+  it("broadcasts follow-up queue clears when the supervisor resets", async () => {
+    const host = await makeHost();
+    await host.start();
+    h.threads = [{ id: "thread-1" }, { id: "thread-2" }];
+    const publish = vi.spyOn(host.server, "publishSupervisorEvent");
+
+    h.capturedOnReset?.();
+
+    expect(publish).toHaveBeenCalledWith({
+      type: "thread-follow-up-queue",
+      threadId: "thread-1",
+      queue: null,
+    });
+    expect(publish).toHaveBeenCalledWith({
+      type: "thread-follow-up-queue",
+      threadId: "thread-2",
+      queue: null,
+    });
     await host.dispose();
   });
 

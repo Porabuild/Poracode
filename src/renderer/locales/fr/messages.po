@@ -778,6 +778,10 @@ msgid "a supported coding agent"
 msgstr "un agent de codage pris en charge"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "Une conversation vocale est déjà active."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "Un propriétaire d'arbre de travail nécessite une source de branche figée"
 
@@ -2159,6 +2163,7 @@ msgstr "Serveur distant inaccessible. Vérifiez qu'il est en ligne, puis reconne
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2207,6 +2212,10 @@ msgstr "Annuler le sélecteur"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Cancel removing project"
 msgstr "Annuler la suppression du projet"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "Annuler la connexion vocale"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2496,6 +2505,10 @@ msgstr "Choisissez ce que Poracode fait pour les nouvelles pull requests : ne ri
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose when this machine stays awake."
 msgstr "Choisissez quand cette machine reste éveillée."
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "Choisissez si les messages de chat envoyés pendant qu’un agent travaille orientent la réponse actuelle ou sont mis en file d’attente pour la prochaine réponse. {followUpShortcut} utilise l’action opposée."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2873,6 +2886,10 @@ msgstr "Fermer le panneau des workflows"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Fermé"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3259,6 +3276,10 @@ msgstr "Connecté"
 msgid "Connecting to the desktop browser…"
 msgstr "Connexion au navigateur de l'ordinateur…"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "Connexion vocale en cours…"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
 msgstr "Connexion..."
@@ -3461,7 +3482,7 @@ msgstr "Échec de la copie"
 msgid "Copy ignored files"
 msgstr "Copier les fichiers ignorés"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -3841,6 +3862,10 @@ msgstr "Couronner avec l’IA"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crowned"
 msgstr "Couronné"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
@@ -4675,6 +4700,11 @@ msgstr "Modifier le serveur MCP"
 msgid "Edit profile"
 msgstr "Modifier le profil"
 
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "Modifier le message en attente"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Edit schedule"
@@ -4814,6 +4844,10 @@ msgstr "Les plugins activés restent actifs pour les nouveaux fils de discussion
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "Active les <0>cookies</0> et le <1>stockage</1>. Les cookies peuvent contenir des jetons de session et le stockage contient souvent un état d'authentification : activez-le uniquement lorsque vous faites confiance à la fois à l'agent et aux sites qu'il visite."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "Terminer le chat vocal"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -4977,7 +5011,7 @@ msgid "Exclude patterns"
 msgstr "Exclure les motifs"
 
 #. placeholder {0}: parsed.exitCode
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 msgid "Exit code {0}"
 msgstr "Code de sortie {0}"
 
@@ -5173,7 +5207,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "échoué"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
@@ -5532,6 +5566,11 @@ msgstr "Dossier qui contient les arbres de travail de ce projet. Réinitialisez 
 #: src/mobile/views/ThreadView.tsx
 msgid "Follow up..."
 msgstr "Poursuivre..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "Comportement des suivis"
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -6746,6 +6785,18 @@ msgstr "En direct"
 msgid "Live {0}"
 msgstr "En direct {0}"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "Voix en direct"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "La voix en direct n’est pas disponible pour ce fil."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "La voix en direct nécessite une connexion avec un abonnement à ce fournisseur."
+
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
 msgstr "Chargement"
@@ -7357,6 +7408,10 @@ msgstr "L'accès au microphone est désactivé."
 msgid "Microphone input level"
 msgstr "Niveau d'entrée du microphone"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "Microphone coupé"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "L'autorisation du microphone a été refusée."
@@ -7614,6 +7669,10 @@ msgstr "Déplacement des modifications…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "Couper le microphone"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7811,6 +7870,7 @@ msgstr "Nouvel onglet dans le groupe"
 #: src/mobile/WideShell.tsx
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
@@ -8334,8 +8394,8 @@ msgid "No threads yet."
 msgstr "Aucun fil pour l'instant."
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
-msgstr "aucun verdict n'est arrivé — la CLI a peut-être bloqué /goal (confiance de l'espace de travail ou paramètres des hooks) ou l'évaluateur n'a pas pu s'exécuter"
+#~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+#~ msgstr "aucun verdict n'est arrivé — la CLI a peut-être bloqué /goal (confiance de l'espace de travail ou paramètres des hooks) ou l'évaluateur n'a pas pu s'exécuter"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -9080,6 +9140,7 @@ msgid "Pause goal"
 msgstr "Mettre l'objectif en pause"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9859,6 +9920,14 @@ msgstr "Qoder CLI"
 msgid "Questions"
 msgstr "Questions"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "Mettre en file d’attente"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "Mettre le message en file d’attente"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "Dans la file d’attente"
@@ -9868,6 +9937,18 @@ msgstr "Dans la file d’attente"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0} en attente pour v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "Suivi en file d’attente introuvable : {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "Suivis en file d’attente"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "Les suivis en file d’attente ne sont pris en charge que pour les fils de discussion."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10308,6 +10389,10 @@ msgstr "Supprimer le projet"
 msgid "Remove Project"
 msgstr "Supprimer le projet"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "Supprimer le suivi en file d’attente"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Supprimer le raccourci"
@@ -10420,6 +10505,10 @@ msgstr "Réorganiser {0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Réorganiser {label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "Réordonner le message en attente"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10590,6 +10679,10 @@ msgstr "Reprendre"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Reprendre l'objectif"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "Reprendre les suivis en file d’attente"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10915,6 +11008,7 @@ msgstr "Saturation et luminosité"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -10959,7 +11053,7 @@ msgstr "Enregistrer la clé API du SDK Cursor"
 msgid "Save File"
 msgstr "Enregistrer le fichier"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "Enregistrer l’image"
 
@@ -12058,6 +12152,10 @@ msgstr "Commencez chaque journée avec les priorités et les prochaines étapes.
 msgid "Start from scratch"
 msgstr "Repartir de zéro"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "Démarrer la voix en direct"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12171,6 +12269,27 @@ msgstr "Statut :"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "stdio (local command)"
 msgstr "stdio (commande locale)"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "Orienter"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "Orienter le tour en cours"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "Envoyer le message en attente pour orienter"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "Le guidage a été annulé avant l’envoi du message."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "Le guidage a été remplacé par un message plus récent."
 
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
@@ -12521,7 +12640,7 @@ msgstr "Tâche {id}"
 msgid "Task match"
 msgstr "Correspondance de tâche"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 msgid "Task Notification"
 msgstr "Notification de tâche"
 
@@ -12732,6 +12851,10 @@ msgstr "Le serveur Poracode distant n’a renvoyé aucun identifiant de jumelage
 msgid "The remote server returned no pairing credential."
 msgstr "Le serveur distant n’a renvoyé aucun identifiant d’association."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "Le message de remplacement n’a pas pu être envoyé."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "L'emplacement du dépôt sur le disque. Mettez-le à jour si vous avez déplacé le dossier."
@@ -12808,6 +12931,10 @@ msgstr "Le tunnel SSH a atteint un serveur Poracode incompatible."
 msgid "the target provider"
 msgstr "le fournisseur cible"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "La session du fil de discussion n’est pas disponible pour les suivis en file d’attente."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Le fil de discussion s'exécutera dans un worktree séparé sur une nouvelle branche."
@@ -12823,6 +12950,18 @@ msgstr "L’opération de mise à jour a échoué."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "Le service de mise à jour est temporairement indisponible."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "La connexion vocale a échoué. Réessayez."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "La connexion vocale a expiré. Réessayez."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "La connexion vocale a été annulée."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -12939,6 +13078,10 @@ msgstr "cette machine"
 msgid "This machine"
 msgstr "Cette machine"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "Ce message ne figure plus dans la file. Vous pouvez toujours copier votre texte modifié."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Ce nom est réservé à un serveur MCP intégré."
@@ -12993,6 +13136,15 @@ msgstr "ce projet"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Le serveur distant de ce projet est hors ligne. Reconnectez-le pour démarrer un fil."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "Ce message de suivi en attente a changé. Rouvrez-le avant de sauvegarder."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "Ce suivi en file d’attente est déjà en cours d’envoi."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "Ce projet distant est indisponible. Reconnectez l’environnement et réessayez."
@@ -13027,6 +13179,14 @@ msgstr "Ce serveur s'exécute sur cet ordinateur et n'est pas disponible pour le
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Ce raccourci système n’est pas disponible. Choisissez une autre combinaison de touches."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "Ce fil de discussion ne prend pas en charge les suivis en file d’attente."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "Ce fil n’est pas prêt pour le guidage."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
@@ -13400,7 +13560,7 @@ msgstr "Impossible de se connecter via SSH."
 msgid "Unable to copy desktop endpoint."
 msgstr "Impossible de copier le point de terminaison du bureau."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to copy image."
 msgstr "Impossible de copier l’image."
 
@@ -13574,7 +13734,7 @@ msgstr "Impossible d'enregistrer les informations d'identification {0}."
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Impossible d'enregistrer le profil Claude {displayLabel}."
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "Impossible d’enregistrer l’image."
 
@@ -13779,6 +13939,10 @@ msgstr "Annuler le marquage terminé"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Décocher Terminé"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "Activer le microphone"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

@@ -835,6 +835,17 @@ if (!hasSingleInstanceLock) {
         onReset: () => {
           workingThreads.clear();
           remoteAccessController?.handleSupervisorReset();
+          // Queue state belongs to the supervisor process. A crash/restart
+          // drops its in-memory records without emitting per-thread events,
+          // so clear every renderer cache at the same boundary instead of
+          // leaving rows whose actions can only fail with item-not-found.
+          for (const thread of dbGetThreads()) {
+            mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, {
+              type: "thread-follow-up-queue",
+              threadId: thread.id,
+              queue: null,
+            } satisfies SupervisorEvent);
+          }
           updatePowerSaveBlocker();
         },
       });
@@ -1072,7 +1083,7 @@ if (!hasSingleInstanceLock) {
             computerUseWakeLock.setSessionActive(state.level !== "hidden");
           },
           onExit: (threadIds) => {
-            computerUseMcpIngress?.interruptActiveActions();
+            computerUseMcpIngress?.interruptActiveActions(threadIds);
             for (const threadId of threadIds) {
               void supervisorClient.call("interruptThread", { threadId }).catch((error) => {
                 console.error(

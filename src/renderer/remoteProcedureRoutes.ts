@@ -61,6 +61,9 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   relocateProject: "explicit-remote-project-command",
   extractContext: "remote-control-hidden",
   cancelExtractContext: "remote-control-hidden",
+  // Voice signaling and media ownership are limited to the local desktop.
+  connectThreadVoice: "remote-control-hidden",
+  disconnectThreadVoice: "remote-control-hidden",
   createExperimentWorktrees: "remote-control-hidden",
   removeExperimentWorktrees: "remote-control-hidden",
   captureExperimentSnapshot: "remote-control-hidden",

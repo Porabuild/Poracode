@@ -18,7 +18,6 @@ import {
   mapClaudeSdkMessage,
   parseClaudeQuestions,
   startClaudeTurn,
-  supportsNativeGoalFrames,
 } from "./sdkCanonicalMapping";
 
 function streamEvent(event: Record<string, unknown>): SDKMessage {
@@ -479,7 +478,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
     }
   });
 
-  it("holds a legacy goal open after background subagents drain for the session grace", () => {
+  it("holds a goal open after background subagents drain for the session grace", () => {
     const state = createClaudeMapperState("thread-1");
     vi.useFakeTimers();
     try {
@@ -543,7 +542,7 @@ describe("sdkCanonicalMapping — prompt content", () => {
     }
   });
 
-  it("holds a legacy goal open across a clean turn end while a background Bash task is live", () => {
+  it("holds a goal open across a clean turn end while a background Bash task is live", () => {
     const state = createClaudeMapperState("thread-1");
     vi.useFakeTimers();
     try {
@@ -727,30 +726,12 @@ describe("sdkCanonicalMapping — prompt content", () => {
     ).toEqual([]);
   });
 
-  it("detects frame-capable CLIs from the init version", () => {
-    expect(supportsNativeGoalFrames("2.1.251")).toBe(true);
-    // Boundary: the floor itself streams frames.
-    expect(supportsNativeGoalFrames("2.1.234")).toBe(true);
-    expect(supportsNativeGoalFrames("2.1.233")).toBe(false);
-    expect(supportsNativeGoalFrames("2.2.0")).toBe(true);
-    expect(supportsNativeGoalFrames("3.0.1")).toBe(true);
-    expect(supportsNativeGoalFrames("1.9.9")).toBe(false);
-    // Prerelease suffixes and decorations keep the numeric triple.
-    expect(supportsNativeGoalFrames("2.1.251-beta.1")).toBe(true);
-    expect(supportsNativeGoalFrames("2.1.251 (Claude Code)")).toBe(true);
-    // Unknown versions keep the legacy fallback.
-    expect(supportsNativeGoalFrames(undefined)).toBe(false);
-    expect(supportsNativeGoalFrames("")).toBe(false);
-    expect(supportsNativeGoalFrames("not-a-version")).toBe(false);
-    expect(supportsNativeGoalFrames(42)).toBe(false);
-  });
-
-  it("marks a /goal failed on a frame-capable CLI that never confirmed it", () => {
+  it("completes a /goal at a clean turn end when no active_goal verdict ever arrives", () => {
     const state = createClaudeMapperState("thread-1");
-    // A frame-capable CLI emits the first `active_goal` verdict at the end of
-    // the turn that set the goal. Zero frames by a clean turn end means the
-    // CLI refused to arm it (trust/hooks gate) or the evaluator never ran.
-    state.cliReportsNativeGoalFrames = true;
+    // Current CLIs stream goal verdicts only to their own interactive surface:
+    // over the SDK transport a `/goal` is armed and its Stop-hook loop runs,
+    // yet not one `active_goal` message arrives. That silence must not be read
+    // as a refused goal — the turn end is the only completion signal we get.
     startClaudeTurn(state, "turn-goal", "/goal ship it", undefined, "user-goal");
 
     const resultEvents = mapClaudeSdkMessage(
@@ -766,19 +747,17 @@ describe("sdkCanonicalMapping — prompt content", () => {
       itemId: "goal-turn-goal",
       payload: {
         action: "updated",
-        status: "failed",
+        status: "complete",
         objective: "ship it",
-        lastReason: expect.stringContaining("verdict"),
       },
     });
-    // The goal is resolved: no zombie tracking, no pending legacy drain.
+    // The goal is resolved: no zombie tracking, no pending drain.
     expect(state.activeGoalItemId).toBeUndefined();
     expect(state.pendingGoalCompletionOnTaskDrain).toBeUndefined();
   });
 
-  it("keeps a frame-capable CLI's goal open across background work and never refutes at drain", () => {
+  it("holds a verdict-less goal across live background work and completes it at drain", () => {
     const state = createClaudeMapperState("thread-1");
-    state.cliReportsNativeGoalFrames = true;
     startClaudeTurn(state, "turn-goal", "/goal ship it", undefined, "user-goal");
     mapClaudeSdkMessage(
       {
@@ -802,8 +781,9 @@ describe("sdkCanonicalMapping — prompt content", () => {
     );
     expect(resultGoalUpdate).toMatchObject({ payload: { status: "active" } });
     expect(state.activeGoalItemId).toBe("goal-turn-goal");
-    // The frame-capable CLI has no drain fallback: only frames resolve the goal.
-    expect(state.pendingGoalCompletionOnTaskDrain).toBeUndefined();
+    // The goal's work continues while the background task runs, so completion
+    // is deferred to the drain instead of landing at this turn end.
+    expect(state.pendingGoalCompletionOnTaskDrain).toBe(true);
 
     mapClaudeSdkMessage(
       {
@@ -815,8 +795,14 @@ describe("sdkCanonicalMapping — prompt content", () => {
       state,
     );
     const drainEvents = completeActiveGoalOnTaskDrainEvents(state);
-    expect(drainEvents).toEqual([]);
-    expect(state.activeGoalItemId).toBe("goal-turn-goal");
+    expect(drainEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: "goal-turn-goal",
+        payload: expect.objectContaining({ status: "complete", objective: "ship it" }),
+      }),
+    );
+    expect(state.activeGoalItemId).toBeUndefined();
   });
 
   it("updates the active goal from a native active_goal verdict with iterations and reason", () => {

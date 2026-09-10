@@ -28,6 +28,7 @@ import {
 } from "@/renderer/remoteProcedureRouter";
 import { applyThreadSnapshot, dispatchRemoteSupervisorEvent } from "@/renderer/state/remote";
 import { useAppStore } from "@/renderer/state/appStore";
+import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollowUpQueueStore";
 import {
   runtimePageOverlapsExistingTranscript,
   seedOlderThreadRuntimeItemsCursor,
@@ -473,6 +474,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               if (!open || open.desktopId !== server.desktopId) return;
               resyncInFlight = true;
               try {
+                const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(
+                  open.thread.id,
+                );
                 const nextSnapshot = await client.threadHistory(open.threadId);
                 const currentOpen = get().openThread;
                 if (
@@ -485,6 +489,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 applyThreadSnapshot(projectRemoteThreadSnapshot(server.desktopId, nextSnapshot), {
                   fromServer: true,
                   lastSeenEventSeq: remoteServerSnapshotSeqByDesktopId.get(server.desktopId) ?? 0,
+                  followUpQueueSnapshotGuard,
                 });
                 remoteServerSnapshotSeqByDesktopId.set(
                   server.desktopId,
@@ -581,6 +586,18 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                           syncRemoteGitSummaries(server.desktopId, summaries),
                         onGitState: (patch) => syncRemoteGitStatePatch(server.desktopId, patch),
                       },
+                    );
+                  } else if (
+                    message.event &&
+                    typeof message.event === "object" &&
+                    (message.event as { type?: unknown }).type === "thread-follow-up-queue"
+                  ) {
+                    // Queue state is thread-scoped, but the transcript filter
+                    // can omit an otherwise valid queue event during initial
+                    // open. Apply it so an in-flight history response cannot
+                    // replace the live queue with its older snapshot.
+                    dispatchRemoteSupervisorEvent(
+                      projectRemoteThreadEvent(server.desktopId, message.event),
                     );
                   }
                   if (shouldRefreshRemoteServerAfterEvent(message.event)) {
@@ -975,6 +992,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // store so the desktop ChatPane renders it (coexists with local threads).
           // A failed history fetch (server asleep/unreachable) must not reject.
           let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
+          const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(
+            remoteThreadId(desktopId, threadId),
+          );
           try {
             snapshot = await withClient(desktopId, (client) => client.threadHistory(threadId));
           } catch (error) {
@@ -1000,6 +1020,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           applyThreadSnapshot(projectedSnapshot, {
             fromServer: true,
             lastSeenEventSeq: remoteServerSnapshotSeqByDesktopId.get(desktopId) ?? 0,
+            followUpQueueSnapshotGuard,
           });
           const openThread = buildOpenThread(desktopId, snapshot);
           set({ openThread });

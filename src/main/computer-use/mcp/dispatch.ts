@@ -1,5 +1,7 @@
 import { readNumber, readString, readWindow } from "../drivers/common";
+import { COMPUTER_USE_CORE_SKILL } from "./instructions";
 import {
+  omitLaneMode,
   trimInteractiveResult,
   trimObservation,
   trimPerformResult,
@@ -23,8 +25,42 @@ import type {
   ComputerUseWindow,
 } from "./types";
 
+/**
+ * Pause before an `observe` capture so the observation shows the action's
+ * result instead of the state before it.
+ *
+ * An accessibility tree is the app's own asynchronous report, not a live read.
+ * Measured on macOS 25.6 with Brave: `invoke_element` returns in 2 ms while the
+ * tree keeps answering with the pre-action values for another 350-460 ms.
+ * 500 ms covers that tail; 400 ms sat inside the measured range and could
+ * still hand the agent the pre-action tree. An
+ * agent that reads straight back sees "nothing happened" on an action that did
+ * work, decides background control is broken, and escalates to a takeover — the
+ * failure this whole path exists to avoid. The wait is only paid when the
+ * caller asked for an observation, where it replaces a whole round trip.
+ */
+export const OBSERVATION_SETTLE_MS = 500;
+
 export interface ToolContext {
   driver: ComputerUseDriver;
+  /**
+   * Overrides {@link OBSERVATION_SETTLE_MS}. Tests set 0; the ingress leaves it
+   * unset.
+   */
+  observationSettleMs?: number;
+  /**
+   * True once computer use has been ended (Escape, the badge's exit button, or
+   * host teardown) after this context was built.
+   *
+   * Ending computer use revokes the desktop itself, not just whatever capture
+   * happened to be pending, so this gates two places. {@link dispatchTool}
+   * refuses every tool outside {@link POST_EXIT_ALLOWED_TOOLS} up front, and
+   * {@link observeWindow} re-checks around its settle sleep to catch an exit
+   * that lands mid-call. Either way the point is that `driver` lazily respawns
+   * the helper the exit just killed, so any call that reaches it drives or
+   * reads a desktop the user has taken back.
+   */
+  interrupted?: () => boolean;
   /**
    * Called once a tool's real input has been delivered and only the passive
    * `observe` capture remains. The ingress closes its activity window here so a
@@ -43,11 +79,19 @@ export interface ToolContext {
 }
 
 async function observeWindow(
-  driver: ComputerUseDriver,
+  ctx: ToolContext,
   window: ComputerUseWindow | null | undefined,
   mode: ComputerUseObservationMode,
 ): Promise<ComputerUseObservation | undefined> {
   if (!window || mode === "none") return undefined;
+  if (ctx.interrupted?.()) return undefined;
+  const settleMs = ctx.observationSettleMs ?? OBSERVATION_SETTLE_MS;
+  if (settleMs > 0) await new Promise((resolve) => setTimeout(resolve, settleMs));
+  // The settle window is exactly where an exit lands, so re-check before the
+  // capture: `driver.getWindowState` would lazily respawn the helper the exit
+  // just killed.
+  if (ctx.interrupted?.()) return undefined;
+  const driver = ctx.driver;
   try {
     return {
       ok: true,
@@ -69,7 +113,7 @@ async function withObservation(
 ): Promise<ComputerUseInteractiveResult> {
   ctx.onInputSettled?.(result);
   if (!result.ok) return result;
-  const observation = await observeWindow(ctx.driver, result.window, mode);
+  const observation = await observeWindow(ctx, result.window, mode);
   return observation ? { ...result, observation } : result;
 }
 
@@ -89,11 +133,37 @@ function optionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+/**
+ * The only tools that stay callable after the user ends computer use.
+ *
+ * `enable` is the re-arm path — it clears the thread's exited mark, so refusing
+ * it would make the end permanent for the rest of the app's life. `disable` is
+ * the teardown every agent is instructed to finish with; refusing it would
+ * strand the agent on its own cleanup for no benefit, since it touches nothing
+ * but session state.
+ */
+const POST_EXIT_ALLOWED_TOOLS: ReadonlySet<string> = new Set(["enable", "disable"]);
+
 export async function dispatchTool(
   name: string,
   args: Record<string, unknown>,
   ctx: ToolContext,
 ): Promise<unknown> {
+  // The user's exit revokes the desktop, so nothing that would touch it may run
+  // afterwards — not an input, and not a read either: `get_window_state` and
+  // `find_elements` are `readOnlyHint`, so they raise no badge and no overlay
+  // while capturing a screen and accessibility tree the user just took back.
+  //
+  // This throws rather than returning a refusal for two reasons. A refusal code
+  // is part of the helper wire contract (mirrored in Rust and pinned by a
+  // fixture), and this is a host-side revocation the helper knows nothing
+  // about. And an error is what actually reaches the agent: staying silent is
+  // how it ends up acting on a desktop it can no longer observe.
+  if (!POST_EXIT_ALLOWED_TOOLS.has(name) && ctx.interrupted?.()) {
+    throw new Error(
+      "Computer use was ended by the user. Call computer_use.enable to start a new session before acting on the desktop again.",
+    );
+  }
   // Reads `observe` before running the action so an invalid mode is rejected
   // without touching the desktop, then settles the activity window before the
   // observation capture.
@@ -118,6 +188,7 @@ export async function dispatchTool(
       return {
         platform: process.platform,
         ...status,
+        skill: COMPUTER_USE_CORE_SKILL,
       };
     }
     case "enable":
@@ -141,7 +212,7 @@ export async function dispatchTool(
         mode: readMode(args.mode),
       });
       ctx.onInputSettled?.(result);
-      const observation = await observeWindow(ctx.driver, result.window, observe);
+      const observation = await observeWindow(ctx, result.window, observe);
       return observation
         ? { ...result, observation: trimObservation(observation, result.window) }
         : result;
@@ -176,7 +247,7 @@ export async function dispatchTool(
       const text = optionalString(args.text);
       const automationId = optionalString(args.automation_id);
       const snapshotId = optionalString(args.snapshot_id);
-      return await ctx.driver.findElements({
+      const found = await ctx.driver.findElements({
         window: readWindow(args.window),
         ...(role ? { role } : {}),
         ...(elementName ? { name: elementName } : {}),
@@ -185,6 +256,12 @@ export async function dispatchTool(
         ...(snapshotId ? { snapshot_id: snapshotId } : {}),
         ...(maxResults !== undefined ? { max_results: maxResults } : {}),
       });
+      // A stale snapshot is an interactive refusal. Strip only the lane
+      // label — the window still identifies which snapshot died.
+      if (found && typeof found === "object" && "refused" in found && "mode" in found) {
+        return omitLaneMode(found);
+      }
+      return found;
     }
     case "invoke_element":
       return await interactive(() =>
@@ -231,7 +308,7 @@ export async function dispatchTool(
         // the takeover border immediately instead of behind a capture.
         ctx.onInputSettled?.(batch);
         const observation = observeAfterFailure
-          ? await observeWindow(ctx.driver, window, observe)
+          ? await observeWindow(ctx, window, observe)
           : undefined;
         // The batch states its window once; step entries carry only what
         // differs between steps.

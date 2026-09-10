@@ -4,6 +4,24 @@ import { describe, expect, it } from "vitest";
 import { normalizeChatProjectPath, toProjectRelativeDisplayPath } from "./chatPathUtils";
 
 describe("normalizeChatProjectPath", () => {
+  it.each([String.raw`\\server\share\report.pdf`, "//server/share/report.pdf"])(
+    "preserves an out-of-project network root: %s",
+    (path) => {
+      expect(normalizeChatProjectPath(path, { kind: "windows", path: "C:/repo" })).toBe(
+        "//server/share/report.pdf",
+      );
+    },
+  );
+
+  it("relativizes a file within a network project root", () => {
+    expect(
+      normalizeChatProjectPath(String.raw`\\server\share\repo\report.pdf`, {
+        kind: "windows",
+        path: "//server/share/repo",
+      }),
+    ).toBe("report.pdf");
+  });
+
   it("normalizes Windows project-absolute paths to project-relative paths", () => {
     expect(
       normalizeChatProjectPath("C:/repo/src/supervisor/agents/acp/session.ts:945", {

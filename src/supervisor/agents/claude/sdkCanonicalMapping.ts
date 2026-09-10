@@ -18,7 +18,6 @@ export {
   accumulateActiveGoalAssistantSpend,
   completeActiveGoalOnTaskDrainEvents,
   emitActiveGoalTick,
-  supportsNativeGoalFrames,
 } from "./canonicalMapping/goal";
 export {
   extractResultErrorMessage,

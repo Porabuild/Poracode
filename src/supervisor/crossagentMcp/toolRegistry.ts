@@ -1,3 +1,7 @@
+import {
+  loadPluginCoreSkillPhrase,
+  uniqueCoreSkillForBuiltInMcp,
+} from "@/shared/plugins/builtInCoreSkills";
 import type { AgentKind, AgentStatus } from "@/shared/contracts";
 import { modelSelectionFor } from "@/shared/agentSelection";
 import {
@@ -6,7 +10,12 @@ import {
   rankCrossagentCandidates,
 } from "@/shared/crossagentRanking";
 import { formatReasoningLabel } from "@/shared/modelLabels";
-import type { CrossagentRoutingOverride, SharedSettings } from "@/shared/settings";
+import {
+  crossagentRoutingOverrideSchema,
+  type CrossagentRoutingOverride,
+  type CrossagentRoutingSelection,
+  type SharedSettings,
+} from "@/shared/settings";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import {
   filterCrossagentCapabilities,
@@ -28,6 +37,7 @@ import type {
   McpToolResult,
   ExplicitSpawnAgentSelection,
   ModelTier,
+  SpawnAgentSelection,
   SpawnableAgent,
   SpawnableAgentSummary,
   ToolSpec,
@@ -58,9 +68,12 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
   return "balanced";
 }
 
+const CROSSAGENTS_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("crossagents");
+
 /** Base routing guidance always included in the MCP `initialize` instructions. */
 export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Use the Crossagents MCP server to delegate lightweight, ephemeral work to the other AI agents connected to this Poracode session.",
+  `Before the first spawn_agent call, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} — it is this plugin's core skill.`,
   "Every tool named below belongs to this server. Hosts that namespace MCP tools expose them under this server's name (for example `crossagents__list_agents` or `mcp__crossagents__list_agents`), so resolve each bare name against your own tool list and call the crossagents entry — never the same bare name under another server such as `poracode`.",
   "Delegate only once the user has explicitly asked you to involve another agent in this thread, for example via an @Crossagents mention or a direct request to delegate or get a second opinion. That ask authorizes delegation for the rest of the thread, so later turns may spawn as the work requires; until then, never spawn subagents on your own initiative.",
   "Call list_agents when provider selection matters; call get_agent only when you need one provider's detailed models, reasoning options, Fast availability, or permissions preset.",
@@ -253,6 +266,23 @@ const RAW_TOOLS: ToolSpec[] = [
         model: SUBAGENT_SELECTION_PROPERTIES.model,
         reasoning: SUBAGENT_SELECTION_PROPERTIES.reasoning,
         fast: SUBAGENT_SELECTION_PROPERTIES.fast,
+        fallbacks: {
+          type: "array",
+          maxItems: 3,
+          description:
+            "Ordered alternate provider/model selections for this route. Tried in order if the primary fails.",
+          items: {
+            type: "object",
+            required: ["provider"],
+            properties: {
+              provider: SUBAGENT_SELECTION_PROPERTIES.provider,
+              model: SUBAGENT_SELECTION_PROPERTIES.model,
+              reasoning: SUBAGENT_SELECTION_PROPERTIES.reasoning,
+              fast: SUBAGENT_SELECTION_PROPERTIES.fast,
+            },
+          },
+        },
+        retry_on: SUBAGENT_TASK_PROPERTIES.retry_on,
       },
     },
   },
@@ -479,6 +509,7 @@ export function buildSpawnableAgents(
         fast: entry.preferredSelection.fast,
         matchedTags: entry.matchedTags,
         learnedTags: entry.learnedTags,
+        ...(entry.matchedOverride ? { override: entry.matchedOverride } : {}),
       },
     };
   });
@@ -525,6 +556,8 @@ interface ResolvedSelectionArgs {
   args: Record<string, unknown>;
   tags: string[];
   explicitFields: ExplicitSpawnAgentSelection["explicitFields"];
+  inheritedFallbacks?: SpawnAgentSelection[];
+  inheritedRetryMode?: "startup" | "any-failure";
 }
 
 function resolveSelectionArgs(
@@ -597,6 +630,23 @@ function resolveSelectionArgs(
   const fast =
     requestedFast !== undefined ? requestedFast : usePreferredDetails ? preferred.fast : false;
 
+  const override = agent.preference?.override;
+  const primaryFromOverride =
+    override !== undefined &&
+    override.agentKind === provider &&
+    (override.modelId === undefined || override.modelId === model) &&
+    (override.effort === undefined || override.effort === reasoning) &&
+    (override.fast === undefined || override.fast === fast);
+  const inheritedFallbacks = primaryFromOverride
+    ? override.fallbacks?.map((fallback) => ({
+        agent: fallback.agentKind,
+        ...(fallback.modelId ? { model: fallback.modelId } : {}),
+        ...(fallback.effort ? { effort: fallback.effort } : {}),
+        ...(typeof fallback.fast === "boolean" ? { fast: fallback.fast } : {}),
+      }))
+    : undefined;
+  const inheritedRetryMode = primaryFromOverride ? override.retryMode : undefined;
+
   return {
     explicitFields,
     tags,
@@ -607,6 +657,8 @@ function resolveSelectionArgs(
       ...(reasoning ? { reasoning } : {}),
       fast,
     },
+    ...(inheritedFallbacks ? { inheritedFallbacks } : {}),
+    ...(inheritedRetryMode ? { inheritedRetryMode } : {}),
   };
 }
 
@@ -666,10 +718,16 @@ async function spawnAgent(
         return resolveSelectionArgs(taskArgs, await agentsFor(taskArgs));
       }),
     );
-    const requests = parseSpawnRequests({
-      ...args,
-      tasks: resolvedTasks.map((entry, index) => entry?.args ?? tasks[index]),
-    }).map((request) => {
+    const requests = parseSpawnRequests(
+      {
+        ...args,
+        tasks: resolvedTasks.map((entry, index) => entry?.args ?? tasks[index]),
+      },
+      resolvedTasks.map((entry) => ({
+        fallbacks: entry?.inheritedFallbacks,
+        retryMode: entry?.inheritedRetryMode,
+      })),
+    ).map((request) => {
       const { background: _taskBackground, ...rest } = request;
       return background ? { ...rest, background: true as const } : rest;
     });
@@ -702,7 +760,11 @@ async function spawnAgent(
   }
 
   const resolved = resolveSelectionArgs(args, await agentsFor(args));
-  const request = parseSpawnRequest(resolved.args);
+  const request = parseSpawnRequest(
+    resolved.args,
+    resolved.inheritedFallbacks,
+    resolved.inheritedRetryMode,
+  );
   const { runId } = ctx.runManager.spawn(ctx.parentThreadId, request);
   if (Object.values(resolved.explicitFields).some(Boolean)) {
     ctx.recordExplicitSelections?.([
@@ -729,9 +791,50 @@ async function setRoutingPreference(
   const provider =
     typeof args.provider === "string" && args.provider.length > 0 ? args.provider : "";
   if (!provider) return errorResult("provider is required");
+
+  const rawFallbacks = args.fallbacks;
+  let fallbacks: CrossagentRoutingSelection[] | undefined;
+  if (rawFallbacks !== undefined) {
+    if (!Array.isArray(rawFallbacks)) return errorResult("fallbacks must be an array");
+    if (rawFallbacks.length > 3) {
+      return errorResult("fallbacks supports at most 3 alternate selections");
+    }
+    const mapped: CrossagentRoutingSelection[] = [];
+    for (let i = 0; i < rawFallbacks.length; i++) {
+      const value = rawFallbacks[i];
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return errorResult(`fallbacks[${i}] must be an object`);
+      }
+      const fallback = value as Record<string, unknown>;
+      const fallbackProvider =
+        typeof fallback.provider === "string" && fallback.provider.length > 0
+          ? fallback.provider
+          : "";
+      if (!fallbackProvider) return errorResult(`fallbacks[${i}].provider is required`);
+      mapped.push({
+        agentKind: fallbackProvider,
+        ...(typeof fallback.model === "string" && fallback.model.length > 0
+          ? { modelId: fallback.model }
+          : {}),
+        ...(typeof fallback.reasoning === "string" && fallback.reasoning.length > 0
+          ? { effort: fallback.reasoning }
+          : {}),
+        ...(typeof fallback.fast === "boolean" ? { fast: fallback.fast } : {}),
+      });
+    }
+    fallbacks = mapped;
+  }
+
+  const retry_on = args.retry_on;
+  const retryMode =
+    retry_on === "any-failure" ? "any-failure" : retry_on === "startup" ? "startup" : undefined;
+  if (retry_on !== undefined && retryMode === undefined) {
+    return errorResult("retry_on must be startup or any-failure");
+  }
+
   const selectionArgs = { ...args, tags, provider };
   resolveSelectionArgs(selectionArgs, await ctx.listSpawnableAgents(tags));
-  const override: CrossagentRoutingOverride = {
+  const override = {
     tags,
     agentKind: provider,
     ...(typeof args.model === "string" && args.model.length > 0 ? { modelId: args.model } : {}),
@@ -739,10 +842,19 @@ async function setRoutingPreference(
       ? { effort: args.reasoning }
       : {}),
     ...(typeof args.fast === "boolean" ? { fast: args.fast } : {}),
+    ...(fallbacks !== undefined ? { fallbacks } : {}),
+    ...(retryMode ? { retryMode } : {}),
     updatedAt: Date.now(),
   };
-  await ctx.setRoutingOverride(override);
-  return jsonResult({ status: "saved", override });
+  const parsed = crossagentRoutingOverrideSchema.safeParse(override);
+  if (!parsed.success) {
+    return errorResult(
+      "Invalid routing preference: " +
+        parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; "),
+    );
+  }
+  await ctx.setRoutingOverride(parsed.data);
+  return jsonResult({ status: "saved", override: parsed.data });
 }
 
 async function removeRoutingPreference(

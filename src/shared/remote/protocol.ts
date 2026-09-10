@@ -10,6 +10,7 @@ import {
   scheduledTaskSchema,
   terminalSizeSchema,
   threadContextUsageSchema,
+  threadFollowUpQueueStateSchema,
   threadSchema,
 } from "../contracts";
 import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc/schemas";
@@ -18,6 +19,10 @@ import { sharedSettingsSchema } from "../settings";
 
 // v9 carries the selected execution environment in thread snapshots and
 // mutation payloads. Older clients would silently drop a pinned WSL distro.
+// Queued follow-ups are an additive v9 capability: their generic passthrough
+// procedures and optional thread-snapshot field remain readable by older v9
+// peers, while the client reports an explicit unsupported error when an older
+// host does not advertise the procedures.
 export const PORACODE_REMOTE_PROTOCOL_VERSION = 9;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
@@ -589,6 +594,8 @@ export const remoteThreadSnapshotSchema = z.object({
   backgroundTasks: z.array(backgroundTaskSchema).optional(),
   terminalScrollback: z.string().optional(),
   terminalSize: terminalSizeSchema.optional(),
+  /** Absent when the host predates queued follow-up snapshots. */
+  followUpQueue: threadFollowUpQueueStateSchema.nullable().optional(),
   updatedAt: z.string().min(1),
 });
 export type RemoteThreadSnapshot = z.infer<typeof remoteThreadSnapshotSchema>;
@@ -634,6 +641,9 @@ export const remoteSettingsSchema = sharedSettingsSchema
     hiddenModels: true,
     disabledAgents: true,
     providerOrder: true,
+    // Optional input keeps settings responses from older v9 hosts readable;
+    // the default preserves the normalized shared-settings contract.
+    followUpBehavior: true,
     enabledMcpServers: true,
     disabledBuiltInMcpServers: true,
     titleGenProvider: true,
@@ -659,7 +669,10 @@ export const remoteSettingsSchema = sharedSettingsSchema
     prAutomationDefault: true,
     prMergeMethod: true,
   })
-  .extend({ agentSettings: remoteAgentSettingsSchema });
+  .extend({
+    agentSettings: remoteAgentSettingsSchema,
+    followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional().default("steer"),
+  });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
 
 export const REMOTE_SETTINGS_KEYS = Object.keys(
@@ -676,6 +689,9 @@ export const remoteSettingsPatchSchema = remoteSettingsSchema
     disabledBuiltInMcpServers: sharedSettingsSchema.shape.disabledBuiltInMcpServers
       .removeDefault()
       .optional(),
+    // Unlike the full response schema, patches must remain sparse; in
+    // particular, an unrelated edit must not inject the legacy default.
+    followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional(),
   });
 export type RemoteSettingsPatch = z.infer<typeof remoteSettingsPatchSchema>;
 

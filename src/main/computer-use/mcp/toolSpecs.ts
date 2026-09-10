@@ -30,6 +30,8 @@ export const MODE_SCHEMA = {
   type: "string",
   enum: ["background", "foreground"],
   default: "background",
+  description:
+    'Leave this at "background" unless the user asked for a takeover. "foreground" seizes the user\'s real mouse, keyboard, and window focus.',
 };
 
 const VERIFY_SCHEMA = {
@@ -52,7 +54,7 @@ const inputProperties = {
   verify: VERIFY_SCHEMA,
 };
 
-const PERFORM_STEP_SCHEMA = {
+export const PERFORM_STEP_SCHEMA = {
   oneOf: [
     {
       type: "object",
@@ -93,20 +95,20 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "api",
     description:
-      "Return native-helper status, capabilities, permissions, and platform notes. Call only when capability or permission details are needed.",
-    inputSchema: { type: "object", properties: {} },
+      "Return native-helper status, capabilities, permissions, platform, and the plugin core-skill name. Call only when capability or permission details are needed.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
     name: "enable",
     description:
       "Begin one uninterrupted Computer Use session. Keeps a background-control badge visible between related actions.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
     name: "disable",
     description:
       "End the current Computer Use session and hide its badge or takeover overlay. Always call before pausing or finishing.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
     name: "list_apps",
@@ -114,13 +116,14 @@ const RAW_TOOLS: ToolSpec[] = [
       "List apps that currently have targetable windows. Pass query to also search installed apps by name and receive a launchable id.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: { query: { type: "string" } },
     },
   },
   {
     name: "list_windows",
     description: "List currently targetable windows without changing focus.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
     name: "launch_app",
@@ -128,6 +131,7 @@ const RAW_TOOLS: ToolSpec[] = [
       'Launch an app by a list_apps id, known app name, or explicit app path. mode:"background" (the default) launches without taking the user\'s focus; mode:"foreground" activates the app and is a takeover.',
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["app"],
       properties: { app: { type: "string" }, mode: MODE_SCHEMA, observe: OBSERVE_SCHEMA },
     },
@@ -138,6 +142,7 @@ const RAW_TOOLS: ToolSpec[] = [
       "Refresh a returned window object. Use this after a stale-window error or when the window may have moved or resized.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["app", "id"],
       properties: { app: { type: "string" }, id: { type: "number" }, title: { type: "string" } },
     },
@@ -148,6 +153,7 @@ const RAW_TOOLS: ToolSpec[] = [
       "Passively inspect a window. For semantic tasks, use include_text:true with include_screenshot:false; request a screenshot for visual checks or coordinates. The response reports capture method and scale for coordinate conversion.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["window"],
       properties: {
         window: WINDOW_SCHEMA,
@@ -165,6 +171,7 @@ const RAW_TOOLS: ToolSpec[] = [
       "Find accessibility elements by role, name, text, or automation id without changing focus. Pass get_window_state's accessibility.snapshotId or a previous find_elements result's snapshotId as snapshot_id to filter that tree without rebuilding it.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["window"],
       properties: {
         window: WINDOW_SCHEMA,
@@ -183,6 +190,7 @@ const RAW_TOOLS: ToolSpec[] = [
       "Perform a supported accessibility action on an element id from the latest tree or find_elements result. Runs in the background.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["window", "element_id", "action"],
       properties: {
         window: WINDOW_SCHEMA,
@@ -201,6 +209,7 @@ const RAW_TOOLS: ToolSpec[] = [
       "Set an accessibility element's value without focusing or activating the target window.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["window", "element_id", "value"],
       properties: {
         window: WINDOW_SCHEMA,
@@ -213,9 +222,10 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "activate_window",
     description:
-      "Explicitly bring a returned window to the foreground. This takes focus and shows the takeover border.",
+      "Explicitly bring a returned window to the foreground. Takeover: it interrupts the user, takes focus, and shows the takeover border. Element actions reach a window without it, so never call it to make a background action land; ask the user first.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["window"],
       properties: { window: WINDOW_SCHEMA, observe: OBSERVE_SCHEMA },
     },
@@ -238,9 +248,10 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "click",
     description:
-      "Click frame-relative coordinates in the background by default. Read delivery/refused; only retry in foreground when the refusal recommends it.",
+      "Click frame-relative coordinates in the background by default. Read delivery/refused: a refusal names the background route to use instead, so follow it rather than taking the window over.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["window", "x", "y"],
       properties: {
         window: WINDOW_SCHEMA,
@@ -258,6 +269,7 @@ const RAW_TOOLS: ToolSpec[] = [
       "Press a key or + separated chord in the target window in the background by default.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["window", "key"],
       properties: { window: WINDOW_SCHEMA, key: { type: "string" }, ...inputProperties },
     },
@@ -267,6 +279,7 @@ const RAW_TOOLS: ToolSpec[] = [
     description: "Type literal Unicode text into the target window in the background by default.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["window", "text"],
       properties: { window: WINDOW_SCHEMA, text: { type: "string" }, ...inputProperties },
     },
@@ -274,9 +287,10 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "scroll",
     description:
-      "Scroll at frame-relative coordinates in the background by default. Read delivery/refused before continuing.",
+      'Scroll at frame-relative coordinates in the background by default. Read delivery/refused before continuing; on macOS a browser or Electron page scrolls in the background through invoke_element with action "scroll".',
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["window", "x", "y", "scrollX", "scrollY"],
       properties: {
         window: WINDOW_SCHEMA,
@@ -294,6 +308,7 @@ const RAW_TOOLS: ToolSpec[] = [
       "Drag between frame-relative coordinates in the background by default. Optional steps controls interpolation.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       required: ["window", "from_x", "from_y", "to_x", "to_y"],
       properties: {
         window: WINDOW_SCHEMA,

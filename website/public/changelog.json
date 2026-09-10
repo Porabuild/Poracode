@@ -3,14 +3,14 @@
     {
       "version": "1.8.0",
       "tagline": "Agents Everywhere",
-      "date": "2026-09-05",
+      "date": "2026-09-07",
       "title": "Muse Code Chat, Computer Use 2.0, Browser Use 2.0 & Crossagents steering",
       "summary": "A big feature release: Muse Code now runs as a full native Chat in Poracode with goals, plans, subagents, images, and usage tracking, agents drive native Windows, macOS, and Linux apps in the background through a new desktop-control helper, batch browser actions into single verified steps, and steer running Crossagents subagents mid-task. Threads gain configurable docks for goals, plans, subagents, background tasks, and images, OpenCode structured chat is substantially richer, and usage providers can sign in straight from their cards.",
       "changes": [
         {
           "kind": "added",
           "label": "Muse",
-          "text": "Muse Code now runs as a native Chat in Poracode, not just a terminal. Structured sessions over the Muse Session Protocol bring live goal tracking, native plans, subagent activity, image attachments, Muse skill slash commands, model and effort commands, question prompts, Stop and steer, and WSL project support, with Muse usage and sign-in in the usage panel."
+          "text": "Muse Code now runs as a native Chat in Poracode, not just a terminal. Structured sessions over the Muse Session Protocol bring live goal tracking, native plans, subagent activity, image attachments, Muse skill slash commands, /compact, model and effort commands, question prompts, Stop and steer, and WSL project support, with Muse usage and sign-in in the usage panel."
         },
         {
           "kind": "added",
@@ -20,7 +20,7 @@
         {
           "kind": "added",
           "label": "Computer Use",
-          "text": "Agents can now search and launch installed apps, find elements by role and name, invoke controls and set values semantically, and run short deterministic action sequences with a single final observation, with a badge overlay for background work and a takeover border plus Escape to interrupt when the desktop is taken over."
+          "text": "Agents can now search and launch installed apps, find elements by role and name, invoke controls and set values semantically, and run short deterministic action sequences with a single final observation, with a badge overlay for background work — including an exit button on the badge itself — and a takeover border plus Escape to interrupt when the desktop is taken over."
         },
         {
           "kind": "added",
@@ -53,6 +53,11 @@
           "text": "The Add menu now includes an MCP Servers submenu for reviewing session bindings, toggling servers for new threads, and jumping directly to MCP settings."
         },
         {
+          "kind": "added",
+          "label": "Images",
+          "text": "Enlarged image previews now offer Copy image and Save image, sitting beside the zoom controls so they are reachable without leaving the preview."
+        },
+        {
           "kind": "improved",
           "label": "OpenCode",
           "text": "Structured OpenCode threads now support current question and permission flows, native plans, subagent activity, produced images and files, audio and thread mentions, accurate usage, clearer tool states, visible retry and rate-limit fallback notices, and clean Stop, steer, model-switch, and resume behavior."
@@ -60,12 +65,12 @@
         {
           "kind": "improved",
           "label": "Muse",
-          "text": "Muse now defaults to Muse Spark 1.3, discovers new models and reasoning levels from the installed CLI and live MSP catalog, shows Thinking and Double-checking terminal states, signs out from Settings, and installs reliably through WSL."
+          "text": "Muse now defaults to Muse Spark 1.3, discovers new models and reasoning levels from the installed CLI and live MSP catalog, shows Thinking and Double-checking terminal states, signs out from Settings, installs reliably through WSL, and paints a steered message as soon as you send it. New Muse threads start with approvals bypassed, so tool calls run without prompting until you pick a stricter policy."
         },
         {
           "kind": "improved",
           "label": "Handoff",
-          "text": "Thread mentions can now transfer the real conversation transcript through read_thread when available, preserving the original request and newest useful activity within the context budget."
+          "text": "Thread mentions can now transfer the real conversation transcript through read_thread when available, preserving the original request and newest useful activity within the context budget. Switching a thread to another provider keeps that provider's own settings and its currently selected model, and the dialog's primary action is now Switch, which continues in the same thread."
         },
         {
           "kind": "improved",
@@ -75,12 +80,12 @@
         {
           "kind": "improved",
           "label": "Usage",
-          "text": "Qoder usage now parses migrated quota-system payloads and shows used and limit counts, estimated cost lines stay hidden unless you opt in, and ACP agents keep their provider-specific model labels in the picker."
+          "text": "Qoder usage now parses migrated quota-system payloads and shows used and limit counts, Muse reports 5-hour and weekly quota windows plus billed spend after a browser sign-in, estimated cost lines stay hidden unless you opt in, and ACP agents keep their provider-specific model labels in the picker."
         },
         {
           "kind": "improved",
           "label": "Settings",
-          "text": "Agent updates are easier to follow: the Update-all button shows the outdated count, each agent reports queued and per-agent progress, and multi-runtime update docks collapse to a single line."
+          "text": "Agent updates are easier to follow: the Update-all button shows the outdated count, each agent reports queued and per-agent progress, and multi-runtime update docks collapse to a single line. Agents installed through more than one runtime now show which runtime a model or sign-in method belongs to, and Claude's model picker drops unresolved aliases and coalesces duplicate Haiku entries."
         },
         {
           "kind": "improved",
@@ -90,17 +95,27 @@
         {
           "kind": "improved",
           "label": "Chat",
-          "text": "Composer bubbles are now translucent glass with a clear active accent, image dock tiles are rounder, and the scroll-to-bottom control moves out of the way whenever bubbles would overlap it."
+          "text": "Composer bubbles are now translucent glass with a clear active accent, image dock tiles are rounder and render sharply instead of aliasing high-resolution screenshots, and the scroll-to-bottom control moves out of the way whenever bubbles would overlap it."
         },
         {
           "kind": "improved",
           "label": "Performance",
-          "text": "Startup is faster with streamlined runtime loading and Windows executable resolution, idle WSL bridges shut down cleanly and inactive WSL projects skip Git polling, and the renderer is fully React Compiler-safe."
+          "text": "Startup is faster with streamlined runtime loading and Windows executable resolution, idle WSL bridges shut down cleanly and inactive WSL projects skip Git polling, live agent runtimes are reused across status polls instead of being rebuilt, and the renderer is fully React Compiler-safe."
         },
         {
           "kind": "improved",
           "label": "Changelog",
           "text": "Each release now carries a short tagline that appears on the homepage and changelog page."
+        },
+        {
+          "kind": "improved",
+          "label": "Computer Use",
+          "text": "Desktop actions now report what the helper could actually observe — confirmed, unchanged, or unverified — instead of implying success, refusals name only background recovery routes, and Windows and Linux match macOS on focus reporting, Chromium synthetic-input caveats, and waiting for a page's accessibility tree before reporting it as thin. A new setting keeps the Mac awake for the length of a session, since a locked screen stops all desktop control."
+        },
+        {
+          "kind": "improved",
+          "label": "ACP agents",
+          "text": "ACP agents now list their available sign-in methods with an Install ACP action per environment, images referenced by a tool call are resolved and rendered, and Antigravity surfaces its background task launches in the thread dock as they start, update, and complete."
         },
         {
           "kind": "fixed",
@@ -110,7 +125,7 @@
         {
           "kind": "fixed",
           "label": "ACP agents",
-          "text": "Antigravity file reads now complete reliably, its auto-update is correctly disabled, stale status caches are invalidated, and ACP agents installed in WSL automatically repair missing executable permissions from older install layouts."
+          "text": "Antigravity file reads now complete reliably, its credentials are read from the macOS keychain and cached so you are not re-prompted mid-session, its auto-update is correctly disabled, quoted SYSTEM_MESSAGE text no longer leaks into the chat stream on later notifications in a turn, stale status caches are invalidated, and ACP agents installed in WSL automatically repair missing executable permissions from older install layouts."
         },
         {
           "kind": "fixed",
@@ -136,6 +151,16 @@
           "kind": "fixed",
           "label": "macOS",
           "text": "Updater metadata is finalized after packaging so auto-updates resolve correctly, and macOS 12 no longer receives an update it cannot launch."
+        },
+        {
+          "kind": "fixed",
+          "label": "Chat",
+          "text": "New messages now land at the bottom of the thread again instead of stopping short of it."
+        },
+        {
+          "kind": "fixed",
+          "label": "Claude",
+          "text": "A goal whose task drains without a verdict now completes instead of being reported as failed."
         }
       ]
     },

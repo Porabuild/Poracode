@@ -2,7 +2,8 @@ import { startTransition, useState } from "react";
 import { NumberField } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadRemoveAction } from "@/shared/contracts";
-import { isRemoteSession } from "@/renderer/bridge";
+import type { FollowUpBehavior } from "@/shared/settings";
+import { isMac, isRemoteSession } from "@/renderer/bridge";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   setConfirmThreadDelete,
@@ -10,7 +11,11 @@ import {
 } from "@/renderer/state/threadDeletePreference";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
-import { threadRemoveActionOptions, useLocalizedOptions } from "./settingsOptions";
+import {
+  followUpBehaviorOptions,
+  threadRemoveActionOptions,
+  useLocalizedOptions,
+} from "./settingsOptions";
 
 export function ThreadSettings() {
   const { t } = useLingui();
@@ -26,15 +31,42 @@ export function ThreadSettings() {
   const setThreadRemoveAction = useSharedSettings((state) => state.setThreadRemoveAction);
   const autoMarkDoneOnPrMerge = useSharedSettings((state) => state.autoMarkDoneOnPrMerge);
   const setAutoMarkDoneOnPrMerge = useSharedSettings((state) => state.setAutoMarkDoneOnPrMerge);
+  const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
+  const setFollowUpBehavior = useSharedSettings((state) => state.setFollowUpBehavior);
   const [confirmThreadDelete, setConfirmThreadDeleteState] = useState(shouldConfirmThreadDelete);
   // Idle unloading and launch-time auto-archive run on the desktop; a remote
   // session's copy of these values is never read, so hide the rows there.
   const remote = isRemoteSession();
 
+  const followUpBehaviorOpts = useLocalizedOptions(followUpBehaviorOptions);
   const threadRemoveActionOpts = useLocalizedOptions(threadRemoveActionOptions);
+  const followUpShortcut = isMac() ? t`Cmd+Enter` : t`Ctrl+Enter`;
 
   return (
     <SettingsPage title={t`Threads`}>
+      <SettingRow
+        anchorId="threads.followUpBehavior"
+        title={t`Follow-up behavior`}
+        description={
+          <Trans>
+            Choose whether chat messages sent while an agent is working steer the current response
+            or queue for the next response. {followUpShortcut} uses the opposite action.
+          </Trans>
+        }
+      >
+        <Select
+          aria-label={t`Follow-up behavior`}
+          className="w-[160px] shrink-0"
+          options={followUpBehaviorOpts}
+          value={followUpBehavior}
+          onChange={(value) => {
+            startTransition(() => {
+              setFollowUpBehavior(value as FollowUpBehavior);
+            });
+          }}
+        />
+      </SettingRow>
+
       {!remote && (
         <SettingRow
           anchorId="threads.unloadIdleThreadsAfter"

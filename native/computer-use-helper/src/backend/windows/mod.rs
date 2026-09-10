@@ -24,14 +24,14 @@ use windows::Win32::UI::HiDpi::{
 
 use crate::backend::{
     Backend, CancelToken, HelloInfo, InputOptions, InstalledAppCache, KeyboardAction,
-    PointerAction, verify_effect_with_early_check,
+    PointerAction, SnapshotOutcome, verify_effect_with_early_check,
 };
 use crate::capture::CaptureResult;
 use crate::elements::SnapshotCache;
 use crate::protocol::actions::{
-    AccessibilityState, Capabilities, DeliveryTarget, ElementAction, FindElementsInput,
-    FindElementsResult, InputMode, InteractiveResult, LaunchResult, MouseButton, PermissionState,
-    Permissions, Route, Verified, Verify,
+    Capabilities, DeliveryTarget, ElementAction, FindElementsInput, FindElementsResult, InputMode,
+    InteractiveResult, LaunchResult, MouseButton, PermissionState, Permissions, Route, Verified,
+    Verify,
 };
 use crate::protocol::keys::{KeyToken, NamedKey};
 use crate::protocol::window::{WindowInfo, WindowRef};
@@ -182,7 +182,7 @@ impl Backend for WindowsBackend {
         window: &WindowInfo,
         max_nodes: usize,
         cancel: &CancelToken,
-    ) -> Result<AccessibilityState> {
+    ) -> Result<SnapshotOutcome> {
         uia::snapshot_tree(&self.elements, window, max_nodes, cancel)
     }
 
@@ -287,6 +287,7 @@ impl Backend for WindowsBackend {
         window: &WindowInfo,
         element_id: &str,
         action: ElementAction,
+        _cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         if action != ElementAction::Click {
             let result = uia::invoke_element(&self.elements, window, element_id, action)?;
@@ -335,6 +336,7 @@ impl Backend for WindowsBackend {
         window: &WindowInfo,
         element_id: &str,
         value: &str,
+        _cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
         let result = uia::set_element_value(&self.elements, window, element_id, value)?;
         Ok(Self::refresh_result_window(result))

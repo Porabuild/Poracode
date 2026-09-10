@@ -11,7 +11,35 @@ import { i18n } from "./i18n";
  * arguments resolved with the values passed to `msg()`.
  */
 const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "voice.unavailable": msg({ message: "Live voice is unavailable for this thread." }),
+  "voice.alreadyConnected": msg({ message: "A voice conversation is already active." }),
+  "voice.subscriptionRequired": msg({
+    message: "Live voice requires a subscription sign-in for this provider.",
+  }),
+  "voice.connectionTimeout": msg({ message: "The voice connection timed out. Try again." }),
+  "voice.connectionFailed": msg({ message: "The voice connection failed. Try again." }),
+  "voice.cancelled": msg({ message: "The voice connection was cancelled." }),
   "supervisor.sendTerminalInput": msg({ message: "Send terminal input" }),
+  "supervisor.followUpQueue.guiOnly": msg({
+    message: "Queued follow-ups are only supported for chat threads.",
+  }),
+  "supervisor.followUpQueue.sessionUnavailable": msg({
+    message: "The thread session is not available for queued follow-ups.",
+  }),
+  "supervisor.followUpQueue.unsupported": msg({
+    message: "This thread does not support queued follow-ups.",
+  }),
+  "supervisor.followUpQueue.itemNotFound": msg({ message: "Queued follow-up not found: {id}." }),
+  "supervisor.followUpQueue.itemChanged": msg({
+    message: "This queued follow-up changed. Reopen it before saving.",
+  }),
+  "supervisor.followUpQueue.itemInFlight": msg({
+    message: "This queued follow-up is already being sent.",
+  }),
+  "supervisor.steer.cleared": msg({ message: "Steer was cancelled before the message was sent." }),
+  "supervisor.steer.replaced": msg({ message: "Steer was replaced by a newer message." }),
+  "supervisor.steer.notAdmitted": msg({ message: "The replacement message could not be sent." }),
+  "supervisor.steer.notReady": msg({ message: "This thread is not ready for Steer." }),
   "git.commandFailed": msg({ message: "Git {command} failed: {detail}" }),
   "github.accountUnavailable": msg({
     message: 'Couldn\'t access the GitHub account "{login}". Run "gh auth login" and try again.',
@@ -193,10 +221,6 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   }),
   "opencode.retryFallback": msg({
     message: "OpenCode request failed, retrying...",
-  }),
-  "claude.goal.noVerdict": msg({
-    message:
-      "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run",
   }),
   "acp.authenticationUnverified": msg({
     message:

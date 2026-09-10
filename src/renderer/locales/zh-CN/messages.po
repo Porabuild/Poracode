@@ -778,6 +778,10 @@ msgid "a supported coding agent"
 msgstr "支持的编码代理"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "已有正在进行的语音对话。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "工作树所有者需要冻结的源分支"
 
@@ -2159,6 +2163,7 @@ msgstr "无法连接远程服务器。请确认其处于在线状态，然后重
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2207,6 +2212,10 @@ msgstr "取消选择器"
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Cancel removing project"
 msgstr "取消移除项目"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "取消语音连接"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2496,6 +2505,10 @@ msgstr "选择 Poracode 对新拉取请求执行的操作：不执行任何操�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose when this machine stays awake."
 msgstr "选择这台机器保持唤醒的时机。"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "选择在智能体工作时发送的聊天消息是引导当前响应，还是排队等待下一次响应。{followUpShortcut} 使用相反的操作。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2873,6 +2886,10 @@ msgstr "关闭工作流面板"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "已关闭"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3259,6 +3276,10 @@ msgstr "已连接"
 msgid "Connecting to the desktop browser…"
 msgstr "正在连接桌面浏览器…"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "正在连接语音…"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
 msgstr "连接中..."
@@ -3461,7 +3482,7 @@ msgstr "复制失败"
 msgid "Copy ignored files"
 msgstr "复制忽略的文件"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copy image"
@@ -3841,6 +3862,10 @@ msgstr "由 AI 选择优胜者"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crowned"
 msgstr "已选为优胜者"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
@@ -4675,6 +4700,11 @@ msgstr "编辑 MCP 服务器"
 msgid "Edit profile"
 msgstr "编辑资料"
 
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "编辑排队消息"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Edit schedule"
@@ -4814,6 +4844,10 @@ msgstr "已启用的插件会在新线程中保持开启"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "启用<0>cookie</0>和<1>存储</1>。Cookie 可以包含会话令牌，并且存储通常保存身份验证状态——仅当您信任代理及其访问的站点时才启用。"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "结束语音聊天"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -4977,7 +5011,7 @@ msgid "Exclude patterns"
 msgstr "排除模式"
 
 #. placeholder {0}: parsed.exitCode
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 msgid "Exit code {0}"
 msgstr "退出码 {0}"
 
@@ -5173,7 +5207,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "失败了"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
@@ -5532,6 +5566,11 @@ msgstr "存放此项目工作树的文件夹。重置以使用全局设置。"
 #: src/mobile/views/ThreadView.tsx
 msgid "Follow up..."
 msgstr "继续提问..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "后续消息行为"
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -6746,6 +6785,18 @@ msgstr "在线"
 msgid "Live {0}"
 msgstr "在线 {0}"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "实时语音"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "此会话不支持实时语音。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "实时语音需要登录此提供商的订阅账户。"
+
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
 msgstr "加载中"
@@ -7357,6 +7408,10 @@ msgstr "麦克风访问已关闭。"
 msgid "Microphone input level"
 msgstr "麦克风输入电平"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "麦克风已静音"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "麦克风权限被拒绝。"
@@ -7614,6 +7669,10 @@ msgstr "正在移动更改…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "将麦克风静音"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7811,6 +7870,7 @@ msgstr "在分组中新建标签页"
 #: src/mobile/WideShell.tsx
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
@@ -8334,8 +8394,8 @@ msgid "No threads yet."
 msgstr "暂无对话。"
 
 #: src/renderer/i18n/sharedMessages.ts
-msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
-msgstr "未收到判定结果 — CLI 可能阻止了 /goal（工作区信任或挂钩设置），或评估器无法运行"
+#~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
+#~ msgstr "未收到判定结果 — CLI 可能阻止了 /goal（工作区信任或挂钩设置），或评估器无法运行"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "No windows reported"
@@ -9080,6 +9140,7 @@ msgid "Pause goal"
 msgstr "暂停目标"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9859,6 +9920,14 @@ msgstr "Qoder CLI"
 msgid "Questions"
 msgstr "问题"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "排队"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "将消息排队"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "已排队"
@@ -9868,6 +9937,18 @@ msgstr "已排队"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0} 已排队等待更新到 v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "未找到排队的后续消息：{id}。"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "排队的后续消息"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "排队的后续消息仅支持聊天线程。"
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10308,6 +10389,10 @@ msgstr "移除项目"
 msgid "Remove Project"
 msgstr "删除项目"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "移除排队的后续消息"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "移除快捷键"
@@ -10420,6 +10505,10 @@ msgstr "重新排序{0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "重新排序{label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "调整排队消息的顺序"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10590,6 +10679,10 @@ msgstr "继续"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "继续目标"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "恢复排队的后续消息"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10915,6 +11008,7 @@ msgstr "饱和度与亮度"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -10959,7 +11053,7 @@ msgstr "保存 Cursor SDK API 密钥"
 msgid "Save File"
 msgstr "保存文件"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Save image"
 msgstr "保存图像"
 
@@ -12058,6 +12152,10 @@ msgstr "以优先事项和后续步骤开启每一天。"
 msgid "Start from scratch"
 msgstr "从头开始"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "开始实时语音"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12171,6 +12269,27 @@ msgstr "状态："
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "stdio (local command)"
 msgstr "stdio（本地命令）"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "引导"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "引导当前轮次"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "用排队消息调整当前回复"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "消息发送前已取消引导。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "引导已被更新的消息替换。"
 
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
@@ -12521,7 +12640,7 @@ msgstr "任务 {id}"
 msgid "Task match"
 msgstr "任务匹配"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 msgid "Task Notification"
 msgstr "任务通知"
 
@@ -12732,6 +12851,10 @@ msgstr "远程 Poracode 服务器未返回配对凭据。"
 msgid "The remote server returned no pairing credential."
 msgstr "远程服务器未返回配对凭据。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "无法发送替代消息。"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "存储库在磁盘上的位置。如果您移动了该文件夹，请更新此位置。"
@@ -12808,6 +12931,10 @@ msgstr "SSH 隧道连接到了不兼容的 Poracode 服务器。"
 msgid "the target provider"
 msgstr "目标提供商"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "聊天线程会话不可用于排队的后续消息。"
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "线程将在新分支上的独立工作树中运行。"
@@ -12823,6 +12950,18 @@ msgstr "更新操作失败。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "更新服务暂时不可用。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "语音连接失败，请重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "语音连接超时，请重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "语音连接已取消。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -12939,6 +13078,10 @@ msgstr "此设备"
 msgid "This machine"
 msgstr "此设备"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "此消息已不在队列中。你仍然可以复制正在编辑的内容。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "此名称由内置 MCP 服务器保留。"
@@ -12993,6 +13136,15 @@ msgstr "此项目"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "该项目的远程服务器处于离线状态。请重新连接后再开始线程。"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "此排队的后续消息已更改。请重新打开后再保存。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "此排队的后续消息已在发送中。"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "此远程项目不可用。请重新连接环境后重试。"
@@ -13027,6 +13179,14 @@ msgstr "此服务器在本机运行，WSL 项目无法使用。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "此全局快捷键不可用。请选择其他按键组合。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "此线程不支持排队的后续消息。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "此线程尚未准备好接受引导。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
@@ -13400,7 +13560,7 @@ msgstr "无法通过 SSH 连接。"
 msgid "Unable to copy desktop endpoint."
 msgstr "无法复制桌面端点。"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to copy image."
 msgstr "无法复制图像。"
 
@@ -13574,7 +13734,7 @@ msgstr "无法保存{0}凭据。"
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "无法保存Claude {displayLabel}配置。"
 
-#: src/renderer/components/composer/ImageLightboxMenu.tsx
+#: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "无法保存图像。"
 
@@ -13779,6 +13939,10 @@ msgstr "取消标记完成"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "取消标记完成"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "取消麦克风静音"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

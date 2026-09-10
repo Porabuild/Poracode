@@ -188,6 +188,9 @@ export function buildCodexAppServerCommand(
     ...(isCodexGoalsSupported(location, wslExecPath) ? ["--enable", CODEX_GOALS_FEATURE_FLAG] : []),
     ...mcpSkillConflictArgs,
     ...(includeMcpConfig ? mcp.args : []),
+    // Older CLIs tolerate config overrides; no global config mutation.
+    "-c",
+    "features.realtime_conversation=true",
     "app-server",
   ];
   if (location.kind === "wsl") {
