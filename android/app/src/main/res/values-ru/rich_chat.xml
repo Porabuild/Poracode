@@ -68,6 +68,10 @@
     <string name="rich_chat_restore_checkpoint_message">Файлы проекта будут восстановлены до этой точки. Последующие сообщения не удалятся.</string>
     <string name="rich_chat_rollback_title">Откатить один ход?</string>
     <string name="rich_chat_rollback_message">Разговор провайдера вернётся на один завершённый ход. Обновите данные перед продолжением.</string>
+    <string name="rich_chat_revert_to_checkpoint">Откатить к контрольной точке</string>
+    <string name="rich_chat_revert_title">Откатить к контрольной точке?</string>
+    <string name="rich_chat_revert_message">Разговор откатится к состоянию до этого запроса, файлы будут восстановлены по контрольной точке, если есть снимок, а более поздние элементы будут удалены.</string>
+    <string name="rich_chat_revert">Откатить</string>
     <string name="rich_chat_rollback">Откатить</string>
     <string name="rich_chat_truncate_from_here">Обрезать отсюда</string>
     <string name="rich_chat_truncate_title">Обрезать этот разговор?</string>

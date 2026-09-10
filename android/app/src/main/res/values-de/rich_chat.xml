@@ -68,6 +68,10 @@
     <string name="rich_chat_restore_checkpoint_message">Die Projektdateien werden auf diesen Prüfpunkt zurückgesetzt. Spätere Nachrichten werden nicht entfernt.</string>
     <string name="rich_chat_rollback_title">Eine Runde zurücksetzen?</string>
     <string name="rich_chat_rollback_message">Die Anbieterunterhaltung wird um eine abgeschlossene Runde zurückgesetzt. Aktualisiere vor dem Fortfahren.</string>
+    <string name="rich_chat_revert_to_checkpoint">Auf Prüfpunkt zurücksetzen</string>
+    <string name="rich_chat_revert_title">Auf Prüfpunkt zurücksetzen?</string>
+    <string name="rich_chat_revert_message">Die Unterhaltung wird auf den Stand vor dieser Eingabe zurückgesetzt, Dateien werden bei vorhandenem Prüfpunkt-Snapshot wiederhergestellt und spätere Laufzeitelemente werden entfernt.</string>
+    <string name="rich_chat_revert">Zurücksetzen</string>
     <string name="rich_chat_rollback">Zurücksetzen</string>
     <string name="rich_chat_truncate_from_here">Ab hier kürzen</string>
     <string name="rich_chat_truncate_title">Diese Unterhaltung kürzen?</string>

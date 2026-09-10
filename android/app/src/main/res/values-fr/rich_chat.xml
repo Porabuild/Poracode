@@ -68,6 +68,10 @@
     <string name="rich_chat_restore_checkpoint_message">Les fichiers du projet seront restaurés à ce point de contrôle. Les messages ultérieurs ne seront pas supprimés.</string>
     <string name="rich_chat_rollback_title">Revenir d’un tour ?</string>
     <string name="rich_chat_rollback_message">La conversation du fournisseur reculera d’un tour terminé. Actualisez avant de continuer.</string>
+    <string name="rich_chat_revert_to_checkpoint">Revenir au point de contrôle</string>
+    <string name="rich_chat_revert_title">Revenir au point de contrôle ?</string>
+    <string name="rich_chat_revert_message">La conversation revient à l’état d’avant cette invite, les fichiers sont restaurés au point de contrôle si un instantané existe, et les éléments ultérieurs sont supprimés.</string>
+    <string name="rich_chat_revert">Revenir</string>
     <string name="rich_chat_rollback">Revenir</string>
     <string name="rich_chat_truncate_from_here">Tronquer à partir d’ici</string>
     <string name="rich_chat_truncate_title">Tronquer cette conversation ?</string>

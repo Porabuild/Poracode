@@ -73,6 +73,10 @@
     <string name="rich_chat_restore_checkpoint_message">Projedeki dosyalar bu kontrol noktasına geri yüklenecek. Daha sonraki konuşma mesajları kaldırılmayacak.</string>
     <string name="rich_chat_rollback_title">Bir tur geri alınsın mı?</string>
     <string name="rich_chat_rollback_message">Sağlayıcı konuşması tamamlanmış bir tur geri alınacak. Devam etmeden önce yenileyin.</string>
+    <string name="rich_chat_revert_to_checkpoint">Kontrol noktasına geri al</string>
+    <string name="rich_chat_revert_title">Kontrol noktasına geri alınsın mı?</string>
+    <string name="rich_chat_revert_message">Konuşma bu istemden önceki duruma geri alınır, anlık görüntü varsa dosyalar kontrol noktasına geri yüklenir ve sonraki öğeler kaldırılır.</string>
+    <string name="rich_chat_revert">Geri al</string>
     <string name="rich_chat_rollback">Geri al</string>
     <string name="rich_chat_truncate_from_here">Buradan kes</string>
     <string name="rich_chat_truncate_title">Bu konuşma kesilsin mi?</string>

@@ -54,8 +54,10 @@ fun RichTimelineView(
     loadingOlder: Boolean,
     runtime: RichChatSessionRuntime,
     onLoadOlder: () -> Unit,
-    canTruncate: Boolean,
+    canMutate: Boolean,
     onTruncateItem: (String) -> Unit,
+    revertableItemIds: Set<String>,
+    onRevertItem: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val projection = RichTimeline.project(transcript.itemsInOrder)
@@ -109,10 +111,25 @@ fun RichTimelineView(
         entries.forEach { entry ->
             when (entry) {
                 is RichTimelineEntry.Item -> item(key = entry.node.item.id) {
-                    RichTimelineNode(entry.node, runtime, canTruncate, onTruncateItem, depth = 0)
+                    RichTimelineNode(
+                        entry.node,
+                        runtime,
+                        canMutate,
+                        onTruncateItem,
+                        revertableItemIds,
+                        onRevertItem,
+                        depth = 0,
+                    )
                 }
                 is RichTimelineEntry.Group -> item(key = entry.stableId) {
-                    RichTimelineGroup(entry, runtime, canTruncate, onTruncateItem)
+                    RichTimelineGroup(
+                        entry,
+                        runtime,
+                        canMutate,
+                        onTruncateItem,
+                        revertableItemIds,
+                        onRevertItem,
+                    )
                 }
             }
         }
@@ -124,8 +141,10 @@ fun RichTimelineView(
 private fun RichTimelineGroup(
     group: RichTimelineEntry.Group,
     runtime: RichChatSessionRuntime,
-    canTruncate: Boolean,
+    canMutate: Boolean,
     onTruncateItem: (String) -> Unit,
+    revertableItemIds: Set<String>,
+    onRevertItem: (String) -> Unit,
 ) {
     var expanded by rememberSaveable(group.stableId) { mutableStateOf(false) }
     Card(
@@ -165,7 +184,15 @@ private fun RichTimelineGroup(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 group.members.forEach {
-                    RichTimelineNode(it, runtime, canTruncate, onTruncateItem, depth = 0)
+                    RichTimelineNode(
+                        it,
+                        runtime,
+                        canMutate,
+                        onTruncateItem,
+                        revertableItemIds,
+                        onRevertItem,
+                        depth = 0,
+                    )
                 }
             }
         }
@@ -176,8 +203,10 @@ private fun RichTimelineGroup(
 private fun RichTimelineNode(
     node: RichVisibleTimelineNode,
     runtime: RichChatSessionRuntime,
-    canTruncate: Boolean,
+    canMutate: Boolean,
     onTruncateItem: (String) -> Unit,
+    revertableItemIds: Set<String>,
+    onRevertItem: (String) -> Unit,
     depth: Int,
 ) {
     Column(
@@ -186,21 +215,25 @@ private fun RichTimelineNode(
             .padding(start = (depth * 12).dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        RichTimelineItem(node.item, runtime, canTruncate, onTruncateItem)
+        RichTimelineItem(node.item, runtime, canMutate, onTruncateItem, revertableItemIds, onRevertItem)
         node.children.forEach { entry ->
             when (entry) {
                 is RichTimelineEntry.Item -> RichTimelineNode(
                     entry.node,
                     runtime,
-                    canTruncate,
+                    canMutate,
                     onTruncateItem,
+                    revertableItemIds,
+                    onRevertItem,
                     depth + 1,
                 )
                 is RichTimelineEntry.Group -> RichTimelineGroup(
                     entry,
                     runtime,
-                    canTruncate,
+                    canMutate,
                     onTruncateItem,
+                    revertableItemIds,
+                    onRevertItem,
                 )
             }
         }
@@ -211,8 +244,10 @@ private fun RichTimelineNode(
 private fun RichTimelineItem(
     item: RichRuntimeItem,
     runtime: RichChatSessionRuntime,
-    canTruncate: Boolean,
+    canMutate: Boolean,
     onTruncateItem: (String) -> Unit,
+    revertableItemIds: Set<String>,
+    onRevertItem: (String) -> Unit,
 ) {
     val text = RichChatUiLogic.itemText(item)
     val images = RichChatUiLogic.images(item)
@@ -262,7 +297,15 @@ private fun RichTimelineItem(
                 }
             }
             images.forEach { RichRemoteImage(it, runtime) }
-            if (canTruncate) {
+            if (item.id in revertableItemIds && canMutate) {
+                TextButton(
+                    onClick = { onRevertItem(item.id) },
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                ) {
+                    Text(stringResource(R.string.rich_chat_revert_to_checkpoint))
+                }
+            }
+            if (canMutate) {
                 TextButton(
                     onClick = { onTruncateItem(item.id) },
                     contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),

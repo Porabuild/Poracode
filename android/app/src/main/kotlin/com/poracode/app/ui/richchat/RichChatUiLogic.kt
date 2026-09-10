@@ -172,6 +172,46 @@ object RichChatUiLogic {
         config?.let { put("config", it.toJsonObject()) }
     }
 
+    /**
+     * The checkpoint anchor for reverting at [userItemId]: the closest assistant
+     * item before it. Mirrors the desktop/iOS planner — only top-level user
+     * prompts qualify, and the first item has nothing to revert to.
+     */
+    fun revertCheckpointItemId(items: List<RichRuntimeItem>, userItemId: String): String? {
+        val userIndex = items.indexOfFirst { it.id == userItemId }
+        if (userIndex <= 0) return null
+        val user = items[userIndex]
+        if (user.type != RichItemTypes.USER_MESSAGE || user.parentItemId != null) return null
+        return items.subList(0, userIndex)
+            .lastOrNull { it.type == RichItemTypes.ASSISTANT_MESSAGE && it.parentItemId == null }
+            ?.id
+    }
+
+    /** One-pass eligibility set so per-item rendering never rescans the transcript. */
+    fun revertableUserItemIds(items: List<RichRuntimeItem>): Set<String> {
+        var lastAssistantId: String? = null
+        val ids = mutableSetOf<String>()
+        for (item in items) {
+            if (item.parentItemId != null) continue
+            if (item.type == RichItemTypes.ASSISTANT_MESSAGE) {
+                lastAssistantId = item.id
+            } else if (item.type == RichItemTypes.USER_MESSAGE && lastAssistantId != null) {
+                ids += item.id
+            }
+        }
+        return ids
+    }
+
+    fun checkpointRevertPayload(threadId: String, checkpointItemId: String): JsonObject =
+        buildJsonObject {
+            put("threadId", threadId)
+            put("checkpointItemId", checkpointItemId)
+            put("operationKey", checkpointRevertOperationKey(threadId, checkpointItemId))
+        }
+
+    fun checkpointRevertOperationKey(threadId: String, checkpointItemId: String): String =
+        "checkpoint-revert.$threadId.$checkpointItemId"
+
     private fun projectLocation(location: ProjectLocation): JsonObject =
         RemoteJson.encodeToJsonElement(ProjectLocation.serializer(), location).jsonObject
 

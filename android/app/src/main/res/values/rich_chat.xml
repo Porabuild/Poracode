@@ -73,6 +73,10 @@
     <string name="rich_chat_restore_checkpoint_message">Files in the project will be restored to this checkpoint. Later conversation messages are not removed.</string>
     <string name="rich_chat_rollback_title">Roll back one turn?</string>
     <string name="rich_chat_rollback_message">The provider conversation will move back one completed turn. Refresh before continuing.</string>
+    <string name="rich_chat_revert_to_checkpoint">Revert to checkpoint</string>
+    <string name="rich_chat_revert_title">Revert to checkpoint?</string>
+    <string name="rich_chat_revert_message">The conversation rolls back to before this prompt, files restore to the checkpoint when a snapshot exists, and later runtime items are removed.</string>
+    <string name="rich_chat_revert">Revert</string>
     <string name="rich_chat_rollback">Roll back</string>
     <string name="rich_chat_truncate_from_here">Truncate from here</string>
     <string name="rich_chat_truncate_title">Truncate this conversation?</string>

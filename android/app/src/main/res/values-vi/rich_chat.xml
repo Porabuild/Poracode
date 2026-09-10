@@ -73,6 +73,10 @@
     <string name="rich_chat_restore_checkpoint_message">Các tệp trong dự án sẽ được khôi phục về điểm kiểm tra này. Những tin nhắn sau đó trong cuộc trò chuyện sẽ không bị xóa.</string>
     <string name="rich_chat_rollback_title">Quay lại một lượt?</string>
     <string name="rich_chat_rollback_message">Cuộc trò chuyện của nhà cung cấp sẽ quay lại một lượt đã hoàn tất. Hãy làm mới trước khi tiếp tục.</string>
+    <string name="rich_chat_revert_to_checkpoint">Hoàn tác về điểm kiểm tra</string>
+    <string name="rich_chat_revert_title">Hoàn tác về điểm kiểm tra?</string>
+    <string name="rich_chat_revert_message">Cuộc trò chuyện sẽ quay lại trước lời nhắc này, tệp được khôi phục về điểm kiểm tra nếu có ảnh chụp nhanh, và các mục sau đó sẽ bị xóa.</string>
+    <string name="rich_chat_revert">Hoàn tác</string>
     <string name="rich_chat_rollback">Quay lại</string>
     <string name="rich_chat_truncate_from_here">Cắt bớt từ đây</string>
     <string name="rich_chat_truncate_title">Cắt bớt cuộc trò chuyện này?</string>

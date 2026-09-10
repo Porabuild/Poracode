@@ -68,6 +68,10 @@
     <string name="rich_chat_restore_checkpoint_message">프로젝트 파일을 이 체크포인트로 복원합니다. 이후 대화 메시지는 삭제되지 않습니다.</string>
     <string name="rich_chat_rollback_title">한 턴 되돌릴까요?</string>
     <string name="rich_chat_rollback_message">공급자 대화를 완료된 한 턴만큼 되돌립니다. 계속하기 전에 새로고침하세요.</string>
+    <string name="rich_chat_revert_to_checkpoint">체크포인트로 되돌리기</string>
+    <string name="rich_chat_revert_title">체크포인트로 되돌릴까요?</string>
+    <string name="rich_chat_revert_message">이 프롬프트 이전 상태로 대화를 되돌리고, 스냅샷이 있으면 체크포인트로 파일을 복원하며, 이후 항목은 제거합니다.</string>
+    <string name="rich_chat_revert">되돌리기</string>
     <string name="rich_chat_rollback">되돌리기</string>
     <string name="rich_chat_truncate_from_here">여기서부터 자르기</string>
     <string name="rich_chat_truncate_title">이 대화를 자르시겠습니까?</string>

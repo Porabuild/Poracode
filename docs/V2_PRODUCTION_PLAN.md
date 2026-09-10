@@ -304,6 +304,22 @@ checkpoint-revert route`, `28f48ba89`): capability-shaped provider hooks
   mapped to transport failure), `RichChatCheckpointRevertInput` reduced to the checkpoint
   item id. Remaining: stage 5 Android adoption + native-parity dispositions, stage 6
   fault-injection matrix.
+- **Stage 5 — DONE** (Android adoption + ledger dispositions): the Android client now
+  rides the compound route end to end — `GeneratedRemoteV3RichChatContract.checkpointRevert`
+  facade over the generated Kotlin codecs, `RichChatRemoteTransport.checkpointRevert`
+  (POST `/api/threads/{id}/checkpoint-revert`, `x-poracode-command-id:
+checkpoint-revert:<key>`, outcome decode: `completed`/`completed_local_only`/`noop`
+  resolve, `ambiguous` → outcome-unknown, else → `RichChatRevertFailedException` mapped
+  to a definite `checkpoint_revert_failed` gateway failure),
+  `GeneratedRichChatSessionGateway.checkpointRevert` (Operate scope, threadId guard),
+  `RichCheckpointController.revert` (one unit mutation, authoritative-refresh on
+  success), and a desktop-parity per-prompt revert action in `RichTimelineView`
+  (`RichChatUiLogic.revertableUserItemIds` planner excludes leading/nested prompts,
+  confirm dialog, deterministic `checkpoint-revert.<threadId>.<itemId>` operation key).
+  Strings added in all 13 Android locales. `native-parity.json`
+  thread-checkpoint-revert flipped to `implemented` for both iOS (stage 4) and Android
+  with production evidence paths; `native-parity.test.ts` green. Remaining: stage 6
+  fault-injection matrix.
 - **Stage 3** — capability-shaped provider hooks `createRevertAnchor` / `restoreToRevertAnchor` (idempotent absolute restore) in the base session surface; Claude/Codex/OpenCode implementations (each already computes an absolute target internally); ACP family declares absence → existing `local_only` gating. No provider names in shared code.
 - **Stage 4** — backend-host protocol 4→5 + compound remote route `POST /api/threads/{id}/checkpoint-revert` (`command-id-header`); renderer one-call swap (delete `revertingRef`/`revertProgressRef`); iOS migrates off its three-call replica.
 - **Stage 5** — protocol regen (manifest/IR/schema/Swift/Kotlin), `native-parity.json` update, Android adoption.

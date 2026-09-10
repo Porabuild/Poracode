@@ -68,6 +68,10 @@
     <string name="rich_chat_restore_checkpoint_message">プロジェクトのファイルをこのチェックポイントに復元します。後の会話メッセージは削除されません。</string>
     <string name="rich_chat_rollback_title">1 ターン戻しますか？</string>
     <string name="rich_chat_rollback_message">プロバイダーの会話を完了済みの 1 ターン分戻します。続行する前に更新してください。</string>
+    <string name="rich_chat_revert_to_checkpoint">チェックポイントへ戻す</string>
+    <string name="rich_chat_revert_title">チェックポイントへ戻しますか？</string>
+    <string name="rich_chat_revert_message">このプロンプトより前の状態に会話を戻し、スナップショットがあればチェックポイントへファイルを復元し、それ以降のアイテムを削除します。</string>
+    <string name="rich_chat_revert">戻す</string>
     <string name="rich_chat_rollback">戻す</string>
     <string name="rich_chat_truncate_from_here">ここから切り詰め</string>
     <string name="rich_chat_truncate_title">この会話を切り詰めますか？</string>

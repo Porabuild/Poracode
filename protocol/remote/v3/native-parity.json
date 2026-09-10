@@ -955,14 +955,27 @@
       {
         "id": "thread-checkpoint-revert",
         "batch": "rich-chat-requests",
-        "note": "WS2 compound checkpoint revert: natives adopt the one-call route in WS2 stage 4-5; until then they keep their client-orchestrated revert flows.",
+        "note": "WS2 stages 3-5: the host journals the compound revert, and desktop, web, iOS, and Android all issue one idempotent POST keyed by an operationKey instead of client-orchestrated multi-call flows.",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/GeneratedRichChatContract.swift",
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift",
+            "ios/App/App/Features/RichChat/Controllers/RichChatConversationController.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift",
+            "ios/App/App/Features/RichChat/RichChatMessageRevert.swift"
+          ]
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3RichChatContract.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichCheckpointController.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatUiLogic.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadScreen.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichTimelineView.kt"
+          ]
         }
       },
       {
