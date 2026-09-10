@@ -85,7 +85,11 @@ import {
   TerminalCursorSyncRegistry,
 } from "./server/terminalCursorSync";
 
-const EVENT_BUFFER_LIMIT = 500;
+// WS5 P1-9: under streaming load the old 500-entry cap was exhausted by small
+// content deltas long before the 8 MB byte budget, forcing reconnecting
+// clients into full resyncs. The byte budget bounds memory either way, so the
+// entry cap only needs to bound worst-case entry counts.
+const EVENT_BUFFER_LIMIT = 4_000;
 const EVENT_BUFFER_MAX_BYTES = DEFAULT_EVENT_BUFFER_MAX_BYTES;
 const DEFAULT_LISTEN_RETRY_ATTEMPTS = 5;
 const DEFAULT_LISTEN_RETRY_DELAY_MS = 500;
@@ -680,7 +684,12 @@ export class RemoteAccessServer {
       });
       return;
     }
-    this.eventBuffer.push({ seq, event: capped.event, bytes: capped.bytes });
+    this.eventBuffer.push({
+      seq,
+      event: capped.event,
+      bytes: capped.bytes,
+      json: capped.json,
+    });
     trimEventBuffer(this.eventBuffer, EVENT_BUFFER_LIMIT, EVENT_BUFFER_MAX_BYTES);
     // Some events are tailored per connection: pull-request bodies go only to the
     // client reviewing that PR, and transcript content only to clients watching
