@@ -1800,51 +1800,84 @@ describe("useRemoteDesktop", () => {
     expect(order[0]).toBe("interests");
   });
 
-  it("returns and titles a mobile provider fork with the same marker as desktop", async () => {
-    const desktop = makeDesktop("d1");
-    const client = clientFor("d1");
-    const view = await mountWith([desktop], "d1");
-    const project: Project = {
-      id: "p",
-      name: "Project",
-      location: { kind: "posix", path: "/repo" },
-      createdAt: "2026-01-01T00:00:00.000Z",
-    };
-    const thread: Thread = {
-      id: "source-thread",
-      projectId: project.id,
-      title: "Incident triage",
-      agentKind: "claude",
-      config: { model: "opus" },
-      status: "idle",
-      attention: "none",
-      canResumeWithConfig: false,
-      archived: false,
-      done: false,
-      starred: false,
-      presentationMode: "gui",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
-    };
-    useAppStore.setState({ projects: [project], threads: [thread] });
-
-    let createdThreadId: string | null = null;
-    await act(async () => {
-      createdThreadId = await view.result.current.continueThreadProvider(thread, {
-        targetAgentKind: "codex",
-        targetConfig: { model: "gpt-5" },
-        targetPresentationMode: "gui",
-        fork: true,
+  it.each([
+    { fork: true, contextSize: "1m", budget: 50_000 },
+    { fork: false, contextSize: "1m", budget: 50_000 },
+    { fork: true, contextSize: "32k", budget: 44_800 },
+    { fork: false, contextSize: "32k", budget: 44_800 },
+  ])(
+    "hands off bounded mobile history ($fork fork, $contextSize)",
+    async ({ fork, contextSize, budget }) => {
+      const desktop = makeDesktop("d1");
+      const client = clientFor("d1");
+      const view = await mountWith([desktop], "d1");
+      const project: Project = {
+        id: "p",
+        name: "Project",
+        location: { kind: "posix", path: "/repo" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      };
+      const thread: Thread = {
+        id: "source-thread",
+        projectId: project.id,
+        title: "Incident triage",
+        agentKind: "claude",
+        config: { model: "opus", contextSize: "1k" },
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: false,
+        archived: false,
+        done: false,
+        starred: false,
+        presentationMode: "gui",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      };
+      const items = Array.from({ length: 100 }, (_, index) => ({
+        id: `u${index}`,
+        type: "user_message" as const,
+        state: "completed" as const,
+        payload: { content: [{ kind: "text", text: `Turn ${index}: ${"文".repeat(5_900)}` }] },
+        streams: {},
+      }));
+      useAppStore.setState({
+        projects: [project],
+        threads: [thread],
+        runtimeItemIdsByThread: { [thread.id]: items.map((item) => item.id) },
+        runtimeItemsByIdByThread: {
+          [thread.id]: Object.fromEntries(items.map((item) => [item.id, item])),
+        },
       });
-    });
 
-    const input = client.startNewThread.mock.calls[0]?.[0] as {
-      threadId: string;
-      title: string;
-    };
-    expect(input.title).toBe("Incident triage (fork)");
-    expect(createdThreadId).toBe(input.threadId);
-  });
+      let createdThreadId: string | null = null;
+      await act(async () => {
+        createdThreadId = await view.result.current.continueThreadProvider(thread, {
+          targetAgentKind: "codex",
+          targetConfig: { model: "gpt-5", contextSize },
+          targetPresentationMode: "gui",
+          fork,
+        });
+      });
+
+      const input = (fork ? client.startNewThread : client.startThread).mock.calls[0]?.[0] as {
+        threadId: string;
+        title: string;
+        prompt: string;
+      };
+      expect(input).toEqual(
+        expect.objectContaining(
+          fork ? { title: "Incident triage (fork)" } : { threadId: thread.id },
+        ),
+      );
+      expect(createdThreadId).toBe(input.threadId);
+      expect(input.prompt).toContain("Turn 0:");
+      expect(input.prompt).toContain("Turn 99:");
+      expect(input.prompt).not.toContain("Turn 1:");
+      expect(input.prompt.length).toBeLessThan(budget + 500);
+      expect(input.prompt.length).toBeGreaterThan(budget - 7_000);
+      expect(Buffer.byteLength(JSON.stringify(input))).toBeLessThan(1_048_576);
+    },
+  );
 
   it("[#8] does not claim offline while cached data renders during the first boot refresh", async () => {
     const d = makeDesktop("d1");
