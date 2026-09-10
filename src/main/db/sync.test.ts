@@ -13,7 +13,7 @@ import {
   dbUpsertThread,
 } from "./projectsThreads";
 import { dbApplyThreadRuntimeEvents, dbGetThreadRuntimeItems } from "./runtimeItems";
-import { dbSyncAll } from "./sync";
+import { dbSyncAll, dbSyncChanges } from "./sync";
 
 const serverNativeBinding = join(process.cwd(), "dist", "server-native", "better_sqlite3.node");
 let nativeBindingEnv: string | undefined;
@@ -187,5 +187,81 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     const { workspaceId: _dropped, ...unfiled } = tagged;
     dbSyncAll([project], [unfiled, untagged], "{}");
     expect(dbGetThread("thread-tagged")?.workspaceId).toBeUndefined();
+  });
+});
+
+describe.skipIf(!sqliteAvailable)("dbSyncChanges row-scoped sync", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    if (nativeBindingEnv) {
+      process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
+    }
+    dir = mkdtempSync(join(tmpdir(), "poracode-sync-changes-test-"));
+    initDatabase(join(dir, "state.sqlite"));
+    dbUpsertProject(project, 0);
+  });
+
+  afterEach(() => {
+    closeDatabase();
+    rmSync(dir, { recursive: true, force: true });
+    delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+  });
+
+  it("upserts only the changed rows it receives and never touches unlisted rows", () => {
+    dbUpsertThread(remoteStartedThread(), 0);
+
+    dbSyncChanges({
+      projects: [],
+      threads: [{ ...remoteStartedThread(), id: "thread-scoped", title: "Scoped" }],
+      deletedProjectIds: [],
+      deletedThreadIds: [],
+      viewJson: JSON.stringify({ kind: "home" }),
+    });
+
+    // The changed row landed; the row absent from the payload survives —
+    // unlike dbSyncAll, absence is not a deletion.
+    expect(dbGetThread("thread-scoped")?.title).toBe("Scoped");
+    expect(dbGetThread("thread-remote")).not.toBeNull();
+    expect(dbGetState("view")).toBe('{"kind":"home"}');
+  });
+
+  it("deletes explicitly listed threads with their transcripts and ownership markers", () => {
+    dbUpsertThread(remoteStartedThread(), 0);
+    persistLaunchUserMessage("thread-remote");
+
+    dbSyncChanges({
+      projects: [],
+      threads: [],
+      deletedProjectIds: [],
+      deletedThreadIds: ["thread-remote"],
+      viewJson: "{}",
+    });
+
+    expect(dbGetThread("thread-remote")).toBeNull();
+    expect(dbGetThreadRuntimeItems("thread-remote")).toEqual([]);
+
+    // A later full sync must treat this id as deletable again, not protected.
+    dbSyncAll([project], [], JSON.stringify({ kind: "home" }));
+    expect(dbGetThread("thread-remote")).toBeNull();
+  });
+
+  it("upserting a mirrored thread hands ownership back so full syncs can delete it", () => {
+    dbUpsertThread(remoteStartedThread(), 0);
+    persistLaunchUserMessage("thread-remote");
+
+    // The renderer mirrors the thread as a changed row.
+    dbSyncChanges({
+      projects: [],
+      threads: [remoteStartedThread()],
+      deletedProjectIds: [],
+      deletedThreadIds: [],
+      viewJson: "{}",
+    });
+    expect(dbGetThreadRuntimeItems("thread-remote")).toHaveLength(1);
+
+    // Now the renderer dropping the row in a full sync is a real deletion.
+    dbSyncAll([project], [], JSON.stringify({ kind: "home" }));
+    expect(dbGetThread("thread-remote")).toBeNull();
   });
 });

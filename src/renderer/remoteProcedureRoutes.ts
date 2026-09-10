@@ -87,6 +87,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   dbUpsertThread: "remote-mirrors-not-persisted",
   dbDeleteThread: "remote-mirrors-not-persisted",
   dbSyncAll: "remote-mirrors-not-persisted",
+  dbSyncChanges: "remote-mirrors-not-persisted",
   dbGetThreadRuntimeItems: "remote-runtime-mirror-local",
   dbGetLatestThreadGoalItem: "remote-runtime-snapshot-provided",
   dbReplaceThreadRuntimeItems: "remote-runtime-mirror-local",

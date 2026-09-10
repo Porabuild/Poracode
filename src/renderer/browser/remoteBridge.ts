@@ -368,6 +368,7 @@ const remoteBridgeOverrides = {
   dbGetState: () => Promise.resolve(null),
   dbSetState: () => Promise.resolve(),
   dbSyncAll: () => Promise.resolve(),
+  dbSyncChanges: () => Promise.resolve(),
   getKeybindings: async () => getBrowserKeybindings(),
   setKeybindings: async (file: KeybindingsFile) => setBrowserKeybindings(file),
 

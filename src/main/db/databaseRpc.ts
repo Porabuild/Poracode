@@ -19,6 +19,7 @@ import {
   dbSetProjectNotes,
   dbSetState,
   dbSyncAll,
+  dbSyncChanges,
   dbTruncateThreadRuntimeAfter,
   dbUpsertProject,
   dbUpsertThread,
@@ -46,6 +47,8 @@ export function callDatabaseRpc(call: BackendDatabaseCall): unknown {
       return dbDeleteProject(call.payload.projectId);
     case "dbSyncAll":
       return dbSyncAll(call.payload.projects, call.payload.threads, call.payload.viewJson);
+    case "dbSyncChanges":
+      return dbSyncChanges(call.payload);
     case "dbPersistExperimentState":
       return dbPersistExperimentState(call.payload);
     case "dbGetThreadRuntimeItems":

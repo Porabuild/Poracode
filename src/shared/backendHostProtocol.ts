@@ -104,6 +104,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbDeleteThread",
   "dbDeleteProject",
   "dbSyncAll",
+  "dbSyncChanges",
   "dbPersistExperimentState",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",

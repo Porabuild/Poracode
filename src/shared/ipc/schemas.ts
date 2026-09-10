@@ -167,6 +167,14 @@ export const dbSyncAllPayloadSchema = z.object({
   threads: z.array(persistedThreadSchema),
   viewJson: z.string(),
 });
+export const dbSyncChangesPayloadSchema = z.object({
+  /** Only the rows whose content changed since the last persisted snapshot. */
+  projects: z.array(projectSchema),
+  threads: z.array(persistedThreadSchema),
+  deletedProjectIds: z.array(z.string().min(1)),
+  deletedThreadIds: z.array(z.string().min(1)),
+  viewJson: z.string(),
+});
 export const dbPersistExperimentStatePayloadSchema = z.object({
   upsertThreads: z.array(
     z.object({
