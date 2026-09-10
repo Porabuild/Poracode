@@ -109,10 +109,52 @@ describe("createDbStorage", () => {
     expect(bridge.dbSyncChanges).toHaveBeenCalledTimes(1);
     expect(bridge.dbSyncChanges).toHaveBeenCalledWith({
       projects: [],
-      threads: [edited, added],
+      threads: [
+        { thread: edited, sortOrder: 0 },
+        { thread: added, sortOrder: 1 },
+      ],
       deletedProjectIds: [],
       deletedThreadIds: ["thread-gone"],
+      threadOrder: ["thread-kept", "thread-new"],
       viewJson: '{"kind":"thread","panes":["thread-new"]}',
+    });
+  });
+
+  it("persists a drag reorder that permutes row objects without changing them", async () => {
+    const storage = createDbStorage();
+    const first = { id: "thread-1", title: "first" };
+    const second = { id: "thread-2", title: "second" };
+    await storage.setItem("poracode-app-v2", {
+      state: {
+        projects: [],
+        threads: [first, second],
+        view: { kind: "home" },
+        groupLayouts: {},
+      },
+      version: 5,
+    });
+    bridge.dbSyncChanges.mockClear();
+
+    // Same row objects, new array order — the identity diff is empty but the
+    // id sequence changed, so the order list must travel.
+    await storage.setItem("poracode-app-v2", {
+      state: {
+        projects: [],
+        threads: [second, first],
+        view: { kind: "home" },
+        groupLayouts: {},
+      },
+      version: 5,
+    });
+
+    expect(bridge.dbSyncChanges).toHaveBeenCalledTimes(1);
+    expect(bridge.dbSyncChanges).toHaveBeenCalledWith({
+      projects: [],
+      threads: [],
+      deletedProjectIds: [],
+      deletedThreadIds: [],
+      threadOrder: ["thread-2", "thread-1"],
+      viewJson: '{"kind":"home"}',
     });
   });
 
@@ -183,9 +225,10 @@ describe("createDbStorage", () => {
     expect(bridge.dbSyncChanges).toHaveBeenCalledTimes(1);
     expect(bridge.dbSyncChanges).toHaveBeenCalledWith({
       projects: [],
-      threads: [{ id: "final" }],
+      threads: [{ thread: { id: "final" }, sortOrder: 0 }],
       deletedProjectIds: [],
       deletedThreadIds: ["first"],
+      threadOrder: ["final"],
       viewJson: '{"kind":"home"}',
     });
   });

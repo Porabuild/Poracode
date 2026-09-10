@@ -8,6 +8,7 @@ import { closeDatabase, initDatabase } from "./connection";
 import {
   dbGetState,
   dbGetThread,
+  dbGetThreads,
   dbSetState,
   dbUpsertProject,
   dbUpsertThread,
@@ -213,17 +214,51 @@ describe.skipIf(!sqliteAvailable)("dbSyncChanges row-scoped sync", () => {
 
     dbSyncChanges({
       projects: [],
-      threads: [{ ...remoteStartedThread(), id: "thread-scoped", title: "Scoped" }],
+      threads: [
+        {
+          thread: { ...remoteStartedThread(), id: "thread-scoped", title: "Scoped" },
+          sortOrder: 1,
+        },
+      ],
       deletedProjectIds: [],
       deletedThreadIds: [],
       viewJson: JSON.stringify({ kind: "home" }),
     });
 
-    // The changed row landed; the row absent from the payload survives —
-    // unlike dbSyncAll, absence is not a deletion.
+    // The changed row landed at its full-list position, not the subset index —
+    // with the subset index it would sort before thread-remote. The row absent
+    // from the payload survives: unlike dbSyncAll, absence is not a deletion.
+    expect(dbGetThreads().map((thread) => thread.id)).toEqual(["thread-remote", "thread-scoped"]);
     expect(dbGetThread("thread-scoped")?.title).toBe("Scoped");
-    expect(dbGetThread("thread-remote")).not.toBeNull();
     expect(dbGetState("view")).toBe('{"kind":"home"}');
+  });
+
+  it("reindexes every row from a shipped order list so drags survive a restart", () => {
+    const a = { ...remoteStartedThread(), id: "thread-a" };
+    const b = { ...remoteStartedThread(), id: "thread-b" };
+    dbSyncChanges({
+      projects: [],
+      threads: [
+        { thread: a, sortOrder: 0 },
+        { thread: b, sortOrder: 1 },
+      ],
+      deletedProjectIds: [],
+      deletedThreadIds: [],
+      viewJson: "{}",
+    });
+
+    // The renderer reordered the same row objects: no row content changed, so
+    // only the order list travels.
+    dbSyncChanges({
+      projects: [],
+      threads: [],
+      deletedProjectIds: [],
+      deletedThreadIds: [],
+      threadOrder: ["thread-b", "thread-a"],
+      viewJson: "{}",
+    });
+
+    expect(dbGetThreads().map((thread) => thread.id)).toEqual(["thread-b", "thread-a"]);
   });
 
   it("deletes explicitly listed threads with their transcripts and ownership markers", () => {
@@ -253,7 +288,7 @@ describe.skipIf(!sqliteAvailable)("dbSyncChanges row-scoped sync", () => {
     // The renderer mirrors the thread as a changed row.
     dbSyncChanges({
       projects: [],
-      threads: [remoteStartedThread()],
+      threads: [{ thread: remoteStartedThread(), sortOrder: 0 }],
       deletedProjectIds: [],
       deletedThreadIds: [],
       viewJson: "{}",
