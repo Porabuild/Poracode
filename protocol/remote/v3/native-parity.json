@@ -957,7 +957,7 @@
       {
         "id": "thread-checkpoint-revert",
         "batch": "rich-chat-requests",
-        "note": "WS2 stages 3-5: the host journals the compound revert, and desktop, web, iOS, and Android all issue one idempotent POST keyed by an operationKey instead of client-orchestrated multi-call flows.",
+        "note": "WS2 stages 3-5: the host journals the compound revert keyed by an operationKey. Web/iOS/Android issue one idempotent POST to the compound route; the Electron renderer reaches the same journaled operation through the backend-host bridge instead of a client-orchestrated multi-call flow.",
         "ios": {
           "disposition": "implemented",
           "evidence": [

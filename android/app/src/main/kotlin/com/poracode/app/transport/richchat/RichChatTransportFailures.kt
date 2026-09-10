@@ -12,7 +12,12 @@ class RichChatAuthorizationException(val status: Int) :
 class RichChatRemoteRejectedException(val status: Int) :
     RichChatTransportException("The remote host rejected the request.")
 
-/** The revert request settled server-side with a failed outcome; retry is idempotent. */
+/**
+ * The revert request settled server-side with a failed outcome; retry is
+ * idempotent. The journal owns the partial state — the provider phase may
+ * already have rolled back while files/truncate did not run — so this stays
+ * a definite (non-ambiguous) failure and the server resumes on retry.
+ */
 class RichChatRevertFailedException : RichChatTransportException("The checkpoint revert failed.")
 
 class RichChatMutationOutcomeUnknownException(val operation: String) :
