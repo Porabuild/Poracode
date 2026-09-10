@@ -8,6 +8,39 @@ import { filterSyncedRemoteProjects } from "./projectSync";
 
 let remoteProjectRowsSyncDepth = 0;
 
+/**
+ * Identity-preserving projection cache (WS6 P1-12).
+ *
+ * `projectRemoteThread` builds a fresh row on every call, so without this cache
+ * every mirrored thread got new object identity on each snapshot refresh and
+ * every sidebar/header/composer subscriber re-rendered. The runtime mirror
+ * (reuseRemoteRows) keeps source rows reference-stable while their content is
+ * unchanged, so a source-reference hit reuses the previous projection for free;
+ * a changed source pays one content compare and still keeps the old object
+ * when the projection is equal.
+ */
+const projectedThreadCache = new Map<string, { source: Thread; projected: Thread }>();
+
+function projectThreadIdentityPreserving(desktopId: string, thread: Thread): Thread {
+  const key = remoteThreadId(desktopId, thread.id);
+  const cached = projectedThreadCache.get(key);
+  if (cached && cached.source === thread) return cached.projected;
+  const projected = projectRemoteThread(desktopId, thread);
+  if (cached && JSON.stringify(cached.projected) === JSON.stringify(projected)) {
+    cached.source = thread;
+    return cached.projected;
+  }
+  projectedThreadCache.set(key, { source: thread, projected });
+  return projected;
+}
+
+function dropProjectedThreadCache(desktopId: string): void {
+  const prefix = `remote:${desktopId}:thread:`;
+  for (const key of projectedThreadCache.keys()) {
+    if (key.startsWith(prefix)) projectedThreadCache.delete(key);
+  }
+}
+
 function withRemoteProjectRowsSync<T>(fn: () => T): T {
   remoteProjectRowsSyncDepth += 1;
   try {
@@ -113,7 +146,7 @@ export function syncRemoteAppRows(
       );
       if (liveRow) return liveRow;
     }
-    return projectRemoteThread(desktopId, thread);
+    return projectThreadIdentityPreserving(desktopId, thread);
   });
   const projectedThreadIds = new Set(projectedThreads?.map((thread) => thread.id) ?? []);
   if (projectedProjects) {
@@ -177,6 +210,7 @@ export function syncRemoteAppRows(
 }
 
 export function removeRemoteAppRows(desktopId: string): void {
+  dropProjectedThreadCache(desktopId);
   syncRemoteAppRows(desktopId, [], []);
 }
 

@@ -134,13 +134,29 @@ import { createSecureRemoteServersStorage } from "@/renderer/state/remoteServers
  * Connection bookkeeping (endpoint + bearer token + label) is persisted to
  * localStorage; live snapshot data is kept in memory and re-fetched on connect.
  */
+/**
+ * Fingerprint memo for the unchanged side of the row compare (WS6 P1-13): the
+ * current row is serialized once, not on every refresh that re-compares it
+ * against a freshly parsed twin. Entries die with their row object.
+ */
+const rowFingerprints = new WeakMap<object, string>();
+
+function fingerprintRow(row: object): string {
+  let json = rowFingerprints.get(row);
+  if (json === undefined) {
+    json = JSON.stringify(row);
+    rowFingerprints.set(row, json);
+  }
+  return json;
+}
+
 function reuseRemoteRows<T extends { readonly id: string }>(current: T[], incoming: T[]): T[] {
   if (current.length === 0) return incoming.length === 0 ? current : incoming;
   const currentById = new Map(current.map((row) => [row.id, row]));
   let changed = current.length !== incoming.length;
   const next = incoming.map((row, index) => {
     const existing = currentById.get(row.id);
-    const resolved = existing && JSON.stringify(existing) === JSON.stringify(row) ? existing : row;
+    const resolved = existing && fingerprintRow(existing) === JSON.stringify(row) ? existing : row;
     if (resolved !== current[index]) changed = true;
     return resolved;
   });

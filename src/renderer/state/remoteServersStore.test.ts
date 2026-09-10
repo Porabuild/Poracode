@@ -4524,6 +4524,53 @@ describe("useRemoteServersStore", () => {
     expect(after.projects).toBe(before.projects);
   });
 
+  it("keeps app-store thread row identity across refreshes of an unchanged thread", async () => {
+    // Fresh deserialization per snapshot: the source object identity differs
+    // every refresh even though the content is equal (WS6 P1-12).
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          snapshot: async () => ({
+            snapshotSeq: 2,
+            projects: [{ ...proj, location: { ...proj.location } }],
+            threads: [{ ...remoteThread }],
+            runtimeSummariesByThread: {},
+            updatedAt: "later",
+          }),
+        }),
+      ),
+    );
+    await pairIsolated(() => makeSocket());
+    const projectedId = remoteThreadId("d1", "rt-1");
+    const before = useAppStore.getState().threads.find((thread) => thread.id === projectedId);
+    expect(before).toBeDefined();
+
+    await useRemoteServersStore.getState().refreshServer("d1");
+    const after = useAppStore.getState().threads.find((thread) => thread.id === projectedId);
+
+    expect(after).toBe(before);
+
+    // A real content change ships a new row object.
+    useRemoteServersStore.getState().setClientFactory(
+      factoryFor(
+        makeClient({
+          snapshot: async () => ({
+            snapshotSeq: 3,
+            projects: [{ ...proj, location: { ...proj.location } }],
+            threads: [{ ...remoteThread, title: "Renamed" }],
+            runtimeSummariesByThread: {},
+            updatedAt: "later",
+          }),
+        }),
+      ),
+    );
+    await useRemoteServersStore.getState().refreshServer("d1");
+    const renamed = useAppStore.getState().threads.find((thread) => thread.id === projectedId);
+
+    expect(renamed).not.toBe(before);
+    expect(renamed?.title).toBe("Renamed");
+  });
+
   // ── Finding #3: pairing during in-flight connectAll ─────────────────
   it("starts the event stream for a server paired during an in-flight connectAll", async () => {
     // Pre-seed one persisted server whose refresh hangs, so connectAll stays
