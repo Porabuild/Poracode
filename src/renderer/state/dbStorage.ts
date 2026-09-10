@@ -288,6 +288,8 @@ async function saveAppStore(
           threads: changes.threads,
           deletedProjectIds: changes.deletedProjectIds,
           deletedThreadIds: changes.deletedThreadIds,
+          ...(changes.projectOrder ? { projectOrder: changes.projectOrder } : {}),
+          ...(changes.threadOrder ? { threadOrder: changes.threadOrder } : {}),
           viewJson,
         })
       : readBridge().dbSyncAll(projects, threads, viewJson)
@@ -312,17 +314,22 @@ async function saveAppStore(
 }
 
 interface AppStoreRowChanges {
-  projects: Project[];
-  threads: Thread[];
+  projects: Array<{ project: Project; sortOrder: number }>;
+  threads: Array<{ thread: Thread; sortOrder: number }>;
   deletedProjectIds: string[];
   deletedThreadIds: string[];
+  projectOrder?: string[];
+  threadOrder?: string[];
 }
 
 /**
  * Diffs the current project/thread rows against the last persisted snapshot.
  * Row objects are recreated only when their content changes, so reference
  * inequality covers both edits and additions; deletions are ids present before
- * and absent now.
+ * and absent now. Order is a property of the ARRAY, not the row: a drag
+ * reorder permutes the same row objects, so any change to the id sequence
+ * ships the full ordered id lists for main to reindex, and every changed row
+ * carries its current full-list index because the upsert writes sort_order.
  */
 function appStoreRowChanges(
   previous: StorageValue<unknown>,
@@ -335,12 +342,28 @@ function appStoreRowChanges(
   const projectIds = new Set(projects.map((project) => project.id));
   const threadIds = new Set(threads.map((thread) => thread.id));
 
+  const prevProjectOrder = (prevState?.projects ?? []).map((project) => project.id);
+  const prevThreadOrder = (prevState?.threads ?? []).map((thread) => thread.id);
+  const projectOrder = projects.map((project) => project.id);
+  const threadOrder = threads.map((thread) => thread.id);
+
   return {
-    projects: projects.filter((project) => prevProjects.get(project.id) !== project),
-    threads: threads.filter((thread) => prevThreads.get(thread.id) !== thread),
+    projects: projects
+      .map((project, sortOrder) => ({ project, sortOrder }))
+      .filter(({ project }) => prevProjects.get(project.id) !== project),
+    threads: threads
+      .map((thread, sortOrder) => ({ thread, sortOrder }))
+      .filter(({ thread }) => prevThreads.get(thread.id) !== thread),
     deletedProjectIds: [...prevProjects.keys()].filter((projectId) => !projectIds.has(projectId)),
     deletedThreadIds: [...prevThreads.keys()].filter((threadId) => !threadIds.has(threadId)),
+    ...(sameIdSequence(prevProjectOrder, projectOrder) ? {} : { projectOrder }),
+    ...(sameIdSequence(prevThreadOrder, threadOrder) ? {} : { threadOrder }),
   };
+}
+
+function sameIdSequence(previous: string[], next: string[]): boolean {
+  if (previous.length !== next.length) return false;
+  return previous.every((id, index) => id === next[index]);
 }
 
 async function removeAppStore(): Promise<void> {

@@ -168,11 +168,21 @@ export const dbSyncAllPayloadSchema = z.object({
   viewJson: z.string(),
 });
 export const dbSyncChangesPayloadSchema = z.object({
-  /** Only the rows whose content changed since the last persisted snapshot. */
-  projects: z.array(projectSchema),
-  threads: z.array(persistedThreadSchema),
+  /** Only the rows whose content changed since the last persisted snapshot,
+   * each carrying its index in the renderer's full list — sort_order is a
+   * property of the array, invisible to per-row diffing. */
+  projects: z.array(
+    z.object({ project: projectSchema, sortOrder: z.number().int().nonnegative() }),
+  ),
+  threads: z.array(
+    z.object({ thread: persistedThreadSchema, sortOrder: z.number().int().nonnegative() }),
+  ),
   deletedProjectIds: z.array(z.string().min(1)),
   deletedThreadIds: z.array(z.string().min(1)),
+  /** Shipped when the id sequence changed (reorder, insert, remove): the full
+   * ordered id lists so main reindexes every row's sort_order. */
+  projectOrder: z.array(z.string().min(1)).optional(),
+  threadOrder: z.array(z.string().min(1)).optional(),
   viewJson: z.string(),
 });
 export const dbPersistExperimentStatePayloadSchema = z.object({

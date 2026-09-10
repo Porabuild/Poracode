@@ -31,10 +31,12 @@ const THREAD_SYNC_OPTIONS = { writeThreadStatusSource: false } as const;
  * cleared so the guard cannot resurrect the row later.
  */
 export function dbSyncChanges(payload: {
-  projects: Project[];
-  threads: Thread[];
+  projects: Array<{ project: Project; sortOrder: number }>;
+  threads: Array<{ thread: Thread; sortOrder: number }>;
   deletedProjectIds: string[];
   deletedThreadIds: string[];
+  projectOrder?: string[] | undefined;
+  threadOrder?: string[] | undefined;
   viewJson: string;
 }): void {
   const sqlite = getSqlite();
@@ -47,8 +49,8 @@ export function dbSyncChanges(payload: {
         deleteProjectNotes.run(projectId);
       }
       const upsertProject = prepareProjectUpsertStatement(sqlite);
-      for (let i = 0; i < payload.projects.length; i++) {
-        runProjectUpsert(upsertProject, payload.projects[i]!, i);
+      for (const { project, sortOrder } of payload.projects) {
+        runProjectUpsert(upsertProject, project, sortOrder);
       }
 
       const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
@@ -57,10 +59,22 @@ export function dbSyncChanges(payload: {
         forgetMainCreatedThread(threadId);
       }
       const upsertThread = prepareThreadUpsertStatement(sqlite, THREAD_SYNC_OPTIONS);
-      for (let i = 0; i < payload.threads.length; i++) {
-        runThreadUpsert(upsertThread, payload.threads[i]!, i, THREAD_SYNC_OPTIONS);
+      for (const { thread, sortOrder } of payload.threads) {
+        runThreadUpsert(upsertThread, thread, sortOrder, THREAD_SYNC_OPTIONS);
       }
-      acknowledgeMirroredThreadIds(payload.threads.map((thread) => thread.id));
+      acknowledgeMirroredThreadIds(payload.threads.map(({ thread }) => thread.id));
+
+      // A drag reorder (or add/remove) permutes the array without changing any
+      // row object, so order travels as explicit full id lists; reindexing here
+      // is idempotent with the upserts' own sort_order values.
+      if (payload.projectOrder) {
+        const reindex = sqlite.prepare("UPDATE projects SET sort_order = ? WHERE id = ?");
+        payload.projectOrder.forEach((projectId, index) => reindex.run(index, projectId));
+      }
+      if (payload.threadOrder) {
+        const reindex = sqlite.prepare("UPDATE threads SET sort_order = ? WHERE id = ?");
+        payload.threadOrder.forEach((threadId, index) => reindex.run(index, threadId));
+      }
 
       sqlite
         .prepare(
@@ -75,7 +89,9 @@ export function dbSyncChanges(payload: {
     payload.projects.length > 0 ||
     payload.threads.length > 0 ||
     payload.deletedProjectIds.length > 0 ||
-    payload.deletedThreadIds.length > 0
+    payload.deletedThreadIds.length > 0 ||
+    payload.projectOrder !== undefined ||
+    payload.threadOrder !== undefined
   ) {
     notifyProjectThreadDataChanged();
   }
