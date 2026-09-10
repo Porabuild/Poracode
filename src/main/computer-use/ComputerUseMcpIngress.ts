@@ -47,10 +47,24 @@ export interface ComputerUseMcpIngressOptions {
    * Read synchronously right after a session event so `enable` can report it.
    */
   isDisplayKeptAwake?: () => boolean;
+  /**
+   * Overrides the pre-observation settle (see `OBSERVATION_SETTLE_MS`). Only
+   * tests set it, so they do not wait out a real app's reporting lag.
+   */
+  observationSettleMs?: number;
 }
 
 export class ComputerUseMcpIngress {
   private backendNotes: string[] = [];
+  /**
+   * Bumped every time computer use is ended or torn down. Contexts capture the
+   * value they were built with, so a pending pre-observation settle can tell
+   * that the user exited while it was sleeping and stand down instead of
+   * respawning the helper to capture the screen.
+   */
+  private generation = 0;
+  /** Threads whose computer use the user has ended (Escape or badge exit). */
+  private readonly exitedThreads = new Set<string>();
   private readonly driver: ComputerUseDriver;
   private readonly ingress: StreamableHttpMcpIngress<ToolContext>;
 
@@ -91,11 +105,14 @@ export class ComputerUseMcpIngress {
     return this.ingress.getInfo();
   }
 
-  interruptActiveActions(): void {
+  interruptActiveActions(threadIds: readonly string[] = []): void {
+    this.generation += 1;
+    for (const threadId of threadIds) this.exitedThreads.add(threadId);
     this.driver.dispose();
   }
 
   dispose(): void {
+    this.generation += 1;
     this.ingress.dispose();
     // Release the driver's long-lived resources (e.g. the Windows persistent
     // PowerShell host) so the child process doesn't leak on app teardown.
@@ -104,17 +121,31 @@ export class ComputerUseMcpIngress {
 
   private buildContext(identity: McpThreadIdentity): ToolContext {
     const { threadId } = identity;
+    const generation = this.generation;
     return {
       driver: this.driver,
+      // Two ways to be stale: computer use was ended while this context was in
+      // flight (any generation but the current one), or it was ended for this
+      // thread outright — a call that starts after the exit captures the new
+      // generation, so the per-thread mark is what keeps its observations from
+      // respawning the helper. Re-enabling the thread clears the mark.
+      interrupted: () =>
+        this.generation !== generation ||
+        (threadId !== undefined && this.exitedThreads.has(threadId)),
+      ...(this.options.observationSettleMs === undefined
+        ? {}
+        : { observationSettleMs: this.options.observationSettleMs }),
       ...(threadId
         ? {
             threadId,
-            setSessionActive: (active: boolean) =>
+            setSessionActive: (active: boolean) => {
+              if (active) this.exitedThreads.delete(threadId);
               this.options.onActivity?.({
                 kind: "session",
                 threadId,
                 active,
-              }),
+              });
+            },
             ...(this.options.isDisplayKeptAwake
               ? { isDisplayKeptAwake: this.options.isDisplayKeptAwake }
               : {}),

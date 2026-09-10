@@ -74,6 +74,116 @@ fn preserves_window_unavailable_recovery_text() {
     );
 }
 
+/// A refused background action must offer background routes and nothing else.
+///
+/// A blind evaluation showed why: after an agent had tried every route a hint
+/// listed, `mode:"foreground"` was the only unused string left in it, and the
+/// agent read that as the sanctioned next step. Hints therefore name background
+/// routes and then defer to the user.
+/// Every hint the helper ships, on every platform. The first version of this
+/// test only covered the shared constants, and two Windows-specific hints kept
+/// offering `mode:"foreground"` as the next step for months of review.
+#[test]
+fn no_shipped_refusal_hint_offers_a_takeover() {
+    let sources = [
+        include_str!("../src/protocol/actions.rs"),
+        include_str!("../src/host/dispatcher.rs"),
+        include_str!("../src/backend/windows/security.rs"),
+        include_str!("../src/backend/windows/input.rs"),
+        include_str!("../src/backend/windows/mod.rs"),
+        include_str!("../src/backend/macos/mod.rs"),
+        include_str!("../src/backend/macos/input.rs"),
+        include_str!("../src/backend/macos/session.rs"),
+        include_str!("../src/backend/macos/ax/mod.rs"),
+        include_str!("../src/backend/macos/ax/press.rs"),
+        include_str!("../src/backend/macos/ax/snapshot.rs"),
+        include_str!("../src/backend/macos/ax/webcontent.rs"),
+        include_str!("../src/backend/linux/mod.rs"),
+        include_str!("../src/backend/linux/atspi.rs"),
+        include_str!("../src/backend/linux/x11/input.rs"),
+        include_str!("../src/backend/mod.rs"),
+        include_str!("../src/backend/windows/uia.rs"),
+    ];
+    for source in sources {
+        for line in source.lines() {
+            let line = line.trim();
+            // Hints are the third argument of `Refusal::new` and the bodies of
+            // the `*_HINT` constants. Naming the takeover in either is the
+            // licence a blind evaluation treated as the next step.
+            if line.starts_with("//") {
+                continue;
+            }
+            let is_hint =
+                line.contains("HINT") || line.contains("hint:") || line.contains("Refusal::new");
+            if !is_hint {
+                continue;
+            }
+            assert!(
+                !line.contains("foreground") && !line.contains("activate_window"),
+                "a refusal hint still offers a takeover as the next step: {line}"
+            );
+        }
+    }
+}
+
+#[test]
+fn refusal_hints_offer_background_routes_and_never_a_takeover() {
+    use poracode_computer_use::protocol::actions::Refusal;
+    for hint in [
+        Refusal::background_unavailable("test").hint,
+        Refusal::window_minimized().hint,
+        Refusal::ELEMENT_SCROLL_HINT.to_string(),
+        Refusal::CONTEXT_MENU_HINT.to_string(),
+    ] {
+        assert!(hint.contains("element"), "names an element route: {hint}");
+        for planted in ["foreground", "activate_window"] {
+            assert!(!hint.contains(planted), "{planted} must not appear: {hint}");
+        }
+    }
+}
+
+/// Every multi-word input field parses its canonical wire name.
+///
+/// Casing and synonym tolerance lives in one place only: the TypeScript host's
+/// `ARG_ALIASES` normalizes an agent's spelling before send and rejects a
+/// conflicting pair by name. The wire takes canonical names only, so the two
+/// tables cannot drift the way a second Rust-side alias list would.
+#[test]
+fn parses_the_canonical_input_fields() {
+    use poracode_computer_use::protocol::actions::{
+        ClickInput, ElementAction, FindElementsInput, GetWindowStateInput, InvokeElementInput,
+        MouseButton, ScrollInput,
+    };
+    let window = r#""window":{"app":"a","id":1}"#;
+
+    let input: InvokeElementInput = serde_json::from_str(&format!(
+        r#"{{{window},"element_id":"s1:2","action":"scroll"}}"#
+    ))
+    .expect("invoke_element");
+    assert_eq!(input.element_id, "s1:2");
+    assert_eq!(input.action, ElementAction::Scroll);
+
+    let input: ScrollInput = serde_json::from_str(&format!(
+        "{{{window},\"x\":0,\"y\":0,\"scrollX\":1,\"scrollY\":2}}"
+    ))
+    .expect("scroll");
+    assert_eq!((input.scroll_x, input.scroll_y), (1.0, 2.0));
+
+    let input: GetWindowStateInput =
+        serde_json::from_str(&format!(r#"{{{window},"include_text":true}}"#)).expect("state");
+    assert!(input.wants_text());
+
+    let input: FindElementsInput =
+        serde_json::from_str(&format!(r#"{{{window},"max_results":7}}"#)).expect("find");
+    assert_eq!(input.max_results(), 7);
+
+    let input: ClickInput = serde_json::from_str(&format!(
+        r#"{{{window},"x":1,"y":1,"mouse_button":"right"}}"#
+    ))
+    .expect("click");
+    assert_eq!(input.button().unwrap(), MouseButton::Right);
+}
+
 #[test]
 fn wire_enum_fixture_matches_rust() {
     let fixture: serde_json::Value =

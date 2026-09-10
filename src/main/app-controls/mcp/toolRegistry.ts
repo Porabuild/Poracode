@@ -1,3 +1,7 @@
+import {
+  BUNDLED_PLUGIN_CORE_SKILLS,
+  loadPluginCoreSkillPhrase,
+} from "@/shared/plugins/builtInCoreSkills";
 import type {
   StreamableHttpMcpToolResult,
   StreamableHttpMcpToolSpec,
@@ -27,8 +31,25 @@ export type {
   AppControlsUpdateCheck,
 } from "./tools/types";
 
+// Selected by plugin name, not position: the binding is two plugins sharing
+// one server, and a rename reordering an alphabetized list must not silently
+// swap which instruction claims which skill.
+const APP_CONTROLS_BINDING = (pluginName: string) =>
+  BUNDLED_PLUGIN_CORE_SKILLS.find(
+    (plugin) =>
+      plugin.pluginName === pluginName && plugin.builtInMcpServerIds.includes("app-controls"),
+  );
+const APP_CONTROLS_CORE_SKILL = APP_CONTROLS_BINDING("app-controls")?.coreSkill;
+const TERMINAL_CORE_SKILL = APP_CONTROLS_BINDING("terminal")?.coreSkill;
+if (!APP_CONTROLS_CORE_SKILL || !TERMINAL_CORE_SKILL) {
+  throw new Error("app-controls MCP must bind the app-controls and terminal plugin core skills");
+}
+
 export const APP_CONTROLS_MCP_INSTRUCTIONS =
-  "Poracode app controls. Read and control the running app: device schedules " +
+  "Poracode app controls. " +
+  `For threads, git, pull requests, and schedules, ${loadPluginCoreSkillPhrase(APP_CONTROLS_CORE_SKILL)}. ` +
+  `When reading the Terminal panel, ${loadPluginCoreSkillPhrase(TERMINAL_CORE_SKILL)}. ` +
+  "Read and control the running app: device schedules " +
   "(list/create/update/run/delete), app threads (current/list/get/read/create/send/interrupt/stop/wait/" +
   "update/open), projects (list/get/create/update), app settings (get/update), provider usage " +
   "(get_usage), cross-app search (search), and app info (get_app_info). You can also read a " +

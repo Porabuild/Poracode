@@ -8,21 +8,21 @@ use std::time::{Duration, Instant};
 
 use crate::backend::{
     Backend, CancelToken, HelloInfo, InputOptions, InstalledAppCache, KeyboardAction,
-    PointerAction, verify_effect_with_early_check,
+    PointerAction, SnapshotOutcome,
 };
 use crate::capture::CaptureResult;
 use crate::elements::SnapshotCache;
 use crate::protocol::Result;
 use crate::protocol::actions::{
-    AccessibilityState, Capabilities, Delivered, ElementAction, FindElementsInput,
-    FindElementsResult, InputMode, InteractiveResult, LaunchResult, PermissionState, Permissions,
-    Verify,
+    Capabilities, Delivered, ElementAction, FindElementsInput, FindElementsResult, InputMode,
+    InteractiveResult, LaunchResult, PermissionState, Permissions,
 };
 use crate::protocol::window::{WindowInfo, WindowRef};
 
 mod apps;
 mod ax;
 mod capture;
+mod chromium;
 mod input;
 mod session;
 mod window_list;
@@ -32,6 +32,54 @@ mod window_list;
 /// report a spurious `element_moved`. Poll until the frame repeats.
 const LAUNCH_SETTLE_INTERVAL: Duration = Duration::from_millis(50);
 const LAUNCH_SETTLE_TIMEOUT: Duration = Duration::from_secs(1);
+
+/// Side of the square, in window points, that effect verification compares
+/// around an action point. Matches the Windows and Linux backends.
+const VERIFY_REGION: i32 = 32;
+
+/// Hash the pixels around an action point for effect verification.
+///
+/// Hashing the whole window instead — which this did — reports any pixel that
+/// changed anywhere as proof the action landed, and a window is full of pixels
+/// that change on their own: a blinking text caret, a clock, a spinner, a
+/// video. A dropped background click then came back `verified:"confirmed"`, so
+/// the agent could not tell delivery from silence and escalated to a foreground
+/// takeover to make progress. Windows and Linux already compare a region;
+/// macOS additionally has to scale the point, because its capture is in backing
+/// pixels while the action point is in window points.
+pub(super) fn region_hash(window: &WindowInfo, point: (f64, f64)) -> Option<u64> {
+    let capture = capture::capture(window).ok()?;
+    let (x, y, width, height) = verify_region(window.width, capture.frame.width, point);
+    Some(capture.frame.crop(x, y, width, height).content_hash())
+}
+
+/// Whole-window hash used only to stop a region miss becoming `unchanged`.
+///
+/// A successful click often changes pixels nowhere near the point — a sheet,
+/// a menu, a selection. The region is still the bar for `confirmed` (a caret
+/// blink must not certify a dropped click), but when the region is still the
+/// same, a changed window means something happened and the verdict must not
+/// tell the agent to abandon the control.
+pub(super) fn window_hash(window: &WindowInfo) -> Option<u64> {
+    Some(capture::capture(window).ok()?.frame.content_hash())
+}
+
+/// The crop rectangle, in capture pixels, compared around an action point.
+///
+/// Separate from the capture so the conversion is testable on its own: macOS
+/// captures at backing scale while the action point is in window points, and a
+/// point near a window edge yields a negative origin, which `Frame::crop`
+/// clamps into the frame rather than rejecting.
+fn verify_region(window_width: i32, capture_width: u32, point: (f64, f64)) -> (i32, i32, u32, u32) {
+    let scale = if window_width > 0 {
+        f64::from(capture_width) / f64::from(window_width)
+    } else {
+        1.0
+    };
+    let size = (f64::from(VERIFY_REGION) * scale).round().max(1.0);
+    let origin = |value: f64| (value * scale - size / 2.0).round() as i32;
+    (origin(point.0), origin(point.1), size as u32, size as u32)
+}
 
 enum LaunchTarget<'a> {
     ApplicationName(&'a str),
@@ -128,19 +176,6 @@ impl MacOsBackend {
         }
     }
 
-    /// Hash of the window's whole visible content.
-    ///
-    /// A capture costs the same no matter how much of it is compared, so effect
-    /// verification looks at the entire window rather than a crop around the
-    /// interaction point. macOS button press highlights fade well before the
-    /// re-check, and the lasting evidence of a successful click (a sheet, a menu,
-    /// a selection, an updated label) is usually nowhere near the click point.
-    fn capture_window_hash(&self, window: &WindowInfo) -> Option<u64> {
-        capture::capture(window)
-            .ok()
-            .map(|capture| capture.frame.content_hash())
-    }
-
     /// Wait for a freshly launched window's frame to stop moving.
     ///
     /// A window is listed as soon as it exists, which is mid open-animation, so
@@ -168,23 +203,6 @@ impl MacOsBackend {
             previous = current;
         }
         previous
-    }
-
-    fn apply_effect_verification(
-        &self,
-        window: &WindowInfo,
-        verify: Verify,
-        before: Option<u64>,
-        mut result: InteractiveResult,
-    ) -> InteractiveResult {
-        if verify != Verify::Effect || result.delivery.is_none() {
-            return result;
-        }
-        if let Some(delivery) = &mut result.delivery {
-            delivery.verified =
-                verify_effect_with_early_check(before, || self.capture_window_hash(window));
-        }
-        result
     }
 }
 
@@ -253,8 +271,13 @@ impl Backend for MacOsBackend {
         window: &WindowInfo,
         max_nodes: usize,
         cancel: &CancelToken,
-    ) -> Result<AccessibilityState> {
-        ax::snapshot_tree(&self.elements, window, max_nodes, cancel)
+    ) -> Result<SnapshotOutcome> {
+        // macOS has no snapshot-level caveat to add; its session-level notes
+        // flow through `session_notes`.
+        Ok(SnapshotOutcome {
+            state: ax::snapshot_tree(&self.elements, window, max_nodes, cancel)?,
+            notes: Vec::new(),
+        })
     }
 
     fn find_elements(
@@ -284,11 +307,11 @@ impl Backend for MacOsBackend {
         if let Some(refusal) = session::foreground_refusal(locked, options.mode) {
             return Ok(InteractiveResult::refused(window.clone(), refusal));
         }
-        let before = (options.verify == Verify::Effect)
-            .then(|| self.capture_window_hash(window))
-            .flatten();
-        let result = input::pointer(window, action, options, cancel)?;
-        let result = self.apply_effect_verification(window, options.verify, before, result);
+        // Effect verification lives in the event path itself: the baseline has
+        // to be sampled immediately before the events go out — the accessibility
+        // route ahead of it can spend a whole tree walk — and only synthetic
+        // pointer input produces an effect near the point to compare.
+        let result = input::pointer(&self.elements, window, action, options, cancel)?;
         Ok(annotate_session(result, locked))
     }
 
@@ -314,8 +337,9 @@ impl Backend for MacOsBackend {
         window: &WindowInfo,
         element_id: &str,
         action: ElementAction,
+        cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
-        ax::invoke_element(&self.elements, window, element_id, action)
+        ax::invoke_element(&self.elements, window, element_id, action, cancel)
     }
 
     fn set_element_value(
@@ -323,8 +347,9 @@ impl Backend for MacOsBackend {
         window: &WindowInfo,
         element_id: &str,
         value: &str,
+        cancel: &CancelToken,
     ) -> Result<InteractiveResult> {
-        ax::set_element_value(&self.elements, window, element_id, value)
+        ax::set_element_value(&self.elements, window, element_id, value, cancel)
     }
 
     fn launch_app(&self, app: &str, mode: InputMode, cancel: &CancelToken) -> Result<LaunchResult> {
@@ -420,6 +445,32 @@ fn annotate_launch_session(result: LaunchResult, locked: bool) -> LaunchResult {
 mod tests {
     use super::*;
     use crate::protocol::window::WindowSource;
+
+    /// Effect verification compares capture pixels, and a macOS capture is at
+    /// backing scale while the action point is in window points. Getting the
+    /// conversion wrong compares the wrong part of the window, which reads as
+    /// an action that did nothing.
+    #[test]
+    fn scales_the_verification_region_into_capture_pixels() {
+        // Retina: a 1728-point window captured at 3456 px.
+        assert_eq!(
+            verify_region(1728, 3456, (100.0, 100.0)),
+            (168, 168, 64, 64),
+            "64 px square centred on the point"
+        );
+        // Non-Retina, and a downscaled capture.
+        assert_eq!(verify_region(1000, 1000, (100.0, 200.0)), (84, 184, 32, 32));
+        assert_eq!(verify_region(1000, 500, (100.0, 200.0)), (42, 92, 16, 16));
+    }
+
+    /// Two degenerate inputs that must not panic or divide by zero: a window
+    /// with no reported width, and a point close enough to an edge that the
+    /// region starts outside the frame (`Frame::crop` clamps it).
+    #[test]
+    fn tolerates_a_zero_width_window_and_an_edge_point() {
+        assert_eq!(verify_region(0, 3456, (10.0, 10.0)), (-6, -6, 32, 32));
+        assert_eq!(verify_region(1728, 3456, (5.0, 5.0)), (-22, -22, 64, 64));
+    }
 
     fn window(app: &str, display_name: &str) -> WindowInfo {
         WindowInfo {

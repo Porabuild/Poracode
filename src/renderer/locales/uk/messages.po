@@ -4995,7 +4995,7 @@ msgid "Exclude patterns"
 msgstr "Шаблони виключення"
 
 #. placeholder {0}: parsed.exitCode
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 msgid "Exit code {0}"
 msgstr "Код виходу {0}"
 
@@ -5191,7 +5191,7 @@ msgstr "Factory Droid"
 msgid "failed"
 msgstr "не вдалося"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
@@ -12600,7 +12600,7 @@ msgstr "Завдання {id}"
 msgid "Task match"
 msgstr "Відповідність завданню"
 
-#: src/renderer/components/thread/ChatPane/parts/items/ItemMarkdown.tsx
+#: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
 msgid "Task Notification"
 msgstr "Повідомлення про завдання"
 

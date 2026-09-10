@@ -686,6 +686,43 @@ Finished release [optimized] target(s) in 12.34s
     }
   });
 
+  it("consumes the <SYSTEM_MESSAGE> preamble sentence on every notification of a turn", () => {
+    // The preamble quotes `<SYSTEM_MESSAGE>` inline, so the first open tag in a
+    // chunk sits mid-sentence. Anchoring the block on that tag left
+    // "The following is a " in front of it as clean text, which the trailing
+    // fragment buffer then flushed in front of the *next* notification — one
+    // stray assistant message per background task for the rest of the turn.
+    const state = mapperState("t-task-sys-preamble-repeat");
+    const sysMsg = (taskId: string) =>
+      [
+        "The following is a <SYSTEM_MESSAGE> not actually sent by the user. It is provided by the system as important information to pay attention to.",
+        "",
+        "<SYSTEM_MESSAGE>",
+        `[Message] timestamp=2026-09-07T05:25:34Z sender=${taskId} priority=MESSAGE_PRIORITY_HIGH content=Task id "${taskId}" finished with result:`,
+        "",
+        "The command exited with code 0.",
+        "Stdout:",
+        "done",
+        "</SYSTEM_MESSAGE>",
+      ].join("\n");
+
+    const first = mapAcpSessionUpdate(agentChunk(sysMsg("uuid/task-1")), state);
+    expect(readAntigravityTaskNotificationState(state).buffer).toBeUndefined();
+    const second = mapAcpSessionUpdate(agentChunk(sysMsg("uuid/task-2")), state);
+
+    for (const events of [first, second]) {
+      expect(
+        events.find(
+          (e) =>
+            e.type === "item.started" &&
+            (e as { itemType?: string }).itemType === "assistant_message",
+        ),
+      ).toBeUndefined();
+      expect(assistantDeltas(events)).toEqual([]);
+    }
+    expect(closeOpenTurnItems(state).filter((e) => e.type === "content.delta")).toEqual([]);
+  });
+
   it("handles standalone Antigravity <SYSTEM_MESSAGE> task notification when untracked", () => {
     const state = mapperState("t-task-sys-untracked");
     const rawSysMsg = [

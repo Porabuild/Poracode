@@ -1,4 +1,5 @@
 import { readNumber } from "../drivers/common";
+import { PERFORM_STEP_SCHEMA } from "./toolSpecs";
 import type {
   ComputerUseDeliveryMode,
   ComputerUseInvocableElementAction,
@@ -30,6 +31,17 @@ export function readObserve(value: unknown): ComputerUseObservationMode {
   throw new Error('observe must be "none", "text", "screenshot", or "both"');
 }
 
+/** Derived from the per-action step schemas in `toolSpecs` (which declare
+ * `additionalProperties: false`), so a step action added there is validated
+ * here without a second list to forget. An unknown key is a misunderstanding
+ * worth reporting rather than dropping. */
+const STEP_KEYS: Record<string, readonly string[]> = Object.fromEntries(
+  PERFORM_STEP_SCHEMA.oneOf.map((variant) => [
+    variant.properties.action.const as string,
+    Object.keys(variant.properties),
+  ]),
+);
+
 export function readPerformSteps(value: unknown): ComputerUsePerformStep[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > 32) {
     throw new Error("steps must contain 1 to 32 actions");
@@ -39,6 +51,19 @@ export function readPerformSteps(value: unknown): ComputerUsePerformStep[] {
       throw new Error(`steps[${index}] must be an object`);
     }
     const record = step as Record<string, unknown>;
+    const action = String(record.action);
+    // `Object.hasOwn` guard: a step with `action: "constructor"` would otherwise
+    // resolve a prototype member and throw a TypeError instead of the
+    // unsupported-action error the caller needs to read.
+    const accepted = Object.hasOwn(STEP_KEYS, action) ? STEP_KEYS[action] : undefined;
+    if (accepted) {
+      const unknown = Object.keys(record).filter((key) => !accepted.includes(key));
+      if (unknown.length > 0) {
+        throw new Error(
+          `steps[${index}] does not take ${unknown.join(", ")}. ${record.action as string} accepts: ${accepted.join(", ")}.`,
+        );
+      }
+    }
     switch (record.action) {
       case "invoke_element":
         return {

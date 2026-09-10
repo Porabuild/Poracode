@@ -156,9 +156,13 @@ fn lane_for(action: &str) -> Lane {
 fn timeout_for(action: &str) -> Duration {
     match action {
         "launch_app" => Duration::from_secs(20),
-        "list_apps" | "get_window_state" | "find_elements" => Duration::from_secs(6),
-        "activate_window" | "click" | "press_key" | "type_text" | "scroll" | "drag"
-        | "invoke_element" | "set_element_value" => Duration::from_secs(5),
+        // A click shares the reads' budget: on a Chromium shell the press route
+        // first acquires the page's tree, which can legally spend the same
+        // ~3.3 s of accessibility waits (web-area debounce plus page publish)
+        // a find_elements on the same cold window would.
+        "list_apps" | "get_window_state" | "find_elements" | "click" => Duration::from_secs(6),
+        "activate_window" | "press_key" | "type_text" | "scroll" | "drag" | "invoke_element"
+        | "set_element_value" => Duration::from_secs(5),
         _ => Duration::from_secs(3),
     }
 }
@@ -248,8 +252,22 @@ fn dispatch_platform_request(
     }
 }
 
+/// Parse an action's input, saying what the shape is when the caller guessed.
+///
+/// A serde message alone ("missing field `window`") reads as a naming problem,
+/// and blind evaluations watched agents try `windowId`, then a bare integer,
+/// then the object, one round trip each. Naming the shape once ends that.
 fn parse<T: DeserializeOwned>(input: &Value) -> Result<T> {
-    serde_json::from_value(input.clone()).map_err(HelperError::from)
+    serde_json::from_value(input.clone()).map_err(|error| {
+        let message = error.to_string();
+        if message.contains("`window`") || message.contains("struct WindowRef") {
+            HelperError::invalid_input(format!(
+                "{message}. `window` is the whole window object from list_windows or get_window, not an id."
+            ))
+        } else {
+            HelperError::from(error)
+        }
+    })
 }
 
 fn serialize<T: Serialize>(result: T) -> Result<Value> {
@@ -375,7 +393,9 @@ pub fn dispatch_request(
             }
             cancel.check()?;
             let accessibility = if input.wants_text() {
-                Some(backend.snapshot_tree(&window, input.tree_max_nodes(), cancel)?)
+                let snapshot = backend.snapshot_tree(&window, input.tree_max_nodes(), cancel)?;
+                notes.extend(snapshot.notes);
+                Some(snapshot.state)
             } else {
                 None
             };
@@ -493,12 +513,17 @@ pub fn dispatch_request(
         "invoke_element" => {
             let input: InvokeElementInput = parse(&request.input)?;
             let window = backend.resolve_window(&input.window)?;
-            serialize(backend.invoke_element(&window, &input.element_id, input.action)?)
+            serialize(backend.invoke_element(&window, &input.element_id, input.action, cancel)?)
         }
         "set_element_value" => {
             let input: SetElementValueInput = parse(&request.input)?;
             let window = backend.resolve_window(&input.window)?;
-            serialize(backend.set_element_value(&window, &input.element_id, &input.value)?)
+            serialize(backend.set_element_value(
+                &window,
+                &input.element_id,
+                &input.value,
+                cancel,
+            )?)
         }
         "cancel" | "shutdown" => Err(HelperError::invalid_input(format!(
             "{} must be handled by the host",
@@ -571,13 +596,16 @@ mod tests {
             _window: &crate::protocol::window::WindowInfo,
             _max_nodes: usize,
             _cancel: &CancelToken,
-        ) -> Result<crate::protocol::actions::AccessibilityState> {
-            Ok(crate::protocol::actions::AccessibilityState {
-                source: "test".into(),
-                tree: "window \"test\"".into(),
-                snapshot_id: "snap-1".into(),
-                element_count: 1,
-                truncated: false,
+        ) -> Result<crate::backend::SnapshotOutcome> {
+            Ok(crate::backend::SnapshotOutcome {
+                state: crate::protocol::actions::AccessibilityState {
+                    source: "test".into(),
+                    tree: "window \"test\"".into(),
+                    snapshot_id: "snap-1".into(),
+                    element_count: 1,
+                    truncated: false,
+                },
+                notes: Vec::new(),
             })
         }
         fn activate(

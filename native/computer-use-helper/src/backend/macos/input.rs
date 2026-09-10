@@ -12,12 +12,15 @@ use objc2_core_graphics::{
     CGEventType, CGMouseButton, CGScrollEventUnit,
 };
 
-use super::ax;
-use crate::backend::{CancelToken, InputOptions, KeyboardAction, PointerAction};
+use super::{ax, chromium};
+use crate::backend::{
+    CancelToken, InputOptions, KeyboardAction, PointerAction, verify_effect_with_early_check,
+};
+use crate::elements::SnapshotCache;
 use crate::geometry::{drag_steps, frame_to_screen, interpolate, point_in_frame};
 use crate::protocol::actions::{
     Delivery, DeliveryTarget, InputMode, InteractiveResult, MouseButton, Refusal, RefusalCode,
-    Route, Verified,
+    Route, Verified, Verify,
 };
 use crate::protocol::keys::{KeyToken, Modifiers, NamedKey};
 use crate::protocol::window::WindowInfo;
@@ -132,6 +135,60 @@ fn post_mouse(
     Ok(())
 }
 
+/// Sample the window around the point an action is about to land on.
+///
+/// Taken as late as possible on purpose: the accessibility route that runs
+/// before this can spend a tree walk and up to 750 ms waiting for a browser to
+/// publish a page, and a baseline from before all that straddles a caret blink
+/// and confirms input that was dropped.
+fn effect_baseline(
+    window: &WindowInfo,
+    options: InputOptions,
+    point: (f64, f64),
+) -> Option<EffectBaseline> {
+    (options.verify == Verify::Effect)
+        .then(|| {
+            Some(EffectBaseline {
+                region: super::region_hash(window, point)?,
+                window: super::window_hash(window)?,
+            })
+        })
+        .flatten()
+}
+
+struct EffectBaseline {
+    region: u64,
+    window: u64,
+}
+
+fn verified_effect(
+    window: &WindowInfo,
+    baseline: Option<EffectBaseline>,
+    point: (f64, f64),
+    mut result: InteractiveResult,
+) -> InteractiveResult {
+    let Some(baseline) = baseline else {
+        return result;
+    };
+    if let Some(delivery) = &mut result.delivery {
+        delivery.verified = match verify_effect_with_early_check(Some(baseline.region), || {
+            super::region_hash(window, point)
+        }) {
+            Verified::Confirmed => Verified::Confirmed,
+            // A sheet, menu, or selection usually lands away from the click
+            // point. `unchanged` tells the agent to abandon the control, so
+            // that verdict is spent only when the whole window is still too.
+            Verified::Unchanged => match super::window_hash(window) {
+                Some(after) if after != baseline.window => Verified::Unverified,
+                Some(_) => Verified::Unchanged,
+                None => Verified::Unverified,
+            },
+            other => other,
+        };
+    }
+    result
+}
+
 fn delivery(window: &WindowInfo, mode: InputMode) -> InteractiveResult {
     let delivery = if mode == InputMode::Foreground {
         Delivery::foreground(Route::Input)
@@ -157,16 +214,6 @@ fn destination(window: &WindowInfo, mode: InputMode) -> Result<Destination> {
     }
 }
 
-fn is_chromium(window: &WindowInfo) -> bool {
-    let app = window.app.to_ascii_lowercase();
-    app.contains("chrome")
-        || app.contains("chromium")
-        || app.contains("microsoft edge")
-        || std::path::Path::new(&window.app)
-            .join("Contents/Frameworks/Electron Framework.framework")
-            .is_dir()
-}
-
 pub fn activate(window: &WindowInfo) -> Result<InteractiveResult> {
     let pid = window.pid.ok_or_else(HelperError::window_unavailable)?;
     let application = NSRunningApplication::runningApplicationWithProcessIdentifier(pid as _)
@@ -188,6 +235,7 @@ pub fn activate(window: &WindowInfo) -> Result<InteractiveResult> {
 }
 
 pub fn pointer(
+    elements: &SnapshotCache<ax::AxElement>,
     window: &WindowInfo,
     action: PointerAction,
     options: InputOptions,
@@ -216,26 +264,63 @@ pub fn pointer(
                 ));
             }
             let point = frame_to_screen(window, x, y);
-            if options.mode == InputMode::Background
-                && let Some(target) =
-                    ax::press_at_position(window, f64::from(point.0), f64::from(point.1))?
+            // Only a single left click has an accessibility equivalent. A press
+            // cannot carry a button or a repeat count, so routing a right or
+            // double click through it would quietly deliver a different gesture
+            // than the caller asked for.
+            let pressable = button == MouseButton::Left && count == 1;
+            if pressable
+                && options.mode == InputMode::Background
+                && let Some(pressed) = ax::press_at_position(elements, window, x, y, cancel)?
             {
-                return Ok(InteractiveResult::delivered(
-                    window.clone(),
-                    Delivery::background(Route::Accessibility)
-                        .with_verified(Verified::Confirmed)
-                        .with_target(target),
-                ));
+                // No region verification on this route. A press is a semantic
+                // action whose result is often nowhere near the coordinate, and
+                // the only honest baseline would have to be sampled inside the
+                // press itself: this call can spend a tree walk and up to 750 ms
+                // waiting for a page first, so a baseline from out here would
+                // straddle a caret blink and confirm a press that did nothing.
+                // `Delivery` defaults to `unverified`, which is exactly what
+                // "accepted, effect not observable from here" should read as.
+                let mut delivery =
+                    Delivery::background(Route::Accessibility).with_target(pressed.target);
+                if pressed.resolved_by_tree {
+                    // The app answered no usable hit test, so this pressed the
+                    // element the window's tree puts under the point rather
+                    // than whatever a pointer event would have hit.
+                    delivery.notes.push("coordinate_resolved_by_tree".into());
+                }
+                return Ok(InteractiveResult::delivered(window.clone(), delivery));
             }
-            if options.mode == InputMode::Background && is_chromium(window) {
+            if options.mode == InputMode::Background && chromium::is_chromium_shell(window) {
+                // A right click has its own element action, so point at that
+                // rather than at the generic press route it cannot use.
+                let (reason, hint) = if !pressable && button != MouseButton::Right {
+                    // Neither route was consulted: an accessibility press
+                    // carries no button or repeat count, so this gesture never
+                    // had one. Reporting "no element was found here" instead
+                    // would be a finding this call never made.
+                    (
+                        "A background press carries no button or repeat count, so this gesture has no accessibility route, and Chromium ignores process-targeted mouse events — it would be dropped without any sign of failure.",
+                        Refusal::BACKGROUND_RECOVERY_HINT,
+                    )
+                } else if button == MouseButton::Right {
+                    (
+                        "Chromium ignores process-targeted mouse events, so a background right click here would be dropped without any sign of failure.",
+                        Refusal::CONTEXT_MENU_HINT,
+                    )
+                } else {
+                    (
+                        "No pressable accessibility element sits under this coordinate — neither the app's own hit test nor its window tree found one — and Chromium ignores process-targeted mouse events, so a coordinate click here would be dropped without any sign of failure.",
+                        Refusal::BACKGROUND_RECOVERY_HINT,
+                    )
+                };
                 return Ok(InteractiveResult::refused(
                     window.clone(),
-                    Refusal::background_unavailable(
-                        "This Chromium/Electron target exposes no accessibility press action at the coordinate and ignores process-targeted mouse events.",
-                    ),
+                    Refusal::new(RefusalCode::BackgroundUnavailable, reason, hint),
                 ));
             }
             let (button, down, up) = mouse_types(button, false);
+            let baseline = effect_baseline(window, options, (x, y));
             post_mouse(
                 destination(window, options.mode)?,
                 &event_source,
@@ -269,6 +354,12 @@ pub fn pointer(
                     thread::sleep(Duration::from_millis(50));
                 }
             }
+            Ok(verified_effect(
+                window,
+                baseline,
+                (x, y),
+                delivery(window, options.mode),
+            ))
         }
         PointerAction::Scroll { x, y, dx, dy } => {
             if !point_in_frame(window, x, y) {
@@ -276,11 +367,13 @@ pub fn pointer(
                     "scroll coordinate is outside the window",
                 ));
             }
-            if options.mode == InputMode::Background && is_chromium(window) {
+            if options.mode == InputMode::Background && chromium::is_chromium_shell(window) {
                 return Ok(InteractiveResult::refused(
                     window.clone(),
-                    Refusal::background_unavailable(
-                        "Chromium/Electron scroll gestures require foreground input on macOS.",
+                    Refusal::new(
+                        RefusalCode::BackgroundUnavailable,
+                        "Chromium ignores process-targeted scroll events, so a background coordinate scroll here would be dropped without any sign of failure.",
+                        Refusal::ELEMENT_SCROLL_HINT,
                     ),
                 ));
             }
@@ -299,7 +392,14 @@ pub fn pointer(
                 CGPoint::new(f64::from(point.0), f64::from(point.1)),
             );
             stamp_target(&event, window, None);
+            let baseline = effect_baseline(window, options, (x, y));
             post(destination(window, options.mode)?, &event);
+            Ok(verified_effect(
+                window,
+                baseline,
+                (x, y),
+                delivery(window, options.mode),
+            ))
         }
         PointerAction::Drag { from, to, steps } => {
             if !point_in_frame(window, from.0, from.1) || !point_in_frame(window, to.0, to.1) {
@@ -307,17 +407,19 @@ pub fn pointer(
                     "drag coordinate is outside the window",
                 ));
             }
-            if options.mode == InputMode::Background && is_chromium(window) {
+            if options.mode == InputMode::Background && chromium::is_chromium_shell(window) {
                 return Ok(InteractiveResult::refused(
                     window.clone(),
                     Refusal::background_unavailable(
-                        "Chromium/Electron drag gestures require foreground input on macOS.",
+                        "Chromium ignores process-targeted drag events, so a background coordinate drag here would be dropped without any sign of failure.",
                     ),
                 ));
             }
+            let destination_point = to;
             let from = frame_to_screen(window, from.0, from.1);
             let to = frame_to_screen(window, to.0, to.1);
             let (button, dragged, up) = mouse_types(MouseButton::Left, true);
+            let baseline = effect_baseline(window, options, destination_point);
             post_mouse(
                 destination(window, options.mode)?,
                 &event_source,
@@ -367,9 +469,14 @@ pub fn pointer(
             );
             movement?;
             released?;
+            Ok(verified_effect(
+                window,
+                baseline,
+                destination_point,
+                delivery(window, options.mode),
+            ))
         }
     }
-    Ok(delivery(window, options.mode))
 }
 
 fn flags(modifiers: Modifiers, implicit: CGEventFlags) -> CGEventFlags {
@@ -791,7 +898,13 @@ pub fn keyboard(
         if activation.refused.is_some() {
             return Ok(activation);
         }
-    } else {
+    } else if !ax::window_already_focused(window) {
+        // A background keystroke lands in whichever window the target app has
+        // focused, so reaching a different one means making the target focused
+        // — and macOS raises it inside its app when that happens. That is not
+        // an app activation and it does not take the user's focus away from the
+        // frontmost app, but it does reorder that app's windows, so the note is
+        // part of the delivery report rather than a detail.
         let before = focused_window(window.pid);
         if !ax::focus_window(window, false)? {
             return Ok(InteractiveResult::refused(
