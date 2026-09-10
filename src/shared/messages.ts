@@ -8,6 +8,12 @@
  */
 
 const messages = {
+  "voice.unavailable": "Live voice is unavailable for this thread.",
+  "voice.alreadyConnected": "A voice conversation is already active.",
+  "voice.subscriptionRequired": "Live voice requires a subscription sign-in for this provider.",
+  "voice.connectionTimeout": "The voice connection timed out. Try again.",
+  "voice.connectionFailed": "The voice connection failed. Try again.",
+  "voice.cancelled": "The voice connection was cancelled.",
   "supervisor.sendTerminalInput": "Send terminal input",
   // ── Git: general ──────────────────────────────────────────
   "git.commandFailed": "Git {command} failed: {detail}",
@@ -483,6 +489,12 @@ export function friendlyErrorWithDetail(err: unknown): { summary: string; detail
     if (pattern.test.test(rawSummary)) {
       return { summary: msg(pattern.key, pattern.params?.(rawSummary)), details };
     }
+  }
+
+  // Supervisor errors cross IPC as source-language strings. Static catalog
+  // messages can be translated exactly without parsing provider error prose.
+  for (const key of Object.keys(messages) as MessageKey[]) {
+    if (rawSummary === messages[key]) return { summary: msg(key), details };
   }
 
   return { summary: rawSummary, details };

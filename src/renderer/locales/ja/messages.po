@@ -777,6 +777,10 @@ msgid "a supported coding agent"
 msgstr "サポートされているコーディング エージェント"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "音声会話はすでに開始されています。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "ワークツリーの所有者を指定するには、固定されたソースブランチが必要です"
 
@@ -2208,6 +2212,10 @@ msgstr "ピッカーのキャンセル"
 msgid "Cancel removing project"
 msgstr "プロジェクトの削除をキャンセル"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "音声接続をキャンセル"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancel workflow"
@@ -3266,6 +3274,10 @@ msgstr "接続済み"
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "デスクトップのブラウザに接続しています…"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "音声に接続中…"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
@@ -4831,6 +4843,10 @@ msgstr "有効なプラグインは新しいスレッドでも有効なままで
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "<0>Cookie</0> と <1>ストレージ</1> を有効にします。Cookie にはセッション トークンが含まれることがあり、ストレージには認証状態が保持されることが多いため、エージェントとエージェントが訪問するサイトの両方を信頼できる場合にのみ有効にしてください。"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "音声チャットを終了"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -6768,6 +6784,18 @@ msgstr "ライブ"
 msgid "Live {0}"
 msgstr "ライブ {0}"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "リアルタイム音声"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "このスレッドではリアルタイム音声を利用できません。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "リアルタイム音声を利用するには、このプロバイダーのサブスクリプションアカウントでログインしてください。"
+
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
 msgstr "読み込み中"
@@ -7379,6 +7407,10 @@ msgstr "マイクアクセスがオフになっています。"
 msgid "Microphone input level"
 msgstr "マイク入力レベル"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "マイクはミュート中"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "マイクの許可が拒否されました。"
@@ -7636,6 +7668,10 @@ msgstr "変更を移動中…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "マイクをミュート"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7833,6 +7869,7 @@ msgstr "グループ内に新しいタブ"
 #: src/mobile/WideShell.tsx
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
@@ -12114,6 +12151,10 @@ msgstr "優先事項と次のステップで一日を始めます。"
 msgid "Start from scratch"
 msgstr "ゼロから始める"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "リアルタイム音声を開始"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12908,6 +12949,18 @@ msgstr "アップデート操作に失敗しました。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "アップデートサービスは一時的に利用できません。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "音声接続に失敗しました。もう一度お試しください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "音声接続がタイムアウトしました。もう一度お試しください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "音声接続がキャンセルされました。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13885,6 +13938,10 @@ msgstr "完了のマークを外す"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "完了のマークを外す"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "マイクのミュートを解除"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

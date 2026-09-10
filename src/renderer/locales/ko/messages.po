@@ -778,6 +778,10 @@ msgid "a supported coding agent"
 msgstr "지원되는 코딩 에이전트"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "이미 음성 대화가 진행 중입니다."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "작업 트리 소유자에는 고정된 소스 브랜치가 필요합니다"
 
@@ -2209,6 +2213,10 @@ msgstr "선택기 취소"
 msgid "Cancel removing project"
 msgstr "프로젝트 제거 취소"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "음성 연결 취소"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancel workflow"
@@ -3267,6 +3275,10 @@ msgstr "연결됨"
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "데스크톱 브라우저에 연결 중…"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "음성 연결 중…"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
@@ -4832,6 +4844,10 @@ msgstr "활성화된 플러그인은 새 스레드에서도 계속 켜져 있습
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "<0>쿠키</0> 및 <1>저장</1>을 활성화합니다. 쿠키는 세션 토큰을 포함할 수 있으며 저장소는 종종 인증 상태를 유지합니다. 에이전트와 에이전트가 방문하는 사이트를 모두 신뢰할 때만 활성화됩니다."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "음성 채팅 종료"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -6769,6 +6785,18 @@ msgstr "실시간"
 msgid "Live {0}"
 msgstr "실시간 {0}"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "실시간 음성"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "이 스레드에서는 실시간 음성을 사용할 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "실시간 음성을 사용하려면 이 제공업체의 구독 계정으로 로그인해야 합니다."
+
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
 msgstr "로드 중"
@@ -7381,6 +7409,10 @@ msgstr "마이크 액세스가 꺼져 있습니다."
 msgid "Microphone input level"
 msgstr "마이크 입력 레벨"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "마이크 음소거됨"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "마이크 권한이 거부되었습니다."
@@ -7638,6 +7670,10 @@ msgstr "변경사항 이동 중…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "마이크 음소거"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7835,6 +7871,7 @@ msgstr "그룹에 새 탭"
 #: src/mobile/WideShell.tsx
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
@@ -12116,6 +12153,10 @@ msgstr "우선순위와 다음 단계로 하루를 시작하세요."
 msgid "Start from scratch"
 msgstr "처음부터 시작하세요"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "실시간 음성 시작"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12910,6 +12951,18 @@ msgstr "업데이트 작업에 실패했습니다."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "업데이트 서비스를 일시적으로 사용할 수 없습니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "음성 연결에 실패했습니다. 다시 시도하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "음성 연결 시간이 초과되었습니다. 다시 시도하세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "음성 연결이 취소되었습니다."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13887,6 +13940,10 @@ msgstr "완료 표시 해제"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "완료 표시 해제"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "마이크 음소거 해제"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

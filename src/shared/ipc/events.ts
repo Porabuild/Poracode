@@ -1,4 +1,5 @@
 import type { OscShellEvent } from "../osc";
+import type { LiveVoiceEvent } from "../contracts/liveVoice";
 import type { LspSessionStatus } from "../lsp";
 import type {
   AgentSlashCommand,
@@ -78,6 +79,7 @@ export type SupervisorEvent =
         | { kind: "judging" };
     }
   | { type: "thread-reset"; threadId: string }
+  | { type: "thread-voice"; threadId: string; event: LiveVoiceEvent }
   | { type: "thread-output"; threadId: string; data: string; outputLength: number }
   | { type: "thread-runtime-event"; threadId: string; event: RuntimeEvent }
   | { type: "thread-runtime-events"; threadId: string; events: RuntimeEvent[] }

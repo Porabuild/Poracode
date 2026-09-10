@@ -778,6 +778,10 @@ msgid "a supported coding agent"
 msgstr "un agente de codificación compatible"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "Ya hay una conversación de voz activa."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "Un propietario de worktree requiere una fuente de rama inmovilizada"
 
@@ -2209,6 +2213,10 @@ msgstr "Cancelar selector"
 msgid "Cancel removing project"
 msgstr "Cancelar eliminación del proyecto"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "Cancelar conexión de voz"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancel workflow"
@@ -3267,6 +3275,10 @@ msgstr "Conectado"
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Conectando al navegador del escritorio…"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "Conectando voz…"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
@@ -4832,6 +4844,10 @@ msgstr "Los plugins activados permanecen activos para los nuevos hilos"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "Activa <0>cookies</0> y <1>almacenamiento</1>. Las cookies pueden contener tokens de sesión y el almacenamiento suele guardar el estado de autenticación: actívalo solo cuando confíes tanto en el agente como en los sitios que visita."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "Finalizar chat de voz"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -6769,6 +6785,18 @@ msgstr "En vivo"
 msgid "Live {0}"
 msgstr "En vivo {0}"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "Voz en directo"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "La voz en directo no está disponible para este hilo."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "La voz en directo requiere iniciar sesión con una suscripción de este proveedor."
+
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
 msgstr "Cargando"
@@ -7381,6 +7409,10 @@ msgstr "El acceso al micrófono está desactivado."
 msgid "Microphone input level"
 msgstr "Nivel de entrada del micrófono"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "Micrófono silenciado"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Se denegó el permiso del micrófono."
@@ -7638,6 +7670,10 @@ msgstr "Moviendo cambios…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "Silenciar micrófono"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7835,6 +7871,7 @@ msgstr "Nueva pestaña en el grupo"
 #: src/mobile/WideShell.tsx
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
@@ -12116,6 +12153,10 @@ msgstr "Empieza cada día con prioridades y próximos pasos."
 msgid "Start from scratch"
 msgstr "Empezar desde cero"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "Iniciar voz en directo"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12910,6 +12951,18 @@ msgstr "La operación de actualización falló."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "El servicio de actualizaciones no está disponible temporalmente."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "La conexión de voz falló. Inténtalo de nuevo."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "La conexión de voz agotó el tiempo de espera. Inténtalo de nuevo."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "Se canceló la conexión de voz."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13887,6 +13940,10 @@ msgstr "Desmarcar como hecho"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Desmarcar como hecho"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "Activar micrófono"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

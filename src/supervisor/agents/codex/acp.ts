@@ -1,4 +1,10 @@
 import { randomUUID } from "node:crypto";
+import type {
+  ConnectThreadVoicePayload,
+  ConnectThreadVoiceResult,
+} from "@/shared/contracts/liveVoice";
+import { msg } from "@/shared/messages";
+import { CodexLiveVoice } from "./liveVoice";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
@@ -160,6 +166,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions;
 
   private readonly rpc: CodexAppServerRpc;
+  private readonly liveVoice: CodexLiveVoice;
   private readonly threadId: string;
   private readonly projectLocation: ProjectLocation;
   private readonly mcpServers: readonly ResolvedMcpServer[];
@@ -236,6 +243,12 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     wslDistro?: string,
   ) {
     this.rpc = rpc;
+    this.liveVoice = new CodexLiveVoice(
+      rpc,
+      threadId,
+      (event) => this.listener?.onVoiceEvent?.(event),
+      (events) => this.emitRuntimeEvents(events),
+    );
     this.threadId = threadId;
     this.projectLocation = projectLocation;
     this.mcpServers = mcpServers;
@@ -521,13 +534,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         });
         threadId = sessionRef.providerSessionId;
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        if (!isRecoverableResumeError(msg)) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!isRecoverableResumeError(message)) {
           this.resumeActiveStatusSuppressionUntil.delete(sessionRef.providerSessionId);
           throw error;
         }
         this.resumeActiveStatusSuppressionUntil.delete(sessionRef.providerSessionId);
-        console.log("[codex] thread/resume failed (%s), falling back to thread/start", msg);
+        console.log("[codex] thread/resume failed (%s), falling back to thread/start", message);
         const result = await this.rpc.request("thread/start", threadOverrides);
         threadId = extractThreadField(result, "id") ?? "";
         if (!threadId) {
@@ -859,6 +872,32 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     }
   }
 
+  async connectVoice(
+    input: Omit<ConnectThreadVoicePayload, "threadId">,
+  ): Promise<ConnectThreadVoiceResult> {
+    if (
+      this.isDisposed ||
+      !this.remoteThreadId ||
+      this.activeTurnIds.size > 0 ||
+      this.currentThreadStatus.type !== "idle"
+    )
+      throw new Error(msg("voice.unavailable"));
+    const threadId = this.remoteThreadId;
+    return this.liveVoice.connect(threadId, input.connectionId, input.offerSdp, async () => {
+      await this.rpc.request("thread/settings/update", {
+        threadId,
+        ...buildCodexTurnSettingsOverrides(input.config),
+      });
+      if (this.isDisposed || this.remoteThreadId !== threadId)
+        throw new Error(msg("voice.cancelled"));
+      this.applyTurnConfig(input.config);
+    });
+  }
+
+  disconnectVoice(connectionId: string): Promise<void> {
+    return this.liveVoice.disconnect(connectionId);
+  }
+
   async interruptTurn(): Promise<void> {
     if (this.isDisposed) {
       return;
@@ -938,6 +977,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   async rollbackThread(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory> {
+    await this.liveVoice.disconnect();
     if (!Number.isInteger(numTurns) || numTurns <= 0) {
       throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
     }
@@ -1057,6 +1097,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
     this.isDisposed = true;
+    await this.liveVoice.disconnect();
 
     this.clearPendingSystemErrorFallback();
     const remoteThreadId = this.remoteThreadId;
@@ -1114,11 +1155,13 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       onNotification: (method, params) => this.handleNotification(method, params),
       onRuntimeEvents: (events) => this.emitRuntimeEvents(events),
       onClose: () => {
+        void this.liveVoice.disconnect();
         if (!this.isDisposed) {
           this.listener?.onClose();
         }
       },
       onError: () => {
+        void this.liveVoice.disconnect();
         if (!this.isDisposed) {
           this.listener?.onError("Codex app-server connection failed.");
         }
@@ -1128,6 +1171,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   private handleNotification(method: string, params: Record<string, unknown> | undefined): void {
+    if (this.liveVoice.handleNotification(method, params)) return;
     if (method === "skills/changed") {
       void this.refreshSkillSlashCommands(true).catch((error) => {
         if (!this.isDisposed) console.warn("[codex] failed to refresh skills after change:", error);
@@ -1487,6 +1531,15 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   private logCodexEventDebug(direction: CodexEventDebugDirection, payload: unknown): void {
+    // SDP contains ephemeral ICE credentials; keep voice payloads out of logs.
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "method" in payload &&
+      typeof payload.method === "string" &&
+      payload.method.startsWith("thread/realtime/")
+    )
+      return;
     if (!isCodexEventDebugEnabled()) {
       return;
     }

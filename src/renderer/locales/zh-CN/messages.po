@@ -778,6 +778,10 @@ msgid "a supported coding agent"
 msgstr "支持的编码代理"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "已有正在进行的语音对话。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "工作树所有者需要冻结的源分支"
 
@@ -2209,6 +2213,10 @@ msgstr "取消选择器"
 msgid "Cancel removing project"
 msgstr "取消移除项目"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "取消语音连接"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancel workflow"
@@ -3267,6 +3275,10 @@ msgstr "已连接"
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "正在连接桌面浏览器…"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "正在连接语音…"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
@@ -4832,6 +4844,10 @@ msgstr "已启用的插件会在新线程中保持开启"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "启用<0>cookie</0>和<1>存储</1>。Cookie 可以包含会话令牌，并且存储通常保存身份验证状态——仅当您信任代理及其访问的站点时才启用。"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "结束语音聊天"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -6769,6 +6785,18 @@ msgstr "在线"
 msgid "Live {0}"
 msgstr "在线 {0}"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "实时语音"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "此会话不支持实时语音。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "实时语音需要登录此提供商的订阅账户。"
+
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
 msgstr "加载中"
@@ -7380,6 +7408,10 @@ msgstr "麦克风访问已关闭。"
 msgid "Microphone input level"
 msgstr "麦克风输入电平"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "麦克风已静音"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "麦克风权限被拒绝。"
@@ -7637,6 +7669,10 @@ msgstr "正在移动更改…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "将麦克风静音"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7834,6 +7870,7 @@ msgstr "在分组中新建标签页"
 #: src/mobile/WideShell.tsx
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
@@ -12115,6 +12152,10 @@ msgstr "以优先事项和后续步骤开启每一天。"
 msgid "Start from scratch"
 msgstr "从头开始"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "开始实时语音"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12909,6 +12950,18 @@ msgstr "更新操作失败。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "更新服务暂时不可用。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "语音连接失败，请重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "语音连接超时，请重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "语音连接已取消。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13886,6 +13939,10 @@ msgstr "取消标记完成"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "取消标记完成"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "取消麦克风静音"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

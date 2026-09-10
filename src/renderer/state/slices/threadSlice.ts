@@ -30,6 +30,8 @@ import { removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { terminateStaleSubAgentItems } from "./staleSubAgents";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 
 export interface ThreadSlice {
   threads: Thread[];
@@ -240,7 +242,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       ...(workspaceId ? { workspaceId } : {}),
       ...(remoteServerId ? { remoteServerId } : {}),
       ...(remoteId ? { remoteId } : {}),
-      title: title ?? makeThreadTitle(prompt),
+      // Audio-first and attachment-only launches have no text to derive a title from.
+      title: title?.trim() || makeThreadTitle(prompt) || i18n._(msg`New thread`),
       agentKind,
       ...(agentInstanceId ? { agentInstanceId } : {}),
       config,

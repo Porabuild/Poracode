@@ -778,6 +778,10 @@ msgid "a supported coding agent"
 msgstr "поддерживаемый агент кодирования"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "Голосовой разговор уже активен."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "Для владельца worktree требуется замороженная исходная ветка"
 
@@ -2209,6 +2213,10 @@ msgstr "Отменить выбор"
 msgid "Cancel removing project"
 msgstr "Отменить удаление проекта"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "Отменить голосовое подключение"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancel workflow"
@@ -3267,6 +3275,10 @@ msgstr "Подключено"
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Подключение к браузеру на десктопе…"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "Подключение голосового чата…"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
@@ -4832,6 +4844,10 @@ msgstr "Включённые плагины остаются активными 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "Включает <0>cookie</0> и <1>хранилище</1>. Cookie могут содержать токены сессии, а в хранилище часто хранится состояние аутентификации — включайте, только если доверяете и агенту, и сайтам, которые он посещает."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "Завершить голосовой чат"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -6769,6 +6785,18 @@ msgstr "Онлайн"
 msgid "Live {0}"
 msgstr "Онлайн {0}"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "Голосовой чат"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "Голосовой чат недоступен для этой ветки."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "Для голосового чата необходимо войти в аккаунт с подпиской этого провайдера."
+
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
 msgstr "Загрузка"
@@ -7381,6 +7409,10 @@ msgstr "Доступ к микрофону отключён."
 msgid "Microphone input level"
 msgstr "Уровень сигнала микрофона"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "Микрофон выключен"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Доступ к микрофону отклонён."
@@ -7638,6 +7670,10 @@ msgstr "Перемещение изменений…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "Выключить микрофон"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7835,6 +7871,7 @@ msgstr "Новая вкладка в группе"
 #: src/mobile/WideShell.tsx
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
@@ -12116,6 +12153,10 @@ msgstr "Начинайте каждый день с приоритетов и с
 msgid "Start from scratch"
 msgstr "Начать с нуля"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "Начать голосовой чат"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12910,6 +12951,18 @@ msgstr "Не удалось выполнить операцию обновлен
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "Служба обновлений временно недоступна."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "Не удалось установить голосовое подключение. Повторите попытку."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "Время ожидания голосового подключения истекло. Повторите попытку."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "Голосовое подключение отменено."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13887,6 +13940,10 @@ msgstr "Снять отметку «готово»"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Снять отметку «готово»"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "Включить микрофон"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"
