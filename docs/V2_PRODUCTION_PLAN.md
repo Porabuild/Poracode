@@ -348,11 +348,13 @@ deadline is explicitly redesigned with evidence); transcript/terminal content by
 
 ### WS4 — Relay hardening (multi-client safety through the relay) — ~6–9 d
 
-1. Per-channel outbound byte accounting on the shared control socket; channel-only eviction (`ws-close` per channel) with shared-socket kill demoted to last resort (P1-5).
-2. Notify host on relay-side visitor termination (`ws-close` in both failure branches) (P1-6).
-3. Pre-measure `req`/`res` frames against `controlFrameLimit`; fail that request only (P1-7).
-4. Per-clientId admission caps (16 pending / 32 channels) + global pending cap, 429/1013 (P1-8).
-5. Nits: generic 502 bodies, 1013-vs-1012 reason, relay CLI env tuning.
+**Status 2026-09-09: items 1–5 LANDED** (commit `f7b91457c`): per-channel byte
+accounting + channel-only eviction on control congestion (P1-5); host notified with
+`ws-close` when a visitor dies mid-forward (P1-6); `req`/`res` frames pre-measured
+against `controlFrameLimit` — 413/`req-error` per request (P1-7); per-clientId
+admission caps 16 pending / 32 channels with a 256 global pending bound, 429/1013
+(P1-8); visitor-facing 502 bodies restricted to the deliberate transport verdicts.
+131 relay tests green incl. 5 new slow-client isolation tests.
 
 **Gate:** one paused visitor + one chatty visitor + one healthy visitor on one host: healthy
 visitor converges, paused visitor isolated, no unbounded queues (extend `relayServer.test.ts`
