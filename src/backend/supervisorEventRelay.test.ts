@@ -176,6 +176,42 @@ describe("createBackendHostShedPolicy", () => {
         },
         9,
       ),
+      // A shed truncation would resurrect deleted turns on the renderer, so it
+      // stays non-sheddable — even when batched with rebuildable bulk content.
+      sequenced(
+        {
+          type: "thread-runtime-event",
+          threadId: "thread-1",
+          event: {
+            type: "runtime.truncated",
+            threadId: "thread-1",
+            itemId: "i1",
+            removedCompletedTurnAnchors: ["t1"],
+          },
+        },
+        10,
+      ),
+      sequenced(
+        {
+          type: "thread-runtime-events",
+          threadId: "thread-1",
+          events: [
+            {
+              type: "item.started",
+              threadId: "thread-1",
+              itemId: "i2",
+              itemType: "assistant_message",
+            },
+            {
+              type: "runtime.truncated",
+              threadId: "thread-1",
+              itemId: "i2",
+              removedCompletedTurnAnchors: [],
+            },
+          ],
+        },
+        11,
+      ),
       // Non-supervisor traffic has no recovery path.
       {
         version: BACKEND_HOST_PROTOCOL_VERSION,
