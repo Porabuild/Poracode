@@ -10,10 +10,11 @@ import {
   rankCrossagentCandidates,
 } from "@/shared/crossagentRanking";
 import { formatReasoningLabel } from "@/shared/modelLabels";
-import type {
-  CrossagentRoutingOverride,
-  CrossagentRoutingSelection,
-  SharedSettings,
+import {
+  crossagentRoutingOverrideSchema,
+  type CrossagentRoutingOverride,
+  type CrossagentRoutingSelection,
+  type SharedSettings,
 } from "@/shared/settings";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import {
@@ -833,7 +834,7 @@ async function setRoutingPreference(
 
   const selectionArgs = { ...args, tags, provider };
   resolveSelectionArgs(selectionArgs, await ctx.listSpawnableAgents(tags));
-  const override: CrossagentRoutingOverride = {
+  const override = {
     tags,
     agentKind: provider,
     ...(typeof args.model === "string" && args.model.length > 0 ? { modelId: args.model } : {}),
@@ -845,8 +846,15 @@ async function setRoutingPreference(
     ...(retryMode ? { retryMode } : {}),
     updatedAt: Date.now(),
   };
-  await ctx.setRoutingOverride(override);
-  return jsonResult({ status: "saved", override });
+  const parsed = crossagentRoutingOverrideSchema.safeParse(override);
+  if (!parsed.success) {
+    return errorResult(
+      "Invalid routing preference: " +
+        parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; "),
+    );
+  }
+  await ctx.setRoutingOverride(parsed.data);
+  return jsonResult({ status: "saved", override: parsed.data });
 }
 
 async function removeRoutingPreference(

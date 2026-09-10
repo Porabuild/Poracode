@@ -8,7 +8,7 @@ import {
 import { dispatchTool } from "./toolRegistry";
 import type { SubagentToolContext } from "./toolRegistry";
 import { SubagentRunManager, SubagentSpawnError } from "./SubagentRunManager";
-import type { CrossagentRoutingOverride } from "@/shared/settings";
+import { normalizeSharedSettings, type CrossagentRoutingOverride } from "@/shared/settings";
 import type { SpawnableAgent } from "./types";
 
 function makeProvider(
@@ -380,6 +380,33 @@ describe("persistent fallback chain routing", () => {
     });
     const listed = await dispatchTool("list_routing_preferences", {}, ctx);
     expect(JSON.parse(resultText(listed))).toEqual(saved);
+  });
+
+  it("rejects an oversized nested fallback and preserves existing routes", async () => {
+    const existing: CrossagentRoutingOverride = {
+      tags: ["backend"],
+      agentKind: "codex",
+      modelId: "gpt-5.5",
+      updatedAt: 1,
+    };
+    const { ctx, saved } = makeCtx(existing);
+    saved.push(existing);
+
+    const result = await dispatchTool(
+      "set_routing_preference",
+      {
+        tags: ["review"],
+        provider: "claude",
+        model: "sonnet",
+        fallbacks: [{ provider: "claude", reasoning: "x".repeat(257) }],
+      },
+      ctx,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(saved).toEqual([existing]);
+    const normalized = normalizeSharedSettings({ crossagentRoutingOverrides: saved });
+    expect(normalized.crossagentRoutingOverrides).toEqual([existing]);
   });
 
   it("rejects an invalid inherited fallback before starting the child", async () => {
