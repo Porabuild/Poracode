@@ -1,6 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { PORACODE_REMOTE_PROTOCOL_VERSION } from "../../../src/shared/remote/protocol";
+import {
+  remoteEnvironmentDescriptorSchema,
+  PORACODE_REMOTE_PROTOCOL_VERSION,
+} from "../../../src/shared/remote/protocol";
 
 const root = new URL("../../../", import.meta.url);
 const platforms = [
@@ -26,6 +29,15 @@ function assignment(path: string, name: string): string | undefined {
 }
 
 describe("native app protocol compatibility declarations", () => {
+  it("rejects a pre-daily-window host before decoding its usage responses", () => {
+    const environment = JSON.parse(
+      readFileSync(new URL("protocol/remote/v3/fixtures/environment.json", root), "utf8"),
+    );
+    expect(remoteEnvironmentDescriptorSchema.safeParse(environment).success).toBe(true);
+    expect(
+      remoteEnvironmentDescriptorSchema.safeParse({ ...environment, protocolVersion: 10 }).success,
+    ).toBe(false);
+  });
   it("keeps the Android pre-build guard aligned with the wire protocol", () => {
     const source = readFileSync(new URL("android/app/build.gradle.kts", root), "utf8");
     expect(source.match(/version\("protocolVersion",\s*(\d+)\)/)?.[1]).toBe(

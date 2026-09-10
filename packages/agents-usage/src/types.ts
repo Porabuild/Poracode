@@ -9,6 +9,7 @@ import { z } from "zod";
 
 export const knownUsageWindowIdSchema = z.enum([
   "session-5h",
+  "daily",
   "weekly",
   "weekly-opus",
   "weekly-sonnet",

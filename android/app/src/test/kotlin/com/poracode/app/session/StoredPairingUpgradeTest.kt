@@ -1,5 +1,6 @@
 package com.poracode.app.session
 
+import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.ConnectionProfile
 import com.poracode.app.model.HostRecord
@@ -59,9 +60,24 @@ class StoredPairingUpgradeTest {
         advanceUntilIdle()
         assertEquals(AppSession.Phase.Ready, h.session.state.value.phase)
         val selected = h.catalog.snapshot().selected!!
-        assertEquals(h.record.copy(protocolVersion = 10, browserForwardVersions = emptyList()), selected)
+        assertEquals(h.record.copy(protocolVersion = 11, browserForwardVersions = emptyList()), selected)
         assertEquals("saved-token", h.catalog.token(selected.connectionId))
         assertEquals(1, h.catalog.snapshot().hosts.size)
+    }
+
+    @Test
+    fun versionTenBindingUpgradesOnlyAfterAuthenticatedRead() = runTest {
+        val api = FakeApiGateway().apply { snapshotHold = CompletableDeferred() }
+        val h = fixture(api = api, version = 10)
+        h.session.bootstrap()
+        runCurrent()
+        assertEquals(1, api.snapshotCalls.get())
+        assertArrayEquals(h.before, h.repository.rawV2BytesForTests())
+        api.snapshotHold!!.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(AppSession.Phase.Ready, h.session.state.value.phase)
+        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, h.catalog.snapshot().selected!!.protocolVersion)
+        assertEquals("saved-token", h.catalog.token(h.record.connectionId))
     }
 
     @Test
@@ -93,7 +109,7 @@ class StoredPairingUpgradeTest {
     @Test
     fun unreviewedFutureBindingNeverContactsServer() = runTest {
         val api = FakeApiGateway()
-        val h = fixture(api = api, version = 11)
+        val h = fixture(api = api, version = ProtocolConstants.REMOTE_PROTOCOL_VERSION + 1)
         h.session.bootstrap()
         advanceUntilIdle()
         assertEquals(AppSession.Phase.ProtocolIncompatible, h.session.state.value.phase)
@@ -115,7 +131,7 @@ class StoredPairingUpgradeTest {
         h.session.onAppForeground()
         advanceUntilIdle()
         assertEquals(AppSession.Phase.Ready, h.session.state.value.phase)
-        assertEquals(10, h.catalog.snapshot().selected!!.protocolVersion)
+        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, h.catalog.snapshot().selected!!.protocolVersion)
     }
 
     @Test
@@ -154,7 +170,7 @@ class StoredPairingUpgradeTest {
             environmentResponse = environmentResponse.copy(desktopId = "desktop-b")
             snapshotHold = CompletableDeferred()
         }
-        val h = fixture(api = api, version = 10, otherApi = olderApi)
+        val h = fixture(api = api, version = ProtocolConstants.REMOTE_PROTOCOL_VERSION, otherApi = olderApi)
         val older = h.record.copy(connectionId = ClientConnectionId.create(),
             desktopId = "desktop-b", httpBaseUrl = "https://host-b.test/", protocolVersion = 9)
         h.catalog.add(older, "second-token", h.catalog.begin(HostOperationKind.Add))
@@ -172,7 +188,7 @@ class StoredPairingUpgradeTest {
         advanceUntilIdle()
         assertEquals(AppSession.Phase.Ready, h.session.state.value.phase)
         assertEquals(older.connectionId, h.catalog.snapshot().selectedConnectionId)
-        assertEquals(10, h.catalog.snapshot().selected!!.protocolVersion)
+        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, h.catalog.snapshot().selected!!.protocolVersion)
         assertEquals("second-token", h.catalog.token(older.connectionId))
     }
 
@@ -190,7 +206,7 @@ class StoredPairingUpgradeTest {
         h.catalog.recover()
         val recovered = h.catalog.snapshot().selected!!
         assertEquals(h.record.connectionId, recovered.connectionId)
-        assertEquals(10, recovered.protocolVersion)
+        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, recovered.protocolVersion)
         assertEquals("saved-token", h.catalog.token(recovered.connectionId))
         assertNull(h.catalog.rawJournalForTests())
     }

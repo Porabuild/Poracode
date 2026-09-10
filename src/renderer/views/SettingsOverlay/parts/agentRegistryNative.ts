@@ -419,6 +419,18 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
       ),
   },
   {
+    id: "devin",
+    description: msg`Devin CLI with terminal and structured chat support.`,
+    docsUrl: "https://docs.devin.ai/cli",
+    installCommand: (project) =>
+      nativeInstallCommand(project, {
+        mac: "if command -v brew >/dev/null 2>&1; then brew install --cask devin-cli; else curl -fsSL https://cli.devin.ai/install.sh | bash; fi",
+        posix: "curl -fsSL https://cli.devin.ai/install.sh | bash",
+        windows:
+          "if (Get-Command winget -ErrorAction SilentlyContinue) { winget install --id CognitionAI.DevinCLI } else { irm https://static.devin.ai/cli/setup.ps1 | iex }",
+      }),
+  },
+  {
     id: "copilot",
     acpRegistryAliases: [
       { id: "github-copilot", nativeSupport: true },

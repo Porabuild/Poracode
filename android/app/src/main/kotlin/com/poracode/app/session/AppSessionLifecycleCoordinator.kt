@@ -48,7 +48,7 @@ internal class AppSessionLifecycleCoordinator(
         networkGate.openForForeground()
         live.openLifecycleGate()
         hosts.onForeground()
-        if (profile?.protocolVersion == StoredProtocolUpgrade.PREVIOUS_VERSION && live.api == null) {
+        if (StoredProtocolUpgrade.isEligibleStoredProtocol(profile?.protocolVersion) && live.api == null) {
             bootstrap()
             return
         }
@@ -72,7 +72,7 @@ internal class AppSessionLifecycleCoordinator(
     fun onLocalNetworkPermissionGranted() {
         val profile = state().profile ?: return
         if (!hasEndpointPermission(profile.httpBaseUrl)) return
-        if (profile.protocolVersion == StoredProtocolUpgrade.PREVIOUS_VERSION && live.api == null) {
+        if (StoredProtocolUpgrade.isEligibleStoredProtocol(profile.protocolVersion) && live.api == null) {
             networkGate.openForForeground()
             live.openLifecycleGate()
             bootstrap()

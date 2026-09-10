@@ -4022,6 +4022,7 @@ msgstr "最近表示したチャットを新しい順に切り替え"
 msgid "Cycle to the previous recently viewed chat"
 msgstr "最近表示したチャットを古い順に切り替え"
 
+#: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Daily"
 msgstr "毎日"
@@ -4372,6 +4373,14 @@ msgstr "デバイスとツール"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "このデスクトップに到達できる間、デバイスをペアリングできます。"
+
+#: src/renderer/components/providers/devin/manifest.ts
+msgid "Devin"
+msgstr "Devin"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Devin CLI with terminal and structured chat support."
+msgstr "ターミナルと構造化チャットに対応した Devin CLI。"
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -6283,6 +6292,10 @@ msgstr "グローバル設定 (現在{0}) を継承します。"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "リポジトリの初期化"
+
+#: src/renderer/components/providers/devin/modelPricing.ts
+msgid "Input / output prices per 1M tokens. Ranges cover model variants."
+msgstr "100万トークンあたりの入力・出力料金です。価格帯にはモデルの各バリアントが含まれます。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"

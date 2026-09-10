@@ -13,7 +13,7 @@
     "webSocketClientMessages": 9,
     "webSocketServerMessages": 10
   },
-  "manifestHash": "sha256:384027c42a6ff96d0e9c18757e617ec06b95f473314460ff3c6be638ba083600",
-  "protocolVersion": 10,
-  "sourceHash": "sha256:cee3382da01875ddc40eddf12ddf4884018f251ffe1c0b01207c1c50ee323d2f"
+  "manifestHash": "sha256:69e2f4d9368d6edb648a9c5fd4930f903a462c1425e7aab716ad6e5ff39bd4d5",
+  "protocolVersion": 11,
+  "sourceHash": "sha256:357ce7591ac9ad276893f6772be6b2a33887f67630dbd49a5d263feccdce7da8"
 }

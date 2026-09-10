@@ -1,5 +1,6 @@
 package com.poracode.app.storage
 
+import com.poracode.app.protocol.ProtocolConstants
 import android.content.ContextWrapper
 import android.content.pm.ApplicationInfo
 import com.poracode.app.model.ConnectionProfile
@@ -50,16 +51,16 @@ class LegacyProtocolUpgradeTest {
 
     @Test
     fun splitV1SourcePreservesReviewedPinAndRejectsFuturePin() = runTest {
-        for (version in listOf(9, 11)) {
+        for (version in listOf(9, 10, ProtocolConstants.REMOTE_PROTOCOL_VERSION + 1)) {
             val files = temporary.newFolder()
             val legacyProfile = File(files, "datastore/${ConnectionMetadataStore.DATA_STORE_NAME}.preferences_pb")
             legacyProfile.parentFile!!.mkdirs()
             legacyProfile.writeText("profile")
             File(files, KeystoreSecureTokenStore.TOKEN_FILE_NAME).writeText("encrypted token")
             val loaded = repository(files, FakeTokenCipher("v2"), version).loadOutcome()
-            if (version == 9) {
+            if (version == 9 || version == 10) {
                 assertTrue(loaded is SessionCredentialLoadOutcome.Rejected.ProtocolMismatch)
-                assertEquals(9, (loaded as SessionCredentialLoadOutcome.Rejected.ProtocolMismatch).credentials.profile.protocolVersion)
+                assertEquals(version, (loaded as SessionCredentialLoadOutcome.Rejected.ProtocolMismatch).credentials.profile.protocolVersion)
             } else assertEquals(SessionCredentialLoadOutcome.Rejected.LegacyInconsistent, loaded)
             assertEquals("profile", legacyProfile.readText())
         }

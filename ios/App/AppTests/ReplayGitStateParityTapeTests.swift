@@ -13,7 +13,7 @@ final class ReplayGitStateParityTapeTests: XCTestCase {
     )
     // Deliberate generation pin: the v10 wire contract. Raise consciously with
     // the next protocol bump and the committed tape together.
-    XCTAssertEqual(ProtocolConstants.remoteProtocolVersion, 10)
+    XCTAssertEqual(ProtocolConstants.remoteProtocolVersion, 11)
   }
 
   // MARK: - Lifecycle (thread-reset / thread-exited)

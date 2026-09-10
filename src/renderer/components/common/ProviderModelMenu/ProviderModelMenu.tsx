@@ -11,6 +11,7 @@ import {
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown, Search, Star, Zap } from "lucide-react";
 import { Tooltip } from "@heroui/react";
+import { formatProviderModelDescription } from "@/renderer/components/providers/modelDescription";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -626,7 +627,7 @@ const WindowedProviderModelList = forwardRef<
     toggleFavorite,
     onSelect,
   } = props;
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [visibleRow, setVisibleRow] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
@@ -937,7 +938,13 @@ const WindowedProviderModelList = forwardRef<
               // the label string itself (e.g. "GPT-5.5 · 272K · Medium").
               // Render the head as the model name and the tail as muted hint.
               const { name, hint } = splitModelLabel(item.label);
-              const mutedHint = [hint, item.contextDescription].filter(Boolean).join(" · ");
+              const description = formatProviderModelDescription(
+                item.providerKind,
+                item.tooltipDescription,
+              );
+              const mutedHint = [hint, item.contextDescription, description?.hint]
+                .filter(Boolean)
+                .join(" · ");
               const rowFastEnabled = modelFastEnabled(item.providerKind, item.modelId);
               const content = (
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -964,11 +971,14 @@ const WindowedProviderModelList = forwardRef<
               );
               return item.tooltipDescription ? (
                 <Tooltip delay={MODEL_DESCRIPTION_TOOLTIP_DELAY_MS}>
-                  {content}
+                  <Tooltip.Trigger className="min-w-0 flex-1" role="none" tabIndex={-1}>
+                    {content}
+                  </Tooltip.Trigger>
                   <Tooltip.Content
                     placement="right"
-                    className="max-w-72 whitespace-normal break-words text-xs"
+                    className="max-w-72 whitespace-pre-line break-words text-xs"
                   >
+                    {description ? `${i18n._(description.explanation)}\n\n` : null}
                     {item.tooltipDescription}
                   </Tooltip.Content>
                 </Tooltip>

@@ -4023,6 +4023,7 @@ msgstr "Перейти до наступного нещодавно перегл
 msgid "Cycle to the previous recently viewed chat"
 msgstr "Перейти до попереднього нещодавно переглянутого чату"
 
+#: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Daily"
 msgstr "Щодня"
@@ -4373,6 +4374,14 @@ msgstr "Пристрої та інструменти"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "Пристрої можуть сполучатися, доки цей робочий стіл доступний."
+
+#: src/renderer/components/providers/devin/manifest.ts
+msgid "Devin"
+msgstr "Devin"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Devin CLI with terminal and structured chat support."
+msgstr "Devin CLI з підтримкою термінала та структурованого чату."
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -6284,6 +6293,10 @@ msgstr "Успадковується глобальне налаштування
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "Ініціалізувати репозиторій"
+
+#: src/renderer/components/providers/devin/modelPricing.ts
+msgid "Input / output prices per 1M tokens. Ranges cover model variants."
+msgstr "Ціни введення/виведення за 1 млн токенів. Діапазони охоплюють варіанти моделі."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"

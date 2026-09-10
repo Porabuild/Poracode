@@ -795,12 +795,18 @@ export class SpawnPipeline {
         payload.sessionRef,
       );
     }
-    argv.args = await applyLaunchArgsConfigRewrite(
-      adapter,
-      argv.args,
-      runtimeConfig,
-      executionLocation,
-    );
+    try {
+      argv.args = await applyLaunchArgsConfigRewrite(
+        adapter,
+        argv.args,
+        runtimeConfig,
+        executionLocation,
+      );
+    } catch (error) {
+      argv.cleanup?.();
+      await structuredSession?.dispose();
+      throw error;
+    }
     if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
       await primeProjectShellEnv(executionLocation.path);
     }
@@ -1050,12 +1056,18 @@ export class SpawnPipeline {
         session.sessionRef,
       );
     }
-    argv.args = await applyLaunchArgsConfigRewrite(
-      session.adapter,
-      argv.args,
-      config,
-      session.projectLocation,
-    );
+    try {
+      argv.args = await applyLaunchArgsConfigRewrite(
+        session.adapter,
+        argv.args,
+        config,
+        session.projectLocation,
+      );
+    } catch (error) {
+      argv.cleanup?.();
+      await structuredSession?.dispose();
+      throw error;
+    }
     if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
       await primeProjectShellEnv(session.projectLocation.path);
     }

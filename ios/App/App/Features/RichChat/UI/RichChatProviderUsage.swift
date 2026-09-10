@@ -18,6 +18,10 @@ struct RichChatProviderUsagePresentation: Equatable {
       ids.lazy.compactMap { id in windows.first { $0.id == id }?.usedPercent }.first
     }
 
+    if windows.contains(where: { $0.id == "daily" }) {
+      return RichChatUsageRings(outerPercent: first(["daily"]), innerPercent: first(["weekly"]))
+    }
+
     switch baseID {
     case "claude", "codex", "factory", "kimi", "qwen", "zai":
       return RichChatUsageRings(

@@ -1018,3 +1018,29 @@ describe("ThreadSessionManager fork mention handoff", () => {
     );
   });
 });
+
+it("releases launch reservations when config rewriting fails, permitting a retry", async () => {
+  const structured = createStructuredSession(Promise.resolve());
+  const adapter = createAdapter("fixture", structured);
+  adapter.createStructuredSession = async () => undefined;
+  const cleanup = vi.fn<() => void>();
+  adapter.buildLaunchArgv = () => ({ binary: "fixture", args: [], cleanup });
+  adapter.rewriteLaunchArgsForConfig = vi
+    .fn<NonNullable<AgentAdapter["rewriteLaunchArgsForConfig"]>>()
+    .mockRejectedValueOnce(new Error("catalog unavailable"))
+    .mockImplementation(async (args: string[]) => args);
+  const manager = createManager("fixture", adapter);
+  const payload = {
+    threadId: "rewrite-retry",
+    agentKind: "fixture",
+    projectLocation: { kind: "posix" as const, path: process.cwd() },
+    config: { model: "model" },
+    prompt: "hello",
+    initialSize: { cols: 80, rows: 24 },
+    presentationMode: "terminal" as const,
+  };
+  await expect(manager.startThread(payload)).rejects.toThrow("catalog unavailable");
+  expect(cleanup).toHaveBeenCalledOnce();
+  await expect(manager.startThread(payload)).resolves.toEqual({ threadId: payload.threadId });
+  expect(spawnPty).toHaveBeenCalled();
+});

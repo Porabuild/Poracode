@@ -213,6 +213,10 @@ export interface AcpSessionBehavior {
 }
 
 export interface AcpStructuredSessionOptions {
+  /** Resolve the provider's session mode when its permission modes differ from the terminal client. */
+  resolveMode?: typeof import("./sessionConfig").resolveAcpMode;
+  /** Provider-owned mapping for model catalogs whose variants use opaque wire IDs. */
+  resolveModelConfig?: typeof import("./sessionConfig").resolveModelConfigValue;
   /**
    * Hook the adapter passes in when it wants to control the message a failed
    * `session/load` produces. Receives the raw transport error and the
@@ -305,6 +309,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private loadSessionErrorRewriter: (error: unknown, sessionId: string) => Error =
     rewriteLoadSessionError;
+
+  private readonly resolveModelConfig: AcpStructuredSessionOptions["resolveModelConfig"];
+  private readonly resolveMode: AcpStructuredSessionOptions["resolveMode"];
 
   private emptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
 
@@ -450,7 +457,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private get sessionConfigSync(): AcpSessionConfigSync {
     if (!this._sessionConfigSync) {
-      this._sessionConfigSync = new AcpSessionConfigSync(this.connection);
+      this._sessionConfigSync = new AcpSessionConfigSync(
+        this.connection,
+        this.resolveMode,
+        this.resolveModelConfig,
+      );
     }
     return this._sessionConfigSync;
   }
@@ -501,6 +512,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     stderrChunks: string[],
     options?: AcpStructuredSessionOptions,
   ) {
+    this.resolveMode = options?.resolveMode;
+    this.resolveModelConfig = options?.resolveModelConfig;
     this.child = child;
     this.connection = connection;
     this.projectLocation = projectLocation;

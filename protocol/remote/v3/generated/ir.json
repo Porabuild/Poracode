@@ -21,7 +21,7 @@
     "webSocketServerMessages": 10
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:384027c42a6ff96d0e9c18757e617ec06b95f473314460ff3c6be638ba083600",
+  "manifestHash": "sha256:69e2f4d9368d6edb648a9c5fd4930f903a462c1425e7aab716ad6e5ff39bd4d5",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -17398,7 +17398,7 @@
     "writeExternalFile",
     "writeProjectFile"
   ],
-  "protocolVersion": 10,
+  "protocolVersion": 11,
   "routes": [
     {
       "auth": "bearer",
@@ -19340,7 +19340,7 @@
               "type": "string"
             },
             "protocolVersion": {
-              "const": 10,
+              "const": 11,
               "type": "number"
             }
           },
@@ -19519,7 +19519,7 @@
               "type": "string"
             },
             "protocolVersion": {
-              "const": 10,
+              "const": 11,
               "type": "number"
             }
           },
@@ -24660,6 +24660,7 @@
                             {
                               "enum": [
                                 "session-5h",
+                                "daily",
                                 "weekly",
                                 "weekly-opus",
                                 "weekly-sonnet",
@@ -32887,7 +32888,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:cee3382da01875ddc40eddf12ddf4884018f251ffe1c0b01207c1c50ee323d2f",
+  "sourceHash": "sha256:357ce7591ac9ad276893f6772be6b2a33887f67630dbd49a5d263feccdce7da8",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

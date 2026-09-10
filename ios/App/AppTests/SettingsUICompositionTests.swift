@@ -117,6 +117,17 @@ final class SettingsUICompositionTests: XCTestCase {
     XCTAssertEqual(SettingsUsagePresentation.windowValue(window), "60%")
   }
 
+  func testDailyUsageProjectionUsesOneDayWindow() throws {
+    let now = Date(timeIntervalSince1970: 1_000_000)
+    let reset = now.addingTimeInterval(12 * 3_600)
+    let window = SettingsUsageWindow(
+      id: "daily", label: "Daily", usedPercent: 40, used: nil, limit: nil,
+      unit: .percent, currency: nil, resetsAt: Int64(reset.timeIntervalSince1970 * 1_000)
+    )
+    let projection = try XCTUnwrap(SettingsUsagePresentation.projection(for: window, now: now))
+    XCTAssertEqual(projection.projectedPercent, 80, accuracy: 0.001)
+  }
+
   func testNativeProviderIconCatalogCoversEveryUsageProvider() throws {
     let usageProviderIDs = [
       "antigravity", "claude", "codex", "commandcode", "copilot", "cursor", "factory",

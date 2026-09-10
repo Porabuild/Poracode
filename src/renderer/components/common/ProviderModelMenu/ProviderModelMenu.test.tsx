@@ -3,6 +3,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/opencode";
 import "@/renderer/components/providers/cursor";
+import { registerModelDescriptionFormatter } from "@/renderer/components/providers/modelDescription";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderModelMenu, type ProviderModelMenuProvider } from "./ProviderModelMenu";
 
@@ -1023,4 +1024,27 @@ describe("ProviderModelMenu", () => {
     expect(within(listbox).queryByText("Gpt 5.1 Codex Max Xhigh")).not.toBeInTheDocument();
     expect(within(listbox).queryByText("Codex 5.1 Extra High")).not.toBeInTheDocument();
   });
+});
+
+it("renders opted-in compact rates beside the model name without increasing row height", async () => {
+  registerModelDescriptionFormatter("pricing-fixture", () => ({
+    hint: "$1 / $2 · 1M",
+    explanation: { id: "fixture-pricing-units", message: "Input / output rates" },
+  }));
+  const provider = makeNamedProvider("pricing-fixture", "Fixture", 1);
+  provider.capabilities.models[0]!.description = "provider pricing data";
+  render(
+    <ProviderModelMenu
+      providers={[provider]}
+      currentAgentKind="pricing-fixture"
+      currentModel="model-1"
+      onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+  const row = await screen.findByRole("option", { name: /Model 1/ });
+  const hint = within(row).getByText("· $1 / $2 · 1M");
+  expect(hint).toHaveClass("text-muted/60");
+  expect(hint.parentElement).toBe(within(row).getByText("Model 1").parentElement);
+  expect(row).toHaveStyle({ height: "28px" });
 });

@@ -91,7 +91,7 @@ internal class SessionBootstrapController(
                         )
                     }
                     val repository = credentials as? MultiHostCredentialRepository ?: return@launch
-                    if (stored.profile.protocolVersion != StoredProtocolUpgrade.PREVIOUS_VERSION) return@launch
+                    if (!StoredProtocolUpgrade.isEligibleStoredProtocol(stored.profile.protocolVersion)) return@launch
                     if (!hasEndpointPermission(stored.profile.httpBaseUrl)) {
                         updateState { it.copy(phase = AppSession.Phase.LocalNetworkPermissionRequired) }
                         return@launch

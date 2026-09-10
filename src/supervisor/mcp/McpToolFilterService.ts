@@ -1,23 +1,29 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { McpServer, ProjectLocation } from "@/shared/contracts";
+import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { resolveNodeForDistro } from "../wsl/runtime";
 import { deployFilesToWslTempBase, resolveWslHelpersDir } from "../wsl/wslDeploy";
 
 const CONFIG_ENV = "PORACODE_MCP_FILTER_CONFIG";
 
-function filterConfig(server: McpServer): string {
+function filterConfig(server: ResolvedMcpServer): string {
   return Buffer.from(
     JSON.stringify({ server, disabledTools: server.disabledTools ?? [] }),
     "utf8",
   ).toString("base64url");
 }
 
-export async function prepareMcpToolFilters(
-  servers: readonly McpServer[],
+export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
+  servers: readonly T[],
   location: ProjectLocation,
-): Promise<McpServer[]> {
-  if (!servers.some((server) => (server.disabledTools?.length ?? 0) > 0)) return [...servers];
+  options?: {
+    /** Relay remote transports for clients supporting only stdio MCP. */ remoteViaStdio?: boolean;
+  },
+): Promise<T[]> {
+  const needsProxy = (server: T) =>
+    (server.disabledTools?.length ?? 0) > 0 ||
+    (options?.remoteViaStdio === true && server.transport.type !== "stdio");
+  if (!servers.some(needsProxy)) return [...servers];
 
   const helpersDir = resolveWslHelpersDir();
   const workerSource = helpersDir ? join(helpersDir, "mcp-filter.mjs") : "";
@@ -41,7 +47,7 @@ export async function prepareMcpToolFilters(
   }
 
   return servers.map((server) => {
-    if ((server.disabledTools?.length ?? 0) === 0) return server;
+    if (!needsProxy(server)) return server;
     return {
       ...server,
       transport: {

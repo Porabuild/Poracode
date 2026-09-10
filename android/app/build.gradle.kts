@@ -194,7 +194,7 @@ val verifyRemoteV3NativeBindings = tasks.register("verifyRemoteV3NativeBindings"
         // Build-time mirror of ProtocolConstants.REMOTE_PROTOCOL_VERSION: the committed
         // generated manifest is regenerated per protocol generation, so this pin must move
         // with the app constant (never disabled or loosened).
-        version("protocolVersion", 10)
+        version("protocolVersion", 11)
         version("bindingFormatVersion", 2)
         version("generatorVersion", 3)
         version("formatVersion", 1)

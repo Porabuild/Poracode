@@ -80,6 +80,13 @@ export const BUILT_IN_USAGE_PROVIDER_DESCRIPTORS = {
     needsLogin: true,
     windowIds: ["session-5h", "weekly", "monthly"],
   },
+  devin: {
+    id: "devin",
+    label: "Devin",
+    mechanism: "oauth-endpoint",
+    needsLogin: false,
+    windowIds: ["daily", "weekly"],
+  },
   kimi: {
     id: "kimi",
     label: "Kimi Code",

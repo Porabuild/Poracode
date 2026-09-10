@@ -4023,6 +4023,7 @@ msgstr "Passer au chat récemment consulté suivant"
 msgid "Cycle to the previous recently viewed chat"
 msgstr "Passer au chat récemment consulté précédent"
 
+#: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Daily"
 msgstr "Tous les jours"
@@ -4373,6 +4374,14 @@ msgstr "Appareils et outils"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "Les appareils peuvent s’appairer lorsque ce bureau est joignable."
+
+#: src/renderer/components/providers/devin/manifest.ts
+msgid "Devin"
+msgstr "Devin"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Devin CLI with terminal and structured chat support."
+msgstr "Devin CLI avec prise en charge du terminal et du chat structuré."
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -6284,6 +6293,10 @@ msgstr "Hérité du paramètre global (actuellement {0})."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "Initialiser le dépôt"
+
+#: src/renderer/components/providers/devin/modelPricing.ts
+msgid "Input / output prices per 1M tokens. Ranges cover model variants."
+msgstr "Prix d’entrée/sortie par million de tokens. Les fourchettes couvrent les variantes du modèle."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"

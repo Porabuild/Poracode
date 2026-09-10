@@ -245,11 +245,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_4e4377c7eb> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_4e4377c7eb625399)
+  static let routeU2EEnvironmentU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_1fd6794d19> = .init(id: "route.environment-legacy.response", schema: RemoteSchemas.schema_1fd6794d194d2b99)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_4e4377c7eb> = .init(id: "route.environment.response", schema: RemoteSchemas.schema_4e4377c7eb625399)
+  static let routeU2EEnvironmentU2EResponse: RemoteRootCodec<RouteenvironmentU2DLegacyResponse_1fd6794d19> = .init(id: "route.environment.response", schema: RemoteSchemas.schema_1fd6794d194d2b99)
 }
 
 public extension RemoteRootCodecs {
@@ -433,7 +433,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProviderU2DUsageU2EResponse: RemoteRootCodec<RouteproviderU2DUsageResponse_e3d7559a78> = .init(id: "route.provider-usage.response", schema: RemoteSchemas.schema_e3d7559a78d927d8)
+  static let routeU2EProviderU2DUsageU2EResponse: RemoteRootCodec<RouteproviderU2DUsageResponse_b0304b9d9d> = .init(id: "route.provider-usage.response", schema: RemoteSchemas.schema_b0304b9d9dfc2690)
 }
 
 public extension RemoteRootCodecs {

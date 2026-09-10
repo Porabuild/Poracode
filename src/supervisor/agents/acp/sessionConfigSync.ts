@@ -49,7 +49,11 @@ export class AcpSessionConfigSync {
   private thoughtLevelToggleValues: { disabled: string; enabled: string } | undefined;
   private readonly configOptionUpdateWaiters = new Set<ConfigOptionUpdateWaiter>();
 
-  constructor(private readonly connection: ClientSideConnection) {}
+  constructor(
+    private readonly connection: ClientSideConnection,
+    private readonly resolveMode: typeof resolveAcpMode = resolveAcpMode,
+    private readonly resolveModelConfig: typeof resolveModelConfigValue = resolveModelConfigValue,
+  ) {}
 
   get availableModeIds(): string[] {
     return this._availableModeIds;
@@ -103,7 +107,7 @@ export class AcpSessionConfigSync {
 
   /** The Poracode mode id for plan mode as this agent names it. */
   resolvePlanModeId(): string {
-    return resolveAcpMode({ model: "", mode: "plan" }, this._availableModeIds) ?? "plan";
+    return this.resolveMode({ model: "", mode: "plan" }, this._availableModeIds) ?? "plan";
   }
 
   rememberOptions(availableModeIds: string[], configOptions: unknown): void {
@@ -129,9 +133,9 @@ export class AcpSessionConfigSync {
       return previousConfig;
     }
 
-    const nextModeId = resolveAcpMode(nextConfig, this._availableModeIds);
+    const nextModeId = this.resolveMode(nextConfig, this._availableModeIds);
     const previousModeId = previousConfig
-      ? resolveAcpMode(previousConfig, this._availableModeIds)
+      ? this.resolveMode(previousConfig, this._availableModeIds)
       : undefined;
     // The agent's own report wins over `previousConfig` for "is a push needed?".
     // On the first turn after a session open there is no previous config, so
@@ -162,7 +166,7 @@ export class AcpSessionConfigSync {
       }
     }
 
-    const modelConfig = resolveModelConfigValue(nextConfig, this.currentConfigOptions);
+    const modelConfig = this.resolveModelConfig(nextConfig, this.currentConfigOptions);
     const modelSelectionChanged =
       nextConfig.model !== previousConfig?.model ||
       Boolean(modelConfig && modelConfig.value !== this.modelConfigValue);
