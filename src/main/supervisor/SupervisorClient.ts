@@ -127,10 +127,26 @@ export class SupervisorClient {
     this.options.onReset();
   }
 
+  /**
+   * Launch the supervisor child unless one is already running. Idempotent
+   * (P1-3): a duplicate boot path calling this while the supervisor is
+   * healthy is a no-op, so it can never kill a working child mid-stream.
+   * Use {@link restart} for explicit force-restart semantics.
+   */
   start(): void {
     if (this.disposed) throw new Error("Supervisor client is disposed.");
-    this.stop(new Error("Supervisor restarting"));
+    if (this.child) return;
+    this.launch();
+  }
 
+  /** Kill any running supervisor and launch a fresh child. */
+  restart(): void {
+    if (this.disposed) throw new Error("Supervisor client is disposed.");
+    this.stop(new Error("Supervisor restarting"));
+    this.launch();
+  }
+
+  private launch(): void {
     const extraEnv = this.options.resolveExtraEnv?.() ?? {};
     const child = fork(this.options.supervisorPath, [], {
       stdio: ["ignore", "pipe", "pipe", "ipc"],

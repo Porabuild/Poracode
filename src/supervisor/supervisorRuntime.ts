@@ -953,10 +953,6 @@ export class SupervisorRuntime {
     }
   }
 
-  setIpcBackpressured(paused: boolean): void {
-    this.threadSessionManager.setPtyOutputPaused(paused);
-  }
-
   private hasLiveWslSession(distro?: string): boolean {
     return [...this.sessions.values()].some(
       (session) =>

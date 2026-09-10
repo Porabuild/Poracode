@@ -279,6 +279,73 @@ describe("SupervisorIpcSender", () => {
     expect(sent.slice(1)).toEqual([output("t1", "shed", 4), reply, output("t3", "newest", 6)]);
   });
 
+  it("eager-sheds incoming rebuildable output while downstream pressure is signaled", () => {
+    vi.useFakeTimers();
+    let release: ((error: Error | null) => void) | undefined;
+    const sent: OutboundMessage[] = [];
+    const onMessagesShed = vi.fn<(shed: { count: number; bytes: number }) => void>();
+    const sender = new SupervisorIpcSender<SupervisorEvent>({
+      send: (message, callback) => {
+        sent.push(message);
+        if (sent.length === 1) {
+          // Stall the first send (the reply): the consumer is the slow one.
+          release ??= callback;
+          return false;
+        }
+        callback(null);
+        return true;
+      },
+      onError: vi.fn<(error: Error) => void>(),
+      shedPolicy: {
+        isSheddable: (message) => "type" in message,
+        isRecoverySignal: (message) => (message as { data?: string }).data === "shed",
+        createRecoverySignal: (shed) =>
+          output((shed[0] as { threadId: string }).threadId, "shed", 4),
+      },
+      onMessagesShed,
+    });
+
+    // P1-2: under downstream pressure, rebuildable output is dropped at the
+    // source and announced by a recovery signal — PTYs keep running.
+    sender.setEagerShed(true);
+    const reply: SupervisorReply = { replyTo: "r", ok: true, data: null };
+    sender.reply(reply);
+    sender.emit(output("t1", "a", 1));
+    vi.advanceTimersByTime(8); // flush the terminal batch → shed at source
+    sender.emit(output("t2", "b", 1));
+    vi.advanceTimersByTime(8); // second batch → merges into the leading marker
+
+    // Both losses are announced; the second merges into the leading marker
+    // so a sustained stall collapses into one growing signal.
+    expect(onMessagesShed).toHaveBeenCalledTimes(2);
+
+    release?.(null);
+    expect(sent).toEqual([reply, output("t2", "shed", 4)]);
+  });
+
+  it("still queues non-sheddable replies while eager shedding", () => {
+    const sent: OutboundMessage[] = [];
+    const sender = new SupervisorIpcSender({
+      send: (message, callback) => {
+        sent.push(message);
+        callback(null);
+        return true;
+      },
+      onError: vi.fn<(error: Error) => void>(),
+      shedPolicy: {
+        isSheddable: (message) => "type" in message,
+        isRecoverySignal: () => false,
+        createRecoverySignal: () => output("t", "shed", 4),
+      },
+    });
+
+    sender.setEagerShed(true);
+    const reply: SupervisorReply = { replyTo: "r", ok: true, data: null };
+    sender.reply(reply);
+
+    expect(sent).toEqual([reply]);
+  });
+
   it("still fails closed when overflow survives shedding", () => {
     const onFatalError = vi.fn<(error: Error) => void>();
     const sender = new SupervisorIpcSender({

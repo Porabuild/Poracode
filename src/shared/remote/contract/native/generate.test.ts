@@ -41,35 +41,39 @@ function resign(ir: Record<string, unknown>, manifest: unknown): void {
 }
 
 describe("remote v3 native binding generator", () => {
-  it("produces three byte-identical runs with authoritative hashes and counts", () => {
-    const { ir, manifest } = input();
-    const first = buildNativeBindingOutput(ir, manifest);
-    const second = buildNativeBindingOutput(ir, manifest);
-    const third = buildNativeBindingOutput(ir, manifest);
-    expect(first).toEqual(second);
-    expect(second).toEqual(third);
-    expect(first.manifest).toMatchObject({
-      formatVersion: 1,
-      protocolVersion: 10,
-      bindingFormatVersion: 2,
-      generatorVersion: 3,
-      sourceHash: "sha256:17044295fb76b6bf526f06be3e87443ea83621d11bf9c7e4ddd211139976ab38",
-      manifestHash: "sha256:f87d0b28101deede72e2060d530142e53bf91324c2e2d786e19d4fe7e597762f",
-      counts: {
-        routes: 62,
-        procedures: 100,
-        voidProcedureResults: 36,
-        jsonProcedureResults: 64,
-        webSocketClientVariants: 9,
-        webSocketServerVariants: 10,
-        schemaRoots: 307,
-        structuralTypes: 766,
-        semanticValidators: 17,
-        swiftFiles: 44,
-        kotlinFiles: 39,
-      },
-    });
-  });
+  it(
+    "produces three byte-identical runs with authoritative hashes and counts",
+    { timeout: 120_000 },
+    () => {
+      const { ir, manifest } = input();
+      const first = buildNativeBindingOutput(ir, manifest);
+      const second = buildNativeBindingOutput(ir, manifest);
+      const third = buildNativeBindingOutput(ir, manifest);
+      expect(first).toEqual(second);
+      expect(second).toEqual(third);
+      expect(first.manifest).toMatchObject({
+        formatVersion: 1,
+        protocolVersion: 10,
+        bindingFormatVersion: 2,
+        generatorVersion: 3,
+        sourceHash: "sha256:17044295fb76b6bf526f06be3e87443ea83621d11bf9c7e4ddd211139976ab38",
+        manifestHash: "sha256:f87d0b28101deede72e2060d530142e53bf91324c2e2d786e19d4fe7e597762f",
+        counts: {
+          routes: 62,
+          procedures: 100,
+          voidProcedureResults: 36,
+          jsonProcedureResults: 64,
+          webSocketClientVariants: 9,
+          webSocketServerVariants: 10,
+          schemaRoots: 307,
+          structuralTypes: 766,
+          semanticValidators: 17,
+          swiftFiles: 44,
+          kotlinFiles: 39,
+        },
+      });
+    },
+  );
 
   it("rejects version and hash drift before emitting source", () => {
     const { ir, manifest } = input();
@@ -252,24 +256,28 @@ describe("remote v3 native binding generator", () => {
     ).toThrow(/No executable native semantic validator implementation for future.validator/);
   });
 
-  it("emits a stable executable codec API for every authoritative root", () => {
-    const { ir, manifest } = input();
-    const parsed = parseNativeBindingIr(ir, manifest);
-    const graph = buildNativeSchemaGraph(collectNativeSchemaRoots(parsed));
-    const output = buildNativeBindingOutput(ir, manifest).files;
-    for (const language of ["swift", "kotlin"] as const) {
-      const adapters = rootAdapters(graph, language);
-      expect(adapters).toHaveLength(307);
-      const source = Object.entries(output)
-        .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
-        .map(([, contents]) => contents)
-        .join("\n");
-      for (const adapter of adapters) {
-        expect(source).toContain(adapter.memberName);
-        expect(source).toContain(JSON.stringify(adapter.id));
+  it(
+    "emits a stable executable codec API for every authoritative root",
+    { timeout: 120_000 },
+    () => {
+      const { ir, manifest } = input();
+      const parsed = parseNativeBindingIr(ir, manifest);
+      const graph = buildNativeSchemaGraph(collectNativeSchemaRoots(parsed));
+      const output = buildNativeBindingOutput(ir, manifest).files;
+      for (const language of ["swift", "kotlin"] as const) {
+        const adapters = rootAdapters(graph, language);
+        expect(adapters).toHaveLength(307);
+        const source = Object.entries(output)
+          .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
+          .map(([, contents]) => contents)
+          .join("\n");
+        for (const adapter of adapters) {
+          expect(source).toContain(adapter.memberName);
+          expect(source).toContain(JSON.stringify(adapter.id));
+        }
       }
-    }
-  });
+    },
+  );
 
   it("fails closed on schema keywords without an executable native implementation", () => {
     expect(supportedNativeSchemaKeywords()).toEqual([

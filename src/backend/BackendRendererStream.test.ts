@@ -216,11 +216,50 @@ describe("BackendRendererStream", () => {
     expect(result.delivered).toBe(false);
   });
 
+  it("keeps small-event replay across the widened window (WS5 P1-9)", async () => {
+    // 3,500 tiny streaming events exhaust the old 500-entry cap (forcing a
+    // full resync) while staying far inside the 8 MB byte budget; they must
+    // all stay replayable now.
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+    for (let index = 0; index < 3_500; index += 1) {
+      stream.publish({
+        type: "thread-state",
+        threadId: `thread-${index}`,
+        status: "working",
+        attention: "none",
+        canResumeWithConfig: false,
+      });
+    }
+
+    const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+    await hello;
+    socket.send(
+      JSON.stringify({
+        version: 2,
+        type: "interests",
+        terminalThreadIds: [],
+        runtimeThreadIds: [],
+        lastSeq: 0,
+      }),
+    );
+    await expect(nextMessage(socket)).resolves.toMatchObject({
+      type: "event",
+      seq: 1,
+    });
+    expect(stream.getDiagnostics()).toMatchObject({
+      connectedClients: 1,
+      replayEvictions: 0,
+      resyncRequests: 0,
+    });
+  });
+
   it("bounds replay and reports when a client must resynchronize", async () => {
     const stream = new BackendRendererStream();
     streams.push(stream);
     const info = await stream.start();
-    for (let index = 0; index < 501; index += 1) {
+    for (let index = 0; index < 4_001; index += 1) {
       stream.publish({
         type: "thread-state",
         threadId: `thread-${index}`,
@@ -243,7 +282,7 @@ describe("BackendRendererStream", () => {
     );
     await expect(nextMessage(socket)).resolves.toMatchObject({
       type: "resync-required",
-      latestSeq: 501,
+      latestSeq: 4_001,
     });
     expect(stream.getDiagnostics()).toMatchObject({
       connectedClients: 1,

@@ -7,7 +7,12 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 function entry(seq: number): BufferedSupervisorEvent {
-  return { seq, bytes: 1, event: { type: "thread-reset", threadId: `thread-${seq}` } };
+  return {
+    seq,
+    bytes: 1,
+    event: { type: "thread-reset", threadId: `thread-${seq}` },
+    json: JSON.stringify({ type: "thread-reset", threadId: `thread-${seq}` }),
+  };
 }
 
 function fixture() {

@@ -36,6 +36,13 @@ export interface BufferedSupervisorEvent {
   /** Serialized size of `event`, so the replay buffer can enforce a byte budget
    * and not just an entry count (see `eventSizeGuard.trimEventBuffer`). */
   readonly bytes: number;
+  /**
+   * WS5: the pre-serialized wire form of `event` (image refs already
+   * projected). Replay reuses this string when per-client scoping would leave
+   * the event untouched, so a multi-kilobyte entry is never stringified again
+   * per replaying client (serialize once at ingest).
+   */
+  readonly json: string;
 }
 
 /**

@@ -12,10 +12,20 @@ import {
 import { BackendEventRouter } from "./BackendHostCore";
 import { capBroadcastEvent, maxBroadcastEventBytes } from "@/main/remote/server/eventSizeGuard";
 
-const MAX_REPLAY_EVENTS = 500;
+// WS5 P1-9: matched with the remote transport's window widening — the byte
+// budget bounds memory, so the entry cap only bounds worst-case counts of
+// small streaming events (the old 500-entry cap forced full resyncs under
+// streaming load long before the bytes mattered).
+const MAX_REPLAY_EVENTS = 4_000;
 const MAX_REPLAY_BYTES = 8 * 1024 * 1024;
 const MIN_CLIENT_BUFFERED_BYTES = 128 * 1024;
 const MAX_CLIENT_BUFFERED_BYTES = 1024 * 1024;
+// WS5: supervisor flow-control watermarks. When any ready renderer holds more
+// than the high watermark of unacknowledged stream bytes, the backend host
+// tells the supervisor to shed rebuildable terminal output at the source; the
+// low watermark (hysteresis) clears it again.
+const BACKPRESSURE_HIGH_WATERMARK_BYTES = MAX_CLIENT_BUFFERED_BYTES / 2;
+const BACKPRESSURE_LOW_WATERMARK_BYTES = MAX_CLIENT_BUFFERED_BYTES / 8;
 const HEALTHY_SENDS_BEFORE_BUDGET_REDUCTION = 256;
 const MAX_REQUEST_BYTES = 64 * 1024 * 1024;
 
@@ -23,6 +33,8 @@ interface ReplayEntry {
   seq: number;
   event: SupervisorEvent;
   bytes: number;
+  /** Ingest-time serialization; reused by replay unless filtering rewrites. */
+  json: string;
 }
 
 interface ClientState {
@@ -55,6 +67,7 @@ export class BackendRendererStream {
   private readonly clients = new Map<WebSocket, ClientState>();
   private readonly terminalBootstrapTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly replay: ReplayEntry[] = [];
+  private pressured = false;
   private replayBytes = 0;
   private sequence = 0;
   private server: WebSocketServer | null = null;
@@ -102,6 +115,25 @@ export class BackendRendererStream {
     };
   }
 
+  /**
+   * WS5: true while any ready renderer holds more than the high watermark of
+   * unacknowledged stream bytes. Latched with hysteresis: it clears only once
+   * every client drains below the low watermark, so the supervisor does not
+   * oscillate between shedding and queueing.
+   */
+  isBackpressured(): boolean {
+    let pressured = this.pressured;
+    let highest = 0;
+    for (const [socket, client] of this.clients) {
+      if (!client.ready) continue;
+      highest = Math.max(highest, socket.bufferedAmount);
+    }
+    if (!pressured && highest > BACKPRESSURE_HIGH_WATERMARK_BYTES) pressured = true;
+    if (pressured && highest <= BACKPRESSURE_LOW_WATERMARK_BYTES) pressured = false;
+    this.pressured = pressured;
+    return pressured;
+  }
+
   publish(event: SupervisorEvent): { delivered: boolean; sequence: number } {
     const seq = ++this.sequence;
     // One oversized event would trip `send`'s budget on every connected
@@ -121,7 +153,12 @@ export class BackendRendererStream {
       this.broadcastResyncRequired();
       return { delivered: false, sequence: seq };
     }
-    this.replay.push({ seq, event: capped.event, bytes: capped.bytes });
+    this.replay.push({
+      seq,
+      event: capped.event,
+      bytes: capped.bytes,
+      json: capped.json,
+    });
     this.replayBytes += capped.bytes;
     this.trimReplay();
 
@@ -339,19 +376,18 @@ export class BackendRendererStream {
       if (entry.seq <= lastSeq) continue;
       const event = state.router.filter(entry.event);
       if (!event) continue;
-      if (
-        !this.send(
-          socket,
-          state,
-          JSON.stringify({
-            version: BACKEND_RENDERER_STREAM_VERSION,
-            type: "event",
-            seq: entry.seq,
-            event,
-          }),
-        )
-      )
-        return;
+      // Reuse the ingest-time serialization when filtering left the event
+      // untouched: a multi-megabyte entry is never stringified again here.
+      const payload =
+        event === entry.event
+          ? `{"version":${BACKEND_RENDERER_STREAM_VERSION},"type":"event","seq":${entry.seq},"event":${entry.json}}`
+          : JSON.stringify({
+              version: BACKEND_RENDERER_STREAM_VERSION,
+              type: "event",
+              seq: entry.seq,
+              event,
+            });
+      if (!this.send(socket, state, payload)) return;
       this.diagnostics.replayedEvents += 1;
     }
   }

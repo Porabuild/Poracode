@@ -74,6 +74,38 @@ function captureSentId(child: FakeChild): () => string {
   return () => id;
 }
 
+describe("SupervisorClient.start idempotency", () => {
+  beforeEach(() => {
+    forkMock.mockReset();
+    setPriorityMock.mockReset();
+    terminateChildProcessTreeMock.mockReset();
+  });
+
+  it("does not restart a healthy supervisor when called again (P1-3)", () => {
+    const { client, child } = makeClient();
+
+    // A duplicate boot path must be a no-op, never kill the running child.
+    client.start();
+    client.start();
+
+    expect(forkMock).toHaveBeenCalledTimes(1);
+    expect(child.connected).toBe(true);
+    expect(terminateChildProcessTreeMock).not.toHaveBeenCalled();
+  });
+
+  it("restart() explicitly replaces a running supervisor", () => {
+    const { client, child } = makeClient();
+    const replacement = makeFakeChild();
+    forkMock.mockReturnValue(replacement);
+
+    client.restart();
+
+    expect(terminateChildProcessTreeMock).toHaveBeenCalledTimes(1);
+    expect(forkMock).toHaveBeenCalledTimes(2);
+    void child;
+  });
+});
+
 describe("SupervisorClient.call", () => {
   beforeEach(() => {
     forkMock.mockReset();

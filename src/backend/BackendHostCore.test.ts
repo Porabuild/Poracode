@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   dbUpdateCheckpointRevertPhases: vi.fn<() => void>(),
   persistSupervisorEvent: vi.fn<(event: SupervisorEvent) => void>(),
   start: vi.fn<() => void>(),
+  restart: vi.fn<() => void>(),
   dispose: vi.fn<() => void>(),
   supervisorOptions: null as null | {
     onEvent(event: SupervisorEvent): void;
@@ -48,6 +49,7 @@ vi.mock("@/main/remote/server/runtimePersistence", () => ({
 vi.mock("@/main/supervisor/SupervisorClient", () => ({
   SupervisorClient: class {
     start = mocks.start;
+    restart = mocks.restart;
     dispose = mocks.dispose;
 
     constructor(options: { onEvent(event: SupervisorEvent): void; onReset(): void }) {
@@ -95,7 +97,9 @@ describe("BackendHostCore", () => {
 
     expect(mocks.initDatabase).toHaveBeenCalledExactlyOnceWith("/data/state.sqlite");
     expect(mocks.dbMarkLiveThreadsInactive).toHaveBeenCalledOnce();
-    expect(mocks.start).toHaveBeenCalledTimes(2);
+    // startSupervisor is idempotent (start once); restartSupervisor forces.
+    expect(mocks.start).toHaveBeenCalledTimes(1);
+    expect(mocks.restart).toHaveBeenCalledTimes(1);
     expect(mocks.dispose).toHaveBeenCalledOnce();
     expect(mocks.closeDatabase).toHaveBeenCalledOnce();
   });

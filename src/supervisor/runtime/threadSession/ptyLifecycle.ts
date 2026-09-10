@@ -13,9 +13,6 @@ export class PtyLifecycle {
   private readonly exitPromises = new WeakMap<object, Promise<void>>();
   private readonly exitResolvers = new WeakMap<object, () => void>();
   private readonly trackedSessions = new Set<SessionRuntime | ShellSessionRuntime>();
-  private outputPaused = false;
-
-  constructor(private readonly onFlowControlError: (error: unknown) => void = () => {}) {}
 
   track(session: SessionRuntime | ShellSessionRuntime): void {
     if (session.ptyExited || this.exitPromises.has(session)) {
@@ -28,7 +25,6 @@ export class PtyLifecycle {
     this.exitPromises.set(session, promise);
     this.exitResolvers.set(session, resolve);
     this.trackedSessions.add(session);
-    if (this.outputPaused) this.setSessionOutputPaused(session, true);
   }
 
   resolveExit(session: SessionRuntime | ShellSessionRuntime): void {
@@ -37,14 +33,6 @@ export class PtyLifecycle {
     this.exitResolvers.delete(session);
     this.exitPromises.delete(session);
     this.trackedSessions.delete(session);
-  }
-
-  setOutputPaused(paused: boolean): void {
-    if (this.outputPaused === paused) return;
-    this.outputPaused = paused;
-    for (const session of this.trackedSessions) {
-      this.setSessionOutputPaused(session, paused);
-    }
   }
 
   /**
@@ -113,21 +101,6 @@ export class PtyLifecycle {
       return;
     }
     session.pty.kill();
-  }
-
-  private setSessionOutputPaused(
-    session: SessionRuntime | ShellSessionRuntime,
-    paused: boolean,
-  ): void {
-    if (session.ptyExited || session.ignoreExit) return;
-    const pty = session.pty;
-    if (!pty) return;
-    try {
-      if (paused) pty.pause();
-      else pty.resume();
-    } catch (error) {
-      this.onFlowControlError(error);
-    }
   }
 }
 
