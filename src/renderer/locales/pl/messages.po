@@ -2163,6 +2163,7 @@ msgstr "Nie można połączyć się z serwerem zdalnym. Sprawdź, czy jest onlin
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2504,6 +2505,10 @@ msgstr "Wybierz, co Poracode ma robić z nowymi pull requestami: nic, naprawiać
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose when this machine stays awake."
 msgstr "Wybierz, kiedy ten komputer pozostaje aktywny."
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "Wybierz, czy wiadomości czatu wysłane podczas pracy agenta mają sterować bieżącą odpowiedzią, czy trafić do kolejki następnej odpowiedzi. {followUpShortcut} używa przeciwnego działania."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2881,6 +2886,10 @@ msgstr "Zamknij panel przepływów pracy"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Zamknięte"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3854,6 +3863,10 @@ msgstr "Wybierz zwycięzcę za pomocą AI"
 msgid "Crowned"
 msgstr "Wybrano zwycięzcę"
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Wyselekcjonowane bezpłatne i premium skille zarządzane przez MCP Market."
@@ -4686,6 +4699,11 @@ msgstr "Edytuj serwer MCP"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "Edytuj profil"
+
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "Edytuj wiadomość w kolejce"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -5548,6 +5566,11 @@ msgstr "Folder przechowujący drzewa robocze tego projektu. Zresetuj, aby użyć
 #: src/mobile/views/ThreadView.tsx
 msgid "Follow up..."
 msgstr "Kontynuuj..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "Zachowanie kolejnych wiadomości"
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -9118,6 +9141,7 @@ msgid "Pause goal"
 msgstr "Wstrzymaj cel"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9897,6 +9921,14 @@ msgstr "Qoder CLI"
 msgid "Questions"
 msgstr "Pytania"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "Dodaj do kolejki"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "Dodaj wiadomość do kolejki"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "W kolejce"
@@ -9906,6 +9938,18 @@ msgstr "W kolejce"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0} oczekuje na aktualizację do v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "Nie znaleziono wiadomości uzupełniającej w kolejce: {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "Wiadomości w kolejce"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "Wiadomości uzupełniające w kolejce są obsługiwane tylko w wątkach czatu."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10346,6 +10390,10 @@ msgstr "Usuń projekt"
 msgid "Remove Project"
 msgstr "Usuń projekt"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "Usuń wiadomość z kolejki"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Usuń skrót"
@@ -10458,6 +10506,10 @@ msgstr "Zmień kolejność {0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Zmień kolejność {label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "Zmień kolejność wiadomości w kolejce"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10628,6 +10680,10 @@ msgstr "Wznów"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Wznów cel"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "Wznów wiadomości z kolejki"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10953,6 +11009,7 @@ msgstr "Nasycenie i jasność"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12214,6 +12271,27 @@ msgstr "Stan:"
 msgid "stdio (local command)"
 msgstr "stdio (polecenie lokalne)"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "Steruj"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "Steruj bieżącą turą"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "Wyślij wiadomość z kolejki, aby pokierować"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "Przekierowanie anulowano przed wysłaniem wiadomości."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "Przekierowanie zastąpiono nowszą wiadomością."
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -12774,6 +12852,10 @@ msgstr "Zdalny serwer Poracode nie zwrócił danych uwierzytelniających parowan
 msgid "The remote server returned no pairing credential."
 msgstr "Serwer zdalny nie zwrócił danych uwierzytelniających parowania."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "Nie udało się wysłać wiadomości zastępczej."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Lokalizacja repozytorium na dysku. Zaktualizuj ją, jeśli przeniesiono folder."
@@ -12849,6 +12931,10 @@ msgstr "Tunel SSH połączył się z niezgodnym serwerem Poracode."
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "docelowego dostawcy"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "Sesja wątku jest niedostępna dla wiadomości uzupełniających w kolejce."
 
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
@@ -12993,6 +13079,10 @@ msgstr "ten komputer"
 msgid "This machine"
 msgstr "Ten komputer"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "Tej wiadomości nie ma już w kolejce. Nadal możesz skopiować edytowany tekst."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Ta nazwa jest zastrzeżona przez wbudowany serwer MCP."
@@ -13047,6 +13137,15 @@ msgstr "ten projekt"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Serwer zdalny tego projektu jest offline. Połącz ponownie, aby rozpocząć wątek."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "Ta wiadomość uzupełniająca w kolejce uległa zmianie. Otwórz ją ponownie przed zapisaniem."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "Ta wiadomość uzupełniająca w kolejce jest już wysyłana."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "Ten projekt zdalny jest niedostępny. Połącz środowisko ponownie i spróbuj jeszcze raz."
@@ -13081,6 +13180,14 @@ msgstr "Ten serwer działa na tym komputerze i jest niedostępny dla projektów 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Ten skrót globalny jest niedostępny. Wybierz inną kombinację klawiszy."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "Ten wątek nie obsługuje wiadomości uzupełniających w kolejce."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "Ten wątek nie jest gotowy na przekierowanie."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

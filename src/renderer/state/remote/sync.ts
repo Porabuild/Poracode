@@ -4,6 +4,11 @@ import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
 import { remoteGitStateEventSchema, remoteGitSummariesEventSchema } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  isThreadFollowUpQueueSnapshotCurrent,
+  useThreadFollowUpQueueStore,
+  type ThreadFollowUpQueueSnapshotGuard,
+} from "@/renderer/state/threadFollowUpQueueStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { handleThreadStateNotification } from "@/renderer/notifications";
@@ -60,21 +65,24 @@ function toCompletedTurnRecords(
  * Reads the highest WS event seq the client has already applied on that host,
  * passed by callers that track it (the desktop-as-client store). A history
  * snapshot built before one of those events must not overwrite the event's
- * fresher background-task level. The mobile PWA's ~1s refresh loop self-heals
- * the same race, so callers without a seq simply omit the option.
+ * fresher runtime state. Callers without an active socket omit the option.
  */
-function snapshotBackgroundTasksAreStale(
+function snapshotRuntimeStateIsStale(
   snapshot: RemoteThreadSnapshot,
   lastSeenEventSeq: number | undefined,
 ): boolean {
-  const remoteServerId = snapshot.thread.remoteServerId;
-  if (remoteServerId === undefined || lastSeenEventSeq === undefined) return false;
+  if (lastSeenEventSeq === undefined) return false;
   return snapshot.snapshotSeq < lastSeenEventSeq;
 }
 
 export function applyThreadSnapshot(
   snapshot: RemoteThreadSnapshot,
-  options: { readonly fromServer: boolean; readonly lastSeenEventSeq?: number } = {
+  options: {
+    readonly fromServer: boolean;
+    readonly lastSeenEventSeq?: number;
+    /** Guard captured immediately before this thread's history request. */
+    readonly followUpQueueSnapshotGuard?: ThreadFollowUpQueueSnapshotGuard;
+  } = {
     fromServer: true,
   },
 ): void {
@@ -157,6 +165,16 @@ export function applyThreadSnapshot(
   syncRuntimeTurnBoundaryFromSnapshot(snapshot, options);
   if (options.fromServer) {
     applyBackgroundTasksFromSnapshot(snapshot, options.lastSeenEventSeq);
+    // snapshotSeq is host-global: an event for another thread must not make
+    // this thread's queue response look stale. Callers that captured the
+    // per-thread guard use it instead; legacy callers retain the sequence
+    // fallback so an old snapshot still cannot undo a live cancellation.
+    const queueSnapshotIsStale = options.followUpQueueSnapshotGuard
+      ? !isThreadFollowUpQueueSnapshotCurrent(threadId, options.followUpQueueSnapshotGuard)
+      : snapshotRuntimeStateIsStale(snapshot, options.lastSeenEventSeq);
+    if (snapshot.followUpQueue !== undefined && !queueSnapshotIsStale) {
+      useThreadFollowUpQueueStore.getState().setQueue(threadId, snapshot.followUpQueue);
+    }
   }
   if (snapshot.contextUsage) {
     const contextUsage = snapshot.contextUsage;
@@ -180,7 +198,7 @@ function applyBackgroundTasksFromSnapshot(
   snapshot: RemoteThreadSnapshot,
   lastSeenEventSeq: number | undefined,
 ): void {
-  if (snapshotBackgroundTasksAreStale(snapshot, lastSeenEventSeq)) return;
+  if (snapshotRuntimeStateIsStale(snapshot, lastSeenEventSeq)) return;
   const threadId = snapshot.thread.id;
   const tasks = snapshot.backgroundTasks ?? [];
   useAppStore.setState((current) => {
@@ -592,6 +610,10 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
         oldThread,
       });
       return;
+    }
+    case "thread-follow-up-queue": {
+      useThreadFollowUpQueueStore.getState().setQueue(event.threadId, event.queue);
+      break;
     }
     case "thread-pending-steer": {
       useAppStore.getState().setPendingSteer(event.threadId, event.pending);

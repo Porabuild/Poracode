@@ -2162,6 +2162,7 @@ msgstr "リモートサーバーに接続できません。オンラインであ
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2503,6 +2504,10 @@ msgstr "新しいプルリクエストに対するPoracodeの動作を選択し�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose when this machine stays awake."
 msgstr "このマシンをスリープさせないタイミングを選びます。"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "エージェントの作業中に送信したチャットメッセージを、現在の応答に反映するか、次の応答のためにキューに入れるかを選択します。{followUpShortcut} では逆の操作になります。"
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2880,6 +2885,10 @@ msgstr "ワークフローパネルを閉じる"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "クローズ"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3853,6 +3862,10 @@ msgstr "AI で勝者を選ぶ"
 msgid "Crowned"
 msgstr "選定済み"
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "MCP Market が管理する厳選された無料およびプレミアムスキル。"
@@ -4685,6 +4698,11 @@ msgstr "MCPサーバーを編集"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "プロフィールを編集"
+
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "待機中の追加メッセージを編集"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -5547,6 +5565,11 @@ msgstr "このプロジェクトのワークツリーを格納するフォルダ
 #: src/mobile/views/ThreadView.tsx
 msgid "Follow up..."
 msgstr "続けて質問..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "フォローアップの動作"
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -9116,6 +9139,7 @@ msgid "Pause goal"
 msgstr "目標を一時停止"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9895,6 +9919,14 @@ msgstr "Qoder CLI"
 msgid "Questions"
 msgstr "質問"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "キューに入れる"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "メッセージをキューに入れる"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "キュー待ち"
@@ -9904,6 +9936,18 @@ msgstr "キュー待ち"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0}：v{1}への更新待ち"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "キューに入ったフォローアップが見つかりません: {id}。"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "キューに入ったフォローアップ"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "キューに入ったフォローアップはチャットスレッドでのみサポートされています。"
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10344,6 +10388,10 @@ msgstr "プロジェクトを削除"
 msgid "Remove Project"
 msgstr "プロジェクトの削除"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "キューに入ったフォローアップを削除"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "ショートカットを削除"
@@ -10456,6 +10504,10 @@ msgstr "{0}を並べ替える"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "{label}を並べ替える"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "待機中の追加メッセージを並べ替え"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10626,6 +10678,10 @@ msgstr "再開"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "目標を再開"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "キューに入ったフォローアップを再開"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10951,6 +11007,7 @@ msgstr "彩度と明度"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12212,6 +12269,27 @@ msgstr "ステータス:"
 msgid "stdio (local command)"
 msgstr "stdio（ローカルコマンド）"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "ステア"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "現在のターンをステア"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "待機中の追加メッセージで軌道修正"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "メッセージの送信前に軌道修正がキャンセルされました。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "軌道修正は新しいメッセージに置き換えられました。"
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -12772,6 +12850,10 @@ msgstr "リモートの Poracode サーバーからペアリング認証情報�
 msgid "The remote server returned no pairing credential."
 msgstr "リモートサーバーからペアリング資格情報が返されませんでした。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "置き換え用のメッセージを送信できませんでした。"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "ディスク上のリポジトリの場所。フォルダーを移動した場合は更新してください。"
@@ -12847,6 +12929,10 @@ msgstr "SSH トンネルは互換性のない Poracode サーバーに接続し�
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "対象プロバイダー"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "キューに入ったフォローアップにはスレッドセッションを利用できません。"
 
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
@@ -12991,6 +13077,10 @@ msgstr "このマシン"
 msgid "This machine"
 msgstr "このマシン"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "このメッセージはキューから削除されました。編集中のテキストは引き続きコピーできます。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "この名前は組み込みMCPサーバーによって予約されています。"
@@ -13045,6 +13135,15 @@ msgstr "このプロジェクト"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "このプロジェクトのリモートサーバーはオフラインです。スレッドを開始するには再接続してください。"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "キュー内のこの追加メッセージは変更されました。保存する前に開き直してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "このキューに入ったフォローアップはすでに送信中です。"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "このリモートプロジェクトは利用できません。環境に再接続して、もう一度お試しください。"
@@ -13079,6 +13178,14 @@ msgstr "このサーバーはこのコンピューターで動作するため、
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "このシステム全体のショートカットは使用できません。別のキーの組み合わせを選択してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "このスレッドはキューに入ったフォローアップをサポートしていません。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "このスレッドはまだ軌道修正を受け付けられません。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

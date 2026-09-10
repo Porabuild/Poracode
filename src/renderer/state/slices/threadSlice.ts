@@ -18,6 +18,7 @@ import {
   reorderThreadsInProject,
   type ReorderPlacement,
 } from "../reorder";
+import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import { makeThreadTitle, removePaneFromView, replacePaneInView, stripPlanMode } from "./helpers";
 import {
   appendCompletedTurnIfClosed,
@@ -417,6 +418,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       if (nextThreads.length === state.threads.length) {
         return {};
       }
+
+      useThreadFollowUpQueueStore.getState().setQueue(threadId, null);
 
       let nextView = state.view;
       if (state.view.kind === "thread") {

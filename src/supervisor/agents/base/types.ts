@@ -95,6 +95,19 @@ export interface StartTurnOptions {
   inlineInstructions?: string;
 }
 
+/** Result used by provider controls that complete without opening a turn. */
+export interface StructuredTurnResult {
+  outcome: "completed-without-turn";
+}
+
+export function isCompletedWithoutTurn(result: unknown): result is StructuredTurnResult {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    (result as { outcome?: unknown }).outcome === "completed-without-turn"
+  );
+}
+
 export interface ThreadHistoryEntry {
   messageId: string;
   role: "user" | "assistant";
@@ -120,7 +133,7 @@ export interface StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void>;
+  ): Promise<void | StructuredTurnResult>;
   /**
    * Steer the in-flight turn: enqueue a new user message onto the running
    * turn WITHOUT interrupting it (no subagents killed, no error result). The
@@ -128,13 +141,19 @@ export interface StructuredSessionHandle {
    * Providers that expose this let the runtime skip the interrupt-drain steer
    * path. When no turn is in flight, implementations fall back to `startTurn`
    * semantics so turn accounting stays correct.
+   *
+   * Resolving this promise acknowledges input acceptance. If an accepted input
+   * awaits a subsequent turn inside the provider, keep status `working` across
+   * the preceding turn's completion and emit `turn.started` for the new reply.
+   * Do not report `idle` until that accepted work finishes: runtime schedulers
+   * use settled status to decide when another ordinary startTurn is safe.
    */
   steerTurn?(
     prompt: string,
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void>;
+  ): Promise<void | StructuredTurnResult>;
   /**
    * Best-effort provider preparation immediately before the shared runtime
    * interrupts an in-flight turn for steering. Providers can preserve work

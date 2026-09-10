@@ -18,6 +18,7 @@ import {
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import { useThreadFollowUpQueueStore } from "./state/threadFollowUpQueueStore";
 import { useExperimentStore } from "./state/experimentStore";
 import { useGitReadModelStore } from "./state/gitReadModelStore";
 import {
@@ -248,6 +249,9 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
   }
   if (event.type === "thread-pending-steer") {
     useAppStore.getState().setPendingSteer(event.threadId, event.pending);
+  }
+  if (event.type === "thread-follow-up-queue") {
+    useThreadFollowUpQueueStore.getState().setQueue(event.threadId, event.queue);
   }
   if (event.type === "thread-reset") {
     pendingRuntimeEvents.delete(event.threadId);

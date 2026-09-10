@@ -2163,6 +2163,7 @@ msgstr "Không thể kết nối tới máy chủ từ xa. Hãy kiểm tra máy 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2504,6 +2505,10 @@ msgstr "Chọn việc Poracode sẽ làm với pull request mới: không làm g
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose when this machine stays awake."
 msgstr "Chọn khi máy này được giữ ở trạng thái hoạt động."
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "Chọn xem các tin nhắn trò chuyện được gửi khi tác nhân đang làm việc sẽ điều hướng phản hồi hiện tại hay được xếp hàng cho phản hồi tiếp theo. {followUpShortcut} sử dụng hành động ngược lại."
 
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -2881,6 +2886,10 @@ msgstr "Đóng bảng quy trình làm việc"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Đã đóng"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3854,6 +3863,10 @@ msgstr "Dùng AI chọn ứng viên thắng"
 msgid "Crowned"
 msgstr "Đã chọn là ứng viên thắng"
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
 #~ msgstr "Các skill miễn phí và cao cấp được tuyển chọn, do MCP Market quản lý."
@@ -4686,6 +4699,11 @@ msgstr "Chỉnh sửa máy chủ MCP"
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 msgid "Edit profile"
 msgstr "Chỉnh sửa hồ sơ"
+
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "Sửa tin nhắn tiếp theo trong hàng đợi"
 
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -5548,6 +5566,11 @@ msgstr "Thư mục chứa các cây làm việc của dự án này. Đặt lạ
 #: src/mobile/views/ThreadView.tsx
 msgid "Follow up..."
 msgstr "Tiếp tục..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "Cách xử lý tin nhắn tiếp theo"
 
 #: src/mobile/settingsSections.ts
 msgid "Fonts and scrolling"
@@ -9118,6 +9141,7 @@ msgid "Pause goal"
 msgstr "Tạm dừng mục tiêu"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9897,6 +9921,14 @@ msgstr "Qoder CLI"
 msgid "Questions"
 msgstr "Câu hỏi"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "Xếp hàng"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "Xếp tin nhắn vào hàng đợi"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "Đã xếp hàng"
@@ -9906,6 +9938,18 @@ msgstr "Đã xếp hàng"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0} đang chờ cập nhật lên v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "Không tìm thấy tin nhắn tiếp theo trong hàng đợi: {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "Tin nhắn tiếp theo trong hàng đợi"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "Tin nhắn tiếp theo trong hàng đợi chỉ được hỗ trợ trong các cuộc trò chuyện."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10346,6 +10390,10 @@ msgstr "Xóa dự án"
 msgid "Remove Project"
 msgstr "Xóa dự án"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "Xóa tin nhắn tiếp theo trong hàng đợi"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Xóa phím tắt"
@@ -10458,6 +10506,10 @@ msgstr "Sắp xếp lại {0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Sắp xếp lại {label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "Sắp xếp lại tin nhắn trong hàng đợi"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10628,6 +10680,10 @@ msgstr "Tiếp tục"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Tiếp tục mục tiêu"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "Tiếp tục tin nhắn tiếp theo trong hàng đợi"
 
 #: src/mobile/views/BrowserView.tsx
 #: src/mobile/views/PortsView.tsx
@@ -10953,6 +11009,7 @@ msgstr "Độ bão hòa và độ sáng"
 
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12214,6 +12271,27 @@ msgstr "Tình trạng:"
 msgid "stdio (local command)"
 msgstr "stdio (lệnh cục bộ)"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "Điều hướng"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "Điều hướng lượt hiện tại"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "Điều hướng bằng tin nhắn trong hàng đợi"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "Việc điều hướng đã bị hủy trước khi tin nhắn được gửi."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "Việc điều hướng đã được thay bằng một tin nhắn mới hơn."
+
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Stop"
@@ -12774,6 +12852,10 @@ msgstr "Máy chủ Poracode từ xa không trả về thông tin xác thực gh�
 msgid "The remote server returned no pairing credential."
 msgstr "Máy chủ từ xa không trả về thông tin xác thực ghép nối."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "Không thể gửi tin nhắn thay thế."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Vị trí của kho lưu trữ trên đĩa. Hãy cập nhật nếu bạn đã di chuyển thư mục."
@@ -12849,6 +12931,10 @@ msgstr "Đường hầm SSH đã kết nối đến một máy chủ Poracode kh
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "Không có phiên của cuộc trò chuyện để xử lý tin nhắn tiếp theo trong hàng đợi."
 
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
@@ -12993,6 +13079,10 @@ msgstr "máy này"
 msgid "This machine"
 msgstr "Máy này"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "Tin nhắn này không còn trong hàng đợi. Bạn vẫn có thể sao chép nội dung đang chỉnh sửa."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Tên này được dành riêng cho máy chủ MCP tích hợp sẵn."
@@ -13047,6 +13137,15 @@ msgstr "dự án này"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Máy chủ từ xa của dự án này đang ngoại tuyến. Hãy kết nối lại để bắt đầu một luồng."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "Tin nhắn tiếp theo trong hàng đợi này đã thay đổi. Hãy mở lại trước khi lưu."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "Tin nhắn tiếp theo trong hàng đợi này đang được gửi."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "Dự án từ xa này không khả dụng. Hãy kết nối lại môi trường rồi thử lại."
@@ -13081,6 +13180,14 @@ msgstr "Máy chủ này chạy trên máy này và không khả dụng cho dự 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Phím tắt toàn hệ thống này không khả dụng. Hãy chọn tổ hợp phím khác."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "Cuộc trò chuyện này không hỗ trợ tin nhắn tiếp theo trong hàng đợi."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "Luồng này chưa sẵn sàng để điều hướng."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."

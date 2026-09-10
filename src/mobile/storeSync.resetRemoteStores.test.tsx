@@ -8,6 +8,7 @@ vi.mock("./push/liveActivityController", () => ({
 }));
 
 import { useAppStore } from "@/renderer/state/appStore";
+import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitReviewActionStore } from "@/renderer/state/gitReviewActionStore";
@@ -23,6 +24,10 @@ import { resetRemoteStores } from "./storeSync";
 describe("resetRemoteStores", () => {
   it("clears every per-thread runtime map (guards against reset↔slice drift)", () => {
     const tid = "thread-1";
+    useThreadFollowUpQueueStore.getState().setQueue(tid, {
+      paused: true,
+      items: [{ id: "queued", prompt: "Old desktop", stagedAt: 1 }],
+    });
     useAppStore.setState({
       projects: [{ id: "p" } as never],
       threads: [{ id: tid } as never],
@@ -97,6 +102,7 @@ describe("resetRemoteStores", () => {
 
     const s = useAppStore.getState();
     expect(s.projects).toHaveLength(0);
+    expect(useThreadFollowUpQueueStore.getState().byThread).toEqual({});
     expect(s.threads).toHaveLength(0);
     expect(s.view).toEqual({ kind: "home" });
     expect(s.runtimeStructuralVersionByThread).toEqual({});

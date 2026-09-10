@@ -420,6 +420,48 @@ describe("buildMentionResults", () => {
 });
 
 describe("MCP mention selection", () => {
+  it.each(["ctrlKey", "metaKey"] as const)(
+    "gives %s+Enter to the caller before selecting a mention",
+    (modifier) => {
+      const onInterceptKey = vi.fn<() => boolean>(() => true);
+      const ref = createRef<MentionInputHandle>();
+      render(
+        createElement(MentionInput, {
+          ...baseProps,
+          ref,
+          onInterceptKey,
+          mcpMentions: [
+            { id: "browser", name: "Browser", icon: Globe, detail: "MCP server", enabled: true },
+          ],
+        }),
+      );
+      const editor = typeMention("bro");
+      fireEvent.keyDown(editor, { key: "Enter", [modifier]: true });
+      expect(onInterceptKey).toHaveBeenCalledOnce();
+      expect(ref.current?.serializeSegments()).toEqual([{ kind: "text", content: "@bro" }]);
+    },
+  );
+
+  it("does not select a mention or submit while confirming IME text", () => {
+    const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+    const onInterceptKey = vi.fn<() => boolean>(() => true);
+    render(
+      createElement(MentionInput, {
+        ...baseProps,
+        onSubmit,
+        onInterceptKey,
+        mcpMentions: [
+          { id: "browser", name: "Browser", icon: Globe, detail: "MCP server", enabled: true },
+        ],
+      }),
+    );
+    const editor = typeMention("bro");
+    fireEvent.keyDown(editor, { key: "Enter", isComposing: true });
+    expect(editor.textContent).toBe("@bro");
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onInterceptKey).not.toHaveBeenCalled();
+  });
+
   const baseProps = {
     placeholder: "Send a message...",
     projectLocation: undefined,

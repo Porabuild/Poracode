@@ -90,11 +90,13 @@ export type {
   StructuredSessionHandle,
   StructuredSessionListener,
   StructuredSessionUpdate,
+  StructuredTurnResult,
   SyncConfigFromTerminalStateInput,
   TerminalStatusHint,
   ThreadHistory,
   ThreadHistoryEntry,
 } from "./types";
+export { isCompletedWithoutTurn } from "./types";
 export * from "./terminalHints";
 export * from "./expectedRuntimeError";
 export * from "./oneShotModel";

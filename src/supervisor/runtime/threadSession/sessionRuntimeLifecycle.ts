@@ -13,6 +13,7 @@ import type { PtyLifecycle } from "./ptyLifecycle";
 import type { RuntimeEventRouter } from "./runtimeEventRouter";
 import { type SteerCoordinator, isSteerDrainableStatus } from "./steerCoordinator";
 import type { StructuredInterruptWatchdog } from "./structuredInterruptWatchdog";
+import type { FollowUpQueueCoordinator } from "./followUpQueueCoordinator";
 
 export interface SessionRuntimeLifecycleContext {
   sessions: Map<string, SessionRuntime>;
@@ -23,7 +24,13 @@ export interface SessionRuntimeLifecycleContext {
     "emitState" | "updateState" | "handlePtyData" | "clearSessionTimers"
   >;
   runtimeEventRouter: Pick<RuntimeEventRouter, "flush" | "append">;
-  steerCoordinator: Pick<SteerCoordinator, "maybeDrainPendingSteer">;
+  steerCoordinator: Pick<SteerCoordinator, "maybeDrainPendingSteer"> &
+    Partial<Pick<SteerCoordinator, "noteSteerTurnStarted">>;
+  /** Optional for compatibility with focused lifecycle harnesses. */
+  followUpQueue?: Pick<
+    FollowUpQueueCoordinator,
+    "onSessionAttached" | "onSessionClosing" | "onStructuredRuntimeEvent" | "onStructuredUpdate"
+  >;
   structuredInterruptWatchdog: Pick<
     StructuredInterruptWatchdog,
     "clearStructuredInterruptWatchdog"
@@ -59,6 +66,9 @@ export class SessionRuntimeLifecycle {
       context.pollSessionRefDiscovery(session);
     }
 
+    // Providers can synchronously replay buffered turn/request events from
+    // setListener. Initialize the queue before replay so those barriers survive.
+    context.followUpQueue?.onSessionAttached(session);
     this.bindStructuredSession(session);
     this.bindPty(session);
   }
@@ -158,8 +168,12 @@ export class SessionRuntimeLifecycle {
       (wasWorking || hadInterruptRequest) &&
       isSteerDrainableStatus(update.status)
     ) {
-      context.steerCoordinator.maybeDrainPendingSteer(session);
+      void context.steerCoordinator.maybeDrainPendingSteer(session);
     }
+    // The existing steer drain must run first. It can synchronously submit a
+    // replacement turn; the queue must see that direct activity before it
+    // evaluates the newly-settled status.
+    context.followUpQueue?.onStructuredUpdate(session, update.status);
     if (
       (sessionRefChanged || configChanged || slashCommandsChanged) &&
       !stateChanged &&
@@ -177,6 +191,10 @@ export class SessionRuntimeLifecycle {
       session.suppressInitialStructuredIdle = undefined;
     }
     this.context.runtimeEventRouter.append(session.threadId, event);
+    if (event.type === "turn.started") {
+      this.context.steerCoordinator.noteSteerTurnStarted?.(session);
+    }
+    this.context.followUpQueue?.onStructuredRuntimeEvent(session, event);
   }
 
   private bindPty(session: SessionRuntime): void {
@@ -215,6 +233,7 @@ export class SessionRuntimeLifecycle {
 
       void session.structuredSession?.dispose();
       context.outputPipeline.clearSessionTimers(session);
+      context.followUpQueue?.onSessionClosing(session.threadId, session);
       context.outputPipeline.updateState(session, "inactive", "none");
       session.hasCliHookPluginActivity = false;
       session.cliHookEnvInjected = false;
@@ -231,6 +250,7 @@ export class SessionRuntimeLifecycle {
 
   private handleStructuredSessionClosed(session: SessionRuntime): void {
     if (session.status === "inactive") return;
+    this.context.followUpQueue?.onSessionClosing(session.threadId, session);
     // onError is the authoritative non-clean boundary. A derivative transport
     // close must tear down the backing PTY without overwriting the visible
     // error state or manufacturing a second failure.
