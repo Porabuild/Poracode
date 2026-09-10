@@ -173,17 +173,17 @@ object RichChatUiLogic {
     }
 
     /**
-     * The checkpoint anchor for reverting at [userItemId]: the closest assistant
-     * item before it. Mirrors the desktop/iOS planner — only top-level user
-     * prompts qualify, and the first item has nothing to revert to.
+     * The checkpoint anchor for reverting at [userItemId]: the closest
+     * assistant item before it, whatever its nesting. Byte-identical to the
+     * desktop `findCheckpointBeforeUserMessage` rule (any user message that
+     * is not the first item qualifies) and the iOS planner.
      */
     fun revertCheckpointItemId(items: List<RichRuntimeItem>, userItemId: String): String? {
         val userIndex = items.indexOfFirst { it.id == userItemId }
         if (userIndex <= 0) return null
-        val user = items[userIndex]
-        if (user.type != RichItemTypes.USER_MESSAGE || user.parentItemId != null) return null
+        if (items[userIndex].type != RichItemTypes.USER_MESSAGE) return null
         return items.subList(0, userIndex)
-            .lastOrNull { it.type == RichItemTypes.ASSISTANT_MESSAGE && it.parentItemId == null }
+            .lastOrNull { it.type == RichItemTypes.ASSISTANT_MESSAGE }
             ?.id
     }
 
@@ -192,7 +192,6 @@ object RichChatUiLogic {
         var lastAssistantId: String? = null
         val ids = mutableSetOf<String>()
         for (item in items) {
-            if (item.parentItemId != null) continue
             if (item.type == RichItemTypes.ASSISTANT_MESSAGE) {
                 lastAssistantId = item.id
             } else if (item.type == RichItemTypes.USER_MESSAGE && lastAssistantId != null) {

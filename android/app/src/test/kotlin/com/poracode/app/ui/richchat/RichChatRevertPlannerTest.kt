@@ -13,7 +13,7 @@ class RichChatRevertPlannerTest {
         RichRuntimeItem(id, type, RichItemState.COMPLETED, parentItemId = parentItemId)
 
     @Test
-    fun anchorsEachTopLevelUserPromptToTheClosestPriorAssistant() {
+    fun anchorsEachUserPromptToTheClosestPriorAssistantRegardlessOfNesting() {
         val items = listOf(
             item("assistant-1", RichItemTypes.ASSISTANT_MESSAGE),
             item("user-1", RichItemTypes.USER_MESSAGE),
@@ -30,7 +30,7 @@ class RichChatRevertPlannerTest {
     }
 
     @Test
-    fun leadingPromptsNestedItemsAndNonUserItemsNeverQualify() {
+    fun mirrorsTheDesktopAnchorRuleForNestedTurnsAndLeadingPrompts() {
         val items = listOf(
             item("user-0", RichItemTypes.USER_MESSAGE),
             item("assistant-1", RichItemTypes.ASSISTANT_MESSAGE),
@@ -41,17 +41,24 @@ class RichChatRevertPlannerTest {
             item("user-2", RichItemTypes.USER_MESSAGE),
         )
 
+        // Nested prompts qualify exactly like desktop renders them, and a
+        // nested assistant anchors the prompt that follows it.
         assertEquals(
-            setOf("user-1", "user-2"),
+            setOf("sub-user", "user-1", "user-2"),
             RichChatUiLogic.revertableUserItemIds(items),
         )
         assertNull(RichChatUiLogic.revertCheckpointItemId(items, "user-0"))
-        assertNull(RichChatUiLogic.revertCheckpointItemId(items, "sub-user"))
+        assertEquals(
+            "assistant-1",
+            RichChatUiLogic.revertCheckpointItemId(items, "sub-user"),
+        )
+        assertEquals(
+            "sub-assistant",
+            RichChatUiLogic.revertCheckpointItemId(items, "user-1"),
+        )
         assertNull(RichChatUiLogic.revertCheckpointItemId(items, "missing"))
-        // Nested assistants never become anchors, and a trailing command does
-        // not disqualify the next prompt: both prompts revert to assistant-1.
-        assertEquals("assistant-1", RichChatUiLogic.revertCheckpointItemId(items, "user-1"))
-        assertEquals("assistant-1", RichChatUiLogic.revertCheckpointItemId(items, "user-2"))
+        // A trailing command does not disqualify the next prompt.
+        assertEquals("sub-assistant", RichChatUiLogic.revertCheckpointItemId(items, "user-2"))
     }
 
     @Test
