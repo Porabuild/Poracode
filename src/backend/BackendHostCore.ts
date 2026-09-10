@@ -1,6 +1,7 @@
 import {
   closeDatabase,
   dbGetThread,
+  dbGetProject,
   dbMarkLiveThreadsInactive,
   dbTruncateThreadRuntimeAfter,
   initDatabase,
@@ -24,6 +25,17 @@ import {
 } from "@/shared/liveEventInterests";
 import type { ProjectLocation } from "@/shared/contracts/common";
 import type { ThreadConfig } from "@/shared/contracts/config";
+import type { ProviderRevertAnchor } from "@/shared/contracts";
+
+function isTimedOutError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("timed out");
+}
+
+/** Anchor absence is the capability declaration of the ACP-style structured
+ * sessions; the supervisor surfaces it as a plain IPC error message. */
+function isAnchorUnsupportedError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("does not support revert anchors");
+}
 
 export type RevertCheckpointRefusalReason = "THREAD_TURN_ACTIVE";
 
@@ -358,11 +370,16 @@ export class BackendHostCore {
     }
 
     const thread = dbGetThread(input.threadId);
+    // The project location is resolved SERVER-SIDE from durable state when the
+    // caller omits it (the compound wire route never trusts a client-supplied
+    // path) and frozen into the journal at claim time either way.
+    const resolvedLocation =
+      input.projectLocation ?? (thread ? dbGetProject(thread.projectId)?.location : undefined);
     const claim = dbClaimCheckpointRevertOperation({
       operationKey: input.operationKey,
       threadId: input.threadId,
       checkpointItemId: input.checkpointItemId,
-      projectLocationJson: input.projectLocation ? JSON.stringify(input.projectLocation) : null,
+      projectLocationJson: resolvedLocation ? JSON.stringify(resolvedLocation) : null,
       configJson: thread?.config ? JSON.stringify(thread.config) : null,
     });
     let row: CheckpointRevertOperationRow = claim.row;
@@ -379,24 +396,75 @@ export class BackendHostCore {
       };
     }
 
-    // Provider phase — at most once per operation key.
-    if (row.providerPhase === "pending") {
+    // Provider phase — at most once per operation key. WS2 stage 3: prefer an
+    // absolute revert anchor, journalled BEFORE the restore side effect, so a
+    // resumed attempt re-restores to the SAME provider position instead of
+    // re-rolling a relative turn count against an already-mutated
+    // conversation. Sessions without anchor support fall back to the legacy
+    // relative rollback, whose failure keeps the established `local_only`
+    // contract (files + transcript still revert).
+    //
+    // Re-attempt policy: a FAILED restore with a journalled anchor is retried
+    // on an explicit retry (the absolute restore is idempotent, so the retry
+    // cannot over-roll); a failed RELATIVE fallback is terminal (it is not
+    // idempotent), and `ambiguous` is always terminal — the provider state is
+    // unknown, so retries deliberately do not re-issue it.
+    if (
+      row.providerPhase === "pending" ||
+      (row.providerPhase === "failed" && row.providerAnchorJson !== null)
+    ) {
       if (row.numTurns === 0) {
         row = this.bumpPhase(input.operationKey, row, { providerPhase: "skipped_no_turns" });
       } else {
-        try {
-          const payload: { threadId: string; numTurns: number; config?: ThreadConfig } = {
-            threadId: input.threadId,
-            numTurns: row.numTurns,
-          };
-          if (row.configJson) payload.config = JSON.parse(row.configJson) as ThreadConfig;
-          await this.supervisorClient.call("rollbackThreadConversation", payload);
-          row = this.bumpPhase(input.operationKey, row, { providerPhase: "completed" });
-        } catch (error) {
-          const ambiguous = error instanceof Error && error.message.includes("timed out");
-          row = this.bumpPhase(input.operationKey, row, {
-            providerPhase: ambiguous ? "ambiguous" : "failed",
-          });
+        const config = row.configJson ? (JSON.parse(row.configJson) as ThreadConfig) : undefined;
+        let anchorJson = row.providerAnchorJson;
+        // Plan phase (fresh attempts only): create and journal the anchor.
+        if (!anchorJson && row.providerPhase === "pending") {
+          try {
+            const created = await this.supervisorClient.call("createRevertAnchor", {
+              threadId: input.threadId,
+              numTurns: row.numTurns,
+              ...(config ? { config } : {}),
+            });
+            anchorJson = JSON.stringify(created.anchor);
+            // Freeze the absolute target durably before any restore runs.
+            row = this.bumpPhase(input.operationKey, row, { providerAnchorJson: anchorJson });
+          } catch (error) {
+            if (!isAnchorUnsupportedError(error)) {
+              row = this.bumpPhase(input.operationKey, row, {
+                providerPhase: isTimedOutError(error) ? "ambiguous" : "failed",
+              });
+            }
+          }
+        }
+        // Restore phase.
+        if (anchorJson && (row.providerPhase === "pending" || row.providerPhase === "failed")) {
+          try {
+            await this.supervisorClient.call("restoreToRevertAnchor", {
+              threadId: input.threadId,
+              anchor: JSON.parse(anchorJson) as ProviderRevertAnchor,
+              ...(config ? { config } : {}),
+            });
+            row = this.bumpPhase(input.operationKey, row, { providerPhase: "completed" });
+          } catch (error) {
+            row = this.bumpPhase(input.operationKey, row, {
+              providerPhase: isTimedOutError(error) ? "ambiguous" : "failed",
+            });
+          }
+        } else if (!anchorJson && row.providerPhase === "pending") {
+          // Anchor-unsupported fallback: the legacy relative rollback.
+          try {
+            await this.supervisorClient.call("rollbackThreadConversation", {
+              threadId: input.threadId,
+              numTurns: row.numTurns,
+              ...(config ? { config } : {}),
+            });
+            row = this.bumpPhase(input.operationKey, row, { providerPhase: "completed" });
+          } catch (error) {
+            row = this.bumpPhase(input.operationKey, row, {
+              providerPhase: isTimedOutError(error) ? "ambiguous" : "failed",
+            });
+          }
         }
       }
     }
@@ -481,6 +549,7 @@ export class BackendHostCore {
     current: CheckpointRevertOperationRow,
     update: {
       providerPhase?: CheckpointRevertProviderPhase;
+      providerAnchorJson?: string;
       filesPhase?: CheckpointRevertFilesPhase;
       truncatePhase?: CheckpointRevertTruncatePhase;
       removedAnchors?: string[];
@@ -491,6 +560,7 @@ export class BackendHostCore {
     return {
       ...current,
       providerPhase: update.providerPhase ?? current.providerPhase,
+      providerAnchorJson: update.providerAnchorJson ?? current.providerAnchorJson,
       filesPhase: update.filesPhase ?? current.filesPhase,
       truncatePhase: update.truncatePhase ?? current.truncatePhase,
       removedAnchors: update.removedAnchors ?? current.removedAnchors,

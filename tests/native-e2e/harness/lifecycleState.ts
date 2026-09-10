@@ -208,6 +208,31 @@ export class LabLifecycleState {
     if (index >= 0) this.runtimeItems = this.runtimeItems.slice(0, index + 1);
   }
 
+  /** Deterministic compound-revert result (WS2): identical phase shape to the
+   * production BackendHostCore result for one checkpoint revert. */
+  checkpointRevert(itemId: string): {
+    outcome: "completed";
+    replayed: boolean;
+    numTurns: number;
+    providerPhase: "completed";
+    filesPhase: "completed";
+    truncatePhase: "completed" | "noop";
+    removedCompletedTurnAnchors: string[];
+  } {
+    const index = this.runtimeItems.findIndex((item) => item.id === itemId);
+    const removed = index >= 0 ? this.runtimeItems.slice(index + 1).map((item) => item.id) : [];
+    if (index >= 0) this.runtimeItems = this.runtimeItems.slice(0, index + 1);
+    return {
+      outcome: "completed",
+      replayed: false,
+      numTurns: removed.length > 0 ? 1 : 0,
+      providerPhase: "completed",
+      filesPhase: "completed",
+      truncatePhase: removed.length > 0 ? "completed" : "noop",
+      removedCompletedTurnAnchors: [],
+    };
+  }
+
   saveAttachment(threadId: string, name: string, data: Buffer): string {
     const path = `/attachments/${encodeURIComponent(threadId)}/${encodeURIComponent(name)}`;
     this.attachments.set(path, data);
@@ -228,6 +253,7 @@ export class LabLifecycleState {
             ? [
                 "attachment-upload",
                 "thread-runtime-truncate",
+                "thread-checkpoint-revert",
                 "thread-command",
                 "thread-send",
                 "thread-interrupt",

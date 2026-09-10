@@ -6,6 +6,7 @@ import {
   type AgentSlashCommand,
   type PromptSegment,
   type ProjectLocation,
+  type ProviderRevertAnchor,
   type ResolvedMcpServer,
   type RuntimeEvent,
   type SessionRef,
@@ -86,6 +87,52 @@ const CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS = 2_000;
 const CODEX_DISPOSE_TIMEOUT_MS = 10_000;
 const CODEX_DISPOSE_POLL_MS = 100;
 const CODEX_EVENT_DEBUG_ENV = "PORACODE_DEBUG_CODEX_EVENTS";
+
+/**
+ * Absolute, provider-side revert target (WS2 stage 3). `fork` carries the
+ * retained turn id the next `thread/fork` anchors on plus the planned turn
+ * count for the legacy fallback; `rollback` preserves the provider-relative
+ * `thread/rollback` fallback for app-servers without fork support or a
+ * readable turn history.
+ */
+type CodexRevertTarget =
+  | { variant: "fork"; sourceThreadId: string; lastTurnId: string; numTurns: number }
+  | { variant: "rollback"; sourceThreadId: string; numTurns: number; reason: string };
+
+/** Validates the opaque anchor payload for this provider. */
+function parseCodexRevertAnchor(anchor: ProviderRevertAnchor): CodexRevertTarget {
+  const data = anchor.data as Record<string, unknown> | null | undefined;
+  if (anchor.version !== 1 || !data) {
+    throw new Error("Codex revert anchor payload is invalid or from an incompatible version.");
+  }
+  const numTurns = data.numTurns;
+  if (typeof numTurns !== "number" || !Number.isInteger(numTurns) || numTurns <= 0) {
+    throw new Error("Codex revert anchor is missing a valid turn count.");
+  }
+  if (data.variant === "fork") {
+    if (typeof data.lastTurnId !== "string" || typeof data.sourceThreadId !== "string") {
+      throw new Error("Codex fork revert anchor is missing its absolute turn/thread ids.");
+    }
+    return {
+      variant: "fork",
+      sourceThreadId: data.sourceThreadId,
+      lastTurnId: data.lastTurnId,
+      numTurns,
+    };
+  }
+  if (data.variant === "rollback") {
+    if (typeof data.sourceThreadId !== "string") {
+      throw new Error("Codex rollback revert anchor is missing its thread id.");
+    }
+    return {
+      variant: "rollback",
+      sourceThreadId: data.sourceThreadId,
+      numTurns,
+      reason: typeof data.reason === "string" ? data.reason : "restored revert anchor",
+    };
+  }
+  throw new Error("Codex revert anchor payload is invalid or from an incompatible version.");
+}
 
 type CodexEventDebugDirection =
   | "codex->poracode"
@@ -943,53 +990,128 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     if (!Number.isInteger(numTurns) || numTurns <= 0) {
       throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
     }
+    const target = await this.planRevertTarget(numTurns);
+    return this.applyRevertTarget(target, config);
+  }
+
+  /**
+   * WS2 stage 3: freeze an absolute revert target without mutating anything.
+   * `thread/read` is a pure query, so re-creating a lost anchor is safe; the
+   * backend still journals the created anchor and restores from the stored
+   * copy so a resumed revert never re-plans against mutated state.
+   */
+  async createRevertAnchor(numTurns: number): Promise<ProviderRevertAnchor> {
+    const target = await this.planRevertTarget(numTurns);
+    return { version: 1, data: target };
+  }
+
+  /**
+   * Applies a journaled revert anchor. For the fork variant, re-applying an
+   * already-applied anchor forks the (possibly already forked) thread at the
+   * same absolute turn id — the inherited history converges on the anchor
+   * position, which is what makes the restore idempotent in content. Forking
+   * does mint a new provider thread id per application; the session adopts it
+   * below, and the old thread is unsubscribed.
+   */
+  async restoreToRevertAnchor(
+    anchor: ProviderRevertAnchor,
+    config?: ThreadConfig,
+  ): Promise<ThreadHistory> {
+    const target = parseCodexRevertAnchor(anchor);
+    return this.applyRevertTarget(target, config);
+  }
+
+  /** Pure revert planning: validates the request and reads provider state. */
+  private async planRevertTarget(numTurns: number): Promise<CodexRevertTarget> {
     const threadId = await this.waitForRemoteThreadId();
-    this.forkNotificationBuffer = undefined;
-
-    const rollbackLegacy = async (reason: string): Promise<ThreadHistory> => {
-      this.forkNotificationBuffer = undefined;
-      console.log(`[codex] ${reason}; falling back to thread/rollback.`);
-      try {
-        await this.rpc.request("thread/rollback", {
-          threadId,
-          numTurns,
-        });
-      } catch (error) {
-        if (isUnsupportedCodexRequestError(error)) {
-          throw new Error(
-            "Codex cannot roll back this thread because neither thread/fork nor thread/rollback is supported.",
-            { cause: error },
-          );
-        }
-        throw error;
-      }
-      this.pendingTurnInterrupt = false;
-      this.activeTurnId = undefined;
-      this.activeTurnIds.clear();
-      await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
-      return {
-        providerSessionId: threadId,
-        messages: [],
-      };
-    };
-
     const readResult = await this.rpc.request("thread/read", {
       threadId,
       includeTurns: true,
     });
     const turns = readResult.thread?.turns;
     if (!Array.isArray(turns)) {
-      return rollbackLegacy("thread/read omitted turn history");
+      return {
+        variant: "rollback",
+        sourceThreadId: threadId,
+        numTurns,
+        reason: "thread/read omitted turn history",
+      };
     }
     if (turns.length <= numTurns) {
-      return rollbackLegacy("thread/fork has no retained turn");
+      return {
+        variant: "rollback",
+        sourceThreadId: threadId,
+        numTurns,
+        reason: "thread/fork has no retained turn",
+      };
     }
-
     const retainedTurn = turns.at(turns.length - numTurns - 1);
     if (!retainedTurn || typeof retainedTurn.id !== "string") {
-      return rollbackLegacy("thread/read omitted the retained turn id");
+      return {
+        variant: "rollback",
+        sourceThreadId: threadId,
+        numTurns,
+        reason: "thread/read omitted the retained turn id",
+      };
     }
+    return {
+      variant: "fork",
+      sourceThreadId: threadId,
+      lastTurnId: retainedTurn.id,
+      numTurns,
+    };
+  }
 
+  private applyRevertTarget(
+    target: CodexRevertTarget,
+    config: ThreadConfig | undefined,
+  ): Promise<ThreadHistory> {
+    if (target.variant === "rollback") {
+      return this.rollbackLegacyNumTurns(target.sourceThreadId, target.numTurns, target.reason);
+    }
+    return this.forkAtTurn(target.sourceThreadId, target.lastTurnId, target.numTurns, config);
+  }
+
+  /** The legacy provider-relative fallback (`thread/rollback`). */
+  private async rollbackLegacyNumTurns(
+    threadId: string,
+    numTurns: number,
+    reason: string,
+  ): Promise<ThreadHistory> {
+    this.forkNotificationBuffer = undefined;
+    console.log(`[codex] ${reason}; falling back to thread/rollback.`);
+    try {
+      await this.rpc.request("thread/rollback", {
+        threadId,
+        numTurns,
+      });
+    } catch (error) {
+      if (isUnsupportedCodexRequestError(error)) {
+        throw new Error(
+          "Codex cannot roll back this thread because neither thread/fork nor thread/rollback is supported.",
+          { cause: error },
+        );
+      }
+      throw error;
+    }
+    this.pendingTurnInterrupt = false;
+    this.activeTurnId = undefined;
+    this.activeTurnIds.clear();
+    await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
+    return {
+      providerSessionId: threadId,
+      messages: [],
+    };
+  }
+
+  /** Forks the thread so its history ends at the absolute turn `lastTurnId`. */
+  private async forkAtTurn(
+    threadId: string,
+    lastTurnId: string,
+    fallbackNumTurns: number,
+    config: ThreadConfig | undefined,
+  ): Promise<ThreadHistory> {
+    this.forkNotificationBuffer = undefined;
     let forkResult: CodexClientRequestMap["thread/fork"]["result"];
     const rollbackConfig = config ?? this.currentConfig;
     if (!rollbackConfig) {
@@ -1005,7 +1127,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       forkResult = await this.rpc.request("thread/fork", {
         ...threadOverrides,
         threadId,
-        lastTurnId: retainedTurn.id,
+        lastTurnId,
       });
     } catch (error) {
       this.forkNotificationBuffer = undefined;
@@ -1013,7 +1135,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      return rollbackLegacy(`thread/fork is unsupported (${message})`);
+      return this.rollbackLegacyNumTurns(
+        threadId,
+        fallbackNumTurns,
+        `thread/fork is unsupported (${message})`,
+      );
     }
 
     const newThreadId = forkResult.thread?.id;

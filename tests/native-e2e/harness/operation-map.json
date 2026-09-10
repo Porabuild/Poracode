@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 10,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:dce0d9b359037f9e45298b50fcefd9fd5bc1db08edbf38e1f3b7027039159c34",
-  "keyCount": 212,
+  "manifestHash": "sha256:63c05882ad72409f3b2b4fd287add827d70a77a849cd6650157b1530c7d8f5d1",
+  "keyCount": 213,
   "counts": {
-    "route": 62,
+    "route": 63,
     "procedure": 100,
     "ws-client": 9,
     "ws-server": 10,
@@ -669,6 +669,10 @@
     "route:terminal-write": {
       "kind": "route",
       "id": "terminal-write"
+    },
+    "route:thread-checkpoint-revert": {
+      "kind": "route",
+      "id": "thread-checkpoint-revert"
     },
     "route:thread-close": {
       "kind": "route",

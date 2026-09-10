@@ -18,6 +18,7 @@ import type { Event, PermissionRule } from "./legacySdk";
 import type {
   AgentSlashCommand,
   PromptSegment,
+  ProviderRevertAnchor,
   ResolvedMcpServer,
   RuntimeEvent,
   SessionRef,
@@ -107,6 +108,21 @@ type PendingRequest = PendingPermission | PendingPermissionV2 | PendingQuestion 
 export interface OpenCodeQuestionAnswerContext {
   answerKeys: string[];
   optionValues: Record<string, string>;
+}
+
+interface OpenCodeRevertAnchorData {
+  messageId?: string;
+}
+
+/** Validates the opaque anchor payload for this provider. */
+function parseOpenCodeRevertAnchor(anchor: ProviderRevertAnchor): OpenCodeRevertAnchorData {
+  const data = anchor.data as Partial<OpenCodeRevertAnchorData> | null | undefined;
+  if (anchor.version !== 1) {
+    throw new Error("OpenCode revert anchor payload is invalid or from an incompatible version.");
+  }
+  return {
+    ...(typeof data?.messageId === "string" ? { messageId: data.messageId } : {}),
+  };
 }
 
 function parseModelSlug(
@@ -541,6 +557,38 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     if (!Number.isInteger(numTurns) || numTurns < 1) {
       throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
     }
+    const target = await this.planRevertTarget(numTurns);
+    await this.applyRevertTarget(target.messageId);
+    return this.readThread();
+  }
+
+  /**
+   * WS2 stage 3: freeze the absolute revert target (the assistant message id
+   * the session reverts to) without mutating anything. `session.messages` is a
+   * pure query, so re-creating a lost anchor is safe; the backend still
+   * journals the created anchor and restores from the stored copy.
+   */
+  async createRevertAnchor(numTurns: number): Promise<ProviderRevertAnchor> {
+    const target = await this.planRevertTarget(numTurns);
+    return { version: 1, data: target };
+  }
+
+  /**
+   * Reverts the session to the anchor's absolute message. Idempotent:
+   * OpenCode's revert is in-place to a position, so re-issuing an already
+   * applied anchor converges on the same conversation position.
+   */
+  async restoreToRevertAnchor(anchor: ProviderRevertAnchor): Promise<ThreadHistory> {
+    const target = parseOpenCodeRevertAnchor(anchor);
+    await this.applyRevertTarget(target.messageId);
+    return this.readThread();
+  }
+
+  /** Pure revert planning: resolves the absolute target message id. */
+  private async planRevertTarget(numTurns: number): Promise<{ messageId?: string }> {
+    if (!Number.isInteger(numTurns) || numTurns < 1) {
+      throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
+    }
     const acquired = this.requireAcquired();
     const sessionID = this.requireSessionId();
 
@@ -561,14 +609,20 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     // want the assistant message N+1 from the end to become the new head.
     const targetIndex = assistantMessages.length - numTurns - 1;
     const target = targetIndex >= 0 ? assistantMessages[targetIndex] : undefined;
-    const targetMessageId =
-      target && typeof target.info?.id === "string" ? target.info.id : undefined;
+    const messageId = target && typeof target.info?.id === "string" ? target.info.id : undefined;
+    return {
+      ...(messageId !== undefined ? { messageId } : {}),
+    };
+  }
 
+  private async applyRevertTarget(messageId: string | undefined): Promise<void> {
+    const acquired = this.requireAcquired();
+    const sessionID = this.requireSessionId();
     try {
       await acquired.client.session.revert({
         directory: this.sdkDirectory,
         sessionID,
-        ...(targetMessageId ? { messageID: targetMessageId } : {}),
+        ...(messageId ? { messageID: messageId } : {}),
       });
     } catch (cause) {
       throw new Error(classifyOpenCodeError({ cause, operation: "session.revert" }), { cause });
@@ -587,8 +641,6 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         this.bufferedRuntimeEvents.push(...closing);
       }
     }
-
-    return this.readThread();
   }
 
   dispose(): Promise<void> {

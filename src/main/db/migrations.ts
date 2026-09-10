@@ -670,6 +670,17 @@ export const DATABASE_MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 46,
+    name: "checkpoint revert provider anchor",
+    // WS2 stage 3: the absolute provider revert target, journalled BEFORE the
+    // restore side effect. A resumed operation restores from this stored
+    // anchor instead of re-creating it (re-creating would re-plan against a
+    // possibly-mutated conversation) and never re-runs the relative rollback.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "checkpoint_revert_operations", "provider_anchor_json", "TEXT");
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;

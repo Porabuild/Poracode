@@ -67,4 +67,47 @@ describe("catalogued route fixtures", () => {
       "mock-passed",
     );
   });
+
+  it("validates and positively exercises thread-checkpoint-revert", async () => {
+    harness = await startLab();
+    const { accessToken } = await pairAndAuth(harness, ["session:read", "session:operate"]);
+    const response = await fetch(
+      new URL("/api/threads/thread-fixture-001/checkpoint-revert", harness.httpBaseUrl),
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          "content-type": "application/json",
+          "x-poracode-command-id": "fixture-checkpoint-revert-1",
+        },
+        body: JSON.stringify({
+          checkpointItemId: "item-fixture-assistant",
+          operationKey: "fixture-op-key-1",
+        }),
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      outcome: "completed",
+      replayed: false,
+      numTurns: 0,
+      providerPhase: "completed",
+      filesPhase: "completed",
+      truncatePhase: "noop",
+      removedCompletedTurnAnchors: [],
+    });
+    expect(
+      harness.lab.ledger.snapshot().operations["route:thread-checkpoint-revert"]?.attempted,
+    ).toBeGreaterThan(0);
+    // A follow-up history read confirms the mutation and promotes the ledger
+    // record to mock-passed (the same lifecycle truncate exercises).
+    const history = await fetch(
+      new URL("/api/threads/thread-fixture-001/history", harness.httpBaseUrl),
+      { headers: { authorization: `Bearer ${accessToken}` } },
+    );
+    expect(history.status).toBe(200);
+    expect(harness.lab.ledger.snapshot().operations["route:thread-checkpoint-revert"]?.status).toBe(
+      "mock-passed",
+    );
+  });
 });

@@ -8,6 +8,7 @@ import {
   createDesktopRemoteAccessController,
   type DesktopRemoteAccessController,
 } from "@/main/remote/DesktopRemoteAccessController";
+import { RemoteHttpError } from "@/main/remote/auth";
 import { getRemoteAccessPairingInfo } from "@/main/remote/pairingInfo";
 import {
   getProfileCoreStats,
@@ -31,7 +32,7 @@ import type {
   BackendServiceProcedureName,
   BackendServiceResult,
 } from "@/shared/backendHostProtocol";
-import type { BackendHostCore } from "./BackendHostCore";
+import { RevertCheckpointRefusedError, type BackendHostCore } from "./BackendHostCore";
 import { BackendDurableServices } from "./BackendDurableServices";
 import { BackendRemoteBrowserProxy } from "./BackendRemoteBrowserProxy";
 import { generateBackendImagePreview } from "./BackendImagePreview";
@@ -191,6 +192,16 @@ export class BackendDesktopServices {
           callSupervisor: (name, payload) => supervisor.call(name, payload),
           truncateThreadRuntime: (threadId, itemId) => {
             host.truncateThreadRuntime(threadId, itemId);
+          },
+          revertCheckpoint: async (input) => {
+            try {
+              return await host.revertCheckpoint(input);
+            } catch (error) {
+              if (error instanceof RevertCheckpointRefusedError) {
+                throw new RemoteHttpError("thread_turn_active", error.message, 409);
+              }
+              throw error;
+            }
           },
           dispatchThreadCommand,
           browser: this.browser,

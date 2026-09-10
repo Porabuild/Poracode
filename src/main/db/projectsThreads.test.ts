@@ -182,7 +182,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(projectColumns.map((column) => column.name)).toContain("gh_account");
     expect(watchColumns.map((column) => column.name)).toContain("blocked_reason");
     expect(dbGetThread("thread-1")?.title).toBe("Test thread");
-    expect(dbGetState("schema_version")).toBe("45");
+    expect(dbGetState("schema_version")).toBe("46");
   });
 
   it("round-trips and clears the thread archive timestamp", () => {

@@ -25,7 +25,7 @@ export interface OperationMapDocument {
 }
 
 const EXPECTED_COUNTS = {
-  route: 62,
+  route: 63,
   procedure: 100,
   "ws-client": 9,
   "ws-server": 10,
@@ -33,7 +33,7 @@ const EXPECTED_COUNTS = {
   runtime: 16,
 } as const;
 
-export const EXPECTED_OPERATION_KEY_COUNT = 212;
+export const EXPECTED_OPERATION_KEY_COUNT = 213;
 
 interface ProtocolInventoryHeader {
   readonly sourceHash: string;
@@ -188,6 +188,7 @@ export const CORE_ROUTE_IDS = [
   "thread-history-items",
   "thread-start-existing",
   "thread-runtime-truncate",
+  "thread-checkpoint-revert",
   "thread-command",
   "thread-send",
   "thread-interrupt",

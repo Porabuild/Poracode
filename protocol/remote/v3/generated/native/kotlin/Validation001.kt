@@ -165,6 +165,10 @@ internal val schema_08654ec33ed5db02: RemoteSchema by lazy {
     RemoteSchema(type = "array", items = schema_07cc5ea327d0d20d, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_08ce03e6077b28a9: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("completed"), JsonPrimitive("completed_local_only"), JsonPrimitive("ambiguous"), JsonPrimitive("failed"), JsonPrimitive("noop")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_08eb4244d2d3b53e: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("id"), properties = mapOf("id" to schema_d855999aed5e6438), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -299,6 +303,10 @@ internal val schema_115555b2d2065a65: RemoteSchema by lazy {
 
 internal val schema_118f67a0fa6bb27d: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("skills-sh"), JsonPrimitive("skills-directory")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_11ada4e73a793b0d: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("pending"), JsonPrimitive("completed"), JsonPrimitive("failed"), JsonPrimitive("ambiguous"), JsonPrimitive("skipped_no_turns"), JsonPrimitive("skipped_missing_checkpoint")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_12344c6d82d54c6d: RemoteSchema by lazy {
@@ -439,12 +447,4 @@ internal val schema_1b2373270569d6e5: RemoteSchema by lazy {
 
 internal val schema_1b3dc298a6f3cf15: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("id", "label", "tokens"), properties = mapOf("id" to schema_36fea325bf1aca70, "label" to schema_36fea325bf1aca70, "tokens" to schema_56aa0e45cbdce0d0), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_1b7f16955dbf0b33: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("state"), properties = mapOf("state" to schema_ecc6edb6166acda9), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_1c2823e73ee0c1dc: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("owner", "platform", "repo", "url"), properties = mapOf("owner" to schema_bf0b727f7b1c6d07, "platform" to schema_9358a37bbc89d2ef, "repo" to schema_bf0b727f7b1c6d07, "url" to schema_bf0b727f7b1c6d07), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

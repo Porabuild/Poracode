@@ -1528,6 +1528,82 @@ describe("CodexStructuredSession", () => {
     });
   });
 
+  it("createRevertAnchor plans the absolute fork target without mutating anything", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/read" && params.includeTurns === true) {
+          return Promise.resolve({
+            thread: {
+              turns: ["turn-1", "turn-2", "turn-3", "turn-4"].map((id) => ({ id })),
+            },
+          });
+        }
+        return Promise.resolve({ thread: { status: { type: "idle" } } });
+      },
+    };
+
+    await expect(structuredSession.createRevertAnchor(2)).resolves.toEqual({
+      version: 1,
+      data: {
+        variant: "fork",
+        sourceThreadId: "provider-thread",
+        lastTurnId: "turn-2",
+        numTurns: 2,
+      },
+    });
+    // Pure planning: exactly one thread/read — no fork, no unsubscribe.
+    expect(requests).toEqual([
+      {
+        method: "thread/read",
+        params: {
+          threadId: "provider-thread",
+          includeTurns: true,
+        },
+      },
+    ]);
+  });
+
+  it("restoreToRevertAnchor forks directly at the journalled anchor without re-planning", async () => {
+    const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
+    const structuredSession = makeStructuredSession(requests);
+    (structuredSession as unknown as Record<string, unknown>)["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string, params: Record<string, unknown>) => {
+        requests.push({ method, params });
+        if (method === "thread/fork") {
+          return Promise.resolve({ thread: { id: "forked-thread" } });
+        }
+        return Promise.resolve({ thread: { status: { type: "idle" } } });
+      },
+    };
+
+    const anchor = {
+      version: 1 as const,
+      data: {
+        variant: "fork",
+        sourceThreadId: "provider-thread",
+        lastTurnId: "turn-2",
+        numTurns: 2,
+      },
+    };
+    await expect(structuredSession.restoreToRevertAnchor(anchor)).resolves.toEqual({
+      providerSessionId: "forked-thread",
+      messages: [],
+    });
+    // No thread/read re-plan: the journalled anchor is authoritative.
+    expect(requests[0]).toEqual({
+      method: "thread/fork",
+      params: expect.objectContaining({ threadId: "provider-thread", lastTurnId: "turn-2" }),
+    });
+    expect((structuredSession as unknown as { remoteThreadId: string }).remoteThreadId).toBe(
+      "forked-thread",
+    );
+  });
+
   it("starts a new usage scope epoch on fork and replays buffered tokenUsage into it", async () => {
     const requests: Array<{ method: string; params: Record<string, unknown> }> = [];
     const structuredSession = makeStructuredSession(requests);

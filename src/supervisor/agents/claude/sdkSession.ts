@@ -16,6 +16,7 @@ import type {
   AgentSlashCommand,
   BackgroundTask,
   PromptSegment,
+  ProviderRevertAnchor,
   RuntimeEvent,
   SessionRef,
   ThreadAttention,
@@ -84,6 +85,19 @@ type CompletedClaudeTurn = {
   resumeSessionAt: string | undefined;
 };
 
+interface ClaudeRevertAnchorData {
+  resumeSessionAt: string;
+}
+
+/** Validates the opaque anchor payload for this provider. */
+function parseClaudeRevertAnchor(anchor: ProviderRevertAnchor): ClaudeRevertAnchorData {
+  const data = anchor.data as Partial<ClaudeRevertAnchorData> | null | undefined;
+  if (anchor.version !== 1 || typeof data?.resumeSessionAt !== "string") {
+    throw new Error("Claude SDK revert anchor payload is invalid or from an incompatible version.");
+  }
+  return { resumeSessionAt: data.resumeSessionAt };
+}
+
 /**
  * How long a drained deferred completion waits before settling the thread.
  * Sized to cover the SDK's task_notification → model-wake gap (a
@@ -126,6 +140,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private completedTurns: CompletedClaudeTurn[] = [];
   private currentTurnAssistantUuid: string | undefined;
   private currentTurnInFlight = false;
+  /** Resume point the live query was opened at (revert-anchor idempotence). */
+  private activeResumeAt: string | undefined;
   // A turn's `result` settles its status immediately, but flipping the thread
   // to idle while a background subagent task is still live would mark a GUI
   // thread finished mid-work. Hold the completion status here until the
@@ -384,10 +400,78 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
   }
 
+  /**
+   * WS2 stage 3: freeze the absolute resume point for a `numTurns` rollback
+   * without touching session or provider state. The backend journals this
+   * anchor and later restores from it, so a retried revert never recomputes
+   * the target against an already-rolled-back conversation.
+   */
+  async createRevertAnchor(numTurns: number): Promise<ProviderRevertAnchor> {
+    const resumeSessionAt = this.planResumeAnchor(numTurns);
+    return {
+      version: 1,
+      data: {
+        resumeSessionAt,
+        remainingTurns: this.completedTurns.length - numTurns,
+      },
+    };
+  }
+
+  /**
+   * Reopens the SDK query at the anchor's absolute resume point. Idempotent:
+   * re-issuing an applied anchor with an unchanged ledger is a no-op, and a
+   * ledger that grew past the anchor truncates back to the anchor's turn.
+   */
+  async restoreToRevertAnchor(anchor: ProviderRevertAnchor): Promise<ThreadHistory> {
+    const data = parseClaudeRevertAnchor(anchor);
+    const sessionId = this.assertRollbackReady();
+    const resumeSessionAt = data.resumeSessionAt;
+    // Absolute ledger truncation: anchor on the recorded turn's resume point,
+    // not a relative count. An unknown anchor (fresh process resume with an
+    // empty/partial ledger) leaves the ledger alone — the provider-side
+    // reopen below still lands on the anchor position.
+    const anchorIndex = this.completedTurns.findLastIndex(
+      (turn) => turn.resumeSessionAt === resumeSessionAt,
+    );
+    if (this.activeResumeAt === resumeSessionAt && anchorIndex === this.completedTurns.length - 1) {
+      // Already restored to this exact position.
+      return { providerSessionId: sessionId, messages: [] };
+    }
+    if (anchorIndex >= 0) {
+      this.completedTurns = this.completedTurns.slice(0, anchorIndex + 1);
+    }
+    this.applyResumePoint(resumeSessionAt);
+    await this.requireQuery();
+    return { providerSessionId: sessionId, messages: [] };
+  }
+
   async rollbackThread(numTurns: number): Promise<ThreadHistory> {
+    const sessionId = this.assertRollbackReady();
+    const resumeSessionAt = this.planResumeAnchor(numTurns);
+    this.completedTurns = this.completedTurns.slice(0, this.completedTurns.length - numTurns);
+    this.applyResumePoint(resumeSessionAt);
+    await this.requireQuery();
+    return { providerSessionId: sessionId, messages: [] };
+  }
+
+  /** Shared rollback guards + absolute target computation (no mutation). */
+  private planResumeAnchor(numTurns: number): string {
+    this.assertRollbackReady();
     if (!Number.isInteger(numTurns) || numTurns <= 0) {
       throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
     }
+    if (numTurns > this.completedTurns.length) {
+      throw new Error("Claude SDK rollback only supports turns completed in this runtime.");
+    }
+    const nextTurns = this.completedTurns.slice(0, this.completedTurns.length - numTurns);
+    const resumeSessionAt = nextTurns.at(-1)?.resumeSessionAt;
+    if (!resumeSessionAt) {
+      throw new Error("Claude SDK rollback requires an assistant resume point.");
+    }
+    return resumeSessionAt;
+  }
+
+  private assertRollbackReady(): string {
     if (this.currentStatus === "working" || this.currentAttention === "working") {
       throw new Error("Claude SDK rollback is unavailable while a turn is running.");
     }
@@ -397,20 +481,15 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (!this.sessionId) {
       throw new Error("Claude SDK rollback requires an open session.");
     }
-    if (numTurns > this.completedTurns.length) {
-      throw new Error("Claude SDK rollback only supports turns completed in this runtime.");
-    }
+    return this.sessionId;
+  }
 
-    const nextTurns = this.completedTurns.slice(0, this.completedTurns.length - numTurns);
-    const resumeSessionAt = nextTurns.at(-1)?.resumeSessionAt;
-    if (!resumeSessionAt) {
-      throw new Error("Claude SDK rollback requires an assistant resume point.");
-    }
-
-    this.completedTurns = nextTurns;
+  /** Closes the live query and reopens the session at an absolute position. */
+  private applyResumePoint(resumeSessionAt: string): void {
     this.currentTurnAssistantUuid = undefined;
     this.currentTurnInFlight = false;
     this.openedResumeSessionId = this.sessionId;
+    this.activeResumeAt = resumeSessionAt;
     this.promptQueue.close();
     this.queryRuntime?.close();
     this.promptQueue = new AsyncPromptQueue();
@@ -422,9 +501,6 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.appliedUltracode = false;
     this.appliedFast = false;
     this.startQuery(this.sessionId, resumeSessionAt);
-    await this.requireQuery();
-
-    return { providerSessionId: this.sessionId, messages: [] };
   }
 
   async interruptTurn(): Promise<void> {
@@ -679,6 +755,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.disposed) throw new Error("ClaudeSdkSession cannot open a disposed session.");
     if (this.streamStarted) return;
     this.streamStarted = true;
+    this.activeResumeAt = resumeSessionAt;
     // The `background_tasks_changed` level is per CLI process: it is not
     // emitted at startup, so a restarted query (rollback re-spawns the CLI)
     // must reset to the empty set and let the next membership change

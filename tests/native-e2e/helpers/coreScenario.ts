@@ -95,6 +95,10 @@ export async function exerciseCoreLifecycle(
   await jsonRequest(harness, accessToken, `/api/threads/${FIXTURE_THREAD_ID}/runtime/truncate`, {
     itemId: "item-fixture-assistant",
   });
+  await jsonRequest(harness, accessToken, `/api/threads/${FIXTURE_THREAD_ID}/checkpoint-revert`, {
+    checkpointItemId: "item-fixture-assistant",
+    operationKey: "fixture-op-key-1",
+  });
   await jsonRequest(harness, accessToken, `/api/threads/${FIXTURE_THREAD_ID}/close`, {});
   await expectStatus(
     fetch(new URL(`/api/threads/${FIXTURE_THREAD_ID}/history`, harness.httpBaseUrl), {

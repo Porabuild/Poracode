@@ -20,6 +20,7 @@ import {
   type RemoteAccessScope,
 } from "@/shared/remote";
 import {
+  checkpointRevertPayloadSchema,
   closeThreadPayloadSchema,
   clearPendingSteerPayloadSchema,
   controlThreadGoalPayloadSchema,
@@ -1039,6 +1040,33 @@ export async function handleHttp(
       ctx.options.truncateThreadRuntime(payload.threadId, payload.itemId);
       ctx.publishThreadsChanged([payload.threadId]);
       writeJson(res, 200, { ok: true });
+      return;
+    }
+    // WS2 stage 3/4: the compound checkpoint revert — provider rollback, file
+    // checkpoint restore and transcript truncation as ONE journaled backend
+    // operation, keyed by the client's operationKey (plus the command-id
+    // receipt here). The host publishes the canonical `runtime.truncated`
+    // event through the same funnel a local truncate uses.
+    const revertThreadId = threadIdFromPath(url.pathname, "/checkpoint-revert");
+    if (req.method === "POST" && revertThreadId) {
+      ctx.security.requireBearer(req, ["session:operate"]);
+      if (!ctx.options.revertCheckpoint) {
+        throw new RemoteHttpError(
+          "checkpoint_revert_unavailable",
+          "This host cannot run compound checkpoint reverts.",
+          501,
+        );
+      }
+      const body = await readJsonBody(req);
+      const payload = checkpointRevertPayloadSchema.parse({
+        ...(typeof body === "object" && body !== null ? body : {}),
+        threadId: revertThreadId,
+      });
+      const result = await runIdempotentRemoteMutation(req, url.pathname, () =>
+        ctx.options.revertCheckpoint!(payload),
+      );
+      ctx.publishThreadsChanged([payload.threadId]);
+      await writeNegotiatedJsonResponse(req, res, 200, result);
       return;
     }
     if (req.method === "POST" && commandThreadId) {

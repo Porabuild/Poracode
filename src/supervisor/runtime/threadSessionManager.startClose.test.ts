@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentKind } from "@/shared/contracts";
+import type { AgentKind, ProviderRevertAnchor } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { WindowsShellPreference } from "../shellPreference";
@@ -210,6 +210,68 @@ describe("ThreadSessionManager provider-session routing", () => {
 
     delete adapter.capabilities.crossagentMcpRouting;
     expect(manager.getThreadIdByProviderSessionId("ses_existing")).toBeUndefined();
+  });
+});
+
+describe("ThreadSessionManager revert anchors (WS2 stage 3)", () => {
+  function installRuntime(overrides: { status?: string } = {}): {
+    manager: ThreadSessionManager;
+    runtime: SessionRuntime;
+    structuredSession: StructuredSessionHandle;
+  } {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const manager = createManager("codex", adapter);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    if (overrides.status) runtime.status = overrides.status as SessionRuntime["status"];
+    manager.sessions.set(runtime.threadId, runtime);
+    return { manager, runtime, structuredSession };
+  }
+
+  it("createRevertAnchor rejects when the structured provider lacks the hook", async () => {
+    const { manager } = installRuntime();
+    await expect(
+      manager.createRevertAnchor({ threadId: "thread-codex", numTurns: 1 }),
+    ).rejects.toThrow(/does not support revert anchors/);
+  });
+
+  it("refuses anchors while the thread is working", async () => {
+    const { manager } = installRuntime({ status: "working" });
+    await expect(
+      manager.createRevertAnchor({ threadId: "thread-codex", numTurns: 1 }),
+    ).rejects.toThrow(/Cannot roll back a thread while the agent is working/);
+    await expect(
+      manager.restoreToRevertAnchor({
+        threadId: "thread-codex",
+        anchor: { version: 1, data: {} },
+      }),
+    ).rejects.toThrow(/Cannot roll back a thread while the agent is working/);
+  });
+
+  it("createRevertAnchor returns the provider anchor; restoreToRevertAnchor adopts a forked session ref", async () => {
+    const { manager, runtime, structuredSession } = installRuntime();
+    const anchor: ProviderRevertAnchor = {
+      version: 1,
+      data: { variant: "fork", sourceThreadId: "ses_existing", lastTurnId: "turn-2", numTurns: 2 },
+    };
+    structuredSession.createRevertAnchor = vi
+      .fn<NonNullable<StructuredSessionHandle["createRevertAnchor"]>>()
+      .mockResolvedValue(anchor);
+    structuredSession.restoreToRevertAnchor = vi
+      .fn<NonNullable<StructuredSessionHandle["restoreToRevertAnchor"]>>()
+      .mockResolvedValue({ providerSessionId: "ses_forked", messages: [] });
+
+    await expect(
+      manager.createRevertAnchor({ threadId: runtime.threadId, numTurns: 2 }),
+    ).resolves.toEqual({
+      anchor,
+    });
+    expect(structuredSession.createRevertAnchor).toHaveBeenCalledWith(2);
+
+    await manager.restoreToRevertAnchor({ threadId: runtime.threadId, anchor });
+    expect(structuredSession.restoreToRevertAnchor).toHaveBeenCalledWith(anchor);
+    expect(runtime.sessionRef?.providerSessionId).toBe("ses_forked");
+    expect(runtime.canResumeWithConfig).toBe(true);
   });
 });
 

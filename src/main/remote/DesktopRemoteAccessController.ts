@@ -80,6 +80,8 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly callSupervisor: RemoteAccessServerOptions["callSupervisor"];
   /** Backend-owned truncate: one DB mutation + one `runtime.truncated` publication. */
   readonly truncateThreadRuntime: RemoteAccessServerOptions["truncateThreadRuntime"];
+  /** Backend-owned compound checkpoint revert (WS2), refusal-mapped to 409. */
+  readonly revertCheckpoint?: RemoteAccessServerOptions["revertCheckpoint"];
   readonly dispatchThreadCommand: NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>;
   readonly getBrowserPanelManager?: () => BrowserPanelManager | null;
   readonly browser?: RemoteBrowserGatewayLike;
@@ -433,6 +435,7 @@ export function createDesktopRemoteAccessController(
         ...(devWebAppUrl ? { devWebAppUrl } : {}),
         callSupervisor: options.callSupervisor,
         truncateThreadRuntime: options.truncateThreadRuntime,
+        ...(options.revertCheckpoint ? { revertCheckpoint: options.revertCheckpoint } : {}),
         dispatchThreadCommand: options.dispatchThreadCommand,
         resolveMcpLaunchSnapshot: (projectId) => {
           const settings = readSharedSettingsFile(options.paths.settingsPath);

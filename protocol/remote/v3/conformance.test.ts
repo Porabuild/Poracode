@@ -423,6 +423,13 @@ describe("language-neutral remote protocol v3 contract", () => {
         ],
       ],
       [
+        "POST /api/threads/{threadId}/checkpoint-revert",
+        [
+          /threadIdFromPath\(url\.pathname, "\/checkpoint-revert"\)/,
+          /req\.method === "POST" && revertThreadId/,
+        ],
+      ],
+      [
         "POST /api/threads/{threadId}/command",
         [
           /threadIdFromPath\(url\.pathname, "\/command"\)/,

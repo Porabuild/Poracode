@@ -27,7 +27,7 @@ const BATCHES = [
 const DISPOSITIONS = ["implemented", "planned", "desktop-only", "unsupported-by-wire"] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 62,
+  httpRoutes: 63,
   procedures: 100,
   webSocketClientMessages: 9,
   webSocketServerMessages: 10,

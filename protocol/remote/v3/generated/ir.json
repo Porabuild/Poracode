@@ -14,14 +14,14 @@
     "jsonProcedureResults": 64,
     "procedures": 100,
     "replayableEventTypes": 15,
-    "routes": 62,
+    "routes": 63,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 36,
     "webSocketClientMessages": 9,
     "webSocketServerMessages": 10
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:f87d0b28101deede72e2060d530142e53bf91324c2e2d786e19d4fe7e597762f",
+  "manifestHash": "sha256:384027c42a6ff96d0e9c18757e617ec06b95f473314460ff3c6be638ba083600",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -29364,6 +29364,133 @@
     },
     {
       "auth": "bearer",
+      "id": "thread-checkpoint-revert",
+      "idempotency": "command-id-header",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/checkpoint-revert",
+      "pathParameters": [
+        "threadId"
+      ],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "checkpointItemId": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "operationKey": {
+              "maxLength": 128,
+              "minLength": 8,
+              "pattern": "^[A-Za-z0-9._:-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "checkpointItemId",
+            "operationKey"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "pathSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "threadId": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "threadId"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "filesPhase": {
+              "enum": [
+                "pending",
+                "completed",
+                "failed",
+                "skipped_no_location",
+                "skipped_missing_checkpoint"
+              ],
+              "type": "string"
+            },
+            "numTurns": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer"
+            },
+            "outcome": {
+              "enum": [
+                "completed",
+                "completed_local_only",
+                "ambiguous",
+                "failed",
+                "noop"
+              ],
+              "type": "string"
+            },
+            "providerPhase": {
+              "enum": [
+                "pending",
+                "completed",
+                "failed",
+                "ambiguous",
+                "skipped_no_turns",
+                "skipped_missing_checkpoint"
+              ],
+              "type": "string"
+            },
+            "removedCompletedTurnAnchors": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "replayed": {
+              "type": "boolean"
+            },
+            "truncatePhase": {
+              "enum": [
+                "pending",
+                "completed",
+                "noop"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "outcome",
+            "replayed",
+            "numTurns",
+            "providerPhase",
+            "filesPhase",
+            "truncatePhase",
+            "removedCompletedTurnAnchors"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "thread-close",
       "method": "POST",
       "path": "/api/threads/{threadId}/close",
@@ -32760,7 +32887,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:17044295fb76b6bf526f06be3e87443ea83621d11bf9c7e4ddd211139976ab38",
+  "sourceHash": "sha256:cee3382da01875ddc40eddf12ddf4884018f251ffe1c0b01207c1c50ee323d2f",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [
