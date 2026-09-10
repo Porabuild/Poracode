@@ -730,6 +730,10 @@ msgstr "1 çalıştırma"
 #~ msgid "22"
 #~ msgstr "22"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "3000"
+msgstr "3000"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30g"
@@ -6106,6 +6110,10 @@ msgstr "HTTP (akış destekli)"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+msgid "https://github.com/owner/repo.git"
+msgstr "https://github.com/owner/repo.git"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Hue"
@@ -13683,6 +13691,14 @@ msgstr "{0} oturum açma işlemi açılamıyor."
 msgid "Unable to open file"
 msgstr "Dosya açılamıyor"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
+msgid "Unable to open the file"
+msgstr "Dosya açılamadı"
+
+#: src/renderer/utils/gitHelpers.ts
+msgid "Unable to open the file in the editor"
+msgstr "Dosya düzenleyicide açılamadı"
+
 #: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Bu masaüstüyle eşleştirilemiyor."
@@ -13779,6 +13795,10 @@ msgstr "Claude {displayLabel} profili kaydedilemedi."
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "Görsel kaydedilemedi."
+
+#: src/renderer/commands/registry.ts
+msgid "Unable to save the file"
+msgstr "Dosya kaydedilemedi"
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."

@@ -574,7 +574,7 @@ export function PortsPanel() {
               inputMode="numeric"
               min={1}
               max={65535}
-              placeholder="3000"
+              placeholder={t`3000`}
               onChange={(event) => setManualPort(event.currentTarget.value)}
             />
             <Button

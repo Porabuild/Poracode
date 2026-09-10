@@ -366,9 +366,10 @@ function baseCommands(): AppCommand[] {
       run: () => {
         const editor = useFileEditorStore.getState();
         if (editor.activePath) {
-          void editor
-            .saveFile(editor.activePath)
-            .catch((error) => toast.danger(error instanceof Error ? error.message : String(error)));
+          void editor.saveFile(editor.activePath).catch((error) => {
+            console.error("[commands] editor.save failed:", error);
+            toast.danger(i18n._(msg`Unable to save the file`));
+          });
         }
       },
     },

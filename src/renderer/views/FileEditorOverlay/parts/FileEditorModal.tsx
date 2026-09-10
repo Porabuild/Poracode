@@ -78,9 +78,10 @@ export function FileEditorModal() {
                       <ProjectTreeView
                         rootContext={rootContext}
                         onSelectFile={(path) => {
-                          void openFile(path, "modal", true).catch((error) =>
-                            toast.danger(error instanceof Error ? error.message : String(error)),
-                          );
+                          void openFile(path, "modal", true).catch((error) => {
+                            console.error("[file-editor] open failed:", error);
+                            toast.danger(t`Unable to open the file`);
+                          });
                         }}
                         onPinFile={pinTab}
                       />

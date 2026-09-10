@@ -67,8 +67,9 @@ function toCompletedTurnRecords(
  * applied for the same thread — passed by callers that track it per thread
  * (the desktop-as-client store). Such a snapshot must not overwrite the
  * event's fresher thread row, pending requests, turn boundary, or
- * background-task level. The mobile PWA's ~1s refresh loop self-heals the
- * same race, so callers without a seq simply omit the option.
+ * background-task level. Callers without a live seq (one-shot fetches with
+ * no event stream to order against) simply omit the option and accept the
+ * race; their next event-driven refresh overwrites the row either way.
  */
 function snapshotIsStaleForThread(
   snapshot: RemoteThreadSnapshot,

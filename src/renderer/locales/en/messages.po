@@ -735,6 +735,10 @@ msgstr "1 run"
 #~ msgid "22"
 #~ msgstr "22"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "3000"
+msgstr "3000"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30d"
@@ -6115,6 +6119,10 @@ msgstr "HTTP (streamable)"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+msgid "https://github.com/owner/repo.git"
+msgstr "https://github.com/owner/repo.git"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Hue"
@@ -13692,6 +13700,14 @@ msgstr "Unable to open {0} login."
 msgid "Unable to open file"
 msgstr "Unable to open file"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
+msgid "Unable to open the file"
+msgstr "Unable to open the file"
+
+#: src/renderer/utils/gitHelpers.ts
+msgid "Unable to open the file in the editor"
+msgstr "Unable to open the file in the editor"
+
 #: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Unable to pair with that desktop."
@@ -13788,6 +13804,10 @@ msgstr "Unable to save Claude {displayLabel} profile."
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "Unable to save image."
+
+#: src/renderer/commands/registry.ts
+msgid "Unable to save the file"
+msgstr "Unable to save the file"
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
