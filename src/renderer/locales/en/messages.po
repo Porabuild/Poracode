@@ -7421,6 +7421,10 @@ msgstr "Message actions"
 #~ msgid "Message the remote agent…"
 #~ msgstr "Message the remote agent…"
 
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Messages could not be loaded."
+msgstr "Messages could not be loaded."
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
 msgid "Messages sent"
 msgstr "Messages sent"
@@ -10752,6 +10756,7 @@ msgstr "Resume goal"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx

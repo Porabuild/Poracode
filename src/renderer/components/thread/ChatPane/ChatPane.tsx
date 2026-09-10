@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Trans } from "@lingui/react/macro";
+import { Button } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
@@ -331,6 +332,7 @@ export function ChatPane(props: ChatPaneProps) {
     (s) => s.provisioningWorktreeThreadIds[threadId] === true && status === "launching",
   );
   const isConnecting = useAppStore((s) => s.connectingThreadIds[threadId] !== undefined);
+  const hydrationStatus = useAppStore((s) => s.runtimeHydrationStatus[threadId]);
   // Detached background work keeps the thread doing real work after the
   // foreground turn settles. Treat that as "still working" for the tail-loader
   // timer (so it keeps ticking "Working for ...") without touching `status` -
@@ -379,7 +381,9 @@ export function ChatPane(props: ChatPaneProps) {
   // request before that round-trip completes, leaving status stuck at
   // `needs_approval` even though the user has already answered.
   const isTurnPaused = hasOpenRuntimeRequest;
-  const showEmptyHint = isEmpty && !isLive && !isConnecting;
+  const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
+  const isHydrating = isEmpty && hydrationStatus === "pending";
+  const hydrationFailed = isEmpty && hydrationStatus === "failed";
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
@@ -433,7 +437,21 @@ export function ChatPane(props: ChatPaneProps) {
             scrollStyle={scrollFadeStyle}
             contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
             emptyContent={
-              isEmpty && !showTailLoader && showEmptyHint ? (
+              hydrationFailed && !showTailLoader ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 text-foreground-muted">
+                  <span>
+                    <Trans>Messages could not be loaded.</Trans>
+                  </span>
+                  <Button
+                    variant="tertiary"
+                    onPress={() => {
+                      void hydrateThreadRuntimeItems(threadId);
+                    }}
+                  >
+                    <Trans>Retry</Trans>
+                  </Button>
+                </div>
+              ) : isEmpty && !showTailLoader && showEmptyHint ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
                   <span>
                     <Trans>No messages yet</Trans>
@@ -445,6 +463,8 @@ export function ChatPane(props: ChatPaneProps) {
               isWorktreeProvisioning ? (
                 <ChatWorktreeProvisioningFooter />
               ) : isConnecting ? (
+                <ChatConnectingFooter />
+              ) : isHydrating ? (
                 <ChatConnectingFooter />
               ) : showTailLoader && tailTurn ? (
                 <ChatTurnElapsedFooter turn={tailTurn} isPaused={isTurnPaused} />
@@ -503,7 +523,9 @@ export function ChatPane(props: ChatPaneProps) {
             layoutChangeToken={layoutChangeToken}
             tailEntryId={timelineEntries.at(-1)?.id ?? null}
             threadId={threadId}
-            tailLoaderVisible={isWorktreeProvisioning || isConnecting || showTailLoader}
+            tailLoaderVisible={
+              isWorktreeProvisioning || isConnecting || isHydrating || showTailLoader
+            }
             initialScrollSettled={isInitialScrollSettled}
             initialScrollRevealDelayMs={props.initialScrollRevealDelayMs ?? 0}
             virtualScrollToBottomRef={virtualScrollToBottomRef}
