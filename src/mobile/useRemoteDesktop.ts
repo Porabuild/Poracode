@@ -28,8 +28,15 @@ import {
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
 import { performThreadInputSubmit } from "@/renderer/actions/threadRuntimeActions";
-import { buildTranscriptContext } from "@/renderer/actions/handoffTranscript";
-import { DEFAULT_HANDOFF_PROMPT, handoffInlineLabel } from "@/renderer/actions/providerHandoff";
+import {
+  buildTranscriptContext,
+  handoffTranscriptBudget,
+} from "@/renderer/actions/handoffTranscript";
+import {
+  DEFAULT_HANDOFF_PROMPT,
+  handoffInlineLabel,
+  MAX_INLINE_HANDOFF_CONTEXT_CHARS,
+} from "@/renderer/actions/providerHandoff";
 import { continuesInPlace } from "@/shared/continueProviderRanking";
 import { worktreePlacementPayload } from "@/renderer/actions/worktreePlacement";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
@@ -1190,7 +1197,14 @@ export function useRemoteDesktop() {
     // The phone has no composer here, so the handoff carries the chat history
     // inline (the attachment-file route is a desktop-owned bridge path) plus
     // the shared default instruction.
-    const context = buildTranscriptContext(thread, thread.agentKind);
+    const context = buildTranscriptContext(
+      thread,
+      thread.agentKind,
+      Math.min(
+        handoffTranscriptBudget(input.targetConfig.contextSize),
+        MAX_INLINE_HANDOFF_CONTEXT_CHARS,
+      ),
+    );
     const handoffPrompt = context
       ? `${handoffInlineLabel(context)}\n\n${context.summary}\n\n${DEFAULT_HANDOFF_PROMPT}`
       : DEFAULT_HANDOFF_PROMPT;

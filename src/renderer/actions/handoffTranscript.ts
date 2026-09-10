@@ -1,52 +1,30 @@
 import type { ExtractContextResult, Thread } from "@/shared/contracts";
+import { parseContextWindowTokens } from "@/shared/contextWindow";
 import { useAppStore } from "@/renderer/state/appStore";
-import { formatHandoffRow, type HandoffRow } from "./handoffTranscriptRows";
+import {
+  formatHandoffRow,
+  MAX_HANDOFF_MESSAGE_CHARS,
+  type HandoffRow,
+} from "./handoffTranscriptRows";
 
-/**
- * Whole-file budget, roughly 12-15k tokens. Small next to any current context
- * window, but the file rides in the new provider's first message for the rest
- * of its session, so it is filled by priority rather than recency alone.
- */
-export /**
- * Handoff transcripts are truncated from the front, so a small budget silently
- * throws away the beginning of the conversation — the part that usually carries
- * the goal and the decisions. 50k chars is roughly 12k tokens, a sliver of any
- * current model's window, so the receiving agent used to start half-blind.
- *
- * The budget now scales with the destination model's context window and only
- * claims a share of it, leaving the rest for the actual work.
- */
+/** Approximate token allocation; leave the rest of the window for the next task. */
 const HANDOFF_CONTEXT_SHARE = 0.35;
 const CHARS_PER_TOKEN = 4;
-/** Used when the destination declares no context size. */
 const DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS = 400_000;
+// Even UTF-8 text must fit the remote attachment upload's 20 MiB ceiling.
+const MAX_TRANSCRIPT_CONTEXT_CHARS = 4_000_000;
 
-/** `"1m"` / `"200k"` / `"272000"` -> token count, or undefined when unparsable. */
-function tokensFromContextSize(contextSize: string | undefined): number | undefined {
-  if (!contextSize) return undefined;
-  const match = /^(\d+(?:\.\d+)?)\s*([mk])?$/i.exec(contextSize.trim());
-  if (!match) return undefined;
-  const value = Number(match[1]);
-  if (!Number.isFinite(value) || value <= 0) return undefined;
-  const unit = match[2]?.toLowerCase();
-  if (unit === "m") return value * 1_000_000;
-  if (unit === "k") return value * 1_000;
-  return value;
-}
-
-/**
- * Character budget for a handoff transcript aimed at a model with `contextSize`.
- * Exported so the caller can size the transcript to the provider it is handing
- * off to rather than to a fixed constant.
- */
+/** Character budget for the destination; unknown sizes use a bounded fallback. */
 export function handoffTranscriptBudget(contextSize?: string): number {
-  const tokens = tokensFromContextSize(contextSize);
-  if (tokens === undefined) return DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS;
-  return Math.max(
-    DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS,
-    Math.floor(tokens * CHARS_PER_TOKEN * HANDOFF_CONTEXT_SHARE),
-  );
+  const tokens = parseContextWindowTokens(contextSize ?? "");
+  return tokens === undefined
+    ? DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS
+    : Math.min(
+        MAX_TRANSCRIPT_CONTEXT_CHARS,
+        Math.floor(tokens * CHARS_PER_TOKEN * HANDOFF_CONTEXT_SHARE),
+      );
 }
+
 const ROW_SEPARATOR = "\n\n";
 const LEADING_GAP_MARKER = "[earlier turns omitted]";
 const INNER_GAP_MARKER = "[turns omitted]";
@@ -73,8 +51,7 @@ function selectRows(rows: readonly HandoffRow[], maxChars: number): ReadonlySet<
   const kept = new Set<HandoffRow>();
   let used = 0;
   const tryKeep = (candidate: HandoffRow): boolean => {
-    const cost =
-      candidate.text.length + (kept.size > 0 ? ROW_SEPARATOR.length + GAP_MARKER_ALLOWANCE : 0);
+    const cost = candidate.text.length + ROW_SEPARATOR.length + GAP_MARKER_ALLOWANCE;
     if (used + cost > maxChars) return false;
     kept.add(candidate);
     used += cost;
@@ -126,24 +103,24 @@ export function buildTranscriptContext(
   const itemsById = state.runtimeItemsByIdByThread[thread.id];
   if (!itemsById || itemIds.length === 0) return null;
 
+  const header = `Chat history of this conversation from the ${sourceLabel} session, oldest turn first. Tool output is omitted; rerun commands if you need their results.\n\n`;
+  const rowBudget = maxChars - header.length;
+  // Leave room for the row label, truncation marker, separators, and gap marker.
+  const messageBudget = Math.min(MAX_HANDOFF_MESSAGE_CHARS, Math.max(0, rowBudget - 100));
   const rows: HandoffRow[] = [];
   itemIds.forEach((itemId) => {
     const item = itemsById[itemId];
     if (!item || item.parentItemId) return;
-    const formatted = formatHandoffRow(item);
+    const formatted = formatHandoffRow(item, messageBudget);
     if (formatted?.text.trim()) rows.push(formatted);
   });
   if (rows.length === 0) return null;
 
-  const transcript = joinRows(rows, selectRows(rows, maxChars));
+  const transcript = joinRows(rows, selectRows(rows, rowBudget));
   if (!transcript.trim()) return null;
 
   return {
-    summary: [
-      `Chat history of this conversation from the ${sourceLabel} session, oldest turn first. Tool output is omitted; rerun commands if you need their results.`,
-      "",
-      transcript,
-    ].join("\n"),
+    summary: header + transcript,
     sourceProvider: thread.agentKind,
     sourceSessionId: thread.sessionRef?.providerSessionId ?? thread.id,
     ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),

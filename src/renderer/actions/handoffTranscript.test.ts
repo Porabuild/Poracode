@@ -3,11 +3,9 @@ import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "../state/appStore";
 import type { RuntimeChatItem } from "../state/slices/runtimeEventSlice";
 import { buildTranscriptContext, handoffTranscriptBudget } from "./handoffTranscript";
-
-// The budget-filling tests below build fixtures sized against this value, so
-// they assert selection behaviour rather than whatever the default happens to be.
-const TEST_BUDGET = 50_000;
 import { MAX_HANDOFF_MESSAGE_CHARS } from "./handoffTranscriptRows";
+
+const TEST_BUDGET = 50_000;
 
 const thread: Thread = {
   id: "thread-1",
@@ -193,6 +191,19 @@ describe("buildTranscriptContext", () => {
     expect(summary).toContain("[message truncated]");
   });
 
+  it("keeps the original ask when the destination budget is smaller than one message", () => {
+    seed([
+      userMessage("u1", `Original ask: ${"x".repeat(6_000)}`),
+      assistantMessage("a1", "y".repeat(6_000)),
+    ]);
+    const budget = handoffTranscriptBudget("1k");
+    const context = buildTranscriptContext(thread, "Source", budget);
+
+    expect(context?.summary).toContain("User:\nOriginal ask:");
+    expect(context?.summary).toContain("[message truncated]");
+    expect(context?.summary.length).toBeLessThanOrEqual(budget);
+  });
+
   it("stays near the character budget when interleaved rows force gap markers", () => {
     // Alternating commands and tiny messages make the kept conversation rows
     // position-scattered, so every join needs a gap marker the row budget
@@ -212,27 +223,28 @@ describe("buildTranscriptContext", () => {
     const summary = buildTranscriptContext(thread, "Claude", TEST_BUDGET)?.summary ?? "";
 
     expect(summary).toContain("[turns omitted]");
-    // The header line rides outside the row budget, hence the small slack.
-    expect(summary.length).toBeLessThanOrEqual(TEST_BUDGET + 500);
+    expect(summary.length).toBeLessThanOrEqual(TEST_BUDGET);
   });
 });
 
 describe("handoffTranscriptBudget", () => {
-  it("scales the budget with the destination model's context window", () => {
-    // A handoff is truncated from the front, so a fixed small budget silently
-    // drops the beginning of the conversation on large-context models.
-    expect(handoffTranscriptBudget("1m")).toBeGreaterThan(handoffTranscriptBudget("200k"));
-    expect(handoffTranscriptBudget("1m")).toBeGreaterThan(1_000_000);
+  it.each([
+    ["1k", 1_400],
+    ["32k", 44_800],
+    ["200k", 280_000],
+    ["272k", 380_800],
+    ["272,000", 380_800],
+    [" 1M ", 1_400_000],
+    ["1.05M", 1_470_000],
+    ["10m", 4_000_000],
+  ])("budgets the destination window %s without exceeding delivery limits", (size, expected) => {
+    expect(handoffTranscriptBudget(size)).toBe(expected);
   });
 
-  it("falls back to the default when the context size is missing or unparsable", () => {
-    const fallback = handoffTranscriptBudget(undefined);
-    expect(fallback).toBe(400_000);
-    expect(handoffTranscriptBudget("unlimited")).toBe(fallback);
-    expect(handoffTranscriptBudget("")).toBe(fallback);
-  });
-
-  it("never returns less than the default", () => {
-    expect(handoffTranscriptBudget("1k")).toBeGreaterThanOrEqual(400_000);
-  });
+  it.each([undefined, "", "default", "unlimited", "20m", "0", "999", "1e9"])(
+    "uses the fallback for an unknown or invalid context size %s",
+    (size) => {
+      expect(handoffTranscriptBudget(size)).toBe(400_000);
+    },
+  );
 });
