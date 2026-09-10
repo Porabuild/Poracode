@@ -760,6 +760,10 @@ msgstr "Une source d'arbre de travail figée nécessite un hash de commit comple
 msgid "A locked screen stops all desktop control, so the display is kept on while a Computer Use session is running. You can still lock the screen yourself."
 msgstr "Un écran verrouillé interrompt tout contrôle du bureau ; l'écran reste donc allumé pendant une session d'utilisation de l'ordinateur. Vous pouvez toujours verrouiller l'écran vous-même."
 
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
+msgstr "Une suppression de messages n’a pas pu être confirmée. Actualisez pour resynchroniser cette conversation."
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "Un profil portant ce nom existe déjà."
@@ -10184,6 +10188,7 @@ msgid "Redact notification content"
 msgstr "Masquer le contenu des notifications"
 
 #. Button: re-fetch provider usage now
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -10703,6 +10708,10 @@ msgstr "Résous les conflits dans cet arbre de travail. Vérifie d’abord l’�
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "Résout les conflits de fusion lors du rebase ou de la fusion."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
+msgid "Resolving…"
+msgstr "Résolution en cours…"
+
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Restart Poracode"
 msgstr "Redémarrer Poracode"
@@ -10834,6 +10843,10 @@ msgstr "Revenir au point de contrôle ?"
 #: src/renderer/components/thread/ChatPane/UserMessageActionsSheet.tsx
 msgid "Revert to this checkpoint"
 msgstr "Revenir à ce point de contrôle"
+
+#: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
+msgid "Reverting…"
+msgstr "Annulation en cours…"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Review and track work across your GitHub accounts."
@@ -11583,6 +11596,10 @@ msgstr "Le serveur {target} s'exécute sur cet ordinateur et n'est pas disponibl
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Server base URL"
 msgstr "URL de base du serveur"
+
+#: src/renderer/components/thread/ChatPane/ChatPane.tsx
+msgid "Server offline — this conversation may be out of date."
+msgstr "Serveur hors ligne – cette conversation est peut-être obsolète."
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."

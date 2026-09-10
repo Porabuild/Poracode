@@ -6,6 +6,7 @@ import {
   getAuthoritativeHistorySeq,
   getTruncateNeededSeq,
   isTruncateCheckpointLoaded,
+  isTruncateReloadBudgetExhausted,
   isTruncateReloadInFlight,
   isTruncateReloadLeaseCurrent,
   noteTruncateNeeded,
@@ -91,6 +92,31 @@ describe("truncateRecovery reload gate", () => {
     const again = tryBeginTruncateReload("d1", "rt-1");
     expect(again).not.toBeNull();
     finishTruncateReload(again!, { installed: true, snapshotSeq: 31 });
+  });
+
+  it("surfaces the exhaustion banner flag and clears it when recovery is re-armed", () => {
+    const key = `d1\u0000rt-1`;
+    noteTruncateNeeded("d1", "rt-1", 30);
+    for (let i = 0; i < 3; i += 1) {
+      const lease = tryBeginTruncateReload("d1", "rt-1");
+      finishTruncateReload(lease!, null);
+    }
+    expect(isTruncateReloadBudgetExhausted("d1", "rt-1")).toBe(true);
+    expect(useAppStore.getState().truncateReloadExhausted[key]).toBe(true);
+
+    // Re-arming the budget (offline backoff reset) clears the banner.
+    resetTruncateReloadBackoff("d1");
+    expect(useAppStore.getState().truncateReloadExhausted[key]).toBeUndefined();
+
+    // Exhausting again, then covering the pending truncation, clears it too.
+    noteTruncateNeeded("d1", "rt-1", 30);
+    for (let i = 0; i < 3; i += 1) {
+      const lease = tryBeginTruncateReload("d1", "rt-1");
+      finishTruncateReload(lease!, null);
+    }
+    expect(useAppStore.getState().truncateReloadExhausted[key]).toBe(true);
+    const lease = tryBeginTruncateReload("d1", "rt-1");
+    expect(lease).toBeNull();
   });
 
   it("tracks reloads per thread independently", () => {

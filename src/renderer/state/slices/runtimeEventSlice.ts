@@ -134,6 +134,14 @@ export interface RuntimeEventSlice {
    */
   runtimeHydrationStatus: Record<string, "pending" | "failed">;
   setRuntimeHydrationStatus(threadId: string, status: "pending" | "failed" | null): void;
+  /**
+   * Remote threads (keyed `desktopId<NUL>remoteThreadId`) whose
+   * unknown-checkpoint authoritative reload budget is exhausted with an
+   * uncovered truncation still pending - the transcript may not reflect a
+   * deletion the server made. Drives the pane's resync banner (WS6).
+   */
+  truncateReloadExhausted: Record<string, true>;
+  setTruncateReloadExhausted(key: string, exhausted: boolean): void;
   applyRuntimeEvent(threadId: string, event: RuntimeEvent): void;
   applyRuntimeEvents(threadId: string, events: RuntimeEvent[]): void;
   /**
@@ -210,6 +218,7 @@ export function createInitialRuntimeEventState(): Pick<
   | "fileCheckpointsByThread"
   | "fileCheckpointTurnsByThread"
   | "runtimeHydrationStatus"
+  | "truncateReloadExhausted"
 > {
   return {
     runtimeItemIdsByThread: {},
@@ -223,6 +232,7 @@ export function createInitialRuntimeEventState(): Pick<
     fileCheckpointsByThread: {},
     fileCheckpointTurnsByThread: {},
     runtimeHydrationStatus: {},
+    truncateReloadExhausted: {},
   };
 }
 
@@ -240,6 +250,17 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       return {
         runtimeHydrationStatus: { ...state.runtimeHydrationStatus, [threadId]: status },
       };
+    }),
+
+  setTruncateReloadExhausted: (key, exhausted) =>
+    set((state) => {
+      if (exhausted) {
+        if (state.truncateReloadExhausted[key]) return {};
+        return { truncateReloadExhausted: { ...state.truncateReloadExhausted, [key]: true } };
+      }
+      if (!(key in state.truncateReloadExhausted)) return {};
+      const { [key]: _removed, ...truncateReloadExhausted } = state.truncateReloadExhausted;
+      return { truncateReloadExhausted };
     }),
 
   applyRuntimeEvent: (threadId, event) =>
