@@ -730,6 +730,10 @@ msgstr "1 запуск"
 #~ msgid "22"
 #~ msgstr "22"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "3000"
+msgstr "3000"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30 дн"
@@ -6106,6 +6110,10 @@ msgstr "HTTP (потоковый)"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+msgid "https://github.com/owner/repo.git"
+msgstr "https://github.com/owner/repo.git"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Hue"
@@ -13683,6 +13691,14 @@ msgstr "Не удалось открыть вход в {0}."
 msgid "Unable to open file"
 msgstr "Не удалось открыть файл"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
+msgid "Unable to open the file"
+msgstr "Не удалось открыть файл"
+
+#: src/renderer/utils/gitHelpers.ts
+msgid "Unable to open the file in the editor"
+msgstr "Не удалось открыть файл в редакторе"
+
 #: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Не удалось связать с этим десктопом."
@@ -13779,6 +13795,10 @@ msgstr "Не удалось сохранить профиль Claude {displayLab
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "Не удалось сохранить изображение."
+
+#: src/renderer/commands/registry.ts
+msgid "Unable to save the file"
+msgstr "Не удалось сохранить файл"
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."

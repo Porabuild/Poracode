@@ -1,5 +1,7 @@
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import type { Project } from "@/shared/contracts";
+import { i18n } from "@/renderer/i18n/i18n";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
@@ -129,7 +131,7 @@ export async function openFileInEditor(
     await fileEditor.openFile(path, mode, false, editorOptions);
   } catch (error) {
     captureRendererException(error, { featureArea: "file-editor" });
-    toast.danger(error instanceof Error ? error.message : String(error));
+    toast.danger(i18n._(msg`Unable to open the file in the editor`));
   }
 }
 

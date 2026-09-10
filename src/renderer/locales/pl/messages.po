@@ -730,6 +730,10 @@ msgstr "1 uruchomienie"
 #~ msgid "22"
 #~ msgstr "22"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "3000"
+msgstr "3000"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30d"
@@ -6106,6 +6110,10 @@ msgstr "HTTP (strumieniowy)"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+msgid "https://github.com/owner/repo.git"
+msgstr "https://github.com/owner/repo.git"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Hue"
@@ -13683,6 +13691,14 @@ msgstr "Nie można otworzyć logowania {0}."
 msgid "Unable to open file"
 msgstr "Nie można otworzyć pliku"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
+msgid "Unable to open the file"
+msgstr "Nie można otworzyć pliku"
+
+#: src/renderer/utils/gitHelpers.ts
+msgid "Unable to open the file in the editor"
+msgstr "Nie można otworzyć pliku w edytorze"
+
 #: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Nie można sparować z tym desktopem."
@@ -13779,6 +13795,10 @@ msgstr "Nie można zapisać profilu Claude {displayLabel}."
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "Nie można zapisać obrazu."
+
+#: src/renderer/commands/registry.ts
+msgid "Unable to save the file"
+msgstr "Nie można zapisać pliku"
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."

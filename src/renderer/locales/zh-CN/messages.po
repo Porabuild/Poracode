@@ -730,6 +730,10 @@ msgstr "1 次运行"
 #~ msgid "22"
 #~ msgstr "22"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "3000"
+msgstr "3000"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30天"
@@ -6106,6 +6110,10 @@ msgstr "HTTP（流式）"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+msgid "https://github.com/owner/repo.git"
+msgstr "https://github.com/owner/repo.git"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Hue"
@@ -13682,6 +13690,14 @@ msgstr "无法打开{0}登录。"
 msgid "Unable to open file"
 msgstr "无法打开文件"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
+msgid "Unable to open the file"
+msgstr "无法打开文件"
+
+#: src/renderer/utils/gitHelpers.ts
+msgid "Unable to open the file in the editor"
+msgstr "无法在编辑器中打开文件"
+
 #: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "无法与该桌面配对。"
@@ -13778,6 +13794,10 @@ msgstr "无法保存Claude {displayLabel}配置。"
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "无法保存图像。"
+
+#: src/renderer/commands/registry.ts
+msgid "Unable to save the file"
+msgstr "无法保存文件"
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."

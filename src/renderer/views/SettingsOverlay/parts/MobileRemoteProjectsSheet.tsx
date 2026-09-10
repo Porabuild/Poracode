@@ -163,7 +163,7 @@ function MobileAddProjectSheet(props: {
                 {folderButton(cloneParent, t`Parent folder`, "clone")}
                 <Input
                   aria-label={t`Repository URL`}
-                  placeholder="https://github.com/owner/repo.git"
+                  placeholder={t`https://github.com/owner/repo.git`}
                   inputMode="url"
                   spellCheck={false}
                   autoCapitalize="off"

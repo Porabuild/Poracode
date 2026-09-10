@@ -730,6 +730,10 @@ msgstr "1 ejecución"
 #~ msgid "22"
 #~ msgstr "22"
 
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "3000"
+msgstr "3000"
+
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "30d"
 msgstr "30d"
@@ -6106,6 +6110,10 @@ msgstr "HTTP (transmisión continua)"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
+msgid "https://github.com/owner/repo.git"
+msgstr "https://github.com/owner/repo.git"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 msgid "Hue"
@@ -13683,6 +13691,14 @@ msgstr "No se pudo abrir el inicio de sesión de {0}."
 msgid "Unable to open file"
 msgstr "No se puede abrir el archivo"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
+msgid "Unable to open the file"
+msgstr "No se pudo abrir el archivo"
+
+#: src/renderer/utils/gitHelpers.ts
+msgid "Unable to open the file in the editor"
+msgstr "No se pudo abrir el archivo en el editor"
+
 #: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "No se pudo emparejar con ese escritorio."
@@ -13779,6 +13795,10 @@ msgstr "No se pudo guardar el perfil {displayLabel} de Claude."
 #: src/renderer/components/composer/ImageLightboxActions.tsx
 msgid "Unable to save image."
 msgstr "No se pudo guardar la imagen."
+
+#: src/renderer/commands/registry.ts
+msgid "Unable to save the file"
+msgstr "No se pudo guardar el archivo"
 
 #: src/renderer/utils/shellUtils.ts
 msgid "Unable to start {label}."
