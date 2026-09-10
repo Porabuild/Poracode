@@ -59,6 +59,10 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   startThread: "explicit-remote-thread-launch",
   // The remote reopen endpoint resolves persisted launch state on the host.
   ensureThreadRunning: "remote-server-internal",
+  // WS2 stage 3: revert anchors run inside the backend-owned compound revert
+  // (`POST /api/threads/{id}/checkpoint-revert`); renderers never invoke them.
+  createRevertAnchor: "backend-owned-compound-revert",
+  restoreToRevertAnchor: "backend-owned-compound-revert",
   cloneRepo: "remote-projects-use-project-command",
   relocateProject: "explicit-remote-project-command",
   extractContext: "remote-control-hidden",

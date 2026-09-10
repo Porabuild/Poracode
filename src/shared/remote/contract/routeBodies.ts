@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  checkpointRevertPayloadSchema,
   remoteThreadCommandSchema,
   resolveThreadServerRequestPayloadSchema,
   sendThreadInputPayloadSchema,
@@ -15,6 +16,11 @@ import { emptyJsonObjectSchema } from "./helpers";
 
 /** Path-scoped bodies omit the path-injected `threadId`. */
 export const threadRuntimeTruncateBodySchema = dbTruncateRuntimeItemsPayloadSchema.omit({
+  threadId: true,
+});
+
+/** Compound checkpoint revert (WS2): the backend journals and owns every phase. */
+export const checkpointRevertBodySchema = checkpointRevertPayloadSchema.omit({
   threadId: true,
 });
 

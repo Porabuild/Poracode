@@ -10,6 +10,7 @@ import type {
   BackgroundTask,
   ProjectLocation,
   PromptSegment,
+  ProviderRevertAnchor,
   RuntimeEvent,
   SessionRef,
   ThreadAttention,
@@ -160,6 +161,27 @@ export interface StructuredSessionHandle {
   updateMcpServers?(mcpServers: readonly ResolvedMcpServer[]): Promise<void>;
   readThread?(): Promise<ThreadHistory>;
   rollbackThread?(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory>;
+  /**
+   * WS2 stage 3: compute an ABSOLUTE revert target for the last `numTurns`
+   * completed turns without mutating session or provider state. The returned
+   * anchor is durable JSON the backend journals before any restore side
+   * effect, so a resumed operation restores from the stored anchor instead of
+   * recomputing against a possibly-mutated conversation (the over-rollback
+   * window). Implementations declare this capability by defining the method;
+   * sessions without it fall back to the relative `rollbackThread` contract.
+   */
+  createRevertAnchor?(numTurns: number, config?: ThreadConfig): Promise<ProviderRevertAnchor>;
+  /**
+   * Applies a previously created anchor. Must be idempotent: re-issuing an
+   * anchor that was already applied converges on the same conversation
+   * position instead of rolling back further. Receives the turn config
+   * alongside the anchor because providers re-derive launch overrides from it
+   * on a resume.
+   */
+  restoreToRevertAnchor?(
+    anchor: ProviderRevertAnchor,
+    config?: ThreadConfig,
+  ): Promise<ThreadHistory>;
   setListener(listener: StructuredSessionListener): void;
   dispose(): Promise<void>;
 }

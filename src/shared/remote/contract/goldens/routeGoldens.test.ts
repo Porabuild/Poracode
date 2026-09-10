@@ -37,9 +37,9 @@ const PATH_SCOPED_BODIES = {
 } as const;
 
 describe("remote HTTP route goldens", () => {
-  it("covers exactly 62 unique routes", () => {
-    expect(REMOTE_HTTP_ROUTES).toHaveLength(62);
-    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(62);
+  it("covers exactly 63 unique routes", () => {
+    expect(REMOTE_HTTP_ROUTES).toHaveLength(63);
+    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(63);
   });
 
   it("emits explicit query codecs and never infers them from z.coerce", () => {

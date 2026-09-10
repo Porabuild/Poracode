@@ -39,8 +39,16 @@
         "legacyCongestion": "lossy-skip",
         "v2": {
           "baselineDelivery": "chunked",
-          "chunkByteBounds": { "min": 1024, "max": 65536, "default": 8192 },
-          "windowByteBounds": { "min": 1024, "max": 262144, "default": 8192 },
+          "chunkByteBounds": {
+            "min": 1024,
+            "max": 65536,
+            "default": 8192
+          },
+          "windowByteBounds": {
+            "min": 1024,
+            "max": 262144,
+            "default": 8192
+          },
           "ackMessages": true,
           "resume": "generation-and-cursor",
           "controlFrameBypass": "half-window"
@@ -430,6 +438,14 @@
       "path": "/api/threads/{threadId}/runtime/truncate",
       "auth": "bearer",
       "scopes": ["session:operate"]
+    },
+    {
+      "id": "thread-checkpoint-revert",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/checkpoint-revert",
+      "auth": "bearer",
+      "scopes": ["session:operate"],
+      "idempotency": "command-id-header"
     },
     {
       "id": "thread-command",

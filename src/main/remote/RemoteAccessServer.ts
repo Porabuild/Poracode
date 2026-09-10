@@ -21,6 +21,7 @@ import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import { TerminalBaselineStreamScheduler } from "./server/terminalBaselineStream";
 import type {
   BackgroundTask,
+  CheckpointRevertResult,
   McpLaunchSnapshot,
   McpServer,
   Project,
@@ -188,6 +189,19 @@ export interface RemoteAccessServerOptions {
    * cannot accept truncates at all.
    */
   truncateThreadRuntime(threadId: string, itemId: string): void;
+  /**
+   * WS2: backend-owned compound checkpoint revert — provider rollback, file
+   * checkpoint restore and durable transcript truncation as ONE journaled
+   * operation keyed by the client's `operationKey`. The host owns publication
+   * of the canonical `runtime.truncated` event through its event funnel.
+   * Refusals (turn active) surface as 409 `thread_turn_active`. Optional: a
+   * host without a revert owner answers 501 `checkpoint_revert_unavailable`.
+   */
+  revertCheckpoint?(input: {
+    threadId: string;
+    checkpointItemId: string;
+    operationKey: string;
+  }): Promise<CheckpointRevertResult>;
   /**
    * Forwards a thread-metadata command to the desktop renderer, which owns
    * thread metadata and persists it. Returns false when no renderer window is

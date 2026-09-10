@@ -56,6 +56,7 @@ const MANIFEST_ROUTE_IDS = [
   "thread-start-existing",
   "terminal-start",
   "thread-runtime-truncate",
+  "thread-checkpoint-revert",
   "thread-command",
   "thread-send",
   "thread-interrupt",

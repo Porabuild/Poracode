@@ -12,6 +12,82 @@ public struct RouteterminalU2DWriteRequest_6c6fca7050: Codable, Sendable, Remote
   }
 }
 
+public struct RoutethreadU2DCheckpointU2DRevertRequest_9f990932c5: Codable, Sendable, RemoteModelMetadata {
+  public var checkpointItemId: String
+  public var operationKey: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "checkpointItemId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "operationKey", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 8, maxLength: 128, minItems: nil, maxItems: nil, pattern: "^[A-Za-z0-9._:-]+$", format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case checkpointItemId = "checkpointItemId"
+    case operationKey = "operationKey"
+  }
+}
+
+public enum RoutethreadU2DCheckpointU2DRevertResponseU2DFilesPhase_efc124973b: String, Codable, Sendable {
+  case pending = "pending"
+  case completed = "completed"
+  case failed = "failed"
+  case skippedU5FNoU5FLocation = "skipped_no_location"
+  case skippedU5FMissingU5FCheckpoint = "skipped_missing_checkpoint"
+}
+
+public enum RoutethreadU2DCheckpointU2DRevertResponseU2DOutcome_08ce03e607: String, Codable, Sendable {
+  case completed = "completed"
+  case completedU5FLocalU5FOnly = "completed_local_only"
+  case ambiguous = "ambiguous"
+  case failed = "failed"
+  case noop = "noop"
+}
+
+public enum RoutethreadU2DCheckpointU2DRevertResponseU2DProviderPhase_11ada4e73a: String, Codable, Sendable {
+  case pending = "pending"
+  case completed = "completed"
+  case failed = "failed"
+  case ambiguous = "ambiguous"
+  case skippedU5FNoU5FTurns = "skipped_no_turns"
+  case skippedU5FMissingU5FCheckpoint = "skipped_missing_checkpoint"
+}
+
+public enum RoutethreadU2DCheckpointU2DRevertResponseU2DTruncatePhase_35962a43ae: String, Codable, Sendable {
+  case pending = "pending"
+  case completed = "completed"
+  case noop = "noop"
+}
+
+public struct RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21: Codable, Sendable, RemoteModelMetadata {
+  public var filesPhase: RoutethreadU2DCheckpointU2DRevertResponseU2DFilesPhase_efc124973b
+  public var numTurns: Int64
+  public var outcome: RoutethreadU2DCheckpointU2DRevertResponseU2DOutcome_08ce03e607
+  public var providerPhase: RoutethreadU2DCheckpointU2DRevertResponseU2DProviderPhase_11ada4e73a
+  public var removedCompletedTurnAnchors: [String]
+  public var replayed: Bool
+  public var truncatePhase: RoutethreadU2DCheckpointU2DRevertResponseU2DTruncatePhase_35962a43ae
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "filesPhase", typeName: "RoutethreadU2DCheckpointU2DRevertResponseU2DFilesPhase_efc124973b", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "numTurns", typeName: "Int64", required: true, nullable: false, minimum: -9007199254740991, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "outcome", typeName: "RoutethreadU2DCheckpointU2DRevertResponseU2DOutcome_08ce03e607", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "providerPhase", typeName: "RoutethreadU2DCheckpointU2DRevertResponseU2DProviderPhase_11ada4e73a", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "removedCompletedTurnAnchors", typeName: "[String]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "replayed", typeName: "Bool", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "truncatePhase", typeName: "RoutethreadU2DCheckpointU2DRevertResponseU2DTruncatePhase_35962a43ae", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case filesPhase = "filesPhase"
+    case numTurns = "numTurns"
+    case outcome = "outcome"
+    case providerPhase = "providerPhase"
+    case removedCompletedTurnAnchors = "removedCompletedTurnAnchors"
+    case replayed = "replayed"
+    case truncatePhase = "truncatePhase"
+  }
+}
+
 public enum RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_6a0abedb39: String, Codable, Sendable {
   case deleteU2DWorktreeU2DGroup = "delete-worktree-group"
 }
@@ -336,111 +412,4 @@ public struct RoutethreadU2DCommandRequestU2DOptionU2D9_b79d8f64de: Codable, Sen
     case worktreeBranch = "worktreeBranch"
     case worktreePath = "worktreePath"
   }
-}
-
-public enum RoutethreadU2DCommandRequest_37bea14e33: Codable, Sendable {
-  case option1(RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043)
-  case option2(RoutethreadU2DCommandRequestU2DOptionU2D2_bb3534fed4)
-  case option3(RoutethreadU2DCommandRequestU2DOptionU2D3_a656e9f996)
-  case option4(RoutethreadU2DCommandRequestU2DOptionU2D4_1ae7de2180)
-  case option5(RoutethreadU2DCommandRequestU2DOptionU2D5_2e4d2aaed0)
-  case option6(RoutethreadU2DCommandRequestU2DOptionU2D6_c3363423bb)
-  case option7(RoutethreadU2DCommandRequestU2DOptionU2D7_80906c6ddc)
-  case option8(RoutethreadU2DCommandRequestU2DOptionU2D8_ebd70a208b)
-  case option9(RoutethreadU2DCommandRequestU2DOptionU2D9_b79d8f64de)
-  case option10(RoutethreadU2DCommandRequestU2DOptionU2D10_09765c7778)
-  case option11(RoutethreadU2DCommandRequestU2DOptionU2D11_431be1ab7e)
-  case option12(RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23)
-  case option13(RoutethreadU2DCommandRequestU2DOptionU2D13_370ff0ec0a)
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    var matches: [(Int, RoutethreadU2DCommandRequest_37bea14e33)] = []
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("prepare-worktree")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043.self) {
-      matches.append((1, .option1(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("start")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D2_bb3534fed4.self) {
-      matches.append((2, .option2(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("set-group")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D3_a656e9f996.self) {
-      matches.append((3, .option3(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("clear-group")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D4_1ae7de2180.self) {
-      matches.append((4, .option4(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("rename")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D5_2e4d2aaed0.self) {
-      matches.append((5, .option5(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("acknowledge")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D6_c3363423bb.self) {
-      matches.append((6, .option6(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("set-done")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D7_80906c6ddc.self) {
-      matches.append((7, .option7(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("set-starred")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D8_ebd70a208b.self) {
-      matches.append((8, .option8(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("set-worktree")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D9_b79d8f64de.self) {
-      matches.append((9, .option9(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("delete-worktree-group")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D10_09765c7778.self) {
-      matches.append((10, .option10(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("archive")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D11_431be1ab7e.self) {
-      matches.append((11, .option11(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("unarchive")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23.self) {
-      matches.append((12, .option12(value)))
-    }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("delete")]), let value = try? container.decode(RoutethreadU2DCommandRequestU2DOptionU2D13_370ff0ec0a.self) {
-      matches.append((13, .option13(value)))
-    }
-    guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched RoutethreadU2DCommandRequest_37bea14e33" : "Ambiguous union RoutethreadU2DCommandRequest_37bea14e33 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(RoutethreadU2DCommandRequest_37bea14e33.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
-    }
-    self = matches[0].1
-  }
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    switch self {
-    case .option1(let value): try container.encode(value)
-    case .option2(let value): try container.encode(value)
-    case .option3(let value): try container.encode(value)
-    case .option4(let value): try container.encode(value)
-    case .option5(let value): try container.encode(value)
-    case .option6(let value): try container.encode(value)
-    case .option7(let value): try container.encode(value)
-    case .option8(let value): try container.encode(value)
-    case .option9(let value): try container.encode(value)
-    case .option10(let value): try container.encode(value)
-    case .option11(let value): try container.encode(value)
-    case .option12(let value): try container.encode(value)
-    case .option13(let value): try container.encode(value)
-    }
-  }
-}
-
-public enum RoutethreadU2DGoalRequestU2DOptionU2D1U2DAction_10209383e3: String, Codable, Sendable {
-  case edit = "edit"
-}
-
-public struct RoutethreadU2DGoalRequestU2DOptionU2D1_f3c2d2c491: Codable, Sendable, RemoteModelMetadata {
-  public var action: RoutethreadU2DGoalRequestU2DOptionU2D1U2DAction_10209383e3
-  public var objective: String
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "action", typeName: "RoutethreadU2DGoalRequestU2DOptionU2D1U2DAction_10209383e3", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-    .init(wireName: "objective", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 4000, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: ["string.trim"]),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case action = "action"
-    case objective = "objective"
-  }
-}
-
-public enum RoutethreadU2DGoalRequestU2DOptionU2D2U2DAction_2d862d697d: String, Codable, Sendable {
-  case pause = "pause"
-  case resume = "resume"
-  case clear = "clear"
 }

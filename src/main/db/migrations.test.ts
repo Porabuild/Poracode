@@ -50,8 +50,9 @@ describe("database migration registry", () => {
       [43, "terminal scrollback"],
       [44, "repair divergent schema 32 and 33"],
       [45, "checkpoint revert operations journal"],
+      [46, "checkpoint revert provider anchor"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(45);
+    expect(LATEST_SCHEMA_VERSION).toBe(46);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

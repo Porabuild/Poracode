@@ -10,11 +10,14 @@ import {
   type AgentKind,
   type BackgroundTask,
   type CloseThreadPayload,
+  type CreateRevertAnchorPayload,
   type PromptSegment,
   type ProjectLocation,
+  type ProviderRevertAnchor,
   type ResizeTerminalPayload,
   type ReloadAgentMcpServersPayload,
   type ResolveThreadServerRequestPayload,
+  type RestoreToRevertAnchorPayload,
   type RollbackThreadConversationPayload,
   type SendThreadInputPayload,
   type SetPendingSteerPayload,
@@ -802,17 +805,64 @@ export class ThreadSessionManager {
   async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {
     if (payload.numTurns === 0) return;
     const session = this.requireSession(payload.threadId);
-    if (session.status === "working") {
-      throw new Error("Cannot roll back a thread while the agent is working.");
-    }
+    this.assertRevertIdle(session);
     if (!session.structuredSession?.rollbackThread) {
       throw new Error(`${session.adapter.label} does not support checkpoint rollback.`);
     }
 
-    const previousSessionId = session.sessionRef?.providerSessionId;
     const history = payload.config
       ? await session.structuredSession.rollbackThread(payload.numTurns, payload.config)
       : await session.structuredSession.rollbackThread(payload.numTurns);
+    this.adoptRevertedSession(session, history);
+  }
+
+  /**
+   * WS2 stage 3: freeze an absolute provider revert target without mutating
+   * anything. The backend journals the returned anchor before its restore
+   * side effect; sessions whose structured provider lacks the hook reject
+   * here, which the backend treats as the anchor-unsupported fallback path.
+   */
+  async createRevertAnchor(
+    payload: CreateRevertAnchorPayload,
+  ): Promise<{ anchor: ProviderRevertAnchor }> {
+    const session = this.requireSession(payload.threadId);
+    this.assertRevertIdle(session);
+    const structured = session.structuredSession;
+    if (!structured?.createRevertAnchor) {
+      throw new Error(`${session.adapter.label} does not support revert anchors.`);
+    }
+    const anchor = payload.config
+      ? await structured.createRevertAnchor(payload.numTurns, payload.config)
+      : await structured.createRevertAnchor(payload.numTurns);
+    return { anchor };
+  }
+
+  /** Restores to a previously journaled anchor; idempotent by contract. */
+  async restoreToRevertAnchor(payload: RestoreToRevertAnchorPayload): Promise<void> {
+    const session = this.requireSession(payload.threadId);
+    this.assertRevertIdle(session);
+    const structured = session.structuredSession;
+    if (!structured?.restoreToRevertAnchor) {
+      throw new Error(`${session.adapter.label} does not support revert anchors.`);
+    }
+    const history = payload.config
+      ? await structured.restoreToRevertAnchor(payload.anchor, payload.config)
+      : await structured.restoreToRevertAnchor(payload.anchor);
+    this.adoptRevertedSession(session, history);
+  }
+
+  private assertRevertIdle(session: SessionRuntime): void {
+    if (session.status === "working") {
+      throw new Error("Cannot roll back a thread while the agent is working.");
+    }
+  }
+
+  /** Mirrors a provider-side fork/rewind into the session's resume metadata. */
+  private adoptRevertedSession(
+    session: SessionRuntime,
+    history: { providerSessionId?: string },
+  ): void {
+    const previousSessionId = session.sessionRef?.providerSessionId;
     if (
       history.providerSessionId &&
       history.providerSessionId !== session.sessionRef?.providerSessionId

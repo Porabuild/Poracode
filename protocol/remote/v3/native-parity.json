@@ -953,6 +953,19 @@
         }
       },
       {
+        "id": "thread-checkpoint-revert",
+        "batch": "rich-chat-requests",
+        "note": "WS2 compound checkpoint revert: natives adopt the one-call route in WS2 stage 4-5; until then they keep their client-orchestrated revert flows.",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        }
+      },
+      {
         "id": "thread-command",
         "batch": "thread-lifecycle",
         "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping.",
@@ -4093,7 +4106,7 @@
           "disposition": "planned",
           "evidence": []
         },
-        "note": "Host-issued checkpoint rollback broadcast introduced with remote protocol v10. Hosts publish the event only for an actual transactional truncation — a missing or already-last checkpoint removes nothing and is never broadcast. Native reducers must apply the server-declared removedCompletedTurnAnchors prune and pin the level-event replay rule before flipping to implemented."
+        "note": "Host-issued checkpoint rollback broadcast introduced with remote protocol v10. Hosts publish the event only for an actual transactional truncation \u2014 a missing or already-last checkpoint removes nothing and is never broadcast. Native reducers must apply the server-declared removedCompletedTurnAnchors prune and pin the level-event replay rule before flipping to implemented."
       },
       {
         "id": "warning",

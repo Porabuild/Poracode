@@ -15,6 +15,7 @@ const LIFECYCLE_ROUTE_IDS = new Set([
   "thread-history-items",
   "thread-start-existing",
   "thread-runtime-truncate",
+  "thread-checkpoint-revert",
   "thread-command",
   "thread-send",
   "thread-interrupt",
@@ -115,6 +116,15 @@ export async function handleLifecycleHttp(
     case "thread-runtime-truncate":
       runtime.lifecycle.truncate(String(body.itemId));
       return writeOkMutation(runtime, res, routeId);
+    case "thread-checkpoint-revert":
+      markMutation(runtime, routeId);
+      writeValidatedRoute(
+        runtime,
+        res,
+        routeId,
+        runtime.lifecycle.checkpointRevert(String(body.checkpointItemId)),
+      );
+      return true;
     case "thread-command":
       runtime.lifecycle.command(body);
       return writeOkMutation(runtime, res, routeId);

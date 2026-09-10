@@ -8,7 +8,7 @@ import {
   dbMarkLiveThreadsInactive,
   dbUpdateProject,
 } from "@/main/db";
-import { BackendHostCore } from "@/backend/BackendHostCore";
+import { BackendHostCore, RevertCheckpointRefusedError } from "@/backend/BackendHostCore";
 import { BackendDurableServices } from "@/backend/BackendDurableServices";
 import { preparePoracodeDataRoot } from "@/main/poracodeData";
 import { migrateLegacyDataOnLaunch } from "@/main/legacyDataMigration";
@@ -18,7 +18,7 @@ import {
   readSharedSettingsFile,
   writeSharedSettingsFile,
 } from "@/main/sharedSettingsFile";
-import { createPersistentRemoteAuthStore } from "@/main/remote/auth";
+import { createPersistentRemoteAuthStore, RemoteHttpError } from "@/main/remote/auth";
 import { readOrCreateRemoteAccessIdentity } from "@/main/remote/identity";
 import {
   createForwardOriginIdentity,
@@ -360,6 +360,16 @@ export async function createHeadlessRemoteHost(
     callSupervisor: (name, payload) => supervisorClient.call(name, payload),
     truncateThreadRuntime: (threadId, itemId) => {
       backendHost.truncateThreadRuntime(threadId, itemId);
+    },
+    revertCheckpoint: async (input) => {
+      try {
+        return await backendHost.revertCheckpoint(input);
+      } catch (error) {
+        if (error instanceof RevertCheckpointRefusedError) {
+          throw new RemoteHttpError("thread_turn_active", error.message, 409);
+        }
+        throw error;
+      }
     },
     resolveMcpLaunchSnapshot: (projectId) =>
       resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),

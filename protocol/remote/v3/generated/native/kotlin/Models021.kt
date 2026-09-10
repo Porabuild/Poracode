@@ -356,6 +356,77 @@ data class RouteterminalU2DWriteRequest_6c6fca7050(
 }
 
 @Serializable
+data class RoutethreadU2DCheckpointU2DRevertRequest_9f990932c5(
+    @SerialName("checkpointItemId") val checkpointItemId: String,
+    @SerialName("operationKey") val operationKey: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("checkpointItemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("operationKey", "String", true, false, null, null, 8, 128, null, null, "^[A-Za-z0-9._:-]+$", null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+enum class RoutethreadU2DCheckpointU2DRevertResponseU2DFilesPhase_efc124973b {
+    @SerialName("pending") PENDING,
+    @SerialName("completed") COMPLETED,
+    @SerialName("failed") FAILED,
+    @SerialName("skipped_no_location") SKIPPEDU5FNOU5FLOCATION,
+    @SerialName("skipped_missing_checkpoint") SKIPPEDU5FMISSINGU5FCHECKPOINT,
+}
+
+@Serializable
+enum class RoutethreadU2DCheckpointU2DRevertResponseU2DOutcome_08ce03e607 {
+    @SerialName("completed") COMPLETED,
+    @SerialName("completed_local_only") COMPLETEDU5FLOCALU5FONLY,
+    @SerialName("ambiguous") AMBIGUOUS,
+    @SerialName("failed") FAILED,
+    @SerialName("noop") NOOP,
+}
+
+@Serializable
+enum class RoutethreadU2DCheckpointU2DRevertResponseU2DProviderPhase_11ada4e73a {
+    @SerialName("pending") PENDING,
+    @SerialName("completed") COMPLETED,
+    @SerialName("failed") FAILED,
+    @SerialName("ambiguous") AMBIGUOUS,
+    @SerialName("skipped_no_turns") SKIPPEDU5FNOU5FTURNS,
+    @SerialName("skipped_missing_checkpoint") SKIPPEDU5FMISSINGU5FCHECKPOINT,
+}
+
+@Serializable
+enum class RoutethreadU2DCheckpointU2DRevertResponseU2DTruncatePhase_35962a43ae {
+    @SerialName("pending") PENDING,
+    @SerialName("completed") COMPLETED,
+    @SerialName("noop") NOOP,
+}
+
+@Serializable
+data class RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21(
+    @SerialName("filesPhase") val filesPhase: RoutethreadU2DCheckpointU2DRevertResponseU2DFilesPhase_efc124973b,
+    @SerialName("numTurns") val numTurns: Long,
+    @SerialName("outcome") val outcome: RoutethreadU2DCheckpointU2DRevertResponseU2DOutcome_08ce03e607,
+    @SerialName("providerPhase") val providerPhase: RoutethreadU2DCheckpointU2DRevertResponseU2DProviderPhase_11ada4e73a,
+    @SerialName("removedCompletedTurnAnchors") val removedCompletedTurnAnchors: List<String>,
+    @SerialName("replayed") val replayed: Boolean,
+    @SerialName("truncatePhase") val truncatePhase: RoutethreadU2DCheckpointU2DRevertResponseU2DTruncatePhase_35962a43ae,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("filesPhase", "RoutethreadU2DCheckpointU2DRevertResponseU2DFilesPhase_efc124973b", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("numTurns", "Long", true, false, -9007199254740991.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("outcome", "RoutethreadU2DCheckpointU2DRevertResponseU2DOutcome_08ce03e607", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("providerPhase", "RoutethreadU2DCheckpointU2DRevertResponseU2DProviderPhase_11ada4e73a", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("removedCompletedTurnAnchors", "List<String>", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("replayed", "Boolean", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("truncatePhase", "RoutethreadU2DCheckpointU2DRevertResponseU2DTruncatePhase_35962a43ae", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 enum class RoutethreadU2DCommandRequestU2DOptionU2D10U2DKind_6a0abedb39 {
     @SerialName("delete-worktree-group") DELETEU2DWORKTREEU2DGROUP,
 }
@@ -375,72 +446,4 @@ data class RoutethreadU2DCommandRequestU2DOptionU2D10_09765c7778(
             RemoteFieldDescriptor("worktreePath", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D11U2DKind_53ceafeed2 {
-    @SerialName("archive") ARCHIVE,
-}
-
-@Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D11_431be1ab7e(
-    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D11U2DKind_53ceafeed2,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D11U2DKind_53ceafeed2", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D12U2DKind_c7bfc39efc {
-    @SerialName("unarchive") UNARCHIVE,
-}
-
-@Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D12_a93ba7bf23(
-    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D12U2DKind_c7bfc39efc,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D12U2DKind_c7bfc39efc", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D13_370ff0ec0a(
-    @SerialName("kind") val kind: RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D1U2DKind_a1f40266b6 {
-    @SerialName("prepare-worktree") PREPAREU2DWORKTREE,
-}
-
-@Serializable
-data class RoutethreadU2DCommandRequestU2DOptionU2D1_b01e26e043(
-    @SerialName("kind") val kind: RoutethreadU2DCommandRequestU2DOptionU2D1U2DKind_a1f40266b6,
-    @SerialName("projectId") val projectId: String,
-    @SerialName("worktreePath") val worktreePath: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RoutethreadU2DCommandRequestU2DOptionU2D1U2DKind_a1f40266b6", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("projectId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("worktreePath", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutethreadU2DCommandRequestU2DOptionU2D2U2DKind_60fc988aef {
-    @SerialName("start") START,
 }

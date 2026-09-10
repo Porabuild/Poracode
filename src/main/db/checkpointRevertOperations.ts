@@ -28,6 +28,10 @@ export interface CheckpointRevertOperationRow {
   numTurns: number;
   projectLocationJson: string | null;
   configJson: string | null;
+  /** Absolute provider revert target (WS2 stage 3), journalled before the
+   * restore side effect. `null` when the provider lacks anchors or the
+   * anchor has not been created yet. */
+  providerAnchorJson: string | null;
   providerPhase: CheckpointRevertProviderPhase;
   filesPhase: CheckpointRevertFilesPhase;
   truncatePhase: CheckpointRevertTruncatePhase;
@@ -85,6 +89,7 @@ function rowToOperation(row: {
   num_turns: number;
   project_location_json: string | null;
   config_json: string | null;
+  provider_anchor_json: string | null;
   provider_phase: string;
   files_phase: string;
   truncate_phase: string;
@@ -110,6 +115,7 @@ function rowToOperation(row: {
     numTurns: row.num_turns,
     projectLocationJson: row.project_location_json,
     configJson: row.config_json,
+    providerAnchorJson: row.provider_anchor_json,
     providerPhase: parseEnum(row.provider_phase, PROVIDER_PHASES),
     filesPhase: parseEnum(row.files_phase, FILES_PHASES),
     truncatePhase: parseEnum(row.truncate_phase, TRUNCATE_PHASES),
@@ -249,6 +255,8 @@ export function dbGetCheckpointRevertOperation(
 
 export interface CheckpointRevertPhaseUpdate {
   providerPhase?: CheckpointRevertProviderPhase;
+  /** Persists the frozen provider anchor (before the restore side effect). */
+  providerAnchorJson?: string;
   filesPhase?: CheckpointRevertFilesPhase;
   truncatePhase?: CheckpointRevertTruncatePhase;
   removedAnchors?: string[];
@@ -267,6 +275,10 @@ export function dbUpdateCheckpointRevertPhases(
   if (update.providerPhase !== undefined) {
     sets.push("provider_phase = ?");
     values.push(update.providerPhase);
+  }
+  if (update.providerAnchorJson !== undefined) {
+    sets.push("provider_anchor_json = ?");
+    values.push(update.providerAnchorJson);
   }
   if (update.filesPhase !== undefined) {
     sets.push("files_phase = ?");

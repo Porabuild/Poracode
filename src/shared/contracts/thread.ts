@@ -318,6 +318,85 @@ export type RollbackThreadConversationPayload = z.infer<
   typeof rollbackThreadConversationPayloadSchema
 >;
 
+/**
+ * WS2 stage 3: an absolute provider revert target. Shared/IPC/DB layers treat
+ * the anchor as opaque — `data` is provider-specific JSON that only the
+ * provider's own session code inspects, and `version` bumps when that payload
+ * semantics change. Anchors are durable: the backend journals one before any
+ * restore side effect and re-restores from the stored anchor on resume.
+ */
+export const providerRevertAnchorSchema = z.object({
+  version: z.literal(1),
+  data: z.unknown(),
+});
+export type ProviderRevertAnchor = z.infer<typeof providerRevertAnchorSchema>;
+
+export const createRevertAnchorPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  numTurns: z.number().int().min(1),
+  config: threadConfigSchema.optional(),
+});
+export type CreateRevertAnchorPayload = z.infer<typeof createRevertAnchorPayloadSchema>;
+
+export const createRevertAnchorResultSchema = z.object({ anchor: providerRevertAnchorSchema });
+export type CreateRevertAnchorResult = z.infer<typeof createRevertAnchorResultSchema>;
+
+export const restoreToRevertAnchorPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  anchor: providerRevertAnchorSchema,
+  config: threadConfigSchema.optional(),
+});
+export type RestoreToRevertAnchorPayload = z.infer<typeof restoreToRevertAnchorPayloadSchema>;
+
+export const checkpointRevertProviderPhaseSchema = z.enum([
+  "pending",
+  "completed",
+  "failed",
+  "ambiguous",
+  "skipped_no_turns",
+  "skipped_missing_checkpoint",
+]);
+export const checkpointRevertFilesPhaseSchema = z.enum([
+  "pending",
+  "completed",
+  "failed",
+  "skipped_no_location",
+  "skipped_missing_checkpoint",
+]);
+export const checkpointRevertTruncatePhaseSchema = z.enum(["pending", "completed", "noop"]);
+export const checkpointRevertOutcomeSchema = z.enum([
+  "completed",
+  "completed_local_only",
+  "ambiguous",
+  "failed",
+  "noop",
+]);
+
+export const checkpointRevertPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  checkpointItemId: z.string().min(1),
+  /** Client-generated idempotency key; retries of the same logical revert
+   * replay the journaled outcome instead of re-executing phases. */
+  operationKey: z
+    .string()
+    .min(8)
+    .max(128)
+    .regex(/^[A-Za-z0-9._:-]+$/u),
+});
+export type CheckpointRevertPayload = z.infer<typeof checkpointRevertPayloadSchema>;
+
+/** Result of the backend-owned compound checkpoint revert (wire shape). */
+export const checkpointRevertResultSchema = z.object({
+  outcome: checkpointRevertOutcomeSchema,
+  replayed: z.boolean(),
+  numTurns: z.number().int(),
+  providerPhase: checkpointRevertProviderPhaseSchema,
+  filesPhase: checkpointRevertFilesPhaseSchema,
+  truncatePhase: checkpointRevertTruncatePhaseSchema,
+  removedCompletedTurnAnchors: z.array(z.string()),
+});
+export type CheckpointRevertResult = z.infer<typeof checkpointRevertResultSchema>;
+
 export const setPendingSteerPayloadSchema = z.object({
   threadId: z.string().min(1),
   prompt: z.string().min(1),

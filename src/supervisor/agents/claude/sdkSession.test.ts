@@ -839,6 +839,109 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
+  it("createRevertAnchor freezes the absolute resume point without mutating the session", async () => {
+    mockSdk.query.mockClear();
+    const firstQuery = createFakeQuery();
+    mockSdk.query.mockReturnValueOnce(firstQuery.runtime);
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-anchor",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+    await session.startTurn("first", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "first"));
+    await flushAsyncWork();
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    await session.startTurn("second", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-2", "second"));
+    await flushAsyncWork();
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+
+    await expect(session.createRevertAnchor(1)).resolves.toEqual({
+      version: 1,
+      data: { resumeSessionAt: "assistant-uuid-1", remainingTurns: 1 },
+    });
+    // Pure planning: no query restart, no ledger mutation (a full rollback to
+    // the same anchor still works afterwards).
+    expect(mockSdk.query).toHaveBeenCalledTimes(1);
+    expect(firstQuery.runtime.close).not.toHaveBeenCalled();
+    await expect(
+      session.restoreToRevertAnchor({
+        version: 1,
+        data: { resumeSessionAt: "assistant-uuid-1", remainingTurns: 1 },
+      }),
+    ).resolves.toEqual({ providerSessionId: openedSessionId, messages: [] });
+
+    await session.dispose();
+  });
+
+  it("restoreToRevertAnchor reopens at the anchor and is idempotent when re-issued", async () => {
+    mockSdk.query.mockClear();
+    const firstQuery = createFakeQuery();
+    const resumedQuery = createFakeQuery();
+    mockSdk.query.mockReturnValueOnce(firstQuery.runtime).mockReturnValueOnce(resumedQuery.runtime);
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-anchor-restore",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+    await session.startTurn("first", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "first"));
+    await flushAsyncWork();
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    await session.startTurn("second", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-2", "second"));
+    await flushAsyncWork();
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+
+    const anchor = { version: 1 as const, data: { resumeSessionAt: "assistant-uuid-1" } };
+    await expect(session.restoreToRevertAnchor(anchor)).resolves.toEqual({
+      providerSessionId: openedSessionId,
+      messages: [],
+    });
+    expect(firstQuery.runtime.close).toHaveBeenCalledTimes(1);
+    expect(mockSdk.query).toHaveBeenCalledTimes(2);
+    const queryInput = mockSdk.query.mock.calls[1]?.[0] as { options?: Record<string, unknown> };
+    expect(queryInput.options).toMatchObject({
+      resume: openedSessionId,
+      resumeSessionAt: "assistant-uuid-1",
+    });
+
+    // Re-issuing the already-applied anchor is a no-op: no new query spawn.
+    await expect(session.restoreToRevertAnchor(anchor)).resolves.toEqual({
+      providerSessionId: openedSessionId,
+      messages: [],
+    });
+    expect(mockSdk.query).toHaveBeenCalledTimes(2);
+    expect(resumedQuery.runtime.close).not.toHaveBeenCalled();
+
+    await session.dispose();
+  });
+
   it("spawns WSL GUI sessions directly via wsl.exe without a login shell", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);

@@ -37,7 +37,7 @@ import {
 import { nativeBindingEnv, sqliteAvailable, testThread } from "@/main/db/runtimeItems.testFixtures";
 import { dbAppendThreadCompletedTurn, dbApplyThreadRuntimeEvents } from "@/main/db/runtimeItems";
 import { dbUpsertProject, dbUpsertThread, dbGetThread } from "@/main/db/projectsThreads";
-import type { Thread } from "@/shared/contracts";
+import type { ProviderRevertAnchor, Thread } from "@/shared/contracts";
 import type { ProjectLocation } from "@/shared/contracts/common";
 
 const location: ProjectLocation = { kind: "posix", path: "/tmp/revert-project" };
@@ -48,6 +48,11 @@ const revertInput = (operationKey: string) => ({
   operationKey,
   projectLocation: location,
 });
+
+const CLAUDE_ANCHOR: ProviderRevertAnchor = {
+  version: 1,
+  data: { resumeSessionAt: "assistant-uuid-1", remainingTurns: 1 },
+};
 
 const makeHost = (onEvent: (event: SupervisorEvent) => void): BackendHostCore =>
   new BackendHostCore({
@@ -64,10 +69,19 @@ const makeHost = (onEvent: (event: SupervisorEvent) => void): BackendHostCore =>
     onReset: vi.fn<() => void>(),
   });
 
+const anchorCalls = () => supervisorHarness.calls.filter((c) => c.type === "createRevertAnchor");
+const restoreCalls = () =>
+  supervisorHarness.calls.filter((c) => c.type === "restoreToRevertAnchor");
 const providerCalls = () =>
   supervisorHarness.calls.filter((c) => c.type === "rollbackThreadConversation");
 const truncateEvents = () =>
   events.filter((e) => e.type === "thread-runtime-event" && e.event.type === "runtime.truncated");
+
+/** Default anchor-capable provider: createRevertAnchor journals a stable
+ * absolute target and restoreToRevertAnchor succeeds. */
+const installAnchorProvider = (): void => {
+  supervisorHarness.handlers.set("createRevertAnchor", async () => ({ anchor: CLAUDE_ANCHOR }));
+};
 
 let dir = "";
 let events: SupervisorEvent[] = [];
@@ -97,6 +111,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     events = [];
     supervisorHarness.calls.length = 0;
     supervisorHarness.handlers.clear();
+    installAnchorProvider();
     host = makeHost((event) => events.push(event));
   });
 
@@ -135,7 +150,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     }
   };
 
-  it("runs provider, files, and truncate as one operation with a server-derived frozen count", async () => {
+  it("restores to a journaled absolute anchor: provider, files, and truncate complete as one operation", async () => {
     seedThread({ status: "idle" });
     seedTranscript(2);
 
@@ -146,8 +161,14 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     expect(result.providerPhase).toBe("completed");
     expect(result.filesPhase).toBe("completed");
     expect(result.truncatePhase).toBe("completed");
-    expect(providerCalls()).toHaveLength(1);
-    expect(providerCalls()[0]!.payload).toMatchObject({ threadId: "thread-1", numTurns: 2 });
+    expect(anchorCalls()).toHaveLength(1);
+    expect(anchorCalls()[0]!.payload).toMatchObject({ threadId: "thread-1", numTurns: 2 });
+    expect(restoreCalls()).toHaveLength(1);
+    expect(restoreCalls()[0]!.payload).toMatchObject({
+      threadId: "thread-1",
+      anchor: CLAUDE_ANCHOR,
+    });
+    expect(providerCalls()).toHaveLength(0);
     expect(truncateEvents()).toHaveLength(1);
   });
 
@@ -163,9 +184,77 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     void dbClaimCheckpointRevertOperation; // type-surface parity with the journal module
   });
 
-  it("keeps provider failure non-destructive: local_only continues files and truncate", async () => {
+  it("journals the anchor before the restore side effect, and a resumed attempt re-restores the SAME anchor without re-creating it", async () => {
     seedThread({ status: "idle" });
     seedTranscript(1);
+    let restoreFail = true;
+    let filesFail = true;
+    supervisorHarness.handlers.set("restoreToRevertAnchor", async () => {
+      if (restoreFail) {
+        // Recycle the DB handle like a crash after the anchor was journalled.
+        closeDatabase();
+        initDatabase(join(dir, "state.sqlite"));
+        restoreFail = false;
+        throw new Error("interrupted after anchor restore started");
+      }
+      return undefined;
+    });
+    supervisorHarness.handlers.set("restoreFileCheckpoint", async () => {
+      if (filesFail) {
+        filesFail = false;
+        throw new Error("git restore failed");
+      }
+      return undefined;
+    });
+    // Restore failed (anchor already journalled) AND files failed, so the
+    // compound settles `failed` and the journal row stays resumable.
+    const first = await host!.revertCheckpoint(revertInput("op-anchor-crash"));
+    expect(first.outcome).toBe("failed");
+    expect(first.providerPhase).toBe("failed");
+    expect(first.filesPhase).toBe("failed");
+    expect(anchorCalls()).toHaveLength(1);
+    expect(truncateEvents()).toHaveLength(0);
+
+    reopenDatabase();
+    const restarted = makeHost((event) => events.push(event));
+    try {
+      const resumed = await restarted.revertCheckpoint(revertInput("op-anchor-crash"));
+      expect(resumed.replayed).toBe(false);
+      expect(resumed.outcome).toBe("completed");
+      // The anchor was created exactly once across both attempts; the resume
+      // re-restored from the journalled copy instead of re-planning.
+      expect(anchorCalls()).toHaveLength(1);
+      expect(restoreCalls()).toHaveLength(2);
+      expect(JSON.stringify(restoreCalls()[1]!.payload.anchor)).toBe(JSON.stringify(CLAUDE_ANCHOR));
+      expect(truncateEvents()).toHaveLength(1);
+    } finally {
+      restarted.dispose();
+    }
+  });
+
+  it("falls back to the legacy relative rollback when the provider declares no anchor support", async () => {
+    seedThread({ status: "idle" });
+    seedTranscript(2);
+    supervisorHarness.handlers.set("createRevertAnchor", async () => {
+      throw new Error("Kimi Code does not support revert anchors.");
+    });
+    const result = await host!.revertCheckpoint(revertInput("op-acp"));
+    expect(result.outcome).toBe("completed");
+    expect(result.providerPhase).toBe("completed");
+    expect(result.numTurns).toBe(2);
+    expect(anchorCalls()).toHaveLength(1);
+    expect(restoreCalls()).toHaveLength(0);
+    expect(providerCalls()).toHaveLength(1);
+    expect(providerCalls()[0]!.payload).toMatchObject({ threadId: "thread-1", numTurns: 2 });
+    expect(truncateEvents()).toHaveLength(1);
+  });
+
+  it("keeps legacy provider failure non-destructive: local_only continues files and truncate", async () => {
+    seedThread({ status: "idle" });
+    seedTranscript(1);
+    supervisorHarness.handlers.set("createRevertAnchor", async () => {
+      throw new Error("Kimi Code does not support revert anchors.");
+    });
     supervisorHarness.handlers.set("rollbackThreadConversation", async () => {
       throw new Error("rollback capability missing for this provider");
     });
@@ -177,21 +266,21 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     expect(truncateEvents()).toHaveLength(1);
   });
 
-  it("never re-executes an ambiguous provider rollback on retry", async () => {
+  it("never re-executes an ambiguous provider restore on retry", async () => {
     seedThread({ status: "idle" });
     seedTranscript(1);
-    supervisorHarness.handlers.set("rollbackThreadConversation", async () => {
-      throw new Error('Supervisor request "rollbackThreadConversation" timed out.');
+    supervisorHarness.handlers.set("restoreToRevertAnchor", async () => {
+      throw new Error('Supervisor request "restoreToRevertAnchor" timed out.');
     });
     const first = await host!.revertCheckpoint(revertInput("op-ambiguous"));
     expect(first.outcome).toBe("ambiguous");
     expect(first.providerPhase).toBe("ambiguous");
-    expect(providerCalls()).toHaveLength(1);
+    expect(restoreCalls()).toHaveLength(1);
 
     const retry = await host!.revertCheckpoint(revertInput("op-ambiguous"));
     expect(retry.replayed).toBe(true);
     expect(retry.outcome).toBe("ambiguous");
-    expect(providerCalls()).toHaveLength(1);
+    expect(restoreCalls()).toHaveLength(1);
   });
 
   it("aborts before truncate when the file restore fails, and resumes on retry without re-running the provider", async () => {
@@ -213,7 +302,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     expect(retry.outcome).toBe("completed");
     expect(retry.replayed).toBe(false);
     expect(retry.truncatePhase).toBe("completed");
-    expect(providerCalls()).toHaveLength(1);
+    expect(restoreCalls()).toHaveLength(1);
     expect(truncateEvents()).toHaveLength(1);
   });
 
@@ -244,7 +333,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
       expect(resumed.replayed).toBe(false);
       expect(resumed.outcome).toBe("completed");
       expect(resumed.truncatePhase).toBe("completed");
-      expect(providerCalls()).toHaveLength(1);
+      expect(restoreCalls()).toHaveLength(1);
       expect(truncateEvents()).toHaveLength(1);
     } finally {
       restarted.dispose();
@@ -280,11 +369,11 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     ).rejects.toThrow(/already used/);
   });
 
-  it("serializes two concurrent reverts of the same thread: the second converges without a second provider rollback", async () => {
+  it("serializes two concurrent reverts of the same thread: the second converges without a second provider restore", async () => {
     seedThread({ status: "idle" });
     seedTranscript(1);
     let releaseFirst: (() => void) | undefined;
-    supervisorHarness.handlers.set("rollbackThreadConversation", async () => {
+    supervisorHarness.handlers.set("restoreToRevertAnchor", async () => {
       await new Promise<void>((resolve) => {
         releaseFirst = resolve;
       });
@@ -292,17 +381,17 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     const first = host!.revertCheckpoint(revertInput("op-first"));
     const second = host!.revertCheckpoint(revertInput("op-second"));
     await new Promise((r) => setTimeout(r, 50));
-    expect(providerCalls()).toHaveLength(1);
+    expect(restoreCalls()).toHaveLength(1);
     releaseFirst?.();
     const [firstResult, secondResult] = await Promise.all([first, second]);
     expect(firstResult.outcome).toBe("completed");
     // The checkpoint item survives the first truncate, so the second operation
     // legitimately converges: the recount finds zero turns after it, and the
-    // phases skip or no-op. The destructive rollback ran exactly once.
+    // phases skip or no-op. The destructive restore ran exactly once.
     expect(secondResult.numTurns).toBe(0);
     expect(secondResult.truncatePhase).toBe("noop");
     expect(secondResult.replayed).toBe(false);
-    expect(providerCalls()).toHaveLength(1);
+    expect(restoreCalls()).toHaveLength(1);
     expect(truncateEvents()).toHaveLength(1);
   });
 

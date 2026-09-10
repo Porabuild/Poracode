@@ -1,5 +1,6 @@
 import { defineRoute, remoteOkResponseSchema } from "../helpers";
 import {
+  checkpointRevertBodySchema,
   pathScopedEmptyBodySchema,
   requestResolveBodySchema,
   startExistingThreadBodySchema,
@@ -19,6 +20,7 @@ import {
   threadHistoryItemsQuerySchema,
   threadHistoryQuerySchema,
 } from "../routeSchemas";
+import { checkpointRevertResultSchema } from "../../../contracts";
 import type { RemoteHttpRouteContract } from "../types";
 
 export const threadRoutes: readonly RemoteHttpRouteContract[] = [
@@ -88,6 +90,20 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
       wireKind: "json",
       status: 200,
       jsonSchema: remoteOkResponseSchema,
+    },
+  }),
+  defineRoute({
+    id: "thread-checkpoint-revert",
+    method: "POST",
+    path: "/api/threads/{threadId}/checkpoint-revert",
+    auth: "bearer",
+    scopes: ["session:operate"],
+    idempotency: "command-id-header",
+    request: { bodyKind: "json", jsonSchema: checkpointRevertBodySchema },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: checkpointRevertResultSchema,
     },
   }),
   defineRoute({
