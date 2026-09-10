@@ -216,12 +216,7 @@ struct RichChatTimelineView: View {
     else { return }
     Task {
       let succeeded = await conversation.revertToCheckpoint(
-        RichChatCheckpointRevertInput(
-          checkpointItemID: currentPlan.checkpointItemID,
-          rollbackTurnCount: currentPlan.rollbackTurnCount,
-          config: config,
-          projectLocation: currentPlan.hasFileCheckpoint ? projectLocation : nil
-        )
+        RichChatCheckpointRevertInput(checkpointItemID: currentPlan.checkpointItemID)
       )
       if succeeded, let projectLocation {
         await checkpointController.load(projectLocation: projectLocation)

@@ -50,7 +50,7 @@ final class RichChatConversationControllerTests: XCTestCase {
     XCTAssertEqual(failed.state.failure, .transport)
   }
 
-  func testCheckpointRevertCoordinatesRollbackRestoreAndTruncate() async {
+  func testCheckpointRevertIssuesOneCompoundCall() async {
     let gateway = RichChatControllerGatewayFake()
     let refresh = RichChatRefreshRecorder()
     let controller = RichChatConversationController(
@@ -60,61 +60,63 @@ final class RichChatConversationControllerTests: XCTestCase {
     controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
 
     let succeeded = await controller.revertToCheckpoint(
-      RichChatCheckpointRevertInput(
-        checkpointItemID: "answer-1",
-        rollbackTurnCount: 2,
-        config: ["model": .string("model-a")],
-        projectLocation: .posix(path: "/project", remoteServerId: nil)
-      )
+      RichChatCheckpointRevertInput(checkpointItemID: "answer-1")
     )
 
     let calls = await gateway.calls
     let requests = await refresh.requests
     XCTAssertTrue(succeeded)
-    XCTAssertEqual(calls, ["rollback", "checkpoint-restore", "truncate"])
+    // WS2 stage 4: the compound runs server-side; the client issues exactly
+    // one call and never sequences provider/file/truncate steps itself.
+    XCTAssertEqual(calls, ["checkpoint-revert"])
     XCTAssertEqual(controller.state.lastCompletedOperation, .revertCheckpoint)
     XCTAssertEqual(requests.map(\.1), [.conversationChanged])
   }
 
-  func testCheckpointRevertContinuesAfterBestEffortProviderRollbackFailure() async {
+  func testCheckpointRevertSurfacesTransportFailure() async {
     let gateway = RichChatControllerGatewayFake()
-    await gateway.configureMutation(.failure(.transport), for: "rollback")
+    await gateway.configureMutation(.failure(.transport), for: "checkpoint-revert")
     let controller = RichChatConversationController(gateway: gateway)
     controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
 
     let succeeded = await controller.revertToCheckpoint(
-      RichChatCheckpointRevertInput(
-        checkpointItemID: "answer-1",
-        rollbackTurnCount: 1,
-        config: nil,
-        projectLocation: nil
-      )
-    )
-
-    let calls = await gateway.calls
-    XCTAssertTrue(succeeded)
-    XCTAssertEqual(calls, ["rollback", "truncate"])
-  }
-
-  func testCheckpointRevertStopsBeforeTruncateWhenFileRestoreFails() async {
-    let gateway = RichChatControllerGatewayFake()
-    await gateway.configureMutation(.failure(.transport), for: "checkpoint-restore")
-    let controller = RichChatConversationController(gateway: gateway)
-    controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
-
-    let succeeded = await controller.revertToCheckpoint(
-      RichChatCheckpointRevertInput(
-        checkpointItemID: "answer-1",
-        rollbackTurnCount: 0,
-        config: nil,
-        projectLocation: .posix(path: "/project", remoteServerId: nil)
-      )
+      RichChatCheckpointRevertInput(checkpointItemID: "answer-1")
     )
 
     let calls = await gateway.calls
     XCTAssertFalse(succeeded)
-    XCTAssertEqual(calls, ["checkpoint-restore"])
+    XCTAssertEqual(calls, ["checkpoint-revert"])
     XCTAssertEqual(controller.state.failure, .transport)
+  }
+
+  func testCheckpointRevertWithEmptyItemIDFailsValidation() async {
+    let gateway = RichChatControllerGatewayFake()
+    let controller = RichChatConversationController(gateway: gateway)
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
+
+    let succeeded = await controller.revertToCheckpoint(
+      RichChatCheckpointRevertInput(checkpointItemID: "")
+    )
+
+    let calls = await gateway.calls
+    XCTAssertFalse(succeeded)
+    XCTAssertEqual(calls, [])
+    XCTAssertEqual(controller.state.failure, .invalidRequest)
+  }
+
+  func testCheckpointRevertDoesNotUseLegacyThreeCallFlow() async {
+    let gateway = RichChatControllerGatewayFake()
+    let controller = RichChatConversationController(gateway: gateway)
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
+
+    let succeeded = await controller.revertToCheckpoint(
+      RichChatCheckpointRevertInput(checkpointItemID: "answer-1")
+    )
+
+    let calls = await gateway.calls
+    XCTAssertTrue(succeeded)
+    // The legacy client-orchestrated calls must stay out of the compound path.
+    XCTAssertEqual(calls, ["checkpoint-revert"])
   }
 
   func testSendIsSerializedAndSecondSendNeverReachesGateway() async {

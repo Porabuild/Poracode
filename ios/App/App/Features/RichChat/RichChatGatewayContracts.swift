@@ -100,6 +100,11 @@ protocol RichChatConversationGateway: Sendable {
     itemID: String,
     projectLocation: ProjectLocation
   ) async throws
+  /// WS2 stage 4: one-call compound checkpoint revert. Throws when the server
+  /// reports a failed compound or an ambiguous provider state.
+  func checkpointRevert(
+    target: RichChatThreadTarget, itemID: String, operationKey: String
+  ) async throws
 }
 
 protocol RichChatRequestGateway: Sendable {

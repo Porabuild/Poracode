@@ -286,9 +286,24 @@ checkpoint-revert route`, `28f48ba89`): capability-shaped provider hooks
   wired in desktop + headless compositions; protocol artifacts regenerated (63 routes,
   213 operation keys, schema roots 310, structural types 772) and a real-host route
   proof (`tests/native-e2e/checkpointRevertRoute.test.ts`) covers the journaled
-  failure-abort ordering and the resume/retry contract. Remaining for stage 4: the
-  renderer one-call swap (delete `revertingRef`/`revertProgressRef`) and the iOS
-  migration off its three-call replica; stage 5 Android adoption + parity dispositions.
+  failure-abort ordering and the resume/retry contract.
+- **Stage 4 — DONE, committed** (`feat(renderer): one-call compound checkpoint revert`,
+  stage-4 commit): backend-host protocol 4→5 adds the `revert-checkpoint` renderer
+  operation (`revertCheckpoint` main-local procedure → `BackendHostClient.revertCheckpoint`
+  → `BackendHostCore.revertCheckpoint`), with the browser path riding the compound wire
+  route through `RemoteDesktopClient.checkpointRevert` + the remote IPC adapter.
+  `MessageList.performRevert` is now ONE call: the client-orchestrated
+  `rollbackThreadConversation` → `restoreFileCheckpoint` → `dbTruncateThreadRuntimeAfter`
+  sequence, `revertingRef`/`revertProgressRef`, and the local turn-count replay are
+  deleted; the renderer snapshots the prompt before the call, derives a deterministic
+  per-checkpoint `operationKey` (retries resume the journalled operation), and surfaces
+  `failed`/`ambiguous` while treating `completed_local_only` as silent success. iOS
+  migrated off its three-call replica: `RichChatConversationController.revertToCheckpoint`
+  issues one `gateway.checkpointRevert` (new compound route method through
+  `GeneratedRichChatContract` + `RichChatRemoteAPI`, command-id header, `revertFailed`
+  mapped to transport failure), `RichChatCheckpointRevertInput` reduced to the checkpoint
+  item id. Remaining: stage 5 Android adoption + native-parity dispositions, stage 6
+  fault-injection matrix.
 - **Stage 3** — capability-shaped provider hooks `createRevertAnchor` / `restoreToRevertAnchor` (idempotent absolute restore) in the base session surface; Claude/Codex/OpenCode implementations (each already computes an absolute target internally); ACP family declares absence → existing `local_only` gating. No provider names in shared code.
 - **Stage 4** — backend-host protocol 4→5 + compound remote route `POST /api/threads/{id}/checkpoint-revert` (`command-id-header`); renderer one-call swap (delete `revertingRef`/`revertProgressRef`); iOS migrates off its three-call replica.
 - **Stage 5** — protocol regen (manifest/IR/schema/Swift/Kotlin), `native-parity.json` update, Android adoption.

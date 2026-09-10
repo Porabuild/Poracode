@@ -40,6 +40,12 @@ protocol RichChatRemoteAPI: Sendable {
   func richRestoreCheckpoint(
     threadID: String, itemID: String, projectLocation: ProjectLocation
   ) async throws
+  /// WS2 stage 4: one-call compound checkpoint revert. Throws `.revertFailed`
+  /// when the server reports a failed compound and `.ambiguousOutcome` when the
+  /// provider state is unknown.
+  func richCheckpointRevert(
+    threadID: String, checkpointItemID: String, operationKey: String
+  ) async throws -> String
   func richStageInput(
     threadID: String, prompt: String, segments: [RichPromptSegment]?
   ) async throws
@@ -154,6 +160,34 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
       try GeneratedRemoteV3Contract.richTruncate(threadID: threadID, after: itemID)
     }
     try await mutate(.truncate, route: route, suffix: "runtime/truncate")
+  }
+
+  func richCheckpointRevert(
+    threadID: String, checkpointItemID: String, operationKey: String
+  ) async throws -> String {
+    let route = try prepare {
+      try GeneratedRemoteV3Contract.richCheckpointRevert(
+        threadID: threadID,
+        checkpointItemID: checkpointItemID,
+        operationKey: operationKey
+      )
+    }
+    let headers = [ProtocolConstants.commandIdHeader: "checkpoint-revert:\(operationKey)"]
+    let data = try await mutationRequest(
+      path: "/api/threads/\(RemoteAPIClient.encodePathSegment(threadID))/checkpoint-revert",
+      body: route.body, headers: headers
+    )
+    try GeneratedRemoteV3Contract.validateRichMutationResponse(.checkpointRevert, data: data)
+    let json = try RichJSON.decode(data)
+    let outcome = json.objectValue?["outcome"]?.stringValue ?? ""
+    switch outcome {
+    case "completed", "completed_local_only", "noop":
+      return outcome
+    case "ambiguous":
+      throw RichChatTransportFailure.ambiguousOutcome
+    default:
+      throw RichChatTransportFailure.revertFailed
+    }
   }
 
   func richCommand(threadID: String, command: RichChatThreadCommand) async throws {

@@ -59,6 +59,8 @@ import {
 } from "@/shared/remote";
 import {
   DEFAULT_TERMINAL_SIZE,
+  checkpointRevertPayloadSchema,
+  checkpointRevertResultSchema,
   controlThreadGoalPayloadSchema,
   profileCoreStatsSchema,
   profileDevicesResponseSchema,
@@ -68,6 +70,7 @@ import {
   prWatchSchema,
   projectNotesSchema,
   sendThreadInputPayloadSchema,
+  type CheckpointRevertResult,
   type ProfileCoreStats,
   type ControlThreadGoalPayload,
   type ProfileDevicesResponse,
@@ -780,6 +783,28 @@ export class RemoteDesktopClient {
       method: "POST",
       body: { itemId: input.itemId },
     });
+  }
+
+  /** WS2 stage 4: the backend-owned compound checkpoint revert. */
+  async checkpointRevert(input: {
+    readonly threadId: string;
+    readonly checkpointItemId: string;
+    readonly operationKey: string;
+  }): Promise<CheckpointRevertResult> {
+    const parsed = checkpointRevertPayloadSchema.parse(input);
+    return checkpointRevertResultSchema.parse(
+      await this.requestJson(
+        `/api/threads/${encodeURIComponent(parsed.threadId)}/checkpoint-revert`,
+        {
+          method: "POST",
+          headers: { [REMOTE_COMMAND_ID_HEADER]: `checkpoint-revert:${parsed.operationKey}` },
+          body: {
+            checkpointItemId: parsed.checkpointItemId,
+            operationKey: parsed.operationKey,
+          },
+        },
+      ),
+    );
   }
 
   async setPendingSteer(input: SetPendingSteerPayload): Promise<void> {

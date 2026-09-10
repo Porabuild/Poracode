@@ -277,6 +277,17 @@ async function handleRendererRequest(request: BackendRendererRequest): Promise<u
       payload: { name: request.name, payload } as never,
     });
   }
+  if (request.operation === "revert-checkpoint") {
+    if (request.name !== "revertCheckpoint") {
+      throw new Error(`Procedure ${request.name} is not the compound checkpoint revert.`);
+    }
+    return handleRequest({
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      id: request.id,
+      operation: "revert-checkpoint",
+      payload: { name: request.name, payload } as never,
+    });
+  }
   if (!isDirectRendererServiceProcedure(request.name)) {
     throw new Error(`Procedure ${request.name} is not a direct renderer service operation.`);
   }
@@ -361,6 +372,12 @@ async function handleRequest(request: BackendHostRequest): Promise<unknown> {
       const result = callDatabaseRpc(request.payload);
       desktopServices?.databaseChanged(request.payload);
       return result;
+    }
+    case "revert-checkpoint": {
+      // WS2 stage 4: the compound checkpoint revert runs in the host —
+      // provider rollback, file restore, transcript truncation and the single
+      // canonical `runtime.truncated` publication are all owned here.
+      return host.revertCheckpoint(request.payload.payload);
     }
     case "call-service":
       if (!desktopServices) throw new Error("Backend desktop services are not initialized.");

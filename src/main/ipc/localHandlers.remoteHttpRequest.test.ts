@@ -45,6 +45,7 @@ function makeHandlers(database?: BackendDatabaseCaller) {
     database:
       database ??
       ({ callDatabase: vi.fn<BackendDatabaseCaller["callDatabase"]>() } as BackendDatabaseCaller),
+    revertCheckpoint: vi.fn<() => Promise<never>>(),
   });
 }
 

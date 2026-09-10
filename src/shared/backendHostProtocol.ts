@@ -51,7 +51,10 @@ import type { PoracodeChannel } from "./channel";
 // a pre-4 reader would validate version 3, silently drop the unknown kind, and
 // re-open the exact silent-loss window this signal closes — so the bump makes
 // that pairing fail loudly instead of losing terminal/runtime data quietly.
-export const BACKEND_HOST_PROTOCOL_VERSION = 4 as const;
+// Version 5 adds the `revert-checkpoint` renderer operation for the backend-owned
+// compound checkpoint revert (provider rollback + file restore + transcript
+// truncation as one journaled operation, WS2 stage 4).
+export const BACKEND_HOST_PROTOCOL_VERSION = 5 as const;
 export const BACKEND_RENDERER_STREAM_VERSION = 2 as const;
 
 export interface BackendRendererStreamInfo {
@@ -60,7 +63,11 @@ export interface BackendRendererStreamInfo {
   token: string;
 }
 
-export type BackendRendererRequestOperation = "supervisor" | "database" | "service";
+export type BackendRendererRequestOperation =
+  | "supervisor"
+  | "database"
+  | "service"
+  | "revert-checkpoint";
 
 export interface BackendRendererRequest {
   version: typeof BACKEND_RENDERER_STREAM_VERSION;
@@ -114,6 +121,13 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
 ] as const;
 
 export type BackendDatabaseProcedureName = (typeof BACKEND_DATABASE_PROCEDURE_NAMES)[number];
+
+/** Input of the backend-owned compound checkpoint revert (WS2 stage 4). */
+export interface RevertCheckpointHostCall {
+  threadId: string;
+  checkpointItemId: string;
+  operationKey: string;
+}
 
 export function isDirectRendererDatabaseProcedure(
   name: string,
@@ -304,6 +318,10 @@ export type BackendHostRequest =
       payload: BackendDatabaseCall;
     })
   | (BackendHostRequestBase & {
+      operation: "revert-checkpoint";
+      payload: { name: "revertCheckpoint"; payload: RevertCheckpointHostCall };
+    })
+  | (BackendHostRequestBase & {
       operation: "call-service";
       payload: BackendServiceCall;
     })
@@ -423,6 +441,18 @@ export function createBackendServiceRequest<Name extends BackendServiceProcedure
   };
 }
 
+export function createBackendRevertCheckpointRequest(
+  id: string,
+  payload: RevertCheckpointHostCall,
+): BackendHostRequest {
+  return {
+    version: BACKEND_HOST_PROTOCOL_VERSION,
+    id,
+    operation: "revert-checkpoint",
+    payload: { name: "revertCheckpoint", payload },
+  };
+}
+
 export interface BackendDatabaseCaller {
   callDatabase<Name extends BackendDatabaseProcedureName>(
     name: Name,
@@ -468,6 +498,16 @@ export function isBackendHostRequest(message: unknown): message is BackendHostRe
         typeof message.payload.name === "string" &&
         (BACKEND_DATABASE_PROCEDURE_NAMES as readonly string[]).includes(message.payload.name) &&
         "payload" in message.payload
+      );
+    case "revert-checkpoint":
+      return (
+        message.payload.name === "revertCheckpoint" &&
+        typeof message.payload.payload === "object" &&
+        message.payload.payload !== null &&
+        typeof (message.payload.payload as RevertCheckpointHostCall).threadId === "string" &&
+        typeof (message.payload.payload as RevertCheckpointHostCall).checkpointItemId ===
+          "string" &&
+        typeof (message.payload.payload as RevertCheckpointHostCall).operationKey === "string"
       );
     case "call-service":
       return (

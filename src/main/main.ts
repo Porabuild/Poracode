@@ -1155,6 +1155,7 @@ if (!hasSingleInstanceLock) {
           },
           database: backendHost,
           backendServices: backendHost,
+          revertCheckpoint: (input) => backendHost.revertCheckpoint(input),
         }),
         callSupervisor: (name, payload) => supervisorClient.call(name, payload),
       });

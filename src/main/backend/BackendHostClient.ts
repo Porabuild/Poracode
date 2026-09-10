@@ -6,8 +6,10 @@ import {
   BACKEND_HOST_PROTOCOL_VERSION,
   BACKEND_RENDERER_STREAM_VERSION,
   createBackendDatabaseRequest,
+  createBackendRevertCheckpointRequest,
   createBackendServiceRequest,
   createBackendSupervisorRequest,
+  type RevertCheckpointHostCall,
   isBackendHostOutboundMessage,
   type BackendEventInterests,
   type BackendBrowserEvent,
@@ -22,6 +24,7 @@ import {
   type BackendRendererStreamInfo,
   type SupervisorEventGap,
 } from "@/shared/backendHostProtocol";
+import type { CheckpointRevertResult } from "@/shared/contracts";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import type {
   IpcProcedurePayload,
@@ -604,6 +607,14 @@ export class BackendHostClient {
     return this.request(createBackendServiceRequest(randomUUID(), name, payload)) as Promise<
       BackendServiceResult<Name>
     >;
+  }
+
+  /** WS2 stage 4: the backend-owned compound checkpoint revert. */
+  async revertCheckpoint(payload: RevertCheckpointHostCall): Promise<CheckpointRevertResult> {
+    await this.waitUntilInitialized();
+    return this.request(
+      createBackendRevertCheckpointRequest(randomUUID(), payload),
+    ) as Promise<CheckpointRevertResult>;
   }
 
   async getRendererStreamInfo(): Promise<BackendRendererStreamInfo> {
