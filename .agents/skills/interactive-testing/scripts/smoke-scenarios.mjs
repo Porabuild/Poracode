@@ -34,7 +34,13 @@ export const functionalAreas = [
   {
     id: "providers-models",
     title: "Provider discovery, model selection, and provider plugins",
-    patterns: [/providers?\//i, /agents\/registry/i, /agentRegistry/i, /ProviderModelMenu/],
+    patterns: [
+      /agents\/devin\//i,
+      /providers?\//i,
+      /agents\/registry/i,
+      /agentRegistry/i,
+      /ProviderModelMenu/,
+    ],
     automated: ["baseline"],
     manual: ["provider-live"],
   },

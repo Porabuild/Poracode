@@ -19,12 +19,9 @@ import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } f
 import { sharedSettingsSchema } from "../settings";
 import { userNotificationSchema } from "../threadNotification";
 
-// v10 coordinates destructive truncate synchronization: hosts publish the
-// canonical `runtime.truncated` broadcast (with server-declared removed-turn
-// anchors) that older peers never applied. Parse tolerance alone would leave
-// v9 clients permanently divergent after a checkpoint revert, so the version
-// advances and exact-match pairing refuses mixed generations instead.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 10;
+// v11 adds the daily usage window. Older native bindings reject unknown
+// window enum values, so exact-match pairing must prevent mixed generations.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 11;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([

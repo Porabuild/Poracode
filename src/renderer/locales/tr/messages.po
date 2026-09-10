@@ -4023,6 +4023,7 @@ msgstr "Son görüntülenen sonraki sohbete geç"
 msgid "Cycle to the previous recently viewed chat"
 msgstr "Son görüntülenen önceki sohbete geç"
 
+#: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Daily"
 msgstr "Günlük"
@@ -4373,6 +4374,14 @@ msgstr "Cihazlar ve araçlar"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "Cihazlar bu masaüstüne erişilebildiği sürece eşleşebilir."
+
+#: src/renderer/components/providers/devin/manifest.ts
+msgid "Devin"
+msgstr "Devin"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Devin CLI with terminal and structured chat support."
+msgstr "Terminal ve yapılandırılmış sohbet destekli Devin CLI."
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -6284,6 +6293,10 @@ msgstr "Genel ayar devralınıyor (şu anda {0})."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "Depoyu Başlat"
+
+#: src/renderer/components/providers/devin/modelPricing.ts
+msgid "Input / output prices per 1M tokens. Ranges cover model variants."
+msgstr "1 milyon token başına giriş/çıkış fiyatları. Aralıklar model varyantlarını kapsar."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"

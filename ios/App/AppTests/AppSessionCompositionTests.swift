@@ -1892,7 +1892,7 @@ final class AppSessionCompositionTests: XCTestCase {
     XCTAssertNotEqual(session.state.projectsLoadState, .failed("Network request failed."))
   }
 
-  // MARK: Preserved-pairing upgrade (v9 disk → v10 live, verified only)
+  // MARK: Preserved-pairing upgrade (reviewed disk bindings → current live protocol)
 
   @MainActor
   private func makeProfileV9(
@@ -1929,35 +1929,38 @@ final class AppSessionCompositionTests: XCTestCase {
     return record
   }
 
-  func testPreservedV9DiskToLive10VerifiedUpgradePersistsV10AndConnects() async throws {
-    let (session, repo, _) = try await makeSession { e, t in
-      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
-      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
-      api.snapshotResult = .success(makeShell(seq: 7))
-      return api
-    }
-    defer {
-      Task {
-        await repo.wipeSuiteForTests()
-        await session.deps.hostCatalog.wipeForTests()
+  func testReviewedStoredBindingsUpgradeOnlyAfterVerifiedRead() async throws {
+    for version in [9, 10] {
+      let (session, repo, _) = try await makeSession { e, t in
+        let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+        api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+        api.snapshotResult = .success(makeShell(seq: 7))
+        return api
       }
+      defer {
+        Task {
+          await repo.wipeSuiteForTests()
+          await session.deps.hostCatalog.wipeForTests()
+        }
+      }
+      var profile9 = makeProfileV9()
+      profile9.protocolVersion = version
+      let seeded = try await seedRegistryV9(
+        session.deps.hostCatalog, profile: profile9, token: "tok-9")
+      await session.bootstrap()
+      XCTAssertEqual(session.phase, .ready)
+      XCTAssertEqual(session.profile?.desktopId, "desk-a")
+      XCTAssertEqual(
+        session.profile?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+      XCTAssertEqual(session.state.accessToken, "tok-9")
+      XCTAssertNotNil(session.state.api, "authority installed only after verified handshake")
+      let durable = try await session.deps.hostCatalog.snapshot()
+      XCTAssertEqual(durable.selected?.connectionId, seeded.connectionId)
+      XCTAssertEqual(
+        durable.selected?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
+      let persistedToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+      XCTAssertEqual(persistedToken, "tok-9")
     }
-    let profile9 = makeProfileV9()
-    let seeded = try await seedRegistryV9(
-      session.deps.hostCatalog, profile: profile9, token: "tok-9")
-    await session.bootstrap()
-    XCTAssertEqual(session.phase, .ready)
-    XCTAssertEqual(session.profile?.desktopId, "desk-a")
-    XCTAssertEqual(
-      session.profile?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
-    XCTAssertEqual(session.state.accessToken, "tok-9")
-    XCTAssertNotNil(session.state.api, "authority installed only after verified handshake")
-    let durable = try await session.deps.hostCatalog.snapshot()
-    XCTAssertEqual(durable.selected?.connectionId, seeded.connectionId)
-    XCTAssertEqual(
-      durable.selected?.protocolVersion, ProtocolConstants.remoteProtocolVersion)
-    let persistedToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
-    XCTAssertEqual(persistedToken, "tok-9")
   }
 
   func testPreservedV9SourceV2ImportThenVerifiedUpgrade() async throws {

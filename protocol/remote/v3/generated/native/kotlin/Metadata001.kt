@@ -10,11 +10,11 @@ data class RemoteRouteDescriptor(val id: String, val method: String, val path: S
 data class RemoteProcedureDescriptor(val name: String, val scope: String, val owner: String, val resultKind: String, val requestType: String, val resultType: String)
 data class RemoteWebSocketVariantDescriptor(val direction: String, val type: String, val modelType: String)
 object RemoteContractMetadata {
-    const val protocolVersion = 10
+    const val protocolVersion = 11
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:cee3382da01875ddc40eddf12ddf4884018f251ffe1c0b01207c1c50ee323d2f"
-    const val manifestHash = "sha256:384027c42a6ff96d0e9c18757e617ec06b95f473314460ff3c6be638ba083600"
+    const val sourceHash = "sha256:357ce7591ac9ad276893f6772be6b2a33887f67630dbd49a5d263feccdce7da8"
+    const val manifestHash = "sha256:69e2f4d9368d6edb648a9c5fd4930f903a462c1425e7aab716ad6e5ff39bd4d5"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -24,8 +24,8 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("attachment-upload", "POST", "/api/files/attachment", "bearer", listOf("session:operate"), "raw-upload", "json", 200, "ByteArray", "RouteattachmentU2DUploadResponse_6a0c18e639", listOf(RemoteQueryParameterDescriptor("threadId", "string", false, false), RemoteQueryParameterDescriptor("name", "string", false, false))),
         RemoteRouteDescriptor("browser-command", "POST", "/api/browser/command", "bearer", listOf("session:operate"), "json", "json", 200, "RoutebrowserU2DCommandRequest_80a9ff940d", "RoutebrowserU2DCommandResponse_1b7f16955d", listOf()),
         RemoteRouteDescriptor("browser-state", "GET", "/api/browser/state", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RoutebrowserU2DCommandResponse_1b7f16955d", listOf()),
-        RemoteRouteDescriptor("environment", "GET", "/.well-known/poracode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_4e4377c7eb", listOf()),
-        RemoteRouteDescriptor("environment-legacy", "GET", "/.well-known/lightcode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_4e4377c7eb", listOf()),
+        RemoteRouteDescriptor("environment", "GET", "/.well-known/poracode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_1fd6794d19", listOf()),
+        RemoteRouteDescriptor("environment-legacy", "GET", "/.well-known/lightcode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_1fd6794d19", listOf()),
         RemoteRouteDescriptor("forward-enter", "GET", "/forward/{forwardId}/enter", "forward-enter-token", listOf(), "empty", "redirect-html", 302, "RemoteUnit", "String", listOf(RemoteQueryParameterDescriptor("fwt", "string", false, false))),
         RemoteRouteDescriptor("host-update", "GET", "/api/host-update", "bearer", listOf("projects:manage"), "empty", "json", 200, "RemoteUnit", "RoutehostU2DUpdateU2DCheckResponse_5f2c2d7fde", listOf()),
         RemoteRouteDescriptor("host-update-check", "POST", "/api/host-update/check", "bearer", listOf("projects:manage"), "empty", "json", 200, "RemoteUnit", "RoutehostU2DUpdateU2DCheckResponse_5f2c2d7fde", listOf()),
@@ -52,7 +52,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("project-notes-read", "GET", "/api/projects/{projectId}/notes", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteprojectU2DNotesU2DReadResponse_d1eba06c8a", listOf()),
         RemoteRouteDescriptor("project-notes-write", "POST", "/api/projects/{projectId}/notes", "bearer", listOf("session:operate"), "json", "json", 200, "RouteprojectU2DNotesU2DWriteRequest_7b212bbb53", "RoutehostU2DUpdateU2DInstallResponse_81055c9199", listOf()),
         RemoteRouteDescriptor("project-settings", "GET", "/api/projects/{projectId}/settings", "bearer", listOf("projects:manage"), "empty", "json", 200, "RemoteUnit", "RouteprojectU2DSettingsResponse_c1417bffe5", listOf()),
-        RemoteRouteDescriptor("provider-usage", "GET", "/api/provider-usage", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteproviderU2DUsageResponse_e3d7559a78", listOf()),
+        RemoteRouteDescriptor("provider-usage", "GET", "/api/provider-usage", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteproviderU2DUsageResponse_b0304b9d9d", listOf()),
         RemoteRouteDescriptor("push-config", "GET", "/api/push/config", "bearer", listOf("session:operate"), "empty", "json", 200, "RemoteUnit", "RoutepushU2DConfigResponse_f0c513c014", listOf()),
         RemoteRouteDescriptor("push-register", "POST", "/api/push/register", "bearer", listOf("session:operate"), "json", "json", 200, "RoutepushU2DRegisterRequest_98c9ef3e40", "RoutepushU2DRegisterResponse_9633843f8b", listOf()),
         RemoteRouteDescriptor("push-unregister", "POST", "/api/push/unregister", "bearer", listOf("session:operate"), "json", "json", 200, "RoutepushU2DUnregisterRequest_8f934fd77b", "RoutepushU2DRegisterResponse_9633843f8b", listOf()),

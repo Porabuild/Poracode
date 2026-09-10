@@ -4023,6 +4023,7 @@ msgstr "Chuyển đến cuộc trò chuyện đã xem gần đây tiếp theo"
 msgid "Cycle to the previous recently viewed chat"
 msgstr "Chuyển đến cuộc trò chuyện đã xem gần đây trước đó"
 
+#: src/renderer/components/providers/usageFormat.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Daily"
 msgstr "Hằng ngày"
@@ -4373,6 +4374,14 @@ msgstr "Thiết bị và công cụ"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Devices can pair while this desktop is reachable."
 msgstr "Thiết bị có thể ghép nối khi máy tính này có thể truy cập được."
+
+#: src/renderer/components/providers/devin/manifest.ts
+msgid "Devin"
+msgstr "Devin"
+
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Devin CLI with terminal and structured chat support."
+msgstr "Devin CLI hỗ trợ thiết bị đầu cuối và trò chuyện có cấu trúc."
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -6284,6 +6293,10 @@ msgstr "Kế thừa cài đặt chung (hiện tại {0})."
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/GitReviewSidebar.tsx
 msgid "Initialize Repository"
 msgstr "Khởi tạo kho lưu trữ"
+
+#: src/renderer/components/providers/devin/modelPricing.ts
+msgid "Input / output prices per 1M tokens. Ranges cover model variants."
+msgstr "Giá đầu vào/đầu ra cho mỗi 1 triệu token. Khoảng giá bao gồm các biến thể của mô hình."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Input level"

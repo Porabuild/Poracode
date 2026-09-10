@@ -5,11 +5,11 @@ public struct RemoteRouteDescriptor: Sendable { public let id: String; public le
 public struct RemoteProcedureDescriptor: Sendable { public let name: String; public let scope: String; public let owner: String; public let resultKind: String; public let requestType: String; public let resultType: String }
 public struct RemoteWebSocketVariantDescriptor: Sendable { public let direction: String; public let type: String; public let modelType: String }
 public enum RemoteContractMetadata {
-  public static let protocolVersion = 10
+  public static let protocolVersion = 11
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 3
-  public static let sourceHash = "sha256:cee3382da01875ddc40eddf12ddf4884018f251ffe1c0b01207c1c50ee323d2f"
-  public static let manifestHash = "sha256:384027c42a6ff96d0e9c18757e617ec06b95f473314460ff3c6be638ba083600"
+  public static let sourceHash = "sha256:357ce7591ac9ad276893f6772be6b2a33887f67630dbd49a5d263feccdce7da8"
+  public static let manifestHash = "sha256:69e2f4d9368d6edb648a9c5fd4930f903a462c1425e7aab716ad6e5ff39bd4d5"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -19,8 +19,8 @@ public enum RemoteContractMetadata {
     .init(id: "attachment-upload", method: "POST", path: "/api/files/attachment", auth: "bearer", scopes: ["session:operate"], bodyKind: "raw-upload", responseKind: "json", status: 200, requestType: "Data", responseType: "RouteattachmentU2DUploadResponse_6a0c18e639", queryCodecs: [.init(name: "threadId", kind: "string", optional: false, repeated: false), .init(name: "name", kind: "string", optional: false, repeated: false)]),
     .init(id: "browser-command", method: "POST", path: "/api/browser/command", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutebrowserU2DCommandRequest_80a9ff940d", responseType: "RoutebrowserU2DCommandResponse_1b7f16955d", queryCodecs: []),
     .init(id: "browser-state", method: "GET", path: "/api/browser/state", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutebrowserU2DCommandResponse_1b7f16955d", queryCodecs: []),
-    .init(id: "environment", method: "GET", path: "/.well-known/poracode/environment", auth: "public", scopes: [], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteenvironmentU2DLegacyResponse_4e4377c7eb", queryCodecs: []),
-    .init(id: "environment-legacy", method: "GET", path: "/.well-known/lightcode/environment", auth: "public", scopes: [], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteenvironmentU2DLegacyResponse_4e4377c7eb", queryCodecs: []),
+    .init(id: "environment", method: "GET", path: "/.well-known/poracode/environment", auth: "public", scopes: [], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteenvironmentU2DLegacyResponse_1fd6794d19", queryCodecs: []),
+    .init(id: "environment-legacy", method: "GET", path: "/.well-known/lightcode/environment", auth: "public", scopes: [], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteenvironmentU2DLegacyResponse_1fd6794d19", queryCodecs: []),
     .init(id: "forward-enter", method: "GET", path: "/forward/{forwardId}/enter", auth: "forward-enter-token", scopes: [], bodyKind: "empty", responseKind: "redirect-html", status: 302, requestType: "RemoteUnit", responseType: "String", queryCodecs: [.init(name: "fwt", kind: "string", optional: false, repeated: false)]),
     .init(id: "host-update", method: "GET", path: "/api/host-update", auth: "bearer", scopes: ["projects:manage"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutehostU2DUpdateU2DCheckResponse_5f2c2d7fde", queryCodecs: []),
     .init(id: "host-update-check", method: "POST", path: "/api/host-update/check", auth: "bearer", scopes: ["projects:manage"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutehostU2DUpdateU2DCheckResponse_5f2c2d7fde", queryCodecs: []),
@@ -47,7 +47,7 @@ public enum RemoteContractMetadata {
     .init(id: "project-notes-read", method: "GET", path: "/api/projects/{projectId}/notes", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteprojectU2DNotesU2DReadResponse_d1eba06c8a", queryCodecs: []),
     .init(id: "project-notes-write", method: "POST", path: "/api/projects/{projectId}/notes", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteprojectU2DNotesU2DWriteRequest_7b212bbb53", responseType: "RoutehostU2DUpdateU2DInstallResponse_81055c9199", queryCodecs: []),
     .init(id: "project-settings", method: "GET", path: "/api/projects/{projectId}/settings", auth: "bearer", scopes: ["projects:manage"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteprojectU2DSettingsResponse_c1417bffe5", queryCodecs: []),
-    .init(id: "provider-usage", method: "GET", path: "/api/provider-usage", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteproviderU2DUsageResponse_e3d7559a78", queryCodecs: []),
+    .init(id: "provider-usage", method: "GET", path: "/api/provider-usage", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteproviderU2DUsageResponse_b0304b9d9d", queryCodecs: []),
     .init(id: "push-config", method: "GET", path: "/api/push/config", auth: "bearer", scopes: ["session:operate"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutepushU2DConfigResponse_f0c513c014", queryCodecs: []),
     .init(id: "push-register", method: "POST", path: "/api/push/register", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutepushU2DRegisterRequest_98c9ef3e40", responseType: "RoutepushU2DRegisterResponse_9633843f8b", queryCodecs: []),
     .init(id: "push-unregister", method: "POST", path: "/api/push/unregister", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutepushU2DUnregisterRequest_8f934fd77b", responseType: "RoutepushU2DRegisterResponse_9633843f8b", queryCodecs: []),
