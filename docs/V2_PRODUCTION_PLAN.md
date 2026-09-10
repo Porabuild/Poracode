@@ -270,6 +270,25 @@ assumptions identified — "freeze numTurns" rejected, native consumers now ship
 
 - **Stage 1** = WS1 items 4+8 (ships alone, closes W8/W6/W7 partially).
 - **Stage 2** — journal table (migration 44→45) + `BackendHostCore.revertCheckpoint`: frozen server-derived plan, per-thread revert locks, single-flight per `(threadId, operationKey)`, phase-written-before-side-effect, startup reconciliation; prompt text persisted in the journal (closes W9).
+- **Stage 3 — DONE, committed** (`feat(backend): provider revert anchors and compound
+checkpoint-revert route`, `28f48ba89`): capability-shaped provider hooks
+  `createRevertAnchor` (pure planning of an absolute target) / `restoreToRevertAnchor`
+  (idempotent absolute restore) on the structured session surface; Claude (SDK resume
+  point), Codex (fork turn id, legacy `thread/rollback` fallback preserved), OpenCode
+  (in-place revert message id) implement them; anchor-capability absence falls back to
+  the relative rollback and keeps `local_only`. `BackendHostCore.revertCheckpoint`
+  journals the anchor (migration 46) before the restore side effect, re-restores from
+  the stored anchor on resume (never re-plans), re-attempts a failed anchored restore
+  (idempotent) while failed relative fallbacks and ambiguous restores stay terminal,
+  and resolves `projectLocation` server-side from the thread's project when the caller
+  omits it. The compound wire route `POST /api/threads/{id}/checkpoint-revert`
+  (command-id idempotent, 409 `thread_turn_active`, 501 without a revert owner) is
+  wired in desktop + headless compositions; protocol artifacts regenerated (63 routes,
+  213 operation keys, schema roots 310, structural types 772) and a real-host route
+  proof (`tests/native-e2e/checkpointRevertRoute.test.ts`) covers the journaled
+  failure-abort ordering and the resume/retry contract. Remaining for stage 4: the
+  renderer one-call swap (delete `revertingRef`/`revertProgressRef`) and the iOS
+  migration off its three-call replica; stage 5 Android adoption + parity dispositions.
 - **Stage 3** — capability-shaped provider hooks `createRevertAnchor` / `restoreToRevertAnchor` (idempotent absolute restore) in the base session surface; Claude/Codex/OpenCode implementations (each already computes an absolute target internally); ACP family declares absence → existing `local_only` gating. No provider names in shared code.
 - **Stage 4** — backend-host protocol 4→5 + compound remote route `POST /api/threads/{id}/checkpoint-revert` (`command-id-header`); renderer one-call swap (delete `revertingRef`/`revertProgressRef`); iOS migrates off its three-call replica.
 - **Stage 5** — protocol regen (manifest/IR/schema/Swift/Kotlin), `native-parity.json` update, Android adoption.
