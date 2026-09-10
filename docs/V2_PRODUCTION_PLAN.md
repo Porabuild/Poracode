@@ -299,9 +299,12 @@ design-worst shape (32 kbps, 1.5 s RTT, 131,072-unit window) the v1 probe measur
 3 attempts / 0 installed / first error at 10.0 s; v2 installs exactly once, zero
 watch errors, 36 chunks + 36 ACKs, wire 110,262 B, completion in a single 42.2 s
 transfer — and a reconnecting v2 client then receives only the uncovered suffix
-(660 units vs the full window). Remaining in this lane: (a) native iOS/Android
-adoption of v2 (ledger entries are `planned`), (b) heartbeat-coexistence E2E with a
-real `RemoteSocketHealthMonitor` attached (design §12.2).
+(660 units vs the full window). **Heartbeat coexistence proven** (design §12.2): with the production
+`RemoteSocketHealthMonitor` (5 s deadline) probing on the production cadence while a
+full v2 baseline streams through the 32 kbps / 1.5 s RTT shape, all three probes fired
+mid-stream and the worst pong RTT was 2,302 ms — no false death, socket stayed open
+(`tmp/v2-production-review/shared-host/cursor-sync-v2-heartbeat.json`). Remaining in
+this lane: native iOS/Android adoption of v2 (ledger entries are `planned`).
 
 **WS3-A: agent-statuses payload split — IMPLEMENTED (commit 23d145e0c).**
 Measured breakdown of `GET /api/agent-statuses` (230 KB raw / 39.4 KB gzipped, 15
