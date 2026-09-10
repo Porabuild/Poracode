@@ -19,6 +19,15 @@ browser forwarding merely from that exploratory question.
 
 Branch: `poracode/v2`. Relevant local commits:
 
+- WS5 acceptance-gate load profile: `tests/native-e2e/sharedHostLoadProfile.test.ts`
+  records the 8 streaming agents + 4 GUI clients + 1 stalled client gate against a real
+  host (8 × 24,000 incompressible lines delivered complete; truncate fan-out p95 ≤ 1 ms;
+  steer echo max 159 ms; queued steer execution max 1,143 ms; close max 90 ms; stalled
+  client held, frozen while paused, caught up after resume; 0 seq gaps/resync everywhere;
+  peak RSS ~440 MB recorded). Evidence in
+  `tmp/v2-production-review/shared-host/ws5-load-profile{,-summary,-hostload}.json`.
+  PTY sessions stand in for provider agents; provider-backed GUI steer/stop stays a
+  manual WS9 item.
 - `4aa5b80af`: WS3 #2 — thread-history `omitScrollback` for v2 clients; the
   watch baseline is the only copy of the terminal tail.
 - `de4d189c7`: WS5 remainder — serialize-once replay, shed-at-source

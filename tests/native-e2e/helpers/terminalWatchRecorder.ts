@@ -11,6 +11,15 @@ export interface TerminalCursorRange {
   readonly watchId: string;
 }
 
+export interface TerminalContiguityViolation {
+  readonly fromCursor: number;
+  readonly toCursor: number;
+  readonly generation: string | null;
+  /** The chaining base the range failed to append to. */
+  readonly expectedFromCursor: number | null;
+  readonly expectedGeneration: string | null;
+}
+
 export interface TerminalWatchState {
   readonly watchId: string;
   readyResult: Record<string, unknown> | null;
@@ -19,6 +28,11 @@ export interface TerminalWatchState {
   assembledText: string;
   finalCursor: number | null;
   contiguityViolations: number;
+  /** Details of the most recent contiguity violations (bounded). Under
+   * cursor-sync v2 a duplicate/overlap re-delivery is legal (the real client
+   * ignores duplicates and resyncs on gaps), so violation counts are asserted
+   * with a tolerance and the samples make the evidence inspectable. */
+  readonly violations: TerminalContiguityViolation[];
 }
 
 export class TerminalWatchRecorder {
@@ -35,6 +49,7 @@ export class TerminalWatchRecorder {
       assembledText: "",
       finalCursor: null,
       contiguityViolations: 0,
+      violations: [],
     };
     this.states.set(watchId, state);
     return state;
@@ -104,7 +119,17 @@ export class TerminalWatchRecorder {
       base.generation !== null &&
       base.generation === generation &&
       fromCursor === base.toCursor;
-    if (!appendable) state.contiguityViolations += 1;
+    if (!appendable) {
+      state.contiguityViolations += 1;
+      state.violations.push({
+        fromCursor,
+        toCursor,
+        generation,
+        expectedFromCursor: base?.toCursor ?? null,
+        expectedGeneration: base?.generation ?? null,
+      });
+      if (state.violations.length > 8) state.violations.shift();
+    }
     state.ranges.push({ fromCursor, toCursor, generation, watchId: sync.watchId });
     if (appendable) {
       state.assembledText += data;

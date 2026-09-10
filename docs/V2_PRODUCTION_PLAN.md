@@ -372,8 +372,30 @@ is idempotent with an explicit `restart()` for force semantics (item 4, P1-3); t
 remote + renderer replay windows widened 500→4,000 entries with the remote replay pump
 seeking by index (byte budgets unchanged) so reconnect-under-load survives small-event
 bursts without full resync (item 5, P1-9). Full unit suite 12,080 green; native-e2e 145
-green; lint/fmt/typecheck clean. Gate (8 agents + 4 clients + 1 stalled) still to be
-recorded as a measured load profile.
+green; lint/fmt/typecheck clean.
+
+**Status 2026-09-10: acceptance-gate load profile RECORDED** —
+`tests/native-e2e/sharedHostLoadProfile.test.ts` (real host from `dist/main/server.cjs`,
+extends the `sharedHostConcurrency`/`sharedHostBackpressure` harnesses). Profile: 8
+supervisor-owned PTY sessions each streaming 24,000 incompressible lines concurrently
+through cursor-sync watches, 4 active GUI clients (declared `thread-item-interests`,
+history opens, truncate-driven `runtime.truncated` fan-out, notes/settings writes, one
+final rename converged across the roster), and 1 stalled client (raw socket paused)
+sharing the agent-8 watch. Steer is measured as control input into a busy PTY (echo +
+queued execution); stop is `terminal/close` (its 200 awaits PTY exit, so the bounded
+round-trip is the teardown proof). Measured across 5 runs, all green: every agent
+delivered all 24,000 lines and passed the post-storm alive check (max 79 ms); truncate
+fan-out p95 ≤ 1 ms; steer echo max 159 ms; queued steer execution max 1,143 ms; close
+max 90 ms; stall window ~1.3–1.5 s with the stalled client held (not evicted), frozen
+while paused and caught up after resume; 0 event-seq gaps and 0 resync-required on
+every client; served history and host DB matched the truncated survivors exactly;
+peak summed RSS of host+descendants ~440 MB recorded (never asserted). Evidence:
+`tmp/v2-production-review/shared-host/ws5-load-profile{,-summary,-hostload,-build}.json`.
+Notes: the profile uses PTY sessions as agent stand-ins (no provider credentials in
+headless E2E), so provider-backed GUI steer/stop with real model turns stays a manual
+WS9 item; cursor-sync v2 duplicate/pre-ready range re-delivery is tolerated (≤4 per
+watch, gaps must be 0) and violation samples are recorded — production clients dedupe
+these by design.
 
 **Gate:** 8 concurrent streaming agents + 4 active GUI clients with one stalled client:
 no agent death, no >1-frame stall on healthy clients, stop/steer latency bounded; memory
@@ -450,9 +472,10 @@ multi-client safety through the relay). WS5–WS8 can run in parallel lanes afte
 Critical path ≈ 30–40 working days of focused work across parallel lanes.
 
 **Production sign-off requires, with evidence:** WS1–WS4 gates green; WS5 load profile
-green; per-platform manual matrix executed including the five evidence-gap items; the
-§4.4 doc-drift list fixed; final-tree typecheck/lint/full test matrix green (including
-`src/main/remote`); native suites + builds green; `protocol:remote:v3:check` green.
+green (recorded 2026-09-10, see WS5 status); per-platform manual matrix executed
+including the five evidence-gap items; the §4.4 doc-drift list fixed; final-tree
+typecheck/lint/full test matrix green (including `src/main/remote`); native suites +
+builds green; `protocol:remote:v3:check` green.
 
 ## 7. Manual QA execution matrix
 
