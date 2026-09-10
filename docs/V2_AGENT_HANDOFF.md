@@ -32,6 +32,14 @@ Branch: `poracode/v2`. Relevant local commits:
   desktop-parity per-prompt revert action in the Android timeline with a
   deterministic operation key and all-locale strings. `native-parity.json`
   thread-checkpoint-revert is now `implemented` for iOS and Android.
+- WS6 perf + i18n: P1-11 row-scoped persistence (`dbSyncChanges`, order-aware after
+  critic-caught blockers `208d5d3d8`), P1-12/13 identity-preserving remote projection +
+  fingerprint memo (`375d18641`), P1-10 scoped loss-range rebuild with DB re-hydrate
+  (`8292ce0db`), i18n sweep (`4f54185d8`, 12 catalogs 0 missing). Left in WS6: the UX
+  surface states (remote-open loading/error/retry, revert in-progress indicator,
+  truncate-recovery exhaustion banner, offline/stale labeling, resolving chip) and the
+  IDB prune index. Review cadence: adversarial critic pass before each commit; verify
+  blocker claims before acting.
 - WS2 stage 6: the 13-scenario fault-injection matrix is closed out. New pins:
   settled revert replay after a host restart keeps turns appended since
   (`revertCheckpoint.test.ts`, scenarios 3/8/9 host side) and `runtime.truncated`

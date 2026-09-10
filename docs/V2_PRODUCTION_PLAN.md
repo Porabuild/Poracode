@@ -469,6 +469,22 @@ bounds recorded (extends `sharedHostConcurrency`/`sharedHostBackpressure` harnes
 
 ### WS6 — Renderer performance + UX states — ~6–9 d
 
+**Status 2026-09-10: all four P1 perf items LANDED.** P1-11 `b66b7b1c3` + blocker fix
+`208d5d3d8` (row-scoped persistence via the new `dbSyncChanges` procedure: renderer diffs
+rows by object identity, changed rows carry their full-list index, any id-sequence change
+ships the full order lists; explicit deletes clear the ownership marker; view-only writes
+skip the projection watch and the remote fan-out — critic review caught and fixed the
+reorder/`sort_order` data-loss blockers before they shipped to anyone else). P1-12 +
+P1-13 `375d18641` (identity-preserving projection cache over remote mirrored threads —
+source-reference fast path, content-compare fallback; fingerprint memo halves the
+per-refresh stringify cost). P1-10 `8292ce0db` (scoped loss-range rebuild: the renderer
+stream tracks unrecoverable threads — evictions + oversized events — and travels the
+scope on `resync-required`; windows rebuild only subscribed∩scope; `thread-reset`
+re-hydrates from the local DB; the reconnect gap path derives a per-client scope from the
+cursor and refuses to narrow when recorded losses don't reach back). i18n sweep `4f54185d8`
+(2 raw placeholders wrapped, 3 raw `error.message` toasts localized, 12 catalogs 0
+missing, stale sync comment fixed). Critic-reviewed per the new review cadence.
+
 Perf: row-scoped persistence replacing `dbSyncAll` (P1-11); identity-preserving projection
 cache (P1-12); fingerprint compares instead of `JSON.stringify` (P1-13); scoped loss-range
 rebuild + un-hydrate/rehydrate from local DB (P1-10); IDB prune index (P1-11b); offline
