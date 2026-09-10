@@ -39,17 +39,9 @@ export function startClaudeTurn(
   delete state.pendingGoalCompletionOnTaskDrain;
   state.streamedAssistantMessageIds.clear();
 
-  const userItemId = userMessageItemId ?? newItemId("user");
   const events: RuntimeEvent[] = [
     { type: "turn.started", threadId: state.threadId, turnId },
-    {
-      type: "item.started",
-      threadId: state.threadId,
-      itemId: userItemId,
-      itemType: "user_message",
-      payload: { content: buildPromptContentBlocks(prompt, segments) },
-    },
-    { type: "item.completed", threadId: state.threadId, itemId: userItemId },
+    ...steerClaudeTurn(state, prompt, segments, userMessageItemId),
   ];
   // Bare `/goal` parses to the "viewed" action: a status query. The CLI prints
   // the status and any active goal STAYS active (docs: /goal with no argument
@@ -94,6 +86,33 @@ export function startClaudeTurn(
     });
   }
   return events;
+}
+
+/**
+ * Paint the user's steer message onto a turn that is already in flight.
+ *
+ * Unlike {@link startClaudeTurn} this emits no `turn.started` and resets no
+ * mapper state: the running turn keeps its lifecycle, its streamed assistant
+ * items and its live subagents, so the queued message lands in the transcript
+ * without cancelling work already in progress.
+ */
+export function steerClaudeTurn(
+  state: ClaudeMapperState,
+  prompt: string,
+  segments: PromptSegment[] | undefined,
+  userMessageItemId?: string,
+): RuntimeEvent[] {
+  const userItemId = userMessageItemId ?? newItemId("user");
+  return [
+    {
+      type: "item.started",
+      threadId: state.threadId,
+      itemId: userItemId,
+      itemType: "user_message",
+      payload: { content: buildPromptContentBlocks(prompt, segments) },
+    },
+    { type: "item.completed", threadId: state.threadId, itemId: userItemId },
+  ];
 }
 
 function isManualCompactPrompt(prompt: string): boolean {
