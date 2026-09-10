@@ -85,6 +85,10 @@ export class SessionRuntimeLifecycle {
         if (!this.canHandleStructuredEvent(session)) return;
         this.handleStructuredRuntimeEvent(session, event);
       },
+      onVoiceEvent: (event) => {
+        if (!this.canHandleStructuredEvent(session)) return;
+        this.context.emit({ type: "thread-voice", threadId: session.threadId, event });
+      },
     });
   }
 

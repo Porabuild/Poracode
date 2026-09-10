@@ -61,6 +61,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     sendThreadInput: (payload) => threads.sendThreadInput(payload),
     interruptThread: (payload) => threads.interruptThread(payload),
     controlThreadGoal: (payload) => threads.controlThreadGoal(payload),
+    connectThreadVoice: (payload) => threads.connectThreadVoice(payload),
+    disconnectThreadVoice: (payload) => threads.disconnectThreadVoice(payload),
     rollbackThreadConversation: (payload) => threads.rollbackThreadConversation(payload),
     setPendingSteer: (payload) => threads.setPendingSteer(payload),
     clearPendingSteer: (payload) => threads.clearPendingSteer(payload),

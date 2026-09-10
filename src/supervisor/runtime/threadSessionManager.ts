@@ -1,4 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { msg } from "@/shared/messages";
+import type {
+  ConnectThreadVoicePayload,
+  ConnectThreadVoiceResult,
+  DisconnectThreadVoicePayload,
+} from "@/shared/contracts/liveVoice";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
@@ -754,6 +760,34 @@ export class ThreadSessionManager {
     const prompt = session.adapter.buildGoalControlPrompt?.(control);
     if (!prompt) throw new Error(`${session.adapter.label} does not support this goal control.`);
     await this.sendThreadInput({ threadId, prompt, config: session.config });
+  }
+
+  async connectThreadVoice(payload: ConnectThreadVoicePayload): Promise<ConnectThreadVoiceResult> {
+    const session = this.requireSession(payload.threadId);
+    if (
+      session.status !== "idle" ||
+      session.presentationMode !== "gui" ||
+      !session.structuredSession?.connectVoice
+    ) {
+      throw new Error(msg("voice.unavailable"));
+    }
+    const config = applyHomeScopePermissions(
+      effectiveProjectLocation(session),
+      payload.config,
+      session.adapter.capabilities,
+    );
+    session.config = config;
+    return session.structuredSession.connectVoice({
+      connectionId: payload.connectionId,
+      offerSdp: payload.offerSdp,
+      config,
+    });
+  }
+
+  async disconnectThreadVoice(payload: DisconnectThreadVoicePayload): Promise<void> {
+    await this.sessions
+      .get(payload.threadId)
+      ?.structuredSession?.disconnectVoice?.(payload.connectionId);
   }
 
   async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {

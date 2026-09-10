@@ -778,6 +778,10 @@ msgid "a supported coding agent"
 msgstr "một tác nhân mã hóa được hỗ trợ"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "Đã có cuộc trò chuyện bằng giọng nói đang hoạt động."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "Chủ sở hữu cây làm việc yêu cầu một nhánh nguồn đã đóng băng"
 
@@ -2208,6 +2212,10 @@ msgstr "Hủy bộ chọn"
 msgid "Cancel removing project"
 msgstr "Hủy xóa dự án"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "Hủy kết nối thoại"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancel workflow"
@@ -3258,6 +3266,10 @@ msgstr "Đã kết nối"
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Đang kết nối tới trình duyệt trên desktop…"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "Đang kết nối thoại…"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
@@ -4814,6 +4826,10 @@ msgstr "Các plugin đã bật vẫn hoạt động cho các luồng mới"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "Bật <0>cookie</0> và <1>bộ nhớ</1>. Cookie có thể chứa mã thông báo phiên và bộ lưu trữ thường giữ trạng thái xác thực — chỉ bật khi bạn tin cậy cả tác nhân và các trang web mà nó truy cập."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "Kết thúc trò chuyện thoại"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -6746,6 +6762,18 @@ msgstr "Trực tuyến"
 msgid "Live {0}"
 msgstr "Trực tuyến {0}"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "Trò chuyện thoại trực tiếp"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "Trò chuyện thoại trực tiếp không khả dụng cho luồng này."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "Trò chuyện thoại trực tiếp yêu cầu đăng nhập bằng tài khoản có gói đăng ký của nhà cung cấp này."
+
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
 msgstr "Đang tải"
@@ -7358,6 +7386,10 @@ msgstr "Quyền truy cập micrô bị tắt."
 msgid "Microphone input level"
 msgstr "Mức đầu vào micrô"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "Đã tắt micrô"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Quyền sử dụng micrô đã bị từ chối."
@@ -7615,6 +7647,10 @@ msgstr "Đang di chuyển các thay đổi…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "Tắt micrô"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7812,6 +7848,7 @@ msgstr "Tab mới trong nhóm"
 #: src/mobile/WideShell.tsx
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
@@ -12059,6 +12096,10 @@ msgstr "Bắt đầu mỗi ngày với các ưu tiên và bước tiếp theo."
 msgid "Start from scratch"
 msgstr "Bắt đầu lại từ đầu"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "Bắt đầu trò chuyện thoại trực tiếp"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12824,6 +12865,18 @@ msgstr "Thao tác cập nhật không thành công."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "Dịch vụ cập nhật tạm thời không khả dụng."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "Kết nối thoại thất bại. Hãy thử lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "Kết nối thoại đã hết thời gian chờ. Hãy thử lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "Đã hủy kết nối thoại."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13780,6 +13833,10 @@ msgstr "Bỏ đánh dấu xong"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Bỏ đánh dấu xong"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "Bật micrô"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

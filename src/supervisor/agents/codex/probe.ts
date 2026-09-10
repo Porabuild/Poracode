@@ -43,6 +43,7 @@ interface CodexConfigRequirements {
 }
 
 export interface CodexProbeResult {
+  liveVoice?: boolean;
   models?: Array<{ id: string; label: string }>;
   efforts?: string[];
   defaultEffort?: string;
@@ -576,23 +577,38 @@ export async function probeCodexCapabilities(
   options?: { wslExecPath?: string; timeoutMs?: number; label?: string },
 ): Promise<CodexProbeResult | undefined> {
   const result = await runWithCodexAppServer(location, options, async ({ client, initResult }) => {
-    const [modelResult, requirementsResult, skillsResult] = await Promise.all([
-      client.request("model/list", { includeHidden: false }),
-      client.request("configRequirements/read", {}).catch((error) => {
-        console.warn("[codex] configRequirements/read failed:", error);
-        return undefined;
-      }),
-      client.request("skills/list", { forceReload: true }).catch((error) => {
-        console.warn("[codex] skills/list failed:", error);
-        return undefined;
-      }),
-    ]);
-    return { initResult, modelResult, requirementsResult, skillsResult };
+    const [modelResult, requirementsResult, skillsResult, accountResult, voicesResult] =
+      await Promise.all([
+        client.request("model/list", { includeHidden: false }),
+        client.request("configRequirements/read", {}).catch((error) => {
+          console.warn("[codex] configRequirements/read failed:", error);
+          return undefined;
+        }),
+        client.request("skills/list", { forceReload: true }).catch((error) => {
+          console.warn("[codex] skills/list failed:", error);
+          return undefined;
+        }),
+        client.request("account/read", { refreshToken: false }).catch(() => undefined),
+        client.request("thread/realtime/listVoices", {}).catch(() => undefined),
+      ]);
+    return {
+      initResult,
+      modelResult,
+      requirementsResult,
+      skillsResult,
+      accountResult,
+      voicesResult,
+    };
   });
 
   if (!result) return undefined;
 
   const probeResult: CodexProbeResult = {};
+  probeResult.liveVoice = supportsCodexLiveVoice(
+    result.initResult,
+    result.accountResult,
+    result.voicesResult,
+  );
 
   const initCommands = readCodexInitCommands(result.initResult);
   if (initCommands.length > 0) {
@@ -625,4 +641,29 @@ export async function probeCodexCapabilities(
   Object.assign(probeResult, mapCodexRequirements(requirements));
 
   return probeResult;
+}
+
+/** Subscription voice uses v3 WebRTC; WebSocket requires API-key auth. */
+export function supportsCodexLiveVoice(init: unknown, account: unknown, voices: unknown): boolean {
+  const agent =
+    init && typeof init === "object" && "userAgent" in init ? init.userAgent : undefined;
+  const version = typeof agent === "string" ? /^[^/]+\/(\d+)\.(\d+)\.(\d+)/.exec(agent) : null;
+  // 0.153.4 is the first version verified end to end with subscription WebRTC
+  // and canonical transcript items. Older experimental schemas are not enough.
+  if (
+    !version ||
+    !(
+      Number(version[1]) > 0 ||
+      Number(version[2]) > 153 ||
+      (Number(version[2]) === 153 && Number(version[3]) >= 4)
+    )
+  )
+    return false;
+  return (
+    extractCodexAccountInfo(account)?.type === "chatgpt" &&
+    !!voices &&
+    typeof voices === "object" &&
+    "voices" in voices &&
+    !!voices.voices
+  );
 }

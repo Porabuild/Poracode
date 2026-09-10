@@ -418,6 +418,21 @@ function isLiveAssistantActivity(
   threadId: string,
   event: RuntimeEvent,
 ): boolean {
+  // A provider may publish conversation messages independently of agent work.
+  // Check the stored payload for deltas as well as the initial message.
+  const payload =
+    event.type === "item.started"
+      ? event.payload
+      : "itemId" in event
+        ? state.runtimeItemsByIdByThread[threadId]?.[event.itemId]?.payload
+        : undefined;
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "turnIndependent" in payload &&
+    payload.turnIndependent === true
+  )
+    return false;
   if (event.type === "item.started") {
     return (
       event.itemType !== "user_message" &&

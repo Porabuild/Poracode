@@ -232,6 +232,7 @@ export async function startThreadFromDraft(
   const remoteHostThreadId = createsWorktree && owner ? crypto.randomUUID() : undefined;
   const pendingThread = createsWorktree
     ? createThreadRow({
+        ...(input.threadId && !owner ? { threadId: input.threadId } : {}),
         ...(owner && remoteHostThreadId
           ? {
               threadId: remoteThreadId(owner.desktopId, remoteHostThreadId),
@@ -378,6 +379,7 @@ export async function startThreadFromDraft(
     }
   } else {
     await host.startThread({
+      ...(input.threadId && !owner ? { threadId: input.threadId } : {}),
       project,
       agentKind,
       config,
@@ -518,7 +520,7 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
     ...(activeGroup?.groupId ? { groupId: activeGroup.groupId } : {}),
     ...(activeGroup?.groupName ? { groupName: activeGroup.groupName } : {}),
   });
-  if (!launch.remoteServerId) {
+  if (!launch.remoteServerId && titlePrompt.trim()) {
     generateTitleAsync(thread.id, launch.project.location, projectAgentStatuses, titlePrompt);
   }
   return thread;

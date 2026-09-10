@@ -778,6 +778,10 @@ msgid "a supported coding agent"
 msgstr "desteklenen bir kodlama aracısı"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "Zaten etkin bir sesli görüşme var."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "Bir çalışma ağacı sahibi, dondurulmuş bir şube kaynağı gerektirir"
 
@@ -2208,6 +2212,10 @@ msgstr "Seçiciyi iptal et"
 msgid "Cancel removing project"
 msgstr "Projeyi kaldırmayı iptal et"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "Sesli bağlantıyı iptal et"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Cancel workflow"
@@ -3258,6 +3266,10 @@ msgstr "Bağlı"
 #: src/mobile/views/BrowserView.tsx
 msgid "Connecting to the desktop browser…"
 msgstr "Masaüstü tarayıcısına bağlanılıyor…"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "Sesli bağlantı kuruluyor…"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
@@ -4814,6 +4826,10 @@ msgstr "Etkinleştirilen eklentiler yeni konular için açık kalır"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "<0>Çerezler</0>'i ve <1>depolamayı</1> etkinleştirir. Çerezler oturum belirteçleri içerebilir ve depolama genellikle kimlik doğrulama durumunu tutar; yalnızca hem aracıya hem de onun ziyaret ettiği sitelere güvendiğinizde etkinleştirilir."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "Sesli sohbeti bitir"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -6746,6 +6762,18 @@ msgstr "Canlı"
 msgid "Live {0}"
 msgstr "Canlı {0}"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "Canlı sesli sohbet"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "Bu konuşma için canlı sesli sohbet kullanılamıyor."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "Canlı sesli sohbet için bu sağlayıcının abonelik hesabıyla oturum açmanız gerekir."
+
 #: src/renderer/components/common/PixelLoader.tsx
 msgid "Loading"
 msgstr "Yükleniyor"
@@ -7358,6 +7386,10 @@ msgstr "Mikrofon erişimi kapalı."
 msgid "Microphone input level"
 msgstr "Mikrofon giriş seviyesi"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "Mikrofon kapalı"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Mikrofon izni reddedildi."
@@ -7615,6 +7647,10 @@ msgstr "Değişiklikler taşınıyor…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "Mikrofonu kapat"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7812,6 +7848,7 @@ msgstr "Grupta yeni sekme"
 #: src/mobile/WideShell.tsx
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/NewThreadButton.tsx
@@ -12059,6 +12096,10 @@ msgstr "Her güne öncelikler ve sonraki adımlarla başlayın."
 msgid "Start from scratch"
 msgstr "Sıfırdan başla"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "Canlı sesli sohbet başlat"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12824,6 +12865,18 @@ msgstr "Güncelleme işlemi başarısız oldu."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "Güncelleme hizmeti geçici olarak kullanılamıyor."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "Sesli bağlantı başarısız oldu. Tekrar deneyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "Sesli bağlantı zaman aşımına uğradı. Tekrar deneyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "Sesli bağlantı iptal edildi."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13780,6 +13833,10 @@ msgstr "Tamamlandı işaretini kaldır"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Bitti işaretini kaldır"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "Mikrofonu aç"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"
