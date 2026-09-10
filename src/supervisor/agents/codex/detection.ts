@@ -225,6 +225,9 @@ export const codexDefaultCapabilities: AgentCapability = {
 
 export function probeResultToCapabilityPartial(probe: CodexProbeResult): Partial<AgentCapability> {
   return {
+    ...(probe.liveVoice
+      ? { liveVoice: { transport: "webrtc" as const, dataChannel: "oai-events" } }
+      : {}),
     ...(probe.models?.length ? { models: probe.models } : {}),
     ...(probe.efforts?.length ? { efforts: probe.efforts } : {}),
     ...(probe.defaultEffort ? { defaultEffort: probe.defaultEffort } : {}),

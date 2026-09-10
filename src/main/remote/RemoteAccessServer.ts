@@ -251,7 +251,8 @@ export interface RemoteAccessServerOptions {
  * - `src/mobile/storeSync.ts` `dispatchRemoteSupervisorEvent`: the
  *   `thread-runtime-event(s)[-multi]` pre-pass (live chat content), the
  *   `remote-git-summaries` out-of-band handler, and the switch cases
- *   (`thread-state`, `thread-pending-steer`, `thread-reset`, `thread-exited`,
+ *   (`thread-state`, `thread-pending-steer`, `thread-follow-up-queue`,
+ *   `thread-reset`, `thread-exited`,
  *   `agent-status-updated`, `windows-agent-statuses`, `wsl-agent-statuses`).
  * - `src/renderer/state/remoteServersStore.ts` `shouldRefreshRemoteServerAfterEvent`
  *   (adds `remote-projects-changed` / `remote-threads-changed`).
@@ -267,6 +268,7 @@ const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> =
   // Thread lifecycle.
   "thread-state",
   "thread-pending-steer",
+  "thread-follow-up-queue",
   "thread-reset",
   "thread-exited",
   // Agent status.

@@ -45,6 +45,21 @@ describe("shared settings defaults", () => {
     expect(normalizeSharedSettings({}).preventSleep).toBe("while-remote-access");
   });
 
+  it("defaults follow-up behavior for prior settings without the field", () => {
+    const normalized = normalizeSharedSettings({
+      threadRemoveAction: "delete",
+      guiChatFontSize: 14,
+    });
+
+    expect(defaultSharedSettings.followUpBehavior).toBe("steer");
+    expect(normalized).toMatchObject({
+      followUpBehavior: "steer",
+      threadRemoveAction: "delete",
+      guiChatFontSize: 14,
+    });
+    expect(normalizeSharedSettings({ followUpBehavior: "invalid" }).followUpBehavior).toBe("steer");
+  });
+
   it("preserves global provider and model effort/Fast preferences", () => {
     expect(
       normalizeSharedSettings({

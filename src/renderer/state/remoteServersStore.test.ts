@@ -1596,6 +1596,44 @@ describe("useRemoteServersStore", () => {
     expect(sync.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
   });
 
+  it("applies a queue event even when the thread filter has not learned the thread yet", async () => {
+    const sockets: RemoteSocketLike[] = [];
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient()));
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledOnce());
+    sync.dispatchRemoteSupervisorEvent.mockClear();
+
+    // The shell has not learned this thread yet, so the normal per-thread
+    // event filter returns null. Queue state still needs to invalidate any
+    // history request already in flight for the newly opened thread.
+    sockets[0]?.onmessage?.({
+      data: JSON.stringify({
+        type: "event",
+        seq: 2,
+        event: {
+          type: "thread-follow-up-queue",
+          threadId: "new-thread",
+          queue: null,
+        },
+      }),
+    });
+
+    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledWith({
+      type: "thread-follow-up-queue",
+      threadId: remoteThreadId("d1", "new-thread"),
+      queue: null,
+    });
+  });
+
   it("reconnects the server event stream from the latest seen seq", async () => {
     vi.useFakeTimers();
     const sockets: RemoteSocketLike[] = [];

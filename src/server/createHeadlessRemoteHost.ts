@@ -225,6 +225,16 @@ export async function createHeadlessRemoteHost(
       // the cached background-task levels, which no `thread-exited` drains and
       // which would otherwise shadow the fresh supervisor's live reads forever.
       serverRef?.clearBackgroundTaskLevels();
+      // Follow-up queues are supervisor-owned memory. Clear the remote
+      // renderer's rows when that process disappears, matching the desktop
+      // host's reset behavior.
+      for (const thread of dbGetThreads()) {
+        serverRef?.publishSupervisorEvent({
+          type: "thread-follow-up-queue",
+          threadId: thread.id,
+          queue: null,
+        });
+      }
     },
   });
   const scheduleCoordinator = new ScheduleRunCoordinator({

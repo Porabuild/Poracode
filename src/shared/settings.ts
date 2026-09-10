@@ -151,6 +151,9 @@ export type BrowserLinkOpenTarget = z.infer<typeof browserLinkOpenTargetSchema>;
 export const browserLinkPresentationModeSchema = z.enum(["panel", "overlay"]);
 export type BrowserLinkPresentationMode = z.infer<typeof browserLinkPresentationModeSchema>;
 
+export const followUpBehaviorSchema = z.enum(["steer", "queue"]);
+export type FollowUpBehavior = z.infer<typeof followUpBehaviorSchema>;
+
 const browserSettingsSchema = z.object({
   /**
    * Gate for the MCP `eval` tool. When false (default) the tool
@@ -394,6 +397,8 @@ export const sharedSettingsSchema = z.object({
   agentInstances: agentInstanceConfigMapSchema,
   /** When true, the composer in terminal-native threads starts collapsed. */
   collapseTerminalComposer: z.boolean(),
+  /** Default action for GUI messages sent while an agent is working. */
+  followUpBehavior: followUpBehaviorSchema,
   /**
    * Where a thread's informational docks (goal, plan, agents, background
    * tasks) live: stacked above the composer, or in the right panel's Docks tab
@@ -757,6 +762,7 @@ export const defaultSharedSettings: SharedSettings = {
   acpRegistryAutoInstallOptOuts: [],
   agentInstances: {},
   collapseTerminalComposer: true,
+  followUpBehavior: "steer",
   threadDocksPlacement: "right",
   threadDocksOrder: [...THREAD_DOCK_KINDS],
   cliPickerTarget: "ask",

@@ -42,6 +42,11 @@ rule is about control flow and data shape, not about erasing history.
    Probe customization uses `normalizeProbeResult` for discovered capabilities
    and `modelLabel` for fallback labels when the agent supplies no display name.
 
+Message payloads can declare `turnIndependent: true` when a conversation stream
+publishes messages outside an agent execution turn. The shared renderer persists
+and renders them without using their arrival to reopen the agent's work timer.
+Providers own this classification; ordinary messages keep the default behavior.
+
 If none of the three fits, the right move is to add a new hook with a
 capability-shaped name and document it here — not to add a branch.
 

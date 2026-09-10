@@ -18,6 +18,7 @@ const { bridge, captureFileCheckpoint, runtimeActions } = vi.hoisted(() => ({
     startThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    queueThreadFollowUp: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     clearPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     searchProjectFiles: vi
@@ -35,7 +36,8 @@ const { bridge, captureFileCheckpoint, runtimeActions } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@/renderer/actions/threadRuntimeActions", () => ({
+vi.mock("@/renderer/actions/threadRuntimeActions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/actions/threadRuntimeActions")>()),
   changeThreadConfig: runtimeActions.changeThreadConfig,
   resolveThreadServerRequest: runtimeActions.resolveThreadServerRequest,
   submitThreadInput: runtimeActions.submitThreadInput,
@@ -90,6 +92,7 @@ describe("ThreadView", () => {
     useSharedSettings.setState({
       agentSettings: {},
       collapseTerminalComposer: false,
+      followUpBehavior: "steer",
       threadDocksPlacement: "composer",
     });
     useThreadTodoDockStore.setState({
@@ -2016,7 +2019,11 @@ describe("ThreadView", () => {
     expect(screen.queryByText("Creating worktree…")).toBeNull();
   });
 
-  it("allows queued follow-ups and stop while a GUI ACP thread is running", async () => {
+  it.each([
+    ["steer", "Steer current turn"],
+    ["queue", "Queue message"],
+  ] as const)("allows %s and stop on a working GUI thread", async (behavior, label) => {
+    useSharedSettings.setState({ followUpBehavior: behavior });
     renderThreadView({
       thread: {
         id: "thread-gui-working",
@@ -2076,12 +2083,27 @@ describe("ThreadView", () => {
     });
     expect(stopButton.querySelector('[aria-label="Loading"]')).toBeInTheDocument();
 
-    // After entering text, send button appears instead
+    // A follow-up remains available while Stop is pending and uses the configured action.
     const input = screen.getByPlaceholderText("Ask Codex anything about this workspace");
     input.textContent = "test";
     fireEvent.input(input);
 
-    expect(screen.getByLabelText("Send message")).not.toBeDisabled();
+    const submitButton = screen.getByRole("button", { name: label });
+    expect(submitButton).not.toBeDisabled();
+    fireEvent.click(submitButton);
+
+    const expected = behavior === "queue" ? bridge.queueThreadFollowUp : bridge.setPendingSteer;
+    const unused = behavior === "queue" ? bridge.setPendingSteer : bridge.queueThreadFollowUp;
+    await waitFor(() => {
+      expect(expected).toHaveBeenCalledWith({
+        threadId: "thread-gui-working",
+        prompt: "test",
+        config: { model: "gpt-5.4" },
+        segments: [{ kind: "text", content: "test" }],
+      });
+    });
+    expect(unused).not.toHaveBeenCalled();
+    expect(runtimeActions.submitThreadInput).not.toHaveBeenCalled();
   });
 
   it("allows stopping a GUI provider before a session ref is discovered", async () => {

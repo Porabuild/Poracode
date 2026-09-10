@@ -13,7 +13,11 @@ import {
   type RemoteShellSnapshot,
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
-import type { BackgroundTask, Thread } from "@/shared/contracts";
+import {
+  threadFollowUpQueueStateSchema,
+  type BackgroundTask,
+  type Thread,
+} from "@/shared/contracts";
 import {
   dbGetProjects,
   dbGetThread,
@@ -118,6 +122,11 @@ export async function buildThreadSnapshot(
     readonly targetTimelineEntryCount?: number;
   } = {},
 ): Promise<RemoteThreadSnapshot> {
+  // Capture the sequence at request start. The snapshot reads several
+  // independent async sources; using ctx.seq at return would label a queue
+  // read taken before a live event as current when that event lands while the
+  // other reads are suspended.
+  const snapshotSeq = ctx.seq;
   const initialThread = dbGetThread(threadId);
   if (!initialThread) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
@@ -125,6 +134,16 @@ export async function buildThreadSnapshot(
 
   let terminalScrollback: string | undefined;
   let terminalSize: RemoteThreadSnapshot["terminalSize"] | undefined;
+  // Keep this call independent from the terminal reads below. A host with an
+  // older supervisor can still serve the existing thread history even when it
+  // cannot provide the additive queued-follow-up snapshot field.
+  const followUpQueuePromise = Promise.resolve()
+    .then(() => ctx.options.callSupervisor("getThreadFollowUpQueue", { threadId }))
+    .then((queue) => {
+      const parsed = threadFollowUpQueueStateSchema.nullable().safeParse(queue);
+      return parsed.success ? parsed.data : undefined;
+    })
+    .catch(() => undefined);
   let backgroundTasks: BackgroundTask[] = [];
   try {
     const [scrollback, size, tasks] = await Promise.all([
@@ -160,9 +179,10 @@ export async function buildThreadSnapshot(
     latestGoal && !runtimeItems.some((item) => item.id === latestGoal.id)
       ? [latestGoal, ...runtimeItems]
       : runtimeItems;
+  const followUpQueue = await followUpQueuePromise;
   return remoteThreadSnapshotSchema.parse(
     withStableUpdatedAt(`thread:${threadId}`, {
-      snapshotSeq: ctx.seq,
+      snapshotSeq,
       thread,
       // Inline image bytes are replaced by host-minted references: they are ~89%
       // of runtime payload bytes and the client fetches each one on demand.
@@ -173,6 +193,7 @@ export async function buildThreadSnapshot(
       backgroundTasks,
       ...(terminalScrollback ? { terminalScrollback } : {}),
       ...(terminalSize ? { terminalSize } : {}),
+      ...(followUpQueue !== undefined ? { followUpQueue } : {}),
     }),
   );
 }

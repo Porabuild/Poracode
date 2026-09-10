@@ -339,8 +339,8 @@ export const MentionInput = forwardRef<
     submitOnEnter?: boolean;
     /**
      * Called before MentionInput's own key handling (after the mention popover
-     * absorbs navigation keys). Return `true` to indicate the key was handled
-     * and stop further processing.
+     * absorbs navigation keys). Ctrl/Cmd+Enter is offered before the popover.
+     * Return `true` to indicate the key was handled and stop further processing.
      */
     onInterceptKey?: (e: React.KeyboardEvent<HTMLDivElement>) => boolean;
   }
@@ -808,6 +808,11 @@ export const MentionInput = forwardRef<
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    // Caller-owned submit shortcuts take precedence over autocomplete. Plain
+    // Enter still accepts the highlighted suggestion below.
+    const modifiedEnter = e.key === "Enter" && (e.ctrlKey || e.metaKey);
+    if (modifiedEnter && onInterceptKey?.(e)) return;
     // When popover is open, capture navigation keys
     if (mention && results.length > 0) {
       if (e.key === "ArrowDown") {
@@ -833,7 +838,7 @@ export const MentionInput = forwardRef<
       }
     }
 
-    if (onInterceptKey?.(e)) return;
+    if (!modifiedEnter && onInterceptKey?.(e)) return;
 
     // Enter without popover = submit
     if (submitOnEnter && e.key === "Enter" && !e.shiftKey) {

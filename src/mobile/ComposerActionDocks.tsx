@@ -7,6 +7,8 @@ import {
 } from "@/renderer/actions/threadRuntimeActions";
 import { ThreadAuthRequiredDock } from "@/renderer/components/thread/ThreadAuthRequiredDock";
 import { ThreadPendingSteerStrip } from "@/renderer/components/thread/ThreadPendingSteerStrip";
+import { ThreadFollowUpQueue } from "@/renderer/components/thread/ThreadFollowUpQueue";
+import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { ThreadRuntimeRequestPanel } from "@/renderer/components/thread/ThreadRuntimeRequestPanel";
 import { resolveThreadAuthState } from "@/renderer/components/thread/threadErrorState";
 import { useDelayedPendingSteer } from "@/renderer/components/thread/useDelayedPendingSteer";
@@ -35,6 +37,7 @@ export function ComposerActionDocks(props: {
   readonly project: Project | undefined;
   readonly dockState: ThreadDockState;
   readonly onOpenPlanFile?: ((path: string) => void) | undefined;
+  readonly onRestoreComposerFocus?: (() => void) | undefined;
 }) {
   const { thread, agentStatus, project } = props;
   const presentationMode =
@@ -43,6 +46,7 @@ export function ComposerActionDocks(props: {
     ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
     : undefined;
   const request = useAppStore((state) => state.runtimeRequestsByThread[thread.id]?.[0]);
+  const followUpQueue = useThreadFollowUpQueue(thread.id, presentationMode === "gui");
   const pendingSteer = useDelayedPendingSteer(
     useAppStore((state) => state.pendingSteerByThreadId[thread.id]),
   );
@@ -51,10 +55,9 @@ export function ComposerActionDocks(props: {
     errorDockStates: props.dockState.errorDockStates,
   });
   const showAuthDock = authRequired && effectiveAgentStatus !== undefined;
-  if (!showAuthDock && !pendingSteer && !request) return null;
 
   return (
-    <div className="m-thread-action-docks">
+    <div className="m-thread-action-docks empty:hidden">
       {showAuthDock ? (
         <ThreadAuthRequiredDock
           agentStatus={effectiveAgentStatus}
@@ -67,6 +70,12 @@ export function ComposerActionDocks(props: {
           onCancel={() => clearThreadPendingSteer(thread.id)}
         />
       ) : null}
+      <ThreadFollowUpQueue
+        key={thread.id}
+        threadId={thread.id}
+        queue={followUpQueue ?? null}
+        onRestoreFocus={props.onRestoreComposerFocus}
+      />
       {request ? (
         <ThreadRuntimeRequestPanel
           key={request.requestId}

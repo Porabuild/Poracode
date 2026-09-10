@@ -11,6 +11,18 @@ export const productionRoots = [
 
 export const functionalAreas = [
   {
+    id: "live-voice",
+    title: "Subscription live voice, microphone ownership, WebRTC, and transcripts",
+    patterns: [
+      /liveVoice/i,
+      /LiveVoiceControls/,
+      /ThreadDraftComposerArea/,
+      /composer\/useAttachments/,
+    ],
+    automated: ["baseline"],
+    manual: ["live-voice", "provider-live", "ipc-roundtrip", "changed-surface"],
+  },
+  {
     id: "desktop-shell",
     title: "Electron lifecycle and renderer shell",
     patterns: [/^src\/main\//, /^src\/preload\//, /^src\/renderer\/(app|main|devBridge)\./],
@@ -44,6 +56,13 @@ export const functionalAreas = [
     patterns: [/thread/i, /ChatPane/, /composer/i, /runtimeEvent/i, /session/i],
     automated: ["baseline", "thread-search"],
     manual: ["provider-live", "runtime-requests"],
+  },
+  {
+    id: "follow-up-queue",
+    title: "GUI follow-up queue, steering choice, and queue controls",
+    patterns: [/followUpQueue/i, /FollowUpQueue/, /threadComposerSubmit/],
+    automated: ["baseline", "thread-search", "settings"],
+    manual: ["ipc-roundtrip", "provider-live", "runtime-requests"],
   },
   {
     id: "terminal-pty",
@@ -171,6 +190,8 @@ export const functionalAreas = [
 ];
 
 export const manualGates = {
+  "live-voice":
+    "Start voice from the composer, exchange speech, mute, hang up, and verify microphone cleanup and saved transcripts.",
   "changed-surface": "Exercise the changed renderer surface through its real controls.",
   "file-editor": "Open, edit, save, rename, and close a fixture file.",
   "git-mutations": "Stage/unstage a fixture file and open Git Review without touching user data.",
