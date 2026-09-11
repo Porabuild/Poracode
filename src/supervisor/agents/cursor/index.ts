@@ -1,3 +1,4 @@
+import { cursorMcpLaunch } from "./mcp";
 import type { AgentInstanceConfig, AgentStatus, PromptSegment } from "@/shared/contracts";
 import { cursorProfileKind } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
@@ -217,20 +218,20 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         configuredCursorStructuredRuntime(ctx?.agentSettings),
       );
     },
-    // Cursor CLI has no documented per-launch MCP config or isolated config
-    // home. Do not project launchOptions.mcpServers into the user's persistent
-    // ~/.cursor/mcp.json; ACP sessions receive MCP servers through ACP itself.
-    buildLaunchArgv(location, config, prompt) {
+    buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
+      const mcp = cursorMcpLaunch(location, launchOptions?.mcpServers);
       const chatId = createCursorChatSync(location);
-      const args = buildCursorArgs(config, prompt, chatId);
+      const args = [...mcp.args, ...buildCursorArgs(config, prompt, chatId)];
       return {
+        ...mcp,
         ...buildCursorArgvSpec(location, args),
         ...(chatId ? { sessionRef: createKnownSessionRef(chatId) } : {}),
       };
     },
-    buildResumeArgv(_location, config, prompt, sessionRef) {
-      const args = buildCursorArgs(config, prompt, sessionRef.providerSessionId);
-      return buildCursorArgvSpec(_location, args);
+    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
+      const mcp = cursorMcpLaunch(location, launchOptions?.mcpServers);
+      const args = [...mcp.args, ...buildCursorArgs(config, prompt, sessionRef.providerSessionId)];
+      return { ...mcp, ...buildCursorArgvSpec(location, args) };
     },
     createInitialSessionRef() {
       return undefined;

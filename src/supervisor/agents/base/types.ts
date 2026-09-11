@@ -1,3 +1,4 @@
+import type { NativeMcpConfigFile } from "../../mcp/nativeSetup/configFile";
 import type {
   AgentAuthMethod,
   AgentCapability,
@@ -773,6 +774,11 @@ export interface AgentAdapter
   /** Run this provider inside WSL when its project lives on native Windows. */
   readonly windowsProjectExecution?: "wsl";
   readonly skillSupport?: AgentSkillSupport;
+  /** Route stdio MCPs with an explicit cwd through the proxy when the native runtime ignores cwd. */
+  readonly mcpRequiresStdioCwdProxy?: boolean;
+
+  /** Read-only native configuration location. Writes require an explicit settings action. */
+  nativeMcpConfig?(ctx: AgentEnvContext): NativeMcpConfigFile | undefined;
 }
 
 export interface TerminalStatusHint {

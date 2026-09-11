@@ -19,6 +19,18 @@ function cliStatus(installed: boolean): AgentStatus {
   };
 }
 
+it("preserves explicit terminal MCP opt-in in the selected CLI runtime", () => {
+  for (const acpInstalled of [false, true]) {
+    const cli = cliStatus(true);
+    cli.capabilities = { ...cli.capabilities, mcpScope: { terminal: "launch" } };
+    const merged = applyAntigravityAcpStatus(cli, acpStatus(acpInstalled));
+    expect(agentStatusForPresentation(merged, "terminal").capabilities.mcpScope?.terminal).toBe(
+      "launch",
+    );
+    expect(merged.runtimeVariants?.cli?.capabilities.mcpScope?.terminal).toBe("launch");
+  }
+});
+
 function acpStatus(installed: boolean): AgentStatus {
   return {
     kind: "antigravity",

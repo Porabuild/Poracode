@@ -139,6 +139,13 @@ export const functionalAreas = [
     manual: ["remote-mobile"],
   },
   {
+    id: "native-mcp-setup",
+    title: "Explicit provider-wide native MCP configuration setup",
+    patterns: [/nativeMcp/i, /NativeMcpSettings/, /mcp\/nativeSetup/],
+    automated: ["baseline", "settings"],
+    manual: ["ipc-roundtrip", "mcp-extension"],
+  },
+  {
     id: "mcp-extensions",
     title: "MCP ingress, subagents, hooks, LSP, and extensions",
     patterns: [/mcp/i, /subagent/i, /hook/i, /lsp/i, /extension/i],

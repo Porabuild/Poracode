@@ -6,7 +6,6 @@ import type {
   AgentCapability,
   AgentInstanceConfig,
   ClaudeProfileModel,
-  ResolvedMcpServer,
   ProjectLocation,
   PromptSegment,
 } from "@/shared/contracts";
@@ -29,7 +28,7 @@ import { buildClaudeArgs, claudeExtraArgsPosition, rewriteClaudeLaunchArgsForCon
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
 import { ClaudeSdkSession } from "./sdkSession";
-import { buildClaudeMcpServers } from "../userMcp";
+import { claudeMcpLaunch } from "./mcp";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import {
   getClaudePluginPaths,
@@ -254,6 +253,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     kind,
     label,
     binary: claudeDetectionSpec.binary,
+    mcpRequiresStdioCwdProxy: true,
     skillSupport: {
       roots: [
         {
@@ -358,9 +358,11 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const assignedId = randomUUID();
       const args = buildClaudeArgs(config, prompt, undefined, assignedId);
-      appendClaudeMcpArgs(args, prompt, launchOptions?.mcpServers ?? []);
+      const mcp = claudeMcpLaunch(location, launchOptions?.mcpServers);
+      args.splice(claudeExtraArgsPosition(args, prompt), 0, ...mcp.args);
       const env = profileEnv(location);
       return {
+        ...mcp,
         binary: "claude",
         args,
         ...(env ? { env } : {}),
@@ -369,9 +371,10 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     },
     buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       const args = buildClaudeArgs(config, prompt, sessionRef.providerSessionId);
-      appendClaudeMcpArgs(args, prompt, launchOptions?.mcpServers ?? []);
+      const mcp = claudeMcpLaunch(location, launchOptions?.mcpServers);
+      args.splice(claudeExtraArgsPosition(args, prompt), 0, ...mcp.args);
       const env = profileEnv(location);
-      return { binary: "claude", args, ...(env ? { env } : {}) };
+      return { ...mcp, binary: "claude", args, ...(env ? { env } : {}) };
     },
     extraArgsPosition: claudeExtraArgsPosition,
     rewriteLaunchArgsForConfig: rewriteClaudeLaunchArgsForConfig,
@@ -465,20 +468,4 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       };
     },
   };
-}
-
-function appendClaudeMcpArgs(
-  args: string[],
-  prompt: string,
-  servers: readonly ResolvedMcpServer[],
-): void {
-  const mcpServers = buildClaudeMcpServers(servers);
-  if (Object.keys(mcpServers).length === 0) return;
-  args.splice(
-    claudeExtraArgsPosition(args, prompt),
-    0,
-    "--mcp-config",
-    JSON.stringify({ mcpServers }),
-    "--",
-  );
 }
