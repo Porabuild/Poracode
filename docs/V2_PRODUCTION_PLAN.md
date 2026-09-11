@@ -530,7 +530,18 @@ items from the QA matrix (I-Stream-3, I-Up-1, A/I-MH-1) executed with evidence.
 (agent-slash-commands, runtime.truncated, background_tasks.changed-Android) and a
 negative assertion added — every planned platform claim must declare wire tokens proven
 absent from that platform's implementation tree, so an implementation appearing without a
-disposition flip fails the suite.
+disposition flip fails the suite. Provider settings UI moved under
+`components/providers/settings/` (`4f2de5fb0`, pure move, tests unchanged). Foreign-lane
+gate breakage fixed (`0f0e3eeab`: Devin provider landed without updating the cache
+version/provider-list test expectations).
+
+**Find-in-chat decision (2026-09-10): honest labeling, no server search procedure.**
+Neither native exposes chat find, the wire has no transcript-search route, and the
+desktop `ChatFindBar` already scopes to the hydrated window. Adding a server search
+procedure would cost a wire-contract regen across all four surfaces for a feature with
+no misleading UI to fix. If natives add find later, it ships scoped to the hydrated
+window with desktop-style labeling; a server-side search procedure is revisited only if
+full-transcript search becomes a measured need.
 
 Parity: Electron-as-remote-client host settings, schedules, ports panel, experiment gating
 (+hints for voice-input/MCP drops); refresh `native-parity.json` dispositions + negative
