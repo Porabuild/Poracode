@@ -3027,6 +3027,7 @@ msgid "Commit message (Ctrl+Enter)"
 msgstr "Повідомлення коміту (Ctrl+Enter)"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit Message Generation"
 msgstr "Генерація повідомлення коміту"
@@ -3201,6 +3202,7 @@ msgstr "Підтверджувати видалення потоків"
 #~ msgstr "Підтверджувати видалення робочих дерев"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Conflict Resolver"
 msgstr "Вирішення конфліктів"
@@ -4937,6 +4939,7 @@ msgid "Enter valid JSON."
 msgstr "Введіть допустимий JSON."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Environment"
 msgstr "Середовище"
 
@@ -5724,11 +5727,13 @@ msgid "Generated image"
 msgstr "Згенероване зображення"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates commit messages from staged changes."
 msgstr "Генерує повідомлення комітів із підготовлених змін."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Генерує короткі заголовки для нових тредів."
@@ -6094,6 +6099,10 @@ msgstr "Домашня сторінка"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "Хост оновлено до останньої версії."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "Host settings"
+msgstr "Налаштування хоста"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host update failed."
@@ -6828,6 +6837,7 @@ msgstr "Список завдань"
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Loading"
 msgstr "Завантаження"
@@ -6847,6 +6857,10 @@ msgstr "Завантаження редактора…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "Завантаження файлу…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "Loading host settings…"
+msgstr "Завантаження налаштувань хоста…"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Loading jobs"
@@ -8707,6 +8721,7 @@ msgid "Open commit on GitHub"
 msgstr "Відкрити коміт на GitHub"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Open conflict resolver in"
 msgstr "Відкрити засіб розв'язання конфліктів у"
 
@@ -10709,6 +10724,7 @@ msgstr "Розв’яжи конфлікти в цьому worktree. Споча�
 "{fileList}"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "Розв'язує конфлікти злиття під час rebase або злиття."
@@ -10768,6 +10784,7 @@ msgstr "Відновити мету"
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Retry"
 msgstr "Повторить"
 
@@ -11111,6 +11128,7 @@ msgid "Save {0} credentials."
 msgstr "Зберегти облікові дані {0}."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Save changes"
 msgstr "Зберегти зміни"
 
@@ -13066,6 +13084,10 @@ msgstr "Тема"
 msgid "Theme and chat font size"
 msgstr "Тема и размер шрифта чата"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
+msgstr "Ці ШІ-помічники виконуються на цьому хості для його проєктів. Зміни застосовуються до хоста, а не до цього комп'ютера."
+
 #: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "Ці вбудовані сервери MCP спільно використовуються потоками OpenCode. Збереження оновлює запущені GUI-проєкти; видалення сервера може перервати активний хід. Потоки термінала отримають зміни під час наступного запуску."
@@ -13419,6 +13441,7 @@ msgid "Timeout must be a positive whole number."
 msgstr "Тайм-аут має бути додатним цілим числом."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "Генерація заголовків"
@@ -14462,6 +14485,10 @@ msgstr "Показати відтворений вигляд"
 msgid "View the changelog"
 msgstr "Відкрити список змін"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "View-only — this connection can't change host settings."
+msgstr "Лише перегляд — це з'єднання не може змінювати налаштування хоста."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "Лише перегляд — це підключення не може керувати проєктами."
@@ -14734,6 +14761,7 @@ msgstr "Буде виконано в {0}:"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
 msgstr "Windows"
 
@@ -14959,6 +14987,7 @@ msgstr "Напишіть нотатки для цього проекту…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
 msgstr "WSL"
 

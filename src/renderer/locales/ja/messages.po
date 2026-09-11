@@ -3026,6 +3026,7 @@ msgid "Commit message (Ctrl+Enter)"
 msgstr "コミットメッセージ (Ctrl+Enter)"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit Message Generation"
 msgstr "コミットメッセージの生成"
@@ -3200,6 +3201,7 @@ msgstr "スレッドを削除する前に確認"
 #~ msgstr "ワークツリーを削除する前に確認"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Conflict Resolver"
 msgstr "競合解決ツール"
@@ -4936,6 +4938,7 @@ msgid "Enter valid JSON."
 msgstr "有効なJSONを入力してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Environment"
 msgstr "環境"
 
@@ -5723,11 +5726,13 @@ msgid "Generated image"
 msgstr "生成された画像"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates commit messages from staged changes."
 msgstr "ステージされた変更からコミットメッセージを生成します。"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "新しいスレッドの短いタイトルを生成します。"
@@ -6093,6 +6098,10 @@ msgstr "ホームページ"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "ホストは最新です。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "Host settings"
+msgstr "ホスト設定"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host update failed."
@@ -6827,6 +6836,7 @@ msgstr "タスクを一覧表示"
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Loading"
 msgstr "読み込み中"
@@ -6846,6 +6856,10 @@ msgstr "エディターを読み込み中…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "ファイルをロード中…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "Loading host settings…"
+msgstr "ホスト設定を読み込み中…"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Loading jobs"
@@ -8705,6 +8719,7 @@ msgid "Open commit on GitHub"
 msgstr "GitHub でコミットを開く"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Open conflict resolver in"
 msgstr "競合リゾルバーを開く"
 
@@ -10707,6 +10722,7 @@ msgstr "このワークツリーの競合を解決してください。まず Gi
 "{fileList}"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "リベースまたはマージ中のマージ競合を解決します。"
@@ -10766,6 +10782,7 @@ msgstr "目標を再開"
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Retry"
 msgstr "再試行"
 
@@ -11109,6 +11126,7 @@ msgid "Save {0} credentials."
 msgstr "{0}資格情報を保存します。"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Save changes"
 msgstr "変更を保存"
 
@@ -13064,6 +13082,10 @@ msgstr "テーマ"
 msgid "Theme and chat font size"
 msgstr "テーマとチャットのフォントサイズ"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
+msgstr "これらの AI ヘルパーは、このホスト上でそのプロジェクトのために実行されます。変更はこのデスクトップではなくホストに適用されます。"
+
 #: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "これらの組み込みMCPサーバーはOpenCodeスレッド間で共有されます。保存すると実行中のGUIプロジェクトが更新されますが、サーバーを削除すると進行中のターンが中断される場合があります。ターミナルスレッドには次回起動時に変更が反映されます。"
@@ -13417,6 +13439,7 @@ msgid "Timeout must be a positive whole number."
 msgstr "タイムアウトは正の整数である必要があります。"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "タイトルの生成"
@@ -14460,6 +14483,10 @@ msgstr "レンダリング表示"
 msgid "View the changelog"
 msgstr "変更履歴を表示"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "View-only — this connection can't change host settings."
+msgstr "閲覧専用 — この接続ではホスト設定を変更できません。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "閲覧のみ — この接続ではプロジェクトを管理できません。"
@@ -14732,6 +14759,7 @@ msgstr "{0}で実行されます:"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
 msgstr "Windows"
 
@@ -14957,6 +14985,7 @@ msgstr "このプロジェクトのメモを書いてください…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
 msgstr "WSL"
 

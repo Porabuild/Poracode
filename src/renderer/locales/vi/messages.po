@@ -3027,6 +3027,7 @@ msgid "Commit message (Ctrl+Enter)"
 msgstr "Thông báo cam kết (Ctrl+Enter)"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Commit Message Generation"
 msgstr "Tạo thông báo commit"
@@ -3201,6 +3202,7 @@ msgstr "Xác nhận trước khi xóa luồng"
 #~ msgstr "Xác nhận trước khi xóa cây làm việc"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Conflict Resolver"
 msgstr "Giải quyết xung đột"
@@ -4937,6 +4939,7 @@ msgid "Enter valid JSON."
 msgstr "Nhập JSON hợp lệ."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Environment"
 msgstr "Môi trường"
 
@@ -5724,11 +5727,13 @@ msgid "Generated image"
 msgstr "Hình ảnh đã tạo"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates commit messages from staged changes."
 msgstr "Tạo thông điệp commit từ các thay đổi đã staged."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Generates short titles for new threads."
 msgstr "Tạo tiêu đề ngắn cho chủ đề mới."
@@ -6094,6 +6099,10 @@ msgstr "Trang chủ"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "Máy chủ đã được cập nhật."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "Host settings"
+msgstr "Cài đặt máy chủ"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host update failed."
@@ -6828,6 +6837,7 @@ msgstr "Liệt kê nhiệm vụ"
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Loading"
 msgstr "Đang tải"
@@ -6847,6 +6857,10 @@ msgstr "Đang tải trình chỉnh sửa…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "Đang tải tập tin…"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "Loading host settings…"
+msgstr "Đang tải cài đặt máy chủ…"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Loading jobs"
@@ -8707,6 +8721,7 @@ msgid "Open commit on GitHub"
 msgstr "Mở commit trên GitHub"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Open conflict resolver in"
 msgstr "Mở trình giải quyết xung đột trong"
 
@@ -10709,6 +10724,7 @@ msgstr "Giải quyết xung đột trong cây làm việc này. Trước tiên, 
 "{fileList}"
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Resolves merge conflicts during rebase or merge."
 msgstr "Giải quyết xung đột hợp nhất trong quá trình rebase hoặc hợp nhất."
@@ -10768,6 +10784,7 @@ msgstr "Tiếp tục mục tiêu"
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Retry"
 msgstr "Thử lại"
 
@@ -11111,6 +11128,7 @@ msgid "Save {0} credentials."
 msgstr "Lưu thông tin xác thực {0}."
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Save changes"
 msgstr "Lưu thay đổi"
 
@@ -13066,6 +13084,10 @@ msgstr "Chủ đề"
 msgid "Theme and chat font size"
 msgstr "Giao diện và cỡ chữ chat"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "These AI helpers run on this host for its projects. Changes apply to the host, not this desktop."
+msgstr "Các trình hỗ trợ AI này chạy trên máy chủ này cho các dự án của nó. Thay đổi áp dụng cho máy chủ, không phải máy tính này."
+
 #: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "Các máy chủ MCP tích hợp sẵn này được chia sẻ giữa các luồng OpenCode. Việc lưu sẽ cập nhật các dự án GUI đang chạy; xóa một máy chủ có thể làm gián đoạn lượt đang hoạt động. Các luồng terminal sẽ nhận thay đổi ở lần khởi chạy tiếp theo."
@@ -13419,6 +13441,7 @@ msgid "Timeout must be a positive whole number."
 msgstr "Thời gian chờ phải là số nguyên dương."
 
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Title Generation"
 msgstr "Tạo tiêu đề"
@@ -14462,6 +14485,10 @@ msgstr "Xem bản kết xuất"
 msgid "View the changelog"
 msgstr "Xem nhật ký thay đổi"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
+msgid "View-only — this connection can't change host settings."
+msgstr "Chỉ xem — kết nối này không thể thay đổi cài đặt máy chủ."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "Chỉ xem — kết nối này không thể quản lý dự án."
@@ -14734,6 +14761,7 @@ msgstr "Sẽ chạy trong {0}:"
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Windows"
 msgstr "cửa sổ"
 
@@ -14959,6 +14987,7 @@ msgstr "Viết ghi chú cho dự án này…"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "WSL"
 msgstr "WSL"
 
