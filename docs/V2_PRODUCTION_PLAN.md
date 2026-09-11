@@ -616,14 +616,21 @@ served with the pre-restart rename durable, and live streaming converges on the 
 Evidence: `tmp/v2-production-review/shared-host/web-reconnect-{midstream-replay,
 racing-burst,host-restart-resync}.json`.
 
-Still manual (need a live stack / real devices / a real provider — the retained
-:63048/:63049 stack was dead when probed 2026-09-10 and must be relaunched):
-iOS saved-pairing v9→v10 UI upgrade (I-Up-1, fresh install journey, never the C6 sim),
-multi-host transitions on both natives (A/I-MH-1), 32 kbps shaped-radio UI cold start vs
-the 10 s deadline (projection ~17–19 s pre-WS3-slimming is recorded, the shaped-radio
-measurement is the acceptance step), I-Stream-3 on-device delayed-history pass (the
-512-cap automated bound landed in WS7), and provider-backed anchor reverts with real
-model turns (automated coverage uses fixture data — the sign-off blocker).
+**Status 2026-09-11 (provider-backed revert CLOSED — the sign-off blocker has
+reproducible evidence).** `tests/native-e2e/checkpointRevertProviderBacked.test.ts`
+(`57a29c707`, opt-in via `PORACODE_E2E_PROVIDER_REVERT=1` + authenticated `claude`
+CLI, skips otherwise) runs four REAL model turns on a headless host with a low-cost
+model: turn 3's live answer returns the taught access code (BLUE-7741), the compound
+revert to turn 2's prompt completes every phase (provider anchor restore, file
+checkpoint restore, transcript truncate, numTurns 2), and the post-revert turn answers
+"NO CODE GIVEN" — the provider session itself rolled back, not just the transcript.
+Evidence: `tmp/v2-production-review/shared-host/checkpoint-revert-provider-backed.json`.
+The journey's first draft also verified the guardrail: anchoring at the FIRST user
+prompt (rolling back past turn 1) is correctly refused with `providerPhase: failed` /
+`completed_local_only`. Remaining WS9 manual-only items (need devices/user
+participation — fresh-install iOS simulator, two live hosts, shaped radio): iOS
+saved-pairing v9→v10 UI upgrade (never the C6 sim), multi-host transitions on both
+natives, 32 kbps shaped-radio UI cold start, I-Stream-3 on-device pass.
 
 ---
 

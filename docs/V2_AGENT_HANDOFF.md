@@ -330,12 +330,15 @@ crossagentMcp work appeared in the working tree during the session and was left 
 "fault-injected web reconnect" is now automated: `tests/native-e2e/webReconnectFaults.test.ts`
 (3 green tests against the real production host — mid-stream socket-kill exact replay,
 reconnect racing a mutation burst, host-restart `resync-required` + snapshot re-fetch; evidence
-JSONs under `tmp/v2-production-review/shared-host/`). Remaining manual-only items, all
-needing a freshly launched live stack (the retained :63048/:63049 stack was dead when probed
-2026-09-10): iOS saved-pairing v9→v10 upgrade (fresh-install journey; never repair or wipe
-the C6 simulator), multi-host transitions on both natives, 32 kbps shaped-radio cold start,
-I-Stream-3 on-device pass, and provider-backed anchor reverts with real model turns — the
-production sign-off blocker; automated revert coverage honestly uses fixture data.
+JSONs under `tmp/v2-production-review/shared-host/`). The provider-backed anchor-revert pass —
+the production sign-off blocker — is ALSO automated now:
+`tests/native-e2e/checkpointRevertProviderBacked.test.ts` (`57a29c707`, opt-in via
+`PORACODE_E2E_PROVIDER_REVERT=1` + an authenticated `claude` CLI) runs four real model turns
+and proves the provider session itself rolls back (live answer BLUE-7741 before the compound
+revert, "NO CODE GIVEN" after). Remaining manual-only items, all needing devices or a
+freshly launched live stack: iOS saved-pairing v9→v10 upgrade (fresh-install journey; never
+repair or wipe the C6 simulator), multi-host transitions on both natives, 32 kbps
+shaped-radio cold start, and the I-Stream-3 on-device pass.
 
 ## Resource ownership and safe continuation
 
