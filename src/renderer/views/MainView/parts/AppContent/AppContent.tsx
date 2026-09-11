@@ -63,12 +63,6 @@ export function AppContent() {
   const draftLastDraftConfig = useInitialProjectDraftConfig(draftProjectId);
   const createThread = useAppStore((state) => state.createThread);
   const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
-  // Keep-alive cache: thread panes opened then hidden stay mounted (invisible)
-  // so their xterm buffer / alt-screen state survives. Only terminal-
-  // presentation threads are kept; GUI threads and draft panes are not (no
-  // terminal to preserve). Hook must be called unconditionally (before the
-  // `view.kind === "thread"` branch) to satisfy the rules of hooks.
-  const keepAlivePaneIds = useAppStore((state) => state.keepAlivePaneIds);
   const activeGroupName = useAppStore((s) => {
     const v = s.view;
     if (v.kind !== "thread" || !v.activeGroupId) return undefined;
@@ -301,18 +295,7 @@ export function AppContent() {
       });
     }
 
-    // Keep-alive: filter the cache to hidden, non-draft, terminal-presentation
-    // thread panes (GUI threads have no terminal; their visible DOM key is a
-    // stable slot key, not the thread id, so keep-alive wouldn't reuse it).
-    const visiblePaneIds = new Set(view.panes);
-    const hiddenPaneIds = keepAlivePaneIds.filter(
-      (id) =>
-        !visiblePaneIds.has(id) &&
-        !isDraftPaneId(id) &&
-        storeThreads.find((thread) => thread.id === id)?.presentationMode !== "gui",
-    );
-
-    function renderPane(paneId: string, rect: Rect, hidden = false) {
+    function renderPane(paneId: string, rect: Rect) {
       const paneDraftProjectId = parseDraftProjectId(paneId);
       const paneAlign = findPaneAlign(paneLayout, paneId);
       // Only the top-left pane's own header is the topmost row in the content
@@ -337,7 +320,6 @@ export function AppContent() {
           paneCount={paneCount}
           paneAlign={paneAlign}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
-          hidden={hidden}
           onClose={() => closePane(paneId)}
           {...(!findExperimentByThreadId(paneId)
             ? {
@@ -381,7 +363,6 @@ export function AppContent() {
             layout={paneLayout}
             renderPane={renderPane}
             getPaneDomKey={getPaneDomKey}
-            hiddenPaneIds={hiddenPaneIds}
           />
         </div>
       </div>

@@ -7,7 +7,6 @@ import type {
   ThreadPresentationMode,
 } from "@/shared/contracts";
 import { resolveProjectLocation } from "@/shared/worktree";
-import { readBridge } from "@/renderer/bridge";
 import { toggleMarkThreadDone } from "@/renderer/actions/threadActions";
 import type { ProviderHandoffContext } from "@/renderer/actions/providerHandoff";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -17,7 +16,7 @@ import { useProject, useThread } from "@/renderer/state/useThread";
 import type { ContinueIntent } from "@/renderer/components/thread/ContinueInProviderDialog";
 import { ThreadView } from "@/renderer/components/thread/ThreadView";
 import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
-import type { RemoteTerminalTransport } from "@/renderer/components/thread/TerminalPane";
+import { useRemoteTerminalTransport } from "@/renderer/components/thread/useRemoteTerminalTransport";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
 import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
 import {
@@ -26,7 +25,6 @@ import {
   useThreadPendingLaunch,
 } from "@/renderer/hooks/uiSelectors";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
 
 // Non-subscribing action read: these stable store actions don't need a
 // subscription, and aliasing keeps the render path from referencing the hook
@@ -38,8 +36,6 @@ export function ThreadPane(props: {
   paneCount: number;
   paneAlign: "left" | "center" | "right";
   headerNeedsTrafficLightPad?: boolean;
-  /** Mounted but hidden for keep-alive. */
-  hidden?: boolean;
   onClose: () => void;
   onContinueInProvider?: (
     sourceThread: Thread,
@@ -65,7 +61,7 @@ export function ThreadPane(props: {
   const remoteRuntime = useRemoteServersStore((state) =>
     thread?.remoteServerId ? state.runtime[thread.remoteServerId] : undefined,
   );
-  const openRemoteThread = useRemoteServersStore((state) => state.openThread);
+  const remoteTerminalTransport = useRemoteTerminalTransport(props.threadId);
   const remoteAgentStatuses =
     project?.location.kind === "wsl"
       ? remoteRuntime?.agentStatuses?.wsl
@@ -103,22 +99,6 @@ export function ThreadPane(props: {
   const owner = remoteOwner(thread);
   const remoteDesktopId = owner?.desktopId;
   const remoteThreadId = owner?.remoteId;
-  const remoteTerminalTransport: RemoteTerminalTransport | undefined =
-    remoteDesktopId && remoteThreadId
-      ? {
-          initialScrollback:
-            openRemoteThread?.desktopId === remoteDesktopId &&
-            openRemoteThread.threadId === remoteThreadId
-              ? (openRemoteThread.terminalScrollback ?? "")
-              : "",
-          outputSource: (listener) =>
-            watchRoutedTerminal(remoteThreadId, listener, remoteDesktopId),
-          writeInput: (data: string) =>
-            readBridge().writeTerminal({ threadId: props.threadId, data }),
-          resizeBackingTerminal: (size) =>
-            readBridge().resizeTerminal({ threadId: props.threadId, ...size }),
-        }
-      : undefined;
   function pickRemoteFiles() {
     if (!remoteDesktopId || !remoteThreadId) return Promise.resolve(null);
     return useRemoteServersStore.getState().pickAndUploadFiles(remoteDesktopId, remoteThreadId);
@@ -168,7 +148,6 @@ export function ThreadPane(props: {
           }
         : {})}
       projectLocation={projectLocation}
-      {...(props.hidden ? { hidden: true } : {})}
       onLaunchConsumed={() => consumeThreadLaunch(thread.id)}
       onLaunchFailed={(message) => {
         startTransition(() => {

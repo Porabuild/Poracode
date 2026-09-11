@@ -81,7 +81,6 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.isWsl === next.isWsl &&
     prev.showCloseButton === next.showCloseButton &&
     prev.paneAlign === next.paneAlign &&
-    prev.hidden === next.hidden &&
     prev.isDragging === next.isDragging &&
     prev.dropIndicator === next.dropIndicator &&
     prev.paneCount === next.paneCount &&
@@ -113,8 +112,6 @@ export type ThreadViewProps = {
   showCloseButton?: boolean;
   paneAlign?: "left" | "center" | "right";
   isDragging?: boolean;
-  /** Mounted but hidden for keep-alive. */
-  hidden?: boolean;
   dropIndicator?:
     | false
     | "replace"
@@ -172,7 +169,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     showCloseButton,
     paneAlign = "center",
     isDragging,
-    hidden = false,
     dropIndicator,
     paneIndex: _paneIndex,
     paneCount = 1,
@@ -522,7 +518,6 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 onTerminalResize={setTerminalSize}
-                hidden={hidden}
                 {...(onSubmitInput ? { onSubmitInput } : {})}
                 {...(remoteTerminalTransport ? { remoteTerminalTransport } : {})}
                 {...(pickFiles ? { pickFiles } : {})}

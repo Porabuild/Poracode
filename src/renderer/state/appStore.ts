@@ -5,7 +5,7 @@ import { createDbStorage } from "./dbStorage";
 import { createDraftSlice } from "./slices/draftSlice";
 import { normalizeStoredThreadStatus } from "./slices/helpers";
 import { createLaunchSlice } from "./slices/launchSlice";
-import { createPaneCacheSlice } from "./slices/paneCacheSlice";
+import { createPaneCacheSlice, keepAlivePatch } from "./slices/paneCacheSlice";
 import { createPendingSteerSlice } from "./slices/pendingSteerSlice";
 import { createProjectSlice } from "./slices/projectSlice";
 import { createRuntimeEventSlice } from "./slices/runtimeEventSlice";
@@ -62,7 +62,7 @@ export const useAppStore = create<AppStoreState>()(
             done: t.done ?? false,
             doneAt: t.done ? (t.doneAt ?? t.updatedAt) : undefined,
           }));
-          return {
+          const merged = {
             ...currentState,
             ...state,
             threads,
@@ -70,6 +70,8 @@ export const useAppStore = create<AppStoreState>()(
               threads.map((thread) => [thread.id, thread.config]),
             ),
           };
+          // Keep-alive membership is ephemeral; restore it from the selected panes.
+          return { ...merged, ...keepAlivePatch(merged, []) };
         },
         partialize: (state) => {
           const view = state.view;
