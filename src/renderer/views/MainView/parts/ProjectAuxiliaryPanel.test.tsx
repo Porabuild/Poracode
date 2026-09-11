@@ -312,4 +312,50 @@ describe("ProjectAuxiliaryPanel", () => {
       expect(unifiedRightPanelProps.current?.activeTab).toBe("ports");
     });
   });
+
+  it("keeps the Ports tab active for an Electron-as-client connection", async () => {
+    // No browser runtime installed: the desktop client with a connected
+    // remote server must expose the same ports panel (WS8 parity — the
+    // routes are live and entry URLs open externally via the bridge).
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Studio",
+          endpoint: "http://192.168.1.10:3200",
+          accessToken: "token",
+          scopes: ["ports:forward"],
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "online", projects: [], threads: [] },
+      },
+    });
+    usePanelStore.setState({ rightPanelTab: "ports", portsPanelOpen: true });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal={false} visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() => {
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("ports");
+    });
+  });
+
+  it("hides the Ports tab when no remote server is connected", async () => {
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    usePanelStore.setState({ rightPanelTab: "ports", portsPanelOpen: true });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal={false} visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() => {
+      expect(unifiedRightPanelProps.current?.activeTab).not.toBe("ports");
+    });
+  });
 });
