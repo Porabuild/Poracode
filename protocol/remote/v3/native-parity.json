@@ -111,13 +111,22 @@
         "id": "agent-slash-commands",
         "batch": "settings-integrations",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/RichChat/UI/RichChatComposerView.swift",
+            "ios/App/App/Features/RichChat/UI/RichChatComposerConfiguration.swift",
+            "ios/App/App/Features/RichChat/UI/Views/RichChatThreadComposerSurface.swift"
+          ]
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
-        }
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatComposer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatComposerConfiguration.kt",
+            "android/app/src/main/kotlin/com/poracode/app/model/RemoteModels.kt"
+          ]
+        },
+        "note": "Agent statuses carry the slash-command catalog; both natives decode it into their composer surfaces (slash suggestions / model-command pickers)."
       },
       {
         "id": "host-update",
@@ -4064,7 +4073,7 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
+          "disposition": "implemented",
           "evidence": [
             "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventSchema.kt",
             "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeThreadState.kt"
@@ -4114,14 +4123,20 @@
         "id": "runtime.truncated",
         "batch": "thread-lifecycle",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/RichChat/RichTranscriptReducer.swift",
+            "ios/App/App/Features/RichChat/Controllers/RichChatTranscriptController.swift"
+          ]
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/chat/RichEvents.kt",
+            "android/app/src/main/kotlin/com/poracode/app/chat/RichReducer.kt"
+          ]
         },
-        "note": "Host-issued checkpoint rollback broadcast introduced with remote protocol v10. Hosts publish the event only for an actual transactional truncation \u2014 a missing or already-last checkpoint removes nothing and is never broadcast. Native reducers must apply the server-declared removedCompletedTurnAnchors prune and pin the level-event replay rule before flipping to implemented."
+        "note": "Host-issued checkpoint-rollback broadcast (protocol v10). Both natives decode it, apply the truncation to the projected transcript, and drive an authoritative catchup when the checkpoint is not loaded."
       },
       {
         "id": "warning",
