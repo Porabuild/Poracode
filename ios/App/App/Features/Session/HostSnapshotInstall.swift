@@ -26,17 +26,22 @@ struct ReplayInstallBuffer: Sendable, Equatable {
   private(set) var isActive = false
   private(set) var installGeneration: UInt64 = 0
   private(set) var buffered: [Envelope] = []
+  /// The cap forced an oldest-entry drop; the boundary replay is incomplete
+  /// and the commit must demand a resync (WS7 P1-14).
+  private(set) var overflowed = false
 
   mutating func begin(installGeneration: UInt64) {
     self.isActive = true
     self.installGeneration = installGeneration
     self.buffered = []
+    overflowed = false
   }
 
   mutating func discard() {
     isActive = false
     installGeneration = 0
     buffered = []
+    overflowed = false
   }
 
   /// Returns true when the caller must not apply the event yet.
@@ -47,6 +52,10 @@ struct ReplayInstallBuffer: Sendable, Equatable {
   ) -> Bool {
     guard isActive, self.installGeneration == installGeneration else { return false }
     buffered.append(Envelope(seq: seq, event: event))
+    if buffered.count > ProtocolConstants.maxBufferedEnvelopes {
+      buffered.removeFirst()
+      overflowed = true
+    }
     return true
   }
 
@@ -57,6 +66,7 @@ struct ReplayInstallBuffer: Sendable, Equatable {
     let envelopes = buffered
     isActive = false
     buffered = []
+    overflowed = false
     return envelopes
   }
 }

@@ -5,6 +5,11 @@ import Foundation
 /// reject it, so mixed generations refuse to pair. Guarded against drift by
 /// `protocol/remote/v3/native-protocol-version.test.ts`.
 enum ProtocolConstants {
+  /// Cap for boundary buffers that hold sequenced events while an
+  /// authoritative fetch is in flight (WS7 P1-14). Dropping the OLDEST entry
+  /// past this bound loses replay coverage, so every buffer pairs the cap
+  /// with an overflow flag that forces an authoritative refresh/resync.
+  static let maxBufferedEnvelopes = 512
     static let remoteProtocolVersion = 11
     static let commandIdHeader = "x-poracode-command-id"
     static let bearerTokenType = "Bearer"

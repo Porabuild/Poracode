@@ -16,6 +16,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -32,7 +33,9 @@ import com.poracode.app.ui.theme.LocalChatTextSizeSp
 
 @Composable
 internal fun RichMarkdownView(source: String, modifier: Modifier = Modifier) {
-    val blocks = RichMarkdownParser.parse(source)
+    // Parsing is O(source length) and runs on every recomposition of a
+    // streaming row; keyed on the source so unchanged text parses once (WS7 P1-19).
+    val blocks = remember(source) { RichMarkdownParser.parse(source) }
     SelectionContainer {
         Column(
             modifier = modifier.fillMaxWidth(),

@@ -118,10 +118,14 @@ final class RichChatMessageActionsTests: XCTestCase {
     XCTAssertTrue(components.contains("UIPasteboard.general.string = text"))
     XCTAssertTrue(components.contains("actions.revertPlan(itemID: item.id)"))
     XCTAssertTrue(timeline.contains("conversation.revertToCheckpoint("))
-    // WS2 stage 4: one compound call, and the legacy three-call flow is gone.
-    XCTAssertTrue(controller.contains("gateway.checkpointRevert("))
-    XCTAssertFalse(controller.contains("try await gateway.restoreRichCheckpoint("))
-    XCTAssertFalse(controller.contains("try await gateway.truncateRichRuntime("))
+    // WS2 stage 4: the REVERT path is one compound call and the legacy
+    // three-call flow is gone from it. The standalone truncate action
+    // legitimately still calls `truncateRichRuntime`, so the absence is
+    // asserted inside the revert function body only.
+    let revertBody = Self.functionBody(named: "revertToCheckpoint", in: controller)
+    XCTAssertTrue(revertBody.contains("gateway.checkpointRevert("))
+    XCTAssertFalse(revertBody.contains("restoreRichCheckpoint"))
+    XCTAssertFalse(revertBody.contains("truncateRichRuntime"))
     XCTAssertTrue(textComponents.contains("struct RichChatMessageText: View"))
     XCTAssertTrue(textComponents.contains("fullHeight > collapsedHeight + 0.5"))
     XCTAssertTrue(textComponents.contains("expanded ? RichChatStrings.hideDetails"))
@@ -285,6 +289,15 @@ final class RichChatMessageActionsTests: XCTestCase {
       streams: [:],
       parentItemID: parentItemID
     )
+  }
+
+  /// The body of a top-level `func <name>` in `source`, up to the next
+  /// `  func ` declaration at the same indent (test-scoped heuristic).
+  private static func functionBody(named name: String, in source: String) -> String {
+    guard let start = source.range(of: "func \(name)")?.upperBound else { return "" }
+    let rest = source[start...]
+    let end = rest.range(of: "\n  func ")?.lowerBound ?? rest.endIndex
+    return String(rest[..<end])
   }
 
   private static func source(_ relativePath: String) throws -> String {

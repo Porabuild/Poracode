@@ -57,6 +57,9 @@ final class RichChatTranscriptController {
   private var isBackgrounded = false
   private var bufferedBatches: [RichChatBufferedRuntimeBatch] = []
   private var bufferedSequences: Set<Int> = []
+  /// A cap drop while buffering lost replay coverage; must survive until the
+  /// history install folds it into `requiresAuthoritativeRefresh` (WS7 P1-14).
+  private var bufferOverflowed = false
 
   init(
     gateway: any RichChatHistoryGateway,
@@ -73,6 +76,7 @@ final class RichChatTranscriptController {
     pageTask.cancel()
     bufferedBatches.removeAll(keepingCapacity: true)
     bufferedSequences.removeAll(keepingCapacity: true)
+    bufferOverflowed = false
     isBackgrounded = false
     let target = RichChatThreadTarget(lease: access.lease, threadID: threadID)
     state = RichChatTranscriptControllerState(
@@ -97,6 +101,7 @@ final class RichChatTranscriptController {
     pageTask.cancel()
     bufferedBatches.removeAll(keepingCapacity: false)
     bufferedSequences.removeAll(keepingCapacity: false)
+    bufferOverflowed = false
     isBackgrounded = false
     state = RichChatTranscriptControllerState()
   }
@@ -109,6 +114,7 @@ final class RichChatTranscriptController {
     pageTask.cancel()
     bufferedBatches.removeAll(keepingCapacity: false)
     bufferedSequences.removeAll(keepingCapacity: false)
+    bufferOverflowed = false
     state.isLoadingOlder = false
     if state.loadState == .loading { state.loadState = .idle }
   }
@@ -131,6 +137,7 @@ final class RichChatTranscriptController {
     state.isLoadingOlder = false
     bufferedBatches.removeAll(keepingCapacity: true)
     bufferedSequences.removeAll(keepingCapacity: true)
+    bufferOverflowed = false
     state.loadState = .loading
     historyTask.launch { [weak self] in
       await self?.performHistoryLoad(
@@ -186,6 +193,15 @@ final class RichChatTranscriptController {
           events: events,
           receivedAtMilliseconds: receivedAtMilliseconds
         ))
+      // WS7 P1-14: bound the history-load buffer. Dropping the oldest batch
+      // loses replay coverage, so the flag drives the same authoritative
+      // refresh that a merge-time catchup would.
+      if bufferedBatches.count > ProtocolConstants.maxBufferedEnvelopes {
+        let dropped = bufferedBatches.removeFirst()
+        bufferedSequences.remove(dropped.sequence)
+        bufferOverflowed = true
+        state.requiresAuthoritativeRefresh = true
+      }
       return
     }
     guard sequence > state.liveSequence else { return }
@@ -261,10 +277,11 @@ final class RichChatTranscriptController {
       state.snapshotSequence = history.snapshotSeq
       state.liveSequence = liveSequence
       state.loadState = transcript.itemsInOrder.isEmpty ? .empty : .loaded
-      state.requiresAuthoritativeRefresh = needsCatchup
+      state.requiresAuthoritativeRefresh = needsCatchup || bufferOverflowed
       bufferedBatches.removeAll(keepingCapacity: false)
       bufferedSequences.removeAll(keepingCapacity: false)
-      if needsCatchup { scheduleAuthoritativeRefresh() }
+      bufferOverflowed = false
+      if state.requiresAuthoritativeRefresh { scheduleAuthoritativeRefresh() }
     } catch is CancellationError {
       guard owns(target: target, revision: owner) else { return }
       state.loadState = .idle
@@ -273,6 +290,7 @@ final class RichChatTranscriptController {
       state.loadState = .failed(.map(error))
       bufferedBatches.removeAll(keepingCapacity: false)
       bufferedSequences.removeAll(keepingCapacity: false)
+      bufferOverflowed = false
     }
   }
 

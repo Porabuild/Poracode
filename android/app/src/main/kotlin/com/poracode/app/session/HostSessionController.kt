@@ -218,7 +218,10 @@ class HostSessionController(
             return
         }
         socket.setListener(SecondaryHostListener(secondaryId, lease))
-        socket.start(pool.cache(key).lastSeenSeq ?: 0)
+        // Resume from the seq the previous secondary socket had applied; a
+        // fresh start at 0 makes the server replay its whole history to a
+        // listener that discards everything (WS7 finding 6).
+        socket.start(pool.cachedLastSeenSeq(key) ?: 0)
     }
 
     /** Fetches non-selected host snapshots without opening extra live sockets. */

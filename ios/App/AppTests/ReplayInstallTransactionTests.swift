@@ -102,6 +102,38 @@ final class ReplayInstallTransactionTests: XCTestCase {
     XCTAssertEqual(commit.replay.gitSummariesByThread["t"]?.branch, "live")
   }
 
+  func testReplayInstallBufferCapsAt512AndFlagsOverflow() throws {
+    var buffer = ReplayInstallBuffer()
+    buffer.begin(installGeneration: 1)
+    for seq in 1...ProtocolConstants.maxBufferedEnvelopes {
+      XCTAssertTrue(
+        buffer.bufferIfInstalling(
+          installGeneration: 1, seq: seq, event: .threadReset(threadId: "t")
+        )
+      )
+    }
+    XCTAssertFalse(buffer.overflowed)
+    XCTAssertEqual(buffer.buffered.count, ProtocolConstants.maxBufferedEnvelopes)
+
+    // One more drops the OLDEST entry and raises the overflow flag.
+    XCTAssertTrue(
+      buffer.bufferIfInstalling(
+        installGeneration: 1, seq: ProtocolConstants.maxBufferedEnvelopes + 1,
+        event: .threadReset(threadId: "t")
+      )
+    )
+    XCTAssertTrue(buffer.overflowed)
+    XCTAssertEqual(buffer.buffered.first?.seq, 2)
+
+    // take() is still exactly-once and consumes the flag with the buffer; the
+    // caller reads the flag BEFORE take and folds it into a resync demand.
+    let overflowed = buffer.overflowed
+    let boundary = try XCTUnwrap(buffer.take(installGeneration: 1))
+    XCTAssertFalse(buffer.overflowed)
+    XCTAssertTrue(overflowed)
+    XCTAssertEqual(boundary.count, ProtocolConstants.maxBufferedEnvelopes)
+  }
+
   func testBoundaryReplayDropsDuplicatesAndStopsAtTheFirstGap() throws {
     let prepared = try HostSnapshotInstall.prepare(
       shell: shell(seq: 10), existing: HostReplayState()

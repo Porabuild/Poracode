@@ -105,12 +105,17 @@ extension AppSession {
       abortReplayInstall(captured)
       return nil
     }
+    // Read before take: take consumes the exactly-once buffer and its flag.
+    let boundaryOverflowed = state.replayInstallBuffer.overflowed
     guard let boundary = state.replayInstallBuffer.take(
       installGeneration: captured.installGeneration
     ) else {
       return nil
     }
-    let commit = HostSnapshotInstall.commit(prepared, boundary: boundary, generation: minting)
+    var commit = HostSnapshotInstall.commit(prepared, boundary: boundary, generation: minting)
+    // A capped boundary buffer dropped its oldest envelopes; the replay is
+    // incomplete and only a full resync re-establishes coverage (WS7 P1-14).
+    if boundaryOverflowed { commit.requiresResync = true }
     // Single transactional replacement.
     state.snapshot = shell
     state.replay = commit.replay
