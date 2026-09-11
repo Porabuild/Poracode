@@ -35,6 +35,7 @@ import { RemoteServerProjectList } from "./RemoteServerProjectList";
 import { SettingsPage } from "./SettingsForm";
 import { RemoteHostFolderPicker } from "./RemoteHostFolderPicker";
 import { RemoteHostUpdateControl } from "./RemoteHostUpdateControl";
+import { RemoteHostSettingsSection } from "./RemoteHostSettingsSection";
 import { MobileRemoteServersSettings } from "./MobileRemoteServersSettings";
 
 const SshConnectionForm = lazy(() =>
@@ -479,6 +480,14 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
               ) : null}
               {server.hostMode !== "helper" && canManage ? (
                 <RemoteHostUpdateControl server={server} isOnline={status === "online"} />
+              ) : null}
+              {server.hostMode !== "helper" ? (
+                <RemoteHostSettingsSection
+                  desktopId={server.desktopId}
+                  isOnline={status === "online"}
+                  canRead={server.scopes.includes("session:read")}
+                  canWrite={server.scopes.includes("session:operate")}
+                />
               ) : null}
               <section>
                 <h3 className="mb-2 text-xs font-semibold text-foreground/80">
