@@ -43,6 +43,17 @@ Branch: `poracode/v2`. Relevant local commits:
   splits, provider settings UI move. Left overall: WS9 manual QA (sign-off blocker) and
   the replay-key blind spot (same operationKey replays a stale completed outcome when
   reverting to the same anchor after new turns).
+- Replay-key blind spot FIXED (`6c6ea1f47`): a settled completed/local_only revert
+  replayed verbatim even after new turns were appended past the checkpoint, so
+  re-reverting a new prompt with the same anchor key silently no-opped. The claim now
+  recomputes the turn count for settled completed/local_only rows and supersedes the
+  replay with a versioned key#N fresh attempt; ambiguous rows stay terminal (provider
+  call may be in flight) and running/failed rows resume frozen plans. All four client
+  surfaces are unaffected (same key, same payload). NOTE for the owning lane: HEAD has
+  pre-existing test failures NOT from this branch's v2 program — agentStatusCache (6,
+  curated-model counts 29 vs 27) and usageService (1) fail without any local changes;
+  they look like a model-catalog update that did not bump the invalidation-test
+  expectations.
 - WS6 perf + i18n: P1-11 row-scoped persistence (`dbSyncChanges`, order-aware after
   critic-caught blockers `208d5d3d8`), P1-12/13 identity-preserving remote projection +
   fingerprint memo (`375d18641`), P1-10 scoped loss-range rebuild with DB re-hydrate
