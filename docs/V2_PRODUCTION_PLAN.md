@@ -500,6 +500,20 @@ states with localized strings; 12 catalogs 0 missing.
 
 ### WS7 — Native clients — ~5–8 d
 
+**Status 2026-09-10: all code items LANDED** (commit `a06867695` + `3751fce78`). iOS: the
+three boundary buffers capped at 512 with overflow flags folded into resync/refresh (new
+tests); parked preserved-upgrade retries on a bounded generation-fenced 20s timer;
+`lastSeenSeq=0` only on fresh bootstrap (no duplicated deltas on session-expired
+recovery); timeline projection memoized per transcript value + per-item visibility decode
+memo (lock-guarded); streamed bodies get a real 600s resource timeout (the idle request
+timer resets per chunk vs the 7-day default). Android: `HostStateCache` stateRef
+mutations `@Synchronized`; session pool captures applied seq on suspend/forget and
+warmSecondary resumes from it (no full-history replay to a discarding listener);
+markdown parse `remember`ed; shared lazy base OkHttpClient. Also fixed an iOS test that
+had been red since stage 4 (its legacy-call absence assertion now scopes to the revert
+body — the standalone truncate action legitimately keeps truncateRichRuntime). Gates:
+iOS full suite 1,243 green; Android unit/lint/build green.
+
 iOS: 512-cap all three buffers + `requiresAuthoritativeRefresh` (P1-14); foreground retry
 for parked upgrades (P1-15); conditional `lastSeenSeq=0` (P1-16); memoized timeline
 projection (P1-19); real resource timeout on streaming bodies.
@@ -511,6 +525,12 @@ seq capture (finding 6).
 items from the QA matrix (I-Stream-3, I-Up-1, A/I-MH-1) executed with evidence.
 
 ### WS8 — Parity completion + simplification — ~6–10 d
+
+**Status 2026-09-10: ledger refresh LANDED** (`e57b9cc2f`): stale dispositions flipped
+(agent-slash-commands, runtime.truncated, background_tasks.changed-Android) and a
+negative assertion added — every planned platform claim must declare wire tokens proven
+absent from that platform's implementation tree, so an implementation appearing without a
+disposition flip fails the suite.
 
 Parity: Electron-as-remote-client host settings, schedules, ports panel, experiment gating
 (+hints for voice-input/MCP drops); refresh `native-parity.json` dispositions + negative
