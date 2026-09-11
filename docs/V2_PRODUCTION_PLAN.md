@@ -565,6 +565,29 @@ above and are the sign-off blockers. Add the two missing automated bounds (Andro
 iOS cap) as unit tests when WS7 lands. Release matrix items (physical device push, signing,
 packaging, accessibility automation) are post-code-block gates per the handoff.
 
+**Status 2026-09-11: "fault-injected web reconnect" evidence item AUTOMATED.**
+`tests/native-e2e/webReconnectFaults.test.ts` (3 tests, green) drives the real production
+host (`dist/main/server.cjs`, real pairing/bearer/ticket surface) through three faults:
+(a) abrupt client-socket termination mid-stream → reconnect with the pre-fault
+`lastSeenSeq` replays exactly the missed window (`firstEventSeq = lastSeenSeq+1`), zero
+seq gaps, no `resync-required`, identical event bodies at identical seqs vs a
+never-disconnected witness, convergence on the host cursor; (b) reconnect racing an active
+mutation burst — replay-vs-live outcome not fixed by the test, invariants asserted either
+way; (c) host restart → stale cursor above the fresh in-memory stream forces
+`resync-required` ("Server event stream reset"), a fresh authoritative snapshot is
+served with the pre-restart rename durable, and live streaming converges on the new cursor.
+Evidence: `tmp/v2-production-review/shared-host/web-reconnect-{midstream-replay,
+racing-burst,host-restart-resync}.json`.
+
+Still manual (need a live stack / real devices / a real provider — the retained
+:63048/:63049 stack was dead when probed 2026-09-10 and must be relaunched):
+iOS saved-pairing v9→v10 UI upgrade (I-Up-1, fresh install journey, never the C6 sim),
+multi-host transitions on both natives (A/I-MH-1), 32 kbps shaped-radio UI cold start vs
+the 10 s deadline (projection ~17–19 s pre-WS3-slimming is recorded, the shaped-radio
+measurement is the acceptance step), I-Stream-3 on-device delayed-history pass (the
+512-cap automated bound landed in WS7), and provider-backed anchor reverts with real
+model turns (automated coverage uses fixture data — the sign-off blocker).
+
 ---
 
 ## 6. Sequencing and release gate
