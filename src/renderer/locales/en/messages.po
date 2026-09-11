@@ -956,6 +956,10 @@ msgstr "Add a project before signing in."
 msgid "Add a project before updating an agent."
 msgstr "Add a project before updating an agent."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Add a project on this environment to start"
+msgstr "Add a project on this environment to start"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
 msgstr "Add a project to see pull requests."
@@ -11237,6 +11241,10 @@ msgstr "Scanning Windows and WSL for installed CLIs. This usually takes a couple
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule machine"
+msgstr "Schedule machine"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Schedule name"
 msgstr "Schedule name"
@@ -13151,6 +13159,10 @@ msgstr "This computer"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "This connection can view projects but not manage them. Re-pair to enable."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "This desktop"
+msgstr "This desktop"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."

@@ -59,6 +59,8 @@ const appState = vi.hoisted(() => ({
     agentKind: string;
     projectId: string;
     config: { model: string; effort?: string };
+    remoteServerId?: string;
+    remoteId?: string;
   }[],
   projects: [] as Project[],
 }));
@@ -151,11 +153,24 @@ vi.mock("@/renderer/state/appStore", () => {
 });
 
 import { SchedulesView } from "./SchedulesView";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import type { RemoteServersState } from "@/renderer/state/remoteServers/types";
+
+const originalRemoteState = {
+  servers: useRemoteServersStore.getState().servers,
+  runtime: useRemoteServersStore.getState().runtime,
+  withClient: useRemoteServersStore.getState().withClient,
+};
 
 describe("SchedulesView", () => {
   beforeEach(() => {
     layout.compact = false;
     agentState.statuses = [status];
+    useRemoteServersStore.setState({
+      servers: originalRemoteState.servers,
+      runtime: originalRemoteState.runtime,
+      withClient: originalRemoteState.withClient,
+    });
     bridge.getSchedules.mockReset().mockResolvedValue([task]);
     bridge.createSchedule.mockReset().mockResolvedValue(task);
     bridge.updateSchedule.mockReset().mockImplementation(async ({ task: input }) => ({
@@ -403,6 +418,36 @@ describe("SchedulesView", () => {
     expect(screen.queryByText("Daily brief run thread")).not.toBeInTheDocument();
   });
 
+  it("opens a remote machine's run through its mirrored thread", async () => {
+    const mirroredThreadId = `remote:desktop-1:thread:${run.threadId}`;
+    appState.threads = [
+      {
+        id: mirroredThreadId,
+        title: "Host run thread",
+        agentKind: "claude:home",
+        projectId: "home",
+        config: { model: "claude-fable-5", effort: "high" },
+        remoteServerId: "desktop-1",
+        remoteId: run.threadId,
+      },
+    ];
+    installRemoteHost([hostTask]);
+    render(<SchedulesView />);
+
+    expect(await screen.findByText("Daily brief")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Schedule machine" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Studio" }));
+
+    expect(await screen.findByText("Host nightly deploy")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Previous runs" }));
+
+    // The run row must resolve the HOST thread id to the mirrored id and open
+    // that thread — not render as a dead "deleted thread" row.
+    const runRow = await screen.findByLabelText("Succeeded");
+    fireEvent.click(runRow.closest("button")!);
+    expect(nav.openThread).toHaveBeenCalledWith(mirroredThreadId);
+  });
+
   it("shows an empty state when a schedule has no runs", async () => {
     bridge.getScheduleRuns.mockResolvedValue([]);
     render(<SchedulesView />);
@@ -451,5 +496,85 @@ describe("SchedulesView", () => {
     expect(projectLabel.closest(".flex-col")).not.toBeNull();
     expect(screen.getByLabelText("Project").closest(".w-full")).not.toBeNull();
     expect(document.querySelector(".w-\\[280px\\]")).toBeNull();
+  });
+
+  const hostTask: ScheduledTask = {
+    ...task,
+    id: "3f9b1c2d-8888-4a7b-9c0d-1e2f3a4b5c6d",
+    name: "Host nightly deploy",
+  };
+
+  function installRemoteHost(schedules: ScheduledTask[]): {
+    readonly schedules: ReturnType<typeof vi.fn>;
+    readonly runScheduleNow: ReturnType<typeof vi.fn>;
+  } {
+    const schedulesMock = vi.fn<() => Promise<ScheduledTask[]>>(async () => schedules);
+    const runNowMock = vi.fn<(id: string) => Promise<ScheduledTask>>(async (id: string) => ({
+      ...hostTask,
+      id,
+      lastStatus: "running",
+    }));
+    const withClient: RemoteServersState["withClient"] = async (_desktopId, invoke) =>
+      invoke({
+        schedules: schedulesMock,
+        runScheduleNow: runNowMock,
+        scheduleRuns: vi.fn<() => Promise<ScheduledTaskRun[]>>(async () => [run]),
+      } as unknown as Parameters<typeof invoke>[0]);
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Studio",
+          endpoint: "http://192.168.1.10:3200",
+          accessToken: "token",
+          scopes: ["session:read", "session:operate"],
+        },
+      ],
+      runtime: {
+        "desktop-1": {
+          status: "online",
+          projects: [],
+          threads: [],
+          agentStatuses: {
+            windows: [status],
+            wsl: [],
+            updatedAt: "2026-09-11T00:00:00.000Z",
+          },
+        },
+      },
+      withClient,
+    });
+    return { schedules: schedulesMock, runScheduleNow: runNowMock };
+  }
+
+  it("lists a remote environment's schedules through its host client", async () => {
+    const host = installRemoteHost([hostTask]);
+    render(<SchedulesView />);
+
+    // Local machine first: the device schedule loads through the bridge.
+    expect(await screen.findByText("Daily brief")).toBeInTheDocument();
+
+    // Switch to the connected remote environment. (The "Daily brief" text that
+    // remains is the preset suggestion card — no local schedule row survives.)
+    fireEvent.click(screen.getByRole("button", { name: "Schedule machine" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Studio" }));
+
+    expect(await screen.findByText("Host nightly deploy")).toBeInTheDocument();
+    expect(host.schedules).toHaveBeenCalledTimes(1);
+    expect(bridge.getSchedules).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs a remote environment's schedule on its host", async () => {
+    const host = installRemoteHost([hostTask]);
+    render(<SchedulesView />);
+
+    expect(await screen.findByText("Daily brief")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Schedule machine" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Studio" }));
+
+    expect(await screen.findByText("Host nightly deploy")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Run now" }));
+    await waitFor(() => expect(host.runScheduleNow).toHaveBeenCalledWith(hostTask.id));
+    expect(bridge.runScheduleNow).not.toHaveBeenCalled();
   });
 });

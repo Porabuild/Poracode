@@ -22,6 +22,7 @@ import {
   remoteWebPushConfigResultSchema,
   remoteSettingsSchema,
   remoteSchedulesResponseSchema,
+  remoteScheduleRunsResponseSchema,
   remoteProjectCommandResultSchema,
   remoteProjectSettingsSchema,
   remoteRuntimeItemsPageSchema,
@@ -99,6 +100,7 @@ import {
   type ThreadServerRequestId,
   type ScheduledTask,
   type ScheduledTaskInput,
+  type ScheduledTaskRun,
 } from "@/shared/contracts";
 import { readBoundedResponseBody } from "@/shared/http";
 import type { NormalizeExactOptionalProperties } from "@/shared/contracts/exactType";
@@ -554,6 +556,16 @@ export class RemoteDesktopClient {
     const schedule = await this.scheduleCommand({ kind: "run", id });
     if (!schedule) throw new Error("The desktop did not return the running schedule.");
     return schedule;
+  }
+
+  async scheduleRuns(id: string): Promise<ScheduledTaskRun[]> {
+    const query = new URLSearchParams({ id });
+    const result = parseResponse(
+      remoteScheduleRunsResponseSchema,
+      await this.requestJson(`/api/schedules/runs?${query.toString()}`),
+      "schedule runs",
+    );
+    return result.runs;
   }
 
   async getPrWatch(input: PrWatchKey): Promise<PrWatch | null> {
