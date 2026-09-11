@@ -113,6 +113,38 @@ import {
 } from "@/renderer/state/remoteServers/gitState";
 import { withRemoteProjectSync } from "@/renderer/state/remoteServers/projectSync";
 import { syncRemoteAppRows, removeRemoteAppRows } from "@/renderer/state/remoteServers/appRows";
+import {
+  addRemoteServerThreadItemInterest,
+  bumpRemoteServerGeneration,
+  bumpRemoteServerSnapshotSeq,
+  clearRemoteServerEventSocketConnectTimeout,
+  clearRemoteServerEventSocketHealth,
+  clearRemoteThreadAppliedSeqs,
+  currentRemoteServerGeneration,
+  currentRemoteServerThreadItemInterests,
+  deleteRemoteServerEventSocketEntry,
+  deleteRemoteServerSnapshotSeq,
+  forgetRemoteServerCursorSyncV2,
+  forgetRemoteServerThreadItemInterests,
+  getRemoteServerEventSocketEntry,
+  getRemoteServerThreadItemInterests,
+  hasRemoteServerCursorSyncV2,
+  listRemoteServerEventSocketDesktopIds,
+  markRemoteServerCursorSyncV2,
+  recordRemoteThreadAppliedSeq,
+  rememberRemoteServerThreadItemInterests,
+  remoteServerSnapshotSeq,
+  remoteThreadAppliedSeq,
+  removeRemoteServerThreadItemInterest,
+  sameRemoteServerThreadItemInterests,
+  setHydratingRemoteServerThreadItemInterest,
+  setRemoteServerEventSocketEntry,
+  setRemoteServerSnapshotSeq,
+  setRemoteServerThreadItemInterests,
+  supervisorEventThreadIds,
+  type RemoteServerEventSocketEntry,
+  __resetEventSocketRegistryForTest,
+} from "@/renderer/state/remoteServers/eventSocketRegistry";
 import type {
   OpenRemoteThread,
   RemoteClientFactory,
@@ -271,13 +303,15 @@ function syncDesktopBrowserBridgeClient(state: RemoteServersState): void {
   if (runtime.host !== "browser") return;
 
   const server = selectBrowserBridgeClientServer(state);
-  const socket = server ? (remoteServerEventSockets.get(server.desktopId)?.socket ?? null) : null;
+  const socket = server
+    ? (getRemoteServerEventSocketEntry(server.desktopId)?.socket ?? null)
+    : null;
   if (desktopBrowserMirrorSocket !== socket) {
     desktopBrowserMirrorSocket = socket;
     setBrowserSocketSender(
       socket?.send
         ? (message) => {
-            if (remoteServerEventSockets.get(server?.desktopId ?? "")?.socket !== socket) {
+            if (getRemoteServerEventSocketEntry(server?.desktopId ?? "")?.socket !== socket) {
               return false;
             }
             try {
@@ -321,136 +355,6 @@ function syncDesktopBrowserBridgeClient(state: RemoteServersState): void {
     });
 }
 
-interface RemoteServerEventSocketEntry {
-  readonly serverKey: string;
-  socket: RemoteSocketLike | null;
-  reconnectTimer: ReturnType<typeof setTimeout> | null;
-  readonly reconnectPolicy: RemoteSocketReconnectPolicy;
-  connecting: boolean;
-  connectTimeout: ReturnType<typeof setTimeout> | null;
-  healthPingInterval: ReturnType<typeof setInterval> | null;
-  health: RemoteSocketHealthMonitor<RemoteSocketLike> | null;
-}
-
-const remoteServerEventSockets = new Map<string, RemoteServerEventSocketEntry>();
-const remoteServerSnapshotSeqByDesktopId = new Map<string, number>();
-/**
- * Highest event seq applied per thread from each server's live stream. The
- * resume watermark above is per server, so it cannot arbitrate one thread's
- * snapshot writes: an unrelated thread's newer event would wrongly freeze it.
- * Keyed [desktopId][remoteThreadId]; shares the watermark's lifecycle.
- */
-const remoteThreadAppliedSeqByDesktopId = new Map<string, Map<string, number>>();
-const remoteServerThreadItemInterests = new Map<string, readonly string[]>();
-/** Desktops whose current connection negotiated cursor-sync v2: their thread
- * history fetches may omit the inlined terminal scrollback (WS3 #2) because
- * the chunked watch baseline carries the tail instead. */
-const remoteServerCursorSyncV2ByDesktopId = new Set<string>();
-const remoteServerIdentityGenerationByDesktopId = new Map<string, number>();
-
-function currentRemoteServerGeneration(desktopId: string): number {
-  return remoteServerIdentityGenerationByDesktopId.get(desktopId) ?? 0;
-}
-
-function bumpRemoteServerGeneration(desktopId: string): void {
-  remoteServerIdentityGenerationByDesktopId.set(
-    desktopId,
-    currentRemoteServerGeneration(desktopId) + 1,
-  );
-}
-
-function recordRemoteThreadAppliedSeq(desktopId: string, threadId: string, seq: number): void {
-  let byThread = remoteThreadAppliedSeqByDesktopId.get(desktopId);
-  if (!byThread) {
-    byThread = new Map();
-    remoteThreadAppliedSeqByDesktopId.set(desktopId, byThread);
-  }
-  if ((byThread.get(threadId) ?? 0) >= seq) return;
-  byThread.set(threadId, seq);
-}
-
-function remoteThreadAppliedSeq(desktopId: string, threadId: string): number | undefined {
-  return remoteThreadAppliedSeqByDesktopId.get(desktopId)?.get(threadId);
-}
-
-function clearRemoteThreadAppliedSeqs(desktopId: string): void {
-  remoteThreadAppliedSeqByDesktopId.delete(desktopId);
-}
-
-/** Thread ids a supervisor event frame touches: the supervisory field, or the
- * per-thread batches of a multi frame. */
-function supervisorEventThreadIds(event: unknown): readonly string[] {
-  if (!event || typeof event !== "object") return [];
-  const record = event as { threadId?: unknown; batches?: unknown };
-  if (typeof record.threadId === "string") return [record.threadId];
-  if (!Array.isArray(record.batches)) return [];
-  const threadIds: string[] = [];
-  for (const batch of record.batches) {
-    const batchThreadId = (batch as { threadId?: unknown } | null)?.threadId;
-    if (typeof batchThreadId === "string") threadIds.push(batchThreadId);
-  }
-  return threadIds;
-}
-
-function sameRemoteServerThreadItemInterests(
-  left: readonly string[] | undefined,
-  right: readonly string[],
-): boolean {
-  return (
-    left?.length === right.length && left.every((threadId, index) => threadId === right[index])
-  );
-}
-
-function setRemoteServerThreadItemInterests(
-  desktopId: string,
-  threadIds: readonly string[],
-  forceSend = false,
-): void {
-  const existing = remoteServerThreadItemInterests.get(desktopId);
-  remoteServerThreadItemInterests.set(desktopId, threadIds);
-  if (!forceSend && sameRemoteServerThreadItemInterests(existing, threadIds)) return;
-  const socket = remoteServerEventSockets.get(desktopId)?.socket;
-  if (!socket?.send) return;
-  try {
-    socket.send(JSON.stringify({ type: "thread-item-interests", threadIds }));
-  } catch {
-    // A connecting socket receives the latest interests from activateSocket.
-  }
-}
-
-/**
- * Register one more thread whose runtime item content this client wants
- * forwarded. Interests are a per-server set, not a single exclusive thread:
- * several remote panes can be visible at once (desktop split panes), and a
- * pane's live feed must survive another pane's open the same way the last
- * explicit open already survives a pane close.
- */
-function addRemoteServerThreadItemInterest(desktopId: string, threadId: string): void {
-  const existing = remoteServerThreadItemInterests.get(desktopId);
-  if (existing?.includes(threadId)) return;
-  setRemoteServerThreadItemInterests(desktopId, existing ? [...existing, threadId] : [threadId]);
-}
-
-function removeRemoteServerThreadItemInterest(desktopId: string, threadId: string): void {
-  const existing = remoteServerThreadItemInterests.get(desktopId);
-  if (!existing?.includes(threadId)) return;
-  setRemoteServerThreadItemInterests(
-    desktopId,
-    existing.filter((candidate) => candidate !== threadId),
-  );
-}
-
-function setHydratingRemoteServerThreadItemInterest(
-  desktopId: string,
-  threadId: string,
-  previousOpenThread: OpenRemoteThread | null,
-): void {
-  if (previousOpenThread) {
-    addRemoteServerThreadItemInterest(previousOpenThread.desktopId, previousOpenThread.threadId);
-  }
-  addRemoteServerThreadItemInterest(desktopId, threadId);
-}
-
 /** Maps a thread-history snapshot to the openThread slice (terminal fields only when present). */
 function buildOpenThread(
   desktopId: string,
@@ -472,28 +376,14 @@ function buildOpenThread(
   };
 }
 
-function clearRemoteServerEventSocketHealth(entry: RemoteServerEventSocketEntry): void {
-  if (entry.healthPingInterval) {
-    clearInterval(entry.healthPingInterval);
-    entry.healthPingInterval = null;
-  }
-  entry.health?.reset();
-}
-
-function clearRemoteServerEventSocketConnectTimeout(entry: RemoteServerEventSocketEntry): void {
-  if (!entry.connectTimeout) return;
-  clearTimeout(entry.connectTimeout);
-  entry.connectTimeout = null;
-}
-
 function closeRemoteServerEventSocket(desktopId: string): void {
   // A pending debounced snapshot refresh for this server is now moot; cancel it
   // so a closed/removed server never fires a late GET (finding #5).
   clearRemoteServerRefreshTimer(desktopId);
-  const entry = remoteServerEventSockets.get(desktopId);
+  const entry = getRemoteServerEventSocketEntry(desktopId);
   if (!entry) return;
-  remoteServerEventSockets.delete(desktopId);
-  remoteServerSnapshotSeqByDesktopId.delete(desktopId);
+  deleteRemoteServerEventSocketEntry(desktopId);
+  deleteRemoteServerSnapshotSeq(desktopId);
   clearRemoteThreadAppliedSeqs(desktopId);
   resetTruncateRecoveryEpoch(desktopId);
   remoteServerRowResyncPendingByDesktopId.delete(desktopId);
@@ -514,7 +404,7 @@ function closeRemoteServerEventSocket(desktopId: string): void {
 }
 
 function closeAllRemoteServerEventSockets(): void {
-  for (const desktopId of [...remoteServerEventSockets.keys()]) {
+  for (const desktopId of listRemoteServerEventSocketDesktopIds()) {
     closeRemoteServerEventSocket(desktopId);
   }
 }
@@ -676,13 +566,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       const terminalConnections = createTerminalFeedConnections(
         (desktopId, sender, capabilities) => {
           if (capabilities.cursorSyncVersion === TERMINAL_CURSOR_SYNC_V2_VERSION) {
-            remoteServerCursorSyncV2ByDesktopId.add(desktopId);
+            markRemoteServerCursorSyncV2(desktopId, true);
           } else {
-            remoteServerCursorSyncV2ByDesktopId.delete(desktopId);
+            markRemoteServerCursorSyncV2(desktopId, false);
           }
           setRemoteTerminalSocketSender(desktopId, sender, capabilities);
         },
-        (desktopId, socket) => remoteServerEventSockets.get(desktopId)?.socket === socket,
+        (desktopId, socket) => getRemoteServerEventSocketEntry(desktopId)?.socket === socket,
       );
       const activateRemoteTerminalFeed = terminalConnections.activate;
 
@@ -691,7 +581,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         initialCapabilities?: TerminalConnectionCapabilities,
       ): Promise<void> => {
         const serverKey = `${server.endpoint}\0${server.accessToken}`;
-        const existing = remoteServerEventSockets.get(server.desktopId);
+        const existing = getRemoteServerEventSocketEntry(server.desktopId);
         if (existing?.serverKey === serverKey) return;
 
         closeRemoteServerEventSocket(server.desktopId);
@@ -705,11 +595,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           healthPingInterval: null,
           health: null,
         };
-        remoteServerEventSockets.set(server.desktopId, entry);
+        setRemoteServerEventSocketEntry(server.desktopId, entry);
         let resyncInFlight = false;
 
         const isCurrent = () =>
-          remoteServerEventSockets.get(server.desktopId) === entry &&
+          getRemoteServerEventSocketEntry(server.desktopId) === entry &&
           get().servers.some((candidate) => candidate.desktopId === server.desktopId);
 
         const setSocketStatus = (status: "connecting" | "online") => {
@@ -749,7 +639,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           entry.socket = null;
           clearRemoteServerEventSocketConnectTimeout(entry);
           clearRemoteServerEventSocketHealth(entry);
-          remoteServerCursorSyncV2ByDesktopId.delete(server.desktopId);
+          forgetRemoteServerCursorSyncV2(server.desktopId);
           setRemoteTerminalSocketSender(server.desktopId, null);
           syncDesktopBrowserBridgeClient(get());
           scheduleReconnect();
@@ -796,10 +686,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             connectionCapabilitiesSeed = undefined;
             const { ticket, capabilities } = await prepareTerminalConnection(client, seed);
             if (!isCurrent()) return;
-            const lastSeenSeq = remoteServerSnapshotSeqByDesktopId.get(server.desktopId) ?? 0;
+            const lastSeenSeq = remoteServerSnapshotSeq(server.desktopId);
             const openThread = get().openThread;
             const threadItemInterests =
-              remoteServerThreadItemInterests.get(server.desktopId) ??
+              getRemoteServerThreadItemInterests(server.desktopId) ??
               (openThread?.desktopId === server.desktopId ? [openThread.threadId] : []);
             const socket = get().socketFactory(
               client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
@@ -860,13 +750,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                     snapshot.snapshotSeq,
                   );
                 }
-                remoteServerSnapshotSeqByDesktopId.set(
-                  server.desktopId,
-                  Math.max(
-                    remoteServerSnapshotSeqByDesktopId.get(server.desktopId) ?? 0,
-                    snapshot.snapshotSeq,
-                  ),
-                );
+                bumpRemoteServerSnapshotSeq(server.desktopId, snapshot.snapshotSeq);
                 const outcome = finishTruncateReload(lease, {
                   installed: applied.installedAuthoritativeHistory,
                   snapshotSeq: snapshot.snapshotSeq,
@@ -889,7 +773,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 return;
               }
               const open = get().openThread;
-              const interests = remoteServerThreadItemInterests.get(server.desktopId) ?? [];
+              const interests = currentRemoteServerThreadItemInterests(server.desktopId);
               const subscribed = new Set<string>(interests);
               if (open?.desktopId === server.desktopId) subscribed.add(open.threadId);
               for (const pending of listPendingTruncateReloads(server.desktopId)) {
@@ -904,11 +788,14 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               activateRemoteTerminalFeed(server.desktopId, socket);
               syncDesktopBrowserBridgeClient(get());
               const currentThreadItemInterests =
-                remoteServerThreadItemInterests.get(server.desktopId) ?? threadItemInterests;
+                getRemoteServerThreadItemInterests(server.desktopId) ?? threadItemInterests;
               if (
                 sameRemoteServerThreadItemInterests(currentThreadItemInterests, threadItemInterests)
               ) {
-                remoteServerThreadItemInterests.set(server.desktopId, currentThreadItemInterests);
+                rememberRemoteServerThreadItemInterests(
+                  server.desktopId,
+                  currentThreadItemInterests,
+                );
               } else {
                 setRemoteServerThreadItemInterests(
                   server.desktopId,
@@ -930,7 +817,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             const resyncOpenThread = async () => {
               if (resyncInFlight) return;
               const open = get().openThread;
-              const interests = remoteServerThreadItemInterests.get(server.desktopId) ?? [];
+              const interests = currentRemoteServerThreadItemInterests(server.desktopId);
               const threadIds = new Set<string>();
               if (open?.desktopId === server.desktopId) threadIds.add(open.threadId);
               for (const interest of interests) threadIds.add(interest);
@@ -940,7 +827,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 // Fetch all interested threads concurrently (N−1 RTTs saved on
                 // server-restart resync), then apply in the original order so
                 // per-thread state transitions stay deterministic.
-                const omitScrollback = remoteServerCursorSyncV2ByDesktopId.has(server.desktopId);
+                const omitScrollback = hasRemoteServerCursorSyncV2(server.desktopId);
                 const fetched = await Promise.all(
                   [...threadIds].map(async (threadId) => {
                     try {
@@ -974,13 +861,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                       nextSnapshot.snapshotSeq,
                     );
                   }
-                  remoteServerSnapshotSeqByDesktopId.set(
-                    server.desktopId,
-                    Math.max(
-                      remoteServerSnapshotSeqByDesktopId.get(server.desktopId) ?? 0,
-                      nextSnapshot.snapshotSeq,
-                    ),
-                  );
+                  bumpRemoteServerSnapshotSeq(server.desktopId, nextSnapshot.snapshotSeq);
                   const currentOpen = get().openThread;
                   if (
                     currentOpen?.desktopId === server.desktopId &&
@@ -1018,11 +899,8 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   return;
                 }
                 if (message.type === "event") {
-                  const nextSeq = Math.max(
-                    remoteServerSnapshotSeqByDesktopId.get(server.desktopId) ?? 0,
-                    message.seq,
-                  );
-                  remoteServerSnapshotSeqByDesktopId.set(server.desktopId, nextSeq);
+                  const nextSeq = Math.max(remoteServerSnapshotSeq(server.desktopId), message.seq);
+                  setRemoteServerSnapshotSeq(server.desktopId, nextSeq);
                   const open = get().openThread;
                   const remoteThreadIds = new Set(
                     get().runtime[server.desktopId]?.threads.map((thread) => thread.id) ?? [],
@@ -1048,8 +926,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   // (multipane split): without this, a cold multipane restore
                   // would drop every background pane's events until its row
                   // arrived in the runtime list.
-                  for (const interest of remoteServerThreadItemInterests.get(server.desktopId) ??
-                    []) {
+                  for (const interest of currentRemoteServerThreadItemInterests(server.desktopId)) {
                     remoteThreadIds.add(interest);
                   }
                   const terminalEvent = message.event as {
@@ -1170,7 +1047,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   // process. Accept its lower cursor before the authoritative
                   // snapshots advance it again, or every reconnect will ask
                   // for an impossible pre-restart sequence forever.
-                  remoteServerSnapshotSeqByDesktopId.set(server.desktopId, message.seq);
+                  setRemoteServerSnapshotSeq(server.desktopId, message.seq);
                   // Pre-restart per-thread marks would refuse every fresh
                   // (lower-seq) snapshot forever; re-baseline them too.
                   clearRemoteThreadAppliedSeqs(server.desktopId);
@@ -1194,7 +1071,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 entry.socket = null;
                 clearRemoteServerEventSocketConnectTimeout(entry);
                 clearRemoteServerEventSocketHealth(entry);
-                remoteServerCursorSyncV2ByDesktopId.delete(server.desktopId);
+                forgetRemoteServerCursorSyncV2(server.desktopId);
                 setRemoteTerminalSocketSender(server.desktopId, null);
                 setRemoteServerFailure(
                   server.desktopId,
@@ -1212,8 +1089,8 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               setRemoteServerFailure(server.desktopId, "error", friendlyError(error));
               // Stop automatic attempts, but retain terminal listeners so a
               // later explicit reconnect can install a fresh supported stream.
-              remoteServerEventSockets.delete(server.desktopId);
-              remoteServerCursorSyncV2ByDesktopId.delete(server.desktopId);
+              deleteRemoteServerEventSocketEntry(server.desktopId);
+              forgetRemoteServerCursorSyncV2(server.desktopId);
               setRemoteTerminalSocketSender(server.desktopId, null);
               return;
             }
@@ -1483,7 +1360,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           syncRemoteGitSummaries(record.desktopId, snapshot.gitSummariesByThread);
         }
         if (snapshot.gitState) syncRemoteGitStateSnapshot(record.desktopId, snapshot.gitState);
-        remoteServerSnapshotSeqByDesktopId.set(record.desktopId, snapshot.snapshotSeq);
+        setRemoteServerSnapshotSeq(record.desktopId, snapshot.snapshotSeq);
         // Pairing overwrites the seq baseline; stale per-thread marks from a
         // previous pairing of the same host must not refuse this snapshot.
         clearRemoteThreadAppliedSeqs(record.desktopId);
@@ -1613,7 +1490,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           try {
             // WS3 #2: cursor-sync v2 connections get the authoritative tail
             // from the chunked watch baseline — never send it twice.
-            const omitScrollback = remoteServerCursorSyncV2ByDesktopId.has(desktopId);
+            const omitScrollback = hasRemoteServerCursorSyncV2(desktopId);
             snapshot = await withClient(desktopId, (client) =>
               omitScrollback
                 ? client.threadHistory(threadId, { omitScrollback: true })
@@ -1681,10 +1558,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             recordAuthoritativeHistoryInstall(desktopId, threadId, snapshot.snapshotSeq);
           }
           addRemoteServerThreadItemInterest(desktopId, threadId);
-          remoteServerSnapshotSeqByDesktopId.set(
-            desktopId,
-            Math.max(remoteServerSnapshotSeqByDesktopId.get(desktopId) ?? 0, snapshot.snapshotSeq),
-          );
+          bumpRemoteServerSnapshotSeq(desktopId, snapshot.snapshotSeq);
           // WS3-A: the agent-statuses fetch omitted slash-command catalogs, so
           // the opened thread's agent catalog is fetched once, on first use.
           const openedThread = snapshot.thread;
@@ -1717,7 +1591,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               });
           }
           await startRemoteServerEventStream(currentServer);
-          const eventSocket = remoteServerEventSockets.get(desktopId)?.socket;
+          const eventSocket = getRemoteServerEventSocketEntry(desktopId)?.socket;
           if (eventSocket) activateRemoteTerminalFeed(desktopId, eventSocket);
           if (!focus) {
             // Background reattach never steals focus and never depends on the
@@ -1806,7 +1680,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           if (get().openThread?.desktopId === desktopId) {
             get().closeRemoteThread();
           }
-          remoteServerThreadItemInterests.delete(desktopId);
+          forgetRemoteServerThreadItemInterests(desktopId);
           set((state) => {
             const { [desktopId]: _removed, ...runtime } = state.runtime;
             const { [desktopId]: _removedUpdate, ...hostUpdates } = state.hostUpdates;
@@ -1879,13 +1753,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             if (!isLatest()) return;
             // Clamp the stored seq with Math.max so a stale response can't
             // regress the cursor a live socket already advanced past.
-            remoteServerSnapshotSeqByDesktopId.set(
-              desktopId,
-              Math.max(
-                remoteServerSnapshotSeqByDesktopId.get(desktopId) ?? 0,
-                snapshot.snapshotSeq,
-              ),
-            );
+            bumpRemoteServerSnapshotSeq(desktopId, snapshot.snapshotSeq);
             const current = cached();
             const projects = reuseRemoteRows(current?.projects ?? [], snapshot.projects);
             const { rows: reconciledThreads, staleThreadIds } =
@@ -2204,11 +2072,8 @@ export function __resetRemoteServersStoreForTest(): void {
   for (const desktopId of [...remoteServerRefreshTimers.keys()]) {
     clearRemoteServerRefreshTimer(desktopId);
   }
-  remoteServerSnapshotSeqByDesktopId.clear();
-  remoteThreadAppliedSeqByDesktopId.clear();
+  __resetEventSocketRegistryForTest();
   __resetTruncateRecoveryForTest();
-  remoteServerThreadItemInterests.clear();
-  remoteServerIdentityGenerationByDesktopId.clear();
   remoteServerRefreshSeqByDesktopId.clear();
   remoteServerRowResyncPendingByDesktopId.clear();
   remoteServerAgentStatusRefreshes.clear();
