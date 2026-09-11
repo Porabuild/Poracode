@@ -12,12 +12,12 @@ import {
   type AuthState,
 } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
-import { CursorRuntimeCard } from "./CursorRuntimeCard";
-import { AgentProfileList } from "./AgentProfileList";
+import { CursorRuntimeCard } from "../../../views/SettingsOverlay/parts/CursorRuntimeCard";
+import { AgentProfileList } from "../../../views/SettingsOverlay/parts/AgentProfileList";
 import { CursorProfileIdentity } from "./CursorProfileIdentity";
-import { cursorProfileSupport } from "./CursorProfileSettings";
-import { CursorSdkRuntimeSetup } from "./CursorSdkRuntimeSetup";
-import { cursorRuntimeInstallState } from "./cursorRuntimeInstall";
+import { cursorProfileSupport } from "../../../views/SettingsOverlay/parts/CursorProfileSettings";
+import { CursorSdkRuntimeSetup } from "../../../views/SettingsOverlay/parts/CursorSdkRuntimeSetup";
+import { cursorRuntimeInstallState } from "../../../views/SettingsOverlay/parts/cursorRuntimeInstall";
 
 type CursorStructuredRuntime = "acp" | "sdk";
 

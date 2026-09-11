@@ -68,7 +68,7 @@ vi.mock("@/renderer/state/sharedSettingsStore", async (importOriginal) => {
 
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { CodexProviderSettings } from "./CodexProviderSettings";
-import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
+import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../../../views/SettingsOverlay/parts/agentRegistryNative";
 
 const setAgentSettingMock = vi.hoisted(() =>
   vi.fn<(agentKind: string, key: string, value: boolean | string) => void>(),

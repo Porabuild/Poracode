@@ -18,8 +18,8 @@ import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewH
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
-import { AgentProfileList } from "./AgentProfileList";
-import type { NativeAgentProfileSupport } from "./agentRegistryNative";
+import { AgentProfileList } from "../../../views/SettingsOverlay/parts/AgentProfileList";
+import type { NativeAgentProfileSupport } from "../../../views/SettingsOverlay/parts/agentRegistryNative";
 import {
   applyPresetEnvRows,
   cleanModels,

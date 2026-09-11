@@ -10,11 +10,14 @@ import type {
   Project,
 } from "@/shared/contracts";
 import { isMac, isWindows, readBridge } from "@/renderer/bridge";
-import { ClaudeAgentSettingsPanel, claudeProfileSupport } from "./ClaudeProfileSettings";
-import { CodexProviderSettings } from "./CodexProviderSettings";
+import {
+  ClaudeAgentSettingsPanel,
+  claudeProfileSupport,
+} from "../../../components/providers/settings/ClaudeProfileSettings";
+import { CodexProviderSettings } from "../../../components/providers/settings/CodexProviderSettings";
 import { cursorProfileSupport } from "./CursorProfileSettings";
-import { CursorProviderSettings } from "./CursorProviderSettings";
-import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
+import { CursorProviderSettings } from "../../../components/providers/settings/CursorProviderSettings";
+import { OpenCodeProviderSettings } from "../../../components/providers/settings/OpenCodeProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
 import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
 import { antigravityCliInstallCommand, antigravityRuntimeSlots } from "./antigravityRuntimeInstall";

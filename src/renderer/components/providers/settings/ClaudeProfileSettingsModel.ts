@@ -8,9 +8,12 @@ import type {
   ClaudeProfileModel,
 } from "@/shared/contracts";
 import { isEncryptedSecret } from "@/shared/secretFormat";
-import { slugifyProfileName } from "./profileIds";
+import { slugifyProfileName } from "../../../views/SettingsOverlay/parts/profileIds";
 
-export { slugifyProfileName, uniqueProfileId } from "./profileIds";
+export {
+  slugifyProfileName,
+  uniqueProfileId,
+} from "../../../views/SettingsOverlay/parts/profileIds";
 
 export const SAVED_SECRET_MASK = "••••••••";
 

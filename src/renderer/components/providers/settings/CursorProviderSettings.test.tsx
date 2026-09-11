@@ -192,7 +192,7 @@ vi.mock("@/renderer/state/sharedSettingsStore", async (importOriginal) => {
 
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { CursorProviderSettings } from "./CursorProviderSettings";
-import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
+import { NATIVE_AGENT_REGISTRY_ENTRIES } from "../../../views/SettingsOverlay/parts/agentRegistryNative";
 import type { AgentCapability, AgentInstanceConfig, AgentStatus } from "@/shared/contracts";
 
 const runtimeCapabilities: AgentCapability = {

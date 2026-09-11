@@ -9,7 +9,10 @@ import { usageStatusText } from "@/renderer/components/providers/usageFormat";
 import { useUsageProviderLogin } from "@/renderer/components/providers/useUsageProviderLogin";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { clampRefreshMinutes, MIN_REFRESH_MINUTES } from "./usageRefreshBounds";
+import {
+  clampRefreshMinutes,
+  MIN_REFRESH_MINUTES,
+} from "../../../views/SettingsOverlay/parts/usageRefreshBounds";
 
 /**
  * Per-provider auto-refresh cadence as bare inline text: no border, no fill, no

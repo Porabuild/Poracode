@@ -5,9 +5,9 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { friendlyError } from "@/shared/messages";
 import { Input, PixelLoader } from "@/renderer/components/common";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { CursorRuntimeCardRow } from "./CursorRuntimeCard";
-import { CursorProfileApiKeySetup } from "./CursorSdkRuntimeSetup";
-import { isDuplicateProfileName } from "./profileIds";
+import { CursorRuntimeCardRow } from "../../../views/SettingsOverlay/parts/CursorRuntimeCard";
+import { CursorProfileApiKeySetup } from "../../../views/SettingsOverlay/parts/CursorSdkRuntimeSetup";
+import { isDuplicateProfileName } from "../../../views/SettingsOverlay/parts/profileIds";
 
 /**
  * A Cursor profile's own identity: the name every surface labels it with, and
