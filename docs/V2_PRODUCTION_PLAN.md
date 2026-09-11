@@ -535,6 +535,31 @@ disposition flip fails the suite. Provider settings UI moved under
 gate breakage fixed (`0f0e3eeab`: Devin provider landed without updating the cache
 version/provider-list test expectations).
 
+**Status 2026-09-11: both god-file splits LANDED.** `remoteServersStore.ts` socket
+lifecycle → `state/remoteServers/eventSocketRegistry.ts` (`7e622688e`): the six
+process-local state structures (socket entries, snapshot-seq watermark, per-thread
+applied seqs, interests, cursor-sync v2 flag, identity generation fence) behind one
+owner API; monotone seq bumps vs deliberate plain overwrites (resync-required lowering,
+pairing bootstrap) keep exact semantics; critic-verified fully equivalent; renderer
+project 452 files / 4,257 tests green unchanged. `SkillsService.ts` metadata + file
+primitives → `skills/skillMetadata.ts` + `skills/skillFiles.ts` (`d9521574c`, 2,326 →
+~2,030 lines): all 16 moved functions byte-identical after whitespace normalization;
+supervisor suite 4,661 green.
+
+**Status 2026-09-11 (later): Electron-as-client parity batch — three of five §4.4
+items closed, two honest-degradation.** Ports panel no longer browser-only
+(`17186f291`): availability follows the connected remote server in every runtime,
+plain desktop without remotes still hides it, entry opens externally via the bridge;
+tests pin the Electron-as-client and no-server cases. Experiments refuse mirrored
+projects up front with a localized reason (`84cc95f1f`) — previously the dialog
+filled and every candidate failed individually against the local bridge. Voice
+input stays visible-but-disabled with an explanatory tooltip on remote sessions
+(same commit), threaded via `unavailableHint` and following the
+never-block-stopping rule. Both new strings localized in all 12 catalogs. Still
+open from §4.4: host settings routing for remote writes (currently local) and
+schedules listing host-side schedules for mirrored projects — both are real
+remote-routing features, not degradation fixes.
+
 **Find-in-chat decision (2026-09-10): honest labeling, no server search procedure.**
 Neither native exposes chat find, the wire has no transcript-search route, and the
 desktop `ChatFindBar` already scopes to the hydrated window. Adding a server search
