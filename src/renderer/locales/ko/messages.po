@@ -228,7 +228,7 @@ msgstr "{envName}에 대한 {0} 후크가 제거되었습니다."
 #~ msgstr "{0} 설치 대상"
 
 #. placeholder {0}: parsed.label
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "{0} is already in the list."
 msgstr "{0}은(는) 이미 목록에 있습니다."
 
@@ -263,7 +263,7 @@ msgid "{0} logged out."
 msgstr "{0} 로그아웃되었습니다."
 
 #. placeholder {0}: capabilities.models.length
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "{0} models"
 msgstr "모델 {0}개"
 
@@ -340,8 +340,8 @@ msgstr "토큰 {0} - {when}"
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
 #. placeholder {1}: entry.targetVersion
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "{0} updated to v{1}."
 msgstr "{0}이 v{1}로 업데이트되었습니다."
 
@@ -503,12 +503,12 @@ msgstr "{installedCount, plural, one {# 에이전트 준비됨} other {# 에이�
 #~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
 #~ msgstr "{judgingLabel}이(가) 각 후보의 변경 사항을 검토하여 우승자를 추천합니다."
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} API key"
 msgstr "{label} API 키"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} 자동 새로고침 간격(분)"
 
@@ -747,7 +747,7 @@ msgstr "7일"
 msgid "A candidate is no longer on its experiment branch."
 msgstr "후보가 더 이상 실험 브랜치에 있지 않습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "A Cursor profile with this name already exists."
 msgstr "같은 이름의 Cursor 프로필이 이미 있습니다."
 
@@ -917,9 +917,9 @@ msgid "Activity metric"
 msgstr "활동 지표"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -998,7 +998,7 @@ msgstr "후보 추가"
 #~ msgid "Add Claude profile"
 #~ msgstr "Claude 프로필 추가"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Add context window"
 msgstr "컨텍스트 창 추가"
 
@@ -1018,7 +1018,7 @@ msgstr "폴더 추가"
 msgid "Add MCP server"
 msgstr "MCP 서버 추가"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Add model"
 msgstr "모델 추가"
 
@@ -1050,7 +1050,7 @@ msgstr "프로젝트 추가"
 msgid "Add project options"
 msgstr "프로젝트 추가 옵션"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Add provider"
 msgstr "공급자 추가"
 
@@ -1249,7 +1249,7 @@ msgstr "AI 도우미"
 msgid "AI judge"
 msgstr "AI 심사"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "AI providers"
 msgstr "AI 공급자"
 
@@ -1287,7 +1287,7 @@ msgstr "모든 후보 세션, 작업 트리 및 브랜치가 제거됩니다."
 msgid "All devices"
 msgstr "모든 기기"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "All efforts"
 msgstr "모든 추론 강도"
 
@@ -1441,7 +1441,7 @@ msgstr "현재 사용할 수 없는 항목 — 제공자, 모델, 추론 수준 
 msgid "API key"
 msgstr "API 키"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "API key required"
 msgstr "API 키 필요"
 
@@ -1469,7 +1469,7 @@ msgstr "화면 표시"
 msgid "Appearance mode"
 msgstr "모양 모드"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
 msgstr "제공자 프리셋 적용"
 
@@ -1632,7 +1632,7 @@ msgstr "오디오"
 msgid "Authenticate"
 msgstr "인증"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Authenticated"
 msgstr "인증됨"
 
@@ -1649,7 +1649,7 @@ msgstr "인증 필요"
 msgid "Authentication setup cannot be imported"
 msgstr "인증 설정은 가져올 수 없습니다"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Authentication unavailable"
 msgstr "인증을 사용할 수 없음"
 
@@ -1773,7 +1773,7 @@ msgstr "자동화가 일시 중지되었습니다: 이 PR의 브랜치를 체크
 #~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
 #~ msgstr "자동화가 일시 중지되었습니다: 이 PR의 브랜치를 체크아웃할 수 없습니다. 모드를 다시 선택해 재시도하세요."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Autopilot"
 msgstr "자동 조종"
 
@@ -2020,6 +2020,7 @@ msgstr "Poracode의 격리된 내장 브라우저에서 웹사이트를 탐색�
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2028,7 +2029,6 @@ msgstr "Poracode의 격리된 내장 브라우저에서 웹사이트를 탐색�
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "브라우저"
@@ -2070,8 +2070,8 @@ msgstr "브라우저 선택 대상(CLI 스레드)"
 msgid "Browser pick target for CLI threads"
 msgstr "CLI 스레드에 대한 브라우저 선택 대상"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Browser sign-in"
 msgstr "브라우저로 로그인"
 
@@ -2530,7 +2530,7 @@ msgstr "서브에이전트를 선택하고 지시하고 병렬 작업을 조율�
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -2551,7 +2551,7 @@ msgid "CI Actions: Workflows"
 msgstr "CI 작업: 워크플로"
 
 #. placeholder {0}: trimmedName || displayLabel
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude {0} profile saved."
 msgstr "Claude {0} 프로필이 저장되었습니다."
 
@@ -2563,11 +2563,11 @@ msgstr "Claude {0} 프로필이 저장되었습니다."
 msgid "Claude Code"
 msgstr "Claude Code"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude profile config directory"
 msgstr "Claude 프로필 구성 디렉터리"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude profile name"
 msgstr "Claude 프로필 이름"
 
@@ -3130,10 +3130,10 @@ msgstr "작성기 컨트롤"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Computer Use"
 msgstr "컴퓨터 사용"
 
@@ -3177,7 +3177,7 @@ msgstr "컴퓨터 사용이 활성화되었습니다 — 에이전트는 데스�
 #~ msgid "Computing changes…"
 #~ msgstr "변경 사항 계산 중…"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "설정 디렉터리"
 
@@ -3186,7 +3186,7 @@ msgid "Configure the server Poracode will add when supported agents start."
 msgstr "지원되는 에이전트가 시작될 때 Poracode에서 추가할 서버를 구성하세요."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Configured MCP servers"
 msgstr "구성된 MCP 서버"
 
@@ -3251,7 +3251,7 @@ msgstr "SSH로 연결"
 #~ msgid "Connect Poracode on your desktop before starting a thread."
 #~ msgstr "스레드를 시작하기 전에 데스크톱의 Poracode에 연결하세요."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "OpenCode가 사용할 수 있는 AI 공급자를 여기에서 연결하고 로그아웃하세요."
 
@@ -3368,7 +3368,7 @@ msgstr "컨텍스트가 {targetLabel}(으)로 전송되었습니다."
 msgid "Context usage"
 msgstr "컨텍스트 사용량"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Context windows"
 msgstr "컨텍스트 창"
 
@@ -3389,7 +3389,7 @@ msgstr "다음에서 계속..."
 #~ msgid "Continue on the desktop address"
 #~ msgstr "데스크톱 주소에서 계속"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "외부 Chrome 브라우저를 제어합니다."
 
@@ -3401,7 +3401,7 @@ msgstr "외부 Chrome 브라우저를 제어합니다."
 msgid "Control desktop apps in the background and complete visual workflows."
 msgstr "데스크톱 앱을 백그라운드에서 조작하고 시각적 워크플로를 완료합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
 msgstr "데스크톱을 제어합니다."
 
@@ -3845,9 +3845,9 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
 
@@ -3926,7 +3926,7 @@ msgstr "Cursor"
 #~ msgid "Cursor ACP logged out."
 #~ msgstr "Cursor ACP에서 로그아웃했습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Cursor CLI (ACP)"
 msgstr "Cursor CLI (ACP)"
 
@@ -3942,7 +3942,7 @@ msgstr "Cursor 프로필 API 키"
 msgid "Cursor profile API key saved."
 msgstr "Cursor 프로필 API 키를 저장했습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Cursor profile name"
 msgstr "Cursor 프로필 이름"
 
@@ -3954,12 +3954,12 @@ msgstr "Cursor 프로필 이름"
 #~ msgid "Cursor profile removed."
 #~ msgstr "Cursor 프로필을 제거했습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Cursor profile renamed."
 msgstr "Cursor 프로필 이름을 변경했습니다."
 
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Cursor SDK"
 msgstr "Cursor SDK"
 
@@ -4007,7 +4007,7 @@ msgstr "사용자 지정 색상"
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "프로젝트 상황에 맞는 메뉴(오른쪽 클릭)에서 사용할 수 있는 사용자 정의 명령."
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Custom context window"
 msgstr "사용자 지정 컨텍스트 창"
 
@@ -4053,7 +4053,7 @@ msgstr "다크"
 msgid "Decline"
 msgstr "거절"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
@@ -4101,7 +4101,7 @@ msgstr "기본 스레드 제거"
 msgid "Delegate focused work to other installed agents and coordinate the results."
 msgstr "설치된 다른 에이전트에 작업을 위임하고 결과를 조율합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Delegate work to other AI agents."
 msgstr "다른 AI 에이전트에게 작업을 위임합니다."
 
@@ -4397,8 +4397,8 @@ msgstr "터미널 및 구조화된 채팅을 지원하는 Devin CLI."
 
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Disable {0}"
 msgstr "{0} 비활성화"
 
@@ -4410,7 +4410,7 @@ msgstr "{serverLabel} 비활성화"
 msgid "Disable {serverName}"
 msgstr "{serverName} 비활성화"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "{tierLabel} 추론 강도 비활성화"
 
@@ -4447,7 +4447,7 @@ msgstr "프로젝트 비활성화"
 #~ msgid "Disable Subagents"
 #~ msgstr "하위 에이전트 비활성화"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "외부 제공자가 통합하는 등급을 비활성화합니다 (예: High와 Max만 유지)."
 
@@ -4671,7 +4671,7 @@ msgstr "스캔에 중복된 서버 이름이 있습니다"
 msgid "e.g. -NoProfile"
 msgstr "예: -NoProfile"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "e.g. 512k or 1m"
 msgstr "예: 512k 또는 1m"
 
@@ -4757,11 +4757,11 @@ msgstr "페어링된 데스크톱을 편집하고 다시 동기화합니다."
 msgid "Effort and context"
 msgstr "노력과 맥락"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Effort levels"
 msgstr "추론 강도 단계"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Effort levels for {modelName}"
 msgstr "{modelName}의 추론 강도 단계"
 
@@ -4772,8 +4772,8 @@ msgstr "Electron"
 
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Enable {0}"
 msgstr "{0} 활성화"
 
@@ -4785,7 +4785,7 @@ msgstr "{serverLabel} 활성화"
 msgid "Enable {serverName}"
 msgstr "{serverName} 활성화"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
 msgstr "{tierLabel} 추론 강도 활성화"
 
@@ -4882,7 +4882,7 @@ msgstr "저장소 URL을 입력하세요."
 msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
 msgstr "HTTPS, HTTP, SSH, Git, FTP, FTPS 또는 scp 구문을 사용하는 안전한 저장소 URL을 입력하세요."
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
 msgstr "512k 또는 1m과 같은 크기를 입력하세요."
 
@@ -4940,16 +4940,16 @@ msgstr "유효한 JSON을 입력하세요."
 msgid "Environment"
 msgstr "환경"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variable name"
 msgstr "환경 변수 이름"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variable value"
 msgstr "환경 변수 값"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variables"
 msgstr "환경 변수"
 
@@ -5174,6 +5174,10 @@ msgstr "실험 평가의 우승자는 1에서 {candidateCount} 사이여야 합�
 msgid "Experiment prompt must not be blank"
 msgstr "실험 프롬프트는 비워 둘 수 없습니다"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Experiments run on the machine hosting the project. Open the project on its host to run an experiment."
+msgstr "실험은 프로젝트를 호스팅하는 머신에서 실행됩니다. 실험을 실행하려면 호스트에서 프로젝트를 여세요."
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
 msgstr "과거 위임에서 기록된 명시적 선택으로, 위의 라우팅 순서에 반영됩니다. 태그를 편집하거나 항목을 제거하여 조정하세요."
@@ -5183,11 +5187,11 @@ msgid "Export MCP servers"
 msgstr "MCP 서버 내보내기"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "External"
 msgstr "외부"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "External provider"
 msgstr "외부 제공자"
 
@@ -5835,7 +5839,7 @@ msgstr "기본 프로젝트에서 각각의 새 작업 트리로 복사할 Gitig
 #~ msgid "GLM 5.2 (optional label)"
 #~ msgstr "GLM 5.2 (선택 레이블)"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "GLM 5.3 (optional label)"
 msgstr "GLM 5.3 (선택 레이블)"
 
@@ -5953,7 +5957,7 @@ msgstr "프로젝트별 그룹화"
 msgid "GUI chat font size"
 msgstr "GUI 채팅 글꼴 크기"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "GUI runtime"
 msgstr "GUI 런타임"
 
@@ -6000,7 +6004,7 @@ msgstr "숨기기"
 msgid "Hide {label}"
 msgstr "{label} 숨기기"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
 msgstr "사이드바에서 {label} 원 숨기기"
 
@@ -6288,7 +6292,7 @@ msgstr "동기화에 포함"
 msgid "Information"
 msgstr "정보"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Inherit global"
 msgstr "전역 설정 상속"
 
@@ -6548,9 +6552,9 @@ msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "원격 기기에서는 설치, 업데이트, 로그인을 아직 사용할 수 없습니다."
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Installed"
 msgstr "설치됨"
@@ -6677,7 +6681,7 @@ msgstr "bash 종료"
 #~ msgstr "Kimi API 플랫폼"
 
 #: src/renderer/components/providers/kimi/manifest.ts
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "Kimi Code"
 msgstr "Kimi Code"
 
@@ -6994,7 +6998,7 @@ msgstr "로그인 {0}"
 msgid "Login required"
 msgstr "로그인이 필요합니다"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -7265,7 +7269,7 @@ msgstr "MCP 서버 URL"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "MCP 서버"
@@ -7282,7 +7286,7 @@ msgstr "MCP 서버"
 msgid "MCP Servers"
 msgstr "MCP 서버"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "MCP servers updated."
 msgstr "MCP 서버가 업데이트되었습니다."
 
@@ -7451,11 +7455,11 @@ msgid "Microphone testing is not available in this environment."
 msgstr "이 환경에서는 마이크 테스트를 사용할 수 없습니다."
 
 #. Unit suffix: minutes
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "min"
 msgstr "분"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "MiniMax"
 msgstr "MiniMax"
 
@@ -7506,11 +7510,11 @@ msgstr "모델을 즐겨찾기에 추가함"
 #~ msgid "Model for candidate {0}"
 #~ msgstr "후보 {0}의 모델"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "모델 ID"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model label"
 msgstr "모델 레이블"
 
@@ -7528,12 +7532,12 @@ msgid "Model usage"
 msgstr "모델 사용량"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "모델"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Modes"
 msgstr "모드"
@@ -7706,11 +7710,11 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
 msgstr "이름"
@@ -7791,7 +7795,7 @@ msgstr "새 작업 이름"
 msgid "New branch name..."
 msgstr "새 브랜치 이름..."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "New Claude profile config directory"
 msgstr "새로운 Claude 프로필 구성 디렉터리"
 
@@ -7851,7 +7855,7 @@ msgstr "줄 바꿈"
 msgid "New MCP server"
 msgstr "새 MCP 서버"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "new model"
 msgstr "새 모델"
 
@@ -8083,7 +8087,7 @@ msgid "No commits found."
 msgstr "커밋을 찾을 수 없습니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "No configured MCP servers yet"
 msgstr "아직 구성된 MCP 서버가 없습니다"
 
@@ -8311,7 +8315,7 @@ msgstr "프롬프트 없음"
 msgid "No providers are being tracked."
 msgstr "추적 중인 공급자가 없습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "No providers connected yet."
 msgstr "아직 연결된 공급자가 없습니다."
 
@@ -8443,7 +8447,7 @@ msgstr "줄바꿈 없음"
 msgid "none"
 msgstr "없음"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "없음"
 
@@ -8479,8 +8483,8 @@ msgid "not installed"
 msgstr "설치되지 않음"
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Not installed"
@@ -9012,7 +9016,7 @@ msgstr "사용 속도 초과 — 조기 소진"
 #~ msgid "Overridden by project"
 #~ msgstr "프로젝트에서 재정의됨"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN."
 msgstr "Claude 기본값을 재정의합니다 — 예: ANTHROPIC_BASE_URL 및 ANTHROPIC_AUTH_TOKEN."
 
@@ -9165,8 +9169,8 @@ msgstr "통과"
 msgid "Paste"
 msgstr "붙여넣기"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Paste {label} API key"
 msgstr "{label} API 키 붙여넣기"
 
@@ -9314,7 +9318,7 @@ msgstr "요소 선택"
 msgid "Pick icon"
 msgstr "아이콘 선택"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs and authenticates on its own; open chats keep the runtime they started with."
 msgstr "새 Cursor GUI 채팅에 사용할 런타임을 선택하세요. 각 런타임은 개별적으로 설치되고 인증됩니다. 열려 있는 채팅은 시작할 때의 런타임을 유지합니다."
 
@@ -9354,10 +9358,10 @@ msgstr "고정된 작업 경로"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Plan"
 msgstr "계획"
 
@@ -9416,7 +9420,7 @@ msgstr "플러그인"
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "설정 → 원격 접근의 QR 코드를 향하세요"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env vars, model names, and effort levels."
 msgstr "사용자 지정 환경 변수, 모델 이름, 추론 강도 단계로 이 프로필을 Anthropic이 아닌 제공자(z.ai 등)로 지정합니다."
 
@@ -9483,7 +9487,7 @@ msgstr "Poracode SSH 런타임 매니페스트가 없거나 유효하지 않습�
 msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
 msgstr "Poracode가 다시 시작되어 현재 데이터를 백업한 다음 Lightcode 데이터의 전체 복사본으로 교체합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Poracode의 기본 제공 브라우저 도구."
 
@@ -9592,7 +9596,7 @@ msgstr "원격 환경 준비 중…"
 #~ msgid "Presentation"
 #~ msgstr "표시 방식"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Presets"
 msgstr "프리셋"
 
@@ -9683,9 +9687,9 @@ msgstr "v{0} 확인 중"
 msgid "Productivity"
 msgstr "생산성"
 
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -9847,7 +9851,7 @@ msgstr "공급자"
 msgid "Provider has not reported token usage."
 msgstr "공급자가 토큰 사용을 보고하지 않았습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "제공자 프리셋"
 
@@ -10051,7 +10055,7 @@ msgstr "Qwen Code"
 #~ msgid "Qwen Coding Plan"
 #~ msgstr "Qwen Coding 요금제"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "Qwen Token Plan"
 msgstr "Qwen Token 요금제"
 
@@ -10368,7 +10372,7 @@ msgstr "제거"
 #. placeholder {0}: removeProject.name
 #. placeholder {0}: window.label
 #: src/renderer/components/composer/AttachmentBar.tsx
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Remove {0}"
 msgstr "{0} 제거"
@@ -10429,7 +10433,7 @@ msgstr "연결 제거"
 msgid "Remove Cursor SDK API key"
 msgstr "Cursor SDK API 키 제거"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "환경 변수 제거"
 
@@ -10450,7 +10454,7 @@ msgstr "패널에서 제거"
 msgid "Remove memory entry for {0}"
 msgstr "{0}의 메모리 항목 제거"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "모델 제거"
 
@@ -10504,7 +10508,7 @@ msgstr "작업 트리를 삭제하시겠습니까?"
 msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 msgstr "{profileName}을(를) 제거하면 저장된 API 키도 삭제됩니다. 이 프로필을 사용하는 스레드는 더 이상 에이전트를 찾을 수 없습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "{profileName}을(를) 제거하면 환경 변수, 모델, Effort 등 Poracode 설정이 사라집니다. 구성 디렉터리와 그 안의 Claude 자격 증명은 디스크에 남습니다."
 
@@ -10630,11 +10634,11 @@ msgstr "필수 검토, 대화 또는 상태 확인이 충족되지 않았습니�
 msgid "reset"
 msgstr "재설정"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Reset"
 msgstr "재설정"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Reset context windows"
 msgstr "컨텍스트 창 재설정"
 
@@ -11089,13 +11093,13 @@ msgid "Saturation and brightness"
 msgstr "채도와 밝기"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -11110,7 +11114,7 @@ msgstr "{0} 자격 증명을 저장합니다."
 msgid "Save changes"
 msgstr "변경 사항 저장"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Claude 프로필 저장"
 
@@ -11122,7 +11126,7 @@ msgstr "Claude 프로필 저장"
 msgid "Save Cursor profile API key"
 msgstr "Cursor 프로필 API 키 저장"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Save Cursor profile name"
 msgstr "Cursor 프로필 이름 저장"
 
@@ -11138,7 +11142,7 @@ msgstr "파일 저장"
 msgid "Save image"
 msgstr "이미지 저장"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Save MCP servers"
 msgstr "MCP 서버 저장"
 
@@ -11573,7 +11577,7 @@ msgstr "선택 항목을 터미널로 보냈습니다."
 #~ msgid "Separate API key"
 #~ msgstr "별도의 API 키"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Claude Code 계정을 설정 디렉터리별로 분리하거나, 프로필을 외부 제공자(z.ai 등)로 지정합니다. 프로필을 열어 환경 변수, 모델, 추론 강도를 구성하세요."
 
@@ -11679,7 +11683,7 @@ msgstr "{0} 표시"
 msgid "Show {label}"
 msgstr "{label} 표시"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "사이드바에 {label} 원 표시"
 
@@ -11859,7 +11863,7 @@ msgstr "{0, plural, other {#개 스킬 표시 중}}"
 msgid "Showing the first 4,000 entries."
 msgstr "처음 4,000개 항목을 표시합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
 msgstr "사이드바와 모델 선택기에 표시됩니다."
 
@@ -11872,7 +11876,7 @@ msgstr "프로젝트 이름 옆에 표시됩니다."
 #~ msgid "Sidebar"
 #~ msgstr "사이드바"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
 msgstr "위에서 사이드바 원이 전체적으로 꺼져 있습니다"
 
@@ -11887,8 +11891,8 @@ msgstr "사이드바 프로스트"
 msgid "Sidebar shortcuts"
 msgstr "사이드바 바로가기"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign in"
 msgstr "로그인"
 
@@ -11901,9 +11905,9 @@ msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "페어링된 데스크톱에서 로그인한 다음 이 상태를 새로 고치세요."
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Sign in required"
 msgstr "로그인이 필요합니다"
 
@@ -11912,17 +11916,17 @@ msgid "Sign in with the agent CLI."
 msgstr "에이전트 CLI로 로그인합니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "로그아웃"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out {label}"
 msgstr "{label} 로그아웃"
 
 #. placeholder {0}: provider.label
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Sign out of {0}"
 msgstr "{0}에서 로그아웃"
 
@@ -11954,8 +11958,8 @@ msgstr "{serverName}에서 로그아웃했습니다."
 msgid "Signing in"
 msgstr "로그인 중"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Signing in…"
 msgstr "로그인 중…"
 
@@ -11967,7 +11971,7 @@ msgstr "{env} 로그아웃 중입니다. 감지된 에이전트는 완료되면 
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "로그아웃합니다. 감지된 에이전트는 완료되면 새로 고쳐집니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."
 msgstr "Codex 작성기에 표시되는 크기입니다. 선택한 창의 95%에서 자동으로 압축이 시작됩니다. 목록에 400k가 있으면 새 채팅의 기본값은 400k입니다."
 
@@ -12420,11 +12424,11 @@ msgstr "음성 입력 중지"
 msgid "Storage location"
 msgstr "저장 위치"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Store as plain text"
 msgstr "일반 텍스트로 저장"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Store as secret (encrypted at rest)"
 msgstr "비밀로 저장 (저장 시 암호화)"
 
@@ -12436,7 +12440,7 @@ msgstr "이 기기에 저장되며 데스크톱은 자체 값을 유지합니다
 #~ msgid "Stored on this phone; the desktop keeps its own values."
 #~ msgstr "이 휴대폰에 저장됩니다. 데스크톱은 자체 값을 유지합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Structured runtime"
 msgstr "구조화 런타임"
 
@@ -13062,7 +13066,7 @@ msgstr "테마"
 msgid "Theme and chat font size"
 msgstr "테마 및 채팅 글꼴 크기"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "이 기본 제공 MCP 서버는 OpenCode 스레드 간에 공유됩니다. 저장하면 실행 중인 GUI 프로젝트가 업데이트되며, 서버를 제거하면 진행 중인 턴이 중단될 수 있습니다. 터미널 스레드는 다음 실행 시 변경 사항을 반영합니다."
 
@@ -13081,7 +13085,7 @@ msgstr "생각 중"
 msgid "This agent is not installed."
 msgstr "이 에이전트는 설치되지 않았습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "This API key authenticates this profile's SDK chats and its usage card. It does not change the main Cursor CLI login."
 msgstr "이 API 키는 이 프로필의 SDK 채팅과 사용량 카드를 인증합니다. 기본 Cursor CLI 로그인은 바꾸지 않습니다."
 
@@ -13205,7 +13209,7 @@ msgstr "이 플러그인의 Poracode 설정이 유효하지 않아 무시되었�
 msgid "This plugin's skills could not be read."
 msgstr "이 플러그인의 스킬을 읽을 수 없습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
 msgstr "이 프로필은 Cursor SDK에서 실행됩니다. Cursor CLI와 ACP는 기기에서 로그인을 하나 공유하므로 기본 Cursor 타일에 남습니다."
 
@@ -13517,7 +13521,7 @@ msgstr "전체 토큰"
 msgid "Total tokens"
 msgstr "전체 토큰"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Track {label} usage"
 msgstr "{label} 사용량 추적"
 
@@ -13530,7 +13534,7 @@ msgid "Tracking and display"
 msgstr "추적 및 표시"
 
 #. Usage status when provider tracking is disabled
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Tracking off"
 msgstr "추적 꺼짐"
 
@@ -13764,7 +13768,7 @@ msgstr "{0}을(를) 새로 고칠 수 없습니다."
 msgid "Unable to refresh {agentLabel} status."
 msgstr "{agentLabel} 상태를 새로 고칠 수 없습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Unable to refresh Claude profiles."
 msgstr "Claude 프로필을 새로 고칠 수 없습니다."
 
@@ -13810,7 +13814,7 @@ msgstr "원격 세션을 해지할 수 없습니다."
 msgid "Unable to save {0} credentials."
 msgstr "{0} 자격 증명을 저장할 수 없습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Claude {displayLabel} 프로필을 저장할 수 없습니다."
 
@@ -13869,8 +13873,8 @@ msgstr "{0} 후크를 업데이트할 수 없습니다."
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {1}: detail.slice(0, 240)
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}: {1}"
 msgstr "{0}을(를) 업데이트할 수 없습니다: {1}"
 
@@ -13882,10 +13886,10 @@ msgstr "{0}을(를) 업데이트할 수 없습니다: {detailText}"
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}."
 msgstr "{0}을(를) 업데이트할 수 없습니다."
 
@@ -14384,7 +14388,7 @@ msgstr "새 대화형 터미널 패널 세션에 사용됩니다."
 #~ msgid "user@example.com"
 #~ msgstr "user@example.com"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
 msgstr "내장 Claude 모델 목록을 사용합니다."
 
@@ -14393,7 +14397,7 @@ msgstr "내장 Claude 모델 목록을 사용합니다."
 msgid "v{0} available"
 msgstr "v{0} 사용 가능"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "값"
 
@@ -14480,6 +14484,11 @@ msgstr "보이는 모델"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "이 환경에서는 음성 입력을 사용할 수 없습니다."
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Voice input is unavailable on remote sessions."
+msgstr "원격 세션에서는 음성 입력을 사용할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -14745,8 +14754,8 @@ msgid "Winner merged."
 msgstr "우승자를 병합했습니다."
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Work"
 msgstr "작업"
 
@@ -15002,7 +15011,7 @@ msgstr "이름"
 msgid "Your stashed local changes were re-applied."
 msgstr "스태시에 저장된 로컬 변경 사항이 다시 적용되었습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "z.ai"
 msgstr "z.ai"
 

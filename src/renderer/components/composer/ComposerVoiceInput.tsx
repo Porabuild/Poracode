@@ -7,6 +7,11 @@ interface ComposerVoiceInputProps {
   /** Whether the voice button should render at all (settings + session gate). */
   show: boolean;
   isDisabled: boolean;
+  /**
+   * Surface reason instead of hiding (e.g. remote sessions have no local
+   * capture): the button renders disabled with this as its tooltip.
+   */
+  unavailableHint?: string | undefined;
   mentionRef: RefObject<MentionInputHandle | null>;
   /**
    * Forwarded to the underlying button so keyboard callers (the dictation
@@ -24,6 +29,7 @@ interface ComposerVoiceInputProps {
 export function ComposerVoiceInput({
   show,
   isDisabled,
+  unavailableHint,
   mentionRef,
   voiceInputRef,
 }: ComposerVoiceInputProps) {
@@ -33,6 +39,7 @@ export function ComposerVoiceInput({
       <LazyVoiceInputButton
         ref={voiceInputRef}
         isDisabled={isDisabled}
+        {...(unavailableHint !== undefined ? { unavailableHint } : {})}
         onTranscript={(text) => mentionRef.current?.commitVoiceTranscript(text)}
         onTranscriptPreview={(text) => mentionRef.current?.previewVoiceTranscript(text)}
         onTranscriptCancel={() => mentionRef.current?.clearVoiceTranscriptPreview()}

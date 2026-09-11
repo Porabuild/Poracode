@@ -228,7 +228,7 @@ msgstr "Đã xóa hook {0} cho {envName}."
 #~ msgstr "{0} mục tiêu cài đặt"
 
 #. placeholder {0}: parsed.label
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "{0} is already in the list."
 msgstr "{0} đã có trong danh sách."
 
@@ -263,7 +263,7 @@ msgid "{0} logged out."
 msgstr "{0} đã đăng xuất."
 
 #. placeholder {0}: capabilities.models.length
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "{0} models"
 msgstr "{0} mô hình"
 
@@ -340,8 +340,8 @@ msgstr "{0} tokens - {when}"
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
 #. placeholder {1}: entry.targetVersion
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "{0} updated to v{1}."
 msgstr "{0} đã cập nhật lên v{1}."
 
@@ -503,12 +503,12 @@ msgstr "{installedCount, plural, one {# tác nhân đã sẵn sàng} other {# t�
 #~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
 #~ msgstr "{judgingLabel} đang xem xét các thay đổi của từng ứng viên để đề xuất ứng viên thắng."
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} API key"
 msgstr "Khóa API {label}"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "{label} auto-refresh interval in minutes"
 msgstr "Khoảng thời gian tự động làm mới {label} tính bằng phút"
 
@@ -747,7 +747,7 @@ msgstr "7 ngày"
 msgid "A candidate is no longer on its experiment branch."
 msgstr "Một ứng viên không còn ở nhánh thử nghiệm của mình."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "A Cursor profile with this name already exists."
 msgstr "Đã có hồ sơ Cursor trùng tên này."
 
@@ -917,9 +917,9 @@ msgid "Activity metric"
 msgstr "Chỉ số hoạt động"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -998,7 +998,7 @@ msgstr "Thêm ứng viên"
 #~ msgid "Add Claude profile"
 #~ msgstr "Thêm hồ sơ Claude"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Add context window"
 msgstr "Thêm cửa sổ ngữ cảnh"
 
@@ -1018,7 +1018,7 @@ msgstr "Thêm thư mục"
 msgid "Add MCP server"
 msgstr "Thêm máy chủ MCP"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Add model"
 msgstr "Thêm mô hình"
 
@@ -1050,7 +1050,7 @@ msgstr "Thêm dự án"
 msgid "Add project options"
 msgstr "Thêm tùy chọn dự án"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Add provider"
 msgstr "Thêm nhà cung cấp"
 
@@ -1249,7 +1249,7 @@ msgstr "Trợ lý AI"
 msgid "AI judge"
 msgstr "AI đánh giá"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "AI providers"
 msgstr "Nhà cung cấp AI"
 
@@ -1287,7 +1287,7 @@ msgstr "Tất cả phiên, cây làm việc và nhánh của các ứng viên s�
 msgid "All devices"
 msgstr "Tất cả thiết bị"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "All efforts"
 msgstr "Tất cả mức nỗ lực"
 
@@ -1441,7 +1441,7 @@ msgstr "Mọi thứ hiện không khả dụng — nhà cung cấp, mô hình, m
 msgid "API key"
 msgstr "Khóa API"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "API key required"
 msgstr "Cần khóa API"
 
@@ -1469,7 +1469,7 @@ msgstr "Giao diện"
 msgid "Appearance mode"
 msgstr "Chế độ giao diện"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
 msgstr "Áp dụng cấu hình nhà cung cấp"
 
@@ -1632,7 +1632,7 @@ msgstr "Âm thanh"
 msgid "Authenticate"
 msgstr "Xác thực"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Authenticated"
 msgstr "Đã xác thực"
 
@@ -1649,7 +1649,7 @@ msgstr "Yêu cầu xác thực"
 msgid "Authentication setup cannot be imported"
 msgstr "Không thể nhập thiết lập xác thực"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Authentication unavailable"
 msgstr "Không thể xác thực"
 
@@ -1773,7 +1773,7 @@ msgstr "Tự động hóa đang tạm dừng: không thể checkout nhánh của
 #~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
 #~ msgstr "Tự động hóa đang tạm dừng: không thể checkout nhánh của PR này. Chọn lại một chế độ để thử lại."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Autopilot"
 msgstr "Tự động"
 
@@ -2020,6 +2020,7 @@ msgstr "Duyệt, kiểm tra và thử nghiệm trang web trong trình duyệt t�
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2028,7 +2029,6 @@ msgstr "Duyệt, kiểm tra và thử nghiệm trang web trong trình duyệt t�
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "Trình duyệt"
@@ -2070,8 +2070,8 @@ msgstr "Mục tiêu chọn trình duyệt (chủ đề CLI)"
 msgid "Browser pick target for CLI threads"
 msgstr "Mục tiêu chọn trình duyệt cho các chủ đề CLI"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Browser sign-in"
 msgstr "Đăng nhập bằng trình duyệt"
 
@@ -2530,7 +2530,7 @@ msgstr "Chọn, hướng dẫn và điều phối các subagent cho công việc
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -2551,7 +2551,7 @@ msgid "CI Actions: Workflows"
 msgstr "Hành động CI: Quy trình làm việc"
 
 #. placeholder {0}: trimmedName || displayLabel
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude {0} profile saved."
 msgstr "Đã lưu hồ sơ Claude {0}."
 
@@ -2563,11 +2563,11 @@ msgstr "Đã lưu hồ sơ Claude {0}."
 msgid "Claude Code"
 msgstr "Claude Code"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude profile config directory"
 msgstr "Thư mục cấu hình hồ sơ Claude"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude profile name"
 msgstr "Tên hồ sơ Claude"
 
@@ -3130,10 +3130,10 @@ msgstr "Điều khiển trình soạn thảo"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Computer Use"
 msgstr "Sử dụng máy tính"
 
@@ -3177,7 +3177,7 @@ msgstr "Đã bật Sử dụng máy tính — tác nhân điều khiển ứng d
 #~ msgid "Computing changes…"
 #~ msgstr "Đang tính toán các thay đổi…"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Thư mục cấu hình"
 
@@ -3186,7 +3186,7 @@ msgid "Configure the server Poracode will add when supported agents start."
 msgstr "Cấu hình máy chủ mà Poracode sẽ thêm khi khởi động các tác nhân được hỗ trợ."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Configured MCP servers"
 msgstr "Máy chủ MCP đã cấu hình"
 
@@ -3251,7 +3251,7 @@ msgstr "Kết nối qua SSH"
 #~ msgid "Connect Poracode on your desktop before starting a thread."
 #~ msgstr "Kết nối Poracode trên máy tính trước khi bắt đầu một luồng."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "Kết nối các nhà cung cấp AI mà OpenCode có thể dùng và đăng xuất khỏi chúng tại đây."
 
@@ -3368,7 +3368,7 @@ msgstr "Ngữ cảnh được chuyển sang {targetLabel}"
 msgid "Context usage"
 msgstr "Sử dụng ngữ cảnh"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Context windows"
 msgstr "Cửa sổ ngữ cảnh"
 
@@ -3389,7 +3389,7 @@ msgstr "Tiếp tục trong..."
 #~ msgid "Continue on the desktop address"
 #~ msgstr "Tiếp tục trên địa chỉ của desktop"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "Điều khiển trình duyệt Chrome bên ngoài."
 
@@ -3401,7 +3401,7 @@ msgstr "Điều khiển trình duyệt Chrome bên ngoài."
 msgid "Control desktop apps in the background and complete visual workflows."
 msgstr "Điều khiển ứng dụng máy tính ở chế độ nền và hoàn thành quy trình làm việc trực quan."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
 msgstr "Điều khiển máy tính."
 
@@ -3845,9 +3845,9 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
 
@@ -3926,7 +3926,7 @@ msgstr "Cursor"
 #~ msgid "Cursor ACP logged out."
 #~ msgstr "Đã đăng xuất khỏi Cursor ACP."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Cursor CLI (ACP)"
 msgstr "Cursor CLI (ACP)"
 
@@ -3942,7 +3942,7 @@ msgstr "Khóa API của hồ sơ Cursor"
 msgid "Cursor profile API key saved."
 msgstr "Đã lưu khóa API của hồ sơ Cursor."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Cursor profile name"
 msgstr "Tên hồ sơ Cursor"
 
@@ -3954,12 +3954,12 @@ msgstr "Tên hồ sơ Cursor"
 #~ msgid "Cursor profile removed."
 #~ msgstr "Đã xóa hồ sơ Cursor."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Cursor profile renamed."
 msgstr "Đã đổi tên hồ sơ Cursor."
 
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Cursor SDK"
 msgstr "Cursor SDK"
 
@@ -4007,7 +4007,7 @@ msgstr "Màu tùy chỉnh"
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "Các lệnh tùy chỉnh có sẵn từ menu ngữ cảnh của dự án (nhấp chuột phải)."
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Custom context window"
 msgstr "Cửa sổ ngữ cảnh tùy chỉnh"
 
@@ -4053,7 +4053,7 @@ msgstr "Tối"
 msgid "Decline"
 msgstr "Từ chối"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
@@ -4101,7 +4101,7 @@ msgstr "Hành vi xóa chủ đề mặc định"
 msgid "Delegate focused work to other installed agents and coordinate the results."
 msgstr "Giao việc cụ thể cho các agent đã cài khác và điều phối kết quả."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Delegate work to other AI agents."
 msgstr "Giao việc cho các tác nhân AI khác."
 
@@ -4397,8 +4397,8 @@ msgstr "Devin CLI hỗ trợ thiết bị đầu cuối và trò chuyện có c�
 
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Disable {0}"
 msgstr "Tắt {0}"
 
@@ -4410,7 +4410,7 @@ msgstr "Tắt {serverLabel}"
 msgid "Disable {serverName}"
 msgstr "Tắt {serverName}"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "Tắt mức nỗ lực {tierLabel}"
 
@@ -4447,7 +4447,7 @@ msgstr "Vô hiệu hóa dự án"
 #~ msgid "Disable Subagents"
 #~ msgstr "Tắt tác nhân phụ"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "Tắt các mức mà nhà cung cấp bên ngoài gộp lại (ví dụ chỉ giữ High và Max)."
 
@@ -4671,7 +4671,7 @@ msgstr "Tên máy chủ bị trùng trong kết quả quét"
 msgid "e.g. -NoProfile"
 msgstr "vd. -NoProfile"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "e.g. 512k or 1m"
 msgstr "vd. 512k hoặc 1m"
 
@@ -4757,11 +4757,11 @@ msgstr "Chỉnh sửa desktop đã ghép đôi và đồng bộ lại về đó.
 msgid "Effort and context"
 msgstr "Nỗ lực và bối cảnh"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Effort levels"
 msgstr "Mức nỗ lực"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Effort levels for {modelName}"
 msgstr "Mức nỗ lực cho {modelName}"
 
@@ -4772,8 +4772,8 @@ msgstr "Electron"
 
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Enable {0}"
 msgstr "Bật {0}"
 
@@ -4785,7 +4785,7 @@ msgstr "Bật {serverLabel}"
 msgid "Enable {serverName}"
 msgstr "Bật {serverName}"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
 msgstr "Bật mức nỗ lực {tierLabel}"
 
@@ -4882,7 +4882,7 @@ msgstr "Nhập URL kho lưu trữ."
 msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
 msgstr "Nhập URL kho lưu trữ an toàn sử dụng HTTPS, HTTP, SSH, Git, FTP, FTPS hoặc cú pháp scp."
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
 msgstr "Nhập kích thước như 512k hoặc 1m."
 
@@ -4940,16 +4940,16 @@ msgstr "Nhập JSON hợp lệ."
 msgid "Environment"
 msgstr "Môi trường"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variable name"
 msgstr "Tên biến môi trường"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variable value"
 msgstr "Giá trị biến môi trường"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variables"
 msgstr "Biến môi trường"
 
@@ -5174,6 +5174,10 @@ msgstr "Người thắng do trình đánh giá thử nghiệm chọn phải nằ
 msgid "Experiment prompt must not be blank"
 msgstr "Lời nhắc thử nghiệm không được để trống"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Experiments run on the machine hosting the project. Open the project on its host to run an experiment."
+msgstr "Thí nghiệm chạy trên máy lưu trữ dự án. Hãy mở dự án trên máy chủ của nó để chạy thí nghiệm."
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
 msgstr "Các lựa chọn rõ ràng được ghi lại từ những lần ủy quyền trước — chúng tạo nên thứ tự định tuyến ở trên. Chỉnh sửa thẻ hoặc xóa mục để điều chỉnh."
@@ -5183,11 +5187,11 @@ msgid "Export MCP servers"
 msgstr "Xuất máy chủ MCP"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "External"
 msgstr "Bên ngoài"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "External provider"
 msgstr "Nhà cung cấp bên ngoài"
 
@@ -5835,7 +5839,7 @@ msgstr "Các tệp được Gitignored để sao chép từ dự án chính vào
 #~ msgid "GLM 5.2 (optional label)"
 #~ msgstr "GLM 5.2 (nhãn tùy chọn)"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "GLM 5.3 (optional label)"
 msgstr "GLM 5.3 (nhãn tùy chọn)"
 
@@ -5953,7 +5957,7 @@ msgstr "Nhóm theo dự án"
 msgid "GUI chat font size"
 msgstr "Kích thước phông chữ trò chuyện GUI"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "GUI runtime"
 msgstr "Môi trường chạy GUI"
 
@@ -6000,7 +6004,7 @@ msgstr "Ẩn"
 msgid "Hide {label}"
 msgstr "Ẩn {label}"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
 msgstr "Ẩn vòng tròn {label} ở thanh bên"
 
@@ -6288,7 +6292,7 @@ msgstr "Thêm vào đồng bộ hóa"
 msgid "Information"
 msgstr "Thông tin"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Inherit global"
 msgstr "Kế thừa cài đặt chung"
 
@@ -6548,9 +6552,9 @@ msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên máy từ xa."
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Installed"
 msgstr "Đã cài đặt"
@@ -6677,7 +6681,7 @@ msgstr "Dừng bash"
 #~ msgstr "Nền tảng API Kimi"
 
 #: src/renderer/components/providers/kimi/manifest.ts
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "Kimi Code"
 msgstr "Kimi Code"
 
@@ -6994,7 +6998,7 @@ msgstr "Đăng nhập {0}"
 msgid "Login required"
 msgstr "Yêu cầu đăng nhập"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -7265,7 +7269,7 @@ msgstr "URL của máy chủ MCP"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "Máy chủ MCP"
@@ -7282,7 +7286,7 @@ msgstr "Máy chủ MCP"
 msgid "MCP Servers"
 msgstr "Máy chủ MCP"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "MCP servers updated."
 msgstr "Đã cập nhật máy chủ MCP."
 
@@ -7451,11 +7455,11 @@ msgid "Microphone testing is not available in this environment."
 msgstr "Kiểm tra micrô không có sẵn trong môi trường này."
 
 #. Unit suffix: minutes
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "min"
 msgstr "phút"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "MiniMax"
 msgstr "MiniMax"
 
@@ -7506,11 +7510,11 @@ msgstr "Đã thêm mô hình vào mục yêu thích"
 #~ msgid "Model for candidate {0}"
 #~ msgstr "Mô hình cho ứng viên {0}"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "ID mô hình"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model label"
 msgstr "Nhãn mô hình"
 
@@ -7528,12 +7532,12 @@ msgid "Model usage"
 msgstr "Mức dùng mô hình"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "Mô hình"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Modes"
 msgstr "Chế độ"
@@ -7706,11 +7710,11 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
 msgstr "Tên"
@@ -7791,7 +7795,7 @@ msgstr "Tên hành động mới"
 msgid "New branch name..."
 msgstr "Tên chi nhánh mới..."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "New Claude profile config directory"
 msgstr "Thư mục cấu hình hồ sơ Claude mới"
 
@@ -7851,7 +7855,7 @@ msgstr "Dòng mới"
 msgid "New MCP server"
 msgstr "Máy chủ MCP mới"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "new model"
 msgstr "mô hình mới"
 
@@ -8083,7 +8087,7 @@ msgid "No commits found."
 msgstr "Không tìm thấy cam kết nào."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "No configured MCP servers yet"
 msgstr "Chưa có máy chủ MCP nào được cấu hình"
 
@@ -8311,7 +8315,7 @@ msgstr "Không có lời nhắc"
 msgid "No providers are being tracked."
 msgstr "Không có nhà cung cấp đang được theo dõi."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "No providers connected yet."
 msgstr "Chưa có nhà cung cấp nào được kết nối."
 
@@ -8443,7 +8447,7 @@ msgstr "Không ngắt dòng"
 msgid "none"
 msgstr "không có"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "Không có"
 
@@ -8479,8 +8483,8 @@ msgid "not installed"
 msgstr "chưa được cài đặt"
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Not installed"
@@ -9012,7 +9016,7 @@ msgstr "Vượt nhịp độ — hết sớm"
 #~ msgid "Overridden by project"
 #~ msgstr "Bị dự án ghi đè"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN."
 msgstr "Ghi đè giá trị mặc định của Claude — ví dụ ANTHROPIC_BASE_URL và ANTHROPIC_AUTH_TOKEN."
 
@@ -9165,8 +9169,8 @@ msgstr "Đã đạt"
 msgid "Paste"
 msgstr "Dán"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Paste {label} API key"
 msgstr "Dán khóa API {label}"
 
@@ -9314,7 +9318,7 @@ msgstr "Chọn phần tử"
 msgid "Pick icon"
 msgstr "Chọn biểu tượng"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs and authenticates on its own; open chats keep the runtime they started with."
 msgstr "Chọn thời gian chạy cho các cuộc trò chuyện GUI Cursor mới. Mỗi thời gian chạy được cài đặt và xác thực riêng; các cuộc trò chuyện đang mở giữ nguyên thời gian chạy khi bắt đầu."
 
@@ -9354,10 +9358,10 @@ msgstr "Tuyến tác vụ đã ghim"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Plan"
 msgstr "kế hoạch"
 
@@ -9416,7 +9420,7 @@ msgstr "Plugin"
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "Hướng vào mã QR trong Cài đặt → Truy cập từ xa"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env vars, model names, and effort levels."
 msgstr "Trỏ hồ sơ này tới nhà cung cấp ngoài Anthropic (z.ai, …) với biến môi trường, tên mô hình và mức nỗ lực tùy chỉnh."
 
@@ -9483,7 +9487,7 @@ msgstr "Tệp kê khai thời gian chạy SSH của Poracode bị thiếu hoặc
 msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
 msgstr "Poracode sẽ khởi động lại, sao lưu dữ liệu hiện tại và thay thế bằng bản sao đầy đủ của dữ liệu Lightcode."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Công cụ trình duyệt tích hợp sẵn của Poracode."
 
@@ -9592,7 +9596,7 @@ msgstr "Đang chuẩn bị môi trường từ xa…"
 #~ msgid "Presentation"
 #~ msgstr "Cách trình bày"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Presets"
 msgstr "Cấu hình sẵn"
 
@@ -9683,9 +9687,9 @@ msgstr "Đang kiểm tra v{0}"
 msgid "Productivity"
 msgstr "Năng suất"
 
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -9847,7 +9851,7 @@ msgstr "nhà cung cấp"
 msgid "Provider has not reported token usage."
 msgstr "Nhà cung cấp chưa báo cáo việc sử dụng mã thông báo."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "Cấu hình nhà cung cấp"
 
@@ -10051,7 +10055,7 @@ msgstr "Qwen Code"
 #~ msgid "Qwen Coding Plan"
 #~ msgstr "Gói Qwen Coding"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "Qwen Token Plan"
 msgstr "Gói Qwen Token"
 
@@ -10368,7 +10372,7 @@ msgstr "Xóa"
 #. placeholder {0}: removeProject.name
 #. placeholder {0}: window.label
 #: src/renderer/components/composer/AttachmentBar.tsx
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Remove {0}"
 msgstr "Xóa {0}"
@@ -10429,7 +10433,7 @@ msgstr "Xóa kết nối"
 msgid "Remove Cursor SDK API key"
 msgstr "Xóa khóa API Cursor SDK"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "Xóa biến môi trường"
 
@@ -10450,7 +10454,7 @@ msgstr "Xóa khỏi bảng điều khiển"
 msgid "Remove memory entry for {0}"
 msgstr "Xóa mục bộ nhớ cho {0}"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "Xóa mô hình"
 
@@ -10504,7 +10508,7 @@ msgstr "Xóa worktree?"
 msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 msgstr "Xóa {profileName} sẽ xóa luôn khóa API đã lưu. Các luồng dùng hồ sơ này sẽ không còn tìm thấy tác nhân của chúng."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Xóa {profileName} sẽ bỏ các thiết lập Poracode của nó — biến môi trường, mô hình và effort. Thư mục cấu hình và thông tin đăng nhập Claude bên trong vẫn còn trên đĩa."
 
@@ -10630,11 +10634,11 @@ msgstr "Các đánh giá, cuộc trò chuyện hoặc kiểm tra trạng thái b
 msgid "reset"
 msgstr "đặt lại"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Reset"
 msgstr "Đặt lại"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Reset context windows"
 msgstr "Đặt lại cửa sổ ngữ cảnh"
 
@@ -11089,13 +11093,13 @@ msgid "Saturation and brightness"
 msgstr "Độ bão hòa và độ sáng"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -11110,7 +11114,7 @@ msgstr "Lưu thông tin xác thực {0}."
 msgid "Save changes"
 msgstr "Lưu thay đổi"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Lưu hồ sơ Claude"
 
@@ -11122,7 +11126,7 @@ msgstr "Lưu hồ sơ Claude"
 msgid "Save Cursor profile API key"
 msgstr "Lưu khóa API của hồ sơ Cursor"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Save Cursor profile name"
 msgstr "Lưu tên hồ sơ Cursor"
 
@@ -11138,7 +11142,7 @@ msgstr "Lưu tập tin"
 msgid "Save image"
 msgstr "Lưu hình ảnh"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Save MCP servers"
 msgstr "Lưu máy chủ MCP"
 
@@ -11573,7 +11577,7 @@ msgstr "Đã gửi lựa chọn đến thiết bị đầu cuối."
 #~ msgid "Separate API key"
 #~ msgstr "Khóa API riêng"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Tách các tài khoản Claude Code theo thư mục cấu hình, hoặc trỏ một hồ sơ tới nhà cung cấp bên ngoài (z.ai, …). Mở một hồ sơ để cấu hình biến môi trường, mô hình và mức nỗ lực của nó."
 
@@ -11679,7 +11683,7 @@ msgstr "Hiển thị {0}"
 msgid "Show {label}"
 msgstr "Hiện {label}"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "Hiển thị vòng tròn {label} ở thanh bên"
 
@@ -11859,7 +11863,7 @@ msgstr "Đang hiển thị {0, plural, other {# skill}}"
 msgid "Showing the first 4,000 entries."
 msgstr "Đang hiển thị 4.000 mục đầu tiên."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
 msgstr "Hiển thị ở thanh bên và bộ chọn mô hình."
 
@@ -11872,7 +11876,7 @@ msgstr "Hiển thị cạnh tên dự án."
 #~ msgid "Sidebar"
 #~ msgstr "Thanh bên"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
 msgstr "Vòng tròn thanh bên đã bị tắt toàn cục ở trên"
 
@@ -11887,8 +11891,8 @@ msgstr "Độ mờ thanh bên"
 msgid "Sidebar shortcuts"
 msgstr "Lối tắt thanh bên"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign in"
 msgstr "Đăng nhập"
 
@@ -11901,9 +11905,9 @@ msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "Đăng nhập trên máy tính đã ghép đôi, rồi làm mới trạng thái này."
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Sign in required"
 msgstr "Yêu cầu đăng nhập"
 
@@ -11912,17 +11916,17 @@ msgid "Sign in with the agent CLI."
 msgstr "Đăng nhập bằng CLI tác nhân."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "Đăng xuất"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out {label}"
 msgstr "Đăng xuất {label}"
 
 #. placeholder {0}: provider.label
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Sign out of {0}"
 msgstr "Đăng xuất khỏi {0}"
 
@@ -11954,8 +11958,8 @@ msgstr "Đã đăng xuất khỏi {serverName}."
 msgid "Signing in"
 msgstr "Đăng nhập"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Signing in…"
 msgstr "Đang đăng nhập…"
 
@@ -11967,7 +11971,7 @@ msgstr "Đang đăng xuất {env}. Các tác nhân được phát hiện sẽ l�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "Đang đăng xuất. Các tác nhân được phát hiện sẽ làm mới khi nó kết thúc."
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."
 msgstr "Các kích thước hiện trong Composer của Codex. Việc nén tự động bắt đầu ở 95% cửa sổ đã chọn. Các cuộc trò chuyện mới mặc định dùng 400k khi kích thước đó có trong danh sách."
 
@@ -12420,11 +12424,11 @@ msgstr "Dừng nhập bằng giọng nói"
 msgid "Storage location"
 msgstr "Vị trí lưu trữ"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Store as plain text"
 msgstr "Lưu dưới dạng văn bản thuần"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Store as secret (encrypted at rest)"
 msgstr "Lưu dưới dạng bí mật (mã hóa khi lưu trữ)"
 
@@ -12436,7 +12440,7 @@ msgstr "Được lưu trên thiết bị này; máy tính để bàn giữ các 
 #~ msgid "Stored on this phone; the desktop keeps its own values."
 #~ msgstr "Được lưu trên điện thoại này; desktop giữ các giá trị riêng."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Structured runtime"
 msgstr "Môi trường chạy có cấu trúc"
 
@@ -13062,7 +13066,7 @@ msgstr "Chủ đề"
 msgid "Theme and chat font size"
 msgstr "Giao diện và cỡ chữ chat"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "Các máy chủ MCP tích hợp sẵn này được chia sẻ giữa các luồng OpenCode. Việc lưu sẽ cập nhật các dự án GUI đang chạy; xóa một máy chủ có thể làm gián đoạn lượt đang hoạt động. Các luồng terminal sẽ nhận thay đổi ở lần khởi chạy tiếp theo."
 
@@ -13081,7 +13085,7 @@ msgstr "Đang suy nghĩ"
 msgid "This agent is not installed."
 msgstr "Tác nhân này chưa được cài đặt."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "This API key authenticates this profile's SDK chats and its usage card. It does not change the main Cursor CLI login."
 msgstr "Khóa API này xác thực các cuộc trò chuyện SDK của hồ sơ này và thẻ mức dùng. Nó không thay đổi đăng nhập CLI của ô Cursor chính."
 
@@ -13205,7 +13209,7 @@ msgstr "Cài đặt Poracode của plugin này bị bỏ qua vì không hợp l�
 msgid "This plugin's skills could not be read."
 msgstr "Không đọc được các skill của plugin này."
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
 msgstr "Hồ sơ này chạy trên Cursor SDK. Cursor CLI và ACP dùng chung một lần đăng nhập trên máy, nên chúng ở lại ô Cursor chính."
 
@@ -13517,7 +13521,7 @@ msgstr "tổng số tokens"
 msgid "Total tokens"
 msgstr "Tổng số tokens"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Track {label} usage"
 msgstr "Theo dõi mức sử dụng {label}"
 
@@ -13530,7 +13534,7 @@ msgid "Tracking and display"
 msgstr "Theo dõi và hiển thị"
 
 #. Usage status when provider tracking is disabled
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Tracking off"
 msgstr "Tắt theo dõi"
 
@@ -13764,7 +13768,7 @@ msgstr "Không thể làm mới {0}."
 msgid "Unable to refresh {agentLabel} status."
 msgstr "Không thể làm mới trạng thái {agentLabel}."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Unable to refresh Claude profiles."
 msgstr "Không thể làm mới hồ sơ Claude."
 
@@ -13810,7 +13814,7 @@ msgstr "Không thể thu hồi phiên từ xa."
 msgid "Unable to save {0} credentials."
 msgstr "Không thể lưu thông tin xác thực {0}."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Không thể lưu hồ sơ Claude {displayLabel}."
 
@@ -13869,8 +13873,8 @@ msgstr "Không thể cập nhật hook {0}."
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {1}: detail.slice(0, 240)
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}: {1}"
 msgstr "Không thể cập nhật {0}: {1}"
 
@@ -13882,10 +13886,10 @@ msgstr "Không thể cập nhật {0}: {detailText}"
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}."
 msgstr "Không thể cập nhật {0}."
 
@@ -14384,7 +14388,7 @@ msgstr "Dùng cho các phiên tương tác mới trong bảng terminal."
 #~ msgid "user@example.com"
 #~ msgstr "user@example.com"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
 msgstr "Đang dùng danh sách mô hình Claude tích hợp sẵn."
 
@@ -14393,7 +14397,7 @@ msgstr "Đang dùng danh sách mô hình Claude tích hợp sẵn."
 msgid "v{0} available"
 msgstr "v{0} có sẵn"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "giá trị"
 
@@ -14480,6 +14484,11 @@ msgstr "Mô hình hiển thị"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "Nhập liệu bằng giọng nói không khả dụng trong môi trường này."
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Voice input is unavailable on remote sessions."
+msgstr "Nhập bằng giọng nói không khả dụng trong các phiên từ xa."
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -14745,8 +14754,8 @@ msgid "Winner merged."
 msgstr "Đã hợp nhất ứng viên thắng."
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Work"
 msgstr "công việc"
 
@@ -15002,7 +15011,7 @@ msgstr "Tên của bạn"
 msgid "Your stashed local changes were re-applied."
 msgstr "Các thay đổi cục bộ trong stash của bạn đã được áp dụng lại."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "z.ai"
 msgstr "z.ai"
 

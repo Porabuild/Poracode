@@ -228,7 +228,7 @@ msgstr "{envName}の{0}フックが削除されました。"
 #~ msgstr "{0}インストールターゲット"
 
 #. placeholder {0}: parsed.label
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "{0} is already in the list."
 msgstr "{0} はすでにリストにあります。"
 
@@ -263,7 +263,7 @@ msgid "{0} logged out."
 msgstr "{0}がログアウトしました。"
 
 #. placeholder {0}: capabilities.models.length
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "{0} models"
 msgstr "{0} 個のモデル"
 
@@ -340,8 +340,8 @@ msgstr "{0}トークン - {when}"
 #. placeholder {0}: agent.name
 #. placeholder {1}: agent.version
 #. placeholder {1}: entry.targetVersion
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "{0} updated to v{1}."
 msgstr "{0}が v{1}に更新されました。"
 
@@ -503,12 +503,12 @@ msgstr "{installedCount, plural, one {#エージェントの準備ができて�
 #~ msgid "{judgingLabel} is reviewing each candidate's changes to recommend a winner."
 #~ msgstr "{judgingLabel} が各候補の変更を確認して勝者を推薦します。"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "{label} API key"
 msgstr "{label} APIキー"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "{label} auto-refresh interval in minutes"
 msgstr "{label} の自動更新間隔 (分単位)"
 
@@ -746,7 +746,7 @@ msgstr "7日"
 msgid "A candidate is no longer on its experiment branch."
 msgstr "候補が実験ブランチ上にありません。"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "A Cursor profile with this name already exists."
 msgstr "この名前のCursorプロファイルはすでに存在します。"
 
@@ -916,9 +916,9 @@ msgid "Activity metric"
 msgstr "アクティビティ指標"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/ProjectTreeCreateMenu.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
@@ -997,7 +997,7 @@ msgstr "候補を追加"
 #~ msgid "Add Claude profile"
 #~ msgstr "Claude プロファイルを追加"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Add context window"
 msgstr "コンテキストウィンドウを追加"
 
@@ -1017,7 +1017,7 @@ msgstr "フォルダーを追加"
 msgid "Add MCP server"
 msgstr "MCPサーバーを追加"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Add model"
 msgstr "モデルを追加"
 
@@ -1049,7 +1049,7 @@ msgstr "プロジェクトの追加"
 msgid "Add project options"
 msgstr "プロジェクトオプションを追加する"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Add provider"
 msgstr "プロバイダーを追加"
 
@@ -1248,7 +1248,7 @@ msgstr "AI ヘルパー"
 msgid "AI judge"
 msgstr "AI 審査"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "AI providers"
 msgstr "AI プロバイダー"
 
@@ -1286,7 +1286,7 @@ msgstr "すべての候補のセッション、ワークツリー、ブランチ
 msgid "All devices"
 msgstr "すべてのデバイス"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "All efforts"
 msgstr "すべての推論レベル"
 
@@ -1440,7 +1440,7 @@ msgstr "現在利用できないもの — プロバイダー、モデル、推�
 msgid "API key"
 msgstr "APIキー"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "API key required"
 msgstr "API キーが必要です"
 
@@ -1468,7 +1468,7 @@ msgstr "外観"
 msgid "Appearance mode"
 msgstr "外観モード"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
 msgstr "プロバイダープリセットを適用"
 
@@ -1631,7 +1631,7 @@ msgstr "オーディオ"
 msgid "Authenticate"
 msgstr "認証"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Authenticated"
 msgstr "認証済み"
 
@@ -1648,7 +1648,7 @@ msgstr "認証が必要です"
 msgid "Authentication setup cannot be imported"
 msgstr "認証設定はインポートできません"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Authentication unavailable"
 msgstr "認証を利用できません"
 
@@ -1772,7 +1772,7 @@ msgstr "自動化は一時停止中です: このPRのブランチをチェッ�
 #~ msgid "Automation is paused: this PR's branch could not be checked out. Re-select a mode to retry."
 #~ msgstr "自動化は一時停止中です: このPRのブランチをチェックアウトできませんでした。モードを再選択して再試行してください。"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Autopilot"
 msgstr "自動操縦"
 
@@ -2019,6 +2019,7 @@ msgstr "Poracode の隔離された組み込みブラウザーで Web サイト�
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/ProjectAuxiliaryPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -2027,7 +2028,6 @@ msgstr "Poracode の隔離された組み込みブラウザーで Web サイト�
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "ブラウザ"
@@ -2069,8 +2069,8 @@ msgstr "ブラウザ選択ターゲット (CLI スレッド)"
 msgid "Browser pick target for CLI threads"
 msgstr "ブラウザによる CLI スレッドのターゲットの選択"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Browser sign-in"
 msgstr "ブラウザーでサインイン"
 
@@ -2529,7 +2529,7 @@ msgstr "サブエージェントを選び、指示を出し、並行作業を調
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -2550,7 +2550,7 @@ msgid "CI Actions: Workflows"
 msgstr "CI アクション: ワークフロー"
 
 #. placeholder {0}: trimmedName || displayLabel
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude {0} profile saved."
 msgstr "Claude {0} プロファイルが保存されました。"
 
@@ -2562,11 +2562,11 @@ msgstr "Claude {0} プロファイルが保存されました。"
 msgid "Claude Code"
 msgstr "Claude Code"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude profile config directory"
 msgstr "Claude プロファイル設定ディレクトリ"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Claude profile name"
 msgstr "Claude プロファイル名"
 
@@ -3129,10 +3129,10 @@ msgstr "コンポーザーの操作"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Computer Use"
 msgstr "コンピュータ操作"
 
@@ -3176,7 +3176,7 @@ msgstr "Computer Use は有効です — エージェントはデスクトップ
 #~ msgid "Computing changes…"
 #~ msgstr "変更を計算中…"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "設定ディレクトリ"
 
@@ -3185,7 +3185,7 @@ msgid "Configure the server Poracode will add when supported agents start."
 msgstr "対応エージェントの起動時にPoracodeが追加するサーバーを設定します。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Configured MCP servers"
 msgstr "設定済みのMCPサーバー"
 
@@ -3250,7 +3250,7 @@ msgstr "SSH で接続"
 #~ msgid "Connect Poracode on your desktop before starting a thread."
 #~ msgstr "スレッドを開始する前に、デスクトップの Poracode に接続してください。"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Connect the AI providers OpenCode can use and sign out of them here."
 msgstr "OpenCode が使用できる AI プロバイダーをここで接続し、サインアウトします。"
 
@@ -3367,7 +3367,7 @@ msgstr "{targetLabel}に転送されたコンテキスト"
 msgid "Context usage"
 msgstr "コンテキストの使用量"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Context windows"
 msgstr "コンテキストウィンドウ"
 
@@ -3388,7 +3388,7 @@ msgstr "...で続行"
 #~ msgid "Continue on the desktop address"
 #~ msgstr "デスクトップのアドレスで続ける"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Control an external Chrome browser."
 msgstr "外部の Chrome ブラウザを操作します。"
 
@@ -3400,7 +3400,7 @@ msgstr "外部の Chrome ブラウザを操作します。"
 msgid "Control desktop apps in the background and complete visual workflows."
 msgstr "デスクトップアプリをバックグラウンドで操作し、視覚的なワークフローを完了します。"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Control the desktop."
 msgstr "デスクトップを操作します。"
 
@@ -3844,9 +3844,9 @@ msgstr "Crossagent：{subagent}"
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
 
@@ -3925,7 +3925,7 @@ msgstr "Cursor"
 #~ msgid "Cursor ACP logged out."
 #~ msgstr "Cursor ACP からログアウトしました。"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Cursor CLI (ACP)"
 msgstr "Cursor CLI (ACP)"
 
@@ -3941,7 +3941,7 @@ msgstr "CursorプロファイルのAPIキー"
 msgid "Cursor profile API key saved."
 msgstr "CursorプロファイルのAPIキーを保存しました。"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Cursor profile name"
 msgstr "Cursorプロファイル名"
 
@@ -3953,12 +3953,12 @@ msgstr "Cursorプロファイル名"
 #~ msgid "Cursor profile removed."
 #~ msgstr "Cursorプロファイルを削除しました。"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Cursor profile renamed."
 msgstr "Cursorプロファイルの名前を変更しました。"
 
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Cursor SDK"
 msgstr "Cursor SDK"
 
@@ -4006,7 +4006,7 @@ msgstr "カスタムカラー"
 msgid "Custom commands available from the project context menu (right-click)."
 msgstr "プロジェクトのコンテキスト メニュー (右クリック) から使用できるカスタム コマンド。"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Custom context window"
 msgstr "カスタムコンテキストウィンドウ"
 
@@ -4052,7 +4052,7 @@ msgstr "ダーク"
 msgid "Decline"
 msgstr "辞退"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "DeepSeek"
 msgstr "DeepSeek"
 
@@ -4100,7 +4100,7 @@ msgstr "デフォルトのスレッドの削除"
 msgid "Delegate focused work to other installed agents and coordinate the results."
 msgstr "他のインストール済みエージェントに作業を委任し、結果を調整します。"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Delegate work to other AI agents."
 msgstr "他の AI エージェントに作業を委任します。"
 
@@ -4396,8 +4396,8 @@ msgstr "ターミナルと構造化チャットに対応した Devin CLI。"
 
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Disable {0}"
 msgstr "{0} を無効化"
 
@@ -4409,7 +4409,7 @@ msgstr "{serverLabel}を無効化"
 msgid "Disable {serverName}"
 msgstr "{serverName}を無効化"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Disable {tierLabel} effort"
 msgstr "{tierLabel}の推論レベルを無効化"
 
@@ -4446,7 +4446,7 @@ msgstr "プロジェクトを無効にする"
 #~ msgid "Disable Subagents"
 #~ msgstr "サブエージェントを無効にする"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Disable tiers an external provider collapses (e.g. keep only High and Max)."
 msgstr "外部プロバイダーがまとめてしまうレベルを無効化します（例：HighとMaxのみを残す）。"
 
@@ -4670,7 +4670,7 @@ msgstr "スキャン内でサーバー名が重複しています"
 msgid "e.g. -NoProfile"
 msgstr "例: -NoProfile"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "e.g. 512k or 1m"
 msgstr "例: 512k または 1m"
 
@@ -4756,11 +4756,11 @@ msgstr "ペアリング済みデスクトップを編集し、そこへ同期し
 msgid "Effort and context"
 msgstr "エフォートとコンテキスト"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Effort levels"
 msgstr "推論レベル"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Effort levels for {modelName}"
 msgstr "{modelName} の推論レベル"
 
@@ -4771,8 +4771,8 @@ msgstr "Electron"
 
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Enable {0}"
 msgstr "{0} を有効化"
 
@@ -4784,7 +4784,7 @@ msgstr "{serverLabel}を有効化"
 msgid "Enable {serverName}"
 msgstr "{serverName}を有効化"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Enable {tierLabel} effort"
 msgstr "{tierLabel}の推論レベルを有効化"
 
@@ -4881,7 +4881,7 @@ msgstr "リポジトリの URL を入力します。"
 msgid "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax."
 msgstr "HTTPS、HTTP、SSH、Git、FTP、FTPS、または scp 構文を使用した安全なリポジトリ URL を入力してください。"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
 msgstr "512k や 1m のようなサイズを入力してください。"
 
@@ -4939,16 +4939,16 @@ msgstr "有効なJSONを入力してください。"
 msgid "Environment"
 msgstr "環境"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variable name"
 msgstr "環境変数名"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variable value"
 msgstr "環境変数の値"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variables"
 msgstr "環境変数"
 
@@ -5173,6 +5173,10 @@ msgstr "実験の勝者は 1 から {candidateCount} の範囲である必要が
 msgid "Experiment prompt must not be blank"
 msgstr "実験のプロンプトを空にすることはできません"
 
+#: src/renderer/actions/experimentActions.ts
+msgid "Experiments run on the machine hosting the project. Open the project on its host to run an experiment."
+msgstr "実験はプロジェクトをホストしているマシンで実行されます。実験を実行するには、ホスト上でプロジェクトを開いてください。"
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Explicit selections recorded from past delegations — they feed the routing order above. Edit the tags or remove entries to reshape it."
 msgstr "過去の委任から記録された明示的な選択です。上のルーティング順に反映されます。タグを編集するか、エントリを削除して調整してください。"
@@ -5182,11 +5186,11 @@ msgid "Export MCP servers"
 msgstr "MCPサーバーをエクスポート"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "External"
 msgstr "外部"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "External provider"
 msgstr "外部プロバイダー"
 
@@ -5834,7 +5838,7 @@ msgstr "メイン プロジェクトから各新しいワークツリーにコ�
 #~ msgid "GLM 5.2 (optional label)"
 #~ msgstr "GLM 5.2（任意のラベル）"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "GLM 5.3 (optional label)"
 msgstr "GLM 5.3（任意のラベル）"
 
@@ -5952,7 +5956,7 @@ msgstr "プロジェクト別にグループ化"
 msgid "GUI chat font size"
 msgstr "GUIチャットのフォントサイズ"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "GUI runtime"
 msgstr "GUI ランタイム"
 
@@ -5999,7 +6003,7 @@ msgstr "隠す"
 msgid "Hide {label}"
 msgstr "{label}を隠す"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Hide {label} circle in sidebar"
 msgstr "サイドバーで {label} のリングを非表示にする"
 
@@ -6287,7 +6291,7 @@ msgstr "同期に追加"
 msgid "Information"
 msgstr "情報"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Inherit global"
 msgstr "グローバル設定を継承"
 
@@ -6547,9 +6551,9 @@ msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "リモートマシンでのインストール・更新・サインインはまだ利用できません。"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Installed"
 msgstr "インストール済み"
@@ -6676,7 +6680,7 @@ msgstr "bash を終了"
 #~ msgstr "Kimi APIプラットフォーム"
 
 #: src/renderer/components/providers/kimi/manifest.ts
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "Kimi Code"
 msgstr "Kimi Code"
 
@@ -6993,7 +6997,7 @@ msgstr "ログイン{0}"
 msgid "Login required"
 msgstr "ログインが必要です"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -7264,7 +7268,7 @@ msgstr "MCPサーバーのURL"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "MCP servers"
 msgstr "MCPサーバー"
@@ -7281,7 +7285,7 @@ msgstr "MCPサーバー"
 msgid "MCP Servers"
 msgstr "MCPサーバー"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "MCP servers updated."
 msgstr "MCPサーバーを更新しました。"
 
@@ -7449,11 +7453,11 @@ msgid "Microphone testing is not available in this environment."
 msgstr "この環境ではマイクテストは利用できません。"
 
 #. Unit suffix: minutes
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "min"
 msgstr "分"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "MiniMax"
 msgstr "MiniMax"
 
@@ -7504,11 +7508,11 @@ msgstr "モデルをお気に入りに追加しました"
 #~ msgid "Model for candidate {0}"
 #~ msgstr "候補 {0} のモデル"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model id"
 msgstr "モデルID"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Model label"
 msgstr "モデルラベル"
 
@@ -7526,12 +7530,12 @@ msgid "Model usage"
 msgstr "モデルの使用状況"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Models"
 msgstr "モデル"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Modes"
 msgstr "モード"
@@ -7704,11 +7708,11 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
 msgstr "名前"
@@ -7789,7 +7793,7 @@ msgstr "新しいアクション名"
 msgid "New branch name..."
 msgstr "新しいブランチ名..."
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "New Claude profile config directory"
 msgstr "新しい Claude プロファイル設定ディレクトリ"
 
@@ -7849,7 +7853,7 @@ msgstr "改行"
 msgid "New MCP server"
 msgstr "新しいMCPサーバー"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "new model"
 msgstr "新しいモデル"
 
@@ -8081,7 +8085,7 @@ msgid "No commits found."
 msgstr "コミットが見つかりませんでした。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "No configured MCP servers yet"
 msgstr "設定済みのMCPサーバーはまだありません"
 
@@ -8309,7 +8313,7 @@ msgstr "プロンプトはありません"
 msgid "No providers are being tracked."
 msgstr "追跡されているプロバイダーはありません。"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "No providers connected yet."
 msgstr "接続されているプロバイダーはまだありません。"
 
@@ -8441,7 +8445,7 @@ msgstr "ラップなし"
 msgid "none"
 msgstr "なし"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "なし"
 
@@ -8477,8 +8481,8 @@ msgid "not installed"
 msgstr "未インストール"
 
 #: src/renderer/components/providers/CombinedRuntimeVersionList.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Not installed"
@@ -9010,7 +9014,7 @@ msgstr "オーバーペース — 早めに力尽きてしまう"
 #~ msgid "Overridden by project"
 #~ msgstr "プロジェクトによって上書き"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Override Claude defaults — e.g. ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN."
 msgstr "Claudeのデフォルト設定を上書きします（例：ANTHROPIC_BASE_URLやANTHROPIC_AUTH_TOKEN）。"
 
@@ -9163,8 +9167,8 @@ msgstr "成功"
 msgid "Paste"
 msgstr "ペースト"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Paste {label} API key"
 msgstr "{label} APIキーを貼り付け"
 
@@ -9312,7 +9316,7 @@ msgstr "要素を選択します"
 msgid "Pick icon"
 msgstr "アイコンを選択します"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs and authenticates on its own; open chats keep the runtime they started with."
 msgstr "新しい Cursor GUI チャットで使用するランタイムを選択します。各ランタイムは個別にインストールおよび認証されます。開いているチャットは開始時のランタイムを維持します。"
 
@@ -9352,10 +9356,10 @@ msgstr "固定されたタスクルート"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
 #: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/thread/ThreadDockBubbles.tsx
 #: src/renderer/components/thread/ThreadDocksPanel.tsx
 #: src/renderer/components/thread/ThreadTodoDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Plan"
 msgstr "計画"
 
@@ -9414,7 +9418,7 @@ msgstr "プラグイン"
 msgid "Point at the QR code in Settings → Remote Access"
 msgstr "設定 → リモートアクセスの QR コードに向けてください"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Point this profile at a non-Anthropic provider (z.ai, …) with custom env vars, model names, and effort levels."
 msgstr "このプロファイルを、カスタムの環境変数・モデル名・推論レベルとともにAnthropic以外のプロバイダー（z.aiなど）に向けます。"
 
@@ -9481,7 +9485,7 @@ msgstr "Poracode SSH ランタイムマニフェストが見つからないか�
 msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
 msgstr "Poracode は再起動し、現在のデータをバックアップしてから、Lightcode データの完全なコピーに置き換えます。"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Poracode の組み込みブラウザツール。"
 
@@ -9590,7 +9594,7 @@ msgstr "リモート環境を準備中…"
 #~ msgid "Presentation"
 #~ msgstr "表示形式"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Presets"
 msgstr "プリセット"
 
@@ -9681,9 +9685,9 @@ msgstr "v{0}を確認中"
 msgid "Productivity"
 msgstr "生産性"
 
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
@@ -9845,7 +9849,7 @@ msgstr "プロバイダー"
 msgid "Provider has not reported token usage."
 msgstr "プロバイダーはトークンの使用状況を報告していません。"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Provider presets"
 msgstr "プロバイダープリセット"
 
@@ -10049,7 +10053,7 @@ msgstr "Qwen Code"
 #~ msgid "Qwen Coding Plan"
 #~ msgstr "Qwen Codingプラン"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "Qwen Token Plan"
 msgstr "Qwen Tokenプラン"
 
@@ -10366,7 +10370,7 @@ msgstr "削除する"
 #. placeholder {0}: removeProject.name
 #. placeholder {0}: window.label
 #: src/renderer/components/composer/AttachmentBar.tsx
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Remove {0}"
 msgstr "{0}を削除"
@@ -10427,7 +10431,7 @@ msgstr "接続を削除"
 msgid "Remove Cursor SDK API key"
 msgstr "Cursor SDK API キーを削除"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove environment variable"
 msgstr "環境変数を削除"
 
@@ -10448,7 +10452,7 @@ msgstr "パネルから削除"
 msgid "Remove memory entry for {0}"
 msgstr "{0}のメモリエントリーを削除"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Remove model"
 msgstr "モデルを削除"
 
@@ -10502,7 +10506,7 @@ msgstr "ワークツリーを削除しますか?"
 msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 msgstr "{profileName} を削除すると、保存されたAPIキーも削除されます。このプロファイルを使用しているスレッドはエージェントを見つけられなくなります。"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "{profileName} を削除すると、Poracodeの設定（環境変数、モデル、Effort）が失われます。設定ディレクトリとその中のClaude認証情報はディスクに残ります。"
 
@@ -10628,11 +10632,11 @@ msgstr "必要なレビュー、会話、ステータスチェックが満たさ
 msgid "reset"
 msgstr "リセット"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Reset"
 msgstr "リセット"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Reset context windows"
 msgstr "コンテキストウィンドウをリセット"
 
@@ -11087,13 +11091,13 @@ msgid "Saturation and brightness"
 msgstr "彩度と明度"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -11108,7 +11112,7 @@ msgstr "{0}資格情報を保存します。"
 msgid "Save changes"
 msgstr "変更を保存"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Claude プロフィールを保存"
 
@@ -11120,7 +11124,7 @@ msgstr "Claude プロフィールを保存"
 msgid "Save Cursor profile API key"
 msgstr "CursorプロファイルのAPIキーを保存"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Save Cursor profile name"
 msgstr "Cursorプロファイル名を保存"
 
@@ -11136,7 +11140,7 @@ msgstr "ファイルの保存"
 msgid "Save image"
 msgstr "画像を保存"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Save MCP servers"
 msgstr "MCPサーバーを保存"
 
@@ -11571,7 +11575,7 @@ msgstr "選択内容を端末に送信しました。"
 #~ msgid "Separate API key"
 #~ msgstr "個別のAPIキー"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Separate Claude Code accounts by config directory, or point a profile at an external provider (z.ai, …). Open a profile to configure its env vars, models, and effort."
 msgstr "Claude Codeのアカウントを設定ディレクトリごとに分離するか、プロファイルを外部プロバイダー（z.aiなど）に向けます。プロファイルを開くと、その環境変数・モデル・推論レベルを設定できます。"
 
@@ -11677,7 +11681,7 @@ msgstr "{0}を表示"
 msgid "Show {label}"
 msgstr "{label}を表示"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Show {label} circle in sidebar"
 msgstr "サイドバーで {label} のリングを表示する"
 
@@ -11857,7 +11861,7 @@ msgstr "{0, plural, other {# 件のスキル}}を表示中"
 msgid "Showing the first 4,000 entries."
 msgstr "最初の4,000件を表示しています。"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
 msgstr "サイドバーとモデルセレクターに表示されます。"
 
@@ -11870,7 +11874,7 @@ msgstr "プロジェクト名の横に表示されます。"
 #~ msgid "Sidebar"
 #~ msgstr "サイドバー"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
 msgstr "サイドバーのリングは上で全体的にオフになっています"
 
@@ -11885,8 +11889,8 @@ msgstr "サイドバーのすりガラス効果"
 msgid "Sidebar shortcuts"
 msgstr "サイドバーのショートカット"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign in"
 msgstr "サインイン"
 
@@ -11899,9 +11903,9 @@ msgid "Sign in on the paired desktop, then refresh this status."
 msgstr "ペアリング済みのデスクトップでサインインしてから、この状態を更新してください。"
 
 #: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Sign in required"
 msgstr "サインインが必要です"
 
@@ -11910,17 +11914,17 @@ msgid "Sign in with the agent CLI."
 msgstr "エージェント CLI を使用してサインインします。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Sign out"
 msgstr "サインアウト"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sign out {label}"
 msgstr "サインアウト{label}"
 
 #. placeholder {0}: provider.label
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "Sign out of {0}"
 msgstr "{0} からサインアウト"
 
@@ -11952,8 +11956,8 @@ msgstr "{serverName} からサインアウトしました。"
 msgid "Signing in"
 msgstr "サインインしています"
 
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Signing in…"
 msgstr "サインイン中…"
 
@@ -11965,7 +11969,7 @@ msgstr "{env}からサインアウトします。検出されたエージェン�
 msgid "Signing out. Detected agents will refresh when it finishes."
 msgstr "サインアウトしています。検出されたエージェントは終了時に更新されます。"
 
-#: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
+#: src/renderer/components/providers/settings/CodexProviderSettings.tsx
 msgid "Sizes shown in the Codex composer. Compaction starts automatically at 95% of the selected window. New chats default to 400k when that size is in the list."
 msgstr "Codex のコンポーザーに表示するサイズです。選択したウィンドウの 95% で自動圧縮が始まります。リストに 400k がある場合、新しいチャットのデフォルトは 400k です。"
 
@@ -12418,11 +12422,11 @@ msgstr "音声入力を停止する"
 msgid "Storage location"
 msgstr "保存場所"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Store as plain text"
 msgstr "平文で保存"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Store as secret (encrypted at rest)"
 msgstr "シークレットとして保存（保存時に暗号化）"
 
@@ -12434,7 +12438,7 @@ msgstr "このデバイスに保存されます。デスクトップ側の値は
 #~ msgid "Stored on this phone; the desktop keeps its own values."
 #~ msgstr "このスマートフォンに保存されます。デスクトップ側は独自の値を保持します。"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Structured runtime"
 msgstr "構造化ランタイム"
 
@@ -13060,7 +13064,7 @@ msgstr "テーマ"
 msgid "Theme and chat font size"
 msgstr "テーマとチャットのフォントサイズ"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "これらの組み込みMCPサーバーはOpenCodeスレッド間で共有されます。保存すると実行中のGUIプロジェクトが更新されますが、サーバーを削除すると進行中のターンが中断される場合があります。ターミナルスレッドには次回起動時に変更が反映されます。"
 
@@ -13079,7 +13083,7 @@ msgstr "思考中"
 msgid "This agent is not installed."
 msgstr "このエージェントはインストールされていません。"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
+#: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 msgid "This API key authenticates this profile's SDK chats and its usage card. It does not change the main Cursor CLI login."
 msgstr "この API キーは、このプロファイルの SDK チャットと使用量カードを認証します。メインの Cursor CLI ログインは変更しません。"
 
@@ -13203,7 +13207,7 @@ msgstr "このプラグインの Poracode 設定は無効なため無視され�
 msgid "This plugin's skills could not be read."
 msgstr "このプラグインのスキルを読み取れませんでした。"
 
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
 msgstr "このプロファイルは Cursor SDK 上で動作します。Cursor CLI と ACP はマシンで 1 つのログインを共有するため、メインの Cursor タイルに残ります。"
 
@@ -13515,7 +13519,7 @@ msgstr "合計トークン"
 msgid "Total tokens"
 msgstr "合計トークン"
 
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Track {label} usage"
 msgstr "{label}の使用状況を追跡する"
 
@@ -13528,7 +13532,7 @@ msgid "Tracking and display"
 msgstr "トラッキングと表示"
 
 #. Usage status when provider tracking is disabled
-#: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
+#: src/renderer/components/providers/settings/UsageProviderRow.tsx
 msgid "Tracking off"
 msgstr "追跡オフ"
 
@@ -13762,7 +13766,7 @@ msgstr "{0}を更新できません。"
 msgid "Unable to refresh {agentLabel} status."
 msgstr "{agentLabel}ステータスを更新できません。"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Unable to refresh Claude profiles."
 msgstr "Claude プロファイルを更新できません。"
 
@@ -13808,7 +13812,7 @@ msgstr "リモートセッションを取り消せませんでした。"
 msgid "Unable to save {0} credentials."
 msgstr "{0}資格情報を保存できません。"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Unable to save Claude {displayLabel} profile."
 msgstr "Claudeの{displayLabel}プロファイルを保存できません。"
 
@@ -13867,8 +13871,8 @@ msgstr "{0}フックを更新できません。"
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {1}: detail.slice(0, 240)
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
-#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}: {1}"
 msgstr "{0}を更新できません:{1}"
 
@@ -13880,10 +13884,10 @@ msgstr "{0}を更新できません:{detailText}"
 #. placeholder {0}: agent.label
 #. placeholder {0}: agentStatus.label
 #. placeholder {0}: status.label
+#: src/renderer/components/providers/settings/useProviderUpdates.ts
 #: src/renderer/components/providers/useCombinedProviderRuntimeUpdates.ts
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/useProviderUpdates.ts
 msgid "Unable to update {0}."
 msgstr "{0}を更新できません。"
 
@@ -14382,7 +14386,7 @@ msgstr "新しい対話型ターミナルパネルセッションに使用しま
 #~ msgid "user@example.com"
 #~ msgstr "user@example.com"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
 msgstr "組み込みのClaudeモデル一覧を使用しています。"
 
@@ -14391,7 +14395,7 @@ msgstr "組み込みのClaudeモデル一覧を使用しています。"
 msgid "v{0} available"
 msgstr "v{0}が利用可能"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "値"
 
@@ -14478,6 +14482,11 @@ msgstr "可視モデル"
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Voice input is not available in this environment."
 msgstr "この環境では音声入力は利用できません。"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+#: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+msgid "Voice input is unavailable on remote sessions."
+msgstr "リモートセッションでは音声入力は利用できません。"
 
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -14743,8 +14752,8 @@ msgid "Winner merged."
 msgstr "勝者をマージしました。"
 
 #: src/renderer/components/providers/composerControlBuilders.tsx
+#: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
-#: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "Work"
 msgstr "作業"
 
@@ -15000,7 +15009,7 @@ msgstr "あなたの名前"
 msgid "Your stashed local changes were re-applied."
 msgstr "スタッシュされていたローカルの変更が再適用されました。"
 
-#: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettingsModel.ts
+#: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "z.ai"
 msgstr "z.ai"
 

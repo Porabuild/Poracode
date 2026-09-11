@@ -237,8 +237,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const docksPlacement = isRemoteSurface ? "composer" : requestedDocksPlacement;
   const docksInComposer = docksPlacement === "composer";
   const usesRemoteTransport = isRemoteSurface || thread.remoteServerId !== undefined;
-  const showVoiceInputButton =
-    useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSurface;
+  const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
+  // Remote sessions have no local capture path: keep the button visible (when
+  // enabled) but disabled with the reason, instead of hiding it silently.
+  const showVoiceInputButton = voiceInputEnabled;
+  const voiceInputUnavailableHint = voiceInputEnabled
+    ? isRemoteSurface
+      ? t`Voice input is unavailable on remote sessions.`
+      : undefined
+    : undefined;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1171,6 +1178,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             isSubmitting ||
                             !(showServerComposer || showTerminalComposer)
                           }
+                          {...(voiceInputUnavailableHint !== undefined
+                            ? { unavailableHint: voiceInputUnavailableHint }
+                            : {})}
                           mentionRef={mentionRef}
                           voiceInputRef={voiceInputRef}
                         />
