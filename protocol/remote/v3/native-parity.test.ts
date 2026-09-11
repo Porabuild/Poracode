@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -94,6 +94,27 @@ const manifestSchema = z.object({
 });
 
 type Ledger = z.infer<typeof ledgerSchema>;
+
+/**
+ * WS8 negative assertion: "planned" must mean "not yet implemented". Every
+ * planned platform claim declares wire tokens that must be ABSENT from that
+ * platform's implementation tree; if a token appears, this test fails and the
+ * disposition must be flipped (with production evidence) instead.
+ */
+const PLANNED_ABSENCE_TOKENS: Record<
+  string,
+  ReadonlyArray<{ platform: Platform; token: string }>
+> = {
+  "background_tasks.changed": [{ platform: "ios", token: "background_tasks" }],
+  "terminal-watch-baseline-ack": [
+    { platform: "ios", token: "terminal-watch-baseline-ack" },
+    { platform: "android", token: "terminal-watch-baseline-ack" },
+  ],
+  "terminal-watch-baseline-chunk": [
+    { platform: "ios", token: "terminal-watch-baseline-chunk" },
+    { platform: "android", token: "terminal-watch-baseline-chunk" },
+  ],
+};
 type LedgerEntry = z.infer<typeof entrySchema>;
 type Platform = "ios" | "android";
 type Category = keyof Ledger["entries"];
@@ -205,6 +226,56 @@ describe("remote v3 native parity planning ledger", () => {
     replayableEventTypes: manifest.webSocket.replayableEventTypes,
     runtimeEventTypes: manifest.webSocket.runtimeEventTypes,
   };
+
+  it("keeps planned entries free of native implementations", () => {
+    // Every planned claim must declare the tokens proving its absence.
+    const plannedClaims: { id: string; platform: Platform }[] = [];
+    for (const category of Object.keys(ledger.entries) as Category[]) {
+      for (const entry of ledger.entries[category]) {
+        for (const platform of ["ios", "android"] as Platform[]) {
+          if (entry[platform].disposition === "planned") {
+            plannedClaims.push({ id: entry.id, platform });
+          }
+        }
+      }
+    }
+    for (const claim of plannedClaims) {
+      assertLedger(
+        PLANNED_ABSENCE_TOKENS[claim.id]?.some((rule) => rule.platform === claim.platform) === true,
+        `planned entry ${claim.id} (${claim.platform}) needs absence tokens in PLANNED_ABSENCE_TOKENS`,
+      );
+    }
+
+    // And each declared token must really be absent from the native tree.
+    const walk = (root: string): string[] => {
+      const files: string[] = [];
+      const stack = [root];
+      while (stack.length > 0) {
+        const current = stack.pop()!;
+        for (const entry of readdirSync(current, { withFileTypes: true })) {
+          const path = join(current, entry.name);
+          if (entry.isDirectory()) stack.push(path);
+          else if (entry.isFile()) files.push(path);
+        }
+      }
+      return files;
+    };
+    const trees: Record<Platform, string[]> = {
+      ios: walk(join(repositoryRoot, "ios/App/App")),
+      android: walk(join(repositoryRoot, "android/app/src/main/kotlin")),
+    };
+    for (const rules of Object.values(PLANNED_ABSENCE_TOKENS)) {
+      for (const rule of rules) {
+        for (const path of trees[rule.platform]) {
+          const contents = readFileSync(path, "utf8");
+          expect(
+            contents.includes(rule.token),
+            `${rule.platform} implements ${rule.token} in ${path} while the ledger entry is still planned — flip the disposition with evidence`,
+          ).toBe(false);
+        }
+      }
+    }
+  });
 
   it("exhaustively and uniquely covers the frozen manifest inventories", () => {
     expect(ledger.protocolVersion).toBe(manifest.protocolVersion);
