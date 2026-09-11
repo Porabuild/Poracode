@@ -383,6 +383,9 @@ export class BackendHostCore {
       configJson: thread?.config ? JSON.stringify(thread.config) : null,
     });
     let row: CheckpointRevertOperationRow = claim.row;
+    // Phase updates target the claimed row's key: a superseded stale replay
+    // runs under a versioned `key#N` journal row (WS8 replay-key fix).
+    const journalKey = claim.row.operationKey;
     const replayed = claim.kind === "replay";
     if (replayed) {
       return {
@@ -414,7 +417,7 @@ export class BackendHostCore {
       (row.providerPhase === "failed" && row.providerAnchorJson !== null)
     ) {
       if (row.numTurns === 0) {
-        row = this.bumpPhase(input.operationKey, row, { providerPhase: "skipped_no_turns" });
+        row = this.bumpPhase(journalKey, row, { providerPhase: "skipped_no_turns" });
       } else {
         const config = row.configJson ? (JSON.parse(row.configJson) as ThreadConfig) : undefined;
         let anchorJson = row.providerAnchorJson;
@@ -428,10 +431,10 @@ export class BackendHostCore {
             });
             anchorJson = JSON.stringify(created.anchor);
             // Freeze the absolute target durably before any restore runs.
-            row = this.bumpPhase(input.operationKey, row, { providerAnchorJson: anchorJson });
+            row = this.bumpPhase(journalKey, row, { providerAnchorJson: anchorJson });
           } catch (error) {
             if (!isAnchorUnsupportedError(error)) {
-              row = this.bumpPhase(input.operationKey, row, {
+              row = this.bumpPhase(journalKey, row, {
                 providerPhase: isTimedOutError(error) ? "ambiguous" : "failed",
               });
             }
@@ -445,9 +448,9 @@ export class BackendHostCore {
               anchor: JSON.parse(anchorJson) as ProviderRevertAnchor,
               ...(config ? { config } : {}),
             });
-            row = this.bumpPhase(input.operationKey, row, { providerPhase: "completed" });
+            row = this.bumpPhase(journalKey, row, { providerPhase: "completed" });
           } catch (error) {
-            row = this.bumpPhase(input.operationKey, row, {
+            row = this.bumpPhase(journalKey, row, {
               providerPhase: isTimedOutError(error) ? "ambiguous" : "failed",
             });
           }
@@ -459,9 +462,9 @@ export class BackendHostCore {
               numTurns: row.numTurns,
               ...(config ? { config } : {}),
             });
-            row = this.bumpPhase(input.operationKey, row, { providerPhase: "completed" });
+            row = this.bumpPhase(journalKey, row, { providerPhase: "completed" });
           } catch (error) {
-            row = this.bumpPhase(input.operationKey, row, {
+            row = this.bumpPhase(journalKey, row, {
               providerPhase: isTimedOutError(error) ? "ambiguous" : "failed",
             });
           }
@@ -477,7 +480,7 @@ export class BackendHostCore {
         ? (JSON.parse(row.projectLocationJson) as ProjectLocation)
         : null;
       if (!projectLocation) {
-        row = this.bumpPhase(input.operationKey, row, { filesPhase: "skipped_no_location" });
+        row = this.bumpPhase(journalKey, row, { filesPhase: "skipped_no_location" });
       } else {
         try {
           await this.supervisorClient.call("restoreFileCheckpoint", {
@@ -485,11 +488,11 @@ export class BackendHostCore {
             checkpointItemId: input.checkpointItemId,
             projectLocation,
           });
-          row = this.bumpPhase(input.operationKey, row, { filesPhase: "completed" });
+          row = this.bumpPhase(journalKey, row, { filesPhase: "completed" });
         } catch {
           // Preserve the established contract: a failing file restore aborts
           // the compound before the transcript is truncated.
-          row = this.bumpPhase(input.operationKey, row, {
+          row = this.bumpPhase(journalKey, row, {
             filesPhase: "failed",
             outcome: "failed",
           });
@@ -505,7 +508,7 @@ export class BackendHostCore {
     if (row.truncatePhase === "pending") {
       const truncated = this.truncateThreadRuntimeOwned(input.threadId, input.checkpointItemId);
       removedCompletedTurnAnchors = [...truncated.removedCompletedTurnAnchors];
-      row = this.bumpPhase(input.operationKey, row, {
+      row = this.bumpPhase(journalKey, row, {
         truncatePhase: truncated.truncated ? "completed" : "noop",
         removedAnchors: truncated.removedCompletedTurnAnchors,
       });
@@ -517,7 +520,7 @@ export class BackendHostCore {
         : row.providerPhase === "failed"
           ? "completed_local_only"
           : "completed";
-    this.bumpPhase(input.operationKey, row, { outcome });
+    this.bumpPhase(journalKey, row, { outcome });
     return {
       outcome,
       replayed,
