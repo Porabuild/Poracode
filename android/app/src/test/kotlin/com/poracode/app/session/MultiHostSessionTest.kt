@@ -44,6 +44,27 @@ class MultiHostSessionTest {
     @get:Rule val temporary = TemporaryFolder()
 
     @Test
+    fun capturesAppliedSeqOnSuspendAndForgetSoWarmSecondaryResumesInsteadOfReplaying() {
+        val pool = SessionPool()
+        val first = id(1)
+        val second = id(2)
+        pool.updatePolicy(first, listOf(first, second))
+        val secondarySocket = FakeSocket()
+        pool.install(SessionPoolKey.Host(first), FakeSocket())
+        pool.install(SessionPoolKey.Host(second), secondarySocket)
+        // The secondary socket's cursor advanced to 137 while it was live.
+        secondarySocket.noteAuthoritativeSnapshot(137)
+
+        pool.onBackground()
+        assertEquals(137, pool.cachedLastSeenSeq(SessionPoolKey.Host(second)))
+
+        // The capture survives slot removal, so a later warm resumes at 137
+        // instead of seeding the cursor at 0 (full-history replay).
+        pool.forget(SessionPoolKey.Host(second))
+        assertEquals(137, pool.cachedLastSeenSeq(SessionPoolKey.Host(second)))
+    }
+
+    @Test
     fun selectedPlusOneLruIsHardCappedAndOldLeasesStayInvalid() {
         val pool = SessionPool()
         val first = id(1)

@@ -82,6 +82,42 @@ final class ThreadHistoryHydrationTests: XCTestCase {
     )
   }
 
+  func testHydrationBufferCapsAt512AndFlagsOverflow() {
+    var buffer = ThreadHistoryHydrationBuffer()
+    let threadId = "thread-cap"
+    let gen = 1
+    buffer.begin(threadId: threadId, workGeneration: gen)
+
+    for seq in 1...ProtocolConstants.maxBufferedEnvelopes {
+      XCTAssertTrue(
+        buffer.bufferIfHydrating(
+          threadId: threadId, workGeneration: gen, seq: seq,
+          event: runtimeEnvelope(
+            type: "item.started", threadId: threadId,
+            itemId: "i\(seq)", itemType: "assistant_message", state: "running"
+          )
+        )
+      )
+    }
+    XCTAssertFalse(buffer.overflowed)
+    XCTAssertEqual(buffer.buffered.count, ProtocolConstants.maxBufferedEnvelopes)
+
+    // One more drops the OLDEST entry and raises the overflow flag.
+    XCTAssertTrue(
+      buffer.bufferIfHydrating(
+        threadId: threadId, workGeneration: gen,
+        seq: ProtocolConstants.maxBufferedEnvelopes + 1,
+        event: runtimeEnvelope(
+          type: "item.started", threadId: threadId,
+          itemId: "overflow", itemType: "assistant_message", state: "running"
+        )
+      )
+    )
+    XCTAssertTrue(buffer.overflowed)
+    XCTAssertEqual(buffer.buffered.count, ProtocolConstants.maxBufferedEnvelopes)
+    XCTAssertEqual(buffer.buffered.first?.seq, 2)
+  }
+
   func testDiscardOnThreadSwitchCancelsBuffer() {
     var buffer = ThreadHistoryHydrationBuffer()
     buffer.begin(threadId: "t1", workGeneration: 1)

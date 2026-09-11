@@ -93,6 +93,8 @@ struct ThreadController {
         host.state.threadDomain = domain
         host.state.openRuntimeRequests = domain.openRequests
 
+        // Read before commitHistory: it consumes the buffer and its flag.
+        let bufferOverflowed = host.state.hydrationBuffer.overflowed
         if let replay = host.state.hydrationBuffer.commitHistory(
             threadId: threadId,
             workGeneration: gen,
@@ -124,6 +126,12 @@ struct ThreadController {
             }
         } else {
             host.state.threadItems = history.runtimeItems
+        }
+        if bufferOverflowed {
+            // A capped hydration buffer dropped its oldest envelopes; the
+            // installed transcript is incomplete and only a resync recovers
+            // the dropped window (WS7 P1-14).
+            host.resync.trigger(reason: "hydration buffer overflow")
         }
         host.state.threadLoadState = host.state.threadItems.isEmpty ? .empty : .loaded
     }

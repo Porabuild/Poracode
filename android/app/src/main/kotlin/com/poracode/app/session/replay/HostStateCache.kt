@@ -25,6 +25,7 @@ class HostStateCache {
      * Bind to [hostId]; a change clears every cache (no cross-host leakage).
      * Returns true when the bind cleared an existing (different) host's cache.
      */
+    @Synchronized
     fun bindHost(hostId: String): Boolean {
         if (this.hostId == hostId) return false
         clearInternal()
@@ -32,10 +33,12 @@ class HostStateCache {
         return true
     }
 
+    @Synchronized
     fun clear() {
         clearInternal()
     }
 
+    /** Caller holds the monitor. */
     private fun clearInternal() {
         hostId = null
         stateRef = SequencedEventApplier.ReplayState()
@@ -47,7 +50,12 @@ class HostStateCache {
      * regression); summaries replace only while the cache is still empty, so an
      * ordinary shell refresh never discards event-applied state. Pass
      * [authoritative] = true for a resync transaction (force replace).
+     *
+     * Synchronized like the agent-status buffer: every stateRef mutation is a
+     * read-modify-write across the WebSocket reader and Main threads, and a
+     * lost update here silently drops event-applied state (WS7 P1-17).
      */
+    @Synchronized
     fun seedFromShell(shell: RemoteShellSnapshot, authoritative: Boolean = false) {
         val summaries = shell.gitSummariesByThread?.let { GitStateJsonAdapter.decodeSummaries(it) }
         val gitState = shell.gitState?.let { GitStateJsonAdapter.decodeSnapshot(it) }
@@ -70,6 +78,7 @@ class HostStateCache {
         }
     }
 
+    @Synchronized
     fun replace(state: SequencedEventApplier.ReplayState) {
         stateRef = state
     }
@@ -105,6 +114,7 @@ class HostStateCache {
      * reports are pruned, and an empty base yields an empty map. Buffered
      * live transitions re-apply on top, so newer events win.
      */
+    @Synchronized
     fun seedAgentStatusesBase(
         native: List<AgentStatusEntry>,
         wsl: List<AgentStatusEntry>,
@@ -136,6 +146,7 @@ class HostStateCache {
     }
 
     /** Ensure a thread has a replay entry (preserving existing fields). */
+    @Synchronized
     fun ensureThread(threadId: String, watchIntent: Boolean) {
         if (stateRef.threads[threadId] != null) return
         stateRef = stateRef.copy(

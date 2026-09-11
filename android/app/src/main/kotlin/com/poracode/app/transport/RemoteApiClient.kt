@@ -417,7 +417,12 @@ class RemoteApiClient(
                 else -> false
             }
 
-        fun defaultClient(): OkHttpClient =
+        /**
+         * Shared base client (WS7 finding 5): one connection pool + dispatcher
+         * thread budget for every transport. `newBuilder()` derivatives (each
+         * RemoteApiClient) inherit them instead of each owning a full stack.
+         */
+        private val sharedBaseClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
                 .connectTimeout(RemoteSocketPolicy.CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                 .readTimeout(RemoteSocketPolicy.REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS)
@@ -427,5 +432,8 @@ class RemoteApiClient(
                 .followSslRedirects(false)
                 .retryOnConnectionFailure(false)
                 .build()
+        }
+
+        fun defaultClient(): OkHttpClient = sharedBaseClient
     }
 }

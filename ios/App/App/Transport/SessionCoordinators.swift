@@ -16,6 +16,9 @@ struct ThreadHistoryHydrationBuffer: Sendable, Equatable {
     private(set) var workGeneration: Int = 0
     private(set) var isAwaitingHistory: Bool = false
     private(set) var buffered: [Envelope] = []
+    /// The cap forced an oldest-entry drop; the replay is incomplete and the
+    /// caller must follow up with an authoritative refresh (WS7 P1-14).
+    private(set) var overflowed: Bool = false
 
     var isActive: Bool { isAwaitingHistory && threadId != nil }
 
@@ -25,6 +28,7 @@ struct ThreadHistoryHydrationBuffer: Sendable, Equatable {
         self.workGeneration = workGeneration
         self.isAwaitingHistory = true
         self.buffered = []
+        overflowed = false
     }
 
     /// Discard buffer (thread switch, cancel, new pairing, close).
@@ -33,6 +37,7 @@ struct ThreadHistoryHydrationBuffer: Sendable, Equatable {
         workGeneration = 0
         isAwaitingHistory = false
         buffered = []
+        overflowed = false
     }
 
     /// Drop a failed/cancelled open's buffer only when this load still owns it.
@@ -57,6 +62,10 @@ struct ThreadHistoryHydrationBuffer: Sendable, Equatable {
               self.workGeneration == workGeneration
         else { return false }
         buffered.append(Envelope(seq: seq, event: event))
+        if buffered.count > ProtocolConstants.maxBufferedEnvelopes {
+          buffered.removeFirst()
+          overflowed = true
+        }
         return true
     }
 
@@ -79,6 +88,7 @@ struct ThreadHistoryHydrationBuffer: Sendable, Equatable {
             .sorted { $0.seq < $1.seq }
         isAwaitingHistory = false
         buffered = []
+        overflowed = false
         return replay
     }
 }

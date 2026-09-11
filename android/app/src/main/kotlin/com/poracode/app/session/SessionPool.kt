@@ -56,6 +56,13 @@ class SessionPool {
     )
 
     private val slots = linkedMapOf<SessionPoolKey, Slot>()
+    /**
+     * Highest applied seq observed per key, captured when a socket stops or
+     * suspends and surviving slot removal. Without it a re-warmed secondary
+     * socket starts at 0 and the server replays the host's entire event
+     * history to a listener that discards it (WS7 finding 6).
+     */
+    private val lastSeenSeqByKey = linkedMapOf<SessionPoolKey, Int>()
     private var selected: SessionPoolKey? = SessionPoolKey.Legacy
     private var secondary: SessionPoolKey? = null
     private var backgroundGated = false
@@ -109,6 +116,7 @@ class SessionPool {
     fun forget(key: SessionPoolKey) {
         val slot = slots.remove(key) ?: return
         slot.generation += 1
+        captureAppliedSeqLocked(key, slot.socket)
         slot.socket?.apply {
             setListener(null)
             stop()
@@ -119,10 +127,22 @@ class SessionPool {
     @Synchronized
     fun onBackground() {
         backgroundGated = true
-        slots.values.forEach { slot ->
+        slots.forEach { (key, slot) ->
             slot.generation += 1
+            captureAppliedSeqLocked(key, slot.socket)
             slot.socket?.suspendForBackground()
         }
+    }
+
+    /** Last seq a socket for [key] had applied, or null when never tracked. */
+    fun cachedLastSeenSeq(key: SessionPoolKey): Int? = lastSeenSeqByKey[key]
+
+    /** Caller holds the monitor: records the socket's applied cursor before it
+     * stops or suspends, so a later socket can resume instead of replaying. */
+    private fun captureAppliedSeqLocked(key: SessionPoolKey, socket: RemoteEventSocket?) {
+        val seq = socket?.appliedSeq() ?: return
+        lastSeenSeqByKey.remove(key)
+        lastSeenSeqByKey[key] = seq
     }
 
     @Synchronized
