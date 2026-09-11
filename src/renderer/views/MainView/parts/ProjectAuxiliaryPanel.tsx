@@ -41,7 +41,6 @@ import {
   selectBrowserPanelAvailable,
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
-import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { watchRemoteTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { prefetchVisibleGitPanelPrData } from "@/renderer/state/gitRefresh";
@@ -112,7 +111,10 @@ export function ProjectAuxiliaryPanel(props: {
   const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
   const setPortsPanelOpen = usePanelStore((s) => s.setPortsPanelOpen);
   const browserBridgeServer = useRemoteServersStore(selectBrowserBridgeServer);
-  const portsAvailable = isBrowserClientRuntime() && browserBridgeServer !== undefined;
+  // Ports forwarding operates on the connected remote server in every client
+  // runtime — the PWA's desktop host and the Electron-as-client's mirrored
+  // hosts expose the same routes, and entry URLs open externally.
+  const portsAvailable = browserBridgeServer !== undefined;
   // Reactive id of the project the notes panel should show — recomputed (and
   // re-rendered) as the user navigates between threads/drafts/projects.
   const currentProjectId = useAppStore(() => getCurrentProjectId());
