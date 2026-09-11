@@ -87,6 +87,17 @@ function generateExperimentTitleAsync(
 export async function launchExperiment(input: LaunchExperimentInput): Promise<string | null> {
   const project = useAppStore.getState().projects.find((item) => item.id === input.projectId);
   if (!project) return null;
+  // Experiments create git worktrees through the local bridge. A mirrored
+  // project's location only resolves on its host, so refusing up front keeps
+  // the failure honest instead of letting every candidate fail individually.
+  if (project.remoteServerId) {
+    toast.danger(
+      i18n._(
+        msg`Experiments run on the machine hosting the project. Open the project on its host to run an experiment.`,
+      ),
+    );
+    return null;
+  }
   const prompt = input.prompt.trim();
   if (!prompt || input.candidates.length < 2) {
     toast.danger(i18n._(msg`Choose at least two candidates and enter a prompt.`));
