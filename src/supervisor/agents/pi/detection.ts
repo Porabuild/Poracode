@@ -70,7 +70,7 @@ export const piDefaultCapabilities: AgentCapability = {
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "never",
   bypassPermissions: { approvalPolicy: "never" },
-  mcpScope: { terminal: "none", gui: "launch" },
+  mcpScope: { terminal: "launch", gui: "launch" },
   settingDefs: [],
 };
 

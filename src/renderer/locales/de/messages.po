@@ -1089,6 +1089,10 @@ msgstr "Zum Home-Bildschirm hinzufügen"
 msgid "Add to-do"
 msgstr "Aufgabe hinzufügen"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Add user MCP servers in MCP Servers settings to install them here."
+msgstr "Füge in den Einstellungen für MCP-Server benutzerdefinierte MCP-Server hinzu, um sie hier zu installieren."
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Arbeitsbereich hinzufügen"
@@ -4450,6 +4454,10 @@ msgstr "Deaktiviert"
 msgid "Disabled globally"
 msgstr "Global deaktiviert"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Disabled server or unsupported native options"
+msgstr "Server deaktiviert oder native Optionen nicht unterstützt"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "Beim Deaktivieren wird ein Skill aus den aktiven Skill-Ordnern verschoben und von Poracode verwaltete Anbieterkopien werden entfernt. Die Dateien bleiben erhalten, sodass du ihn wieder aktivieren kannst."
@@ -5009,6 +5017,10 @@ msgstr "Von Synchronisierung ausschließen"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Muster ausschließen"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Existing or edited native entry; left unchanged"
+msgstr "Vorhandener oder bearbeiteter nativer Eintrag bleibt unverändert"
 
 #. placeholder {0}: parsed.exitCode
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
@@ -6329,6 +6341,7 @@ msgstr "installieren"
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Install"
 msgstr "Installieren"
 
@@ -6516,6 +6529,7 @@ msgstr "Installation, Updates und Anmeldung sind auf Remote-Computern noch nicht
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
 msgstr "Installiert"
 
@@ -7702,6 +7716,14 @@ msgstr "Benennen Sie Ihr Projekt und wählen Sie aus, wo es erstellt werden soll
 msgid "Native"
 msgstr "Nativ"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP configuration updated. Start a new CLI session to use it."
+msgstr "Native MCP-Konfiguration aktualisiert. Starte eine neue CLI-Sitzung, um sie zu verwenden."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP setup"
+msgstr "Native MCP-Einrichtung"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
 msgstr "Native Anbieter"
@@ -8458,6 +8480,7 @@ msgstr "nicht installiert"
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "Nicht installiert"
 
@@ -8915,6 +8938,10 @@ msgstr "Optionale Status-Hooks. Installierte Hooks werden automatisch aktualisie
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Optional workflow_dispatch input values."
 #~ msgstr "Optionale workflow_dispatch-Eingabewerte."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Optional: copy selected user MCP servers into this CLI's native configuration for all its sessions. Commands, arguments, and credentials are copied only when you click Install. Changes are not synced automatically."
+msgstr "Optional: Kopiere ausgewählte benutzerdefinierte MCP-Server in die native Konfiguration dieser CLI für alle ihre Sitzungen. Befehle, Argumente und Zugangsdaten werden erst beim Klick auf Installieren kopiert. Änderungen werden nicht automatisch synchronisiert."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
@@ -10119,6 +10146,7 @@ msgstr "Benachrichtigungsinhalt verbergen"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Aktualisieren"
@@ -13659,6 +13687,10 @@ msgstr "Der SSH-Host konnte nicht geprüft werden."
 msgid "Unable to read experiment candidate status"
 msgstr "Status des Experimentkandidaten konnte nicht gelesen werden"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to read native MCP configuration."
+msgstr "Native MCP-Konfiguration konnte nicht gelesen werden."
+
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to read the candidate changes: {0}"
@@ -13811,6 +13843,10 @@ msgstr "{0} kann nicht aktualisiert werden."
 msgid "Unable to update learned tags."
 msgstr "Erlernte Tags konnten nicht aktualisiert werden."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to update native MCP configuration. Refresh and review the configuration before retrying."
+msgstr "Native MCP-Konfiguration konnte nicht aktualisiert werden. Aktualisiere und prüfe die Konfiguration vor einem erneuten Versuch."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Remotezugriff kann nicht aktualisiert werden."
@@ -13889,8 +13925,13 @@ msgstr "Einheitliche Ansicht"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Uninstall"
 msgstr "Deinstallieren"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Uninstall {name}"
+msgstr "{name} deinstallieren"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts

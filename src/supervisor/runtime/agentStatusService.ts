@@ -91,7 +91,10 @@ const execFileAsync = promisify(execFile);
 // v26 refreshes model aliases and configured profile labels.
 // v27 coalesces resolved model aliases with their selectable catalog entries.
 // v28 re-probes live voice instead of retaining old capability negatives.
-export const STATUS_CACHE_VERSION = 28;
+// v29 advertises session-local MCP tools for Command Code.
+// v30 refreshes terminal MCP capabilities across supported CLIs.
+// v32 invalidates capabilities from the removed persistent MCP proxy prototype.
+export const STATUS_CACHE_VERSION = 32;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

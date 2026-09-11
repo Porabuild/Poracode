@@ -79,7 +79,7 @@ function terminalRuntimeCapabilities(capabilities: AgentCapability): AgentCapabi
     liveInputMode: "terminal",
     presentationMode: "terminal",
     presentationModes: ["terminal"],
-    mcpScope: { terminal: "none" },
+    mcpScope: { terminal: capabilities.mcpScope?.terminal ?? "none" },
   };
 }
 

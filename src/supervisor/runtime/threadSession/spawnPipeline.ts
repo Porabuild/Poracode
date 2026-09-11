@@ -498,7 +498,11 @@ export class SpawnPipeline {
       mcpServers = await this.ctx.options.applyMcpServerAuthorization(mcpServers);
     }
     if (this.ctx.options.prepareMcpToolFilters) {
-      mcpServers = await this.ctx.options.prepareMcpToolFilters(mcpServers, executionLocation);
+      mcpServers = await this.ctx.options.prepareMcpToolFilters(
+        mcpServers,
+        executionLocation,
+        ...(adapter.mcpRequiresStdioCwdProxy ? [{ proxyStdioCwd: true }] : []),
+      );
     }
     const mcpLaunchSnapshot: McpLaunchSnapshot = {
       mcpServers,

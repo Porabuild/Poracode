@@ -1089,6 +1089,10 @@ msgstr "Thêm vào màn hình chính"
 msgid "Add to-do"
 msgstr "Thêm việc cần làm"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Add user MCP servers in MCP Servers settings to install them here."
+msgstr "Thêm máy chủ MCP của người dùng trong cài đặt Máy chủ MCP để cài đặt tại đây."
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Thêm không gian làm việc"
@@ -4450,6 +4454,10 @@ msgstr "Đã tắt"
 msgid "Disabled globally"
 msgstr "Đã tắt trên toàn hệ thống"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Disabled server or unsupported native options"
+msgstr "Máy chủ bị tắt hoặc có tùy chọn gốc không được hỗ trợ"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "Khi tắt một skill, skill đó được chuyển khỏi các thư mục skill đang hoạt động và các bản sao của nhà cung cấp do Poracode quản lý sẽ bị xóa. Các tệp vẫn được giữ lại để bạn có thể bật lại."
@@ -5009,6 +5017,10 @@ msgstr "Loại khỏi đồng bộ hóa"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Loại trừ mẫu"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Existing or edited native entry; left unchanged"
+msgstr "Mục cấu hình gốc đã tồn tại hoặc đã được chỉnh sửa; giữ nguyên"
 
 #. placeholder {0}: parsed.exitCode
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
@@ -6329,6 +6341,7 @@ msgstr "cài đặt"
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Install"
 msgstr "cài đặt"
 
@@ -6516,6 +6529,7 @@ msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên má
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
 msgstr "Đã cài đặt"
 
@@ -7702,6 +7716,14 @@ msgstr "Đặt tên cho dự án của bạn và chọn nơi để tạo nó."
 msgid "Native"
 msgstr "Bản địa"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP configuration updated. Start a new CLI session to use it."
+msgstr "Đã cập nhật cấu hình MCP gốc. Hãy bắt đầu phiên CLI mới để sử dụng."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP setup"
+msgstr "Thiết lập MCP gốc"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
 msgstr "Nhà cung cấp bản địa"
@@ -8458,6 +8480,7 @@ msgstr "chưa được cài đặt"
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "Chưa được cài đặt"
 
@@ -8915,6 +8938,10 @@ msgstr "Hook trạng thái tùy chọn. Các hook đã cài đặt sẽ tự đ�
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Optional workflow_dispatch input values."
 #~ msgstr "Các giá trị đầu vào workflow_dispatch không bắt buộc."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Optional: copy selected user MCP servers into this CLI's native configuration for all its sessions. Commands, arguments, and credentials are copied only when you click Install. Changes are not synced automatically."
+msgstr "Tùy chọn: sao chép các máy chủ MCP của người dùng đã chọn vào cấu hình gốc của CLI này cho mọi phiên. Lệnh, đối số và thông tin xác thực chỉ được sao chép khi bạn nhấp Cài đặt. Các thay đổi không được đồng bộ tự động."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
@@ -10119,6 +10146,7 @@ msgstr "Ẩn nội dung thông báo"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Làm mới"
@@ -13659,6 +13687,10 @@ msgstr "Không thể kiểm tra máy chủ SSH."
 msgid "Unable to read experiment candidate status"
 msgstr "Không thể đọc trạng thái của ứng viên thử nghiệm"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to read native MCP configuration."
+msgstr "Không thể đọc cấu hình MCP gốc."
+
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to read the candidate changes: {0}"
@@ -13811,6 +13843,10 @@ msgstr "Không thể cập nhật {0}."
 msgid "Unable to update learned tags."
 msgstr "Không thể cập nhật thẻ đã học."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to update native MCP configuration. Refresh and review the configuration before retrying."
+msgstr "Không thể cập nhật cấu hình MCP gốc. Hãy làm mới và xem lại cấu hình trước khi thử lại."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Không thể cập nhật quyền truy cập từ xa."
@@ -13889,8 +13925,13 @@ msgstr "Chế độ xem thống nhất"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Uninstall"
 msgstr "Gỡ cài đặt"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Uninstall {name}"
+msgstr "Gỡ cài đặt {name}"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts

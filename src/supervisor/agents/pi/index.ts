@@ -3,6 +3,7 @@ import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { detectAgentInstall, type AgentAdapter } from "../base";
 import { buildPiArgs, buildPiOneShotArgs } from "./argv";
 import { piDefaultCapabilities, piDetectionSpec } from "./detection";
+import { piMcpLaunch } from "./mcp";
 import { PiRpcSession } from "./rpcSession";
 import {
   discoverPiSessionRef,
@@ -51,15 +52,18 @@ export function createPiAdapter(): AgentAdapter {
       return status;
     },
 
-    buildLaunchArgv(location, config, prompt) {
+    buildLaunchArgv(location, config, prompt, _sessionRef, options) {
+      const mcp = piMcpLaunch(location, options?.mcpServers);
       void snapshotPiPreSpawnSessions(location);
-      return { binary: "pi", args: buildPiArgs(config, prompt) };
+      return { ...mcp, binary: "pi", args: [...mcp.args, ...buildPiArgs(config, prompt)] };
     },
 
-    buildResumeArgv(_location, config, prompt, sessionRef) {
+    buildResumeArgv(location, config, prompt, sessionRef, options) {
+      const mcp = piMcpLaunch(location, options?.mcpServers);
       return {
+        ...mcp,
         binary: "pi",
-        args: buildPiArgs(config, prompt, sessionRef.providerSessionId),
+        args: [...mcp.args, ...buildPiArgs(config, prompt, sessionRef.providerSessionId)],
       };
     },
 

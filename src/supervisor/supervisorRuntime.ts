@@ -1,3 +1,4 @@
+import { NativeMcpSetupCoordinator } from "./runtime/nativeMcpSetupCoordinator";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
@@ -131,6 +132,7 @@ export class SupervisorRuntime {
   readonly generationService: GenerationService;
   readonly threadSessionManager: ThreadSessionManager;
   readonly lspManager: LanguageServerManager;
+  readonly nativeMcpSetupCoordinator: NativeMcpSetupCoordinator;
   readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
   readonly externalMcpDiscoveryService = new ExternalMcpDiscoveryService();
   readonly mcpOAuthService: McpOAuthService;
@@ -290,6 +292,11 @@ export class SupervisorRuntime {
     const dispatchEnvelope = (envelope: import("@/shared/contracts").AgentEventEnvelope): void =>
       runHookDispatch(envelope, "hook-ingress");
 
+    this.nativeMcpSetupCoordinator = new NativeMcpSetupCoordinator(
+      this.adapters,
+      baseDir,
+      () => this.sharedSettingsCache.read().mcpServers,
+    );
     this.cliHookPluginCoordinator = new CliHookPluginCoordinator(
       {
         adapters: this.adapters,

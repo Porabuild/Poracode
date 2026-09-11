@@ -76,6 +76,7 @@ const deps = {
   // supervisor — left external, Node's ESM loader would try to load its raw
   // extensionless .ts imports at runtime and crash.
   alwaysBundle: [
+    /^cross-spawn(?:\/|$)/,
     "electron-updater",
     "simple-git",
     "zod",
@@ -111,6 +112,26 @@ const cliShared = {
   // desktop bundle can drop console noise, but `pnpm run server` and
   // `pnpm run relay` are otherwise silent after tsdown minification.
   minify: isProd ? ({ compress: { dropDebugger: true } } as const) : false,
+};
+
+// Keep separate build entries so each deployable MCP helper remains self-contained.
+const standaloneMcpOptions = {
+  clean: false,
+  outDir: "dist/main",
+  platform: "node" as const,
+  format: "esm" as const,
+  sourcemap,
+  dts: false,
+  minify: false,
+  define: buildDefines,
+  deps: {
+    ...deps,
+    alwaysBundle: [
+      ...deps.alwaysBundle,
+      /^@modelcontextprotocol\/(?:client|server|core)(?:\/|$)/,
+      /^zod(?:\/|$)/,
+    ],
+  },
 };
 
 export default defineConfig([
@@ -188,43 +209,37 @@ export default defineConfig([
   {
     // Self-contained so it can be staged and executed inside a WSL distro.
     entry: { mcpProbeWorker: "src/supervisor/mcp/probeMcpWorker.ts" },
-    clean: false,
-    outDir: "dist/main",
-    platform: "node" as const,
-    format: "esm" as const,
+    ...standaloneMcpOptions,
     target: "node24" as const,
-    sourcemap,
-    dts: false,
-    minify: false,
-    define: buildDefines,
-    deps: {
-      ...deps,
-      alwaysBundle: [
-        ...deps.alwaysBundle,
-        /^@modelcontextprotocol\/(?:client|server|core)(?:\/|$)/,
-        /^zod(?:\/|$)/,
-      ],
-    },
   },
   {
     // Separate build prevents shared chunks; this worker is deployed alone into WSL.
     entry: { mcpToolFilterWorker: "src/supervisor/mcp/mcpToolFilterWorker.ts" },
+    ...standaloneMcpOptions,
+    target: "node24" as const,
+  },
+  {
+    // Standalone mod loaded by the provider CLI, including inside WSL.
+    entry: { commandCodeMcpMod: "src/supervisor/agents/commandcode/mcpMod.ts" },
+    ...standaloneMcpOptions,
+    target: "node22" as const,
+  },
+  {
+    // Standalone extension loaded by the provider CLI, including inside WSL.
+    entry: { piMcpExtension: "src/supervisor/agents/pi/mcpExtension.ts" },
+    ...standaloneMcpOptions,
+    target: "node22" as const,
+  },
+  {
+    entry: { mcpStdioWorker: "src/supervisor/mcp/mcpStdioWorker.ts" },
+    deps: { alwaysBundle: [/^cross-spawn(?:\/|$)/] },
     clean: false,
     outDir: "dist/main",
     platform: "node" as const,
     format: "esm" as const,
-    target: "node24" as const,
+    target: "node22" as const,
     sourcemap,
     dts: false,
     minify: false,
-    define: buildDefines,
-    deps: {
-      ...deps,
-      alwaysBundle: [
-        ...deps.alwaysBundle,
-        /^@modelcontextprotocol\/(?:client|server|core)(?:\/|$)/,
-        /^zod(?:\/|$)/,
-      ],
-    },
   },
 ]);

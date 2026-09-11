@@ -41,6 +41,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     refreshAgentStatuses: (payload) => registry.refreshAgentStatuses(payload),
     getProviderUsage: (payload) => usage.getProviderUsage(payload),
     refreshProviderUsage: (payload) => usage.refreshProviderUsage(payload),
+    getNativeMcpSetup: (payload) => runtime.nativeMcpSetupCoordinator.getStatus(payload),
+    applyNativeMcpSetup: (payload) => runtime.nativeMcpSetupCoordinator.apply(payload),
     getAgentHookPluginStatuses: (payload) => hookPlugins.getStatuses(payload),
     installAgentHookPlugin: (payload) => hookPlugins.installPlugin(payload),
     uninstallAgentHookPlugin: (payload) => hookPlugins.uninstallPlugin(payload),
