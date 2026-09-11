@@ -951,6 +951,10 @@ msgstr "登录前添加项目。"
 msgid "Add a project before updating an agent."
 msgstr "请先添加项目，再更新智能体。"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Add a project on this environment to start"
+msgstr "在此环境中添加一个项目以开始"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
 msgstr "添加项目以查看拉取请求。"
@@ -11227,6 +11231,10 @@ msgstr "扫描 Windows 和 WSL 以查找已安装的 CLI。这通常需要几秒
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "扫描系统中已安装的 CLI。这通常需要几秒钟。"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule machine"
+msgstr "计划任务所属机器"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Schedule name"
 msgstr "计划名称"
@@ -13141,6 +13149,10 @@ msgstr "这台电脑"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "此连接可以查看项目，但不能管理项目。请重新配对以启用。"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "This desktop"
+msgstr "本桌面端"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."

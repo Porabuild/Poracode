@@ -951,6 +951,10 @@ msgstr "로그인하기 전에 프로젝트를 추가하세요."
 msgid "Add a project before updating an agent."
 msgstr "에이전트를 업데이트하기 전에 프로젝트를 추가하세요."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Add a project on this environment to start"
+msgstr "시작하려면 이 환경에 프로젝트를 추가하세요"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
 msgstr "풀 리퀘스트를 보려면 프로젝트를 추가하세요."
@@ -11228,6 +11232,10 @@ msgstr "설치된 CLI를 찾기 위해 Windows 및 WSL을 검색합니다. 이 �
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "설치된 CLI를 찾기 위해 시스템을 검색합니다. 이 작업은 일반적으로 몇 초 정도 걸립니다."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule machine"
+msgstr "일정 머신"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Schedule name"
 msgstr "일정 이름"
@@ -13142,6 +13150,10 @@ msgstr "이 컴퓨터"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "이 연결은 프로젝트를 볼 수 있지만 관리할 수 없습니다. 활성화하려면 다시 페어링하세요."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "This desktop"
+msgstr "이 데스크톱"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."

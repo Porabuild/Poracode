@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, ButtonGroup, Dropdown, Input, Label, TextField } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
@@ -11,7 +11,12 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import type { AgentCapability, ScheduledTask, ScheduledTaskInput } from "@/shared/contracts";
+import type {
+  AgentCapability,
+  ScheduledTask,
+  ScheduledTaskInput,
+  ScheduledTaskRun,
+} from "@/shared/contracts";
 import { isHomeProject } from "@/shared/homeScope";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
 import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
@@ -31,6 +36,7 @@ import { openThread } from "@/renderer/actions/threadActions";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useProjectIdsHiddenByWorkspace } from "@/renderer/state/workspaceSelectors";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
 import { ScheduleEditor } from "./ScheduleEditor";
@@ -97,7 +103,57 @@ export function SchedulesView(
    * stay visible without needing their own special cases.
    */
   const hiddenProjectIds = useProjectIdsHiddenByWorkspace();
-  const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
+  /**
+   * WS8 parity: schedules run on the machine that owns the project. The local
+   * desktop lists its own; each connected remote environment can be selected
+   * and lists ITS schedules through the remote protocol — mirroring the
+   * natives' host-scoped schedules surface. Mobile keeps its existing
+   * machine flow (the bridge already points at the selected host).
+   */
+  const [selectedMachineId, setSelectedMachineId] = useState<string>("local");
+  const allRemoteServers = useRemoteServersStore((state) => state.servers);
+  const remoteServers = allRemoteServers.filter((server) => server.scopes.includes("session:read"));
+  // A removed server must not leave a dead machine selected (label would fall
+  // back to local while every op still targeted the gone host).
+  const machineId = remoteServers.some((server) => server.desktopId === selectedMachineId)
+    ? selectedMachineId
+    : "local";
+  const isRemoteMachine = !compact && machineId !== "local";
+  const remoteRuntime = useRemoteServersStore((state) =>
+    machineId === "local" ? undefined : state.runtime[machineId],
+  );
+  const withClient = useRemoteServersStore((state) => state.withClient);
+  /** Mutation results may resolve after a machine switch; only the machine
+   * the operation was issued on may install them. */
+  const machineRef = useRef(machineId);
+  useEffect(() => {
+    machineRef.current = machineId;
+  }, [machineId]);
+  const stillOnMachine = (opMachine: string): boolean => machineRef.current === opMachine;
+
+  const scheduleOps = {
+    create: (input: ScheduledTaskInput): Promise<ScheduledTask> =>
+      isRemoteMachine
+        ? withClient(machineId, (client) => client.createSchedule(input))
+        : readBridge().createSchedule(input),
+    update: (id: string, task: ScheduledTaskInput): Promise<ScheduledTask> =>
+      isRemoteMachine
+        ? withClient(machineId, (client) => client.updateSchedule(id, task))
+        : readBridge().updateSchedule({ id, task }),
+    remove: (id: string): Promise<void> =>
+      isRemoteMachine
+        ? withClient(machineId, (client) => client.deleteSchedule(id))
+        : readBridge().deleteSchedule({ id }),
+    runNow: (id: string): Promise<ScheduledTask> =>
+      isRemoteMachine
+        ? withClient(machineId, (client) => client.runScheduleNow(id))
+        : readBridge().runScheduleNow({ id }),
+  };
+
+  const localAgentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
+  const agentStatuses = isRemoteMachine
+    ? (remoteRuntime?.agentStatuses?.windows ?? [])
+    : localAgentStatuses;
   const agents = agentStatuses
     .filter((agent) => {
       const presentationModes = agent.capabilities.presentationModes ?? [
@@ -114,10 +170,26 @@ export function SchedulesView(
         agent.capabilities.models.length > 0,
     );
 
+  const listSchedules = useCallback((): Promise<ScheduledTask[]> => {
+    if (!compact && machineId !== "local") {
+      return withClient(machineId, (client) => client.schedules());
+    }
+    return readBridge().getSchedules();
+  }, [compact, machineId, withClient]);
+
+  const fetchRuns = useCallback(
+    (id: string): Promise<ScheduledTaskRun[]> => {
+      if (!compact && machineId !== "local") {
+        return withClient(machineId, (client) => client.scheduleRuns(id));
+      }
+      return readBridge().getScheduleRuns({ id });
+    },
+    [compact, machineId, withClient],
+  );
+
   useEffect(() => {
     let cancelled = false;
-    void readBridge()
-      .getSchedules()
+    void listSchedules()
       .then((next) => {
         if (!cancelled) setTasks(next);
       })
@@ -131,7 +203,7 @@ export function SchedulesView(
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [listSchedules]);
 
   // Poll only while a run is active. Depend on the derived boolean (not the
   // whole `tasks` array) so the interval is recreated when the running state
@@ -140,13 +212,12 @@ export function SchedulesView(
   useEffect(() => {
     if (!hasRunningTask) return;
     const timer = window.setInterval(() => {
-      void readBridge()
-        .getSchedules()
+      void listSchedules()
         .then(setTasks)
         .catch(() => undefined);
     }, 2_000);
     return () => window.clearInterval(timer);
-  }, [hasRunningTask]);
+  }, [hasRunningTask, listSchedules]);
 
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const workspaceTasks = tasks.filter(
@@ -201,21 +272,26 @@ export function SchedulesView(
   }
 
   function updateTask(task: ScheduledTask, input: ScheduledTaskInput) {
+    const opMachine = machineId;
     setError("");
-    void readBridge()
-      .updateSchedule({ id: task.id, task: input })
-      .then((next) => setTasks((current) => replaceTask(current, next)))
-      .catch((updateError: unknown) =>
-        setError(updateError instanceof Error ? updateError.message : String(updateError)),
-      );
+    void scheduleOps
+      .update(task.id, input)
+      .then((next) => {
+        if (stillOnMachine(opMachine)) setTasks((current) => replaceTask(current, next));
+      })
+      .catch((updateError: unknown) => {
+        if (stillOnMachine(opMachine))
+          setError(updateError instanceof Error ? updateError.message : String(updateError));
+      });
   }
 
   function runNow(task: ScheduledTask) {
+    const opMachine = machineId;
     setError("");
-    void readBridge()
-      .runScheduleNow({ id: task.id })
+    void scheduleOps
+      .runNow(task.id)
       .then((next) => {
-        setTasks((current) => replaceTask(current, next));
+        if (stillOnMachine(opMachine)) setTasks((current) => replaceTask(current, next));
         captureProductEvent("schedule.run_requested", {
           ...scheduleAnalyticsProperties(
             task,
@@ -224,9 +300,10 @@ export function SchedulesView(
           source: "manual",
         });
       })
-      .catch((runError: unknown) =>
-        setError(runError instanceof Error ? runError.message : String(runError)),
-      );
+      .catch((runError: unknown) => {
+        if (stillOnMachine(opMachine))
+          setError(runError instanceof Error ? runError.message : String(runError));
+      });
   }
 
   function toggleEnabled(task: ScheduledTask) {
@@ -236,33 +313,48 @@ export function SchedulesView(
     });
   }
 
+  /** A remote machine's run carries the HOST's thread id; runs resolve through
+   * the mirrored thread (falling back to the raw id for local machines). */
+  const resolveRunThreadId = useCallback(
+    (hostThreadId: string): string =>
+      machineId === "local"
+        ? hostThreadId
+        : (useAppStore
+            .getState()
+            .threads.find(
+              (thread) => thread.remoteServerId === machineId && thread.remoteId === hostThreadId,
+            )?.id ?? hostThreadId),
+    [machineId],
+  );
+
   // Opening a run's linked GUI thread switches the app to the "thread" view,
   // which navigates away from this schedules page automatically. Guard against
   // threads that were deleted since the run so we surface an inline error
   // instead of routing to a blank thread.
   function openRunThread(threadId: string) {
-    const exists = useAppStore.getState().threads.some((thread) => thread.id === threadId);
-    if (!exists) {
+    const localThreadId = resolveRunThreadId(threadId);
+    if (!useAppStore.getState().threads.some((thread) => thread.id === localThreadId)) {
       setError(t`That conversation is no longer available.`);
       return;
     }
     setError("");
     if (compact) usePanelStore.getState().closeMobileUtilityPage();
-    openThread(threadId);
+    openThread(localThreadId);
   }
 
   async function saveDraft() {
     if (!draft || !scheduleDraftIsValid(draft)) return;
+    const opMachine = machineId;
     setBusy(true);
     setError("");
     try {
       const input = scheduleDraftInput(draft);
       if (draft.id) {
-        const next = await readBridge().updateSchedule({ id: draft.id, task: input });
-        setTasks((current) => replaceTask(current, next));
+        const next = await scheduleOps.update(draft.id, input);
+        if (stillOnMachine(opMachine)) setTasks((current) => replaceTask(current, next));
       } else {
-        const next = await readBridge().createSchedule(input);
-        setTasks((current) => [...current, next]);
+        const next = await scheduleOps.create(input);
+        if (stillOnMachine(opMachine)) setTasks((current) => [...current, next]);
         captureProductEvent("schedule.created", {
           ...scheduleAnalyticsProperties(
             input,
@@ -273,19 +365,21 @@ export function SchedulesView(
       }
       setDraft(null);
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : String(saveError));
+      if (stillOnMachine(opMachine))
+        setError(saveError instanceof Error ? saveError.message : String(saveError));
     } finally {
       setBusy(false);
     }
   }
 
   async function createPreset(preset: ScheduleDraft) {
+    const opMachine = machineId;
     setBusy(true);
     setError("");
     try {
       const input = scheduleDraftInput(preset);
-      const next = await readBridge().createSchedule(input);
-      setTasks((current) => [...current, next]);
+      const next = await scheduleOps.create(input);
+      if (stillOnMachine(opMachine)) setTasks((current) => [...current, next]);
       captureProductEvent("schedule.created", {
         ...scheduleAnalyticsProperties(
           input,
@@ -294,7 +388,8 @@ export function SchedulesView(
         source: "preset",
       });
     } catch (presetError) {
-      setError(presetError instanceof Error ? presetError.message : String(presetError));
+      if (stillOnMachine(opMachine))
+        setError(presetError instanceof Error ? presetError.message : String(presetError));
     } finally {
       setBusy(false);
     }
@@ -305,6 +400,27 @@ export function SchedulesView(
     try {
       const store = useAppStore.getState();
       const currentProjectId = getCurrentProjectId();
+      if (isRemoteMachine) {
+        // The schedule will run on the selected host, so seed the draft with a
+        // project mirrored from that host — the composer's thread also runs there.
+        const hostProject =
+          store.projects.find(
+            (project) => project.id === currentProjectId && project.remoteServerId === machineId,
+          ) ??
+          store.projects.find(
+            (project) => project.remoteServerId === machineId && !isHomeProject(project),
+          );
+        if (!hostProject) {
+          setError(t`Add a project on this environment to start`);
+          return;
+        }
+        store.setComposerSeed(
+          hostProject.id,
+          t`Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me.`,
+        );
+        store.openDraft(hostProject.id);
+        return;
+      }
       const remoteProject =
         store.projects.find(
           (project) => project.id === currentProjectId && !isHomeProject(project),
@@ -467,6 +583,53 @@ export function SchedulesView(
         : {})}
     >
       <div className="flex flex-wrap items-center gap-3">
+        {!compact && remoteServers.length > 0 ? (
+          <Dropdown>
+            <Dropdown.Trigger
+              aria-label={t`Schedule machine`}
+              className="flex h-7 shrink-0 items-center gap-1 rounded px-2 text-xs text-muted outline-none transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+            >
+              <span className="max-w-40 truncate">
+                {machineId === "local"
+                  ? t`This desktop`
+                  : (remoteServers.find((server) => server.desktopId === machineId)?.label ??
+                    t`This desktop`)}
+              </span>
+              <ChevronDown className="size-3.5" />
+            </Dropdown.Trigger>
+            <Dropdown.Popover placement="bottom start">
+              <Dropdown.Menu
+                aria-label={t`Schedule machine`}
+                selectedKeys={[machineId]}
+                selectionMode="single"
+                onAction={(key) => {
+                  if (typeof key !== "string" || key === machineId) return;
+                  // Reset before switching so a slow or failing load never
+                  // paints the previous machine's rows under the new label.
+                  setTasks([]);
+                  setLoading(true);
+                  setError("");
+                  setSelectedMachineId(key);
+                }}
+              >
+                <Dropdown.Item id="local" textValue={t`This desktop`}>
+                  <Label>
+                    <Trans>This desktop</Trans>
+                  </Label>
+                </Dropdown.Item>
+                {remoteServers.map((server) => (
+                  <Dropdown.Item
+                    key={server.desktopId}
+                    id={server.desktopId}
+                    textValue={server.label}
+                  >
+                    <Label>{server.label}</Label>
+                  </Dropdown.Item>
+                ))}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+        ) : null}
         {!compact ? (
           <TextField
             aria-label={t`Search scheduled tasks`}
@@ -633,6 +796,8 @@ export function SchedulesView(
         formatDateTime={(iso) => dateTimeFormatter.format(new Date(iso))}
         onOpenRunThread={openRunThread}
         onClose={() => setRunsTaskId(null)}
+        fetchRuns={fetchRuns}
+        resolveThreadId={machineId === "local" ? undefined : resolveRunThreadId}
       />
 
       <ConfirmDialog
@@ -644,13 +809,18 @@ export function SchedulesView(
         onConfirm={() => {
           if (!deleteTask) return;
           const id = deleteTask.id;
+          const opMachine = machineId;
           setDeleteTask(null);
-          void readBridge()
-            .deleteSchedule({ id })
-            .then(() => setTasks((current) => current.filter((task) => task.id !== id)))
-            .catch((deleteError: unknown) =>
-              setError(deleteError instanceof Error ? deleteError.message : String(deleteError)),
-            );
+          void scheduleOps
+            .remove(id)
+            .then(() => {
+              if (stillOnMachine(opMachine))
+                setTasks((current) => current.filter((task) => task.id !== id));
+            })
+            .catch((deleteError: unknown) => {
+              if (stillOnMachine(opMachine))
+                setError(deleteError instanceof Error ? deleteError.message : String(deleteError));
+            });
         }}
       />
     </SettingsPage>

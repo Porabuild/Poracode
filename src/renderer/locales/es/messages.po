@@ -951,6 +951,10 @@ msgstr "Agrega un proyecto antes de iniciar sesión."
 msgid "Add a project before updating an agent."
 msgstr "Añade un proyecto antes de actualizar un agente."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Add a project on this environment to start"
+msgstr "Añade un proyecto en este entorno para empezar"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
 msgstr "Agrega un proyecto para ver las pull requests."
@@ -11228,6 +11232,10 @@ msgstr "Escaneando Windows y WSL en busca de CLIs instaladas. Esto suele tardar 
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "Escaneando tu sistema en busca de CLIs instaladas. Esto suele tardar un par de segundos."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule machine"
+msgstr "Equipo de las programaciones"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Schedule name"
 msgstr "Nombre de la programación"
@@ -13142,6 +13150,10 @@ msgstr "Este equipo"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Esta conexión puede ver proyectos, pero no administrarlos. Vuelve a emparejarla para habilitarlo."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "This desktop"
+msgstr "Este equipo"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."

@@ -951,6 +951,10 @@ msgstr "Thêm một dự án trước khi đăng nhập."
 msgid "Add a project before updating an agent."
 msgstr "Thêm dự án trước khi cập nhật tác nhân."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Add a project on this environment to start"
+msgstr "Thêm một dự án trong môi trường này để bắt đầu"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
 msgstr "Thêm một dự án để xem các pull request."
@@ -11228,6 +11232,10 @@ msgstr "Quét Windows và WSL để tìm CLI đã cài đặt. Việc này thư�
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "Đang quét hệ thống của bạn để tìm CLI đã cài đặt. Việc này thường mất vài giây."
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule machine"
+msgstr "Máy của lịch trình"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Schedule name"
 msgstr "Tên lịch"
@@ -13142,6 +13150,10 @@ msgstr "Máy tính này"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý. Hãy ghép nối lại để bật."
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "This desktop"
+msgstr "Máy tính này"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."

@@ -950,6 +950,10 @@ msgstr "サインインする前にプロジェクトを追加してください
 msgid "Add a project before updating an agent."
 msgstr "エージェントを更新する前にプロジェクトを追加してください。"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Add a project on this environment to start"
+msgstr "始めるには、この環境にプロジェクトを追加してください"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
 msgstr "プルリクエストを表示するには、プロジェクトを追加してください。"
@@ -11226,6 +11230,10 @@ msgstr "Windows と WSL をスキャンして、インストールされてい�
 msgid "Scanning your system for installed CLIs. This usually takes a couple of seconds."
 msgstr "システムをスキャンして、インストールされている CLI を探します。通常、これには数秒かかります。"
 
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "Schedule machine"
+msgstr "スケジュールのマシン"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Schedule name"
 msgstr "スケジュール名"
@@ -13140,6 +13148,10 @@ msgstr "このコンピューター"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "この接続ではプロジェクトを表示できますが、管理はできません。有効にするには再度ペアリングしてください。"
+
+#: src/renderer/views/SchedulesView/SchedulesView.tsx
+msgid "This desktop"
+msgstr "このデスクトップ"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "This desktop's Poracode version doesn't support browser forwarding. Update Poracode on your desktop."
