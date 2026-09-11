@@ -555,10 +555,22 @@ projects up front with a localized reason (`84cc95f1f`) — previously the dialo
 filled and every candidate failed individually against the local bridge. Voice
 input stays visible-but-disabled with an explanatory tooltip on remote sessions
 (same commit), threaded via `unavailableHint` and following the
-never-block-stopping rule. Both new strings localized in all 12 catalogs. Still
-open from §4.4: host settings routing for remote writes (currently local) and
-schedules listing host-side schedules for mirrored projects — both are real
-remote-routing features, not degradation fixes.
+never-block-stopping rule. Both new strings localized in all 12 catalogs.
+
+**Status 2026-09-11 (final): the last two §4.4 items closed — WS8 parity is
+complete.** Host settings reachable (`a1d176135`): each remote environment's
+details modal embeds a Host settings section editing the host's generation
+automations (title/commit/conflict, Windows + WSL) through GET/POST /api/settings
+— the natives' per-host document pattern, reusing the GenConfigSection editors,
+scope-gated at both layers, local desktop settings untouched; critic-verified
+with six tests incl. windows + wsl patch-key casing. Machine-scoped schedules
+(`6383d7a04`): the schedules page carries a machine picker (desktop layout);
+every op — list, poll, create, update, delete, run-now, run history (new wire
+client method for GET /api/schedules/runs) — routes to the selected machine;
+agent pickers come from the host; run rows resolve host thread ids to mirrored
+threads; switch/reset/race guards tested. Critic review of the schedules change
+caught one blocker (remote run rows rendered dead) and three race gaps — all
+fixed in the same commit. 3 more strings localized ×12. §4.4 has no open items.
 
 **Find-in-chat decision (2026-09-10): honest labeling, no server search procedure.**
 Neither native exposes chat find, the wire has no transcript-search route, and the
