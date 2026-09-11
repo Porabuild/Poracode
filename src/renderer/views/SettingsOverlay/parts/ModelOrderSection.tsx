@@ -10,7 +10,10 @@ import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { PixelLoader, ToggleSwitch } from "@/renderer/components/common";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getProviderModelPickerRank } from "@/renderer/components/providers/providerManifest";
-import { useProviderUpdates, type ProviderUpdateEntry } from "./useProviderUpdates";
+import {
+  useProviderUpdates,
+  type ProviderUpdateEntry,
+} from "../../../components/providers/settings/useProviderUpdates";
 import { machineIdForStatus, useMachines, useSelectedMachine } from "@/renderer/state/machines";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { effectiveProviderOrder } from "@/shared/machineSettings";

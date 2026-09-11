@@ -8,7 +8,7 @@ import { usageProvidersForAgentInstances } from "@/renderer/components/providers
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
 import { SettingRow, SettingsPage } from "./SettingsForm";
-import { UsageProviderRow } from "./UsageProviderRow";
+import { UsageProviderRow } from "../../../components/providers/settings/UsageProviderRow";
 import { clampRefreshMinutes, MAX_REFRESH_MINUTES } from "./usageRefreshBounds";
 
 export function UsageSettings() {

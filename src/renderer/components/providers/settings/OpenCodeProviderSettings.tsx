@@ -12,7 +12,7 @@ import { mcpTransportSummary } from "@/renderer/components/mcp/mcpFormUtils";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { flushSharedSettings, useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { friendlyError } from "@/shared/messages";
-import { SettingRow } from "./SettingsForm";
+import { SettingRow } from "../../../views/SettingsOverlay/parts/SettingsForm";
 
 const ADD_PROVIDER_KEY = "__add__";
 
