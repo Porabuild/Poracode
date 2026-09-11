@@ -325,6 +325,17 @@ NOT performed per the no-repair rule; saved-pairing journey still needs a fresh 
 New finding: the web composer stop control's hit target renders below the fold at 390×844.
 Full record: `tmp/v2-production-review/qa-ws1/QA-EXECUTION-RECORD.md`. Concurrent
 crossagentMcp work appeared in the working tree during the session and was left untouched.
+**2026-09-11 WS9 evidence update.** WS2–WS8 status records live in
+[V2_PRODUCTION_PLAN.md](V2_PRODUCTION_PLAN.md) per workstream. The QA evidence-gap item
+"fault-injected web reconnect" is now automated: `tests/native-e2e/webReconnectFaults.test.ts`
+(3 green tests against the real production host — mid-stream socket-kill exact replay,
+reconnect racing a mutation burst, host-restart `resync-required` + snapshot re-fetch; evidence
+JSONs under `tmp/v2-production-review/shared-host/`). Remaining manual-only items, all
+needing a freshly launched live stack (the retained :63048/:63049 stack was dead when probed
+2026-09-10): iOS saved-pairing v9→v10 upgrade (fresh-install journey; never repair or wipe
+the C6 simulator), multi-host transitions on both natives, 32 kbps shaped-radio cold start,
+I-Stream-3 on-device pass, and provider-backed anchor reverts with real model turns — the
+production sign-off blocker; automated revert coverage honestly uses fixture data.
 
 ## Resource ownership and safe continuation
 
