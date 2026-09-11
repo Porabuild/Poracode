@@ -32,6 +32,17 @@ Branch: `poracode/v2`. Relevant local commits:
   desktop-parity per-prompt revert action in the Android timeline with a
   deterministic operation key and all-locale strings. `native-parity.json`
   thread-checkpoint-revert is now `implemented` for iOS and Android.
+- WS7 native bounds landed (`a06867695`, `3751fce78`): iOS 512-cap boundary buffers with
+  overflow-driven resync, parked-upgrade foreground retry, conditional lastSeenSeq
+  reset, memoized projection, 600s streaming resource timeout; Android synchronized
+  HostStateCache, secondary-socket seq capture (warm resume, no seq-0 replay), remember
+  markdown, shared OkHttpClient. Both native suites fully green; the long-press revert
+  test that had been red since stage 4 is fixed. WS8 ledger refresh + negative
+  "planned means absent" assertion landed (`e57b9cc2f`). Left in WS8: Electron-as-client
+  host settings/schedules/ports, find-in-chat decision, remoteServersStore/SkillsService
+  splits, provider settings UI move. Left overall: WS9 manual QA (sign-off blocker) and
+  the replay-key blind spot (same operationKey replays a stale completed outcome when
+  reverting to the same anchor after new turns).
 - WS6 perf + i18n: P1-11 row-scoped persistence (`dbSyncChanges`, order-aware after
   critic-caught blockers `208d5d3d8`), P1-12/13 identity-preserving remote projection +
   fingerprint memo (`375d18641`), P1-10 scoped loss-range rebuild with DB re-hydrate
