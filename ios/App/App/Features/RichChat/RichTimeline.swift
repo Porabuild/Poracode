@@ -209,7 +209,30 @@ enum RichTimeline {
     return entries
   }
 
+  /// WS7 P1-19: per-item visibility memo. Projections run per transcript
+  /// change; completed assistant payloads were JSON-decoded on every pass.
+  /// Keyed by item identity + stream length — streaming appends change the
+  /// key, a completed item's key is stable. Lock-guarded because projections
+  /// are Sendable-reachable; production callers are Main-serialized.
+  private static let visibilityLock = NSLock()
+  nonisolated(unsafe) private static var visibilityMemo: [String: Bool] = [:]
+
   static func isVisible(_ item: RichRuntimeItem) -> Bool {
+    let memoKey =
+      "\(item.id)|\(item.state)|\(item.streams["assistant_text"]?.count ?? -1)"
+    visibilityLock.lock()
+    let memoed = visibilityMemo[memoKey]
+    visibilityLock.unlock()
+    if let memoed { return memoed }
+    let visible = computeVisibility(item)
+    visibilityLock.lock()
+    if visibilityMemo.count > 4_096 { visibilityMemo.removeAll(keepingCapacity: true) }
+    visibilityMemo[memoKey] = visible
+    visibilityLock.unlock()
+    return visible
+  }
+
+  private static func computeVisibility(_ item: RichRuntimeItem) -> Bool {
     if [RichItemType.plan, RichItemType.goal, RichItemType.pendingRequest, RichItemType.error]
       .contains(item.type)
     {

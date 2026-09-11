@@ -329,6 +329,12 @@ struct PreservedPairingUpgradeController {
                     startLiveSession: false, workGeneration: currentGen)
                 await host.bootstrap()
             }
+        } else if !host.state.liveLifecycle.isInBackground {
+            // WS7 P1-15: a park with the CURRENT epoch and generation (fresh
+            // offline/timeout) used to schedule nothing — the app spun on
+            // "connecting" until the user manually toggled background. A
+            // bounded fenced retry recovers when the network returns.
+            host.scheduleParkedUpgradeRetry(generation: gen)
         }
         return .retryable
     }

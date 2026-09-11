@@ -191,7 +191,7 @@ struct RichChatTimelineView: View {
   /// The last *item* id, which is not always the last entry id: a trailing
   /// activity group's stable id is not addressable on the wire.
   private var lastItemID: String? {
-    controller.state.timeline?.visibleEntries.last?.lastItemID
+    controller.timeline?.visibleEntries.last?.lastItemID
   }
 
   /// Re-checks eligibility and availability at confirmation time, because the
@@ -210,7 +210,7 @@ struct RichChatTimelineView: View {
   private func confirmRevert(_ selectedPlan: RichChatMessageRevertPlan) {
     revertIntent = nil
     guard canOperate, !isRefreshing, !isBusy,
-      let currentPlan = timelineActions(for: controller.state.timeline).revertPlan(
+      let currentPlan = timelineActions(for: controller.timeline).revertPlan(
         itemID: selectedPlan.userItemID),
       currentPlan == selectedPlan
     else { return }

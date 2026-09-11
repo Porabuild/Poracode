@@ -9,6 +9,24 @@ enum RichChatTranscriptLoadState: Equatable, Sendable {
   case failed(RichChatControllerFailure)
 }
 
+/// WS7 P1-19: one projection per transcript value. The timeline is read
+/// several times per view update; `RichTimeline.project` is O(items) and
+/// JSON-decodes payloads, so recompute only when the transcript changed.
+struct RichTimelineProjectionCache {
+  private(set) var transcript: RichTranscriptState?
+  private(set) var projection: RichTimelineProjection?
+
+  init() {}
+
+  mutating func projection(for transcript: RichTranscriptState?) -> RichTimelineProjection? {
+    if transcript != self.transcript {
+      self.transcript = transcript
+      projection = transcript.map { RichTimeline.project($0.itemsInOrder) }
+    }
+    return projection
+  }
+}
+
 struct RichChatTranscriptControllerState: Equatable, Sendable {
   var access: RichChatSessionAccess?
   var target: RichChatThreadTarget?
@@ -47,6 +65,13 @@ private struct RichChatBufferedRuntimeBatch: Sendable {
 @Observable
 final class RichChatTranscriptController {
   private(set) var state = RichChatTranscriptControllerState()
+  private var projectionCache = RichTimelineProjectionCache()
+
+  /// Memoized over `state.transcript`; read this instead of `state.timeline`
+  /// so repeated reads within one update never re-project.
+  var timeline: RichTimelineProjection? {
+    projectionCache.projection(for: state.transcript)
+  }
 
   private let gateway: any RichChatHistoryGateway
   private let refreshRequester: any RichChatAuthoritativeRefreshRequesting

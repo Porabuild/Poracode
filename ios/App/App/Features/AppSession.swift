@@ -163,6 +163,7 @@ final class AppSession {
     /// Scheduled retry timer only — never shares identity with the attempt task.
     var resyncRetryTask = OwnedTaskSlot()
     var unauthorizedRetryTask = OwnedTaskSlot()
+    var parkedUpgradeRetryTask = OwnedTaskSlot()
     var interestFlushTask = OwnedTaskSlot()
     /// Git-state interest flush. Separate from `interestFlushTask` so a UI
     /// ownership change and a thread-item flush never cancel each other.
@@ -403,6 +404,30 @@ final class AppSession {
             await self.live.connectAndStart(generation: gen)
         }
         installToken = unauthorizedRetryTask.install(task)
+    }
+
+    /// WS7 P1-15: a fresh precommit park (offline/timeout, unchanged
+    /// generation) has no other retry path while foregrounded — bootstrap
+    /// runs only at launch or on a `.active` transition. Bounded, generation-
+    /// and phase-fenced: re-parking schedules the next attempt, success or a
+    /// terminal failure stops the loop.
+    func scheduleParkedUpgradeRetry(generation gen: Int) {
+      parkedUpgradeRetryTask.cancelCurrent()
+      if state.liveLifecycle.isInBackground { return }
+      var installToken: UInt64 = 0
+      let task = Task { @MainActor [weak self] in
+        guard let self else { return }
+        defer { self.parkedUpgradeRetryTask.clearIfCurrent(installToken) }
+        try? await Task.sleep(for: .milliseconds(Int64(RemoteSocketPolicy.parkedUpgradeRetryMs)))
+        guard !Task.isCancelled else { return }
+        guard self.state.workGeneration == gen,
+          self.state.bootstrapCompleted == false,
+          self.state.phase == .connecting,
+          !self.state.liveLifecycle.isInBackground
+        else { return }
+        await self.bootstrap()
+      }
+      installToken = parkedUpgradeRetryTask.install(task)
     }
 
     func socketWraps(_ client: RemoteWebSocketClient) -> Bool {
