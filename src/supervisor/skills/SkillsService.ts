@@ -1,6 +1,5 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import {
-  copyFile,
   lstat,
   mkdir,
   readFile,
@@ -8,14 +7,11 @@ import {
   readlink,
   realpath,
   rename,
-  rm,
-  stat,
-  symlink,
   unlink,
   writeFile,
 } from "node:fs/promises";
 import { homedir } from "node:os";
-import { basename, dirname, isAbsolute, join, posix, relative, resolve, win32 } from "node:path";
+import { basename, dirname, isAbsolute, join, posix, resolve, win32 } from "node:path";
 import type {
   AgentKind,
   DeleteSkillPayload,
@@ -75,9 +71,24 @@ import {
   type PluginSkillPolicyContext,
   type PluginSkillRoot,
 } from "./pluginSkillPolicy";
+import { parseSkillMetadata, validateSkillMetadata } from "./skillMetadata";
+import {
+  copyDirectorySafely,
+  createDirectoryLink,
+  disabledRoot,
+  hashDirectory,
+  isCanonicalManagedSkillPath,
+  isDirectChild,
+  mapWithConcurrency,
+  normalizePath,
+  pathExists,
+  readDirectoryLinkTarget,
+  readManifest,
+  removeSkillPath,
+  writeManifest,
+} from "./skillFiles";
 
 const SKILL_FILE = "SKILL.md";
-const MANIFEST_FILE = ".poracode-skill.json";
 /** Root id/label for read-only skills shipped with the app (resources/skills). */
 export const BUNDLED_PROVIDER_ID = "poracode-built-in";
 const BUNDLED_PROVIDER_LABEL = "Poracode built-ins";
@@ -85,7 +96,6 @@ const PORACODE_PROVIDER_GROUP_ID = "poracode";
 const PORACODE_PROVIDER_GROUP_LABEL = "Poracode";
 
 const PORACODE_PROVIDER_GROUP_ORDER = -1;
-const DISABLED_SUFFIX = ".poracode-disabled";
 const MAX_SKILL_FILE_BYTES = 1024 * 1024;
 const SKILLS_SH_URL = "https://www.skills.sh/";
 const SKILLS_DIRECTORY_URL = "https://www.skillsdirectory.com/";
@@ -124,13 +134,6 @@ interface ResolvedEnvironment {
   wsl: boolean;
   distro?: string;
   wslEnv?: Record<string, string>;
-}
-
-interface SkillManifest {
-  version: 1;
-  mode: "copy" | "projection";
-  sourcePath: string;
-  sourceHash: string;
 }
 
 interface PreparedSkillImport {
@@ -217,283 +220,6 @@ async function resolveWslWindowsPaths(
     paths.map((path) => `wslpath -a -w -- ${quotePosixShellArg(path)}`),
   );
   return results.map((result) => (result?.ok && result.stdout ? result.stdout : undefined));
-}
-
-function disabledRoot(rootPath: string): string {
-  return `${rootPath}${DISABLED_SUFFIX}`;
-}
-
-function normalizePath(path: string): string {
-  const normalized = resolve(path).replace(/[\\/]+$/u, "");
-  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
-}
-
-function isDirectChild(rootPath: string, childPath: string): boolean {
-  const rel = relative(resolve(rootPath), resolve(childPath));
-  return rel.length > 0 && !rel.startsWith("..") && !isAbsolute(rel) && !/[\\/]/u.test(rel);
-}
-
-/** Run `fn` over `items` with at most `limit` in flight, preserving result order. */
-async function mapWithConcurrency<T, R>(
-  items: readonly T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let cursor = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      results[index] = await fn(items[index]!);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-}
-
-function parseScalar(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return "";
-  if (trimmed.startsWith('"')) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      return typeof parsed === "string" ? parsed : trimmed;
-    } catch {
-      return trimmed.replace(/^"|"$/gu, "");
-    }
-  }
-  if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
-    return trimmed.slice(1, -1).replace(/''/gu, "'");
-  }
-  return trimmed.replace(/\s+#.*$/u, "").trim();
-}
-
-function parseSkillMetadata(
-  content: string,
-  folderName: string,
-): {
-  name: string;
-  description: string;
-  hasFrontmatter: boolean;
-  hasName: boolean;
-  hasDescription: boolean;
-} {
-  const normalized = content.replace(/^\uFEFF/u, "").replace(/\r\n?/gu, "\n");
-  const match = /^---\s*\n([\s\S]*?)\n---(?:\s*\n|$)/u.exec(normalized);
-  if (!match) {
-    return {
-      name: folderName,
-      description: "",
-      hasFrontmatter: false,
-      hasName: false,
-      hasDescription: false,
-    };
-  }
-  let name = folderName;
-  let description = "";
-  let hasName = false;
-  let hasDescription = false;
-  const lines = match[1]?.split("\n") ?? [];
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index]!;
-    const field = /^([A-Za-z][A-Za-z0-9_-]*):\s*(.*)$/u.exec(line);
-    if (!field) continue;
-    if (field[1] === "name") {
-      hasName = true;
-      name = parseScalar(field[2] ?? "");
-    }
-    if (field[1] !== "description") continue;
-    hasDescription = true;
-    const rawDescription = field[2] ?? "";
-    if (!/^[>|][+-]?$/u.test(rawDescription.trim())) {
-      description = parseScalar(rawDescription);
-      continue;
-    }
-    const block: string[] = [];
-    while (index + 1 < lines.length && /^(?:\s|$)/u.test(lines[index + 1]!)) {
-      block.push(lines[++index]!.trim());
-    }
-    description = block.filter(Boolean).join(rawDescription.trim().startsWith("|") ? "\n" : " ");
-  }
-  return { name, description, hasFrontmatter: true, hasName, hasDescription };
-}
-
-function validateSkillMetadata(
-  metadata: ReturnType<typeof parseSkillMetadata>,
-  folderName: string,
-): SkillInvalidReason | undefined {
-  if (!metadata.hasFrontmatter) return "missing-frontmatter";
-  if (!metadata.hasName || !metadata.name) return "missing-name";
-  if (metadata.name.length > 64 || !isValidSkillName(metadata.name)) return "invalid-name";
-  if (metadata.name !== folderName) return "name-mismatch";
-  if (!metadata.hasDescription || !metadata.description) return "missing-description";
-  if (metadata.description.length > 1024) return "description-too-long";
-  return undefined;
-}
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await lstat(path);
-    return true;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
-    throw error;
-  }
-}
-
-async function readManifest(skillPath: string): Promise<SkillManifest | undefined> {
-  try {
-    const parsed = JSON.parse(await readFile(join(skillPath, MANIFEST_FILE), "utf8")) as unknown;
-    if (!parsed || typeof parsed !== "object") return undefined;
-    const record = parsed as Record<string, unknown>;
-    if (
-      record.version !== 1 ||
-      (record.mode !== "copy" && record.mode !== "projection") ||
-      typeof record.sourcePath !== "string" ||
-      typeof record.sourceHash !== "string"
-    ) {
-      return undefined;
-    }
-    return record as unknown as SkillManifest;
-  } catch {
-    return undefined;
-  }
-}
-
-async function writeManifest(skillPath: string, manifest: SkillManifest): Promise<void> {
-  await writeFile(join(skillPath, MANIFEST_FILE), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-}
-
-async function hashDirectory(rootPath: string): Promise<string> {
-  const hash = createHash("sha256");
-  const rootRealPath = await realpath(rootPath);
-  const activeDirectories = new Set<string>();
-
-  const visit = async (directory: string, relativeDirectory: string): Promise<void> => {
-    const realDirectory = await realpath(directory);
-    const directoryKey = normalizePath(realDirectory);
-    if (activeDirectories.has(directoryKey)) {
-      throw new Error(`Skill contains a cyclic directory link: ${relativeDirectory || "."}`);
-    }
-    activeDirectories.add(directoryKey);
-    try {
-      const entries = await readdir(realDirectory, { withFileTypes: true });
-      entries.sort((left, right) => left.name.localeCompare(right.name));
-      for (const entry of entries) {
-        if (entry.name === MANIFEST_FILE) continue;
-        const path = join(realDirectory, entry.name);
-        const relativePath = relativeDirectory
-          ? posix.join(relativeDirectory, entry.name)
-          : entry.name;
-        const info = await lstat(path);
-        if (info.isSymbolicLink()) {
-          const target = await realpath(path);
-          const rel = relative(rootRealPath, target);
-          if (rel.startsWith("..") || isAbsolute(rel)) {
-            throw new Error(`Skill contains a link outside its folder: ${relativePath}`);
-          }
-          const targetInfo = await stat(target);
-          hash.update(`L\0${relativePath}\0`);
-          if (targetInfo.isDirectory()) await visit(target, relativePath);
-          else if (targetInfo.isFile()) hash.update(await readFile(target));
-          continue;
-        }
-        if (info.isDirectory()) {
-          hash.update(`D\0${relativePath}\0`);
-          await visit(path, relativePath);
-        } else if (info.isFile()) {
-          hash.update(`F\0${relativePath}\0`);
-          hash.update(await readFile(path));
-        }
-      }
-    } finally {
-      activeDirectories.delete(directoryKey);
-    }
-  };
-
-  await visit(rootRealPath, "");
-  return hash.digest("hex");
-}
-
-async function copyDirectorySafely(sourcePath: string, destinationPath: string): Promise<void> {
-  const sourceRealPath = await realpath(sourcePath);
-  const activeDirectories = new Set<string>();
-  await mkdir(destinationPath, { recursive: true });
-
-  const visit = async (source: string, destination: string): Promise<void> => {
-    const realSource = await realpath(source);
-    const directoryKey = normalizePath(realSource);
-    if (activeDirectories.has(directoryKey)) {
-      throw new Error(
-        `Skill contains a cyclic directory link: ${relative(sourceRealPath, realSource) || "."}`,
-      );
-    }
-    activeDirectories.add(directoryKey);
-    try {
-      const entries = await readdir(realSource, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.name === MANIFEST_FILE) continue;
-        const from = join(realSource, entry.name);
-        const to = join(destination, entry.name);
-        const info = await lstat(from);
-        if (info.isSymbolicLink()) {
-          const target = await realpath(from);
-          const rel = relative(sourceRealPath, target);
-          if (rel.startsWith("..") || isAbsolute(rel)) {
-            throw new Error(`Skill contains a link outside its folder: ${entry.name}`);
-          }
-          const targetInfo = await stat(target);
-          if (targetInfo.isDirectory()) {
-            await mkdir(to, { recursive: true });
-            await visit(target, to);
-          } else if (targetInfo.isFile()) {
-            await copyFile(target, to);
-          }
-          continue;
-        }
-        if (info.isDirectory()) {
-          await mkdir(to, { recursive: true });
-          await visit(from, to);
-        } else if (info.isFile()) {
-          await copyFile(from, to);
-        }
-      }
-    } finally {
-      activeDirectories.delete(directoryKey);
-    }
-  };
-
-  await visit(sourceRealPath, destinationPath);
-}
-
-async function removeSkillPath(path: string): Promise<void> {
-  const info = await lstat(path);
-  if (info.isSymbolicLink()) await unlink(path);
-  else await rm(path, { recursive: true, force: false });
-}
-
-async function createDirectoryLink(targetPath: string, linkPath: string): Promise<void> {
-  await symlink(resolve(targetPath), linkPath, process.platform === "win32" ? "junction" : "dir");
-}
-
-async function readDirectoryLinkTarget(linkPath: string): Promise<string | undefined> {
-  try {
-    if (!(await lstat(linkPath)).isSymbolicLink()) return undefined;
-    const target = await readlink(linkPath);
-    return isAbsolute(target) ? resolve(target) : resolve(dirname(linkPath), target);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-    throw error;
-  }
-}
-
-function isCanonicalManagedSkillPath(path: string, folderName: string): boolean {
-  const skillsRoot = dirname(path);
-  return (
-    basename(path) === folderName &&
-    basename(skillsRoot) === "skills" &&
-    basename(dirname(skillsRoot)) === ".agents"
-  );
 }
 
 export class SkillsService {
