@@ -47,6 +47,14 @@ enum RemoteSocketPolicy {
     static let reconnectBaseMs: Double = 1_000
     static let reconnectMaxMs: Double = 20_000
     static let unauthorizedReconnectMs: Double = 60_000
+    /// Backoff for a parked preserved-upgrade retry (WS7 P1-15): the fresh
+    /// offline/timeout park otherwise never retries while foregrounded.
+    static let parkedUpgradeRetryMs: Double = 20_000
+    /// Hard ceiling for a streamed response body (WS7): requestTimeout is an
+    /// IDLE timer reset by every chunk, so a slow-drip/stalled stream could
+    /// hold a load open indefinitely against the 7-day resource default.
+    /// Generous for real transfers on a shaped link, but finite.
+    static let streamingBodyResourceTimeoutSeconds: Double = 600
     static let healthPingIntervalMs: Double = 25_000
     static let healthPingTimeoutMs: Double = 5_000
     static let connectTimeoutMs: Double = 15_000

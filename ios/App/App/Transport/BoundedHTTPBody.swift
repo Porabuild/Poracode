@@ -98,9 +98,12 @@ private final class StreamingBodyBox: NSObject, URLSessionDataDelegate, @uncheck
         let config = (baseSession.configuration.copy() as? URLSessionConfiguration)
             ?? URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = request.timeoutInterval
-        config.timeoutIntervalForResource = max(
+        // WS7: requestInterval is an idle timer reset by every chunk, and the
+        // system resource default is 7 days — a stalled slow-drip stream would
+        // hold the load open indefinitely. Cap it with a real ceiling.
+        config.timeoutIntervalForResource = min(
             config.timeoutIntervalForResource,
-            request.timeoutInterval
+            RemoteSocketPolicy.streamingBodyResourceTimeoutSeconds
         )
         let session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
         privateSession = session

@@ -354,7 +354,14 @@ struct LiveConnectionController {
             host.abortReplayInstall(captured)
             guard gen == host.state.workGeneration else { return }
             if error is CancellationError { return }
-            host.state.lastSeenSeq = 0
+            // WS7 P1-16: the 0 sentinel is only correct for a fresh bootstrap
+            // (nothing installed yet). On a session-expired recovery the
+            // retained snapshot/transcript already consumed the older
+            // frames — resetting to 0 would replay them as duplicated
+            // deltas onto live state.
+            if host.state.snapshot == nil {
+              host.state.lastSeenSeq = 0
+            }
             host.state.projectsLoadState = .failed(error.localizedDescription)
             host.state.phase = .ready
             host.state.globalError = error.localizedDescription
