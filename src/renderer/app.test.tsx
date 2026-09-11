@@ -252,6 +252,8 @@ vi.mock("@/renderer/actions/worktreeLaunchActions", async (importOriginal) => {
 
 vi.mock("./components/ui/provider", () => ({
   AppProvider: (props: { children: ReactNode }) => props.children,
+  // Default matches the AppearanceContext default in the real provider.
+  useResolvedAppearance: () => "dark" as const,
 }));
 
 vi.mock("./views/MainView/parts/AppShell/AppShell", () => ({
@@ -392,6 +394,13 @@ vi.mock("@/renderer/components/thread/ThreadView", () => ({
       {props.thread.title}
     </div>
   ),
+}));
+
+// Hidden keep-alive agent terminals park here off-tree. Rendering real
+// TerminalPane/xterm in jsdom throws (xterm needs live DOM measurements);
+// the host's own suite covers its mounting rules.
+vi.mock("@/renderer/components/terminal/AgentTerminalHost", () => ({
+  AgentTerminalHost: () => null,
 }));
 
 vi.mock("./state/sharedSettingsStore", () => ({

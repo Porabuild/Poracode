@@ -1841,7 +1841,7 @@ describe("ThreadView", () => {
     expect(screen.getByLabelText("Send message")).toBeDisabled();
   });
 
-  it("keeps terminal presentation inside the thread max-width shell", () => {
+  it("keeps terminal presentation inside the same max-width shell as GUI", () => {
     renderThreadView({
       thread: {
         id: "thread-terminal-layout",
@@ -1893,6 +1893,8 @@ describe("ThreadView", () => {
     const terminalPane = screen.getByText("terminal pane");
     expect(hasAncestorWithClassFragment(terminalPane.parentElement, "max-w-[920px]")).toBe(true);
     expect(hasAncestorWithClassFragment(terminalPane.parentElement, "max-w-[1040px]")).toBe(true);
+    const composer = screen.getByPlaceholderText("Ask Codex anything about this workspace");
+    expect(hasAncestorWithClassFragment(composer, "max-w-[920px]")).toBe(true);
   });
 
   it("keeps header thread tools open while the pointer crosses into the menu", async () => {
