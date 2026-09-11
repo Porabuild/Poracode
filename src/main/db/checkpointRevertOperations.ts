@@ -195,20 +195,66 @@ export function dbClaimCheckpointRevertOperation(
   const sqlite = getSqlite();
   const now = Date.now();
   const claim = sqlite.transaction((): CheckpointRevertClaim => {
-    const existing = sqlite
-      .prepare("SELECT * FROM checkpoint_revert_operations WHERE operation_key = ?")
-      .get(input.operationKey) as Record<string, unknown> | undefined;
-    if (existing) {
-      const row = rowToOperation(existing as Parameters<typeof rowToOperation>[0]);
+    // The key family is `key` (attempt 1) plus `key#N` supersessions. `_` in
+    // the charset is a LIKE wildcard, so the family scan uses GLOB; the
+    // charset excludes `#`, `*`, `?`, `[` and `]`, so the pattern is exact.
+    const latest = sqlite
+      .prepare(
+        `SELECT * FROM checkpoint_revert_operations
+         WHERE operation_key = ? OR operation_key GLOB ?
+         ORDER BY rowid DESC LIMIT 1`,
+      )
+      .get(input.operationKey, `${input.operationKey}#*`) as Record<string, unknown> | undefined;
+    if (latest) {
+      const row = rowToOperation(latest as Parameters<typeof rowToOperation>[0]);
       if (row.threadId !== input.threadId || row.checkpointItemId !== input.checkpointItemId) {
         throw new Error(
           `Checkpoint revert operation key "${input.operationKey}" was already used for a different target.`,
         );
       }
-      // Settled outcomes replay verbatim. `running` (crash mid-operation) and
-      // `failed` (a retryable phase, e.g. the file restore) resume from the
-      // recorded phases; the destructive provider phase is never re-run
-      // regardless, because it is no longer `pending`.
+      // Settled outcomes replay verbatim — UNLESS the transcript moved on
+      // after the operation settled (new turns appended past the checkpoint).
+      // Then the same key describes a genuinely NEW revert, and a verbatim
+      // replay would strand those turns behind a stale "completed" receipt.
+      // The replay is superseded by a fresh attempt whose turn count is
+      // recomputed from durable state. Ambiguous rows are exempt: their
+      // provider call may still be executing, so a re-issue could double-roll.
+      // `running` (crash mid-operation) and `failed` (a retryable phase)
+      // resume from the recorded phases; the destructive provider phase is
+      // never re-run regardless, because it is no longer `pending`.
+      const settled = row.outcome === "completed" || row.outcome === "completed_local_only";
+      const turnsAfterCheckpoint = dbCountRollbackTurnsAfterCheckpoint(
+        input.threadId,
+        input.checkpointItemId,
+      );
+      if (settled && turnsAfterCheckpoint > 0) {
+        const attemptSuffix = row.operationKey.slice(input.operationKey.length);
+        const attempt = attemptSuffix === "" ? 1 : Number(attemptSuffix.slice(1));
+        const versionedKey = `${input.operationKey}#${attempt + 1}`;
+        sqlite
+          .prepare(
+            `INSERT INTO checkpoint_revert_operations
+               (operation_key, thread_id, checkpoint_item_id, num_turns,
+                project_location_json, config_json, provider_phase, files_phase,
+                truncate_phase, removed_anchors_json, outcome, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, 'pending', 'pending', 'pending', NULL, 'running', ?, ?)`,
+          )
+          .run(
+            versionedKey,
+            input.threadId,
+            input.checkpointItemId,
+            turnsAfterCheckpoint,
+            input.projectLocationJson,
+            input.configJson,
+            now,
+            now,
+          );
+        const versionedRow = dbGetCheckpointRevertOperation(versionedKey);
+        if (!versionedRow) {
+          throw new Error("Failed to read back the claimed checkpoint revert operation.");
+        }
+        return { kind: "claimed", row: versionedRow };
+      }
       if (
         row.outcome === "completed" ||
         row.outcome === "completed_local_only" ||

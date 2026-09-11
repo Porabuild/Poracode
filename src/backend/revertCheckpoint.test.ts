@@ -359,43 +359,51 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     expect(events.length).toBe(eventsAfterFirst);
   });
 
-  it("replays a settled revert after a host restart and keeps turns appended since", async () => {
+  it("replays a settled revert with no new turns, and supersedes it once turns arrived", async () => {
     seedThread({ status: "idle" });
     seedTranscript(1);
     const first = await host!.revertCheckpoint(revertInput("op-restart-replay"));
     expect(first.outcome).toBe("completed");
     const callsAfterFirst = supervisorHarness.calls.length;
 
-    // After the settled revert, new turns arrive from the provider (the user
-    // continued on another client). A journaled replay must not delete them.
-    dbApplyThreadRuntimeEvents(
-      "thread-1",
-      ["late-1", "late-2"].map((itemId) => ({
-        type: "item.started" as const,
-        threadId: "thread-1",
-        itemId,
-        itemType: "assistant_message" as const,
-      })),
-    );
-    dbAppendThreadCompletedTurn("thread-1", {
-      startedAt: "2026-01-01T00:01:00.000Z",
-      endedAt: "2026-01-01T00:01:00.500Z",
-      anchorItemId: "late-2",
-    });
-
     reopenDatabase();
     const restarted = makeHost((event) => events.push(event));
     try {
+      // A retry with an unchanged transcript serves the stored receipt: no
+      // provider round-trip and no second truncation event.
       const replay = await restarted.revertCheckpoint(revertInput("op-restart-replay"));
-      // The restarted host serves the stored receipt: settled outcome, no
-      // provider round-trip, and no second truncation event.
       expect(replay.replayed).toBe(true);
       expect(replay.outcome).toBe("completed");
       expect(supervisorHarness.calls).toHaveLength(callsAfterFirst);
       expect(truncateEvents()).toHaveLength(1);
+
+      // New turns appended past the checkpoint make the same key a genuinely
+      // NEW revert (the blind-spot fix): a verbatim replay would strand them
+      // behind a stale "completed" receipt. The fresh attempt recomputes the
+      // count and removes exactly the appended turns.
+      dbApplyThreadRuntimeEvents(
+        "thread-1",
+        ["late-1", "late-2"].map((itemId) => ({
+          type: "item.started" as const,
+          threadId: "thread-1",
+          itemId,
+          itemType: "assistant_message" as const,
+        })),
+      );
+      dbAppendThreadCompletedTurn("thread-1", {
+        startedAt: "2026-01-01T00:01:00.000Z",
+        endedAt: "2026-01-01T00:01:00.500Z",
+        anchorItemId: "late-2",
+      });
+
+      const second = await restarted.revertCheckpoint(revertInput("op-restart-replay"));
+      expect(second.replayed).toBe(false);
+      expect(second.outcome).toBe("completed");
+      expect(second.numTurns).toBe(1);
       const itemIds = dbGetThreadRuntimeItems("thread-1").map((item) => item.id);
-      expect(itemIds).toContain("late-1");
-      expect(itemIds).toContain("late-2");
+      expect(itemIds).not.toContain("late-1");
+      expect(itemIds).not.toContain("late-2");
+      expect(truncateEvents()).toHaveLength(2);
     } finally {
       restarted.dispose();
     }
