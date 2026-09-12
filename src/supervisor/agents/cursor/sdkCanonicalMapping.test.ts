@@ -797,34 +797,96 @@ describe("Cursor SDK canonical mapping — tool lifecycle and payloads", () => {
     );
   });
 
-  it("maps generateImage output to an inline image_view data URL", () => {
+  // A real 2x1 PNG produced by sharp, so the payload carries bytes an image
+  // decoder accepts rather than a placeholder the pipeline merely tolerates.
+  const PNG_B64 =
+    "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADklEQVQImWPgEpH7D8IACDMCd75ivFQAAAAASUVORK5CYII=";
+  const JPEG_B64 =
+    "/9j/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAIDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAwT/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCbAFAH/9k=";
+  const base64Url = (standard: string): string =>
+    standard.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+  function generateImageEvents(toolCall: Record<string, unknown>) {
     const state = createCursorSdkMapperState("thread-1");
-    const events = mapCursorSdkInteractionUpdate(
+    return mapCursorSdkInteractionUpdate(
       {
         type: "tool-call-completed",
         callId: "image-1",
         modelCallId: "model-1",
-        toolCall: {
-          type: "generateImage",
-          args: { description: "owl" },
-          result: {
-            status: "success",
-            value: { filePath: "owl.png", imageData: "YWJj" },
-          },
-        },
-      },
+        toolCall,
+      } as never,
       state,
     );
+  }
+
+  function updatedImages(events: RuntimeEvent[]): unknown[] | undefined {
+    const update = events.find((event) => event.type === "item.updated") as
+      | { payload?: { images?: unknown[] } }
+      | undefined;
+    return update?.payload?.images;
+  }
+
+  it("maps generateImage output to an inline image_view data URL", () => {
+    const events = generateImageEvents({
+      type: "generateImage",
+      args: { description: "owl" },
+      result: { status: "success", value: { filePath: "owl.png", imageData: PNG_B64 } },
+    });
     expect(started(events, "image_view")).toHaveLength(1);
     expect(events).toContainEqual(
       expect.objectContaining({
         type: "item.updated",
         payload: expect.objectContaining({
-          images: ["data:image/png;base64,YWJj"],
+          images: [`data:image/png;base64,${PNG_B64}`],
           status: "success",
         }),
       }),
     );
+  });
+
+  it("repairs a URL-safe base64 image so the transcript can decode it", () => {
+    // Cursor's SDK runs in Node, where `Buffer.toString("base64url")` yields the
+    // `-`/`_` alphabet with padding stripped — a body Chromium refuses to decode
+    // under a `;base64` label, which is what painted a corrupt image.
+    const events = generateImageEvents({
+      type: "generateImage",
+      args: { description: "owl" },
+      result: {
+        status: "success",
+        value: { filePath: "owl.png", imageData: base64Url(PNG_B64) },
+      },
+    });
+    expect(updatedImages(events)).toEqual([`data:image/png;base64,${PNG_B64}`]);
+  });
+
+  it("names the format read from the image bytes, not the guessed one", () => {
+    const events = generateImageEvents({
+      type: "generateImage",
+      args: { description: "owl" },
+      result: { status: "success", value: { filePath: "owl.jpg", imageData: JPEG_B64 } },
+    });
+    expect(updatedImages(events)?.[0]).toMatch(/^data:image\/jpeg;base64,/);
+  });
+
+  it("keeps a truncated image result out of the transcript", () => {
+    // `truncated.result` means Cursor cut the payload down for transport, so the
+    // bytes are a partial picture that would render as half an image.
+    const events = generateImageEvents({
+      type: "generateImage",
+      args: { description: "owl" },
+      truncated: { result: true },
+      result: { status: "success", value: { filePath: "owl.png", imageData: PNG_B64 } },
+    });
+    expect(updatedImages(events)).toBeUndefined();
+  });
+
+  it("drops image bytes that are not a decodable image", () => {
+    const events = generateImageEvents({
+      type: "generateImage",
+      args: { description: "owl" },
+      result: { status: "success", value: { filePath: "owl.png", imageData: "   " } },
+    });
+    expect(updatedImages(events)).toBeUndefined();
   });
 
   it("surfaces tool errors as completed error payloads", () => {

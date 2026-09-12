@@ -15,6 +15,11 @@ export interface CursorSdkToolItem {
   args: unknown;
   status: "running" | "success" | "error";
   result?: unknown;
+  /**
+   * Cursor's own `truncated.result` marker: the streamed `result` was cut down
+   * for transport, so its bytes are a partial value rather than the real one.
+   */
+  resultTruncated?: boolean;
   progress?: ToolCallProgress;
   lastPayloadFingerprint?: string;
   outputText: string;
