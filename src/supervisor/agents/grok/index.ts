@@ -1,3 +1,4 @@
+import { grokNativeMcpConfig } from "./nativeMcp";
 import { randomUUID } from "node:crypto";
 import type { PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
@@ -44,6 +45,7 @@ export function createGrokAdapter(): AgentAdapter {
   let capabilities = grokDefaultCapabilities;
 
   return {
+    nativeMcpConfig: (ctx) => (ctx.envKind === "wsl" ? undefined : grokNativeMcpConfig()),
     kind: grokDetectionSpec.kind,
     label: grokDetectionSpec.label,
     binary: grokDetectionSpec.binary,

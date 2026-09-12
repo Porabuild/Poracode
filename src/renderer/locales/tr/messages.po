@@ -1098,6 +1098,10 @@ msgstr "Ana Ekrana ekle"
 msgid "Add to-do"
 msgstr "Yapılacak ekle"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Add user MCP servers in MCP Servers settings to install them here."
+msgstr "Buraya kurmak için MCP Sunucuları ayarlarında kullanıcı MCP sunucuları ekleyin."
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "Çalışma alanı ekle"
@@ -4511,6 +4515,10 @@ msgstr "Devre dışı"
 msgid "Disabled globally"
 msgstr "Genel olarak devre dışı"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Disabled server or unsupported native options"
+msgstr "Sunucu devre dışı veya yerel seçenekler desteklenmiyor"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "Bir beceriyi devre dışı bırakmak onu etkin beceri klasörlerinden çıkarır ve Poracode tarafından yönetilen sağlayıcı kopyalarını kaldırır. Yeniden etkinleştirebilmeniz için dosyaları korunur."
@@ -5084,6 +5092,10 @@ msgstr "Senkronizasyondan çıkar"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Kalıpları hariç tut"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Existing or edited native entry; left unchanged"
+msgstr "Mevcut veya düzenlenmiş yerel kayıt değiştirilmedi"
 
 #. placeholder {0}: parsed.exitCode
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
@@ -6411,6 +6423,7 @@ msgstr "yükle"
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Install"
 msgstr "Yükle"
 
@@ -6608,6 +6621,7 @@ msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılam
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
 msgstr "Yüklendi"
 
@@ -7834,6 +7848,14 @@ msgstr "Projenize bir ad verin ve nerede oluşturulacağını seçin."
 msgid "Native"
 msgstr "Yerel"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP configuration updated. Start a new CLI session to use it."
+msgstr "Yerel MCP yapılandırması güncellendi. Kullanmak için yeni bir CLI oturumu başlatın."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP setup"
+msgstr "Yerel MCP kurulumu"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
 msgstr "Yerel Sağlayıcılar"
@@ -8594,6 +8616,7 @@ msgstr "kurulu değil"
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "Kurulu değil"
 
@@ -9071,6 +9094,10 @@ msgstr "İsteğe bağlı durum kancaları. Kurulu kancalar otomatik olarak günc
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Optional workflow_dispatch input values."
 #~ msgstr "İsteğe bağlı workflow_dispatch giriş değerleri."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Optional: copy selected user MCP servers into this CLI's native configuration for all its sessions. Commands, arguments, and credentials are copied only when you click Install. Changes are not synced automatically."
+msgstr "İsteğe bağlı: seçili kullanıcı MCP sunucularını bu CLI’nin tüm oturumlarında kullanılacak yerel yapılandırmasına kopyalayın. Komutlar, bağımsız değişkenler ve kimlik bilgileri yalnızca Yükle’ye tıkladığınızda kopyalanır. Değişiklikler otomatik olarak eşitlenmez."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
@@ -10298,6 +10325,7 @@ msgstr "Bildirim içeriğini gizle"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Yenile"
@@ -13866,6 +13894,10 @@ msgstr "SSH ana makinesi kontrol edilemedi."
 msgid "Unable to read experiment candidate status"
 msgstr "Deney adayının durumu okunamadı"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to read native MCP configuration."
+msgstr "Yerel MCP yapılandırması okunamadı."
+
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to read the candidate changes: {0}"
@@ -14018,6 +14050,10 @@ msgstr "{0} güncellenemiyor."
 msgid "Unable to update learned tags."
 msgstr "Öğrenilmiş etiketler güncellenemiyor."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to update native MCP configuration. Refresh and review the configuration before retrying."
+msgstr "Yerel MCP yapılandırması güncellenemedi. Yeniden denemeden önce yapılandırmayı yenileyip inceleyin."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "Uzaktan erişim güncellenemedi."
@@ -14096,8 +14132,13 @@ msgstr "Birleşik görünüm"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Uninstall"
 msgstr "Kaldır"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Uninstall {name}"
+msgstr "{name} kaldır"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts

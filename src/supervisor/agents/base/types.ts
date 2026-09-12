@@ -1,3 +1,4 @@
+import type { NativeMcpConfigFile } from "../../mcp/nativeSetup/configFile";
 import type {
   ManageAgentCredentialsPayload,
   ManageAgentCredentialsResult,
@@ -792,6 +793,12 @@ export interface AgentAdapter
   readonly skillSupport?: AgentSkillSupport;
   /** Release provider-owned shared processes after all thread sessions have closed. */
   shutdown?(): void | Promise<void>;
+
+  /** Route stdio MCPs with an explicit cwd through the proxy when the native runtime ignores cwd. */
+  readonly mcpRequiresStdioCwdProxy?: boolean;
+
+  /** Read-only native configuration location. Writes require an explicit settings action. */
+  nativeMcpConfig?(ctx: AgentEnvContext): NativeMcpConfigFile | undefined;
 }
 
 export interface TerminalStatusHint {

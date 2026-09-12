@@ -407,8 +407,8 @@ export const defaultCommandCodeCapabilities: AgentCapability = {
   presentationModes: ["terminal"],
   defaultApprovalPolicy: "yolo",
   bypassPermissions: { approvalPolicy: "yolo" },
-  // No dedicated-server hosting path in any presentation.
-  mcpScope: { terminal: "none", gui: "none" },
+  // A session-local mod supplies Poracode MCP tools to the terminal runtime.
+  mcpScope: { terminal: "launch", gui: "none" },
   settingDefs: [],
 };
 

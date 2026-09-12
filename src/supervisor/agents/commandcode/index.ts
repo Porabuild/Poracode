@@ -8,6 +8,7 @@ import {
 } from "../base";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildCommandCodeArgs } from "./argv";
+import { commandCodeMcpLaunch } from "./mcp";
 import { commandCodeDetectionSpec, defaultCommandCodeCapabilities } from "./detection";
 import {
   installCommandCodePlugin,
@@ -124,18 +125,22 @@ export function createCommandCodeAdapter(): AgentAdapter {
       return status;
     },
 
-    buildLaunchArgv(location, config, prompt) {
+    buildLaunchArgv(location, config, prompt, _sessionRef, options) {
       // `command-code` has no flag to pre-assign or report a session id, so we
       // snapshot the existing transcripts here and let the runtime discover the
       // real id afterward (discoverSessionRef below). Returning no sessionRef
       // is what enables that discovery path; resume then targets the exact id.
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
       snapshotCommandCodePreSpawnSessions(location, cwd);
-      const args = buildCommandCodeArgs(config, prompt);
-      return { binary: "command-code", args };
+      const mcp = commandCodeMcpLaunch(location, options?.mcpServers);
+      return {
+        ...mcp,
+        binary: "command-code",
+        args: [...mcp.args, ...buildCommandCodeArgs(config, prompt)],
+      };
     },
 
-    buildResumeArgv(_location, config, prompt, sessionRef) {
+    buildResumeArgv(location, config, prompt, sessionRef, options) {
       // Resume the exact discovered session id (`--resume <id>`). A dead/stale
       // id surfaces command-code's "found to resume" error, which the runtime
       // recovers by relaunching fresh (see detectCommandCodeInvalidSessionRef)
@@ -143,7 +148,8 @@ export function createCommandCodeAdapter(): AgentAdapter {
       // back to `--continue`.
       const id = sessionRef?.providerSessionId;
       const args = buildCommandCodeArgs(config, prompt, id && isUuid(id) ? id : "");
-      return { binary: "command-code", args };
+      const mcp = commandCodeMcpLaunch(location, options?.mcpServers);
+      return { ...mcp, binary: "command-code", args: [...mcp.args, ...args] };
     },
 
     createInitialSessionRef() {

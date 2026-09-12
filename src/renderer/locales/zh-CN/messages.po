@@ -1098,6 +1098,10 @@ msgstr "添加到主屏幕"
 msgid "Add to-do"
 msgstr "添加待办事项"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Add user MCP servers in MCP Servers settings to install them here."
+msgstr "请在“MCP 服务器”设置中添加用户 MCP 服务器，以便在此安装。"
+
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
 msgstr "添加工作区"
@@ -4511,6 +4515,10 @@ msgstr "已禁用"
 msgid "Disabled globally"
 msgstr "已全局禁用"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Disabled server or unsupported native options"
+msgstr "服务器已禁用或原生配置不支持某些选项"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "禁用技能会将其移出活动技能文件夹，并删除由 Poracode 管理的提供商副本。技能文件会保留，以便你稍后重新启用。"
@@ -5084,6 +5092,10 @@ msgstr "从同步中排除"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "排除模式"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Existing or edited native entry; left unchanged"
+msgstr "原生条目已存在或已被编辑；保持不变"
 
 #. placeholder {0}: parsed.exitCode
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
@@ -6411,6 +6423,7 @@ msgstr "安装"
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Install"
 msgstr "安装"
 
@@ -6608,6 +6621,7 @@ msgstr "远程设备暂不支持安装、更新和登录。"
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
 msgstr "已安装"
 
@@ -7833,6 +7847,14 @@ msgstr "为您的项目命名并选择创建位置。"
 msgid "Native"
 msgstr "原生"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP configuration updated. Start a new CLI session to use it."
+msgstr "原生 MCP 配置已更新。请启动新的 CLI 会话以使用该配置。"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP setup"
+msgstr "原生 MCP 设置"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
 msgstr "原生提供商"
@@ -8593,6 +8615,7 @@ msgstr "未安装"
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "未安装"
 
@@ -9070,6 +9093,10 @@ msgstr "可选的状态挂钩。已安装的挂钩会自动更新；缺失的挂
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchDialog.tsx
 #~ msgid "Optional workflow_dispatch input values."
 #~ msgstr "可选的 workflow_dispatch 输入值。"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Optional: copy selected user MCP servers into this CLI's native configuration for all its sessions. Commands, arguments, and credentials are copied only when you click Install. Changes are not synced automatically."
+msgstr "可选：将选定的用户 MCP 服务器复制到此 CLI 的原生配置中，供其所有会话使用。仅在点击“安装”时才会复制命令、参数和凭据。更改不会自动同步。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
@@ -10297,6 +10324,7 @@ msgstr "隐藏通知内容"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "刷新"
@@ -13865,6 +13893,10 @@ msgstr "无法检查 SSH 主机。"
 msgid "Unable to read experiment candidate status"
 msgstr "无法读取实验候选项状态"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to read native MCP configuration."
+msgstr "无法读取原生 MCP 配置。"
+
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/experimentDecisionActions.ts
 msgid "Unable to read the candidate changes: {0}"
@@ -14017,6 +14049,10 @@ msgstr "无法更新{0}。"
 msgid "Unable to update learned tags."
 msgstr "无法更新已学习的标签。"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to update native MCP configuration. Refresh and review the configuration before retrying."
+msgstr "无法更新原生 MCP 配置。请刷新并检查配置后重试。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
 msgstr "无法更新远程访问。"
@@ -14095,8 +14131,13 @@ msgstr "统一视图"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Uninstall"
 msgstr "卸载"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Uninstall {name}"
+msgstr "卸载 {name}"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts

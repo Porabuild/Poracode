@@ -1,3 +1,4 @@
+import { createRef } from "react";
 import { act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
@@ -25,6 +26,7 @@ const { state } = vi.hoisted(() => ({
 // ── xterm mocks ──────────────────────────────────────────────────
 vi.mock("@xterm/xterm", () => ({
   Terminal: class MockTerminal {
+    focus = vi.fn<() => void>();
     open = vi.fn<(element: Element) => void>();
     loadAddon = vi.fn<(addon: unknown) => void>();
     write = vi.fn<(data: string) => void>();
@@ -132,7 +134,39 @@ vi.mock("../../bridge", () => ({ readBridge: () => state.bridge, isMac: () => st
 vi.mock("../ui/provider", () => ({ useResolvedAppearance: () => "dark" }));
 
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
-import { XTermSurface } from "./XTermSurface";
+import { resetXtermInstanceCacheForTests } from "./xtermInstanceCache";
+import { XTermSurface, type XTermSurfaceHandle } from "./XTermSurface";
+import { useAppStore } from "@/renderer/state/appStore";
+import { AgentTerminalHost } from "./AgentTerminalHost";
+import { TerminalPane } from "@/renderer/components/thread/TerminalPane";
+
+function createTerminalThread() {
+  const project = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
+  const thread = useAppStore.getState().createThread({
+    projectId: project.id,
+    agentKind: "codex",
+    config: { model: "m" },
+    prompt: "hello",
+  });
+  useAppStore.getState().updateThreadRuntime(thread.id, {
+    status: "idle",
+    attention: "none",
+    canResumeWithConfig: false,
+  });
+  return thread.id;
+}
+
+function HostedTerminalFixture() {
+  const visibleThreadId = useAppStore((s) => (s.view.kind === "thread" ? s.view.panes[0] : null));
+  return (
+    <>
+      {visibleThreadId ? (
+        <TerminalPane key={visibleThreadId} threadId={visibleThreadId} status="idle" />
+      ) : null}
+      <AgentTerminalHost />
+    </>
+  );
+}
 
 function emitEvent(event: SupervisorEvent) {
   for (const listener of [...state.eventListeners]) {
@@ -152,6 +186,7 @@ async function flushFrame() {
 type MockFn = ReturnType<typeof vi.fn>;
 
 interface MockTerminalShape {
+  focus: MockFn;
   open: MockFn;
   loadAddon: MockFn;
   write: MockFn;
@@ -184,7 +219,14 @@ describe("XTermSurface", () => {
     state.eventListeners = [];
     state.isMac = false;
     vi.clearAllMocks();
+    resetXtermInstanceCacheForTests();
     useThreadOutputStore.setState({ buffers: {} });
+    useAppStore.setState({
+      projects: [],
+      threads: [],
+      keepAlivePaneIds: [],
+      view: { kind: "home" },
+    });
     state.bridge.onSupervisorEvent.mockImplementation((listener: (e: SupervisorEvent) => void) => {
       state.eventListeners.push(listener);
       return () => {
@@ -194,6 +236,7 @@ describe("XTermSurface", () => {
   });
 
   afterEach(() => {
+    resetXtermInstanceCacheForTests();
     vi.restoreAllMocks();
     state.eventListeners = [];
   });
@@ -332,6 +375,18 @@ describe("XTermSurface", () => {
     expect(state.bridge.resizeTerminal).not.toHaveBeenCalled();
   });
 
+  it("does not resize the backing PTY while a keep-alive surface is hidden", async () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+    state.fitSize = { cols: 120, rows: 40 };
+    state.bridge.readTerminalScrollback.mockResolvedValueOnce("");
+
+    render(<XTermSurface terminalId="test-1" visible={false} />);
+    await flushFrame();
+
+    expect(state.bridge.resizeTerminal).not.toHaveBeenCalled();
+  });
+
   it("refits and repaints a keep-alive terminal when it becomes visible again", async () => {
     state.bridge.readTerminalScrollback.mockResolvedValueOnce("");
     const { rerender } = render(<XTermSurface terminalId="test-1" visible={false} />);
@@ -364,6 +419,133 @@ describe("XTermSurface", () => {
     unmount();
     expect(t.dispose).toHaveBeenCalled();
     expect(state.eventListeners).toHaveLength(0);
+  });
+
+  it("stashes the xterm instance across remounts instead of replaying bytes", async () => {
+    const threadId = createTerminalThread();
+    useThreadOutputStore.getState().appendOutput(threadId, "history that must not replay");
+    const { unmount } = render(<HostedTerminalFixture />);
+    const first = terminal();
+    await flushFrame();
+    first.write.mockClear();
+    first.open.mockClear();
+    state.bridge.readTerminalScrollback.mockClear();
+    state.bridge.resizeTerminal.mockClear();
+
+    await act(async () => {
+      useAppStore.getState().openHome();
+    });
+    await flushFrame();
+    expect(terminal()).toBe(first);
+    expect(first.dispose).not.toHaveBeenCalled();
+    expect(state.eventListeners).toHaveLength(1);
+    expect(state.bridge.resizeTerminal).not.toHaveBeenCalled();
+    act(() =>
+      emitEvent({ type: "thread-output", threadId, data: "hidden output", outputLength: 13 }),
+    );
+    expect(first.write).toHaveBeenCalledExactlyOnceWith("hidden output");
+
+    await act(async () => {
+      useAppStore.getState().openThread(threadId);
+    });
+    await flushFrame();
+    expect(terminal()).toBe(first);
+    expect(first.open).not.toHaveBeenCalled();
+    expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
+    expect(state.eventListeners).toHaveLength(1);
+    await act(async () => {
+      useAppStore.setState({ threads: [], keepAlivePaneIds: [], view: { kind: "home" } });
+    });
+    expect(first.dispose).toHaveBeenCalledOnce();
+    expect(state.eventListeners).toHaveLength(0);
+    unmount();
+  });
+
+  it("retries unfinished hydration after moving into the hidden host", async () => {
+    const threadId = createTerminalThread();
+    let resolveOriginal!: (value: string) => void;
+    let resolveReplacement!: (value: string) => void;
+    state.bridge.readTerminalScrollback
+      .mockReturnValueOnce(
+        new Promise<string>((resolve) => {
+          resolveOriginal = resolve;
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise<string>((resolve) => {
+          resolveReplacement = resolve;
+        }),
+      );
+    render(<HostedTerminalFixture />);
+    const first = terminal();
+    await act(async () => {
+      useAppStore.getState().openHome();
+    });
+    expect(terminal()).toBe(first);
+    expect(state.bridge.readTerminalScrollback).toHaveBeenCalledTimes(2);
+    resolveOriginal("stale history");
+    resolveReplacement("complete history");
+    await flushFrame();
+    expect(first.write).toHaveBeenCalledExactlyOnceWith("complete history");
+    await act(async () => {
+      useAppStore.getState().openThread(threadId);
+    });
+    await flushFrame();
+    expect(state.bridge.readTerminalScrollback).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries failed history reads on the next host transition", async () => {
+    createTerminalThread();
+    state.bridge.readTerminalScrollback
+      .mockRejectedValueOnce(new Error("temporary bridge failure"))
+      .mockResolvedValueOnce("recovered history");
+    render(<HostedTerminalFixture />);
+    const first = terminal();
+    await flushFrame();
+    await act(async () => {
+      useAppStore.getState().openHome();
+    });
+    await flushFrame();
+    expect(terminal()).toBe(first);
+    expect(state.bridge.readTerminalScrollback).toHaveBeenCalledTimes(2);
+    expect(first.write).toHaveBeenCalledExactlyOnceWith("recovered history");
+  });
+
+  it("preserves alternate-buffer and input modes for a live TUI redraw", async () => {
+    const history = "primary\x1b[?1049h\x1b[?2004hALT FRAME";
+    useThreadOutputStore.getState().appendOutput("test-1", history);
+    render(<XTermSurface terminalId="test-1" />);
+    await flushFrame();
+    expect(terminal().write).toHaveBeenCalledWith(history);
+    const { Terminal } = await vi.importActual<typeof import("@xterm/xterm")>("@xterm/xterm");
+    const actual = new Terminal({ allowProposedApi: true });
+    const write = (data: string) => new Promise<void>((resolve) => actual.write(data, resolve));
+    try {
+      await write(terminal().write.mock.calls[0]![0] as string);
+      await write("\x1b[H\x1b[2Jfresh redraw");
+      expect(actual.buffer.active.type).toBe("alternate");
+      expect(actual.modes.bracketedPasteMode).toBe(true);
+      await write("\x1b[?1049l");
+      expect(actual.buffer.active.getLine(0)?.translateToString(true)).toBe("primary");
+    } finally {
+      actual.dispose();
+    }
+  });
+
+  it("does not resize a mirrored PTY to repaint caller-provided history", async () => {
+    render(
+      <XTermSurface terminalId="mirror" initialScrollback="history" resizeTerminalOnFit={false} />,
+    );
+    await flushFrame();
+    expect(terminal().write).toHaveBeenCalledWith("history");
+    expect(state.bridge.resizeTerminal).not.toHaveBeenCalled();
+  });
+
+  it("does not focus an invisible terminal through its imperative handle", () => {
+    const ref = createRef<XTermSurfaceHandle>();
+    render(<XTermSurface ref={ref} terminalId="hidden" visible={false} />);
+    ref.current?.focus();
+    expect(terminal().focus).not.toHaveBeenCalled();
   });
 
   // ── Event handling ────────────────────────────────────────────

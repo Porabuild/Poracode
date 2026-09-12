@@ -1,3 +1,4 @@
+import { museNativeMcpConfig } from "./nativeMcp";
 import type { AgentCapability } from "@/shared/contracts";
 import {
   buildAgentLogoutCommand,
@@ -28,9 +29,34 @@ export function createMuseAdapter(): AgentAdapter {
   let capabilities: AgentCapability = museDefaultCapabilities;
 
   return {
+    nativeMcpConfig: (ctx) => (ctx.envKind === "posix" ? museNativeMcpConfig() : undefined),
     kind: museDetectionSpec.kind,
     label: museDetectionSpec.label,
     binary: museDetectionSpec.binary,
+    skillSupport: {
+      roots: [
+        {
+          id: "muse",
+          label: "Muse Code",
+          globalPath: ".config/muse/skills",
+          globalOverride: { env: "XDG_CONFIG_HOME", path: "muse/skills" },
+        },
+        {
+          id: "agents",
+          label: "Shared agent skills",
+          globalPath: ".agents/skills",
+          projectPath: ".agents/skills",
+        },
+        {
+          id: "codex",
+          label: "Codex-compatible skills",
+          globalPath: ".codex/skills",
+          globalOverride: { env: "CODEX_HOME", path: "skills" },
+        },
+      ],
+      invocation: "prompt",
+      precedence: { global: ["muse", "agents", "codex"], project: ["agents"] },
+    },
     windowsProjectExecution: "wsl",
     // Surface the update spec on the adapter so the shared updater and the
     // Settings registry card can read `adapter.update` (not just status).

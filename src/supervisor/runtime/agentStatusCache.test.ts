@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
-  it("invalidates v29 snapshots so per-provider credentials are re-probed", () => {
+  it("invalidates v31 snapshots so MCP capabilities are re-probed", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -48,29 +48,7 @@ describe("agent status cache", () => {
     writeFileSync(
       statusCachePath,
       JSON.stringify({
-        version: 29,
-        // Cached before OpenCode 2 reported its connected AI providers: the
-        // settings panel would show "no providers connected" until a refresh.
-        windows: [{ kind: "opencode2", installed: true, authState: "authenticated" }],
-        wsl: [],
-      }),
-    );
-    const runtime = makeRuntime(() => {});
-    const service = runtime.agentStatusService as unknown as {
-      readCachedStatuses(distros: string[]): unknown;
-    };
-    expect(STATUS_CACHE_VERSION).toBe(30);
-    expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
-  });
-  it("invalidates v28 capability snapshots so provider capabilities are re-probed", () => {
-    const dataDir = makeTempDir();
-    process.env.PORACODE_DATA_DIR = dataDir;
-    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
-    mkdirSync(cacheDir, { recursive: true });
-    writeFileSync(
-      statusCachePath,
-      JSON.stringify({
-        version: 28,
+        version: 31,
         windows: [{ kind: "example", installed: true, capabilities: {} }],
         wsl: [],
       }),
@@ -79,7 +57,29 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(30);
+    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+  it("invalidates v32 snapshots so OpenCode 2 and per-provider credentials are re-probed", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 32,
+        // Cached before OpenCode 2 reported its connected AI providers: the
+        // settings panel would show "no providers connected" until a refresh.
+        windows: [{ kind: "example", installed: true, authState: "authenticated" }],
+        wsl: [],
+      }),
+    );
+    const runtime = makeRuntime(() => {});
+    const service = runtime.agentStatusService as unknown as {
+      readCachedStatuses(distros: string[]): unknown;
+    };
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
   it("invalidates v11 caches produced before successful ACP sessions established auth", () => {
@@ -269,7 +269,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(30);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -313,7 +313,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(30);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -390,7 +390,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(30);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -437,7 +437,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(30);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -466,7 +466,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(30);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -499,7 +499,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(30);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

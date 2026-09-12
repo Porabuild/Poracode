@@ -26,6 +26,7 @@ export interface FilterProxyOptions {
   disabledTools: readonly string[];
   upstreamTransport: Transport;
   downstreamTransport: Transport;
+  timeoutMs?: number;
 }
 
 export interface FilterProxy {
@@ -34,7 +35,7 @@ export interface FilterProxy {
   close: () => Promise<void>;
 }
 
-export function createUpstreamTransport(server: McpServer): Transport {
+export function createUpstreamTransport(server: Pick<McpServer, "transport">): Transport {
   const transport = server.transport;
   if (transport.type === "stdio") {
     return new ClientStdioTransport({
@@ -68,7 +69,8 @@ export async function startFilterProxy(options: FilterProxyOptions): Promise<Fil
     upstreamOnClose?.();
     if (proxyServer) void proxyServer.close().catch(() => undefined);
   };
-  await client.connect(upstreamTransport);
+  const requestOptions = options.timeoutMs === undefined ? {} : { timeout: options.timeoutMs };
+  await client.connect(upstreamTransport, requestOptions);
 
   const server = new Server(
     { name: serverName, version: "1.0.0" },
@@ -79,13 +81,13 @@ export async function startFilterProxy(options: FilterProxyOptions): Promise<Fil
     const tools = [];
     let cursor: string | undefined;
     do {
-      const result = await client.listTools(cursor ? { cursor } : undefined);
+      const result = await client.listTools(cursor ? { cursor } : undefined, requestOptions);
       tools.push(...result.tools.filter((tool) => !disabled.has(tool.name)));
       cursor = result.nextCursor;
     } while (cursor);
     return { tools };
   });
-  server.setRequestHandler("tools/call", async (request) => {
+  server.setRequestHandler("tools/call", async (request, extra) => {
     const name = request.params.name;
     if (disabled.has(name)) {
       return {
@@ -93,7 +95,10 @@ export async function startFilterProxy(options: FilterProxyOptions): Promise<Fil
         content: [{ type: "text", text: `Tool disabled by Poracode: ${name}` }],
       };
     }
-    return await client.callTool(request.params);
+    return await client.callTool(request.params, {
+      ...requestOptions,
+      signal: extra.mcpReq.signal,
+    });
   });
   await server.connect(downstreamTransport);
 

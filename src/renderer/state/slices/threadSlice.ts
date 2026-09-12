@@ -26,7 +26,7 @@ import {
   type TurnCloseUpdate,
 } from "./threadTurnHelpers";
 import { recordThreadStarted } from "../usageRecorder";
-import { removeKeepAliveId } from "./paneCacheSlice";
+import { keepAlivePatch, removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { terminateStaleSubAgentItems } from "./staleSubAgents";
@@ -291,6 +291,11 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           ...state.lastRuntimeConfigByThreadId,
           [thread.id]: thread.config,
         },
+        // A focused launch replaces the current pane; keep that outgoing
+        // terminal mounted so switching back still has its xterm buffer.
+        ...(focus === false
+          ? {}
+          : keepAlivePatch({ ...state, threads: [thread, ...state.threads] }, thread.id)),
       };
     });
 
