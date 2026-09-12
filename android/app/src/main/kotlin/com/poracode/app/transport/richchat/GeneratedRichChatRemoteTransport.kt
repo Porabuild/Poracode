@@ -13,6 +13,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * Generated-contract-backed rich-chat HTTP transport.
@@ -188,6 +190,46 @@ class GeneratedRichChatRemoteTransport(
         procedureUnit("stageThreadInput", payload)
     }
 
+    override suspend fun queueFollowUp(threadId: String, payload: JsonObject) {
+        procedureUnit("queueThreadFollowUp", payload)
+    }
+
+    override suspend fun removeQueuedFollowUp(threadId: String, id: String) {
+        procedureUnit("removeQueuedThreadFollowUp", queueItemPayload(threadId, id))
+    }
+
+    override suspend fun reorderQueuedFollowUp(threadId: String, id: String, beforeId: String?) {
+        procedureUnit(
+            "reorderQueuedThreadFollowUp",
+            buildJsonObject {
+                put("threadId", threadId)
+                put("id", id)
+                put("beforeId", if (beforeId == null) JsonNull else JsonPrimitive(beforeId))
+            },
+        )
+    }
+
+    override suspend fun editQueuedFollowUp(threadId: String, payload: JsonObject) {
+        procedureUnit("editQueuedThreadFollowUp", payload)
+    }
+
+    override suspend fun steerQueuedFollowUp(threadId: String, id: String) {
+        procedureUnit("steerQueuedThreadFollowUp", queueItemPayload(threadId, id))
+    }
+
+    override suspend fun pauseFollowUps(threadId: String, id: String) {
+        procedureUnit("pauseThreadFollowUps", queueItemPayload(threadId, id))
+    }
+
+    override suspend fun resumeFollowUps(threadId: String) {
+        procedureUnit("resumeThreadFollowUps", queueThreadPayload(threadId))
+    }
+
+    override suspend fun getFollowUpQueue(threadId: String): JsonObject? {
+        val result = procedure("getThreadFollowUpQueue", queueThreadPayload(threadId), mutating = false)
+        return result as? JsonObject
+    }
+
     override suspend fun uploadAttachment(
         threadId: String,
         name: String,
@@ -262,6 +304,15 @@ class GeneratedRichChatRemoteTransport(
     private suspend fun procedureUnit(name: String, payload: JsonObject) {
         val result = procedure(name, payload)
         if (result !== JsonNull) throw RichChatMutationOutcomeUnknownException(name)
+    }
+
+    private fun queueThreadPayload(threadId: String): JsonObject = buildJsonObject {
+        put("threadId", threadId)
+    }
+
+    private fun queueItemPayload(threadId: String, id: String): JsonObject = buildJsonObject {
+        put("threadId", threadId)
+        put("id", id)
     }
 
     private fun decodeRevertOutcome(canonical: String): String {

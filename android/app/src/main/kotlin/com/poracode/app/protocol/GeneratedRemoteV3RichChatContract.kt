@@ -238,6 +238,14 @@ object GeneratedRemoteV3RichChatContract {
         "subagentSubscribe" -> RemoteRootCodecs.procedureU2ESubagentSubscribeU2ERequest
         "subagentUnsubscribe" -> RemoteRootCodecs.procedureU2ESubagentUnsubscribeU2ERequest
         "stageThreadInput" -> RemoteRootCodecs.procedureU2EStageThreadInputU2ERequest
+        "queueThreadFollowUp" -> RemoteRootCodecs.procedureU2EQueueThreadFollowUpU2ERequest
+        "removeQueuedThreadFollowUp" -> RemoteRootCodecs.procedureU2ERemoveQueuedThreadFollowUpU2ERequest
+        "reorderQueuedThreadFollowUp" -> RemoteRootCodecs.procedureU2EReorderQueuedThreadFollowUpU2ERequest
+        "editQueuedThreadFollowUp" -> RemoteRootCodecs.procedureU2EEditQueuedThreadFollowUpU2ERequest
+        "steerQueuedThreadFollowUp" -> RemoteRootCodecs.procedureU2ESteerQueuedThreadFollowUpU2ERequest
+        "pauseThreadFollowUps" -> RemoteRootCodecs.procedureU2EPauseThreadFollowUpsU2ERequest
+        "resumeThreadFollowUps" -> RemoteRootCodecs.procedureU2EResumeThreadFollowUpsU2ERequest
+        "getThreadFollowUpQueue" -> RemoteRootCodecs.procedureU2EGetThreadFollowUpQueueU2ERequest
         else -> throw invalid("unsupported rich-chat procedure")
     }
 
@@ -246,8 +254,11 @@ object GeneratedRemoteV3RichChatContract {
         "finalizeFileCheckpoint" -> RemoteRootCodecs.procedureU2EFinalizeFileCheckpointU2EResult
         "listFileCheckpoints" -> RemoteRootCodecs.procedureU2EListFileCheckpointsU2EResult
         "subagentSubscribe" -> RemoteRootCodecs.procedureU2ESubagentSubscribeU2EResult
+        "getThreadFollowUpQueue" -> RemoteRootCodecs.procedureU2EGetThreadFollowUpQueueU2EResult
         "rollbackThreadConversation", "restoreFileCheckpoint", "subagentUnsubscribe",
-        "stageThreadInput" -> null
+        "stageThreadInput", "queueThreadFollowUp", "removeQueuedThreadFollowUp",
+        "reorderQueuedThreadFollowUp", "editQueuedThreadFollowUp", "steerQueuedThreadFollowUp",
+        "pauseThreadFollowUps", "resumeThreadFollowUps" -> null
         else -> throw invalid("unsupported rich-chat procedure")
     }
 
