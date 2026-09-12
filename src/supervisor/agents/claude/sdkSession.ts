@@ -25,7 +25,7 @@ import type {
   ThreadStatus,
   TurnState,
 } from "@/shared/contracts";
-import { areAgentSlashCommandsEqual } from "@/shared/contracts";
+import { areAgentSlashCommandsEqual, isThreadConfigEqual } from "@/shared/contracts";
 import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import { buildClaudeMcpServers } from "../userMcp";
 import {
@@ -69,6 +69,7 @@ import {
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
 import { AsyncPromptQueue } from "./promptQueue";
+import { ClaudeSteerDelivery, interruptClaudeQuery } from "./steerDelivery";
 import { projectCwd, spawnClaudeInWsl, spawnClaudeNative } from "./sdkSpawn";
 import { buildSdkUserMessage } from "./sdkPrompt";
 import {
@@ -145,6 +146,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private activeResumeAt: string | undefined;
   private pendingSteers: Parameters<ClaudeSdkSession["startTurn"]>[] = [];
   private submissionGeneration = 0;
+  private steerError: string | undefined;
+  private readonly steerDelivery = new ClaudeSteerDelivery();
   // A turn's `result` settles its status immediately, but flipping the thread
   // to idle while a background subagent task is still live would mark a GUI
   // thread finished mid-work. Hold the completion status here until the
@@ -309,17 +312,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   ): Promise<void> {
     if (this.disposed) return;
     const generation = ++this.submissionGeneration;
-    this.currentConfig = config;
-    const turnId = `turn-${randomUUID()}`;
-    this.currentTurnAssistantUuid = undefined;
-    this.currentTurnInFlight = true;
-    this.deferredCompletion.clear();
-    this.clearDeferredFlushTimer();
-    this.emitRuntimeEvents(
-      startClaudeTurn(this.mapperState, turnId, prompt, segments, options?.userMessageItemId),
-    );
-    this.emitUpdate({ status: "working", attention: "working" });
-    this.startGoalTracking();
+    this.steerError = undefined;
+    this.beginTurn(prompt, config, segments, options);
 
     const query = await this.requireQuery();
     await this.syncModel(query, config);
@@ -341,10 +335,30 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.promptQueue.push(message);
   }
 
+  private beginTurn(
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): void {
+    this.currentConfig = config;
+    const turnId = `turn-${randomUUID()}`;
+    this.currentTurnAssistantUuid = undefined;
+    this.currentTurnInFlight = true;
+    this.deferredCompletion.clear();
+    this.clearDeferredFlushTimer();
+    this.emitRuntimeEvents(
+      startClaudeTurn(this.mapperState, turnId, prompt, segments, options?.userMessageItemId),
+    );
+    this.emitUpdate({ status: "working", attention: "working" });
+    this.startGoalTracking();
+  }
+
   /**
-   * Keep follow-ups here until the running turn ends naturally. SDK-queued
-   * input can survive Stop, and resetting the mapper before a result loses
-   * live tool output. Local admission preserves both cancellation and order.
+   * Deliver ordinary follow-ups at the SDK's next tool boundary without
+   * resetting the running mapper. Commands and config changes need a fresh
+   * turn; older CLIs also keep local admission because Stop cannot cancel
+   * their queued input atomically.
    */
   async steerTurn(
     prompt: string,
@@ -353,10 +367,49 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     options?: StartTurnOptions,
   ): Promise<void> {
     if (this.disposed) return;
-    if (!this.currentTurnInFlight) return this.startTurn(prompt, config, segments, options);
+    if (!this.currentTurnInFlight && !this.steerDelivery.hasPending) {
+      return this.startTurn(prompt, config, segments, options);
+    }
     const userMessageItemId = options?.userMessageItemId ?? `user-${randomUUID()}`;
-    this.pendingSteers.push([prompt, config, segments, { ...options, userMessageItemId }]);
+    const steerOptions = { ...options, userMessageItemId };
+    if (
+      !this.steerDelivery.supported ||
+      this.pendingSteers.length > 0 ||
+      prompt.trimStart().startsWith("/") ||
+      !isThreadConfigEqual(this.currentConfig, config)
+    ) {
+      this.pendingSteers.push([prompt, config, segments, steerOptions]);
+      this.emitRuntimeEvents(
+        steerClaudeTurn(this.mapperState, prompt, segments, userMessageItemId),
+      );
+      return;
+    }
+    const uuid = randomUUID();
+    const generation = this.submissionGeneration;
+    this.steerDelivery.add(uuid, [prompt, config, segments, steerOptions]);
     this.emitRuntimeEvents(steerClaudeTurn(this.mapperState, prompt, segments, userMessageItemId));
+    try {
+      await this.steerDelivery.serialize(async () => {
+        if (this.disposed || generation !== this.submissionGeneration) return;
+        const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
+        if (this.disposed || generation !== this.submissionGeneration) return;
+        this.promptQueue.push({ ...message, uuid, priority: "next" });
+      });
+    } catch (error) {
+      if (this.disposed || generation !== this.submissionGeneration) return;
+      this.steerError = error instanceof Error ? error.message : String(error);
+      this.submissionGeneration++;
+      this.pendingSteers = [];
+      this.steerDelivery.clear();
+      this.promptQueue.clear();
+      this.deferredCompletion.clear();
+      this.clearDeferredFlushTimer();
+      if (this.queryRuntime) {
+        void interruptClaudeQuery(this.queryRuntime, true).catch(() => {});
+      }
+      this.emitUpdate({ status: "error", attention: "error", errorMessage: this.steerError });
+      throw error;
+    }
   }
 
   private startPendingSteer(): boolean {
@@ -369,6 +422,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     void submission.catch((error: unknown) => {
       if (this.disposed || generation !== this.submissionGeneration) return;
       this.pendingSteers = [];
+      this.steerDelivery.clear();
+      this.promptQueue.clear();
       const message = error instanceof Error ? error.message : String(error);
       this.reportError(message);
       this.emitRuntimeEvents([{ type: "error", threadId: this.input.threadId, message }]);
@@ -527,6 +582,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
   /** Closes the live query and reopens the session at an absolute position. */
   private applyResumePoint(resumeSessionAt: string): void {
+    this.submissionGeneration++;
+    this.steerDelivery.clear();
     this.currentTurnAssistantUuid = undefined;
     this.currentTurnInFlight = false;
     this.openedResumeSessionId = this.sessionId;
@@ -546,17 +603,26 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
   async interruptTurn(): Promise<void> {
     this.pendingSteers = [];
+    this.steerDelivery.clear();
+    this.promptQueue.clear();
     this.submissionGeneration++;
     this.interruptInFlight = true;
     try {
-      await this.queryRuntime?.interrupt();
+      if (this.queryRuntime) {
+        await interruptClaudeQuery(this.queryRuntime, this.steerDelivery.supported);
+      }
     } catch {
       // Best-effort; stream/result handling will settle state if the SDK already stopped.
     }
   }
 
   forceCompleteTurn(): void {
+    if (this.steerDelivery.hasPending && this.queryRuntime) {
+      void interruptClaudeQuery(this.queryRuntime, true).catch(() => {});
+    }
     this.pendingSteers = [];
+    this.steerDelivery.clear();
+    this.promptQueue.clear();
     this.submissionGeneration++;
     this.deferredCompletion.clear();
     this.clearDeferredFlushTimer();
@@ -726,6 +792,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
 
   private closeSessionResources(): void {
     this.pendingSteers = [];
+    this.steerDelivery.clear();
+    this.promptQueue.clear();
     this.submissionGeneration++;
     this.stopGoalTracking();
     this.flushDeferredCompletion();
@@ -802,6 +870,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.disposed) throw new Error("ClaudeSdkSession cannot open a disposed session.");
     if (this.streamStarted) return;
     this.streamStarted = true;
+    this.steerDelivery.supported = false;
     this.activeResumeAt = resumeSessionAt;
     // The `background_tasks_changed` level is per CLI process: it is not
     // emitted at startup, so a restarted query (rollback re-spawns the CLI)
@@ -936,6 +1005,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         ...(resumeSessionAt ? { resumeSessionAt } : {}),
         ...(!resumeSessionId && this.sessionId ? { sessionId: this.sessionId } : {}),
         includePartialMessages: true,
+        extraArgs: { "replay-user-messages": null },
         forwardSubagentText: true,
         canUseTool: this.canUseTool,
         env,
@@ -969,13 +1039,21 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       .then(async (runtime) => {
         try {
           for await (const message of runtime) {
-            if (this.disposed) break;
+            if (this.disposed || runtime !== this.queryRuntime) break;
             this.handleSdkMessage(message);
           }
+          if (runtime !== this.queryRuntime) return;
+          this.submissionGeneration++;
           this.pendingSteers = [];
+          this.steerDelivery.clear();
+          this.promptQueue.clear();
           if (!this.disposed) this.flushDeferredCompletion();
         } catch (error) {
+          if (runtime !== this.queryRuntime) return;
+          this.submissionGeneration++;
           this.pendingSteers = [];
+          this.steerDelivery.clear();
+          this.promptQueue.clear();
           if (!this.disposed) {
             captureSupervisorException(error, {
               "poracode.feature_area": "provider-sdk",
@@ -1116,6 +1194,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       });
     }
 
+    const consumedSteer = this.steerDelivery.observe(message);
+    if (consumedSteer && !this.currentTurnInFlight) this.beginTurn(...consumedSteer);
     this.beginResumedTurnIfNeeded(message);
 
     if (message.type === "system" && message.subtype === "init") {
@@ -1134,7 +1214,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         mapped.status !== "idle" ||
         (!this.deferredCompletion.hasPending &&
           !this.currentTurnInFlight &&
-          this.pendingSteers.length === 0)
+          this.pendingSteers.length === 0 &&
+          !this.steerDelivery.hasPending)
       ) {
         this.emitUpdate(mapped);
       }
@@ -1163,7 +1244,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (message.type === "result") {
       wasInterrupted =
         this.interruptInFlight || (message.subtype !== "success" && isInterruptedResult(message));
-      if (wasInterrupted) resultState = "interrupted";
+      if (this.steerError) resultState = "failed";
+      else if (wasInterrupted) resultState = "interrupted";
     }
     const events = mapClaudeSdkMessage(
       message,
@@ -1189,9 +1271,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // `isInterruptedResult`, covering external (in-CLI) Esc interrupts where
       // `interruptInFlight` is false.
       const failed =
-        !wasInterrupted && (apiErrored || (message.subtype !== "success" && remaining.length > 0));
+        this.steerError !== undefined ||
+        (!wasInterrupted &&
+          (apiErrored || (message.subtype !== "success" && remaining.length > 0)));
       const errorMessage = failed
-        ? (extractResultErrorMessage(message) ?? "Claude turn failed.")
+        ? (this.steerError ?? extractResultErrorMessage(message) ?? "Claude turn failed.")
         : undefined;
       if (this.currentTurnInFlight && !failed && !wasInterrupted) {
         this.completedTurns.push({ resumeSessionAt: this.currentTurnAssistantUuid });
@@ -1212,7 +1296,20 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         ...(errorMessage ? { errorMessage } : {}),
         ...(this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {}),
       };
-      if (failed || wasInterrupted) this.pendingSteers = [];
+      if (failed || wasInterrupted) {
+        const hadPendingDelivery = this.steerDelivery.hasPending;
+        this.submissionGeneration++;
+        this.pendingSteers = [];
+        this.steerDelivery.clear();
+        this.promptQueue.clear();
+        if (failed && hadPendingDelivery && this.queryRuntime && this.steerDelivery.supported) {
+          void interruptClaudeQuery(this.queryRuntime, true).catch(() => {});
+        }
+      }
+      if (this.steerDelivery.hasPending) {
+        this.deferredCompletion.defer(completion);
+        return;
+      }
       if (this.startPendingSteer()) return;
       if (this.hasLiveBackgroundWork()) {
         this.deferredCompletion.defer(completion);
@@ -1257,6 +1354,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     // A goal held open across a clean turn end also drains here, so the
     // pending goal alone is enough to arm the flush, or the dock would sit
     // active until the session ends.
+    if (this.steerDelivery.hasPending) return;
     if (!this.deferredCompletion.hasPending && !this.mapperState.pendingGoalCompletionOnTaskDrain) {
       return;
     }
@@ -1267,7 +1365,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.deferredFlushTimer !== undefined) return;
     this.deferredFlushTimer = setTimeout(() => {
       this.deferredFlushTimer = undefined;
-      if (this.disposed || this.hasLiveBackgroundWork()) return;
+      if (this.disposed || this.hasLiveBackgroundWork() || this.steerDelivery.hasPending) return;
       this.emitRuntimeEvents(completeActiveGoalOnTaskDrainEvents(this.mapperState));
       const update = this.deferredCompletion.take();
       if (update) this.emitUpdate(update);
