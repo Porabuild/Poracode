@@ -25,14 +25,34 @@ export interface CursorSdkDiagnostic {
   details?: Readonly<Record<string, string | readonly string[]>>;
 }
 
-export type CursorSdkPackageSource =
-  | "configured"
-  | "project"
-  | "node-path"
-  | "global-explicit"
-  | "global-inferred"
-  | "global-npm"
-  | "global-pnpm";
+/**
+ * Every provenance token discovery can report for a resolved installation.
+ * Declared as a value so consumers can validate pin records against the same
+ * list the type is derived from — a token added here is usable everywhere at
+ * once.
+ */
+export const CURSOR_SDK_PACKAGE_SOURCES = [
+  "configured",
+  "project",
+  "node-path",
+  "global-explicit",
+  "global-inferred",
+  "global-npm",
+  "global-pnpm",
+] as const;
+
+export type CursorSdkPackageSource = (typeof CURSOR_SDK_PACKAGE_SOURCES)[number];
+
+/**
+ * A previously resolved installation the host recorded, handed back as a
+ * resolution hint. Only the location and its source travel; the recorded
+ * version exists on the host side to repopulate detection state when a probe
+ * reaches no verdict.
+ */
+export interface CursorSdkPinHint {
+  packageRoot: string;
+  source: CursorSdkPackageSource;
+}
 
 export type CursorSdkAuthSource = "option" | "environment";
 

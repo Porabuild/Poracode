@@ -30,6 +30,7 @@ import {
   type CursorSdkWorkerStartResult,
   type CursorSdkWorkerWireMessage,
 } from "./sdkWorkerProtocol";
+import type { CursorSdkPinHint } from "./sdkLoaderSupport";
 
 const DEFAULT_BOOT_TIMEOUT_MS = 15_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
@@ -46,6 +47,12 @@ export interface CursorSdkWorkerSpawnOptions {
   sdkEntryPath?: string;
   /** Required with sdkEntryPath when containment should be enforced. */
   sdkPackageRoot?: string;
+  /**
+   * An installation the host resolved and recorded earlier, tried before the
+   * worker probes for one. Ignored when any explicit path above is set, or when
+   * the target environment is not the one the root was recorded in.
+   */
+  pinnedRoot?: CursorSdkPinHint;
   /** Non-secret process environment overrides. */
   env?: Record<string, string>;
   /** Override the native helper path, or the host source staged into WSL. */
@@ -460,14 +467,31 @@ export class CursorSdkWorkerClient {
   }
 }
 
+/**
+ * The recorded installation to hand the worker, when one applies.
+ *
+ * Dropped whenever the caller named a location itself — explicit configuration
+ * is authoritative and must not be second-guessed by a stale record — and for
+ * WSL targets, because a root recorded in one environment is not a path that
+ * exists in the other.
+ */
+function applicablePinnedRoot(options: CursorSdkWorkerSpawnOptions): CursorSdkPinHint | undefined {
+  if (!options.pinnedRoot) return undefined;
+  if (options.configuredPath || options.sdkEntryPath || options.sdkPackageRoot) return undefined;
+  if (options.projectLocation.kind === "wsl") return undefined;
+  return options.pinnedRoot;
+}
+
 async function spawnWorkerProcess(
   options: CursorSdkWorkerSpawnOptions,
   dependencies: CursorSdkWorkerClientDependencies,
 ): Promise<SpawnedWorker> {
+  const pinnedRoot = applicablePinnedRoot(options);
   const discovery: CursorSdkWorkerDiscovery = {
     ...(options.configuredPath ? { configuredPath: options.configuredPath } : {}),
     ...(options.sdkEntryPath ? { entryPath: options.sdkEntryPath } : {}),
     ...(options.sdkPackageRoot ? { packageRoot: options.sdkPackageRoot } : {}),
+    ...(pinnedRoot ? { pinnedRoot } : {}),
   };
   const spawnProcess =
     dependencies.spawnProcess ??

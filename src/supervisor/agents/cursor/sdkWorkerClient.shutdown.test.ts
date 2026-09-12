@@ -12,6 +12,7 @@ import {
   CursorSdkWorkerStartupError,
   spawnCursorSdkWorker,
 } from "./sdkWorkerClient";
+import { CURSOR_SDK_WORKER_PROTOCOL_VERSION } from "./sdkWorkerProtocol";
 
 function createClient(acknowledgeDispose = true) {
   const child = Object.assign(new EventEmitter(), {
@@ -36,7 +37,9 @@ function createClient(acknowledgeDispose = true) {
     60_000,
     true,
   );
-  child.stdout.write(JSON.stringify({ type: "ready", protocolVersion: 1 }) + "\n");
+  child.stdout.write(
+    JSON.stringify({ type: "ready", protocolVersion: CURSOR_SDK_WORKER_PROTOCOL_VERSION }) + "\n",
+  );
   return { child, client, requests };
 }
 

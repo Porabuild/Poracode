@@ -160,6 +160,127 @@ describe("loadCursorSdk discovery", () => {
     expect(loaded.packageRoot).toBe(fake.packageRoot);
   });
 
+  it("resolves a recorded installation without probing any package manager", async () => {
+    const fake = await makeFakePackage();
+    const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));
+    createdDirectories.push(emptyProject);
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: emptyProject,
+          includeGlobal: true,
+          env: {},
+          pinnedRoot: { packageRoot: fake.packageRoot, source: "global-npm" },
+        }),
+        {
+          // A host whose executable-derived inference finds nothing (the
+          // packaged app's case) — the recorded root is the only survivor.
+          executablePath: "/nonexistent/app-bundle/executable",
+          resolvePackageManagerRoots: async () => {
+            throw new Error("a recorded installation must not need a package-manager probe");
+          },
+        },
+      ),
+    );
+
+    expect(loaded.source).toBe("global-npm");
+    expect(loaded.packageRoot).toBe(fake.packageRoot);
+  });
+
+  it("prefers a project installation over a recorded one", async () => {
+    const recorded = await makeFakePackage();
+    const inProject = await makeFakePackage();
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: inProject.root,
+          includeGlobal: false,
+          pinnedRoot: { packageRoot: recorded.packageRoot, source: "global-npm" },
+        }),
+      ),
+    );
+
+    expect(loaded.source).toBe("project");
+    expect(loaded.packageRoot).toBe(inProject.packageRoot);
+  });
+
+  it("prefers a freshly observable install over a valid recorded one", async () => {
+    const recorded = await makeFakePackage();
+    const observed = await makeFakePackage();
+
+    // The recorded root is still a working installation, but a candidate this
+    // pass observes directly (here via NODE_PATH) must outrank it, so an
+    // upgraded active install is picked up without anyone forgetting the pin.
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          includeGlobal: true,
+          env: { NODE_PATH: join(observed.root, "node_modules") },
+          pinnedRoot: { packageRoot: recorded.packageRoot, source: "global-npm" },
+        }),
+        {
+          resolvePackageManagerRoots: async () => {
+            throw new Error("an observable installation must not need a package-manager probe");
+          },
+        },
+      ),
+    );
+
+    expect(loaded.source).toBe("node-path");
+    expect(loaded.packageRoot).toBe(observed.packageRoot);
+  });
+
+  it("keeps looking when a recorded root is gone instead of failing the load", async () => {
+    const observed = await makeFakePackage();
+    const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));
+    createdDirectories.push(emptyProject);
+    const gone = join(
+      await realpath(await mkdtemp(join(tmpdir(), "poracode-cursor-gone-"))),
+      "node_modules",
+      "@cursor",
+      "sdk",
+    );
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: emptyProject,
+          includeGlobal: true,
+          env: { NODE_PATH: join(observed.root, "node_modules") },
+          pinnedRoot: { packageRoot: gone, source: "global-npm" },
+        }),
+        { executablePath: "/nonexistent/app-bundle/executable" },
+      ),
+    );
+
+    expect(loaded.packageRoot).toBe(observed.packageRoot);
+  });
+
+  it("treats a recorded root holding something else as a miss, not a broken package", async () => {
+    const observed = await makeFakePackage();
+    const emptyProject = await mkdtemp(join(tmpdir(), "poracode-cursor-empty-project-"));
+    createdDirectories.push(emptyProject);
+    const squatter = await makeFakePackage({ packageName: "@other/thing" });
+
+    const loaded = expectSuccess(
+      await loadCursorSdk(
+        baseOptions({
+          projectCwd: emptyProject,
+          includeGlobal: true,
+          env: { NODE_PATH: join(observed.root, "node_modules") },
+          pinnedRoot: { packageRoot: squatter.packageRoot, source: "global-npm" },
+        }),
+        { executablePath: "/nonexistent/app-bundle/executable" },
+      ),
+    );
+
+    // An untracked candidate with a bad manifest is a hard `package_invalid`;
+    // a recorded one must degrade to ordinary discovery instead.
+    expect(loaded.packageRoot).toBe(observed.packageRoot);
+  });
+
   it("discovers NODE_PATH and explicit global installations", async () => {
     const fromNodePath = await makeFakePackage();
     const fromExplicitRoot = await makeFakePackage();

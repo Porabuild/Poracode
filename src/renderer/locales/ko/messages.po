@@ -4361,6 +4361,7 @@ msgstr "이 기기에서 에이전트 감지"
 #~ msgid "Detect from project files"
 #~ msgstr "프로젝트 파일에서 감지"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "감지됨"
