@@ -18,8 +18,7 @@ import { ThreadView } from "@/renderer/components/thread/ThreadView";
 import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
 import { useRemoteTerminalTransport } from "@/renderer/components/thread/useRemoteTerminalTransport";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
-import { useIsDraggingPane, usePaneDropIndicatorState } from "@/renderer/dnd";
-import { paneDragSourceOptions } from "./paneDragSource";
+import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
 import {
   useThreadAgentStatuses,
   useProjectAgentStatuses,
@@ -81,13 +80,12 @@ export function ThreadPane(props: {
   const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = getAppState();
 
   const paneElementRef = useRef<HTMLDivElement>(null);
-  const paneDragSource = paneDragSourceOptions({
-    paneId: props.threadId,
-    paneCount: props.paneCount,
-  });
   const { handleRef } = useDraggable({
-    ...paneDragSource.options,
-    ...(paneDragSource.registerElement ? { element: paneElementRef } : {}),
+    id: `pane:${props.threadId}`,
+    type: "pane",
+    data: { type: "pane", paneId: props.threadId } satisfies DragSourceData,
+    disabled: props.paneCount <= 1,
+    element: paneElementRef,
   });
   useDroppable({
     id: `pane-drop:${props.threadId}`,
@@ -139,7 +137,7 @@ export function ThreadPane(props: {
       dropIndicator={dropIndicator}
       paneCount={props.paneCount}
       headerNeedsTrafficLightPad={props.headerNeedsTrafficLightPad}
-      {...(props.paneCount > 1 ? { dragHandleRef: handleRef } : {})}
+      dragHandleRef={handleRef}
       droppableRef={paneElementRef}
       onClose={props.onClose}
       {...(!experiment

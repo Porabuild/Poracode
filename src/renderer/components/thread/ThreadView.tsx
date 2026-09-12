@@ -325,6 +325,8 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
 
   const alignClass =
     paneAlign === "right" ? "ml-auto" : paneAlign === "left" ? "mr-auto" : "mx-auto";
+  // A lone pane cannot be reordered, so its header stays a window drag region.
+  const paneDraggable = paneCount > 1;
   const paddingClass = "px-2";
   const contentShellClass = `${alignClass} relative flex min-h-0 w-full max-w-[1040px] flex-1 flex-col ${paddingClass} px-3 pb-2`;
   const contentBodyClass = `${alignClass} flex min-h-0 w-full max-w-[920px] flex-1 flex-col pt-2`;
@@ -370,7 +372,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         {/* Header bar — provider icon outside pane drag handle; status tooltip uses HeroUI tooltip (anchored bottom start). */}
         <div className={`px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}>
           <div
-            className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
+            className={`${paneDraggable ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
           >
             <ThreadHeaderStatusButton
               threadId={thread.id}
@@ -379,36 +381,41 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
               agentLabel={agentStatus?.label}
               agentIcon={agentStatus?.icon}
             />
-            <div
-              ref={dragHandleRef}
-              className={`flex min-w-0 flex-1 items-center gap-2 ${dragHandleRef ? "cursor-grab active:cursor-grabbing" : ""}`}
-            >
-              <Tooltip
-                delay={500}
-                isOpen={isTitleTooltipOpen}
-                onOpenChange={(open) => {
-                  if (open) {
-                    const el = titleRef.current;
-                    if (el && el.scrollWidth > el.clientWidth) {
-                      setIsTitleTooltipOpen(true);
-                    }
-                  } else {
-                    setIsTitleTooltipOpen(false);
-                  }
-                }}
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              {/* The drag handle wraps only the title. dnd-kit exposes the
+                  handle as a (possibly disabled) button, so it must not
+                  contain other controls or the pane content. */}
+              <div
+                ref={dragHandleRef}
+                className={`flex min-w-0 flex-1 items-center ${paneDraggable ? "cursor-grab active:cursor-grabbing" : ""}`}
               >
-                <Tooltip.Trigger className="min-w-0 flex-1" tabIndex={-1} role="none">
-                  <span
-                    ref={titleRef}
-                    className="block truncate text-sm font-medium leading-tight text-foreground @max-[560px]:text-xs @max-[360px]:text-[11px]"
-                  >
+                <Tooltip
+                  delay={500}
+                  isOpen={isTitleTooltipOpen}
+                  onOpenChange={(open) => {
+                    if (open) {
+                      const el = titleRef.current;
+                      if (el && el.scrollWidth > el.clientWidth) {
+                        setIsTitleTooltipOpen(true);
+                      }
+                    } else {
+                      setIsTitleTooltipOpen(false);
+                    }
+                  }}
+                >
+                  <Tooltip.Trigger className="min-w-0 flex-1" tabIndex={-1} role="none">
+                    <span
+                      ref={titleRef}
+                      className="block truncate text-sm font-medium leading-tight text-foreground @max-[560px]:text-xs @max-[360px]:text-[11px]"
+                    >
+                      {thread.title}
+                    </span>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content placement="bottom" className="max-w-[28rem] break-words text-xs">
                     {thread.title}
-                  </span>
-                </Tooltip.Trigger>
-                <Tooltip.Content placement="bottom" className="max-w-[28rem] break-words text-xs">
-                  {thread.title}
-                </Tooltip.Content>
-              </Tooltip>
+                  </Tooltip.Content>
+                </Tooltip>
+              </div>
               <div className="flex shrink-0 items-center">
                 {projectName ? (
                   <span className="px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
