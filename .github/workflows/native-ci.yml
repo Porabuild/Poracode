@@ -236,6 +236,15 @@ jobs:
           disable-animations: true
           working-directory: android
           script: |
+            # The runner's own boot wait has been observed to proceed while the
+            # device is still offline; gate every assert on a completed boot.
+            adb wait-for-device
+            for attempt in $(seq 1 120); do
+              boot="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+              if [ "$boot" = "1" ]; then break; fi
+              sleep 5
+            done
+            test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
             capability="$(openssl rand -hex 32)"
             export NATIVE_E2E_CONTROL_CAPABILITY="$capability"
             export PORACODE_NATIVE_E2E_SLOT=1
