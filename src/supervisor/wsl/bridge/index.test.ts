@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentEventEnvelope } from "@/shared/contracts";
 import { WslBridgeServer } from "./index";
+import { readBundledHelperVersion } from "../wslDeploy";
 
 /**
  * The bridge manager talks to wsl.exe and the user's distro, so all real I/O
@@ -501,6 +502,62 @@ describe("WslBridgeServer", () => {
     expect(second?.hookUrl).toBe("http://127.0.0.1:9101/v1/agent-event");
 
     await manager.dispose();
+  });
+
+  it("replaces a running 2.16.0 helper with the 2.17.0 symlink-rejection build", async () => {
+    // 2.17.0 exists to force out 2.16.0 deployments that predate
+    // symlink-ancestor mutation rejection: that behavior shipped while the
+    // constant still said 2.16.0, so only a bump makes the handshake evict
+    // the unhardened helpers (the rejection itself is pinned by
+    // bridge.test.ts "rejects mutations through a symbolic-link ancestor").
+    const helpersDir = mkdtempSync(join(tmpdir(), "lc-bridge-helpers-"));
+    tempDirs.push(helpersDir);
+    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.16.0";\n`, "utf8");
+
+    const children: FakeChild[] = [];
+    const manager = new WslBridgeServer({
+      helpersDir,
+      onEvent: () => undefined,
+      onError: () => undefined,
+      secret: "s",
+      protocolVersion: 1,
+      resolveNode: async () => ({
+        nodePath: "/usr/bin/node",
+        nodeVersion: "22.11.0",
+        source: "user-installed",
+      }),
+      deploy: () => ({ home: "/h", linuxBaseDir: "/h/.poracode" }),
+      spawn: () => {
+        const child = new FakeChild();
+        // First child is the pre-rejection helper still running from before
+        // the app update; every fresh spawn serves the restaged 2.17.0.
+        const version = children.length === 0 ? "2.16.0" : "2.17.0";
+        const port = children.length === 0 ? 9200 : 9201;
+        children.push(child);
+        setImmediate(() => {
+          child.stdout.emit(
+            "data",
+            Buffer.from(JSON.stringify({ type: "boot", port, version }) + "\n"),
+          );
+        });
+        return child as never;
+      },
+    });
+
+    const first = await manager.ensureBridge("Ubuntu");
+    // The app update restaged the helper: same distro, new bundled constant.
+    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.17.0";\n`, "utf8");
+    const second = await manager.ensureBridge("Ubuntu");
+
+    expect(children).toHaveLength(2);
+    expect(first?.hookUrl).toBe("http://127.0.0.1:9200/v1/agent-event");
+    expect(second?.hookUrl).toBe("http://127.0.0.1:9201/v1/agent-event");
+
+    await manager.dispose();
+  });
+
+  it("ships 2.17.0 as the bundled bridge version", () => {
+    expect(readBundledHelperVersion("bridge.mjs", "BRIDGE_VERSION", __dirname)).toBe("2.17.0");
   });
 
   it("does not respawn when booted version matches the bundled version", async () => {
