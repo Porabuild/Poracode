@@ -193,8 +193,13 @@ actor GitHubCallRecorder {
 }
 
 func gitHubRepositoryRoot(filePath: String = #filePath) -> URL {
-  var url = URL(fileURLWithPath: filePath)
-  while url.lastPathComponent != "lightcode" && url.pathComponents.count > 1 {
+  // Walk up to the checkout root by marker: the local checkout and hosted CI
+  // use different directory names, and the SwiftPM harness compiles through
+  // symlinked sources, so neither the repo name nor a fixed ascent depth is
+  // stable. The root is the first ancestor that holds package.json.
+  var url = URL(fileURLWithPath: filePath).standardizedFileURL.deletingLastPathComponent()
+  while !FileManager.default.fileExists(atPath: url.appendingPathComponent("package.json").path)
+    && url.pathComponents.count > 1 {
     url.deleteLastPathComponent()
   }
   return url
