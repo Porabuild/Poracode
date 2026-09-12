@@ -90,9 +90,12 @@ const execFileAsync = promisify(execFile);
 // v25 discards terminal auth environments with obsolete updater-disable values.
 // v26 refreshes model aliases and configured profile labels.
 // v27 coalesces resolved model aliases with their selectable catalog entries.
-// v28 refreshes catalogs that expose model families separately from their variants.
-// v29 refreshes provider-reported model pricing descriptions.
-export const STATUS_CACHE_VERSION = 29;
+// v28 re-probes live voice instead of retaining old capability negatives.
+// v29 advertises session-local MCP tools for Command Code.
+// v30 refreshes terminal MCP capabilities across supported CLIs.
+// v32 invalidates capabilities from the removed persistent MCP proxy prototype.
+// v33 combines V2 model family/pricing metadata with MCP and live-voice capabilities.
+export const STATUS_CACHE_VERSION = 33;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

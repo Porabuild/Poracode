@@ -194,6 +194,7 @@ const remoteSettingsKeys = [
   "disabledAgents",
   "providerOrder",
   "usage",
+  "followUpBehavior",
   "enabledMcpServers",
   "disabledBuiltInMcpServers",
   "titleGenProvider",
@@ -241,6 +242,7 @@ const remoteSettingsWireBaseSchema = sharedSettingsSchema.pick(
 // Keep reads from older v3 hosts valid while new hosts include the complete object.
 export const remoteSettingsWireSchema = remoteSettingsWireBaseSchema.extend({
   usage: sharedSettingsSchema.shape.usage.optional(),
+  followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional().default("steer"),
   searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
   searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),
 });
@@ -257,6 +259,7 @@ export const remoteSettingsPatchWireSchema = remoteSettingsWireSchema
   .omit({ enabledMcpServers: true, disabledBuiltInMcpServers: true })
   .partial()
   .extend({
+    followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional(),
     enabledMcpServers: sharedSettingsSchema.shape.enabledMcpServers.removeDefault().optional(),
     disabledBuiltInMcpServers: sharedSettingsSchema.shape.disabledBuiltInMcpServers
       .removeDefault()

@@ -40,6 +40,7 @@ export const copilotDefaultCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
+  mcpScope: { terminal: "launch", gui: "launch" },
   requiresTerminalFocusBeforeInput: true,
   defaultApprovalPolicy: "never",
   bypassPermissions: { approvalPolicy: "never" },

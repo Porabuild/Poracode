@@ -1,3 +1,4 @@
+import { kimiNativeMcpConfig } from "./nativeMcp";
 import type { PromptSegment } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
@@ -51,6 +52,7 @@ export function createKimiAdapter(): AgentAdapter {
   let capabilities = kimiDefaultCapabilities;
 
   return {
+    nativeMcpConfig: (ctx) => (ctx.envKind === "wsl" ? undefined : kimiNativeMcpConfig()),
     kind: kimiDetectionSpec.kind,
     label: kimiDetectionSpec.label,
     binary: kimiDetectionSpec.binary,

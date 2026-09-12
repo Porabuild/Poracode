@@ -1,3 +1,4 @@
+import { antigravityNativeMcpConfig } from "./nativeMcp";
 import type {
   AgentCapability,
   AgentInstanceConfig,
@@ -77,6 +78,7 @@ export function createAntigravityAdapter(acpInstance?: AgentInstanceConfig): Age
   });
 
   return {
+    nativeMcpConfig: (ctx) => (ctx.envKind === "wsl" ? undefined : antigravityNativeMcpConfig()),
     kind: detectionSpec.kind,
     label: detectionSpec.label,
     binary: detectionSpec.binary,

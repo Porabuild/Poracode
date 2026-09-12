@@ -1,3 +1,4 @@
+import { NativeMcpSetupCoordinator } from "./runtime/nativeMcpSetupCoordinator";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
@@ -131,6 +132,7 @@ export class SupervisorRuntime {
   readonly generationService: GenerationService;
   readonly threadSessionManager: ThreadSessionManager;
   readonly lspManager: LanguageServerManager;
+  readonly nativeMcpSetupCoordinator: NativeMcpSetupCoordinator;
   readonly cliHookPluginCoordinator: CliHookPluginCoordinator;
   readonly externalMcpDiscoveryService = new ExternalMcpDiscoveryService();
   readonly mcpOAuthService: McpOAuthService;
@@ -290,6 +292,11 @@ export class SupervisorRuntime {
     const dispatchEnvelope = (envelope: import("@/shared/contracts").AgentEventEnvelope): void =>
       runHookDispatch(envelope, "hook-ingress");
 
+    this.nativeMcpSetupCoordinator = new NativeMcpSetupCoordinator(
+      this.adapters,
+      baseDir,
+      () => this.sharedSettingsCache.read().mcpServers,
+    );
     this.cliHookPluginCoordinator = new CliHookPluginCoordinator(
       {
         adapters: this.adapters,
@@ -576,6 +583,52 @@ export class SupervisorRuntime {
 
   getAvailableWindowsShells() {
     return process.platform === "win32" ? this.getCachedAvailableWindowsShells() : [];
+  }
+
+  queueThreadFollowUp(
+    payload: Parameters<ThreadSessionManager["queueThreadFollowUp"]>[0],
+  ): ReturnType<ThreadSessionManager["queueThreadFollowUp"]> {
+    return this.threadSessionManager.queueThreadFollowUp(payload);
+  }
+
+  reorderQueuedThreadFollowUp(
+    input: Parameters<ThreadSessionManager["reorderQueuedThreadFollowUp"]>[0],
+  ) {
+    return this.threadSessionManager.reorderQueuedThreadFollowUp(input);
+  }
+
+  editQueuedThreadFollowUp(
+    payload: Parameters<ThreadSessionManager["editQueuedThreadFollowUp"]>[0],
+  ) {
+    return this.threadSessionManager.editQueuedThreadFollowUp(payload);
+  }
+
+  steerQueuedThreadFollowUp(
+    payload: Parameters<ThreadSessionManager["steerQueuedThreadFollowUp"]>[0],
+  ) {
+    return this.threadSessionManager.steerQueuedThreadFollowUp(payload);
+  }
+
+  removeQueuedThreadFollowUp(
+    payload: Parameters<ThreadSessionManager["removeQueuedThreadFollowUp"]>[0],
+  ): ReturnType<ThreadSessionManager["removeQueuedThreadFollowUp"]> {
+    return this.threadSessionManager.removeQueuedThreadFollowUp(payload);
+  }
+
+  pauseThreadFollowUps(input: { threadId: string; id: string }) {
+    return this.threadSessionManager.pauseThreadFollowUps(input);
+  }
+
+  resumeThreadFollowUps(
+    threadId: Parameters<ThreadSessionManager["resumeThreadFollowUps"]>[0],
+  ): ReturnType<ThreadSessionManager["resumeThreadFollowUps"]> {
+    return this.threadSessionManager.resumeThreadFollowUps(threadId);
+  }
+
+  getThreadFollowUpQueue(
+    threadId: Parameters<ThreadSessionManager["getThreadFollowUpQueue"]>[0],
+  ): ReturnType<ThreadSessionManager["getThreadFollowUpQueue"]> {
+    return this.threadSessionManager.getThreadFollowUpQueue(threadId);
   }
 
   private getCachedAvailableWindowsShells() {

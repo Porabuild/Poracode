@@ -696,6 +696,107 @@ describe("RemoteAccessServer", () => {
     expect(db.threads()[0]?.lastTurnEndedAt).toBeTruthy();
   });
 
+  it("includes the current follow-up queue in thread snapshots for reconnect recovery", async () => {
+    const thread = createTestThread({ id: "thread-queue", presentationMode: "gui" });
+    const followUpQueue = {
+      paused: true,
+      items: [{ id: "item-1", prompt: "Continue", stagedAt: 1 }],
+    };
+    mockThreadDb([thread]);
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "getThreadFollowUpQueue") return followUpQueue as never;
+      if (name === "readTerminalScrollback") return "" as never;
+      if (name === "readTerminalSize") return null as never;
+      if (name === "readThreadBackgroundTasks") return [] as never;
+      return null as never;
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+      truncateThreadRuntime: vi.fn<RemoteAccessServerOptions["truncateThreadRuntime"]>(),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const response = await fetch(new URL("/api/threads/thread-queue/history", info.httpBaseUrl), {
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ followUpQueue });
+    expect(callSupervisor).toHaveBeenCalledWith("getThreadFollowUpQueue", {
+      threadId: "thread-queue",
+    });
+  });
+
+  it("keeps a suspended history snapshot stale when a queue event lands during its reads", async () => {
+    const thread = createTestThread({ id: "thread-queue-race", presentationMode: "gui" });
+    const followUpQueue = {
+      paused: false,
+      items: [{ id: "item-1", prompt: "Continue", stagedAt: 1 }],
+    };
+    mockThreadDb([thread]);
+
+    let markScrollbackStarted!: () => void;
+    const scrollbackStarted = new Promise<void>((resolve) => {
+      markScrollbackStarted = resolve;
+    });
+    let releaseScrollback!: () => void;
+    const suspendedScrollback = new Promise<string>((resolve) => {
+      releaseScrollback = () => resolve("");
+    });
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "getThreadFollowUpQueue") {
+        markScrollbackStarted();
+        await suspendedScrollback;
+        return followUpQueue as never;
+      }
+      if (name === "readTerminalScrollback") {
+        markScrollbackStarted();
+        return suspendedScrollback as never;
+      }
+      if (name === "readTerminalSize") return null as never;
+      if (name === "readThreadBackgroundTasks") return [] as never;
+      return null as never;
+    });
+    const server = new RemoteAccessServer({
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor,
+      truncateThreadRuntime: vi.fn<RemoteAccessServerOptions["truncateThreadRuntime"]>(),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+    const historyPromise = fetch(
+      new URL("/api/threads/thread-queue-race/history", info.httpBaseUrl),
+      { headers: { authorization: `Bearer ${token}` } },
+    );
+
+    // The terminal read is the suspended part of the snapshot. The queue read
+    // has already resolved, so this reproduces a stale queue being returned
+    // after a live cancellation/event advanced the remote sequence.
+    await scrollbackStarted;
+    server.publishSupervisorEvent({
+      type: "thread-follow-up-queue",
+      threadId: thread.id,
+      queue: null,
+    });
+    releaseScrollback();
+
+    const response = await historyPromise;
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      snapshotSeq: 0,
+      followUpQueue,
+    });
+  });
+
   it("persists thread-state even when the stored row carries no status source", () => {
     // Rows written before the thread_status_source column existed (or by code
     // paths that never set it) read back with threadStatusSource undefined; a
@@ -985,6 +1086,20 @@ describe("RemoteAccessServer", () => {
       type: "event",
       seq: 1,
       event,
+    });
+    const queueEvent = {
+      type: "thread-follow-up-queue",
+      threadId: "thread-1",
+      queue: {
+        paused: false,
+        items: [{ id: "item-1", prompt: "Continue", stagedAt: 1 }],
+      },
+    } satisfies SupervisorEvent;
+    server.publishSupervisorEvent(queueEvent);
+    expect(await readWsMessage(ws)).toMatchObject({
+      type: "event",
+      seq: 2,
+      event: queueEvent,
     });
     ws.close();
   });

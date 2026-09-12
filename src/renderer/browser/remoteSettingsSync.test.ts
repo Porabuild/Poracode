@@ -83,6 +83,22 @@ describe("pushDesktopSettingsDiff push ordering", () => {
     expect(client.updateSettings).not.toHaveBeenCalled();
   });
 
+  it("forwards follow-up behavior changes to the desktop", async () => {
+    applyDesktopSettings({ ...settings("v0"), followUpBehavior: "steer" } as RemoteSettings);
+    const updateSettings = vi.fn<(patch: RemoteSettingsPatch) => Promise<RemoteSettings>>(
+      async () => ({ ...settings("v0"), followUpBehavior: "queue" }) as RemoteSettings,
+    );
+    const client = { updateSettings } as unknown as RemoteDesktopClient;
+
+    pushDesktopSettingsDiff(client, {
+      ...input("v0"),
+      followUpBehavior: "queue",
+    } as SharedSettingsInput);
+    await flush();
+
+    expect(updateSettings).toHaveBeenCalledWith({ followUpBehavior: "queue" });
+  });
+
   it("forwards a persistent composer MCP toggle change to the desktop", async () => {
     applyDesktopSettings({
       ...settings("v0"),

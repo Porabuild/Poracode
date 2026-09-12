@@ -22,7 +22,7 @@ import {
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildQuestionAnswerEvents } from "../questionAnswerEvents";
 import { splitPiModelId, type PiThinkingLevel, PI_THINKING_LEVELS } from "./argv";
-import { writePiMcpExtension } from "./mcpExtension";
+import { piMcpLaunch } from "./mcp";
 import { PiRpcClient, type PiRpcEvent } from "./rpcClient";
 
 const NOOP_LISTENER: StructuredSessionListener = {
@@ -110,7 +110,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   private readonly openToolItems = new Map<string, string>();
   private readonly unsubscribeEvents: () => void;
   private readonly unsubscribeExit: () => void;
-  private readonly mcpExtensionPath: string | undefined;
+  private readonly cleanupMcp: (() => void) | undefined;
   private dialogSequence = 0;
   private itemSequence = 0;
   private turnSequence = 0;
@@ -145,14 +145,14 @@ export class PiRpcSession implements StructuredSessionHandle {
   private constructor(
     private readonly input: CreateStructuredSessionInput,
     client: PiRpcClient,
-    mcpExtensionPath?: string,
+    cleanupMcp?: () => void,
   ) {
     this.launchOptions = {
       ...(input.agentSettings ? { agentSettings: input.agentSettings } : {}),
       ...(input.mcpServers ? { mcpServers: input.mcpServers } : {}),
     };
     this.client = client;
-    this.mcpExtensionPath = mcpExtensionPath;
+    this.cleanupMcp = cleanupMcp;
     this.currentConfig = input.config;
     this.launchedWithResume = input.sessionRef?.providerSessionId !== undefined;
     this.unsubscribeEvents = client.onEvent((event) => this.handleEvent(event));
@@ -168,10 +168,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     }
     const cwd = input.projectLocation.path;
     const binary = options?.binary ?? resolveAgentBinaryPath(input.projectLocation, "pi") ?? "pi";
-    const mcpExtensionPath =
-      input.mcpServers && input.mcpServers.length > 0
-        ? await writePiMcpExtension(input.mcpServers)
-        : undefined;
+    const mcp = piMcpLaunch(input.projectLocation, input.mcpServers);
 
     const args = ["--mode", "rpc", "--approve"];
     const resumeId = input.sessionRef?.providerSessionId;
@@ -183,14 +180,20 @@ export class PiRpcSession implements StructuredSessionHandle {
     ) {
       args.push("--thinking", input.config.effort);
     }
-    if (mcpExtensionPath) args.push("--extension", mcpExtensionPath);
+    args.push(...mcp.args);
 
-    const client = PiRpcClient.spawn({ command: binary, args, cwd });
+    const client = PiRpcClient.spawn({
+      command: binary,
+      args,
+      cwd,
+      ...(mcp.env ? { env: mcp.env } : {}),
+    });
     try {
       await client.spawnReady;
-      return new PiRpcSession(input, client, mcpExtensionPath);
+      return new PiRpcSession(input, client, mcp.cleanup);
     } catch (error) {
       await client.close();
+      mcp.cleanup?.();
       throw error;
     }
   }
@@ -322,14 +325,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.unsubscribeEvents();
     this.unsubscribeExit();
     await this.client.close();
-    if (this.mcpExtensionPath) {
-      const { rmSync } = await import("node:fs");
-      try {
-        rmSync(this.mcpExtensionPath, { force: true });
-      } catch {
-        // best-effort temp cleanup
-      }
-    }
+    this.cleanupMcp?.();
     this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "disposed" });
     this.listener.onClose();
   }

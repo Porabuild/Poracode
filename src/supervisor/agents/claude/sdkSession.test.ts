@@ -779,7 +779,6 @@ describe("ClaudeSdkSession", () => {
     await session.openThread(config);
     await session.startTurn("first", config);
     await flushAsyncWork();
-    expect("steerTurn" in session).toBe(false);
 
     await session.prepareSteerInterrupt!();
 

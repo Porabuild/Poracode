@@ -15,6 +15,7 @@ import type {
 } from "@/shared/crossagentRanking";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { CompactResult } from "./compactResult";
+import type { CrossagentRoutingOverride } from "@/shared/settings";
 
 /** Terminal states a subagent run can settle into. */
 export type SubagentRunStatus = "running" | "completed" | "failed" | "cancelled";
@@ -122,6 +123,7 @@ export interface SpawnableAgent {
     fast: boolean;
     matchedTags?: string[];
     learnedTags?: Array<{ tag: string; count: number }>;
+    override?: CrossagentRoutingOverride;
   };
 }
 

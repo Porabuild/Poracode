@@ -65,6 +65,7 @@ import {
   applyCachedSlashCommandCatalogs,
   fetchSlashCommandCatalog,
 } from "@/renderer/state/remoteServers/slashCommandCatalogs";
+import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollowUpQueueStore";
 import {
   runtimePageOverlapsExistingTranscript,
   seedOlderThreadRuntimeItemsCursor,
@@ -833,6 +834,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                     try {
                       return {
                         threadId,
+                        followUpQueueSnapshotGuard: captureThreadFollowUpQueueSnapshot(
+                          remoteThreadId(server.desktopId, threadId),
+                        ),
                         snapshot: await client.threadHistory(
                           threadId,
                           ...(omitScrollback ? [{ omitScrollback: true }] : []),
@@ -845,12 +849,13 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                 );
                 for (const result of fetched) {
                   if (!result) continue;
-                  const { threadId, snapshot: nextSnapshot } = result;
+                  const { threadId, snapshot: nextSnapshot, followUpQueueSnapshotGuard } = result;
                   if (!isCurrent() || entry.socket !== socket) return;
                   const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(
                     projectRemoteThreadSnapshot(server.desktopId, nextSnapshot),
                     {
                       fromServer: true,
+                      followUpQueueSnapshotGuard,
                       lastSeenEventSeq: remoteThreadAppliedSeq(server.desktopId, threadId),
                     },
                   );
@@ -1032,6 +1037,18 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                         requestTruncateAuthoritativeReload(batch.threadId, message.seq);
                       }
                     }
+                  } else if (
+                    message.event &&
+                    typeof message.event === "object" &&
+                    (message.event as { type?: unknown }).type === "thread-follow-up-queue"
+                  ) {
+                    // Queue state is thread-scoped, but the transcript filter
+                    // can omit an otherwise valid queue event during initial
+                    // open. Apply it so an in-flight history response cannot
+                    // replace the live queue with its older snapshot.
+                    dispatchRemoteSupervisorEvent(
+                      projectRemoteThreadEvent(server.desktopId, message.event),
+                    );
                   }
                   if (shouldRefreshRemoteServerAfterEvent(message.event)) {
                     // Debounced so a burst of events yields one snapshot GET.
@@ -1487,6 +1504,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // store so the desktop ChatPane renders it (coexists with local threads).
           // A failed history fetch (server asleep/unreachable) must not reject.
           let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
+          const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(
+            remoteThreadId(desktopId, threadId),
+          );
           try {
             // WS3 #2: cursor-sync v2 connections get the authoritative tail
             // from the chunked watch baseline — never send it twice.
@@ -1553,6 +1573,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(projectedSnapshot, {
             fromServer: true,
             lastSeenEventSeq: remoteThreadAppliedSeq(desktopId, threadId),
+            followUpQueueSnapshotGuard,
           });
           if (applied.installedAuthoritativeHistory) {
             recordAuthoritativeHistoryInstall(desktopId, threadId, snapshot.snapshotSeq);

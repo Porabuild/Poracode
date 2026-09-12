@@ -85,7 +85,7 @@ describe("createQoderAdapter", () => {
       approvalPolicy: "bypassPermissions",
     });
     expect(adapter.capabilities.presentationModes).toEqual(["terminal", "gui"]);
-    expect(adapter.capabilities.mcpScope).toEqual({ terminal: "none", gui: "launch" });
+    expect(adapter.capabilities.mcpScope).toEqual({ terminal: "launch", gui: "launch" });
     expect(adapter.createStructuredSession).toBeTypeOf("function");
     expect(adapter.update).toEqual({
       builtIn: { binary: "qodercli", args: ["update"] },

@@ -3,14 +3,14 @@
   "contract": "poracode.remote",
   "protocolVersion": 11,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:c0360243fbee14d443ed84be5d21effe7f0b89b6baccdc3dbf8c62dd06c7511c",
-  "keyCount": 213,
+  "manifestHash": "sha256:404fae34586b19fd34e0b022d97968d27b01a4c086a0eed7b5cfa29564d1dc1c",
+  "keyCount": 222,
   "counts": {
     "route": 63,
-    "procedure": 100,
+    "procedure": 108,
     "ws-client": 9,
     "ws-server": 10,
-    "replay": 15,
+    "replay": 16,
     "runtime": 16
   },
   "operations": {
@@ -50,6 +50,10 @@
       "kind": "procedure",
       "id": "discoverExternalMcpServers"
     },
+    "procedure:editQueuedThreadFollowUp": {
+      "kind": "procedure",
+      "id": "editQueuedThreadFollowUp"
+    },
     "procedure:finalizeFileCheckpoint": {
       "kind": "procedure",
       "id": "finalizeFileCheckpoint"
@@ -85,6 +89,10 @@
     "procedure:getMcpOauthStatus": {
       "kind": "procedure",
       "id": "getMcpOauthStatus"
+    },
+    "procedure:getThreadFollowUpQueue": {
+      "kind": "procedure",
+      "id": "getThreadFollowUpQueue"
     },
     "procedure:ghCancelWorkflowRun": {
       "kind": "procedure",
@@ -338,9 +346,17 @@
       "kind": "procedure",
       "id": "moveProjectEntry"
     },
+    "procedure:pauseThreadFollowUps": {
+      "kind": "procedure",
+      "id": "pauseThreadFollowUps"
+    },
     "procedure:probeMcpServer": {
       "kind": "procedure",
       "id": "probeMcpServer"
+    },
+    "procedure:queueThreadFollowUp": {
+      "kind": "procedure",
+      "id": "queueThreadFollowUp"
     },
     "procedure:readAbsoluteFile": {
       "kind": "procedure",
@@ -354,13 +370,25 @@
       "kind": "procedure",
       "id": "readProjectFile"
     },
+    "procedure:removeQueuedThreadFollowUp": {
+      "kind": "procedure",
+      "id": "removeQueuedThreadFollowUp"
+    },
     "procedure:renameProjectEntry": {
       "kind": "procedure",
       "id": "renameProjectEntry"
     },
+    "procedure:reorderQueuedThreadFollowUp": {
+      "kind": "procedure",
+      "id": "reorderQueuedThreadFollowUp"
+    },
     "procedure:restoreFileCheckpoint": {
       "kind": "procedure",
       "id": "restoreFileCheckpoint"
+    },
+    "procedure:resumeThreadFollowUps": {
+      "kind": "procedure",
+      "id": "resumeThreadFollowUps"
     },
     "procedure:rollbackThreadConversation": {
       "kind": "procedure",
@@ -385,6 +413,10 @@
     "procedure:stageThreadInput": {
       "kind": "procedure",
       "id": "stageThreadInput"
+    },
+    "procedure:steerQueuedThreadFollowUp": {
+      "kind": "procedure",
+      "id": "steerQueuedThreadFollowUp"
     },
     "procedure:subagentSubscribe": {
       "kind": "procedure",
@@ -441,6 +473,10 @@
     "replay:thread-exited": {
       "kind": "replay",
       "id": "thread-exited"
+    },
+    "replay:thread-follow-up-queue": {
+      "kind": "replay",
+      "id": "thread-follow-up-queue"
     },
     "replay:thread-pending-steer": {
       "kind": "replay",

@@ -13,6 +13,8 @@ import { ChevronDown, Monitor, Settings2, Webhook } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentStatus, ProjectLocation, PromptSegment, Thread } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import type { FollowUpBehavior } from "@/shared/settings";
+import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
 import {
   changeThreadConfig,
@@ -23,6 +25,8 @@ import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMe
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
+import { LiveVoiceButton, LiveVoicePanel } from "../composer/LiveVoiceControls";
+import { liveVoice, useLiveVoice } from "@/renderer/speech/liveVoice";
 import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
@@ -115,6 +119,8 @@ type ThreadComposerSectionProps = {
   onDismissError: (sourceItemId: string) => void;
   /** Optional override for the canonical thread-input submit action. */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
+  /** Called after a send is accepted, including queued and steered sends. */
+  onSubmitSuccess?: (() => void) | undefined;
   pickFiles?: (() => Promise<string[] | null>) | undefined;
   saveClipboardImage?: SaveClipboardImage | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
@@ -248,6 +254,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     : undefined;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
+  const liveVoiceActive = useLiveVoice((state) => state.phase !== "idle");
+  const threadVoiceActive = useLiveVoice(
+    (state) => state.threadId === thread.id && state.phase !== "idle",
+  );
+  useEffect(() => () => liveVoice.stopThread(thread.id), [thread.id]);
+  useEffect(() => {
+    if (thread.status === "inactive") liveVoice.stopThread(thread.id);
+  }, [thread.id, thread.status]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInterrupting, setIsInterrupting] = useState(false);
   const attachments = useAttachments({
@@ -456,6 +470,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     thread.sessionRef !== undefined &&
     (thread.status === "idle" ||
       thread.status === "needs_reply" ||
+      (!usesTerminalPresentation && thread.status === "needs_approval") ||
       thread.status === "error" ||
       canQueueServerInput);
   const canSubmitTerminalInput =
@@ -540,6 +555,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     (canSubmitServerInput || canSubmitTerminalInput) && !isSubmitting && !authRequired;
   const canInterruptStructuredTurn = canShowRuntimeChrome && thread.status === "working";
   const pendingSteer = useAppStore((s) => s.pendingSteerByThreadId[thread.id]);
+  const followUpBehavior = useSharedSettings((state) => state.followUpBehavior);
+  const followUpQueue = useThreadFollowUpQueue(thread.id, !usesTerminalPresentation);
   const visiblePendingSteer = useDelayedPendingSteer(pendingSteer);
   const usesPendingSteerPath =
     !isConnecting && !usesTerminalPresentation && thread.status === "working";
@@ -554,6 +571,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const hideActionDocks = compactLayout || props.hideActionDocks === true;
   const composerRuntimeRequest = hideActionDocks ? undefined : activeRuntimeRequest;
   const composerPendingSteer = hideActionDocks ? undefined : visiblePendingSteer;
+  const composerFollowUpQueue = hideActionDocks ? undefined : followUpQueue;
   const showAuthInComposer = authRequired && !hideActionDocks;
   const reportedContextUsage = useAppStore((s) =>
     canShowRuntimeChrome ? s.runtimeContextByThread[thread.id] : undefined,
@@ -599,7 +617,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     return readBridge().writeTerminal({ threadId: thread.id, data });
   }
 
-  function submitPrompt(segments: PromptSegment[]) {
+  function restoreComposerFocus() {
+    setComposerCollapsed(false);
+    useAppStore.getState().requestComposerFocus(thread.id);
+  }
+
+  function submitPrompt(segments: PromptSegment[], behavior: FollowUpBehavior = followUpBehavior) {
     const composerSession = composerSessionRef.current;
     submitComposerPrompt(segments, {
       thread,
@@ -607,7 +630,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       presentationMode,
       usesTerminalPresentation,
       canSubmit,
-      usesPendingSteerPath,
+      usesPendingSteerPath:
+        usesPendingSteerPath ||
+        (!usesTerminalPresentation && behavior === "queue" && activeRuntimeRequest !== undefined),
+      followUpBehavior: behavior,
       needsFocusBeforeInput,
       activeRuntimeRequest,
       approvalDenyOption,
@@ -624,7 +650,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       requestOpenControl: (target) =>
         setControlOpenRequest((prev) => ({ target, nonce: (prev?.nonce ?? 0) + 1 })),
       onSubmitInput: props.onSubmitInput,
-      onSubmitted: () => {
+      onSubmitSuccess: () => {
+        props.onSubmitSuccess?.();
         if (!compactLayout) return;
         setComposerCollapsed(true);
         const active = document.activeElement;
@@ -831,6 +858,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           className="poracode-thread-composer-section relative"
           data-compact-collapsed={(compactLayout && isComposerCollapsed) || undefined}
         >
+          <LiveVoicePanel threadId={thread.id} />
           {!compactLayout ? (
             /* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
                measures the real buttons without adding a line box above the composer. */
@@ -870,6 +898,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                   <ComposerActionDocks
                     thread={thread}
                     agentStatus={agentStatus}
+                    onRestoreComposerFocus={restoreComposerFocus}
                     {...(props.onOpenProjectRelativePath
                       ? {
                           onOpenPlanFile: (path: string) => props.onOpenProjectRelativePath?.(path),
@@ -954,6 +983,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       showAuthInComposer ||
                       composerPendingSteer ||
                       composerRuntimeRequest ||
+                      composerFollowUpQueue ||
                       showCommandPanel ? (
                         <ThreadComposerDocks
                           hasActiveSubAgent={hasActiveSubAgent}
@@ -976,6 +1006,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           goalDockState={goalDockState}
                           todoDockState={todoDockState}
                           todoDockCollapsed={todoDockCollapsed}
+                          followUpQueue={composerFollowUpQueue}
+                          onRestoreComposerFocus={restoreComposerFocus}
                           pendingSteer={composerPendingSteer}
                           activeRuntimeRequest={composerRuntimeRequest}
                           filteredCommands={filteredCommands}
@@ -1059,6 +1091,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                             .catch((error: unknown) => toast.danger(friendlyError(error)));
                         }}
                         onInterceptKey={(e) => {
+                          if (!usesTerminalPresentation && e.key === "Enter") {
+                            if (e.nativeEvent.isComposing || e.keyCode === 229) return true;
+                            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+                              e.preventDefault();
+                              submitPrompt(
+                                mentionRef.current?.serializeSegments() ?? [],
+                                followUpBehavior === "queue" ? "steer" : "queue",
+                              );
+                              return true;
+                            }
+                          }
+
                           if (
                             !usesTerminalPresentation &&
                             handleComposerControlShortcut(e, {
@@ -1125,7 +1169,41 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                     submitDisabled={
                       !(hasContent || attachments.attachments.length > 0) || !canSubmit
                     }
-                    submitLabel={t`Send message`}
+                    submitLabel={
+                      usesPendingSteerPath ||
+                      (!usesTerminalPresentation && activeRuntimeRequest !== undefined)
+                        ? followUpBehavior === "queue"
+                          ? t`Queue message`
+                          : t`Steer current turn`
+                        : t`Send message`
+                    }
+                    hideSubmitButton={
+                      threadVoiceActive &&
+                      !hasContent &&
+                      attachments.attachments.length === 0 &&
+                      !canInterruptStructuredTurn
+                    }
+                    {...(!threadVoiceActive &&
+                    !hasContent &&
+                    attachments.attachments.length === 0 &&
+                    !usesRemoteTransport &&
+                    !usesTerminalPresentation &&
+                    showServerComposer &&
+                    effectiveAgentStatus?.capabilities.liveVoice
+                      ? {
+                          submitControl: (
+                            <LiveVoiceButton
+                              scopeId={thread.id}
+                              isDisabled={!canSubmit || thread.status !== "idle"}
+                              onStart={() => {
+                                const capability = effectiveAgentStatus.capabilities.liveVoice;
+                                if (capability)
+                                  void liveVoice.start({ threadId: thread.id, capability });
+                              }}
+                            />
+                          ),
+                        }
+                      : {})}
                     onStop={canInterruptStructuredTurn ? handleInterrupt : undefined}
                     {...(() => {
                       const contextIndicator = showContextIndicator ? (
@@ -1172,7 +1250,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       const renderVoiceInput = () => (
                         <ComposerVoiceInput
                           key={thread.id}
-                          show={showVoiceInputButton}
+                          show={showVoiceInputButton && !liveVoiceActive}
                           isDisabled={
                             authRequired ||
                             isSubmitting ||

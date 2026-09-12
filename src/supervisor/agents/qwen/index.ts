@@ -1,3 +1,4 @@
+import { qwenMcpLaunch } from "./mcp";
 import { randomUUID } from "node:crypto";
 import type { ProjectLocation, PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
@@ -92,19 +93,23 @@ export function createQwenAdapter(): AgentAdapter {
       }
     },
 
-    buildLaunchArgv(_location, config, prompt) {
+    buildLaunchArgv(location, config, prompt, _sessionRef, options) {
+      const mcp = qwenMcpLaunch(location, options?.mcpServers);
       const sessionId = randomUUID();
       return {
         binary: "qwen",
-        args: buildQwenArgs(config, prompt, undefined, sessionId),
+        ...mcp,
+        args: [...mcp.args, ...buildQwenArgs(config, prompt, undefined, sessionId)],
         sessionRef: createKnownSessionRef(sessionId),
       };
     },
 
-    buildResumeArgv(_location, config, prompt, sessionRef) {
+    buildResumeArgv(location, config, prompt, sessionRef, options) {
+      const mcp = qwenMcpLaunch(location, options?.mcpServers);
       return {
         binary: "qwen",
-        args: buildQwenArgs(config, prompt, sessionRef.providerSessionId),
+        ...mcp,
+        args: [...mcp.args, ...buildQwenArgs(config, prompt, sessionRef.providerSessionId)],
       };
     },
 

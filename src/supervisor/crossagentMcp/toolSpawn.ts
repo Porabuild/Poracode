@@ -2,13 +2,20 @@ import { normalizeCrossagentTags } from "@/shared/crossagentRanking";
 import { MAX_CONCURRENT_CHILDREN_PER_PARENT } from "./SubagentRunManager";
 import { errorResult, jsonResult, parseOutputMode, parseWaitTimeoutMs } from "./toolResult";
 import { parseSpawnRequest, parseSpawnRequests, parseResultMode } from "./toolRequests";
-import type { McpToolResult, SpawnableAgent, ExplicitSpawnAgentSelection } from "./types";
+import type {
+  McpToolResult,
+  SpawnableAgent,
+  ExplicitSpawnAgentSelection,
+  SpawnAgentSelection,
+} from "./types";
 import type { SubagentToolContext } from "./toolRegistry";
 
 interface ResolvedSelectionArgs {
   args: Record<string, unknown>;
   tags: string[];
   explicitFields: ExplicitSpawnAgentSelection["explicitFields"];
+  inheritedFallbacks?: SpawnAgentSelection[];
+  inheritedRetryMode?: "startup" | "any-failure";
 }
 
 export function resolveSelectionArgs(
@@ -81,6 +88,23 @@ export function resolveSelectionArgs(
   const fast =
     requestedFast !== undefined ? requestedFast : usePreferredDetails ? preferred.fast : false;
 
+  const override = agent.preference?.override;
+  const primaryFromOverride =
+    override !== undefined &&
+    override.agentKind === provider &&
+    (override.modelId === undefined || override.modelId === model) &&
+    (override.effort === undefined || override.effort === reasoning) &&
+    (override.fast === undefined || override.fast === fast);
+  const inheritedFallbacks = primaryFromOverride
+    ? override.fallbacks?.map((fallback) => ({
+        agent: fallback.agentKind,
+        ...(fallback.modelId ? { model: fallback.modelId } : {}),
+        ...(fallback.effort ? { effort: fallback.effort } : {}),
+        ...(typeof fallback.fast === "boolean" ? { fast: fallback.fast } : {}),
+      }))
+    : undefined;
+  const inheritedRetryMode = primaryFromOverride ? override.retryMode : undefined;
+
   return {
     explicitFields,
     tags,
@@ -91,6 +115,8 @@ export function resolveSelectionArgs(
       ...(reasoning ? { reasoning } : {}),
       fast,
     },
+    ...(inheritedFallbacks ? { inheritedFallbacks } : {}),
+    ...(inheritedRetryMode ? { inheritedRetryMode } : {}),
   };
 }
 
@@ -154,10 +180,16 @@ export async function spawnAgent(
         return resolveSelectionArgs(taskArgs, await agentsFor(taskArgs));
       }),
     );
-    const requests = parseSpawnRequests({
-      ...args,
-      tasks: resolvedTasks.map((entry, index) => entry?.args ?? tasks[index]),
-    }).map((request) => {
+    const requests = parseSpawnRequests(
+      {
+        ...args,
+        tasks: resolvedTasks.map((entry, index) => entry?.args ?? tasks[index]),
+      },
+      resolvedTasks.map((entry) => ({
+        fallbacks: entry?.inheritedFallbacks,
+        retryMode: entry?.inheritedRetryMode,
+      })),
+    ).map((request) => {
       const { background: _taskBackground, ...rest } = request;
       return background ? { ...rest, background: true as const } : rest;
     });
@@ -190,7 +222,11 @@ export async function spawnAgent(
   }
 
   const resolved = resolveSelectionArgs(args, await agentsFor(args));
-  const request = parseSpawnRequest(resolved.args);
+  const request = parseSpawnRequest(
+    resolved.args,
+    resolved.inheritedFallbacks,
+    resolved.inheritedRetryMode,
+  );
   const { runId } = ctx.runManager.spawn(ctx.parentThreadId, request);
   if (Object.values(resolved.explicitFields).some(Boolean)) {
     ctx.recordExplicitSelections?.([

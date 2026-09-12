@@ -272,8 +272,8 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 26,
-      // v26 mirrors supervisor STATUS_CACHE_VERSION=29: refresh model pricing metadata.
+      version: 30,
+      // v30 mirrors supervisor STATUS_CACHE_VERSION=33: combine V2 catalogs and MCP/voice capabilities.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

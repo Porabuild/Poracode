@@ -237,6 +237,8 @@ export function ThreadComposer(props: {
   hideSubmitButton?: boolean;
   submitLabel: string;
   submitContent?: ReactNode;
+  /** A caller-selected primary control, e.g. live voice on an empty composer. */
+  submitControl?: ReactNode;
   submitVariant?: ButtonProps["variant"];
   submitDisabled: boolean;
   submitPending?: boolean;
@@ -266,6 +268,7 @@ export function ThreadComposer(props: {
     hideSubmitButton = false,
     submitLabel,
     submitContent,
+    submitControl,
     submitVariant,
     submitDisabled,
     submitPending = false,
@@ -830,6 +833,7 @@ export function ThreadComposer(props: {
         </Tooltip>
       );
     }
+    if (submitControl) return submitControl;
     return (
       <Button
         isIconOnly={!submitContent}

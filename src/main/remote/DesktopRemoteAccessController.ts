@@ -767,6 +767,16 @@ export function createDesktopRemoteAccessController(
       // supervisor process, so their cached background-task levels would
       // otherwise shadow the fresh live reads forever.
       remoteAccessServer?.clearBackgroundTaskLevels();
+      // Follow-up queues are supervisor-owned memory. Clear the remote
+      // renderer's rows when that process disappears; otherwise a phone can
+      // keep stale items whose next action only fails with item-not-found.
+      for (const thread of dbGetThreads()) {
+        remoteAccessServer?.publishSupervisorEvent({
+          type: "thread-follow-up-queue",
+          threadId: thread.id,
+          queue: null,
+        });
+      }
     },
     updateGitSummaries: (summaries) => {
       remoteGitSummaries = summaries;

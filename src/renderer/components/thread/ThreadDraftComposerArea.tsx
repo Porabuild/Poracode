@@ -31,6 +31,7 @@ import {
   type ComposerMcpMenuItem,
 } from "@/renderer/components/composer/ComposerAddMenu";
 import { ComposerVoiceInput } from "@/renderer/components/composer/ComposerVoiceInput";
+import { LiveVoiceButton } from "@/renderer/components/composer/LiveVoiceControls";
 import {
   composerMcpServers,
   COMPUTER_USE_MCP_ID,
@@ -103,6 +104,7 @@ import {
 import { useKeybindingStore } from "@/renderer/commands/keybindingStore";
 import { handleComposerControlShortcut } from "./threadComposerShortcuts";
 import { WorktreeModeSelect, type WorktreeMode } from "./WorktreeModeSelect";
+import { useDraftLiveVoice } from "./useDraftLiveVoice";
 import {
   isCurrentCheckoutRef,
   localBranchNameFromRef,
@@ -115,6 +117,8 @@ const EMPTY_BRANCHES: GitBranchInfo[] = [];
 // `prop?: T | undefined` (e.g. the zod-parsed quick-composer submission)
 // pass through without field-by-field copying.
 export type DraftStartInput = {
+  /** Optional caller-owned identity for features that attach after launch. */
+  threadId?: string;
   agentKind: AgentStatus["kind"];
   config: ThreadConfig;
   prompt: string;
@@ -322,6 +326,7 @@ export function ThreadDraftComposerArea(props: {
 }) {
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
+  const promptRef = useRef("");
   const [hasContent, setHasContent] = useState(false);
   // Set to true while an agent-binary update is running for this project's env.
   // Locks the composer Send so the user can't fire a thread mid-upgrade — the
@@ -369,6 +374,7 @@ export function ThreadDraftComposerArea(props: {
     : undefined;
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
   const fallbackInboxKey = `draft:${props.project.id}`;
+  const projectId = props.project.id;
   const pendingPickedAttachments = useBrowserAttachInbox((s) =>
     inboxKey ? s.itemsByThread[inboxKey] : undefined,
   );
@@ -376,8 +382,14 @@ export function ThreadDraftComposerArea(props: {
   const pendingFallbackComposerInputs = useComposerInputInbox((s) =>
     inboxKey === fallbackInboxKey ? undefined : s.itemsByComposer[fallbackInboxKey],
   );
+  const submittedRef = useRef(false);
+  const draftVoice = useDraftLiveVoice(submittedRef, inboxKey);
+  const { liveVoiceActive, pendingOperationCount, cancel: cancelDraftVoice } = draftVoice;
   const addPickedRef = useRef(attachments.addPicked);
-  addPickedRef.current = attachments.addPicked;
+  addPickedRef.current = (input) => {
+    cancelDraftVoice();
+    attachments.addPicked(input);
+  };
   useEffect(() => {
     if (!inboxKey) return;
     if (!pendingPickedAttachments || pendingPickedAttachments.length === 0) return;
@@ -422,7 +434,6 @@ export function ThreadDraftComposerArea(props: {
   const latestSegmentsRef = useRef<PromptSegment[]>([]);
   const attachmentsRef = useRef(attachments.attachments);
   attachmentsRef.current = attachments.attachments;
-  const submittedRef = useRef(false);
   const initialDraftRef = useRef(useAppStore.getState().draftContents[props.project.id]);
   const { commands: skillCommands, resolved: skillCommandsResolved } = useSkillSlashCommandState(
     props.project.location,
@@ -789,7 +800,46 @@ export function ThreadDraftComposerArea(props: {
     attachmentsRef.current = [];
   }
 
-  function submitSegments(allSegments: PromptSegment[], fallbackPrompt = "") {
+  function setFallbackPrompt(value: string) {
+    promptRef.current = value;
+    setPrompt(value);
+  }
+
+  function hasQueuedDraftInput() {
+    const composerInbox = useComposerInputInbox.getState().itemsByComposer;
+    if ((composerInbox[inboxKey]?.length ?? 0) > 0) return true;
+    if (inboxKey !== fallbackInboxKey && (composerInbox[fallbackInboxKey]?.length ?? 0) > 0) {
+      return true;
+    }
+    if ((useBrowserAttachInbox.getState().itemsByThread[inboxKey]?.length ?? 0) > 0) return true;
+    return useAppStore.getState().pendingComposerSeeds[projectId] !== undefined;
+  }
+
+  function canPrepareDraftVoice() {
+    if (submittedRef.current || draftVoice.hasPendingOperations()) return false;
+    const segments = mentionRef.current?.serializeSegments() ?? [];
+    const hasMeaningfulMentionContent =
+      segments.some((segment) => segment.kind !== "text") || flattenSegments(segments).length > 0;
+    return (
+      !hasMeaningfulMentionContent &&
+      promptRef.current.trim().length === 0 &&
+      draftVoice.hasPendingOperations() === false &&
+      attachments.getAttachments().length === 0 &&
+      !hasQueuedDraftInput()
+    );
+  }
+
+  function handleFallbackPromptChange(value: string) {
+    cancelDraftVoice();
+    setFallbackPrompt(value);
+  }
+
+  function submitSegments(
+    allSegments: PromptSegment[],
+    fallbackPrompt = "",
+    voiceThreadId?: string,
+  ) {
+    if (!voiceThreadId) cancelDraftVoice();
     if (hostUpdateRestarting) return;
     if (experimentMode) {
       void runExperiment(allSegments, fallbackPrompt);
@@ -806,7 +856,7 @@ export function ThreadDraftComposerArea(props: {
       (name) => t`Use the ${name} skill.`,
     );
     const flatPrompt = flattenSegments(currentSegments) || fallbackPrompt.trim();
-    if (flatPrompt.length === 0) {
+    if (flatPrompt.length === 0 && !voiceThreadId) {
       return;
     }
     const localAction = resolveLocalActionUnlessSkill(
@@ -817,7 +867,7 @@ export function ThreadDraftComposerArea(props: {
     if (localAction?.kind === "set-mode") {
       props.onConfigChange({ mode: localAction.mode });
       mentionRef.current?.clear();
-      setPrompt("");
+      setFallbackPrompt("");
       setHasContent(false);
       resetDraftRefs();
       return;
@@ -828,7 +878,7 @@ export function ThreadDraftComposerArea(props: {
         nonce: (prev?.nonce ?? 0) + 1,
       }));
       mentionRef.current?.clear();
-      setPrompt("");
+      setFallbackPrompt("");
       setHasContent(false);
       resetDraftRefs();
       return;
@@ -838,7 +888,7 @@ export function ThreadDraftComposerArea(props: {
         props.onConfigChange({ fast: props.config.fast !== true });
       }
       mentionRef.current?.clear();
-      setPrompt("");
+      setFallbackPrompt("");
       setHasContent(false);
       resetDraftRefs();
       return;
@@ -856,6 +906,7 @@ export function ThreadDraftComposerArea(props: {
       props.onRememberPresentationMode();
     }
     const startResult = props.onStart({
+      ...(voiceThreadId ? { threadId: voiceThreadId } : {}),
       agentKind: props.selectedAgent.kind,
       config: props.config,
       prompt: flatPrompt,
@@ -882,13 +933,14 @@ export function ThreadDraftComposerArea(props: {
     // pane stays mounted — re-enable the composer instead of leaving it stuck on
     // the launch spinner with the user's prompt trapped behind it. `onStart` may
     // return void or a promise; Promise.resolve normalizes both.
-    void Promise.resolve(startResult).catch(() => {
+    return Promise.resolve(startResult).catch((error: unknown) => {
       submittedRef.current = false;
       // Restore the checkpoint from the editor after a failed launch.
       latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
       attachmentsRef.current = attachments.attachments;
       checkpointDraft();
       setIsSubmitting(false);
+      if (voiceThreadId) throw error;
     });
   }
 
@@ -970,7 +1022,6 @@ export function ThreadDraftComposerArea(props: {
   // (rather than relying on the mount-time lazy init above) covers the case
   // where this composer is already mounted for the project, so openDraft does
   // not remount it and the lazy init never re-runs.
-  const projectId = props.project.id;
   const onWorktreeModeChange = props.onWorktreeModeChange;
   useEffect(() => {
     if (!pendingWorktreeSelection) return;
@@ -1239,6 +1290,7 @@ export function ThreadDraftComposerArea(props: {
               : {})}
             {...(!isHomeScope ? { projectId: props.project.id } : {})}
             onTextChange={(hasText) => {
+              if (hasText) cancelDraftVoice();
               setHasContent(hasText);
               const segments = mentionRef.current?.serializeSegments() ?? [];
               latestSegmentsRef.current = segments;
@@ -1249,12 +1301,15 @@ export function ThreadDraftComposerArea(props: {
             threadMentions={threadMentions}
             onMcpMentionSelect={onMcpMentionSelect}
             onPasteImage={(file: File) => {
-              void attachments
-                .addClipboardImage(file, `draft:${props.project.id}`)
+              cancelDraftVoice();
+              void draftVoice
+                .trackOperation(() =>
+                  attachments.addClipboardImage(file, `draft:${props.project.id}`),
+                )
                 .catch((error: unknown) => toast.danger(friendlyError(error)));
             }}
             onSubmit={(segments) => {
-              submitSegments([...attachments.toSegments(), ...segments]);
+              void submitSegments([...attachments.toSegments(), ...segments]);
             }}
             onInterceptKey={(e) => {
               if (
@@ -1299,31 +1354,71 @@ export function ThreadDraftComposerArea(props: {
           (experimentMode && experimentCandidates.length < 2)
         }
         submitPending={isSubmitting}
+        {...(!hasContent &&
+        attachments.attachments.length === 0 &&
+        !experimentMode &&
+        !usesRemoteTransport &&
+        !isQuickComposer &&
+        props.presentationMode === "gui" &&
+        props.selectedAgent.capabilities.liveVoice
+          ? {
+              submitControl: (
+                <LiveVoiceButton
+                  scopeId={inboxKey}
+                  isDisabled={
+                    authRequired ||
+                    agentUpdating ||
+                    hostUpdateRestarting ||
+                    isSubmitting ||
+                    pendingOperationCount > 0
+                  }
+                  onStart={() => {
+                    const capability = props.selectedAgent.capabilities.liveVoice;
+                    if (!capability) return;
+                    draftVoice.start({
+                      capability,
+                      canPrepare: canPrepareDraftVoice,
+                      prepare: async (threadId) => {
+                        await submitSegments([], "", threadId);
+                      },
+                    });
+                  }}
+                />
+              ),
+            }
+          : {})}
         submitLabel={experimentMode ? t`Run experiment` : t`Launch thread`}
-        onPromptChange={setPrompt}
-        {...(!usesRemoteTransport ? { onAttachFiles: attachments.addFiles } : {})}
+        onPromptChange={handleFallbackPromptChange}
+        {...(!usesRemoteTransport
+          ? {
+              onAttachFiles: (paths: string[]) => {
+                cancelDraftVoice();
+                attachments.addFiles(paths);
+              },
+            }
+          : {})}
         onSubmit={() => {
           const segments = mentionRef.current?.serializeSegments() ?? [];
-          submitSegments([...attachments.toSegments(), ...segments], prompt);
+          void submitSegments([...attachments.toSegments(), ...segments], promptRef.current);
         }}
         afterControls={
           <DraftComposerAfterControls
             mcpServers={mcpServers}
             pluginLabels={composerPluginLabels}
             onPickFiles={() => {
-              void (
-                props.pickFiles
-                  ? props.pickFiles()
-                  : readBridge().pickFiles({ attachmentThreadId: `draft:${props.project.id}` })
-              )
-                .then((paths) => {
+              cancelDraftVoice();
+              void draftVoice
+                .trackOperation(async () => {
+                  const paths = await (props.pickFiles
+                    ? props.pickFiles()
+                    : readBridge().pickFiles({ attachmentThreadId: `draft:${props.project.id}` }));
                   if (paths) attachments.addFiles(paths);
                 })
                 .catch((error: unknown) => toast.danger(friendlyError(error)));
             }}
             customMcpServers={customMcpServers}
             readOnlyMcp={providerOwnsMcpForComposer}
-            showVoiceInputButton={showVoiceInputButton}
+            showVoiceInputButton={showVoiceInputButton && !liveVoiceActive}
             {...(voiceInputUnavailableHint !== undefined ? { voiceInputUnavailableHint } : {})}
             isDisabled={authRequired || agentUpdating || isSubmitting}
             {...(!isHomeScope && !usesRemoteTransport && !isQuickComposer && props.gitBranch

@@ -6,6 +6,7 @@ import {
   REMOTE_PROCEDURE_SPECS,
   REMOTE_STANDARD_SCOPES,
   filterKnownRemoteAccessScopes,
+  isRemoteFollowUpQueueProcedure,
   isRemoteProcedure,
   remoteAgentSlashCommandsSchema,
   remoteAgentStatusesSchema,
@@ -102,6 +103,7 @@ import {
   type ScheduledTaskInput,
   type ScheduledTaskRun,
 } from "@/shared/contracts";
+import { msg } from "@/shared/messages";
 import { readBoundedResponseBody } from "@/shared/http";
 import type { NormalizeExactOptionalProperties } from "@/shared/contracts/exactType";
 import {
@@ -900,35 +902,57 @@ export class RemoteDesktopClient {
    * it.
    */
   async callRemoteProcedure(procedure: string, payload: unknown): Promise<unknown> {
-    if (!isRemoteProcedure(procedure)) {
-      throw new RemoteClientError(
-        `Procedure "${procedure}" is not available to remote clients.`,
-        403,
-        "git_procedure_not_allowed",
-      );
+    try {
+      if (!isRemoteProcedure(procedure)) {
+        throw new RemoteClientError(
+          `Procedure "${procedure}" is not available to remote clients.`,
+          403,
+          "git_procedure_not_allowed",
+        );
+      }
+      const spec = REMOTE_PROCEDURE_SPECS[procedure];
+      const envelope = await this.requestJson("/api/git/call", {
+        method: "POST",
+        body: { procedure, payload },
+        ...("timeout" in spec && spec.timeout === "long"
+          ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
+          : {}),
+      });
+      const resultSchema = ipcProcedureMap[procedure].resultSchema;
+      if (!resultSchema) {
+        throw new RemoteClientError(
+          `Procedure "${procedure}" is missing an authoritative result schema.`,
+          500,
+          "git_procedure_result_schema_missing",
+        );
+      }
+      if (resultSchema === omittedResultSchema) {
+        parseResponse(omittedCallEnvelopeSchema, envelope, `procedure ${procedure}`);
+        return undefined;
+      }
+      return parseResponse(jsonCallEnvelopeSchema(resultSchema), envelope, `procedure ${procedure}`)
+        .result;
+    } catch (error) {
+      // A host from before
+      // queued follow-ups knows the passthrough endpoint but rejects these new
+      // procedure names; turn that capability miss into a stable, actionable
+      // error. Never retry through setPendingSteer: queue and steer have
+      // intentionally different semantics.
+      if (
+        isRemoteFollowUpQueueProcedure(procedure) &&
+        error instanceof RemoteClientError &&
+        ((error.status === 403 && error.code === "git_procedure_not_allowed") ||
+          (error.status === 404 && error.code === "not_found"))
+      ) {
+        throw new RemoteClientError(
+          msg("supervisor.followUpQueue.unsupported"),
+          501,
+          "follow_up_queue_unsupported",
+          { cause: error },
+        );
+      }
+      throw error;
     }
-    const spec = REMOTE_PROCEDURE_SPECS[procedure];
-    const envelope = await this.requestJson("/api/git/call", {
-      method: "POST",
-      body: { procedure, payload },
-      ...("timeout" in spec && spec.timeout === "long"
-        ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
-        : {}),
-    });
-    const resultSchema = ipcProcedureMap[procedure].resultSchema;
-    if (!resultSchema) {
-      throw new RemoteClientError(
-        `Procedure "${procedure}" is missing an authoritative result schema.`,
-        500,
-        "git_procedure_result_schema_missing",
-      );
-    }
-    if (resultSchema === omittedResultSchema) {
-      parseResponse(omittedCallEnvelopeSchema, envelope, `procedure ${procedure}`);
-      return undefined;
-    }
-    return parseResponse(jsonCallEnvelopeSchema(resultSchema), envelope, `procedure ${procedure}`)
-      .result;
   }
 
   /**

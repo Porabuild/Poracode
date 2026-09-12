@@ -22,6 +22,8 @@ const repoRoot = resolve(scriptDir, "../../../../");
 const args = parseArgs(process.argv.slice(2));
 const scope = String(args.scope ?? "changed");
 const mode = String(args.mode ?? "mock");
+// Slow cold transforms need a larger launch allowance without loosening scenario checks.
+const startupTimeoutSeconds = Number(args.startupTimeoutSeconds ?? 180);
 const launchOnly = args["launch-only"] === true;
 const runKind = launchOnly ? "debug" : "automated";
 const sessionToken = randomUUID();
@@ -486,12 +488,15 @@ async function writePortsFile(cdpPort, vitePort, appUrl) {
 }
 
 async function waitForManagedApp(child) {
+  if (!Number.isFinite(startupTimeoutSeconds) || startupTimeoutSeconds <= 0) {
+    throw new Error("startupTimeoutSeconds must be a positive number");
+  }
   if (child.exitCode !== null) {
     throw new Error(`Poracode dev process exited before CDP became ready (exit ${child.exitCode})`);
   }
   const checker = spawn(
     process.execPath,
-    [cdpScript, "wait", "--session", sessionFile, "--timeout", "180"],
+    [cdpScript, "wait", "--session", sessionFile, "--timeout", String(startupTimeoutSeconds)],
     {
       cwd: repoRoot,
       stdio: ["inherit", "pipe", "pipe"],

@@ -1,12 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { Thread } from "@/shared/contracts";
+import type { Thread, ThreadFollowUpQueueState } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import type {
   OpenRuntimeRequest,
   RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
-import { applyThreadSnapshot } from "./sync";
+import {
+  captureThreadFollowUpQueueSnapshot,
+  useThreadFollowUpQueueStore,
+} from "@/renderer/state/threadFollowUpQueueStore";
+import { projectRemoteThreadSnapshot } from "../remoteProjection";
+import { applyThreadSnapshot, dispatchRemoteSupervisorEvent } from "./sync";
 
 const thread: Thread = {
   id: "thread-1",
@@ -338,5 +343,93 @@ describe("remote thread stale transcript snapshots", () => {
     expect(useAppStore.getState().runtimeContextByThread[thread.id]).toEqual({
       usedTokens: 12000,
     });
+  });
+});
+
+describe("remote follow-up queue snapshots", () => {
+  const queue: ThreadFollowUpQueueState = {
+    paused: true,
+    items: [{ id: "queued", prompt: "Next task", stagedAt: 1 }],
+  };
+
+  afterEach(() => useThreadFollowUpQueueStore.getState().reset());
+
+  it("hydrates on reconnect and accepts an authoritative clear", () => {
+    applyThreadSnapshot({ ...snapshot(), followUpQueue: queue });
+    expect(useThreadFollowUpQueueStore.getState().byThread[thread.id]?.queue).toEqual(queue);
+    applyThreadSnapshot({ ...snapshot(), followUpQueue: null });
+    expect(useThreadFollowUpQueueStore.getState().byThread[thread.id]?.queue).toBeNull();
+  });
+
+  it("does not undo a live cancellation with stale, cached, or legacy snapshots", () => {
+    dispatchRemoteSupervisorEvent({
+      type: "thread-follow-up-queue",
+      threadId: thread.id,
+      queue: null,
+    });
+    applyThreadSnapshot(
+      { ...snapshot(), thread: { ...thread, remoteServerId: "desktop-1" }, followUpQueue: queue },
+      { fromServer: true, lastSeenEventSeq: 2 },
+    );
+    applyThreadSnapshot({ ...snapshot(), followUpQueue: queue }, { fromServer: false });
+    applyThreadSnapshot(snapshot());
+    expect(useThreadFollowUpQueueStore.getState().byThread[thread.id]?.queue).toBeNull();
+  });
+
+  it("does not undo a same-thread cancellation when only the request guard is available", () => {
+    const guard = captureThreadFollowUpQueueSnapshot(thread.id);
+    dispatchRemoteSupervisorEvent({
+      type: "thread-follow-up-queue",
+      threadId: thread.id,
+      queue: null,
+    });
+
+    applyThreadSnapshot(
+      { ...snapshot(undefined, { snapshotSeq: 10 }), followUpQueue: queue },
+      { fromServer: true, followUpQueueSnapshotGuard: guard },
+    );
+
+    expect(useThreadFollowUpQueueStore.getState().byThread[thread.id]?.queue).toBeNull();
+  });
+
+  it("ignores an unrelated host event when accepting an in-flight queue snapshot", () => {
+    const guard = captureThreadFollowUpQueueSnapshot(thread.id);
+    dispatchRemoteSupervisorEvent({
+      type: "thread-follow-up-queue",
+      threadId: "other-thread",
+      queue: null,
+    });
+
+    applyThreadSnapshot(
+      { ...snapshot(undefined, { snapshotSeq: 10 }), followUpQueue: queue },
+      {
+        fromServer: true,
+        // The other thread's event advanced the host-global cursor. It must
+        // not suppress this thread's still-current queue response.
+        lastSeenEventSeq: 11,
+        followUpQueueSnapshotGuard: guard,
+      },
+    );
+
+    expect(useThreadFollowUpQueueStore.getState().byThread[thread.id]?.queue).toEqual(queue);
+  });
+
+  it("projects queue thread mentions with their owning desktop", () => {
+    const projected = projectRemoteThreadSnapshot("desktop", {
+      ...snapshot(),
+      followUpQueue: {
+        ...queue,
+        items: [
+          {
+            ...queue.items[0]!,
+            segments: [{ kind: "thread", threadId: "source", title: "Source" }],
+          },
+        ],
+      },
+    });
+    expect(projected.followUpQueue?.items[0]?.segments).toEqual([
+      { kind: "thread", threadId: "remote:desktop:thread:source", title: "Source" },
+    ]);
+    expect(projectRemoteThreadSnapshot("desktop", snapshot())).not.toHaveProperty("followUpQueue");
   });
 });

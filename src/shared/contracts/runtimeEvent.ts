@@ -114,6 +114,13 @@ export const messageItemPayloadSchema = z.object({
   // no flag, and every reader falls back to the stream for them, which is the
   // pre-flag behaviour. Old data stays valid, so no version bump or migration.
   displayAuthoritative: z.boolean().optional(),
+  /**
+   * This message belongs to an independent conversation stream, not an agent
+   * execution turn (for example a live audio transcript). Receiving it must
+   * not reopen a settled turn or start its work timer. Optional so persisted
+   * messages from older apps retain the normal turn-activity behavior.
+   */
+  turnIndependent: z.boolean().optional(),
 });
 export type MessageItemPayload = z.infer<typeof messageItemPayloadSchema>;
 

@@ -50,11 +50,12 @@ function context() {
 }
 
 describe("GUI snapshot supervisor reads", () => {
-  it("reads only structured background work for a GUI chat and preserves persisted handoff history", async () => {
+  it("reads structured background work and follow-up queues for a GUI chat", async () => {
     const { ctx, callSupervisor } = context();
     const snapshot = await buildThreadSnapshot(ctx, thread.id);
     expect(callSupervisor.mock.calls.map(([method]) => method)).toEqual([
       "readThreadBackgroundTasks",
+      "getThreadFollowUpQueue",
     ]);
     expect(snapshot.terminalScrollback).toBe("persisted history");
     expect(snapshot.terminalSize).toBeUndefined();

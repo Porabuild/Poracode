@@ -51,13 +51,16 @@ function row(tier: HandoffRowTier, text: string, isUserMessage = false): Handoff
 }
 
 /** Render one top-level thread item for the handoff file, or null to drop it. */
-export function formatHandoffRow(item: RuntimeChatItem): HandoffRow | null {
+export function formatHandoffRow(
+  item: RuntimeChatItem,
+  maxMessageChars = MAX_HANDOFF_MESSAGE_CHARS,
+): HandoffRow | null {
   const payload = asRecord(item.payload);
   switch (item.type) {
     case "user_message": {
       const text = textFromRuntimeContentBlocks(item.payload);
       return text
-        ? row("conversation", `User:\n${truncateHead(text, MAX_HANDOFF_MESSAGE_CHARS)}`, true)
+        ? row("conversation", `User:\n${truncateHead(text, maxMessageChars)}`, true)
         : null;
     }
     case "assistant_message": {
@@ -65,7 +68,7 @@ export function formatHandoffRow(item: RuntimeChatItem): HandoffRow | null {
       // exactly what the user saw, never the replaced stream.
       const text = assistantTranscriptContent(item);
       return text
-        ? row("conversation", `Assistant:\n${truncateTail(text, MAX_HANDOFF_MESSAGE_CHARS)}`)
+        ? row("conversation", `Assistant:\n${truncateTail(text, maxMessageChars)}`)
         : null;
     }
     case "plan": {
@@ -78,23 +81,20 @@ export function formatHandoffRow(item: RuntimeChatItem): HandoffRow | null {
         return [`- [${status}] ${record.step}`];
       });
       return lines.length > 0
-        ? row("conversation", `Plan:\n${truncateTail(lines.join("\n"), MAX_HANDOFF_MESSAGE_CHARS)}`)
+        ? row("conversation", `Plan:\n${truncateTail(lines.join("\n"), maxMessageChars)}`)
         : null;
     }
     case "goal": {
       const objective = typeof payload?.objective === "string" ? payload.objective : "";
       const status = typeof payload?.status === "string" ? ` (${payload.status})` : "";
       return objective
-        ? row(
-            "conversation",
-            `Goal${status}:\n${truncateHead(objective, MAX_HANDOFF_MESSAGE_CHARS)}`,
-          )
+        ? row("conversation", `Goal${status}:\n${truncateHead(objective, maxMessageChars)}`)
         : null;
     }
     case "error": {
       const message = typeof payload?.message === "string" ? payload.message : "";
       return message
-        ? row("conversation", `Error:\n${truncateHead(message, MAX_HANDOFF_MESSAGE_CHARS)}`)
+        ? row("conversation", `Error:\n${truncateHead(message, maxMessageChars)}`)
         : null;
     }
     case "provider_handoff": {

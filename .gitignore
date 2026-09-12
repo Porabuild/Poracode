@@ -33,6 +33,9 @@ resources/wsl-helpers/bridge.mjs
 resources/wsl-helpers/mcp-probe.mjs
 resources/wsl-helpers/mcp-filter.mjs
 resources/wsl-helpers/cursor-sdk-worker.mjs
+resources/wsl-helpers/commandcode-mcp-mod.mjs
+resources/wsl-helpers/pi-mcp-extension.mjs
+resources/wsl-helpers/mcp-stdio.mjs
 resources/agent-plugins/
 resources/computer-use-helper/
 resources/computer-use-helper-dev/

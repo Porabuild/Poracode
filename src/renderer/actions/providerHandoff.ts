@@ -7,6 +7,9 @@ import type {
 import { readBridge } from "@/renderer/bridge";
 import { flattenSegments } from "@/renderer/components/composer/serializeMentions";
 
+/** Inline context is duplicated in prompt/segments and must fit the remote 1 MiB JSON limit. */
+export const MAX_INLINE_HANDOFF_CONTEXT_CHARS = 50_000;
+
 interface HandoffLaunchInput {
   prompt: string;
   segments: PromptSegment[] | undefined;
@@ -106,7 +109,16 @@ export async function buildHandoffLaunchInput(input: {
       ],
     };
   } catch {
-    const inlineHeader = `${handoffInlineLabel(extractedContext)}\n\n${extractedContext.summary}\n\n`;
+    const summary = extractedContext.summary;
+    const marker = "\n\n[transferred context omitted]\n\n";
+    const headChars = Math.floor((MAX_INLINE_HANDOFF_CONTEXT_CHARS - marker.length) / 2);
+    const inlineSummary =
+      summary.length <= MAX_INLINE_HANDOFF_CONTEXT_CHARS
+        ? summary
+        : summary.slice(0, headChars) +
+          marker +
+          summary.slice(-(MAX_INLINE_HANDOFF_CONTEXT_CHARS - marker.length - headChars));
+    const inlineHeader = `${handoffInlineLabel(extractedContext)}\n\n${inlineSummary}\n\n`;
     return {
       prompt: `${inlineHeader}${prompt}`,
       segments: [{ kind: "text", content: inlineHeader }, ...promptSegments],

@@ -32,7 +32,7 @@ export const qwenDefaultCapabilities: AgentCapability = {
   presentationModes: ["terminal", "gui"],
   defaultApprovalPolicy: "auto",
   bypassPermissions: { approvalPolicy: "never" },
-  mcpScope: { terminal: "none", gui: "launch" },
+  mcpScope: { terminal: "launch", gui: "launch" },
   settingDefs: [],
 };
 

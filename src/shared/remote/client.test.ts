@@ -6,6 +6,7 @@ import {
   RemoteDesktopClient,
   type RemoteFetch,
 } from "./client";
+import { defaultSharedSettings } from "../settings";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "./protocol";
 
 describe("remote error classification", () => {
@@ -84,6 +85,22 @@ describe("RemoteDesktopClient", () => {
         deviceType: "browser",
       },
     });
+  });
+
+  it("normalizes settings from an older v9 host that omits follow-up behavior", async () => {
+    const legacySettings = { ...defaultSharedSettings } as Record<string, unknown>;
+    delete legacySettings.followUpBehavior;
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(JSON.stringify({ settings: legacySettings }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+
+    await expect(client.settings()).resolves.toMatchObject({ followUpBehavior: "steer" });
   });
 
   it("reports successful and failed requests through the client lifecycle hooks", async () => {

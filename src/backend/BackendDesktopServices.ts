@@ -287,15 +287,23 @@ export class BackendDesktopServices {
   }
 
   markLiveThreadsInactive(): SupervisorEvent[] {
-    const interrupted = dbGetThreads().filter((thread) => isThreadTurnActive(thread.status));
+    const threads = dbGetThreads();
+    const interrupted = threads.filter((thread) => isThreadTurnActive(thread.status));
     dbMarkLiveThreadsInactive();
-    return interrupted.map((thread) => ({
-      type: "thread-state",
-      threadId: thread.id,
-      status: "inactive",
-      attention: "none",
-      canResumeWithConfig: thread.canResumeWithConfig,
-    }));
+    return [
+      ...threads.map<SupervisorEvent>((thread) => ({
+        type: "thread-follow-up-queue",
+        threadId: thread.id,
+        queue: null,
+      })),
+      ...interrupted.map<SupervisorEvent>((thread) => ({
+        type: "thread-state",
+        threadId: thread.id,
+        status: "inactive",
+        attention: "none",
+        canResumeWithConfig: thread.canResumeWithConfig,
+      })),
+    ];
   }
 
   databaseChanged(call: BackendDatabaseCall): void {

@@ -40,6 +40,26 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
+  it("invalidates v32 snapshots so merged catalog and MCP capabilities are re-probed", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 32,
+        windows: [{ kind: "example", installed: true, capabilities: {} }],
+        wsl: [],
+      }),
+    );
+    const runtime = makeRuntime(() => {});
+    const service = runtime.agentStatusService as unknown as {
+      readCachedStatuses(distros: string[]): unknown;
+    };
+    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
   it("invalidates v11 caches produced before successful ACP sessions established auth", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
@@ -227,7 +247,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(29);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -271,7 +291,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(29);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -348,7 +368,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(29);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -395,7 +415,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(29);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -424,7 +444,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(29);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -457,7 +477,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(29);
+    expect(STATUS_CACHE_VERSION).toBe(33);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

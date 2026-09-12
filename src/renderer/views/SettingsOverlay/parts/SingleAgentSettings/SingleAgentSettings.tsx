@@ -1,3 +1,4 @@
+import { NativeMcpSettings } from "./parts/NativeMcpSettings";
 import { useEffect, useState } from "react";
 import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -1190,6 +1191,10 @@ export function SingleAgentSettings(props: {
           </div>
         )}
       </div>
+
+      {isRemoteMachine ? null : (
+        <NativeMcpSettings agentKind={agent.kind} statuses={installedStatuses} />
+      )}
 
       {isCursorProfileKind(agent.kind) || isRemoteMachine ? null : (
         <HookPluginSettings

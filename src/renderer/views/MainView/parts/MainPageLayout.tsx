@@ -5,6 +5,7 @@ import { readBridge } from "@/renderer/bridge";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { Sidebar } from "@/renderer/views/MainView/parts/Sidebar/Sidebar";
+import { AgentTerminalHost } from "@/renderer/components/terminal/AgentTerminalHost";
 import { AppContent } from "@/renderer/views/MainView/parts/AppContent/AppContent";
 import { SidebarHeaderControls } from "@/renderer/views/MainView/parts/SidebarHeaderControls";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
@@ -141,6 +142,7 @@ export function MainPageLayout(props: { onTitleClick: () => void }) {
       content={
         <MainPanelDropZone>
           <AppContent />
+          <AgentTerminalHost />
           {!compactLayout ? (
             <Suspense>
               <DeferredFileEditorPanel />

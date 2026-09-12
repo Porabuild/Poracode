@@ -41,6 +41,13 @@ import {
   setActiveTerminalFind,
 } from "@/renderer/components/find/terminalFindBridge";
 import { floatingGlassSurfaceClass } from "@/renderer/components/layout/floatingGlass";
+import { useAppStore } from "@/renderer/state/appStore";
+import {
+  createXtermScreen,
+  shouldPersistXtermInstance,
+  stashXtermInstance,
+  takeXtermInstance,
+} from "./xtermInstanceCache";
 
 /** Decoration colors for in-terminal find matches (kept in sync with the CSS
  * highlight colors used elsewhere: amber for matches, orange for the active). */
@@ -194,6 +201,8 @@ export const XTermSurface = forwardRef<
   const requestRefitRef = useRef<(() => void) | null>(null);
   const revealRef = useRef<(() => void) | null>(null);
   const previousVisibleRef = useRef(visible);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
   const openLink = (uri: string) => {
     const bridge = readBridge();
     void (openLinksInNativeBrowser ? bridge.openExternalNative(uri) : bridge.openExternal(uri));
@@ -227,6 +236,10 @@ export const XTermSurface = forwardRef<
 
   useImperativeHandle(ref, () => ({
     focus() {
+      // Never steal document focus for an invisible surface — a hidden
+      // keep-alive terminal's agent asking for input must not capture
+      // keystrokes meant for the visible view.
+      if (!visibleRef.current) return;
       terminalRef.current?.focus();
     },
     refit() {
@@ -304,7 +317,7 @@ export const XTermSurface = forwardRef<
     // kernel delivers SIGWINCH and the agent emits a fresh frame over the
     // (possibly stale / byte-sliced) replayed scrollback.
     const forceAgentRepaint = () => {
-      if (!isActive) return;
+      if (!isActive || !visibleRef.current || !resizeTerminalOnFit || fixedTerminalSize) return;
       const { cols, rows } = backingTerminalSize();
       if (cols < 20 || rows < 5) return;
       // Pin our throttle bookkeeping to the REAL size so the next doFit doesn't
@@ -326,6 +339,7 @@ export const XTermSurface = forwardRef<
         return;
       }
       hydratingScrollback = false;
+      if (restoredScrollback) hydrated = true;
       if (bufferedOutputDuringHydration.length > 0) {
         terminal.write(bufferedOutputDuringHydration);
         bufferedOutputDuringHydration = "";
@@ -338,12 +352,14 @@ export const XTermSurface = forwardRef<
     const hydrateScrollback = (requireAuthoritativeScrollback = false) => {
       const token = ++scrollbackHydrationToken;
       hydratingScrollback = true;
+      hydrated = false;
       bufferedOutputDuringHydration = "";
       // Every replay path funnels through replayGate: replay bytes must parse
       // with query replies suppressed (historical DA1/DSR/OSC queries would
       // otherwise be answered to the live PTY), and live output that arrives
       // while they parse is buffered until the replay has fully parsed.
       const beginReplay = (scrollback: string) => {
+        hydrated = true;
         replayGate.begin(scrollback, {
           before: () => terminal.reset(),
           complete: () => finishHydration(token, scrollback.length > 0),
@@ -356,6 +372,7 @@ export const XTermSurface = forwardRef<
           beginReplay(initialScrollback);
         } else {
           hydratingScrollback = false;
+          hydrated = true;
         }
         return;
       }
@@ -387,6 +404,7 @@ export const XTermSurface = forwardRef<
           if (restoredScrollback || !isActive || token !== scrollbackHydrationToken) {
             return;
           }
+          hydrated = true;
           if (scrollback.length > 0) {
             restoredScrollback = true;
             beginReplay(scrollback);
@@ -407,6 +425,7 @@ export const XTermSurface = forwardRef<
       scrollbackHydrationToken++;
       hydratingScrollback = false;
       bufferedOutputDuringHydration = "";
+      hydrated = true;
       terminal.reset();
       // A replay chunk may already be queued behind this reset. Wipe again
       // once it has fully parsed (the gate runs the cleanup between the stale
@@ -416,44 +435,50 @@ export const XTermSurface = forwardRef<
       onResetRef.current?.();
     };
 
-    const terminal = new Terminal({
-      allowProposedApi: true,
-      cursorBlink: false,
-      cursorStyle: "bar",
-      cursorInactiveStyle: "outline",
-      scrollback: 5_000,
-      scrollSensitivity: useSharedSettings.getState().scrollSpeed,
-      fastScrollSensitivity: 10,
-      // Keep xterm's internal scrollbar gutter effectively zero; Poracode
-      // renders the visible scrollbar outside the terminal content area.
-      scrollbar: { width: TERMINAL_INTERNAL_SCROLLBAR_WIDTH },
-      fontSize: baseFontSizeRef.current,
-      fontFamily: TERMINAL_FONT_FAMILY,
-      fontWeight: "normal",
-      fontWeightBold: "bold",
-      letterSpacing: 0,
-      lineHeight: 1,
-      minimumContrastRatio: 4.5,
-      rescaleOverlappingGlyphs: true,
-      macOptionIsMeta: true,
-      wordSeparator: " ()[]{}'\",;:",
-      theme: getTerminalTheme(appearance, themeBackgroundVar),
-      vtExtensions: {
-        kittyKeyboard: true,
-        win32InputMode: true,
-        colorSchemeQuery: true,
-        kittySgrBoldFaintControl: true,
-      },
-      // OSC 8 hyperlinks (e.g. Next.js' "Local: http://localhost:3000" in WSL
-      // emits \x1b]8;;URL\x07...\x1b]8;;\x07). Without a handler, xterm falls
-      // back to a browser confirm() dialog; we route to the default browser.
-      linkHandler: {
-        activate: (_event, uri) => {
-          openLink(uri);
+    const cached = takeXtermInstance(terminalId);
+    const restored = cached !== undefined;
+    let hydrated = cached?.hydrated ?? false;
+    const screen = cached?.screen ?? createXtermScreen();
+    const terminal =
+      cached?.terminal ??
+      new Terminal({
+        allowProposedApi: true,
+        cursorBlink: false,
+        cursorStyle: "bar",
+        cursorInactiveStyle: "outline",
+        scrollback: 5_000,
+        scrollSensitivity: useSharedSettings.getState().scrollSpeed,
+        fastScrollSensitivity: 10,
+        // Keep xterm's internal scrollbar gutter effectively zero; Poracode
+        // renders the visible scrollbar outside the terminal content area.
+        scrollbar: { width: TERMINAL_INTERNAL_SCROLLBAR_WIDTH },
+        fontSize: baseFontSizeRef.current,
+        fontFamily: TERMINAL_FONT_FAMILY,
+        fontWeight: "normal",
+        fontWeightBold: "bold",
+        letterSpacing: 0,
+        lineHeight: 1,
+        minimumContrastRatio: 4.5,
+        rescaleOverlappingGlyphs: true,
+        macOptionIsMeta: true,
+        wordSeparator: " ()[]{}'\",;:",
+        theme: getTerminalTheme(appearance, themeBackgroundVar),
+        vtExtensions: {
+          kittyKeyboard: true,
+          win32InputMode: true,
+          colorSchemeQuery: true,
+          kittySgrBoldFaintControl: true,
         },
-      },
-    });
-    const fit = new FitAddon();
+        // OSC 8 hyperlinks (e.g. Next.js' "Local: http://localhost:3000" in WSL
+        // emits \x1b]8;;URL\x07...\x1b]8;;\x07). Without a handler, xterm falls
+        // back to a browser confirm() dialog; we route to the default browser.
+        linkHandler: {
+          activate: (_event, uri) => {
+            openLink(uri);
+          },
+        },
+      });
+    const fit = cached?.fit ?? new FitAddon();
 
     terminalRef.current = terminal;
     fitRef.current = fit;
@@ -477,6 +502,8 @@ export const XTermSurface = forwardRef<
 
     const doFit = () => {
       if (!isActive || !mount) return;
+      // The parking host has no authoritative terminal dimensions.
+      if (!visibleRef.current) return;
 
       const width = mount.clientWidth;
       const height = mount.clientHeight;
@@ -571,7 +598,7 @@ export const XTermSurface = forwardRef<
       });
     };
 
-    const search = new SearchAddon();
+    const search = cached?.search ?? new SearchAddon();
     searchRef.current = search;
     const searchResultsDisposable = search.onDidChangeResults((event) => {
       setFindResult({ count: event.resultCount, index: event.resultIndex });
@@ -580,21 +607,26 @@ export const XTermSurface = forwardRef<
     const onTerminalFocusIn = () => setActiveTerminalFind(findController);
     mount.addEventListener("focusin", onTerminalFocusIn);
 
-    terminal.loadAddon(fit);
-    terminal.loadAddon(search);
+    const sessionDisposables: Array<{ dispose(): void }> = [];
+    // Attach the screen node before opening the terminal: xterm measures cell
+    // dimensions from the live DOM at open() (Emdash), and a detached
+    // container yields falsy measurements — WidthCache throws in jsdom and
+    // mis-measures glyphs in a real browser.
+    mount.appendChild(screen);
+    if (!restored) {
+      terminal.loadAddon(fit);
+      terminal.loadAddon(search);
+      const unicode11 = new Unicode11Addon();
+      terminal.loadAddon(unicode11);
+      terminal.unicode.activeVersion = "11";
+      terminal.loadAddon(new ClipboardAddon());
+      terminal.open(screen);
+    }
     const linkDisposable = terminal.registerLinkProvider(
       new TerminalLinkProvider(terminal, (_event, uri) => {
         openLink(uri);
       }),
     );
-
-    const unicode11 = new Unicode11Addon();
-    terminal.loadAddon(unicode11);
-    terminal.unicode.activeVersion = "11";
-
-    terminal.loadAddon(new ClipboardAddon());
-
-    terminal.open(mount);
     const focusTerminalOnPointerDown = (event: PointerEvent) => {
       if (suppressTouchKeyboard && event.pointerType === "touch") {
         event.stopPropagation();
@@ -673,7 +705,7 @@ export const XTermSurface = forwardRef<
     // a healthy WebGL context (it relies on the GPU compositor).
     let webglAddon: WebglAddon | null = null;
     let webglContextLossDisposable: { dispose(): void } | null = null;
-    if (!preferDomRenderer) {
+    if (!restored && !preferDomRenderer) {
       try {
         webglAddon = new WebglAddon();
         webglContextLossDisposable = webglAddon.onContextLoss(() => {
@@ -692,15 +724,19 @@ export const XTermSurface = forwardRef<
     // that registers parser handlers (ImageAddon answers DA1/XTSMGRAPHICS,
     // ClipboardAddon answers OSC 52 reads) so the gate's handlers dispatch
     // ahead of them — see terminalQuerySuppression.ts.
-    const replayGate = new TerminalReplayGate(terminal);
+    const replayGate = cached?.replayGate ?? new TerminalReplayGate(terminal);
 
-    terminal.onBell(() => {
-      onBellRef.current?.();
-    });
+    sessionDisposables.push(
+      terminal.onBell(() => {
+        onBellRef.current?.();
+      }),
+    );
 
-    terminal.onTitleChange((title) => {
-      onTitleChangeRef.current?.(title);
-    });
+    sessionDisposables.push(
+      terminal.onTitleChange((title) => {
+        onTitleChangeRef.current?.(title);
+      }),
+    );
 
     // ── Coalesced onWriteParsed handler ─────────────────────────
     // Both activity reporting and scroll-position tracking key off
@@ -750,82 +786,83 @@ export const XTermSurface = forwardRef<
         checkScrollPosition();
       });
     };
-    terminal.onWriteParsed(scheduleParsedFlush);
-    terminal.onScroll(scheduleParsedFlush);
+    sessionDisposables.push(terminal.onWriteParsed(scheduleParsedFlush));
+    sessionDisposables.push(terminal.onScroll(scheduleParsedFlush));
 
     // ── Selection tracking ───────────────────────────────────────
-    terminal.onSelectionChange(() => {
-      setHasSelection(terminal.hasSelection());
-    });
+    sessionDisposables.push(
+      terminal.onSelectionChange(() => {
+        setHasSelection(terminal.hasSelection());
+      }),
+    );
 
     // ── Copy shortcut: Ctrl+C / Cmd+C ───────────────────────────
     // Single Ctrl+C with selection → copy. Rapid Ctrl+C (within
     // 500 ms of a copy) → pass through as SIGINT so agents can
     // be interrupted with the usual double-Ctrl+C pattern.
-    let lastCopyTime = 0;
-    terminal.attachCustomKeyEventHandler((event) => {
-      if (event.type !== "keydown" || event.shiftKey || event.altKey) {
-        return true;
-      }
+    // attachCustomKeyEventHandler does not return a disposable, so bind
+    // once when the instance is created — not again on cache restore.
+    if (!restored) {
+      let lastCopyTime = 0;
+      terminal.attachCustomKeyEventHandler((event) => {
+        if (event.type !== "keydown" || event.shiftKey || event.altKey) {
+          return true;
+        }
 
-      const modKey = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
-      if (!modKey) return true;
+        const modKey = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+        if (!modKey) return true;
 
-      // ── Paste: Ctrl+V / Cmd+V ───────────────────────────────────
-      if (event.code === "KeyV" && !readOnly) {
-        event.preventDefault();
-        navigator.clipboard.readText().then(
-          (text) => {
-            if (text) {
-              terminal.paste(text);
-            }
-          },
-          // Swallow NotAllowedError (e.g. window not focused) — paste is a
-          // best-effort UX action; failure must not crash the renderer.
-          () => {},
-        );
-        return false;
-      }
-
-      // ── Close pane: Ctrl+W / Cmd+W ─────────────────────────────
-      // Let the event bubble to the window handler instead of
-      // being consumed as terminal word-erase.
-      if (event.code === "KeyW") {
-        return false;
-      }
-
-      // ── Copy: Ctrl+C / Cmd+C ───────────────────────────────────
-      if (event.code === "KeyC") {
-        if (terminal.hasSelection()) {
-          const now = Date.now();
-          // On non-Mac, let rapid Ctrl+C through as SIGINT
-          if (!mac && now - lastCopyTime < 500) {
-            return true;
-          }
-          void navigator.clipboard.writeText(terminal.getSelection());
-          terminal.clearSelection();
-          lastCopyTime = now;
+        // ── Paste: Ctrl+V / Cmd+V ───────────────────────────────────
+        if (event.code === "KeyV" && !readOnly) {
+          event.preventDefault();
+          navigator.clipboard.readText().then(
+            (text) => {
+              if (text) {
+                terminal.paste(text);
+              }
+            },
+            // Swallow NotAllowedError (e.g. window not focused) — paste is a
+            // best-effort UX action; failure must not crash the renderer.
+            () => {},
+          );
           return false;
         }
-      }
 
-      return true;
-    });
+        // ── Close pane: Ctrl+W / Cmd+W ─────────────────────────────
+        // Let the event bubble to the window handler instead of
+        // being consumed as terminal word-erase.
+        if (event.code === "KeyW") {
+          return false;
+        }
+
+        // ── Copy: Ctrl+C / Cmd+C ───────────────────────────────────
+        if (event.code === "KeyC") {
+          if (terminal.hasSelection()) {
+            const now = Date.now();
+            // On non-Mac, let rapid Ctrl+C through as SIGINT
+            if (!mac && now - lastCopyTime < 500) {
+              return true;
+            }
+            void navigator.clipboard.writeText(terminal.getSelection());
+            terminal.clearSelection();
+            lastCopyTime = now;
+            return false;
+          }
+        }
+
+        return true;
+      });
+    }
 
     if (!readOnly) {
-      terminal.onData((data) => {
-        // Replies generated while a hydration replay is parsing are stale
-        // answers to historical queries — drop them before they reach the
-        // PTY. State-setting sequences still applied; ordinary keyboard and
-        // paste input never lands inside a reply scope. See
-        // terminalReplayGate.ts.
-        if (replayGate.isDroppingReplies) {
-          return;
-        }
-        void writeInputToPty(data).catch(() => {
-          // PTY may disappear during teardown; ignore stale writes.
-        });
-      });
+      sessionDisposables.push(
+        terminal.onData((data) => {
+          if (replayGate.isDroppingReplies) return;
+          void writeInputToPty(data).catch(() => {
+            // PTY may disappear during teardown; ignore stale writes.
+          });
+        }),
+      );
     }
 
     const resizeObserver = new ResizeObserver(() => {
@@ -855,6 +892,7 @@ export const XTermSurface = forwardRef<
       receivedFeedSnapshot = true;
       const token = ++scrollbackHydrationToken;
       hydratingScrollback = true;
+      hydrated = false;
       bufferedOutputDuringHydration = "";
       // A feed baseline replaces the display. Its historical queries must not
       // produce replies to the current PTY while reconciled live bytes wait.
@@ -894,7 +932,8 @@ export const XTermSurface = forwardRef<
       doFit();
       initialHydrationStarted = true;
       if (resetBeforeInitialHydration || receivedFeedSnapshot) return;
-      hydrateScrollback();
+      if (!hydrated || (eventInterest && !eventInterest.continuous)) hydrateScrollback();
+      else if (visibleRef.current) forceAgentRepaint();
     };
     if (eventInterest) void eventInterest.ready.then(initializeViewport);
     else initializeViewport();
@@ -916,11 +955,12 @@ export const XTermSurface = forwardRef<
       if (ptyResizeTimer !== 0) {
         clearTimeout(ptyResizeTimer);
       }
-      webglContextLossDisposable?.dispose();
-      webglAddon?.dispose();
-      replayGate.dispose();
+      replayGate.cancel();
       linkDisposable.dispose();
       searchResultsDisposable.dispose();
+      for (const disposable of sessionDisposables) {
+        disposable.dispose();
+      }
       mount.removeEventListener("pointerdown", focusTerminalOnPointerDown, { capture: true });
       mount.removeEventListener("touchstart", onTouchStart, { capture: true });
       mount.removeEventListener("touchmove", onTouchMove, { capture: true });
@@ -931,7 +971,23 @@ export const XTermSurface = forwardRef<
       unsubscribe();
       eventInterest?.release();
       resizeObserver.disconnect();
-      terminal.dispose();
+      screen.remove();
+      const persist = shouldPersistXtermInstance(terminalId, useAppStore.getState());
+      if (persist) {
+        stashXtermInstance(terminalId, {
+          terminal,
+          fit,
+          search,
+          screen,
+          hydrated: hydrated && !hydratingScrollback,
+          replayGate,
+        });
+      } else {
+        replayGate.dispose();
+        webglContextLossDisposable?.dispose();
+        webglAddon?.dispose();
+        terminal.dispose();
+      }
       terminalRef.current = null;
       fitRef.current = null;
       searchRef.current = null;

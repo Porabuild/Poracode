@@ -12,6 +12,7 @@ import {
   scheduledTaskSchema,
   terminalSizeSchema,
   threadContextUsageSchema,
+  threadFollowUpQueueStateSchema,
   threadSchema,
 } from "../contracts";
 import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc/schemas";
@@ -915,6 +916,8 @@ export const remoteThreadSnapshotSchema = z.object({
   backgroundTasks: z.array(backgroundTaskSchema).optional(),
   terminalScrollback: z.string().optional(),
   terminalSize: terminalSizeSchema.optional(),
+  /** Absent when the host predates queued follow-up snapshots. */
+  followUpQueue: threadFollowUpQueueStateSchema.nullable().optional(),
   updatedAt: z.string().min(1),
 });
 export type RemoteThreadSnapshot = z.infer<typeof remoteThreadSnapshotSchema>;
@@ -964,6 +967,9 @@ export const remoteSettingsSchema = sharedSettingsSchema
     disabledAgents: true,
     providerOrder: true,
     usage: true,
+    // Optional input keeps settings responses from older v9 hosts readable;
+    // the default preserves the normalized shared-settings contract.
+    followUpBehavior: true,
     enabledMcpServers: true,
     disabledBuiltInMcpServers: true,
     titleGenProvider: true,
@@ -1009,6 +1015,7 @@ export const remoteSettingsSchema = sharedSettingsSchema
     // Search could display the inherited desktop defaults.
     searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
     searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),
+    followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional().default("steer"),
   });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
 
@@ -1026,6 +1033,9 @@ export const remoteSettingsPatchSchema = remoteSettingsSchema
     disabledBuiltInMcpServers: sharedSettingsSchema.shape.disabledBuiltInMcpServers
       .removeDefault()
       .optional(),
+    // Unlike the full response schema, patches must remain sparse; in
+    // particular, an unrelated edit must not inject the legacy default.
+    followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional(),
   });
 export type RemoteSettingsPatch = z.infer<typeof remoteSettingsPatchSchema>;
 

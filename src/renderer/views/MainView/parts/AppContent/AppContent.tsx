@@ -89,12 +89,6 @@ export function AppContent() {
   const draftLastDraftConfig = useInitialProjectDraftConfig(draftProjectId);
   const createThread = useAppStore((state) => state.createThread);
   const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
-  // Keep-alive cache: thread panes opened then hidden stay mounted (invisible)
-  // so their xterm buffer / alt-screen state survives. Only terminal-
-  // presentation threads are kept; GUI threads and draft panes are not (no
-  // terminal to preserve). Hook must be called unconditionally (before the
-  // `view.kind === "thread"` branch) to satisfy the rules of hooks.
-  const keepAlivePaneIds = useAppStore((state) => state.keepAlivePaneIds);
   const focusedPaneId = useAppStore((state) => state.focusedPaneId);
   const compactLayout = useCompactLayout();
   const mobileUtilityPage = usePanelStore((state) => state.mobileUtilityPage);
@@ -353,18 +347,7 @@ export function AppContent() {
       });
     }
 
-    // Every pane in the current layout stays mounted while compact mode focuses
-    // one of them. The original slot ids remain the DOM keys, so resizing does
-    // not reset chat scroll, draft state, dialogs, or terminal buffers.
-    const visiblePaneIdSet = new Set(visiblePaneIds);
-    const cachedTerminalPaneIds = keepAlivePaneIds.filter(
-      (id) =>
-        !visiblePaneIdSet.has(id) &&
-        !isDraftPaneId(id) &&
-        storeThreads.find((thread) => thread.id === id)?.presentationMode !== "gui",
-    );
-    const hiddenPaneIds = [...new Set([...hiddenCurrentPaneIds, ...cachedTerminalPaneIds])];
-
+    const hiddenPaneIds = hiddenCurrentPaneIds;
     function renderPane(paneId: string, rect: Rect, hidden = false) {
       const paneDraftProjectId = parseDraftProjectId(paneId);
       const paneAlign = findPaneAlign(paneLayout, paneId);
@@ -387,10 +370,10 @@ export function AppContent() {
       ) : (
         <ThreadPane
           threadId={paneId}
+          hidden={hidden}
           paneCount={paneCount}
           paneAlign={paneAlign}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
-          hidden={hidden}
           onClose={() => closePane(paneId)}
           {...(!findExperimentByThreadId(paneId)
             ? {

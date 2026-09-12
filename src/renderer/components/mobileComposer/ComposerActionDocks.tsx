@@ -6,6 +6,8 @@ import {
   resolveThreadServerRequest,
 } from "@/renderer/actions/threadRuntimeActions";
 import { ThreadPendingSteerStrip } from "@/renderer/components/thread/ThreadPendingSteerStrip";
+import { ThreadFollowUpQueue } from "@/renderer/components/thread/ThreadFollowUpQueue";
+import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { ThreadRuntimeRequestPanel } from "@/renderer/components/thread/ThreadRuntimeRequestPanel";
 import { useDelayedPendingSteer } from "@/renderer/components/thread/useDelayedPendingSteer";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -15,6 +17,7 @@ export function ComposerActionDocks(props: {
   readonly thread: Thread;
   readonly agentStatus: AgentStatus | undefined;
   readonly onOpenPlanFile?: ((path: string) => void) | undefined;
+  readonly onRestoreComposerFocus?: (() => void) | undefined;
 }) {
   const { thread, agentStatus } = props;
   const presentationMode =
@@ -23,19 +26,24 @@ export function ComposerActionDocks(props: {
     ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
     : undefined;
   const request = useAppStore((state) => state.runtimeRequestsByThread[thread.id]?.[0]);
+  const followUpQueue = useThreadFollowUpQueue(thread.id, presentationMode === "gui");
   const pendingSteer = useDelayedPendingSteer(
     useAppStore((state) => state.pendingSteerByThreadId[thread.id]),
   );
-  if (!pendingSteer && !request) return null;
-
   return (
-    <div className="m-thread-action-docks">
+    <div className="m-thread-action-docks empty:hidden">
       {pendingSteer ? (
         <ThreadPendingSteerStrip
           pending={pendingSteer}
           onCancel={() => clearThreadPendingSteer(thread.id)}
         />
       ) : null}
+      <ThreadFollowUpQueue
+        key={thread.id}
+        threadId={thread.id}
+        queue={followUpQueue ?? null}
+        onRestoreFocus={props.onRestoreComposerFocus}
+      />
       {request ? (
         <ThreadRuntimeRequestPanel
           key={request.requestId}
