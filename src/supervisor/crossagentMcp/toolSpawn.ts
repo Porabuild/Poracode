@@ -1,6 +1,6 @@
 import { normalizeCrossagentTags } from "@/shared/crossagentRanking";
 import { MAX_CONCURRENT_CHILDREN_PER_PARENT } from "./SubagentRunManager";
-import { errorResult, jsonResult, parseOutputMode, parseWaitTimeoutMs } from "./toolResult";
+import { errorResult, runToolResult, parseOutputMode, parseWaitTimeoutMs } from "./toolResult";
 import { parseSpawnRequest, parseSpawnRequests, parseResultMode } from "./toolRequests";
 import type {
   McpToolResult,
@@ -125,8 +125,7 @@ export async function spawnAgent(
   ctx: SubagentToolContext,
 ): Promise<McpToolResult> {
   parseResultMode(args);
-  const outputMode = parseOutputMode(args);
-  const outputOptions = outputMode ? { outputMode } : {};
+  const outputOptions = { outputMode: parseOutputMode(args) };
   const timeoutMs = parseWaitTimeoutMs(args);
   const background = args.background === true;
   const rosterCache = new Map<string, Promise<SpawnableAgent[]>>();
@@ -203,7 +202,7 @@ export async function spawnAgent(
     });
     if (explicitSelections.length > 0) ctx.recordExplicitSelections?.(explicitSelections);
     if (background) {
-      return jsonResult({
+      return runToolResult({
         runs: runs.map(({ runId }) => ({
           run_id: runId,
           status: "running",
@@ -211,7 +210,7 @@ export async function spawnAgent(
         })),
       });
     }
-    return jsonResult({
+    return runToolResult({
       runs: await ctx.runManager.waitForMany(
         runs.map(({ runId }) => runId),
         timeoutMs,
@@ -234,12 +233,12 @@ export async function spawnAgent(
     ]);
   }
   if (background) {
-    return jsonResult({ run_id: runId, status: "running", output: "" });
+    return runToolResult({ run_id: runId, status: "running", output: "" });
   }
   const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
     ...outputOptions,
     fullOutput: args.full_output === true,
     currentAttemptOnly: true,
   });
-  return jsonResult({ run_id: runId, ...result });
+  return runToolResult({ run_id: runId, ...result });
 }

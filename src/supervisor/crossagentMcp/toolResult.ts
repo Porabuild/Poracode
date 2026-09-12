@@ -1,12 +1,33 @@
 import { DEFAULT_WAIT_TIMEOUT_MS, MAX_WAIT_TIMEOUT_MS } from "./SubagentRunManager";
-import type { McpToolResult, SubagentWaitOptions } from "./types";
+import type { McpToolResult, SubagentWaitOptions, SubagentWaitResult } from "./types";
 
 /** Shared `timeout_s` schema description for the blocking wait tools. */
 export const TIMEOUT_S_DESCRIPTION =
-  'Max seconds for this wait call (capped at 240). A timeout leaves the subagent running; status "running" means call wait_for_agent again when its result is still required, not cancel it because time elapsed.';
+  'Max seconds for this wait call (default and cap 240). A timeout leaves the subagent running; status "running" means call wait_for_agent again when its result is still required, not cancel it because time elapsed.';
 
-export function jsonResult(value: unknown): McpToolResult {
-  return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
+export const WAIT_AGAIN_INSTRUCTION =
+  "Call crossagents.wait_for_agent with only required running IDs. Do not end the turn expecting a completion notification.";
+
+export function jsonResult(value: unknown, instruction?: string): McpToolResult {
+  return {
+    content: [
+      { type: "text", text: JSON.stringify(value, null, 2) },
+      ...(instruction ? [{ type: "text" as const, text: instruction }] : []),
+    ],
+  };
+}
+
+type RunToolValue = SubagentWaitResult & { run_id?: string };
+
+/** One short continuation cue per response, regardless of the number of running children. */
+export function runToolResult(
+  value: RunToolValue | RunToolValue[] | { runs: RunToolValue[] },
+): McpToolResult {
+  const runs = Array.isArray(value) ? value : "runs" in value ? value.runs : [value];
+  return jsonResult(
+    value,
+    runs.some((run) => run.status === "running") ? WAIT_AGAIN_INSTRUCTION : undefined,
+  );
 }
 
 export function errorResult(message: string): McpToolResult {
@@ -55,7 +76,7 @@ export function parseWaitOptions(
       : undefined;
   const afterOutputChars = runCursor ?? finiteNumber(args.after_output_chars);
   return {
-    ...(outputMode ? { outputMode } : {}),
+    outputMode,
     fullOutput: false,
     afterOutputChars:
       afterOutputChars !== undefined && Number.isInteger(afterOutputChars)
@@ -64,10 +85,12 @@ export function parseWaitOptions(
   };
 }
 
-export function parseOutputMode(args: Record<string, unknown>): SubagentWaitOptions["outputMode"] {
+export function parseOutputMode(
+  args: Record<string, unknown>,
+): NonNullable<SubagentWaitOptions["outputMode"]> {
   const mode = args.output_mode;
   if (mode !== undefined && mode !== "quiet" && mode !== "progress") {
     throw new Error("output_mode must be quiet or progress");
   }
-  return mode;
+  return mode ?? "quiet";
 }
