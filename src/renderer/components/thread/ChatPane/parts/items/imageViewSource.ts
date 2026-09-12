@@ -178,8 +178,9 @@ export function imageViewSourceFromImageBlock(
   if (!guessed) return null;
   const built = buildSrc(block.dataUrl, guessed);
   if (!built) return null;
-  // The header bytes already corrected the label inside `buildSrc`; a block's
-  // own `mimeType` is only a fallback for formats the sniffer does not know.
+  // The format comes from the bytes, with the data-URL label as the only
+  // fallback; a block's own `mimeType` is deliberately unused so the download
+  // name cannot disagree with what the pixels actually are.
   const mime = built.classification.mime;
   const extension = EXTENSION_BY_MIME[mime] ?? "png";
   const name =

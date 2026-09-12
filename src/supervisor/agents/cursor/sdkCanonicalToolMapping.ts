@@ -57,7 +57,9 @@ export function mapCursorSdkNormalizedToolCall(
   const tool = ensureToolItem(state, message.call_id, descriptor, events);
   if (!tool) return events;
   if (message.args !== undefined) tool.args = message.args;
-  if (message.truncated?.result === true) tool.resultTruncated = true;
+  // Per-message marker, assigned so the message that settles the call decides:
+  // latching here would drop a full result that arrives after a cut-down one.
+  tool.resultTruncated = message.truncated?.result === true;
   if (message.status === "running") {
     updateToolItem(state, tool, "running", undefined, events);
   } else {
@@ -90,7 +92,7 @@ export function mapCursorSdkRawToolUpdate(
   const tool = ensureToolItem(state, callId, descriptor, events, parentCallId, parentItemId);
   if (!tool) return events;
   if (rawToolCall.args !== undefined) tool.args = rawToolCall.args;
-  if (rawToolCall.truncated?.result === true) tool.resultTruncated = true;
+  tool.resultTruncated = rawToolCall.truncated?.result === true;
   if (!complete) {
     updateToolItem(state, tool, "running", undefined, events);
     return events;
