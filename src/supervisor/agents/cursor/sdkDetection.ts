@@ -2,6 +2,12 @@ import { authStateForPresentation, capabilitiesForPresentation } from "@/shared/
 import type { AgentCapability, AgentStatus, AuthState } from "@/shared/contracts";
 import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { detectProbeLocation, type AgentEnvContext } from "../base";
+import {
+  forgetCursorSdkInstallPin,
+  readCursorSdkInstallPin,
+  recordCursorSdkInstallPin,
+  shouldRecordCursorSdkInstall,
+} from "./sdkInstallPin";
 import { cursorSdkGuiCapabilities, type CursorSdkModel } from "./sdkModels";
 import { CURSOR_SDK_SESSION_PREFIX, type CursorStructuredRuntime } from "./structuredRuntime";
 import {
@@ -240,6 +246,14 @@ export async function probeCursorSdkRuntime(
   explicitApiKey?: string,
 ): Promise<CursorSdkRuntimeProbe> {
   const projectLocation = detectProbeLocation(ctx);
+  // Read once, before the probe: the same record both steers discovery inside
+  // the worker and backs the reported state if the probe never reaches one.
+  // The record describes this host's native environment only — a root valid
+  // here says nothing about a WSL distro and vice versa, and detection probes
+  // both in one process. WSL workers resolve inside their own login shell, so
+  // those probes never read, record, or drop the shared record.
+  const pinsApply = projectLocation.kind !== "wsl";
+  const recordedInstall = pinsApply ? readCursorSdkInstallPin() : undefined;
   const configuredApiKey =
     explicitApiKey?.trim() ||
     (typeof ctx?.agentSettings?.sdkApiKey === "string" ? ctx.agentSettings.sdkApiKey.trim() : "");
@@ -257,9 +271,22 @@ export async function probeCursorSdkRuntime(
     assertAgentLaunchAllowed("session-probe");
     worker = await (dependencies.spawnWorker ?? spawnCursorSdkWorker)({
       projectLocation,
+      ...(recordedInstall ? { pinnedRoot: recordedInstall } : {}),
     });
     ctx?.signal?.throwIfAborted();
     const result = await worker.probe(configuredApiKey || undefined);
+    // Recording where this resolved to is what stops the next detection pass
+    // from having to re-derive the location from this process' PATH. Only the
+    // PATH-dependent sources are recorded: anything re-derivable for free
+    // would just freeze a stale copy ahead of fresher installs. A WSL probe
+    // never records — its root is not a path this host can use.
+    if (pinsApply && result.packageRoot && shouldRecordCursorSdkInstall(result.source)) {
+      recordCursorSdkInstallPin({
+        packageRoot: result.packageRoot,
+        source: result.source,
+        version: result.sdkVersion,
+      });
+    }
     return {
       installed: true,
       authState: "authenticated",
@@ -271,6 +298,32 @@ export async function probeCursorSdkRuntime(
   } catch (error) {
     const code = cursorSdkProbeErrorCode(error);
     const normalizedCode = code?.toLowerCase();
+    if (normalizedCode === "package_missing" && pinsApply) forgetCursorSdkInstallPin();
+    if (normalizedCode && NOT_INSTALLED_CODES.has(normalizedCode)) {
+      return {
+        installed: false,
+        authState: "unknown",
+        models: [],
+        ...(code ? { diagnosticCode: code } : {}),
+        diagnosticMessage: cursorSdkProbeErrorMessage(error),
+      };
+    }
+    // No verdict was reached about the package: the helper never booted, the
+    // host environment was rejected, or an account request failed. None of that
+    // says the installation is gone, so a recorded one keeps reporting as
+    // installed instead of erasing an install the user can still use. An auth
+    // failure is still an auth failure, and keeps its own auth state.
+    if (recordedInstall) {
+      return {
+        installed: true,
+        authState: normalizedCode && MISSING_AUTH_CODES.has(normalizedCode) ? "missing" : "unknown",
+        models: [],
+        version: recordedInstall.version,
+        source: recordedInstall.source,
+        ...(code ? { diagnosticCode: code } : {}),
+        diagnosticMessage: cursorSdkProbeErrorMessage(error),
+      };
+    }
     return {
       // Once the helper booted, an unclassified failure is normally the
       // account catalog request (network/service), not package discovery.

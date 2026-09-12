@@ -55,6 +55,8 @@ import type {
   CursorSdkWorkerStartInput,
   CursorSdkWorkerStartResult,
 } from "./sdkWorkerProtocol";
+import { readCursorSdkInstallPin } from "./sdkInstallPin";
+import type { CursorSdkPinHint } from "./sdkLoaderSupport";
 import { CURSOR_SDK_SESSION_PREFIX, cursorSdkSessionId } from "./structuredRuntime";
 
 interface CursorSdkWorkerHandle {
@@ -72,6 +74,7 @@ interface CursorSdkWorkerHandle {
 interface CursorSdkWorkerSpawnInput {
   projectLocation: ProjectLocation;
   configuredPath?: string;
+  pinnedRoot?: CursorSdkPinHint;
   env?: Record<string, string>;
 }
 
@@ -601,8 +604,13 @@ export class CursorSdkSession implements StructuredSessionHandle {
   }
 
   private workerSpawnInput(): CursorSdkWorkerSpawnInput {
+    // A session must drive the same installation detection advertised, so the
+    // recorded root travels with the spawn. Whether a record applies to this
+    // target is the worker client's single applicability gate.
+    const pinnedRoot = readCursorSdkInstallPin();
     return {
       projectLocation: this.input.projectLocation,
+      ...(pinnedRoot ? { pinnedRoot } : {}),
       ...(this.input.env ? { env: this.input.env } : {}),
     };
   }

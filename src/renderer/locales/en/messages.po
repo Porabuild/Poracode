@@ -4370,6 +4370,7 @@ msgstr "Detect agents on this machine"
 #~ msgid "Detect from project files"
 #~ msgstr "Detect from project files"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "Detected"

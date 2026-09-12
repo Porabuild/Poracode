@@ -95,7 +95,10 @@ const execFileAsync = promisify(execFile);
 // v30 refreshes terminal MCP capabilities across supported CLIs.
 // v32 invalidates capabilities from the removed persistent MCP proxy prototype.
 // v33 combines V2 model family/pricing metadata with MCP and live-voice capabilities.
-export const STATUS_CACHE_VERSION = 33;
+// v34 re-probes the Cursor SDK once so its resolved installation gets recorded:
+// an SDK variant can now report `installed` from that record with an unknown
+// auth state instead of losing the install when a probe reaches no verdict.
+export const STATUS_CACHE_VERSION = 34;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

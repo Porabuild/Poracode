@@ -1,17 +1,22 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MOCK_AGENTS_ENV } from "@/supervisor/agentLaunchGuard";
 import { CursorSdkWorkerRpcError } from "./sdkWorkerClient";
+import type { CursorSdkWorkerProbeResult } from "./sdkWorkerProtocol";
 import type { AgentStatus } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
-import { applyCursorSdkProbe, probeCursorSdkRuntime } from "./sdkDetection";
+import { probeCursorSdkRuntime, applyCursorSdkProbe } from "./sdkDetection";
+import { readCursorSdkInstallPin, recordCursorSdkInstallPin } from "./sdkInstallPin";
 
 function worker(input: {
-  probe: () => Promise<{
-    models: Array<{ id: string; displayName: string }>;
-    sdkVersion: string;
-    source: "configured" | "global-npm";
-    authenticatedAs?: string;
-  }>;
+  probe: () => Promise<
+    Pick<
+      CursorSdkWorkerProbeResult,
+      "models" | "sdkVersion" | "source" | "authenticatedAs" | "packageRoot"
+    >
+  >;
 }) {
   return {
     probe: vi.fn<typeof input.probe>(input.probe),
@@ -20,8 +25,271 @@ function worker(input: {
 }
 
 describe("probeCursorSdkRuntime", () => {
+  let profileDir = "";
+  let pinsPath = "";
+
+  /** A directory the durable-install store accepts as a real installation. */
+  function installedPackageDir(version: string): string {
+    const root = mkdtempSync(join(tmpdir(), "poracode-cursor-installed-"));
+    writeFileSync(
+      join(root, "package.json"),
+      JSON.stringify({ name: "@cursor/sdk", version }),
+      "utf8",
+    );
+    return root;
+  }
+
+  /** The record detection writes for a native install resolved via global npm. */
+  function recordNativeInstall(packageRoot: string): void {
+    recordCursorSdkInstallPin(
+      { packageRoot, source: "global-npm", version: "1.0.31" },
+      { pinsPath },
+    );
+  }
+
+  beforeEach(() => {
+    // Point the supervisor data-dir seam at a scratch profile: a developer's own
+    // recorded installation must neither steer these assertions nor be written
+    // to by the code under test.
+    profileDir = mkdtempSync(join(tmpdir(), "poracode-cursor-detection-"));
+    pinsPath = join(profileDir, "package-install-pins.json");
+    vi.stubEnv("PORACODE_DATA_DIR", profileDir);
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
+    rmSync(profileDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+  });
+
+  it("records the resolved installation so a later pass finds it without probing", async () => {
+    const packageRoot = installedPackageDir("1.0.31");
+    const handle = worker({
+      probe: async () => ({
+        models: [],
+        sdkVersion: "1.0.31",
+        source: "global-npm",
+        packageRoot,
+      }),
+    });
+
+    await probeCursorSdkRuntime({ envKind: "posix" }, { spawnWorker: async () => handle });
+
+    expect(readCursorSdkInstallPin({ pinsPath })).toEqual({
+      packageRoot,
+      source: "global-npm",
+      version: "1.0.31",
+    });
+  });
+
+  it("does not record anything for an explicitly supplied entry", async () => {
+    const handle = worker({
+      probe: async () => ({
+        models: [],
+        sdkVersion: "1.0.31",
+        source: "explicit-entry",
+        packageRoot: "/somewhere/from-an-explicit-entry",
+      }),
+    });
+
+    await probeCursorSdkRuntime({ envKind: "posix" }, { spawnWorker: async () => handle });
+
+    // Nothing was discovered, so there is no location worth remembering.
+    expect(readCursorSdkInstallPin({ pinsPath })).toBeUndefined();
+  });
+
+  it("records a PATH-derived global resolution even when npm was reachable", async () => {
+    const packageRoot = installedPackageDir("1.0.31");
+    const handle = worker({
+      probe: async () => ({
+        models: [],
+        sdkVersion: "1.0.31",
+        source: "global-inferred",
+        packageRoot,
+      }),
+    });
+
+    await probeCursorSdkRuntime({ envKind: "posix" }, { spawnWorker: async () => handle });
+
+    expect(readCursorSdkInstallPin({ pinsPath })).toEqual({
+      packageRoot,
+      source: "global-inferred",
+      version: "1.0.31",
+    });
+  });
+
+  it("does not record an install every pass re-derives for free", async () => {
+    const packageRoot = installedPackageDir("1.0.31");
+    const handle = worker({
+      probe: async () => ({
+        models: [],
+        sdkVersion: "1.0.31",
+        source: "project",
+        packageRoot,
+      }),
+    });
+
+    await probeCursorSdkRuntime({ envKind: "posix" }, { spawnWorker: async () => handle });
+
+    // A project checkout is found deterministically on every pass; pinning it
+    // would only freeze a stale copy ahead of fresher installs.
+    expect(readCursorSdkInstallPin({ pinsPath })).toBeUndefined();
+  });
+
+  it("keeps the native record intact when a WSL probe proves nothing is installed there", async () => {
+    const packageRoot = installedPackageDir("1.0.31");
+    recordNativeInstall(packageRoot);
+    const missingInDistro = worker({
+      probe: async () => {
+        throw new CursorSdkWorkerRpcError({
+          name: "CursorSdkWorkerError",
+          message: "No external Cursor SDK package was found.",
+          code: "package_missing",
+        });
+      },
+    });
+    const spawnWorker = vi.fn<(_options: unknown) => Promise<typeof missingInDistro>>(
+      async () => missingInDistro,
+    );
+
+    await expect(
+      probeCursorSdkRuntime({ envKind: "wsl", wslDistro: "Ubuntu" }, { spawnWorker }),
+    ).resolves.toMatchObject({
+      installed: false,
+      authState: "unknown",
+      diagnosticCode: "package_missing",
+    });
+
+    // The distro's verdict says nothing about this host; dropping the record
+    // on it would erase the native install every detection cycle.
+    expect(readCursorSdkInstallPin({ pinsPath })).toEqual({
+      packageRoot,
+      source: "global-npm",
+      version: "1.0.31",
+    });
+    expect(spawnWorker.mock.calls[0]?.[0]).not.toHaveProperty("pinnedRoot");
+  });
+
+  it("does not record a distro installation into the native slot", async () => {
+    const linuxRoot = installedPackageDir("1.0.31");
+    const handle = worker({
+      probe: async () => ({
+        models: [],
+        sdkVersion: "1.0.31",
+        source: "global-npm",
+        packageRoot: linuxRoot,
+      }),
+    });
+
+    await probeCursorSdkRuntime(
+      { envKind: "wsl", wslDistro: "Ubuntu" },
+      {
+        spawnWorker: async () => handle,
+      },
+    );
+
+    // A root resolved inside the distro is not a path this host can use.
+    expect(readCursorSdkInstallPin({ pinsPath })).toBeUndefined();
+  });
+
+  it("does not report a distro install from the native record when its probe fails", async () => {
+    const packageRoot = installedPackageDir("1.0.31");
+    recordNativeInstall(packageRoot);
+
+    await expect(
+      probeCursorSdkRuntime(
+        { envKind: "wsl", wslDistro: "Ubuntu" },
+        {
+          spawnWorker: async () => {
+            throw new Error("WSL distro has no usable Node");
+          },
+        },
+      ),
+    ).resolves.toMatchObject({ installed: false });
+  });
+
+  it("hands the recorded installation to the worker before it probes", async () => {
+    const packageRoot = installedPackageDir("1.0.31");
+    recordNativeInstall(packageRoot);
+    const handle = worker({
+      probe: async () => ({ models: [], sdkVersion: "1.0.31", source: "global-npm" }),
+    });
+    const spawnWorker = vi.fn<(_options: unknown) => Promise<typeof handle>>(async () => handle);
+
+    await probeCursorSdkRuntime({ envKind: "posix" }, { spawnWorker });
+
+    expect(spawnWorker).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pinnedRoot: { packageRoot, source: "global-npm", version: "1.0.31" },
+      }),
+    );
+  });
+
+  it("keeps a recorded SDK installed when the probe never reaches a verdict", async () => {
+    const packageRoot = installedPackageDir("1.0.31");
+    recordNativeInstall(packageRoot);
+
+    // The worker helper failing to boot, or the host environment being
+    // rejected, says nothing about the package. It must not read as uninstalled.
+    await expect(
+      probeCursorSdkRuntime(undefined, {
+        spawnWorker: async () => {
+          throw new Error("worker helper missing");
+        },
+      }),
+    ).resolves.toMatchObject({
+      installed: true,
+      authState: "unknown",
+      version: "1.0.31",
+      source: "global-npm",
+      models: [],
+      diagnosticMessage: "worker helper missing",
+    });
+  });
+
+  it("keeps an auth failure an auth failure when an SDK is recorded", async () => {
+    const packageRoot = installedPackageDir("1.0.31");
+    recordNativeInstall(packageRoot);
+    const missingAuth = worker({
+      probe: async () => {
+        throw new CursorSdkWorkerRpcError({
+          name: "CursorSdkWorkerError",
+          message: "The Cursor SDK requires an API key.",
+          code: "auth_missing",
+        });
+      },
+    });
+
+    // The package loaded and asked for a key: remembering the install must not
+    // swallow the prompt that lets the user add one.
+    await expect(
+      probeCursorSdkRuntime(undefined, { spawnWorker: async () => missingAuth }),
+    ).resolves.toMatchObject({
+      installed: true,
+      authState: "missing",
+      version: "1.0.31",
+      source: "global-npm",
+      diagnosticCode: "auth_missing",
+    });
+  });
+
+  it("drops the record once discovery proves the package is gone", async () => {
+    const packageRoot = installedPackageDir("1.0.31");
+    recordNativeInstall(packageRoot);
+    const missingPackage = worker({
+      probe: async () => {
+        throw new CursorSdkWorkerRpcError({
+          name: "CursorSdkWorkerError",
+          message: "No external Cursor SDK package was found.",
+          code: "package_missing",
+        });
+      },
+    });
+
+    await expect(
+      probeCursorSdkRuntime(undefined, { spawnWorker: async () => missingPackage }),
+    ).resolves.toMatchObject({ installed: false, diagnosticCode: "package_missing" });
+
+    expect(readCursorSdkInstallPin({ pinsPath })).toBeUndefined();
   });
 
   it("probes models inside the target runtime and always disposes the worker", async () => {

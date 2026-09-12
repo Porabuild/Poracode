@@ -4361,6 +4361,7 @@ msgstr "在此设备上检测代理"
 #~ msgid "Detect from project files"
 #~ msgstr "从项目文件检测"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "已检测到"

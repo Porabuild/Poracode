@@ -4361,6 +4361,7 @@ msgstr "Phát hiện agent trên máy này"
 #~ msgid "Detect from project files"
 #~ msgstr "Phát hiện từ tệp dự án"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "Đã phát hiện"

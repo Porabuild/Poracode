@@ -272,8 +272,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 30,
-      // v30 mirrors supervisor STATUS_CACHE_VERSION=33: combine V2 catalogs and MCP/voice capabilities.
+      version: 31,
+      // v31 mirrors supervisor STATUS_CACHE_VERSION=34: re-probe so the Cursor SDK's
+      // resolved installation is recorded rather than carried over from a stale negative.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

@@ -4360,6 +4360,7 @@ msgstr "このマシンでエージェントを検出"
 #~ msgid "Detect from project files"
 #~ msgstr "プロジェクトファイルから検出"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "検出済み"

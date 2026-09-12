@@ -57,7 +57,7 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
   it("invalidates v11 caches produced before successful ACP sessions established auth", () => {
@@ -247,7 +247,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -291,7 +291,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -368,7 +368,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -415,7 +415,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -444,7 +444,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -477,7 +477,47 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v33 caches carrying a Cursor SDK install derived from PATH", () => {
+    // Pre-v34 detection re-derived the SDK install location on every pass by
+    // asking a package manager for its global root, so a cached
+    // `sdk.installed: false` could describe an installation that was intact on
+    // disk and merely unresolvable from that process. Serving it would keep the
+    // tile red until something forced a re-probe; v34 re-probes once so the
+    // resolved root is recorded instead.
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 33,
+        windows: [
+          {
+            kind: "cursor",
+            label: "Cursor",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { models: [] },
+            runtimeVariants: {
+              acp: { installed: true, presentationMode: "gui" },
+              sdk: { installed: false, presentationMode: "gui", authState: "unknown" },
+            },
+          },
+        ],
+      }),
+    );
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (distros: readonly string[]) => unknown;
+      }
+    ).readCachedStatuses([]);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

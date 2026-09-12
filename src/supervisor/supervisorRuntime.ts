@@ -1,7 +1,7 @@
 import { NativeMcpSetupCoordinator } from "./runtime/nativeMcpSetupCoordinator";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { join } from "node:path";
 import type {
   AgentKind,
   CaptureExperimentSnapshotPayload,
@@ -29,7 +29,7 @@ import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
 import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { msg } from "@/shared/messages";
-import { resolvePoracodePaths } from "@/shared/poracodePaths";
+import { poracodeBaseDirFromEnv, resolvePoracodePaths } from "@/shared/poracodePaths";
 import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
 import {
@@ -170,15 +170,12 @@ export class SupervisorRuntime {
   private wslBridgeClient: WslBridgeClient | undefined;
 
   constructor(private readonly emit: (event: SupervisorEvent) => void) {
-    // Defensive: `process.env.X = undefined` coerces to the literal string
-    // "undefined" in Node, and we've been bitten by that path creating
-    // `./undefined/settings.json` in cwd. Also reject bare relative paths —
-    // the supervisor must always operate out of an absolute baseDir so
-    // writes land somewhere predictable regardless of cwd at spawn time.
-    const rawBaseDir = process.env.PORACODE_DATA_DIR?.trim();
-    const envBaseDir =
-      rawBaseDir && rawBaseDir !== "undefined" && isAbsolute(rawBaseDir) ? rawBaseDir : undefined;
-    const baseDir = envBaseDir ?? join(homedir(), ".poracode");
+    // Defensive: the env parse (in `poracodeBaseDirFromEnv`) rejects the
+    // literal "undefined" string and bare relative paths — we've been bitten
+    // by that path creating `./undefined/settings.json` in cwd, and the
+    // supervisor must always operate out of an absolute baseDir so writes
+    // land somewhere predictable regardless of cwd at spawn time.
+    const baseDir = poracodeBaseDirFromEnv() ?? join(homedir(), ".poracode");
     this.baseDir = baseDir;
     this.mcpOAuthService = new McpOAuthService({ baseDir });
     this.mcpProbeService = new McpProbeService({
