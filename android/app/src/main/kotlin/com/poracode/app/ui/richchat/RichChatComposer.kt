@@ -3,13 +3,17 @@ package com.poracode.app.ui.richchat
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
@@ -36,11 +40,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.CircleShape
 import com.poracode.app.R
 import com.poracode.app.chat.RichContextUsage
 import com.poracode.app.chat.RichPromptSegment
@@ -86,6 +92,8 @@ fun RichChatComposer(
     onRemoveAttachment: (UploadedAttachment) -> Unit,
     onCameraUnavailable: () -> Unit = {},
     onSend: () -> Unit,
+    /** Long-press on send while a turn is active: queue instead of steer. */
+    onQueueSend: (() -> Unit)? = null,
     onInterrupt: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -281,13 +289,35 @@ fun RichChatComposer(
                         )
                     }
                 } else {
-                    FilledIconButton(
-                        onClick = onSend,
-                        enabled = enabled && hasPrompt && !uploading,
-                        modifier = Modifier.testTag("rich_chat_send_message"),
+                    // Box + combinedClickable (not FilledIconButton): one
+                    // coordinated gesture detector, so a long-press cannot
+                    // also fire the click and queue AND steer the same draft.
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .testTag("rich_chat_send_message")
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (enabled && hasPrompt && !uploading) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                },
+                            )
+                            .combinedClickable(
+                                enabled = enabled && hasPrompt && !uploading,
+                                onClick = onSend,
+                                onLongClick = if (isTurnActive) onQueueSend else null,
+                            ),
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
+                            tint = if (enabled && hasPrompt && !uploading) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                            },
                             contentDescription = stringResource(
                                 if (isTurnActive) R.string.rich_chat_send_steer
                                 else R.string.rich_chat_send_message,

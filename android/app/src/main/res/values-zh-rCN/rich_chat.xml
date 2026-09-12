@@ -130,4 +130,14 @@
     <string name="rich_chat_app_controls">应用控制</string>
     <string name="rich_chat_remove_context">移除 %1$s</string>
     <string name="rich_chat_send_steer">发送后续指示</string>
+    <string name="rich_chat_queue_title">排队的后续消息（%1$d）</string>
+    <string name="rich_chat_queue_steer_now">立即转向</string>
+    <string name="rich_chat_queue_edit">编辑排队消息</string>
+    <string name="rich_chat_queue_remove">从队列中移除</string>
+    <string name="rich_chat_queue_move_up">在队列中上移</string>
+    <string name="rich_chat_queue_move_down">在队列中下移</string>
+    <string name="rich_chat_queue_paused">发送已暂停</string>
+    <string name="rich_chat_queue_resume">恢复</string>
+    <string name="rich_chat_queue_edit_title">编辑排队消息</string>
+    <string name="rich_chat_queue_save">保存</string>
 </resources>

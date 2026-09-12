@@ -109,6 +109,40 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
     ) = call("steer-set")
 
     override suspend fun clearSteer(lease: RichChatHostLease, threadId: String) = call("steer-clear")
+
+    override suspend fun queueFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        prompt: String,
+        config: JsonObject,
+        segments: JsonArray?,
+    ) = call("queue-set")
+
+    override suspend fun removeQueuedFollowUp(lease: RichChatHostLease, threadId: String, id: String) =
+        call("queue-remove")
+
+    override suspend fun reorderQueuedFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        id: String,
+        beforeId: String?,
+    ) = call("queue-reorder")
+
+    override suspend fun editQueuedFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ) = call("queue-edit")
+
+    override suspend fun steerQueuedFollowUp(lease: RichChatHostLease, threadId: String, id: String) =
+        call("queue-steer")
+
+    override suspend fun pauseFollowUps(lease: RichChatHostLease, threadId: String, id: String) =
+        call("queue-pause")
+
+    override suspend fun resumeFollowUps(lease: RichChatHostLease, threadId: String) =
+        call("queue-resume")
+
     override suspend fun threadCommand(
         lease: RichChatHostLease,
         threadId: String,

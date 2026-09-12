@@ -61,6 +61,7 @@ class RichChatResourceTest {
             "rich_chat_activity_count" to listOf("%1\$d"),
             "rich_chat_plan_step_description" to listOf("%1\$s", "%2\$s"),
             "rich_chat_remove_context" to listOf("%1\$s"),
+            "rich_chat_queue_title" to listOf("%1\$d"),
         )
     }
 }

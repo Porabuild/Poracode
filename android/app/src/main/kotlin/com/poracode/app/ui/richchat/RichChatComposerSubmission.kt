@@ -8,6 +8,7 @@ import com.poracode.app.chat.toJsonArrayOrNull
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.session.richchat.RichChatOperationResult
 import com.poracode.app.session.richchat.RichChatSessionRuntime
+import com.poracode.app.session.richchat.queueFollowUp
 import com.poracode.app.transport.richchat.RequestResolution
 import com.poracode.app.transport.richchat.ThreadSteerInput
 import kotlinx.serialization.json.JsonObject
@@ -21,6 +22,7 @@ internal suspend fun submitRichChatComposer(
     attachments: List<UploadedAttachment>,
     isTurnActive: Boolean,
     activeRequest: RichOpenRequest?,
+    queueInsteadOfSteer: Boolean = false,
 ): RichChatOperationResult<Unit>? {
     val prompt = RichChatUiLogic.composerPrompt(draft, queuedSegments)
         ?: return null
@@ -32,21 +34,41 @@ internal suspend fun submitRichChatComposer(
             else -> return result
         }
     }
-    return if (isTurnActive) {
-        runtime.chat.setSteer(
-            ThreadSteerInput(
+    return when (followUpSubmitAction(isTurnActive, queueInsteadOfSteer)) {
+        RichFollowUpSubmitAction.STEER ->
+            runtime.chat.setSteer(
+                ThreadSteerInput(
+                    prompt = prompt,
+                    config = configuration.toJsonObject(),
+                    segments = segments,
+                ),
+            )
+        RichFollowUpSubmitAction.QUEUE ->
+            runtime.chat.queueFollowUp(
                 prompt = prompt,
                 config = configuration.toJsonObject(),
                 segments = segments,
-            ),
-        )
-    } else {
-        runtime.chat.send(
-            prompt = prompt,
-            config = configuration,
-            segments = segments,
-        )
+            )
+        RichFollowUpSubmitAction.SEND ->
+            runtime.chat.send(
+                prompt = prompt,
+                config = configuration,
+                segments = segments,
+            )
     }
+}
+
+internal enum class RichFollowUpSubmitAction { SEND, STEER, QUEUE }
+
+/** Desktop parity: sending while a turn is active steers by default; the
+ * composer's opposite-mode affordance (long-press on mobile) queues instead. */
+internal fun followUpSubmitAction(
+    isTurnActive: Boolean,
+    queueInsteadOfSteer: Boolean,
+): RichFollowUpSubmitAction = when {
+    !isTurnActive -> RichFollowUpSubmitAction.SEND
+    queueInsteadOfSteer -> RichFollowUpSubmitAction.QUEUE
+    else -> RichFollowUpSubmitAction.STEER
 }
 
 internal fun RichChatUiLogic.composerPrompt(

@@ -135,4 +135,14 @@
     <string name="rich_chat_app_controls">App controls</string>
     <string name="rich_chat_remove_context">Remove %1$s</string>
     <string name="rich_chat_send_steer">Send follow-up</string>
+    <string name="rich_chat_queue_title">Queued follow-ups (%1$d)</string>
+    <string name="rich_chat_queue_steer_now">Steer now</string>
+    <string name="rich_chat_queue_edit">Edit queued message</string>
+    <string name="rich_chat_queue_remove">Remove from queue</string>
+    <string name="rich_chat_queue_move_up">Move up in queue</string>
+    <string name="rich_chat_queue_move_down">Move down in queue</string>
+    <string name="rich_chat_queue_paused">Delivery paused</string>
+    <string name="rich_chat_queue_resume">Resume</string>
+    <string name="rich_chat_queue_edit_title">Edit queued message</string>
+    <string name="rich_chat_queue_save">Save</string>
 </resources>

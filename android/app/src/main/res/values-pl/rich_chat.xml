@@ -135,4 +135,14 @@
     <string name="rich_chat_app_controls">Sterowanie aplikacją</string>
     <string name="rich_chat_remove_context">Usuń %1$s</string>
     <string name="rich_chat_send_steer">Wyślij instrukcję uzupełniającą</string>
+    <string name="rich_chat_queue_title">Zadania w kolejce (%1$d)</string>
+    <string name="rich_chat_queue_steer_now">Skieruj teraz</string>
+    <string name="rich_chat_queue_edit">Edytuj wiadomość w kolejce</string>
+    <string name="rich_chat_queue_remove">Usuń z kolejki</string>
+    <string name="rich_chat_queue_move_up">Przenieś wyżej w kolejce</string>
+    <string name="rich_chat_queue_move_down">Przenieś niżej w kolejce</string>
+    <string name="rich_chat_queue_paused">Dostarczanie wstrzymane</string>
+    <string name="rich_chat_queue_resume">Wznów</string>
+    <string name="rich_chat_queue_edit_title">Edytuj wiadomość w kolejce</string>
+    <string name="rich_chat_queue_save">Zapisz</string>
 </resources>

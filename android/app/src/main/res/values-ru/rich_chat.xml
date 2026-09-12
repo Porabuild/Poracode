@@ -130,4 +130,14 @@
     <string name="rich_chat_app_controls">Управление приложением</string>
     <string name="rich_chat_remove_context">Удалить %1$s</string>
     <string name="rich_chat_send_steer">Отправить уточнение</string>
+    <string name="rich_chat_queue_title">Отложенные задания (%1$d)</string>
+    <string name="rich_chat_queue_steer_now">Направить сейчас</string>
+    <string name="rich_chat_queue_edit">Изменить сообщение в очереди</string>
+    <string name="rich_chat_queue_remove">Убрать из очереди</string>
+    <string name="rich_chat_queue_move_up">Выше в очереди</string>
+    <string name="rich_chat_queue_move_down">Ниже в очереди</string>
+    <string name="rich_chat_queue_paused">Доставка приостановлена</string>
+    <string name="rich_chat_queue_resume">Возобновить</string>
+    <string name="rich_chat_queue_edit_title">Изменить сообщение в очереди</string>
+    <string name="rich_chat_queue_save">Сохранить</string>
 </resources>

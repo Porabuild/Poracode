@@ -180,70 +180,62 @@ fun RichChatThreadScreen(
         }
     }
 
+    /** Sends, or while a turn is active steers by default / queues on the
+     * long-press affordance — desktop parity through followUpSubmitAction. */
+    fun submitComposer(queueInsteadOfSteer: Boolean) {
+        scope.launch {
+            when (
+                submitRichChatComposer(
+                    runtime = runtime,
+                    draft = draft,
+                    configuration = composerConfiguration,
+                    queuedSegments = queuedSegments,
+                    attachments = attachments,
+                    isTurnActive = isTurnActive,
+                    activeRequest = state.transcript?.openRequests?.firstOrNull(),
+                    queueInsteadOfSteer = queueInsteadOfSteer,
+                )
+            ) {
+                is RichChatOperationResult.Success -> {
+                    draft = ""
+                    attachments = emptyList()
+                    queuedSegments = emptyList()
+                }
+                else -> Unit
+            }
+        }
+    }
+
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(title, maxLines = 1)
-                        thread?.let {
-                            Text(
-                                stringResource(R.string.thread_status_line, it.agentKind, it.status),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        GitSummaryText.CompactLine(
-                            summary = gitSummary,
-                            modifier = Modifier.padding(top = 2.dp),
-                        )
-                    }
-                },
-                navigationIcon = {
-                    if (showBack) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.rich_chat_back),
-                            )
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = runtime::refreshSelectedThread,
-                        enabled = state.selection != null && !refreshing && !mutating,
-                    ) {
-                        Icon(
-                            Icons.Outlined.Refresh,
-                            contentDescription = stringResource(R.string.rich_chat_refresh_transcript),
-                        )
-                    }
-                    if (state.selection != null) {
-                        IconButton(
-                            onClick = { showCloseDialog = true },
-                            enabled = canMutate,
-                            modifier = Modifier.semantics { contentDescription = closeThreadLabel },
-                        ) {
-                            Icon(Icons.Outlined.PowerSettingsNew, contentDescription = null)
-                        }
-                    }
-                    if (thread != null && projectLocation != null) {
-                        ThreadLifecycleActions(
-                            thread = thread,
-                            projectLocation = projectLocation,
-                            controller = threadLifecycleController,
-                            enabled = canMutate,
-                            onThreadRemoved = onBack,
-                        )
-                    }
-                },
+            RichChatThreadTopBar(
+                title = title,
+                thread = thread,
+                gitSummary = gitSummary,
+                showBack = showBack,
+                hasSelection = state.selection != null,
+                refreshing = refreshing,
+                mutating = mutating,
+                canMutate = canMutate,
+                closeThreadLabel = closeThreadLabel,
+                runtime = runtime,
+                threadLifecycleController = threadLifecycleController,
+                projectLocation = projectLocation,
+                onBack = onBack,
+                onShowCloseDialog = { showCloseDialog = true },
             )
         },
         bottomBar = {
             if (!ThreadPresentationPolicy.isTerminal(thread?.presentationMode)) {
                 Column(Modifier.imePadding().navigationBarsPadding()) {
+                    state.transcript?.followUpQueue?.let { queue ->
+                        RichFollowUpQueueSection(
+                            runtime = runtime,
+                            queue = queue,
+                            enabled = canOperate,
+                        )
+                    }
                     RichChatComposer(
                         contextKey = threadId,
                         contextUsage = state.transcript?.contextUsage,
@@ -293,26 +285,8 @@ fun RichChatThreadScreen(
                         },
                         onRemoveAttachment = { target -> attachments = attachments - target },
                         onCameraUnavailable = { attachmentError = AttachmentUiError.CameraUnavailable },
-                        onSend = {
-                            scope.launch {
-                                when (submitRichChatComposer(
-                                    runtime = runtime,
-                                    draft = draft,
-                                    configuration = composerConfiguration,
-                                    queuedSegments = queuedSegments,
-                                    attachments = attachments,
-                                    isTurnActive = isTurnActive,
-                                    activeRequest = state.transcript?.openRequests?.firstOrNull(),
-                                )) {
-                                    is RichChatOperationResult.Success -> {
-                                        draft = ""
-                                        attachments = emptyList()
-                                        queuedSegments = emptyList()
-                                    }
-                                    else -> Unit
-                                }
-                            }
-                        },
+                        onSend = { submitComposer(queueInsteadOfSteer = false) },
+                        onQueueSend = { submitComposer(queueInsteadOfSteer = true) },
                         onInterrupt = { scope.launch { runtime.chat.interrupt() } },
                     )
                 }

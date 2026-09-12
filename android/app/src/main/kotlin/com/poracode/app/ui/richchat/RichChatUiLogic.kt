@@ -4,6 +4,7 @@ import com.poracode.app.chat.RichContentBlock
 import com.poracode.app.chat.RichContentDecoder
 import com.poracode.app.chat.RichImagePolicy
 import com.poracode.app.chat.RichItemTypes
+import com.poracode.app.chat.RichPendingSteer
 import com.poracode.app.chat.RichRemoteImageRef
 import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.model.ProjectLocation
@@ -35,6 +36,35 @@ sealed interface RichImageSource {
     data class Local(val path: String) : RichImageSource
     data class Runtime(val ref: RichRemoteImageRef) : RichImageSource
 }
+
+/**
+ * Stable `beforeId` anchors for queue reordering: the id of the item that
+ * will sit AFTER the moved one, or the tail. None means the move is a
+ * boundary no-op the caller can skip.
+ */
+internal sealed interface QueueReorderTarget {
+    data class Before(val id: String) : QueueReorderTarget
+    data object Tail : QueueReorderTarget
+    data object None : QueueReorderTarget
+}
+
+internal fun queueMoveUpTarget(
+    items: List<RichPendingSteer>,
+    index: Int,
+): QueueReorderTarget {
+    if (index <= 0 || index >= items.size) return QueueReorderTarget.None
+    return QueueReorderTarget.Before(items[index - 1].id)
+}
+
+internal fun queueMoveDownTarget(
+    items: List<RichPendingSteer>,
+    index: Int,
+): QueueReorderTarget {
+    if (index < 0 || index >= items.size - 1) return QueueReorderTarget.None
+    val after = index + 2
+    return if (after < items.size) QueueReorderTarget.Before(items[after].id) else QueueReorderTarget.Tail
+}
+
 
 object RichChatUiLogic {
     private val preferredStreams = listOf(

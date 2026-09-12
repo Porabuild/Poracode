@@ -11,6 +11,7 @@ import com.poracode.app.chat.RichThreadState
 import com.poracode.app.model.ThreadConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -108,6 +109,49 @@ class RichChatFollowUpQueueTest {
             snapshot(lease, seq = 21, followUpQueuePresent = true),
         )
         assertNull(controller.state.value.transcript?.followUpQueue)
+    }
+
+    @Test
+    fun queueMutationsRideTheOperateGatewayOperations() = runTest {
+        val session = MutableStateFlow<RichChatHostLease?>(richLease())
+        val gateway = FakeRichChatSessionGateway()
+        val controller = RichChatController(session, gateway)
+        controller.selectThread("thread-a")
+
+        assertTrue(
+            controller.queueFollowUp(
+                prompt = "Run the integration suite.",
+                config = kotlinx.serialization.json.buildJsonObject { },
+            ) is RichChatOperationResult.Success,
+        )
+        assertTrue(controller.steerQueuedFollowUp("queue-1") is RichChatOperationResult.Success)
+        assertTrue(controller.removeQueuedFollowUp("queue-1") is RichChatOperationResult.Success)
+        assertTrue(controller.pauseFollowUps("queue-1") is RichChatOperationResult.Success)
+        assertTrue(controller.resumeFollowUps() is RichChatOperationResult.Success)
+        assertTrue(
+            controller.reorderQueuedFollowUp("queue-2", null) is RichChatOperationResult.Success,
+        )
+        assertTrue(
+            controller.editQueuedFollowUp(
+                kotlinx.serialization.json.buildJsonObject {
+                    put("id", "queue-1")
+                    put("expectedStagedAt", 1L)
+                    put("prompt", "Edited.")
+                },
+            ) is RichChatOperationResult.Success,
+        )
+        assertEquals(
+            listOf(
+                "queue-set",
+                "queue-steer",
+                "queue-remove",
+                "queue-pause",
+                "queue-resume",
+                "queue-reorder",
+                "queue-edit",
+            ),
+            gateway.calls.filter { it.startsWith("queue-") },
+        )
     }
 
     // MARK: - Helpers

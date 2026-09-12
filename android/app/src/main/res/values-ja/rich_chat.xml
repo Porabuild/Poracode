@@ -130,4 +130,14 @@
     <string name="rich_chat_app_controls">アプリ操作</string>
     <string name="rich_chat_remove_context">%1$sを削除</string>
     <string name="rich_chat_send_steer">フォローアップを送信</string>
+    <string name="rich_chat_queue_title">待機中のフォローアップ (%1$d)</string>
+    <string name="rich_chat_queue_steer_now">今すぐステア</string>
+    <string name="rich_chat_queue_edit">待機中のメッセージを編集</string>
+    <string name="rich_chat_queue_remove">キューから削除</string>
+    <string name="rich_chat_queue_move_up">キュー内で上へ移動</string>
+    <string name="rich_chat_queue_move_down">キュー内で下へ移動</string>
+    <string name="rich_chat_queue_paused">配信は一時停止中</string>
+    <string name="rich_chat_queue_resume">再開</string>
+    <string name="rich_chat_queue_edit_title">待機中のメッセージを編集</string>
+    <string name="rich_chat_queue_save">保存</string>
 </resources>

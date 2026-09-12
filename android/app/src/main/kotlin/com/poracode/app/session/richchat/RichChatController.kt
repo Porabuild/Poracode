@@ -32,6 +32,10 @@ class RichChatController(
     val selection: StateFlow<RichChatThreadLease?> = mutableSelection.asStateFlow()
     private val owner = RichChatOperationOwner()
     private val sendMutex = Mutex()
+
+    /** Seam for the queue-operation extensions file (size-gate split). */
+    internal val sessionGateway: RichChatSessionGateway
+        get() = gateway
     private var threadGeneration = 0L
     private val frameBuffer = RichChatLiveFrameBuffer()
 
@@ -346,7 +350,7 @@ class RichChatController(
         }
     }
 
-    private suspend fun mutate(
+    internal suspend fun mutate(
         kind: String,
         capability: RichChatCapability,
         operation: suspend (RichChatThreadLease) -> Unit,

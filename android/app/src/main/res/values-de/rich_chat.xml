@@ -130,4 +130,14 @@
     <string name="rich_chat_app_controls">App-Steuerung</string>
     <string name="rich_chat_remove_context">%1$s entfernen</string>
     <string name="rich_chat_send_steer">Folgeanweisung senden</string>
+    <string name="rich_chat_queue_title">Wartende Folgeaufträge (%1$d)</string>
+    <string name="rich_chat_queue_steer_now">Jetzt steuern</string>
+    <string name="rich_chat_queue_edit">Wartende Nachricht bearbeiten</string>
+    <string name="rich_chat_queue_remove">Aus Warteschlange entfernen</string>
+    <string name="rich_chat_queue_move_up">In Warteschlange nach oben</string>
+    <string name="rich_chat_queue_move_down">In Warteschlange nach unten</string>
+    <string name="rich_chat_queue_paused">Zustellung pausiert</string>
+    <string name="rich_chat_queue_resume">Fortsetzen</string>
+    <string name="rich_chat_queue_edit_title">Wartende Nachricht bearbeiten</string>
+    <string name="rich_chat_queue_save">Speichern</string>
 </resources>
