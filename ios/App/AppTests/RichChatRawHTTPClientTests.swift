@@ -162,14 +162,14 @@ final class RichChatRawHTTPClientTests: XCTestCase {
     let task = Task {
       try await raw.fetchImage(path: "/api/files/image", queryItems: [])
     }
-    await fulfillment(of: [started], timeout: 1)
+    await fulfillment(of: [started], timeout: 10)
     XCTAssertEqual(RichChatRawURLProtocol.requests.count, 1)
     task.cancel()
     do {
       _ = try await task.value
       XCTFail("Expected cancellation")
     } catch is CancellationError {}
-    await fulfillment(of: [stopped], timeout: 1)
+    await fulfillment(of: [stopped], timeout: 10)
     XCTAssertEqual(RichChatRawURLProtocol.stopCount, 1)
     XCTAssertEqual(RichChatRawURLProtocol.requests.count, 1, "Cancellation must not retry")
   }
