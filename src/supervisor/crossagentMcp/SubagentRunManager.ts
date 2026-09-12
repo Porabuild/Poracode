@@ -33,12 +33,11 @@ import type {
  * Default `wait_for_agent` / `run_agent` blocking timeout. Blocking waits must
  * finish under every MCP client's own tool-call kill timer, or the client
  * aborts the HTTP call and the caller sees an opaque transport error instead
- * of the graceful `status: "running"` re-poll result. Known ceilings: Codex
- * `tool_timeout_sec` and Gemini's per-server `timeout` (both set to 300s in
- * their `mcpCrossagent.ts` builders — keep in sync), and undici's 300s
- * default headers timeout for fetch-based clients (Claude SDK).
+ * of the graceful `status: "running"` re-poll result. Keep below the shared
+ * 300s MCP timeout declared in runtime/threadSession/spawnPipeline.ts and
+ * undici's 300s default headers timeout for fetch-based clients.
  */
-export const DEFAULT_WAIT_TIMEOUT_MS = 120_000;
+export const DEFAULT_WAIT_TIMEOUT_MS = 240_000;
 /** Hard cap on caller-supplied `timeout_s` — see {@link DEFAULT_WAIT_TIMEOUT_MS}. */
 export const MAX_WAIT_TIMEOUT_MS = 240_000;
 /** Max concurrent live children per parent thread. */
