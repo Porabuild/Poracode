@@ -4,6 +4,7 @@ import type {
   Project,
   ProjectLocation,
   PendingSteerState,
+  ThreadFollowUpQueueState,
   ThreadConfig,
 } from "@/shared/contracts";
 import {
@@ -18,6 +19,7 @@ import { ThreadContextDock } from "./ThreadContextDock";
 import { ThreadErrorDock } from "./ThreadErrorDock";
 import { ThreadGoalDock } from "./ThreadGoalDock";
 import { ThreadPendingSteerStrip } from "./ThreadPendingSteerStrip";
+import { ThreadFollowUpQueue } from "./ThreadFollowUpQueue";
 import { ThreadRuntimeRequestPanel } from "./ThreadRuntimeRequestPanel";
 import { ThreadAuthRequiredDock } from "./ThreadAuthRequiredDock";
 import { ThreadBackgroundTasksDock } from "./ThreadBackgroundTasksDock";
@@ -51,6 +53,7 @@ type ThreadComposerDocksProps = {
   todoDockState: ThreadTodoDockState | null;
   todoDockCollapsed: boolean;
   pendingSteer: PendingSteerState | undefined;
+  followUpQueue?: ThreadFollowUpQueueState | null | undefined;
   activeRuntimeRequest: OpenRuntimeRequest | undefined;
   filteredCommands: AgentSlashCommand[];
   slashActiveIndex: number;
@@ -62,6 +65,7 @@ type ThreadComposerDocksProps = {
   onTodoDockCollapsedChange: (collapsed: boolean) => void;
   onTodoDockRetire?: () => void;
   onCancelPendingSteer: () => void;
+  onRestoreComposerFocus?: (() => void) | undefined;
   onOpenProjectRelativePath?: ((path: string, lineNumber?: number) => void) | undefined;
   onSlashActiveIndexChange: (index: number) => void;
   onSelectCommand: (command: AgentSlashCommand) => void;
@@ -96,6 +100,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
     todoDockState,
     todoDockCollapsed,
     pendingSteer,
+    followUpQueue,
     activeRuntimeRequest,
     filteredCommands,
     slashActiveIndex,
@@ -175,6 +180,12 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
       {pendingSteer ? (
         <ThreadPendingSteerStrip pending={pendingSteer} onCancel={onCancelPendingSteer} />
       ) : null}
+      <ThreadFollowUpQueue
+        key={threadId}
+        threadId={threadId}
+        queue={followUpQueue ?? null}
+        onRestoreFocus={props.onRestoreComposerFocus}
+      />
       {activeRuntimeRequest ? (
         <ThreadRuntimeRequestPanel
           key={activeRuntimeRequest.requestId}

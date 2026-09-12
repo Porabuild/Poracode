@@ -57,6 +57,10 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EEditQueuedThreadFollowUpU2ERequest: RemoteRootCodec<ProcedureeditQueuedThreadFollowUpRequest_d8eb2e4656> = .init(id: "procedure.editQueuedThreadFollowUp.request", schema: RemoteSchemas.schema_d8eb2e4656d10170)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EFinalizeFileCheckpointU2ERequest: RemoteRootCodec<ProcedurefinalizeFileCheckpointRequest_9cb900aa2d> = .init(id: "procedure.finalizeFileCheckpoint.request", schema: RemoteSchemas.schema_9cb900aa2dda44d0)
 }
 
@@ -126,6 +130,14 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EGetMcpOauthStatusU2EResult: RemoteRootCodec<ProceduregetMcpOauthStatusResult_51733da614> = .init(id: "procedure.getMcpOauthStatus.result", schema: RemoteSchemas.schema_51733da614782090)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGetThreadFollowUpQueueU2ERequest: RemoteRootCodec<ProceduregetThreadFollowUpQueueRequest_09b78d9c1d> = .init(id: "procedure.getThreadFollowUpQueue.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGetThreadFollowUpQueueU2EResult: RemoteRootCodec<ProceduregetThreadFollowUpQueueResult_91dcfb42aa> = .init(id: "procedure.getThreadFollowUpQueue.result", schema: RemoteSchemas.schema_91dcfb42aac98166)
 }
 
 public extension RemoteRootCodecs {
@@ -434,16 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let procedureU2EGitRevertAllU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85> = .init(id: "procedure.gitRevertAll.request", schema: RemoteSchemas.schema_5e3a19fb856f8915)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EGitStageU2ERequest: RemoteRootCodec<ProceduregitRevertRequest_39f0b40d9d> = .init(id: "procedure.gitStage.request", schema: RemoteSchemas.schema_39f0b40d9df37da7)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EGitStageAllU2ERequest: RemoteRootCodec<ProceduredetectSetupScriptRequest_5e3a19fb85> = .init(id: "procedure.gitStageAll.request", schema: RemoteSchemas.schema_5e3a19fb856f8915)
-}
-
-public extension RemoteRootCodecs {
-  static let procedureU2EGitSwitchBranchU2ERequest: RemoteRootCodec<ProceduregitSwitchBranchRequest_2e6d7dedeb> = .init(id: "procedure.gitSwitchBranch.request", schema: RemoteSchemas.schema_2e6d7dedeb6dc9a6)
 }

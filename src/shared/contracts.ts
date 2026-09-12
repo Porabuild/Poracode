@@ -27,3 +27,4 @@ export * from "./contracts/experiment";
 export * from "./contracts/plugin";
 export * from "./contracts/workspace";
 export * from "./contracts/computerUse";
+export * from "./contracts/nativeMcpSetup";

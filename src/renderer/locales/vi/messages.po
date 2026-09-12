@@ -785,6 +785,10 @@ msgid "a supported coding agent"
 msgstr "một tác nhân mã hóa được hỗ trợ"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "Đã có cuộc trò chuyện bằng giọng nói đang hoạt động."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "Chủ sở hữu cây làm việc yêu cầu một nhánh nguồn đã đóng băng"
 
@@ -1098,6 +1102,10 @@ msgstr "Thêm vào màn hình chính"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
 msgstr "Thêm việc cần làm"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Add user MCP servers in MCP Servers settings to install them here."
+msgstr "Thêm máy chủ MCP của người dùng trong cài đặt Máy chủ MCP để cài đặt tại đây."
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
@@ -2175,6 +2183,7 @@ msgstr "Không thể kết nối tới máy chủ từ xa. Hãy kiểm tra máy 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2224,6 +2233,10 @@ msgstr "Hủy bộ chọn"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Cancel removing project"
 msgstr "Hủy xóa dự án"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "Hủy kết nối thoại"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2513,6 +2526,10 @@ msgstr "Chọn việc Poracode sẽ làm với pull request mới: không làm g
 msgid "Choose when this machine stays awake."
 msgstr "Chọn khi máy này được giữ ở trạng thái hoạt động."
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "Chọn xem các tin nhắn trò chuyện được gửi khi tác nhân đang làm việc sẽ điều hướng phản hồi hiện tại hay được xếp hàng cho phản hồi tiếp theo. {followUpShortcut} sử dụng hành động ngược lại."
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
@@ -2704,7 +2721,8 @@ msgstr "Đóng trình duyệt"
 msgid "Close changes"
 msgstr "Đóng thay đổi"
 
-#: src/mobile/views/QuickCompose.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/views/QuickCompose.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "Close composer"
 #~ msgstr "Đóng trình soạn thảo"
 
@@ -2883,6 +2901,10 @@ msgstr "Đóng bảng quy trình làm việc"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Đã đóng"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3283,6 +3305,10 @@ msgstr "Đã kết nối"
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "Đang kết nối tới trình duyệt trên desktop…"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "Đang kết nối thoại…"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
 msgstr "Đang kết nối..."
@@ -3539,7 +3565,7 @@ msgstr "Sao chép URL Tailscale"
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Sao chép các thay đổi chưa được cam kết tại đây (giữ chúng trên nhánh này)"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/mobile/views/PortsView.tsx
 #~ msgid "Copy URL"
 #~ msgstr "Sao chép URL"
 
@@ -3881,6 +3907,10 @@ msgstr "Dùng AI chọn ứng viên thắng"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crowned"
 msgstr "Đã chọn là ứng viên thắng"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
@@ -4467,6 +4497,10 @@ msgstr "Đã tắt"
 msgid "Disabled globally"
 msgstr "Đã tắt trên toàn hệ thống"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Disabled server or unsupported native options"
+msgstr "Máy chủ bị tắt hoặc có tùy chọn gốc không được hỗ trợ"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "Khi tắt một skill, skill đó được chuyển khỏi các thư mục skill đang hoạt động và các bản sao của nhà cung cấp do Poracode quản lý sẽ bị xóa. Các tệp vẫn được giữ lại để bạn có thể bật lại."
@@ -4715,6 +4749,11 @@ msgstr "Chỉnh sửa máy chủ MCP"
 msgid "Edit profile"
 msgstr "Chỉnh sửa hồ sơ"
 
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "Sửa tin nhắn tiếp theo trong hàng đợi"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Edit schedule"
@@ -4854,6 +4893,10 @@ msgstr "Các plugin đã bật vẫn hoạt động cho các luồng mới"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "Bật <0>cookie</0> và <1>bộ nhớ</1>. Cookie có thể chứa mã thông báo phiên và bộ lưu trữ thường giữ trạng thái xác thực — chỉ bật khi bạn tin cậy cả tác nhân và các trang web mà nó truy cập."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "Kết thúc trò chuyện thoại"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5021,6 +5064,10 @@ msgstr "Loại khỏi đồng bộ hóa"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Loại trừ mẫu"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Existing or edited native entry; left unchanged"
+msgstr "Mục cấu hình gốc đã tồn tại hoặc đã được chỉnh sửa; giữ nguyên"
 
 #. placeholder {0}: parsed.exitCode
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
@@ -5580,6 +5627,11 @@ msgstr "Thư mục chứa các cây làm việc của dự án này. Đặt lạ
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Follow up..."
 #~ msgstr "Tiếp tục..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "Cách xử lý tin nhắn tiếp theo"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -6372,6 +6424,7 @@ msgstr "cài đặt"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Install"
 msgstr "cài đặt"
 
@@ -6569,6 +6622,7 @@ msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên má
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
 msgstr "Đã cài đặt"
 
@@ -6837,6 +6891,18 @@ msgstr "Liệt kê nhiệm vụ"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Live {0}"
 #~ msgstr "Trực tuyến {0}"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "Trò chuyện thoại trực tiếp"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "Trò chuyện thoại trực tiếp không khả dụng cho luồng này."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "Trò chuyện thoại trực tiếp yêu cầu đăng nhập bằng tài khoản có gói đăng ký của nhà cung cấp này."
 
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7464,6 +7530,10 @@ msgstr "Quyền truy cập micrô bị tắt."
 msgid "Microphone input level"
 msgstr "Mức đầu vào micrô"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "Đã tắt micrô"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Quyền sử dụng micrô đã bị từ chối."
@@ -7723,6 +7793,10 @@ msgstr "Đang di chuyển các thay đổi…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "Tắt micrô"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7750,6 +7824,14 @@ msgstr "Đặt tên cho dự án của bạn và chọn nơi để tạo nó."
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Bản địa"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP configuration updated. Start a new CLI session to use it."
+msgstr "Đã cập nhật cấu hình MCP gốc. Hãy bắt đầu phiên CLI mới để sử dụng."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP setup"
+msgstr "Thiết lập MCP gốc"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
@@ -7916,6 +7998,7 @@ msgstr "Tab mới trong nhóm"
 
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -8420,7 +8503,8 @@ msgstr "Không phát hiện thấy tác nhân được hỗ trợ nào"
 msgid "No tags — the entry stops influencing tag affinity."
 msgstr "Không có thẻ — mục này sẽ không còn ảnh hưởng đến độ ưu tiên theo thẻ."
 
-#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "No thread selected"
 #~ msgstr "Chưa chọn luồng"
 
@@ -8505,6 +8589,7 @@ msgstr "chưa được cài đặt"
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "Chưa được cài đặt"
 
@@ -8983,6 +9068,10 @@ msgstr "Hook trạng thái tùy chọn. Các hook đã cài đặt sẽ tự đ�
 #~ msgid "Optional workflow_dispatch input values."
 #~ msgstr "Các giá trị đầu vào workflow_dispatch không bắt buộc."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Optional: copy selected user MCP servers into this CLI's native configuration for all its sessions. Commands, arguments, and credentials are copied only when you click Install. Changes are not synced automatically."
+msgstr "Tùy chọn: sao chép các máy chủ MCP của người dùng đã chọn vào cấu hình gốc của CLI này cho mọi phiên. Lệnh, đối số và thông tin xác thực chỉ được sao chép khi bạn nhấp Cài đặt. Các thay đổi không được đồng bộ tự động."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
 msgstr "Tùy chọn. Khi bật, tailscale serve sẽ chạy cho cổng truy cập từ xa, sau đó các mã ghép đôi mới dùng URL HTTPS MagicDNS của tailnet của bạn. Để tắt nếu muốn dùng địa chỉ LAN hoặc URL công khai bên dưới."
@@ -9091,7 +9180,8 @@ msgstr "Ghép đôi điện thoại, máy tính bảng hoặc trình duyệt v�
 #~ msgid "Pair a remote machine…"
 #~ msgstr "Ghép nối máy từ xa…"
 
-#: src/mobile/components.tsx src/mobile/remoteConnectionState.ts
+#: src/mobile/components.tsx
+#: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "Ghép đôi lại"
 
@@ -9251,6 +9341,7 @@ msgid "Pause goal"
 msgstr "Tạm dừng mục tiêu"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9325,7 +9416,8 @@ msgstr "Cá nhân"
 msgid "Pi"
 msgstr "Pi"
 
-#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "Pick a thread from the list to follow the agent from here."
 #~ msgstr "Chọn một luồng trong danh sách để theo dõi agent từ đây."
 
@@ -10042,6 +10134,14 @@ msgstr "Mã QR"
 msgid "Questions"
 msgstr "Câu hỏi"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "Xếp hàng"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "Xếp tin nhắn vào hàng đợi"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "Đã xếp hàng"
@@ -10051,6 +10151,18 @@ msgstr "Đã xếp hàng"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0} đang chờ cập nhật lên v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "Không tìm thấy tin nhắn tiếp theo trong hàng đợi: {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "Tin nhắn tiếp theo trong hàng đợi"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "Tin nhắn tiếp theo trong hàng đợi chỉ được hỗ trợ trong các cuộc trò chuyện."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10225,6 +10337,7 @@ msgstr "Ẩn nội dung thông báo"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Làm mới"
@@ -10497,6 +10610,10 @@ msgstr "Xóa dự án"
 msgid "Remove Project"
 msgstr "Xóa dự án"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "Xóa tin nhắn tiếp theo trong hàng đợi"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Xóa phím tắt"
@@ -10605,6 +10722,10 @@ msgstr "Sắp xếp lại {0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Sắp xếp lại {label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "Sắp xếp lại tin nhắn trong hàng đợi"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10776,6 +10897,10 @@ msgstr "Tiếp tục"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Tiếp tục mục tiêu"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "Tiếp tục tin nhắn tiếp theo trong hàng đợi"
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
@@ -11116,6 +11241,7 @@ msgstr "Độ bão hòa và độ sáng"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12296,6 +12422,10 @@ msgstr "Bắt đầu mỗi ngày với các ưu tiên và bước tiếp theo."
 msgid "Start from scratch"
 msgstr "Bắt đầu lại từ đầu"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "Bắt đầu trò chuyện thoại trực tiếp"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12407,6 +12537,27 @@ msgstr "Tình trạng:"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "stdio (local command)"
 msgstr "stdio (lệnh cục bộ)"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "Điều hướng"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "Điều hướng lượt hiện tại"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "Điều hướng bằng tin nhắn trong hàng đợi"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "Việc điều hướng đã bị hủy trước khi tin nhắn được gửi."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "Việc điều hướng đã được thay bằng một tin nhắn mới hơn."
 
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
@@ -12983,6 +13134,10 @@ msgstr "Shell ứng dụng bình thường không thể hiển thị. Chẩn đo
 msgid "The remote server returned no pairing credential."
 msgstr "Máy chủ từ xa không trả về thông tin xác thực ghép nối."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "Không thể gửi tin nhắn thay thế."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Vị trí của kho lưu trữ trên đĩa. Hãy cập nhật nếu bạn đã di chuyển thư mục."
@@ -13059,6 +13214,10 @@ msgstr "Đường hầm SSH đã kết nối đến một máy chủ Poracode kh
 msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "Không có phiên của cuộc trò chuyện để xử lý tin nhắn tiếp theo trong hàng đợi."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Luồng sẽ chạy trong một cây làm việc riêng trên một nhánh mới."
@@ -13074,6 +13233,18 @@ msgstr "Thao tác cập nhật không thành công."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "Dịch vụ cập nhật tạm thời không khả dụng."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "Kết nối thoại thất bại. Hãy thử lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "Kết nối thoại đã hết thời gian chờ. Hãy thử lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "Đã hủy kết nối thoại."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13204,6 +13375,10 @@ msgstr "máy này"
 msgid "This machine"
 msgstr "Máy này"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "Tin nhắn này không còn trong hàng đợi. Bạn vẫn có thể sao chép nội dung đang chỉnh sửa."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Tên này được dành riêng cho máy chủ MCP tích hợp sẵn."
@@ -13258,6 +13433,15 @@ msgstr "dự án này"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Máy chủ từ xa của dự án này đang ngoại tuyến. Hãy kết nối lại để bắt đầu một luồng."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "Tin nhắn tiếp theo trong hàng đợi này đã thay đổi. Hãy mở lại trước khi lưu."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "Tin nhắn tiếp theo trong hàng đợi này đang được gửi."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "Dự án từ xa này không khả dụng. Hãy kết nối lại môi trường rồi thử lại."
@@ -13292,6 +13476,14 @@ msgstr "Máy chủ này chạy trên máy này và không khả dụng cho dự 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Phím tắt toàn hệ thống này không khả dụng. Hãy chọn tổ hợp phím khác."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "Cuộc trò chuyện này không hỗ trợ tin nhắn tiếp theo trong hàng đợi."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "Luồng này chưa sẵn sàng để điều hướng."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
@@ -13760,7 +13952,8 @@ msgstr "Không thể mở tệp"
 msgid "Unable to open the file in the editor"
 msgstr "Không thể mở tệp trong trình soạn thảo"
 
-#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Không thể ghép đôi với desktop đó."
 
@@ -13771,6 +13964,10 @@ msgstr "Không thể mở tệp trong trình soạn thảo"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to read experiment candidate status"
 msgstr "Không thể đọc trạng thái của ứng viên thử nghiệm"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to read native MCP configuration."
+msgstr "Không thể đọc cấu hình MCP gốc."
 
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/experimentDecisionActions.ts
@@ -13881,7 +14078,8 @@ msgstr "Không thể khởi động Tailscale."
 msgid "Unable to start the remote thread."
 msgstr "Không thể bắt đầu luồng từ xa."
 
-#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 #: src/mobile/views/NewThreadFlow.tsx
 #~ msgid "Unable to start the thread."
 #~ msgstr "Không thể khởi động luồng."
@@ -13931,6 +14129,10 @@ msgstr "Không thể cập nhật {0}."
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
 msgstr "Không thể cập nhật thẻ đã học."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to update native MCP configuration. Refresh and review the configuration before retrying."
+msgstr "Không thể cập nhật cấu hình MCP gốc. Hãy làm mới và xem lại cấu hình trước khi thử lại."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
@@ -14009,8 +14211,13 @@ msgstr "Chế độ xem thống nhất"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Uninstall"
 msgstr "Gỡ cài đặt"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Uninstall {name}"
+msgstr "Gỡ cài đặt {name}"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
@@ -14058,6 +14265,10 @@ msgstr "Bỏ đánh dấu xong"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Bỏ đánh dấu xong"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "Bật micrô"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

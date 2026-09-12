@@ -785,6 +785,10 @@ msgid "a supported coding agent"
 msgstr "支持的编码代理"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "已有正在进行的语音对话。"
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "工作树所有者需要冻结的源分支"
 
@@ -1098,6 +1102,10 @@ msgstr "添加到主屏幕"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
 msgstr "添加待办事项"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Add user MCP servers in MCP Servers settings to install them here."
+msgstr "请在“MCP 服务器”设置中添加用户 MCP 服务器，以便在此安装。"
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
@@ -2175,6 +2183,7 @@ msgstr "无法连接远程服务器。请确认其处于在线状态，然后重
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2224,6 +2233,10 @@ msgstr "取消选择器"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Cancel removing project"
 msgstr "取消移除项目"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "取消语音连接"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2513,6 +2526,10 @@ msgstr "选择 Poracode 对新拉取请求执行的操作：不执行任何操�
 msgid "Choose when this machine stays awake."
 msgstr "选择这台机器保持唤醒的时机。"
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "选择在智能体工作时发送的聊天消息是引导当前响应，还是排队等待下一次响应。{followUpShortcut} 使用相反的操作。"
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
@@ -2704,7 +2721,8 @@ msgstr "关闭浏览器"
 msgid "Close changes"
 msgstr "关闭更改"
 
-#: src/mobile/views/QuickCompose.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/views/QuickCompose.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "Close composer"
 #~ msgstr "关闭输入框"
 
@@ -2883,6 +2901,10 @@ msgstr "关闭工作流面板"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "已关闭"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3283,6 +3305,10 @@ msgstr "已连接"
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "正在连接桌面浏览器…"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "正在连接语音…"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
 msgstr "连接中..."
@@ -3539,7 +3565,7 @@ msgstr "复制 Tailscale URL"
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "将未提交的更改复制到此处（将它们保留在此分支上）"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/mobile/views/PortsView.tsx
 #~ msgid "Copy URL"
 #~ msgstr "复制 URL"
 
@@ -3881,6 +3907,10 @@ msgstr "由 AI 选择优胜者"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crowned"
 msgstr "已选为优胜者"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
@@ -4467,6 +4497,10 @@ msgstr "已禁用"
 msgid "Disabled globally"
 msgstr "已全局禁用"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Disabled server or unsupported native options"
+msgstr "服务器已禁用或原生配置不支持某些选项"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "禁用技能会将其移出活动技能文件夹，并删除由 Poracode 管理的提供商副本。技能文件会保留，以便你稍后重新启用。"
@@ -4715,6 +4749,11 @@ msgstr "编辑 MCP 服务器"
 msgid "Edit profile"
 msgstr "编辑资料"
 
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "编辑排队消息"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Edit schedule"
@@ -4854,6 +4893,10 @@ msgstr "已启用的插件会在新线程中保持开启"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "启用<0>cookie</0>和<1>存储</1>。Cookie 可以包含会话令牌，并且存储通常保存身份验证状态——仅当您信任代理及其访问的站点时才启用。"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "结束语音聊天"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5021,6 +5064,10 @@ msgstr "从同步中排除"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "排除模式"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Existing or edited native entry; left unchanged"
+msgstr "原生条目已存在或已被编辑；保持不变"
 
 #. placeholder {0}: parsed.exitCode
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
@@ -5580,6 +5627,11 @@ msgstr "存放此项目工作树的文件夹。重置以使用全局设置。"
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Follow up..."
 #~ msgstr "继续提问..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "后续消息行为"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -6372,6 +6424,7 @@ msgstr "安装"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Install"
 msgstr "安装"
 
@@ -6569,6 +6622,7 @@ msgstr "远程设备暂不支持安装、更新和登录。"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
 msgstr "已安装"
 
@@ -6837,6 +6891,18 @@ msgstr "列出任务"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Live {0}"
 #~ msgstr "在线 {0}"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "实时语音"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "此会话不支持实时语音。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "实时语音需要登录此提供商的订阅账户。"
 
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7463,6 +7529,10 @@ msgstr "麦克风访问已关闭。"
 msgid "Microphone input level"
 msgstr "麦克风输入电平"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "麦克风已静音"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "麦克风权限被拒绝。"
@@ -7722,6 +7792,10 @@ msgstr "正在移动更改…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "将麦克风静音"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7749,6 +7823,14 @@ msgstr "为您的项目命名并选择创建位置。"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "原生"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP configuration updated. Start a new CLI session to use it."
+msgstr "原生 MCP 配置已更新。请启动新的 CLI 会话以使用该配置。"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP setup"
+msgstr "原生 MCP 设置"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
@@ -7915,6 +7997,7 @@ msgstr "在分组中新建标签页"
 
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -8419,7 +8502,8 @@ msgstr "未检测到支持的代理"
 msgid "No tags — the entry stops influencing tag affinity."
 msgstr "无标签 - 此条目不再影响标签亲和性。"
 
-#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "No thread selected"
 #~ msgstr "未选择线程"
 
@@ -8504,6 +8588,7 @@ msgstr "未安装"
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "未安装"
 
@@ -8982,6 +9067,10 @@ msgstr "可选的状态挂钩。已安装的挂钩会自动更新；缺失的挂
 #~ msgid "Optional workflow_dispatch input values."
 #~ msgstr "可选的 workflow_dispatch 输入值。"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Optional: copy selected user MCP servers into this CLI's native configuration for all its sessions. Commands, arguments, and credentials are copied only when you click Install. Changes are not synced automatically."
+msgstr "可选：将选定的用户 MCP 服务器复制到此 CLI 的原生配置中，供其所有会话使用。仅在点击“安装”时才会复制命令、参数和凭据。更改不会自动同步。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
 msgstr "可选。启用后，会针对远程访问端口运行 tailscale serve，之后新的配对码会使用你的 tailnet 的 HTTPS MagicDNS URL。保持关闭则使用 LAN 地址或下方的公共 URL。"
@@ -9090,7 +9179,8 @@ msgstr "将手机、平板电脑或浏览器与此桌面配对。"
 #~ msgid "Pair a remote machine…"
 #~ msgstr "配对远程设备…"
 
-#: src/mobile/components.tsx src/mobile/remoteConnectionState.ts
+#: src/mobile/components.tsx
+#: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "重新配对"
 
@@ -9250,6 +9340,7 @@ msgid "Pause goal"
 msgstr "暂停目标"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9324,7 +9415,8 @@ msgstr "个人"
 msgid "Pi"
 msgstr "Pi"
 
-#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "Pick a thread from the list to follow the agent from here."
 #~ msgstr "从列表中选择一个线程，即可在此跟进代理。"
 
@@ -10041,6 +10133,14 @@ msgstr "二维码"
 msgid "Questions"
 msgstr "问题"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "排队"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "将消息排队"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "已排队"
@@ -10050,6 +10150,18 @@ msgstr "已排队"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0} 已排队等待更新到 v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "未找到排队的后续消息：{id}。"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "排队的后续消息"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "排队的后续消息仅支持聊天线程。"
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10224,6 +10336,7 @@ msgstr "隐藏通知内容"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "刷新"
@@ -10496,6 +10609,10 @@ msgstr "移除项目"
 msgid "Remove Project"
 msgstr "删除项目"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "移除排队的后续消息"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "移除快捷键"
@@ -10604,6 +10721,10 @@ msgstr "重新排序{0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "重新排序{label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "调整排队消息的顺序"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10775,6 +10896,10 @@ msgstr "继续"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "继续目标"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "恢复排队的后续消息"
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
@@ -11115,6 +11240,7 @@ msgstr "饱和度与亮度"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12295,6 +12421,10 @@ msgstr "以优先事项和后续步骤开启每一天。"
 msgid "Start from scratch"
 msgstr "从头开始"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "开始实时语音"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12406,6 +12536,27 @@ msgstr "状态："
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "stdio (local command)"
 msgstr "stdio（本地命令）"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "引导"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "引导当前轮次"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "用排队消息调整当前回复"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "消息发送前已取消引导。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "引导已被更新的消息替换。"
 
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
@@ -12982,6 +13133,10 @@ msgstr "正常的应用程序外壳无法呈现。以下诊断信息在重新加
 msgid "The remote server returned no pairing credential."
 msgstr "远程服务器未返回配对凭据。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "无法发送替代消息。"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "存储库在磁盘上的位置。如果您移动了该文件夹，请更新此位置。"
@@ -13058,6 +13213,10 @@ msgstr "SSH 隧道连接到了不兼容的 Poracode 服务器。"
 msgid "the target provider"
 msgstr "目标提供商"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "聊天线程会话不可用于排队的后续消息。"
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "线程将在新分支上的独立工作树中运行。"
@@ -13073,6 +13232,18 @@ msgstr "更新操作失败。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "更新服务暂时不可用。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "语音连接失败，请重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "语音连接超时，请重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "语音连接已取消。"
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13203,6 +13374,10 @@ msgstr "此设备"
 msgid "This machine"
 msgstr "此设备"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "此消息已不在队列中。你仍然可以复制正在编辑的内容。"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "此名称由内置 MCP 服务器保留。"
@@ -13257,6 +13432,15 @@ msgstr "此项目"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "该项目的远程服务器处于离线状态。请重新连接后再开始线程。"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "此排队的后续消息已更改。请重新打开后再保存。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "此排队的后续消息已在发送中。"
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "此远程项目不可用。请重新连接环境后重试。"
@@ -13291,6 +13475,14 @@ msgstr "此服务器在本机运行，WSL 项目无法使用。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "此全局快捷键不可用。请选择其他按键组合。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "此线程不支持排队的后续消息。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "此线程尚未准备好接受引导。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
@@ -13759,7 +13951,8 @@ msgstr "无法打开文件"
 msgid "Unable to open the file in the editor"
 msgstr "无法在编辑器中打开文件"
 
-#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "无法与该桌面配对。"
 
@@ -13770,6 +13963,10 @@ msgstr "无法在编辑器中打开文件"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to read experiment candidate status"
 msgstr "无法读取实验候选项状态"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to read native MCP configuration."
+msgstr "无法读取原生 MCP 配置。"
 
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/experimentDecisionActions.ts
@@ -13880,7 +14077,8 @@ msgstr "无法启动 Tailscale。"
 msgid "Unable to start the remote thread."
 msgstr "无法启动远程线程。"
 
-#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 #: src/mobile/views/NewThreadFlow.tsx
 #~ msgid "Unable to start the thread."
 #~ msgstr "无法启动线程。"
@@ -13930,6 +14128,10 @@ msgstr "无法更新{0}。"
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
 msgstr "无法更新已学习的标签。"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to update native MCP configuration. Refresh and review the configuration before retrying."
+msgstr "无法更新原生 MCP 配置。请刷新并检查配置后重试。"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
@@ -14008,8 +14210,13 @@ msgstr "统一视图"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Uninstall"
 msgstr "卸载"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Uninstall {name}"
+msgstr "卸载 {name}"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
@@ -14057,6 +14264,10 @@ msgstr "取消标记完成"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "取消标记完成"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "取消麦克风静音"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

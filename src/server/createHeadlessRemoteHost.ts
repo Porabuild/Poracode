@@ -211,6 +211,13 @@ export async function createHeadlessRemoteHost(
       // supervisor process, so their cached background-task levels would
       // otherwise shadow the fresh supervisor's live reads forever.
       serverRef?.clearBackgroundTaskLevels();
+      for (const thread of dbGetThreads()) {
+        serverRef?.publishSupervisorEvent({
+          type: "thread-follow-up-queue",
+          threadId: thread.id,
+          queue: null,
+        });
+      }
       for (const thread of interrupted) {
         const event = {
           type: "thread-state" as const,

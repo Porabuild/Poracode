@@ -534,6 +534,46 @@
       "owner": "thread"
     },
     {
+      "name": "queueThreadFollowUp",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "removeQueuedThreadFollowUp",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "reorderQueuedThreadFollowUp",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "editQueuedThreadFollowUp",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "steerQueuedThreadFollowUp",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "pauseThreadFollowUps",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "resumeThreadFollowUps",
+      "scope": "session:operate",
+      "owner": "thread"
+    },
+    {
+      "name": "getThreadFollowUpQueue",
+      "scope": "session:read",
+      "owner": "thread"
+    },
+    {
       "name": "createFileCheckpoint",
       "scope": "session:operate",
       "owner": "thread"
@@ -1077,6 +1117,7 @@
       "thread-runtime-events-multi",
       "thread-state",
       "thread-pending-steer",
+      "thread-follow-up-queue",
       "thread-reset",
       "thread-exited",
       "agent-status-updated",

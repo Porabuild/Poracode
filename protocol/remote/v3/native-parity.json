@@ -1210,6 +1210,110 @@
         }
       },
       {
+        "id": "queueThreadFollowUp",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+      },
+      {
+        "id": "removeQueuedThreadFollowUp",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+      },
+      {
+        "id": "reorderQueuedThreadFollowUp",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+      },
+      {
+        "id": "editQueuedThreadFollowUp",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+      },
+      {
+        "id": "steerQueuedThreadFollowUp",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+      },
+      {
+        "id": "pauseThreadFollowUps",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+      },
+      {
+        "id": "resumeThreadFollowUps",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+      },
+      {
+        "id": "getThreadFollowUpQueue",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+      },
+      {
         "id": "createFileCheckpoint",
         "batch": "rich-chat-requests",
         "ios": {
@@ -3654,6 +3758,19 @@
             "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichRequestAndGoalControls.kt"
           ]
         }
+      },
+      {
+        "id": "thread-follow-up-queue",
+        "batch": "rich-chat-requests",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
       },
       {
         "id": "thread-reset",

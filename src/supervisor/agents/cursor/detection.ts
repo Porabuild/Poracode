@@ -47,6 +47,7 @@ export const cursorDefaultCapabilities: AgentCapability = {
   liveInputMode: "terminal",
   presentationMode: "terminal",
   presentationModes: ["terminal", "gui"],
+  mcpScope: { terminal: "launch", gui: "launch" },
   defaultApprovalPolicy: "never",
   bypassPermissions: { approvalPolicy: "never" },
   settingDefs: [],

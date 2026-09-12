@@ -1,6 +1,6 @@
 import type { AppView } from "@/shared/contracts";
 import { makeDraftPaneId } from "@/shared/paneId";
-import { touchKeepAliveIds } from "./paneCacheSlice";
+import { keepAlivePatch } from "./paneCacheSlice";
 import {
   adjustInsertTargetForRemoval,
   buildPaneLayoutFromLegacy,
@@ -28,29 +28,8 @@ import {
   saveGroupLayout,
 } from "./helpers";
 import type { SavedGroupLayout } from "./types";
-import type { AppStoreState, SliceCreator } from "./shared";
+import type { SliceCreator } from "./shared";
 import { usePanelStore } from "../panelStore";
-
-/**
- * Add thread pane(s) to the keep-alive cache (LRU, capped). Returns the patch
- * object to spread into a `set` result. Only terminal-presentation threads are
- * cached (GUI threads / draft panes have no terminal to preserve) — the caller
- * passes real thread ids; draft ids are filtered by `AppContent`.
- */
-function touchKeepAlive(
-  state: AppStoreState,
-  threadIds: string | readonly string[],
-): Partial<AppStoreState> {
-  const ids = typeof threadIds === "string" ? [threadIds] : threadIds;
-  if (ids.length === 0) return {};
-  return {
-    keepAlivePaneIds: touchKeepAliveIds(
-      state.keepAlivePaneIds,
-      ids,
-      state.view.kind === "thread" ? state.view.panes : [],
-    ),
-  };
-}
 
 export interface ViewSlice {
   view: AppView;
@@ -208,7 +187,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           : {}),
         view: nextView,
         ...(cleared ? { threads: cleared } : {}),
-        ...touchKeepAlive(state, threadId),
+        ...keepAlivePatch(state, threadId),
       };
     }),
   openThread: (threadId) =>
@@ -218,7 +197,10 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         if (thread?.groupId === state.view.activeGroupId) {
           if (state.view.panes.includes(threadId)) {
             const cleared = clearFinished(state.threads, [threadId]);
-            return cleared ? { threads: cleared } : {};
+            return {
+              ...(cleared ? { threads: cleared } : {}),
+              ...keepAlivePatch(state, threadId),
+            };
           }
           const layout = currentPaneLayout(state.view);
           const insertTarget =
@@ -240,7 +222,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           const cleared = clearFinished(state.threads, nextView.panes);
           return {
             ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-            ...touchKeepAlive(state, threadId),
+            ...keepAlivePatch(state, threadId),
           };
         }
         const nextView: AppView = { kind: "thread", panes: [threadId] };
@@ -250,7 +232,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
           groupLayouts: gl,
           view: nextView,
           ...(cleared ? { threads: cleared } : {}),
-          ...touchKeepAlive(state, threadId),
+          ...keepAlivePatch(state, threadId),
         };
       }
 
@@ -269,7 +251,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
               groupLayouts: gl,
               view: nextView,
               ...(cleared ? { threads: cleared } : {}),
-              ...touchKeepAlive(state, threadId),
+              ...keepAlivePatch(state, threadId),
             };
           }
         }
@@ -278,21 +260,24 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       if (state.view.kind === "thread") {
         if (state.view.panes.includes(threadId)) {
           const cleared = clearFinished(state.threads, [threadId]);
-          return cleared ? { threads: cleared } : {};
+          return {
+            ...(cleared ? { threads: cleared } : {}),
+            ...keepAlivePatch(state, threadId),
+          };
         }
         const nextView = replacePaneInView(state.view, state.view.panes[0]!, threadId);
         const nextPanes = nextView.kind === "thread" ? nextView.panes : [threadId];
         const cleared = clearFinished(state.threads, nextPanes);
         return {
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-          ...touchKeepAlive(state, threadId),
+          ...keepAlivePatch(state, threadId),
         };
       }
       const nextView: AppView = { kind: "thread", panes: [threadId] };
       const cleared = clearFinished(state.threads, [threadId]);
       return {
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-        ...touchKeepAlive(state, threadId),
+        ...keepAlivePatch(state, threadId),
       };
     }),
   openThreadSideBySide: (threadId) =>
@@ -302,7 +287,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const cleared = clearFinished(state.threads, [threadId]);
         return {
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-          ...touchKeepAlive(state, threadId),
+          ...keepAlivePatch(state, threadId),
         };
       }
       const existing = state.view.panes;
@@ -335,7 +320,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const cleared = clearFinished(state.threads, panes);
         return {
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-          ...touchKeepAlive(state, threadId),
+          ...keepAlivePatch(state, threadId),
         };
       }
       const nextPanes = [...existing, threadId] as [string, ...string[]];
@@ -353,7 +338,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const cleared = clearFinished(state.threads, nextPanes);
       return {
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-        ...touchKeepAlive(state, threadId),
+        ...keepAlivePatch(state, threadId),
       };
     }),
   openGroupView: (groupId) =>
@@ -373,7 +358,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         ...(cleared
           ? { groupLayouts: gl, view: nextView, threads: cleared }
           : { groupLayouts: gl, view: nextView }),
-        ...touchKeepAlive(state, nextView.panes),
+        ...keepAlivePatch(state, nextView.panes),
       };
     }),
   openGroupGrid: (groupId) =>
@@ -396,7 +381,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const threads = clearFinished(state.threads, nonEmptyPanes);
       return {
         ...(threads ? { groupLayouts, view, threads } : { groupLayouts, view }),
-        ...touchKeepAlive(state, nonEmptyPanes),
+        ...keepAlivePatch(state, nonEmptyPanes),
       };
     }),
   closeGroupView: () =>
@@ -417,7 +402,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const cleared = clearFinished(state.threads, nextPanes);
       return {
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-        ...touchKeepAlive(state, threadId),
+        ...keepAlivePatch(state, threadId),
       };
     }),
   replacePaneAtIndex: (threadId, index) =>
@@ -427,7 +412,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const cleared = clearFinished(state.threads, [threadId]);
         return {
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-          ...touchKeepAlive(state, threadId),
+          ...keepAlivePatch(state, threadId),
         };
       }
       const existing = state.view.panes;
@@ -439,7 +424,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const cleared = clearFinished(state.threads, nextPanes);
       return {
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-        ...touchKeepAlive(state, threadId),
+        ...keepAlivePatch(state, threadId),
       };
     }),
   insertPaneAtIndex: (threadId, index, edge) =>
@@ -449,7 +434,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const cleared = clearFinished(state.threads, [threadId]);
         return {
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-          ...touchKeepAlive(state, threadId),
+          ...keepAlivePatch(state, threadId),
         };
       }
       const existing = state.view.panes;
@@ -473,7 +458,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const cleared = clearFinished(state.threads, nextPanes);
       return {
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-        ...touchKeepAlive(state, threadId),
+        ...keepAlivePatch(state, threadId),
       };
     }),
   movePaneToIndex: (paneId, targetIndex, edge) =>
@@ -514,7 +499,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const cleared = clearFinished(state.threads, [threadId]);
         return {
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-          ...touchKeepAlive(state, threadId),
+          ...keepAlivePatch(state, threadId),
         };
       }
       if (state.view.panes.includes(threadId) || !state.view.panes.includes(targetPaneId)) {
@@ -525,7 +510,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const cleared = clearFinished(state.threads, panes);
       return {
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-        ...touchKeepAlive(state, threadId),
+        ...keepAlivePatch(state, threadId),
       };
     }),
   splitPaneById: (threadId, targetPaneId, edge) =>
@@ -535,7 +520,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const cleared = clearFinished(state.threads, [threadId]);
         return {
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-          ...touchKeepAlive(state, threadId),
+          ...keepAlivePatch(state, threadId),
         };
       }
       if (state.view.panes.includes(threadId) || !state.view.panes.includes(targetPaneId)) {
@@ -554,7 +539,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const cleared = clearFinished(state.threads, panes);
       return {
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-        ...touchKeepAlive(state, threadId),
+        ...keepAlivePatch(state, threadId),
       };
     }),
   insertPaneAtLayoutTarget: (threadId, target) =>
@@ -564,7 +549,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         const cleared = clearFinished(state.threads, [threadId]);
         return {
           ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-          ...touchKeepAlive(state, threadId),
+          ...keepAlivePatch(state, threadId),
         };
       }
       if (state.view.panes.includes(threadId)) return {};
@@ -581,7 +566,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
       const cleared = clearFinished(state.threads, panes);
       return {
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
-        ...touchKeepAlive(state, threadId),
+        ...keepAlivePatch(state, threadId),
       };
     }),
   movePaneToLayoutTarget: (paneId, target) =>
@@ -685,7 +670,7 @@ export const createViewSlice: SliceCreator<ViewSlice> = (set) => ({
         ...(cleared ? { view: nextView, threads: cleared } : { view: nextView }),
         // A draft pane is replaced by the real thread it started; touch the
         // new thread so its terminal gets keep-alive treatment.
-        ...touchKeepAlive(state, newId),
+        ...keepAlivePatch(state, newId),
       };
     }),
   reorderPanes: (sourceId, targetId, placement) =>

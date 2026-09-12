@@ -1,4 +1,9 @@
 import {
+  nativeMcpSetupPayloadSchema,
+  applyNativeMcpSetupPayloadSchema,
+  type NativeMcpSetupPayload,
+  type ApplyNativeMcpSetupPayload,
+  type NativeMcpSetupStatus,
   discoverExternalMcpServersPayloadSchema,
   type DiscoverExternalMcpServersPayload,
   type DiscoverExternalMcpServersResult,
@@ -37,6 +42,16 @@ export type ConfirmCrossagentRoutingOverridePayload = z.infer<
 >;
 
 export const mcpProcedures = {
+  getNativeMcpSetup: definePayloadProcedure<
+    NativeMcpSetupPayload,
+    NativeMcpSetupStatus,
+    "supervisor"
+  >("getNativeMcpSetup", "supervisor", nativeMcpSetupPayloadSchema),
+  applyNativeMcpSetup: definePayloadProcedure<
+    ApplyNativeMcpSetupPayload,
+    NativeMcpSetupStatus,
+    "supervisor"
+  >("applyNativeMcpSetup", "supervisor", applyNativeMcpSetupPayloadSchema),
   confirmCrossagentRoutingOverride: definePayloadProcedure<
     ConfirmCrossagentRoutingOverridePayload,
     void,

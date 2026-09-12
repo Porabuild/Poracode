@@ -172,6 +172,53 @@ describe("ContinueInProviderDialog handoff flow", () => {
     );
   });
 
+  it.each([
+    ["32k", 44_800],
+    ["200k", 280_000],
+    ["1m", 1_400_000],
+  ])("sizes stored history for the destination's %s window", async (contextSize, budget) => {
+    seedRuntimeItems([
+      {
+        id: "u1",
+        type: "user_message",
+        state: "completed",
+        payload: { content: [{ kind: "text", text: "Original ask" }] },
+        streams: {},
+      },
+      ...Array.from({ length: 100 }, (_, index): RuntimeChatItem => ({
+        id: `a${index}`,
+        type: "assistant_message",
+        state: "completed",
+        payload: {},
+        streams: { assistant_text: `Turn ${index}: ${"x".repeat(5_900)}` },
+      })),
+    ]);
+    const onContinue = renderDialog({
+      thread: { config: { model: "source-model", contextSize: "1k" } },
+      installedAgents: [
+        agent("claude", "Claude", "gui"),
+        agent("codex", "Codex", "terminal", {
+          contextSizes: [{ id: contextSize, label: contextSize }],
+          defaultContextSize: contextSize,
+        }),
+      ],
+    });
+
+    await pressSwitch();
+
+    expect(bridge.extractContext).not.toHaveBeenCalled();
+    expect(onContinue.mock.calls[0]?.[1].contextSize).toBe(contextSize);
+    const context = onContinue.mock.calls[0]?.[6];
+    expect(context?.strategy).toBe("context-file");
+    if (context?.strategy !== "context-file") throw new Error("Expected transferred context");
+    const summary = context.extracted?.summary ?? "";
+    expect(summary).toContain("Original ask");
+    expect(summary).toContain("Turn 99:");
+    expect(summary.length).toBeLessThanOrEqual(budget);
+    expect(summary.length).toBeGreaterThan(Math.min(budget, 590_000) - 7_000);
+    expect(summary.includes("Turn 0:")).toBe(contextSize === "1m");
+  });
+
   it("hands the thread itself over when the target can read it", async () => {
     useAppStore.setState({
       threadMentionToolsAvailableByThreadId: { [thread.id]: true },

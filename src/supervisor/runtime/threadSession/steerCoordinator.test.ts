@@ -1,7 +1,11 @@
 // @vitest-environment node
 
 import { describe, expect, it, vi } from "vitest";
-import type { AgentAdapter, StructuredSessionHandle } from "../../agents/base";
+import type {
+  AgentAdapter,
+  StructuredSessionHandle,
+  StructuredTurnResult,
+} from "../../agents/base";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 import { SteerCoordinator } from "./steerCoordinator";
@@ -34,6 +38,7 @@ function createHarness(
   );
   const structuredSession = {
     launchOptions: {},
+    startTurn: vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(async () => undefined),
     prepareSteerInterrupt,
     interruptTurn,
     setListener: vi.fn<StructuredSessionHandle["setListener"]>(),
@@ -64,12 +69,17 @@ function createHarness(
     order.push("interrupt");
     await structuredSession.interruptTurn?.();
   });
-  const startStructuredTurn = vi.fn<(session: SessionRuntime, turn: QueuedStructuredTurn) => void>(
-    () => {
-      order.push("start");
-    },
-  );
+  const startStructuredTurn = vi.fn<
+    (
+      session: SessionRuntime,
+      turn: QueuedStructuredTurn,
+    ) => Promise<void | StructuredTurnResult> | undefined
+  >(() => {
+    order.push("start");
+    return undefined;
+  });
   const emitOptimisticUserMessage = vi.fn<() => string>(() => "user-optimistic");
+  const noteDirectSteerCompletedWithoutTurn = vi.fn<() => void>();
   const coordinator = new SteerCoordinator({
     emit: (event) => events.push(event),
     sessions,
@@ -77,6 +87,7 @@ function createHarness(
     startStructuredTurn,
     emitOptimisticUserMessage,
     failStructuredSession: vi.fn<(session: SessionRuntime, error: unknown) => void>(),
+    noteDirectSteerCompletedWithoutTurn,
     resolveSkillTurnInjection: vi.fn<
       (
         session: SessionRuntime,
@@ -95,6 +106,7 @@ function createHarness(
     events,
     interruptStructuredTurn,
     emitOptimisticUserMessage,
+    noteDirectSteerCompletedWithoutTurn,
     order,
     prepareSteerInterrupt,
     session,
@@ -117,7 +129,7 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     expect(harness.startStructuredTurn).not.toHaveBeenCalled();
 
     harness.session.status = "idle";
-    harness.coordinator.maybeDrainPendingSteer(harness.session);
+    void harness.coordinator.maybeDrainPendingSteer(harness.session);
 
     expect(harness.order).toEqual(["prepare", "interrupt", "start"]);
     expect(harness.startStructuredTurn).toHaveBeenCalledExactlyOnceWith(
@@ -180,7 +192,7 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     });
 
     harness.session.status = "idle";
-    harness.coordinator.maybeDrainPendingSteer(harness.session);
+    void harness.coordinator.maybeDrainPendingSteer(harness.session);
     harness.session.status = "working";
     finishPreparation?.();
     await Promise.resolve();
@@ -198,7 +210,7 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     );
     harness.session.structuredSession!.steerTurn = steerTurn;
 
-    harness.coordinator.steerStructuredTurn(harness.session, {
+    void harness.coordinator.steerStructuredTurn(harness.session, {
       prompt: "ordinary steer",
       config: { model: "model-2" },
     });
@@ -212,6 +224,132 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     );
   });
 
+  it("releases the direct barrier when native steer completes without a turn", async () => {
+    const harness = createHarness();
+    const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(async () => ({
+      outcome: "completed-without-turn",
+    }));
+    harness.session.structuredSession!.steerTurn = steerTurn;
+
+    await harness.coordinator.steerStructuredTurn(harness.session, {
+      prompt: "run command",
+      config: { model: "model-2" },
+    });
+
+    expect(harness.noteDirectSteerCompletedWithoutTurn).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a queued fallback steer owned until replacement admission settles", async () => {
+    const harness = createHarness();
+    const providerCompletion = Promise.withResolvers<void>();
+    harness.startStructuredTurn.mockReturnValueOnce(providerCompletion.promise);
+
+    const queued = harness.coordinator.setPendingSteer(
+      harness.session,
+      {
+        threadId: harness.session.threadId,
+        prompt: "queued fallback",
+        config: { model: "model-2" },
+      },
+      {
+        awaitReplacement: true,
+        awaitCanonicalStart: true,
+        userMessageItemId: "user-queued",
+      },
+    );
+    await vi.waitFor(() => expect(harness.interruptStructuredTurn).toHaveBeenCalledTimes(1));
+
+    harness.session.status = "idle";
+    void harness.coordinator.maybeDrainPendingSteer(harness.session);
+    expect(harness.startStructuredTurn).toHaveBeenCalledWith(
+      harness.session,
+      expect.objectContaining({ prompt: "queued fallback", userMessageItemId: "user-queued" }),
+    );
+
+    let settled = false;
+    void queued.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    providerCompletion.resolve();
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    harness.coordinator.noteSteerTurnStarted(harness.session);
+    await queued;
+    expect(harness.session.pendingSteer).toBeUndefined();
+  });
+
+  it("settles a fallback command that completes without opening a turn", async () => {
+    const harness = createHarness();
+    harness.startStructuredTurn.mockResolvedValueOnce({ outcome: "completed-without-turn" });
+
+    const queued = harness.coordinator.setPendingSteer(
+      harness.session,
+      {
+        threadId: harness.session.threadId,
+        prompt: "/goal pause",
+        config: { model: "model-2" },
+      },
+      { awaitReplacement: true, awaitCanonicalStart: true, userMessageItemId: "user-queued" },
+    );
+    await vi.waitFor(() => expect(harness.interruptStructuredTurn).toHaveBeenCalledTimes(1));
+
+    harness.session.status = "idle";
+    void harness.coordinator.maybeDrainPendingSteer(harness.session);
+    await queued;
+    expect(harness.session.pendingSteer).toBeUndefined();
+  });
+
+  it("settles native admission after the old turn becomes idle", async () => {
+    const harness = createHarness();
+    const providerCompletion = Promise.withResolvers<void>();
+    const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(
+      () => providerCompletion.promise,
+    );
+    harness.session.structuredSession!.steerTurn = steerTurn;
+
+    const queued = harness.coordinator.setPendingSteer(
+      harness.session,
+      {
+        threadId: harness.session.threadId,
+        prompt: "native queued steer",
+        config: { model: "model-2" },
+      },
+      { awaitReplacement: true, awaitCanonicalStart: true, userMessageItemId: "user-queued" },
+    );
+    await Promise.resolve();
+    harness.session.status = "idle";
+    providerCompletion.resolve();
+    await queued;
+    expect(steerTurn).toHaveBeenCalledOnce();
+  });
+
+  it.each(["needs_approval", "inactive"] as const)(
+    "rejects a queued steer instead of stranding it in %s",
+    async (status) => {
+      const harness = createHarness();
+      harness.session.status = status;
+
+      await expect(
+        harness.coordinator.setPendingSteer(
+          harness.session,
+          {
+            threadId: harness.session.threadId,
+            prompt: "must not strand",
+            config: { model: "model-2" },
+          },
+          { awaitReplacement: true, userMessageItemId: "user-queued" },
+        ),
+      ).rejects.toThrow("not ready");
+      expect(harness.session.pendingSteer).toBeUndefined();
+      expect(harness.interruptStructuredTurn).not.toHaveBeenCalled();
+      expect(harness.startStructuredTurn).not.toHaveBeenCalled();
+    },
+  );
+
   it("paints a thread mention from display segments without adding a turn boundary", () => {
     const harness = createHarness();
     const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(
@@ -221,7 +359,7 @@ describe("SteerCoordinator interrupt-backed steering", () => {
     const displaySegments = [{ kind: "thread", threadId: "source", title: "Source" }] as const;
     const effectiveSegments = [{ kind: "text", content: "[thread mention] Source" }] as const;
 
-    harness.coordinator.steerStructuredTurn(harness.session, {
+    void harness.coordinator.steerStructuredTurn(harness.session, {
       prompt: "[thread mention] Source",
       config: { model: "model-2" },
       segments: [...effectiveSegments],
@@ -241,5 +379,31 @@ describe("SteerCoordinator interrupt-backed steering", () => {
       [...effectiveSegments],
       { userMessageItemId: "user-optimistic" },
     );
+  });
+
+  it("paints queued native steer with its stable queue item identity", () => {
+    const harness = createHarness();
+    const steerTurn = vi.fn<NonNullable<StructuredSessionHandle["steerTurn"]>>(
+      async () => undefined,
+    );
+    harness.session.structuredSession!.steerTurn = steerTurn;
+    harness.emitOptimisticUserMessage.mockReturnValue("user-queued");
+
+    void harness.coordinator.steerStructuredTurn(harness.session, {
+      prompt: "queued native steer",
+      config: { model: "model-2" },
+      userMessageItemId: "user-queued",
+    });
+
+    expect(harness.emitOptimisticUserMessage).toHaveBeenCalledWith(
+      harness.session.threadId,
+      "queued native steer",
+      undefined,
+      "user-queued",
+      { includeTurn: false },
+    );
+    expect(steerTurn).toHaveBeenCalledWith("queued native steer", { model: "model-2" }, undefined, {
+      userMessageItemId: "user-queued",
+    });
   });
 });

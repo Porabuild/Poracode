@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version (e.g. 1.0.1). If empty, master's package.json is used."
+        description: "Release version (e.g. 1.0.1). If empty, the next unreleased version is used."
         required: false
         type: string
         default: ""
@@ -22,18 +22,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ── Step 1: Resolve version and push release commit ──────────────
+  # ── Step 1: Resolve version and source commit ──────────────
   prepare:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
       version: ${{ steps.resolve.outputs.version }}
-      source_ref: ${{ steps.commit.outputs.source_ref }}
+      source_ref: ${{ steps.resolve.outputs.source_ref }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          ref: master
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
@@ -47,12 +48,13 @@ jobs:
 
       - name: Resolve version
         id: resolve
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          INPUT_VERSION="${{ inputs.version }}"
-          PKG_VERSION=$(node -p "require('./package.json').version")
+          PKG_VERSION=$(node scripts/resolve-release-version.mjs)
           if [ -z "$INPUT_VERSION" ]; then
             VERSION="$PKG_VERSION"
-            echo "Using master's package.json version: $VERSION"
+            echo "Using next unreleased version: $VERSION"
           else
             VERSION="$INPUT_VERSION"
             echo "Using workflow input version: $VERSION"
@@ -67,6 +69,7 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "source_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       # The desktop app reads website/public/changelog.json (served by the
       # marketing site) for the in-app "What's New" entry. Require a well-formed
@@ -104,38 +107,6 @@ jobs:
             }
             console.log('Changelog entry for ' + version + ' is present and well-formed.');
           "
-
-      - name: Bump package.json if needed
-        run: |
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            const next = '${{ steps.resolve.outputs.version }}';
-            if (pkg.version !== next) {
-              pkg.version = next;
-              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-              console.log('Updated package.json to ' + next);
-            } else {
-              console.log('package.json already at ' + next + '; no bump needed.');
-            }
-          "
-
-      - name: Commit release version
-        id: commit
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json
-          if git diff --cached --quiet; then
-            echo "No package.json changes; using HEAD as the release commit."
-          else
-            git commit -m "release: ${{ steps.resolve.outputs.tag }}"
-          fi
-          echo "source_ref=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Push release commit
-        if: ${{ !inputs.dry_run }}
-        run: git push origin HEAD
 
   # ── Step 2: Build installers for each platform ───────────────────
   build:
@@ -193,10 +164,25 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
-      - name: Create and push staging tag
+      - name: Create release commit and staging tag
+        id: stage_release
         env:
           DRAFT_TAG: release-draft-${{ github.run_id }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: |
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            p.version = process.env.RELEASE_VERSION;
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          "
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          if ! git diff --cached --quiet; then
+            git commit -m "release: $RELEASE_VERSION"
+          fi
+          echo "release_commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           git tag "$DRAFT_TAG"
           git push origin "$DRAFT_TAG"
 
@@ -222,7 +208,7 @@ jobs:
           DRAFT_TAG: release-draft-${{ github.run_id }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
-          SOURCE_REF: ${{ needs.prepare.outputs.source_ref }}
+          SOURCE_REF: ${{ steps.stage_release.outputs.release_commit }}
         run: |
           release_id=$(gh api "repos/${{ github.repository }}/releases?per_page=100" \
             --jq ".[] | select(.tag_name == \"$DRAFT_TAG\") | .id")
@@ -263,48 +249,4 @@ jobs:
           fi
           if gh api "repos/${{ github.repository }}/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
             gh api --method DELETE "repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG"
-          fi
-
-  # ── Step 4: Bump master to next plain patch version ──────────────
-  post-release:
-    needs: [prepare, release]
-    if: ${{ !inputs.dry_run }}
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout master
-        uses: actions/checkout@v6
-        with:
-          ref: master
-          fetch-depth: 1
-          ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Bump to next plain patch version
-        run: |
-          node -e "
-            const fs = require('fs');
-            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            const v = p.version.split('-')[0].split('.').map(Number);
-            p.version = v[0] + '.' + v[1] + '.' + (v[2] + 1);
-            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
-          "
-
-      - name: Commit and push
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json
-          if git diff --cached --quiet; then
-            echo "No bump needed."
-          else
-            git commit -m "chore: bump to next patch version"
-            git push
           fi

@@ -790,6 +790,10 @@ msgid "a supported coding agent"
 msgstr "a supported coding agent"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "A voice conversation is already active."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "A worktree owner requires a frozen branch source"
 
@@ -1103,6 +1107,10 @@ msgstr "Add to Home Screen"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
 msgstr "Add to-do"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Add user MCP servers in MCP Servers settings to install them here."
+msgstr "Add user MCP servers in MCP Servers settings to install them here."
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
@@ -2184,6 +2192,7 @@ msgstr "Can't reach the remote server. Check that it is online, then reconnect i
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2233,6 +2242,10 @@ msgstr "Cancel picker"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Cancel removing project"
 msgstr "Cancel removing project"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "Cancel voice connection"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2522,6 +2535,10 @@ msgstr "Choose what Poracode does for new pull requests: nothing, fix merge bloc
 msgid "Choose when this machine stays awake."
 msgstr "Choose when this machine stays awake."
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
@@ -2713,7 +2730,8 @@ msgstr "Close browser"
 msgid "Close changes"
 msgstr "Close changes"
 
-#: src/mobile/views/QuickCompose.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/views/QuickCompose.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "Close composer"
 #~ msgstr "Close composer"
 
@@ -2892,6 +2910,10 @@ msgstr "Close workflows panel"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Closed"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3292,6 +3314,10 @@ msgstr "Connected"
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "Connecting to the desktop browser…"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "Connecting voice…"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
 msgstr "Connecting..."
@@ -3548,7 +3574,7 @@ msgstr "Copy Tailscale URL"
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Copy uncommitted changes here (keeps them on this branch)"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/mobile/views/PortsView.tsx
 #~ msgid "Copy URL"
 #~ msgstr "Copy URL"
 
@@ -3890,6 +3916,10 @@ msgstr "Crown with AI"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crowned"
 msgstr "Crowned"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
@@ -4476,6 +4506,10 @@ msgstr "Disabled"
 msgid "Disabled globally"
 msgstr "Disabled globally"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Disabled server or unsupported native options"
+msgstr "Disabled server or unsupported native options"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
@@ -4724,6 +4758,11 @@ msgstr "Edit MCP server"
 msgid "Edit profile"
 msgstr "Edit profile"
 
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "Edit queued follow-up"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Edit schedule"
@@ -4863,6 +4902,10 @@ msgstr "Enabled plugins stay on for new threads"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "End voice chat"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5030,6 +5073,10 @@ msgstr "Exclude from sync"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Exclude patterns"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Existing or edited native entry; left unchanged"
+msgstr "Existing or edited native entry; left unchanged"
 
 #. placeholder {0}: parsed.exitCode
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
@@ -5589,6 +5636,11 @@ msgstr "Folder that holds this project's worktrees. Reset to use the global sett
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Follow up..."
 #~ msgstr "Follow up..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "Follow-up behavior"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -6381,6 +6433,7 @@ msgstr "install"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Install"
 msgstr "Install"
 
@@ -6578,6 +6631,7 @@ msgstr "Install, update, and sign-in are not yet available on remote machines."
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
 msgstr "Installed"
 
@@ -6846,6 +6900,18 @@ msgstr "List tasks"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Live {0}"
 #~ msgstr "Live {0}"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "Live voice"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "Live voice is unavailable for this thread."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "Live voice requires a subscription sign-in for this provider."
 
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7473,6 +7539,10 @@ msgstr "Microphone access is off."
 msgid "Microphone input level"
 msgstr "Microphone input level"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "Microphone muted"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Microphone permission was denied."
@@ -7732,6 +7802,10 @@ msgstr "Moving changes…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "Mute microphone"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7759,6 +7833,14 @@ msgstr "Name your project and choose where to create it."
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Native"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP configuration updated. Start a new CLI session to use it."
+msgstr "Native MCP configuration updated. Start a new CLI session to use it."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP setup"
+msgstr "Native MCP setup"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
@@ -7925,6 +8007,7 @@ msgstr "New tab in group"
 
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -8429,7 +8512,8 @@ msgstr "No supported agents detected"
 msgid "No tags — the entry stops influencing tag affinity."
 msgstr "No tags — the entry stops influencing tag affinity."
 
-#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "No thread selected"
 #~ msgstr "No thread selected"
 
@@ -8514,6 +8598,7 @@ msgstr "not installed"
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "Not installed"
 
@@ -8992,6 +9077,10 @@ msgstr "Optional status hooks. Installed hooks update automatically; missing hoo
 #~ msgid "Optional workflow_dispatch input values."
 #~ msgstr "Optional workflow_dispatch input values."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Optional: copy selected user MCP servers into this CLI's native configuration for all its sessions. Commands, arguments, and credentials are copied only when you click Install. Changes are not synced automatically."
+msgstr "Optional: copy selected user MCP servers into this CLI's native configuration for all its sessions. Commands, arguments, and credentials are copied only when you click Install. Changes are not synced automatically."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
 msgstr "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
@@ -9100,7 +9189,8 @@ msgstr "Pair a phone, tablet, or browser with this desktop."
 #~ msgid "Pair a remote machine…"
 #~ msgstr "Pair a remote machine…"
 
-#: src/mobile/components.tsx src/mobile/remoteConnectionState.ts
+#: src/mobile/components.tsx
+#: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "Pair again"
 
@@ -9260,6 +9350,7 @@ msgid "Pause goal"
 msgstr "Pause goal"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9334,7 +9425,8 @@ msgstr "Personal"
 msgid "Pi"
 msgstr "Pi"
 
-#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "Pick a thread from the list to follow the agent from here."
 #~ msgstr "Pick a thread from the list to follow the agent from here."
 
@@ -10051,6 +10143,14 @@ msgstr "QR Code"
 msgid "Questions"
 msgstr "Questions"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "Queue"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "Queue message"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "Queued"
@@ -10060,6 +10160,18 @@ msgstr "Queued"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "Queued {0} for v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "Queued follow-up not found: {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "Queued follow-ups"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "Queued follow-ups are only supported for chat threads."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10234,6 +10346,7 @@ msgstr "Redact notification content"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Refresh"
@@ -10506,6 +10619,10 @@ msgstr "Remove project"
 msgid "Remove Project"
 msgstr "Remove Project"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "Remove queued follow-up"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Remove shortcut"
@@ -10614,6 +10731,10 @@ msgstr "Reorder {0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Reorder {label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "Reorder queued follow-up"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10785,6 +10906,10 @@ msgstr "Resume"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Resume goal"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "Resume queued follow-ups"
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
@@ -11125,6 +11250,7 @@ msgstr "Saturation and brightness"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12305,6 +12431,10 @@ msgstr "Start each day with priorities and next steps."
 msgid "Start from scratch"
 msgstr "Start from scratch"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "Start live voice"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12416,6 +12546,27 @@ msgstr "Status:"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "stdio (local command)"
 msgstr "stdio (local command)"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "Steer"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "Steer current turn"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "Steer queued follow-up"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "Steer was cancelled before the message was sent."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "Steer was replaced by a newer message."
 
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
@@ -12992,6 +13143,10 @@ msgstr "The normal app shell could not render. The diagnostics below are shown b
 msgid "The remote server returned no pairing credential."
 msgstr "The remote server returned no pairing credential."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "The replacement message could not be sent."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "The repository location on disk. Update it if you moved the folder."
@@ -13068,6 +13223,10 @@ msgstr "The SSH tunnel reached an incompatible Poracode server."
 msgid "the target provider"
 msgstr "the target provider"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "The thread session is not available for queued follow-ups."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "The thread will run in a separate worktree on a new branch."
@@ -13083,6 +13242,18 @@ msgstr "The update operation failed."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "The update service is temporarily unavailable."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "The voice connection failed. Try again."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "The voice connection timed out. Try again."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "The voice connection was cancelled."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13213,6 +13384,10 @@ msgstr "this machine"
 msgid "This machine"
 msgstr "This machine"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "This message is no longer queued. Your edit is still available to copy."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "This name is reserved by a built-in MCP server."
@@ -13267,6 +13442,15 @@ msgstr "this project"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "This project's remote server is offline. Reconnect it to start a thread."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "This queued follow-up changed. Reopen it before saving."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "This queued follow-up is already being sent."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "This remote project is unavailable. Reconnect the environment and try again."
@@ -13301,6 +13485,14 @@ msgstr "This server runs on this computer and is unavailable for WSL projects."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "This system-wide shortcut is unavailable. Choose another key combination."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "This thread does not support queued follow-ups."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "This thread is not ready for Steer."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
@@ -13769,7 +13961,8 @@ msgstr "Unable to open the file"
 msgid "Unable to open the file in the editor"
 msgstr "Unable to open the file in the editor"
 
-#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Unable to pair with that desktop."
 
@@ -13780,6 +13973,10 @@ msgstr "Unable to open the file in the editor"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to read experiment candidate status"
 msgstr "Unable to read experiment candidate status"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to read native MCP configuration."
+msgstr "Unable to read native MCP configuration."
 
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/experimentDecisionActions.ts
@@ -13890,7 +14087,8 @@ msgstr "Unable to start Tailscale."
 msgid "Unable to start the remote thread."
 msgstr "Unable to start the remote thread."
 
-#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 #: src/mobile/views/NewThreadFlow.tsx
 #~ msgid "Unable to start the thread."
 #~ msgstr "Unable to start the thread."
@@ -13944,6 +14142,10 @@ msgstr "Unable to update {0}."
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
 msgstr "Unable to update learned tags."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to update native MCP configuration. Refresh and review the configuration before retrying."
+msgstr "Unable to update native MCP configuration. Refresh and review the configuration before retrying."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
@@ -14022,8 +14224,13 @@ msgstr "Unified view"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Uninstall"
 msgstr "Uninstall"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Uninstall {name}"
+msgstr "Uninstall {name}"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
@@ -14071,6 +14278,10 @@ msgstr "Unmark done"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Unmark Done"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "Unmute microphone"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

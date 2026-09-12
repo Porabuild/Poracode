@@ -64,8 +64,8 @@ export const claudeCapabilities: AgentCapability = {
   defaultApprovalPolicy: CLAUDE_DEFAULT_APPROVAL_POLICY,
   bypassPermissions: { approvalPolicy: CLAUDE_DEFAULT_APPROVAL_POLICY },
   // SDK GUI sessions rebuild the MCP server set on every turn, so both
-  // toggles stay live mid-thread. The TUI has no per-thread MCP gating.
-  mcpScope: { terminal: "none", gui: "always" },
+  // toggles stay live mid-thread. Terminal MCPs are fixed at launch.
+  mcpScope: { terminal: "launch", gui: "always" },
   settingDefs: [
     {
       key: "usePowershellTool",

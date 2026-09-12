@@ -60,11 +60,21 @@ export type SaveClipboardImage = (input: {
 
 export function useAttachments(options: { saveClipboardImage?: SaveClipboardImage } = {}) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const attachmentsRef = useRef<Attachment[]>([]);
   // Object URLs belong to this live composer. Track ownership separately from
   // React state so a pending paste can still be released if the component goes
   // away before its state update commits.
   const ownedPreviewUrlsRef = useRef(new Set<string>());
   const pasteGenerationRef = useRef(0);
+
+  function updateAttachments(
+    nextOrUpdater: Attachment[] | ((previous: Attachment[]) => Attachment[]),
+  ) {
+    const next =
+      typeof nextOrUpdater === "function" ? nextOrUpdater(attachmentsRef.current) : nextOrUpdater;
+    attachmentsRef.current = next;
+    setAttachments(next);
+  }
 
   function releasePreviewUrl(previewUrl: string) {
     if (!ownedPreviewUrlsRef.current.delete(previewUrl)) return;
@@ -105,7 +115,7 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
         isImage: isImagePath(name, mimeType),
       };
     });
-    setAttachments((prev) => [...prev, ...newAttachments]);
+    updateAttachments((prev) => [...prev, ...newAttachments]);
   }
 
   async function addClipboardImage(file: File, threadId: string) {
@@ -121,7 +131,7 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
     if (pasteGeneration !== pasteGenerationRef.current) return;
     const previewUrl = URL.createObjectURL(file);
     ownedPreviewUrlsRef.current.add(previewUrl);
-    setAttachments((prev) => {
+    updateAttachments((prev) => {
       if (pasteGeneration !== pasteGenerationRef.current) {
         releasePreviewUrl(previewUrl);
         return prev;
@@ -155,7 +165,7 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
     selector: string;
     sourceUrl: string;
   }) {
-    setAttachments((prev) => [
+    updateAttachments((prev) => [
       ...prev,
       {
         id: crypto.randomUUID(),
@@ -170,19 +180,19 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
   }
 
   function removeAttachment(id: string) {
-    const removed = attachments.find((a) => a.id === id);
+    const removed = attachmentsRef.current.find((a) => a.id === id);
     if (removed?.previewUrl) releasePreviewUrl(removed.previewUrl);
-    setAttachments((prev) => prev.filter((a) => a.id !== id));
+    updateAttachments((prev) => prev.filter((a) => a.id !== id));
   }
 
   function clearAll() {
     pasteGenerationRef.current += 1;
     releaseAllPreviewUrls();
-    setAttachments((prev) => (prev.length === 0 ? prev : []));
+    if (attachmentsRef.current.length > 0) updateAttachments([]);
   }
 
   function toSegments(): PromptSegment[] {
-    return attachments.map((a) => ({
+    return attachmentsRef.current.map((a) => ({
       kind: "attachment" as const,
       path: a.path,
       ...(a.mimeType ? { mimeType: a.mimeType } : {}),
@@ -195,11 +205,12 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
     // A `previewUrl` arriving here points at an object URL owned by a previous
     // composer instance, which may already have revoked it — restored
     // attachments render from the durable `path` instead.
-    setAttachments(saved.map(storableAttachment));
+    updateAttachments(saved.map(storableAttachment));
   }
 
   return {
     attachments,
+    getAttachments: () => attachmentsRef.current,
     addFiles,
     addClipboardImage,
     addPicked,

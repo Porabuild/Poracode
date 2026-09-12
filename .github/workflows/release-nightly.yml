@@ -45,11 +45,7 @@ jobs:
       - name: Resolve nightly version
         id: resolve
         run: |
-          BASE=$(node -p "require('./package.json').version")
-          if ! echo "$BASE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::master's package.json version must be plain X.Y.Z (got '$BASE'). The previous stable release likely failed to push the patch bump."
-            exit 1
-          fi
+          BASE=$(node scripts/resolve-release-version.mjs)
           TIMESTAMP=$(date -u +%Y%m%d%H%M)
           VERSION="${BASE}-nightly.${TIMESTAMP}"
           TAG="v${VERSION}"

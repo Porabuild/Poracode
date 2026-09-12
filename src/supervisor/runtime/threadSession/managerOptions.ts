@@ -87,10 +87,11 @@ export interface ThreadSessionManagerOptions {
     builtInMcpServerIds: BuiltInMcpServerId[];
     nativePlugins: AgentNativePlugin[];
   }>;
-  /** Wrap servers with disabled tools in Poracode's same-environment filtering proxy. */
+  /** Wrap disabled tools and unsupported stdio cwd in the same-environment MCP proxy. */
   prepareMcpToolFilters?(
     servers: McpServer[],
     projectLocation: ProjectLocation,
+    options?: { proxyStdioCwd?: boolean },
   ): Promise<McpServer[]>;
   /** Synchronize Poracode-owned provider skill projections before a new agent process starts. */
   prepareSkillsForLaunch?(projectLocation: ProjectLocation, agentKind: AgentKind): Promise<void>;

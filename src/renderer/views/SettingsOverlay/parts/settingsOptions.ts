@@ -25,6 +25,11 @@ export const threadDocksPlacementOptions = [
   { id: "right", label: msg`Right panel` },
 ] as const satisfies readonly LocalizedOption[];
 
+export const followUpBehaviorOptions = [
+  { id: "queue", label: msg`Queue` },
+  { id: "steer", label: msg`Steer` },
+] as const satisfies readonly LocalizedOption[];
+
 export const terminalPositionOptions = [
   { id: "right", label: msg`Right` },
   { id: "bottom", label: msg`Bottom` },

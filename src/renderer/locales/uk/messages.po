@@ -785,6 +785,10 @@ msgid "a supported coding agent"
 msgstr "підтримуваний агент кодування"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "Голосова розмова вже активна."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "Для власника worktree потрібна заморожена вихідна гілка"
 
@@ -1098,6 +1102,10 @@ msgstr "Додати на головний екран"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
 msgstr "Додати завдання"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Add user MCP servers in MCP Servers settings to install them here."
+msgstr "Додайте користувацькі MCP-сервери в налаштуваннях «MCP-сервери», щоб установити їх тут."
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
@@ -2175,6 +2183,7 @@ msgstr "Не вдалося зв’язатися з віддаленим сер
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2224,6 +2233,10 @@ msgstr "Скасувати вибір"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Cancel removing project"
 msgstr "Скасувати видалення проєкту"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "Скасувати голосове підключення"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2513,6 +2526,10 @@ msgstr "Виберіть, що Poracode робитиме з новими pull re
 msgid "Choose when this machine stays awake."
 msgstr "Оберіть, коли цей комп’ютер залишається активним."
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "Виберіть, чи повідомлення чату, надіслані під час роботи агента, спрямовують поточну відповідь чи додаються в чергу для наступної відповіді. {followUpShortcut} виконує протилежну дію."
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
@@ -2704,7 +2721,8 @@ msgstr "Закрити браузер"
 msgid "Close changes"
 msgstr "Закрити зміни"
 
-#: src/mobile/views/QuickCompose.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/views/QuickCompose.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "Close composer"
 #~ msgstr "Закрити Composer"
 
@@ -2883,6 +2901,10 @@ msgstr "Закрити панель робочих процесів"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Закрито"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3283,6 +3305,10 @@ msgstr "Підключено"
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "Підключення до браузера на десктопі…"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "Підключення голосового чату…"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
 msgstr "Підключення..."
@@ -3539,7 +3565,7 @@ msgstr "Копіювати URL Tailscale"
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Копіювати незакомічені зміни сюди (залишає їх у цій гілці)"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/mobile/views/PortsView.tsx
 #~ msgid "Copy URL"
 #~ msgstr "Копіювати URL"
 
@@ -3881,6 +3907,10 @@ msgstr "Обрати переможця за допомогою AI"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crowned"
 msgstr "Обрано переможцем"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
@@ -4467,6 +4497,10 @@ msgstr "Вимкнено"
 msgid "Disabled globally"
 msgstr "Глобально вимкнено"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Disabled server or unsupported native options"
+msgstr "Сервер вимкнено або його параметри не підтримуються CLI"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "Після вимкнення навичка переміщується з активних папок навичок, а керовані Poracode копії для провайдерів видаляються. Файли зберігаються, тому навичку можна знову ввімкнути."
@@ -4715,6 +4749,11 @@ msgstr "Редагувати сервер MCP"
 msgid "Edit profile"
 msgstr "Редагувати профіль"
 
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "Редагувати повідомлення в черзі"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Edit schedule"
@@ -4854,6 +4893,10 @@ msgstr "Увімкнені плагіни залишаються активни�
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "Вмикає <0>файли cookie</0> та <1>сховище</1>. Файли cookie можуть містити сеансові токени, а сховище часто зберігає стан авторизації — вмикайте лише тоді, коли довіряєте і агенту, і сайтам, які він відвідує."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "Завершити голосовий чат"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5021,6 +5064,10 @@ msgstr "Виключити із синхронізації"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Шаблони виключення"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Existing or edited native entry; left unchanged"
+msgstr "Наявний або змінений запис CLI залишено без змін"
 
 #. placeholder {0}: parsed.exitCode
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
@@ -5580,6 +5627,11 @@ msgstr "Папка, у якій зберігаються worktree цього п�
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Follow up..."
 #~ msgstr "Продовжити..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "Поведінка наступних повідомлень"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -6372,6 +6424,7 @@ msgstr "встановлення"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Install"
 msgstr "Встановити"
 
@@ -6569,6 +6622,7 @@ msgstr "Встановлення, оновлення та вхід поки не
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
 msgstr "Встановлено"
 
@@ -6837,6 +6891,18 @@ msgstr "Список завдань"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Live {0}"
 #~ msgstr "Онлайн {0}"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "Голосовий чат"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "Голосовий чат недоступний для цієї гілки."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "Для голосового чату потрібно увійти в обліковий запис із підпискою цього провайдера."
 
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7464,6 +7530,10 @@ msgstr "Доступ до мікрофона вимкнено."
 msgid "Microphone input level"
 msgstr "Рівень вхідного сигналу мікрофона"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "Мікрофон вимкнено"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Доступ до мікрофона відхилено."
@@ -7723,6 +7793,10 @@ msgstr "Переміщення змін…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "Вимкнути мікрофон"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7750,6 +7824,14 @@ msgstr "Назвіть проєкт і виберіть, де його ство�
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Нативний"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP configuration updated. Start a new CLI session to use it."
+msgstr "Конфігурацію MCP для CLI оновлено. Почніть новий сеанс CLI, щоб використовувати її."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP setup"
+msgstr "Налаштування MCP для CLI"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
@@ -7916,6 +7998,7 @@ msgstr "Нова вкладка в групі"
 
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -8420,7 +8503,8 @@ msgstr "Підтримуваних агентів не виявлено"
 msgid "No tags — the entry stops influencing tag affinity."
 msgstr "Немає тегів — запис перестає впливати на спорідненість тегів."
 
-#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "No thread selected"
 #~ msgstr "Потік не вибрано"
 
@@ -8505,6 +8589,7 @@ msgstr "не встановлено"
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "Не встановлено"
 
@@ -8983,6 +9068,10 @@ msgstr "Додаткові хуки статусу. Встановлені ху�
 #~ msgid "Optional workflow_dispatch input values."
 #~ msgstr "Необов’язкові вхідні значення workflow_dispatch."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Optional: copy selected user MCP servers into this CLI's native configuration for all its sessions. Commands, arguments, and credentials are copied only when you click Install. Changes are not synced automatically."
+msgstr "Необов’язково: скопіюйте вибрані користувацькі MCP-сервери в конфігурацію CLI для всіх її сеансів. Команди, аргументи й облікові дані копіюються лише після натискання «Установити». Зміни не синхронізуються автоматично."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
 msgstr "Необов’язково. Після ввімкнення запускається tailscale serve для порту віддаленого доступу, а нові коди сполучення використовують HTTPS-URL MagicDNS вашого tailnet. Залиште вимкненим, щоб використовувати LAN-адресу або публічний URL нижче."
@@ -9091,7 +9180,8 @@ msgstr "Спаруйте телефон, планшет або браузер і
 #~ msgid "Pair a remote machine…"
 #~ msgstr "Під’єднати віддалений комп’ютер…"
 
-#: src/mobile/components.tsx src/mobile/remoteConnectionState.ts
+#: src/mobile/components.tsx
+#: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "Підключити знову"
 
@@ -9251,6 +9341,7 @@ msgid "Pause goal"
 msgstr "Призупинити мету"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9325,7 +9416,8 @@ msgstr "Особисте"
 msgid "Pi"
 msgstr "Pi"
 
-#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "Pick a thread from the list to follow the agent from here."
 #~ msgstr "Виберіть потік зі списку, щоб стежити за агентом звідси."
 
@@ -10042,6 +10134,14 @@ msgstr "QR-код"
 msgid "Questions"
 msgstr "Питання"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "Додати в чергу"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "Додати повідомлення в чергу"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "У черзі"
@@ -10051,6 +10151,18 @@ msgstr "У черзі"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0} у черзі на оновлення до v{1}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "Повідомлення в черзі не знайдено: {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "Повідомлення в черзі"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "Повідомлення в черзі підтримуються лише в чатах."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10225,6 +10337,7 @@ msgstr "Приховувати вміст сповіщень"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Оновити"
@@ -10497,6 +10610,10 @@ msgstr "Видалити проєкт"
 msgid "Remove Project"
 msgstr "Видалити проєкт"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "Видалити повідомлення з черги"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Видалити комбінацію клавіш"
@@ -10605,6 +10722,10 @@ msgstr "Змінити порядок {0}"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "Змінити порядок {label}"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "Змінити порядок повідомлення в черзі"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10776,6 +10897,10 @@ msgstr "Продовжити"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Відновити мету"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "Відновити повідомлення з черги"
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
@@ -11116,6 +11241,7 @@ msgstr "Насиченість та яркість"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12296,6 +12422,10 @@ msgstr "Починайте кожен день із пріоритетів і н
 msgid "Start from scratch"
 msgstr "Почати з нуля"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "Почати голосовий чат"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12407,6 +12537,27 @@ msgstr "Статус:"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "stdio (local command)"
 msgstr "stdio (локальна команда)"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "Спрямувати"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "Спрямувати поточний хід"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "Скоригувати поточну відповідь повідомленням із черги"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "Коригування скасовано до надсилання повідомлення."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "Коригування замінено новішим повідомленням."
 
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
@@ -12983,6 +13134,10 @@ msgstr "Звичайна оболонка програми не змогла в�
 msgid "The remote server returned no pairing credential."
 msgstr "Віддалений сервер не повернув облікові дані для з’єднання."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "Не вдалося надіслати повідомлення на заміну."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Розташування репозиторію на диску. Оновіть його, якщо ви перемістили папку."
@@ -13059,6 +13214,10 @@ msgstr "SSH-тунель підключився до несумісного се
 msgid "the target provider"
 msgstr "цільовий провайдер"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "Сесія треду недоступна для повідомлень у черзі."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Тред працюватиме в окремому worktree на новій гілці."
@@ -13074,6 +13233,18 @@ msgstr "Не вдалося виконати операцію оновлення
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "Служба оновлень тимчасово недоступна."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "Не вдалося встановити голосове підключення. Спробуйте ще раз."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "Час очікування голосового підключення минув. Спробуйте ще раз."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "Голосове підключення скасовано."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13204,6 +13375,10 @@ msgstr "цей комп’ютер"
 msgid "This machine"
 msgstr "Цей комп’ютер"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "Цього повідомлення більше немає в черзі. Ви все ще можете скопіювати відредагований текст."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Цю назву зарезервовано вбудованим сервером MCP."
@@ -13258,6 +13433,15 @@ msgstr "цей проєкт"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Віддалений сервер цього проєкту офлайн. Перепідключіть його, щоб почати тред."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "Це додаткове повідомлення в черзі змінилося. Відкрийте його знову перед збереженням."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "Це повідомлення в черзі вже надсилається."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "Цей віддалений проєкт недоступний. Перепідключіть середовище та спробуйте ще раз."
@@ -13292,6 +13476,14 @@ msgstr "Цей сервер працює на цьому комп'ютері й 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Це загальносистемне сполучення клавіш недоступне. Виберіть інше сполучення."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "Цей тред не підтримує повідомлення в черзі."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "Цей потік поки не готовий до коригування."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
@@ -13760,7 +13952,8 @@ msgstr "Не вдалося відкрити файл"
 msgid "Unable to open the file in the editor"
 msgstr "Не вдалося відкрити файл у редакторі"
 
-#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Не удалось связать с этим десктопом."
 
@@ -13771,6 +13964,10 @@ msgstr "Не вдалося відкрити файл у редакторі"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to read experiment candidate status"
 msgstr "Не вдалося прочитати стан кандидата експерименту"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to read native MCP configuration."
+msgstr "Не вдалося прочитати конфігурацію MCP для CLI."
 
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/experimentDecisionActions.ts
@@ -13881,7 +14078,8 @@ msgstr "Не вдалося запустити Tailscale."
 msgid "Unable to start the remote thread."
 msgstr "Не вдалося запустити віддалений потік."
 
-#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 #: src/mobile/views/NewThreadFlow.tsx
 #~ msgid "Unable to start the thread."
 #~ msgstr "Не удалось запустить поток."
@@ -13931,6 +14129,10 @@ msgstr "Не вдалося оновити {0}."
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
 msgstr "Не вдалося оновити вивчені теги."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to update native MCP configuration. Refresh and review the configuration before retrying."
+msgstr "Не вдалося оновити конфігурацію MCP для CLI. Оновіть і перевірте конфігурацію перед повторною спробою."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
@@ -14009,8 +14211,13 @@ msgstr "Єдине подання"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Uninstall"
 msgstr "Видалити"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Uninstall {name}"
+msgstr "Видалити {name}"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
@@ -14058,6 +14265,10 @@ msgstr "Зняти позначку «готово»"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Зняти позначку «готово»"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "Увімкнути мікрофон"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

@@ -1,4 +1,5 @@
 import type { AgentCapability, LabeledOption } from "@/shared/contracts";
+import { parseContextWindowTokens } from "@/shared/contextWindow";
 
 /** Agent-settings key storing the user's Codex context-window list as JSON. */
 export const CODEX_CONTEXT_WINDOWS_SETTING_KEY = "contextWindows";
@@ -6,8 +7,6 @@ export const CODEX_CONTEXT_WINDOWS_SETTING_KEY = "contextWindows";
 /** Poracode's default Codex context window. Codex's own CLI default is 272k. */
 export const DEFAULT_CODEX_CONTEXT_SIZE = "400k";
 
-const MIN_CONTEXT_WINDOW_TOKENS = 1_000;
-const MAX_CONTEXT_WINDOW_TOKENS = 10_000_000;
 const AUTO_COMPACT_RATIO = 0.95;
 
 export interface CodexContextWindow {
@@ -16,25 +15,9 @@ export interface CodexContextWindow {
   tokens: number;
 }
 
-const CONTEXT_WINDOW_INPUT = /^(\d+(?:\.\d+)?)\s*([kKmM])?$/;
-
 export function parseContextWindowInput(raw: string): CodexContextWindow | undefined {
-  const trimmed = raw.trim().replaceAll(",", "");
-  if (!trimmed) return undefined;
-  const match = CONTEXT_WINDOW_INPUT.exec(trimmed);
-  if (!match) return undefined;
-  const amount = Number.parseFloat(match[1]!);
-  if (!Number.isFinite(amount) || amount <= 0) return undefined;
-  const suffix = match[2]?.toLowerCase();
-  const tokens =
-    suffix === "m"
-      ? Math.round(amount * 1_000_000)
-      : suffix === "k"
-        ? Math.round(amount * 1_000)
-        : Math.round(amount);
-  if (tokens < MIN_CONTEXT_WINDOW_TOKENS || tokens > MAX_CONTEXT_WINDOW_TOKENS) {
-    return undefined;
-  }
+  const tokens = parseContextWindowTokens(raw);
+  if (tokens === undefined) return undefined;
   const id = contextWindowIdFromTokens(tokens);
   return { id, label: contextWindowLabelFromId(id), tokens };
 }

@@ -8,6 +8,11 @@ import {
   remoteUserNotificationEventSchema,
 } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  isThreadFollowUpQueueSnapshotCurrent,
+  useThreadFollowUpQueueStore,
+  type ThreadFollowUpQueueSnapshotGuard,
+} from "@/renderer/state/threadFollowUpQueueStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { showUserNotification } from "@/renderer/notifications";
@@ -92,6 +97,8 @@ export function applyThreadSnapshot(
   options: {
     readonly fromServer: boolean;
     readonly lastSeenEventSeq?: number | undefined;
+    /** Guard captured immediately before this thread's history request. */
+    readonly followUpQueueSnapshotGuard?: ThreadFollowUpQueueSnapshotGuard;
   } = {
     fromServer: true,
   },
@@ -211,6 +218,16 @@ export function applyThreadSnapshot(
   syncRuntimeTurnBoundaryFromSnapshot(snapshot, options);
   if (options.fromServer) {
     applyBackgroundTasksFromSnapshot(snapshot, options.lastSeenEventSeq);
+    // snapshotSeq is host-global: an event for another thread must not make
+    // this thread's queue response look stale. Callers that captured the
+    // per-thread guard use it instead; legacy callers retain the sequence
+    // fallback so an old snapshot still cannot undo a live cancellation.
+    const queueSnapshotIsStale = options.followUpQueueSnapshotGuard
+      ? !isThreadFollowUpQueueSnapshotCurrent(threadId, options.followUpQueueSnapshotGuard)
+      : snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq);
+    if (snapshot.followUpQueue !== undefined && !queueSnapshotIsStale) {
+      useThreadFollowUpQueueStore.getState().setQueue(threadId, snapshot.followUpQueue);
+    }
   }
   if (snapshot.contextUsage && !snapshotStale) {
     const contextUsage = snapshot.contextUsage;
@@ -664,6 +681,10 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
         oldThread,
       });
       return;
+    }
+    case "thread-follow-up-queue": {
+      useThreadFollowUpQueueStore.getState().setQueue(event.threadId, event.queue);
+      break;
     }
     case "thread-pending-steer": {
       useAppStore.getState().setPendingSteer(event.threadId, event.pending);

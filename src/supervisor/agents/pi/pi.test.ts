@@ -24,7 +24,7 @@ describe("Pi provider metadata", () => {
       approvalPolicies: [],
       supportsResume: true,
       supportsOneShot: true,
-      mcpScope: { terminal: "none", gui: "launch" },
+      mcpScope: { terminal: "launch", gui: "launch" },
     });
     expect(typeof adapter.createStructuredSession).toBe("function");
   });

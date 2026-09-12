@@ -15,6 +15,7 @@ function setup(active = true) {
     threadId: "local-child",
     remoteThreadId: "provider-child",
     isDisposed: false,
+    liveVoice: { disconnect: vi.fn<() => Promise<void>>().mockResolvedValue(undefined) },
     currentThreadStatus: { type: "idle" },
     activeTurnId: active ? "turn-child" : undefined,
     activeTurnIds: new Set(active ? ["turn-child"] : []),

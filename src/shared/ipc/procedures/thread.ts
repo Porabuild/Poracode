@@ -11,10 +11,15 @@ import {
   agentHookPluginPayloadSchema,
   getAgentHookPluginStatusesPayloadSchema,
   getAgentStatusesPayloadSchema,
+  getThreadFollowUpQueuePayloadSchema,
+  threadFollowUpQueueStateSchema,
   installAcpRegistryAgentPayloadSchema,
   interruptThreadPayloadSchema,
   logoutAcpAgentPayloadSchema,
   removeAcpRegistryAgentPayloadSchema,
+  removeQueuedThreadFollowUpPayloadSchema,
+  editQueuedThreadFollowUpPayloadSchema,
+  reorderQueuedThreadFollowUpPayloadSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
   restoreToRevertAnchorPayloadSchema,
@@ -25,6 +30,7 @@ import {
   stageThreadInputPayloadSchema,
   startShellPayloadSchema,
   startThreadPayloadSchema,
+  resumeThreadFollowUpsPayloadSchema,
   updateAcpRegistryAgentPayloadSchema,
   updateAgentBinaryPayloadSchema,
   getLatestAgentVersionPayloadSchema,
@@ -32,6 +38,8 @@ import {
   writeTerminalPayloadSchema,
 } from "../../contracts";
 import type {
+  EditQueuedThreadFollowUpPayload,
+  ReorderQueuedThreadFollowUpPayload,
   AcpRegistryListResult,
   AcpRegistryMutationResult,
   AgentHookPluginMutationResult,
@@ -51,11 +59,13 @@ import type {
   ExtractContextResult,
   GetAgentHookPluginStatusesPayload,
   GetAgentStatusesPayload,
+  GetThreadFollowUpQueuePayload,
   InstallAcpRegistryAgentPayload,
   InterruptThreadPayload,
   LogoutAcpAgentPayload,
   RefreshAgentScope,
   RemoveAcpRegistryAgentPayload,
+  RemoveQueuedThreadFollowUpPayload,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
   RestoreToRevertAnchorPayload,
@@ -63,6 +73,8 @@ import type {
   SendThreadInputPayload,
   SetAcpRegistryAgentAuthPayload,
   SetPendingSteerPayload,
+  ResumeThreadFollowUpsPayload,
+  ThreadFollowUpQueueState,
   StageThreadInputPayload,
   StartShellPayload,
   StartThreadPayload,
@@ -275,6 +287,78 @@ export const threadProcedures = {
     "clearPendingSteer",
     "supervisor",
     clearPendingSteerPayloadSchema,
+  ),
+  queueThreadFollowUp: definePayloadProcedure<SetPendingSteerPayload, void, "supervisor">(
+    "queueThreadFollowUp",
+    "supervisor",
+    setPendingSteerPayloadSchema,
+    omittedResultSchema,
+  ),
+  removeQueuedThreadFollowUp: definePayloadProcedure<
+    RemoveQueuedThreadFollowUpPayload,
+    void,
+    "supervisor"
+  >(
+    "removeQueuedThreadFollowUp",
+    "supervisor",
+    removeQueuedThreadFollowUpPayloadSchema,
+    omittedResultSchema,
+  ),
+  reorderQueuedThreadFollowUp: definePayloadProcedure<
+    ReorderQueuedThreadFollowUpPayload,
+    void,
+    "supervisor"
+  >(
+    "reorderQueuedThreadFollowUp",
+    "supervisor",
+    reorderQueuedThreadFollowUpPayloadSchema,
+    omittedResultSchema,
+  ),
+  editQueuedThreadFollowUp: definePayloadProcedure<
+    EditQueuedThreadFollowUpPayload,
+    void,
+    "supervisor"
+  >(
+    "editQueuedThreadFollowUp",
+    "supervisor",
+    editQueuedThreadFollowUpPayloadSchema,
+    omittedResultSchema,
+  ),
+  steerQueuedThreadFollowUp: definePayloadProcedure<
+    RemoveQueuedThreadFollowUpPayload,
+    void,
+    "supervisor"
+  >(
+    "steerQueuedThreadFollowUp",
+    "supervisor",
+    removeQueuedThreadFollowUpPayloadSchema,
+    omittedResultSchema,
+  ),
+  pauseThreadFollowUps: definePayloadProcedure<
+    RemoveQueuedThreadFollowUpPayload,
+    void,
+    "supervisor"
+  >(
+    "pauseThreadFollowUps",
+    "supervisor",
+    removeQueuedThreadFollowUpPayloadSchema,
+    omittedResultSchema,
+  ),
+  resumeThreadFollowUps: definePayloadProcedure<ResumeThreadFollowUpsPayload, void, "supervisor">(
+    "resumeThreadFollowUps",
+    "supervisor",
+    resumeThreadFollowUpsPayloadSchema,
+    omittedResultSchema,
+  ),
+  getThreadFollowUpQueue: definePayloadProcedure<
+    GetThreadFollowUpQueuePayload,
+    ThreadFollowUpQueueState | null,
+    "supervisor"
+  >(
+    "getThreadFollowUpQueue",
+    "supervisor",
+    getThreadFollowUpQueuePayloadSchema,
+    threadFollowUpQueueStateSchema.nullable(),
   ),
   writeTerminal: definePayloadProcedure<WriteTerminalPayload, void, "supervisor">(
     "writeTerminal",

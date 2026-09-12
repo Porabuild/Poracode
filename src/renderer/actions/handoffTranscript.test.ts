@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { useAppStore } from "../state/appStore";
 import type { RuntimeChatItem } from "../state/slices/runtimeEventSlice";
-import { buildTranscriptContext, MAX_TRANSCRIPT_CONTEXT_CHARS } from "./handoffTranscript";
+import { buildTranscriptContext, handoffTranscriptBudget } from "./handoffTranscript";
 import { MAX_HANDOFF_MESSAGE_CHARS } from "./handoffTranscriptRows";
+
+const TEST_BUDGET = 50_000;
 
 const thread: Thread = {
   id: "thread-1",
@@ -145,7 +147,7 @@ describe("buildTranscriptContext", () => {
       userMessage("u2", "Latest follow-up"),
     ]);
 
-    const summary = buildTranscriptContext(thread, "Claude")?.summary ?? "";
+    const summary = buildTranscriptContext(thread, "Claude", TEST_BUDGET)?.summary ?? "";
 
     expect(summary).toContain("User:\nOriginal ask: migrate the auth module");
     expect(summary).toContain("User:\nLatest follow-up");
@@ -156,7 +158,7 @@ describe("buildTranscriptContext", () => {
   });
 
   it("spends the budget on conversation before tool activity", () => {
-    // Eight near-cap assistant rows take ~48k of the 50k budget; twenty
+    // Eight near-cap assistant rows take ~48k of the 50k test budget; twenty
     // 480-char command rows cannot all fit in what remains.
     const long = "z".repeat(MAX_HANDOFF_MESSAGE_CHARS - 10);
     const commands: RuntimeChatItem[] = Array.from({ length: 20 }, (_, index) => ({
@@ -171,7 +173,7 @@ describe("buildTranscriptContext", () => {
       ...Array.from({ length: 8 }, (_, index) => assistantMessage(`a${index}`, `${index}:${long}`)),
     ]);
 
-    const summary = buildTranscriptContext(thread, "Claude")?.summary ?? "";
+    const summary = buildTranscriptContext(thread, "Claude", TEST_BUDGET)?.summary ?? "";
 
     expect(summary).toContain("0:zzz");
     expect(summary).toContain("7:zzz");
@@ -183,10 +185,23 @@ describe("buildTranscriptContext", () => {
   it("truncates a single oversized user message from the tail, keeping its start", () => {
     seed([userMessage("u1", `ASK ${"w".repeat(MAX_HANDOFF_MESSAGE_CHARS * 2)}`)]);
 
-    const summary = buildTranscriptContext(thread, "Claude")?.summary ?? "";
+    const summary = buildTranscriptContext(thread, "Claude", TEST_BUDGET)?.summary ?? "";
 
     expect(summary).toContain("User:\nASK ");
     expect(summary).toContain("[message truncated]");
+  });
+
+  it("keeps the original ask when the destination budget is smaller than one message", () => {
+    seed([
+      userMessage("u1", `Original ask: ${"x".repeat(6_000)}`),
+      assistantMessage("a1", "y".repeat(6_000)),
+    ]);
+    const budget = handoffTranscriptBudget("1k");
+    const context = buildTranscriptContext(thread, "Source", budget);
+
+    expect(context?.summary).toContain("User:\nOriginal ask:");
+    expect(context?.summary).toContain("[message truncated]");
+    expect(context?.summary.length).toBeLessThanOrEqual(budget);
   });
 
   it("stays near the character budget when interleaved rows force gap markers", () => {
@@ -205,10 +220,31 @@ describe("buildTranscriptContext", () => {
     ]).flat();
     seed(interleaved);
 
-    const summary = buildTranscriptContext(thread, "Claude")?.summary ?? "";
+    const summary = buildTranscriptContext(thread, "Claude", TEST_BUDGET)?.summary ?? "";
 
     expect(summary).toContain("[turns omitted]");
-    // The header line rides outside the row budget, hence the small slack.
-    expect(summary.length).toBeLessThanOrEqual(MAX_TRANSCRIPT_CONTEXT_CHARS + 500);
+    expect(summary.length).toBeLessThanOrEqual(TEST_BUDGET);
   });
+});
+
+describe("handoffTranscriptBudget", () => {
+  it.each([
+    ["1k", 1_400],
+    ["32k", 44_800],
+    ["200k", 280_000],
+    ["272k", 380_800],
+    ["272,000", 380_800],
+    [" 1M ", 1_400_000],
+    ["1.05M", 1_470_000],
+    ["10m", 4_000_000],
+  ])("budgets the destination window %s without exceeding delivery limits", (size, expected) => {
+    expect(handoffTranscriptBudget(size)).toBe(expected);
+  });
+
+  it.each([undefined, "", "default", "unlimited", "20m", "0", "999", "1e9"])(
+    "uses the fallback for an unknown or invalid context size %s",
+    (size) => {
+      expect(handoffTranscriptBudget(size)).toBe(400_000);
+    },
+  );
 });

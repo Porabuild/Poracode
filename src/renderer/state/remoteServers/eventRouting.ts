@@ -47,6 +47,7 @@ export function filterRemoteThreadEvents(value: unknown, threadIds: ReadonlySet<
     type === "thread-reset" ||
     type === "thread-exited" ||
     type === "thread-pending-steer" ||
+    type === "thread-follow-up-queue" ||
     type === "thread-output" ||
     type === "thread-osc-notification" ||
     type === "thread-osc-shell"

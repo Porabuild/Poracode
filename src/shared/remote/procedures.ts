@@ -43,6 +43,14 @@ function longRunning<const Spec extends RemoteProcedureSpec>(spec: Spec) {
 export const REMOTE_PROCEDURE_SPECS = {
   // Thread checkpoints / rollback
   rollbackThreadConversation: operate("thread"),
+  queueThreadFollowUp: operate("thread"),
+  removeQueuedThreadFollowUp: operate("thread"),
+  reorderQueuedThreadFollowUp: operate("thread"),
+  editQueuedThreadFollowUp: operate("thread"),
+  steerQueuedThreadFollowUp: operate("thread"),
+  pauseThreadFollowUps: operate("thread"),
+  resumeThreadFollowUps: operate("thread"),
+  getThreadFollowUpQueue: read("thread"),
   createFileCheckpoint: operate("thread"),
   finalizeFileCheckpoint: operate("thread"),
   listFileCheckpoints: read("thread"),
@@ -159,6 +167,32 @@ export const REMOTE_PROCEDURE_SPECS = {
 } as const satisfies Partial<Record<IpcProcedureName, RemoteProcedureSpec>>;
 
 export type RemoteProcedureName = keyof typeof REMOTE_PROCEDURE_SPECS;
+
+/** Queue procedures are additive to the v9 remote API. Older v9 hosts reject
+ * them at the generic passthrough boundary; the remote client turns that
+ * response into an explicit unsupported-feature error instead of routing the
+ * request through the legacy pending-steer procedure.
+ */
+export const REMOTE_FOLLOW_UP_QUEUE_PROCEDURES = [
+  "queueThreadFollowUp",
+  "removeQueuedThreadFollowUp",
+  "reorderQueuedThreadFollowUp",
+  "editQueuedThreadFollowUp",
+  "steerQueuedThreadFollowUp",
+  "pauseThreadFollowUps",
+  "resumeThreadFollowUps",
+  "getThreadFollowUpQueue",
+] as const satisfies readonly RemoteProcedureName[];
+
+const remoteFollowUpQueueProcedures: ReadonlySet<string> = new Set(
+  REMOTE_FOLLOW_UP_QUEUE_PROCEDURES,
+);
+
+export function isRemoteFollowUpQueueProcedure(
+  procedure: string,
+): procedure is (typeof REMOTE_FOLLOW_UP_QUEUE_PROCEDURES)[number] {
+  return remoteFollowUpQueueProcedures.has(procedure);
+}
 
 /** Renderer procedures that become no-ops when their owner is remote. */
 export const REMOTE_NOOP_PROCEDURES = {

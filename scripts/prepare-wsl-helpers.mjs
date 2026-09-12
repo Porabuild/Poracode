@@ -1,7 +1,7 @@
 /**
  * Stages every Node helper that we run *inside* a WSL distro into
  * `resources/wsl-helpers/` so electron-builder can bundle them as
- * extraResources. Five artefacts ride this pipeline:
+ * extraResources. Eight artefacts ride this pipeline:
  *
  *   1. `watcher.node` — @parcel/watcher Linux x64 native binding,
  *      downloaded via `npm pack`. Loaded by `bridge.mjs` for watch
@@ -13,6 +13,9 @@
  *   4. `mcp-filter.mjs` — same-environment MCP proxy that removes disabled tools.
  *   5. `cursor-sdk-worker.mjs` — isolated transport shell that dynamically
  *      imports a Cursor SDK installed inside the target distro.
+ *   6. `commandcode-mcp-mod.mjs` — session-local MCP tool integration.
+ *   7. `pi-mcp-extension.mjs` — terminal and RPC MCP tool integration.
+ *   8. `mcp-stdio.mjs` — protocol-transparent MCP cwd launcher.
  *
  * Idempotency: presence + non-zero size on `watcher.node` skips the
  * `npm pack` download. Other helpers are compared byte-for-byte before copy,
@@ -48,6 +51,9 @@ stageHookBridge();
 stageMcpProbe();
 stageMcpFilter();
 stageCursorSdkWorker();
+stageCommandCodeMcpMod();
+stagePiMcpExtension();
+stageMcpStdioWorker();
 
 function stageWatcherBinary() {
   const dest = join(destDir, "watcher.node");
@@ -140,4 +146,22 @@ function assertSelfContainedWorker(path, label = "MCP probe worker") {
   if (external.length > 0) {
     throw new Error(`${label} is not self-contained: ${[...new Set(external)].join(", ")}`);
   }
+}
+
+function stageCommandCodeMcpMod() {
+  const src = join(repoRoot, "dist", "main", "commandCodeMcpMod.mjs");
+  assertSelfContainedWorker(src, "Command Code MCP mod");
+  copyIfChanged(src, join(destDir, "commandcode-mcp-mod.mjs"), "commandCodeMcpMod.mjs");
+}
+
+function stagePiMcpExtension() {
+  const src = join(repoRoot, "dist", "main", "piMcpExtension.mjs");
+  assertSelfContainedWorker(src, "Pi MCP extension");
+  copyIfChanged(src, join(destDir, "pi-mcp-extension.mjs"), "piMcpExtension.mjs");
+}
+
+function stageMcpStdioWorker() {
+  const src = join(repoRoot, "dist", "main", "mcpStdioWorker.mjs");
+  assertSelfContainedWorker(src, "MCP stdio worker");
+  copyIfChanged(src, join(destDir, "mcp-stdio.mjs"), "mcpStdioWorker.mjs");
 }

@@ -281,6 +281,12 @@ vi.mock("@/renderer/bridge", () => ({
     updateAcpRegistryAgent: updateAcpRegistryAgentMock,
     installAcpRegistryAgent: installAcpRegistryAgentMock,
     getAgentHookPluginStatuses: getAgentHookPluginStatusesMock,
+    getNativeMcpSetup: async () => ({
+      supported: false,
+      candidates: [],
+      installedNames: [],
+      modifiedNames: [],
+    }),
     installAgentHookPlugin: installAgentHookPluginMock,
     uninstallAgentHookPlugin: uninstallAgentHookPluginMock,
   }),

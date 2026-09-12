@@ -308,7 +308,9 @@ describe("fault-injected web reconnect (real host)", () => {
     });
     clients.push(resumed);
     await burst;
-    if (burstError !== undefined) throw burstError;
+    if (burstError !== undefined) {
+      throw burstError instanceof Error ? burstError : new Error(String(burstError));
+    }
 
     for (const name of burstNames) {
       const event = await resumed.awaitNextEvent(

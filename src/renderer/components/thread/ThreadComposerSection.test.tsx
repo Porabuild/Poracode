@@ -16,6 +16,7 @@ import {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadTodoDockStore } from "@/renderer/state/threadTodoDockStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import type { SaveClipboardImage } from "../composer/useAttachments";
 import { ThreadComposerSection } from "./ThreadComposerSection";
 import { useRevertedPromptStore } from "./revertedPrompt";
@@ -27,6 +28,8 @@ const bridgeMock = vi.hoisted(() => ({
   clearPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  queueThreadFollowUp: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  getThreadFollowUpQueue: vi.fn<() => Promise<null>>().mockResolvedValue(null),
   refreshAgentStatuses: vi
     .fn<() => Promise<{ windows: AgentStatus[]; wsl: AgentStatus[] }>>()
     .mockResolvedValue({ windows: [], wsl: [] }),
@@ -89,6 +92,8 @@ vi.mock("../../bridge", () => ({
     clearPendingSteer: bridgeMock.clearPendingSteer,
     interruptThread: bridgeMock.interruptThread,
     setPendingSteer: bridgeMock.setPendingSteer,
+    queueThreadFollowUp: bridgeMock.queueThreadFollowUp,
+    getThreadFollowUpQueue: bridgeMock.getThreadFollowUpQueue,
     writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     refreshAgentStatuses: bridgeMock.refreshAgentStatuses,
     getProviderUsage: bridgeMock.getProviderUsage,
@@ -253,6 +258,7 @@ describe("ThreadComposerSection", () => {
     localStorage.clear();
     useSharedSettings.setState({
       collapseTerminalComposer: false,
+      followUpBehavior: "steer",
       disabledBuiltInMcpServers: {},
     });
     useThreadTodoDockStore.setState({
@@ -274,6 +280,9 @@ describe("ThreadComposerSection", () => {
     useGitStore.setState({ statuses: {} });
     useComposerInputInbox.setState({ itemsByComposer: {} });
     useRevertedPromptStore.setState({ byThread: {} });
+    useThreadFollowUpQueueStore.setState({ byThread: {} });
+    bridgeMock.queueThreadFollowUp.mockReset().mockResolvedValue(undefined);
+    bridgeMock.getThreadFollowUpQueue.mockReset().mockResolvedValue(null);
     bridgeMock.isRemoteSession.mockReturnValue(false);
     bridgeMock.isCompactClientSurface.mockReturnValue(false);
     bridgeMock.clearPendingSteer.mockClear();
@@ -1633,6 +1642,135 @@ describe("ThreadComposerSection", () => {
       [{ kind: "text", content: "change direction" }],
       "pending_steer",
     );
+  });
+
+  it("queues a working thread's message and attachments when Queue is the default", async () => {
+    useSharedSettings.setState({ followUpBehavior: "queue" });
+    renderComposer({ thread: { ...guiThread, status: "working", attention: "working" } });
+    act(() =>
+      useRevertedPromptStore.getState().restore(guiThread.id, [
+        { kind: "text", text: "do this next" },
+        {
+          kind: "image",
+          path: "C:\\attachments\\shot.png",
+          mimeType: "image/png",
+          dataUrl: "",
+          source: "attachment",
+        },
+      ]),
+    );
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    await waitFor(() =>
+      expect(bridgeMock.queueThreadFollowUp).toHaveBeenCalledWith({
+        threadId: guiThread.id,
+        prompt: "do this next",
+        config: guiThread.config,
+        segments: [
+          { kind: "attachment", path: "C:\\attachments\\shot.png", mimeType: "image/png" },
+          { kind: "text", content: "do this next" },
+        ],
+      }),
+    );
+    expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+    expect(bridgeMock.interruptThread).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["steer", "ctrlKey"],
+    ["steer", "metaKey"],
+    ["queue", "ctrlKey"],
+    ["queue", "metaKey"],
+  ] as const)(
+    "uses the opposite of %s for %s+Enter without changing the default",
+    async (behavior, modifier) => {
+      useSharedSettings.setState({ followUpBehavior: behavior });
+      renderComposer({ thread: { ...guiThread, status: "working", attention: "working" } });
+      const editor = screen.getByRole("textbox");
+      typeComposerText(editor, "one-time override");
+      fireEvent.keyDown(editor, { key: "Enter", [modifier]: true });
+      const expected =
+        behavior === "steer" ? bridgeMock.queueThreadFollowUp : bridgeMock.setPendingSteer;
+      const unused =
+        behavior === "steer" ? bridgeMock.setPendingSteer : bridgeMock.queueThreadFollowUp;
+      await waitFor(() =>
+        expect(expected).toHaveBeenCalledWith(
+          expect.objectContaining({
+            threadId: guiThread.id,
+            prompt: "one-time override",
+          }),
+        ),
+      );
+      expect(unused).not.toHaveBeenCalled();
+      expect(useSharedSettings.getState().followUpBehavior).toBe(behavior);
+    },
+  );
+
+  it("leaves a pending approval open when queueing a follow-up", async () => {
+    useSharedSettings.setState({ followUpBehavior: "queue" });
+    useAppStore.setState({
+      runtimeRequestsByThread: {
+        [guiThread.id]: [
+          {
+            requestId: "approval-before-queue",
+            threadId: guiThread.id,
+            requestType: "command_execution_approval",
+            payload: { summary: "Run first" },
+            receivedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+    const { onSubmitInput } = renderComposer({
+      thread: { ...guiThread, status: "needs_approval" },
+    });
+    typeComposerText(screen.getByRole("textbox"), "after this approval");
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => expect(bridgeMock.queueThreadFollowUp).toHaveBeenCalled());
+    expect(runtimeActions.resolveThreadServerRequest).not.toHaveBeenCalled();
+    expect(onSubmitInput).not.toHaveBeenCalled();
+    expect(useAppStore.getState().runtimeRequestsByThread[guiThread.id]).toHaveLength(1);
+  });
+
+  it("uses the follow-up override while slash autocomplete is open", async () => {
+    renderComposer({
+      thread: {
+        ...guiThread,
+        status: "working",
+        slashCommands: [{ id: "review", label: "Review code", section: "skills" }],
+      },
+    });
+    const editor = screen.getByRole("textbox");
+    typeComposerText(editor, "/rev");
+    expect(await screen.findByRole("option", { name: /review/i })).toBeInTheDocument();
+    fireEvent.keyDown(editor, { key: "Enter", ctrlKey: true });
+    await waitFor(() =>
+      expect(bridgeMock.queueThreadFollowUp).toHaveBeenCalledWith(
+        expect.objectContaining({ prompt: "/rev" }),
+      ),
+    );
+    expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+  });
+
+  it("restores the draft if the queue request fails", async () => {
+    useSharedSettings.setState({ followUpBehavior: "queue" });
+    bridgeMock.queueThreadFollowUp.mockRejectedValueOnce(new Error("Queue unavailable"));
+    renderComposer({ thread: { ...guiThread, status: "working" } });
+    typeComposerText(screen.getByRole("textbox"), "keep this message");
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => expect(toastDangerSpy).toHaveBeenCalledWith("Queue unavailable"));
+    expect(screen.getByRole("textbox")).toHaveTextContent("keep this message");
+    expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+  });
+
+  it("does not apply the follow-up shortcut while composing text", async () => {
+    renderComposer({ thread: { ...guiThread, status: "working" } });
+    const editor = screen.getByRole("textbox");
+    typeComposerText(editor, "unfinished input");
+    fireEvent.keyDown(editor, { key: "Enter", ctrlKey: true, isComposing: true });
+    await act(async () => Promise.resolve());
+    expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
+    expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
+    expect(editor).toHaveTextContent("unfinished input");
   });
 
   it("does not submit or steer while a stored GUI session is reconnecting", async () => {

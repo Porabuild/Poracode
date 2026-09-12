@@ -99,6 +99,46 @@ describe("buildHandoffLaunchInput", () => {
     expect(saveHandoffContext).toHaveBeenCalledWith({ threadId: "t1", content: "Prior context" });
   });
 
+  it("keeps a large transcript intact when attachment delivery succeeds", async () => {
+    const summary = "文".repeat(1_400_000);
+    const launch = await buildHandoffLaunchInput({
+      threadId: "t1",
+      prompt: "Continue",
+      segments: undefined,
+      extractedContext: extracted({ summary, contentKind: "transcript" }),
+    });
+
+    expect(saveHandoffContext).toHaveBeenCalledWith({ threadId: "t1", content: summary });
+    expect(launch.prompt.length).toBeLessThan(1_000);
+    expect(launch.segments).toContainEqual(expect.objectContaining({ kind: "attachment" }));
+  });
+
+  it.each(["文", "\u0000"])(
+    "bounds fallback JSON while keeping both ends of %j context",
+    async (fill) => {
+      saveHandoffContext.mockRejectedValueOnce(new Error("disk full"));
+      const launch = await buildHandoffLaunchInput({
+        threadId: "t1",
+        prompt: "Next task",
+        segments: undefined,
+        extractedContext: extracted({
+          summary: `Original ask\n${fill.repeat(400_000)}\nLatest result`,
+          contentKind: "transcript",
+        }),
+      });
+
+      expect(launch.prompt).toContain("Original ask");
+      expect(launch.prompt).toContain("Latest result");
+      expect(launch.prompt).toContain("[transferred context omitted]");
+      expect(launch.prompt.endsWith("Next task")).toBe(true);
+      expect(Buffer.byteLength(JSON.stringify(launch))).toBeLessThan(1_048_576);
+      expect(launch.segments?.[0]).toEqual({
+        kind: "text",
+        content: launch.prompt.slice(0, -"Next task".length),
+      });
+    },
+  );
+
   it("labels an inlined chat history when the file write fails", async () => {
     saveHandoffContext.mockRejectedValueOnce(new Error("disk full"));
 

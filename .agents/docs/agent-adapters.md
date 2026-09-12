@@ -42,6 +42,11 @@ rule is about control flow and data shape, not about erasing history.
    Probe customization uses `normalizeProbeResult` for discovered capabilities
    and `modelLabel` for fallback labels when the agent supplies no display name.
 
+Message payloads can declare `turnIndependent: true` when a conversation stream
+publishes messages outside an agent execution turn. The shared renderer persists
+and renders them without using their arrival to reopen the agent's work timer.
+Providers own this classification; ordinary messages keep the default behavior.
+
 If none of the three fits, the right move is to add a new hook with a
 capability-shaped name and document it here — not to add a branch.
 
@@ -340,7 +345,7 @@ most often forgotten.
 - [ ] OSC status (title spinner / iTerm2 progress) → `handleOscTitle`/
       `handleOscNotification` (see Grok). Only wire when the CLI actually emits OSC.
 
-> Reference template for a **TUI-only, no-ACP, no-plugin** CLI: `commandcode/`
+> Reference template for a **TUI-only, no-ACP** CLI: `commandcode/`
 > (multi-model + npm install/update + a synthesized terminal Login method).
 
 ## Giving a Provider Multiple Profiles
@@ -393,6 +398,17 @@ The codebase is provider-agnostic by design (targeting 5-10 providers). Each pro
 - **Renderer side:** Each provider has its own directory under `src/renderer/components/providers/<kind>/` containing a lightweight manifest, icons, status components, and registration calls. `providerManifest.ts` eagerly discovers metadata while `bootstrap.ts` independently loads UI registrations at the desktop/mobile entrypoints. Leaf registries (`ProviderIcon.tsx`, `providerComposer.ts`, `providerSlashCommands.ts`) and feature-owned utility modules (`commitGen.ts`, `titleGen.ts`, `conflictResolver.ts`) stay side-effect-free until a provider module registers with them; the providers barrel does not bootstrap.
 - **Registry pattern:** Provider behavior is fully self-contained. The supervisor factory list is explicit and guarded by directory-parity tests; renderer metadata and UI modules are filesystem-discovered; native install metadata remains an explicit renderer registry. No provider-specific `if/else` lands in shared runtime or layout logic. See [Adding a New Provider — Full Checklist](#adding-a-new-provider--full-checklist) for the remaining integration points.
 
+### Command Code MCP tools
+
+Command Code loads Poracode's MCP tools through a session-local `--mod`, using
+its v1 ModApi. The adapter passes a versioned environment envelope; the bundled
+`commandcode-mcp-mod.mjs` connects the enabled stdio, HTTP, or SSE servers and
+registers their tools. Native MCP settings remain owned by Command Code. The
+mod stays alive across native session switches. Tool names and JSON schemas
+are normalized at this provider boundary for the CLI's model/input validation.
+The helper is bundled with its MCP SDK dependencies and shipped through the
+shared helpers resource pipeline, including WSL and SSH deployments.
+
 ## WSL Routing
 
 - WSL projects are detected via `ProjectLocation.kind === "wsl"`.
@@ -438,3 +454,39 @@ Edit `PORACODE_PINNED_NODE_VERSION` in `src/supervisor/runtime/pinnedNode.ts`, t
 ## Capability-Based UI
 
 The UI only shows controls that the agent's `capabilities` object declares. Do not show fake controls for features a CLI cannot support (e.g. no effort selector for Gemini, no sandbox modes for Claude).
+
+### Terminal MCP launch integration
+
+Composer `mcpScope.terminal` declares whether the selected MCP set can be supplied
+at launch. Providers with per-launch config flags stage private files and attach
+cleanup to both launch and resume argv. Native Windows ACLs and in-distro Linux
+permissions protect credential-bearing files before writing them.
+
+Providers that ignore a stdio server's `cwd` declare
+`mcpRequiresStdioCwdProxy`. The launch pipeline then uses the standalone stdio
+launcher, which applies cwd/env and preserves raw MCP traffic, including resources
+and prompts. Servers with disabled tools still use the filtering proxy.
+
+Command Code mods and Pi extensions share the SDK connection implementation;
+each provider maps schemas/results and owns its extension lifecycle. Pi closes
+connections on reload/quit and retains them across native session switches. The
+standalone helpers and their versioned launch envelopes must ship together.
+
+### Native MCP setup and consent
+
+CLI availability is independent of Poracode MCP integration. A provider without session-local
+MCP support remains available in CLI mode and does not advertise per-thread MCP selection.
+
+Providers with `nativeMcpConfig(ctx)` expose optional native configuration setup in Provider
+Settings. Users explicitly select saved user MCP servers and click Install after reviewing the
+destination and provider-wide scope. This copies native definitions, not a traffic proxy. It
+never runs on detection or thread launch, and changes are not synchronized automatically.
+Removal preserves unrelated servers and user-edited entries. Unsupported native options are
+unavailable instead of being silently dropped. Native host environments are supported; WSL
+setup remains unavailable until its paths and permissions are verified.
+
+The app's `native-mcp-config/<config-path-hash>.json` version-1 ownership journal stores hashes,
+not credentials. It records old and proposed entry hashes before atomic configuration writes,
+so interrupted updates can be retried. The settings revision covers both native configuration
+and saved server definitions. The optional IPC additions do not change per-thread capabilities,
+so existing status caches remain valid.

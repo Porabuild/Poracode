@@ -4,9 +4,26 @@ import {
   friendlyError,
   friendlyErrorWithDetail,
   isPullDirtyWorktreeError,
+  setMessageResolver,
 } from "./messages";
 
 describe("friendlyErrorWithDetail", () => {
+  it("localizes static source-language messages received over IPC", () => {
+    setMessageResolver((key) =>
+      key === "voice.connectionFailed" ? "La conexión de voz falló." : undefined,
+    );
+    try {
+      expect(
+        friendlyError(
+          new Error(
+            "Error invoking remote method 'connectThreadVoice': Error: The voice connection failed. Try again.",
+          ),
+        ),
+      ).toBe("La conexión de voz falló.");
+    } finally {
+      setMessageResolver(undefined);
+    }
+  });
   it("returns the raw message and no details for plain errors", () => {
     const result = friendlyErrorWithDetail(new Error("something broke"));
     expect(result).toEqual({ summary: "something broke", details: "" });

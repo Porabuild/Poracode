@@ -63,6 +63,8 @@ export function buildClaudeArgs(
  * present) so Claude's CLI keeps reading them as options.
  */
 export function claudeExtraArgsPosition(args: string[], prompt: string): number {
+  const delimiter = args.indexOf("--");
+  if (delimiter >= 0) return delimiter;
   return prompt.trim().length > 0 ? args.length - 1 : args.length;
 }
 

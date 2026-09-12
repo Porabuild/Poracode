@@ -20,6 +20,7 @@ async function main(): Promise<void> {
   const config = readConfig();
   const proxy = await startFilterProxy({
     serverName: config.server.name,
+    timeoutMs: config.server.timeoutMs,
     disabledTools: config.disabledTools,
     upstreamTransport: createUpstreamTransport(config.server),
     downstreamTransport: new StdioServerTransport(),

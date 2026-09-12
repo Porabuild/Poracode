@@ -7,7 +7,7 @@ import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
-import { parseProjectPathRef, PROJECT_PATH_TOKEN_SOURCE } from "./parseProjectPathRef";
+import { tokenizePlainText } from "./plainTextTokens";
 import { DeferredItemMarkdownInner } from "@/renderer/deferredFeatures";
 
 interface ItemMarkdownProps {
@@ -106,65 +106,6 @@ function PlainText({
       })}
     </div>
   );
-}
-
-type PlainTextNode =
-  | { kind: "text"; value: string }
-  | { kind: "url"; href: string }
-  | { kind: "file"; path: string; line?: number; endLine?: number }
-  | { kind: "folder"; path: string };
-
-const PLAIN_TOKEN_RE = new RegExp(`https?:\\/\\/[^\\s<>"']+|${PROJECT_PATH_TOKEN_SOURCE}`, "g");
-
-function tokenizePlainText(
-  text: string,
-  rootNames: ReadonlySet<string> | undefined,
-): PlainTextNode[] {
-  PLAIN_TOKEN_RE.lastIndex = 0;
-  const out: PlainTextNode[] = [];
-  let cursor = 0;
-  let match: RegExpExecArray | null;
-  while ((match = PLAIN_TOKEN_RE.exec(text)) !== null) {
-    if (/^https?:\/\//i.test(match[0])) {
-      const href = trimTrailingUrlPunctuation(match[0]);
-      if (href.length === 0) continue;
-      if (match.index > cursor) {
-        out.push({ kind: "text", value: text.slice(cursor, match.index) });
-      }
-      out.push({ kind: "url", href });
-      cursor = match.index + href.length;
-      PLAIN_TOKEN_RE.lastIndex = cursor;
-      continue;
-    }
-
-    const ref = parseProjectPathRef(match[0], { rootNames });
-    if (!ref) continue;
-    if (match.index > cursor) {
-      out.push({ kind: "text", value: text.slice(cursor, match.index) });
-    }
-    if (ref.kind === "file") {
-      out.push(
-        ref.line !== undefined
-          ? {
-              kind: "file",
-              path: ref.path,
-              line: ref.line,
-              ...(ref.endLine !== undefined ? { endLine: ref.endLine } : {}),
-            }
-          : { kind: "file", path: ref.path },
-      );
-    } else {
-      out.push({ kind: "folder", path: ref.path });
-    }
-    cursor = match.index + match[0].length;
-  }
-  if (cursor === 0) return [{ kind: "text", value: text }];
-  if (cursor < text.length) out.push({ kind: "text", value: text.slice(cursor) });
-  return out;
-}
-
-function trimTrailingUrlPunctuation(url: string): string {
-  return url.replace(/[),.;:!?]+$/, "");
 }
 
 /**

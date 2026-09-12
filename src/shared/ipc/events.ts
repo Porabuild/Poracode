@@ -1,4 +1,5 @@
 import type { OscShellEvent } from "../osc";
+import type { LiveVoiceEvent } from "../contracts/liveVoice";
 import type { LspSessionStatus } from "../lsp";
 import type {
   AgentSlashCommand,
@@ -10,6 +11,7 @@ import type {
   RuntimeEvent,
   ThreadAttention,
   ThreadConfig,
+  ThreadFollowUpQueueState,
   ThreadStatus,
   ThreadStatusSource,
   UsageLoginConfirmationRequest,
@@ -83,6 +85,7 @@ export type SupervisorEvent =
         | { kind: "judging" };
     }
   | { type: "thread-reset"; threadId: string }
+  | { type: "thread-voice"; threadId: string; event: LiveVoiceEvent }
   | { type: "thread-scrollback-resync"; threadId: string }
   | {
       type: "thread-output";
@@ -131,6 +134,11 @@ export type SupervisorEvent =
       type: "thread-pending-steer";
       threadId: string;
       pending: PendingSteerState | null;
+    }
+  | {
+      type: "thread-follow-up-queue";
+      threadId: string;
+      queue: ThreadFollowUpQueueState | null;
     }
   | { type: "thread-exited"; threadId: string; exitCode: number | null }
   | {

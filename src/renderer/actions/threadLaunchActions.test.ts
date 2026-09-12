@@ -226,6 +226,23 @@ describe("startThreadFromDraft host transport", () => {
     mocks.performWorktreeRemoval.mockResolvedValue(true);
   });
 
+  it("preserves caller identity for an empty first turn without generating a title from silence", async () => {
+    await startThreadFromDraft(localProject, {
+      threadId: "audio-thread",
+      agentKind: "example",
+      config: { model: "example" },
+      prompt: "",
+      presentationMode: "gui",
+    });
+    expect(mocks.appState.createThread).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: "audio-thread", prompt: "" }),
+    );
+    expect(mocks.bridge.startThread).toHaveBeenCalledWith(
+      expect.objectContaining({ threadId: "audio-thread", prompt: "" }),
+    );
+    expect(mocks.generateTitleAsync).not.toHaveBeenCalled();
+  });
+
   it("opens a local thread before its new worktree finishes provisioning", async () => {
     let resolveWorktree!: (result: { path: string; changesTransferred?: boolean }) => void;
     mocks.createWorktree.mockReturnValue(

@@ -56,20 +56,20 @@ describe("remote v3 native binding generator", () => {
         protocolVersion: 11,
         bindingFormatVersion: 2,
         generatorVersion: 3,
-        sourceHash: "sha256:357ce7591ac9ad276893f6772be6b2a33887f67630dbd49a5d263feccdce7da8",
-        manifestHash: "sha256:69e2f4d9368d6edb648a9c5fd4930f903a462c1425e7aab716ad6e5ff39bd4d5",
+        sourceHash: "sha256:20702f089ef9ef2df977c54246df116b264684ea008550fa5879f34a62273ec1",
+        manifestHash: "sha256:3b6063bf27d11686181b65e189404e89978f8745187868eb1a23915a3ed7b5d4",
         counts: {
           routes: 63,
-          procedures: 100,
-          voidProcedureResults: 36,
-          jsonProcedureResults: 64,
+          procedures: 108,
+          voidProcedureResults: 43,
+          jsonProcedureResults: 65,
           webSocketClientVariants: 9,
           webSocketServerVariants: 10,
-          schemaRoots: 310,
-          structuralTypes: 772,
+          schemaRoots: 319,
+          structuralTypes: 783,
           semanticValidators: 17,
-          swiftFiles: 44,
-          kotlinFiles: 39,
+          swiftFiles: 45,
+          kotlinFiles: 40,
         },
       });
     },
@@ -266,7 +266,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(310);
+        expect(adapters).toHaveLength(319);
         const source = Object.entries(output)
           .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
           .map(([, contents]) => contents)

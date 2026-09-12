@@ -19,6 +19,7 @@ import {
   reorderThreadsInProject,
   type ReorderPlacement,
 } from "../reorder";
+import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import { makeThreadTitle, removePaneFromView, replacePaneInView, stripPlanMode } from "./helpers";
 import {
   appendCompletedTurnIfClosed,
@@ -26,10 +27,12 @@ import {
   type TurnCloseUpdate,
 } from "./threadTurnHelpers";
 import { recordThreadStarted } from "../usageRecorder";
-import { removeKeepAliveId } from "./paneCacheSlice";
+import { keepAlivePatch, removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import { terminateStaleSubAgentItems } from "./staleSubAgents";
+import { msg } from "@lingui/core/macro";
+import { i18n } from "@/renderer/i18n/i18n";
 
 export interface ThreadSlice {
   threads: Thread[];
@@ -240,7 +243,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       ...(workspaceId ? { workspaceId } : {}),
       ...(remoteServerId ? { remoteServerId } : {}),
       ...(remoteId ? { remoteId } : {}),
-      title: title ?? makeThreadTitle(prompt),
+      // Audio-first and attachment-only launches have no text to derive a title from.
+      title: title?.trim() || makeThreadTitle(prompt) || i18n._(msg`New thread`),
       agentKind,
       ...(agentInstanceId ? { agentInstanceId } : {}),
       config,
@@ -288,6 +292,11 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           ...state.lastRuntimeConfigByThreadId,
           [thread.id]: thread.config,
         },
+        // A focused launch replaces the current pane; keep that outgoing
+        // terminal mounted so switching back still has its xterm buffer.
+        ...(focus === false
+          ? {}
+          : keepAlivePatch({ ...state, threads: [thread, ...state.threads] }, thread.id)),
       };
     });
 
@@ -416,6 +425,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       if (nextThreads.length === state.threads.length) {
         return {};
       }
+
+      useThreadFollowUpQueueStore.getState().setQueue(threadId, null);
 
       let nextView = state.view;
       if (state.view.kind === "thread") {

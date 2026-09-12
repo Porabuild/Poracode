@@ -81,6 +81,31 @@ describe("generateTitle CLI spawn", () => {
     expect(prepareOneShotMock).toHaveBeenCalledWith(wslProject, expect.anything());
   });
 
+  it.each([
+    ["TDTN-2424", ["TDTN-2424"]],
+    ["PR #747", ["PR #747"]],
+    ["pull request 747", ["pull request 747"]],
+    ["https://github.com/example/repo/pull/747", ["https://github.com/example/repo/pull/747"]],
+    ["https://example.atlassian.net/browse/TDTN-2424", ["TDTN-2424"]],
+    ["PR #747 (TDTN-2424)", ["PR #747", "TDTN-2424"]],
+    ["TDTN-2424 ".repeat(300) + "PR #747", ["TDTN-2424", "PR #747"]],
+  ])("preserves references beyond the message limit: %s", async (reference, expected) => {
+    const runOneShot = vi
+      .fn<NonNullable<AgentAdapter["runOneShot"]>>()
+      .mockResolvedValue("Fix login timeout");
+    const prompt = "Investigate login timeouts. ".repeat(150) + reference;
+
+    await generateTitle(windowsProject, cliAdapter({ runOneShot }), prompt);
+
+    const sentPrompt = runOneShot.mock.calls[0]![0].prompt;
+    expect(sentPrompt).toContain("[message truncated]");
+    expect(sentPrompt).not.toContain("Investigate login timeouts. ".repeat(150));
+    const preservedReferences = sentPrompt.split(
+      "Reference candidates from the full message:\n",
+    )[1];
+    expect(preservedReferences?.split("\n")).toEqual(expected);
+  });
+
   it("applies adapter baseSpawnEnv to the one-shot command", async () => {
     await generateTitle(windowsProject, cliAdapter(), "the login times out");
 

@@ -15,6 +15,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { liveVoice } from "@/renderer/speech/liveVoice";
 
 const { composerSpy, launchExperimentMock } = vi.hoisted(() => ({
   composerSpy: vi.fn<(props: unknown) => void>(),
@@ -58,6 +59,14 @@ const project: Project = {
   },
   createdAt: "2026-03-28T00:00:00.000Z",
 };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 const legacyCodexProject: Project = {
   ...project,
@@ -159,6 +168,14 @@ const dualModeCodexStatus: AgentStatus = {
   capabilities: {
     ...codexStatus.capabilities,
     presentationModes: ["terminal", "gui"],
+  },
+};
+
+const liveVoiceCodexStatus: AgentStatus = {
+  ...dualModeCodexStatus,
+  capabilities: {
+    ...dualModeCodexStatus.capabilities,
+    liveVoice: { transport: "webrtc", dataChannel: "audio-events" },
   },
 };
 
@@ -935,8 +952,188 @@ describe("ThreadDraftView", () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await liveVoice.stop();
+    vi.unstubAllGlobals();
     delete (window as unknown as { poracode?: unknown }).poracode;
+  });
+
+  it("cancels deferred draft voice before a typed Send can hand off content", async () => {
+    const permission = deferred<MediaStream>();
+    const track = { enabled: true, stop: vi.fn<() => void>(), onended: null };
+    const stream = {
+      getTracks: () => [track],
+      getAudioTracks: () => [track],
+    } as unknown as MediaStream;
+    const getUserMedia = vi.fn<() => Promise<MediaStream>>(() => permission.promise);
+    vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
+    const onStart = vi.fn<(input: unknown) => void>();
+
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[liveVoiceCodexStatus]}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        submitControl?: ReactElement<{ onStart: () => void }>;
+      };
+      expect(props.submitControl).toBeDefined();
+    });
+    const props = composerSpy.mock.lastCall?.[0] as {
+      submitControl: ReactElement<{ onStart: () => void }>;
+      inputContent: ReactElement;
+    };
+
+    act(() => props.submitControl.props.onStart());
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
+
+    const inputRender = render(props.inputContent);
+    const editor = inputRender.container.querySelector<HTMLElement>('[contenteditable="true"]');
+    expect(editor).not.toBeNull();
+    if (!editor) throw new Error("Expected draft editor");
+    act(() => {
+      editor.innerHTML =
+        '<span data-mention-path="C:\\src\\main.ts">main.ts</span> ask while permission is pending';
+      fireEvent.input(editor);
+    });
+    const afterInputProps = composerSpy.mock.lastCall?.[0] as {
+      onAttachFiles?: (paths: string[]) => void;
+    };
+    act(() => afterInputProps.onAttachFiles?.(["C:\\draft-note.txt"]));
+    await waitFor(() => {
+      const nextProps = composerSpy.mock.lastCall?.[0] as { submitDisabled: boolean };
+      expect(nextProps.submitDisabled).toBe(false);
+    });
+    const nextProps = composerSpy.mock.lastCall?.[0] as { onSubmit: () => void };
+    act(() => nextProps.onSubmit());
+
+    expect(onStart).toHaveBeenCalledOnce();
+    expect(onStart.mock.calls[0]?.[0]).toMatchObject({
+      segments: [
+        { kind: "attachment", path: "C:\\draft-note.txt", mimeType: "text/plain" },
+        { kind: "file", path: "C:\\src\\main.ts" },
+        { kind: "text", content: " ask while permission is pending" },
+      ],
+    });
+
+    permission.resolve(stream);
+    await waitFor(() => expect(track.stop).toHaveBeenCalledOnce());
+    expect(onStart).toHaveBeenCalledOnce();
+  });
+
+  it("cancels deferred draft voice when an attachment is added", async () => {
+    const permission = deferred<MediaStream>();
+    const track = { enabled: true, stop: vi.fn<() => void>(), onended: null };
+    const stream = {
+      getTracks: () => [track],
+      getAudioTracks: () => [track],
+    } as unknown as MediaStream;
+    const getUserMedia = vi.fn<() => Promise<MediaStream>>(() => permission.promise);
+    vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
+    const onStart = vi.fn<(input: unknown) => void>();
+
+    render(
+      <ThreadDraftView
+        project={{ ...project, id: "live-voice-attachment-project" }}
+        agentStatuses={[liveVoiceCodexStatus]}
+        onStart={onStart}
+      />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        submitControl?: ReactElement<{ onStart: () => void }>;
+      };
+      expect(props.submitControl).toBeDefined();
+    });
+    const props = composerSpy.mock.lastCall?.[0] as {
+      submitControl: ReactElement<{ onStart: () => void }>;
+      onAttachFiles?: (paths: string[]) => void;
+    };
+
+    act(() => props.submitControl.props.onStart());
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
+    act(() => props.onAttachFiles?.(["C:\\draft-note.txt"]));
+
+    permission.resolve(stream);
+    await waitFor(() => expect(track.stop).toHaveBeenCalledOnce());
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
+  it("allows a fresh draft voice attempt after content cancels the first one", async () => {
+    const firstPermission = deferred<MediaStream>();
+    const secondPermission = deferred<MediaStream>();
+    const firstTrack = { enabled: true, stop: vi.fn<() => void>(), onended: null };
+    const secondTrack = { enabled: true, stop: vi.fn<() => void>(), onended: null };
+    const firstStream = {
+      getTracks: () => [firstTrack],
+      getAudioTracks: () => [firstTrack],
+    } as unknown as MediaStream;
+    const secondStream = {
+      getTracks: () => [secondTrack],
+      getAudioTracks: () => [secondTrack],
+    } as unknown as MediaStream;
+    const getUserMedia = vi
+      .fn<() => Promise<MediaStream>>()
+      .mockReturnValueOnce(firstPermission.promise)
+      .mockReturnValueOnce(secondPermission.promise);
+    vi.stubGlobal("navigator", { mediaDevices: { getUserMedia } });
+
+    render(
+      <ThreadDraftView
+        project={{ ...project, id: "live-voice-retry-project" }}
+        agentStatuses={[liveVoiceCodexStatus]}
+        onStart={() => {}}
+      />,
+    );
+
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        submitControl?: ReactElement<{ onStart: () => void }>;
+      };
+      expect(props.submitControl).toBeDefined();
+    });
+    let props = composerSpy.mock.lastCall?.[0] as {
+      submitControl: ReactElement<{ onStart: () => void }>;
+      inputContent: ReactElement<{ onTextChange?: (hasText: boolean) => void }>;
+    };
+    act(() => props.submitControl.props.onStart());
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledOnce());
+
+    act(() => props.inputContent.props.onTextChange?.(true));
+    firstPermission.resolve(firstStream);
+    await waitFor(() => expect(firstTrack.stop).toHaveBeenCalledOnce());
+
+    await waitFor(() => {
+      const nextProps = composerSpy.mock.lastCall?.[0] as {
+        inputContent: ReactElement<{ onTextChange?: (hasText: boolean) => void }>;
+      };
+      props = nextProps as typeof props;
+    });
+    act(() => props.inputContent.props.onTextChange?.(false));
+    await waitFor(() => {
+      const nextProps = composerSpy.mock.lastCall?.[0] as {
+        submitControl?: ReactElement<{ onStart: () => void }>;
+        inputContent: ReactElement<{ onTextChange?: (hasText: boolean) => void }>;
+      };
+      expect(nextProps.submitControl).toBeDefined();
+      props = nextProps as typeof props;
+    });
+    act(() => props.submitControl.props.onStart());
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
+
+    act(() => {
+      const currentProps = composerSpy.mock.lastCall?.[0] as {
+        inputContent: ReactElement<{ onTextChange?: (hasText: boolean) => void }>;
+      };
+      currentProps.inputContent.props.onTextChange?.(true);
+    });
+    secondPermission.resolve(secondStream);
+    await waitFor(() => expect(secondTrack.stop).toHaveBeenCalledOnce());
   });
 
   it("switches to the first installed agent when statuses resolve after mount", async () => {

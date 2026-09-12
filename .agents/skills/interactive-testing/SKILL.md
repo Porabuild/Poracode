@@ -63,6 +63,10 @@ The one-command runner below allocates its own free ports, so each invocation sp
 node .agents/skills/interactive-testing/scripts/run-poracode-smoke.mjs --scope changed --mode mock
 ```
 
+For slow cold starts, pass `--startupTimeoutSeconds 450` to the runner. This
+overrides the default 180-second app-readiness deadline; scenario timeouts stay
+unchanged.
+
 This allocates distinct free dev-server and CDP ports (override with
 `--vitePort`/`--port`; explicit values are verified free), creates and commits a
 disposable fixture project, seeds an isolated database, starts Electron with an

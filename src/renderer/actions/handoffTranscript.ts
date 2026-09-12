@@ -1,13 +1,30 @@
 import type { ExtractContextResult, Thread } from "@/shared/contracts";
+import { parseContextWindowTokens } from "@/shared/contextWindow";
 import { useAppStore } from "@/renderer/state/appStore";
-import { formatHandoffRow, type HandoffRow } from "./handoffTranscriptRows";
+import {
+  formatHandoffRow,
+  MAX_HANDOFF_MESSAGE_CHARS,
+  type HandoffRow,
+} from "./handoffTranscriptRows";
 
-/**
- * Whole-file budget, roughly 12-15k tokens. Small next to any current context
- * window, but the file rides in the new provider's first message for the rest
- * of its session, so it is filled by priority rather than recency alone.
- */
-export const MAX_TRANSCRIPT_CONTEXT_CHARS = 50_000;
+/** Approximate token allocation; leave the rest of the window for the next task. */
+const HANDOFF_CONTEXT_SHARE = 0.35;
+const CHARS_PER_TOKEN = 4;
+const DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS = 400_000;
+// Even UTF-8 text must fit the remote attachment upload's 20 MiB ceiling.
+const MAX_TRANSCRIPT_CONTEXT_CHARS = 4_000_000;
+
+/** Character budget for the destination; unknown sizes use a bounded fallback. */
+export function handoffTranscriptBudget(contextSize?: string): number {
+  const tokens = parseContextWindowTokens(contextSize ?? "");
+  return tokens === undefined
+    ? DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS
+    : Math.min(
+        MAX_TRANSCRIPT_CONTEXT_CHARS,
+        Math.floor(tokens * CHARS_PER_TOKEN * HANDOFF_CONTEXT_SHARE),
+      );
+}
+
 const ROW_SEPARATOR = "\n\n";
 const LEADING_GAP_MARKER = "[earlier turns omitted]";
 const INNER_GAP_MARKER = "[turns omitted]";
@@ -30,13 +47,12 @@ const GAP_MARKER_ALLOWANCE = ROW_SEPARATOR.length + LEADING_GAP_MARKER.length;
  * Each tier stops at the first row that does not fit, so the kept set is a
  * recent contiguous run per tier rather than a scatter of small rows.
  */
-function selectRows(rows: readonly HandoffRow[]): ReadonlySet<HandoffRow> {
+function selectRows(rows: readonly HandoffRow[], maxChars: number): ReadonlySet<HandoffRow> {
   const kept = new Set<HandoffRow>();
   let used = 0;
   const tryKeep = (candidate: HandoffRow): boolean => {
-    const cost =
-      candidate.text.length + (kept.size > 0 ? ROW_SEPARATOR.length + GAP_MARKER_ALLOWANCE : 0);
-    if (used + cost > MAX_TRANSCRIPT_CONTEXT_CHARS) return false;
+    const cost = candidate.text.length + ROW_SEPARATOR.length + GAP_MARKER_ALLOWANCE;
+    if (used + cost > maxChars) return false;
     kept.add(candidate);
     used += cost;
     return true;
@@ -80,30 +96,31 @@ function joinRows(rows: readonly HandoffRow[], kept: ReadonlySet<HandoffRow>): s
 export function buildTranscriptContext(
   thread: Thread,
   sourceLabel: string,
+  maxChars: number = DEFAULT_MAX_TRANSCRIPT_CONTEXT_CHARS,
 ): ExtractContextResult | null {
   const state = useAppStore.getState();
   const itemIds = state.runtimeItemIdsByThread[thread.id] ?? [];
   const itemsById = state.runtimeItemsByIdByThread[thread.id];
   if (!itemsById || itemIds.length === 0) return null;
 
+  const header = `Chat history of this conversation from the ${sourceLabel} session, oldest turn first. Tool output is omitted; rerun commands if you need their results.\n\n`;
+  const rowBudget = maxChars - header.length;
+  // Leave room for the row label, truncation marker, separators, and gap marker.
+  const messageBudget = Math.min(MAX_HANDOFF_MESSAGE_CHARS, Math.max(0, rowBudget - 100));
   const rows: HandoffRow[] = [];
   itemIds.forEach((itemId) => {
     const item = itemsById[itemId];
     if (!item || item.parentItemId) return;
-    const formatted = formatHandoffRow(item);
+    const formatted = formatHandoffRow(item, messageBudget);
     if (formatted?.text.trim()) rows.push(formatted);
   });
   if (rows.length === 0) return null;
 
-  const transcript = joinRows(rows, selectRows(rows));
+  const transcript = joinRows(rows, selectRows(rows, rowBudget));
   if (!transcript.trim()) return null;
 
   return {
-    summary: [
-      `Chat history of this conversation from the ${sourceLabel} session, oldest turn first. Tool output is omitted; rerun commands if you need their results.`,
-      "",
-      transcript,
-    ].join("\n"),
+    summary: header + transcript,
     sourceProvider: thread.agentKind,
     sourceSessionId: thread.sessionRef?.providerSessionId ?? thread.id,
     ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),

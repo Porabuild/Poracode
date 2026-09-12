@@ -132,6 +132,7 @@ describe("sharedSettingsFile", () => {
       acpRegistryAutoInstallOptOuts: [],
       agentInstances: {},
       collapseTerminalComposer: false,
+      followUpBehavior: "steer",
       threadDocksPlacement: "composer",
       threadDocksOrder: ["goal", "plan", "agents", "backgroundTasks", "images"],
       cliPickerTarget: "ask",
@@ -225,6 +226,7 @@ describe("sharedSettingsFile", () => {
     });
 
     expect(readSharedSettingsFile(settingsPath)).toEqual({
+      followUpBehavior: "steer",
       themeMode: "dark",
       themePreset: "default",
       locale: "system",

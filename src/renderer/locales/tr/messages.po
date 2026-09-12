@@ -785,6 +785,10 @@ msgid "a supported coding agent"
 msgstr "desteklenen bir kodlama aracısı"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "A voice conversation is already active."
+msgstr "Zaten etkin bir sesli görüşme var."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "A worktree owner requires a frozen branch source"
 msgstr "Bir çalışma ağacı sahibi, dondurulmuş bir şube kaynağı gerektirir"
 
@@ -1098,6 +1102,10 @@ msgstr "Ana Ekrana ekle"
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoList.tsx
 msgid "Add to-do"
 msgstr "Yapılacak ekle"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Add user MCP servers in MCP Servers settings to install them here."
+msgstr "Buraya kurmak için MCP Sunucuları ayarlarında kullanıcı MCP sunucuları ekleyin."
 
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Add workspace"
@@ -2175,6 +2183,7 @@ msgstr "Uzak sunucuya ulaşılamıyor. Çevrimiçi olduğunu doğrulayıp yenide
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
@@ -2224,6 +2233,10 @@ msgstr "Seçiciyi iptal et"
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 msgid "Cancel removing project"
 msgstr "Projeyi kaldırmayı iptal et"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Cancel voice connection"
+msgstr "Sesli bağlantıyı iptal et"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -2513,6 +2526,10 @@ msgstr "Poracode'un yeni pull request'lerde ne yapacağını seçin: hiçbir şe
 msgid "Choose when this machine stays awake."
 msgstr "Bu makinenin ne zaman uyanık kalacağını seçin."
 
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Choose whether chat messages sent while an agent is working steer the current response or queue for the next response. {followUpShortcut} uses the opposite action."
+msgstr "Bir aracı çalışırken gönderilen sohbet mesajlarının mevcut yanıtı yönlendirmesini veya sonraki yanıt için kuyruğa alınmasını seçin. {followUpShortcut} ters eylemi kullanır."
+
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Choose whether links from Poracode and browser popups stay in Poracode or open externally."
@@ -2704,7 +2721,8 @@ msgstr "Tarayıcıyı kapat"
 msgid "Close changes"
 msgstr "Değişiklikleri kapat"
 
-#: src/mobile/views/QuickCompose.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/views/QuickCompose.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "Close composer"
 #~ msgstr "Yazma alanını kapat"
 
@@ -2883,6 +2901,10 @@ msgstr "İş akışları panelini kapat"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Closed"
 msgstr "Kapalı"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Cmd+Enter"
+msgstr "Cmd+Enter"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Code copied. "
@@ -3283,6 +3305,10 @@ msgstr "Bağlı"
 #~ msgid "Connecting to the desktop browser…"
 #~ msgstr "Masaüstü tarayıcısına bağlanılıyor…"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Connecting voice…"
+msgstr "Sesli bağlantı kuruluyor…"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Connecting..."
 msgstr "Bağlanıyor..."
@@ -3539,7 +3565,7 @@ msgstr "Tailscale URL'sini Kopyala"
 msgid "Copy uncommitted changes here (keeps them on this branch)"
 msgstr "Taahhüt edilmemiş değişiklikleri buraya kopyalayın (onları bu dalda tutar)"
 
-#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/mobile/views/PortsView.tsx
 #~ msgid "Copy URL"
 #~ msgstr "URL'yi kopyala"
 
@@ -3881,6 +3907,10 @@ msgstr "Yapay zekayla kazanan seç"
 #: src/renderer/views/ExperimentView/parts/ExperimentCandidateCard.tsx
 msgid "Crowned"
 msgstr "Kazanan seçildi"
+
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Ctrl+Enter"
+msgstr "Ctrl+Enter"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Curated free and premium skills managed by MCP Market."
@@ -4467,6 +4497,10 @@ msgstr "Devre dışı"
 msgid "Disabled globally"
 msgstr "Genel olarak devre dışı"
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Disabled server or unsupported native options"
+msgstr "Sunucu devre dışı veya yerel seçenekler desteklenmiyor"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "Bir beceriyi devre dışı bırakmak onu etkin beceri klasörlerinden çıkarır ve Poracode tarafından yönetilen sağlayıcı kopyalarını kaldırır. Yeniden etkinleştirebilmeniz için dosyaları korunur."
@@ -4715,6 +4749,11 @@ msgstr "MCP sunucusunu düzenle"
 msgid "Edit profile"
 msgstr "Profili düzenle"
 
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Edit queued follow-up"
+msgstr "Kuyruktaki takip mesajını düzenle"
+
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Edit schedule"
@@ -4854,6 +4893,10 @@ msgstr "Etkinleştirilen eklentiler yeni konular için açık kalır"
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
 msgid "Enables <0>cookies</0> and <1>storage</1>. Cookies can contain session tokens and storage often holds auth state — only enable when you trust both the agent and the sites it visits."
 msgstr "<0>Çerezler</0>'i ve <1>depolamayı</1> etkinleştirir. Çerezler oturum belirteçleri içerebilir ve depolama genellikle kimlik doğrulama durumunu tutar; yalnızca hem aracıya hem de onun ziyaret ettiği sitelere güvendiğinizde etkinleştirilir."
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "End voice chat"
+msgstr "Sesli sohbeti bitir"
 
 #: src/mobile/views/DesktopsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -5021,6 +5064,10 @@ msgstr "Senkronizasyondan çıkar"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Exclude patterns"
 msgstr "Kalıpları hariç tut"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Existing or edited native entry; left unchanged"
+msgstr "Mevcut veya düzenlenmiş yerel kayıt değiştirilmedi"
 
 #. placeholder {0}: parsed.exitCode
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
@@ -5580,6 +5627,11 @@ msgstr "Bu projenin çalışma ağaçlarını barındıran klasör. Genel ayarı
 #: src/mobile/views/ThreadView.tsx
 #~ msgid "Follow up..."
 #~ msgstr "Devam et..."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
+msgid "Follow-up behavior"
+msgstr "Takip davranışı"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -6372,6 +6424,7 @@ msgstr "yükle"
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Install"
 msgstr "Yükle"
 
@@ -6569,6 +6622,7 @@ msgstr "Uzak makinelerde kurulum, güncelleme ve oturum açma henüz kullanılam
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Installed"
 msgstr "Yüklendi"
 
@@ -6837,6 +6891,18 @@ msgstr "Görevleri listele"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Live {0}"
 #~ msgstr "Canlı {0}"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Live voice"
+msgstr "Canlı sesli sohbet"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice is unavailable for this thread."
+msgstr "Bu konuşma için canlı sesli sohbet kullanılamıyor."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Live voice requires a subscription sign-in for this provider."
+msgstr "Canlı sesli sohbet için bu sağlayıcının abonelik hesabıyla oturum açmanız gerekir."
 
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7464,6 +7530,10 @@ msgstr "Mikrofon erişimi kapalı."
 msgid "Microphone input level"
 msgstr "Mikrofon giriş seviyesi"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Microphone muted"
+msgstr "Mikrofon kapalı"
+
 #: src/renderer/components/composer/voiceError.ts
 msgid "Microphone permission was denied."
 msgstr "Mikrofon izni reddedildi."
@@ -7723,6 +7793,10 @@ msgstr "Değişiklikler taşınıyor…"
 msgid "Muse Code"
 msgstr "Muse Code"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Mute microphone"
+msgstr "Mikrofonu kapat"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
 msgstr "my-mcp-server"
@@ -7750,6 +7824,14 @@ msgstr "Projenize bir ad verin ve nerede oluşturulacağını seçin."
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native"
 msgstr "Yerel"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP configuration updated. Start a new CLI session to use it."
+msgstr "Yerel MCP yapılandırması güncellendi. Kullanmak için yeni bir CLI oturumu başlatın."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Native MCP setup"
+msgstr "Yerel MCP kurulumu"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
@@ -7916,6 +7998,7 @@ msgstr "Grupta yeni sekme"
 
 #: src/renderer/actions/remoteStartCommandActions.ts
 #: src/renderer/components/thread/ThreadDraftChrome.tsx
+#: src/renderer/state/slices/threadSlice.ts
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useElementPicker.ts
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
@@ -8420,7 +8503,8 @@ msgstr "Desteklenen aracı algılanmadı"
 msgid "No tags — the entry stops influencing tag affinity."
 msgstr "Etiket yok — girdi artık etiket yakınlığını etkilemiyor."
 
-#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "No thread selected"
 #~ msgstr "İş parçacığı seçilmedi"
 
@@ -8505,6 +8589,7 @@ msgstr "kurulu değil"
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Not installed"
 msgstr "Kurulu değil"
 
@@ -8983,6 +9068,10 @@ msgstr "İsteğe bağlı durum kancaları. Kurulu kancalar otomatik olarak günc
 #~ msgid "Optional workflow_dispatch input values."
 #~ msgstr "İsteğe bağlı workflow_dispatch giriş değerleri."
 
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Optional: copy selected user MCP servers into this CLI's native configuration for all its sessions. Commands, arguments, and credentials are copied only when you click Install. Changes are not synced automatically."
+msgstr "İsteğe bağlı: seçili kullanıcı MCP sunucularını bu CLI’nin tüm oturumlarında kullanılacak yerel yapılandırmasına kopyalayın. Komutlar, bağımsız değişkenler ve kimlik bilgileri yalnızca Yükle’ye tıkladığınızda kopyalanır. Değişiklikler otomatik olarak eşitlenmez."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Optional. Enabling this runs tailscale serve for the remote access port, then new pairing codes use your tailnet's HTTPS MagicDNS URL. Leave it off to use the LAN address or Public URL below."
 msgstr "İsteğe bağlı. Etkinleştirildiğinde uzak erişim bağlantı noktası için tailscale serve çalıştırılır; ardından yeni eşleştirme kodları tailnet'inizin HTTPS MagicDNS URL'sini kullanır. LAN adresini veya aşağıdaki Genel URL'yi kullanmak için kapalı bırakın."
@@ -9091,7 +9180,8 @@ msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
 #~ msgid "Pair a remote machine…"
 #~ msgstr "Uzak makine eşleştir…"
 
-#: src/mobile/components.tsx src/mobile/remoteConnectionState.ts
+#: src/mobile/components.tsx
+#: src/mobile/remoteConnectionState.ts
 #~ msgid "Pair again"
 #~ msgstr "Tekrar eşleştir"
 
@@ -9251,6 +9341,7 @@ msgid "Pause goal"
 msgstr "Hedefi duraklat"
 
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentToolCall.tsx
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Paused"
@@ -9325,7 +9416,8 @@ msgstr "Kişisel"
 msgid "Pi"
 msgstr "Pi"
 
-#: src/mobile/ThreadDetail.tsx src/mobile/views/ThreadView.tsx
+#: src/mobile/ThreadDetail.tsx
+#: src/mobile/views/ThreadView.tsx
 #~ msgid "Pick a thread from the list to follow the agent from here."
 #~ msgstr "Ajanı buradan takip etmek için listeden bir iş parçacığı seçin."
 
@@ -10042,6 +10134,14 @@ msgstr "QR kodu"
 msgid "Questions"
 msgstr "Sorular"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Queue"
+msgstr "Kuyruğa al"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Queue message"
+msgstr "Mesajı kuyruğa al"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Queued"
 msgstr "Kuyrukta"
@@ -10051,6 +10151,18 @@ msgstr "Kuyrukta"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #~ msgid "Queued {0} for v{1}"
 #~ msgstr "{0}, v{1} için sırada"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-up not found: {id}."
+msgstr "Kuyruğa alınan takip mesajı bulunamadı: {id}."
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Queued follow-ups"
+msgstr "Kuyruktaki takip mesajları"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Queued follow-ups are only supported for chat threads."
+msgstr "Kuyruğa alınan takip mesajları yalnızca sohbet konularında desteklenir."
 
 #. placeholder {0}: update.targetVersion
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
@@ -10225,6 +10337,7 @@ msgstr "Bildirim içeriğini gizle"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Refresh"
 msgstr "Yenile"
@@ -10497,6 +10610,10 @@ msgstr "Projeyi kaldır"
 msgid "Remove Project"
 msgstr "Projeyi Kaldır"
 
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Remove queued follow-up"
+msgstr "Kuyruktaki takip mesajını kaldır"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Remove shortcut"
 msgstr "Kısayolu kaldır"
@@ -10605,6 +10722,10 @@ msgstr "{0} öğesini yeniden sırala"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Reorder {label}"
 msgstr "{label} öğesini yeniden sırala"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Reorder queued follow-up"
+msgstr "Kuyruktaki takip mesajını yeniden sırala"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Repeat"
@@ -10776,6 +10897,10 @@ msgstr "Sürdür"
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 msgid "Resume goal"
 msgstr "Hedefi sürdür"
+
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "Resume queued follow-ups"
+msgstr "Kuyruktaki takip mesajlarını sürdür"
 
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
@@ -11116,6 +11241,7 @@ msgstr "Doygunluk ve parlaklık"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/OpenCodeProviderSettings.tsx
+#: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
@@ -12296,6 +12422,10 @@ msgstr "Her güne öncelikler ve sonraki adımlarla başlayın."
 msgid "Start from scratch"
 msgstr "Sıfırdan başla"
 
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Start live voice"
+msgstr "Canlı sesli sohbet başlat"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
@@ -12407,6 +12537,27 @@ msgstr "Durum:"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "stdio (local command)"
 msgstr "stdio (yerel komut)"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
+msgid "Steer"
+msgstr "Yönlendir"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Steer current turn"
+msgstr "Mevcut turu yönlendir"
+
+#: src/renderer/components/thread/ThreadFollowUpQueueItem.tsx
+msgid "Steer queued follow-up"
+msgstr "Kuyruktaki takip mesajıyla yönlendir"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was cancelled before the message was sent."
+msgstr "Mesaj gönderilmeden önce yönlendirme iptal edildi."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Steer was replaced by a newer message."
+msgstr "Yönlendirme daha yeni bir mesajla değiştirildi."
 
 #. Button: stop the microphone level test
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
@@ -12983,6 +13134,10 @@ msgstr "Normal uygulama kabuğu oluşturulamadı. Arızanın araştırılabilmes
 msgid "The remote server returned no pairing credential."
 msgstr "Uzak sunucu eşleştirme kimlik bilgisi döndürmedi."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The replacement message could not be sent."
+msgstr "Yerine geçecek mesaj gönderilemedi."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "The repository location on disk. Update it if you moved the folder."
 msgstr "Deponun diskteki konumu. Klasörü taşıdıysanız güncelleyin."
@@ -13059,6 +13214,10 @@ msgstr "SSH tüneli uyumsuz bir Poracode sunucusuna ulaştı."
 msgid "the target provider"
 msgstr "hedef sağlayıcı"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The thread session is not available for queued follow-ups."
+msgstr "Kuyruğa alınan takip mesajları için konu oturumu kullanılamıyor."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Konu, yeni bir şubede ayrı bir çalışma ağacında çalışacak."
@@ -13074,6 +13233,18 @@ msgstr "Güncelleme işlemi başarısız oldu."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update service is temporarily unavailable."
 msgstr "Güncelleme hizmeti geçici olarak kullanılamıyor."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection failed. Try again."
+msgstr "Sesli bağlantı başarısız oldu. Tekrar deneyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection timed out. Try again."
+msgstr "Sesli bağlantı zaman aşımına uğradı. Tekrar deneyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The voice connection was cancelled."
+msgstr "Sesli bağlantı iptal edildi."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Windows user"
@@ -13204,6 +13375,10 @@ msgstr "bu makine"
 msgid "This machine"
 msgstr "Bu makine"
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+msgid "This message is no longer queued. Your edit is still available to copy."
+msgstr "Bu mesaj artık kuyrukta değil. Düzenlediğiniz metni hâlâ kopyalayabilirsiniz."
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "This name is reserved by a built-in MCP server."
 msgstr "Bu ad, yerleşik bir MCP sunucusu için ayrılmıştır."
@@ -13258,6 +13433,15 @@ msgstr "bu proje"
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Bu projenin uzak sunucusu çevrimdışı. Bir iş parçacığı başlatmak için yeniden bağlanın."
 
+#: src/renderer/components/thread/ThreadFollowUpQueue.tsx
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up changed. Reopen it before saving."
+msgstr "Kuyruktaki bu takip mesajı değişti. Kaydetmeden önce yeniden açın."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This queued follow-up is already being sent."
+msgstr "Bu kuyruğa alınan takip mesajı zaten gönderiliyor."
+
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "This remote project is unavailable. Reconnect the environment and try again."
 #~ msgstr "Bu uzak proje kullanılamıyor. Ortamı yeniden bağlayıp tekrar deneyin."
@@ -13292,6 +13476,14 @@ msgstr "Bu sunucu bu bilgisayarda çalışır ve WSL projeleri için kullanılam
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Bu sistem genelindeki kısayol kullanılamıyor. Başka bir tuş birleşimi seçin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread does not support queued follow-ups."
+msgstr "Bu konu, kuyruğa alınan takip mesajlarını desteklemiyor."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread is not ready for Steer."
+msgstr "Bu konu henüz yönlendirme için hazır değil."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread switched provider without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the earlier conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
@@ -13760,7 +13952,8 @@ msgstr "Dosya açılamadı"
 msgid "Unable to open the file in the editor"
 msgstr "Dosya düzenleyicide açılamadı"
 
-#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 #~ msgid "Unable to pair with that desktop."
 #~ msgstr "Bu masaüstüyle eşleştirilemiyor."
 
@@ -13771,6 +13964,10 @@ msgstr "Dosya düzenleyicide açılamadı"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Unable to read experiment candidate status"
 msgstr "Deney adayının durumu okunamadı"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to read native MCP configuration."
+msgstr "Yerel MCP yapılandırması okunamadı."
 
 #. placeholder {0}: friendlyError(error)
 #: src/renderer/actions/experimentDecisionActions.ts
@@ -13881,7 +14078,8 @@ msgstr "Tailscale başlatılamadı."
 msgid "Unable to start the remote thread."
 msgstr "Uzak iş parçacığı başlatılamadı."
 
-#: src/mobile/routeComponents.tsx src/mobile/useRemoteDesktop.ts
+#: src/mobile/routeComponents.tsx
+#: src/mobile/useRemoteDesktop.ts
 #: src/mobile/views/NewThreadFlow.tsx
 #~ msgid "Unable to start the thread."
 #~ msgstr "İş parçacığı başlatılamıyor."
@@ -13931,6 +14129,10 @@ msgstr "{0} güncellenemiyor."
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 msgid "Unable to update learned tags."
 msgstr "Öğrenilmiş etiketler güncellenemiyor."
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Unable to update native MCP configuration. Refresh and review the configuration before retrying."
+msgstr "Yerel MCP yapılandırması güncellenemedi. Yeniden denemeden önce yapılandırmayı yenileyip inceleyin."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to update remote access."
@@ -14009,8 +14211,13 @@ msgstr "Birleşik görünüm"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Uninstall"
 msgstr "Kaldır"
+
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
+msgid "Uninstall {name}"
+msgstr "{name} kaldır"
 
 #: src/renderer/components/thread/threadContextUsage.ts
 #: src/renderer/utils/prStatus.ts
@@ -14058,6 +14265,10 @@ msgstr "Tamamlandı işaretini kaldır"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Unmark Done"
 msgstr "Bitti işaretini kaldır"
+
+#: src/renderer/components/composer/LiveVoiceControls.tsx
+msgid "Unmute microphone"
+msgstr "Mikrofonu aç"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unnamed device"

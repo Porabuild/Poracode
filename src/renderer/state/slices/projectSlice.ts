@@ -14,6 +14,7 @@ import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { getProjectName } from "@/shared/wsl";
 import { reorderIds, type ReorderPlacement } from "../reorder";
+import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import { removePaneFromView } from "./helpers";
 import type { SliceCreator } from "./shared";
 
@@ -143,6 +144,9 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
       const projectThreadIds = new Set(
         state.threads.filter((thread) => thread.projectId === projectId).map((thread) => thread.id),
       );
+      for (const threadId of projectThreadIds) {
+        useThreadFollowUpQueueStore.getState().setQueue(threadId, null);
+      }
 
       composerDraftStorage()?.remove("project", projectId);
       for (const threadId of projectThreadIds) composerDraftStorage()?.remove("thread", threadId);

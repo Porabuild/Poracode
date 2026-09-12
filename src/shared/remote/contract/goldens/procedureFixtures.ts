@@ -66,6 +66,17 @@ const workflowRun = {
  * the shared omitted codec (`undefined` on the wire).
  */
 export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
+  queueThreadFollowUp: undefined,
+  removeQueuedThreadFollowUp: undefined,
+  reorderQueuedThreadFollowUp: undefined,
+  editQueuedThreadFollowUp: undefined,
+  steerQueuedThreadFollowUp: undefined,
+  pauseThreadFollowUps: undefined,
+  resumeThreadFollowUps: undefined,
+  getThreadFollowUpQueue: {
+    paused: false,
+    items: [{ id: "queue-1", prompt: "Continue", stagedAt: 1 }],
+  },
   rollbackThreadConversation: undefined,
   createFileCheckpoint: { checkpoint },
   finalizeFileCheckpoint: {

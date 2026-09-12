@@ -1,3 +1,4 @@
+import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "../appStore";
 import { useRemoteServersStore } from "../remoteServersStore";
@@ -210,6 +211,13 @@ export function syncRemoteAppRows(
 }
 
 export function removeRemoteAppRows(desktopId: string): void {
+  const prefix = remoteThreadId(desktopId, "");
+  useThreadFollowUpQueueStore.setState((state) => ({
+    generation: state.generation + 1,
+    byThread: Object.fromEntries(
+      Object.entries(state.byThread).filter(([id]) => !id.startsWith(prefix)),
+    ),
+  }));
   dropProjectedThreadCache(desktopId);
   syncRemoteAppRows(desktopId, [], []);
 }
