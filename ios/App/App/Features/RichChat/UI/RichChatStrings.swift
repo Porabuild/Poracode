@@ -110,6 +110,34 @@ enum RichChatStrings {
   static let clearSteer = value("rich_chat_clear_steer", "Clear steer")
   static let steerMessage = value("rich_chat_steer_message", "Follow-up instruction")
 
+  static func queueTitle(_ count: Int) -> String {
+    let format = value("rich_chat_queue_title", "Queued follow-ups (%lld)")
+    return String(format: format, locale: .current, Int64(count))
+  }
+  static let queuePausedShort = value("rich_chat_queue_paused_short", "Paused")
+  static let queuePaused = value(
+    "rich_chat_queue_paused", "Delivery paused"
+  )
+  static let queueResume = value("rich_chat_queue_resume", "Resume")
+  static let queueRemove = value("rich_chat_queue_remove", "Remove from queue")
+  static let queueEdit = value("rich_chat_queue_edit", "Edit queued message")
+  static let queueSteerNow = value("rich_chat_queue_steer_now", "Steer now")
+  static let queueMoveUp = value("rich_chat_queue_move_up", "Move up in queue")
+  static let queueMoveDown = value("rich_chat_queue_move_down", "Move down in queue")
+  static let queueEditTitle = value(
+    "rich_chat_queue_edit_title", "Edit queued message"
+  )
+  static let queueEditFooter = value(
+    "rich_chat_queue_edit_footer",
+    "The queue is paused while editing. Saving keeps any attachments and mentions."
+  )
+  static let queueEmpty = value("rich_chat_queue_empty", "No queued follow-ups.")
+  static func queueSegmentCount(_ count: Int) -> String {
+    let format = value("rich_chat_queue_segment_count", "%lld attachments & mentions")
+    return String(format: format, locale: .current, Int64(count))
+  }
+  static let queueSendAction = value("rich_chat_queue_send_action", "Queue follow-up")
+
   static let contextWindow = value("rich_chat_context_window", "Context window")
   static let contextUsageUnknown = value(
     "rich_chat_context_unknown", "Occupancy not reported"

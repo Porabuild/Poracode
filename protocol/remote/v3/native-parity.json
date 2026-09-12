@@ -1213,8 +1213,11 @@
         "id": "queueThreadFollowUp",
         "batch": "rich-chat-requests",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -1229,8 +1232,11 @@
         "id": "removeQueuedThreadFollowUp",
         "batch": "rich-chat-requests",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -1245,8 +1251,11 @@
         "id": "reorderQueuedThreadFollowUp",
         "batch": "rich-chat-requests",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -1261,8 +1270,11 @@
         "id": "editQueuedThreadFollowUp",
         "batch": "rich-chat-requests",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -1277,8 +1289,11 @@
         "id": "steerQueuedThreadFollowUp",
         "batch": "rich-chat-requests",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -1293,8 +1308,11 @@
         "id": "pauseThreadFollowUps",
         "batch": "rich-chat-requests",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -1309,8 +1327,11 @@
         "id": "resumeThreadFollowUps",
         "batch": "rich-chat-requests",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -1325,8 +1346,11 @@
         "id": "getThreadFollowUpQueue",
         "batch": "rich-chat-requests",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/GeneratedRichChatProcedureContract.swift",
+            "ios/App/App/Transport/RichChat/RichChatRemoteAPI.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -3787,14 +3811,20 @@
         "id": "thread-follow-up-queue",
         "batch": "rich-chat-requests",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Features/RichChat/RichChatSessionComposition.swift",
+            "ios/App/App/Features/RichChat/RichFollowUpQueue.swift"
+          ]
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatSessionRuntime.kt",
+            "android/app/src/main/kotlin/com/poracode/app/chat/RichFollowUpQueue.kt"
+          ]
         },
-        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+        "note": "Merged desktop/PWA follow-up queues. Both natives adopt the replayable broadcast with replace-on-event semantics, tri-state snapshot installs, and full queue management; procedure payloads ride the generated procedure-call contract on each platform."
       },
       {
         "id": "thread-reset",

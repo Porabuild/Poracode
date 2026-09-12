@@ -133,6 +133,7 @@ enum RichDomainDecodeError: Error, Sendable, Equatable, CustomStringConvertible 
   case invalidRuntimeItem
   case invalidRuntimeEvent
   case invalidPendingSteer
+  case invalidFollowUpQueue
   case invalidTerminalFrame
   case invalidCheckpoint
 
@@ -143,6 +144,7 @@ enum RichDomainDecodeError: Error, Sendable, Equatable, CustomStringConvertible 
     case .invalidRuntimeItem: "Invalid rich runtime item"
     case .invalidRuntimeEvent: "Invalid rich runtime event"
     case .invalidPendingSteer: "Invalid pending steer payload"
+    case .invalidFollowUpQueue: "Invalid follow-up queue payload"
     case .invalidTerminalFrame: "Invalid terminal cursor frame"
     case .invalidCheckpoint: "Invalid checkpoint payload"
     }

@@ -217,6 +217,74 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
     var contextUsage: JSONValue?
     var terminalScrollback: String?
     var updatedAt: String
+    /// Tri-state follow-up queue: `followUpQueuePresent == false` means the
+    /// wire field was absent (supervisor read failed — callers preserve the
+    /// projected queue); explicit null clears; an object carries queue state.
+    var followUpQueue: JSONValue?
+    var followUpQueuePresent: Bool = false
+
+    private enum CodingKeys: String, CodingKey {
+        case snapshotSeq, thread, runtimeItems, runtimeNextCursor, completedTurns
+        case contextUsage, terminalScrollback, updatedAt, followUpQueue
+    }
+
+    init(
+        snapshotSeq: Int,
+        thread: RemoteThread,
+        runtimeItems: [PersistedRuntimeItem],
+        runtimeNextCursor: Int? = nil,
+        completedTurns: [JSONValue],
+        contextUsage: JSONValue? = nil,
+        terminalScrollback: String? = nil,
+        updatedAt: String,
+        followUpQueue: JSONValue? = nil,
+        followUpQueuePresent: Bool = false
+    ) {
+        self.snapshotSeq = snapshotSeq
+        self.thread = thread
+        self.runtimeItems = runtimeItems
+        self.runtimeNextCursor = runtimeNextCursor
+        self.completedTurns = completedTurns
+        self.contextUsage = contextUsage
+        self.terminalScrollback = terminalScrollback
+        self.updatedAt = updatedAt
+        self.followUpQueue = followUpQueue
+        self.followUpQueuePresent = followUpQueuePresent
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        snapshotSeq = try container.decode(Int.self, forKey: .snapshotSeq)
+        thread = try container.decode(RemoteThread.self, forKey: .thread)
+        runtimeItems = try container.decode([PersistedRuntimeItem].self, forKey: .runtimeItems)
+        runtimeNextCursor = try container.decodeIfPresent(Int.self, forKey: .runtimeNextCursor)
+        completedTurns = try container.decode([JSONValue].self, forKey: .completedTurns)
+        contextUsage = try container.decodeIfPresent(JSONValue.self, forKey: .contextUsage)
+        terminalScrollback = try container.decodeIfPresent(String.self, forKey: .terminalScrollback)
+        updatedAt = try container.decode(String.self, forKey: .updatedAt)
+        if container.contains(.followUpQueue) {
+            followUpQueuePresent = true
+            followUpQueue = try container.decodeIfPresent(JSONValue.self, forKey: .followUpQueue)
+        } else {
+            followUpQueuePresent = false
+            followUpQueue = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(snapshotSeq, forKey: .snapshotSeq)
+        try container.encode(thread, forKey: .thread)
+        try container.encode(runtimeItems, forKey: .runtimeItems)
+        try container.encodeIfPresent(runtimeNextCursor, forKey: .runtimeNextCursor)
+        try container.encode(completedTurns, forKey: .completedTurns)
+        try container.encodeIfPresent(contextUsage, forKey: .contextUsage)
+        try container.encodeIfPresent(terminalScrollback, forKey: .terminalScrollback)
+        try container.encode(updatedAt, forKey: .updatedAt)
+        if followUpQueuePresent {
+            try container.encode(followUpQueue, forKey: .followUpQueue)
+        }
+    }
 }
 
 struct RemoteRuntimeItemsPage: Codable, Sendable, Equatable {

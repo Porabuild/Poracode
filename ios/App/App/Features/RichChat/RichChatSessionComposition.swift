@@ -123,8 +123,13 @@ extension AppSession {
       let richEvent = RichJSON(jsonValue: event)
     else { return }
 
-    if richEvent.objectValue?["type"]?.stringValue == "thread-pending-steer" {
+    let eventType = richEvent.objectValue?["type"]?.stringValue
+    if eventType == "thread-pending-steer" {
       try? suite.receivePendingSteerPayload(richEvent, target: target)
+      return
+    }
+    if eventType == "thread-follow-up-queue" {
+      try? suite.receiveFollowUpQueuePayload(richEvent, sequence: sequence, target: target)
       return
     }
 

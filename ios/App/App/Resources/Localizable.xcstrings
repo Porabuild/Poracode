@@ -21055,6 +21055,258 @@
         }
       }
     },
+    "rich_chat_queue_edit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Edit queued message" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Wartende Nachricht bearbeiten" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Editar mensaje en cola" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Modifier le message en attente" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "待機中のメッセージを編集" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "대기 중인 메시지 편집" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Edytuj wiadomość w kolejce" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Editar mensagem na fila" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Изменить сообщение в очереди" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Sıradaki iletiyi düzenle" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Редагувати повідомлення в черзі" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Chỉnh sửa tin nhắn đang chờ" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "编辑排队消息" } }
+      }
+    },
+    "rich_chat_queue_edit_footer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "The queue is paused while editing. Saving keeps any attachments and mentions." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Die Warteschlange ist während der Bearbeitung pausiert. Beim Speichern bleiben Anhänge und Erwähnungen erhalten." } },
+        "es": { "stringUnit": { "state": "translated", "value": "La cola está en pausa durante la edición. Al guardar se conservan los adjuntos y las menciones." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "La file d'attente est en pause pendant la modification. L'enregistrement conserve les pièces jointes et les mentions." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "編集中のキューは一時停止中です。保存すると添付ファイルとメンションが維持されます。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "편집 중에는 대기열이 일시중지됩니다. 저장하면 첨부 파일과 멘션이 유지됩니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Kolejka jest wstrzymana podczas edytowania. Zapisanie zachowuje załączniki i wzmianki." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "A fila fica pausada durante a edição. Salvar mantém anexos e menções." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Очередь приостановлена на время редактирования. Вложения и упоминания будут сохранены." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Düzenleme sırasında sıra duraklatıldı. Kaydedildiğinde ekler ve bahsetmeler korunur." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Чергу призупинено на час редагування. Вкладення та згадки буде збережено." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Hàng đợi được tạm dừng trong khi chỉnh sửa. Khi lưu, tệp đính kèm và lượt nhắc được giữ nguyên." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "编辑期间队列已暂停。保存时会保留附件和提及。" } }
+      }
+    },
+    "rich_chat_queue_edit_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Edit queued message" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Wartende Nachricht bearbeiten" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Editar mensaje en cola" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Modifier le message en attente" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "待機中のメッセージを編集" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "대기 중인 메시지 편집" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Edytuj wiadomość w kolejce" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Editar mensagem na fila" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Изменить сообщение в очереди" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Sıradaki iletiyi düzenle" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Редагувати повідомлення в черзі" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Chỉnh sửa tin nhắn đang chờ" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "编辑排队消息" } }
+      }
+    },
+    "rich_chat_queue_empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "No queued follow-ups." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Keine wartenden Folgeaufträge." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No hay seguimientos en cola." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Aucune relance en file d'attente." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "待機中のフォローアップはありません。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "대기 중인 후속 작업이 없습니다." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Brak zadań w kolejce." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Nenhum acompanhamento na fila." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Отложенных заданий нет." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bekleyen takip yok." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Відкладених доручень немає." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Không có việc theo dõi nào đang chờ." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有排队的后续消息。" } }
+      }
+    },
+    "rich_chat_queue_move_down": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Move down in queue" } },
+        "de": { "stringUnit": { "state": "translated", "value": "In Warteschlange nach unten" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Bajar en la cola" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Descendre dans la file" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "キュー内で下へ移動" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "대기열에서 아래로 이동" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przenieś niżej w kolejce" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Mover para baixo na fila" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Ниже в очереди" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Sırada aşağı taşı" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Перемістити нижче в черзі" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Chuyển xuống trong hàng đợi" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在队列中下移" } }
+      }
+    },
+    "rich_chat_queue_move_up": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Move up in queue" } },
+        "de": { "stringUnit": { "state": "translated", "value": "In Warteschlange nach oben" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Subir en la cola" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Monter dans la file" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "キュー内で上へ移動" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "대기열에서 위로 이동" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przenieś wyżej w kolejce" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Mover para cima na fila" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выше в очереди" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Sırada yukarı taşı" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Перемістити вище в черзі" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Chuyển lên trong hàng đợi" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在队列中上移" } }
+      }
+    },
+    "rich_chat_queue_paused": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Delivery paused" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Zustellung pausiert" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Entrega en pausa" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Livraison en pause" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "配信は一時停止中" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "전달 일시중지됨" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Dostarczanie wstrzymane" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Entrega pausada" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Доставка приостановлена" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Teslim duraklatıldı" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Доставку призупинено" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Đã tạm dừng gửi" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "发送已暂停" } }
+      }
+    },
+    "rich_chat_queue_paused_short": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Paused" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Pausiert" } },
+        "es": { "stringUnit": { "state": "translated", "value": "En pausa" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "En pause" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "一時停止中" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "일시중지됨" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Wstrzymane" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Pausado" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Приостановлено" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Duraklatıldı" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Призупинено" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Tạm dừng" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已暂停" } }
+      }
+    },
+    "rich_chat_queue_remove": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Remove from queue" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Aus Warteschlange entfernen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Quitar de la cola" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Retirer de la file d'attente" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "キューから削除" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "대기열에서 제거" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Usuń z kolejki" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Remover da fila" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Убрать из очереди" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Sıradan kaldır" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Вилучити з черги" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Xóa khỏi hàng đợi" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "从队列中移除" } }
+      }
+    },
+    "rich_chat_queue_resume": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Resume" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Fortsetzen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Reanudar" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Reprendre" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "再開" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "재개" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Wznów" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Retomar" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Возобновить" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Sürdür" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Відновити" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Tiếp tục" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "恢复" } }
+      }
+    },
+    "rich_chat_queue_segment_count": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "%lld attachments & mentions" } },
+        "de": { "stringUnit": { "state": "translated", "value": "%lld Anhänge & Erwähnungen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "%lld adjuntos y menciones" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "%lld pièces jointes et mentions" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "添付ファイルとメンション %lld 件" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "첨부 파일 및 멘션 %lld개" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "%lld załączników i wzmianek" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "%lld anexos e menções" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Вложений и упоминаний: %lld" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "%lld ek ve bahsetme" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Вкладення та згадки: %lld" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "%lld tệp đính kèm và lượt nhắc" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld 个附件和提及" } }
+      }
+    },
+    "rich_chat_queue_send_action": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Queue follow-up" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Folgeauftrag einreihen" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Poner en cola" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Mettre en file d'attente" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "フォローアップを待機" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "후속 작업 대기열에 추가" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Dodaj do kolejki" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Colocar na fila" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Добавить в очередь" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Sıraya ekle" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Додати до черги" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Thêm vào hàng đợi" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "加入队列" } }
+      }
+    },
+    "rich_chat_queue_steer_now": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Steer now" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Jetzt steuern" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Dirigir ahora" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Réorienter maintenant" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "今すぐステア" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "지금 조정" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Skieruj teraz" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Direcionar agora" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Направить сейчас" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Şimdi yönlendir" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Скерувати зараз" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Điều hướng ngay" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "立即转向" } }
+      }
+    },
+    "rich_chat_queue_title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Queued follow-ups (%lld)" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Wartende Folgeaufträge (%lld)" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Seguimientos en cola (%lld)" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Relances en file d'attente (%lld)" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "待機中のフォローアップ (%lld)" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "대기 중인 후속 작업 (%lld)" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Zadania w kolejce (%lld)" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Acompanhamentos na fila (%lld)" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Отложенные задания (%lld)" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Sıradaki takipler (%lld)" } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Відкладені доручення (%lld)" } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Việc theo dõi đang chờ (%lld)" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "排队的后续消息（%lld）" } }
+      }
+    },
     "rich_chat_raw_transport_unavailable": {
       "extractionState": "manual",
       "localizations": {

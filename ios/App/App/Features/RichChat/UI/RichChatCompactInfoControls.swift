@@ -8,6 +8,7 @@ enum RichChatCompactControlDestination: Identifiable {
   case plan
   case errors
   case goal
+  case followUpQueue
   case git(ProjectLocation)
   case checkpoints(ProjectLocation)
 
@@ -20,6 +21,7 @@ enum RichChatCompactControlDestination: Identifiable {
     case .plan: "plan"
     case .errors: "errors"
     case .goal: "goal"
+    case .followUpQueue: "follow-up-queue"
     case .git(let location): "git:\(location.displayPath)"
     case .checkpoints(let location): "checkpoints:\(location.displayPath)"
     }

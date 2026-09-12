@@ -91,7 +91,7 @@ struct RichChatComposerView: View {
       isExpanded: $composerExpanded,
       hasPrompt: hasPrompt,
       hasTrailingAction: hasPrompt || isTurnActive || controller.state.isSending,
-      submit: send
+      submit: { send() }
     ) {
       RichChatComposerInlineConfiguration(
         agentKind: agentKind,
@@ -139,8 +139,9 @@ struct RichChatComposerView: View {
         showsSendWhenEmpty: composerExpanded,
         importing: importing,
         isResolvingRequest: requestController.state.resolvingRequestID != nil,
+        queue: { send(queueInsteadOfSteer: true) },
         interrupt: { Task { await controller.interrupt() } },
-        send: send
+        send: { send() }
       )
     }
   }
@@ -231,7 +232,7 @@ struct RichChatComposerView: View {
     composerExpanded = true
   }
 
-  private func send() {
+  private func send(queueInsteadOfSteer: Bool = false) {
     let typedText = draft.trimmingCharacters(in: .whitespacesAndNewlines)
     let structuredPrompt =
       queuedSegments.compactMap(\.promptText)
@@ -245,7 +246,9 @@ struct RichChatComposerView: View {
       RichPromptSegment.attachment(path: $0.remotePath, mimeType: $0.mimeType)
     }
     let segments = queuedSegments + skills.map(\.segment) + mcps.map(\.segment) + attachmentSegments
-    let queuesSteer = isTurnActive && !controller.state.isSending
+    let turnActive = isTurnActive && !controller.state.isSending
+    let queuesSteer = turnActive && !queueInsteadOfSteer
+    let queuesFollowUp = turnActive && queueInsteadOfSteer
     onSubmissionStarted()
     Task {
       if let activeRequest,
@@ -259,7 +262,15 @@ struct RichChatComposerView: View {
         }
       }
       let succeeded: Bool
-      if queuesSteer {
+      if queuesFollowUp {
+        succeeded = await controller.queueFollowUp(
+          RichSetPendingSteerInput(
+            prompt: text,
+            segments: segments.isEmpty ? nil : segments,
+            config: configuration.richChatObject
+          )
+        )
+      } else if queuesSteer {
         succeeded = await controller.setPendingSteer(
           RichSetPendingSteerInput(
             prompt: text,

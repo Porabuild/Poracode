@@ -191,6 +191,40 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
     try await mutation("steer-clear")
   }
 
+  func queueRichFollowUp(
+    target _: RichChatThreadTarget, input _: RichSetPendingSteerInput
+  ) async throws {
+    try await mutation("queue-set")
+  }
+
+  func removeRichQueuedFollowUp(target _: RichChatThreadTarget, id _: String) async throws {
+    try await mutation("queue-remove")
+  }
+
+  func reorderRichQueuedFollowUp(
+    target _: RichChatThreadTarget, id _: String, beforeID _: String?
+  ) async throws {
+    try await mutation("queue-reorder")
+  }
+
+  func editRichQueuedFollowUp(
+    target _: RichChatThreadTarget, edit _: RichQueuedFollowUpEdit
+  ) async throws {
+    try await mutation("queue-edit")
+  }
+
+  func steerRichQueuedFollowUp(target _: RichChatThreadTarget, id _: String) async throws {
+    try await mutation("queue-steer")
+  }
+
+  func pauseRichFollowUps(target _: RichChatThreadTarget, id _: String) async throws {
+    try await mutation("queue-pause")
+  }
+
+  func resumeRichFollowUps(target _: RichChatThreadTarget) async throws {
+    try await mutation("queue-resume")
+  }
+
   func uploadRichAttachment(
     target _: RichChatThreadTarget, attachment _: RichChatAttachment
   ) async throws -> String {
@@ -416,7 +450,9 @@ enum RichChatControllerTestValues {
     sequence: Int = 10,
     threadID: String = "thread-rich",
     items: [PersistedRuntimeItem] = [persistedItem(id: "history")],
-    nextCursor: Int? = 4
+    nextCursor: Int? = 4,
+    followUpQueue: JSONValue? = nil,
+    followUpQueuePresent: Bool = false
   ) -> RemoteThreadSnapshot {
     RemoteThreadSnapshot(
       snapshotSeq: sequence,
@@ -426,7 +462,9 @@ enum RichChatControllerTestValues {
       completedTurns: [],
       contextUsage: nil,
       terminalScrollback: nil,
-      updatedAt: "2026-08-12T00:00:00.000Z"
+      updatedAt: "2026-08-12T00:00:00.000Z",
+      followUpQueue: followUpQueue,
+      followUpQueuePresent: followUpQueuePresent
     )
   }
 }

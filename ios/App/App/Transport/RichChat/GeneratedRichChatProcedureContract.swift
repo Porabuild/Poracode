@@ -7,11 +7,25 @@ enum RichChatProcedure: String, Sendable {
   case listFileCheckpoints
   case restoreFileCheckpoint
   case stageThreadInput
+  case queueThreadFollowUp
+  case removeQueuedThreadFollowUp
+  case reorderQueuedThreadFollowUp
+  case editQueuedThreadFollowUp
+  case steerQueuedThreadFollowUp
+  case pauseThreadFollowUps
+  case resumeThreadFollowUps
+  case getThreadFollowUpQueue
 
   var returnsJSON: Bool {
     switch self {
-    case .createFileCheckpoint, .finalizeFileCheckpoint, .listFileCheckpoints: true
-    case .rollbackThreadConversation, .restoreFileCheckpoint, .stageThreadInput: false
+    case .createFileCheckpoint, .finalizeFileCheckpoint, .listFileCheckpoints,
+      .getThreadFollowUpQueue:
+      true
+    case .rollbackThreadConversation, .restoreFileCheckpoint, .stageThreadInput,
+      .queueThreadFollowUp, .removeQueuedThreadFollowUp, .reorderQueuedThreadFollowUp,
+      .editQueuedThreadFollowUp, .steerQueuedThreadFollowUp, .pauseThreadFollowUps,
+      .resumeThreadFollowUps:
+      false
     }
   }
 }
@@ -103,6 +117,69 @@ extension GeneratedRemoteV3Contract {
     return try richProcedureRequest(.stageThreadInput, payload: payload)
   }
 
+  static func richQueueFollowUpRequest(
+    threadID: String,
+    input: RichSetPendingSteerInput
+  ) throws -> Data {
+    var payload: [String: RichJSON] = [
+      "threadId": .string(threadID),
+      "prompt": .string(input.prompt),
+      "config": .object(input.config),
+    ]
+    if let segments = input.segments {
+      payload["segments"] = .array(segments.map(\.richChatWireValue))
+    }
+    return try richProcedureRequest(.queueThreadFollowUp, payload: payload)
+  }
+
+  static func richQueuedFollowUpItemRequest(
+    _ procedure: RichChatProcedure,
+    threadID: String,
+    itemID: String
+  ) throws -> Data {
+    try richProcedureRequest(
+      procedure,
+      payload: [
+        "threadId": .string(threadID),
+        "id": .string(itemID),
+      ]
+    )
+  }
+
+  static func richReorderQueuedFollowUpRequest(
+    threadID: String,
+    itemID: String,
+    beforeID: String?
+  ) throws -> Data {
+    try richProcedureRequest(
+      .reorderQueuedThreadFollowUp,
+      payload: [
+        "threadId": .string(threadID),
+        "id": .string(itemID),
+        "beforeId": beforeID.map(RichJSON.string) ?? .null,
+      ]
+    )
+  }
+
+  static func richEditQueuedFollowUpRequest(
+    threadID: String,
+    edit: RichQueuedFollowUpEdit
+  ) throws -> Data {
+    var payload = edit.wireValue
+    payload["threadId"] = .string(threadID)
+    return try richProcedureRequest(.editQueuedThreadFollowUp, payload: payload)
+  }
+
+  static func richThreadFollowUpsRequest(
+    _ procedure: RichChatProcedure,
+    threadID: String
+  ) throws -> Data {
+    try richProcedureRequest(
+      procedure,
+      payload: ["threadId": .string(threadID)]
+    )
+  }
+
   static func richProcedureResult(_ procedure: RichChatProcedure, envelope: Data) throws
     -> RichJSON?
   {
@@ -139,7 +216,16 @@ extension GeneratedRemoteV3Contract {
         codec: RemoteRootCodecs.procedureU2EListFileCheckpointsU2EResult,
         boundary: "list file checkpoints result"
       )
-    case .rollbackThreadConversation, .restoreFileCheckpoint, .stageThreadInput:
+    case .getThreadFollowUpQueue:
+      canonical = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EGetThreadFollowUpQueueU2EResult,
+        boundary: "get thread follow-up queue result"
+      )
+    case .rollbackThreadConversation, .restoreFileCheckpoint, .stageThreadInput,
+      .queueThreadFollowUp, .removeQueuedThreadFollowUp, .reorderQueuedThreadFollowUp,
+      .editQueuedThreadFollowUp, .steerQueuedThreadFollowUp, .pauseThreadFollowUps,
+      .resumeThreadFollowUps:
       preconditionFailure("Omitted procedure result reached JSON decoding.")
     }
     return try RichJSON.decode(canonical)
@@ -187,6 +273,54 @@ extension GeneratedRemoteV3Contract {
         raw,
         codec: RemoteRootCodecs.procedureU2EStageThreadInputU2ERequest,
         boundary: "stage thread input request"
+      )
+    case .queueThreadFollowUp:
+      canonicalPayload = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EQueueThreadFollowUpU2ERequest,
+        boundary: "queue thread follow-up request"
+      )
+    case .removeQueuedThreadFollowUp:
+      canonicalPayload = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2ERemoveQueuedThreadFollowUpU2ERequest,
+        boundary: "remove queued follow-up request"
+      )
+    case .reorderQueuedThreadFollowUp:
+      canonicalPayload = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EReorderQueuedThreadFollowUpU2ERequest,
+        boundary: "reorder queued follow-up request"
+      )
+    case .editQueuedThreadFollowUp:
+      canonicalPayload = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EEditQueuedThreadFollowUpU2ERequest,
+        boundary: "edit queued follow-up request"
+      )
+    case .steerQueuedThreadFollowUp:
+      canonicalPayload = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2ESteerQueuedThreadFollowUpU2ERequest,
+        boundary: "steer queued follow-up request"
+      )
+    case .pauseThreadFollowUps:
+      canonicalPayload = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EPauseThreadFollowUpsU2ERequest,
+        boundary: "pause thread follow-ups request"
+      )
+    case .resumeThreadFollowUps:
+      canonicalPayload = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EResumeThreadFollowUpsU2ERequest,
+        boundary: "resume thread follow-ups request"
+      )
+    case .getThreadFollowUpQueue:
+      canonicalPayload = try canonicalData(
+        raw,
+        codec: RemoteRootCodecs.procedureU2EGetThreadFollowUpQueueU2ERequest,
+        boundary: "get thread follow-up queue request"
       )
     }
     let payloadValue = try RichJSON.decode(canonicalPayload)

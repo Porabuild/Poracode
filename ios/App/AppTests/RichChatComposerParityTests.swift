@@ -244,7 +244,11 @@ final class RichChatComposerParityTests: XCTestCase {
     XCTAssertTrue(
       inlineControls.contains("(isTurnActive || isSending) && !hasPrompt")
     )
-    XCTAssertTrue(composer.contains("let queuesSteer = isTurnActive"))
+    // Steer stays the default while a turn is active; the queue path is the
+    // explicit long-press alternative on the send button.
+    XCTAssertTrue(composer.contains("let queuesSteer = turnActive && !queueInsteadOfSteer"))
+    XCTAssertTrue(composer.contains("let queuesFollowUp = turnActive && queueInsteadOfSteer"))
+    XCTAssertTrue(composer.contains("controller.queueFollowUp("))
     XCTAssertTrue(composer.contains("controller.setPendingSteer("))
     XCTAssertTrue(composer.contains("RichSetPendingSteerInput("))
     XCTAssertTrue(composer.contains("RichChatPresentation.composerDenyResolution"))

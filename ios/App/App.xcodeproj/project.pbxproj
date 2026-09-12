@@ -333,6 +333,8 @@
 		A1000000000000000000007E /* RichContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000007E /* RichContent.swift */; };
 		A1000000000000000000007F /* RichJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000007F /* RichJSON.swift */; };
 		A10000000000000000000080 /* RichMediaPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000080 /* RichMediaPolicy.swift */; };
+		A10000000000000000000C01 /* RichFollowUpQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C01 /* RichFollowUpQueue.swift */; };
+		A10000000000000000000C02 /* RichFollowUpQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C02 /* RichFollowUpQueueView.swift */; };
 		A10000000000000000000081 /* RichPendingSteer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000081 /* RichPendingSteer.swift */; };
 		A10000000000000000000082 /* RichRequests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000082 /* RichRequests.swift */; };
 		A10000000000000000000083 /* RichTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000083 /* RichTimeline.swift */; };
@@ -1086,6 +1088,8 @@
 		B1000000000000000000007E /* RichContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichContent.swift; sourceTree = "<group>"; };
 		B1000000000000000000007F /* RichJSON.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichJSON.swift; sourceTree = "<group>"; };
 		B10000000000000000000080 /* RichMediaPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichMediaPolicy.swift; sourceTree = "<group>"; };
+		B10000000000000000000C01 /* RichFollowUpQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichFollowUpQueue.swift; sourceTree = "<group>"; };
+		B10000000000000000000C02 /* RichFollowUpQueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichFollowUpQueueView.swift; sourceTree = "<group>"; };
 		B10000000000000000000081 /* RichPendingSteer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichPendingSteer.swift; sourceTree = "<group>"; };
 		B10000000000000000000082 /* RichRequests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichRequests.swift; sourceTree = "<group>"; };
 		B10000000000000000000083 /* RichTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTimeline.swift; sourceTree = "<group>"; };
@@ -2064,6 +2068,7 @@
 				B1000000000000000000007F /* RichJSON.swift */,
 				B10000000000000000000080 /* RichMediaPolicy.swift */,
 				B10000000000000000000081 /* RichPendingSteer.swift */,
+				B10000000000000000000C01 /* RichFollowUpQueue.swift */,
 				B10000000000000000000082 /* RichRequests.swift */,
 				B10000000000000000000083 /* RichTimeline.swift */,
 				B10000000000000000000084 /* RichTranscriptReducer.swift */,
@@ -2113,6 +2118,7 @@
 				B100000000000000000000B7 /* RichChatImageView.swift */,
 				B100000000000000000000B8 /* RichChatRequestView.swift */,
 				B100000000000000000000B9 /* RichChatGoalSteerView.swift */,
+				B10000000000000000000C02 /* RichFollowUpQueueView.swift */,
 				B100000000000000000000BA /* RichChatCheckpointView.swift */,
 				B100000000000000000000BB /* RichChatComposerView.swift */,
 				CC2100000000000000000001 /* RichChatComposerContextBar.swift */,
@@ -3275,6 +3281,8 @@
 				A1000000000000000000007F /* RichJSON.swift in Sources */,
 				A10000000000000000000080 /* RichMediaPolicy.swift in Sources */,
 				A10000000000000000000081 /* RichPendingSteer.swift in Sources */,
+				A10000000000000000000C01 /* RichFollowUpQueue.swift in Sources */,
+				A10000000000000000000C02 /* RichFollowUpQueueView.swift in Sources */,
 				A10000000000000000000082 /* RichRequests.swift in Sources */,
 				A10000000000000000000083 /* RichTimeline.swift in Sources */,
 				A10000000000000000000084 /* RichTranscriptReducer.swift in Sources */,
