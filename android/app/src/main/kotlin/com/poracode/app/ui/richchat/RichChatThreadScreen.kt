@@ -17,16 +17,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.PowerSettingsNew
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -348,87 +344,53 @@ fun RichChatThreadScreen(
                 runtime.refreshSelectedThread()
             }
             pendingTruncateItemId?.let { itemId ->
-                AlertDialog(
-                    onDismissRequest = { pendingTruncateItemId = null },
-                    title = { Text(stringResource(R.string.rich_chat_truncate_title)) },
-                    text = { Text(stringResource(R.string.rich_chat_truncate_message)) },
-                    dismissButton = {
-                        TextButton(onClick = { pendingTruncateItemId = null }) {
-                            Text(stringResource(R.string.rich_chat_cancel))
-                        }
-                    },
-                    confirmButton = {
-                        Button(
-                            enabled = !mutating,
-                            onClick = {
-                                val captured = itemId
-                                pendingTruncateItemId = null
-                                scope.launch { runtime.chat.truncate(captured) }
-                            },
-                        ) { Text(stringResource(R.string.rich_chat_truncate)) }
+                RichChatTruncateConfirmDialog(
+                    enabled = !mutating,
+                    onDismiss = { pendingTruncateItemId = null },
+                    onConfirm = {
+                        pendingTruncateItemId = null
+                        scope.launch { runtime.chat.truncate(itemId) }
                     },
                 )
             }
             pendingRevertItemId?.let { userItemId ->
-                AlertDialog(
-                    onDismissRequest = { pendingRevertItemId = null },
-                    title = { Text(stringResource(R.string.rich_chat_revert_title)) },
-                    text = { Text(stringResource(R.string.rich_chat_revert_message)) },
-                    dismissButton = {
-                        TextButton(onClick = { pendingRevertItemId = null }) {
-                            Text(stringResource(R.string.rich_chat_cancel))
+                RichChatRevertConfirmDialog(
+                    enabled = !mutating,
+                    onDismiss = { pendingRevertItemId = null },
+                    onConfirm = {
+                        val items = state.transcript?.itemsInOrder.orEmpty()
+                        val checkpointItemId =
+                            RichChatUiLogic.revertCheckpointItemId(items, userItemId)
+                        val selection = state.selection
+                        pendingRevertItemId = null
+                        if (checkpointItemId != null && selection != null) {
+                            scope.launch {
+                                runtime.checkpoints.revert(
+                                    RichChatUiLogic.checkpointRevertPayload(
+                                        selection.threadId,
+                                        checkpointItemId,
+                                    ),
+                                )
+                            }
                         }
-                    },
-                    confirmButton = {
-                        Button(
-                            enabled = !mutating,
-                            onClick = {
-                                val items = state.transcript?.itemsInOrder.orEmpty()
-                                val checkpointItemId =
-                                    RichChatUiLogic.revertCheckpointItemId(items, userItemId)
-                                val selection = state.selection
-                                pendingRevertItemId = null
-                                if (checkpointItemId != null && selection != null) {
-                                    scope.launch {
-                                        runtime.checkpoints.revert(
-                                            RichChatUiLogic.checkpointRevertPayload(
-                                                selection.threadId,
-                                                checkpointItemId,
-                                            ),
-                                        )
-                                    }
-                                }
-                            },
-                        ) { Text(stringResource(R.string.rich_chat_revert)) }
                     },
                 )
             }
             if (showCloseDialog) {
-                AlertDialog(
-                    onDismissRequest = { showCloseDialog = false },
-                    title = { Text(stringResource(R.string.rich_chat_close_thread_title)) },
-                    text = { Text(stringResource(R.string.rich_chat_close_thread_message)) },
-                    dismissButton = {
-                        TextButton(onClick = { showCloseDialog = false }) {
-                            Text(stringResource(R.string.rich_chat_cancel))
+                RichChatCloseThreadConfirmDialog(
+                    enabled = !mutating,
+                    onDismiss = { showCloseDialog = false },
+                    onConfirm = {
+                        showCloseDialog = false
+                        scope.launch {
+                            // Dismiss only on a confirmed, owned success. A stale
+                            // host or ambiguous delivery leaves the selection intact so
+                            // the authoritative feed reconciles the runtime state.
+                            when (runtime.chat.closeThreadRuntime()) {
+                                is RichChatOperationResult.Success -> onBack()
+                                else -> Unit
+                            }
                         }
-                    },
-                    confirmButton = {
-                        Button(
-                            enabled = !mutating,
-                            onClick = {
-                                showCloseDialog = false
-                                scope.launch {
-                                    // Dismiss only on a confirmed, owned success. A stale
-                                    // host or ambiguous delivery leaves the selection intact so
-                                    // the authoritative feed reconciles the runtime state.
-                                    when (runtime.chat.closeThreadRuntime()) {
-                                        is RichChatOperationResult.Success -> onBack()
-                                        else -> Unit
-                                    }
-                                }
-                            },
-                        ) { Text(stringResource(R.string.rich_chat_close_thread_action)) }
                     },
                 )
             }
