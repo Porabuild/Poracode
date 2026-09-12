@@ -124,7 +124,7 @@ export function spawnAgent(
       signal?.removeEventListener("abort", onAbort);
       reject(err);
     });
-    child.stdin.on("error", (err) => {
+    child.stdin.on?.("error", (err) => {
       // A child that dies before stdin flushes surfaces here as EPIPE; the
       // close handler below is the authoritative outcome for the one-shot.
       if ((err as NodeJS.ErrnoException).code !== "EPIPE") reject(err);
