@@ -39,8 +39,10 @@ const mockBase = vi.hoisted(() => ({
     vi.fn<(distro: string, cwd: string) => Promise<Record<string, string> | undefined>>(),
 }));
 
-const mockProcessTree = vi.hoisted(() => ({
-  terminateChildProcessTree: vi.fn<(child: { pid?: number }) => void>(),
+const mockProcessTermination = vi.hoisted(() => ({
+  awaitProcessTermination: vi
+    .fn<(child: { pid?: number }, options?: { ownedProcessGroup?: boolean }) => Promise<void>>()
+    .mockResolvedValue(undefined),
 }));
 
 vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
@@ -68,8 +70,8 @@ vi.mock("../binaryResolver", () => ({
   resolveAgentBinaryPath: mockBinaryResolver.resolveAgentBinaryPath,
 }));
 
-vi.mock("@/shared/processTree", () => ({
-  terminateChildProcessTree: mockProcessTree.terminateChildProcessTree,
+vi.mock("@/shared/awaitProcessTermination", () => ({
+  awaitProcessTermination: mockProcessTermination.awaitProcessTermination,
 }));
 
 // Real spawned objects are Node ChildProcess instances; ClaudeSdkSession
@@ -349,7 +351,7 @@ describe("ClaudeSdkSession", () => {
     await session.dispose();
   });
 
-  it("force-kills the spawned process tree on dispose", async () => {
+  it("awaits the spawned process tree on dispose", async () => {
     const fake = createFakeQuery();
     mockSdk.query.mockReturnValue(fake.runtime);
     const spawnedChild = makeFakeSpawnedChild(4242);
@@ -377,14 +379,54 @@ describe("ClaudeSdkSession", () => {
     const spawnHook = queryInput.options?.spawnClaudeCodeProcess;
     expect(spawnHook).toBeTypeOf("function");
     expect(spawnHook!({ args: [], env: {} } as unknown as SpawnOptions)).toBe(spawnedChild);
-    expect(mockProcessTree.terminateChildProcessTree).not.toHaveBeenCalled();
+    expect(mockProcessTermination.awaitProcessTermination).not.toHaveBeenCalled();
 
     await session.dispose();
 
-    expect(mockProcessTree.terminateChildProcessTree).toHaveBeenCalledTimes(1);
-    expect(mockProcessTree.terminateChildProcessTree).toHaveBeenCalledWith(
+    expect(mockProcessTermination.awaitProcessTermination).toHaveBeenCalledTimes(1);
+    expect(mockProcessTermination.awaitProcessTermination).toHaveBeenCalledWith(
       expect.objectContaining({ pid: 4242 }),
+      { ownedProcessGroup: false },
     );
+  });
+
+  it("captures POSIX SDK children in an owned process group for confirmed disposal", async () => {
+    const fake = createFakeQuery();
+    mockSdk.query.mockReturnValue(fake.runtime);
+    mockBinaryResolver.resolveAgentBinaryPath.mockReturnValue("/usr/bin/claude");
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-posix-disposal",
+      projectLocation: { kind: "posix", path: "/tmp/project" },
+      config,
+      presentationMode: "gui",
+    });
+    await session.openThread(config);
+    const queryInput = mockSdk.query.mock.calls[0]?.[0] as {
+      options: { spawnClaudeCodeProcess: (opts: SpawnOptions) => SpawnedProcess };
+    };
+    const options: SpawnOptions = {
+      command: "/usr/bin/claude",
+      args: ["--sdk"],
+      cwd: "/tmp/project",
+      env: { PATH: "/usr/bin" },
+      signal: new AbortController().signal,
+    };
+    queryInput.options.spawnClaudeCodeProcess(options);
+    await session.dispose();
+    expect(mockProcessTermination.awaitProcessTermination).toHaveBeenCalledWith(
+      expect.objectContaining({ pid: 1234 }),
+      { ownedProcessGroup: true },
+    );
+    expect(() => queryInput.options.spawnClaudeCodeProcess(options)).toThrow(
+      "cannot spawn after disposal",
+    );
+    expect(mockChildProcess.spawn).toHaveBeenCalledExactlyOnceWith(options.command, options.args, {
+      cwd: options.cwd,
+      env: options.env,
+      signal: options.signal,
+      stdio: ["pipe", "pipe", "pipe"],
+      detached: true,
+    });
   });
 
   it("switches the SDK permission mode for plan turns instead of changing the base policy", async () => {
@@ -792,6 +834,109 @@ describe("ClaudeSdkSession", () => {
       resumeSessionAt: "assistant-uuid-1",
     });
     expect(queryInput.options).not.toHaveProperty("sessionId");
+
+    await session.dispose();
+  });
+
+  it("createRevertAnchor freezes the absolute resume point without mutating the session", async () => {
+    mockSdk.query.mockClear();
+    const firstQuery = createFakeQuery();
+    mockSdk.query.mockReturnValueOnce(firstQuery.runtime);
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-anchor",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+    await session.startTurn("first", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "first"));
+    await flushAsyncWork();
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    await session.startTurn("second", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-2", "second"));
+    await flushAsyncWork();
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+
+    await expect(session.createRevertAnchor(1)).resolves.toEqual({
+      version: 1,
+      data: { resumeSessionAt: "assistant-uuid-1", remainingTurns: 1 },
+    });
+    // Pure planning: no query restart, no ledger mutation (a full rollback to
+    // the same anchor still works afterwards).
+    expect(mockSdk.query).toHaveBeenCalledTimes(1);
+    expect(firstQuery.runtime.close).not.toHaveBeenCalled();
+    await expect(
+      session.restoreToRevertAnchor({
+        version: 1,
+        data: { resumeSessionAt: "assistant-uuid-1", remainingTurns: 1 },
+      }),
+    ).resolves.toEqual({ providerSessionId: openedSessionId, messages: [] });
+
+    await session.dispose();
+  });
+
+  it("restoreToRevertAnchor reopens at the anchor and is idempotent when re-issued", async () => {
+    mockSdk.query.mockClear();
+    const firstQuery = createFakeQuery();
+    const resumedQuery = createFakeQuery();
+    mockSdk.query.mockReturnValueOnce(firstQuery.runtime).mockReturnValueOnce(resumedQuery.runtime);
+    const session = await ClaudeSdkSession.create({
+      threadId: "thread-claude-anchor-restore",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onRuntimeEvent: () => {},
+      onUpdate: () => {},
+      onError: () => {},
+      onClose: () => {},
+    });
+
+    const openedSessionId = await session.openThread(config);
+    await flushAsyncWork();
+    await session.startTurn("first", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-1", "first"));
+    await flushAsyncWork();
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+    await session.startTurn("second", config);
+    firstQuery.emitMessage(sdkAssistantMessage(openedSessionId, "assistant-uuid-2", "second"));
+    await flushAsyncWork();
+    firstQuery.emitMessage(sdkSuccessResult(openedSessionId));
+    await flushAsyncWork();
+
+    const anchor = { version: 1 as const, data: { resumeSessionAt: "assistant-uuid-1" } };
+    await expect(session.restoreToRevertAnchor(anchor)).resolves.toEqual({
+      providerSessionId: openedSessionId,
+      messages: [],
+    });
+    expect(firstQuery.runtime.close).toHaveBeenCalledTimes(1);
+    expect(mockSdk.query).toHaveBeenCalledTimes(2);
+    const queryInput = mockSdk.query.mock.calls[1]?.[0] as { options?: Record<string, unknown> };
+    expect(queryInput.options).toMatchObject({
+      resume: openedSessionId,
+      resumeSessionAt: "assistant-uuid-1",
+    });
+
+    // Re-issuing the already-applied anchor is a no-op: no new query spawn.
+    await expect(session.restoreToRevertAnchor(anchor)).resolves.toEqual({
+      providerSessionId: openedSessionId,
+      messages: [],
+    });
+    expect(mockSdk.query).toHaveBeenCalledTimes(2);
+    expect(resumedQuery.runtime.close).not.toHaveBeenCalled();
 
     await session.dispose();
   });

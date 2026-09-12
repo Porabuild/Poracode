@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_global_mcp_title">MCP サーバー</string>
+    <string name="settings_global_mcp_description">デスクトップ全体のカスタム MCP サーバーを管理します。</string>
+    <string name="settings_manage_projects_denied">プロジェクト管理権限が必要です。</string>
+    <string name="settings_global_mcp_redaction_note">認証情報はデスクトップに保持されます。既存のシークレットは伏せ字で表示されます。</string>
+    <string name="settings_global_mcp_add">追加</string>
+    <string name="settings_global_mcp_empty">グローバル MCP サーバーは設定されていません。</string>
+    <string name="settings_global_mcp_empty_description">サーバーを追加するか、[検出] を使ってこのデスクトップに既に設定済みのサーバーをインポートしてください。</string>
+    <string name="settings_global_mcp_uncertain">結果を確認できません。最新のサーバー一覧を要求しました。</string>
+    <string name="settings_global_mcp_edit">編集</string>
+    <string name="settings_global_mcp_delete">削除</string>
+    <string name="settings_global_mcp_move">プロジェクトへ移動</string>
+    <string name="settings_global_mcp_move_global">グローバルへ移動</string>
+    <string name="settings_global_mcp_duplicate_name">この名前の MCP サーバーはすでに存在します。</string>
+    <string name="settings_global_mcp_reserved_name">この名前は組み込み MCP サーバーによって予約されています。</string>
+    <string name="settings_global_mcp_probe">接続をテスト</string>
+    <string name="settings_global_mcp_tools">ツール</string>
+    <string name="settings_global_mcp_tools_title">%1$s のツール</string>
+    <string name="settings_global_mcp_authorize">認証</string>
+    <string name="settings_global_mcp_clear_oauth">認証を解除</string>
+    <string name="settings_global_mcp_probe_summary">%1$s · ツール: %2$d · %3$d ms</string>
+    <string name="settings_global_mcp_open_browser">ブラウザを開く</string>
+    <string name="settings_global_mcp_delete_title">MCP サーバーを削除しますか？</string>
+    <string name="settings_global_mcp_delete_message">%1$s を削除しますか？この操作は元に戻せません。</string>
+    <string name="settings_global_mcp_cancel">キャンセル</string>
+    <string name="settings_global_mcp_move_title">%1$s をプロジェクトへ移動</string>
+    <string name="settings_global_mcp_add_title">MCP サーバーを追加</string>
+    <string name="settings_global_mcp_edit_title">MCP サーバーを編集</string>
+    <string name="settings_global_mcp_name">名前</string>
+    <string name="settings_global_mcp_server_description">説明</string>
+    <string name="settings_global_mcp_command">コマンド</string>
+    <string name="settings_global_mcp_url">URL</string>
+    <string name="settings_global_mcp_arguments">引数（1 行に 1 つ）</string>
+    <string name="settings_global_mcp_working_directory">作業ディレクトリ（任意）</string>
+    <string name="settings_global_mcp_environment">環境変数（1 行に KEY=VALUE）</string>
+    <string name="settings_global_mcp_headers">ヘッダー（1 行に KEY=VALUE）</string>
+    <string name="settings_global_mcp_timeout">タイムアウト（ミリ秒）</string>
+    <string name="settings_global_mcp_disabled_tools">無効なツール（1 行に 1 つ）</string>
+    <string name="settings_global_mcp_pairs_help">1 行に 1 つの KEY=VALUE を入力してください。</string>
+    <string name="settings_global_mcp_save">保存</string>
+    <string name="settings_global_mcp_oauth_idle">OAuth 状態はまだ確認されていません。</string>
+    <string name="settings_global_mcp_oauth_checking">OAuth 状態を確認しています…</string>
+    <string name="settings_global_mcp_oauth_ready">OAuth 状態は最新です。</string>
+    <string name="settings_global_mcp_oauth_starting">認証を開始しています…</string>
+    <string name="settings_global_mcp_oauth_open_browser">ブラウザを開いて認証を続けてください。</string>
+    <string name="settings_global_mcp_oauth_waiting">認証を待っています…</string>
+    <string name="settings_global_mcp_oauth_authorized">認証が完了しました。</string>
+    <string name="settings_global_mcp_oauth_failed">認証に失敗しました。</string>
+    <string name="settings_global_mcp_oauth_paused">アプリがバックグラウンドの間、認証は一時停止されます。</string>
+</resources>

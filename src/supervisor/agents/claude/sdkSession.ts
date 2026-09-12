@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ChildProcess } from "node:child_process";
+import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import type {
   CanUseTool,
   Options as ClaudeQueryOptions,
@@ -16,6 +16,7 @@ import type {
   AgentSlashCommand,
   BackgroundTask,
   PromptSegment,
+  ProviderRevertAnchor,
   RuntimeEvent,
   SessionRef,
   ThreadAttention,
@@ -24,8 +25,8 @@ import type {
   ThreadStatus,
   TurnState,
 } from "@/shared/contracts";
-import { areAgentSlashCommandsEqual } from "@/shared/contracts";
-import { terminateChildProcessTree } from "@/shared/processTree";
+import { areAgentSlashCommandsEqual, isThreadConfigEqual } from "@/shared/contracts";
+import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import { buildClaudeMcpServers } from "../userMcp";
 import {
   createKnownSessionRef,
@@ -68,6 +69,7 @@ import {
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
 import { AsyncPromptQueue } from "./promptQueue";
+import { ClaudeSteerDelivery, interruptClaudeQuery } from "./steerDelivery";
 import { projectCwd, spawnClaudeInWsl, spawnClaudeNative } from "./sdkSpawn";
 import { buildSdkUserMessage } from "./sdkPrompt";
 import {
@@ -84,6 +86,19 @@ import {
 type CompletedClaudeTurn = {
   resumeSessionAt: string | undefined;
 };
+
+interface ClaudeRevertAnchorData {
+  resumeSessionAt: string;
+}
+
+/** Validates the opaque anchor payload for this provider. */
+function parseClaudeRevertAnchor(anchor: ProviderRevertAnchor): ClaudeRevertAnchorData {
+  const data = anchor.data as Partial<ClaudeRevertAnchorData> | null | undefined;
+  if (anchor.version !== 1 || typeof data?.resumeSessionAt !== "string") {
+    throw new Error("Claude SDK revert anchor payload is invalid or from an incompatible version.");
+  }
+  return { resumeSessionAt: data.resumeSessionAt };
+}
 
 /**
  * How long a drained deferred completion waits before settling the thread.
@@ -102,11 +117,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private promptQueue = new AsyncPromptQueue();
   private queryRuntime: Query | undefined;
   private queryReady: Promise<Query> | undefined;
-  // OS processes the SDK spawned through our custom spawn hook (win32 native +
-  // WSL). Captured so dispose() can force-kill the whole tree; the SDK's own
-  // Query.close() only ends the immediate child after a grace window. See
-  // trackSpawnedProcess.
+  // Query.close() initiates shutdown; captured children prove it has finished.
   private readonly spawnedProcesses = new Set<ChildProcess>();
+  private readonly ownedProcessGroups = new WeakSet<ChildProcess>();
+  private readonly processTerminations = new Map<ChildProcess, Promise<void>>();
+  private disposal: Promise<void> | undefined;
   private streamStarted = false;
   private disposed = false;
   private sessionId: string | undefined;
@@ -127,8 +142,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   private completedTurns: CompletedClaudeTurn[] = [];
   private currentTurnAssistantUuid: string | undefined;
   private currentTurnInFlight = false;
+  /** Resume point the live query was opened at (revert-anchor idempotence). */
+  private activeResumeAt: string | undefined;
   private pendingSteers: Parameters<ClaudeSdkSession["startTurn"]>[] = [];
   private submissionGeneration = 0;
+  private steerError: string | undefined;
+  private readonly steerDelivery = new ClaudeSteerDelivery();
   // A turn's `result` settles its status immediately, but flipping the thread
   // to idle while a background subagent task is still live would mark a GUI
   // thread finished mid-work. Hold the completion status here until the
@@ -293,17 +312,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   ): Promise<void> {
     if (this.disposed) return;
     const generation = ++this.submissionGeneration;
-    this.currentConfig = config;
-    const turnId = `turn-${randomUUID()}`;
-    this.currentTurnAssistantUuid = undefined;
-    this.currentTurnInFlight = true;
-    this.deferredCompletion.clear();
-    this.clearDeferredFlushTimer();
-    this.emitRuntimeEvents(
-      startClaudeTurn(this.mapperState, turnId, prompt, segments, options?.userMessageItemId),
-    );
-    this.emitUpdate({ status: "working", attention: "working" });
-    this.startGoalTracking();
+    this.steerError = undefined;
+    this.beginTurn(prompt, config, segments, options);
 
     const query = await this.requireQuery();
     await this.syncModel(query, config);
@@ -325,10 +335,30 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.promptQueue.push(message);
   }
 
+  private beginTurn(
+    prompt: string,
+    config: ThreadConfig,
+    segments?: PromptSegment[],
+    options?: StartTurnOptions,
+  ): void {
+    this.currentConfig = config;
+    const turnId = `turn-${randomUUID()}`;
+    this.currentTurnAssistantUuid = undefined;
+    this.currentTurnInFlight = true;
+    this.deferredCompletion.clear();
+    this.clearDeferredFlushTimer();
+    this.emitRuntimeEvents(
+      startClaudeTurn(this.mapperState, turnId, prompt, segments, options?.userMessageItemId),
+    );
+    this.emitUpdate({ status: "working", attention: "working" });
+    this.startGoalTracking();
+  }
+
   /**
-   * Keep follow-ups here until the running turn ends naturally. SDK-queued
-   * input can survive Stop, and resetting the mapper before a result loses
-   * live tool output. Local admission preserves both cancellation and order.
+   * Deliver ordinary follow-ups at the SDK's next tool boundary without
+   * resetting the running mapper. Commands and config changes need a fresh
+   * turn; older CLIs also keep local admission because Stop cannot cancel
+   * their queued input atomically.
    */
   async steerTurn(
     prompt: string,
@@ -337,10 +367,49 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     options?: StartTurnOptions,
   ): Promise<void> {
     if (this.disposed) return;
-    if (!this.currentTurnInFlight) return this.startTurn(prompt, config, segments, options);
+    if (!this.currentTurnInFlight && !this.steerDelivery.hasPending) {
+      return this.startTurn(prompt, config, segments, options);
+    }
     const userMessageItemId = options?.userMessageItemId ?? `user-${randomUUID()}`;
-    this.pendingSteers.push([prompt, config, segments, { ...options, userMessageItemId }]);
+    const steerOptions = { ...options, userMessageItemId };
+    if (
+      !this.steerDelivery.supported ||
+      this.pendingSteers.length > 0 ||
+      prompt.trimStart().startsWith("/") ||
+      !isThreadConfigEqual(this.currentConfig, config)
+    ) {
+      this.pendingSteers.push([prompt, config, segments, steerOptions]);
+      this.emitRuntimeEvents(
+        steerClaudeTurn(this.mapperState, prompt, segments, userMessageItemId),
+      );
+      return;
+    }
+    const uuid = randomUUID();
+    const generation = this.submissionGeneration;
+    this.steerDelivery.add(uuid, [prompt, config, segments, steerOptions]);
     this.emitRuntimeEvents(steerClaudeTurn(this.mapperState, prompt, segments, userMessageItemId));
+    try {
+      await this.steerDelivery.serialize(async () => {
+        if (this.disposed || generation !== this.submissionGeneration) return;
+        const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
+        if (this.disposed || generation !== this.submissionGeneration) return;
+        this.promptQueue.push({ ...message, uuid, priority: "next" });
+      });
+    } catch (error) {
+      if (this.disposed || generation !== this.submissionGeneration) return;
+      this.steerError = error instanceof Error ? error.message : String(error);
+      this.submissionGeneration++;
+      this.pendingSteers = [];
+      this.steerDelivery.clear();
+      this.promptQueue.clear();
+      this.deferredCompletion.clear();
+      this.clearDeferredFlushTimer();
+      if (this.queryRuntime) {
+        void interruptClaudeQuery(this.queryRuntime, true).catch(() => {});
+      }
+      this.emitUpdate({ status: "error", attention: "error", errorMessage: this.steerError });
+      throw error;
+    }
   }
 
   private startPendingSteer(): boolean {
@@ -353,6 +422,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     void submission.catch((error: unknown) => {
       if (this.disposed || generation !== this.submissionGeneration) return;
       this.pendingSteers = [];
+      this.steerDelivery.clear();
+      this.promptQueue.clear();
       const message = error instanceof Error ? error.message : String(error);
       this.reportError(message);
       this.emitRuntimeEvents([{ type: "error", threadId: this.input.threadId, message }]);
@@ -425,10 +496,78 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
   }
 
+  /**
+   * WS2 stage 3: freeze the absolute resume point for a `numTurns` rollback
+   * without touching session or provider state. The backend journals this
+   * anchor and later restores from it, so a retried revert never recomputes
+   * the target against an already-rolled-back conversation.
+   */
+  async createRevertAnchor(numTurns: number): Promise<ProviderRevertAnchor> {
+    const resumeSessionAt = this.planResumeAnchor(numTurns);
+    return {
+      version: 1,
+      data: {
+        resumeSessionAt,
+        remainingTurns: this.completedTurns.length - numTurns,
+      },
+    };
+  }
+
+  /**
+   * Reopens the SDK query at the anchor's absolute resume point. Idempotent:
+   * re-issuing an applied anchor with an unchanged ledger is a no-op, and a
+   * ledger that grew past the anchor truncates back to the anchor's turn.
+   */
+  async restoreToRevertAnchor(anchor: ProviderRevertAnchor): Promise<ThreadHistory> {
+    const data = parseClaudeRevertAnchor(anchor);
+    const sessionId = this.assertRollbackReady();
+    const resumeSessionAt = data.resumeSessionAt;
+    // Absolute ledger truncation: anchor on the recorded turn's resume point,
+    // not a relative count. An unknown anchor (fresh process resume with an
+    // empty/partial ledger) leaves the ledger alone — the provider-side
+    // reopen below still lands on the anchor position.
+    const anchorIndex = this.completedTurns.findLastIndex(
+      (turn) => turn.resumeSessionAt === resumeSessionAt,
+    );
+    if (this.activeResumeAt === resumeSessionAt && anchorIndex === this.completedTurns.length - 1) {
+      // Already restored to this exact position.
+      return { providerSessionId: sessionId, messages: [] };
+    }
+    if (anchorIndex >= 0) {
+      this.completedTurns = this.completedTurns.slice(0, anchorIndex + 1);
+    }
+    this.applyResumePoint(resumeSessionAt);
+    await this.requireQuery();
+    return { providerSessionId: sessionId, messages: [] };
+  }
+
   async rollbackThread(numTurns: number): Promise<ThreadHistory> {
+    const sessionId = this.assertRollbackReady();
+    const resumeSessionAt = this.planResumeAnchor(numTurns);
+    this.completedTurns = this.completedTurns.slice(0, this.completedTurns.length - numTurns);
+    this.applyResumePoint(resumeSessionAt);
+    await this.requireQuery();
+    return { providerSessionId: sessionId, messages: [] };
+  }
+
+  /** Shared rollback guards + absolute target computation (no mutation). */
+  private planResumeAnchor(numTurns: number): string {
+    this.assertRollbackReady();
     if (!Number.isInteger(numTurns) || numTurns <= 0) {
       throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
     }
+    if (numTurns > this.completedTurns.length) {
+      throw new Error("Claude SDK rollback only supports turns completed in this runtime.");
+    }
+    const nextTurns = this.completedTurns.slice(0, this.completedTurns.length - numTurns);
+    const resumeSessionAt = nextTurns.at(-1)?.resumeSessionAt;
+    if (!resumeSessionAt) {
+      throw new Error("Claude SDK rollback requires an assistant resume point.");
+    }
+    return resumeSessionAt;
+  }
+
+  private assertRollbackReady(): string {
     if (this.currentStatus === "working" || this.currentAttention === "working") {
       throw new Error("Claude SDK rollback is unavailable while a turn is running.");
     }
@@ -438,20 +577,17 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (!this.sessionId) {
       throw new Error("Claude SDK rollback requires an open session.");
     }
-    if (numTurns > this.completedTurns.length) {
-      throw new Error("Claude SDK rollback only supports turns completed in this runtime.");
-    }
+    return this.sessionId;
+  }
 
-    const nextTurns = this.completedTurns.slice(0, this.completedTurns.length - numTurns);
-    const resumeSessionAt = nextTurns.at(-1)?.resumeSessionAt;
-    if (!resumeSessionAt) {
-      throw new Error("Claude SDK rollback requires an assistant resume point.");
-    }
-
-    this.completedTurns = nextTurns;
+  /** Closes the live query and reopens the session at an absolute position. */
+  private applyResumePoint(resumeSessionAt: string): void {
+    this.submissionGeneration++;
+    this.steerDelivery.clear();
     this.currentTurnAssistantUuid = undefined;
     this.currentTurnInFlight = false;
     this.openedResumeSessionId = this.sessionId;
+    this.activeResumeAt = resumeSessionAt;
     this.promptQueue.close();
     this.queryRuntime?.close();
     this.promptQueue = new AsyncPromptQueue();
@@ -463,24 +599,30 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.appliedUltracode = false;
     this.appliedFast = false;
     this.startQuery(this.sessionId, resumeSessionAt);
-    await this.requireQuery();
-
-    return { providerSessionId: this.sessionId, messages: [] };
   }
 
   async interruptTurn(): Promise<void> {
     this.pendingSteers = [];
+    this.steerDelivery.clear();
+    this.promptQueue.clear();
     this.submissionGeneration++;
     this.interruptInFlight = true;
     try {
-      await this.queryRuntime?.interrupt();
+      if (this.queryRuntime) {
+        await interruptClaudeQuery(this.queryRuntime, this.steerDelivery.supported);
+      }
     } catch {
       // Best-effort; stream/result handling will settle state if the SDK already stopped.
     }
   }
 
   forceCompleteTurn(): void {
+    if (this.steerDelivery.hasPending && this.queryRuntime) {
+      void interruptClaudeQuery(this.queryRuntime, true).catch(() => {});
+    }
     this.pendingSteers = [];
+    this.steerDelivery.clear();
+    this.promptQueue.clear();
     this.submissionGeneration++;
     this.deferredCompletion.clear();
     this.clearDeferredFlushTimer();
@@ -612,10 +754,46 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     }
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    if (this.disposal) return this.disposal;
+    const firstDisposal = !this.disposed;
     this.disposed = true;
+    const disposal = Promise.resolve()
+      .then(async () => {
+        if (firstDisposal) this.closeSessionResources();
+        // Query creation can still be resolving the executable or spawning its child.
+        await this.queryReady?.catch(() => undefined);
+        let closeFailure: { error: unknown } | undefined;
+        try {
+          this.queryRuntime?.close();
+        } catch (error) {
+          closeFailure = { error };
+        }
+        while (this.spawnedProcesses.size > 0 || this.processTerminations.size > 0) {
+          const pending = new Set(this.processTerminations.values());
+          for (const child of this.spawnedProcesses)
+            pending.add(this.terminateSpawnedProcess(child));
+          const outcomes = await Promise.allSettled(pending);
+          const failure = outcomes.find((outcome) => outcome.status === "rejected");
+          if (failure?.status === "rejected") throw failure.reason;
+        }
+        if (closeFailure) throw closeFailure.error;
+        this.queryRuntime = undefined;
+        this.queryReady = undefined;
+        this.listener?.onClose();
+      })
+      .catch((error: unknown) => {
+        this.disposal = undefined;
+        throw error;
+      });
+    this.disposal = disposal;
+    return disposal;
+  }
+
+  private closeSessionResources(): void {
     this.pendingSteers = [];
+    this.steerDelivery.clear();
+    this.promptQueue.clear();
     this.submissionGeneration++;
     this.stopGoalTracking();
     this.flushDeferredCompletion();
@@ -637,48 +815,50 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     this.pendingRequests.clear();
     this.emitRuntimeEvents(closeClaudeOpenItems(this.mapperState, { closePlan: true }));
     this.promptQueue.close();
-    try {
-      this.queryRuntime?.close();
-    } catch {
-      // ignore
-    }
-    // Query.close() only ends the immediate child — and only after a ~2s
-    // stdin-EOF grace — so on Windows it orphans claude's descendant tool
-    // processes, and for WSL it kills the host wsl.exe relay rather than the
-    // in-distro tree. Force-kill the captured process tree so a removed /
-    // archived / unloaded / app-closed GUI Claude thread can't keep running
-    // tools and modifying files. Mirrors the ACP and Codex structured sessions.
-    for (const child of [...this.spawnedProcesses]) {
-      this.killSpawnedProcess(child);
-    }
-    this.listener?.onClose();
   }
 
   /**
-   * Record an OS process spawned by the SDK through our custom spawn hook so
-   * {@link dispose} can force-kill its tree. The process drops out of the set on
-   * its own exit. If a spawn races in after disposal, kill it immediately so it
-   * can't outlive the session.
+   * Prevent new SDK children after shutdown begins, and retain raced children
+   * until their process termination has been confirmed.
    */
-  private trackSpawnedProcess(proc: SpawnedProcess): SpawnedProcess {
+  private spawnTrackedProcess(
+    spawn: () => SpawnedProcess,
+    ownedProcessGroup = false,
+  ): SpawnedProcess {
+    if (this.disposed) throw new Error("ClaudeSdkSession cannot spawn after disposal.");
+    const proc = spawn();
     const child = proc as unknown as ChildProcess;
+    if (ownedProcessGroup) this.ownedProcessGroups.add(child);
     this.spawnedProcesses.add(child);
     const forget = (): void => {
-      this.spawnedProcesses.delete(child);
+      // A detached leader can exit while its descendants still own the process group.
+      if (!ownedProcessGroup) this.spawnedProcesses.delete(child);
     };
     child.once("exit", forget);
     if (this.disposed) {
-      this.killSpawnedProcess(child);
+      // Disposal observes the same promise; keep failed children available for retry.
+      void this.terminateSpawnedProcess(child).catch(() => {});
     }
     return proc;
   }
 
-  private killSpawnedProcess(child: ChildProcess): void {
-    this.spawnedProcesses.delete(child);
-    // Windows: taskkill /T /F reaps the whole tree. POSIX: best-effort kill of
-    // the captured process (the SDK's own teardown handles the rest).
-    // terminateChildProcessTree swallows its own errors, so no guard is needed.
-    terminateChildProcessTree(child);
+  private terminateSpawnedProcess(child: ChildProcess): Promise<void> {
+    const pending = this.processTerminations.get(child);
+    if (pending) return pending;
+    const termination = Promise.resolve()
+      .then(() =>
+        awaitProcessTermination(child, {
+          ownedProcessGroup: this.ownedProcessGroups.has(child),
+        }),
+      )
+      .then(() => {
+        this.spawnedProcesses.delete(child);
+      })
+      .finally(() => {
+        this.processTerminations.delete(child);
+      });
+    this.processTerminations.set(child, termination);
+    return termination;
   }
 
   private requireQuery(): Promise<Query> {
@@ -687,8 +867,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   private startQuery(resumeSessionId: string | undefined, resumeSessionAt?: string): void {
+    if (this.disposed) throw new Error("ClaudeSdkSession cannot open a disposed session.");
     if (this.streamStarted) return;
     this.streamStarted = true;
+    this.steerDelivery.supported = false;
+    this.activeResumeAt = resumeSessionAt;
     // The `background_tasks_changed` level is per CLI process: it is not
     // emitted at startup, so a restarted query (rollback re-spawns the CLI)
     // must reset to the empty set and let the next membership change
@@ -712,8 +895,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         this.currentConfig.model,
         this.currentConfig.contextSize,
       );
-      // POSIX: the SDK spawns the `claude` CLI internally, so its env is what
-      // determines PATH for the child. Prefer the project-scoped shell env
+      // The SDK's spawn options determine PATH for the child. Prefer the project-scoped shell env
       // captured by `primeProjectShellEnv` (fnm / asdf / mise / volta cd-hooks
       // applied at the project root) over Electron's `process.env`, which on
       // macOS-from-Finder is launchd's skeleton PATH and pins the CLI to
@@ -785,13 +967,28 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         case "wsl": {
           const location = this.input.projectLocation;
           spawnClaudeCodeProcess = (spawnOptions) =>
-            this.trackSpawnedProcess(spawnClaudeInWsl(location, spawnOptions));
+            this.spawnTrackedProcess(() => spawnClaudeInWsl(location, spawnOptions));
           break;
         }
         case "windows": {
           const location = this.input.projectLocation;
           spawnClaudeCodeProcess = (spawnOptions) =>
-            this.trackSpawnedProcess(spawnClaudeNative(location, spawnOptions));
+            this.spawnTrackedProcess(() => spawnClaudeNative(location, spawnOptions));
+          break;
+        }
+        case "posix": {
+          spawnClaudeCodeProcess = (spawnOptions) =>
+            this.spawnTrackedProcess(
+              () =>
+                spawnChild(spawnOptions.command, spawnOptions.args, {
+                  cwd: spawnOptions.cwd,
+                  env: spawnOptions.env,
+                  signal: spawnOptions.signal,
+                  stdio: ["pipe", "pipe", "pipe"],
+                  detached: true,
+                }) as unknown as SpawnedProcess,
+              true,
+            );
           break;
         }
       }
@@ -808,6 +1005,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         ...(resumeSessionAt ? { resumeSessionAt } : {}),
         ...(!resumeSessionId && this.sessionId ? { sessionId: this.sessionId } : {}),
         includePartialMessages: true,
+        extraArgs: { "replay-user-messages": null },
         forwardSubagentText: true,
         canUseTool: this.canUseTool,
         env,
@@ -824,9 +1022,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
           : {}),
         ...(claudeExecutablePath ? { pathToClaudeCodeExecutable: claudeExecutablePath } : {}),
         ...(hasMcpServers ? ({ mcpServers } as Partial<ClaudeQueryOptions>) : {}),
-        ...(spawnClaudeCodeProcess ? { spawnClaudeCodeProcess } : {}),
+        spawnClaudeCodeProcess,
       };
 
+      if (this.disposed) throw new Error("ClaudeSdkSession was disposed during query creation.");
       this.queryRuntime = query({ prompt: this.promptQueue, options });
       this.appliedModel = model;
       this.appliedPermissionMode = permissionMode;
@@ -840,13 +1039,21 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       .then(async (runtime) => {
         try {
           for await (const message of runtime) {
-            if (this.disposed) break;
+            if (this.disposed || runtime !== this.queryRuntime) break;
             this.handleSdkMessage(message);
           }
+          if (runtime !== this.queryRuntime) return;
+          this.submissionGeneration++;
           this.pendingSteers = [];
+          this.steerDelivery.clear();
+          this.promptQueue.clear();
           if (!this.disposed) this.flushDeferredCompletion();
         } catch (error) {
+          if (runtime !== this.queryRuntime) return;
+          this.submissionGeneration++;
           this.pendingSteers = [];
+          this.steerDelivery.clear();
+          this.promptQueue.clear();
           if (!this.disposed) {
             captureSupervisorException(error, {
               "poracode.feature_area": "provider-sdk",
@@ -987,6 +1194,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       });
     }
 
+    const consumedSteer = this.steerDelivery.observe(message);
+    if (consumedSteer && !this.currentTurnInFlight) this.beginTurn(...consumedSteer);
     this.beginResumedTurnIfNeeded(message);
 
     if (message.type === "system" && message.subtype === "init") {
@@ -1005,7 +1214,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         mapped.status !== "idle" ||
         (!this.deferredCompletion.hasPending &&
           !this.currentTurnInFlight &&
-          this.pendingSteers.length === 0)
+          this.pendingSteers.length === 0 &&
+          !this.steerDelivery.hasPending)
       ) {
         this.emitUpdate(mapped);
       }
@@ -1034,7 +1244,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (message.type === "result") {
       wasInterrupted =
         this.interruptInFlight || (message.subtype !== "success" && isInterruptedResult(message));
-      if (wasInterrupted) resultState = "interrupted";
+      if (this.steerError) resultState = "failed";
+      else if (wasInterrupted) resultState = "interrupted";
     }
     const events = mapClaudeSdkMessage(
       message,
@@ -1060,9 +1271,11 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       // `isInterruptedResult`, covering external (in-CLI) Esc interrupts where
       // `interruptInFlight` is false.
       const failed =
-        !wasInterrupted && (apiErrored || (message.subtype !== "success" && remaining.length > 0));
+        this.steerError !== undefined ||
+        (!wasInterrupted &&
+          (apiErrored || (message.subtype !== "success" && remaining.length > 0)));
       const errorMessage = failed
-        ? (extractResultErrorMessage(message) ?? "Claude turn failed.")
+        ? (this.steerError ?? extractResultErrorMessage(message) ?? "Claude turn failed.")
         : undefined;
       if (this.currentTurnInFlight && !failed && !wasInterrupted) {
         this.completedTurns.push({ resumeSessionAt: this.currentTurnAssistantUuid });
@@ -1083,7 +1296,20 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
         ...(errorMessage ? { errorMessage } : {}),
         ...(this.sessionId ? { sessionRef: createKnownSessionRef(this.sessionId) } : {}),
       };
-      if (failed || wasInterrupted) this.pendingSteers = [];
+      if (failed || wasInterrupted) {
+        const hadPendingDelivery = this.steerDelivery.hasPending;
+        this.submissionGeneration++;
+        this.pendingSteers = [];
+        this.steerDelivery.clear();
+        this.promptQueue.clear();
+        if (failed && hadPendingDelivery && this.queryRuntime && this.steerDelivery.supported) {
+          void interruptClaudeQuery(this.queryRuntime, true).catch(() => {});
+        }
+      }
+      if (this.steerDelivery.hasPending) {
+        this.deferredCompletion.defer(completion);
+        return;
+      }
       if (this.startPendingSteer()) return;
       if (this.hasLiveBackgroundWork()) {
         this.deferredCompletion.defer(completion);
@@ -1128,6 +1354,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     // A goal held open across a clean turn end also drains here, so the
     // pending goal alone is enough to arm the flush, or the dock would sit
     // active until the session ends.
+    if (this.steerDelivery.hasPending) return;
     if (!this.deferredCompletion.hasPending && !this.mapperState.pendingGoalCompletionOnTaskDrain) {
       return;
     }
@@ -1138,7 +1365,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     if (this.deferredFlushTimer !== undefined) return;
     this.deferredFlushTimer = setTimeout(() => {
       this.deferredFlushTimer = undefined;
-      if (this.disposed || this.hasLiveBackgroundWork()) return;
+      if (this.disposed || this.hasLiveBackgroundWork() || this.steerDelivery.hasPending) return;
       this.emitRuntimeEvents(completeActiveGoalOnTaskDrainEvents(this.mapperState));
       const update = this.deferredCompletion.take();
       if (update) this.emitUpdate(update);

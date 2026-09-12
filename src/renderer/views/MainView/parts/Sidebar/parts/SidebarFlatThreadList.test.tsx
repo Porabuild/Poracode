@@ -25,11 +25,24 @@ vi.mock("@/renderer/dnd", () => ({
 const newThreadCalls = vi.hoisted(
   () => [] as Array<{ projectId: string; inline: boolean | undefined }>,
 );
+const layoutMock = vi.hoisted(() => ({ compact: false }));
+const quickComposeCalls = vi.hoisted(() => [] as string[]);
+
+vi.mock("@/renderer/adaptiveLayout", () => ({
+  useCompactLayout: () => layoutMock.compact,
+}));
 
 vi.mock("./NewThreadButton", () => ({
   NewThreadButton: (props: { projectId: string; inline?: boolean }) => {
     newThreadCalls.push({ projectId: props.projectId, inline: props.inline });
     return <button type="button">new-thread:{props.projectId}</button>;
+  },
+}));
+
+vi.mock("./MobileQuickCompose", () => ({
+  MobileQuickCompose: (props: { projectId: string }) => {
+    quickComposeCalls.push(props.projectId);
+    return <div>quick-compose:{props.projectId}</div>;
   },
 }));
 
@@ -122,6 +135,8 @@ const unreachableRemoteProject: Project = {
 
 describe("SidebarFlatThreadList", () => {
   beforeEach(() => {
+    layoutMock.compact = false;
+    quickComposeCalls.length = 0;
     useRemoteServersStore.setState({ servers: [], runtime: {} });
     useSharedSettings.setState({
       homeScopeEnabled: true,
@@ -130,6 +145,21 @@ describe("SidebarFlatThreadList", () => {
     useWorkspaceStore.setState({ activeWorkspaceId: "w1" });
     useSidebarUiStore.setState({ flatListProjectFilter: null });
     newThreadCalls.length = 0;
+  });
+
+  it("uses the old PWA quick composer instead of the desktop new-thread row on mobile", () => {
+    layoutMock.compact = true;
+    useAppStore.setState({
+      projects: [localProject],
+      threads: [makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z")],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByText("quick-compose:local-1")).toBeInTheDocument();
+    expect(screen.queryByText("new-thread:local-1")).not.toBeInTheDocument();
+    expect(quickComposeCalls.length).toBeGreaterThan(0);
+    expect(quickComposeCalls.every((projectId) => projectId === "local-1")).toBe(true);
   });
 
   it("shows Home threads alongside project threads with the new-thread row", () => {
@@ -176,6 +206,27 @@ describe("SidebarFlatThreadList", () => {
     render(<SidebarFlatThreadList sortMode="updated" />);
 
     expect(screen.queryByText(/thread:r1/)).not.toBeInTheDocument();
+  });
+
+  it("keeps cached threads from unavailable machines in the compact all-machine list", () => {
+    layoutMock.compact = true;
+    useRemoteServersStore.setState({
+      servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+      runtime: { "desktop-1": { status: "error", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({
+      projects: [localProject, unreachableRemoteProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("r1", "remote-1", "2026-08-03T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    expect(screen.getByText(/thread:r1 in Mac Poracode/)).toBeInTheDocument();
+    expect(screen.getByText(/thread:p1 in Poracode/)).toBeInTheDocument();
+    expect(screen.getByText("quick-compose:local-1")).toBeInTheDocument();
   });
 
   it("shows remote threads while the server is online", () => {

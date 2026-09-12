@@ -1,0 +1,71 @@
+import Foundation
+
+/// Mirrors `PORACODE_REMOTE_PROTOCOL_VERSION` in `src/shared/remote/protocol.ts`.
+/// Protocol v11 adds the daily usage-window enum. Older native bindings
+/// reject it, so mixed generations refuse to pair. Guarded against drift by
+/// `protocol/remote/v3/native-protocol-version.test.ts`.
+enum ProtocolConstants {
+  /// Cap for boundary buffers that hold sequenced events while an
+  /// authoritative fetch is in flight (WS7 P1-14). Dropping the OLDEST entry
+  /// past this bound loses replay coverage, so every buffer pairs the cap
+  /// with an overflow flag that forces an authoritative refresh/resync.
+  static let maxBufferedEnvelopes = 512
+    static let remoteProtocolVersion = 11
+    static let commandIdHeader = "x-poracode-command-id"
+    static let bearerTokenType = "Bearer"
+
+    /// Auth policy / method literals from `remoteEnvironmentDescriptorSchema`.
+    static let authPolicy = "remote-reachable"
+    static let bootstrapMethod = "one-time-token"
+    static let sessionMethod = "bearer-access-token"
+
+    static let standardScopes: [String] = [
+        "session:read",
+        "session:operate",
+        "terminal:read",
+        "terminal:operate",
+        "requests:resolve",
+        "projects:manage",
+        "ports:forward",
+    ]
+
+    /// Primary environment discovery path (TS client first).
+    static let environmentPath = "/.well-known/poracode/environment"
+    /// Legacy fallback when the primary path returns 404.
+    static let legacyEnvironmentPath = "/.well-known/lightcode/environment"
+
+    static let oauthTokenPath = "/oauth/token"
+    static let snapshotPath = "/api/snapshot"
+    static let websocketTicketPath = "/api/auth/websocket-ticket"
+    static let websocketPath = "/ws"
+
+    /// Default max response body size (64 MiB), matching `DEFAULT_REMOTE_RESPONSE_MAX_BYTES`.
+    static let maxResponseBodyBytes = 64 * 1024 * 1024
+}
+
+enum RemoteSocketPolicy {
+    static let reconnectBaseMs: Double = 1_000
+    static let reconnectMaxMs: Double = 20_000
+    static let unauthorizedReconnectMs: Double = 60_000
+    /// Backoff for a parked preserved-upgrade retry (WS7 P1-15): the fresh
+    /// offline/timeout park otherwise never retries while foregrounded.
+    static let parkedUpgradeRetryMs: Double = 20_000
+    /// Hard ceiling for a streamed response body (WS7): requestTimeout is an
+    /// IDLE timer reset by every chunk, so a slow-drip/stalled stream could
+    /// hold a load open indefinitely against the 7-day resource default.
+    /// Generous for real transfers on a shaped link, but finite.
+    static let streamingBodyResourceTimeoutSeconds: Double = 600
+    static let healthPingIntervalMs: Double = 25_000
+    static let healthPingTimeoutMs: Double = 5_000
+    static let connectTimeoutMs: Double = 15_000
+    static let requestTimeoutSeconds: TimeInterval = 60
+
+    /// Exact close reason from the desktop remote-access server (`socketPolicy.ts`).
+    static let sessionExpiredReason = "Remote access session expired"
+    /// WebSocket policy-violation close code used for expired/revoked sessions.
+    static let unauthorizedCloseCode = 1008
+
+    static func isUnauthorizedClose(code: Int, reason: String) -> Bool {
+        code == unauthorizedCloseCode || reason == sessionExpiredReason
+    }
+}

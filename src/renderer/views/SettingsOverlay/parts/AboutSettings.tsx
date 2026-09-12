@@ -4,10 +4,10 @@ import { Download, ExternalLink, RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { ConfirmDialog, PixelLoader } from "@/renderer/components/common";
+import { updateDownloadDisplay } from "@/renderer/state/updateDownloadDisplay";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 import { BrandWordmark } from "@/renderer/components/common/BrandWordmark";
 import { productNameFor } from "@/shared/channel";
-import { formatBytes } from "@/shared/formatBytes";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import appIconStableUrl from "../../../../../build/icon.png";
 import appIconNightlyUrl from "../../../../../build/icon-nightly.png";
@@ -51,30 +51,34 @@ function UpdateButton() {
     // from reflowing as the numbers tick up. The target version is intentionally
     // omitted here — the Version row already shows it and the long nightly
     // string was what overflowed and got clipped.
-    const percent = Math.min(100, Math.max(0, Math.round(downloadPercent)));
-    const byteLine =
-      transferred != null && total != null && total > 0
-        ? `${formatBytes(transferred)} / ${formatBytes(total)}`
-        : null;
+    const { determinate, percent, byteLine } = updateDownloadDisplay(
+      downloadPercent,
+      transferred,
+      total,
+    );
 
     return (
       <div
         className="flex items-center gap-2.5 text-xs text-muted"
         role="progressbar"
         aria-label={t`Downloading update`}
-        aria-valuenow={percent}
         aria-valuemin={0}
         aria-valuemax={100}
+        {...(determinate ? { "aria-valuenow": percent } : {})}
       >
         <Download className="size-3.5 shrink-0 animate-pulse text-foreground" />
         {byteLine ? <span className="whitespace-nowrap tabular-nums">{byteLine}</span> : null}
         <div className="h-1 w-20 overflow-hidden rounded-full bg-[var(--row-active)]">
           <div
-            className="h-full rounded-full bg-foreground transition-[width] duration-300"
-            style={{ width: `${percent}%` }}
+            className={`h-full rounded-full bg-foreground ${
+              determinate ? "transition-[width] duration-300" : "w-1/2 animate-pulse"
+            }`}
+            style={determinate ? { width: `${percent}%` } : undefined}
           />
         </div>
-        <span className="w-8 text-right tabular-nums text-foreground">{percent}%</span>
+        {determinate ? (
+          <span className="w-8 text-right tabular-nums text-foreground">{percent}%</span>
+        ) : null}
       </div>
     );
   }

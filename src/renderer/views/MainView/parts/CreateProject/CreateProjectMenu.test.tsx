@@ -6,6 +6,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 
 const mocks = vi.hoisted(() => ({
   addExistingProject: vi.fn<(choice?: unknown) => Promise<void>>().mockResolvedValue(undefined),
+  localBackend: true,
   listWslDistros: vi.fn<() => Promise<string[]>>().mockResolvedValue([]),
 }));
 
@@ -15,12 +16,17 @@ vi.mock("@/renderer/actions/createProjectActions", () => ({
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({ listWslDistros: mocks.listWslDistros }),
 }));
+vi.mock("@/renderer/clientRuntime", () => ({
+  hasClientCapability: () => mocks.localBackend,
+  isCompactClientRuntimeSurface: () => false,
+}));
 
 import { CreateProjectMenu } from "./CreateProjectMenu";
 
 describe("CreateProjectMenu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.localBackend = true;
     mocks.listWslDistros.mockResolvedValue([]);
     usePanelStore.setState({
       createProjectModalOpen: false,
@@ -115,5 +121,25 @@ describe("CreateProjectMenu", () => {
       expect(usePanelStore.getState().settingsOpen).toBe(true);
       expect(usePanelStore.getState().settingsSection).toBe("remoteServers");
     });
+  });
+
+  it("routes browser-hosted project creation to the paired environment", async () => {
+    mocks.localBackend = false;
+    render(
+      <CreateProjectMenu>
+        <Button aria-label="Add project">+</Button>
+      </CreateProjectMenu>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add project" }));
+    expect(await screen.findByText("Remote Environments")).toBeInTheDocument();
+    expect(screen.queryByText("Start from scratch")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Remote Environments"));
+
+    await waitFor(() => {
+      expect(usePanelStore.getState().settingsOpen).toBe(true);
+      expect(usePanelStore.getState().settingsSection).toBe("remoteServers");
+    });
+    expect(mocks.listWslDistros).not.toHaveBeenCalled();
   });
 });

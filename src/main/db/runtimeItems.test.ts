@@ -1,9 +1,8 @@
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { nativeBindingEnv, sqliteAvailable, testThread } from "./runtimeItems.testFixtures";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { Thread } from "@/shared/contracts";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { LATEST_SCHEMA_VERSION } from "./migrations";
 import { dbDeleteThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
@@ -20,38 +19,6 @@ import {
   dbTruncateThreadRuntimeAfter,
 } from "./runtimeItems";
 import { HEAD_CHARS, TAIL_CHARS } from "./runtimeStreamCap";
-
-const serverNativeBinding = join(process.cwd(), "dist", "server-native", "better_sqlite3.node");
-let nativeBindingEnv: string | undefined;
-let sqliteAvailable = true;
-try {
-  new Database(":memory:").close();
-} catch {
-  if (existsSync(serverNativeBinding)) {
-    nativeBindingEnv = serverNativeBinding;
-  } else {
-    sqliteAvailable = false;
-  }
-}
-
-function testThread(): Thread {
-  return {
-    id: "thread-1",
-    projectId: "project-1",
-    title: "Runtime persistence",
-    agentKind: "codex",
-    config: { model: "gpt-5" },
-    status: "working",
-    attention: "working",
-    canResumeWithConfig: false,
-    archived: false,
-    done: false,
-    starred: false,
-    presentationMode: "gui",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  };
-}
 
 describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => {
   let dir: string;
@@ -335,6 +302,26 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     });
     // The divider records no work, so a completed turn must still hang off the
     // assistant row that produced it.
+    expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
+  });
+
+  it("does not use a goal item as a completed-turn anchor", () => {
+    dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "assistant-1",
+        type: "assistant_message",
+        state: "completed",
+        streams: { assistant_text: "Visible answer" },
+      },
+      {
+        id: "goal-1",
+        type: "goal",
+        state: "completed",
+        payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+        streams: {},
+      },
+    ]);
+
     expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
   });
 

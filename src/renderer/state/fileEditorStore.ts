@@ -9,6 +9,7 @@ import { readBridge } from "../bridge";
 import { captureProductEvent } from "../analytics/productAnalytics";
 import { captureRendererException } from "../diagnostics/sentry";
 import { hasUnresolvedConflicts } from "@/renderer/utils/mergeConflicts";
+import { isMarkdownFile } from "@/shared/pathUtils";
 import { useGitStore } from "./gitStore";
 import { resolveAbsolutePath } from "@/renderer/utils/resolveAbsolutePath";
 
@@ -91,6 +92,8 @@ export interface FileEditorBuffer {
   hasBom: boolean;
   isDirty: boolean;
   isLoading: boolean;
+  /** Ephemeral identity retained when a pending read is moved to another path. */
+  loadId?: symbol;
   gitDiff?: FileEditorGitDiffContext;
 }
 
@@ -131,6 +134,12 @@ interface FileEditorStoreState {
   pinTab: (path: string) => void;
   setOverlayMode: (mode: FileEditorOverlayMode | null) => void;
   setActivePath: (path: string | null) => void;
+  /**
+   * Toggle the active file's Markdown preview. Shared by the eye button and the
+   * `editor.toggle-markdown-preview` keybinding so they can't diverge. No-op
+   * unless the active file is Markdown.
+   */
+  toggleMarkdownPreview: () => void;
   /**
    * Switch to the adjacent open tab in `tabs` order, wrapping at the ends.
    * No-op with fewer than two tabs. Mirrors the tab strip's click-to-activate
@@ -456,6 +465,15 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
       return cachedResult;
     }
 
+    const loadId = Symbol(openPath);
+    const loadingBuffer = withGitDiff(
+      {
+        ...buildBuffer({ path: openPath, status: "ready", modifiedAtMs: 0 }),
+        isLoading: true,
+        loadId,
+      },
+      options?.gitDiff,
+    );
     set((state) => {
       const changes = computeTabOpen(state, openPath, mode, preview);
       return {
@@ -465,64 +483,80 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         ...(reveal ? { pendingReveal: reveal } : {}),
         buffers: {
           ...changes.buffers,
-          [openPath]: withGitDiff(
-            {
-              path: openPath,
-              status: "ready",
-              modifiedAtMs: 0,
-              content: "",
-              savedContent: "",
-              lineEnding: "lf",
-              hasBom: false,
-              isDirty: false,
-              isLoading: true,
-            },
-            options?.gitDiff,
-          ),
+          [openPath]: loadingBuffer,
         },
       };
     });
 
-    try {
-      const result = await readFileForContext(rootContext, openPath);
-      if (get().rootContext !== rootContext) return result;
-      set((state) => ({
-        buffers: {
-          ...state.buffers,
-          [openPath]: withGitDiff(buildBuffer(result), options?.gitDiff),
-        },
-      }));
+    const currentLoad = () => {
+      const state = get();
+      if (state.rootContext !== rootContext) return undefined;
+      return Object.entries(state.buffers).find(([, buffer]) => buffer.loadId === loadId);
+    };
+    let readPath = openPath;
+    let attemptBuffer = loadingBuffer;
+    for (;;) {
       try {
-        captureProductEvent("file.opened", {
-          overlay_mode: mode ?? "unchanged",
-          source: isExternalPath(openPath) ? "external" : "project",
-        });
+        const result = await readFileForContext(rootContext, readPath);
+        const current = currentLoad();
+        if (!current) return result;
+        const [currentPath] = current;
+        const remappedResult = { ...result, path: currentPath };
+        set((state) => ({
+          buffers: {
+            ...state.buffers,
+            [currentPath]: withGitDiff(buildBuffer(remappedResult), options?.gitDiff),
+          },
+        }));
+        try {
+          captureProductEvent("file.opened", {
+            overlay_mode: mode ?? "unchanged",
+            source: isExternalPath(currentPath) ? "external" : "project",
+          });
+        } catch (error) {
+          captureRendererException(error, { featureArea: "analytics" });
+        }
+        return remappedResult;
       } catch (error) {
-        captureRendererException(error, { featureArea: "analytics" });
+        const current = currentLoad();
+        if (!current) throw error;
+        const [currentPath, currentBuffer] = current;
+        // A rename may make the old-path request fail. Retry only after an
+        // actual move of this same load, including a move away and back.
+        if (currentBuffer !== attemptBuffer) {
+          readPath = currentPath;
+          attemptBuffer = currentBuffer;
+          continue;
+        }
+        set((state) => {
+          const { [currentPath]: _, ...rest } = state.buffers;
+          return {
+            buffers: rest,
+            tabs: state.tabs.filter((tabPath) => tabPath !== currentPath),
+            activePath:
+              state.activePath === currentPath
+                ? (state.tabs.find((tabPath) => tabPath !== currentPath) ?? null)
+                : state.activePath,
+            previewTab: state.previewTab === currentPath ? null : state.previewTab,
+            markdownPreviewPath:
+              state.markdownPreviewPath === currentPath ? null : state.markdownPreviewPath,
+          };
+        });
+        throw error;
       }
-      return result;
-    } catch (error) {
-      if (get().rootContext !== rootContext) throw error;
-      set((state) => {
-        const { [openPath]: _, ...rest } = state.buffers;
-        return {
-          buffers: rest,
-          tabs: state.tabs.filter((tabPath) => tabPath !== openPath),
-          activePath:
-            state.activePath === openPath
-              ? (state.tabs.find((tabPath) => tabPath !== openPath) ?? null)
-              : state.activePath,
-          previewTab: state.previewTab === openPath ? null : state.previewTab,
-          markdownPreviewPath:
-            state.markdownPreviewPath === openPath ? null : state.markdownPreviewPath,
-        };
-      });
-      throw error;
     }
   },
   pinTab: (path) => set((state) => (state.previewTab === path ? { previewTab: null } : {})),
   setOverlayMode: (overlayMode) => set({ overlayMode }),
   setActivePath: (activePath) => set({ activePath }),
+  toggleMarkdownPreview: () =>
+    set((state) => {
+      const path = state.activePath;
+      if (!path || !isMarkdownFile(path)) return {};
+      return {
+        markdownPreviewPath: state.markdownPreviewPath === path ? null : path,
+      };
+    }),
   cycleTab: (direction) =>
     set((state) => {
       if (state.tabs.length < 2) return {};
@@ -537,7 +571,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
   updateBuffer: (path, content) =>
     set((state) => {
       const buffer = state.buffers[path];
-      if (!buffer || buffer.status !== "ready") return {};
+      if (!buffer || buffer.status !== "ready" || buffer.isLoading) return {};
       return {
         // Editing a preview tab promotes it to permanent
         previewTab: state.previewTab === path ? null : state.previewTab,
@@ -569,7 +603,13 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
   async saveFile(path) {
     const rootContext = get().rootContext;
     const buffer = get().buffers[path];
-    if (!rootContext || !buffer || buffer.status !== "ready" || !buffer.isDirty) {
+    if (
+      !rootContext ||
+      !buffer ||
+      buffer.status !== "ready" ||
+      buffer.isLoading ||
+      !buffer.isDirty
+    ) {
       return;
     }
 
@@ -577,6 +617,17 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
     const isRemoteContext = isRemoteFileEditorContext(rootContext);
     const result = await writeFileForContext(rootContext, path, savedContent, buffer.modifiedAtMs);
     if (get().rootContext !== rootContext) return;
+    const acknowledgedBuffer = get().buffers[path];
+    // A close/reopen or another completed operation may have installed a newer
+    // baseline. Typed edits may differ, but this save only owns its old baseline.
+    if (
+      !acknowledgedBuffer ||
+      acknowledgedBuffer.status !== "ready" ||
+      acknowledgedBuffer.modifiedAtMs !== buffer.modifiedAtMs ||
+      acknowledgedBuffer.savedContent !== buffer.savedContent
+    ) {
+      return;
+    }
 
     if (!isRemoteContext) {
       recentlySavedAt.set(path, Date.now());
@@ -591,8 +642,10 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
           [path]: {
             ...current,
             modifiedAtMs: result.modifiedAtMs,
-            savedContent: current.content,
-            isDirty: false,
+            // The server acknowledged the submitted text, not edits made
+            // while the request was pending. Keep those newer edits dirty.
+            savedContent,
+            isDirty: current.content !== savedContent,
           },
         },
       };
@@ -664,6 +717,12 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         activePath: remapPath(state.activePath),
         previewTab: remapPath(state.previewTab),
         markdownPreviewPath: remapPath(state.markdownPreviewPath),
+        pendingReveal: state.pendingReveal
+          ? {
+              ...state.pendingReveal,
+              path: remapPath(state.pendingReveal.path) ?? state.pendingReveal.path,
+            }
+          : null,
         refreshToken: state.refreshToken + 1,
       };
     }),
@@ -728,7 +787,8 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         const { path, result } = entry.value;
         const current = nextBuffers[path];
         // Skip if the buffer was modified by the user while we were reading
-        if (!current || current.isDirty || current.status !== "ready") continue;
+        if (!current || current !== buffers[path] || current.isDirty || current.status !== "ready")
+          continue;
 
         // Fast path: on-disk content matches what the editor shows. Refresh
         // mtime/savedContent in-place so the next compare short-circuits,

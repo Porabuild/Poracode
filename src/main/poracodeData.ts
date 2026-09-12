@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { resolvePoracodePaths, type PoracodePaths } from "@/shared/poracodePaths";
-import { migrateLegacyDataOnLaunch, type LegacyDataMigrationOptions } from "./legacyDataMigration";
 
 const PERSISTED_STAGING_ATTACHMENT_PREFIXES = ["draft-", "remote-", "handoff-"] as const;
 
@@ -13,25 +12,8 @@ function ensureBaseDirectories(paths: PoracodePaths): void {
   mkdirSync(paths.cacheDir, { recursive: true });
 }
 
-export function preparePoracodeDataRoot(
-  baseDir?: string,
-  migrationOptions?: Omit<LegacyDataMigrationOptions, "baseDir">,
-): PoracodePaths {
+export function preparePoracodeDataRoot(baseDir?: string): PoracodePaths {
   const paths = resolvePoracodePaths(baseDir);
-  try {
-    const result = migrateLegacyDataOnLaunch({
-      baseDir: paths.baseDir,
-      ...migrationOptions,
-    });
-    if (result.status === "migrated") {
-      console.info(`[migrate] imported all available Lightcode data into ${paths.baseDir}`);
-    }
-  } catch (error) {
-    // The source remains untouched and any existing Poracode directory is
-    // restored by the migration helper. Keep the app usable so Settings can
-    // schedule another attempt instead of presenting an empty fatal launch.
-    console.warn(`[migrate] failed to import Lightcode data into ${paths.baseDir}:`, error);
-  }
   ensureBaseDirectories(paths);
   return paths;
 }

@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
 import {
+  MockAgentLaunchBlockedError,
+  assertAgentLaunchAllowed,
+} from "@/supervisor/agentLaunchGuard";
+import {
   applyHomeScopePermissions,
   type UnrestrictedPermissionCapabilities,
 } from "@/shared/agents/unrestrictedPermissions";
@@ -796,12 +800,18 @@ export class SpawnPipeline {
         payload.sessionRef,
       );
     }
-    argv.args = await applyLaunchArgsConfigRewrite(
-      adapter,
-      argv.args,
-      runtimeConfig,
-      executionLocation,
-    );
+    try {
+      argv.args = await applyLaunchArgsConfigRewrite(
+        adapter,
+        argv.args,
+        runtimeConfig,
+        executionLocation,
+      );
+    } catch (error) {
+      argv.cleanup?.();
+      await structuredSession?.dispose();
+      throw error;
+    }
     if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
       await primeProjectShellEnv(executionLocation.path);
     }
@@ -1064,12 +1074,18 @@ export class SpawnPipeline {
         session.sessionRef,
       );
     }
-    argv.args = await applyLaunchArgsConfigRewrite(
-      session.adapter,
-      argv.args,
-      config,
-      session.projectLocation,
-    );
+    try {
+      argv.args = await applyLaunchArgsConfigRewrite(
+        session.adapter,
+        argv.args,
+        config,
+        session.projectLocation,
+      );
+    } catch (error) {
+      argv.cleanup?.();
+      await structuredSession?.dispose();
+      throw error;
+    }
     if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
       await primeProjectShellEnv(session.projectLocation.path);
     }
@@ -1160,6 +1176,10 @@ export class SpawnPipeline {
       : undefined;
     let pty;
     if (command) {
+      // Mock-QA enforcement: mock sessions must never execute a real provider
+      // CLI — their sandboxed HOME/mock keychain do not extend to spawned
+      // processes. See `agentLaunchGuard`.
+      assertAgentLaunchAllowed("thread-pty");
       ensureNodePtySpawnHelperExecutable();
       const ptyEnv = {
         ...sanitizedProcessEnv,
@@ -1512,6 +1532,9 @@ export class SpawnPipeline {
     if (!adapter.createStructuredSession) {
       return undefined;
     }
+    // Mock-QA enforcement: refuse every structured provider session (ACP,
+    // vendor SDKs, app-servers alike) before the adapter can spawn its process.
+    assertAgentLaunchAllowed("thread-structured");
     try {
       return await adapter.createStructuredSession({
         threadId,
@@ -1528,6 +1551,12 @@ export class SpawnPipeline {
       });
     } catch (error) {
       console.error("[supervisor] structured session creation failed:", error);
+      // A mock-mode refusal is itself the actionable message (it names the
+      // guard and the escape hatch) — surface it verbatim instead of the
+      // generic structured-runtime diagnostic.
+      if (error instanceof MockAgentLaunchBlockedError) {
+        throw error;
+      }
       const diagnosticError = new StructuredRuntimeDiagnosticError("session-creation", agentKind);
       if (presentationMode === "gui") {
         // The startThread IPC boundary owns GUI startup failures. Throw one

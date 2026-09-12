@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Thread } from "@/shared/contracts";
 
 const { sharedSettingsState, toastMock, bridgeMock, openThreadMock } = vi.hoisted(() => ({
   sharedSettingsState: {
@@ -51,26 +50,16 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => ({
   },
 }));
 
-import {
-  handleThreadStateNotification,
-  shouldInspectThreadStateForNotification,
-} from "./notifications";
+import { showUserNotification } from "./notifications";
+import type { UserNotification } from "@/shared/threadNotification";
 
-function thread(overrides: Partial<Thread> = {}): Thread {
+function notification(overrides: Partial<UserNotification> = {}): UserNotification {
   return {
-    id: "thread-1",
-    projectId: "project-1",
-    title: "Thread",
-    agentKind: "codex",
-    config: { model: "gpt-5.4" },
-    status: "idle",
-    attention: "none",
-    canResumeWithConfig: false,
-    archived: false,
-    done: false,
-    starred: false,
-    createdAt: "2026-04-30T00:00:00.000Z",
-    updatedAt: "2026-04-30T00:00:00.000Z",
+    threadId: "thread-1",
+    category: "done",
+    projectName: "Repo",
+    threadTitle: "Thread",
+    status: "finished",
     ...overrides,
   };
 }
@@ -112,50 +101,7 @@ beforeEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("shouldInspectThreadStateForNotification", () => {
-  beforeEach(() => {
-    sharedSettingsState.current = {
-      notificationsEnabled: true,
-      notificationSound: true,
-      notificationFilter: "unfocused",
-      notificationStatuses: { done: true, needsAttention: true, error: true },
-    };
-    vi.spyOn(document, "hasFocus").mockReturnValue(true);
-    toastMock.danger.mockClear();
-    toastMock.success.mockClear();
-    toastMock.warning.mockClear();
-  });
-
-  it("skips focused hot-path work for the default unfocused-only setting", () => {
-    expect(shouldInspectThreadStateForNotification()).toBe(false);
-  });
-
-  it("keeps unfocused native notification checks enabled", () => {
-    vi.spyOn(document, "hasFocus").mockReturnValue(false);
-
-    expect(shouldInspectThreadStateForNotification()).toBe(true);
-  });
-
-  it("keeps focused checks when in-app notifications are enabled", () => {
-    sharedSettingsState.current = {
-      ...sharedSettingsState.current,
-      notificationFilter: "all",
-    };
-
-    expect(shouldInspectThreadStateForNotification()).toBe(true);
-  });
-
-  it("skips checks when every notification category is disabled", () => {
-    sharedSettingsState.current = {
-      ...sharedSettingsState.current,
-      notificationStatuses: { done: false, needsAttention: false, error: false },
-    };
-
-    expect(shouldInspectThreadStateForNotification()).toBe(false);
-  });
-});
-
-describe("handleThreadStateNotification", () => {
+describe("showUserNotification", () => {
   beforeEach(() => {
     sharedSettingsState.current = {
       notificationsEnabled: true,
@@ -169,40 +115,10 @@ describe("handleThreadStateNotification", () => {
     toastMock.warning.mockClear();
   });
 
-  it("does not notify for attention-only updates when status is unchanged", () => {
-    const oldThread = thread({ status: "idle", attention: "none" });
+  it("shows an in-app toast for a host-owned notification when focused", () => {
+    showUserNotification(notification());
 
-    handleThreadStateNotification(
-      {
-        type: "thread-state",
-        threadId: oldThread.id,
-        status: "idle",
-        attention: "needs_reply",
-      },
-      oldThread,
-      { status: "idle", attention: "needs_reply" },
-    );
-
-    expect(toastMock.warning).not.toHaveBeenCalled();
-    expect(toastMock.success).not.toHaveBeenCalled();
-    expect(toastMock.danger).not.toHaveBeenCalled();
-  });
-
-  it("uses the actual stored next status for done notifications", () => {
-    const oldThread = thread({ status: "working", attention: "working" });
-
-    handleThreadStateNotification(
-      {
-        type: "thread-state",
-        threadId: oldThread.id,
-        status: "idle",
-        attention: "none",
-      },
-      oldThread,
-      { status: "finished", attention: "none" },
-    );
-
-    expect(toastMock.success).toHaveBeenCalledWith("Unknown project", {
+    expect(toastMock.success).toHaveBeenCalledWith("Repo", {
       actionProps: {
         children: "Open",
         onPress: expect.any(Function),
@@ -215,7 +131,7 @@ describe("handleThreadStateNotification", () => {
   });
 });
 
-describe("handleThreadStateNotification native path", () => {
+describe("showUserNotification native path", () => {
   beforeEach(() => {
     sharedSettingsState.current = {
       notificationsEnabled: true,
@@ -230,21 +146,10 @@ describe("handleThreadStateNotification native path", () => {
   });
 
   it("shows a native OS notification through the bridge when the window is unfocused", () => {
-    const oldThread = thread({ status: "working", attention: "working" });
-
-    handleThreadStateNotification(
-      {
-        type: "thread-state",
-        threadId: oldThread.id,
-        status: "finished",
-        attention: "none",
-      },
-      oldThread,
-      { status: "finished", attention: "none" },
-    );
+    showUserNotification(notification());
 
     expect(bridgeMock.showNotification).toHaveBeenCalledWith({
-      title: "Unknown project",
+      title: "Repo",
       body: "Thread\nFinished · Waiting for your input",
       threadId: "thread-1",
     });
@@ -252,26 +157,14 @@ describe("handleThreadStateNotification native path", () => {
 
   it("swallows native notification IPC failures", async () => {
     bridgeMock.showNotification.mockRejectedValueOnce(new Error("boom"));
-    const oldThread = thread({ status: "working", attention: "working" });
-
-    handleThreadStateNotification(
-      {
-        type: "thread-state",
-        threadId: oldThread.id,
-        status: "finished",
-        attention: "none",
-      },
-      oldThread,
-      { status: "finished", attention: "none" },
-    );
-
+    showUserNotification(notification());
     await Promise.resolve();
 
     expect(bridgeMock.showNotification).toHaveBeenCalledOnce();
   });
 });
 
-describe("handleThreadStateNotification PWA path", () => {
+describe("showUserNotification PWA path", () => {
   beforeEach(() => {
     sharedSettingsState.current = {
       notificationsEnabled: true,
@@ -286,23 +179,12 @@ describe("handleThreadStateNotification PWA path", () => {
 
   it("shows a browser notification instead of calling desktop notification IPC", () => {
     const { notifications } = installBrowserNotification();
-    const oldThread = thread({ status: "working", attention: "working" });
-
-    handleThreadStateNotification(
-      {
-        type: "thread-state",
-        threadId: oldThread.id,
-        status: "finished",
-        attention: "none",
-      },
-      oldThread,
-      { status: "finished", attention: "none" },
-    );
+    showUserNotification(notification());
 
     expect(bridgeMock.showNotification).not.toHaveBeenCalled();
     expect(notifications).toHaveLength(1);
     expect(notifications[0]).toMatchObject({
-      title: "Unknown project",
+      title: "Repo",
       options: {
         body: "Thread\nFinished · Waiting for your input",
         silent: true,
@@ -319,40 +201,9 @@ describe("handleThreadStateNotification PWA path", () => {
     expect(notifications[0]!.close).toHaveBeenCalledOnce();
   });
 
-  it("does not notify when a desktop stop or steer force-closes the active turn", () => {
-    const { notifications } = installBrowserNotification();
-    const oldThread = thread({ status: "working", attention: "working" });
-
-    handleThreadStateNotification(
-      {
-        type: "thread-state",
-        threadId: oldThread.id,
-        status: "idle",
-        attention: "none",
-        forceCloseActiveTurn: true,
-      },
-      oldThread,
-      { status: "finished", attention: "none" },
-    );
-
-    expect(notifications).toHaveLength(0);
-    expect(bridgeMock.showNotification).not.toHaveBeenCalled();
-  });
-
   it("requests browser notification permission before showing the notification", async () => {
     const { BrowserNotification, notifications } = installBrowserNotification("default");
-    const oldThread = thread({ status: "working", attention: "working" });
-
-    handleThreadStateNotification(
-      {
-        type: "thread-state",
-        threadId: oldThread.id,
-        status: "finished",
-        attention: "none",
-      },
-      oldThread,
-      { status: "finished", attention: "none" },
-    );
+    showUserNotification(notification());
 
     expect(BrowserNotification.requestPermission).toHaveBeenCalledOnce();
     expect(notifications).toHaveLength(0);

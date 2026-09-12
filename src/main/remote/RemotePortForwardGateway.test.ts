@@ -68,6 +68,34 @@ function startBareListener(host = "127.0.0.1"): Promise<{ port: number; server: 
   });
 }
 
+/** Reserves the ephemeral port on IPv4 while binding the actual listener on
+ * IPv6, then releases only the reservation. This prevents an unrelated IPv4
+ * listener from owning the same numeric port and making the IPv6-only probe
+ * test nondeterministically look like HTTP. */
+async function startIpv6OnlyBareListener(): Promise<{ port: number; server: Server }> {
+  const reservation = createNetServer();
+  const port = await new Promise<number>((resolve, reject) => {
+    reservation.once("error", reject);
+    reservation.listen(0, "127.0.0.1", () => {
+      resolve((reservation.address() as AddressInfo).port);
+    });
+  });
+  try {
+    const listener = await new Promise<Server>((resolve, reject) => {
+      const server = createNetServer((socket) => {
+        socket.on("error", () => {});
+        socket.resume();
+      });
+      server.once("error", reject);
+      server.listen(port, "::1", () => resolve(server));
+    });
+    netServers.push(listener);
+    return { port, server: listener };
+  } finally {
+    await new Promise<void>((resolve) => reservation.close(() => resolve()));
+  }
+}
+
 function startHttpServer(): Promise<{ port: number; server: HttpServer }> {
   return new Promise((resolve, reject) => {
     const server = createHttpServer((_req, res) => {
@@ -156,7 +184,7 @@ describe("RemotePortForwardGateway.scanPorts", () => {
   // bound to `::1` only on some systems, so the scanner must probe both
   // loopback families, not just 127.0.0.1.
   it.skipIf(!ipv6Supported)("detects an IPv6-only listener as protocol unknown", async () => {
-    const { port } = await startBareListener("::1");
+    const { port } = await startIpv6OnlyBareListener();
     const gateway = makeGateway({
       bindHost: "127.0.0.1",
       candidatePorts: [port],

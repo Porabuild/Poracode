@@ -49,6 +49,8 @@ export function UnifiedRightPanel(props: {
   subagentTitle?: ReactNode;
   /** Tab-specific action buttons rendered in the header when the usage tab is active. */
   usageHeaderActions?: ReactNode;
+  /** Tab-specific action buttons rendered in the header when the ports tab is active. */
+  portsHeaderActions?: ReactNode;
   /** Tab-specific action buttons rendered in the header when the docks tab is active. */
   docksHeaderActions?: ReactNode;
   showTerminalTab?: boolean;
@@ -100,6 +102,7 @@ export function UnifiedRightPanel(props: {
     subagentModel,
     subagentTitle,
     usageHeaderActions,
+    portsHeaderActions,
     docksHeaderActions,
     showTerminalTab = true,
     showFilesTab = true,
@@ -345,6 +348,7 @@ export function UnifiedRightPanel(props: {
             </button>
           )}
           {activeTab === "usage" ? usageHeaderActions : null}
+          {activeTab === "ports" ? portsHeaderActions : null}
         </div>
         <div className="flex-1" />
         <div

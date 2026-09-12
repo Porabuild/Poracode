@@ -126,9 +126,14 @@ export async function prepareWorktreeRemoval(
     });
   }
 
+  dismissWorktreeUi(worktreePath);
+}
+
+/** Drop renderer-only surfaces for a worktree the host has already removed. */
+export function dismissWorktreeUi(worktreePath: string): void {
   const termStore = useDevTerminalStore.getState();
   const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
-  await closeThreads(removedTabIds);
+  void closeThreads(removedTabIds);
 
   if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
     termStore.closePanel();
@@ -146,6 +151,17 @@ export async function prepareWorktreeRemoval(
     panelStore.setFilesPanelContext(null);
     useFileEditorStore.getState().clearSession();
   }
+}
+
+export function forgetRemovedWorktreeGroup(
+  projectId: string,
+  worktreePath: string,
+  threadIds: readonly string[],
+): void {
+  const project = useAppStore.getState().projects.find((entry) => entry.id === projectId);
+  if (project) cancelQueuedWorktreeSetup(project, worktreePath);
+  for (const threadId of threadIds) useAppStore.getState().deleteThread(threadId);
+  dismissWorktreeUi(worktreePath);
 }
 
 export function deleteWorktreeGroup(

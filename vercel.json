@@ -5,9 +5,17 @@
     "deploymentEnabled": false
   },
   "installCommand": "pnpm install --frozen-lockfile --ignore-scripts --filter poracode... --config.node-linker=isolated --config.enable-global-virtual-store=false",
-  "buildCommand": "node scripts/vercel-build-mobile.mjs",
-  "outputDirectory": "dist/mobile",
-  "rewrites": [{ "source": "/:path*", "destination": "/mobile.html" }],
+  "buildCommand": "node scripts/vercel-build-web.mjs",
+  "outputDirectory": "dist/web",
+  "redirects": [
+    { "source": "/mobile.html", "destination": "/", "permanent": true },
+    { "source": "/pair", "destination": "/", "permanent": true },
+    { "source": "/app", "destination": "/", "permanent": true },
+    { "source": "/app/:path*", "destination": "/", "permanent": true },
+    { "source": "/desktop", "destination": "/", "permanent": true },
+    { "source": "/desktop/:path*", "destination": "/", "permanent": true }
+  ],
+  "rewrites": [{ "source": "/:path*", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/service-worker.js",

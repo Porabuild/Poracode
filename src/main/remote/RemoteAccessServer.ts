@@ -11,15 +11,21 @@ import {
   type RemoteHostMode,
   type RemoteHostUpdateStatus,
   type RemotePushRegistration,
+  type RemotePushRegistrationRouting,
   type RemoteSettings,
   type RemoteSettingsPatch,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
+import type { LiveEventInterests } from "@/shared/liveEventInterests";
+import { TerminalBaselineStreamScheduler } from "./server/terminalBaselineStream";
 import type {
   BackgroundTask,
+  CheckpointRevertResult,
   McpLaunchSnapshot,
+  McpServer,
   Project,
+  ProjectLocation,
   PrWatch,
   PrWatchAgentSync,
   PrWatchInput,
@@ -27,18 +33,33 @@ import type {
   RuntimeEvent,
   ScheduledTask,
   ScheduledTaskInput,
+  ScheduledTaskRun,
 } from "@/shared/contracts";
+import type {
+  RemoteMcpSettingsCommand,
+  RemoteMcpSettingsScope,
+} from "@/shared/remote/contract/routeSchemas";
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
+  SupervisorEvent,
   SupervisorProcedureName,
 } from "@/shared/ipc";
 import { buildPairingUrl } from "@/shared/remote/pairingUrl";
 import { RemoteHttpError, RemoteAuthStore, type AuthenticatedRemoteSession } from "./auth";
 import type { RemoteAccessIdentity } from "./identity";
+import {
+  FORWARD_ORIGIN_UNAVAILABLE,
+  type ForwardOriginAvailability,
+  type ForwardOriginIdentity,
+} from "./portForward/forwardOriginIdentity";
 import type { PortProxy } from "./portForward/portProxy";
-import type { RemoteBrowserGateway } from "./RemoteBrowserGateway";
+import type { RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
 import type { RemotePortForwardGateway } from "./RemotePortForwardGateway";
+import {
+  handleRemoteAccessHttpRequest,
+  handleRemoteAccessUpgrade,
+} from "./server/forwardOriginDispatch";
 import { normalizeHostForUrl, RemoteServerSecurity } from "./server/security";
 import type {
   BufferedSupervisorEvent,
@@ -48,11 +69,9 @@ import type {
 import {
   DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES,
   DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES,
-  handleUpgrade,
   REMOTE_PER_MESSAGE_DEFLATE,
   WebSocketHeartbeat,
 } from "./server/wsConnections";
-import { handleHttp } from "./server/httpRouter";
 import { persistSupervisorEvent } from "./server/runtimePersistence";
 import { projectGitStatePatchForInterests } from "./server/gitStateProjection";
 import { filterEventForItemInterests } from "./server/itemInterestFilter";
@@ -62,8 +81,16 @@ import {
   maxBroadcastEventBytes,
   trimEventBuffer,
 } from "./server/eventSizeGuard";
+import {
+  buildCursorTaggedTerminalOutput,
+  TerminalCursorSyncRegistry,
+} from "./server/terminalCursorSync";
 
-const EVENT_BUFFER_LIMIT = 500;
+// WS5 P1-9: under streaming load the old 500-entry cap was exhausted by small
+// content deltas long before the 8 MB byte budget, forcing reconnecting
+// clients into full resyncs. The byte budget bounds memory either way, so the
+// entry cap only needs to bound worst-case entry counts.
+const EVENT_BUFFER_LIMIT = 4_000;
 const EVENT_BUFFER_MAX_BYTES = DEFAULT_EVENT_BUFFER_MAX_BYTES;
 const DEFAULT_LISTEN_RETRY_ATTEMPTS = 5;
 const DEFAULT_LISTEN_RETRY_DELAY_MS = 500;
@@ -84,7 +111,7 @@ export interface RemoteAccessServerOptions {
   readonly hostMode?: RemoteHostMode;
   readonly identity: RemoteAccessIdentity;
   /**
-   * Whether the hosting process is running in development mode. Loopback PWA
+   * Whether the hosting process is running in development mode. Loopback web
    * origins are trusted in every mode so a localhost development client can
    * connect to any packaged or headless Poracode app.
    */
@@ -103,6 +130,8 @@ export interface RemoteAccessServerOptions {
   readonly tailscaleHttpBaseUrl?: string;
   readonly pairingAppUrl?: string;
   readonly trustedCorsOrigins?: readonly string[];
+  /** Authenticated relay registration origin, cleared when registration is lost. */
+  readonly getRelayPublicOrigin?: () => string | null;
   readonly tokenExchangeRateLimit?: {
     readonly maxAttempts: number;
     readonly windowMs: number;
@@ -121,12 +150,11 @@ export interface RemoteAccessServerOptions {
    */
   readonly maxWebSocketOutboundBufferBytes?: number;
   /**
-   * Dev-mode URL of the mobile PWA on the Vite dev server (e.g.
-   * `http://192.168.1.5:3100/mobile.html`). Pairing links are minted on this
-   * origin with the desktop API in `?host=...`, and `/app`/`/pair` still
-   * redirect there as a fallback so the phone gets hot reload.
+   * Dev-mode URL of the canonical browser app on the Vite dev server. Pairing
+   * links are minted on this origin with the desktop API in `?host=...`, and
+   * the remote server root redirects there so any browser gets hot reload.
    */
-  readonly devMobileAppUrl?: string;
+  readonly devWebAppUrl?: string;
   readonly port: number;
   /** Same-port retries absorb brief listener overlap during app relaunches. */
   readonly listenRetryAttempts?: number;
@@ -134,9 +162,15 @@ export interface RemoteAccessServerOptions {
   readonly authStore?: RemoteAuthStore;
   /**
    * Whether this server owns supervisor-event persistence. Headless servers do;
-   * desktop servers opt out because desktop main persists before broadcasting.
+   * desktop servers opt out because the desktop backend host persists first.
    */
   readonly ownsSupervisorPersistence?: boolean;
+  /**
+   * Aggregate live-stream demand from all authenticated WebSocket clients.
+   * May return a Promise; reliable terminal watches await it as the interest
+   * activation barrier before reading a snapshot.
+   */
+  readonly onEventInterestsChanged?: (interests: LiveEventInterests) => void | Promise<void>;
   /**
    * Notified when an event could not be shrunk enough to ride the live stream
    * and clients were told to resync instead. Diagnostics only — the transport
@@ -148,25 +182,62 @@ export interface RemoteAccessServerOptions {
     payload: IpcProcedurePayload<Name>,
   ): Promise<IpcProcedureResult<Name>>;
   /**
+   * Single-mutation owner for checkpoint truncates: performs the database
+   * write and publishes one canonical `runtime.truncated` event through the
+   * host event funnel. Required — the HTTP truncate route must never be able
+   * to mutate without broadcasting, so a host without a publication owner
+   * cannot accept truncates at all.
+   */
+  truncateThreadRuntime(threadId: string, itemId: string): void;
+  /**
+   * WS2: backend-owned compound checkpoint revert — provider rollback, file
+   * checkpoint restore and durable transcript truncation as ONE journaled
+   * operation keyed by the client's `operationKey`. The host owns publication
+   * of the canonical `runtime.truncated` event through its event funnel.
+   * Refusals (turn active) surface as 409 `thread_turn_active`. Optional: a
+   * host without a revert owner answers 501 `checkpoint_revert_unavailable`.
+   */
+  revertCheckpoint?(input: {
+    threadId: string;
+    checkpointItemId: string;
+    operationKey: string;
+  }): Promise<CheckpointRevertResult>;
+  /**
    * Forwards a thread-metadata command to the desktop renderer, which owns
    * thread metadata and persists it. Returns false when no renderer window is
    * available to receive the command.
    */
-  dispatchThreadCommand?(command: RemoteThreadCommand): boolean;
+  dispatchThreadCommand?(command: RemoteThreadCommand): boolean | Promise<boolean>;
   /** Resolve authoritative MCP settings for a remotely launched persisted thread. */
   resolveMcpLaunchSnapshot?(projectId: string): McpLaunchSnapshot;
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
-  readonly browser?: RemoteBrowserGateway;
+  readonly browser?: RemoteBrowserGatewayLike;
   /** Local dev-server discovery + raw TCP port forwarding. Absent on hosts
    * that don't support it (returns 503). */
   readonly portForward?: RemotePortForwardGateway;
-  /** Authenticated HTTP/WS reverse-proxy session layer sitting in front of
-   * `portForward`'s raw TCP forwards (see `/forward/<id>/enter` and the proxy
-   * fallthrough in `httpRouter`). Absent on hosts that don't support it
-   * (`POST /api/ports/enter` returns 503; the proxy fallthrough and enter
-   * route simply have no session to resolve, so they behave as if no forward
-   * were ever opened). */
+  /** Origin-bound proxy session layer for `portForward`'s raw TCP forwards
+   * (enter tokens → one-use child-origin exchange → `__Host-` cookie
+   * sessions). Absent on hosts that don't support it (`POST /api/ports/enter`
+   * returns 503). */
   readonly portProxy?: PortProxy;
+  /**
+   * Configured browser-forward child-origin identity (isolated HTTPS origins
+   * under `baseUrl`, owned via the persistent origin secret). Absent = browser
+   * forwarding unavailable: `enterPath` is omitted from forward creation, the
+   * browser entry routes fail with `forward_browser_unavailable`, and raw TCP
+   * forwarding keeps working. Never inferred from visitor headers.
+   */
+  readonly forwardOrigin?: ForwardOriginIdentity;
+  /** Current authenticated relay registration; null after disconnect or policy loss. */
+  readonly getRelayForwardOrigin?: () => ForwardOriginIdentity | null;
+  /**
+   * Per-instance random 256-bit credential (base64url) the relay v2 local
+   * adapter must present over loopback (reserved `x-poracode-forward-*`
+   * headers) to inject a trusted forward context. Generated in the
+   * composition root alongside `forwardOrigin`; never accepted from a
+   * non-loopback peer or without a constant-time match.
+   */
+  readonly forwardDispatchKey?: string;
   /**
    * Remote-editable desktop settings (AI helpers, agent/model configuration,
    * and persistent composer MCP enablement). `update` merges a patch into the
@@ -176,6 +247,19 @@ export interface RemoteAccessServerOptions {
   readonly settings?: {
     read(): RemoteSettings;
     update(patch: RemoteSettingsPatch): RemoteSettings;
+    readMcpServers(): { servers: McpServer[] };
+    commandMcpServers(command: RemoteMcpSettingsCommand): { servers: McpServer[] };
+    resolveScope(scope: RemoteMcpSettingsScope): {
+      servers: McpServer[];
+      projectLocation?: ProjectLocation;
+    };
+    resolveServer(
+      scope: RemoteMcpSettingsScope,
+      serverId: string,
+    ): {
+      server: McpServer;
+      projectLocation?: ProjectLocation;
+    };
   };
   /** Desktop app updater exposed to authenticated desktop clients. */
   readonly updates?: {
@@ -194,6 +278,7 @@ export interface RemoteAccessServerOptions {
     update(id: string, task: ScheduledTaskInput): ScheduledTask;
     delete(id: string): void;
     runNow(id: string): ScheduledTask;
+    runs(id: string): ScheduledTaskRun[];
   };
   /** Persistent PR automation owned by the host process. */
   readonly prWatches?: {
@@ -231,7 +316,7 @@ export interface RemoteAccessServerOptions {
   readonly pushRegistrations?: {
     webPublicKey(): Promise<string>;
     upsert(registration: RemotePushRegistration): void;
-    remove(deviceId: string): void;
+    remove(deviceId: string, routing?: RemotePushRegistrationRouting): void;
   };
   /** Notifies the desktop shell after the active pairing code rotates. */
   readonly onPairingChanged?: () => void;
@@ -243,12 +328,12 @@ export interface RemoteAccessServerOptions {
  * Event `type`s a remote client actually consumes, so only these are buffered
  * on the replayable stream and broadcast. Chatty supervisor events no remote
  * client reads (`lsp-message`, `git-changed`, `project-tree-changed`,
- * `provider-usage*`, `agent-detected`, `thread-osc-*`) waste phone bandwidth
+ * `provider-usage*`, `agent-detected`, `thread-osc-*`) waste client bandwidth
  * and churn the bounded replay buffer (causing spurious resync-required), so we
  * drop them here.
  *
  * Derived from the remote client consumers (kept in sync with them):
- * - `src/mobile/storeSync.ts` `dispatchRemoteSupervisorEvent`: the
+ * - `src/renderer/state/remote/sync.ts` `dispatchRemoteSupervisorEvent`: the
  *   `thread-runtime-event(s)[-multi]` pre-pass (live chat content), the
  *   `remote-git-summaries` out-of-band handler, and the switch cases
  *   (`thread-state`, `thread-pending-steer`, `thread-follow-up-queue`,
@@ -280,6 +365,7 @@ const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> =
   "remote-git-state",
   "remote-projects-changed",
   "remote-threads-changed",
+  "remote-user-notification",
 ]);
 
 export class RemoteAccessServer {
@@ -289,11 +375,17 @@ export class RemoteAccessServer {
   private readonly security: RemoteServerSecurity;
   private readonly heartbeat: WebSocketHeartbeat;
   private readonly clients = new Map<WebSocket, AuthenticatedRemoteSession>();
+  private readonly replayingClients = new Set<WebSocket>();
   private readonly clientLiveness = new Map<WebSocket, boolean>();
   /** Per-connection terminal ids the client opted into live `terminal-output` for. */
   private readonly terminalWatches = new Map<WebSocket, Set<string>>();
+  /** Opt-in reliable (cursor-sync) watch state, keyed per connection/terminal. */
+  private readonly terminalCursorSync = new TerminalCursorSyncRegistry();
+  /** Cursor-sync v2 chunked-baseline delivery scheduler. */
+  private readonly terminalBaselineStreams: TerminalBaselineStreamScheduler;
   /** Per-connection Git interests, so PR bodies only reach clients that asked. */
   private readonly gitStateInterests = new Map<WebSocket, readonly GitStateInterest[]>();
+  private readonly supervisorEventListeners = new Set<(event: RemoteBroadcastEvent) => void>();
   /** Per-connection transcript-content scoping; absent = receives everything. */
   private readonly itemInterests = new Map<WebSocket, ReadonlySet<string>>();
   private readonly eventBuffer: BufferedSupervisorEvent[] = [];
@@ -311,6 +403,15 @@ export class RemoteAccessServer {
       options,
       auth: this.auth,
     });
+    this.terminalBaselineStreams = new TerminalBaselineStreamScheduler({
+      isCurrent: (ws, terminalId, watchId, epoch) =>
+        this.terminalCursorSync.isCurrent(ws, terminalId, watchId, epoch),
+      sendRaw: (ws, data) => {
+        if (ws.readyState !== WebSocket.OPEN) return false;
+        ws.send(data);
+        return true;
+      },
+    });
     this.wss = new WebSocketServer({
       noServer: true,
       maxPayload: options.maxWebSocketPayloadBytes ?? DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES,
@@ -322,11 +423,15 @@ export class RemoteAccessServer {
       clientLiveness: this.clientLiveness,
     });
     this.context = this.buildContext();
+    // Forward child-origin dispatch runs in front of the app's own HTTP/WS
+    // routing: a recognized child origin (or any authority inside the
+    // configured forward namespace) is proxied or bounded-errored there and
+    // NEVER falls through to Poracode API/PWA handlers.
     this.server = createServer((req, res) => {
-      void handleHttp(this.context, req, res);
+      void handleRemoteAccessHttpRequest(this.context, req, res);
     });
     this.server.on("upgrade", (req, socket, head) => {
-      void handleUpgrade(this.context, req, socket, head);
+      handleRemoteAccessUpgrade(this.context, req, socket, head);
     });
   }
 
@@ -338,8 +443,11 @@ export class RemoteAccessServer {
       wss: this.wss,
       security: this.security,
       clients: this.clients,
+      replayingClients: this.replayingClients,
       clientLiveness: this.clientLiveness,
       terminalWatches: this.terminalWatches,
+      terminalCursorSync: this.terminalCursorSync,
+      terminalBaselineStreams: this.terminalBaselineStreams,
       gitStateInterests: this.gitStateInterests,
       itemInterests: this.itemInterests,
       eventBuffer: this.eventBuffer,
@@ -358,9 +466,56 @@ export class RemoteAccessServer {
       requirePushRegistrations: () => this.requirePushRegistrations(),
       publishSupervisorEvent: (event) => this.publishSupervisorEvent(event),
       publishThreadsChanged: (threadIds) => this.publishThreadsChanged(threadIds),
+      scopeEventForClient: (event, client) => this.scopeEventForClient(event, client),
       send: (ws, message) => this.send(ws, message),
-      sendRaw: (ws, data) => this.sendRaw(ws, data),
+      sendRaw: (ws, data, onSent) => this.sendRaw(ws, data, onSent),
+      notifyEventInterestsChanged: () => this.notifyEventInterestsChanged(),
+      waitForSupervisorEvent: (match, timeoutMs) => this.waitForSupervisorEvent(match, timeoutMs),
     };
+  }
+
+  private waitForSupervisorEvent(
+    match: (event: RemoteBroadcastEvent) => boolean,
+    timeoutMs: number,
+  ): Promise<RemoteBroadcastEvent> {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.supervisorEventListeners.delete(listener);
+        reject(new Error("Timed out waiting for supervisor event."));
+      }, timeoutMs);
+      timer.unref?.();
+      const listener = (event: RemoteBroadcastEvent) => {
+        if (!match(event)) return;
+        clearTimeout(timer);
+        this.supervisorEventListeners.delete(listener);
+        resolve(event);
+      };
+      this.supervisorEventListeners.add(listener);
+    });
+  }
+
+  private notifyEventInterestsChanged(): void | Promise<void> {
+    const terminalThreadIds = new Set<string>();
+    for (const watched of this.terminalWatches.values()) {
+      for (const threadId of watched) terminalThreadIds.add(threadId);
+    }
+
+    const runtimeThreadIds = new Set<string>();
+    let allRuntimeEvents = false;
+    for (const [client, session] of this.clients) {
+      if (!session.scopes.includes("session:read")) continue;
+      const interests = this.itemInterests.get(client);
+      if (!interests) {
+        allRuntimeEvents = true;
+        continue;
+      }
+      for (const threadId of interests) runtimeThreadIds.add(threadId);
+    }
+    return this.options.onEventInterestsChanged?.({
+      terminalThreadIds: [...terminalThreadIds].sort(),
+      runtimeThreadIds: [...runtimeThreadIds].sort(),
+      allRuntimeEvents,
+    });
   }
 
   async start(): Promise<RemoteAccessServerInfo> {
@@ -434,8 +589,15 @@ export class RemoteAccessServer {
       client.terminate();
     }
     this.clients.clear();
+    this.replayingClients.clear();
     this.clientLiveness.clear();
     this.terminalWatches.clear();
+    this.terminalCursorSync.clearAll();
+    this.terminalBaselineStreams.clearAll();
+    this.gitStateInterests.clear();
+    this.supervisorEventListeners.clear();
+    this.itemInterests.clear();
+    void Promise.resolve(this.notifyEventInterestsChanged()).catch(() => {});
     this.wss.close();
     // Drop idle keep-alive connections so close() doesn't wait on them, but let
     // any in-flight request complete (up to the grace timeout).
@@ -459,6 +621,16 @@ export class RemoteAccessServer {
     return this.info;
   }
 
+  /**
+   * Availability facts for the versioned browser-forward capability descriptor
+   * (the protocol/codegen integration is coordinator-owned; this is the host
+   * hook). `available` distinguishes isolated browser-origin forwarding from
+   * raw TCP forwarding, which stays available regardless.
+   */
+  forwardOriginAvailability(): ForwardOriginAvailability {
+    return this.options.portProxy?.forwardOriginAvailability() ?? FORWARD_ORIGIN_UNAVAILABLE;
+  }
+
   listAccessSessions(): RemoteAccessSessionSummary[] {
     return this.auth.listAccessSessions();
   }
@@ -477,6 +649,13 @@ export class RemoteAccessServer {
   /** Pushes an event onto the replayable WS event stream. Out-of-band desktop
    * events (git summaries) ride the same stream as supervisor events. */
   publishSupervisorEvent(event: RemoteBroadcastEvent): void {
+    for (const listener of this.supervisorEventListeners) {
+      try {
+        listener(event);
+      } catch (error) {
+        console.warn("[remote] supervisor event waiter failed:", error);
+      }
+    }
     this.updateBackgroundTasks(event);
     if (this.options.ownsSupervisorPersistence !== false) {
       persistSupervisorEvent(event);
@@ -486,7 +665,7 @@ export class RemoteAccessServer {
     // event stream (replaying PTY bytes would garble the screen) and only send
     // it to clients that opted into that terminal via `terminal-watch`.
     if (event.type === "thread-output") {
-      this.broadcastTerminalOutput(event.threadId, event.data);
+      this.broadcastTerminalOutput(event);
       return;
     }
     // Only buffer + broadcast events a remote client actually consumes; chatty
@@ -513,6 +692,7 @@ export class RemoteAccessServer {
       // and later-reconnecting clients converge on the same self-healing path:
       // refetch authoritative state over HTTP.
       this.options.onOversizedEventDropped?.({ type: event.type, bytes: capped.bytes });
+      this.replayingClients.clear();
       this.broadcast({
         type: "resync-required",
         seq,
@@ -520,7 +700,12 @@ export class RemoteAccessServer {
       });
       return;
     }
-    this.eventBuffer.push({ seq, event: capped.event, bytes: capped.bytes });
+    this.eventBuffer.push({
+      seq,
+      event: capped.event,
+      bytes: capped.bytes,
+      json: capped.json,
+    });
     trimEventBuffer(this.eventBuffer, EVENT_BUFFER_LIMIT, EVENT_BUFFER_MAX_BYTES);
     // Some events are tailored per connection: pull-request bodies go only to the
     // client reviewing that PR, and transcript content only to clients watching
@@ -528,6 +713,7 @@ export class RemoteAccessServer {
     // content differs — which keeps the replay contiguity check valid.
     if (this.needsPerClientScoping(capped.event)) {
       for (const client of this.clients.keys()) {
+        if (this.replayingClients.has(client)) continue;
         const scoped = this.scopeEventForClient(capped.event, client);
         this.sendRaw(
           client,
@@ -607,16 +793,43 @@ export class RemoteAccessServer {
     });
   }
 
-  /** Streams PTY bytes to watching clients, dropping them on a congested socket
-   * (the terminal self-heals on the next write; back-buffering would lag). */
-  private broadcastTerminalOutput(id: string, data: string): void {
-    let serialized: string | null = null;
+  /**
+   * Streams PTY bytes to watching clients.
+   *
+   * - Legacy watchers: lossy 1.5MB skip (terminal self-heals; keeps old clients
+   *   compatible with silent backpressure drops).
+   * - Reliable cursor-sync watchers: hard outbound-limit path only — congestion
+   *   disconnects rather than silently gapping the cursor stream. Frames are
+   *   tagged with generation/fromCursor/toCursor for the active watchId.
+   */
+  private broadcastTerminalOutput(
+    event: Extract<SupervisorEvent, { type: "thread-output" }>,
+  ): void {
+    const id = event.threadId;
+    const data = event.data;
+    let legacySerialized: string | null = null;
     for (const [client, watched] of this.terminalWatches) {
       if (!watched.has(id)) continue;
       if (client.readyState !== client.OPEN) continue;
+
+      const reliable = this.terminalCursorSync.getReliable(client, id);
+      if (reliable) {
+        // Reliable path: never silently skip. sendRaw disconnects on hard limit.
+        const tagged = buildCursorTaggedTerminalOutput(
+          id,
+          data,
+          reliable.watchId,
+          event.terminalInstanceId,
+          event.outputLength,
+        );
+        this.sendRaw(client, JSON.stringify(tagged));
+        continue;
+      }
+
+      // Legacy path: drop frames on a congested socket.
       if (client.bufferedAmount > 1_500_000) continue;
-      serialized ??= JSON.stringify({ type: "terminal-output", id, data });
-      this.sendRaw(client, serialized);
+      legacySerialized ??= JSON.stringify({ type: "terminal-output", id, data });
+      this.sendRaw(client, legacySerialized);
     }
   }
 
@@ -654,7 +867,7 @@ export class RemoteAccessServer {
   }
 
   private mintPairingUrl(httpBaseUrl: string, credential: string): string {
-    const pairingAppUrl = this.options.pairingAppUrl ?? this.options.devMobileAppUrl;
+    const pairingAppUrl = this.options.pairingAppUrl ?? this.options.devWebAppUrl;
     return buildPairingUrl({
       httpBaseUrl,
       credential,
@@ -679,7 +892,7 @@ export class RemoteAccessServer {
     return value as NonNullable<RemoteAccessServerOptions[K]>;
   }
 
-  private requireBrowserGateway(): RemoteBrowserGateway {
+  private requireBrowserGateway(): RemoteBrowserGatewayLike {
     return this.requireOption(
       "browser",
       "browser_unavailable",
@@ -739,10 +952,22 @@ export class RemoteAccessServer {
     this.broadcastRaw(JSON.stringify(message));
   }
 
+  /**
+   * Asks every connected client to discard incremental state and refetch
+   * authoritative data. Used when the supervisor shed bulk traffic in transit
+   * (supervisor-output-shed): the events never reached persistence, so no
+   * replay can repair them — clients must resync terminal output from the
+   * supervisor, which remains the authoritative PTY source.
+   */
+  broadcastResyncRequired(reason: string): void {
+    this.broadcast({ type: "resync-required", seq: this.seq, reason });
+  }
+
   /** Fans an already-serialized message out to every client. Lets the caller
    * serialize a large body once instead of per send. */
   private broadcastRaw(data: string): void {
     for (const client of this.clients.keys()) {
+      if (this.replayingClients.has(client)) continue;
       this.sendRaw(client, data);
     }
   }
@@ -751,7 +976,7 @@ export class RemoteAccessServer {
     this.sendRaw(ws, JSON.stringify(message));
   }
 
-  private sendRaw(ws: WebSocket, data: string): boolean {
+  private sendRaw(ws: WebSocket, data: string, onSent?: (error?: Error) => void): boolean {
     if (ws.readyState !== WebSocket.OPEN) return false;
     const maxBuffered =
       this.options.maxWebSocketOutboundBufferBytes ?? DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES;
@@ -760,7 +985,8 @@ export class RemoteAccessServer {
       return false;
     }
     try {
-      ws.send(data);
+      if (onSent) ws.send(data, onSent);
+      else ws.send(data);
       return true;
     } catch {
       this.dropWebSocketClient(ws);
@@ -770,8 +996,13 @@ export class RemoteAccessServer {
 
   private dropWebSocketClient(ws: WebSocket): void {
     this.clients.delete(ws);
+    this.replayingClients.delete(ws);
     this.clientLiveness.delete(ws);
     this.terminalWatches.delete(ws);
+    this.terminalCursorSync.clearConnection(ws);
+    this.gitStateInterests.delete(ws);
+    this.itemInterests.delete(ws);
+    void Promise.resolve(this.notifyEventInterestsChanged()).catch(() => {});
     try {
       ws.terminate();
     } catch {

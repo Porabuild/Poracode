@@ -83,6 +83,29 @@ function makeConfigSync(
 }
 
 describe("AcpSessionConfigSync", () => {
+  it("uses the declared mode resolver for initial and subsequent turns", async () => {
+    const { connection } = makeConfigSync();
+    const sync = new AcpSessionConfigSync(
+      connection as unknown as ClientSideConnection,
+      (config) => (config.mode === "plan" ? "planning" : "unrestricted"),
+    );
+    sync.rememberOptions(["planning", "unrestricted"], []);
+    await sync.applyTurnConfig("session-1", { model: "", mode: "agent" }, undefined);
+    expect(connection.setSessionMode).toHaveBeenLastCalledWith({
+      sessionId: "session-1",
+      modeId: "unrestricted",
+    });
+    await sync.applyTurnConfig(
+      "session-1",
+      { model: "", mode: "plan" },
+      { model: "", mode: "agent" },
+    );
+    expect(connection.setSessionMode).toHaveBeenLastCalledWith({
+      sessionId: "session-1",
+      modeId: "planning",
+    });
+    expect(sync.resolvePlanModeId()).toBe("planning");
+  });
   it("applies mode, unstable model fallback, and effort changes before a new turn", async () => {
     const { connection, sync } = makeConfigSync();
     const nextConfig: ThreadConfig = {
@@ -862,4 +885,32 @@ describe("AcpSessionConfigSync", () => {
       ["reasoning_effort", "high"],
     ]);
   });
+});
+
+it("uses a provider resolver for effort-only changes to opaque model variants", async () => {
+  const { connection } = makeConfigSync();
+  const resolver = vi.fn<() => { configId: string; value: string }>(() => ({
+    configId: "model",
+    value: "opaque-high-fast",
+  }));
+  const sync = new AcpSessionConfigSync(
+    connection as unknown as ClientSideConnection,
+    undefined,
+    resolver,
+  );
+  sync.rememberOptions([], [modelSelectOption("opaque-low")]);
+  connection.setSessionConfigOption.mockResolvedValue({
+    configOptions: [modelSelectOption("opaque-high-fast")],
+  });
+  await sync.applyTurnConfig(
+    "session",
+    { model: "family", effort: "high", fast: true },
+    { model: "family", effort: "low" },
+  );
+  expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+    sessionId: "session",
+    configId: "model",
+    value: "opaque-high-fast",
+  });
+  expect(connection.request).not.toHaveBeenCalled();
 });

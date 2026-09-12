@@ -1,0 +1,148 @@
+import Foundation
+import XCTest
+
+#if canImport(App)
+  @testable import App
+#else
+  @testable import PortForwarding
+#endif
+
+@MainActor
+final class PortForwardingControllerTests: XCTestCase {
+  func testScanStartOpenStopStateFlow() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    XCTAssertEqual(controller.loadState, .ready)
+    XCTAssertEqual(controller.snapshot, PortForwardingTestValues.snapshot)
+
+    await controller.start(port: 3000)
+    XCTAssertEqual(controller.snapshot.forwards.map(\.targetPort), [3000, 5173])
+    XCTAssertEqual(controller.operation, .none)
+
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertEqual(controller.operation, .none)
+
+    await controller.stop(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertEqual(controller.snapshot.forwards.map(\.targetPort), [5173])
+    let calls = await gateway.calls
+    // Starting a forward opens it immediately, so portEnter runs twice: once
+    // for the auto-open, once for the explicit open in this flow.
+    XCTAssertEqual(calls, [.portsRead, .portForward, .portEnter, .portEnter, .portUnforward])
+  }
+
+  func testAmbiguousMutationIsVisibleWithoutOptimisticStateChange() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    let before = controller.snapshot
+    await gateway.setFailure(.ambiguousMutation)
+    await controller.start(port: 3000)
+    XCTAssertEqual(controller.snapshot, before)
+    XCTAssertEqual(controller.loadState, .failed(.ambiguousMutation))
+    XCTAssertEqual(controller.operation, .none)
+  }
+
+  func testRebindClearsHostOwnedState() async throws {
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: PortForwardingGatewaySpy())
+    await controller.scan()
+    controller.rebind(to: PortForwardingTestValues.lease(generation: 8))
+    XCTAssertEqual(controller.snapshot, .empty)
+    XCTAssertEqual(controller.loadState, .idle)
+    XCTAssertEqual(controller.operation, .none)
+    XCTAssertNil(controller.notice)
+  }
+
+  func testUnavailableBrowserEntryAfterStartKeepsForwardAndShowsNotice() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    // The host advertises browser entry but it is not configured: start
+    // commits, the auto-open is refused definitely, and the forward stays.
+    await gateway.setOpenFailure(.forwardingUnavailable)
+    await controller.start(port: 3000)
+    XCTAssertEqual(controller.snapshot.forwards.map(\.targetPort), [3000, 5173])
+    XCTAssertEqual(controller.loadState, .ready)
+    XCTAssertEqual(controller.operation, .none)
+    XCTAssertEqual(controller.notice, .forwardingUnavailable)
+
+    let projection = PortForwardingViewProjection(
+      controller: controller, access: PortForwardingTestValues.access())
+    XCTAssertEqual(projection.gate, .ready)
+    XCTAssertEqual(
+      projection.noticeMessage,
+      PortForwardingStrings.failure(.forwardingUnavailable))
+    XCTAssertEqual(projection.active.count, 2)
+  }
+
+  func testUnsupportedBrowserEntryOpenShowsNoticeAndKeepsList() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    await gateway.setFailure(.browserEntryUnsupported)
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertEqual(controller.loadState, .ready)
+    XCTAssertEqual(controller.snapshot.forwards.map(\.targetPort), [5173])
+    XCTAssertEqual(controller.notice, .browserEntryUnsupported)
+    XCTAssertEqual(controller.operation, .none)
+  }
+
+  func testSuccessfulOpenClearsTheNotice() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    await gateway.setFailure(.forwardingUnavailable)
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertEqual(controller.notice, .forwardingUnavailable)
+    await gateway.setFailure(nil)
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertNil(controller.notice)
+    XCTAssertEqual(controller.loadState, .ready)
+  }
+
+  func testOSBrowserRefusalStillFailsThePage() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    // The OS browser refusing an open is a distinct failure with its own copy
+    // and keeps the existing page-level load-failed behavior.
+    await gateway.setFailure(.browserUnavailable)
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertEqual(controller.loadState, .failed(.browserUnavailable))
+    XCTAssertNil(controller.notice)
+  }
+
+  func testAmbiguousOpenStillFailsThePage() async throws {
+    let gateway = PortForwardingGatewaySpy()
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: gateway)
+    await controller.scan()
+    await gateway.setFailure(.ambiguousMutation)
+    await controller.open(forwardID: PortForwardingTestValues.forwardID)
+    XCTAssertEqual(controller.loadState, .failed(.ambiguousMutation))
+    XCTAssertNil(controller.notice)
+  }
+
+  func testViewProjectionGatesForwardedPortAndExposesAccessibleValues() async throws {
+    let controller = PortForwardingController(
+      lease: PortForwardingTestValues.lease(), gateway: PortForwardingGatewaySpy())
+    await controller.scan()
+    let projection = PortForwardingViewProjection(controller: controller)
+    XCTAssertEqual(projection.detected.count, 2)
+    XCTAssertFalse(try XCTUnwrap(projection.detected.first { $0.id == 5173 }).canStart)
+    XCTAssertTrue(try XCTUnwrap(projection.detected.first { $0.id == 3000 }).canStart)
+    XCTAssertEqual(projection.active.count, 1)
+    XCTAssertFalse(projection.active[0].title.isEmpty)
+    XCTAssertEqual(
+      projection.active[0].value,
+      PortForwardingStrings.onDesktop(try XCTUnwrap(controller.snapshot.forwards.first).targetPort)
+    )
+  }
+}

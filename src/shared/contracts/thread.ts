@@ -105,6 +105,25 @@ export interface TerminalShellSnapshot {
 export const MAX_TERMINAL_COLS = 400;
 export const MAX_TERMINAL_ROWS = 200;
 
+/**
+ * Authoritative terminal transcript snapshot for remote cursor-sync watches.
+ * Cursors are opaque JS-string-unit absolute offsets (`outputLength` space).
+ * `generation` is the live/retained terminal instance id, or null for
+ * persisted-thread fallback after the process is gone.
+ *
+ * **Null generation contract:** `generation: null` is snapshot/replace-only and
+ * is never append-compatible (with a prior range or another null). Consumers
+ * must reset/replace rather than invent a durable generation id.
+ */
+export interface TerminalSnapshot {
+  generation: string | null;
+  fromCursor: number;
+  toCursor: number;
+  data: string;
+  processState: "running" | "exited";
+  terminalSize: TerminalSize | null;
+}
+
 export const terminalSizeSchema = z.object({
   cols: z.number().int().min(20).max(MAX_TERMINAL_COLS),
   rows: z.number().int().min(5).max(MAX_TERMINAL_ROWS),
@@ -255,9 +274,10 @@ export const startThreadPayloadSchema = z
   });
 export type StartThreadPayload = z.infer<typeof startThreadPayloadSchema>;
 
-export interface StartThreadResult {
-  threadId: string;
-}
+export const startThreadResultSchema = z.object({
+  threadId: z.string().min(1),
+});
+export type StartThreadResult = z.infer<typeof startThreadResultSchema>;
 
 export const sendThreadInputPayloadSchema = z.object({
   threadId: z.string().min(1),
@@ -297,6 +317,85 @@ export const rollbackThreadConversationPayloadSchema = z.object({
 export type RollbackThreadConversationPayload = z.infer<
   typeof rollbackThreadConversationPayloadSchema
 >;
+
+/**
+ * WS2 stage 3: an absolute provider revert target. Shared/IPC/DB layers treat
+ * the anchor as opaque — `data` is provider-specific JSON that only the
+ * provider's own session code inspects, and `version` bumps when that payload
+ * semantics change. Anchors are durable: the backend journals one before any
+ * restore side effect and re-restores from the stored anchor on resume.
+ */
+export const providerRevertAnchorSchema = z.object({
+  version: z.literal(1),
+  data: z.unknown(),
+});
+export type ProviderRevertAnchor = z.infer<typeof providerRevertAnchorSchema>;
+
+export const createRevertAnchorPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  numTurns: z.number().int().min(1),
+  config: threadConfigSchema.optional(),
+});
+export type CreateRevertAnchorPayload = z.infer<typeof createRevertAnchorPayloadSchema>;
+
+export const createRevertAnchorResultSchema = z.object({ anchor: providerRevertAnchorSchema });
+export type CreateRevertAnchorResult = z.infer<typeof createRevertAnchorResultSchema>;
+
+export const restoreToRevertAnchorPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  anchor: providerRevertAnchorSchema,
+  config: threadConfigSchema.optional(),
+});
+export type RestoreToRevertAnchorPayload = z.infer<typeof restoreToRevertAnchorPayloadSchema>;
+
+export const checkpointRevertProviderPhaseSchema = z.enum([
+  "pending",
+  "completed",
+  "failed",
+  "ambiguous",
+  "skipped_no_turns",
+  "skipped_missing_checkpoint",
+]);
+export const checkpointRevertFilesPhaseSchema = z.enum([
+  "pending",
+  "completed",
+  "failed",
+  "skipped_no_location",
+  "skipped_missing_checkpoint",
+]);
+export const checkpointRevertTruncatePhaseSchema = z.enum(["pending", "completed", "noop"]);
+export const checkpointRevertOutcomeSchema = z.enum([
+  "completed",
+  "completed_local_only",
+  "ambiguous",
+  "failed",
+  "noop",
+]);
+
+export const checkpointRevertPayloadSchema = z.object({
+  threadId: z.string().min(1),
+  checkpointItemId: z.string().min(1),
+  /** Client-generated idempotency key; retries of the same logical revert
+   * replay the journaled outcome instead of re-executing phases. */
+  operationKey: z
+    .string()
+    .min(8)
+    .max(128)
+    .regex(/^[A-Za-z0-9._:-]+$/u),
+});
+export type CheckpointRevertPayload = z.infer<typeof checkpointRevertPayloadSchema>;
+
+/** Result of the backend-owned compound checkpoint revert (wire shape). */
+export const checkpointRevertResultSchema = z.object({
+  outcome: checkpointRevertOutcomeSchema,
+  replayed: z.boolean(),
+  numTurns: z.number().int(),
+  providerPhase: checkpointRevertProviderPhaseSchema,
+  filesPhase: checkpointRevertFilesPhaseSchema,
+  truncatePhase: checkpointRevertTruncatePhaseSchema,
+  removedCompletedTurnAnchors: z.array(z.string()),
+});
+export type CheckpointRevertResult = z.infer<typeof checkpointRevertResultSchema>;
 
 export const setPendingSteerPayloadSchema = z.object({
   threadId: z.string().min(1),
@@ -359,25 +458,18 @@ export interface PendingSteerState {
   /** Plaintext preview shown in the composer strip. */
   prompt: string;
   /** Optional structured segments (attachments, files, mentions). */
-  segments?: PromptSegment[];
+  segments?: PromptSegment[] | undefined;
   /** Wall-clock timestamp the slot was staged or last edited. */
   stagedAt: number;
 }
 
 /** Wire-safe representation of one staged follow-up in a structured thread. */
-export const pendingSteerStateSchema = z
-  .object({
-    id: z.string().min(1),
-    prompt: z.string(),
-    segments: z.array(promptSegmentSchema).optional(),
-    stagedAt: z.number().int().nonnegative(),
-  })
-  .transform(({ id, prompt, segments, stagedAt }): PendingSteerState => ({
-    id,
-    prompt,
-    ...(segments !== undefined ? { segments } : {}),
-    stagedAt,
-  }));
+export const pendingSteerStateSchema = z.object({
+  id: z.string().min(1),
+  prompt: z.string(),
+  segments: z.array(promptSegmentSchema).optional(),
+  stagedAt: z.number().int().nonnegative(),
+});
 
 /** Ordered follow-up work retained by the supervisor for a GUI thread. */
 export const threadFollowUpQueueStateSchema = z.object({
@@ -390,17 +482,16 @@ export interface ThreadFollowUpQueueState {
 }
 
 /**
- * Thread-metadata mutation issued by a remote client (the mobile PWA). Thread
+ * Thread-metadata mutation issued by a paired browser client. Thread
  * metadata is owned by the desktop renderer's store (which persists it via
  * `dbSyncAll`), so these commands are forwarded main → renderer and applied
  * through the regular thread actions instead of writing to the DB directly.
  */
 export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
   /**
-   * Host lifecycle preflight for a freshly-created worktree. The paired
-   * desktop enqueues setup before the host launches the thread. Keeping this
-   * separate from `start` prevents the post-launch metadata mirror from
-   * enqueueing setup a second time.
+   * Host lifecycle preflight for a freshly-created worktree. The host primes
+   * git watches and runs the project setup script before launching the thread.
+   * The desktop renderer only mirrors UI state; it must not run setup again.
    */
   z.object({
     kind: z.literal("prepare-worktree"),
@@ -472,6 +563,12 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     groupId: z.string().min(1),
     groupName: z.string().min(1),
   }),
+  // Removes an existing sidebar-group assignment. The host also dissolves a
+  // one-thread remainder so snapshots preserve the renderer's group invariant.
+  z.object({
+    kind: z.literal("clear-group"),
+    threadId: z.string().min(1),
+  }),
   z.object({ kind: z.literal("rename"), threadId: z.string().min(1), title: z.string().min(1) }),
   z.object({ kind: z.literal("acknowledge"), threadId: z.string().min(1) }),
   z.object({ kind: z.literal("set-done"), threadId: z.string().min(1), done: z.boolean() }),
@@ -482,10 +579,8 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
   }),
   // Tags a remotely-started thread with its worktree so it groups under that
   // worktree. The supervisor launches in the dir (via projectLocation) but
-  // never records this metadata; the desktop renderer owns it. `isNewWorktree`
-  // means the remote client just created the worktree, so the desktop should
-  // also prime its git state and run the project setup script (parity with a
-  // local "new thread in worktree").
+  // never records this metadata; the desktop renderer owns the sidebar row.
+  // Setup for a new worktree is applied on the host via `prepare-worktree`.
   z.object({
     kind: z.literal("set-worktree"),
     threadId: z.string().min(1),
@@ -493,9 +588,9 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     worktreeBranch: z.string().optional(),
     isNewWorktree: z.boolean().optional(),
   }),
-  // Removes a worktree group from a remote client. The desktop renderer handles
-  // this through its existing worktree cleanup path so scripts, terminals,
-  // linked threads, git state, and persistence stay consistent with desktop.
+  // Removes a worktree group. The host closes threads, runs cleanup, and
+  // removes the git worktree/branch. The desktop renderer only dismisses
+  // local UI (tabs, overlays) when a window is present.
   z.object({
     kind: z.literal("delete-worktree-group"),
     threadId: z.string().min(1),

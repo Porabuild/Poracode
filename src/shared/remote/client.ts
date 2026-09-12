@@ -8,6 +8,7 @@ import {
   filterKnownRemoteAccessScopes,
   isRemoteFollowUpQueueProcedure,
   isRemoteProcedure,
+  remoteAgentSlashCommandsSchema,
   remoteAgentStatusesSchema,
   remoteAccessTokenResultSchema,
   remoteBrowserStateSchema,
@@ -22,6 +23,7 @@ import {
   remoteWebPushConfigResultSchema,
   remoteSettingsSchema,
   remoteSchedulesResponseSchema,
+  remoteScheduleRunsResponseSchema,
   remoteProjectCommandResultSchema,
   remoteProjectSettingsSchema,
   remoteRuntimeItemsPageSchema,
@@ -31,6 +33,7 @@ import {
   remoteWebSocketTicketResultSchema,
   toWebSocketUrl,
   type RemoteAccessScope,
+  type RemoteAgentSlashCommands,
   type RemoteAgentStatuses,
   type RemoteAccessTokenResult,
   type RemoteBrowserCommand,
@@ -45,6 +48,8 @@ import {
   type RemoteProjectCommandResult,
   type RemoteProjectSettings,
   type RemotePushRegistration,
+  type RemotePushRegistrationRouting,
+  type RemotePushRegistrationResult,
   type RemoteRuntimeItemsPage,
   type RemoteRuntimeItemsPageRequest,
   type RemoteSettings,
@@ -56,11 +61,18 @@ import {
 } from "@/shared/remote";
 import {
   DEFAULT_TERMINAL_SIZE,
+  checkpointRevertPayloadSchema,
+  checkpointRevertResultSchema,
   controlThreadGoalPayloadSchema,
-  profileIdentitySchema,
+  profileCoreStatsSchema,
+  profileDevicesResponseSchema,
+  profileIdentityResponseSchema,
+  profileTokenStatsSchema,
+  providerUsageResponseSchema,
   prWatchSchema,
   projectNotesSchema,
   sendThreadInputPayloadSchema,
+  type CheckpointRevertResult,
   type ProfileCoreStats,
   type ControlThreadGoalPayload,
   type ProfileDevicesResponse,
@@ -89,9 +101,17 @@ import {
   type ThreadServerRequestId,
   type ScheduledTask,
   type ScheduledTaskInput,
+  type ScheduledTaskRun,
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 import { readBoundedResponseBody } from "@/shared/http";
+import type { NormalizeExactOptionalProperties } from "@/shared/contracts/exactType";
+import {
+  ipcProcedureMap,
+  jsonCallEnvelopeSchema,
+  omittedCallEnvelopeSchema,
+  omittedResultSchema,
+} from "@/shared/ipc";
 
 export class RemoteClientError extends Error {
   constructor(
@@ -124,6 +144,12 @@ export function isRemoteTransportFailure(error: unknown): boolean {
 
 export interface ThreadHistoryOptions {
   readonly targetTimelineEntryCount?: number;
+  /**
+   * WS3 #2: skip the inlined `terminalScrollback` — cursor-sync clients
+   * render the terminal from the watch baseline instead, so inlining the
+   * tail transfers the same bytes twice.
+   */
+  readonly omitScrollback?: boolean;
 }
 
 function parseJsonResponse(text: string, response: Response): unknown {
@@ -161,6 +187,29 @@ function parseResponse<T>(schema: z.ZodType<T>, value: unknown, what: string): T
   );
 }
 
+function removeExplicitUndefined(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(removeExplicitUndefined);
+  if (!value || typeof value !== "object") return value;
+  const result: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value)) {
+    if (nested !== undefined) result[key] = removeExplicitUndefined(nested);
+  }
+  return result;
+}
+
+/**
+ * JSON cannot carry explicit `undefined`, but Zod's inferred optional properties
+ * include it. Remove any transform/default-produced undefined keys recursively
+ * so the validated result soundly satisfies exact-optional producer interfaces.
+ */
+function parseExactOptionalResponse<Contract>(
+  schema: z.ZodType<NormalizeExactOptionalProperties<Contract>>,
+  value: unknown,
+  what: string,
+): Contract {
+  return removeExplicitUndefined(parseResponse(schema, value, what)) as Contract;
+}
+
 function defaultClientMetadata(): RemoteClientMetadata {
   const userAgent = globalThis.navigator?.userAgent;
   const isMobile = userAgent ? /\bMobile\b/i.test(userAgent) : false;
@@ -194,6 +243,8 @@ interface StartRemoteThreadCommon {
 }
 
 export interface StartRemoteThreadInput extends StartRemoteThreadCommon {
+  /** Reopen from host-owned state without replacing another client's live runtime. */
+  readonly ensureRunning?: true;
   readonly projectLocation: ProjectLocation;
   readonly initialSize?: TerminalSize | undefined;
   readonly sessionRef?: StartThreadPayload["sessionRef"] | undefined;
@@ -236,6 +287,9 @@ export interface RemoteDesktopClientOptions {
 
 const DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 60_000;
 const DEFAULT_REMOTE_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
+/** Bounded revalidating-GET cache: shell snapshot, agent statuses, and one
+ * thread history per open thread fit far below this; eviction is oldest-first. */
+const ETAG_CACHE_MAX_ENTRIES = 32;
 
 /**
  * Long-running server operations (clone, push, PR creation, commit, sync,
@@ -278,6 +332,20 @@ export class RemoteDesktopClient {
     this.onRequestSuccess = options.onRequestSuccess;
     this.onRequestError = options.onRequestError;
   }
+
+  /**
+   * Revalidating GET cache for the large read endpoints (shell snapshot,
+   * agent statuses, thread history). The server answers conditional requests
+   * with `304` and no body, so a cache hit skips the full payload download —
+   * the single largest cold-start and refresh cost on weak links. Bounded to
+   * `ETAG_CACHE_MAX_ENTRIES` with insertion-order eviction, and inherently
+   * credential-scoped: `accessToken` is fixed per client instance, so the
+   * cache dies with the credential that authorized its bodies.
+   */
+  private readonly etagCache = new Map<
+    string,
+    { readonly etag: string; readonly parsed: unknown }
+  >();
 
   async environment(): Promise<RemoteEnvironmentDescriptor> {
     let raw: unknown;
@@ -347,11 +415,21 @@ export class RemoteDesktopClient {
     );
   }
 
-  async agentStatuses(): Promise<RemoteAgentStatuses> {
+  async agentStatuses(options: { omitSlashCommands?: boolean } = {}): Promise<RemoteAgentStatuses> {
+    // WS3-A payload split: slash-command catalogs dominate this response, so
+    // clients that fetch them lazily pass omitSlashCommands to skip them.
+    const path = options.omitSlashCommands
+      ? "/api/agent-statuses?slashCommands=0"
+      : "/api/agent-statuses";
+    return parseResponse(remoteAgentStatusesSchema, await this.requestJson(path), "agent statuses");
+  }
+
+  /** One agent's slash-command catalog (WS3-A lazy fetch partner). */
+  async agentSlashCommands(kind: string): Promise<RemoteAgentSlashCommands> {
     return parseResponse(
-      remoteAgentStatusesSchema,
-      await this.requestJson("/api/agent-statuses"),
-      "agent statuses",
+      remoteAgentSlashCommandsSchema,
+      await this.requestJson(`/api/agents/${encodeURIComponent(kind)}/slash-commands`),
+      "agent slash commands",
     );
   }
 
@@ -375,15 +453,13 @@ export class RemoteDesktopClient {
     await this.requestJson("/api/host-update/install", { method: "POST", body: {} });
   }
 
-  /** Provider usage snapshots; the response shape is a typed contract with no
-   * runtime schema (see `ProviderUsageResponse`), so a light shape check only. */
+  /** Provider usage snapshots validated against the collector-owned wire schema. */
   async providerUsage(): Promise<ProviderUsageResponse> {
-    const result = parseResponse(
-      z.object({ snapshots: z.array(z.unknown()), fromCache: z.boolean() }),
+    return parseResponse(
+      providerUsageResponseSchema,
       await this.requestJson("/api/provider-usage"),
       "provider usage",
     );
-    return result as ProviderUsageResponse;
   }
 
   async projectNotes(projectId: string): Promise<ProjectNotes | null> {
@@ -396,9 +472,10 @@ export class RemoteDesktopClient {
   }
 
   async setProjectNotes(notes: ProjectNotes): Promise<void> {
-    await this.requestJson(`/api/projects/${encodeURIComponent(notes.projectId)}/notes`, {
+    const { projectId, ...body } = notes;
+    await this.requestJson(`/api/projects/${encodeURIComponent(projectId)}/notes`, {
       method: "POST",
-      body: notes,
+      body,
     });
   }
 
@@ -483,6 +560,16 @@ export class RemoteDesktopClient {
     return schedule;
   }
 
+  async scheduleRuns(id: string): Promise<ScheduledTaskRun[]> {
+    const query = new URLSearchParams({ id });
+    const result = parseResponse(
+      remoteScheduleRunsResponseSchema,
+      await this.requestJson(`/api/schedules/runs?${query.toString()}`),
+      "schedule runs",
+    );
+    return result.runs;
+  }
+
   async getPrWatch(input: PrWatchKey): Promise<PrWatch | null> {
     const query = new URLSearchParams({
       projectId: input.projectId,
@@ -526,39 +613,35 @@ export class RemoteDesktopClient {
    * looseObject — a plain z.object would strip everything unnamed.
    */
   async profileDevices(): Promise<ProfileDevicesResponse> {
-    const result = parseResponse(
-      z.object({ devices: z.array(z.unknown()), currentDeviceId: z.string() }),
+    return parseExactOptionalResponse<ProfileDevicesResponse>(
+      profileDevicesResponseSchema,
       await this.requestJson("/api/profile/devices"),
       "profile devices",
     );
-    return result as ProfileDevicesResponse;
   }
 
   async profileCoreStats(req: ProfileStatsRequest): Promise<ProfileCoreStats> {
-    const result = parseResponse(
-      z.looseObject({ scope: z.string(), device: z.unknown(), totals: z.unknown() }),
+    return parseExactOptionalResponse<ProfileCoreStats>(
+      profileCoreStatsSchema,
       await this.requestJson("/api/profile/core-stats", { method: "POST", body: req }),
       "profile stats",
     );
-    return result as unknown as ProfileCoreStats;
   }
 
   async profileTokenStats(req: ProfileStatsRequest): Promise<ProfileTokenStats> {
-    const result = parseResponse(
-      z.looseObject({ available: z.boolean(), scope: z.string(), device: z.unknown() }),
+    return parseExactOptionalResponse<ProfileTokenStats>(
+      profileTokenStatsSchema,
       await this.requestJson("/api/profile/token-stats", { method: "POST", body: req }),
       "profile token stats",
     );
-    return result as unknown as ProfileTokenStats;
   }
 
   async setProfileIdentity(identity: ProfileIdentity): Promise<ProfileIdentityResponse> {
-    const result = parseResponse(
-      z.object({ identity: profileIdentitySchema, device: z.unknown() }),
+    return parseExactOptionalResponse<ProfileIdentityResponse>(
+      profileIdentityResponseSchema,
       await this.requestJson("/api/profile/identity", { method: "POST", body: identity }),
       "profile identity",
     );
-    return result as ProfileIdentityResponse;
   }
 
   async browserState(): Promise<RemoteBrowserState> {
@@ -589,6 +672,7 @@ export class RemoteDesktopClient {
       ...(options.targetTimelineEntryCount !== undefined
         ? { targetTimelineEntryCount: String(options.targetTimelineEntryCount) }
         : {}),
+      ...(options.omitScrollback ? { omitScrollback: "1" } : {}),
     });
     return remoteThreadSnapshotSchema.parse(
       await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/history?${search}`),
@@ -618,7 +702,14 @@ export class RemoteDesktopClient {
     const result = await this.requestJson("/api/threads/start", {
       method: "POST",
       headers: {
-        [REMOTE_COMMAND_ID_HEADER]: input.userMessageItemId ?? crypto.randomUUID(),
+        // Never reuse a send-path userMessageItemId: receipts reject the same
+        // command id across routes, and a failed /send must still be able to
+        // fall back to /start for unknown-session resume.
+        [REMOTE_COMMAND_ID_HEADER]: input.userMessageItemId
+          ? `thread-start-item:${input.userMessageItemId}`
+          : input.threadId
+            ? `thread-start:${input.threadId}`
+            : crypto.randomUUID(),
       },
       body: {
         ...(input.threadId ? { threadId: input.threadId } : {}),
@@ -633,6 +724,7 @@ export class RemoteDesktopClient {
         ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
         ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
         ...(input.providerSwitch ? { providerSwitch: input.providerSwitch } : {}),
+        ...(input.ensureRunning ? { ensureRunning: true } : {}),
       },
     });
     return parseResponse(z.object({ threadId: z.string() }), result, "thread");
@@ -705,6 +797,28 @@ export class RemoteDesktopClient {
       method: "POST",
       body: { itemId: input.itemId },
     });
+  }
+
+  /** WS2 stage 4: the backend-owned compound checkpoint revert. */
+  async checkpointRevert(input: {
+    readonly threadId: string;
+    readonly checkpointItemId: string;
+    readonly operationKey: string;
+  }): Promise<CheckpointRevertResult> {
+    const parsed = checkpointRevertPayloadSchema.parse(input);
+    return checkpointRevertResultSchema.parse(
+      await this.requestJson(
+        `/api/threads/${encodeURIComponent(parsed.threadId)}/checkpoint-revert`,
+        {
+          method: "POST",
+          headers: { [REMOTE_COMMAND_ID_HEADER]: `checkpoint-revert:${parsed.operationKey}` },
+          body: {
+            checkpointItemId: parsed.checkpointItemId,
+            operationKey: parsed.operationKey,
+          },
+        },
+      ),
+    );
   }
 
   async setPendingSteer(input: SetPendingSteerPayload): Promise<void> {
@@ -788,18 +902,38 @@ export class RemoteDesktopClient {
    * it.
    */
   async callRemoteProcedure(procedure: string, payload: unknown): Promise<unknown> {
-    const spec = isRemoteProcedure(procedure) ? REMOTE_PROCEDURE_SPECS[procedure] : undefined;
     try {
-      const result = (await this.requestJson("/api/git/call", {
+      if (!isRemoteProcedure(procedure)) {
+        throw new RemoteClientError(
+          `Procedure "${procedure}" is not available to remote clients.`,
+          403,
+          "git_procedure_not_allowed",
+        );
+      }
+      const spec = REMOTE_PROCEDURE_SPECS[procedure];
+      const envelope = await this.requestJson("/api/git/call", {
         method: "POST",
         body: { procedure, payload },
-        ...(spec && "timeout" in spec && spec.timeout === "long"
+        ...("timeout" in spec && spec.timeout === "long"
           ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
           : {}),
-      })) as { result: unknown };
-      return result.result;
+      });
+      const resultSchema = ipcProcedureMap[procedure].resultSchema;
+      if (!resultSchema) {
+        throw new RemoteClientError(
+          `Procedure "${procedure}" is missing an authoritative result schema.`,
+          500,
+          "git_procedure_result_schema_missing",
+        );
+      }
+      if (resultSchema === omittedResultSchema) {
+        parseResponse(omittedCallEnvelopeSchema, envelope, `procedure ${procedure}`);
+        return undefined;
+      }
+      return parseResponse(jsonCallEnvelopeSchema(resultSchema), envelope, `procedure ${procedure}`)
+        .result;
     } catch (error) {
-      // The remote protocol remains additive within v9. A v9 host from before
+      // A host from before
       // queued follow-ups knows the passthrough endpoint but rejects these new
       // procedure names; turn that capability miss into a stable, actionable
       // error. Never retry through setPendingSteer: queue and steer have
@@ -890,8 +1024,8 @@ export class RemoteDesktopClient {
    * `session:operate` scope (no separate push scope), so already-paired devices
    * register without re-pairing.
    */
-  async registerPush(registration: RemotePushRegistration): Promise<void> {
-    parseResponse(
+  async registerPush(registration: RemotePushRegistration): Promise<RemotePushRegistrationResult> {
+    return parseResponse(
       remotePushRegistrationResultSchema,
       await this.requestJson("/api/push/register", { method: "POST", body: registration }),
       "push registration",
@@ -904,8 +1038,11 @@ export class RemoteDesktopClient {
   }
 
   /** Drop all push registrations for a device (sign-out / unpair). */
-  async unregisterPush(deviceId: string): Promise<void> {
-    await this.requestJson("/api/push/unregister", { method: "POST", body: { deviceId } });
+  async unregisterPush(deviceId: string, routing?: RemotePushRegistrationRouting): Promise<void> {
+    await this.requestJson("/api/push/unregister", {
+      method: "POST",
+      body: { deviceId, ...(routing ? { routing } : {}) },
+    });
   }
 
   async websocketTicket(timeoutMs?: number): Promise<string> {
@@ -995,6 +1132,11 @@ export class RemoteDesktopClient {
     if (this.accessToken) {
       headers.authorization = `Bearer ${this.accessToken}`;
     }
+    const method = init.method ?? "GET";
+    const cached = method === "GET" ? this.etagCache.get(path) : undefined;
+    if (cached) {
+      headers["if-none-match"] = cached.etag;
+    }
     const effectiveTimeoutMs = init.timeoutMs ?? this.requestTimeoutMs;
     const controller = new AbortController();
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -1032,11 +1174,18 @@ export class RemoteDesktopClient {
       // otherwise parse to `{}` and fail schema validation with a confusing
       // error. Fail loudly instead.
       if (response.status === 304) {
-        throw new RemoteClientError(
-          "Remote request returned 304 without a cached body.",
-          304,
-          "not_modified",
-        );
+        // Conditional GET revalidated clean: the cached body is the answer.
+        // Without a cache entry this is a protocol error (a bare 304 carries
+        // no body and would parse to `{}`), so fail loudly.
+        if (!cached) {
+          throw new RemoteClientError(
+            "Remote request returned 304 without a cached body.",
+            304,
+            "not_modified",
+          );
+        }
+        this.onRequestSuccess?.();
+        return cached.parsed;
       }
       const body = await Promise.race([
         readBoundedResponseBody(response, this.maxResponseBodyBytes),
@@ -1051,6 +1200,18 @@ export class RemoteDesktopClient {
           response.status,
           error.success ? error.data.error.code : "request_failed",
         );
+      }
+      if (method === "GET") {
+        const etag = response.headers.get("etag");
+        if (etag) {
+          this.etagCache.delete(path);
+          this.etagCache.set(path, { etag, parsed });
+          while (this.etagCache.size > ETAG_CACHE_MAX_ENTRIES) {
+            const oldest = this.etagCache.keys().next().value;
+            if (oldest === undefined) break;
+            this.etagCache.delete(oldest);
+          }
+        }
       }
       this.onRequestSuccess?.();
       return parsed;

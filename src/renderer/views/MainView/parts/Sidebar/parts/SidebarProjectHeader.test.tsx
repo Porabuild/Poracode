@@ -13,6 +13,7 @@ import { SidebarProjectSection } from "./SidebarProjectSection";
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
+  isRemoteSession: () => false,
 }));
 
 vi.mock("@dnd-kit/react", () => ({

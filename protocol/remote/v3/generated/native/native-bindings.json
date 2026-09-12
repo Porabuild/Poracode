@@ -1,0 +1,551 @@
+{
+  "bindingFormatVersion": 2,
+  "contract": "poracode.remote",
+  "counts": {
+    "jsonProcedureResults": 65,
+    "kotlinFiles": 40,
+    "portableTransforms": 3,
+    "procedures": 108,
+    "routes": 63,
+    "schemaRoots": 319,
+    "semanticValidators": 17,
+    "structuralTypes": 783,
+    "swiftFiles": 45,
+    "voidProcedureResults": 43,
+    "webSocketClientVariants": 9,
+    "webSocketServerVariants": 10
+  },
+  "doNotEdit": "GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.",
+  "formatVersion": 1,
+  "generatorVersion": 3,
+  "languages": {
+    "kotlin": {
+      "files": [
+        {
+          "bytes": 39181,
+          "lines": 217,
+          "path": "kotlin/Metadata001.kt",
+          "sha256": "sha256:59f900be6252021a9bd66d0a97e041b53a0c0fd9a9f856d47e510891c97ec483"
+        },
+        {
+          "bytes": 30734,
+          "lines": 449,
+          "path": "kotlin/Models001.kt",
+          "sha256": "sha256:84408ea89a8777fbff4243455e6c235dd60489d1d1848a401a8c0a7c7b6a2f3c"
+        },
+        {
+          "bytes": 28858,
+          "lines": 420,
+          "path": "kotlin/Models002.kt",
+          "sha256": "sha256:57565f70c90fefa3d0f91e76235ff12cc9d9a3e8d090a936d02ec592a55b133c"
+        },
+        {
+          "bytes": 31140,
+          "lines": 447,
+          "path": "kotlin/Models003.kt",
+          "sha256": "sha256:f20b802aa52958400c228457585a208d9b6cfef807f5799e471aae42534a69f1"
+        },
+        {
+          "bytes": 28167,
+          "lines": 442,
+          "path": "kotlin/Models004.kt",
+          "sha256": "sha256:5fcb5b97b44d9ab17c98c22e15b16159028c5d318d78f0b4ff17a85c0bf50aa2"
+        },
+        {
+          "bytes": 28348,
+          "lines": 437,
+          "path": "kotlin/Models005.kt",
+          "sha256": "sha256:a689c3e63ac0d14f79257c3858bc0a010e6f5b7946a8ccc81dbb388b639fe5db"
+        },
+        {
+          "bytes": 28655,
+          "lines": 447,
+          "path": "kotlin/Models006.kt",
+          "sha256": "sha256:c29b6fdeaf221b9aed5a06d23decffa0b1026a4500a3d9a09f6fca31aa1875d7"
+        },
+        {
+          "bytes": 27189,
+          "lines": 434,
+          "path": "kotlin/Models007.kt",
+          "sha256": "sha256:3bc1a2b46e2bff81f0806f76619af86999948e24ea2829f3dbc606cbde65e3d6"
+        },
+        {
+          "bytes": 30966,
+          "lines": 450,
+          "path": "kotlin/Models008.kt",
+          "sha256": "sha256:22a1b071306c98b28423facce0c13fac526546d34e30db75091c603d411ea2c0"
+        },
+        {
+          "bytes": 28683,
+          "lines": 449,
+          "path": "kotlin/Models009.kt",
+          "sha256": "sha256:ea24233c17d549950955c434fdd7e7d89f8178abb45d4c9782e3f129e1ca5368"
+        },
+        {
+          "bytes": 22717,
+          "lines": 390,
+          "path": "kotlin/Models010.kt",
+          "sha256": "sha256:4a13594a1a6269d9cc89f5ef532eba64e17389a614bcb5d737a21b59bff071e6"
+        },
+        {
+          "bytes": 37239,
+          "lines": 444,
+          "path": "kotlin/Models011.kt",
+          "sha256": "sha256:1c888e7193f1c6389077a61a97c47c45dcb5e74e1eb343aaadc73e86c63b31b9"
+        },
+        {
+          "bytes": 37977,
+          "lines": 425,
+          "path": "kotlin/Models012.kt",
+          "sha256": "sha256:929894111a954a5f0e58d7e7c1ee4bc4821be14884251bd9ca74db720e395987"
+        },
+        {
+          "bytes": 39494,
+          "lines": 447,
+          "path": "kotlin/Models013.kt",
+          "sha256": "sha256:0d280fbb16b770d9b6ed87e82d63c26e5c4cc81f63016d00f47e8787b82cbf08"
+        },
+        {
+          "bytes": 30643,
+          "lines": 449,
+          "path": "kotlin/Models014.kt",
+          "sha256": "sha256:bffa3bcdb921a806c0ef901b4a1bb62facd84bf9f065267194436e0c91753b23"
+        },
+        {
+          "bytes": 28511,
+          "lines": 420,
+          "path": "kotlin/Models015.kt",
+          "sha256": "sha256:ceb726aab25e408bb28a79d44012daeee8d861c904d5e8ecdc63817726de7387"
+        },
+        {
+          "bytes": 27062,
+          "lines": 441,
+          "path": "kotlin/Models016.kt",
+          "sha256": "sha256:0645bc7537f4dc14c39abe3808aca8f0a2a05843ee71d1f7289a350c64558109"
+        },
+        {
+          "bytes": 34608,
+          "lines": 439,
+          "path": "kotlin/Models017.kt",
+          "sha256": "sha256:e2050e2b77d1383e9be423a951dd82abef091ce22842d9741d4d8662cbebae7c"
+        },
+        {
+          "bytes": 32946,
+          "lines": 441,
+          "path": "kotlin/Models018.kt",
+          "sha256": "sha256:5d7d0748eb7f7a117894853150f49d8a4aa1e159e5149d1dde1f21dbc15c7d8e"
+        },
+        {
+          "bytes": 31633,
+          "lines": 442,
+          "path": "kotlin/Models019.kt",
+          "sha256": "sha256:c35225a70e56b49aa18ec6243972d96e688db5002785c44614a961bbeafa3868"
+        },
+        {
+          "bytes": 37320,
+          "lines": 443,
+          "path": "kotlin/Models020.kt",
+          "sha256": "sha256:fd343ce98ccd9297e8a06e12780b5b507ec4a3cd1adc8b2af297051c56d4d1c1"
+        },
+        {
+          "bytes": 35515,
+          "lines": 416,
+          "path": "kotlin/Models021.kt",
+          "sha256": "sha256:f391e85781cf3ff82b21b97450b7c544bf2f9f65f8cb1a1c67e3ad552f4fa19d"
+        },
+        {
+          "bytes": 30412,
+          "lines": 447,
+          "path": "kotlin/Models022.kt",
+          "sha256": "sha256:fe1bc77c53e65f7b37838aa830fc76ef4290d55efc5c81da3d98d672ca0b3220"
+        },
+        {
+          "bytes": 34171,
+          "lines": 439,
+          "path": "kotlin/Models023.kt",
+          "sha256": "sha256:5e1893437970d25c0b961ffe25896a46634c4c349a557c69f51916d2c258f75b"
+        },
+        {
+          "bytes": 27871,
+          "lines": 450,
+          "path": "kotlin/Models024.kt",
+          "sha256": "sha256:ed2f5ef5f744ef43b991e7310fab652baf6b0acf102395d2d7be29ff9684ae38"
+        },
+        {
+          "bytes": 29982,
+          "lines": 441,
+          "path": "kotlin/Models025.kt",
+          "sha256": "sha256:4475fa0d4aca52aff4b59154e0d39767a34b919f7749f2b1f24b4eabacaafc3b"
+        },
+        {
+          "bytes": 8518,
+          "lines": 90,
+          "path": "kotlin/Models026.kt",
+          "sha256": "sha256:f9757f2d383172aa59c062538d9145469c65dcaa02e3871cdc80f86f05686a04"
+        },
+        {
+          "bytes": 40361,
+          "lines": 450,
+          "path": "kotlin/RootCodecs001.kt",
+          "sha256": "sha256:60fac3c4647286dd0a74402d8afe4b98745f40b20a6c9f49e5b66dcbeb068b80"
+        },
+        {
+          "bytes": 39881,
+          "lines": 450,
+          "path": "kotlin/RootCodecs002.kt",
+          "sha256": "sha256:78fa4e20a254ae2ad59d6902ca6fe5ef59d3eaa0de9a1bc088723a29c596985e"
+        },
+        {
+          "bytes": 6456,
+          "lines": 75,
+          "path": "kotlin/RootCodecs003.kt",
+          "sha256": "sha256:786d636df47a13681042bd56573c307109803767bdf5e3d07c6e572876b1cc44"
+        },
+        {
+          "bytes": 22526,
+          "lines": 127,
+          "path": "kotlin/Runtime.kt",
+          "sha256": "sha256:6a3f4d5b6e32999442980143fd727aab58a21c0ab06e9df1bbb0543598cd905a"
+        },
+        {
+          "bytes": 34657,
+          "lines": 450,
+          "path": "kotlin/Validation001.kt",
+          "sha256": "sha256:a5d7d14e1b1c36ca09a9fbb30f2d35068adaf9cddfbd85b19b6529030a0ba8f3"
+        },
+        {
+          "bytes": 31811,
+          "lines": 450,
+          "path": "kotlin/Validation002.kt",
+          "sha256": "sha256:ba6b00f4cdfe837a42726b24541f5f580112590f8a14b2c64c2f38735517f057"
+        },
+        {
+          "bytes": 33569,
+          "lines": 450,
+          "path": "kotlin/Validation003.kt",
+          "sha256": "sha256:55274e8670513c9646f67585d9649d0af44ad78155ad935ec60caa5d8c232121"
+        },
+        {
+          "bytes": 33229,
+          "lines": 450,
+          "path": "kotlin/Validation004.kt",
+          "sha256": "sha256:9530455af676a852cfc0c4d882c1e07807d414955d5bd72556f77b0c89196475"
+        },
+        {
+          "bytes": 38480,
+          "lines": 450,
+          "path": "kotlin/Validation005.kt",
+          "sha256": "sha256:8c565c4ecf3a7e4180da4123f857c0627b98e735b0acb7231ca06145faf284ef"
+        },
+        {
+          "bytes": 42052,
+          "lines": 450,
+          "path": "kotlin/Validation006.kt",
+          "sha256": "sha256:703b254c2b90605eb824a1bc4f1e333e131419e3cbb9455d8eab83f372180297"
+        },
+        {
+          "bytes": 33198,
+          "lines": 450,
+          "path": "kotlin/Validation007.kt",
+          "sha256": "sha256:8ca170c322c4479d93eb700bacd2244da80f77514ac1839a5c666eb8593b73cd"
+        },
+        {
+          "bytes": 39270,
+          "lines": 450,
+          "path": "kotlin/Validation008.kt",
+          "sha256": "sha256:8ee779314c3f3d775f4f2b61683fa0fb2c3717b5ef0d5772ebf01421cb67f91a"
+        },
+        {
+          "bytes": 11889,
+          "lines": 170,
+          "path": "kotlin/Validation009.kt",
+          "sha256": "sha256:9bd952ac13813404cdeb07bd9f312b3d6d1ef320bba7c1e197ba2eba8e520eb7"
+        }
+      ],
+      "languageVersion": "2.4",
+      "lines": 16128,
+      "treeHash": "sha256:67ea67769178cf61c87f8bd4e417308a70b22b7c454d3793e6912a1f950f47f0"
+    },
+    "swift": {
+      "files": [
+        {
+          "bytes": 47536,
+          "lines": 212,
+          "path": "swift/Metadata001.swift",
+          "sha256": "sha256:9c0ab50372c2eea929bf0035506108fd639217e66a33fac846914aa952268476"
+        },
+        {
+          "bytes": 31821,
+          "lines": 439,
+          "path": "swift/Models001.swift",
+          "sha256": "sha256:d7131e5c138f2c848099a27960c10ed3179893cff7102627d3de2ee8065a6f4f"
+        },
+        {
+          "bytes": 32320,
+          "lines": 435,
+          "path": "swift/Models002.swift",
+          "sha256": "sha256:7c1b6108fb456155b41d366bb006d118df79a99290f5e4fb9c4942e943a273f8"
+        },
+        {
+          "bytes": 34067,
+          "lines": 444,
+          "path": "swift/Models003.swift",
+          "sha256": "sha256:ca0d4ffda955fc9991dc545d505908fb2a20cc0c1d5b8a18c56ddde6458fd60a"
+        },
+        {
+          "bytes": 33340,
+          "lines": 448,
+          "path": "swift/Models004.swift",
+          "sha256": "sha256:569f163ec9893a7eca89f944f80fcb3dc65771e9835944c6faaaf33cdd9a67f7"
+        },
+        {
+          "bytes": 35457,
+          "lines": 445,
+          "path": "swift/Models005.swift",
+          "sha256": "sha256:0fd5d117ea64b3fec127ce928d6fb30f5448f5d30f1875074098e7745d26b5bd"
+        },
+        {
+          "bytes": 32931,
+          "lines": 432,
+          "path": "swift/Models006.swift",
+          "sha256": "sha256:fbbc255f108c9644246a3c2e3fddad56f11a23e3a69a2f1217cb1e50e2962617"
+        },
+        {
+          "bytes": 33430,
+          "lines": 427,
+          "path": "swift/Models007.swift",
+          "sha256": "sha256:b53c9e6dbbbfe609a630fc24962d95a0a6db3e9f470ce0dc314181a6ebe89c95"
+        },
+        {
+          "bytes": 33220,
+          "lines": 422,
+          "path": "swift/Models008.swift",
+          "sha256": "sha256:be1b95091241f8dfc013993051fcd11eacf40b5a4067ce0f57e9692ad0d681a9"
+        },
+        {
+          "bytes": 35086,
+          "lines": 448,
+          "path": "swift/Models009.swift",
+          "sha256": "sha256:9af32451ec1369967acfc0140df0ddc1681d3f3fae93665b9b98fc230d535bd1"
+        },
+        {
+          "bytes": 26980,
+          "lines": 373,
+          "path": "swift/Models010.swift",
+          "sha256": "sha256:92964da2b2a891869f460ad0b0820035b5fb545c54792fc4e08a0a77a14561ed"
+        },
+        {
+          "bytes": 36130,
+          "lines": 443,
+          "path": "swift/Models011.swift",
+          "sha256": "sha256:183834eeae475c58a45d7b324189cb440b53b5b9613854a857cb86c2b2ee7878"
+        },
+        {
+          "bytes": 27757,
+          "lines": 378,
+          "path": "swift/Models012.swift",
+          "sha256": "sha256:2deb03ed24e4dfcf0f42207ecbc5e3b1259e43355b24bb5ec9baf74b40fd6fa5"
+        },
+        {
+          "bytes": 34568,
+          "lines": 431,
+          "path": "swift/Models013.swift",
+          "sha256": "sha256:934d2fc77792a8263343042b001b3943c8f22a4a87f20471603909fd9df08e19"
+        },
+        {
+          "bytes": 34127,
+          "lines": 448,
+          "path": "swift/Models014.swift",
+          "sha256": "sha256:ac643206923e1a8abe9cc8b2e08c396163ab5725d0d7edd4879fd2f69a9a1aa3"
+        },
+        {
+          "bytes": 49777,
+          "lines": 439,
+          "path": "swift/Models015.swift",
+          "sha256": "sha256:5c63d64936e01fffc2b44137503e54d7b9c71d6c1720cc99b8521c91aebb24f2"
+        },
+        {
+          "bytes": 33928,
+          "lines": 437,
+          "path": "swift/Models016.swift",
+          "sha256": "sha256:86297e0b5eae17e508f79652dfa9952005acea85a1efa4ea6b8c9cddbc5ad903"
+        },
+        {
+          "bytes": 31403,
+          "lines": 447,
+          "path": "swift/Models017.swift",
+          "sha256": "sha256:58fb2f5d9e6de15164dc3dbafe92c9dd5489207b101e8c8bb4bd9030f7ca5bda"
+        },
+        {
+          "bytes": 31177,
+          "lines": 439,
+          "path": "swift/Models018.swift",
+          "sha256": "sha256:9598cc1b691e9b1cc8d1ad834dc73bd8ab97f476fae6f8fd19ba78942a65c30b"
+        },
+        {
+          "bytes": 32377,
+          "lines": 439,
+          "path": "swift/Models019.swift",
+          "sha256": "sha256:87a315dcf0237451b610482cf6150cd8b40f0815839aa7d6521a285bb583b87a"
+        },
+        {
+          "bytes": 37586,
+          "lines": 442,
+          "path": "swift/Models020.swift",
+          "sha256": "sha256:25b9c56f275a6c19341b069a487c5fc86fce1914999b170de3a2507b794a52c9"
+        },
+        {
+          "bytes": 36317,
+          "lines": 435,
+          "path": "swift/Models021.swift",
+          "sha256": "sha256:0c0d3720e8ef1f1d42aaead6ac9a09df80997201963699f9c3eeb716aa88f3b2"
+        },
+        {
+          "bytes": 31165,
+          "lines": 426,
+          "path": "swift/Models022.swift",
+          "sha256": "sha256:d3ebe580adc76a7c38829535791ee3ab9e21167f6faa355a00e45299b42c48cf"
+        },
+        {
+          "bytes": 33142,
+          "lines": 435,
+          "path": "swift/Models023.swift",
+          "sha256": "sha256:38f862346bb6f8e4e483338606428524926563a661414a5fa67cc79626e74e9a"
+        },
+        {
+          "bytes": 36912,
+          "lines": 381,
+          "path": "swift/Models024.swift",
+          "sha256": "sha256:18dec01362d43377b8cc74c39753cac0e99a386ae296d3e0009c1317e868cc86"
+        },
+        {
+          "bytes": 43583,
+          "lines": 448,
+          "path": "swift/Models025.swift",
+          "sha256": "sha256:13e33671c50da8f4e210e1a6e68953e7076d007f01c28b21b15f1635246f859d"
+        },
+        {
+          "bytes": 33732,
+          "lines": 427,
+          "path": "swift/Models026.swift",
+          "sha256": "sha256:2fc099c8b5ec4c504b66e1a7d166f086a9dc74c08dad59773cdff755bc472fd0"
+        },
+        {
+          "bytes": 32739,
+          "lines": 434,
+          "path": "swift/Models027.swift",
+          "sha256": "sha256:1eb7e6ac1fd2c7ade1b7c2d007f16c26db73989f9f5ccd8b11c8d82c24757f9d"
+        },
+        {
+          "bytes": 32855,
+          "lines": 431,
+          "path": "swift/Models028.swift",
+          "sha256": "sha256:7db7f841ec730e5dec3cdf23e553174a69c1110eadc04735801d79fdb7397347"
+        },
+        {
+          "bytes": 31700,
+          "lines": 437,
+          "path": "swift/Models029.swift",
+          "sha256": "sha256:639958e9f802c2ab342c0322b7543ab966d6a7ea22db1207d9a0414339d76a25"
+        },
+        {
+          "bytes": 28977,
+          "lines": 394,
+          "path": "swift/Models030.swift",
+          "sha256": "sha256:072c1e18cf018a7275448e816d4f804eb0377f1b5532577b918f7aebba6b92e0"
+        },
+        {
+          "bytes": 4527,
+          "lines": 68,
+          "path": "swift/Models031.swift",
+          "sha256": "sha256:c1ffa76fff96da2c281f4683f06bbd22a345a3109788508181f62783da66a2df"
+        },
+        {
+          "bytes": 27828,
+          "lines": 449,
+          "path": "swift/RootCodecs001.swift",
+          "sha256": "sha256:f5574a0dfc09c08ea1ae4e64196c9fc037a0fb6843810f5de5c46e759cf43c2f"
+        },
+        {
+          "bytes": 27799,
+          "lines": 449,
+          "path": "swift/RootCodecs002.swift",
+          "sha256": "sha256:49d660c978b0f70260953c5c8b65dd708888fe2853e3bbbdf19f883f0deb1f21"
+        },
+        {
+          "bytes": 23236,
+          "lines": 381,
+          "path": "swift/RootCodecs003.swift",
+          "sha256": "sha256:63b2a30f8b1dc5697d983797ebbe7f5628213107b46a23c1bee89be8e5a37e5f"
+        },
+        {
+          "bytes": 27106,
+          "lines": 142,
+          "path": "swift/Runtime.swift",
+          "sha256": "sha256:9107df2558c82ff8381d05ed11ba1f192b832648a6a8e8707f623c5de77a790f"
+        },
+        {
+          "bytes": 35146,
+          "lines": 449,
+          "path": "swift/Validation001.swift",
+          "sha256": "sha256:2f4846eb72101436138927cbb9237f08ea6e41bc6d13eac5a6c9f46d7445e303"
+        },
+        {
+          "bytes": 31457,
+          "lines": 449,
+          "path": "swift/Validation002.swift",
+          "sha256": "sha256:87054145bcbc0e5c689f95da871f89438f259d618fde7740b5c60a67380f81e1"
+        },
+        {
+          "bytes": 33273,
+          "lines": 449,
+          "path": "swift/Validation003.swift",
+          "sha256": "sha256:de88e0f993b4c6143c9e0c2f16f6f8b610c8f68292f6e428f3d5d56f55b464dc"
+        },
+        {
+          "bytes": 34275,
+          "lines": 449,
+          "path": "swift/Validation004.swift",
+          "sha256": "sha256:ce2222b5bdd04463c337b829eede48f3bd347dc537fa4eb3f48915a4956a9d63"
+        },
+        {
+          "bytes": 37938,
+          "lines": 449,
+          "path": "swift/Validation005.swift",
+          "sha256": "sha256:3ba667dcc56384a86602029b1ea9a101c5ecbf5ff8b36fc7e6a895b8141bc60f"
+        },
+        {
+          "bytes": 44032,
+          "lines": 449,
+          "path": "swift/Validation006.swift",
+          "sha256": "sha256:117d99867eb77a564c17f4a63f002ce66f68f4f3bce12fa0cf54feb318f1d014"
+        },
+        {
+          "bytes": 32550,
+          "lines": 449,
+          "path": "swift/Validation007.swift",
+          "sha256": "sha256:750d715266b8882c090c9096f20ce58b12b4ffc4d6f887f9d6be0db161de075c"
+        },
+        {
+          "bytes": 40319,
+          "lines": 449,
+          "path": "swift/Validation008.swift",
+          "sha256": "sha256:98d3c968acc09d274783b80a408213002088ca6a71a9732d92a951c7d2f0588b"
+        },
+        {
+          "bytes": 9802,
+          "lines": 133,
+          "path": "swift/Validation009.swift",
+          "sha256": "sha256:23b1c59678dd7dfabc0b125b01c10793c261ecf5a596cc8cb69d1f1921bec6ac"
+        }
+      ],
+      "languageVersion": "6",
+      "lines": 18330,
+      "treeHash": "sha256:883b1f3cb923e601a8abb2d4a9630b2a7b6df5f4d548f2b9300dd1a089f0d194"
+    }
+  },
+  "manifestHash": "sha256:3b6063bf27d11686181b65e189404e89978f8745187868eb1a23915a3ed7b5d4",
+  "outputHash": "sha256:0a4c4ebd0ea85e595e83f657188833683e6cf529f664989f0433a6dd15572bf4",
+  "protocolVersion": 11,
+  "sourceHash": "sha256:20702f089ef9ef2df977c54246df116b264684ea008550fa5879f34a62273ec1"
+}

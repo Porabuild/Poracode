@@ -16,11 +16,14 @@ import {
   type AgentKind,
   type BackgroundTask,
   type CloseThreadPayload,
+  type CreateRevertAnchorPayload,
   type PromptSegment,
   type ProjectLocation,
+  type ProviderRevertAnchor,
   type ResizeTerminalPayload,
   type ReloadAgentMcpServersPayload,
   type ResolveThreadServerRequestPayload,
+  type RestoreToRevertAnchorPayload,
   type RollbackThreadConversationPayload,
   type SendThreadInputPayload,
   type SetPendingSteerPayload,
@@ -30,6 +33,7 @@ import {
   type StartThreadResult,
   type TerminalSize,
   type TerminalShellSnapshot,
+  type TerminalSnapshot,
   type ThreadConfig,
   type ThreadRuntimeSnapshot,
   type WriteTerminalPayload,
@@ -86,6 +90,14 @@ import {
 import { StructuredTurnQueue } from "./threadSession/structuredTurnQueue";
 import { StructuredFailureReporter } from "./threadSession/structuredFailureReporter";
 import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
+import {
+  buildRetainedShellSnapshot,
+  isRetainedShellExpired,
+  putRetainedShellSnapshot,
+  snapshotFromLiveSession,
+  snapshotFromLiveShell,
+  type RetainedShellSnapshot,
+} from "./retainedShellSnapshots";
 
 export { isUserInterruptKeystroke, USER_INTERRUPT_RECOVERY_GRACE_MS, writeSubmittedPrompt };
 export type { ThreadSessionManagerOptions };
@@ -111,6 +123,12 @@ export class ThreadSessionManager {
   readonly shellSessions = new Map<string, ShellSessionRuntime>();
   /** Reverse index: agent-native session id → SessionRuntime, for CLI hook routing fallback. */
   readonly sessionsBySessionId = new Map<string, SessionRuntime>();
+  /**
+   * Naturally-exited dev shells keep a bounded in-memory snapshot so remote
+   * cursor-sync clients can still hydrate after the PTY goes away. Shells are
+   * not written to SQLite scrollback; agent threads use the DB fallback path.
+   */
+  private readonly exitedShellSnapshots = new Map<string, RetainedShellSnapshot>();
   private readonly startLocks = new Map<string, Promise<void>>();
   private readonly pendingStartInterrupts = new Set<string>();
   private readonly pendingStartAborts = new Set<string>();
@@ -567,6 +585,34 @@ export class ThreadSessionManager {
     }
   }
 
+  /** Reopen is desired state, not permission to replace another client's runtime. */
+  async ensureThreadRunning(payload: StartThreadPayload): Promise<StartThreadResult> {
+    if (this.disposed) throw new Error("ThreadSessionManager is disposed.");
+    const threadId = payload.threadId;
+    if (
+      !threadId ||
+      payload.prompt.length > 0 ||
+      payload.segments?.length ||
+      payload.providerSwitch
+    ) {
+      throw new Error("Thread reopen requires an existing id and no new input or provider switch.");
+    }
+    // Inspect and acquire the same start lock synchronously: two clients must
+    // not both observe an absent session and replace each other's new runtime.
+    const pending = this.startLocks.get(threadId);
+    if (pending) {
+      await pending;
+    } else {
+      const current = this.sessions.get(threadId);
+      if (!current || current.status === "inactive") await this.startThread(payload);
+    }
+    const current = this.sessions.get(threadId);
+    if (!current || current.status === "inactive") {
+      throw new Error("Thread reopen did not leave a running session.");
+    }
+    return { threadId };
+  }
+
   private async waitForPendingStart(threadId: string): Promise<void> {
     // A provider switch can replace the map entry while its start lock is
     // still settling. Follow the lock that was present at each observation so
@@ -985,17 +1031,64 @@ export class ThreadSessionManager {
   async rollbackThreadConversation(payload: RollbackThreadConversationPayload): Promise<void> {
     if (payload.numTurns === 0) return;
     const session = this.requireSession(payload.threadId);
-    if (session.status === "working") {
-      throw new Error("Cannot roll back a thread while the agent is working.");
-    }
+    this.assertRevertIdle(session);
     if (!session.structuredSession?.rollbackThread) {
       throw new Error(`${session.adapter.label} does not support checkpoint rollback.`);
     }
 
-    const previousSessionId = session.sessionRef?.providerSessionId;
     const history = payload.config
       ? await session.structuredSession.rollbackThread(payload.numTurns, payload.config)
       : await session.structuredSession.rollbackThread(payload.numTurns);
+    this.adoptRevertedSession(session, history);
+  }
+
+  /**
+   * WS2 stage 3: freeze an absolute provider revert target without mutating
+   * anything. The backend journals the returned anchor before its restore
+   * side effect; sessions whose structured provider lacks the hook reject
+   * here, which the backend treats as the anchor-unsupported fallback path.
+   */
+  async createRevertAnchor(
+    payload: CreateRevertAnchorPayload,
+  ): Promise<{ anchor: ProviderRevertAnchor }> {
+    const session = this.requireSession(payload.threadId);
+    this.assertRevertIdle(session);
+    const structured = session.structuredSession;
+    if (!structured?.createRevertAnchor) {
+      throw new Error(`${session.adapter.label} does not support revert anchors.`);
+    }
+    const anchor = payload.config
+      ? await structured.createRevertAnchor(payload.numTurns, payload.config)
+      : await structured.createRevertAnchor(payload.numTurns);
+    return { anchor };
+  }
+
+  /** Restores to a previously journaled anchor; idempotent by contract. */
+  async restoreToRevertAnchor(payload: RestoreToRevertAnchorPayload): Promise<void> {
+    const session = this.requireSession(payload.threadId);
+    this.assertRevertIdle(session);
+    const structured = session.structuredSession;
+    if (!structured?.restoreToRevertAnchor) {
+      throw new Error(`${session.adapter.label} does not support revert anchors.`);
+    }
+    const history = payload.config
+      ? await structured.restoreToRevertAnchor(payload.anchor, payload.config)
+      : await structured.restoreToRevertAnchor(payload.anchor);
+    this.adoptRevertedSession(session, history);
+  }
+
+  private assertRevertIdle(session: SessionRuntime): void {
+    if (session.status === "working") {
+      throw new Error("Cannot roll back a thread while the agent is working.");
+    }
+  }
+
+  /** Mirrors a provider-side fork/rewind into the session's resume metadata. */
+  private adoptRevertedSession(
+    session: SessionRuntime,
+    history: { providerSessionId?: string },
+  ): void {
+    const previousSessionId = session.sessionRef?.providerSessionId;
     if (
       history.providerSessionId &&
       history.providerSessionId !== session.sessionRef?.providerSessionId
@@ -1274,6 +1367,7 @@ export class ThreadSessionManager {
     if (shell) {
       shell.ignoreExit = true;
       this.shellSessions.delete(payload.threadId);
+      this.clearRetainedShellSnapshot(payload.threadId);
       this.rememberRemovedThread(payload.threadId);
       this.ptyLifecycle.killShell(shell);
       await this.ptyLifecycle.waitForExit(shell);
@@ -1319,6 +1413,8 @@ export class ThreadSessionManager {
   async startShell(payload: StartShellPayload): Promise<void> {
     ensureNodePtySpawnHelperExecutable();
     this.recentlyRemovedThreadIds.delete(payload.shellId);
+    // Id reuse must not append old retained bytes to a new generation.
+    this.clearRetainedShellSnapshot(payload.shellId);
     const existing = this.shellSessions.get(payload.shellId);
     if (existing) {
       existing.ignoreExit = true;
@@ -1422,6 +1518,7 @@ export class ThreadSessionManager {
         threadId: payload.shellId,
         data,
         outputLength: session.outputLength,
+        terminalInstanceId: session.instanceId,
       });
     });
 
@@ -1430,6 +1527,7 @@ export class ThreadSessionManager {
       if (session.ignoreExit) {
         return;
       }
+      this.retainExitedShellSnapshot(session);
       this.shellSessions.delete(payload.shellId);
       this.rememberRemovedThread(payload.shellId);
       this.options.emit({
@@ -1462,6 +1560,50 @@ export class ThreadSessionManager {
 
   readTerminalSize(threadId: string): TerminalSize | null {
     return this.sessions.get(threadId)?.terminalSize ?? null;
+  }
+
+  /**
+   * Snapshot for remote terminal cursor-sync. Returns live or retained-exited
+   * state only — the remote server falls back to persisted SQLite scrollback
+   * when this is null.
+   *
+   * Live agent sessions require an actual PTY **and** effective terminal
+   * presentation (`session.presentationMode ?? adapter.capabilities.presentationMode`).
+   * GUI/structured SessionRuntime entries often have `pty`/`ptyExited` unset;
+   * returning an empty "running" snapshot for those would shadow the SQLite
+   * fallback. A helper `structuredSession` on a terminal PTY does **not**
+   * disqualify the live path. `processState` follows `ptyExited`.
+   */
+  readTerminalSnapshot(threadId: string): TerminalSnapshot | null {
+    const session = this.sessions.get(threadId);
+    if (session && isTerminalPtySession(session)) {
+      return snapshotFromLiveSession(session, session.ptyExited ? "exited" : "running");
+    }
+    const shell = this.shellSessions.get(threadId);
+    if (shell) {
+      return snapshotFromLiveShell(shell, shell.ptyExited ? "exited" : "running");
+    }
+    const retained = this.exitedShellSnapshots.get(threadId);
+    if (retained && !isRetainedShellExpired(retained)) {
+      return {
+        generation: retained.generation,
+        fromCursor: retained.fromCursor,
+        toCursor: retained.toCursor,
+        data: retained.data,
+        processState: "exited",
+        terminalSize: retained.terminalSize,
+      };
+    }
+    if (retained) this.exitedShellSnapshots.delete(threadId);
+    return null;
+  }
+
+  private retainExitedShellSnapshot(shell: ShellSessionRuntime): void {
+    putRetainedShellSnapshot(this.exitedShellSnapshots, buildRetainedShellSnapshot(shell));
+  }
+
+  private clearRetainedShellSnapshot(threadId: string): void {
+    this.exitedShellSnapshots.delete(threadId);
   }
 
   readThreadBackgroundTasks(threadId: string): readonly BackgroundTask[] {
@@ -1651,4 +1793,12 @@ export class ThreadSessionManager {
       ...effectiveAgentSettings(settings, localMachineKey(env), adapter.kind),
     };
   }
+}
+
+/** True when the session backs a real terminal-presentation PTY (not GUI/structured-only). */
+function isTerminalPtySession(session: SessionRuntime): boolean {
+  if (!session.pty) return false;
+  const presentationMode =
+    session.presentationMode ?? session.adapter.capabilities.presentationMode;
+  return presentationMode === "terminal";
 }

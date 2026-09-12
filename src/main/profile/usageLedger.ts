@@ -65,41 +65,43 @@ export function recordUsageSpentFromRuntimeEvents(
     "INSERT OR IGNORE INTO usage_token_samples (sample_id, ts) VALUES (?, ?)",
   );
 
-  sqlite.transaction(() => {
-    const rows: UsageEventInput[] = [];
-    for (const event of spentEvents) {
-      const usage = event.usage;
-      const ts = usage.occurredAt ?? Date.now();
-      let amount = 0;
-      if (usage.counterKind === "cumulative") {
-        const existing = readLedger.get(provider, usage.scopeId, usage.epoch) as
-          | { last_counter: number }
-          | undefined;
-        if (!existing) {
-          writeLedger.run(provider, usage.scopeId, usage.epoch, usage.counter);
-          amount = usage.fresh === true ? usage.counter : 0;
-        } else {
-          const delta = usage.counter - existing.last_counter;
-          if (delta > 0) {
+  sqlite
+    .transaction(() => {
+      const rows: UsageEventInput[] = [];
+      for (const event of spentEvents) {
+        const usage = event.usage;
+        const ts = usage.occurredAt ?? Date.now();
+        let amount = 0;
+        if (usage.counterKind === "cumulative") {
+          const existing = readLedger.get(provider, usage.scopeId, usage.epoch) as
+            | { last_counter: number }
+            | undefined;
+          if (!existing) {
             writeLedger.run(provider, usage.scopeId, usage.epoch, usage.counter);
-            amount = delta;
+            amount = usage.fresh === true ? usage.counter : 0;
+          } else {
+            const delta = usage.counter - existing.last_counter;
+            if (delta > 0) {
+              writeLedger.run(provider, usage.scopeId, usage.epoch, usage.counter);
+              amount = delta;
+            }
+            // Equal/out-of-order samples count nothing and leave state untouched.
           }
-          // Equal/out-of-order samples count nothing and leave state untouched.
+        } else {
+          // per-call: counted only when the dedup insert actually happened.
+          const inserted = insertSample.run(usage.sampleId, ts);
+          amount = inserted.changes === 1 ? usage.counter : 0;
         }
-      } else {
-        // per-call: counted only when the dedup insert actually happened.
-        const inserted = insertSample.run(usage.sampleId, ts);
-        amount = inserted.changes === 1 ? usage.counter : 0;
+        if (amount <= 0) continue;
+        rows.push({
+          ts,
+          kind: "tokens_v2",
+          provider,
+          model: usage.model ?? thread.config.model ?? null,
+          value: amount,
+        });
       }
-      if (amount <= 0) continue;
-      rows.push({
-        ts,
-        kind: "tokens_v2",
-        provider,
-        model: usage.model ?? thread.config.model ?? null,
-        value: amount,
-      });
-    }
-    dbAppendUsageEvents(rows);
-  })();
+      dbAppendUsageEvents(rows);
+    })
+    .immediate();
 }

@@ -133,6 +133,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   /** Pi assigns its session id asynchronously; do not publish a placeholder. */
   private sessionRef: ReturnType<typeof createKnownSessionRef> | undefined;
   private disposed = false;
+  private disposePromise: Promise<void> | undefined;
   private interruptRequested = false;
   /** True when the CLI was launched with `--session <id>` (resumed, not fresh). */
   private readonly launchedWithResume: boolean;
@@ -309,8 +310,15 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.publishUpdate(this.currentTurnId ? "working" : "idle", "none");
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    this.disposePromise ??= this.disposeOnce().catch((error: unknown) => {
+      this.disposePromise = undefined;
+      throw error;
+    });
+    return this.disposePromise;
+  }
+
+  private async disposeOnce(): Promise<void> {
     this.disposed = true;
     this.clearTurnWatchdog();
     this.cancelDialogs();

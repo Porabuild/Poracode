@@ -20,7 +20,7 @@ interface InlineFolderPathChipProps {
  * Inline chip rendered inside chat markdown for project folder references.
  * Shows the raw path with a folder icon and offers a dropdown with two
  * actions: reveal in the in-app file tree, and show in the OS file explorer.
- * On the mobile PWA it opens a bottom drawer (or, when a single action is
+ * In compact/coarse-input layout it opens a bottom drawer (or, when a single action is
  * available, fires it on tap) instead of a cramped desktop popover.
  */
 export function InlineFolderPathChip({

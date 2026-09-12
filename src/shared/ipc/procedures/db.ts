@@ -19,6 +19,7 @@ import {
   dbStateKeySchema,
   dbStatePayloadSchema,
   dbSyncAllPayloadSchema,
+  dbSyncChangesPayloadSchema,
   persistedThreadSchema,
   type DbPersistExperimentStatePayload,
   type PersistedCompletedTurn,
@@ -77,6 +78,11 @@ export const dbProcedures = {
   >("dbSyncAll", "main-local", dbSyncAllPayloadSchema, (projects, threads, viewJson) =>
     dbSyncAllPayloadSchema.parse({ projects, threads, viewJson }),
   ),
+  dbSyncChanges: definePayloadProcedure<
+    z.infer<typeof dbSyncChangesPayloadSchema>,
+    void,
+    "main-local"
+  >("dbSyncChanges", "main-local", dbSyncChangesPayloadSchema),
   dbPersistExperimentState: definePayloadProcedure<
     DbPersistExperimentStatePayload,
     void,

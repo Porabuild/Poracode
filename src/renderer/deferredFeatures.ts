@@ -40,6 +40,12 @@ export const DeferredProjectAuxiliaryPanel = preloadable(() =>
   ),
 );
 
+export const DeferredMobileWorkspacePage = preloadable(() =>
+  import("@/renderer/views/MainView/parts/MobileWorkspacePage").then(
+    (module) => module.MobileWorkspacePage,
+  ),
+);
+
 export const DeferredDevTerminalPanel = preloadable(() =>
   import("@/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel").then(
     (module) => module.DevTerminalPanel,
@@ -100,7 +106,7 @@ export const DeferredInlineDiffView = preloadable(() =>
   ),
 );
 
-const prewarmTasks = [
+const desktopPrewarmTasks = [
   // The first terminal open is visibly laggy: the surface pays xterm module
   // evaluation, terminal-font loading, WebGL context creation and shader
   // compilation while the panel animates in. Warm the rendering runtime with
@@ -133,20 +139,40 @@ const prewarmTasks = [
   DeferredInlineDiffView.preload,
 ] as const;
 
-let nextPrewarmTask = 0;
-let prewarmRunning = false;
+const compactPrewarmTasks = [
+  DeferredMobileWorkspacePage.preload,
+  DeferredItemMarkdownInner.preload,
+  DeferredSettingsOverlay.preload,
+  DeferredProjectSettingsOverlay.preload,
+  DeferredGitReviewPanel.preload,
+  DeferredGitReviewOverlay.preload,
+  DeferredPrReviewOverlay.preload,
+  DeferredGitHubActionsView.preload,
+  DeferredInlineDiffView.preload,
+] as const;
 
-export function startDeferredFeaturePrewarm(): () => void {
-  if (prewarmRunning || nextPrewarmTask >= prewarmTasks.length) return () => {};
+export type DeferredFeaturePrewarmTarget = "desktop" | "compact";
 
-  prewarmRunning = true;
+const prewarmState: Record<DeferredFeaturePrewarmTarget, { nextTask: number; running: boolean }> = {
+  desktop: { nextTask: 0, running: false },
+  compact: { nextTask: 0, running: false },
+};
+
+export function startDeferredFeaturePrewarm(
+  target: DeferredFeaturePrewarmTarget = "desktop",
+): () => void {
+  const tasks = target === "compact" ? compactPrewarmTasks : desktopPrewarmTasks;
+  const state = prewarmState[target];
+  if (state.running || state.nextTask >= tasks.length) return () => {};
+
+  state.running = true;
   let cancelled = false;
   let idleId: number | null = null;
   let timeoutId: number | null = null;
 
   const scheduleNext = () => {
-    if (cancelled || nextPrewarmTask >= prewarmTasks.length) {
-      prewarmRunning = false;
+    if (cancelled || state.nextTask >= tasks.length) {
+      state.running = false;
       return;
     }
     if (typeof window.requestIdleCallback === "function") {
@@ -160,9 +186,9 @@ export function startDeferredFeaturePrewarm(): () => void {
     idleId = null;
     timeoutId = null;
     if (cancelled) return;
-    const task = prewarmTasks[nextPrewarmTask++];
+    const task = tasks[state.nextTask++];
     if (!task) {
-      prewarmRunning = false;
+      state.running = false;
       return;
     }
     void task()
@@ -174,7 +200,7 @@ export function startDeferredFeaturePrewarm(): () => void {
 
   return () => {
     cancelled = true;
-    prewarmRunning = false;
+    state.running = false;
     if (idleId !== null) window.cancelIdleCallback?.(idleId);
     if (timeoutId !== null) window.clearTimeout(timeoutId);
   };

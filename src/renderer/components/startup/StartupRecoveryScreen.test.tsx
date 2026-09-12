@@ -56,7 +56,13 @@ describe("StartupRecoveryScreen", () => {
   });
 
   it("shows download progress without enabling another update check", () => {
-    useUpdateStore.setState({ phase: "downloading", version: "1.5.5", downloadPercent: 42.4 });
+    useUpdateStore.setState({
+      phase: "downloading",
+      version: "1.5.5",
+      downloadPercent: 42.4,
+      downloadTransferred: 424,
+      downloadTotal: 1000,
+    });
     render(<StartupRecoveryScreen onKeepWaiting={() => undefined} />);
 
     expect(screen.getByRole("progressbar", { name: "Downloading update" })).toHaveAttribute(
@@ -64,5 +70,15 @@ describe("StartupRecoveryScreen", () => {
       "42",
     );
     expect(screen.getByRole("button", { name: "Check for updates" })).toBeDisabled();
+  });
+
+  it("does not report a determinate 0% before the first progress event", () => {
+    useUpdateStore.setState({ phase: "downloading", version: "1.5.5", downloadPercent: 0 });
+    render(<StartupRecoveryScreen onKeepWaiting={() => undefined} />);
+
+    expect(screen.getByRole("progressbar", { name: "Downloading update" })).not.toHaveAttribute(
+      "aria-valuenow",
+    );
+    expect(screen.queryByText("0%")).not.toBeInTheDocument();
   });
 });

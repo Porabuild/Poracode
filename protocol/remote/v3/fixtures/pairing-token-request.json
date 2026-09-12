@@ -1,0 +1,16 @@
+{
+  "grantType": "pairing-token",
+  "credential": "lc_pair_fixture_001",
+  "scopes": [
+    "session:read",
+    "session:operate",
+    "terminal:read",
+    "terminal:operate",
+    "requests:resolve"
+  ],
+  "client": {
+    "label": "Fixture iPhone",
+    "deviceType": "mobile",
+    "os": "iOS"
+  }
+}

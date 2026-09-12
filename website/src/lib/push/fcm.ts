@@ -4,10 +4,10 @@ import type { AndroidPushRequest } from "./validate";
 
 /**
  * FCM HTTP v1 transport. Builds a **notification** message (the OS renders it
- * automatically; Capacitor's push plugin receives it in-app when foregrounded,
- * so there's no double-notify and no native code). No `data` field. `collapse_key`
- * plus the per-notification `tag` (both = threadId) make successive status pushes
- * for a thread REPLACE each other in the tray, approximating a status card.
+ * automatically). Routed clients also receive a four-field `data` map used to
+ * select the exact native host registry entry. `collapse_key` plus the
+ * per-notification `tag` use the same bounded composite identity, making
+ * successive status pushes replace each other in the tray.
  * Forwards with an OAuth2 bearer and maps FCM's error taxonomy onto HTTP statuses
  * so the desktop's token-pruning logic stays uniform with the APNs path (notably
  * 410 → prune). Plain `fetch` over HTTP/1.1 is fine here; FCM v1 doesn't require
@@ -16,6 +16,8 @@ import type { AndroidPushRequest } from "./validate";
  */
 
 const REQUEST_TIMEOUT_MS = 10_000;
+const STATUS_CHANNEL_ID = "poracode_status_v1";
+const ATTENTION_CHANNEL_ID = "poracode_attention_v1";
 
 export interface FcmResult {
   status: number;
@@ -30,11 +32,18 @@ export interface FcmMessage {
   message: {
     token: string;
     notification: { title: string; body: string };
+    data?: {
+      version: string;
+      clientConnectionId: string;
+      desktopId: string;
+      threadId: string;
+    };
     android: {
       collapse_key?: string;
       priority: "HIGH" | "NORMAL";
       notification: {
         tag?: string;
+        channel_id: string;
         notification_priority: "PRIORITY_LOW" | "PRIORITY_DEFAULT";
       };
     };
@@ -46,23 +55,34 @@ export interface FcmMessage {
  * validated Android payload. FCM `android.priority` is HIGH only for priority 10
  * (matching the contract); 5/undefined map to NORMAL. `collapse_key` + `tag`
  * (both = collapseId) coalesce/replace a thread's successive status pushes.
- * `silent` maps to a low notification priority (a quiet tray update).
+ * `silent` maps to the versioned quiet status channel and low notification
+ * priority; all other notifications use the versioned attention channel.
  */
 export function buildFcmMessage(req: AndroidPushRequest): FcmMessage {
-  const { title, body, silent } = req.payload as {
+  const { title, body, silent, version, clientConnectionId, desktopId, threadId } = req.payload as {
     title: string;
     body: string;
     silent?: boolean;
+    version?: number;
+    clientConnectionId?: string;
+    desktopId?: string;
+    threadId: string;
   };
+  const data =
+    version === 1 && clientConnectionId && desktopId
+      ? { version: String(version), clientConnectionId, desktopId, threadId }
+      : undefined;
   return {
     message: {
       token: req.token,
       notification: { title, body },
+      ...(data ? { data } : {}),
       android: {
         ...(req.collapseId ? { collapse_key: req.collapseId } : {}),
         priority: req.priority === 10 ? "HIGH" : "NORMAL",
         notification: {
           ...(req.collapseId ? { tag: req.collapseId } : {}),
+          channel_id: silent ? STATUS_CHANNEL_ID : ATTENTION_CHANNEL_ID,
           notification_priority: silent ? "PRIORITY_LOW" : "PRIORITY_DEFAULT",
         },
       },

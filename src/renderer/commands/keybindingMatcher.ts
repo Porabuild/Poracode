@@ -1,4 +1,6 @@
-export { bindingForPlatform } from "@/shared/keybindings";
+import { bindingForPlatform, type KeybindingEntry } from "@/shared/keybindings";
+
+export { bindingForPlatform };
 
 const MODIFIER_ORDER = ["ctrl", "meta", "alt", "shift"] as const;
 export type PlatformName = "darwin" | "win32" | "linux" | NodeJS.Platform;
@@ -29,6 +31,20 @@ export function formatKeybinding(raw: string | undefined, platform: PlatformName
       return part[0]!.toUpperCase() + part.slice(1);
     })
     .join(platform === "darwin" ? "" : "+");
+}
+
+/**
+ * Format the chord bound to `commandId` for display, or "" when unbound. Uses
+ * the first matching entry, mirroring dispatch order in the keybinding hook.
+ */
+export function formatCommandShortcut(
+  commandId: string,
+  keybindings: readonly KeybindingEntry[],
+  platform: PlatformName,
+): string {
+  const binding = keybindings.find((item) => item.command === commandId);
+  if (!binding) return "";
+  return formatKeybinding(bindingForPlatform(binding, platform), platform);
 }
 
 export function eventToKeybinding(event: ChordEvent, platform: PlatformName): string {

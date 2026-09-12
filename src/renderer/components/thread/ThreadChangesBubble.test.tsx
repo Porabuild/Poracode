@@ -7,6 +7,13 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { ThreadChangesBubble } from "./ThreadChangesBubble";
 
+const compactLayoutMock = vi.hoisted(() => ({ value: false }));
+
+vi.mock("@/renderer/adaptiveLayout", () => ({
+  useCompactLayout: () => compactLayoutMock.value,
+  isCompactLayoutViewport: () => compactLayoutMock.value,
+}));
+
 vi.mock("@heroui/react", () => {
   const Tooltip = Object.assign((props: { children: ReactNode }) => <>{props.children}</>, {
     Trigger: (props: { children: ReactNode }) => <>{props.children}</>,
@@ -34,6 +41,7 @@ function makeStatus(overrides: Partial<GitStatusResult> = {}): GitStatusResult {
 
 describe("ThreadChangesBubble", () => {
   beforeEach(() => {
+    compactLayoutMock.value = false;
     useGitStore.setState({
       statuses: {},
       worktreeStatuses: {},
@@ -45,6 +53,7 @@ describe("ThreadChangesBubble", () => {
       gitReviewAsPanel: false,
       gitOverlayOpen: false,
       rightPanelTab: "git",
+      mobileUtilityPage: null,
     });
   });
 
@@ -100,6 +109,45 @@ describe("ThreadChangesBubble", () => {
       worktreePath,
     });
     expect(usePanelStore.getState().gitReviewAsPanel).toBe(true);
+  });
+
+  it("opens the dedicated Git page from the compact changes chip", () => {
+    compactLayoutMock.value = true;
+    const worktreePath = "/repo/.poracode/worktrees/mobile-git";
+    useGitStore.setState({
+      worktreeStatuses: {
+        [worktreePath]: makeStatus({ totalInsertions: 4, totalDeletions: 2 }),
+      },
+    });
+
+    render(<ThreadChangesBubble compact projectId="project-1" worktreePath={worktreePath} />);
+    const bubble = screen.getByRole("button", { name: "Review changes" });
+    expect(bubble.querySelector(".lucide-git-fork")).not.toBeNull();
+    expect(bubble.querySelector(".lucide-git-branch")).toBeNull();
+    fireEvent.click(bubble);
+
+    expect(usePanelStore.getState()).toMatchObject({
+      gitReviewContext: { projectId: "project-1", worktreePath },
+      gitReviewAsPanel: true,
+      gitOverlayOpen: false,
+      mobileUtilityPage: "workspace",
+      rightPanelTab: "git",
+    });
+  });
+
+  it("uses the branch icon for compact root-project changes", () => {
+    compactLayoutMock.value = true;
+    useGitStore.setState({
+      statuses: {
+        "project-1": makeStatus({ totalInsertions: 4 }),
+      },
+    });
+
+    render(<ThreadChangesBubble compact projectId="project-1" />);
+
+    const bubble = screen.getByRole("button", { name: "Review changes" });
+    expect(bubble.querySelector(".lucide-git-branch")).not.toBeNull();
+    expect(bubble.querySelector(".lucide-git-fork")).toBeNull();
   });
 
   it("shows the PR number beside its status-colored icon in the Git bubble", () => {

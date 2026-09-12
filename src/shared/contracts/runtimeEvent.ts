@@ -630,6 +630,30 @@ export const runtimeEventSchema = z.discriminatedUnion("type", [
     requestId: z.string(),
     outcome: requestOutcomeSchema,
   }),
+  /**
+   * Host-issued checkpoint rollback: every runtime item after `itemId` was
+   * deleted on the host and the completed turns anchored on those items went
+   * with them. `removedCompletedTurnAnchors` lists exactly the anchor ids of
+   * the completed turns the host deleted, computed in the same transaction as
+   * the deletion — clients prune by this server-declared set instead of local
+   * orphan detection, so turns anchored in older unloaded pages survive. The
+   * host publishes this event only for an actual truncation (runtime items
+   * were really deleted); a missing or already-last checkpoint removes
+   * nothing and is never broadcast, so a replayed event can only roll back
+   * state the host actually rolled back. An empty array is still meaningful:
+   * items were removed but no completed turns were anchored on them.
+   *
+   * Remote protocol v10: destructive synchronization semantics require a
+   * coordinated version; older exact-match peers cannot pair with a v10 host.
+   */
+  z.object({
+    type: z.literal("runtime.truncated"),
+    threadId: z.string(),
+    /** Checkpoint item that stays; every item after it was rolled back. */
+    itemId: z.string(),
+    /** Anchor item ids of the completed turns the host deleted. */
+    removedCompletedTurnAnchors: z.array(z.string()),
+  }),
   z.object({
     type: z.literal("warning"),
     threadId: z.string(),

@@ -1,16 +1,19 @@
 import { fork, type ChildProcess } from "node:child_process";
 import type { Readable } from "node:stream";
 import { randomUUID } from "node:crypto";
+import { constants as osConstants, setPriority } from "node:os";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import type { StartThreadPayload } from "@/shared/contracts";
-import type {
+import {
   IpcProcedurePayload,
   IpcProcedureResult,
   SupervisorEvent,
+  SupervisorFlowControl,
   SupervisorProcedureName,
   SupervisorReply,
   SupervisorRequest,
+  isSupervisorOutputShedSignal,
 } from "@/shared/ipc";
 
 function isSupervisorReply(message: unknown): message is SupervisorReply {
@@ -45,6 +48,7 @@ function pipeSupervisorStreamsToParent(child: ChildProcess): void {
 }
 
 export interface SupervisorClientOptions {
+  baseDir: string;
   appVersion: string;
   isDev: boolean;
   supervisorPath: string;
@@ -68,6 +72,8 @@ export interface SupervisorClientOptions {
    */
   bundledPluginsDir?: string;
   secretStorageKey: string;
+  /** Lower the supervisor and inherited agent processes below the desktop UI's priority. */
+  preferUiResponsiveness?: boolean;
   /**
    * Optional resolver invoked at every supervisor spawn, returning extra env
    * vars to merge into the child env. Used by the in-app browser MCP wiring
@@ -79,6 +85,13 @@ export interface SupervisorClientOptions {
   assignPid?(pid: number): Promise<void>;
   reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
   onEvent(event: SupervisorEvent): void;
+  /**
+   * The supervisor shed queued terminal-output batches for these threads
+   * under IPC backpressure. The backend must ask connected clients to
+   * resynchronize those threads' terminal output from the supervisor, which
+   * keeps the authoritative PTY bytes; the events themselves never persisted.
+   */
+  onOutputShed?(threadIds: string[]): void;
   onReset(): void;
   /**
    * Invoked after every (re)spawn of the supervisor process — including
@@ -91,10 +104,7 @@ export interface SupervisorClientOptions {
 
 export class SupervisorClient {
   private child: ChildProcess | null = null;
-  private baseDir: string | null = null;
   private disposed = false;
-  private readonly startedGate: Promise<void>;
-  private resolveStartedGate!: () => void;
   private readonly pendingRequests = new Map<
     string,
     {
@@ -103,11 +113,7 @@ export class SupervisorClient {
     }
   >();
 
-  constructor(private readonly options: SupervisorClientOptions) {
-    this.startedGate = new Promise<void>((resolve) => {
-      this.resolveStartedGate = resolve;
-    });
-  }
+  constructor(private readonly options: SupervisorClientOptions) {}
 
   private rejectPendingRequests(error: Error): void {
     for (const [id, pending] of this.pendingRequests) {
@@ -121,11 +127,26 @@ export class SupervisorClient {
     this.options.onReset();
   }
 
-  start(baseDir: string): void {
-    this.baseDir = baseDir;
-    this.resolveStartedGate();
-    this.stop(new Error("Supervisor restarting"));
+  /**
+   * Launch the supervisor child unless one is already running. Idempotent
+   * (P1-3): a duplicate boot path calling this while the supervisor is
+   * healthy is a no-op, so it can never kill a working child mid-stream.
+   * Use {@link restart} for explicit force-restart semantics.
+   */
+  start(): void {
+    if (this.disposed) throw new Error("Supervisor client is disposed.");
+    if (this.child) return;
+    this.launch();
+  }
 
+  /** Kill any running supervisor and launch a fresh child. */
+  restart(): void {
+    if (this.disposed) throw new Error("Supervisor client is disposed.");
+    this.stop(new Error("Supervisor restarting"));
+    this.launch();
+  }
+
+  private launch(): void {
     const extraEnv = this.options.resolveExtraEnv?.() ?? {};
     const child = fork(this.options.supervisorPath, [], {
       stdio: ["ignore", "pipe", "pipe", "ipc"],
@@ -133,7 +154,7 @@ export class SupervisorClient {
         ...process.env,
         PORACODE_APP_VERSION: this.options.appVersion,
         PORACODE_IS_DEV: this.options.isDev ? "1" : "0",
-        PORACODE_DATA_DIR: baseDir,
+        PORACODE_DATA_DIR: this.options.baseDir,
         PORACODE_SECRET_STORAGE_KEY: this.options.secretStorageKey,
         PORACODE_WSL_HELPERS_DIR: this.options.wslHelpersDir,
         // Back-compat for one release; older supervisor builds still read
@@ -154,6 +175,17 @@ export class SupervisorClient {
 
     this.child = child;
     if (typeof child.pid === "number") {
+      if (this.options.preferUiResponsiveness) {
+        try {
+          setPriority(child.pid, osConstants.priority.PRIORITY_BELOW_NORMAL);
+        } catch (error) {
+          console.warn(
+            "[poracode] failed to lower supervisor process priority:",
+            error instanceof Error ? error.message : String(error),
+          );
+          this.options.reportError?.(error, { "poracode.feature_area": "process-lifecycle" });
+        }
+      }
       void this.options.assignPid?.(child.pid).catch((error) => {
         console.error(
           "[poracode] failed to assign supervisor to Windows Job Object:",
@@ -164,6 +196,10 @@ export class SupervisorClient {
     }
 
     child.on("message", (message: SupervisorReply | SupervisorEvent) => {
+      if (isSupervisorOutputShedSignal(message)) {
+        this.options.onOutputShed?.(message.threadIds);
+        return;
+      }
       if (isSupervisorReply(message)) {
         const pending = this.pendingRequests.get(message.replyTo);
         if (!pending) {
@@ -189,13 +225,13 @@ export class SupervisorClient {
       }
       this.child = null;
       this.reset(new Error("Supervisor exited"));
-      if (!this.disposed && code !== 0 && this.baseDir) {
+      if (!this.disposed && code !== 0) {
         const error = new Error(`Supervisor exited with code ${code ?? "unknown"}`);
         console.error(`[poracode] ${error.message}, restarting…`);
         this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
         setTimeout(() => {
-          if (!this.child && this.baseDir) {
-            this.start(this.baseDir);
+          if (!this.disposed && !this.child) {
+            this.start();
           }
         }, 1000);
       }
@@ -212,9 +248,26 @@ export class SupervisorClient {
     terminateChildProcessTree(child);
   }
 
+  setOutputBackpressured(paused: boolean): void {
+    const child = this.child;
+    if (!child?.connected) return;
+    const message: SupervisorFlowControl = {
+      control: "set-output-backpressure",
+      paused,
+    };
+    try {
+      child.send(message, (error) => {
+        if (error) {
+          this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
+        }
+      });
+    } catch (error) {
+      this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
+    }
+  }
+
   dispose(): void {
     this.disposed = true;
-    this.resolveStartedGate();
     this.stop(new Error("Supervisor exited"));
   }
 
@@ -222,7 +275,7 @@ export class SupervisorClient {
     type: Name,
     payload: IpcProcedurePayload<Name>,
   ): Promise<IpcProcedureResult<Name>> {
-    await this.startedGate;
+    if (!this.child?.connected) this.start();
     const child = this.child;
     if (!child || !child.connected) {
       return Promise.reject(new Error("Supervisor is not running."));
@@ -230,7 +283,7 @@ export class SupervisorClient {
 
     const id = randomUUID();
     const requestPayload =
-      type === "startThread" && this.options.prepareStartThread
+      (type === "startThread" || type === "ensureThreadRunning") && this.options.prepareStartThread
         ? this.options.prepareStartThread(payload as StartThreadPayload)
         : payload;
     const request: SupervisorRequest = {

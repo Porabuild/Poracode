@@ -20,6 +20,7 @@ import {
   worktreeStorageModeSchema,
   mcpServerListSchema,
   installedPluginsSchema,
+  normalizeBuiltInMcpDisabledTools,
   workspaceListSchema,
 } from "./contracts";
 import {
@@ -600,7 +601,7 @@ export const sharedSettingsSchema = z.object({
    * Which one is *active* is not stored here but per-window (see the renderer's
    * `workspaceStore`), so switching in one window leaves the others alone.
    *
-   * Not part of `remoteSettingsSchema`, so paired clients (mobile PWA) receive no
+   * Not part of `remoteSettingsSchema`, so paired browser clients receive no
    * workspace list and therefore show every project — add it to that allowlist if
    * workspaces should scope remote sessions too.
    */
@@ -793,7 +794,7 @@ export const defaultSharedSettings: SharedSettings = {
   worktreeBasePath: "",
   wslWorktreeBasePath: "",
   gitReviewMode: "panel",
-  prCreateMode: "dialog",
+  prCreateMode: "auto",
   prAutomationDefault: "off",
   prMergeMethod: "squash",
   commitDefaultAction: "commit-push",
@@ -1560,12 +1561,13 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
   settings: SharedSettings;
   acpAliasMigrated: boolean;
 } {
+  const migratedValue = sanitizeLegacyMcpServerUrls(value);
   const normalized = normalizeObjectFromSchema(
     sharedSettingsSchema.shape,
     defaultSharedSettings,
-    value,
+    migratedValue,
   );
-  const parsed = z.record(z.string(), z.unknown()).safeParse(value);
+  const parsed = z.record(z.string(), z.unknown()).safeParse(migratedValue);
   if (!parsed.success) return { settings: normalized, acpAliasMigrated: false };
 
   const hasAutomationMode = prAutomationModeSchema.safeParse(
@@ -1600,6 +1602,10 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
       machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
       threadDocksOrder: normalizeThreadDocksOrder(normalized.threadDocksOrder),
+      // Legacy `chrome_`-prefixed tool names are normalized once here at the
+      // load boundary so the Zod schema (and the remote-v3 wire derived from
+      // it) can stay transform-free.
+      disabledBuiltInMcpTools: normalizeBuiltInMcpDisabledTools(normalized.disabledBuiltInMcpTools),
       prAutomationDefault: hasAutomationMode
         ? normalized.prAutomationDefault
         : legacyAutomationMode,
@@ -1614,6 +1620,44 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
       },
     }),
   );
+}
+
+/**
+ * Older unversioned settings accepted URL userinfo and fragments for HTTP/SSE
+ * MCP transports. Strip those credential-bearing components before the
+ * stricter schema parses the list so one legacy entry does not reset all MCP
+ * servers to the default empty list.
+ */
+function sanitizeLegacyMcpServerUrls(value: unknown): unknown {
+  const root = z.record(z.string(), z.unknown()).safeParse(value);
+  if (!root.success || !Array.isArray(root.data.mcpServers)) return value;
+  return {
+    ...root.data,
+    mcpServers: root.data.mcpServers.map((entry) => {
+      const server = z.record(z.string(), z.unknown()).safeParse(entry);
+      if (!server.success) return entry;
+      const transport = z.record(z.string(), z.unknown()).safeParse(server.data.transport);
+      if (
+        !transport.success ||
+        (transport.data.type !== "http" && transport.data.type !== "sse") ||
+        typeof transport.data.url !== "string"
+      ) {
+        return entry;
+      }
+      try {
+        const url = new URL(transport.data.url);
+        url.username = "";
+        url.password = "";
+        url.hash = "";
+        return {
+          ...server.data,
+          transport: { ...transport.data, url: url.toString() },
+        };
+      } catch {
+        return entry;
+      }
+    }),
+  };
 }
 
 export function normalizeSharedSettings(value: unknown): SharedSettings {

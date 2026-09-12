@@ -1,14 +1,7 @@
-import { homedir } from "node:os";
-import type { Project, ProjectLocation } from "@/shared/contracts";
+import type { Project } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
+import { homeScopeLocation } from "@/shared/homeScopeLocation";
 import { dbGetProjects, dbUpsertProject } from "../db";
-
-/** Home-scope location, matching the `getHomeScopeLocation` main-local handler. */
-export function homeScopeLocation(): ProjectLocation {
-  return process.platform === "win32"
-    ? { kind: "windows", path: homedir() }
-    : { kind: "posix", path: homedir() };
-}
 
 /**
  * Resolve the persisted "Home" project row that scheduled-run threads live

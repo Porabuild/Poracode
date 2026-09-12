@@ -44,11 +44,11 @@ export function maxBroadcastEventBytes(outboundBudgetBytes: number): number {
   return Math.max(1, Math.floor(outboundBudgetBytes * EVENT_BUDGET_FRACTION));
 }
 
-export type CappedBroadcastEvent =
+export type CappedBroadcastEvent<T extends RemoteBroadcastEvent = RemoteBroadcastEvent> =
   | {
       /** Fits as-is; `json` is the serialized event, reusable by the caller. */
       readonly kind: "sendable";
-      readonly event: RemoteBroadcastEvent;
+      readonly event: T;
       readonly json: string;
       readonly bytes: number;
       readonly omittedBytes: number;
@@ -178,15 +178,33 @@ function projectEventImageRefs(event: RemoteBroadcastEvent): RemoteBroadcastEven
   });
 }
 
+export interface CapBroadcastEventOptions {
+  /**
+   * Mint host-side image references for large inline images before measuring
+   * (defaults to on). Only the remote transport may do this: its clients
+   * resolve refs over HTTP, while the desktop renderer IPC contract keeps
+   * inline bytes, so the desktop stream passes `{ projectImageRefs: false }`
+   * and relies on field withholding alone.
+   */
+  readonly projectImageRefs?: boolean;
+}
+
 /**
  * Serializes `event`, and when it exceeds `maxBytes` withholds its largest
- * runtime payload fields until it fits.
+ * runtime payload fields until it fits. Generic over the exact event type so
+ * callers that route narrower unions (the desktop stream's `SupervisorEvent`)
+ * keep them through the cap.
  */
-export function capBroadcastEvent(
-  original: RemoteBroadcastEvent,
+export function capBroadcastEvent<T extends RemoteBroadcastEvent>(
+  original: T,
   maxBytes: number,
-): CappedBroadcastEvent {
-  const event = projectEventImageRefs(original);
+  options: CapBroadcastEventOptions = {},
+): CappedBroadcastEvent<T> {
+  // The projection only ever rebuilds objects along payload paths, so the
+  // runtime value still satisfies the caller's narrower `T`.
+  const event = (
+    options.projectImageRefs === false ? original : projectEventImageRefs(original)
+  ) as T;
   const json = JSON.stringify(event);
   const bytes = json === undefined ? 0 : Buffer.byteLength(json, "utf8");
   if (bytes <= maxBytes) {
@@ -231,7 +249,9 @@ export function capBroadcastEvent(
   if (cappedBytes > maxBytes) return { kind: "undeliverable", bytes: cappedBytes };
   return {
     kind: "sendable",
-    event: capped,
+    // The cap only rebuilds objects along payload paths of the original event,
+    // so the runtime value still satisfies the caller's narrower `T`.
+    event: capped as T,
     json: cappedJson ?? "null",
     bytes: cappedBytes,
     omittedBytes,

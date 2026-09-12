@@ -1,252 +1,278 @@
-# Poracode mobile beta release
+# Native mobile release
 
-Poracode ships one mobile client from `src/mobile` to a hosted PWA, Android via
-Capacitor, and iOS via Capacitor. The native application identifier is locked to
-`com.lightcodeapp.mobile`; the iOS Live Activity extension uses
-`com.lightcodeapp.mobile.PoracodeActivities`.
+Poracode ships two independent native mobile clients:
 
-The first beta is an internal TestFlight build and a Google Play internal-test
-release. Public store-listing screenshots and promotional art are not part of
-the internal-beta gate.
+- `ios/App/App.xcodeproj` is a Swift 6 and SwiftUI application.
+- `android/` is a Kotlin and Jetpack Compose application.
 
-## Repository release gates
+Neither app embeds `dist/web`, starts Vite, or runs the React renderer in a
+WebView. The hosted PWA has its own release workflow and is not an input to the
+native store binaries. Both native apps retain the store identifier
+`com.lightcodeapp.mobile`.
 
-Run these before creating a mobile release:
+Capacitor is fully removed — dependencies, scripts, configuration files, and
+both webview shells. It must not be reintroduced; the native projects are
+hand-maintained. `pnpm run dev:ios` and `pnpm run dev:android` invoke the native
+watch/reload runners; append `-- --once` for a one-shot build/install/launch.
+
+## Supported platform baselines
+
+| Client  | Build toolchain                   | Build target                    | Minimum OS |
+| ------- | --------------------------------- | ------------------------------- | ---------- |
+| iOS     | Xcode 26.6 with the iOS 26.5 SDK  | Swift 6 / native iPhone archive | iOS 17     |
+| Android | JDK 21, AGP 9.3.1, build-tools 37 | Android 17 / API 37             | API 26     |
+
+There is no iOS 26.6 SDK: Xcode 26.6 is intentionally paired with the iOS 26.5
+device and simulator SDKs. Android compiles and targets API 37 while retaining
+`minSdk = 26`.
+
+## Remote-v3 release status
+
+`protocol/remote/v3/manifest.json` is the canonical cross-client inventory. It
+currently declares protocol v3 with 56 HTTP routes, 100 supervisor procedures,
+8 client WebSocket messages, and 9 server WebSocket messages.
+
+The generator currently commits these normalized artifacts:
+
+- `protocol/remote/v3/generated/inventory.json`
+- `protocol/remote/v3/generated/ir.json`
+- `protocol/remote/v3/generated/json-schema.bundle.json`
+- `protocol/remote/v3/generated/native/native-bindings.json`
+- manifest-listed Swift and Kotlin sources under
+  `protocol/remote/v3/generated/native/{swift,kotlin}`
+
+The inventory records protocol version, generator version, binding-format
+version, source hash, and manifest hash. Binding format v2 is independent of
+wire protocol v3 and must be reviewed and bumped when the generated IR shape
+changes.
+
+Both apps compile the manifest-listed generated bundle as production source.
+The iOS target uses an Xcode file-system-synchronized source group and bundles
+the native manifest for a startup version check. Android adds the generated
+Kotlin directory to its main source set and runs a pre-build manifest/version/
+membership check. Stable app-owned facades keep hash-derived generated names out
+of UI and domain state while validating the HTTP and WebSocket boundaries that
+are currently implemented.
+
+The bundle contains roots for all 56 routes, 100 procedures, and 17 WebSocket
+message types. The native parity ledger
+(`protocol/remote/v3/native-parity.json`) records 200 implemented entries and 1
+unsupported-by-wire entry on each platform; `push-config` is the intentional
+unsupported entry. A green binding or parity gate proves executable wire-schema
+coverage and source freshness, not UI end-to-end proof, so native journey tests
+remain the authority for whether an operation is actually user-accessible.
+
+Check the committed contract before a release:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm i18n:extract
-pnpm run typecheck
-pnpm run lint
-pnpm run test
-pnpm run build:mobile
-
-cd android
-./gradlew lintRelease bundleRelease
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm run protocol:remote:v3:check
+pnpm exec vitest run --configLoader runner protocol/remote/v3
+git diff --exit-code -- protocol/remote/v3/generated
 ```
 
-The signed iOS archive/export gate runs on GitHub's `macos-26` image with Xcode 26. It cannot run on Windows. `.github/workflows/release-mobile.yml` assigns a
-unique store build number from `GITHUB_RUN_NUMBER` and `GITHUB_RUN_ATTEMPT`, and
-reads the three-integer marketing version from `package.json` (or a
-`mobile-vX.Y.Z` tag).
+Only run `pnpm run protocol:remote:v3:generate` after an intentional contract or
+generator change. Never maintain a second complete protocol definition by hand
+inside either native app.
 
-## Public URLs
+## Pull-request gates
 
-These URLs are Poracode's hosted-PWA, legal, and verified-link acceptance gates.
-Internal TestFlight and Play installation can work without the association
-endpoints, but the links must be live before testing universal/app links or
-using them as store metadata:
+`.github/workflows/native-ci.yml` is the native pull-request gate. It currently
+requires:
 
-- Stable PWA: `https://app.poracode.com/`
-- Nightly PWA: `https://app-nightly.poracode.com/`
-- Privacy policy: `https://poracode.com/privacy`
-- Support: `https://poracode.com/support`
-- Apple association: `https://poracode.com/.well-known/apple-app-site-association`
-- Android association: `https://poracode.com/.well-known/assetlinks.json`
+- synchronized remote-v3 generated artifacts and contract fixtures;
+- 910 Android JVM unit tests, debug APK assembly, and lint against API 37;
+- 9 connected instrumentation tests, install, and cold launch on an Android
+  17/API 37 emulator;
+- a dedicated minimum-SDK launch test on an Android 8/API 26 emulator;
+- iOS `AppTests` (1,148 passed, 1 skipped) on an iOS 26.5 simulator under Xcode 26.6; and
+- the host-side native wire lab plus a real production headless-host smoke test.
 
-The association routes are owned by the marketing website. Configure these in
-the production environment for that Vercel project:
+The Android emulator jobs run the native `androidTest` suite, including API 37
+`ACCESS_LOCAL_NETWORK` and `POST_NOTIFICATIONS` runtime-permission deny, grant,
+and revoke flows and push-extra consumption, plus a separate API 26 pairing-entry
+launch test. They verify install and cold launch. These gates consume a fresh checkout of the committed corpus; the
+current working tree's native sources are not covered until they are committed.
+The native wire lab still does not drive complete SwiftUI or Compose feature
+journeys. Treat real-host native UI coverage as a separate release gate.
 
-| Variable                                           | Value                                                    |
-| -------------------------------------------------- | -------------------------------------------------------- |
-| `PORACODE_MOBILE_APPLE_TEAM_ID`                    | Apple Developer Team ID                                  |
-| `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS` | Play App Signing SHA-256 fingerprint(s), comma separated |
-| `PORACODE_MOBILE_APP_ID`                           | Optional; defaults to `com.lightcodeapp.mobile`          |
+Useful local equivalents are:
 
-Both endpoints intentionally return valid empty associations until the account
-values exist. After configuration, verify a direct 200 response with
-`Content-Type: application/json` and no redirect.
+```bash
+cd android
+./gradlew clean testDebugUnitTest assembleDebug lintDebug --no-daemon --stacktrace
 
-The production push gateway runs in the same Vercel project. Configure these as
-encrypted production environment variables before testing notifications:
+cd ../ios/App
+xcodebuild test \
+  -project App.xcodeproj \
+  -scheme App \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+  -parallel-testing-enabled NO
+```
 
-| Variable                     | Value                                                           |
-| ---------------------------- | --------------------------------------------------------------- |
-| `FCM_PROJECT_ID`             | Firebase project ID                                             |
-| `FCM_CLIENT_EMAIL`           | Firebase service-account email                                  |
-| `FCM_PRIVATE_KEY`            | Firebase service-account private key                            |
-| `APNS_KEY_ID`                | Apple Push Notifications key ID                                 |
-| `APNS_TEAM_ID`               | Apple Developer Team ID                                         |
-| `APNS_AUTH_KEY`              | Full Apple Push Notifications `.p8` contents                    |
-| `APNS_TOPIC`                 | `com.lightcodeapp.mobile`                                       |
-| `APNS_ENV`                   | `production` (the default; use `sandbox` only for development)  |
-| `WEB_PUSH_VAPID_PUBLIC_KEY`  | Public VAPID key used by installed PWAs                         |
-| `WEB_PUSH_VAPID_PRIVATE_KEY` | Matching private VAPID key; keep encrypted                      |
-| `WEB_PUSH_VAPID_SUBJECT`     | Optional contact URI; defaults to `mailto:support@poracode.com` |
+## Final native release evidence
 
-Generate the VAPID pair once with
-`pnpm --dir website exec web-push generate-vapid-keys --json`. Keep the same
-pair across deployments: rotating it forces every installed PWA to create a
-new browser subscription the next time it connects.
+The final iOS run used Xcode 26.6 build 17F113 and an iOS 26.5 simulator, with
+the deployment floor still at iOS 17. The complete `AppTests` run executed 1,149
+tests: 1,148 passed, 0 failed, and 1 skipped. A separate generic iOS device build
+with signing disabled succeeded; this was a compile/build check, not a physical-
+device test. The secure real-SwiftUI journey ran one XCUITest in 63.5 seconds:
+1 passed, 0 failed, and 0 skipped. Across two harness hosts it recorded exactly
+one send and one interrupt, 3 snapshots, 3 histories, WebSocket cursors
+`1 -> 4 -> 5`, and one `resync-required`; the second host recorded 8 operations
+and no send or interrupt. Secret scans were clean.
 
-## GitHub release configuration
+The final Android run used an Android 17/API 37 emulator, with `minSdk = 26`.
+The complete JVM suite executed 910 tests: 910 passed, 0 failed, and 0 skipped.
+`compileDebugKotlin`, `compileDebugAndroidTestKotlin`, and `lintDebug` passed.
+Connected instrumentation executed 9 tests: 9 passed, 0 failed, and 0 skipped.
+The separate Android 8/API 26 minimum-SDK launch test also passed: 1 passed,
+0 failed, and 0 skipped.
+The real native journey recorded exactly one send, one interrupt, 3 snapshots,
+4 histories, and 3 WebSocket connections with cursors `0 -> 8 -> 8`; it
+observed one `resync-required` and no collision-host operations. The journey
+exercised real `ACCESS_LOCAL_NETWORK` denial, grant, and **Try again** handling,
+plus background reconnect, resynchronization, notification channels, and
+disconnect. This is emulator evidence, not a physical-device result.
 
-The `mobile-android` and `mobile-ios` environments are used by the native
-release workflow (`release-mobile.yml`); the `mobile-web` environment is used by
-the standalone PWA workflow (`release-pwa.yml`). Set
-`PORACODE_MOBILE_APP_HOST=poracode.com` in all three and `PLAY_TRACK=internal`
-in `mobile-android`. Each environment requires approval from the repository
-owner and only accepts deployments from `master` or a `mobile-v*` tag. The
-workflows pin third-party actions to immutable commits and scope publisher
-credentials to the steps that consume them.
+The host-side native harness passed 96 of 96 tests across 34 files. The principal
+reproduction commands are:
 
-### `mobile-web`
+```bash
+pnpm run native:e2e
+node scripts/native-e2e.mjs ios-ui
 
-Used by **Release PWA** (`release-pwa.yml`), which deploys the hosted PWA to
-Vercel production independently of the native store releases. The environment
-needs `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, and this secret:
+cd ios/App
+xcodebuild build \
+  -project App.xcodeproj \
+  -scheme App \
+  -destination 'generic/platform=iOS' \
+  CODE_SIGNING_ALLOWED=NO
 
-- `VERCEL_TOKEN`
+cd ../../android
+./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
+```
 
-### `mobile-android`
+These local simulator, emulator, and harness results do not establish physical-
+device coverage, publication to either store, or delivery of untracked or
+otherwise unpublished working-tree artifacts.
 
-Create one long-lived upload keystore, keep an offline backup, and add:
+## Native release workflow
 
+`.github/workflows/release-mobile.yml` builds the native projects directly. It
+does not run a web build. A `mobile-vX.Y.Z` tag selects
+both platforms and uses `X.Y.Z` as the store version. A manual dispatch can
+select Android, iOS, or both and uses `package.json#version`. The workflow
+derives a monotonic build number from the GitHub run number and attempt.
+
+### Android
+
+The `mobile-android` environment:
+
+1. installs Android 17/API 37, validates the Firebase client for
+   `com.lightcodeapp.mobile`, and checks `compileSdk = 37`, `targetSdk = 37`, and
+   `minSdk = 26`;
+2. runs the 910 JVM unit tests and release lint;
+3. builds a signed release AAB (the PR gate separately assembles a debug APK)
+   and SHA-256 checksum; and
+4. uploads the bundle as release evidence for 30 days.
+
+Required Android release secrets are:
+
+- `ANDROID_GOOGLE_SERVICES_JSON_BASE64`
 - `ANDROID_KEYSTORE_BASE64`
 - `ANDROID_KEYSTORE_PASSWORD`
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
-- `ANDROID_GOOGLE_SERVICES_JSON_BASE64`
-- `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS` after Play processes the
-  first manually uploaded AAB
-- `PLAY_SERVICE_ACCOUNT_JSON` only after the first AAB has been uploaded manually
 
-PowerShell encodes the binary files without line wrapping:
+If `PLAY_SERVICE_ACCOUNT_JSON` is configured, the workflow also publishes the
+AAB to the Google Play track in `PLAY_TRACK`, defaulting to `internal`. Without
+that optional credential, the signed AAB remains a downloadable workflow
+artifact and must be uploaded separately.
 
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("poracode-upload.keystore"))
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("google-services.json"))
-```
+### iOS
 
-### `mobile-ios`
+The `mobile-ios` environment:
 
-The existing repository `APPLE_TEAM_ID` secret is accepted as the team-ID
-fallback. Add:
+1. selects Xcode 26.6 and verifies both iOS 26.5 SDKs plus the iOS 17 deployment
+   floor;
+2. runs the `AppTests` suite on an iOS 26.5 simulator (1,148 passed and 1 skipped
+   in the final local evidence run);
+3. archives and exports the native `App` scheme with automatic signing;
+4. uploads the IPA, checksum, and dSYMs as release evidence; and
+5. uploads the IPA to TestFlight.
 
-- `APP_STORE_CONNECT_KEY_ID`
+Required secrets are:
+
 - `APP_STORE_CONNECT_ISSUER_ID`
-- `APP_STORE_CONNECT_PRIVATE_KEY` (the full `.p8` contents)
+- `APP_STORE_CONNECT_KEY_ID`
+- `APP_STORE_CONNECT_PRIVATE_KEY`
+- `PORACODE_MOBILE_APPLE_TEAM_ID` (or the fallback `APPLE_TEAM_ID`)
 
-Use an Admin **team App Store Connect API key**, not an individual API key.
-Individual keys cannot use Apple's provisioning endpoints. Xcode cloud signing
-provisions the app and extension, archives `App.xcodeproj`, exports an IPA, and
-uploads it to TestFlight without a locally imported distribution certificate.
+The workflow deletes the decoded Android Firebase configuration, Android
+keystore, and Apple signing material from its runner after use.
 
-Keep a durable copy of the one-time-download App Store Connect `.p8` outside the
-repository. GitHub secrets are deployment copies and cannot be retrieved as
-backups.
+## Verified links and hosted PWA
 
-## Apple one-time setup
+The native apps claim verified `https://poracode.com/`, `/pair`, and `/app`
+links. `poracode://pair` remains a development fallback. Production verification
+requires the matching Digital Asset Links and Apple app-site-association JSON to
+be served without redirects from `https://poracode.com/.well-known/`.
 
-1. In Certificates, Identifiers & Profiles, register
-   `com.lightcodeapp.mobile` with Push Notifications and Associated Domains.
-2. Register `com.lightcodeapp.mobile.PoracodeActivities` as the extension ID.
-3. Create an Admin team App Store Connect API key and add the GitHub secrets
-   above. Do not use an individual API key because Xcode automatic provisioning
-   cannot use it.
-4. Create the App Store Connect app record: platform iOS, name `Poracode`, bundle
-   ID `com.lightcodeapp.mobile`, primary language English (U.S.), and a unique
-   SKU such as `poracode-ios`.
-5. Set Privacy Policy URL to `https://poracode.com/privacy` and Support URL to
-   `https://poracode.com/support`.
-6. Complete App Privacy, age rating, content-rights, and export-compliance
-   questions. Do not automatically answer “no encryption”: Poracode includes an
-   SSH client and SwiftCrypto, so the encryption/export answer must be reviewed
-   in App Store Connect.
-7. Add an internal tester group and enable automatic distribution if uploaded
-   builds should appear there without a manual assignment. External TestFlight
-   testing additionally requires Beta App Review and a stable review pairing
-   path.
+The web build can generate those JSON documents from:
 
-### TestFlight copy
+| Setting                                            | Purpose                           |
+| -------------------------------------------------- | --------------------------------- |
+| `PORACODE_MOBILE_APPLE_TEAM_ID`                    | Apple Developer Team ID           |
+| `PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS` | Play signing SHA-256 fingerprints |
+| `PORACODE_MOBILE_APP_ID`                           | Optional package ID override      |
 
-Beta description:
+Generating files in `dist/web` or deploying the PWA does not by itself prove
+that the `poracode.com` origin serves the correct production documents. Verify
+both URLs and OS-level link routing before release.
 
-> Poracode for iPhone and iPad is the mobile companion for the Poracode desktop
-> app. Pair with a desktop to monitor coding agents, reply when they need input,
-> review work, and receive optional status notifications away from your desk.
+`.github/workflows/release-pwa.yml` and
+`.github/workflows/deploy-nightly-pwa.yml` own the separately installable React
+PWA. PWA success is not a substitute for a native build, test, or store release.
 
-What to Test:
+## Capabilities that must not be inferred from configuration
 
-> Pair with a Poracode desktop by scanning its QR code or entering the endpoint
-> and token. Verify project/thread navigation, terminal and native-chat updates,
-> sending a reply, camera and local-network permission prompts, background
-> notifications, universal links, and Live Activity status. Report the desktop
-> and mobile versions, device model, iOS version, and exact reproduction steps.
+The iOS project has associated-domain/APNs entitlements, native APNs
+registration and routing, and an ActivityKit extension. The Android project
+includes `firebase-bom`/`firebase-messaging`, `PushRuntime` FCM token
+registration, `PoracodeFirebaseMessagingService` native FCM routing, and API 37
+notification/local-network runtime-permission instrumentation. These facts do
+not establish end-to-end native push delivery. Likewise, the existence of
+app-link declarations does not establish production domain verification. Do not
+advertise native push, Live Activity updates, or verified links as complete
+until device-level registration, delivery, tap routing, revocation, and
+permission tests pass on release builds.
 
-Feedback email: `support@poracode.com`
+## Promotion checklist
 
-Review note:
+Before promoting either native client:
 
-> Poracode is a companion client and requires a reachable Poracode desktop.
-> Provide Beta App Review with a dedicated reachable desktop endpoint and
-> pairing token; do not submit a short-lived QR code as static credentials.
+1. Require the native CI gate and the selected release job to pass without
+   skipped required work.
+2. Confirm the contract inventory and every generated native binding bundle are
+   current, version-compatible, and compiled into the app.
+3. Exercise manual pairing, verified-link pairing, replacement confirmation,
+   token exchange, reconnect, replay/resync, and explicit unpair against a real
+   production host.
+4. Exercise every remote-v3 capability exposed by the release, including real
+   PTY and structured-provider paths. Do not describe unintegrated manifest
+   entries as shipped features.
+5. Test cold launch, background/foreground restoration, network changes, and
+   long-running reconnect churn on the minimum and current OS versions.
+6. Test phone/tablet layouts, rotation, Dynamic Type/font scaling,
+   VoiceOver/TalkBack, keyboard navigation, and reduced-motion behavior.
+7. Verify `poracode.com` association responses and installed-app routing with
+   the production signing identities.
+8. Verify store metadata, version/build numbers, signing identity, checksums,
+   symbol upload, staged rollout settings, and rollback ownership.
+9. Treat native push and Live Activities as separate release gates until
+   device-level registration, delivery, tap-routing, and revocation evidence
+   exists.
 
-## Google Play one-time setup
-
-1. Complete Play Console developer enrollment and create an app named
-   `Poracode`, default language English (United States), package
-   `com.lightcodeapp.mobile`, app/game = App, free.
-2. Generate one upload key, back it up, and add its encoded
-   keystore/password/alias values to the GitHub environment. Select Play App
-   Signing with a Google-generated app-signing key for the first release.
-3. Add `com.lightcodeapp.mobile` to Firebase, download `google-services.json`,
-   encode it, and add `ANDROID_GOOGLE_SERVICES_JSON_BASE64`.
-4. Complete App access, Ads, Content rating, Target audience, Privacy policy,
-   and the Data safety form applicable to the selected testing track.
-5. Run the workflow with Android selected, download the signed AAB artifact,
-   and upload that first AAB manually to Internal testing. Google Play does not
-   allow the publishing API action to create the app's first release. The first
-   build intentionally allows an empty `assetlinks.json` because Play has not
-   exposed its app-signing certificate yet.
-6. After Play processes the first AAB, copy the **App signing key certificate**
-   SHA-256 fingerprint to the GitHub secret and the marketing website production
-   variable, then redeploy the website. Do not use the upload or debug
-   certificate fingerprint.
-7. Create a Google Play Android Developer API
-   service account, grant it release access to this app, and add its complete
-   JSON key as `PLAY_SERVICE_ACCOUNT_JSON`. Later workflow runs publish to the
-   configured track automatically.
-
-Store listing name: `Poracode`
-
-Short description:
-
-> Run, monitor, and steer desktop coding agents securely from your phone.
-
-Full description:
-
-> Poracode is the mobile companion for the Poracode desktop app. Pair your phone
-> with a desktop you control to follow active coding sessions, read terminal and
-> native chat output, respond when an agent needs input, inspect project work,
-> and receive optional status notifications. Poracode supports local-network and
-> HTTPS desktop connections. A running Poracode desktop is required; the mobile
-> app does not provide a hosted coding-agent account.
-
-Initial release note:
-
-> First beta: pair with Poracode desktop, monitor and steer agent threads, scan
-> pairing QR codes, and receive optional status notifications.
-
-Privacy policy: `https://poracode.com/privacy`
-
-Support: `https://poracode.com/support`
-
-## First release
-
-1. Finish the account setup above and configure the secrets.
-2. Deploy the website changes and verify all five public URLs.
-3. In GitHub Actions, run **Release Mobile** with iOS and Android selected.
-   TestFlight upload is automatic. Leave `PLAY_SERVICE_ACCOUNT_JSON` unset for
-   the first run so the workflow produces the signed AAB without attempting the
-   unsupported first API upload.
-4. Download `poracode-android-<version>-<build>.zip` from the workflow and upload
-   its AAB to the Play Internal testing release.
-5. Select the processed TestFlight build for the internal tester group and roll
-   out the Play internal release.
-
-After both first uploads exist, a `mobile-vX.Y.Z` tag builds and uploads the
-native targets with monotonically increasing build numbers; the hosted PWA is
-released separately by running **Release PWA** in GitHub Actions. TestFlight
-distribution is automatic only for groups where **Enable automatic
-distribution** is turned on.
+See `docs/MOBILE_DEV.md` for local development and
+`docs/REMOTE_ARCHITECTURE.md` for transport and ownership boundaries.

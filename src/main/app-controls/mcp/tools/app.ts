@@ -55,9 +55,9 @@ export const appTools: ToolDomain = {
         },
       };
     },
-    notify_user: (args, ctx) => {
+    notify_user: async (args, ctx) => {
       const { title, body } = notifyArgsSchema.parse(args);
-      const result = ctx.notifyUser({
+      const result = await ctx.notifyUser({
         title,
         body: body ?? "",
         threadId: ctx.identity.threadId ?? "",

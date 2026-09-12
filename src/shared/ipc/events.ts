@@ -31,6 +31,12 @@ export type SupervisorRequest = {
   };
 }[SupervisorProcedureName];
 
+/** Trusted parent-to-supervisor flow control; kept outside the procedure RPC map. */
+export interface SupervisorFlowControl {
+  control: "set-output-backpressure";
+  paused: boolean;
+}
+
 export type SupervisorReply =
   | { replyTo: string; ok: true; data: unknown }
   | { replyTo: string; ok: false; error: string };
@@ -80,7 +86,15 @@ export type SupervisorEvent =
     }
   | { type: "thread-reset"; threadId: string }
   | { type: "thread-voice"; threadId: string; event: LiveVoiceEvent }
-  | { type: "thread-output"; threadId: string; data: string; outputLength: number }
+  | { type: "thread-scrollback-resync"; threadId: string }
+  | {
+      type: "thread-output";
+      threadId: string;
+      data: string;
+      outputLength: number;
+      /** Terminal instance/generation id; batching must not coalesce across this. */
+      terminalInstanceId: string;
+    }
   | { type: "thread-runtime-event"; threadId: string; event: RuntimeEvent }
   | { type: "thread-runtime-events"; threadId: string; events: RuntimeEvent[] }
   | {
@@ -237,3 +251,28 @@ export type UpdateStatus =
   | { type: "downloaded"; version: string }
   | { type: "error"; message: string; messageKey?: never }
   | { type: "error"; messageKey: MessageKey; message?: never };
+
+/**
+ * Recovery signal the supervisor's IPC sender emits when a sustained
+ * backend-host stall forces it to shed queued terminal-output batches
+ * (oldest first) instead of failing fatally. The backend host responds by
+ * asking connected clients to resynchronize those threads' terminal output
+ * from the supervisor, which remains the authoritative source for PTY bytes.
+ */
+export type SupervisorOutputShedSignal = {
+  kind: "supervisor-output-shed";
+  /** Threads whose queued terminal output was shed, oldest shed first. */
+  threadIds: string[];
+};
+
+export function isSupervisorOutputShedSignal(
+  message: unknown,
+): message is SupervisorOutputShedSignal {
+  if (typeof message !== "object" || message === null) return false;
+  const candidate = message as Record<string, unknown>;
+  return (
+    candidate.kind === "supervisor-output-shed" &&
+    Array.isArray(candidate.threadIds) &&
+    candidate.threadIds.every((id) => typeof id === "string")
+  );
+}

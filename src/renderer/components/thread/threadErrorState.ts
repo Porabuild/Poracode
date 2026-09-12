@@ -95,7 +95,7 @@ export function isAuthErrorMessage(message: string): boolean {
 
 /**
  * Whether the auth-required dock applies, shared by every surface that hosts it
- * (the desktop composer and the mobile PWA's action-dock card). A stale runtime
+ * across full and compact composer presentations. A stale runtime
  * auth error — e.g. a 401 from before the user signed in — must not keep the
  * dock visible once detection confirms the agent is authenticated again;
  * `hasRuntimeAuthError` is returned separately because the error dock hides

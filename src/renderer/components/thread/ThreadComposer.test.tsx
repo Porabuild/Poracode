@@ -1,7 +1,11 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
+import {
+  shouldMoveComposerControlToMobileOverflow,
+  ThreadComposer,
+  type ComposerControl,
+} from "./ThreadComposer";
 
 const originalResizeObserver = globalThis.ResizeObserver;
 
@@ -120,6 +124,30 @@ describe("ThreadComposer", () => {
 
   afterEach(() => {
     globalThis.ResizeObserver = originalResizeObserver;
+  });
+
+  it("keeps Fast visible while moving lower-priority mobile controls into overflow", () => {
+    expect(
+      shouldMoveComposerControlToMobileOverflow({
+        kind: "toggle",
+        label: "Fast",
+        isSelected: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldMoveComposerControlToMobileOverflow({
+        kind: "toggle",
+        label: "Work",
+        isSelected: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldMoveComposerControlToMobileOverflow({
+        value: "Auto",
+        options: ["Auto"],
+        iconKind: "permission",
+      }),
+    ).toBe(true);
   });
 
   it("does not hide labels just because they are eligible to hide on wrap", () => {

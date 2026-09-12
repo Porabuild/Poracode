@@ -17,6 +17,7 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import { useShallow } from "zustand/shallow";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -43,6 +44,7 @@ export function BrowserToolbar(props: {
 }) {
   const { onMenuPreviewChange } = props;
   const { t } = useLingui();
+  const compact = useCompactLayout();
   const { activeTabId, activeTab } = useBrowserPanelStore(
     useShallow((s) => ({
       activeTabId: s.activeTabId,
@@ -185,7 +187,10 @@ export function BrowserToolbar(props: {
     );
 
   return (
-    <div className="flex items-center gap-1 border-b border-border bg-[var(--content-background)] px-1.5 py-0.5">
+    <div
+      data-browser-toolbar=""
+      className={`flex items-center gap-1 border-b border-border bg-[var(--content-background)] px-1.5 py-0.5 ${compact ? "flex-wrap" : ""}`}
+    >
       <button
         type="button"
         className={toolbarButtonClass}
@@ -228,12 +233,14 @@ export function BrowserToolbar(props: {
       >
         <RotateCw className="size-3.5" />
       </button>
-      <BrowserOmnibox
-        activeTabId={activeTabId}
-        activeUrl={activeTab?.url}
-        disabled={disabled}
-        onPreviewChange={onMenuPreviewChange}
-      />
+      {compact ? null : (
+        <BrowserOmnibox
+          activeTabId={activeTabId}
+          activeUrl={activeTab?.url}
+          disabled={disabled}
+          onPreviewChange={onMenuPreviewChange}
+        />
+      )}
       <button
         type="button"
         className={`${toolbarButtonClass} ${bookmarked ? "text-accent hover:text-accent" : ""}`}
@@ -244,7 +251,7 @@ export function BrowserToolbar(props: {
       >
         <Star className={`size-3.5 ${bookmarked ? "fill-current" : ""}`} />
       </button>
-      {props.hasPendingPick && props.pendingPickAnchor ? (
+      {compact ? null : props.hasPendingPick && props.pendingPickAnchor ? (
         <>
           <button type="button" className={pickerButtonClass} title={pickerLabel} disabled>
             <MousePointerSquareDashed className="size-3.5" />
@@ -308,21 +315,23 @@ export function BrowserToolbar(props: {
           <MousePointerSquareDashed className="size-3.5" />
         </button>
       )}
-      <button
-        type="button"
-        className={consoleButtonClass}
-        title={t`Console`}
-        disabled={disabled}
-        onClick={() => {
-          if (activeTabId) {
-            void readBridge()
-              .browserToggleDevTools({ tabId: activeTabId })
-              .catch(() => {});
-          }
-        }}
-      >
-        <TerminalSquare className="size-3.5" />
-      </button>
+      {compact ? null : (
+        <button
+          type="button"
+          className={consoleButtonClass}
+          title={t`Console`}
+          disabled={disabled}
+          onClick={() => {
+            if (activeTabId) {
+              void readBridge()
+                .browserToggleDevTools({ tabId: activeTabId })
+                .catch(() => {});
+            }
+          }}
+        >
+          <TerminalSquare className="size-3.5" />
+        </button>
+      )}
       <Dropdown onOpenChange={onMenuOpenChange}>
         <Button
           isIconOnly
@@ -490,6 +499,16 @@ export function BrowserToolbar(props: {
           </Dropdown.Menu>
         </Dropdown.Popover>
       </Dropdown>
+      {compact ? (
+        <div className="poracode-mobile-browser-address min-w-full basis-full">
+          <BrowserOmnibox
+            activeTabId={activeTabId}
+            activeUrl={activeTab?.url}
+            disabled={disabled}
+            onPreviewChange={onMenuPreviewChange}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

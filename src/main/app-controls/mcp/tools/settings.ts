@@ -199,19 +199,18 @@ function redactSecretArg(arg: string): string {
   return match ? `${match[1]}=${REDACTED_VALUE}` : arg;
 }
 
-/** Mask every query-string value in a URL (tokens are commonly passed there), keeping keys. */
+/** Remove legacy URL credentials/fragments and mask every query value, keeping keys. */
 function redactUrlQuery(url: string): string {
-  const queryStart = url.indexOf("?");
-  if (queryStart === -1) return url;
-  const query = url
-    .slice(queryStart + 1)
-    .split("&")
-    .map((pair) => {
-      const eq = pair.indexOf("=");
-      return eq === -1 ? pair : `${pair.slice(0, eq)}=${REDACTED_VALUE}`;
-    })
-    .join("&");
-  return `${url.slice(0, queryStart)}?${query}`;
+  try {
+    const parsed = new URL(url);
+    parsed.username = "";
+    parsed.password = "";
+    parsed.hash = "";
+    for (const key of parsed.searchParams.keys()) parsed.searchParams.set(key, REDACTED_VALUE);
+    return parsed.toString().replaceAll(encodeURIComponent(REDACTED_VALUE), REDACTED_VALUE);
+  } catch {
+    return REDACTED_VALUE;
+  }
 }
 
 /** Map every value of a string record to the redaction marker, preserving keys. */

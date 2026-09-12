@@ -4,6 +4,7 @@ import {
   isUnauthorizedRemoteError,
   RemoteClientError,
   RemoteDesktopClient,
+  type RemoteFetch,
 } from "./client";
 import { defaultSharedSettings } from "../settings";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "./protocol";
@@ -132,15 +133,40 @@ describe("RemoteDesktopClient", () => {
     expect(onRequestError).toHaveBeenLastCalledWith(transportError);
   });
 
-  it("keeps profile-stats fields beyond the light shape check (loose parse)", async () => {
+  it("validates complete profile stats without stripping contract fields", async () => {
     const coreStats = {
-      scope: "device",
-      device: { id: "dev-1" },
-      totals: { prompts: 3 },
-      accounts: [{ key: "claude", label: "Claude", count: 3, share: 1 }],
+      scope: "device" as const,
+      device: { id: "dev-1", label: "Test Mac", platform: "darwin" },
+      generatedAt: 1,
+      timezoneOffsetMinutes: 0,
+      totals: {
+        totalThreads: 1,
+        totalPrompts: 3,
+        messagesSent: 3,
+        goalsSet: 0,
+        longestTaskMs: 100,
+        currentStreakDays: 1,
+        longestStreakDays: 1,
+        activeDays: 1,
+      },
+      promptHeatmap: { metric: "prompts" as const, windowDays: 7, cells: [], max: 0 },
+      insights: {
+        fastModePercent: 0,
+        skillsExplored: 0,
+        totalSkillsUsed: 0,
+        workflowRuns: 0,
+        subagentRuns: 0,
+        mcpToolCalls: 0,
+      },
+      accounts: [{ key: "claude", label: "Claude", count: 3, percent: 100 }],
       providers: [],
-      availableAccounts: [],
+      models: [],
+      modes: [],
+      skills: [],
+      mcps: [],
+      aiActions: [],
       identity: { name: "Test", handle: "test", avatarColor: "oklch(0.6 0.14 295)" },
+      availableAccounts: [],
     };
     const client = new RemoteDesktopClient(
       "http://127.0.0.1:38987/",
@@ -152,8 +178,6 @@ describe("RemoteDesktopClient", () => {
         }),
     );
 
-    // A plain z.object would strip every key the check doesn't name; the
-    // desktop ProfileSettings component reads accounts/providers/identity.
     await expect(client.profileCoreStats({ utcOffsetMinutes: 0 })).resolves.toEqual(coreStats);
   });
 
@@ -251,7 +275,11 @@ describe("RemoteDesktopClient", () => {
       {
         url: "https://relay.example.test/s/server-1/api/projects/project%20one/notes",
         method: "POST",
-        body: notes,
+        body: {
+          doc: notes.doc,
+          todos: notes.todos,
+          updatedAt: notes.updatedAt,
+        },
       },
     ]);
   });
@@ -448,6 +476,29 @@ describe("RemoteDesktopClient", () => {
     expect(signal?.aborted).toBe(false);
   });
 
+  it("marks an automatic reopen explicitly without changing the legacy start shape", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        bodies.push(JSON.parse(init?.body as string));
+        return new Response(JSON.stringify({ threadId: "thread-1" }), { status: 200 });
+      },
+    );
+    const input = {
+      threadId: "thread-1",
+      projectLocation: { kind: "posix" as const, path: "/repo" },
+      agentKind: "codex" as const,
+      config: { model: "test" },
+      prompt: "",
+    };
+    await client.startThread({ ...input, ensureRunning: true });
+    await client.startThread(input);
+    expect(bodies[0]).toHaveProperty("ensureRunning", true);
+    expect(bodies[1]).not.toHaveProperty("ensureRunning");
+  });
+
   it("uses the optimistic message id as the remote send idempotency key", async () => {
     let commandId = "";
     const client = new RemoteDesktopClient(
@@ -470,6 +521,38 @@ describe("RemoteDesktopClient", () => {
     });
 
     expect(commandId).toBe("user-message-1");
+  });
+
+  it("uses a distinct start command id so unknown-session resume is not a receipt conflict", async () => {
+    const commandIds: string[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        commandIds.push(init?.headers?.["x-poracode-command-id"] ?? "");
+        return new Response(JSON.stringify({ ok: true, threadId: "thread-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await client.sendThreadInput({
+      threadId: "thread-1",
+      prompt: "continue",
+      config: { model: "gpt-5" },
+      userMessageItemId: "user-message-1",
+    });
+    await client.startThread({
+      threadId: "thread-1",
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "continue",
+      userMessageItemId: "user-message-1",
+    });
+
+    expect(commandIds).toEqual(["user-message-1", "thread-start-item:user-message-1"]);
   });
 
   it("forwards a preallocated thread and optimistic message id when starting remotely", async () => {
@@ -832,6 +915,57 @@ describe("RemoteDesktopClient", () => {
     expect(body.client).toEqual({ label: "My Mac", deviceType: "desktop" });
   });
 
+  it("parses /api/git/call with the procedure result schema and treats void as {}", async () => {
+    const payloads: unknown[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        payloads.push(JSON.parse(typeof init?.body === "string" ? init.body : "{}"));
+        const body = payloads.at(-1) as { procedure?: string };
+        if (body.procedure === "gitPush") {
+          return new Response("{}", {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ result: { available: true } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(client.callRemoteProcedure("ghCheckAvailable", {})).resolves.toEqual({
+      available: true,
+    });
+    await expect(client.callRemoteProcedure("gitPush", {})).resolves.toBeUndefined();
+
+    const nullVoid = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(JSON.stringify({ result: null }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    await expect(nullVoid.callRemoteProcedure("gitPush", {})).rejects.toMatchObject({
+      code: "invalid_response",
+    });
+  });
+
+  it("rejects non-allowlisted remote procedures before making a request", async () => {
+    const fetch = vi.fn<RemoteFetch>();
+    const client = new RemoteDesktopClient("http://127.0.0.1:38987/", "lc_access_test", fetch);
+
+    await expect(client.callRemoteProcedure("notAProcedure", {})).rejects.toMatchObject({
+      status: 403,
+      code: "git_procedure_not_allowed",
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it.each(["gitPush", "waitMcpServerOauth"])(
     "gives long-running %s operations a larger timeout than ordinary requests",
     async (procedure) => {
@@ -931,5 +1065,63 @@ describe("RemoteDesktopClient", () => {
     expect(url.searchParams.get("threadId")).toBe("thread/one");
     expect(url.searchParams.get("name")).toBe("photo one.png");
     expect(Array.from(requestBody!)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("RemoteDesktopClient ETag revalidation cache", () => {
+  const endpoint = "http://127.0.0.1:38987/";
+  // Minimal body that satisfies remoteShellSnapshotSchema.
+  const snapshotBody = {
+    snapshotSeq: 1,
+    projects: [],
+    threads: [],
+    runtimeSummariesByThread: {},
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+
+  function jsonResponse(status: number, bodyText: string, headers: Record<string, string> = {}) {
+    // 304 responses must carry no body per the fetch spec.
+    return new Response(status === 304 || status === 204 ? null : bodyText, {
+      status,
+      headers,
+    });
+  }
+
+  it("stores an ETag on a full GET and replays the cached body on a matching 304", async () => {
+    const responses = [
+      jsonResponse(200, JSON.stringify(snapshotBody), { etag: 'W/"abc"' }),
+      jsonResponse(304, ""),
+    ];
+    const fetch = vi.fn<RemoteFetch>(() => Promise.resolve(responses.shift()!));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+    const first = await client.snapshot();
+    expect(first).toMatchObject({ snapshotSeq: 1 });
+
+    const second = await client.snapshot();
+    expect(second).toMatchObject({ snapshotSeq: 1 });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const [, secondInit] = vi.mocked(fetch).mock.calls[1]!;
+    const secondHeaders = (secondInit ? secondInit.headers : {}) as Record<string, string>;
+    expect(secondHeaders["if-none-match"]).toBe('W/"abc"');
+  });
+
+  it("does not cache non-GET requests or responses without an ETag", async () => {
+    const fetch = vi.fn<RemoteFetch>(() =>
+      Promise.resolve(jsonResponse(200, JSON.stringify(snapshotBody))),
+    );
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    await client.snapshot();
+    await client.snapshot();
+    for (const [, init] of vi.mocked(fetch).mock.calls) {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      expect(headers["if-none-match"]).toBeUndefined();
+    }
+  });
+
+  it("still fails loudly on a bare 304 with no cached entry", async () => {
+    const fetch = vi.fn<RemoteFetch>(() => Promise.resolve(jsonResponse(304, "")));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    await expect(client.snapshot()).rejects.toMatchObject({ code: "not_modified" });
   });
 });

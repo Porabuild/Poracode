@@ -30,7 +30,7 @@ export {
 
 export { dbGetProjectNotes, dbSetProjectNotes } from "./db/notes";
 
-export { dbPersistExperimentState, dbSyncAll } from "./db/sync";
+export { dbPersistExperimentState, dbSyncAll, dbSyncChanges } from "./db/sync";
 export { onProjectThreadDataChanged } from "./db/projectThreadChanges";
 
 export {
@@ -53,6 +53,13 @@ export {
 } from "./db/runtimeItems";
 export type { PersistedRuntimeItem, PersistedCompletedTurn } from "./db/runtimeItems";
 
+export {
+  dbGetThreadTerminalScrollback,
+  dbGetThreadTerminalScrollbackRecord,
+  dbAppendThreadTerminalOutput,
+  dbClearThreadTerminalScrollback,
+} from "./db/terminalScrollback";
+
 export { dbAppendUsageEvents, dbGetAllUsageEvents } from "./db/usageEvents";
 export type { UsageEventRow } from "./db/usageEvents";
 
@@ -61,6 +68,20 @@ export {
   dbCompleteRemoteCommand,
   dbFailRemoteCommand,
 } from "./db/remoteCommandReceipts";
+
+export {
+  dbClaimCheckpointRevertOperation,
+  dbCountRollbackTurnsAfterCheckpoint,
+  dbGetCheckpointRevertOperation,
+  dbHasThreadRuntimeItem,
+  dbUpdateCheckpointRevertPhases,
+  type CheckpointRevertClaim,
+  type CheckpointRevertFilesPhase,
+  type CheckpointRevertOperationRow,
+  type CheckpointRevertOutcome,
+  type CheckpointRevertProviderPhase,
+  type CheckpointRevertTruncatePhase,
+} from "./db/checkpointRevertOperations";
 
 export { dbGetSchedules, dbGetSchedule, dbUpsertSchedule, dbDeleteSchedule } from "./db/schedules";
 

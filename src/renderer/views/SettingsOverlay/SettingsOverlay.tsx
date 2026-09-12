@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { AgentDiscoveryScreen } from "@/renderer/components/thread/AgentDiscoveryScreen";
+import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/BrowserRemoteConnectionGate";
 import { useProductViewTracking } from "@/renderer/analytics/useProductViewTracking";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useMachines } from "@/renderer/state/machines";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
+import { MobileMachineToolbar } from "@/renderer/components/common/MobileMachineToolbar";
 import { agentStatusNeedsAuthAttention } from "@/shared/agentSelection";
 import { getSettingsInstalledAgents } from "@/shared/agentStatus";
 import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
@@ -38,10 +40,28 @@ import { McpServersSettings } from "./parts/McpServersSettings";
 import { SkillsSettings } from "./parts/SkillsSettings";
 import { PluginsSettings } from "./parts/PluginsSettings";
 import { SettingsSidebar } from "./parts/SettingsSidebar";
+import { MobileSettingsIndex } from "./parts/MobileSettingsIndex";
 import { WorkspacesSettings } from "./parts/WorkspacesSettings";
 import { AgentSettingsEmpty, SingleAgentSettings } from "./parts/SingleAgentSettings";
 import { AgentsMachineBar } from "./parts/machineScope/AgentsMachineBar";
 import type { SettingsSection } from "./parts/types";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import {
+  selectBrowserBridgeDesktop,
+  selectBrowserBridgeServer,
+  useRemoteServersStore,
+} from "@/renderer/state/remoteServersStore";
+
+type MobileSettingsScreen = "root" | "desktop" | "detail";
+type MobileSettingsParent = "main" | "root" | "desktop";
+
+const DESKTOP_MOBILE_SECTIONS = new Set<SettingsSection>([
+  "profile",
+  "usage",
+  "ai",
+  "agentsGeneral",
+  "archived",
+]);
 
 const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   profile: () => <ProfileSettings />,
@@ -72,24 +92,47 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   dev: () => <DevSettings />,
 };
 
+const MACHINE_BACKED_SECTIONS = new Set<SettingsSection>([
+  "profile",
+  "git",
+  "worktrees",
+  "agents",
+  "agentsGeneral",
+  "acpRegistry",
+  "ai",
+  "skills",
+  "mcpServers",
+  "usage",
+]);
+
 function renderSection(
   activeSection: SettingsSection,
   onSectionChange: (section: SettingsSection) => void,
+  onOpenDesktopSettings: (desktopId: string) => void,
 ): ReactNode {
+  let section: ReactNode;
   if (activeSection === "acpRegistry") {
-    return (
+    section = (
       <AcpRegistrySettings onOpenAgentSettings={(kind) => onSectionChange(`agents:${kind}`)} />
     );
-  }
-  if (activeSection.startsWith("agents:")) {
-    return (
+  } else if (activeSection.startsWith("agents:")) {
+    section = (
       <SingleAgentSettings
         agentKind={activeSection.slice(7)}
         onOpenProfile={(kind) => onSectionChange(`agents:${kind}`)}
       />
     );
+  } else if (activeSection === "remoteServers") {
+    section = <RemoteServersSettings onOpenDesktopSettings={onOpenDesktopSettings} />;
+  } else {
+    section = SECTION_VIEWS[activeSection]?.() ?? null;
   }
-  return SECTION_VIEWS[activeSection]?.() ?? null;
+
+  return MACHINE_BACKED_SECTIONS.has(activeSection) || activeSection.startsWith("agents:") ? (
+    <BrowserRemoteConnectionGate>{section}</BrowserRemoteConnectionGate>
+  ) : (
+    section
+  );
 }
 
 export function settingsSectionProductProperties(activeSection: SettingsSection) {
@@ -110,14 +153,29 @@ export function settingsSectionProductProperties(activeSection: SettingsSection)
   };
 }
 
-export function SettingsOverlay(props: { onClose: () => void }) {
-  const { onClose } = props;
+export function SettingsOverlay(props: { onClose: () => void; onBack?: () => void }) {
+  const { onClose, onBack = onClose } = props;
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const requestedSection = usePanelStore((s) => s.settingsSection);
   const clearSettingsSection = usePanelStore((s) => s.clearSettingsSection);
   const [activeSection, setActiveSection] = useState<SettingsSection>(
     (requestedSection as SettingsSection | null) ?? "general",
   );
+  const [mobileScreen, setMobileScreen] = useState<MobileSettingsScreen>(
+    requestedSection === null ? "root" : "detail",
+  );
+  const [mobileDetailParent, setMobileDetailParent] = useState<MobileSettingsParent>(
+    requestedSection === null ? "root" : "main",
+  );
+  const [mobileDesktopParent, setMobileDesktopParent] = useState<"root" | "connections">("root");
+  const servers = useRemoteServersStore((state) => state.servers);
+  const defaultDesktop = useRemoteServersStore(
+    (state) => selectBrowserBridgeServer(state) ?? state.servers[0],
+  );
+  const [mobileDesktopId, setMobileDesktopId] = useState<string | null>(null);
+  const selectedDesktop =
+    servers.find((server) => server.desktopId === mobileDesktopId) ?? defaultDesktop;
   useProductViewTracking(
     {
       ...settingsSectionProductProperties(activeSection),
@@ -129,11 +187,25 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   // Apply a deep-link request (e.g. clicking a sidebar usage circle) and clear
   // it so it doesn't re-fire on the next open. The section switch derives
   // from the request, so it adjusts during render; clearing the request is a
-  // store write and stays in the effect.
+  // store write and stays in the effect. Whether this is the launch-time
+  // request selects the mobile parent — tracked in state (not a ref) so the
+  // render phase can read it.
   const [prevRequestedSection, setPrevRequestedSection] = useState(requestedSection);
+  const [hadInitialRequest, setHadInitialRequest] = useState(requestedSection !== null);
   if (prevRequestedSection !== requestedSection) {
     setPrevRequestedSection(requestedSection);
-    if (requestedSection) setActiveSection(requestedSection as SettingsSection);
+    if (requestedSection) {
+      setActiveSection(requestedSection as SettingsSection);
+      setMobileDetailParent(
+        hadInitialRequest
+          ? "main"
+          : DESKTOP_MOBILE_SECTIONS.has(requestedSection as SettingsSection)
+            ? "desktop"
+            : "root",
+      );
+      setHadInitialRequest(false);
+      setMobileScreen("detail");
+    }
   }
   useEffect(() => {
     if (requestedSection) {
@@ -141,19 +213,36 @@ export function SettingsOverlay(props: { onClose: () => void }) {
     }
   }, [requestedSection, clearSettingsSection]);
 
+  // Drop a disconnected desktop selection during render so the picker never
+  // paints a frame for a desktop that is no longer paired.
+  if (mobileDesktopId && !servers.some((server) => server.desktopId === mobileDesktopId)) {
+    setMobileDesktopId(null);
+  }
+
+  const changeMobileDesktop = (desktopId: string | null) => {
+    if (!desktopId) return;
+    setMobileDesktopId(desktopId);
+    selectBrowserBridgeDesktop(desktopId);
+  };
+
   // Pending scroll-to-setting target, set when a settings search result is
   // clicked. The token re-fires the effect when the same setting is picked
   // twice. Local (not a store): only this overlay coordinates the scroll, and it
   // has to land *after* the section content remounts (`key={activeSection}`).
   const [scrollTarget, setScrollTarget] = useState<{ anchor: string; token: number } | null>(null);
-  const navigateToSection = useCallback((section: SettingsSection, anchor?: string) => {
-    setActiveSection(section);
-    if (anchor) {
-      // Functional update mints the re-fire token without a ref, keeping this
-      // callback ref-free so it can be passed down during render.
-      setScrollTarget((prev) => ({ anchor, token: (prev?.token ?? 0) + 1 }));
-    }
-  }, []);
+  const navigateToSection = useCallback(
+    (section: SettingsSection, anchor?: string, parent: MobileSettingsParent = "root") => {
+      setActiveSection(section);
+      setMobileDetailParent(parent);
+      setMobileScreen("detail");
+      if (anchor) {
+        // Functional update mints the re-fire token without a ref, keeping this
+        // callback ref-free so it can be passed down during render.
+        setScrollTarget((prev) => ({ anchor, token: (prev?.token ?? 0) + 1 }));
+      }
+    },
+    [],
+  );
 
   // After the target section mounts, scroll its anchor into view and flash it.
   // Runs on rAF (with a short retry) so the freshly-remounted row is in the DOM.
@@ -206,7 +295,39 @@ export function SettingsOverlay(props: { onClose: () => void }) {
   const machines = useMachines();
   const showsMachineBar = isMachineScopedSection && machines.length > 1;
   const wslDistros = wslProjectDistrosKey ? wslProjectDistrosKey.split("\0") : [];
-  const section = renderSection(activeSection, navigateToSection);
+  const section = renderSection(
+    activeSection,
+    (nextSection) => navigateToSection(nextSection, undefined, mobileDetailParent),
+    (desktopId) => {
+      changeMobileDesktop(desktopId);
+      setMobileDesktopParent("connections");
+      setMobileScreen("desktop");
+    },
+  );
+  const remoteSession = isRemoteSession();
+  const showMobileDesktopPicker =
+    compactLayout && remoteSession && selectedDesktop !== undefined && mobileScreen === "desktop";
+  const openSchedules = useAppStore((state) => state.openSchedules);
+  const detailTitle = (() => {
+    if (activeSection === "general") return t`General`;
+    if (activeSection === "appearance") return t`Appearance`;
+    if (activeSection === "notifications") return t`Notifications`;
+    if (activeSection === "terminal") return t`Terminal`;
+    if (activeSection === "git") return t`Git`;
+    if (activeSection === "profile") return t`Profile`;
+    if (activeSection === "usage") return t`Provider Usage`;
+    if (activeSection === "ai") return t`AI Helpers`;
+    if (activeSection === "agentsGeneral") return t`Agents`;
+    if (activeSection === "archived") return t`Archived Threads`;
+    if (activeSection === "remoteServers") return t`Connections`;
+    return t`Settings`;
+  })();
+  const compactTitle =
+    mobileScreen === "root"
+      ? t`Settings`
+      : mobileScreen === "desktop"
+        ? t`Desktop Settings`
+        : detailTitle;
 
   const refreshAgents = () => {
     if (isRefreshingAgents) {
@@ -255,9 +376,103 @@ export function SettingsOverlay(props: { onClose: () => void }) {
     useAgentStatusesStore.getState().resetDiscoveredAgents();
   };
 
+  const mobileIndex = (
+    <MobileSettingsIndex
+      screen={mobileScreen === "desktop" ? "desktop" : "device"}
+      hasDesktop={!remoteSession || selectedDesktop !== undefined}
+      showArchived={!remoteSession}
+      onOpenDesktop={() => setMobileScreen("desktop")}
+      onOpenSchedules={() => {
+        onClose();
+        openSchedules();
+      }}
+      onOpenSection={(nextSection) =>
+        navigateToSection(nextSection, undefined, mobileScreen === "desktop" ? "desktop" : "root")
+      }
+    />
+  );
+
+  const detailContent =
+    activeSection === "acpRegistry" ? (
+      <div key={activeSection} className="relative h-full min-h-0">
+        {section}
+      </div>
+    ) : compactLayout ? (
+      <div
+        key={activeSection}
+        data-settings-scroll-area="true"
+        className="m-settings__body relative"
+      >
+        {section}
+        {showsAgentDiscovery ? (
+          <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
+            <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
+          </div>
+        ) : null}
+      </div>
+    ) : (
+      <div className="relative flex h-full min-h-0 flex-col">
+        <div
+          key={activeSection}
+          data-settings-scroll-area="true"
+          className={`relative min-h-0 flex-1 overflow-y-auto px-6 pt-4 [overflow-anchor:none] [scrollbar-gutter:stable] ${
+            showsMachineBar ? "pb-20" : "pb-8"
+          }`}
+        >
+          {section}
+          {showsAgentDiscovery ? (
+            <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
+              <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
+            </div>
+          ) : null}
+        </div>
+        {/* Floats over the scroll area rather than living in the section's
+            flow, so it keeps its position and state across agent-section
+            remounts (`key={activeSection}`). Hidden while the discovery
+            overlay covers the page so it does not sit on top of it. */}
+        {isMachineScopedSection && !showsAgentDiscovery ? <AgentsMachineBar /> : null}
+      </div>
+    );
+
+  const pageContent = compactLayout && mobileScreen !== "detail" ? mobileIndex : detailContent;
+  const scopedPageContent =
+    showMobileDesktopPicker && selectedDesktop ? (
+      <div className="m-machine-scoped-content relative h-full min-h-0">
+        <div key={selectedDesktop.desktopId} className="h-full min-h-0">
+          {pageContent}
+        </div>
+        <MobileMachineToolbar
+          desktopId={selectedDesktop.desktopId}
+          onDesktopChange={changeMobileDesktop}
+        />
+      </div>
+    ) : (
+      pageContent
+    );
+
   return (
     <PageLayout
       title={t`Settings`}
+      compactHome={false}
+      compactTitle={compactTitle}
+      onCompactBack={() => {
+        if (mobileScreen === "root") {
+          onBack();
+        } else if (mobileScreen === "desktop") {
+          if (mobileDesktopParent === "connections") {
+            setActiveSection("remoteServers");
+            setMobileDetailParent("main");
+            setMobileScreen("detail");
+          } else {
+            setMobileScreen("root");
+          }
+        } else if (mobileDetailParent === "main") {
+          onBack();
+        } else {
+          setMobileScreen(mobileDetailParent);
+        }
+      }}
+      mobileNavigation
       sidebar={
         <SettingsSidebar
           activeSection={activeSection}
@@ -269,35 +484,7 @@ export function SettingsOverlay(props: { onClose: () => void }) {
           onRefreshAgents={refreshAgents}
         />
       }
-      content={
-        activeSection === "acpRegistry" ? (
-          <div key={activeSection} className="relative h-full min-h-0">
-            {section}
-          </div>
-        ) : (
-          <div className="relative flex h-full min-h-0 flex-col">
-            <div
-              key={activeSection}
-              data-settings-scroll-area="true"
-              className={`relative min-h-0 flex-1 overflow-y-auto px-6 pt-4 [overflow-anchor:none] [scrollbar-gutter:stable] ${
-                showsMachineBar ? "pb-20" : "pb-8"
-              }`}
-            >
-              {section}
-              {showsAgentDiscovery ? (
-                <div className="absolute inset-0 z-20 bg-background/90 backdrop-blur-sm">
-                  <AgentDiscoveryScreen wslDistros={wslDistros} onCancel={cancelRefreshAgents} />
-                </div>
-              ) : null}
-            </div>
-            {/* Floats over the scroll area rather than living in the section's
-                flow, so it keeps its position and state across agent-section
-                remounts (`key={activeSection}`). Hidden while the discovery
-                overlay covers the page so it does not sit on top of it. */}
-            {isMachineScopedSection && !showsAgentDiscovery ? <AgentsMachineBar /> : null}
-          </div>
-        )
-      }
+      content={scopedPageContent}
     />
   );
 }

@@ -2,6 +2,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentCapability, AgentTerminalAuthMethod } from "@/shared/contracts";
 import type { SlashCommand } from "@anthropic-ai/claude-agent-sdk";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import {
   readWslLoginShellCommandOutputAsync,
   type CapabilitiesProbeResult,
@@ -193,6 +194,14 @@ async function probeClaudeSdkPartialWsl(
   envOverrides?: Record<string, string>,
 ): Promise<Partial<AgentCapability> | undefined> {
   if (ctx.location.kind !== "wsl" || !ctx.executablePath) return undefined;
+
+  // WSL bridge execution does not inherit the supervisor's mock/dev flags.
+  // Refuse here before requesting the in-distro worker, not only inside it.
+  try {
+    assertAgentLaunchAllowed("session-probe");
+  } catch {
+    return undefined;
+  }
 
   const workerHostPath = getSdkWorkerPath();
   const workerWslPath =

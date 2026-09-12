@@ -1,0 +1,126 @@
+{
+  "events": [
+    {
+      "id": "thread-reset",
+      "event": { "type": "thread-reset", "threadId": "thread-terminal-1" }
+    },
+    {
+      "id": "thread-exited-success",
+      "event": { "type": "thread-exited", "threadId": "thread-terminal-1", "exitCode": 0 }
+    },
+    {
+      "id": "thread-exited-signal",
+      "event": { "type": "thread-exited", "threadId": "thread-terminal-2", "exitCode": null }
+    },
+    {
+      "id": "agent-status-updated",
+      "event": {
+        "type": "agent-status-updated",
+        "status": {
+          "kind": "codex",
+          "label": "Codex",
+          "installed": true,
+          "version": "5.6.0",
+          "authState": "authenticated",
+          "capabilities": {
+            "models": [{ "id": "gpt-5.6-sol", "label": "GPT-5.6 Sol" }],
+            "efforts": ["medium", "high"],
+            "modelEfforts": { "gpt-5.6-sol": ["medium", "high"] },
+            "modes": [],
+            "approvalPolicies": [],
+            "sandboxModes": [],
+            "supportsResume": true,
+            "supportsDirectInput": true,
+            "liveInputMode": "server",
+            "presentationMode": "gui",
+            "settingDefs": []
+          },
+          "envKind": "posix"
+        }
+      }
+    },
+    {
+      "id": "windows-agent-statuses",
+      "event": {
+        "type": "windows-agent-statuses",
+        "statuses": [
+          {
+            "kind": "claude",
+            "label": "Claude Code",
+            "installed": false,
+            "authState": "unknown",
+            "capabilities": {
+              "models": [],
+              "efforts": [],
+              "modelEfforts": {},
+              "modes": [],
+              "approvalPolicies": [],
+              "sandboxModes": [],
+              "supportsResume": false,
+              "supportsDirectInput": true,
+              "liveInputMode": "terminal",
+              "presentationMode": "terminal",
+              "settingDefs": []
+            },
+            "envKind": "windows"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wsl-agent-statuses-empty",
+      "event": { "type": "wsl-agent-statuses", "statuses": [] }
+    },
+    {
+      "id": "remote-git-summaries",
+      "event": {
+        "type": "remote-git-summaries",
+        "summaries": {
+          "thread-gui-1": {
+            "isRepo": true,
+            "branch": "feature/native-parity",
+            "totalInsertions": 42,
+            "totalDeletions": 7,
+            "ahead": 2,
+            "behind": 1,
+            "pr": {
+              "number": 314,
+              "state": "open",
+              "title": "Native parity",
+              "url": "https://github.com/acme/poracode/pull/314",
+              "isDraft": false,
+              "checksStatus": "success"
+            }
+          },
+          "thread-terminal-1": {
+            "isRepo": false,
+            "branch": "",
+            "totalInsertions": 0,
+            "totalDeletions": 0,
+            "ahead": 0,
+            "behind": 0,
+            "pr": null
+          }
+        }
+      }
+    },
+    {
+      "id": "remote-git-state",
+      "event": {
+        "type": "remote-git-state",
+        "patch": {
+          "revision": 9,
+          "projects": {},
+          "targets": {},
+          "pullRequests": {},
+          "pullRequestKeyByBranch": { "branch-key": null },
+          "projectPullRequestLists": {},
+          "removeProjects": ["project-key-old"],
+          "removeTargets": ["target-key-old"],
+          "removePullRequests": ["pr-key-old"],
+          "removeProjectPullRequestLists": ["list-key-old"]
+        }
+      }
+    }
+  ]
+}

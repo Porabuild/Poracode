@@ -1,0 +1,64 @@
+{
+  "client": {
+    "type": "git-state-interests",
+    "interests": [
+      {
+        "kind": "target",
+        "projectId": "project-1",
+        "worktreePath": "/repo/worktrees/native",
+        "branch": "feature/native",
+        "includePrDetails": true
+      },
+      {
+        "kind": "pull-request",
+        "projectId": "project-1",
+        "prNumber": 314,
+        "branch": "feature/native",
+        "includeReviewBundle": true
+      },
+      { "kind": "project-pull-requests", "projectId": "project-1" }
+    ]
+  },
+  "server": [
+    {
+      "type": "event",
+      "seq": 41,
+      "event": {
+        "type": "remote-git-summaries",
+        "summaries": {
+          "thread-1": {
+            "isRepo": true,
+            "branch": "feature/native",
+            "totalInsertions": 12,
+            "totalDeletions": 3,
+            "ahead": 1,
+            "behind": 0,
+            "pr": {
+              "number": 314,
+              "state": "draft",
+              "title": "Native parity",
+              "url": "https://github.com/acme/poracode/pull/314",
+              "isDraft": true,
+              "checksStatus": "pending"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "event",
+      "seq": 42,
+      "event": {
+        "type": "remote-git-state",
+        "patch": {
+          "revision": 12,
+          "projects": {},
+          "targets": {},
+          "pullRequests": {},
+          "pullRequestKeyByBranch": {},
+          "projectPullRequestLists": {}
+        }
+      }
+    }
+  ]
+}

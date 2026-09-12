@@ -69,7 +69,7 @@ import {
   mapAcpSessionUpdate,
   type AcpMapperState,
 } from "./canonicalMapping";
-import { terminateChildProcessTree } from "@/shared/processTree";
+import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import {
   createKnownSessionRef,
   type AgentLaunchOptions,
@@ -213,6 +213,10 @@ export interface AcpSessionBehavior {
 }
 
 export interface AcpStructuredSessionOptions {
+  /** Resolve the provider's session mode when its permission modes differ from the terminal client. */
+  resolveMode?: typeof import("./sessionConfig").resolveAcpMode;
+  /** Provider-owned mapping for model catalogs whose variants use opaque wire IDs. */
+  resolveModelConfig?: typeof import("./sessionConfig").resolveModelConfigValue;
   /**
    * Hook the adapter passes in when it wants to control the message a failed
    * `session/load` produces. Receives the raw transport error and the
@@ -306,6 +310,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private loadSessionErrorRewriter: (error: unknown, sessionId: string) => Error =
     rewriteLoadSessionError;
 
+  private readonly resolveModelConfig: AcpStructuredSessionOptions["resolveModelConfig"];
+  private readonly resolveMode: AcpStructuredSessionOptions["resolveMode"];
+
   private emptyResponseErrorResolver?: AcpEmptyResponseErrorResolver;
 
   private sessionUpdateTransform?: (notification: SessionNotification) => SessionNotification;
@@ -343,6 +350,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private listener: StructuredSessionListener | undefined;
   private sessionId: string | undefined;
   private isDisposed = false;
+  private disposal: Promise<void> | undefined;
   private transportClosed = false;
   private transportOutcomeReported = false;
   private currentConfig: ThreadConfig | undefined;
@@ -449,7 +457,11 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
   private get sessionConfigSync(): AcpSessionConfigSync {
     if (!this._sessionConfigSync) {
-      this._sessionConfigSync = new AcpSessionConfigSync(this.connection);
+      this._sessionConfigSync = new AcpSessionConfigSync(
+        this.connection,
+        this.resolveMode,
+        this.resolveModelConfig,
+      );
     }
     return this._sessionConfigSync;
   }
@@ -500,6 +512,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     stderrChunks: string[],
     options?: AcpStructuredSessionOptions,
   ) {
+    this.resolveMode = options?.resolveMode;
+    this.resolveModelConfig = options?.resolveModelConfig;
     this.child = child;
     this.connection = connection;
     this.projectLocation = projectLocation;
@@ -642,6 +656,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       env: { ...process.env, TERM: "xterm-256color", ...(command.env ?? {}) },
       shell: false,
       windowsHide: true,
+      detached: process.platform !== "win32",
     });
 
     // Track spawn outcome — activate() awaits this before writing to stdin.
@@ -1329,10 +1344,26 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this.clearCompletedTurnCaches();
   }
 
-  async dispose(): Promise<void> {
-    if (this.isDisposed) return;
+  dispose(): Promise<void> {
+    if (this.disposal) return this.disposal;
+    const firstDisposal = !this.isDisposed;
     this.isDisposed = true;
+    const disposal = Promise.resolve()
+      .then(async () => {
+        if (firstDisposal) this.closeSessionResources();
+        await awaitProcessTermination(this.child, {
+          ownedProcessGroup: process.platform !== "win32",
+        });
+      })
+      .catch((error: unknown) => {
+        this.disposal = undefined;
+        throw error;
+      });
+    this.disposal = disposal;
+    return disposal;
+  }
 
+  private closeSessionResources(): void {
     if (this.reportedBackgroundTasks.length > 0) {
       this.emitRuntimeEvents([
         { type: "background_tasks.changed", threadId: this.threadId, tasks: [] },
@@ -1351,17 +1382,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
 
     if (this.sessionId && this.agentSessionCapabilities?.close !== undefined) {
       try {
-        await this.connection.closeSession({ sessionId: this.sessionId });
+        // This optional RPC may never answer; process termination remains authoritative.
+        void this.connection.closeSession({ sessionId: this.sessionId }).catch((error: unknown) => {
+          console.warn("[acp] session/close failed during dispose:", error);
+        });
       } catch (error) {
         console.warn("[acp] session/close failed during dispose:", error);
       }
-    }
-
-    // Don't send cancel — the ACP process may not be generating,
-    // and the connection may already be closing. Just kill the process.
-
-    if (!this.child.killed) {
-      terminateChildProcessTree(this.child);
     }
   }
 

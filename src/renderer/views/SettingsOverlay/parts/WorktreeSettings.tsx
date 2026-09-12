@@ -4,6 +4,11 @@ import type { WorktreeStorageMode } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { buildWslProjectDistrosKey } from "@/renderer/state/projectKeys";
+import {
+  selectBrowserBridgeServer,
+  useRemoteServersStore,
+} from "@/renderer/state/remoteServersStore";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { Select } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import { useLocalizedOptions, worktreeStorageModeOptions } from "./settingsOptions";
@@ -17,7 +22,18 @@ export function WorktreeSettings() {
   const setBasePath = useSharedSettings((s) => s.setWorktreeBasePath);
   const wslBasePath = useSharedSettings((s) => s.wslWorktreeBasePath);
   const setWslBasePath = useSharedSettings((s) => s.setWslWorktreeBasePath);
-  const hasWslProject = useAppStore((s) => Boolean(buildWslProjectDistrosKey(s.projects)));
+  const selectedRemoteDesktopId = useRemoteServersStore((state) =>
+    isBrowserClientRuntime() ? selectBrowserBridgeServer(state)?.desktopId : undefined,
+  );
+  const hasWslProject = useAppStore((s) =>
+    Boolean(
+      buildWslProjectDistrosKey(
+        selectedRemoteDesktopId
+          ? s.projects.filter((project) => project.remoteServerId === selectedRemoteDesktopId)
+          : s.projects,
+      ),
+    ),
+  );
 
   const isGlobal = storageMode === "global";
   const modeOptions = useLocalizedOptions(worktreeStorageModeOptions);
@@ -47,7 +63,12 @@ export function WorktreeSettings() {
           title={t`Base folder`}
           description={t`Folder that holds all worktrees. Tip: a Dev Drive here speeds up builds.`}
         >
-          <WorktreeBaseFolderField isWsl={false} value={basePath} onChange={setBasePath} />
+          <WorktreeBaseFolderField
+            isWsl={false}
+            value={basePath}
+            onChange={setBasePath}
+            {...(selectedRemoteDesktopId ? { remoteDesktopId: selectedRemoteDesktopId } : {})}
+          />
         </SettingRow>
       ) : null}
 

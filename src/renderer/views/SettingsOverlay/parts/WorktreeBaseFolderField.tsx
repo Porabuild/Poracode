@@ -3,6 +3,7 @@ import { FolderOpen, RotateCcw } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { readBridge } from "@/renderer/bridge";
 import { Button, Input, PathDisplay } from "@/renderer/components/common";
+import { RemoteHostFolderPicker } from "./RemoteHostFolderPicker";
 
 /** Friendly representation of the built-in default worktree root. */
 export const DEFAULT_WORKTREE_PATH = "~/.poracode/worktrees";
@@ -19,13 +20,20 @@ export function WorktreeBaseFolderField(props: {
   onChange: (value: string) => void;
   /** Path shown (and used as the input placeholder) when `value` is empty. */
   defaultPath?: string;
+  /** Select from this machine's filesystem instead of opening a local OS picker. */
+  remoteDesktopId?: string;
 }) {
   const { t } = useLingui();
   const { isWsl, value, onChange } = props;
   const defaultPath = props.defaultPath ?? DEFAULT_WORKTREE_PATH;
   const [draft, setDraft] = useState(value);
+  const [remotePickerOpen, setRemotePickerOpen] = useState(false);
 
   async function pick() {
+    if (props.remoteDesktopId) {
+      setRemotePickerOpen(true);
+      return;
+    }
     const picked = await readBridge().pickFolder(value || undefined);
     if (picked) onChange(picked);
   }
@@ -38,37 +46,48 @@ export function WorktreeBaseFolderField(props: {
   const canRestore = isWsl ? Boolean(draft) : Boolean(value);
 
   return (
-    <div className="flex w-[320px] shrink-0 items-center gap-2">
-      {isWsl ? (
-        <Input
-          aria-label={t`Worktree base folder`}
-          className="min-w-0 flex-1 font-mono text-xs"
-          placeholder={defaultPath}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => onChange(draft.trim())}
-        />
-      ) : (
+    <>
+      <div className="flex w-[320px] shrink-0 items-center gap-2">
+        {isWsl ? (
+          <Input
+            aria-label={t`Worktree base folder`}
+            className="min-w-0 flex-1 font-mono text-xs"
+            placeholder={defaultPath}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={() => onChange(draft.trim())}
+          />
+        ) : (
+          <Button
+            aria-label={t`Choose worktree base folder`}
+            variant="tertiary"
+            className="min-w-0 flex-1 justify-start gap-2 font-normal"
+            onPress={() => void pick()}
+          >
+            <FolderOpen className="size-4 shrink-0 text-muted" />
+            <PathDisplay path={value || defaultPath} className="min-w-0 flex-1 text-xs" />
+          </Button>
+        )}
         <Button
-          aria-label={t`Choose worktree base folder`}
+          isIconOnly
+          aria-label={t`Restore default worktree base folder`}
           variant="tertiary"
-          className="min-w-0 flex-1 justify-start gap-2 font-normal"
-          onPress={() => void pick()}
+          className="shrink-0"
+          isDisabled={!canRestore}
+          onPress={restore}
         >
-          <FolderOpen className="size-4 shrink-0 text-muted" />
-          <PathDisplay path={value || defaultPath} className="min-w-0 flex-1 text-xs" />
+          <RotateCcw className="size-3.5 text-muted" />
         </Button>
-      )}
-      <Button
-        isIconOnly
-        aria-label={t`Restore default worktree base folder`}
-        variant="tertiary"
-        className="shrink-0"
-        isDisabled={!canRestore}
-        onPress={restore}
-      >
-        <RotateCcw className="size-3.5 text-muted" />
-      </Button>
-    </div>
+      </div>
+      {remotePickerOpen && props.remoteDesktopId ? (
+        <RemoteHostFolderPicker
+          desktopId={props.remoteDesktopId}
+          title={t`Choose worktree base folder`}
+          {...(value ? { initialPath: value } : {})}
+          onClose={() => setRemotePickerOpen(false)}
+          onSelect={onChange}
+        />
+      ) : null}
+    </>
   );
 }

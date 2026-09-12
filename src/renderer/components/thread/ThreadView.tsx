@@ -27,6 +27,8 @@ import { GuiThreadContent } from "./ThreadContent";
 import { TerminalThreadContent } from "./TerminalThreadContent";
 import { ThreadHeaderStatusButton } from "./ThreadHeaderStatus";
 import { ThreadToolRail } from "./ThreadToolRail";
+import { PaneDragHandle } from "./PaneDragAndDrop";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 
 /**
  * Strip Electron's `Error invoking remote method '<channel>': Error: ` prefix
@@ -81,6 +83,7 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.isWsl === next.isWsl &&
     prev.showCloseButton === next.showCloseButton &&
     prev.paneAlign === next.paneAlign &&
+    prev.hidden === next.hidden &&
     prev.isDragging === next.isDragging &&
     prev.dropIndicator === next.dropIndicator &&
     prev.paneCount === next.paneCount &&
@@ -112,6 +115,8 @@ export type ThreadViewProps = {
   showCloseButton?: boolean;
   paneAlign?: "left" | "center" | "right";
   isDragging?: boolean;
+  /** Mounted but hidden for keep-alive. */
+  hidden?: boolean;
   dropIndicator?:
     | false
     | "replace"
@@ -155,6 +160,7 @@ export type ThreadViewProps = {
 };
 
 export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
+  const compactLayout = useCompactLayout();
   const {
     thread,
     agentStatus,
@@ -169,6 +175,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
     showCloseButton,
     paneAlign = "center",
     isDragging,
+    hidden = false,
     dropIndicator,
     paneIndex: _paneIndex,
     paneCount = 1,
@@ -326,7 +333,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
   const alignClass =
     paneAlign === "right" ? "ml-auto" : paneAlign === "left" ? "mr-auto" : "mx-auto";
   const paddingClass = "px-2";
-  const contentShellClass = `${alignClass} relative flex min-h-0 w-full max-w-[1040px] flex-1 flex-col ${paddingClass} px-3 pb-2`;
+  const contentShellClass = `m-thread-content ${alignClass} relative flex min-h-0 w-full max-w-[1040px] flex-1 flex-col ${paddingClass} px-3 pb-2`;
   const contentBodyClass = `${alignClass} flex min-h-0 w-full max-w-[920px] flex-1 flex-col pt-2`;
 
   return (
@@ -334,7 +341,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
       <div
         ref={droppableRef}
         data-poracode-thread-pane=""
-        className={`group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
+        className={`${usesTerminalPresentation ? "m-thread m-thread--terminal" : "m-thread"} group/pane relative flex h-full min-h-0 flex-col ${isDragging ? "opacity-50" : ""}`}
       >
         {dropIndicator === "replace" && (
           <div
@@ -368,7 +375,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         )}
 
         {/* Header bar — provider icon outside pane drag handle; status tooltip uses HeroUI tooltip (anchored bottom start). */}
-        <div className={`px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}>
+        <div
+          data-poracode-thread-header=""
+          data-compact={compactLayout || undefined}
+          className={`poracode-thread-pane-header px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
+        >
           <div
             className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
           >
@@ -379,10 +390,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
               agentLabel={agentStatus?.label}
               agentIcon={agentStatus?.icon}
             />
-            <div
-              ref={dragHandleRef}
-              className={`flex min-w-0 flex-1 items-center gap-2 ${dragHandleRef ? "cursor-grab active:cursor-grabbing" : ""}`}
-            >
+            {/* The drag handle is a dedicated element (see PaneDragHandle):
+                dnd-kit brands its activator element and never un-brands it, so
+                the persistent title strip must never be the activator. */}
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              {dragHandleRef ? <PaneDragHandle handleRef={dragHandleRef} /> : null}
               <Tooltip
                 delay={500}
                 isOpen={isTitleTooltipOpen}
@@ -397,7 +409,11 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                   }
                 }}
               >
-                <Tooltip.Trigger className="min-w-0 flex-1" tabIndex={-1} role="none">
+                <Tooltip.Trigger
+                  className="poracode-thread-pane-title min-w-0 flex-1"
+                  tabIndex={-1}
+                  role="none"
+                >
                   <span
                     ref={titleRef}
                     className="block truncate text-sm font-medium leading-tight text-foreground @max-[560px]:text-xs @max-[360px]:text-[11px]"
@@ -411,7 +427,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
               </Tooltip>
               <div className="flex shrink-0 items-center">
                 {projectName ? (
-                  <span className="px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
+                  <span className="poracode-thread-pane-project px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
                     {projectName}
                   </span>
                 ) : null}
@@ -445,6 +461,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                     <Tooltip.Trigger>
                       <button
                         type="button"
+                        data-poracode-thread-debug=""
                         aria-label={
                           runtimeDebugOpen
                             ? t`Hide runtime debug panel`
@@ -492,6 +509,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 {showCloseButton ? (
                   <button
                     type="button"
+                    data-poracode-thread-close=""
                     aria-label={t`Close pane`}
                     className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
                     onClick={(e) => {
@@ -518,6 +536,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 onTerminalResize={setTerminalSize}
+                hidden={hidden}
                 {...(onSubmitInput ? { onSubmitInput } : {})}
                 {...(remoteTerminalTransport ? { remoteTerminalTransport } : {})}
                 {...(pickFiles ? { pickFiles } : {})}

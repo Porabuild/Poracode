@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_notification_done">Terminé</string>
+    <string name="remote_notification_needs_attention">Attention requise</string>
+    <string name="remote_notification_error">Erreur</string>
+    <string name="remote_notification_dismiss">Ignorer la notification</string>
+</resources>

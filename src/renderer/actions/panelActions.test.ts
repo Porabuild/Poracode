@@ -6,6 +6,7 @@ import {
   dockPanelTab,
   openGitReview,
   openUsagePanel,
+  showGitReviewPage,
   toggleThreadDocksPanel,
   undockPanelTab,
 } from "./panelActions";
@@ -202,6 +203,21 @@ describe("undockPanelTab", () => {
     undockPanelTab("notes");
 
     expect(usePanelStore.getState().bottomPanelDocks).toEqual({ left: "usage", right: null });
+  });
+});
+
+describe("showGitReviewPage", () => {
+  beforeEach(resetDockState);
+  afterEach(resetDockState);
+
+  it("opens a full-page review even when the saved desktop preference is panel", () => {
+    showGitReviewPage("p1", "/repo/worktree");
+
+    expect(usePanelStore.getState()).toMatchObject({
+      gitReviewContext: { projectId: "p1", worktreePath: "/repo/worktree" },
+      gitReviewAsPanel: false,
+      gitOverlayOpen: true,
+    });
   });
 });
 

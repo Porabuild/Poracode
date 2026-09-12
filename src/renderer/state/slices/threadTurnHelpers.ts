@@ -1,5 +1,6 @@
 import { type Thread, type ThreadStatus, isThreadTurnActive } from "@/shared/contracts";
 import { isVisibleRuntimeItem } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
+import { mergeCompletedTurns } from "./runtimeEventReducer";
 import type { CompletedTurnRecord } from "./runtimeEventSlice";
 import type { AppStoreState } from "./shared";
 
@@ -49,14 +50,25 @@ export function appendCompletedTurnIfClosed(
     return unchanged;
   }
 
+  const existing = state.runtimeCompletedTurnsByThread[threadId] ?? [];
+  if (existing.some((turn) => turn.startedAt === startedAt && turn.endedAt === endedAt)) {
+    return unchanged;
+  }
   const anchorItemId = resolveCompletedTurnAnchorItemId(state, threadId);
+  // A later close that produced no new hangable row (goal-only ACP tail,
+  // status blip) would otherwise store a second window on the same message
+  // and the chat surface would render two "Worked for" lines.
+  if (anchorItemId !== null && existing.some((turn) => turn.anchorItemId === anchorItemId)) {
+    return unchanged;
+  }
 
   const record: CompletedTurnRecord = { startedAt, endedAt, anchorItemId };
-  const existing = state.runtimeCompletedTurnsByThread[threadId] ?? [];
+  const merged = mergeCompletedTurns(existing, [record]);
+  if (merged === existing) return unchanged;
   return {
     runtimeCompletedTurnsByThread: {
       ...state.runtimeCompletedTurnsByThread,
-      [threadId]: [...existing, record],
+      [threadId]: merged,
     },
   };
 }

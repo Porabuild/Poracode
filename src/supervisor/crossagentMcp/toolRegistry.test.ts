@@ -596,7 +596,7 @@ describe("subagent tool registration", () => {
       "keep waiting across as many wait_for_agent calls as necessary",
     );
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).toContain(
-      "Never cancel or abandon a run solely because 180 seconds",
+      "Never cancel or abandon a run solely because a wait timed out",
     );
     expect(CROSSAGENT_MCP_INSTRUCTIONS_BASE).not.toContain("delivered back automatically");
   });
@@ -1351,5 +1351,177 @@ describe("union-free schema runtime enforcement", () => {
     expect(result.isError).toBe(true);
     expect(resultText(result)).toContain("not both");
     expect(count()).toBe(0);
+  });
+});
+
+describe("quiet monitoring contract", () => {
+  it.each(["spawn_agent", "wait_for_agent", "get_status"])(
+    "advertises output_mode on %s",
+    (name) => {
+      expect(TOOLS.find((tool) => tool.name === name)?.inputSchema).toMatchObject({
+        properties: { output_mode: { type: "string", enum: ["quiet", "progress"] } },
+      });
+    },
+  );
+
+  it.each([{ prompt: "go" }, { tasks: [{ prompt: "one" }, { prompt: "two" }] }])(
+    "rejects invalid output modes before spawning %j",
+    async (shape) => {
+      const { ctx } = makeToolContext();
+      const spawn = vi.fn<SubagentRunManager["spawn"]>();
+      const spawnMany = vi.fn<SubagentRunManager["spawnMany"]>();
+      const record = vi.fn<NonNullable<SubagentToolContext["recordExplicitSelections"]>>();
+      ctx.recordExplicitSelections = record;
+      ctx.runManager = { spawn, spawnMany } as unknown as SubagentRunManager;
+      const result = await dispatchTool(
+        "spawn_agent",
+        { ...shape, output_mode: "silent", full_output: true },
+        ctx,
+      );
+      expect(result.isError).toBe(true);
+      expect(resultText(result)).toContain("output_mode must be quiet or progress");
+      expect(spawn).not.toHaveBeenCalled();
+      expect(spawnMany).not.toHaveBeenCalled();
+      expect(record).not.toHaveBeenCalled();
+    },
+  );
+
+  it("passes quiet through foreground single/batch spawn and cursor-based single/batch reads", async () => {
+    const { ctx } = makeToolContext();
+    const result = { status: "running" as const, output: "", total_output_chars: 0 };
+    const waitFor = vi.fn<SubagentRunManager["waitFor"]>(async () => result);
+    const waitForMany = vi.fn<SubagentRunManager["waitForMany"]>(async () => [
+      { run_id: "a", ...result },
+    ]);
+    const getStatus = vi.fn<SubagentRunManager["getStatus"]>(() => result);
+    ctx.runManager = {
+      spawn: () => ({ runId: "a" }),
+      spawnMany: () => [{ runId: "a" }],
+      waitFor,
+      waitForMany,
+      getStatus,
+    } as unknown as SubagentRunManager;
+    for (const shape of [{ prompt: "go" }, { tasks: [{ prompt: "go" }] }]) {
+      expect(
+        (await dispatchTool("spawn_agent", { ...shape, output_mode: "quiet" }, ctx)).isError,
+      ).not.toBe(true);
+    }
+    expect(waitFor).toHaveBeenLastCalledWith("a", 120000, "parent-1", {
+      outputMode: "quiet",
+      fullOutput: false,
+      currentAttemptOnly: true,
+    });
+    expect(waitForMany).toHaveBeenLastCalledWith(["a"], 120000, "parent-1", {
+      outputMode: "quiet",
+      fullOutput: false,
+      currentAttemptOnly: true,
+    });
+    for (const name of ["wait_for_agent", "get_status"]) {
+      await dispatchTool(name, { run_id: "a", output_mode: "quiet", after_output_chars: 7 }, ctx);
+    }
+    expect(waitFor).toHaveBeenLastCalledWith("a", 120000, "parent-1", {
+      outputMode: "quiet",
+      fullOutput: false,
+      afterOutputChars: 7,
+    });
+    expect(getStatus).toHaveBeenLastCalledWith("a", "parent-1", {
+      outputMode: "quiet",
+      fullOutput: false,
+      afterOutputChars: 7,
+    });
+    await dispatchTool(
+      "wait_for_agent",
+      {
+        run_ids: ["a"],
+        output_mode: "quiet",
+        after_output_chars_by_run: { a: 9 },
+        wait_mode: "any",
+      },
+      ctx,
+    );
+    const call = vi.mocked(ctx.runManager.waitForMany).mock.calls.at(-1)!;
+    expect(call[4]).toBe("any");
+    expect(typeof call[3] === "function" && call[3]("a")).toEqual({
+      outputMode: "quiet",
+      fullOutput: false,
+      afterOutputChars: 9,
+    });
+  });
+});
+
+it.each(["wait_for_agent", "wait_for_agents"])(
+  "rejects invalid batch output_mode before %s waits",
+  async (name) => {
+    const { ctx } = makeToolContext();
+    const waitForMany = vi.fn<SubagentRunManager["waitForMany"]>();
+    ctx.runManager = { waitForMany } as unknown as SubagentRunManager;
+    const result = await dispatchTool(
+      name,
+      { run_ids: ["a"], wait_mode: "any", output_mode: "silent" },
+      ctx,
+    );
+    expect(result.isError).toBe(true);
+    expect(resultText(result)).toContain("output_mode must be quiet or progress");
+    expect(waitForMany).not.toHaveBeenCalled();
+  },
+);
+
+describe("compact result spawn contract", () => {
+  it.each([{ prompt: "go" }, { tasks: [{ prompt: "one" }, { prompt: "two" }] }])(
+    "validates result_mode before starting %j",
+    async (shape) => {
+      const { ctx } = makeToolContext();
+      const spawn = vi.fn<SubagentRunManager["spawn"]>();
+      const spawnMany = vi.fn<SubagentRunManager["spawnMany"]>();
+      ctx.runManager = { spawn, spawnMany } as unknown as SubagentRunManager;
+      const result = await dispatchTool(
+        "spawn_agent",
+        { ...shape, result_mode: "invalid", background: true },
+        ctx,
+      );
+      expect(result.isError).toBe(true);
+      expect(spawn).not.toHaveBeenCalled();
+      expect(spawnMany).not.toHaveBeenCalled();
+    },
+  );
+
+  it("applies a batch compact default and rejects an invalid task override atomically", async () => {
+    const { ctx } = makeToolContext();
+    const spawnMany = vi.fn<SubagentRunManager["spawnMany"]>(() => [
+      { runId: "a" },
+      { runId: "b" },
+    ]);
+    ctx.runManager = { spawnMany } as unknown as SubagentRunManager;
+    await dispatchTool(
+      "spawn_agent",
+      { result_mode: "compact", background: true, tasks: [{ prompt: "one" }, { prompt: "two" }] },
+      ctx,
+    );
+    expect(spawnMany.mock.calls[0]![1].map((task) => task.resultMode)).toEqual([
+      "compact",
+      "compact",
+    ]);
+    spawnMany.mockClear();
+    const result = await dispatchTool(
+      "spawn_agent",
+      {
+        result_mode: "compact",
+        background: true,
+        tasks: [{ prompt: "one" }, { prompt: "two", result_mode: "wrong" }],
+      },
+      ctx,
+    );
+    expect(result.isError).toBe(true);
+    expect(spawnMany).not.toHaveBeenCalled();
+  });
+});
+
+it("advertises workflow-specific retries and continuation", () => {
+  const workflow = TOOLS.find((tool) => tool.name === "run_workflow")!;
+  expect(workflow.inputSchema).toMatchObject({
+    properties: {
+      tasks: { items: { properties: { retry_on: { enum: ["startup"] } } } },
+      timeout_s: { description: expect.stringContaining("run_workflow action=wait") },
+    },
   });
 });

@@ -1,5 +1,6 @@
+import { FILE_SAVE_CONFLICT_MESSAGE } from "@/shared/fileSaveErrors";
 import type { Dirent, Stats } from "node:fs";
-import { readdir, readFile, rename, rm, stat, writeFile, mkdir } from "node:fs/promises";
+import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, posix, relative, resolve } from "node:path";
 import type {
@@ -31,10 +32,26 @@ import { HOST_DRIVE_LIST_PATH } from "@/shared/contracts";
 import { isPdfPath } from "@/shared/promptContent";
 import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { ProjectSearchIndex } from "./ProjectSearchIndex";
+import {
+  BOM,
+  MAX_EDITABLE_FILE_SIZE,
+  isBinaryBuffer,
+  detectLineEnding,
+  buildWriteBuffer,
+} from "./projectFileContent";
+import { writeNativeEditorFile } from "./projectFileWrites";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 
-const BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 const MAX_HOST_BROWSE_ENTRIES = 4_000;
+
+// The deployed WSL bridge already reports commit-time conflicts with EMTIME.
+// Normalize that stable code before IPC reduces the error to its message.
+function rethrowWslFileWriteError(error: unknown): never {
+  if (error instanceof Error && "code" in error && error.code === "EMTIME") {
+    throw new Error(FILE_SAVE_CONFLICT_MESSAGE);
+  }
+  throw error;
+}
 
 /** Existing drive roots (C:\, D:\, …) as directory entries, for the picker. */
 async function listWindowsDriveRoots(): Promise<HostDirectoryEntry[]> {
@@ -53,7 +70,6 @@ async function listWindowsDriveRoots(): Promise<HostDirectoryEntry[]> {
   );
   return roots.filter((entry): entry is HostDirectoryEntry => entry !== null);
 }
-const MAX_EDITABLE_FILE_SIZE = 1_000_000;
 
 type RawFileRead =
   | { kind: "tooLarge"; modifiedAtMs: number }
@@ -94,40 +110,6 @@ function validateEntryName(name: string): string {
     throw new Error("Invalid name.");
   }
   return trimmed;
-}
-
-function isBinaryBuffer(buffer: Buffer): boolean {
-  for (const byte of buffer) {
-    if (byte === 0) return true;
-  }
-  return false;
-}
-
-function detectLineEnding(content: string): "lf" | "crlf" {
-  return content.includes("\r\n") ? "crlf" : "lf";
-}
-
-function normalizeContentForWrite(content: string, lineEnding: "lf" | "crlf"): string {
-  const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  return lineEnding === "crlf" ? normalized.replace(/\n/g, "\r\n") : normalized;
-}
-
-/**
- * Build the on-disk bytes for a save, preserving the original file's BOM
- * and line-ending convention. Throws if the original is not valid UTF-8.
- */
-function buildWriteBuffer(existingBuffer: Buffer, nextContent: string): Buffer {
-  const hasBom = existingBuffer.subarray(0, BOM.length).equals(BOM);
-  const contentBuffer = hasBom ? existingBuffer.subarray(BOM.length) : existingBuffer;
-  let existingContent = "";
-  try {
-    existingContent = new TextDecoder("utf-8", { fatal: true }).decode(contentBuffer);
-  } catch {
-    throw new Error("This file uses an unsupported encoding.");
-  }
-  const normalized = normalizeContentForWrite(nextContent, detectLineEnding(existingContent));
-  const nextBuffer = Buffer.from(normalized, "utf8");
-  return hasBom ? Buffer.concat([BOM, nextBuffer]) : nextBuffer;
 }
 
 function sortEntries(entries: ProjectTreeEntry[]): ProjectTreeEntry[] {
@@ -520,26 +502,7 @@ export class ProjectTreeService {
       return this.writeExternalFileWsl(payload.projectLocation, payload, this.requireWslClient());
     }
 
-    const fileStat = await stat(payload.absolutePath);
-    if (!fileStat.isFile()) {
-      throw new Error("Only files can be saved from the editor.");
-    }
-    if (Math.abs(fileStat.mtimeMs - payload.baseModifiedAtMs) > 1) {
-      throw new Error("The file changed on disk. Reload it before saving.");
-    }
-    if (fileStat.size > MAX_EDITABLE_FILE_SIZE) {
-      throw new Error("This file is too large to save from the editor.");
-    }
-
-    const existingBuffer = await readFile(payload.absolutePath);
-    if (isBinaryBuffer(existingBuffer)) {
-      throw new Error("Binary files cannot be saved from the editor.");
-    }
-
-    const nextBuffer = buildWriteBuffer(existingBuffer, payload.content);
-    await writeFile(payload.absolutePath, nextBuffer);
-    const nextStat = await stat(payload.absolutePath);
-    return { modifiedAtMs: nextStat.mtimeMs };
+    return writeNativeEditorFile(payload.absolutePath, payload);
   }
 
   private async writeExternalFileWsl(
@@ -555,16 +518,18 @@ export class ProjectTreeService {
       throw new Error("This file is too large to save from the editor.");
     }
     if (Math.abs(existing.mtimeMs - payload.baseModifiedAtMs) > 1) {
-      throw new Error("The file changed on disk. Reload it before saving.");
+      throw new Error(FILE_SAVE_CONFLICT_MESSAGE);
     }
     const existingBuffer = Buffer.from(existing.contentBase64, "base64");
     if (isBinaryBuffer(existingBuffer)) {
       throw new Error("Binary files cannot be saved from the editor.");
     }
     const nextBuffer = buildWriteBuffer(existingBuffer, payload.content);
-    const result = await wslClient.writeFile(externalLocation, payload.absolutePath, nextBuffer, {
-      expectedMtimeMs: existing.mtimeMs,
-    });
+    const result = await wslClient
+      .writeFile(externalLocation, payload.absolutePath, nextBuffer, {
+        expectedMtimeMs: existing.mtimeMs,
+      })
+      .catch(rethrowWslFileWriteError);
     return { modifiedAtMs: result.mtimeMs };
   }
 
@@ -716,30 +681,10 @@ export class ProjectTreeService {
       );
     }
 
-    const { fullPath, fileStat } = await this.statFollowingWslSymlinks(
-      payload.projectLocation,
-      path,
-    );
-    if (!fileStat.isFile()) {
-      throw new Error("Only files can be saved from the editor.");
-    }
-    if (Math.abs(fileStat.mtimeMs - payload.baseModifiedAtMs) > 1) {
-      throw new Error("The file changed on disk. Reload it before saving.");
-    }
-    if (fileStat.size > MAX_EDITABLE_FILE_SIZE) {
-      throw new Error("This file is too large to save from the editor.");
-    }
-
-    const existingBuffer = await readFile(fullPath);
-    if (isBinaryBuffer(existingBuffer)) {
-      throw new Error("Binary files cannot be saved from the editor.");
-    }
-
-    const nextBuffer = buildWriteBuffer(existingBuffer, payload.content);
-    await writeFile(fullPath, nextBuffer);
-    this.invalidateCaches(payload.projectLocation);
-    const nextStat = await stat(fullPath);
-    return { modifiedAtMs: nextStat.mtimeMs };
+    const { fullPath } = await this.statFollowingWslSymlinks(payload.projectLocation, path);
+    return writeNativeEditorFile(fullPath, payload, () => {
+      this.invalidateCaches(payload.projectLocation);
+    });
   }
 
   private async writeProjectFileWsl(
@@ -756,16 +701,18 @@ export class ProjectTreeService {
       throw new Error("This file is too large to save from the editor.");
     }
     if (Math.abs(existing.mtimeMs - payload.baseModifiedAtMs) > 1) {
-      throw new Error("The file changed on disk. Reload it before saving.");
+      throw new Error(FILE_SAVE_CONFLICT_MESSAGE);
     }
     const existingBuffer = Buffer.from(existing.contentBase64, "base64");
     if (isBinaryBuffer(existingBuffer)) {
       throw new Error("Binary files cannot be saved from the editor.");
     }
     const nextBuffer = buildWriteBuffer(existingBuffer, payload.content);
-    const result = await wslClient.writeFile(location, absolute, nextBuffer, {
-      expectedMtimeMs: existing.mtimeMs,
-    });
+    const result = await wslClient
+      .writeFile(location, absolute, nextBuffer, {
+        expectedMtimeMs: existing.mtimeMs,
+      })
+      .catch(rethrowWslFileWriteError);
     this.invalidateCaches(location);
     return { modifiedAtMs: result.mtimeMs };
   }
@@ -775,6 +722,7 @@ export class ProjectTreeService {
     if (!path) {
       throw new Error("A new entry must have a path.");
     }
+    await this.assertSafeMutationPath(payload.projectLocation, path, false);
 
     if (payload.projectLocation.kind === "wsl") {
       const wslClient = this.requireWslClient();
@@ -797,19 +745,26 @@ export class ProjectTreeService {
     if (payload.type === "directory") {
       await mkdir(fullPath);
     } else {
-      await writeFile(fullPath, "");
+      await writeFile(fullPath, "", { flag: "wx" });
     }
     this.invalidateCaches(payload.projectLocation);
   }
 
   async renameProjectEntry(payload: RenameProjectEntryPayload): Promise<void> {
     const path = normalizeRelativePath(payload.path);
+    if (!path) {
+      throw new Error("The project root cannot be renamed.");
+    }
     const nextName = validateEntryName(payload.nextName);
     const nextPath = joinRelativePath(getParentRelativePath(path), nextName);
     if (nextPath === path) return;
 
+    await this.assertSafeMutationPath(payload.projectLocation, path, true);
+    await this.assertSafeMutationPath(payload.projectLocation, nextPath, false);
+    await this.assertEntryMissing(payload.projectLocation, nextPath);
+
     if (payload.projectLocation.kind === "wsl") {
-      await this.requireWslClient().rename(
+      await this.requireWslClient().moveNoReplace(
         payload.projectLocation,
         joinProjectPosixPath(payload.projectLocation, path),
         joinProjectPosixPath(payload.projectLocation, nextPath),
@@ -818,10 +773,7 @@ export class ProjectTreeService {
       return;
     }
 
-    await rename(
-      this.resolveEntryPath(payload.projectLocation, path),
-      this.resolveEntryPath(payload.projectLocation, nextPath),
-    );
+    await this.moveNativeEntryNoReplace(payload.projectLocation, path, nextPath);
     this.invalidateCaches(payload.projectLocation);
   }
 
@@ -838,6 +790,10 @@ export class ProjectTreeService {
     const nextPath = joinRelativePath(nextParentPath, currentName);
     if (nextPath === path) return;
 
+    await this.assertSafeMutationPath(payload.projectLocation, path, true);
+    await this.assertSafeMutationPath(payload.projectLocation, nextPath, false);
+    await this.assertEntryMissing(payload.projectLocation, nextPath);
+
     if (payload.projectLocation.kind === "wsl") {
       const wslClient = this.requireWslClient();
       const stats = await wslClient.stat(payload.projectLocation, [
@@ -850,7 +806,7 @@ export class ProjectTreeService {
       ) {
         throw new Error("Folders cannot be moved into themselves.");
       }
-      await wslClient.rename(
+      await wslClient.moveNoReplace(
         payload.projectLocation,
         joinProjectPosixPath(payload.projectLocation, path),
         joinProjectPosixPath(payload.projectLocation, nextPath),
@@ -870,12 +826,16 @@ export class ProjectTreeService {
       throw new Error("Folders cannot be moved into themselves.");
     }
 
-    await rename(sourceFullPath, this.resolveEntryPath(payload.projectLocation, nextPath));
+    await this.moveNativeEntryNoReplace(payload.projectLocation, path, nextPath, sourceFullPath);
     this.invalidateCaches(payload.projectLocation);
   }
 
   async deleteProjectEntry(payload: DeleteProjectEntryPayload): Promise<void> {
     const path = normalizeRelativePath(payload.path);
+    if (!path) {
+      throw new Error("The project root cannot be deleted.");
+    }
+    await this.assertSafeMutationPath(payload.projectLocation, path, true);
 
     if (payload.projectLocation.kind === "wsl") {
       await this.requireWslClient().rm(
@@ -892,6 +852,70 @@ export class ProjectTreeService {
       force: false,
     });
     this.invalidateCaches(payload.projectLocation);
+  }
+
+  private async assertEntryMissing(location: ProjectLocation, path: string): Promise<void> {
+    if (location.kind === "wsl") {
+      const absolute = joinProjectPosixPath(location, path);
+      const result = (await this.requireWslClient().stat(location, [absolute])).stats[0];
+      if (result?.exists) {
+        throw new Error(`An entry already exists at ${path}.`);
+      }
+      if (!result || result.code !== "ENOENT") {
+        throw new Error(`Unable to verify the destination ${path}.`);
+      }
+      return;
+    }
+
+    try {
+      await lstat(this.resolveEntryPath(location, path));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw error;
+    }
+    throw new Error(`An entry already exists at ${path}.`);
+  }
+
+  private async assertSafeMutationPath(
+    location: ProjectLocation,
+    path: string,
+    includeTarget: boolean,
+  ): Promise<void> {
+    if (location.kind === "wsl") return;
+    const root = resolve(getProjectFsPath(location));
+    const parts = normalizeRelativePath(path).split("/").filter(Boolean);
+    const checked = includeTarget ? parts : parts.slice(0, -1);
+    let current = root;
+    for (const part of checked) {
+      current = resolve(current, part);
+      try {
+        if ((await lstat(current)).isSymbolicLink()) {
+          throw new Error("Symbolic links are not allowed for project mutations.");
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+        throw error;
+      }
+    }
+  }
+
+  private async moveNativeEntryNoReplace(
+    location: ProjectLocation,
+    sourcePath: string,
+    destinationPath: string,
+    resolvedSource?: string,
+  ): Promise<void> {
+    const source = resolvedSource ?? this.resolveEntryPath(location, sourcePath);
+    const destination = this.resolveEntryPath(location, destinationPath);
+    await cp(source, destination, {
+      recursive: true,
+      force: false,
+      errorOnExist: true,
+      preserveTimestamps: true,
+      dereference: false,
+      verbatimSymlinks: true,
+    });
+    await rm(source, { recursive: true, force: false });
   }
 
   private resolveEntryPath(location: ProjectLocation, path: string): string {

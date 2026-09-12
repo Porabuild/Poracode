@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
+import { hasClientCapability, isCompactClientRuntimeSurface } from "@/renderer/clientRuntime";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -57,7 +58,9 @@ function getExperimentStoreHydrationSnapshot(): boolean {
 }
 
 export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
-  const runtimeOwner = options.runtimeOwner ?? true;
+  const runtimeOwner =
+    options.runtimeOwner ??
+    (!window.poracodeHost && !window.poracode ? true : hasClientCapability("localBackend"));
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
   const purgeStaleArchivedThreads = useAppStore((state) => state.purgeStaleArchivedThreads);
   const archiveOldDoneThreads = useAppStore((state) => state.archiveOldDoneThreads);
@@ -122,13 +125,14 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
     }
 
     void (async () => {
-      const candidateRecovery = recoverExperimentCandidateWorktrees();
-      if (candidateRecovery) await candidateRecovery;
       if (!isActive) return;
       if (!runtimeOwner) {
         setInitialLoading(false);
         setThreadRuntimeReopenEnabled(true);
         setRuntimeSnapshotsReady(true);
+        void recoverExperimentCandidateWorktrees()?.catch((error: unknown) => {
+          captureRendererException(error, { featureArea: "hydration" });
+        });
         return;
       }
 
@@ -143,12 +147,14 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
       const requestedThreadIds = new Set(useAppStore.getState().threads.map((thread) => thread.id));
       const snapshotsPromise = readBridge().getThreadSnapshots();
 
+      // Backend IPC can hang if the host is dead; do not pin the splash on it.
       const visibleGuiThreadIds = collectVisibleGuiThreadIds();
-      if (visibleGuiThreadIds.length > 0) {
-        await Promise.all(
-          visibleGuiThreadIds.map((threadId) => hydrateThreadRuntimeItems(threadId)),
-        );
-      }
+      void Promise.all([
+        recoverExperimentCandidateWorktrees() ?? Promise.resolve(),
+        ...visibleGuiThreadIds.map((threadId) => hydrateThreadRuntimeItems(threadId)),
+      ]).catch((error: unknown) => {
+        captureRendererException(error, { featureArea: "hydration" });
+      });
 
       if (!isActive) return;
       startTransition(() => {
@@ -301,7 +307,9 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
 
     let stopPrewarm = () => {};
     const frame = window.requestAnimationFrame(() => {
-      stopPrewarm = startDeferredFeaturePrewarm();
+      stopPrewarm = startDeferredFeaturePrewarm(
+        isCompactClientRuntimeSurface() ? "compact" : "desktop",
+      );
     });
     return () => {
       window.cancelAnimationFrame(frame);

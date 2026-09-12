@@ -1,31 +1,34 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { McpServer, ProjectLocation } from "@/shared/contracts";
+import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { resolveNodeForDistro } from "../wsl/runtime";
 import { deployFilesToWslTempBase, resolveWslHelpersDir } from "../wsl/wslDeploy";
 
 const CONFIG_ENV = "PORACODE_MCP_FILTER_CONFIG";
 
-function filterConfig(server: McpServer): string {
+function filterConfig(server: ResolvedMcpServer): string {
   return Buffer.from(
     JSON.stringify({ server, disabledTools: server.disabledTools ?? [] }),
     "utf8",
   ).toString("base64url");
 }
 
-export async function prepareMcpToolFilters(
-  servers: readonly McpServer[],
+export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
+  servers: readonly T[],
   location: ProjectLocation,
-  options: { proxyStdioCwd?: boolean } = {},
-): Promise<McpServer[]> {
-  const needsProxy = (server: McpServer) =>
+  options: { remoteViaStdio?: boolean; proxyStdioCwd?: boolean } = {},
+): Promise<T[]> {
+  const needsProxy = (server: T) =>
     (server.disabledTools?.length ?? 0) > 0 ||
+    (options.remoteViaStdio === true && server.transport.type !== "stdio") ||
     Boolean(options.proxyStdioCwd && server.transport.type === "stdio" && server.transport.cwd);
   if (!servers.some(needsProxy)) return [...servers];
 
   const helpersDir = resolveWslHelpersDir();
-  const workerName = (server: McpServer) =>
-    (server.disabledTools?.length ?? 0) > 0 ? "mcp-filter.mjs" : "mcp-stdio.mjs";
+  const workerName = (server: ResolvedMcpServer) =>
+    (server.disabledTools?.length ?? 0) > 0 || server.transport.type !== "stdio"
+      ? "mcp-filter.mjs"
+      : "mcp-stdio.mjs";
   const names = [...new Set(servers.filter(needsProxy).map(workerName))];
   const sources = names.map((name) => ({ name, path: helpersDir ? join(helpersDir, name) : "" }));
   if (sources.some((source) => !source.path || !existsSync(source.path))) {
@@ -49,7 +52,7 @@ export async function prepareMcpToolFilters(
 
   return servers.map((server) => {
     if (!needsProxy(server)) return server;
-    const filtersTools = (server.disabledTools?.length ?? 0) > 0;
+    const filtersTools = workerName(server) === "mcp-filter.mjs";
     const env: Record<string, string> = filtersTools
       ? { [CONFIG_ENV]: filterConfig(server) }
       : {

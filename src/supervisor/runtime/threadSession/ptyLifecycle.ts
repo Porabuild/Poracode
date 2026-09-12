@@ -12,6 +12,7 @@ export class PtyLifecycle {
   private static readonly CLOSE_TIMEOUT_MS = 2_000;
   private readonly exitPromises = new WeakMap<object, Promise<void>>();
   private readonly exitResolvers = new WeakMap<object, () => void>();
+  private readonly trackedSessions = new Set<SessionRuntime | ShellSessionRuntime>();
 
   track(session: SessionRuntime | ShellSessionRuntime): void {
     if (session.ptyExited || this.exitPromises.has(session)) {
@@ -23,6 +24,7 @@ export class PtyLifecycle {
     });
     this.exitPromises.set(session, promise);
     this.exitResolvers.set(session, resolve);
+    this.trackedSessions.add(session);
   }
 
   resolveExit(session: SessionRuntime | ShellSessionRuntime): void {
@@ -30,6 +32,7 @@ export class PtyLifecycle {
     this.exitResolvers.get(session)?.();
     this.exitResolvers.delete(session);
     this.exitPromises.delete(session);
+    this.trackedSessions.delete(session);
   }
 
   /**

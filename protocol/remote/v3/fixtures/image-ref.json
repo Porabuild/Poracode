@@ -1,0 +1,12 @@
+{
+  "__poracodeImageRef": {
+    "threadId": "thread-fixture-001",
+    "itemId": "item-fixture-image",
+    "path": ["content", 0, "dataUrl"],
+    "mime": "image/png",
+    "bytes": 1048576,
+    "width": 1280,
+    "height": 720,
+    "preview": "data:image/png;base64,iVBORw0KGgo="
+  }
+}

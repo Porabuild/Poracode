@@ -606,6 +606,81 @@ export const DATABASE_MIGRATIONS = [
     // profiles that already recorded schema 39 in a dev or nightly build.
     migrate: normalizeAntigravityAcpConfigs,
   },
+  {
+    version: 42,
+    name: "main-created thread ownership",
+    migrate: (sqlite) =>
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS main_created_threads (
+          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE
+        );
+      `),
+  },
+  {
+    version: 43,
+    name: "terminal scrollback",
+    migrate: (sqlite) =>
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS thread_terminal_scrollback (
+          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+          transcript TEXT NOT NULL,
+          output_length INTEGER NOT NULL
+        );
+      `),
+  },
+  {
+    version: 44,
+    name: "repair divergent schema 32 and 33",
+    // Early native-remote builds used versions 32/33 for the two tables above
+    // while master used those numbers for columns. Reassert both master-side
+    // columns so databases created by either lineage converge safely.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "pr_watches", "blocked_reason", "TEXT");
+      addColumnIfMissing(sqlite, "projects", "gh_account", "TEXT");
+    },
+  },
+  {
+    version: 45,
+    name: "checkpoint revert operations journal",
+    // Durable journal for the backend-owned compound checkpoint revert. Each
+    // row freezes the server-derived plan (turn count, project location,
+    // provider config) before any external side effect and records every
+    // phase, so a crash or retry can resume without re-executing the
+    // destructive relative provider rollback. Settled rows age out through
+    // the startup retention purge; `running` rows stay resumable.
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS checkpoint_revert_operations (
+          operation_key TEXT PRIMARY KEY,
+          thread_id TEXT NOT NULL,
+          checkpoint_item_id TEXT NOT NULL,
+          num_turns INTEGER NOT NULL,
+          project_location_json TEXT,
+          config_json TEXT,
+          provider_phase TEXT NOT NULL,
+          files_phase TEXT NOT NULL,
+          truncate_phase TEXT NOT NULL,
+          removed_anchors_json TEXT,
+          outcome TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_checkpoint_revert_ops_thread
+          ON checkpoint_revert_operations (thread_id, updated_at);
+      `);
+    },
+  },
+  {
+    version: 46,
+    name: "checkpoint revert provider anchor",
+    // WS2 stage 3: the absolute provider revert target, journalled BEFORE the
+    // restore side effect. A resumed operation restores from this stored
+    // anchor instead of re-creating it (re-creating would re-plan against a
+    // possibly-mutated conversation) and never re-runs the relative rollback.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "checkpoint_revert_operations", "provider_anchor_json", "TEXT");
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -765,6 +840,8 @@ const REQUIRED_COLUMNS = {
     "streams",
     "parent_item_id",
   ],
+  thread_terminal_scrollback: ["thread_id", "transcript", "output_length"],
+  main_created_threads: ["thread_id"],
   thread_runtime_item_stream_chunks: ["thread_id", "item_id", "stream", "seq", "chars", "text"],
   thread_runtime_item_stream_state: [
     "thread_id",

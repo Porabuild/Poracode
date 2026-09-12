@@ -27,6 +27,25 @@ export function isResizeObserverLoopError(error: unknown): boolean {
   return message !== null && RESIZE_OBSERVER_LOOP_MESSAGES.has(message);
 }
 
+/**
+ * Safari reports failures from scripts whose details it cannot expose as an
+ * opaque `Script error.` event: no Error object, source URL, or line/column.
+ * This can be emitted by browser-injected or otherwise cross-origin scripts and
+ * gives the renderer nothing actionable to recover from. Do not replace a
+ * healthy app with the fatal crash screen for that diagnostic. A real
+ * same-origin exception still carries an Error or source location and remains
+ * fatal even if its message happens to match.
+ */
+export function isOpaqueScriptError(event: ErrorEvent): boolean {
+  return (
+    (event.message === "Script error." || event.message === "Script error") &&
+    event.error == null &&
+    !event.filename &&
+    event.lineno === 0 &&
+    event.colno === 0
+  );
+}
+
 // HeroUI/react-aria-components wraps toast queue updates in
 // document.startViewTransition(). The ViewTransition's finished/ready/
 // updateCallbackDone promises reject with AbortError "Transition was skipped"
@@ -56,7 +75,11 @@ export function isViewTransitionInvalidStateError(error: unknown): boolean {
 }
 
 export function isIgnorableWindowError(event: ErrorEvent): boolean {
-  return isResizeObserverLoopError(event.error) || isResizeObserverLoopError(event.message);
+  return (
+    isOpaqueScriptError(event) ||
+    isResizeObserverLoopError(event.error) ||
+    isResizeObserverLoopError(event.message)
+  );
 }
 
 export function isIgnorableRejection(reason: unknown): boolean {

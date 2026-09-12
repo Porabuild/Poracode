@@ -1,6 +1,7 @@
 import { extractOscEventsFromPtyStream } from "@/shared/osc";
 import { readBridge } from "@/renderer/bridge";
 import { watchRoutedTerminal } from "@/renderer/state/remoteTerminalFeed";
+import type { RemoteTerminalWatchResultReady } from "@/shared/remote/protocol";
 
 const REMOTE_SHELL_QUIET_READY_MS = 250;
 const REMOTE_SHELL_QUERY_FALLBACK_MS = 12_000;
@@ -10,6 +11,9 @@ interface RoutedShellSessionOptions {
   readonly data: string;
   readonly remoteServerId?: string;
   readonly onOutput?: (output: string) => void;
+  /** Inspect authoritative history separately from live output (e.g. a
+   * current-token completion marker recovered after reconnect). */
+  readonly onSnapshot?: (snapshot: RemoteTerminalWatchResultReady) => void;
   readonly onReset?: () => void;
   readonly onExited?: (exitCode: number | null) => void;
   readonly onWriteError?: (error: unknown) => void;
@@ -29,6 +33,7 @@ export function disposeRoutedShellSession(shellId: string): void {
 export function createRoutedShellSession(options: RoutedShellSessionOptions): () => void {
   disposeRoutedShellSession(options.shellId);
   let armed = true;
+  let observedSpawnReset = false;
   let outputBuffer = "";
   let oscCarry = "";
   let timer = 0;
@@ -59,6 +64,8 @@ export function createRoutedShellSession(options: RoutedShellSessionOptions): ()
       });
   };
   const reset = () => {
+    if (disposed) return;
+    observedSpawnReset = true;
     armed = true;
     outputBuffer = "";
     oscCarry = "";
@@ -66,6 +73,7 @@ export function createRoutedShellSession(options: RoutedShellSessionOptions): ()
     options.onReset?.();
   };
   const onOutput = (output: string) => {
+    if (disposed) return;
     if (!armed) {
       options.onOutput?.(output);
       return;
@@ -95,6 +103,25 @@ export function createRoutedShellSession(options: RoutedShellSessionOptions): ()
     {
       onReset: reset,
       onOutput,
+      onSnapshot: (snapshot) => {
+        if (disposed) return;
+        options.onSnapshot?.(snapshot);
+        // A new prompt may be wholly covered by the feed baseline. Only the
+        // spawn this listener observed can arm readiness from history; later
+        // reconnect snapshots must never rerun or report old command output.
+        if (
+          disposed ||
+          !armed ||
+          !observedSpawnReset ||
+          snapshot.processState !== "running" ||
+          snapshot.data.length === 0
+        ) {
+          return;
+        }
+        outputBuffer = "";
+        oscCarry = "";
+        onOutput(snapshot.data);
+      },
       onExited: (exitCode) => {
         dispose();
         options.onExited?.(exitCode);

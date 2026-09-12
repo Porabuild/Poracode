@@ -1,3 +1,4 @@
+import type { TerminalReplayGate } from "./terminalReplayGate";
 import type { FitAddon } from "@xterm/addon-fit";
 import type { SearchAddon } from "@xterm/addon-search";
 import type { Terminal } from "@xterm/xterm";
@@ -28,6 +29,7 @@ export interface CachedXtermInstance {
   screen: HTMLElement;
   /** False when the previous surface unmounted before its history read finished. */
   hydrated: boolean;
+  replayGate?: TerminalReplayGate;
 }
 
 const instances = new Map<string, CachedXtermInstance>();
@@ -43,6 +45,7 @@ export function stashXtermInstance(terminalId: string, instance: CachedXtermInst
   const previous = instances.get(terminalId);
   if (previous && previous !== instance) {
     previous.screen.remove();
+    previous.replayGate?.dispose();
     previous.terminal.dispose();
   }
   instances.set(terminalId, instance);
@@ -60,6 +63,7 @@ export function createXtermScreen(): HTMLElement {
 export function resetXtermInstanceCacheForTests(): void {
   for (const instance of instances.values()) {
     instance.screen.remove();
+    instance.replayGate?.dispose();
     instance.terminal.dispose();
   }
   instances.clear();

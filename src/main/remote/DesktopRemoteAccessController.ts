@@ -1,6 +1,6 @@
-import { nativeImage } from "electron";
+import { randomBytes } from "node:crypto";
 import type { BrowserPanelManager } from "../browser";
-import { dbGetProject, dbGetProjects, dbGetThreads } from "../db";
+import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import type {
@@ -18,6 +18,7 @@ import {
   type RemoteGitSummaries,
 } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
+import type { UserNotification } from "@/shared/threadNotification";
 import type { Project } from "@/shared/contracts";
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
@@ -29,10 +30,13 @@ import {
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
+  remoteForwardBaseUrl,
   resolveRemoteAccessPort,
 } from "./config";
 import { readOrCreateRemoteAccessIdentity } from "./identity";
-import { setImagePreviewGenerator } from "./server/imagePreview";
+import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
+import { readOrCreateForwardOriginSecret } from "./portForward/forwardOriginSecret";
+import { setImagePreviewGenerator, type ImagePreviewGenerator } from "./server/imagePreview";
 import { getRemoteAccessPairingInfo } from "./pairingInfo";
 import { createPortForwarding, type PortForwarding } from "./portForward/portForwarding";
 import {
@@ -46,7 +50,9 @@ import {
   type RemoteAccessServerInfo,
   type RemoteAccessServerOptions,
 } from "./RemoteAccessServer";
-import { RemoteBrowserGateway } from "./RemoteBrowserGateway";
+import { RemoteBrowserGateway, type RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
+import { createRemoteMcpSettingsGateway } from "./RemoteMcpSettingsGateway";
+import { ThreadNotificationPublisher } from "./ThreadNotificationPublisher";
 import {
   buildTailscaleHttpsUrl,
   disableTailscaleServe,
@@ -72,16 +78,26 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly paths: Pick<PoracodePaths, "baseDir" | "settingsPath">;
   readonly devServerUrl?: string;
   readonly callSupervisor: RemoteAccessServerOptions["callSupervisor"];
+  /** Backend-owned truncate: one DB mutation + one `runtime.truncated` publication. */
+  readonly truncateThreadRuntime: RemoteAccessServerOptions["truncateThreadRuntime"];
+  /** Backend-owned compound checkpoint revert (WS2), refusal-mapped to 409. */
+  readonly revertCheckpoint?: RemoteAccessServerOptions["revertCheckpoint"];
   readonly dispatchThreadCommand: NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>;
-  readonly getBrowserPanelManager: () => BrowserPanelManager | null;
+  readonly getBrowserPanelManager?: () => BrowserPanelManager | null;
+  readonly browser?: RemoteBrowserGatewayLike;
   readonly notifySharedSettingsChanged: (settings: SharedSettings) => void;
   readonly notifyRemoteAccessPairingChanged: (info: RemoteAccessPairingInfo) => void;
   readonly notifyProjectStateChanged: (projects: readonly Project[]) => void;
+  readonly notifyUserNotification?: (notification: UserNotification) => void;
+  readonly notifyEventInterestsChanged: NonNullable<
+    RemoteAccessServerOptions["onEventInterestsChanged"]
+  >;
   readonly reportError: (error: unknown, tags?: PoracodeDiagnosticTags) => void;
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
   readonly gitStateService: GitStateService;
   readonly updates: NonNullable<RemoteAccessServerOptions["updates"]>;
+  readonly imagePreviewGenerator?: ImagePreviewGenerator;
 }
 
 export interface DesktopRemoteAccessController {
@@ -172,6 +188,25 @@ export function createDesktopRemoteAccessController(
   let remoteGitSummaries: RemoteGitSummaries = {};
   let disposePromise: Promise<void> | null = null;
   let gitStatePrewarmed = false;
+  const threadNotifications = new ThreadNotificationPublisher({
+    getThread: dbGetThread,
+    getProjectName: (projectId) => dbGetProject(projectId)?.name ?? "Project",
+    getSettings: () => {
+      const settings = readSharedSettingsFile(options.paths.settingsPath);
+      return {
+        notificationsEnabled: settings.notificationsEnabled,
+        notificationStatuses: settings.notificationStatuses,
+        notifyL2Cli: settings.notifyL2Cli,
+      };
+    },
+    publish: (notification) => {
+      remoteAccessServer?.publishSupervisorEvent({
+        type: "remote-user-notification",
+        ...notification,
+      });
+      options.notifyUserNotification?.(notification);
+    },
+  });
 
   const prewarmGitStateOnce = (): void => {
     if (gitStatePrewarmed) return;
@@ -193,6 +228,16 @@ export function createDesktopRemoteAccessController(
 
   const writeRemoteAccessEnabledSetting = (enabled: boolean) =>
     writeSharedSettingsPatch({ remoteAccessEnabled: enabled });
+
+  const mcpSettings = createRemoteMcpSettingsGateway({
+    readSettings: () => readSharedSettingsFile(options.paths.settingsPath),
+    writeGlobalServers: (mcpServers) => {
+      writeSharedSettingsPatch({ mcpServers });
+    },
+    readProject: dbGetProject,
+    writeProject: dbUpdateProject,
+    projectsChanged: () => options.notifyProjectStateChanged(dbGetProjects()),
+  });
 
   /** Defensive read-time normalization; the setter rejects invalid input. */
   const normalizeAdvertisedUrlSetting = (raw: string): string | undefined => {
@@ -307,6 +352,15 @@ export function createDesktopRemoteAccessController(
       const identity = readOrCreateRemoteAccessIdentity(options.paths.baseDir);
       const remoteHost = remoteAccessHost();
       const port = await resolveRemoteAccessPort({ host: remoteHost });
+      // Dedicated persistent origin secret + configured HTTPS base → the
+      // browser-forward child-origin identity. A malformed explicit
+      // PORACODE_REMOTE_FORWARD_BASE_URL fails startup loudly; absence only
+      // disables browser-origin forwarding (raw TCP keeps working).
+      const forwardOrigin = createForwardOriginIdentity({
+        baseUrl: remoteForwardBaseUrl(),
+        originSecret: readOrCreateForwardOriginSecret(options.paths.baseDir),
+        serverId: identity.desktopId,
+      });
       const advertisedHost = remoteAccessAdvertisedHost({ bindHost: remoteHost });
       const advertisedResolution = await resolveAdvertisedBaseUrl(port);
       attempt.tailscaleServeUrl = advertisedResolution.tailscaleServeUrl ?? null;
@@ -318,18 +372,19 @@ export function createDesktopRemoteAccessController(
         (options.devServerUrl ? undefined : PRODUCTION_PAIRING_APP_URL[options.channel]);
       const trustedCorsOrigins =
         !configuredPairingAppUrl && !options.devServerUrl ? PRODUCTION_HOSTED_APP_URLS : undefined;
-      // In dev, phones load the PWA from Vite instead of the built bundle.
-      let devMobileAppUrl: string | undefined;
+      // In dev, browsers load the canonical client from Vite instead of the built bundle.
+      let devWebAppUrl: string | undefined;
       if (options.devServerUrl) {
-        const devUrl = new URL("/mobile.html", options.devServerUrl);
+        const devUrl = new URL("/", options.devServerUrl);
         devUrl.hostname = advertisedHost;
-        devMobileAppUrl = devUrl.toString();
+        devWebAppUrl = devUrl.toString();
       }
       const authStore = createPersistentRemoteAuthStore(options.paths.baseDir);
       // It owns live TCP listeners, so rebuild only after a full disable/failure.
       portForwarding ??= createPortForwarding({
         bindHost: remoteHost,
         remoteAccessPort: port,
+        ...(forwardOrigin ? { forwardOrigin } : {}),
       });
       attempt.forwarding = portForwarding;
       const pushStore = new PushRegistrationStore(options.paths.baseDir);
@@ -353,30 +408,13 @@ export function createDesktopRemoteAccessController(
       });
       attempt.coordinator = coordinator;
       pushCoordinator = coordinator;
-      // Blurred placeholders for referenced images. `nativeImage` is Electron-only,
-      // which is why this is injected rather than imported by the projector: the
-      // headless server has no resizer and simply ships references without a
-      // preview. Kept to ~24px so the inline cost stays a few hundred bytes.
-      setImagePreviewGenerator(({ data }) => {
-        const image = nativeImage.createFromBuffer(data);
-        if (image.isEmpty()) return null;
-        const { width, height } = image.getSize();
-        if (width <= 0 || height <= 0) return null;
-        const preview = image.resize({
-          width: 24,
-          height: Math.max(1, Math.round((24 * height) / width)),
-          quality: "good",
-        });
-        // JPEG at low quality is the smallest useful encoding for a blurred
-        // stand-in; transparency is irrelevant once it is blurred behind the card.
-        const url = preview.toJPEG(40).toString("base64");
-        return url.length > 0 ? `data:image/jpeg;base64,${url}` : null;
-      });
+      setImagePreviewGenerator(options.imagePreviewGenerator ?? null);
       const server = new RemoteAccessServer({
         appVersion: options.appVersion,
         identity,
         isDev: Boolean(options.devServerUrl),
         ownsSupervisorPersistence: false,
+        onEventInterestsChanged: options.notifyEventInterestsChanged,
         onOversizedEventDropped: ({ type, bytes }) => {
           console.warn(
             `[remote] ${type} event of ${bytes} bytes exceeded the live stream budget; clients asked to resync`,
@@ -394,16 +432,30 @@ export function createDesktopRemoteAccessController(
           : {}),
         ...(pairingAppUrl ? { pairingAppUrl } : {}),
         ...(trustedCorsOrigins ? { trustedCorsOrigins } : {}),
-        ...(devMobileAppUrl ? { devMobileAppUrl } : {}),
+        ...(devWebAppUrl ? { devWebAppUrl } : {}),
         callSupervisor: options.callSupervisor,
+        truncateThreadRuntime: options.truncateThreadRuntime,
+        ...(options.revertCheckpoint ? { revertCheckpoint: options.revertCheckpoint } : {}),
         dispatchThreadCommand: options.dispatchThreadCommand,
         resolveMcpLaunchSnapshot: (projectId) => {
           const settings = readSharedSettingsFile(options.paths.settingsPath);
           return resolveMcpLaunchSnapshot(settings, dbGetProject(projectId)?.mcpServers ?? []);
         },
-        browser: new RemoteBrowserGateway(options.getBrowserPanelManager),
+        ...(options.browser
+          ? { browser: options.browser }
+          : options.getBrowserPanelManager
+            ? { browser: new RemoteBrowserGateway(options.getBrowserPanelManager) }
+            : {}),
         portForward: portForwarding.gateway,
         portProxy: portForwarding.proxy,
+        ...(forwardOrigin
+          ? {
+              forwardOrigin,
+              // Per-instance credential the relay v2 local adapter presents
+              // over loopback for trusted forward dispatch.
+              forwardDispatchKey: randomBytes(32).toString("base64url"),
+            }
+          : {}),
         gitSummaries: () => remoteGitSummaries,
         gitState: options.gitStateService,
         settings: {
@@ -413,6 +465,10 @@ export function createDesktopRemoteAccessController(
             options.notifySharedSettingsChanged(next);
             return pickRemoteSettings(next);
           },
+          readMcpServers: () => mcpSettings.read(),
+          commandMcpServers: (command) => mcpSettings.command(command),
+          resolveScope: (scope) => mcpSettings.resolveScope(scope),
+          resolveServer: (scope, serverId) => mcpSettings.resolveServer(scope, serverId),
         },
         updates: options.updates,
         attachments: {
@@ -426,7 +482,7 @@ export function createDesktopRemoteAccessController(
         pushRegistrations: {
           webPublicKey: createWebPushPublicKeyResolver(pushGatewayOptions),
           upsert: (registration) => pushStore.upsert(registration),
-          remove: (deviceId) => pushStore.remove(deviceId),
+          remove: (deviceId, routing) => pushStore.remove(deviceId, routing),
         },
         onPairingChanged: () => {
           options.notifyRemoteAccessPairingChanged(getRemoteAccessPairingInfo(server));
@@ -529,6 +585,13 @@ export function createDesktopRemoteAccessController(
     remoteAccessServer = null;
     pushCoordinator = null;
     portForwarding = null;
+    void Promise.resolve(
+      options.notifyEventInterestsChanged({
+        terminalThreadIds: [],
+        runtimeThreadIds: [],
+        allRuntimeEvents: false,
+      }),
+    ).catch(() => {});
     if (attempt?.tailscaleServeUrl) {
       void teardownAttemptTailscaleServe(attempt);
     } else {
@@ -697,6 +760,7 @@ export function createDesktopRemoteAccessController(
     handleSupervisorEvent: (event) => {
       remoteAccessServer?.publishSupervisorEvent(event);
       pushCoordinator?.handleSupervisorEvent(event);
+      threadNotifications.handleSupervisorEvent(event);
     },
     handleSupervisorReset: () => {
       // No `thread-exited` is emitted for the sessions that died with the old
@@ -738,6 +802,13 @@ export function createDesktopRemoteAccessController(
       remoteAccessServer = null;
       pushCoordinator = null;
       portForwarding = null;
+      void Promise.resolve(
+        options.notifyEventInterestsChanged({
+          terminalThreadIds: [],
+          runtimeThreadIds: [],
+          allRuntimeEvents: false,
+        }),
+      ).catch(() => {});
       // Preserve the historical before-quit ordering: start closing the HTTP
       // server, then immediately tear down forwarding, without disabling Serve.
       const serverDisposal = server

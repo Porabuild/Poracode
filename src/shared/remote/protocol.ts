@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { sensitiveAgentSettingKeys } from "../agentSecrets";
 import {
+  agentSlashCommandSchema,
   agentStatusSchema,
   backgroundTaskSchema,
   cloneRepoSourceSchema,
   projectSchema,
   scheduledTaskIdPayloadSchema,
   scheduledTaskInputSchema,
+  scheduledTaskRunSchema,
   scheduledTaskSchema,
   terminalSizeSchema,
   threadContextUsageSchema,
@@ -16,14 +18,11 @@ import {
 import { persistedCompletedTurnSchema, persistedRuntimeItemSchema } from "../ipc/schemas";
 import { gitStateInterestSchema, gitStatePatchSchema, gitStateSnapshotSchema } from "../gitState";
 import { sharedSettingsSchema } from "../settings";
+import { userNotificationSchema } from "../threadNotification";
 
-// v9 carries the selected execution environment in thread snapshots and
-// mutation payloads. Older clients would silently drop a pinned WSL distro.
-// Queued follow-ups are an additive v9 capability: their generic passthrough
-// procedures and optional thread-snapshot field remain readable by older v9
-// peers, while the client reports an explicit unsupported error when an older
-// host does not advertise the procedures.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 9;
+// v11 adds the daily usage window. Older native bindings reject unknown
+// window enum values, so exact-match pairing must prevent mixed generations.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 11;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([
@@ -114,6 +113,226 @@ export const remoteClientMetadataSchema = z.object({
 });
 export type RemoteClientMetadata = z.infer<typeof remoteClientMetadataSchema>;
 
+/**
+ * Additive, capability-gated remote features. Keep this object optional so
+ * protocol-v3 clients that never opted into new capabilities stay byte-compatible
+ * with older servers. Unknown capability keys from a newer server are stripped
+ * by Zod (and ignored by older clients).
+ */
+export const TERMINAL_CURSOR_SYNC_VERSION = 1 as const;
+/**
+ * Cursor-sync v2: byte-budgeted chunked baseline delivery with resume and ACK
+ * credit windows (see `terminalBaselineStream.ts` / `terminalFeedWatchV2.ts`).
+ * Additive only — the per-watch `version` in `terminal-watch` is the framing
+ * contract, so version-1 watches never receive v2 frames.
+ */
+export const TERMINAL_CURSOR_SYNC_V2_VERSION = 2 as const;
+
+/** Positive capability version integers; unknown future versions are accepted. */
+export const remoteCapabilityVersionsSchema = z.array(z.number().int().positive()).min(1);
+
+export const remoteTerminalCursorSyncCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteTerminalCursorSyncCapability = z.infer<
+  typeof remoteTerminalCursorSyncCapabilitySchema
+>;
+
+/**
+ * Versioned native-push routing. Version 1 binds one mobile host-registry entry
+ * to a stable client-generated UUID. `desktopId` remains part of the route for
+ * validation and display, but is not unique enough to be the routing key.
+ */
+export const REMOTE_PUSH_ROUTING_VERSION = 1 as const;
+
+export const remotePushRoutingCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemotePushRoutingCapability = z.infer<typeof remotePushRoutingCapabilitySchema>;
+
+/** Origin-bound browser entry support, independent of raw TCP forwarding.
+ * A supported host may still report that its DNS/TLS deployment is unconfigured. */
+export const REMOTE_BROWSER_FORWARD_VERSION = 1 as const;
+export const remoteBrowserForwardCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteBrowserForwardCapability = z.infer<typeof remoteBrowserForwardCapabilitySchema>;
+
+export const remoteEnvironmentCapabilitiesSchema = z.object({
+  terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
+  pushRouting: remotePushRoutingCapabilitySchema.optional(),
+  browserForward: remoteBrowserForwardCapabilitySchema.optional(),
+});
+export type RemoteEnvironmentCapabilities = z.infer<typeof remoteEnvironmentCapabilitiesSchema>;
+
+/** Opaque JS-string-unit absolute terminal cursor (safe nonnegative integer). */
+export const remoteTerminalCursorSchema = z
+  .number()
+  .int()
+  .nonnegative()
+  .max(Number.MAX_SAFE_INTEGER);
+export type RemoteTerminalCursor = z.infer<typeof remoteTerminalCursorSchema>;
+
+/**
+ * Client opt-in on `terminal-watch`. Accepts any positive version so unsupported
+ * future values are explicit server errors rather than silent schema drops.
+ * Servers advertise supported versions via environment capabilities.
+ *
+ * v2 fields (`maxChunkBytes` / `maxWindowBytes` / `resume`) are ignored by
+ * version-1 servers (Zod strips unknown object keys) and read only when
+ * `version` is 2. `resume` presents the client's retained cache position so
+ * the server can serve the uncovered suffix; absent means a cold baseline.
+ */
+export const remoteTerminalCursorSyncRequestSchema = z.object({
+  version: z.number().int().positive(),
+  watchId: z.string().min(1),
+  /** Max ENCODED JSON envelope bytes per baseline chunk (v2). */
+  maxChunkBytes: z.number().int().min(1).optional(),
+  /** Max unacknowledged ENCODED baseline bytes in flight (v2). */
+  maxWindowBytes: z.number().int().min(1).optional(),
+  resume: z
+    .object({
+      generation: z.string().min(1),
+      cursor: remoteTerminalCursorSchema,
+    })
+    .optional(),
+});
+export type RemoteTerminalCursorSyncRequest = z.infer<typeof remoteTerminalCursorSyncRequestSchema>;
+
+/** @deprecated Prefer {@link remoteTerminalCursorSyncRequestSchema}; kept as v1 alias. */
+export const remoteTerminalCursorSyncV1Schema = remoteTerminalCursorSyncRequestSchema;
+export type RemoteTerminalCursorSyncV1 = RemoteTerminalCursorSyncRequest;
+
+/**
+ * Ready snapshot for a cursor-sync watch.
+ *
+ * `generation: null` is **snapshot/replace-only**: it is never append-compatible
+ * with prior or subsequent ranges (including another null). Clients and helpers
+ * must reset/replace on null rather than inventing a durable generation id.
+ *
+ * Range invariant (JS UTF-16 code units / `String.length`):
+ * `fromCursor <= toCursor` and `toCursor - fromCursor === data.length`.
+ */
+export const remoteTerminalWatchResultReadySchema = z
+  .object({
+    status: z.literal("ready"),
+    generation: z.string().min(1).nullable(),
+    fromCursor: remoteTerminalCursorSchema,
+    toCursor: remoteTerminalCursorSchema,
+    data: z.string(),
+    processState: z.enum(["running", "exited"]),
+    terminalSize: terminalSizeSchema.nullable(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.fromCursor > value.toCursor) {
+      ctx.addIssue({
+        code: "custom",
+        message: "fromCursor must be <= toCursor",
+        path: ["fromCursor"],
+      });
+    }
+    if (value.toCursor - value.fromCursor !== value.data.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "toCursor - fromCursor must equal data.length (JS UTF-16 code units)",
+        path: ["data"],
+      });
+    }
+  });
+export type RemoteTerminalWatchResultReady = z.infer<typeof remoteTerminalWatchResultReadySchema>;
+
+export const remoteTerminalWatchResultErrorSchema = z.object({
+  status: z.literal("error"),
+  code: z.enum(["forbidden", "not-found", "unavailable"]),
+  retryable: z.boolean(),
+  /** Optional machine-readable cause, e.g. `unsupported-version` — lets a v2
+   * client distinguish "downgrade host" from other non-retryable stops. */
+  reason: z.string().min(1).optional(),
+});
+export type RemoteTerminalWatchResultError = z.infer<typeof remoteTerminalWatchResultErrorSchema>;
+
+export const remoteTerminalWatchResultSchema = z.discriminatedUnion("status", [
+  remoteTerminalWatchResultReadySchema,
+  remoteTerminalWatchResultErrorSchema,
+]);
+export type RemoteTerminalWatchResult = z.infer<typeof remoteTerminalWatchResultSchema>;
+
+/** Live `terminal-output` cursor metadata (server always emits supported version). */
+export const remoteTerminalOutputCursorSyncV1Schema = z
+  .object({
+    version: z.literal(TERMINAL_CURSOR_SYNC_VERSION),
+    watchId: z.string().min(1),
+    generation: z.string().min(1),
+    fromCursor: remoteTerminalCursorSchema,
+    toCursor: remoteTerminalCursorSchema,
+  })
+  .superRefine((value, ctx) => {
+    if (value.fromCursor > value.toCursor) {
+      ctx.addIssue({
+        code: "custom",
+        message: "fromCursor must be <= toCursor",
+        path: ["fromCursor"],
+      });
+    }
+  });
+export type RemoteTerminalOutputCursorSyncV1 = z.infer<
+  typeof remoteTerminalOutputCursorSyncV1Schema
+>;
+
+/**
+ * One ordered slice of a cursor-sync v2 baseline (see
+ * `remoteTerminalCursorSyncRequestSchema` v2 fields). The last chunk
+ * (`chunkIndex === chunkCount - 1`) completes the baseline — there is no
+ * separate completion frame. Chunk ranges are contiguous and code-point
+ * aligned: `chunk k+1.from === chunk k.to`, and a boundary never splits a
+ * surrogate pair. A fully up-to-date resume is one chunk with empty `data`
+ * and `fromCursor === toCursor === resume.cursor` ("you are current" plus a
+ * processState/terminalSize refresh — distinct from v1's empty-terminal
+ * baseline at the origin).
+ */
+export const remoteTerminalWatchBaselineChunkSchema = z
+  .object({
+    version: z.literal(TERMINAL_CURSOR_SYNC_V2_VERSION),
+    watchId: z.string().min(1),
+    /** Null = replace-only window (SQLite fallback), still chunked. */
+    generation: z.string().min(1).nullable(),
+    chunkIndex: z.number().int().nonnegative(),
+    chunkCount: z.number().int().positive(),
+    fromCursor: remoteTerminalCursorSchema,
+    toCursor: remoteTerminalCursorSchema,
+    data: z.string(),
+    processState: z.enum(["running", "exited"]),
+    terminalSize: terminalSizeSchema.nullable(),
+    /** True = delta from the client's resume cursor; false = full window. */
+    resumeServed: z.boolean(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.chunkIndex >= value.chunkCount) {
+      ctx.addIssue({
+        code: "custom",
+        message: "chunkIndex must be < chunkCount",
+        path: ["chunkIndex"],
+      });
+    }
+    if (value.fromCursor > value.toCursor) {
+      ctx.addIssue({
+        code: "custom",
+        message: "fromCursor must be <= toCursor",
+        path: ["fromCursor"],
+      });
+    }
+    if (value.toCursor - value.fromCursor !== value.data.length) {
+      ctx.addIssue({
+        code: "custom",
+        message: "toCursor - fromCursor must equal data.length (JS UTF-16 code units)",
+        path: ["data"],
+      });
+    }
+  });
+export type RemoteTerminalWatchBaselineChunk = z.infer<
+  typeof remoteTerminalWatchBaselineChunkSchema
+>;
+
 export const remoteEnvironmentDescriptorSchema = z.object({
   protocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
   /**
@@ -143,6 +362,13 @@ export const remoteEnvironmentDescriptorSchema = z.object({
     httpBaseUrl: z.string().url(),
     wsBaseUrl: z.string().url(),
   }),
+  /**
+   * Optional additive capabilities. `terminalCursorSync` version 1 is the
+   * compatibility boundary for reliable terminal snapshot/live cursor sync —
+   * emitted only by servers that implement it; clients must not opt in unless
+   * version 1 is listed.
+   */
+  capabilities: remoteEnvironmentCapabilitiesSchema.optional(),
 });
 export type RemoteEnvironmentDescriptor = z.infer<typeof remoteEnvironmentDescriptorSchema>;
 
@@ -315,6 +541,12 @@ export const remoteSchedulesResponseSchema = z.object({
 });
 export type RemoteSchedulesResponse = z.infer<typeof remoteSchedulesResponseSchema>;
 
+export const remoteScheduleRunsQuerySchema = scheduledTaskIdPayloadSchema;
+export const remoteScheduleRunsResponseSchema = z.object({
+  runs: z.array(scheduledTaskRunSchema),
+});
+export type RemoteScheduleRunsResponse = z.infer<typeof remoteScheduleRunsResponseSchema>;
+
 /** Broadcast on the WS event stream after a project change so clients refresh
  * the shell snapshot. Rides the same stream as supervisor/git events. */
 export const remoteProjectsChangedEventSchema = z.object({
@@ -333,6 +565,12 @@ export const remoteThreadsChangedEventSchema = z.object({
   viewedThreadIds: z.array(z.string().min(1)).optional(),
 });
 export type RemoteThreadsChangedEvent = z.infer<typeof remoteThreadsChangedEventSchema>;
+
+/** Host-owned notification. Clients display it; they do not re-classify thread-state. */
+export const remoteUserNotificationEventSchema = userNotificationSchema.extend({
+  type: z.literal("remote-user-notification"),
+});
+export type RemoteUserNotificationEvent = z.infer<typeof remoteUserNotificationEventSchema>;
 
 /**
  * Port forwarding. Lets a paired client discover dev servers listening on the
@@ -398,7 +636,7 @@ export const remotePortUnforwardResultSchema = z.object({ ok: z.literal(true) })
 export type RemotePortUnforwardResult = z.infer<typeof remotePortUnforwardResultSchema>;
 
 /** Request body for `POST /api/ports/enter`: mints a fresh enter token for an
- * already-open forward. The mobile app calls this right before opening the
+ * already-open forward. The browser client calls this right before opening the
  * forwarded tab so the token in `enterPath` is always fresh, rather than
  * reusing the (possibly stale) one returned by the original `forward` call. */
 export const remotePortEnterRequestSchema = z.object({
@@ -445,6 +683,53 @@ export const remoteWebPushSubscriptionSchema = z.object({
 });
 export type RemoteWebPushSubscription = z.infer<typeof remoteWebPushSubscriptionSchema>;
 
+function containsAsciiControl(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit < 0x20 || codeUnit === 0x7f) return true;
+  }
+  return false;
+}
+
+const remotePushRouteIdentifierSchema = z
+  .string()
+  .min(1)
+  .max(512)
+  .refine((value) => !containsAsciiControl(value), "identifier contains control characters");
+
+/**
+ * Client-to-host binding for multihost native push. This object is optional so
+ * registrations from released single-host clients keep their original shape.
+ * A client that sends it must provide the complete v1 identity.
+ */
+export const remotePushRegistrationRoutingSchema = z.object({
+  version: z.literal(REMOTE_PUSH_ROUTING_VERSION),
+  clientConnectionId: z
+    .string()
+    .uuid()
+    .transform((value) => value.toLowerCase()),
+  desktopId: remotePushRouteIdentifierSchema,
+});
+export type RemotePushRegistrationRouting = z.infer<typeof remotePushRegistrationRoutingSchema>;
+
+/** Custom routing data delivered with a native notification. */
+export const remotePushPayloadRoutingSchema = remotePushRegistrationRoutingSchema.extend({
+  threadId: remotePushRouteIdentifierSchema,
+});
+export type RemotePushPayloadRouting = z.infer<typeof remotePushPayloadRoutingSchema>;
+
+/** Per-install alert choices supplied by native clients. Missing preferences
+ * preserve the released behavior: every alert category, with sound. */
+export const remotePushAlertPreferencesSchema = z.object({
+  sound: z.boolean(),
+  statuses: z.object({
+    done: z.boolean(),
+    needsAttention: z.boolean(),
+    error: z.boolean(),
+  }),
+});
+export type RemotePushAlertPreferences = z.infer<typeof remotePushAlertPreferencesSchema>;
+
 export const remotePushRegistrationSchema = z
   .object({
     /** Stable per-device identity (survives token rotation); the upsert key. */
@@ -458,12 +743,16 @@ export const remotePushRegistrationSchema = z
     activityTokens: z.record(z.string().min(1), z.string().min(1)).optional(),
     /** Standards-based Push API subscription. Installed web apps only. */
     webPushSubscription: remoteWebPushSubscriptionSchema.optional(),
-    /** Browser-history base path (`/` or `/app`) for notification click routing. */
+    /** Root-scoped browser-history base path for notification click routing. */
     webAppBasePath: z
       .string()
       .regex(/^\/(?!\/)(?:[^?#]*)$/)
       .optional(),
     appVersion: z.string().min(1).optional(),
+    /** Present only for native clients that negotiated push-routing v1. */
+    routing: remotePushRegistrationRoutingSchema.optional(),
+    /** Device-owned alert sound and outcome filters. Native clients only. */
+    alertPreferences: remotePushAlertPreferencesSchema.optional(),
   })
   .superRefine((registration, ctx) => {
     if (registration.platform === "android") {
@@ -499,6 +788,20 @@ export const remotePushRegistrationSchema = z
       }
       return;
     }
+    if (registration.routing !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["routing"],
+        message: "routing is native-only",
+      });
+    }
+    if (registration.alertPreferences !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["alertPreferences"],
+        message: "alertPreferences is native-only",
+      });
+    }
     if (!registration.webPushSubscription) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -527,11 +830,21 @@ export type RemotePushRegistration = z.infer<typeof remotePushRegistrationSchema
 
 export const remotePushUnregisterSchema = z.object({
   deviceId: z.string().min(1),
+  /** Exact registry entry to remove. Omitted by legacy clients. */
+  routing: remotePushRegistrationRoutingSchema.optional(),
 });
+export type RemotePushUnregister = z.infer<typeof remotePushUnregisterSchema>;
 
 export const remotePushRegistrationResultSchema = z.object({
   ok: z.literal(true),
+  /** Echoed only when the server accepted and bound versioned routing. */
+  routing: z
+    .object({
+      version: z.literal(REMOTE_PUSH_ROUTING_VERSION),
+    })
+    .optional(),
 });
+export type RemotePushRegistrationResult = z.infer<typeof remotePushRegistrationResultSchema>;
 
 export const remoteWebPushConfigResultSchema = z.object({
   publicKey: z.string().min(1),
@@ -582,6 +895,15 @@ export const remoteAgentStatusesSchema = z.object({
 });
 export type RemoteAgentStatuses = z.infer<typeof remoteAgentStatusesSchema>;
 
+/** Per-agent slash-command catalog for the WS3-A payload split: clients that
+ * request `slashCommands=omit` on agent-statuses fetch one agent's catalog
+ * lazily from this route instead of every agent's on every cold start. */
+export const remoteAgentSlashCommandsSchema = z.object({
+  kind: z.string().min(1),
+  commands: z.array(agentSlashCommandSchema),
+});
+export type RemoteAgentSlashCommands = z.infer<typeof remoteAgentSlashCommandsSchema>;
+
 export const remoteThreadSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),
   thread: threadSchema,
@@ -621,18 +943,21 @@ export type RemoteRuntimeItemsPage = z.infer<typeof remoteRuntimeItemsPageSchema
  * PWA, as opposed to its device-local settings). Only settings the desktop
  * itself acts on belong here — the AI helpers (title/commit generation,
  * conflict resolver), agent/model configuration (each desktop has its own set
- * of agents and models), and persistent composer MCP enablement. Deliberately
- * excludes secrets (providerConfigs and custom MCP definitions) and
- * device-local preferences (theme, fonts, audio, …).
+ * of agents and models), worktree placement, and persistent composer MCP
+ * enablement. Deliberately excludes secrets (providerConfigs and custom MCP
+ * definitions) and device-local preferences (theme, fonts, audio, …).
  */
-const remoteAgentSettingsSchema = sharedSettingsSchema.shape.agentSettings.transform((settings) =>
-  Object.fromEntries(
-    Object.entries(settings).map(([agentKind, values]) => {
-      const next = { ...values };
-      for (const key of sensitiveAgentSettingKeys(agentKind)) delete next[key];
-      return [agentKind, next];
-    }),
-  ),
+/** Exported solely so the remote-v3 generator can bind this security transform
+ * to its portable native implementation. */
+export const remoteAgentSettingsSchema = sharedSettingsSchema.shape.agentSettings.transform(
+  (settings) =>
+    Object.fromEntries(
+      Object.entries(settings).map(([agentKind, values]) => {
+        const next = { ...values };
+        for (const key of sensitiveAgentSettingKeys(agentKind)) delete next[key];
+        return [agentKind, next];
+      }),
+    ),
 );
 
 export const remoteSettingsSchema = sharedSettingsSchema
@@ -641,6 +966,7 @@ export const remoteSettingsSchema = sharedSettingsSchema
     hiddenModels: true,
     disabledAgents: true,
     providerOrder: true,
+    usage: true,
     // Optional input keeps settings responses from older v9 hosts readable;
     // the default preserves the normalized shared-settings contract.
     followUpBehavior: true,
@@ -649,28 +975,46 @@ export const remoteSettingsSchema = sharedSettingsSchema
     titleGenProvider: true,
     titleGenModel: true,
     titleGenEffort: true,
+    titleGenFast: true,
     commitGenProvider: true,
     commitGenModel: true,
     commitGenEffort: true,
+    commitGenFast: true,
     conflictResolverProvider: true,
     conflictResolverModel: true,
     conflictResolverEffort: true,
+    conflictResolverFast: true,
     conflictResolverPresentationMode: true,
     wslTitleGenProvider: true,
     wslTitleGenModel: true,
     wslTitleGenEffort: true,
+    wslTitleGenFast: true,
     wslCommitGenProvider: true,
     wslCommitGenModel: true,
     wslCommitGenEffort: true,
+    wslCommitGenFast: true,
     wslConflictResolverProvider: true,
     wslConflictResolverModel: true,
     wslConflictResolverEffort: true,
+    wslConflictResolverFast: true,
     wslConflictResolverPresentationMode: true,
+    worktreeStorageMode: true,
+    worktreeBasePath: true,
+    wslWorktreeBasePath: true,
+    searchUseIgnoreFiles: true,
+    searchExclude: true,
     prAutomationDefault: true,
     prMergeMethod: true,
   })
   .extend({
     agentSettings: remoteAgentSettingsSchema,
+    // Optional for backward-compatible reads from remote-v3 hosts released
+    // before native clients could edit usage card ordering and collapse state.
+    usage: sharedSettingsSchema.shape.usage.optional(),
+    // Optional on the wire for remote-v3 hosts released before native project
+    // Search could display the inherited desktop defaults.
+    searchUseIgnoreFiles: sharedSettingsSchema.shape.searchUseIgnoreFiles.optional(),
+    searchExclude: sharedSettingsSchema.shape.searchExclude.optional(),
     followUpBehavior: sharedSettingsSchema.shape.followUpBehavior.optional().default("steer"),
   });
 export type RemoteSettings = z.infer<typeof remoteSettingsSchema>;
@@ -849,8 +1193,30 @@ export const remoteWebSocketClientMessageSchema = z.discriminatedUnion("type", [
   // Start/stop receiving live `terminal-output` for a terminal (a CLI thread or
   // a dev shell), keyed by its supervisor id. PTY bytes are high-volume, so
   // they only stream to clients that opted in via terminal-watch.
-  z.object({ type: z.literal("terminal-watch"), id: z.string().min(1) }),
+  //
+  // Legacy clients send `{type:"terminal-watch",id}` only. Opt-in cursor-sync
+  // clients may add `cursorSync` when the environment advertises the capability;
+  // the server then replies with `terminal-watch-result` and tags subsequent
+  // `terminal-output` frames for that watch. Request `version` is any positive
+  // integer; unsupported versions get an explicit non-retryable error and no watch.
+  z.object({
+    type: z.literal("terminal-watch"),
+    id: z.string().min(1),
+    cursorSync: remoteTerminalCursorSyncRequestSchema.optional(),
+  }),
   z.object({ type: z.literal("terminal-unwatch"), id: z.string().min(1) }),
+  // Cursor-sync v2 only: per-chunk client ACK releasing baseline credit.
+  // Never sent for version-1 watches, so old servers never see it (and an
+  // unknown client message type is already safely ignored server-side).
+  z.object({
+    type: z.literal("terminal-watch-baseline-ack"),
+    id: z.string().min(1),
+    cursorSync: z.object({
+      version: z.literal(TERMINAL_CURSOR_SYNC_V2_VERSION),
+      watchId: z.string().min(1),
+      throughCursor: remoteTerminalCursorSchema,
+    }),
+  }),
   z.object({
     type: z.literal("git-state-interests"),
     interests: z.array(gitStateInterestSchema).max(500),
@@ -911,10 +1277,48 @@ export const remoteWebSocketServerMessageSchema = z.discriminatedUnion("type", [
   // Live PTY bytes for a watched terminal. Out-of-band from the replayable
   // `event` stream — never buffered (replaying terminal bytes would garble the
   // screen; scrollback re-hydrates on reconnect instead).
+  //
+  // Legacy watchers receive the exact three-field frame. Opt-in cursor-sync
+  // watches receive the same envelope plus `cursorSync` metadata.
+  // When cursorSync is present: toCursor - fromCursor === data.length (UTF-16 units).
+  z
+    .object({
+      type: z.literal("terminal-output"),
+      id: z.string().min(1),
+      data: z.string(),
+      cursorSync: remoteTerminalOutputCursorSyncV1Schema.optional(),
+    })
+    .superRefine((value, ctx) => {
+      const cursorSync = value.cursorSync;
+      if (!cursorSync) return;
+      if (cursorSync.toCursor - cursorSync.fromCursor !== value.data.length) {
+        ctx.addIssue({
+          code: "custom",
+          message: "toCursor - fromCursor must equal data.length (JS UTF-16 code units)",
+          path: ["data"],
+        });
+      }
+    }),
+  // Authoritative snapshot/error for an opt-in `terminal-watch` with cursorSync.
+  // Not sent for legacy watches. Clients buffer live output until this arrives
+  // and reconcile by cursor ranges. For a version-2 watch the baseline travels
+  // as `terminal-watch-baseline-chunk` messages instead; this frame remains the
+  // pre-stream error channel (and the v1 single-shot baseline).
   z.object({
-    type: z.literal("terminal-output"),
+    type: z.literal("terminal-watch-result"),
     id: z.string().min(1),
-    data: z.string(),
+    cursorSync: z.object({
+      version: z.literal(TERMINAL_CURSOR_SYNC_VERSION),
+      watchId: z.string().min(1),
+      result: remoteTerminalWatchResultSchema,
+    }),
+  }),
+  // Cursor-sync v2 chunked baseline. Sent only for watches whose request
+  // declared version 2, so version-1 clients never observe this message type.
+  z.object({
+    type: z.literal("terminal-watch-baseline-chunk"),
+    id: z.string().min(1),
+    cursorSync: remoteTerminalWatchBaselineChunkSchema,
   }),
 ]);
 export type RemoteWebSocketServerMessage = z.infer<typeof remoteWebSocketServerMessageSchema>;

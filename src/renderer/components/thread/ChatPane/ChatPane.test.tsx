@@ -24,6 +24,15 @@ const { hydrateFileCheckpoints, finalizeFileCheckpoint } = vi.hoisted(() => ({
   hydrateFileCheckpoints: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   finalizeFileCheckpoint: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
+const { retainRendererEventInterest } = vi.hoisted(() => {
+  const release = vi.fn<() => void>();
+  return {
+    retainRendererEventInterest: vi.fn<() => { ready: Promise<void>; release: () => void }>(() => ({
+      ready: Promise.resolve(),
+      release,
+    })),
+  };
+});
 const { legendScrollToEnd, legendScrollToIndex, mockLegendSizes } = vi.hoisted(() => ({
   legendScrollToEnd: vi.fn<(options?: { animated?: boolean }) => void>(),
   legendScrollToIndex: vi.fn<(options: { index: number; viewPosition?: number }) => void>(),
@@ -41,6 +50,8 @@ vi.mock("@/renderer/state/fileCheckpointActions", () => ({
   hydrateFileCheckpoints,
   finalizeFileCheckpoint,
 }));
+
+vi.mock("@/renderer/state/rendererEventInterests", () => ({ retainRendererEventInterest }));
 
 vi.mock("@legendapp/list/react", async () => {
   const React = await import("react");
@@ -242,7 +253,8 @@ describe("ChatPane", () => {
         dbSetState: vi
           .fn<(key: string, value: string) => Promise<void>>()
           .mockResolvedValue(undefined),
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        dbTruncateThreadRuntimeAfter:
+          vi.fn<typeof publishRuntimeTruncation>(publishRuntimeTruncation),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -289,6 +301,33 @@ describe("ChatPane", () => {
     );
 
     expect(screen.queryByText("Creating worktree…")).not.toBeInTheDocument();
+  });
+
+  it("shows loading and retry states instead of a false empty hint while hydrating", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    useAppStore.setState({ threads: [thread] });
+
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+    expect(screen.getByText("No messages yet")).toBeInTheDocument();
+
+    // First read in flight: the empty hint is suppressed, loading shows.
+    useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "pending" } });
+    await waitFor(() => expect(screen.queryByText("No messages yet")).not.toBeInTheDocument());
+    expect(screen.getByText("Connecting…")).toBeInTheDocument();
+
+    // Failed read: error with retry; retrying re-runs the hydration.
+    useAppStore.setState({ runtimeHydrationStatus: { [thread.id]: "failed" } });
+    await waitFor(() =>
+      expect(screen.getByText("Messages could not be loaded.")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledTimes(2));
+
+    // Success clears the status back to the honest empty state.
+    useAppStore.setState({ runtimeHydrationStatus: {} });
+    await waitFor(() => expect(screen.getByText("No messages yet")).toBeInTheDocument());
+    expect(screen.queryByText("Messages could not be loaded.")).not.toBeInTheDocument();
   });
 
   it("shows connecting without starting a working timer during GUI reconnect", () => {
@@ -1972,6 +2011,70 @@ describe("ChatPane", () => {
     expect(screen.getAllByText("Worked for 1m 15s")).toHaveLength(1);
   });
 
+  it("renders one worked-for line when the same turn is stored under two anchors", () => {
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:00:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:00:22.000Z",
+    };
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    const startedAt = new Date("2026-05-01T12:00:00.000Z").getTime();
+    const endedAt = new Date("2026-05-01T12:00:22.000Z").getTime();
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      { startedAt, endedAt, anchorItemId: ASSISTANT_ITEM_ID },
+      { startedAt, endedAt, anchorItemId: "goal-1" },
+    ]);
+
+    renderChatPane(thread);
+
+    expect(screen.getAllByText("Worked for 22s")).toHaveLength(1);
+  });
+
+  it("does not stack a later no-row turn on the previous turn's worked-for line", () => {
+    const thread = {
+      ...makeThread(),
+      status: "idle" as const,
+      activeTurnStartedAt: undefined,
+      lastTurnStartedAt: "2026-05-01T12:10:00.000Z",
+      lastTurnEndedAt: "2026-05-01T12:10:22.000Z",
+    };
+    seedAssistantMessage(thread.id, "Final answer");
+    completeAssistantMessage(thread.id);
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:00:22.000Z").getTime(),
+        anchorItemId: ASSISTANT_ITEM_ID,
+      },
+      {
+        startedAt: new Date("2026-05-01T12:10:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:10:22.000Z").getTime(),
+        anchorItemId: "goal-1",
+      },
+    ]);
+
+    renderChatPane(thread);
+
+    expect(screen.getAllByText("Worked for 22s")).toHaveLength(1);
+  });
+
   it("keeps a completed turn anchored before an optimistic follow-up prompt", async () => {
     const thread = {
       ...makeThread(),
@@ -2069,7 +2172,7 @@ describe("ChatPane", () => {
     );
   });
 
-  it("shows checkpoint buttons on later user messages and reverts to before that prompt", async () => {
+  it("shows checkpoint buttons on later user messages and reverts with one compound call", async () => {
     const thread = {
       ...makeThread(),
       status: "idle" as const,
@@ -2080,11 +2183,26 @@ describe("ChatPane", () => {
         sandboxMode: "workspace-write",
       },
     };
-    const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    // The host owns the compound; the client sees one call plus the canonical
+    // runtime.truncated event the backend publishes.
+    const revertCheckpoint = vi
+      .fn<
+        (input: {
+          threadId: string;
+          checkpointItemId: string;
+          operationKey: string;
+        }) => Promise<{ outcome: string }>
+      >()
+      .mockImplementation(async (input) => {
+        await publishRuntimeTruncation({
+          threadId: input.threadId,
+          itemId: input.checkpointItemId,
+        });
+        return { outcome: "completed" };
+      });
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation,
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        revertCheckpoint,
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2111,10 +2229,10 @@ describe("ChatPane", () => {
     fireEvent.click(screen.getByRole("button", { name: "Revert" }));
 
     await waitFor(() =>
-      expect(rollbackThreadConversation).toHaveBeenCalledWith({
+      expect(revertCheckpoint).toHaveBeenCalledWith({
         threadId: thread.id,
-        numTurns: 1,
-        config: thread.config,
+        checkpointItemId: "assistant-1",
+        operationKey: `checkpoint-revert.${thread.id}.assistant-1`,
       }),
     );
     await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
@@ -2131,8 +2249,13 @@ describe("ChatPane", () => {
     const thread = { ...makeThread(), status: "idle" as const };
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        revertCheckpoint: vi
+          .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+          .mockImplementation(async ({ threadId }) => {
+            // The click targets the checkpoint before "Follow-up prompt".
+            await publishRuntimeTruncation({ threadId, itemId: "assistant-1" });
+            return { outcome: "completed" };
+          }),
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2164,19 +2287,18 @@ describe("ChatPane", () => {
     ]);
   });
 
-  it("snapshots the clicked steer and ignores repeat confirms during rollback", async () => {
+  it("restores the prompt snapshot taken before the compound call, not a late rewrite", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
-    let finishRollback!: () => void;
-    const rollbackThreadConversation = vi.fn<() => Promise<void>>(
+    let finishRevert!: () => void;
+    const revertCheckpoint = vi.fn<(input: { threadId: string }) => Promise<{ outcome: string }>>(
       () =>
-        new Promise<void>((resolve) => {
-          finishRollback = resolve;
+        new Promise<{ outcome: string }>((resolve) => {
+          finishRevert = () => resolve({ outcome: "completed" });
         }),
     );
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation,
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        revertCheckpoint,
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2192,14 +2314,19 @@ describe("ChatPane", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Revert to this checkpoint" })[1]!);
     const confirm = await screen.findByRole("button", { name: "Revert" });
     fireEvent.click(confirm);
-    fireEvent.click(confirm);
-    expect(rollbackThreadConversation).toHaveBeenCalledTimes(1);
+    expect(revertCheckpoint).toHaveBeenCalledTimes(1);
     expect(useRevertedPromptStore.getState().byThread[thread.id]).toBeUndefined();
 
-    // Simulate a runtime update removing the source message while the provider responds.
+    // A late runtime event rewrites the source message while the compound is
+    // in flight; the composer must still get the pre-revert snapshot.
     await act(async () => {
-      useAppStore.getState().truncateThreadRuntimeAfter(thread.id, "assistant-1");
-      finishRollback();
+      useAppStore.getState().applyRuntimeEvent(thread.id, {
+        type: "item.completed",
+        threadId: thread.id,
+        itemId: "user-3",
+        payload: { content: [{ kind: "text", text: "Rewritten in flight" }] },
+      });
+      finishRevert();
     });
     await waitFor(() =>
       expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
@@ -2211,16 +2338,71 @@ describe("ChatPane", () => {
     );
   });
 
-  it("releases the revert guard after a persistence failure so confirmation can retry", async () => {
+  it("shows the failure and lets confirmation retry after a failed compound", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
-    const dbTruncateThreadRuntimeAfter = vi
-      .fn<() => Promise<void>>()
-      .mockRejectedValueOnce(new Error("Checkpoint save failed"))
-      .mockResolvedValue(undefined);
+    const revertCheckpoint = vi
+      .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+      .mockRejectedValueOnce(new Error("The checkpoint could not be restored."))
+      .mockResolvedValue({ outcome: "completed" });
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-        dbTruncateThreadRuntimeAfter,
+        revertCheckpoint,
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
+    seedUserMessage(thread.id, "Initial prompt", "user-1");
+    seedAssistantMessage(thread.id, "First answer", "assistant-1");
+    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+    seedAssistantMessage(thread.id, "Second answer", "assistant-2");
+    useAppStore.setState({
+      fileCheckpointsByThread: {
+        [thread.id]: {
+          "assistant-1": {
+            threadId: thread.id,
+            checkpointItemId: "assistant-1",
+            ref: "refs/checkpoints/first",
+            commit: "abc123",
+            capturedAt: "2026-09-09T00:00:00Z",
+          },
+        },
+      },
+    });
+    renderChatPane(thread, { checkpointProjectLocation: project.location });
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
+    expect(await screen.findByText("The checkpoint could not be restored.")).toBeInTheDocument();
+    expect(screen.getByText("Follow-up prompt")).toBeInTheDocument();
+    expect(screen.getByText("Second answer")).toBeInTheDocument();
+    expect(useRevertedPromptStore.getState().byThread[thread.id]).toBeUndefined();
+
+    fireEvent.click(screen.getByRole("button", { name: "Revert" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Revert" })).not.toBeInTheDocument(),
+    );
+    expect(revertCheckpoint).toHaveBeenCalledTimes(2);
+    expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
+      { kind: "text", text: "Follow-up prompt" },
+    ]);
+  });
+
+  it("does not converge the transcript until the compound call settles", async () => {
+    const thread = { ...makeThread(), status: "idle" as const };
+    let acknowledge!: () => void;
+    const revertCheckpoint = vi.fn<(input: { threadId: string }) => Promise<{ outcome: string }>>(
+      async ({ threadId }) => {
+        await publishRuntimeTruncation({ threadId, itemId: "assistant-1" });
+        await new Promise<void>((resolve) => {
+          acknowledge = resolve;
+        });
+        return { outcome: "completed" };
+      },
+    );
+    Object.assign(window, {
+      poracode: {
+        revertCheckpoint,
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2231,29 +2413,34 @@ describe("ChatPane", () => {
     seedAssistantMessage(thread.id, "Second answer", "assistant-2");
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
-
     fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
     fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
-    expect(await screen.findByText("Checkpoint save failed")).toBeInTheDocument();
-    expect(dbTruncateThreadRuntimeAfter).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByRole("button", { name: "Revert" }));
+    await waitFor(() => expect(revertCheckpoint).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      seedUserMessage(thread.id, "New prompt from another client", "user-new");
+      acknowledge();
+    });
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "Revert" })).not.toBeInTheDocument(),
     );
-    expect(dbTruncateThreadRuntimeAfter).toHaveBeenCalledTimes(2);
-    expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
-      { kind: "text", text: "Follow-up prompt" },
-    ]);
+    expect(screen.getByText("New prompt from another client")).toBeInTheDocument();
+    expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
   });
 
-  it("rolls back provider by completed turns instead of assistant message count", async () => {
+  it("locks the revert dialog actions while the compound is in flight", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
-    const rollbackThreadConversation = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    let settle!: (value: { outcome: string }) => void;
+    const revertCheckpoint = vi
+      .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            settle = resolve;
+          }),
+      );
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation,
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        revertCheckpoint,
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2261,44 +2448,32 @@ describe("ChatPane", () => {
     seedUserMessage(thread.id, "Initial prompt", "user-1");
     seedAssistantMessage(thread.id, "First answer", "assistant-1");
     seedUserMessage(thread.id, "Follow-up prompt", "user-2");
-    seedAssistantMessage(thread.id, "Second answer part one", "assistant-2a");
-    seedAssistantMessage(thread.id, "Second answer part two", "assistant-2b");
-    useAppStore.getState().hydrateThreadCompletedTurns(thread.id, [
-      {
-        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
-        endedAt: new Date("2026-05-01T12:00:05.000Z").getTime(),
-        anchorItemId: "assistant-1",
-      },
-      {
-        startedAt: new Date("2026-05-01T12:01:00.000Z").getTime(),
-        endedAt: new Date("2026-05-01T12:01:05.000Z").getTime(),
-        anchorItemId: "assistant-2b",
-      },
-    ]);
-
     renderChatPane(thread);
     await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
-
     fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
     fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
 
-    await waitFor(() =>
-      expect(rollbackThreadConversation).toHaveBeenCalledWith({
-        threadId: thread.id,
-        numTurns: 1,
-        config: thread.config,
-      }),
-    );
+    // In flight: confirm shows progress and both actions are locked.
+    await screen.findByText("Reverting…");
+    expect(screen.getByRole("button", { name: "Reverting…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+
+    settle({ outcome: "completed" });
+    await waitFor(() => expect(screen.queryByText("Reverting…")).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
   });
 
-  it("continues local checkpoint revert when provider rollback fails", async () => {
+  it("reverts silently when the compound settles local_only", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
+    const revertCheckpoint = vi
+      .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+      .mockImplementation(async ({ threadId }) => {
+        await publishRuntimeTruncation({ threadId, itemId: "assistant-1" });
+        return { outcome: "completed_local_only" };
+      });
     Object.assign(window, {
       poracode: {
-        rollbackThreadConversation: vi
-          .fn<() => Promise<void>>()
-          .mockRejectedValue(new Error("Codex does not support checkpoint rollback.")),
-        dbTruncateThreadRuntimeAfter: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        revertCheckpoint,
         dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
         setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       },
@@ -2315,9 +2490,7 @@ describe("ChatPane", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
 
     await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
-    expect(
-      screen.queryByText("Codex does not support checkpoint rollback."),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("does not support checkpoint rollback")).not.toBeInTheDocument();
     expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
     expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
       { kind: "text", text: "Follow-up prompt" },
@@ -2364,6 +2537,20 @@ describe("ChatPane", () => {
 
   it("skips checkpoint confirmation after the user opts out", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
+    Object.assign(window, {
+      poracode: {
+        revertCheckpoint: vi
+          .fn<
+            (input: { threadId: string; checkpointItemId: string }) => Promise<{ outcome: string }>
+          >()
+          .mockImplementation(async ({ threadId, checkpointItemId }) => {
+            await publishRuntimeTruncation({ threadId, itemId: checkpointItemId });
+            return { outcome: "completed" };
+          }),
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
     seedUserMessage(thread.id, "Initial prompt", "user-1");
     seedAssistantMessage(thread.id, "First answer", "assistant-1");
     seedUserMessage(thread.id, "Follow-up prompt", "user-2");
@@ -2410,6 +2597,21 @@ function chatPaneProps(thread: Thread): Parameters<typeof ChatPane>[0] {
 }
 
 const PLAN_ITEM_ID = "plan-1";
+
+async function publishRuntimeTruncation({
+  threadId,
+  itemId,
+}: {
+  threadId: string;
+  itemId: string;
+}): Promise<void> {
+  useAppStore.getState().applyRuntimeEvent(threadId, {
+    type: "runtime.truncated",
+    threadId,
+    itemId,
+    removedCompletedTurnAnchors: [],
+  });
+}
 
 function seedPlanItem(
   threadId: string,

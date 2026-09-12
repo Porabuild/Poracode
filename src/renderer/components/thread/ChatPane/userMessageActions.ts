@@ -1,12 +1,7 @@
 /**
- * Bridge between the shared chat pane and the mobile PWA shell. The PWA
- * registers a listener that presents a bottom action sheet
- * (`UserMessageActionsSheet` in `src/mobile`); `UserMessage` calls
- * `openUserMessageActions` when a bubble is long-pressed in a remote session.
- * On desktop nothing registers and the call is a no-op — desktop keeps its
- * hover-revealed copy/revert strip. A module-level slot rather than React
- * context because the sheet host lives in the mobile shell far above the
- * pane, and one host per window is all there ever is.
+ * Bridge from a compact chat row to the canonical app-level message action
+ * sheet. A module-level slot avoids threading presentation state through the
+ * virtualized transcript; one host is mounted per main renderer window.
  */
 export interface UserMessageActionsRequest {
   /** Full prompt text — feeds the sheet's copy action and preview line. */

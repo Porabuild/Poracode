@@ -1,300 +1,184 @@
-# Remote Access & PWA Architecture
+# Poracode client and remote architecture
 
-Status: living document. Tracks the re-architecture of remote access so the
-server can run **standalone** (a CLI on any host), devices connect to it
-directly (LAN / VPN / Tailscale today, a managed relay later), the desktop app
-can act as a **client** of other servers, and projects can be added/removed
-**remotely** (from the filesystem or GitHub).
+## System shape
 
----
+Poracode has four client surfaces with one authoritative backend model. The two
+native mobile apps are independent applications, not hosts for the React
+renderer.
 
-## 1. Where we started
-
-Four runtimes, already cleanly separated:
-
-| Runtime          | Location         | Owns                                                                                                                | Electron-coupled?                |
-| ---------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| **Renderer**     | `src/renderer`   | Desktop UI; in-memory source of truth for projects/threads (Zustand) persisted to SQLite via `dbSyncAll`; git state | Yes (Chromium)                   |
-| **Main**         | `src/main`       | SQLite (`db.ts`), settings file, `RemoteAccessServer`, browser panels, native dialogs, forks the supervisor         | Yes                              |
-| **Supervisor**   | `src/supervisor` | Agents, PTY/terminals, git, GitHub, LSP, project tree, file index                                                   | **No** (pure Node, forked child) |
-| **PWA / mobile** | `src/mobile`     | Remote client over HTTP+WS; multi-desktop pairing (Dexie)                                                           | No (browser)                     |
-
-Key facts that make this tractable (verified, not assumed):
-
-- `src/supervisor/*`, `src/main/db.ts`, `src/main/remote/*`,
-  `src/main/supervisor/SupervisorClient.ts`, `src/main/poracodeData.ts`,
-  `src/main/sharedSettingsFile.ts` import **zero** Electron APIs.
-- `RemoteAccessServer` is already pure dependency-injection: it receives
-  `callSupervisor`, `settings`, `browser?`, `dispatchThreadCommand?`,
-  `gitSummaries?` as constructor options. Only the **wiring** in `main.ts` is
-  Electron-specific.
-- The wire protocol (`src/shared/remote/protocol.ts`) is versioned
-  (`PORACODE_REMOTE_PROTOCOL_VERSION`), zod-validated, HTTP for control +
-  WebSocket for the replayable event stream, with scoped bearer-token auth and
-  persistent sessions.
-- The PWA already models **multiple desktops** (`storage.ts` Dexie schema,
-  `DesktopsView`, `useRemoteDesktop`).
-
-## 2. The four gaps vs. the goal
-
-1. **No standalone entry.** The server only boots inside Electron `main.ts`.
-2. **Source-of-truth split.** The renderer owns projects/threads in memory and
-   pushes to SQLite; `RemoteAccessServer` also writes the DB directly _and_
-   dispatches some commands back to the renderer (`dispatchThreadCommand`).
-   Without a renderer, renderer-only side effects (e.g. `delete-worktree-group`)
-   have nowhere to run.
-3. **No remote project CRUD.** Projects are read-only over the wire. Add (folder
-   pick), clone (GitHub/URL) and remove all live in the renderer + Electron.
-4. **Client is mobile-only and LAN-only.** `RemoteDesktopClient` lives in
-   `src/mobile`; the desktop can't be a client, and there is no relay for
-   cross-network access.
-
-## 3. Target architecture
-
-```
-                 ┌──────────────────────────────────────────┐
-                 │            @/shared/remote                │
-                 │  protocol (wire types, versioned)         │
-                 │  client/  (RemoteDesktopClient, store)    │  ← shared by
-                 └──────────────────────────────────────────┘     PWA + desktop
-                          ▲                     ▲
-                          │ HTTP + WS           │ HTTP + WS
-           ┌──────────────┴───────┐   ┌─────────┴───────────────┐
-           │  PWA / mobile        │   │  Desktop renderer        │
-           │  (src/mobile)        │   │  (src/renderer)          │
-           └──────────────────────┘   │  - local workspace       │
-                          │            │  - remote workspaces ────┼─┐
-                          │            └──────────────────────────┘ │
-                          ▼                     ▼                    │
-                 ┌──────────────────────────────────────────┐       │
-                 │       RemoteAccessServer (pure Node)      │◄──────┘
-                 │  HTTP control + WS events + auth          │
-                 └──────────────────────────────────────────┘
-                    ▲              ▲                  ▲
-          callSupervisor   project/thread service   browser? (Electron only)
-                    │              │
-            ┌───────┴──────┐  ┌────┴───────────────────────────┐
-            │  Supervisor  │  │  RemoteHost composition root    │
-            │  (forked)    │  │  db + supervisor + settings +   │
-            └──────────────┘  │  identity + auth                │
-                              └─────────────────────────────────┘
-                                 ▲                         ▲
-                    ┌────────────┴─────────┐   ┌───────────┴───────────┐
-                    │ Electron main.ts     │   │ Headless CLI (src/    │
-                    │ (+ browser, renderer │   │ server/cli.ts)        │
-                    │  dispatch)           │   │ no Electron           │
-                    └──────────────────────┘   └───────────────────────┘
+```text
+ Electron desktop          Browser / installed PWA      iOS app        Android app
+ React renderer            React renderer               SwiftUI        Compose
+       |                           |                     URLSession       OkHttp
+ bounded IPC                    HTTP + WS                HTTP + WS      HTTP + WS
+       |                           |                        |               |
+ Electron main/backend host      +------------------------+---------------+
+       |                                                   |
+       +---------------- backend/headless remote host -----+
+                              |
+                       supervisor runtime
+                  provider SDKs, ACPs and real PTYs
 ```
 
-Two composition roots, one server. The Electron host injects the browser
-gateway and renderer-dispatch; the headless host injects neither and treats the
-**DB as the source of truth**.
+Electron and browser/PWA clients share `src/renderer` and its provider-agnostic
+data model. The SwiftUI project under `ios/` and the Compose project under
+`android/` do not import that UI, embed `dist/web`, or execute it in a WebView.
+They implement their own navigation, presentation state, lifecycle, secure
+storage, and transport adapters while following the same remote-v3 vocabulary
+and state transitions.
 
-## 4. Staged plan
+Shared behavior means protocol and semantic parity, not shared UI/runtime code.
+A new native feature must be implemented and tested on each platform.
 
-### Phase 1 — Headless composition root + CLI ✅ (this change)
+## Process and authority ownership
 
-- `src/server/createHeadlessRemoteHost.ts`: host-agnostic factory that opens the
-  DB, forks the supervisor, reads identity/auth/settings, and constructs
-  `RemoteAccessServer` with no Electron dependencies.
-- `src/server/cli.ts`: standalone entry (`node dist/main/server.cjs`) that boots
-  the host, prints the pairing URL, and shuts down cleanly on signals.
-- `src/server/headlessSecretKey.ts`: file-backed secret key (no OS keychain on a
-  server), env-overridable via `PORACODE_SECRET_STORAGE_KEY`.
-- New `server` tsdown entry + `pnpm run server` script.
-- **`main.ts` is untouched** — the desktop app's behavior is unchanged. The
-  headless host reuses the existing, already-DI'd server.
+### Client presentation processes
 
-### Phase 2 — Process-agnostic project/thread service
+Each client owns only presentation and client-side session state: navigation,
+host selection, project/thread views, composer state, normalized snapshots,
+reconnect state, and platform lifecycle. No React renderer, SwiftUI app, Compose
+app, or browser process may spawn an agent or own a PTY.
 
-- Lift thread-metadata writes out of "renderer owns it" into a service the
-  server already mostly implements (`applyRemoteThreadCommand`). Make the DB the
-  authority; the renderer becomes a subscriber that reflects DB/event state.
-- Replace the last renderer-only command paths (`delete-worktree-group`) with
-  supervisor procedures so headless is fully functional.
+The Electron renderer accesses local authority through the versioned
+`ClientRuntime` IPC contract. The browser/PWA uses
+`src/renderer/browser/remoteBridge.ts`. The native apps use platform-native HTTP
+and WebSocket clients rather than implementing `ClientRuntime` or loading the
+browser bridge.
 
-### Phase 3 — Remote project CRUD (filesystem + GitHub) 🟡 (backend landed)
+### Electron main and backend host
 
-Landed in this change:
+Electron main owns the desktop OS boundary: windows, filesystem dialogs, app
+lifecycle, updater integration, secure IPC exposure, and the local backend-host
+connection. Heavy agent, PTY, Git, SQLite, and provider work must not run on its
+window event loop.
 
-- Protocol: a `projects:manage` scope and a `remoteProjectCommand` union —
-  `add-existing` (register a server path), `create` (mkdir + register), `clone`
-  (github/url via the supervisor), `remove`. Plus a `remote-projects-changed`
-  WS event so clients refresh their snapshot.
-- Server: `POST /api/projects/command` (scope-gated) + a pure, unit-tested
-  `applyRemoteProjectCommand` handler (`src/main/remote/projectCommands.ts`).
-  The DB is the source of truth; clone is driven through the supervisor.
-- Client: `RemoteDesktopClient.projectCommand()` transport.
+The desktop app and `dist/main/server.cjs` share the backend/supervisor model.
+The backend host owns persistence and remote authorization. The headless host
+can begin serving HTTP and WebSocket traffic before the supervisor is forked;
+the supervisor starts lazily on the first operation that needs agent, PTY,
+provider, or Git authority and is then reused.
 
-Also landed:
+### Supervisor
 
-- **PWA UI:** a `/more/projects` screen (`ManageProjectsView`) with add-folder /
-  clone-URL / remove, wired through `useRemoteDesktop.manageProject()`.
-- **Desktop UI:** the Settings → Remote Servers panel does the same against any
-  connected server.
+The supervisor is the sole owner of structured provider processes, ACP
+sessions, terminal-native agent CLIs, and real PTYs. It emits normalized events
+to the backend host. Every client observes or commands that same authoritative
+runtime; none simulates agent state locally.
 
-Remaining:
+## Native client layers
 
-- **Renderer-dispatched edits** (rename, disable, relocate, reorder) — these
-  need the renderer store's `sortOrder`/cascade semantics, so they ride Phase 2
-  rather than the DB-direct path.
-- **`browseDirectory`** — letting a client navigate the server's filesystem to
-  pick a parent path. Deliberately omitted: exposing the directory tree over the
-  network is its own security decision. For now clients pass an explicit path.
+The platform implementations are parallel in responsibility, not source code:
 
-### Phase 4 — Desktop as a client 🟡 (connect + manage landed)
+| Layer            | iOS                                        | Android                                |
+| ---------------- | ------------------------------------------ | -------------------------------------- |
+| UI/lifecycle     | SwiftUI, Observation, native app lifecycle | Compose, Material 3, Android lifecycle |
+| HTTP/WebSocket   | URLSession                                 | OkHttp                                 |
+| Async work       | Swift concurrency                          | Kotlin coroutines                      |
+| Credentials      | Keychain-backed storage                    | Android Keystore-backed storage        |
+| Durable metadata | Atomic native stores                       | DataStore/native stores                |
 
-Landed in this change:
+Both apps currently implement pairing, persisted hosts, bounded snapshots,
+thread history/actions, ordered live events, reconnect, and resynchronization
+through generated codecs and app-owned domain models. That is an implemented feature slice,
+not evidence of complete protocol coverage.
 
-- **Client extracted to shared.** `RemoteDesktopClient` moved
-  `src/mobile/remoteClient.ts` → `@/shared/remote/client.ts` (dropped its lone
-  renderer-i18n dependency); `src/mobile/remoteClient.ts` is now a re-export, so
-  the PWA is untouched (all 89 mobile tests green).
-- **Desktop remote-servers engine.** `src/renderer/state/remoteServersStore.ts`
-  — a persisted Zustand store (localStorage) that pairs with other servers,
-  fetches their snapshots, and runs project commands against them. Client
-  factory is injectable; fully unit-tested.
-- **Settings → Remote Servers** panel: connect by endpoint + token, see each
-  server's status + projects, and add-folder / clone-URL / remove projects on
-  the remote (reusing Phase 3's `projects:manage`).
+## Remote-v3 contract boundary
 
-Also landed:
+`protocol/remote/v3/manifest.json` is the canonical language-neutral inventory.
+The `v3` directory name is retained; the current wire protocol version is 9.
+The inventory describes:
 
-- **Main sidebar integration** — `SidebarRemoteServers` lists every connected
-  server's projects **and their threads** under a "Remote servers" section in
-  the desktop's left sidebar. Persisted servers reconnect on app start.
-- **Remote thread operation (interrupt / close)** — running agents on a remote
-  server can be interrupted or torn down directly from the sidebar
-  (`remoteServersStore.interruptThread` / `closeThread`).
-- **Main-process HTTP proxy (CORS fix).** Interactive testing against a live
-  loopback server surfaced that the desktop renderer's origin is **not** in the
-  remote server's CORS allowlist, so renderer `fetch` to a remote server is
-  browser-blocked. Fixed by routing remote requests through a new main-local IPC
-  (`remoteHttpRequest`) — the main process isn't subject to CORS. The shared
-  `RemoteDesktopClient` now accepts an injectable `RemoteFetch`; the PWA keeps
-  the browser `fetch`, the desktop injects the main-process proxy.
+- 61 HTTP routes;
+- 100 supervisor procedures;
+- 8 client-to-server WebSocket messages; and
+- 9 server-to-client WebSocket messages.
 
-Verified end-to-end in the running app (interactive-testing skill): enabled this
-desktop's Remote Access, connected the same desktop to its loopback server via
-the Remote Servers panel, and confirmed the server + its projects render in both
-the panel and the sidebar, the connection persists to localStorage with the full
-scope set (incl. `projects:manage`), and **zero console errors** throughout.
+`pnpm run protocol:remote:v3:generate` derives
+`protocol/remote/v3/generated/inventory.json`, `ir.json`,
+`json-schema.bundle.json`, and the manifest-listed native bundle under
+`protocol/remote/v3/generated/native/`. `pnpm run protocol:remote:v3:check` is
+side-effect free and rejects missing, extra, or stale generated artifacts.
 
-- **Live chat for remote threads.** `remoteServersStore.openRemoteThread` fetches
-  a remote thread's history via the client and hydrates it into the shared,
-  `threadId`-keyed runtime store (`storeSync.applyThreadSnapshot`), then opens a
-  WebSocket and forwards events (`dispatchRemoteSupervisorEvent`) so the desktop
-  reuses its own `ChatPane` to render the conversation live. A `RemoteThreadView`
-  overlay (mounted in `AppOverlays`) adds a composer + interrupt wired to the
-  remote client (`sendRemotePrompt`). Opened from the sidebar's remote thread
-  rows. The runtime store is keyed by `threadId`, so a remote thread coexists
-  with local ones without interference. WS handle + factories are injectable for
-  tests.
+The generated inventory carries separate compatibility identities:
 
-Deferred (next):
+- wire `protocolVersion` (currently 11);
+- generator and binding-format versions (binding format currently 2); and
+- hashes of the source contract and manifest.
 
-- Remote thread **absolute / out-of-project file-open** links and remote tree
-  browsing. Project-relative `ChatPane` file links now open in a remote-root
-  file editor context backed by the paired server's allowlisted
-  `readProjectFile` / `writeProjectFile` bridge; absolute paths remain ignored
-  until there is an explicit remote external-file policy.
-- **Pair via QR / pairing-URL paste** (the PWA already parses these).
+The binding format must change when IR layout, schema naming, or omitted-versus-
+null representation changes, even when the wire protocol version is unchanged. A native
+binding bundle must embed the matching version/hash identity so stale Swift or
+Kotlin output cannot silently compile against a newer contract.
 
-Landed hardening since the first Phase 4 cut:
+### Current binding status
 
-- Remote thread **approvals / user-input requests** render in the remote overlay
-  through the same `ThreadRuntimeRequestPanel` as local GUI threads and resolve
-  through the paired server's request API. Sending a follow-up prompt while an
-  approval is pending first denies that approval, matching local composer
-  behavior.
-- Remote thread **checkpoint revert** now routes provider rollback and file
-  restore through the paired server's allowlisted git bridge instead of the
-  local desktop bridge.
+The generator emits executable Swift and Kotlin roots for every inventoried
+route, procedure, and WebSocket union. Both production app targets compile the
+manifest-listed language bundle and fail their build on incompatible versions
+or source membership drift. Stable native facades validate canonical JSON at
+transport boundaries and project it into app-owned domain models; UI state does
+not depend directly on hash-derived generated wire types.
 
-### Phase 5 — Cloud connectivity 🟡 (self-hostable transport landed)
+Generation coverage is not the same as product availability. The foundation,
+push, history, send/interrupt, and known WebSocket boundaries are wired through
+the generated codecs. Project, rich-chat, attachment, terminal, settings, and
+integration operations are being connected in explicit parity batches. The
+native parity ledger must not mark a route or procedure implemented until its
+transport, lifecycle/controller behavior, UI, and end-to-end evidence all land.
 
-- Direct connection stays the default (LAN / VPN / Tailscale).
-- **Relay transport landed.** A self-hostable relay (`pnpm run relay`,
-  `src/server/relay/`) lets a server behind NAT dial out and register a server
-  id; a device reaches it at `<relay>/s/<serverId>/`. The relay is a dumb HTTP +
-  WebSocket tunnel (`relayProtocol.ts`): visitor traffic is framed over one
-  control socket to the host, and the **host adapter just proxies each frame to
-  the server's own loopback port** — so `RemoteAccessServer` and the client are
-  unchanged (the client only swaps its endpoint for the relay URL). Auth stays
-  end-to-end; the relay binds a server id to its first registrant's secret to
-  prevent hijacking. Verified end-to-end over real sockets
-  (`relayServer.test.ts`): HTTP control plane (descriptor + pairing exchange +
-  WS-ticket) and the WebSocket event stream both tunnel correctly.
-  - The headless CLI opts in via `PORACODE_REMOTE_RELAY_URL` (+ a file-backed
-    `PORACODE_REMOTE_RELAY_SECRET`); it registers under its `desktopId` and
-    prints its public relay URL.
+## Remote transport
 
-  Still external (the deferred "managed cloud subscription"): hosting the relay,
-  mapping accounts → server ids, and billing. That SaaS layer sits on top of this
-  transport and is out of repo scope; the transport is what makes cross-network
-  "connect from different devices" actually work today.
+Bounded discovery, snapshots, binary fetches/uploads, redirects, and commands
+use authenticated HTTP. Ordered live supervisor events use JSON text frames over
+WebSocket.
 
-### Review & hardening pass
+The v3 transport includes:
 
-A multi-agent adversarial review (39 agents) over the whole change set raised 33
-findings; 23 survived verification. Fixed in this pass:
+- one-time pairing credentials exchanged for scoped bearer sessions;
+- one-use WebSocket tickets rather than bearer tokens in the upgrade URL;
+- monotonically sequenced replayable events and `lastSeenSeq` resume;
+- thread-item interest filtering;
+- heartbeat/liveness handling and payload/body limits;
+- explicit resynchronization when replay is unavailable or sequence state is
+  unsafe; and
+- terminal cursor-sync negotiation, with snapshot/scrollback recovery for
+  non-replayable terminal output.
 
-- **`dispose()` race (critical).** `RemoteAccessServer.dispose()` now awaits the
-  HTTP server close (dropping idle keep-alives, grace timeout for in-flight
-  requests) so the headless host tears the DB down _after_ requests finish.
-- **Path-traversal hardening (critical).** `projectCommands` rejects `..`
-  segments in add/create/clone paths. `projects:manage` still grants explicit
-  absolute-path access (that's the "add a project from the system" capability);
-  the scope grant is the trust boundary, but traversal-disguise is forbidden.
-- **Proxy/client hardening.** `remoteHttpRequest` is restricted to `http(s)`,
-  aborts stuck requests, and caps streamed responses at 64 MiB
-  (scheme/SSRF/timeout/size). The shared `RemoteDesktopClient` applies the same
-  timeout and response cap to direct PWA/server requests.
-- **WebSocket frame hardening.** The desktop/headless remote server sets an
-  explicit inbound client-frame cap (1 MiB default, matching JSON POST bodies).
-  The relay also sets explicit host/visitor payload caps sized for its configured
-  HTTP body limit, so large frames fail at the `ws` layer instead of relying on
-  library defaults. Replayable event sockets also have a bounded outbound queue
-  (4 MiB default); a congested client is dropped and must reconnect through
-  event replay or snapshot resync rather than accumulating unbounded server
-  memory. Relay host/visitor sockets and the host-side relay adapter now apply
-  outbound queue caps as well, sized to permit one configured maximum HTTP body
-  frame while still bounding memory under slow cloud peers.
-- **Relay host timeout hardening.** The host-side relay adapter aborts local
-  HTTP proxy requests that do not complete within the request timeout, including
-  stalled response bodies. This keeps relay visitor timeouts from leaving stale
-  local fetch work behind on the server.
-- **WebSocket session-expiry hardening.** Remote WebSocket connections now carry
-  the bearer session's expiry timestamp and close themselves when that access
-  session expires, matching the lifetime enforced on new HTTP calls and
-  WebSocket-ticket consumption.
-- **Store correctness.** `removeServer` now closes an open live-chat thread (+
-  its socket) belonging to the removed server; `mainProcessFetch` guards
-  null-body HTTP statuses (204/205/304/1xx); `RemoteThreadView`'s interrupt
-  button reads live turn state from the runtime store, not the open snapshot.
-- **Event consumption.** The PWA refreshes its snapshot on
-  `remote-projects-changed` (it was broadcast but ignored); the desktop keeps
-  remote projects in `remoteServersStore`, so it deliberately ignores the event
-  there to avoid clobbering local projects. Desktop-as-client live chat now also
-  handles `resync-required` by fetching fresh remote thread history and
-  refreshing the remote server snapshot, matching the PWA's replay-expired
-  recovery path.
-- **Snapshot cost.** Shell snapshots now read batched runtime summaries from
-  SQLite (item count, latest item metadata, context usage) instead of loading
-  and decoding every persisted runtime item payload for every visible thread on
-  each `/api/snapshot` refresh.
-- **Clone-name parsing** strips query/fragment + trailing slashes.
+Clients preserve a configured endpoint base path when appending discovery, API,
+and WebSocket paths. They reject unsafe redirects and public cleartext
+connections. Direct LAN, VPN, or Tailscale connectivity is the default. A relay
+forwards transport traffic; the host still enforces Poracode authorization and
+owns project/thread state. The relay terminates visitor HTTP/WebSocket
+connections and can read forwarded credentials and payloads. It must be trusted;
+the relay framing does not provide end-to-end encryption.
 
-Accepted as-is (documented, not bugs): the bearer token persists in renderer
-localStorage (mirrors the PWA; server can revoke); `storeSync` reused from
-`src/mobile` is renderer-only and relocating it is tracked Phase-4 polish.
+The self-hostable relay transport has its own wire version
+(`PORACODE_RELAY_PROTOCOL_VERSION`, currently 3). Protocol 3 preserves binary
+WebSocket payloads exactly: they travel between host and relay as binary
+control-socket messages framed by `relayBinaryFrame`, while text payloads keep
+the unchanged JSON `ws-data` frame. A protocol-2 peer cannot preserve those
+semantics, so a v3 host against a v2 relay (or a v3 relay against a v2 host)
+fails registration instead of pairing with silent byte corruption. Within a
+version, relay frames are added only additively and must be droppable by older
+peers (`req-cancel`, introduced in v2 and retained in v3, followed that rule).
 
-### Second review & hardening pass
+The remote host remains the source of truth after reconnect. A client may replay
+from its last applied sequence only while the server confirms that replay is
+available; otherwise it discards uncertain incremental state and fetches an
+authoritative snapshot.
 
-A follow-up multi-agent adversarial review (74 agents: 10 file-scoped finders +
-per-finding refuters) over the full remote/PWA/desktop-client surface raised 48
-candidates; 38 survived verification and were fixed here (6 high-severity, incl.
-two remote-exploitable security holes). Grouped by area:
+## Pairing and credential lifecycle
+
+Pairing begins with the public environment descriptor and a short-lived,
+single-use credential. The credential is carried in a URL fragment or request
+body so it is not sent as an HTTP request path/query by normal navigation. After
+exchange, clients persist only the scoped session credential in platform-secure
+storage and scrub transient pairing material.
+
+The browser removes pairing material from the address bar after exchange. The
+native apps parse verified links and the `poracode://pair` development fallback,
+validate the endpoint before replacing an existing host, and show a sanitized
+host during confirmation.
 
 - **Clone RCE (high, security).** `applyRemoteProjectCommand` now validates a
   clone `url` against an allowlist of safe transports (https/http/ssh/git/ftp(s)
@@ -310,9 +194,15 @@ two remote-exploitable security holes). Grouped by area:
   `session:read` to `projects:manage` (matching `browseHostDirectory`), so a
   minimal read token can no longer read `~/.ssh/id_rsa` etc. off the host.
 - **Rate-limit key behind relay (medium, security).** The pairing rate limiter
-  keyed on `remoteAddress`, which is always loopback behind the relay; the relay
-  host adapter now forwards a per-visitor `x-forwarded-for` and the server keys
-  the bucket on it for loopback hops, restoring per-client throttling.
+  keyed on `remoteAddress`, which is always loopback behind the relay. The relay
+  now mints an opaque per-visitor `clientId` — an HMAC of the visitor's real
+  socket address under a per-relay salt, never derived from spoofable visitor
+  headers and never a raw address — frames it on `req`/`ws-open`, and the host
+  adapter forwards it as the stable `x-forwarded-for` the server keys loopback
+  buckets on. The identity is stable across a visitor's requests and WebSockets;
+  an earlier draft keyed it on the relay's per-request frame id, which handed
+  every request a fresh bucket and silently disabled the limiter. Relays too old
+  to send `clientId` share one conservative bucket instead.
 - **Headless data-dir lock + host binding (high, stability/bug).** The headless
   CLI takes an exclusive `server.lock` (stale-pid reclaim) so it can't co-open
   the desktop's live data dir with a mismatched secret key; the relay adapter's
@@ -359,13 +249,18 @@ two remote-exploitable security holes). Grouped by area:
   screencast start is cleaned up; and desktop-as-client sessions register with a
   `desktop` device type.
 
-Verified end-to-end in the running app: enabled Remote Access on a desktop bound
-to an isolated data dir, paired the PWA (`mobile.html`) over real LAN sockets,
-and walked threads → more → manage-projects (add-existing via the host folder
-picker over the wire) → remove-confirm → settings → archived-threads → new-thread
-with **zero console errors** on both the PWA and the desktop.
+Production app/universal links require matching association documents at
+`https://poracode.com/.well-known/`. Declarations in the native manifests and
+generated JSON files are necessary but are not proof that the production origin
+is configured correctly.
 
-## 5. Decisions
+## Web and PWA delivery
+
+The hosted React client remains a supported, separate surface.
+`pnpm run build:web` produces `dist/web`; its root-scoped manifest and service
+worker make it installable. Hashed assets are cache-first, navigations are
+network-first with a cached shell fallback, and cross-origin remote-host HTTP
+and WebSocket traffic is not intercepted.
 
 - **Connectivity (now):** direct connection remains the default (LAN / VPN /
   Tailscale), and the self-hostable relay transport is available for
@@ -377,7 +272,67 @@ with **zero console errors** on both the PWA and the desktop.
 - **Source of truth (headless):** the SQLite DB. No renderer, so
   `dispatchThreadCommand` is absent and the DB-path handlers apply.
 
-## 6. Open packaging tasks (Phase 1 follow-ups)
+`app.poracode.com/` is the stable PWA origin and
+`app-nightly.poracode.com/` is the nightly origin. Legacy `/app`, `/desktop`,
+`/pair`, and `/mobile.html` paths redirect to `/`. These deployments do not
+build, package, or update the SwiftUI and Compose apps.
+
+Responsive layout rules in `src/renderer` apply only to Electron and the
+browser/PWA. Native adaptive layouts are implemented independently with SwiftUI
+and Compose platform APIs.
+
+## Performance and lifecycle invariants
+
+1. Only the supervisor owns agent and terminal processes.
+2. Clients receive bounded normalized snapshots/events and must not accumulate
+   unbounded queues.
+3. Slow or disconnected clients recover through replay/resync, never by
+   back-pressuring agent processes indefinitely.
+4. Snapshot construction avoids loading full transcript payloads for unrelated
+   threads; native clients hydrate only the active interests they need.
+5. Rotation, resize, split-screen, and background/foreground changes do not
+   restart agent sessions.
+6. Each native session/task is tied to host identity and lifecycle generation so
+   stale work cannot commit state after a host switch or unpair.
+7. Credentials remain in secure storage and are removed transactionally when a
+   session is invalidated.
+
+## Compatibility boundaries
+
+Review and version every change to:
+
+- `ClientRuntime` and Electron IPC;
+- remote protocol payloads, manifest, binding IR, or native generated bundles;
+- persisted host/session documents and secure-storage envelopes;
+- WebSocket replay/cursor state and pairing URLs;
+- service-worker cache identity; and
+- deployed host/helper/plugin manifests.
+
+An old artifact that cannot be used safely must be migrated or deliberately
+invalidated. Protocol v3 and binding format v2 are separate boundaries; updating
+one does not implicitly update the other.
+
+## Evidence and remaining gaps
+
+The current native CI proves contract artifact consistency, native compilation,
+iOS unit tests, Android unit/lint checks, Android 17/API 37 install and launch,
+and a real production headless-host pairing/socket smoke path. It does not yet
+prove:
+
+- transport/controller/UI availability for every generated manifest entry;
+- complete feature parity with Electron/PWA;
+- end-to-end SwiftUI and Compose UI flows against a real host;
+- production universal/app-link association;
+- native APNs/FCM registration, delivery, tap routing, and revocation; or
+- sustained native performance, memory, network, and battery behavior under
+  multi-agent output.
+
+Architecture work is complete only when runtime evidence covers Electron,
+desktop browser/PWA, SwiftUI, and Compose independently; pairing and credential
+cleanup; reconnect/replay/resync; minimum/current OS lifecycle and accessibility;
+a real PTY; and a real structured-provider/ACP turn. Static, unit, schema, mock,
+and host-wire tests establish important contracts but do not replace those
+client proofs.
 
 - **Native SQLite binding:** better-sqlite3 13 bundles N-API prebuilds shared
   by Node and Electron. Both desktop and headless startup use the package's

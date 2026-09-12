@@ -17,13 +17,17 @@ export function SettingsPage(props: {
 }) {
   const { title, description, actions, bodyClassName = "space-y-4", children } = props;
   return (
-    <div className="mx-auto min-h-full max-w-[720px]">
-      <div className={`flex items-center justify-between gap-4 ${description ? "mb-2" : "mb-6"}`}>
-        <h1 className="text-lg font-semibold text-foreground">{title}</h1>
-        {actions ? <div className="shrink-0">{actions}</div> : null}
+    <div className="settings-page mx-auto min-h-full max-w-[720px]">
+      <div
+        className={`settings-page__header flex items-center justify-between gap-4 ${description ? "mb-2" : "mb-6"}`}
+      >
+        <h1 className="settings-page__title text-lg font-semibold text-foreground">{title}</h1>
+        {actions ? <div className="settings-page__actions shrink-0">{actions}</div> : null}
       </div>
-      {description ? <p className="mb-6 text-xs text-muted">{description}</p> : null}
-      <div className={bodyClassName}>{children}</div>
+      {description ? (
+        <p className="settings-page__description mb-6 text-xs text-muted">{description}</p>
+      ) : null}
+      <div className={`settings-page__content ${bodyClassName}`}>{children}</div>
     </div>
   );
 }
@@ -41,16 +45,15 @@ export function SettingRow(props: {
    */
   anchorId?: string;
 }) {
-  // The stable settings-row classes let the mobile PWA reflow rows on narrow
-  // viewports (see src/mobile/styles.css).
+  // Stable settings-row classes let the canonical layout reflow on narrow viewports.
   return (
     <div
       {...(props.anchorId ? { id: props.anchorId, "data-settings-anchor": props.anchorId } : {})}
       className={`settings-row flex items-center justify-between gap-4 ${props.anchorId ? "scroll-mt-4" : ""} ${props.className ?? ""}`}
     >
       <div className="settings-row__text min-w-0">
-        <p className="text-sm font-medium text-foreground">{props.title}</p>
-        <p className="text-xs text-muted">{props.description}</p>
+        <p className="settings-row__title text-sm font-medium text-foreground">{props.title}</p>
+        <p className="settings-row__description text-xs text-muted">{props.description}</p>
       </div>
       {props.children}
     </div>

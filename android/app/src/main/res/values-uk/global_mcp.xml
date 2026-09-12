@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_global_mcp_title">Сервери MCP</string>
+    <string name="settings_global_mcp_description">Керуйте власними серверами MCP для всього комп’ютера.</string>
+    <string name="settings_manage_projects_denied">Потрібен дозвіл на керування проєктами.</string>
+    <string name="settings_global_mcp_redaction_note">Облікові дані залишаються на комп’ютері. Наявні секрети відображаються прихованими.</string>
+    <string name="settings_global_mcp_add">Додати</string>
+    <string name="settings_global_mcp_empty">Глобальні сервери MCP не налаштовано.</string>
+    <string name="settings_global_mcp_empty_description">Додайте сервер або скористайтеся функцією «Виявити», щоб імпортувати вже налаштований на цьому комп\'ютері сервер.</string>
+    <string name="settings_global_mcp_uncertain">Результат непевний. Запитано актуальний список серверів.</string>
+    <string name="settings_global_mcp_edit">Змінити</string>
+    <string name="settings_global_mcp_delete">Видалити</string>
+    <string name="settings_global_mcp_move">Перемістити до проєкту</string>
+    <string name="settings_global_mcp_move_global">Перемістити до глобальних</string>
+    <string name="settings_global_mcp_duplicate_name">Сервер MCP із такою назвою вже існує.</string>
+    <string name="settings_global_mcp_reserved_name">Цю назву зарезервовано вбудованим сервером MCP.</string>
+    <string name="settings_global_mcp_probe">Перевірити з’єднання</string>
+    <string name="settings_global_mcp_tools">Інструменти</string>
+    <string name="settings_global_mcp_tools_title">Інструменти для %1$s</string>
+    <string name="settings_global_mcp_authorize">Авторизувати</string>
+    <string name="settings_global_mcp_clear_oauth">Скинути авторизацію</string>
+    <string name="settings_global_mcp_probe_summary">%1$s · Інструменти: %2$d · %3$d мс</string>
+    <string name="settings_global_mcp_open_browser">Відкрити браузер</string>
+    <string name="settings_global_mcp_delete_title">Видалити сервер MCP?</string>
+    <string name="settings_global_mcp_delete_message">Видалити %1$s? Цю дію неможливо скасувати.</string>
+    <string name="settings_global_mcp_cancel">Скасувати</string>
+    <string name="settings_global_mcp_move_title">Перемістити %1$s до проєкту</string>
+    <string name="settings_global_mcp_add_title">Додати сервер MCP</string>
+    <string name="settings_global_mcp_edit_title">Змінити сервер MCP</string>
+    <string name="settings_global_mcp_name">Назва</string>
+    <string name="settings_global_mcp_server_description">Опис</string>
+    <string name="settings_global_mcp_command">Команда</string>
+    <string name="settings_global_mcp_url">URL</string>
+    <string name="settings_global_mcp_arguments">Аргументи, по одному в рядку</string>
+    <string name="settings_global_mcp_working_directory">Робочий каталог (необов’язково)</string>
+    <string name="settings_global_mcp_environment">Середовище, КЛЮЧ=ЗНАЧЕННЯ в кожному рядку</string>
+    <string name="settings_global_mcp_headers">Заголовки, КЛЮЧ=ЗНАЧЕННЯ в кожному рядку</string>
+    <string name="settings_global_mcp_timeout">Час очікування в мілісекундах</string>
+    <string name="settings_global_mcp_disabled_tools">Вимкнені інструменти, по одному в рядку</string>
+    <string name="settings_global_mcp_pairs_help">Введіть одну пару КЛЮЧ=ЗНАЧЕННЯ в кожному рядку.</string>
+    <string name="settings_global_mcp_save">Зберегти</string>
+    <string name="settings_global_mcp_oauth_idle">Стан OAuth ще не перевірено.</string>
+    <string name="settings_global_mcp_oauth_checking">Перевірка стану OAuth…</string>
+    <string name="settings_global_mcp_oauth_ready">Стан OAuth актуальний.</string>
+    <string name="settings_global_mcp_oauth_starting">Запуск авторизації…</string>
+    <string name="settings_global_mcp_oauth_open_browser">Відкрийте браузер, щоб продовжити авторизацію.</string>
+    <string name="settings_global_mcp_oauth_waiting">Очікування авторизації…</string>
+    <string name="settings_global_mcp_oauth_authorized">Авторизацію завершено.</string>
+    <string name="settings_global_mcp_oauth_failed">Помилка авторизації.</string>
+    <string name="settings_global_mcp_oauth_paused">Авторизацію призупинено, поки застосунок працює у фоні.</string>
+</resources>

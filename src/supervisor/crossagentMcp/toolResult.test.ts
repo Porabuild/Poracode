@@ -46,3 +46,27 @@ describe("parseWaitOptions", () => {
     });
   });
 });
+
+describe("output mode parsing", () => {
+  it.each([null, 1, true, "silent"])(
+    "rejects invalid mode %j even with full output",
+    (output_mode) => {
+      expect(() => parseWaitOptions({ output_mode, full_output: true })).toThrow(
+        "output_mode must be quiet or progress",
+      );
+    },
+  );
+  it("preserves quiet batch cursors and gives full output precedence", () => {
+    expect(
+      parseWaitOptions({ output_mode: "quiet", after_output_chars_by_run: { a: 17 } }, "a"),
+    ).toEqual({ outputMode: "quiet", fullOutput: false, afterOutputChars: 17 });
+    expect(parseWaitOptions({ output_mode: "quiet", full_output: true })).toEqual({
+      fullOutput: true,
+    });
+    expect(parseWaitOptions({ output_mode: "progress" })).toEqual({
+      outputMode: "progress",
+      fullOutput: false,
+      afterOutputChars: 0,
+    });
+  });
+});

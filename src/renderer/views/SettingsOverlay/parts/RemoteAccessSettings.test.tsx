@@ -118,6 +118,16 @@ describe("RemoteAccessSettings", () => {
     });
   });
 
+  it("opens the canonical desktop client in a browser", async () => {
+    render(<RemoteAccessSettings />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
+
+    expect(bridgeMock.openExternal).toHaveBeenCalledWith(
+      "https://desktop.tailnet.ts.net/#token=lc_pair_test",
+    );
+  });
+
   it("shows the rotated pairing code when a device pairs", async () => {
     render(<RemoteAccessSettings />);
 

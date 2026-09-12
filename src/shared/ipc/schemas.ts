@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { RuntimeEvent, WorkflowRun } from "../contracts";
 import {
   agentKindSchema,
   experimentSchema,
@@ -7,10 +6,14 @@ import {
   projectLocationSchema,
   projectNotesSchema,
   projectSchema,
+  runtimeEventSchema,
   threadConfigSchema,
   threadContextUsageSchema,
   threadPresentationModeSchema,
   threadSchema,
+  workflowRunSchema,
+  type RuntimeEvent,
+  type WorkflowRun,
 } from "../contracts";
 
 export const pickFilesOptionsSchema = z
@@ -101,6 +104,10 @@ export interface SubAgentSubscribeResult {
   history: RuntimeEvent[];
 }
 
+export const subAgentSubscribeResultSchema: z.ZodType<SubAgentSubscribeResult> = z.object({
+  history: z.array(runtimeEventSchema),
+});
+
 export const workflowGetRunPayloadSchema = z.object({
   manifestPath: z.string().min(1),
   /** Used to scan for in-flight `agent-*.meta.json` files before the manifest exists. */
@@ -115,6 +122,11 @@ export interface WorkflowGetRunResult {
   mtimeMs?: number;
 }
 
+export const workflowGetRunResultSchema = z.object({
+  run: workflowRunSchema.nullable(),
+  mtimeMs: z.number().finite().nonnegative().optional(),
+});
+
 export const workflowAgentChatPayloadSchema = z.object({
   /** Synthetic renderer-side thread id the returned events are keyed under. */
   threadId: z.string().min(1),
@@ -128,6 +140,10 @@ export type WorkflowAgentChatPayload = z.infer<typeof workflowAgentChatPayloadSc
 export interface WorkflowAgentChatResult {
   events: RuntimeEvent[];
 }
+
+export const workflowAgentChatResultSchema: z.ZodType<WorkflowAgentChatResult> = z.object({
+  events: z.array(runtimeEventSchema),
+});
 
 export const dbStateKeySchema = z.string().min(1);
 export const dbStatePayloadSchema = z.object({
@@ -149,6 +165,24 @@ export const persistedThreadSchema = threadSchema.extend({
 export const dbSyncAllPayloadSchema = z.object({
   projects: z.array(projectSchema),
   threads: z.array(persistedThreadSchema),
+  viewJson: z.string(),
+});
+export const dbSyncChangesPayloadSchema = z.object({
+  /** Only the rows whose content changed since the last persisted snapshot,
+   * each carrying its index in the renderer's full list — sort_order is a
+   * property of the array, invisible to per-row diffing. */
+  projects: z.array(
+    z.object({ project: projectSchema, sortOrder: z.number().int().nonnegative() }),
+  ),
+  threads: z.array(
+    z.object({ thread: persistedThreadSchema, sortOrder: z.number().int().nonnegative() }),
+  ),
+  deletedProjectIds: z.array(z.string().min(1)),
+  deletedThreadIds: z.array(z.string().min(1)),
+  /** Shipped when the id sequence changed (reorder, insert, remove): the full
+   * ordered id lists so main reindexes every row's sort_order. */
+  projectOrder: z.array(z.string().min(1)).optional(),
+  threadOrder: z.array(z.string().min(1)).optional(),
   viewJson: z.string(),
 });
 export const dbPersistExperimentStatePayloadSchema = z.object({

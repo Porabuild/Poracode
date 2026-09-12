@@ -82,6 +82,7 @@ export const BUILT_IN_MCP_SERVER_TOOL_NAMES = {
     "addstyle",
   ],
   crossagents: [
+    "run_workflow",
     "list_agents",
     "get_agent",
     "spawn_agent",
@@ -244,7 +245,12 @@ export function isValidMcpServerName(name: string): boolean {
 export function isValidMcpServerUrl(value: string): boolean {
   try {
     const url = new URL(value.trim());
-    return url.protocol === "http:" || url.protocol === "https:";
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      url.username === "" &&
+      url.password === "" &&
+      url.hash === ""
+    );
   } catch {
     return false;
   }
@@ -506,17 +512,25 @@ export type BuiltInMcpServerDisabled = z.infer<typeof builtInMcpServerDisabledSc
 
 export const builtInMcpDisabledToolsSchema = z
   .partialRecord(z.enum(BUILT_IN_MCP_SERVER_IDS), z.array(z.string().min(1)))
-  // Normalize the previous Chrome catalogue on read; old settings remain valid.
-  .transform((disabled) =>
-    disabled.chrome
-      ? {
-          ...disabled,
-          chrome: [...new Set(disabled.chrome.map((name) => name.replace(/^chrome_/, "")))],
-        }
-      : disabled,
-  )
   .default({});
 export type BuiltInMcpDisabledTools = z.infer<typeof builtInMcpDisabledToolsSchema>;
+
+/**
+ * Normalize the previous Chrome catalogue at the settings load boundary; old
+ * settings remain valid (`chrome_`-prefixed names are stripped and deduped).
+ * This intentionally lives outside the Zod schema: the remote-v3 wire must
+ * stay transform-free because native clients can only execute registered
+ * portable transforms.
+ */
+export function normalizeBuiltInMcpDisabledTools(
+  disabled: BuiltInMcpDisabledTools,
+): BuiltInMcpDisabledTools {
+  if (!disabled.chrome) return disabled;
+  return {
+    ...disabled,
+    chrome: [...new Set(disabled.chrome.map((name) => name.replace(/^chrome_/, "")))],
+  };
+}
 
 export function disabledBuiltInMcpServerIds(
   disabled: BuiltInMcpServerDisabled,

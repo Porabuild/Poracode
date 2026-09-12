@@ -141,14 +141,23 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
     return;
   }
 
+  // Surface loading/error for the pane's first read so an opening thread does
+  // not flash a false "No messages yet" (WS6). Only meaningful while the
+  // transcript is still empty; a re-hydration of a retained thread is silent.
+  const isEmptyBefore =
+    (useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0) === 0;
+  if (isEmptyBefore) useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
   const hydration = hydrateThreadRuntimeItemsFromDb(threadId);
   pendingThreadRuntimeHydrations.set(threadId, hydration);
   try {
     const completed = await hydration;
     if (completed) {
       hydratedThreadRuntimeIds.add(threadId);
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
       evictOversizedInactiveThreadRuntimeItems([threadId]);
       evictInactiveThreadRuntimeItems();
+    } else if (isEmptyBefore) {
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
     }
   } finally {
     pendingThreadRuntimeHydrations.delete(threadId);
@@ -283,6 +292,22 @@ function evictThreadRuntimeItems(threadId: string): void {
   cancelPendingOlderRuntimePage(threadId);
   clearRuntimeItemStoreSelectorCacheForThread(threadId);
   useAppStore.getState().evictThreadRuntimeItems(threadId);
+}
+
+/**
+ * WS6 P1-10: a `thread-reset` (loss-range rebuild) wipes the in-memory
+ * transcript. Without clearing the hydration marker, the next ChatPane mount
+ * early-returns "already hydrated" and the transcript would stay empty.
+ * Re-seeds the thread from the local DB, which still holds the events the
+ * live stream lost (the backend persists them before broadcast).
+ */
+export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): Promise<void> {
+  hydratedThreadRuntimeIds.delete(threadId);
+  olderRuntimePageCursorByThread.delete(threadId);
+  // An in-flight older page from before the reset must not prepend across the
+  // reset boundary or write back its stale cursor after the fresh read.
+  cancelPendingOlderRuntimePage(threadId);
+  await hydrateThreadRuntimeItems(threadId);
 }
 
 function cancelPendingOlderRuntimePage(threadId: string): void {

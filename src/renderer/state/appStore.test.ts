@@ -1,3 +1,4 @@
+import { composerDraftStorage } from "./composerDraftStorage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { findPaneSlotId, type PaneLayout } from "@/shared/paneLayout";
@@ -10,11 +11,14 @@ import { useAppStore, type AppStoreState } from "./appStore";
 import { MAX_KEEP_ALIVE_PANES } from "./slices/paneCacheSlice";
 import { selectHiddenHostedAgentTerminalIds } from "@/renderer/components/terminal/hostedAgentTerminalIds";
 import { usePanelStore } from "./panelStore";
+import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
+import type { PoracodeBridge } from "@/shared/ipc";
 import { useThreadFollowUpQueueStore } from "./threadFollowUpQueueStore";
 
 describe("appStore runtime config sync", () => {
   beforeEach(() => {
     vi.useRealTimers();
+    resetClientRuntimeForTest();
     localStorage.clear();
     useAppStore.setState((state) => ({
       ...state,
@@ -28,6 +32,56 @@ describe("appStore runtime config sync", () => {
     }));
     usePanelStore.getState().setGitHubActionsContext(null);
     useThreadFollowUpQueueStore.getState().reset();
+  });
+
+  it("does not write the full app snapshot when only a draft changes", () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    const project = useAppStore
+      .getState()
+      .addProject({ kind: "posix", path: "/draft-write-probe" });
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    try {
+      for (const text of ["a", "ab", "abc"]) {
+        useAppStore.getState().saveDraftContent(project.id, {
+          segments: [{ kind: "text", content: text }],
+          attachments: [],
+        });
+      }
+      composerDraftStorage()?.flush();
+      expect(writes.mock.calls.filter(([name]) => name === "poracode-app-v2")).toHaveLength(0);
+      expect(
+        writes.mock.calls.filter(([name]) => name.startsWith("poracode-composer-draft-v1:")),
+      ).toHaveLength(1);
+      useAppStore.getState().renameProject(project.id, "Renamed");
+      expect(writes.mock.calls.filter(([name]) => name === "poracode-app-v2")).toHaveLength(1);
+    } finally {
+      writes.mockRestore();
+      useAppStore.getState().clearDraftContent(project.id);
+    }
+  });
+
+  it.each(["thread", "project"] as const)("removes durable drafts when deleting a %s", (kind) => {
+    const project = useAppStore.getState().addProject({ kind: "posix", path: "/draft-fixture" });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "claude",
+      config: { model: "test-model" },
+      prompt: "fixture",
+    });
+    const draft = { segments: [{ kind: "text" as const, content: "unsent" }], attachments: [] };
+    useAppStore.getState().saveDraftContent(project.id, draft);
+    useAppStore.getState().saveThreadDraftContent(thread.id, draft);
+    composerDraftStorage()?.flush();
+    // Include a newer checkpoint still awaiting its timer.
+    useAppStore.getState().saveThreadDraftContent(thread.id, draft);
+    if (kind === "project") useAppStore.getState().deleteProject(project.id);
+    else useAppStore.getState().deleteThread(thread.id);
+    composerDraftStorage()?.flush();
+    expect(composerDraftStorage()?.load("thread")[thread.id]).toBeUndefined();
+    expect(composerDraftStorage()?.load("project")[project.id]).toEqual(
+      kind === "project" ? undefined : draft,
+    );
+    useAppStore.getState().clearDraftContent(project.id);
   });
 
   it("keeps a newer reconnect marker when an older launch finishes", () => {
@@ -182,6 +236,52 @@ describe("appStore runtime config sync", () => {
     >;
 
     expect(migrated.threads[0]?.archivedAt).toBe(thread.updatedAt);
+  });
+
+  it("persists remote rows and the open transcript route in the browser runtime", () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    const partialize = useAppStore.persist.getOptions().partialize!;
+    useAppStore.setState({
+      projects: [
+        {
+          id: "remote-project",
+          remoteId: "project-1",
+          remoteServerId: "desktop-1",
+          name: "Remote",
+          location: { kind: "posix", path: "/remote" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      threads: [
+        {
+          id: "remote-thread",
+          remoteId: "thread-1",
+          remoteServerId: "desktop-1",
+          projectId: "remote-project",
+          title: "Cached thread",
+          agentKind: "codex",
+          config: { model: "gpt-5.4" },
+          status: "idle",
+          attention: "none",
+          canResumeWithConfig: false,
+          archived: false,
+          done: false,
+          starred: false,
+          presentationMode: "gui",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      view: { kind: "thread", panes: ["remote-thread"] },
+    });
+
+    const persisted = partialize(useAppStore.getState()) as Pick<
+      AppStoreState,
+      "projects" | "threads" | "view"
+    >;
+    expect(persisted.projects).toHaveLength(1);
+    expect(persisted.threads).toHaveLength(1);
+    expect(persisted.view).toEqual({ kind: "thread", panes: ["remote-thread"] });
   });
 
   it("clears provisional worktree launch state when deleting its project", () => {
@@ -1704,6 +1804,75 @@ describe("appStore runtime config sync", () => {
 
     expect(useAppStore.getState().threads[0]?.status).toBe("idle");
     expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toBeUndefined();
+  });
+
+  it("does not record a later close that lands on the same hangable row", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T12:00:00.000Z"));
+    const project = useAppStore.getState().addProject({
+      kind: "windows",
+      path: "C:\\repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "grok",
+      config: { model: "m" },
+      prompt: "a",
+      presentationMode: "gui",
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      itemType: "assistant_message",
+    });
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "content.delta",
+      threadId: thread.id,
+      itemId: "assistant-1",
+      stream: "assistant_text",
+      delta: "Done.",
+    });
+
+    vi.setSystemTime(new Date("2026-05-01T12:00:22.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toHaveLength(1);
+
+    useAppStore.getState().applyRuntimeEvent(thread.id, {
+      type: "item.started",
+      threadId: thread.id,
+      itemId: "goal-1",
+      itemType: "goal",
+      payload: { entries: [{ id: "1", title: "Ship it", status: "completed" }] },
+    });
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "working",
+      attention: "working",
+      canResumeWithConfig: false,
+    });
+    vi.setSystemTime(new Date("2026-05-01T12:00:44.000Z"));
+    useAppStore.getState().updateThreadRuntime(thread.id, {
+      status: "idle",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    expect(useAppStore.getState().runtimeCompletedTurnsByThread[thread.id]).toEqual([
+      {
+        startedAt: new Date("2026-05-01T12:00:00.000Z").getTime(),
+        endedAt: new Date("2026-05-01T12:00:22.000Z").getTime(),
+        anchorItemId: "assistant-1",
+      },
+    ]);
   });
 });
 

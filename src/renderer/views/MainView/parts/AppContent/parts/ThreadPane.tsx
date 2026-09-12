@@ -1,4 +1,5 @@
-import { startTransition, useRef } from "react";
+import { useRemoteTerminalTransport } from "@/renderer/components/thread/useRemoteTerminalTransport";
+import { startTransition } from "react";
 import { Trans } from "@lingui/react/macro";
 import type {
   PromptSegment,
@@ -16,9 +17,8 @@ import { useProject, useThread } from "@/renderer/state/useThread";
 import type { ContinueIntent } from "@/renderer/components/thread/ContinueInProviderDialog";
 import { ThreadView } from "@/renderer/components/thread/ThreadView";
 import type { SaveClipboardImage } from "@/renderer/components/composer/useAttachments";
-import { useRemoteTerminalTransport } from "@/renderer/components/thread/useRemoteTerminalTransport";
-import { useDraggable, useDroppable } from "@dnd-kit/react";
-import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
+import { useIsDraggingPane, usePaneDropIndicatorState } from "@/renderer/dnd";
+import { usePaneDragAndDrop } from "@/renderer/components/thread/PaneDragAndDrop";
 import {
   useThreadAgentStatuses,
   useProjectAgentStatuses,
@@ -34,6 +34,7 @@ const getAppState = useAppStore.getState;
 export function ThreadPane(props: {
   threadId: string;
   paneCount: number;
+  hidden?: boolean;
   paneAlign: "left" | "center" | "right";
   headerNeedsTrafficLightPad?: boolean;
   onClose: () => void;
@@ -79,19 +80,11 @@ export function ThreadPane(props: {
   } = useThreadPendingLaunch(props.threadId);
   const { applyRuntimeEvent, updateThreadRuntime, consumeThreadLaunch } = getAppState();
 
-  const paneElementRef = useRef<HTMLDivElement>(null);
-  const { handleRef } = useDraggable({
-    id: `pane:${props.threadId}`,
-    type: "pane",
-    data: { type: "pane", paneId: props.threadId } satisfies DragSourceData,
-    disabled: props.paneCount <= 1,
-    element: paneElementRef,
-  });
-  useDroppable({
-    id: `pane-drop:${props.threadId}`,
-    accept: ["pane", "thread", "new-thread"],
-    data: { type: "pane-drop-zone", paneId: props.threadId },
-    element: paneElementRef,
+  const { paneElementRef, dragHandleRef } = usePaneDragAndDrop({
+    paneId: props.threadId,
+    // The unavailable-worktree placeholder below renders no pane header, so it
+    // has no drag handle to attach.
+    handleRendered: props.paneCount > 1 && !(experiment && !thread?.worktreePath),
   });
 
   const isDragging = useIsDraggingPane(props.threadId);
@@ -137,7 +130,7 @@ export function ThreadPane(props: {
       dropIndicator={dropIndicator}
       paneCount={props.paneCount}
       headerNeedsTrafficLightPad={props.headerNeedsTrafficLightPad}
-      {...(props.paneCount > 1 ? { dragHandleRef: handleRef } : {})}
+      {...(props.paneCount > 1 ? { dragHandleRef } : {})}
       droppableRef={paneElementRef}
       onClose={props.onClose}
       {...(!experiment
@@ -148,6 +141,7 @@ export function ThreadPane(props: {
           }
         : {})}
       projectLocation={projectLocation}
+      {...(props.hidden ? { hidden: true } : {})}
       onLaunchConsumed={() => consumeThreadLaunch(thread.id)}
       onLaunchFailed={(message) => {
         startTransition(() => {

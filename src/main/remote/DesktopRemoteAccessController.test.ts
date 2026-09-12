@@ -45,6 +45,7 @@ const h = vi.hoisted(() => ({
   readSettings: vi.fn<(path: string) => SharedSettings>(),
   patchSettings: vi.fn<(path: string, patch: Partial<SharedSettings>) => SharedSettings>(),
   getProjects: vi.fn<() => unknown[]>(() => []),
+  updateProject: vi.fn<(project: unknown) => void>(),
   getThreads: vi.fn<() => unknown[]>(() => []),
   refreshGitInterests: vi.fn<() => Promise<void>>(async () => undefined),
   defaultInfo: {
@@ -70,7 +71,12 @@ const h = vi.hoisted(() => ({
 
 vi.mock("../db", () => ({
   dbGetProjects: () => h.getProjects(),
+  dbGetProject: (projectId: string) =>
+    (h.getProjects() as Array<{ id: string }>).find((project) => project.id === projectId) ?? null,
+  dbUpdateProject: (project: unknown) => h.updateProject(project),
   dbGetThreads: () => h.getThreads(),
+  dbGetThread: (threadId: string) =>
+    (h.getThreads() as Array<{ id: string }>).find((thread) => thread.id === threadId) ?? null,
 }));
 
 vi.mock("../sharedSettingsFile", () => ({
@@ -87,6 +93,7 @@ vi.mock("./config", () => ({
   remoteAccessAdvertisedHost: () => "127.0.0.1",
   remoteAccessHost: () => "127.0.0.1",
   remoteAccessPairingAppUrl: () => undefined,
+  remoteForwardBaseUrl: () => undefined,
   resolveRemoteAccessPort: () => h.resolveRemoteAccessPort(),
 }));
 
@@ -227,6 +234,7 @@ function createController(
     },
     ...(devServerUrl ? { devServerUrl } : {}),
     callSupervisor,
+    truncateThreadRuntime: vi.fn<DesktopRemoteAccessControllerOptions["truncateThreadRuntime"]>(),
     dispatchThreadCommand: vi.fn<DesktopRemoteAccessControllerOptions["dispatchThreadCommand"]>(
       () => true,
     ),
@@ -238,6 +246,8 @@ function createController(
       vi.fn<DesktopRemoteAccessControllerOptions["notifyRemoteAccessPairingChanged"]>(),
     notifyProjectStateChanged:
       vi.fn<DesktopRemoteAccessControllerOptions["notifyProjectStateChanged"]>(),
+    notifyEventInterestsChanged:
+      vi.fn<DesktopRemoteAccessControllerOptions["notifyEventInterestsChanged"]>(),
     reportError,
     scheduleService: {} as never,
     prWatchService: {} as never,
@@ -301,7 +311,7 @@ describe("DesktopRemoteAccessController", () => {
     delete process.env.PORACODE_REMOTE_ACCESS_ADVERTISED_HOST;
   });
 
-  it("uses the hosted pairing app in production and the local mobile app in development", async () => {
+  it("uses the hosted pairing app in production and the canonical web app in development", async () => {
     const production = createController();
     await production.setEnabled(true);
 
@@ -310,7 +320,7 @@ describe("DesktopRemoteAccessController", () => {
       "https://app.poracode.com",
       "https://app-nightly.poracode.com",
     ]);
-    expect(h.servers[0]?.options.devMobileAppUrl).toBeUndefined();
+    expect(h.servers[0]?.options.devWebAppUrl).toBeUndefined();
     expect(h.servers[0]?.options.isDev).toBe(false);
 
     const development = createController("http://127.0.0.1:3100");
@@ -318,7 +328,7 @@ describe("DesktopRemoteAccessController", () => {
 
     expect(h.servers[1]?.options.pairingAppUrl).toBeUndefined();
     expect(h.servers[1]?.options.trustedCorsOrigins).toBeUndefined();
-    expect(h.servers[1]?.options.devMobileAppUrl).toBe("http://127.0.0.1:3100/mobile.html");
+    expect(h.servers[1]?.options.devWebAppUrl).toBe("http://127.0.0.1:3100/");
     expect(h.servers[1]?.options.isDev).toBe(true);
   });
 

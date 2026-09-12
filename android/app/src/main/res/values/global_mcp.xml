@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_global_mcp_title">MCP servers</string>
+    <string name="settings_global_mcp_description">Manage desktop-wide custom MCP servers.</string>
+    <string name="settings_manage_projects_denied">Project management permission is required.</string>
+    <string name="settings_global_mcp_redaction_note">Credentials stay on the desktop. Existing secrets appear as redacted placeholders.</string>
+    <string name="settings_global_mcp_add">Add</string>
+    <string name="settings_global_mcp_empty">No global MCP servers are configured.</string>
+    <string name="settings_global_mcp_empty_description">Add a server, or use Discover to import one already configured on this desktop.</string>
+    <string name="settings_global_mcp_uncertain">The result is uncertain. The latest server list was requested.</string>
+    <string name="settings_global_mcp_edit">Edit</string>
+    <string name="settings_global_mcp_delete">Delete</string>
+    <string name="settings_global_mcp_move">Move to project</string>
+    <string name="settings_global_mcp_move_global">Move to global</string>
+    <string name="settings_global_mcp_duplicate_name">An MCP server with this name already exists.</string>
+    <string name="settings_global_mcp_reserved_name">This name is reserved by a built-in MCP server.</string>
+    <string name="settings_global_mcp_probe">Test connection</string>
+    <string name="settings_global_mcp_tools">Tools</string>
+    <string name="settings_global_mcp_tools_title">Tools for %1$s</string>
+    <string name="settings_global_mcp_authorize">Authorize</string>
+    <string name="settings_global_mcp_clear_oauth">Clear authorization</string>
+    <string name="settings_global_mcp_probe_summary">%1$s · Tools: %2$d · %3$d ms</string>
+    <string name="settings_global_mcp_open_browser">Open browser</string>
+    <string name="settings_global_mcp_delete_title">Delete MCP server?</string>
+    <string name="settings_global_mcp_delete_message">Delete %1$s? This cannot be undone.</string>
+    <string name="settings_global_mcp_cancel">Cancel</string>
+    <string name="settings_global_mcp_move_title">Move %1$s to project</string>
+    <string name="settings_global_mcp_add_title">Add MCP server</string>
+    <string name="settings_global_mcp_edit_title">Edit MCP server</string>
+    <string name="settings_global_mcp_name">Name</string>
+    <string name="settings_global_mcp_server_description">Description</string>
+    <string name="settings_global_mcp_command">Command</string>
+    <string name="settings_global_mcp_url">URL</string>
+    <string name="settings_global_mcp_arguments">Arguments, one per line</string>
+    <string name="settings_global_mcp_working_directory">Working directory (optional)</string>
+    <string name="settings_global_mcp_environment">Environment, KEY=VALUE per line</string>
+    <string name="settings_global_mcp_headers">Headers, KEY=VALUE per line</string>
+    <string name="settings_global_mcp_timeout">Timeout in milliseconds</string>
+    <string name="settings_global_mcp_disabled_tools">Disabled tools, one per line</string>
+    <string name="settings_global_mcp_pairs_help">Enter one KEY=VALUE pair per line.</string>
+    <string name="settings_global_mcp_save">Save</string>
+    <string name="settings_global_mcp_oauth_idle">OAuth status has not been checked.</string>
+    <string name="settings_global_mcp_oauth_checking">Checking OAuth status…</string>
+    <string name="settings_global_mcp_oauth_ready">OAuth status is up to date.</string>
+    <string name="settings_global_mcp_oauth_starting">Starting authorization…</string>
+    <string name="settings_global_mcp_oauth_open_browser">Open the browser to continue authorization.</string>
+    <string name="settings_global_mcp_oauth_waiting">Waiting for authorization…</string>
+    <string name="settings_global_mcp_oauth_authorized">Authorization completed.</string>
+    <string name="settings_global_mcp_oauth_failed">Authorization failed.</string>
+    <string name="settings_global_mcp_oauth_paused">Authorization is paused while the app is in the background.</string>
+</resources>

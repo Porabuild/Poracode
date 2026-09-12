@@ -7,6 +7,7 @@ import type {
   RemoteGitStateEvent,
   RemoteProjectsChangedEvent,
   RemoteThreadsChangedEvent,
+  RemoteUserNotificationEvent,
   RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -14,17 +15,20 @@ import type { BackgroundTask } from "@/shared/contracts";
 import type { GitStateInterest } from "@/shared/gitState";
 import type { AuthenticatedRemoteSession, RemoteAuthStore } from "../auth";
 import type { PortProxy } from "../portForward/portProxy";
-import type { RemoteBrowserGateway } from "../RemoteBrowserGateway";
+import type { RemoteBrowserGatewayLike } from "../RemoteBrowserGateway";
 import type { RemotePortForwardGateway } from "../RemotePortForwardGateway";
 import type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "../RemoteAccessServer";
 import type { RemoteServerSecurity } from "./security";
+import type { TerminalCursorSyncRegistry } from "./terminalCursorSync";
+import type { TerminalBaselineStreamScheduler } from "./terminalBaselineStream";
 
 export type RemoteBroadcastEvent =
   | SupervisorEvent
   | RemoteGitSummariesEvent
   | RemoteGitStateEvent
   | RemoteProjectsChangedEvent
-  | RemoteThreadsChangedEvent;
+  | RemoteThreadsChangedEvent
+  | RemoteUserNotificationEvent;
 
 export interface BufferedSupervisorEvent {
   readonly seq: number;
@@ -32,6 +36,13 @@ export interface BufferedSupervisorEvent {
   /** Serialized size of `event`, so the replay buffer can enforce a byte budget
    * and not just an entry count (see `eventSizeGuard.trimEventBuffer`). */
   readonly bytes: number;
+  /**
+   * WS5: the pre-serialized wire form of `event` (image refs already
+   * projected). Replay reuses this string when per-client scoping would leave
+   * the event untouched, so a multi-kilobyte entry is never stringified again
+   * per replaying client (serialize once at ingest).
+   */
+  readonly json: string;
 }
 
 /**
@@ -47,8 +58,13 @@ export interface RemoteServerContext {
   readonly wss: WebSocketServer;
   readonly security: RemoteServerSecurity;
   readonly clients: Map<WebSocket, AuthenticatedRemoteSession>;
+  readonly replayingClients: Set<WebSocket>;
   readonly clientLiveness: Map<WebSocket, boolean>;
   readonly terminalWatches: Map<WebSocket, Set<string>>;
+  /** Opt-in reliable terminal watches (cursor-sync v1/v2). */
+  readonly terminalCursorSync: TerminalCursorSyncRegistry;
+  /** Cursor-sync v2 chunked-baseline delivery (credit-windowed streaming). */
+  readonly terminalBaselineStreams: TerminalBaselineStreamScheduler;
   /** Git-state interests declared by each connection, so pull-request bodies are
    * only sent to the client that asked for them. */
   readonly gitStateInterests: Map<WebSocket, readonly GitStateInterest[]>;
@@ -70,12 +86,23 @@ export interface RemoteServerContext {
   requireSettingsGateway(): NonNullable<RemoteAccessServerOptions["settings"]>;
   requireSchedulesGateway(): NonNullable<RemoteAccessServerOptions["schedules"]>;
   requirePrWatchesGateway(): NonNullable<RemoteAccessServerOptions["prWatches"]>;
-  requireBrowserGateway(): RemoteBrowserGateway;
+  requireBrowserGateway(): RemoteBrowserGatewayLike;
   requirePortForwardGateway(): RemotePortForwardGateway;
   requirePortProxy(): PortProxy;
   requirePushRegistrations(): NonNullable<RemoteAccessServerOptions["pushRegistrations"]>;
   publishSupervisorEvent(event: RemoteBroadcastEvent): void;
   publishThreadsChanged(threadIds: readonly string[]): void;
+  scopeEventForClient(event: RemoteBroadcastEvent, client: WebSocket): RemoteBroadcastEvent;
   send(ws: WebSocket, message: RemoteWebSocketServerMessage): void;
-  sendRaw(ws: WebSocket, data: string): boolean;
+  sendRaw(ws: WebSocket, data: string, onSent?: (error?: Error) => void): boolean;
+  /**
+   * Recomputes aggregate live-stream demand and notifies the backend host.
+   * Awaitable so reliable terminal watches can establish the interest barrier
+   * before taking a snapshot.
+   */
+  notifyEventInterestsChanged(): void | Promise<void>;
+  waitForSupervisorEvent(
+    match: (event: RemoteBroadcastEvent) => boolean,
+    timeoutMs: number,
+  ): Promise<RemoteBroadcastEvent>;
 }

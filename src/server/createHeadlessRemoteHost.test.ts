@@ -1,5 +1,9 @@
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { rawRequestWithAuthority } from "@/main/remote/portForward/testFixtures";
+import { RelayServer } from "./relay/relayServer";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
@@ -10,7 +14,7 @@ const h = vi.hoisted(() => ({
   tmpBase: "",
   capturedOnEvent: undefined as ((event: unknown) => void) | undefined,
   capturedOnReset: undefined as (() => void) | undefined,
-  supervisorStart: vi.fn<(baseDir: string) => void>(),
+  supervisorStart: vi.fn<() => void>(),
   supervisorDispose: vi.fn<() => void>(),
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
   initDatabase: vi.fn<(dbPath: string) => void>(),
@@ -40,6 +44,7 @@ vi.mock("@/main/db", () => ({
       ) ?? null,
   ),
   dbGetProjectNotes: vi.fn<() => string>(() => ""),
+  dbUpdateProject: vi.fn<() => void>(),
   dbUpsertProject: vi.fn<() => void>(),
   dbDeleteProject: vi.fn<() => void>(),
   dbGetPrWatches: vi.fn<() => unknown[]>(() => []),
@@ -60,6 +65,9 @@ vi.mock("@/main/db", () => ({
   dbReplaceThreadRuntimeSnapshot: vi.fn<() => void>(),
   dbUpsertThread: vi.fn<() => void>(),
   dbMarkLiveThreadsInactive: vi.fn<() => void>(),
+  dbAppendThreadTerminalOutput: vi.fn<() => void>(),
+  dbClearThreadTerminalScrollback: vi.fn<() => void>(),
+  dbGetThreadTerminalScrollback: vi.fn<() => null>(() => null),
   dbDeleteThread: vi.fn<() => void>(),
   dbGetSchedules: vi.fn<() => unknown[]>(() => []),
   dbGetSchedule: vi.fn<() => unknown>(() => null),
@@ -101,7 +109,7 @@ vi.mock("@/main/sharedSettingsFile", () => ({
   patchSharedSettingsFile: () => ({}),
 }));
 
-function makeHost() {
+function makeHost(overrides: Partial<Parameters<typeof createHeadlessRemoteHost>[0]> = {}) {
   return createHeadlessRemoteHost({
     appVersion: "9.9.9-test",
     baseDir: h.tmpBase,
@@ -112,6 +120,7 @@ function makeHost() {
     host: "127.0.0.1",
     advertisedHost: "127.0.0.1",
     port: 0,
+    ...overrides,
   });
 }
 
@@ -135,12 +144,110 @@ describe("createHeadlessRemoteHost", () => {
     rmSync(h.tmpBase, { recursive: true, force: true });
   });
 
-  it("opens the database and forks the supervisor on start", async () => {
+  const specificAddress = Object.values(networkInterfaces())
+    .flat()
+    .find((address) => address?.family === "IPv4" && !address.internal)?.address;
+  it.each(["127.0.0.1", ...(specificAddress ? [specificAddress] : [])])(
+    "serves a relay-only browser forward through production composition bound to %s",
+    async (bindHost) => {
+      vi.stubEnv("PORACODE_REMOTE_FORWARD_BASE_URL", undefined);
+      const relay = new RelayServer({
+        host: "127.0.0.1",
+        port: 0,
+        forwardBaseUrl: "https://apps.relay.test",
+        publicBaseUrl: "https://api.relay.test",
+      });
+      const upstream = createServer((_req, res) => res.end("relay-only upstream"));
+      const registered = Promise.withResolvers<string>();
+      let host: Awaited<ReturnType<typeof makeHost>> | undefined;
+      let relayStopped = false;
+      try {
+        const relayInfo = await relay.start();
+        await new Promise<void>((resolve) => upstream.listen(0, "127.0.0.1", resolve));
+        host = await makeHost({
+          host: bindHost,
+          advertisedHost: bindHost,
+          relayUrl: `ws://127.0.0.1:${relayInfo.port}/host`,
+          relaySecret: "fixture-relay-secret",
+          onRelayRegistered: registered.resolve,
+        });
+        const info = await host.start();
+        const advertisedUrl = new URL(await registered.promise);
+        const relayOrigin = advertisedUrl.origin;
+        const publicUrl = `http://127.0.0.1:${relayInfo.port}${advertisedUrl.pathname}`;
+        expect(host.server.forwardOriginAvailability().available).toBe(false);
+        const credential = new URLSearchParams(new URL(info.pairingUrl).hash.slice(1)).get("token");
+        const tokenResponse = await fetch(new URL("oauth/token", publicUrl), {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: relayOrigin },
+          body: JSON.stringify({
+            grantType: "pairing-token",
+            credential,
+            scopes: ["ports:forward"],
+          }),
+        });
+        expect(tokenResponse.status).toBe(200);
+        const { accessToken } = (await tokenResponse.json()) as { accessToken: string };
+        const created = await fetch(new URL("api/ports/forward", publicUrl), {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${accessToken}`,
+            origin: relayOrigin,
+          },
+          body: JSON.stringify({ targetPort: (upstream.address() as AddressInfo).port }),
+        });
+        expect(created.status).toBe(200);
+        const { enterPath } = (await created.json()) as { enterPath: string };
+        const entered = await fetch(new URL(enterPath.slice(1), publicUrl), { redirect: "manual" });
+        expect(entered.status).toBe(302);
+        const child = new URL(entered.headers.get("location")!);
+        expect(child.hostname.endsWith(".apps.relay.test")).toBe(true);
+        const exchanged = await rawRequestWithAuthority({
+          port: relayInfo.port,
+          authority: child.host,
+          path: child.pathname + child.search,
+        });
+        expect(exchanged.status).toBe(302);
+        const cookie = exchanged.headers["set-cookie"]?.[0]?.split(";")[0];
+        expect(cookie).toMatch(/^__Host-poracode-forward=/);
+        const response = await rawRequestWithAuthority({
+          port: relayInfo.port,
+          authority: child.host,
+          path: "/",
+          headers: { cookie: cookie! },
+        });
+        expect(response.status).toBe(200);
+        expect(await response.text()).toBe("relay-only upstream");
+        const environmentUrl = new URL("/.well-known/poracode/environment", info.httpBaseUrl);
+        expect(
+          (await fetch(environmentUrl, { headers: { origin: "https://foreign.example.test" } }))
+            .status,
+        ).toBe(403);
+        await relay.dispose();
+        relayStopped = true;
+        await vi.waitFor(async () => {
+          expect((await fetch(environmentUrl, { headers: { origin: relayOrigin } })).status).toBe(
+            403,
+          );
+        });
+        expect((await fetch(environmentUrl)).status).toBe(200);
+      } finally {
+        await host?.dispose();
+        if (!relayStopped) await relay.dispose();
+        upstream.closeAllConnections();
+        await new Promise<void>((resolve) => upstream.close(() => resolve()));
+        vi.unstubAllEnvs();
+      }
+    },
+  );
+
+  it("opens the database and starts serving without forking the supervisor", async () => {
     const host = await makeHost();
     const info = await host.start();
 
     expect(h.initDatabase).toHaveBeenCalledWith(join(h.tmpBase, "state.sqlite"));
-    expect(h.supervisorStart).toHaveBeenCalledWith(h.tmpBase);
+    expect(h.supervisorStart).not.toHaveBeenCalled();
     expect(info.httpBaseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/$/);
     expect(info.wsBaseUrl).toMatch(/^ws:\/\/127\.0\.0\.1:\d+\/$/);
     // The startup pairing link is minted against the advertised loopback host.
@@ -157,11 +264,30 @@ describe("createHeadlessRemoteHost", () => {
     await host.dispose();
   });
 
-  it("forks the supervisor only once across repeated start() calls", async () => {
+  it("does not fork the supervisor across repeated start() calls", async () => {
     const host = await makeHost();
     await host.start();
     await host.start();
-    expect(h.supervisorStart).toHaveBeenCalledTimes(1);
+    expect(h.supervisorStart).not.toHaveBeenCalled();
+    await host.dispose();
+  });
+
+  it("does not warm Git state through the supervisor for existing idle threads", async () => {
+    h.threads = [
+      {
+        id: "thread-1",
+        projectId: "project-1",
+        worktreePath: null,
+        status: "idle",
+        archived: false,
+        updatedAt: "2026-08-10T00:00:00.000Z",
+      },
+    ];
+    const host = await makeHost();
+
+    await host.start();
+
+    expect(h.supervisorCall).not.toHaveBeenCalled();
     await host.dispose();
   });
 

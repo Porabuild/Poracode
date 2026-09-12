@@ -1,5 +1,5 @@
 import { ChevronRight, Globe, House, PanelLeft, Plus, Search, Settings2 } from "lucide-react";
-import { startTransition, useEffect, useLayoutEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTerminalIcon";
@@ -17,8 +17,14 @@ import { SIDEBAR_MIN_WIDTH } from "@/renderer/views/MainView/parts/AppShell/part
 import { SidebarPanelDragButton } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarPanelDragButton";
 import { SidebarProjectSection } from "@/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectSection";
 import { ThreadContextMenu } from "@/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { isMac, readBridge } from "@/renderer/bridge";
+import {
+  selectBrowserPanelAvailable,
+  useRemoteServersStore,
+} from "@/renderer/state/remoteServersStore";
+import { readBridge } from "@/renderer/bridge";
+import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
+import { hasClientCapability } from "@/renderer/clientRuntime";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import {
   openRemoteAccessSettings,
   openSettings,
@@ -58,6 +64,7 @@ import {
   RemoteAccessSidebarTooltip,
 } from "./parts/RemoteAccessSidebarIcon";
 import { DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
+import { MobileHomeActions } from "./parts/MobileHomeActions";
 
 function prewarmSettings(): void {
   void DeferredSettingsOverlay.preload();
@@ -183,10 +190,13 @@ export function Sidebar() {
   const homeProject = useAppStore((state) => state.projects.find(isHomeProject));
   const homeScopeEnabled = useSharedSettings((s) => s.homeScopeEnabled);
   const remoteAccessEnabled = useSharedSettings((s) => s.remoteAccessEnabled);
+  const showRemoteAccess = hasClientCapability("localBackend");
   const currentProjectId = useCurrentProjectId();
   const currentWorktreePath = useCurrentWorktreePath();
   const sortMode = usePanelStore((s) => s.threadSortMode);
   const listLayout = usePanelStore((s) => s.threadListLayout);
+  const compactLayout = useCompactLayout();
+  const effectiveListLayout = compactLayout ? "flat" : listLayout;
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const settingsSection = usePanelStore((s) => s.settingsSection);
   // Remote Access has its own sidebar entry, so the generic Settings button
@@ -197,6 +207,7 @@ export function Sidebar() {
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const browserOnScreen = useIsPanelTabVisible("browser");
   const browserVisible = browserPanelOpen && browserOnScreen;
+  const browserPanelAvailable = useRemoteServersStore(selectBrowserPanelAvailable);
   const openThreadSearch = usePanelStore((s) => s.openThreadSearch);
   const isHomeProjectCollapsed = useSidebarUiStore((s) =>
     homeProject ? (s.collapsedProjects[homeProject.id] ?? false) : false,
@@ -234,20 +245,21 @@ export function Sidebar() {
     }
   }, [currentProjectId, setProjectCollapsed]);
 
-  // Reconnect any persisted remote servers once on mount so their projects show
-  // in the sidebar without opening Settings → Remote Servers.
-  useLayoutEffect(() => {
-    void useRemoteServersStore.getState().connectAll();
-  }, []);
-
   useEffect(() => {
     if (currentWorktreePath) {
       setWorktreeCollapsed(currentWorktreePath, false);
     }
   }, [currentWorktreePath, setWorktreeCollapsed]);
 
+  // Losing the capability or the opt-in drops the status during render so the
+  // icon never paints a stale online state; the polling loop below stays in
+  // the effect.
+  if ((!showRemoteAccess || !remoteAccessEnabled) && remoteAccessStatus !== "off") {
+    setRemoteAccessStatus("off");
+  }
+
   useEffect(() => {
-    if (!remoteAccessEnabled) {
+    if (!showRemoteAccess || !remoteAccessEnabled) {
       return;
     }
 
@@ -275,17 +287,17 @@ export function Sidebar() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [remoteAccessEnabled]);
+  }, [remoteAccessEnabled, showRemoteAccess]);
 
   return (
-    <div className="relative h-full">
+    <div className="poracode-main-sidebar relative h-full">
       {isCollapsed && (
         <div
           className={`absolute inset-y-0 left-0 z-10 flex h-full min-h-0 w-12 flex-col items-start gap-3 pl-2 pb-0 ${
             // macOS keeps the rail below the hidden-inset titlebar (traffic
             // lights); elsewhere the header spacer is dropped when collapsed,
             // so the rail starts at the window top with its own inset.
-            isMac() ? "pt-0" : "pt-2"
+            hasMacWindowChrome() ? "pt-0" : "pt-2"
           }`}
         >
           <div className="flex shrink-0 flex-col gap-0.5">
@@ -303,13 +315,15 @@ export function Sidebar() {
               isActive={threadSearchOpen}
               onPress={openThreadSearch}
             />
-            <SidebarButton
-              iconOnly
-              icon={<Globe className="size-3.5" />}
-              label={t`Browser`}
-              isActive={browserVisible}
-              onPress={toggleBrowserPanel}
-            />
+            {browserPanelAvailable ? (
+              <SidebarButton
+                iconOnly
+                icon={<Globe className="size-3.5" />}
+                label={t`Browser`}
+                isActive={browserVisible}
+                onPress={toggleBrowserPanel}
+              />
+            ) : null}
             <SidebarButton
               iconOnly
               icon={<Plus className="size-3.5" />}
@@ -342,15 +356,17 @@ export function Sidebar() {
               onPreload={prewarmSettings}
               onPress={openSettings}
             />
-            <SidebarButton
-              iconOnly
-              icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}
-              label={t`Remote Access`}
-              tooltip={<RemoteAccessSidebarTooltip status={remoteAccessStatus} />}
-              isActive={remoteAccessSettingsActive}
-              onPreload={prewarmSettings}
-              onPress={openRemoteAccessSettings}
-            />
+            {showRemoteAccess ? (
+              <SidebarButton
+                iconOnly
+                icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}
+                label={t`Remote Access`}
+                tooltip={<RemoteAccessSidebarTooltip status={remoteAccessStatus} />}
+                isActive={remoteAccessSettingsActive}
+                onPreload={prewarmSettings}
+                onPress={openRemoteAccessSettings}
+              />
+            ) : null}
             <SidebarButton
               iconOnly
               icon={<PanelLeft className="size-4" />}
@@ -368,22 +384,20 @@ export function Sidebar() {
         {projectIds.length === 0 && !(homeScopeEnabled && homeProject) ? (
           <div
             ref={setScrollContainer}
-            className={sidebarBodyScrollClass()}
+            className={`${sidebarBodyScrollClass()} flex items-center justify-center`}
             style={scrollFadeStyle}
           >
-            <div className="pt-4">
-              <p className="text-center text-sm text-muted">
-                {hiddenProjectCount > 0 ? (
-                  // Distinguish "you own no projects" from "this workspace is
-                  // empty but others aren't" — otherwise the sidebar looks broken.
-                  <Trans>No projects in this workspace</Trans>
-                ) : (
-                  <Trans>Add a project to start</Trans>
-                )}
-              </p>
-            </div>
+            <p className="text-center text-sm text-muted">
+              {hiddenProjectCount > 0 ? (
+                // Distinguish "you own no projects" from "this workspace is
+                // empty but others aren't" — otherwise the sidebar looks broken.
+                <Trans>No projects in this workspace</Trans>
+              ) : (
+                <Trans>Add a project to start</Trans>
+              )}
+            </p>
           </div>
-        ) : listLayout === "flat" ? (
+        ) : effectiveListLayout === "flat" ? (
           // The flat list pins its filter/new-thread head above the thread
           // rows, so it renders its own scroll container instead of this one.
           <SidebarFlatThreadList sortMode={sortMode} />
@@ -438,8 +452,15 @@ export function Sidebar() {
           </div>
         )}
 
-        <ProviderUsageRail orientation="row" />
-        <SidebarFooterNav remoteAccessStatus={remoteAccessStatus} />
+        {compactLayout ? null : <ProviderUsageRail orientation="row" />}
+        {compactLayout ? (
+          <MobileHomeActions />
+        ) : (
+          <SidebarFooterNav
+            remoteAccessStatus={remoteAccessStatus}
+            showRemoteAccess={showRemoteAccess}
+          />
+        )}
       </div>
     </div>
   );

@@ -165,8 +165,14 @@ export function ThreadDraftView(props: {
   quickComposer?: boolean;
   composerPlaceholder?: string;
   restoreWorktreeSelectionToken?: number;
-  /** Override whether unmodified Enter submits instead of inserting a newline. */
+  /**
+   * Override whether unmodified Enter submits instead of inserting a newline.
+   * Defaults to submit on desktop (Electron and desktop PWA) and newline on
+   * compact/mobile PWA.
+   */
   submitOnEnter?: boolean;
+  /** Override mount autofocus for embedded draft-composer surfaces. */
+  autoFocusComposer?: boolean;
   pickFiles?: () => Promise<string[] | null>;
   saveClipboardImage?: SaveClipboardImage;
   paneAlign?: "left" | "center" | "right";
@@ -1274,6 +1280,9 @@ export function ThreadDraftView(props: {
             presentationMode={presentationMode}
             {...(props.composerPlaceholder ? { placeholder: props.composerPlaceholder } : {})}
             {...(props.submitOnEnter !== undefined ? { submitOnEnter: props.submitOnEnter } : {})}
+            {...(props.autoFocusComposer !== undefined
+              ? { autoFocus: props.autoFocusComposer }
+              : {})}
             {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
             {...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {})}
             onConfigChange={onConfigPatch}

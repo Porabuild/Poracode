@@ -120,6 +120,84 @@ describe("OpencodeSdkSession", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("createRevertAnchor plans the absolute revert target; restoreToRevertAnchor applies it idempotently", async () => {
+    const revert = vi
+      .fn<(input: Record<string, unknown>) => Promise<{ data: unknown }>>()
+      .mockResolvedValue({ data: null });
+    const messages = vi
+      .fn<
+        (
+          input: Record<string, unknown>,
+        ) => Promise<{ data: Array<{ info: Record<string, unknown> }> }>
+      >()
+      .mockResolvedValue({
+        data: [
+          { info: { id: "msg-u1", role: "user" } },
+          { info: { id: "msg-a1", role: "assistant" } },
+          { info: { id: "msg-u2", role: "user" } },
+          { info: { id: "msg-a2", role: "assistant" } },
+        ],
+      });
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: {
+        global: {
+          event: vi.fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>().mockResolvedValue({
+            stream: streamOf({ payload: serverConnectedEvent() }),
+          }),
+        },
+      },
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_test" } }),
+          messages,
+          revert,
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode-anchor",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: () => {},
+      onRuntimeEvent: () => {},
+    });
+    await session.activate();
+    await session.openThread(config);
+
+    // Pure planning: the anchor freezes the target assistant message and the
+    // provider revert endpoint is never called.
+    const anchor = await session.createRevertAnchor(1);
+    expect(anchor).toEqual({ version: 1, data: { messageId: "msg-a1" } });
+    expect(revert).not.toHaveBeenCalled();
+
+    // Restore applies the anchor in place; re-issuing it converges (OpenCode
+    // revert is position-based), which makes the restore idempotent.
+    await session.restoreToRevertAnchor(anchor);
+    expect(revert).toHaveBeenCalledTimes(1);
+    expect(revert).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionID: "ses_test", messageID: "msg-a1" }),
+    );
+    await session.restoreToRevertAnchor(anchor);
+    expect(revert).toHaveBeenCalledTimes(2);
+    expect(revert).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sessionID: "ses_test", messageID: "msg-a1" }),
+    );
+
+    await session.dispose();
+  });
+
   it("does not report user-aborted session errors to the listener", async () => {
     const onError = vi.fn<(message: string) => void>();
     let releaseErrors!: () => void;
@@ -292,7 +370,13 @@ describe("OpencodeSdkSession", () => {
       })
       .mockResolvedValueOnce({
         eventClient: secondEvent,
-        client: { session: { promptAsync } },
+        client: {
+          session: {
+            promptAsync,
+            abort: async () => ({ data: true }),
+            status: async () => ({ data: {} }),
+          },
+        },
         baseUrl: "http://127.0.0.1:2",
         handle: {},
         onServerExit: () => vi.fn<() => void>(),
@@ -786,6 +870,8 @@ describe("OpencodeSdkSession", () => {
       client: {
         command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
         session: {
+          abort: async () => ({ data: true }),
+          status: async () => ({ data: {} }),
           create: vi
             .fn<() => Promise<{ data: { id: string } }>>()
             .mockResolvedValue({ data: { id: "ses_test" } }),
@@ -1496,6 +1582,7 @@ describe("OpencodeSdkSession", () => {
             .fn<(input: unknown) => Promise<{ data: { id: string } }>>()
             .mockResolvedValue({ data: { id: "ses_steer" } }),
           abort,
+          status: async () => ({ data: {} }),
           promptAsync,
         },
       },

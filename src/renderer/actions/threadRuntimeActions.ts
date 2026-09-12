@@ -37,16 +37,16 @@ function resolveThreadProjectLocation(
   return { thread, projectLocation: resolveProjectLocation(project.location, thread.worktreePath) };
 }
 
-/** Minimal transport a prompt submit needs; the desktop injects the local IPC
- * bridge, the mobile PWA injects the remote desktop client. */
+/** Minimal transport a prompt submit needs; runtime adapters inject either the
+ * local IPC bridge or the authenticated remote client. */
 export interface ThreadInputTransport {
   sendThreadInput: (payload: SendThreadInputPayload) => Promise<unknown>;
 }
 
 /**
  * Submit a prompt to a running thread — the single implementation behind the
- * desktop action ({@link submitThreadInput}) and the mobile PWA's remote
- * `sendPrompt`. Optimistically paints the user_message for GUI threads (the
+ * local action ({@link submitThreadInput}) and remote browser prompt sends.
+ * Optimistically paints the user_message for GUI threads (the
  * supervisor reuses the same item id, so the live event dedupes), flips the
  * runtime to "working", runs the injected checkpoint capture (desktop-only),
  * then forwards the prompt over the injected transport. On error, rolls back
@@ -182,10 +182,13 @@ export async function submitThreadInput(
     resumeLaunch: async (resume) => {
       // Re-resolve the thread: the pre-send snapshot can miss a sessionRef
       // discovered since, and the resume payload must carry the latest one.
+      // Abort if the thread or project disappeared (or changed ownership)
+      // between send and resume — relaunching a deleted row would recreate it.
       const latest = resolveThreadProjectLocation(threadId);
+      if (!latest || Boolean(remoteOwner(latest.thread)) !== Boolean(owner)) return;
       await performInitialThreadLaunch({
-        thread: latest?.thread ?? thread,
-        projectLocation: latest?.projectLocation ?? projectLocation,
+        thread: latest.thread,
+        projectLocation: latest.projectLocation,
         prompt: resume.prompt,
         ...(resume.segments ? { segments: resume.segments } : {}),
         ...(resume.userMessageItemId ? { userMessageItemId: resume.userMessageItemId } : {}),
@@ -263,9 +266,7 @@ export function changeThreadConfig(threadId: string, config: ThreadConfig): void
 }
 
 /**
- * Drop a queued steer message. Shared by the desktop composer's pending-steer
- * strip and the mobile PWA's action-dock card, which hosts the same strip
- * outside the compact composer.
+ * Drop a queued steer message through either local or remote transport.
  */
 export function clearThreadPendingSteer(threadId: string): void {
   void readBridge()

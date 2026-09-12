@@ -163,7 +163,7 @@ function makeConfigSyncSession(
     onRuntimeEvent: vi.fn<(event: unknown) => void>(),
   };
   const session = Object.create(AcpStructuredSession.prototype) as Record<string, unknown>;
-  session["child"] = { killed: true };
+  session["child"] = { killed: true, exitCode: 0 };
   session["connection"] = connection;
   session["acpToolCallIdToItemId"] = new Map();
   session["detachedTurnParentToolCallIds"] = new Set();

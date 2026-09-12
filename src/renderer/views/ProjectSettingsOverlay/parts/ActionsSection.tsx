@@ -3,6 +3,12 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Plus, Trash2 } from "lucide-react";
 import type { ProjectAction } from "@/shared/contracts";
 import { updateProjectScripts } from "@/renderer/actions/projectActions";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import {
+  MobilePageBottomAction,
+  MobilePageBottomBar,
+} from "@/renderer/components/layout/MobilePageBottomActions";
+import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 import { useProject } from "@/renderer/state/useThread";
 import { Button, Input, TextArea } from "@/renderer/components/common";
 import { ActionIconPicker } from "./ActionIconPicker";
@@ -10,6 +16,7 @@ import { ActionIconPicker } from "./ActionIconPicker";
 export function ActionsSection(props: { projectId: string }) {
   const { t } = useLingui();
   const project = useProject(props.projectId);
+  const compactLayout = useCompactLayout();
 
   const scripts = project?.scripts ?? { actions: [] };
   const actions = scripts.actions ?? [];
@@ -45,22 +52,38 @@ export function ActionsSection(props: { projectId: string }) {
   }
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4">
-      <div className="mx-auto max-w-[720px]">
-        <h1 className="mb-6 text-lg font-semibold text-foreground">
-          <Trans>Actions</Trans>
-        </h1>
-        <p className="mb-4 text-xs text-muted">
+    <div
+      className={
+        compactLayout ? "m-project-actions" : "h-full min-h-0 overflow-y-auto px-6 pb-8 pt-4"
+      }
+    >
+      <div className={compactLayout ? "m-project-actions__scroll" : "mx-auto max-w-[720px]"}>
+        {!compactLayout && (
+          <h1 className="mb-6 text-lg font-semibold text-foreground">
+            <Trans>Actions</Trans>
+          </h1>
+        )}
+        <p className={compactLayout ? "m-project-actions__description" : "mb-4 text-xs text-muted"}>
           <Trans>Custom commands available from the project context menu (right-click).</Trans>
         </p>
 
-        <div className="space-y-3">
+        <div className={compactLayout ? "m-project-actions__list" : "space-y-3"}>
           {actions.map((action) => (
             <div
               key={action.id}
-              className="group rounded-lg border border-[var(--hairline)] bg-[var(--row-hover)] p-3"
+              className={
+                compactLayout
+                  ? "group m-project-actions__card"
+                  : "group rounded-lg border border-[var(--hairline)] bg-[var(--row-hover)] p-3"
+              }
             >
-              <div className="mb-2.5 flex items-center gap-2">
+              <div
+                className={
+                  compactLayout
+                    ? "mb-1.5 flex items-center gap-2"
+                    : "mb-2.5 flex items-center gap-2"
+                }
+              >
                 <ActionIconPicker
                   value={action.icon ?? "play"}
                   onChange={(name) => {
@@ -85,7 +108,11 @@ export function ActionsSection(props: { projectId: string }) {
                   isIconOnly
                   variant="ghost"
                   aria-label={t`Remove action`}
-                  className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  className={
+                    compactLayout
+                      ? "shrink-0 text-danger"
+                      : "shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  }
                   onPress={() => removeAction(action.id)}
                 >
                   <Trash2 className="size-3.5 text-danger" />
@@ -94,7 +121,7 @@ export function ActionsSection(props: { projectId: string }) {
               <TextArea
                 aria-label={t`Action command`}
                 className="w-full font-mono text-xs"
-                rows={2}
+                rows={compactLayout ? 1 : 2}
                 value={action.command}
                 onChange={(e) => {
                   const updated = actions.map((a) =>
@@ -106,8 +133,18 @@ export function ActionsSection(props: { projectId: string }) {
             </div>
           ))}
 
-          <div className="rounded-lg border border-dashed border-[var(--hairline-strong)] p-3">
-            <div className="mb-2.5 flex items-center gap-2">
+          <div
+            className={
+              compactLayout
+                ? "m-project-actions__card"
+                : "rounded-lg border border-dashed border-[var(--hairline-strong)] p-3"
+            }
+          >
+            <div
+              className={
+                compactLayout ? "mb-1.5 flex items-center gap-2" : "mb-2.5 flex items-center gap-2"
+              }
+            >
               <ActionIconPicker value={newIcon} onChange={setNewIcon} />
               <Input
                 aria-label={t`New action name`}
@@ -122,24 +159,43 @@ export function ActionsSection(props: { projectId: string }) {
             </div>
             <TextArea
               aria-label={t`New action command`}
-              className="mb-3 w-full font-mono text-xs"
-              rows={2}
+              className={`${compactLayout ? "" : "mb-3"} w-full font-mono text-xs`}
+              rows={compactLayout ? 1 : 2}
               placeholder={t`Command (e.g., npm run dev)`}
               value={newCommand}
               onChange={(e) => setNewCommand(e.target.value)}
             />
-            <Button
-              variant="ghost"
-              className="w-full"
+            {!compactLayout && (
+              <Button
+                variant="ghost"
+                className="w-full"
+                isDisabled={!newName.trim() || !newCommand.trim()}
+                onPress={addAction}
+              >
+                <Plus className="size-4" />
+                <Trans>Add action</Trans>
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+      {compactLayout && (
+        <>
+          <MobilePageBottomBar className="m-project-actions__bottom">
+            <span aria-hidden="true" />
+          </MobilePageBottomBar>
+          <MobilePageBottomAction side="right">
+            <MobileCircleButton
+              aria-label={t`Add action`}
+              className="text-muted"
               isDisabled={!newName.trim() || !newCommand.trim()}
               onPress={addAction}
             >
               <Plus className="size-4" />
-              <Trans>Add action</Trans>
-            </Button>
-          </div>
-        </div>
-      </div>
+            </MobileCircleButton>
+          </MobilePageBottomAction>
+        </>
+      )}
     </div>
   );
 }

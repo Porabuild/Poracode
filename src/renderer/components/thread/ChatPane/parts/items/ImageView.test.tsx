@@ -26,7 +26,7 @@ const originalRevokeObjectUrl = URL.revokeObjectURL;
 /**
  * Install a stub `window.poracode` bridge. ImageView delegates copy/download
  * unconditionally to the bridge; the browser-native implementations live in the
- * mobile bridge shim (src/mobile/bridge.ts), so here we assert delegation and
+ * browser bridge shim (src/renderer/browser/remoteBridge.ts), so here we assert delegation and
  * error handling against mocked bridge methods.
  */
 function installBridge(overrides: Record<string, unknown> = {}) {

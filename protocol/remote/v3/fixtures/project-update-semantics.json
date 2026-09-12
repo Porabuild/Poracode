@@ -1,0 +1,134 @@
+{
+  "accepted": [
+    {
+      "id": "all-missing",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": {}
+      }
+    },
+    {
+      "id": "scripts-null",
+      "field": "scripts",
+      "state": "null",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "scripts": null }
+      }
+    },
+    {
+      "id": "scripts-value-empty-list",
+      "field": "scripts",
+      "state": "value",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "scripts": { "actions": [] } }
+      }
+    },
+    {
+      "id": "search-settings-null",
+      "field": "searchSettings",
+      "state": "null",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "searchSettings": null }
+      }
+    },
+    {
+      "id": "search-settings-value-empty-map",
+      "field": "searchSettings",
+      "state": "value",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "searchSettings": { "exclude": {} } }
+      }
+    },
+    {
+      "id": "worktree-location-null",
+      "field": "worktreeLocation",
+      "state": "null",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "worktreeLocation": null }
+      }
+    },
+    {
+      "id": "worktree-location-value-empty-map",
+      "field": "worktreeLocation",
+      "state": "value",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "worktreeLocation": {} }
+      }
+    },
+    {
+      "id": "mcp-servers-null",
+      "field": "mcpServers",
+      "state": "null",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "mcpServers": null }
+      }
+    },
+    {
+      "id": "mcp-servers-value-empty-list",
+      "field": "mcpServers",
+      "state": "value",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "mcpServers": [] }
+      }
+    },
+    {
+      "id": "name-value",
+      "field": "name",
+      "state": "value",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "name": "Updated name" }
+      }
+    },
+    {
+      "id": "disabled-value",
+      "field": "disabled",
+      "state": "value",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "disabled": false }
+      }
+    }
+  ],
+  "rejected": [
+    {
+      "id": "name-null",
+      "field": "name",
+      "state": "null",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "name": null }
+      }
+    },
+    {
+      "id": "disabled-null",
+      "field": "disabled",
+      "state": "null",
+      "request": {
+        "kind": "update",
+        "projectId": "project-1",
+        "patch": { "disabled": null }
+      }
+    }
+  ]
+}

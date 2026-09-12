@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_global_mcp_title">MCP 서버</string>
+    <string name="settings_global_mcp_description">데스크톱 전체의 사용자 지정 MCP 서버를 관리합니다.</string>
+    <string name="settings_manage_projects_denied">프로젝트 관리 권한이 필요합니다.</string>
+    <string name="settings_global_mcp_redaction_note">자격 증명은 데스크톱에 유지됩니다. 기존 비밀 값은 가려진 자리표시자로 표시됩니다.</string>
+    <string name="settings_global_mcp_add">추가</string>
+    <string name="settings_global_mcp_empty">구성된 글로벌 MCP 서버가 없습니다.</string>
+    <string name="settings_global_mcp_empty_description">서버를 추가하거나 검색을 사용하여 이 데스크톱에 이미 구성된 서버를 가져오세요.</string>
+    <string name="settings_global_mcp_uncertain">결과가 확실하지 않습니다. 최신 서버 목록을 요청했습니다.</string>
+    <string name="settings_global_mcp_edit">편집</string>
+    <string name="settings_global_mcp_delete">삭제</string>
+    <string name="settings_global_mcp_move">프로젝트로 이동</string>
+    <string name="settings_global_mcp_move_global">전역으로 이동</string>
+    <string name="settings_global_mcp_duplicate_name">이 이름의 MCP 서버가 이미 있습니다.</string>
+    <string name="settings_global_mcp_reserved_name">이 이름은 기본 제공 MCP 서버용으로 예약되어 있습니다.</string>
+    <string name="settings_global_mcp_probe">연결 테스트</string>
+    <string name="settings_global_mcp_tools">도구</string>
+    <string name="settings_global_mcp_tools_title">%1$s 도구</string>
+    <string name="settings_global_mcp_authorize">승인</string>
+    <string name="settings_global_mcp_clear_oauth">승인 지우기</string>
+    <string name="settings_global_mcp_probe_summary">%1$s · 도구: %2$d · %3$d ms</string>
+    <string name="settings_global_mcp_open_browser">브라우저 열기</string>
+    <string name="settings_global_mcp_delete_title">MCP 서버를 삭제할까요?</string>
+    <string name="settings_global_mcp_delete_message">%1$s을(를) 삭제할까요? 이 작업은 취소할 수 없습니다.</string>
+    <string name="settings_global_mcp_cancel">취소</string>
+    <string name="settings_global_mcp_move_title">%1$s을(를) 프로젝트로 이동</string>
+    <string name="settings_global_mcp_add_title">MCP 서버 추가</string>
+    <string name="settings_global_mcp_edit_title">MCP 서버 편집</string>
+    <string name="settings_global_mcp_name">이름</string>
+    <string name="settings_global_mcp_server_description">설명</string>
+    <string name="settings_global_mcp_command">명령</string>
+    <string name="settings_global_mcp_url">URL</string>
+    <string name="settings_global_mcp_arguments">인수, 한 줄에 하나씩</string>
+    <string name="settings_global_mcp_working_directory">작업 디렉터리(선택 사항)</string>
+    <string name="settings_global_mcp_environment">환경, 한 줄에 KEY=VALUE</string>
+    <string name="settings_global_mcp_headers">헤더, 한 줄에 KEY=VALUE</string>
+    <string name="settings_global_mcp_timeout">제한 시간(밀리초)</string>
+    <string name="settings_global_mcp_disabled_tools">비활성화된 도구, 한 줄에 하나씩</string>
+    <string name="settings_global_mcp_pairs_help">한 줄에 하나의 KEY=VALUE 쌍을 입력하세요.</string>
+    <string name="settings_global_mcp_save">저장</string>
+    <string name="settings_global_mcp_oauth_idle">OAuth 상태를 아직 확인하지 않았습니다.</string>
+    <string name="settings_global_mcp_oauth_checking">OAuth 상태 확인 중…</string>
+    <string name="settings_global_mcp_oauth_ready">OAuth 상태가 최신입니다.</string>
+    <string name="settings_global_mcp_oauth_starting">승인 시작 중…</string>
+    <string name="settings_global_mcp_oauth_open_browser">브라우저를 열어 승인을 계속하세요.</string>
+    <string name="settings_global_mcp_oauth_waiting">승인 대기 중…</string>
+    <string name="settings_global_mcp_oauth_authorized">승인이 완료되었습니다.</string>
+    <string name="settings_global_mcp_oauth_failed">승인에 실패했습니다.</string>
+    <string name="settings_global_mcp_oauth_paused">앱이 백그라운드에 있는 동안 승인이 일시 중지됩니다.</string>
+</resources>

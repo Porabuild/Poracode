@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { IOS_ALERT_BODY_LOC_KEYS, IOS_ALERT_TITLE_LOC_KEY, type IOSPushPayload } from "./payloads";
 import {
   createPushGateway,
   createWebPushPublicKeyResolver,
@@ -6,6 +7,16 @@ import {
 } from "./pushGateway";
 
 type GatewayFetch = NonNullable<CreatePushGatewayOptions["fetchImpl"]>;
+
+const iosPayload: IOSPushPayload = {
+  aps: {
+    alert: {
+      "title-loc-key": IOS_ALERT_TITLE_LOC_KEY,
+      "loc-key": IOS_ALERT_BODY_LOC_KEYS.finished,
+    },
+    sound: "default",
+  },
+};
 
 describe("push gateway client", () => {
   it("sends a Web Push subscription without a native token", async () => {
@@ -102,7 +113,7 @@ describe("push gateway client", () => {
       platform: "ios",
       pushType: "alert",
       token: "secret-token",
-      payload: {},
+      payload: iosPayload,
     } as const;
 
     await expect(send(input)).resolves.toMatchObject({
@@ -157,7 +168,7 @@ describe("push gateway client", () => {
       platform: "ios",
       pushType: "alert",
       token: "private-token",
-      payload: { private: "request-body" },
+      payload: iosPayload,
     });
 
     expect(onError).toHaveBeenCalledOnce();
@@ -170,5 +181,47 @@ describe("push gateway client", () => {
       status: 400,
     });
     expect(JSON.stringify(onError.mock.calls[0]?.[0])).not.toContain("private");
+  });
+
+  it("fails closed before transport for every invalid iOS aps.alert shape", async () => {
+    const fetchImpl = vi.fn<GatewayFetch>();
+    const send = createPushGateway({ gatewayUrl: "https://gateway.example.test", fetchImpl });
+    const invalidPayloads = [
+      { aps: { alert: { title: "private path", body: "Finished" } } },
+      {
+        aps: {
+          alert: {
+            "title-loc-key": IOS_ALERT_TITLE_LOC_KEY,
+            "loc-key": "push.alert.unknown",
+          },
+        },
+      },
+      {
+        aps: {
+          alert: {
+            "title-loc-key": IOS_ALERT_TITLE_LOC_KEY,
+            "loc-key": IOS_ALERT_BODY_LOC_KEYS.finished,
+            "loc-args": ["secret-token"],
+          },
+        },
+      },
+    ];
+
+    for (const payload of invalidPayloads) {
+      await expect(
+        send({
+          platform: "ios",
+          pushType: "alert",
+          token: "private-token",
+          payload: payload as unknown as IOSPushPayload,
+        }),
+      ).resolves.toEqual({
+        ok: false,
+        status: 0,
+        unregistered: false,
+        reason: "Invalid iOS push payload.",
+      });
+    }
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

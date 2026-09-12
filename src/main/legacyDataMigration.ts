@@ -1,8 +1,12 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import { type PoracodeChannel, resolvePoracodeChannel } from "@/shared/channel";
+import {
+  legacyProductNameFor,
+  resolveLegacyElectronUserDataDir,
+} from "@/shared/legacyProductPaths";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import Database from "better-sqlite3";
 import { resolveBetterSqliteNativeBindingOptions } from "./db/connection";
@@ -14,11 +18,6 @@ const MIGRATION_REQUEST_SUFFIX = ".lightcode-migration-request-v1";
 const LEGACY_DATA_DIR_NAME: Record<PoracodeChannel, string> = {
   stable: ".lightcode",
   nightly: ".lightcode-nightly",
-};
-
-const LEGACY_PRODUCT_NAME: Record<PoracodeChannel, string> = {
-  stable: "Lightcode",
-  nightly: "Lightcode Nightly",
 };
 
 const TRANSIENT_DATA_ROOT_ENTRIES = new Set([
@@ -94,9 +93,7 @@ function legacyDataDir(channel: PoracodeChannel, override?: string): string {
   return override ?? join(homedir(), LEGACY_DATA_DIR_NAME[channel]);
 }
 
-export function legacyProductNameFor(channel: PoracodeChannel): string {
-  return LEGACY_PRODUCT_NAME[channel];
-}
+export { legacyProductNameFor, resolveLegacyElectronUserDataDir };
 
 function uniqueBackupPath(targetDir: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -212,16 +209,6 @@ function writeMigrationMarker(baseDir: string, marker: MigrationMarker): void {
 
 function removeMigrationRequest(baseDir: string): void {
   rmSync(requestPath(baseDir), { force: true });
-}
-
-export function resolveLegacyElectronUserDataDir(
-  electronUserDataDir: string,
-  channel: PoracodeChannel = resolvePoracodeChannel(),
-  isDev = false,
-): string {
-  const currentProductDir = isDev ? dirname(electronUserDataDir) : electronUserDataDir;
-  const legacyProductDir = join(dirname(currentProductDir), legacyProductNameFor(channel));
-  return isDev ? join(legacyProductDir, basename(electronUserDataDir)) : legacyProductDir;
 }
 
 export function migrateLegacyDataOnLaunch(

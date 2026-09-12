@@ -13,7 +13,7 @@ const initialize = vi.hoisted(() =>
 );
 const disposeClient = vi.hoisted(() => vi.fn<() => void>());
 const terminate = vi.hoisted(() =>
-  vi.fn<(child: EventEmitter, options: { ownedProcessGroup: boolean }) => void>(),
+  vi.fn<(child: EventEmitter, options: { ownedProcessGroup: boolean }) => Promise<void>>(),
 );
 const spawnMuseServeHost = vi.hoisted(() =>
   vi.fn<
@@ -30,7 +30,14 @@ let serverRequestHandler:
     }) => Record<string, unknown>)
   | undefined;
 
-vi.mock("@/shared/processTree", () => ({ terminateChildProcessTree: terminate }));
+const batchWslCommandsAsync = vi.hoisted(() =>
+  vi.fn<() => Promise<{ ok: boolean; stdout: string }[]>>(),
+);
+vi.mock("@/shared/awaitProcessTermination", () => ({ awaitProcessTermination: terminate }));
+vi.mock("../../base", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../base")>()),
+  batchWslCommandsAsync,
+}));
 vi.mock("./client", () => ({
   spawnMuseServeHost,
   MuseMspClient: class {
@@ -126,6 +133,8 @@ async function createSession(overrides: Partial<CreateStructuredSessionInput> = 
 
 beforeEach(() => {
   vi.clearAllMocks();
+  terminate.mockResolvedValue(undefined);
+  batchWslCommandsAsync.mockResolvedValue([{ ok: true, stdout: "" }]);
   notificationHandler = undefined;
   clientErrorHandler = undefined;
   serverRequestHandler = undefined;
@@ -780,6 +789,43 @@ describe("MuseMspStructuredSession", () => {
         (event) => event.type === "item.started" && event.itemType === "user_message",
       ),
     ).toHaveLength(1);
+  });
+
+  it("shares concurrent disposal and waits for both local and WSL exit confirmation", async () => {
+    const { session, closes } = await createSession();
+    let finishLocal!: () => void;
+    let finishRemote!: (result: { ok: boolean; stdout: string }[]) => void;
+    terminate.mockReturnValue(
+      new Promise((resolve) => {
+        finishLocal = resolve;
+      }),
+    );
+    batchWslCommandsAsync.mockReturnValue(
+      new Promise((resolve) => {
+        finishRemote = resolve;
+      }),
+    );
+    const first = session.dispose();
+    expect(session.dispose()).toBe(first);
+    expect(terminate).toHaveBeenCalledTimes(1);
+    finishLocal();
+    await Promise.resolve();
+    expect(closes).toEqual([]);
+    finishRemote([{ ok: true, stdout: "" }]);
+    await first;
+    expect(closes).toEqual(["close"]);
+  });
+
+  it.each(["local", "remote"])("allows retry after an unconfirmed %s shutdown", async (failure) => {
+    const { session, closes } = await createSession();
+    if (failure === "local") terminate.mockRejectedValueOnce(new Error("Still running"));
+    else batchWslCommandsAsync.mockResolvedValueOnce([{ ok: false, stdout: "" }]);
+    await expect(session.dispose()).rejects.toThrow("Muse MSP shutdown failed");
+    expect(closes).toEqual([]);
+    await session.dispose();
+    expect(terminate).toHaveBeenCalledTimes(2);
+    expect(batchWslCommandsAsync).toHaveBeenCalledTimes(2);
+    expect(closes).toEqual(["close"]);
   });
 
   it("interrupts the exact active turn and terminates its owned host on dispose", async () => {

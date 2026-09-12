@@ -3,16 +3,27 @@ import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocket } from "ws";
 import {
+  TERMINAL_CURSOR_SYNC_V2_VERSION,
   remoteThreadItemInterestsSchema,
   remoteWebSocketClientMessageSchema,
+  type RemoteTerminalCursorSyncRequest,
+  type RemoteTerminalWatchResult,
 } from "@/shared/remote";
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
 import type { RemoteBrowserFrame } from "../RemoteBrowserGateway";
 import type { RemoteServerContext } from "./context";
-import { isReservedForwardProxyPath, proxyForwardedWebSocketUpgrade } from "./portForwardProxy";
 import { MAX_JSON_BODY_BYTES } from "./requestBody";
-import { projectGitStatePatchForInterests } from "./gitStateProjection";
-import { filterEventForItemInterests } from "./itemInterestFilter";
+import { replayEvents } from "./eventReplay";
+import {
+  buildTerminalWatchResultMessage,
+  composeTerminalBaselineStream,
+  composeTerminalWatchReadyResult,
+  forbiddenWatchResult,
+  isSupportedTerminalCursorSyncVersion,
+  notFoundWatchResult,
+  unavailableWatchResult,
+  unsupportedCursorSyncVersionResult,
+} from "./terminalCursorSync";
 
 export const DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES = MAX_JSON_BODY_BYTES;
 export const DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES = 4 * 1024 * 1024;
@@ -22,14 +33,16 @@ export const DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES = 4 * 1024 * 1024;
  *
  * Compression is worth it here — runtime transcript frames are highly redundant
  * JSON — but `ws` warns that it carries real CPU/memory cost, and this server
- * runs on the Electron **main** process, so every knob below is deliberate:
+ * runs in the extracted backend-host process (not Electron main), so every
+ * knob below is deliberate:
  *
  * - Context takeover is DISABLED in both directions. With it on, every
  *   connection retains a persistent zlib context (hundreds of KB each way) for
  *   the life of the socket. Per-message contexts cost some ratio but keep memory
  *   flat and predictable across many paired devices.
  * - `concurrencyLimit` bounds simultaneous zlib jobs so a burst of large frames
- *   cannot starve the main process's event loop.
+ *   cannot starve the backend-host event loop (PWA HTTP/WS, desktop renderer
+ *   stream, SQLite, and supervisor IPC share it).
  * - `level: 3` favors throughput over ratio; transcript JSON is already
  *   redundant enough that higher levels buy little.
  * - `threshold` skips small frames, which is most of the stream (status
@@ -44,7 +57,10 @@ export const DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES = 4 * 1024 * 1024;
 export const REMOTE_PER_MESSAGE_DEFLATE = {
   serverNoContextTakeover: true,
   clientNoContextTakeover: true,
-  serverMaxWindowBits: 10,
+  // No `serverMaxWindowBits` cap: the default 15-bit window compresses the
+  // large frames that dominate weak links (terminal baselines, item events)
+  // 30-50% smaller than the earlier 10-bit cap, and `noContextTakeover` still
+  // bounds per-message memory.
   concurrencyLimit: 4,
   threshold: 1024,
   zlibDeflateOptions: { level: 3 },
@@ -100,6 +116,142 @@ export function rejectUpgrade(socket: Duplex, status: number, reason: string): v
   }
 }
 
+/**
+ * Install reliable watch state, await the event-interest barrier, take a
+ * supervisor snapshot (reply flush establishes the cursor boundary), then emit
+ * `terminal-watch-result` only if the install epoch is still current.
+ *
+ * Failed setups (interest barrier, snapshot not-found/unavailable, etc.) clear
+ * only that exact registration so live deltas never stream without a baseline,
+ * and an older failure cannot clear a newer same-watchId registration.
+ */
+async function handleReliableTerminalWatch(
+  ctx: RemoteServerContext,
+  ws: WebSocket,
+  session: AuthenticatedRemoteSession,
+  terminalId: string,
+  cursorSync: RemoteTerminalCursorSyncRequest,
+): Promise<void> {
+  const { watchId, version } = cursorSync;
+  if (!isSupportedTerminalCursorSyncVersion(version)) {
+    // Replacement semantics: an unsupported positive version must not leave a
+    // prior reliable *or* legacy stream for this terminal alive, and must never
+    // install/downgrade a watch. Clear both interest maps, notify the supervisor
+    // filter safely, then emit the non-retryable unavailable result.
+    // Guard sync *and* async throws from the notify hook so the client still
+    // receives the unavailable result.
+    ctx.terminalCursorSync.clearReliable(ws, terminalId);
+    ctx.terminalWatches.get(ws)?.delete(terminalId);
+    try {
+      void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+    } catch {
+      // Synchronous throw from onEventInterestsChanged — still deliver error.
+    }
+    if (ws.readyState === WebSocket.OPEN) {
+      ctx.send(
+        ws,
+        buildTerminalWatchResultMessage(terminalId, watchId, unsupportedCursorSyncVersionResult()),
+      );
+    }
+    return;
+  }
+
+  if (!session.scopes.includes("terminal:read")) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ctx.send(ws, buildTerminalWatchResultMessage(terminalId, watchId, forbiddenWatchResult()));
+    }
+    return;
+  }
+
+  // Rewatch replaces prior reliable state for this terminal id (new epoch).
+  // Version 2 baselines stream through the credit-windowed scheduler; the
+  // registration (epochs, barrier, tagging) is identical to v1.
+  const epoch = ctx.terminalCursorSync.setReliable(ws, terminalId, { version, watchId });
+  ctx.terminalWatches.get(ws)?.add(terminalId);
+
+  const stillCurrent = () => ctx.terminalCursorSync.isCurrent(ws, terminalId, watchId, epoch);
+
+  /** Clear this install only, drop interest, notify supervisor filter, emit error. */
+  const failSetup = (
+    errorResult: Extract<RemoteTerminalWatchResult, { status: "error" }>,
+  ): void => {
+    if (!ctx.terminalCursorSync.clearReliableIfMatch(ws, terminalId, watchId, epoch)) return;
+    // Only remove terminal interest when no reliable registration remains for it.
+    if (!ctx.terminalCursorSync.hasReliableWatcher(ws, terminalId)) {
+      ctx.terminalWatches.get(ws)?.delete(terminalId);
+    }
+    void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+    if (ws.readyState === WebSocket.OPEN) {
+      ctx.send(ws, buildTerminalWatchResultMessage(terminalId, watchId, errorResult));
+    }
+  };
+
+  try {
+    await Promise.resolve(ctx.notifyEventInterestsChanged());
+  } catch {
+    if (!stillCurrent()) return;
+    failSetup(unavailableWatchResult());
+    return;
+  }
+
+  if (!stillCurrent()) return;
+
+  let result;
+  try {
+    const snapshot = await ctx.options.callSupervisor("readTerminalSnapshot", {
+      threadId: terminalId,
+    });
+    result = composeTerminalWatchReadyResult(snapshot, terminalId) ?? notFoundWatchResult();
+  } catch {
+    result = unavailableWatchResult();
+  }
+
+  if (!stillCurrent()) return;
+  if (ws.readyState !== WebSocket.OPEN) {
+    // Socket closed mid-setup: drop the registration so reconnect cannot inherit
+    // a half-installed reliable watch without a delivered baseline.
+    if (ctx.terminalCursorSync.clearReliableIfMatch(ws, terminalId, watchId, epoch)) {
+      if (!ctx.terminalCursorSync.hasReliableWatcher(ws, terminalId)) {
+        ctx.terminalWatches.get(ws)?.delete(terminalId);
+      }
+      void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+    }
+    return;
+  }
+
+  if (result.status === "error") {
+    failSetup(result);
+    return;
+  }
+
+  if (version === TERMINAL_CURSOR_SYNC_V2_VERSION) {
+    // Chunked v2 delivery: pre-stream errors already ran through failSetup,
+    // so from here the baseline reaches the client as ordered chunks under
+    // the credit window (or the socket dies trying — never a silent gap).
+    const stream = composeTerminalBaselineStream({
+      terminalId,
+      watchId,
+      result,
+      resume: cursorSync.resume,
+      maxChunkBytes: cursorSync.maxChunkBytes,
+      maxWindowBytes: cursorSync.maxWindowBytes,
+    });
+    ctx.terminalBaselineStreams.enqueue(ws, {
+      terminalId,
+      watchId,
+      epoch,
+      messages: stream.messages,
+      messageBytes: stream.messageBytes,
+      throughCursors: stream.throughCursors,
+      finalCursor: stream.finalCursor,
+      windowBytes: stream.windowBytes,
+    });
+    return;
+  }
+
+  ctx.send(ws, buildTerminalWatchResultMessage(terminalId, watchId, result));
+}
+
 export async function handleUpgrade(
   ctx: RemoteServerContext,
   req: IncomingMessage,
@@ -109,20 +261,12 @@ export async function handleUpgrade(
   try {
     const url = new URL(req.url ?? "/", ctx.requireInfo().httpBaseUrl);
     if (url.pathname !== "/ws") {
-      // Not the app's own WebSocket endpoint: the only other legitimate
-      // upgrade is a forwarded dev server's own WebSocket (e.g. Vite/webpack
-      // HMR) reached through an authenticated `lc_forward` session. Anything
-      // else (no session, no PortProxy wired up on this host, or a path
-      // reserved for the app itself — see `isReservedForwardProxyPath`, kept
-      // in sync with the HTTP proxy fallthrough in `httpRouter`) is dropped,
-      // matching the pre-existing behavior for unknown upgrade paths.
-      const targetPort = isReservedForwardProxyPath(url.pathname)
-        ? null
-        : (ctx.options.portProxy?.resolveSession(req.headers.cookie) ?? null);
-      if (targetPort) {
-        proxyForwardedWebSocketUpgrade(req, socket, head, targetPort);
-        return;
-      }
+      // Not the app's own WebSocket endpoint. Forwarded applications' own
+      // sockets (e.g. Vite/webpack HMR) are reached on their isolated child
+      // origins, dispatched by `forwardOriginDispatch` before this function
+      // runs — on the API/PWA origin there is no proxy fallback, so any other
+      // upgrade path is dropped, matching the pre-existing behavior for
+      // unknown upgrade paths.
       socket.destroy();
       return;
     }
@@ -153,11 +297,13 @@ function handleConnection(
   initialItemInterests: ReadonlySet<string> | null,
 ): void {
   ctx.clients.set(ws, session);
+  ctx.replayingClients.add(ws);
   ctx.clientLiveness.set(ws, true);
   ctx.terminalWatches.set(ws, new Set());
   if (initialItemInterests && session.scopes.includes("session:read")) {
     ctx.itemInterests.set(ws, initialItemInterests);
   }
+  void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
   const gitStateInterestOwnerId = `${session.sessionId}:${randomUUID()}`;
   // Browser mirroring is per-connection opt-in (frames are heavy); the
   // gateway's screencast stops once the last watcher unsubscribes.
@@ -177,6 +323,7 @@ function handleConnection(
     expiryTimer.unref?.();
   };
   ws.on("close", () => {
+    ctx.replayingClients.delete(ws);
     if (expiryTimer) {
       clearTimeout(expiryTimer);
       expiryTimer = null;
@@ -187,8 +334,11 @@ function handleConnection(
     ctx.itemInterests.delete(ws);
     ctx.options.gitState?.clearInterests(gitStateInterestOwnerId);
     ctx.terminalWatches.delete(ws);
+    ctx.terminalCursorSync.clearConnection(ws);
+    ctx.terminalBaselineStreams.clearConnection(ws);
     ctx.clients.delete(ws);
     ctx.clientLiveness.delete(ws);
+    void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
   });
   ws.on("pong", () => {
     ctx.clientLiveness.set(ws, true);
@@ -197,11 +347,20 @@ function handleConnection(
     ws.terminate();
   });
   ws.on("message", (data) => {
+    // Revocation/expiry starts an asynchronous close handshake. A peer can
+    // still transmit frames during it, but no longer has authority to do work.
+    if (
+      ws.readyState !== WebSocket.OPEN ||
+      ctx.clients.get(ws) !== session ||
+      session.expiresAtMs <= Date.now()
+    )
+      return;
     try {
       const message = remoteWebSocketClientMessageSchema.parse(
         JSON.parse(data.toString()) as unknown,
       );
       if (message.type === "ping") {
+        ctx.terminalBaselineStreams.noteControlSend(ws);
         ctx.send(ws, {
           type: "pong",
           ...(message.id ? { id: message.id } : {}),
@@ -246,15 +405,40 @@ function handleConnection(
         void ctx.options.browser.dispatchInput(message.input).catch(() => {});
       }
       if (message.type === "terminal-watch") {
+        if (message.cursorSync) {
+          // Fire-and-forget setup; swallow rejections so a late throw cannot
+          // become an unhandled promise rejection on the host process.
+          void handleReliableTerminalWatch(ctx, ws, session, message.id, message.cursorSync).catch(
+            () => {},
+          );
+          return;
+        }
         if (!session.scopes.includes("terminal:read")) return;
+        // One interest per (connection, terminalId): legacy rewatch drops any
+        // prior reliable registration so we never dual-stream the same id.
+        ctx.terminalCursorSync.clearReliable(ws, message.id);
         ctx.terminalWatches.get(ws)?.add(message.id);
+        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
       }
       if (message.type === "terminal-unwatch") {
         ctx.terminalWatches.get(ws)?.delete(message.id);
+        ctx.terminalCursorSync.clearReliable(ws, message.id);
+        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
+      }
+      if (message.type === "terminal-watch-baseline-ack") {
+        // Credit release for a v2 chunked baseline. Stale watchIds are
+        // ignored inside the scheduler.
+        ctx.terminalBaselineStreams.acknowledge(
+          ws,
+          message.id,
+          message.cursorSync.watchId,
+          message.cursorSync.throughCursor,
+        );
       }
       if (message.type === "thread-item-interests") {
         if (!session.scopes.includes("session:read")) return;
         ctx.itemInterests.set(ws, new Set(message.threadIds));
+        void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
       }
       if (message.type === "git-state-interests") {
         if (!session.scopes.includes("session:read")) return;
@@ -271,10 +455,12 @@ function handleConnection(
 
   ctx.send(ws, { type: "ready", seq: ctx.seq });
   if (lastSeenSeq === null || lastSeenSeq === ctx.seq) {
+    ctx.replayingClients.delete(ws);
     // No client cursor, or the client is already current — nothing to replay.
     return;
   }
   if (lastSeenSeq > ctx.seq) {
+    ctx.replayingClients.delete(ws);
     // Seq regressed below the client's cursor: `ctx.seq` is in-memory and
     // resets to 0 on restart while bearer sessions persist, so a client
     // reconnecting with a higher lastSeenSeq to a restarted server would
@@ -287,37 +473,7 @@ function handleConnection(
     return;
   }
 
-  const replay = ctx.eventBuffer.filter((entry) => entry.seq > lastSeenSeq);
-  if (replay.length !== ctx.seq - lastSeenSeq) {
-    ctx.send(ws, {
-      type: "resync-required",
-      seq: ctx.seq,
-      reason: "Event replay window expired; request a fresh snapshot.",
-    });
-    return;
-  }
-  for (const entry of replay) {
-    // A reconnecting client has not re-declared its Git interests yet, so a
-    // replayed patch is scoped to "nothing requested" and drops pull-request
-    // bodies. The client re-declares on open, which triggers a fresh fetch of
-    // whatever review it is actually looking at.
-    const itemScoped = filterEventForItemInterests(entry.event, ctx.itemInterests.get(ws) ?? null);
-    const event =
-      itemScoped.type === "remote-git-state"
-        ? {
-            ...itemScoped,
-            patch: projectGitStatePatchForInterests(
-              itemScoped.patch,
-              ctx.gitStateInterests.get(ws) ?? [],
-            ),
-          }
-        : itemScoped;
-    ctx.send(ws, {
-      type: "event",
-      seq: entry.seq,
-      event,
-    });
-  }
+  replayEvents(ctx, ws, lastSeenSeq);
 }
 
 export function sweepWebSocketLiveness(

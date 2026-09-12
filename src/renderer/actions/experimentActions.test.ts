@@ -457,6 +457,29 @@ describe("experimentActions", () => {
     });
   });
 
+  it("refuses to launch on a mirrored project before any local bridge work", async () => {
+    useAppStore.setState((state) => ({
+      ...state,
+      projects: [{ ...project, remoteServerId: "desktop-1" }],
+    }));
+
+    const id = await launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "gui" },
+      ],
+    });
+
+    expect(id).toBeNull();
+    expect(mocks.bridge.gitListBranches).not.toHaveBeenCalled();
+    expect(mocks.bridge.createExperimentWorktrees).not.toHaveBeenCalled();
+    expect(useAppStore.getState().threads).toHaveLength(0);
+    expect(useExperimentStore.getState().experiments).toEqual({});
+  });
+
   it("fans out from one frozen commit using normal thread creation and launch semantics", async () => {
     const id = await launchExperiment({
       projectId: project.id,

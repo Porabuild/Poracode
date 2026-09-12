@@ -1,11 +1,15 @@
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
+  REMOTE_PUSH_ROUTING_VERSION,
+  REMOTE_BROWSER_FORWARD_VERSION,
   REMOTE_STANDARD_SCOPES,
   remoteAgentStatusesSchema,
   remoteEnvironmentDescriptorSchema,
   remoteRuntimeItemsPageSchema,
   remoteShellSnapshotSchema,
   remoteThreadSnapshotSchema,
+  remoteAgentSlashCommandsSchema,
+  type RemoteAgentSlashCommands,
   type RemoteAgentStatuses,
   type RemoteEnvironmentDescriptor,
   type RemoteRuntimeItemsPage,
@@ -13,6 +17,7 @@ import {
   type RemoteShellSnapshot,
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
+import { TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS } from "./terminalCursorSync";
 import {
   threadFollowUpQueueStateSchema,
   type BackgroundTask,
@@ -27,6 +32,7 @@ import {
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
   dbGetThreadRuntimeSummaries,
+  dbGetThreadTerminalScrollback,
   dbGetThreads,
 } from "../../db";
 import { RemoteHttpError } from "../auth";
@@ -65,6 +71,17 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       httpBaseUrl: info.httpBaseUrl,
       wsBaseUrl: info.wsBaseUrl,
     },
+    capabilities: {
+      ...(ctx.options.portProxy
+        ? { browserForward: { versions: [REMOTE_BROWSER_FORWARD_VERSION] } }
+        : {}),
+      ...(ctx.options.pushRegistrations
+        ? { pushRouting: { versions: [REMOTE_PUSH_ROUTING_VERSION] } }
+        : {}),
+      terminalCursorSync: {
+        versions: [...TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS],
+      },
+    },
   });
 }
 
@@ -97,7 +114,10 @@ export function buildShellSnapshot(ctx: RemoteServerContext): RemoteShellSnapsho
   );
 }
 
-export async function buildAgentStatuses(ctx: RemoteServerContext): Promise<RemoteAgentStatuses> {
+export async function buildAgentStatuses(
+  ctx: RemoteServerContext,
+  options: { omitSlashCommands?: boolean } = {},
+): Promise<RemoteAgentStatuses> {
   const wslDistros = [
     ...new Set(
       dbGetProjects().flatMap((project) =>
@@ -106,12 +126,55 @@ export async function buildAgentStatuses(ctx: RemoteServerContext): Promise<Remo
     ),
   ];
   const statuses = await ctx.options.callSupervisor("getAgentStatuses", { wslDistros });
+  // WS3-A payload split: slash-command catalogs dominate this payload (they
+  // embed full skill descriptions for every detected agent). Clients that
+  // opt in fetch one agent's catalog lazily from agent-slash-commands
+  // instead of every agent's on every cold start.
+  const windows = options.omitSlashCommands
+    ? statuses.windows.map((entry) => ({
+        ...entry,
+        capabilities: { ...entry.capabilities, slashCommands: undefined },
+      }))
+    : statuses.windows;
+  const wsl = options.omitSlashCommands
+    ? statuses.wsl.map((entry) => ({
+        ...entry,
+        capabilities: { ...entry.capabilities, slashCommands: undefined },
+      }))
+    : statuses.wsl;
   return remoteAgentStatusesSchema.parse(
     withStableUpdatedAt("agent-statuses", {
-      windows: statuses.windows,
-      wsl: statuses.wsl,
+      windows,
+      wsl,
     }),
   );
+}
+
+/**
+ * One agent's slash-command catalog for the WS3-A lazy fetch. Reads the same
+ * supervisor detection as agent-statuses; `kind` matches the agent kind the
+ * client already sees there.
+ */
+export async function buildAgentSlashCommands(
+  ctx: RemoteServerContext,
+  kind: string,
+): Promise<RemoteAgentSlashCommands> {
+  const wslDistros = [
+    ...new Set(
+      dbGetProjects().flatMap((project) =>
+        project.location.kind === "wsl" ? [project.location.distro] : [],
+      ),
+    ),
+  ];
+  const statuses = await ctx.options.callSupervisor("getAgentStatuses", { wslDistros });
+  const entry = [...statuses.windows, ...statuses.wsl].find((candidate) => candidate.kind === kind);
+  if (!entry) {
+    throw new RemoteHttpError("agent_not_found", `No detected agent "${kind}".`, 404);
+  }
+  return remoteAgentSlashCommandsSchema.parse({
+    kind,
+    commands: entry.capabilities?.slashCommands ?? [],
+  });
 }
 
 export async function buildThreadSnapshot(
@@ -120,6 +183,12 @@ export async function buildThreadSnapshot(
   options: {
     readonly runtimePage?: boolean;
     readonly targetTimelineEntryCount?: number;
+    /**
+     * WS3 #2: cursor-sync (v2) clients render the terminal from the watch
+     * baseline, which re-delivers the retained tail anyway — skip the
+     * inlined `terminalScrollback` here so the tail is never sent twice.
+     */
+    readonly omitScrollback?: boolean;
   } = {},
 ): Promise<RemoteThreadSnapshot> {
   // Capture the sequence at request start. The snapshot reads several
@@ -132,13 +201,16 @@ export async function buildThreadSnapshot(
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
 
+  const readsTerminal = initialThread.presentationMode !== "gui";
   let terminalScrollback: string | undefined;
   let terminalSize: RemoteThreadSnapshot["terminalSize"] | undefined;
   // Keep this call independent from the terminal reads below. A host with an
   // older supervisor can still serve the existing thread history even when it
   // cannot provide the additive queued-follow-up snapshot field.
   const followUpQueuePromise = Promise.resolve()
-    .then(() => ctx.options.callSupervisor("getThreadFollowUpQueue", { threadId }))
+    .then(() =>
+      readsTerminal ? null : ctx.options.callSupervisor("getThreadFollowUpQueue", { threadId }),
+    )
     .then((queue) => {
       const parsed = threadFollowUpQueueStateSchema.nullable().safeParse(queue);
       return parsed.success ? parsed.data : undefined;
@@ -147,21 +219,27 @@ export async function buildThreadSnapshot(
   let backgroundTasks: BackgroundTask[] = [];
   try {
     const [scrollback, size, tasks] = await Promise.all([
-      ctx.options.callSupervisor("readTerminalScrollback", { threadId }),
-      ctx.options.callSupervisor("readTerminalSize", { threadId }),
+      readsTerminal && !options.omitScrollback
+        ? ctx.options.callSupervisor("readTerminalScrollback", { threadId })
+        : undefined,
+      readsTerminal ? ctx.options.callSupervisor("readTerminalSize", { threadId }) : undefined,
       ctx.options.callSupervisor("readThreadBackgroundTasks", { threadId }),
     ]);
-    terminalScrollback = scrollback;
+    terminalScrollback = options.omitScrollback
+      ? undefined
+      : scrollback || dbGetThreadTerminalScrollback(threadId);
     terminalSize = size ?? undefined;
     backgroundTasks = Array.isArray(tasks) ? tasks : [];
   } catch {
-    terminalScrollback = undefined;
+    terminalScrollback = options.omitScrollback
+      ? undefined
+      : dbGetThreadTerminalScrollback(threadId) || undefined;
     terminalSize = undefined;
     backgroundTasks = [];
   }
   backgroundTasks = [...(ctx.backgroundTasksByThread.get(threadId) ?? backgroundTasks)];
 
-  // The terminal reads above cross an async supervisor boundary. Runtime and
+  // The supervisor reads above cross an async boundary. Runtime and
   // thread-state events can persist while they are in flight, so re-read the
   // row before taking the synchronous runtime snapshot; otherwise a completed
   // transcript can be returned with an older `working` status and the client

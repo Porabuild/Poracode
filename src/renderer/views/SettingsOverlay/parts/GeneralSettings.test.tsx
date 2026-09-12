@@ -6,10 +6,20 @@ const bridgeMock = vi.hoisted(() => ({
   isRemoteSession: vi.fn<() => boolean>(() => false),
   isWindows: vi.fn<() => boolean>(() => true),
 }));
+const installMock = vi.hoisted(() => ({
+  canInstall: false,
+  ios: false,
+  promptInstall: vi.fn<() => Promise<boolean>>(async () => true),
+}));
 
 vi.mock("@/renderer/bridge", () => ({
   isRemoteSession: bridgeMock.isRemoteSession,
   isWindows: bridgeMock.isWindows,
+}));
+vi.mock("@/renderer/pwa/install", () => ({
+  useCanInstall: () => installMock.canInstall,
+  isIosInstallBrowser: () => installMock.ios,
+  promptInstall: installMock.promptInstall,
 }));
 
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -20,6 +30,9 @@ describe("GeneralSettings", () => {
     bridgeMock.isRemoteSession.mockReturnValue(false);
     bridgeMock.isWindows.mockReturnValue(true);
     useSharedSettings.setState({ launchAtStartup: true, startMinimized: true });
+    installMock.canInstall = false;
+    installMock.ios = false;
+    installMock.promptInstall.mockClear();
   });
 
   it("shows desktop-only editor LSP controls in local sessions", () => {
@@ -97,5 +110,15 @@ describe("GeneralSettings", () => {
     expect(screen.queryByText("Editor LSP")).not.toBeInTheDocument();
     expect(screen.queryByText("Sidebar shortcuts")).not.toBeInTheDocument();
     expect(screen.queryByText("Prevent sleep")).not.toBeInTheDocument();
+  });
+
+  it("offers the captured browser install prompt in remote sessions", () => {
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    installMock.canInstall = true;
+
+    render(<GeneralSettings />);
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    expect(installMock.promptInstall).toHaveBeenCalledOnce();
   });
 });

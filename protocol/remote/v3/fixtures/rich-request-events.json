@@ -1,0 +1,93 @@
+{
+  "opened": [
+    {
+      "type": "request.opened",
+      "threadId": "thread-rich",
+      "requestId": "request-command",
+      "requestType": "command_execution_approval",
+      "payload": { "summary": "Run the command?", "details": { "command": "pnpm test" } }
+    },
+    {
+      "type": "request.opened",
+      "threadId": "thread-rich",
+      "requestId": "request-read",
+      "requestType": "file_read_approval",
+      "payload": { "summary": "Read the file?", "details": { "path": "/tmp/input" } }
+    },
+    {
+      "type": "request.opened",
+      "threadId": "thread-rich",
+      "requestId": "request-change",
+      "requestType": "file_change_approval",
+      "payload": { "summary": "Change the file?", "details": { "path": "src/a.ts" } }
+    },
+    {
+      "type": "request.opened",
+      "threadId": "thread-rich",
+      "requestId": "request-patch",
+      "requestType": "apply_patch_approval",
+      "payload": { "summary": "Apply the patch?", "details": { "files": 2 } }
+    },
+    {
+      "type": "request.opened",
+      "threadId": "thread-rich",
+      "requestId": "request-tool",
+      "requestType": "tool_call_approval",
+      "payload": {
+        "summary": "Allow the tool?",
+        "details": {
+          "toolName": "browser",
+          "displayName": "Browser",
+          "input": { "url": "https://example.test" }
+        }
+      }
+    },
+    {
+      "type": "request.opened",
+      "threadId": "thread-rich",
+      "requestId": "request-input",
+      "requestType": "tool_user_input",
+      "payload": {
+        "summary": "Choose a mode.",
+        "options": [
+          { "optionId": "safe", "label": "Safe", "description": "Use conservative defaults." },
+          { "optionId": "fast", "label": "Fast" }
+        ],
+        "multiSelect": false
+      }
+    },
+    {
+      "type": "request.opened",
+      "threadId": "thread-rich",
+      "requestId": "request-auth",
+      "requestType": "auth_refresh",
+      "payload": { "summary": "Refresh authentication?" }
+    }
+  ],
+  "resolved": [
+    {
+      "type": "request.resolved",
+      "threadId": "thread-rich",
+      "requestId": "outcome-1",
+      "outcome": "accepted"
+    },
+    {
+      "type": "request.resolved",
+      "threadId": "thread-rich",
+      "requestId": "outcome-2",
+      "outcome": "declined"
+    },
+    {
+      "type": "request.resolved",
+      "threadId": "thread-rich",
+      "requestId": "outcome-3",
+      "outcome": "answered"
+    },
+    {
+      "type": "request.resolved",
+      "threadId": "thread-rich",
+      "requestId": "outcome-4",
+      "outcome": "cancelled"
+    }
+  ]
+}

@@ -6,6 +6,11 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 const { discardExperimentMock } = vi.hoisted(() => ({
   discardExperimentMock: vi.fn<(experimentId: string) => Promise<boolean>>(async () => true),
 }));
+const layoutMock = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", () => ({
+  useCompactLayout: () => layoutMock.compact,
+}));
 
 vi.mock("@/renderer/actions/experimentActions", () => ({
   discardExperiment: discardExperimentMock,
@@ -62,6 +67,7 @@ const project: Project = {
 
 describe("SidebarThreadGroup — experiment header", () => {
   beforeEach(() => {
+    layoutMock.compact = false;
     discardExperimentMock.mockClear();
     const threads = [makeThread("t-1"), makeThread("t-2")];
     useAppStore.setState({ threads });
@@ -149,5 +155,34 @@ describe("SidebarThreadGroup — experiment header", () => {
     );
 
     expect(screen.getByTestId("project-sync-badge")).toHaveTextContent(project.id);
+  });
+
+  it("hides desktop group actions in compact layouts", () => {
+    layoutMock.compact = true;
+    useExperimentStore.setState({ experiments: {} });
+
+    render(
+      <SidebarThreadGroup
+        entry={{
+          kind: "thread-group",
+          group: {
+            kind: "default",
+            groupId: "group-1",
+            groupName: "Continue in Other Provider",
+            threads: useAppStore.getState().threads,
+          },
+        }}
+        project={project}
+        editingThreadId={null}
+        setEditingThreadId={() => undefined}
+        projectTag={<span>{project.name}</span>}
+      />,
+    );
+
+    expect(screen.queryByTestId("project-sync-badge")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open all in group" })).not.toBeInTheDocument();
+    expect(screen.getByText("Continue in Other Provider").closest("button")).toHaveClass(
+      "poracode-sidebar-touch-row",
+    );
   });
 });

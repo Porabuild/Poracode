@@ -24,6 +24,7 @@ export const REMOTE_IPC_ADAPTER_SPECS = {
   syncPrWatchAgent: "project",
   dbGetThreadRuntimeItemsPage: "thread",
   dbTruncateThreadRuntimeAfter: "thread",
+  revertCheckpoint: "thread",
   sendThreadInput: "thread",
   interruptThread: "thread",
   controlThreadGoal: "thread",
@@ -53,6 +54,7 @@ type RemoteIpcAdapterClient = Pick<
   | "syncPrWatchAgent"
   | "threadRuntimeItemsPage"
   | "truncateThreadRuntimeAfter"
+  | "checkpointRevert"
   | "sendThreadInput"
   | "interruptThread"
   | "controlThreadGoal"
@@ -91,6 +93,10 @@ export function invokeRemoteIpcProcedure(
     case "dbTruncateThreadRuntimeAfter":
       return client.truncateThreadRuntimeAfter(
         payload as Parameters<RemoteDesktopClient["truncateThreadRuntimeAfter"]>[0],
+      );
+    case "revertCheckpoint":
+      return client.checkpointRevert(
+        payload as Parameters<RemoteDesktopClient["checkpointRevert"]>[0],
       );
     case "sendThreadInput":
       return client.sendThreadInput(payload as SendThreadInputPayload);

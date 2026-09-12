@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="git_summary_ahead_behind">%1$d 커밋 앞섬, %2$d 커밋 뒤짐</string>
+    <string name="git_summary_additions_deletions">+%1$d / −%2$d</string>
+    <string name="git_summary_not_repo">저장소가 아님</string>
+    <string name="git_summary_pull_request">풀 리퀘스트 #%1$d</string>
+    <string name="git_summary_state_description">브랜치 %1$s, 리모트보다 %2$d 커밋 앞서고 %3$d 커밋 뒤짐.</string>
+    <plurals name="git_summary_project_active_threads">
+        <item quantity="other">변경 사항이 있는 스레드 %1$d개</item>
+    </plurals>
+</resources>

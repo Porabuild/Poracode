@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_github">GitHub</string><string name="github_unavailable">此项目无法使用 GitHub CLI。</string>
+    <string name="github_pull_requests">拉取请求</string><string name="github_actions">操作</string><string name="github_repositories">仓库</string>
+    <string name="github_confirm_title">确认 GitHub 操作</string><string name="github_confirm_message">此操作可能删除或永久更改远程 GitHub 数据。</string><string name="github_confirm">继续</string>
+    <string name="github_refresh">刷新 GitHub</string><string name="github_no_pull_requests">未找到拉取请求。</string>
+    <string name="github_pr_title">拉取请求标题</string><string name="github_head_branch">来源分支</string><string name="github_base_branch">基础分支</string><string name="github_create_pr">创建拉取请求</string>
+    <string name="github_pr_summary">#%1$d · %2$s · %3$s</string><string name="github_select_pr">选择一个拉取请求进行查看。</string><string name="github_pr_number">拉取请求 #%1$d</string>
+    <string name="github_ready">标记为就绪</string><string name="github_update_branch">更新分支</string><string name="github_reopen">重新打开</string><string name="github_close">关闭</string><string name="github_merge">合并</string><string name="github_approve">批准</string><string name="github_post_comment">发布评论</string><string name="github_details">详情</string><string name="github_checks">检查</string><string name="github_files">文件</string><string name="github_reviews">审查</string>    <string name="github_dispatch">运行工作流</string><string name="github_rerun">重新运行</string><string name="github_cancel_run">取消运行</string><string name="github_delete_run">删除运行</string>    <string name="github_discover_accounts">查找 GitHub 帐户</string><string name="github_account">%1$s（%2$s）</string>
+    <string name="github_change_reconciled">结果不确定。Poracode 未重试该操作，并且只获取了一次最新的 GitHub 状态。</string>
+    <string name="github_request_changes">请求更改</string>
+    <string name="github_comment_decision">评论</string>
+    <string name="github_submit_review">提交评审</string>
+    <string name="github_submit">提交</string>
+    <string name="github_body">正文</string>
+    <string name="github_merge_method_merge">合并</string>
+    <string name="github_merge_method_squash">压缩合并</string>
+    <string name="github_merge_method_rebase">变基</string>
+    <string name="github_merge_admin">使用管理员权限合并</string>
+    <string name="github_overview">概览</string>
+    <string name="github_conversation">对话</string>
+    <string name="github_comments">评论</string>
+    <string name="github_review_threads">评审讨论</string>
+    <string name="github_description">描述</string>
+    <string name="github_commits">提交</string>
+    <string name="github_no_files">此拉取请求没有变更文件。</string>
+    <string name="github_no_checks">此拉取请求没有检查结果。</string>
+    <string name="github_no_conversation">暂无评论或评审。</string>
+    <string name="github_no_diff">此文件没有差异。</string>
+    <string name="github_loading_details">正在加载拉取请求详情…</string>
+    <string name="github_back_to_files">返回文件列表</string>
+    <string name="github_back_to_list">返回列表</string>
+    <string name="github_open_externally">在浏览器中打开</string>
+    <string name="github_thread_resolved">已解决</string>
+    <string name="github_thread_unresolved">未解决</string>
+    <string name="github_ref">引用</string>
+    <string name="github_rerun_failed">重跑失败的作业</string>
+    <string name="github_pr_branches">#%1$d · %2$s → %3$s</string>
+    <string name="github_additions">+%1$d</string>
+    <string name="github_deletions">−%1$d</string>
+    <string name="github_changed_files">%1$d 个文件</string>
+    <string name="github_workflow_summary">%1$s · %2$s</string>
+    <string name="github_run_summary">运行 #%1$d · 第 %2$d 次尝试 · %3$s · %4$s</string>
+    <string name="github_run_revision">%1$s @ %2$s</string>
+</resources>

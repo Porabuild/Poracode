@@ -100,7 +100,9 @@ export function TreeEntryRow(props: {
           role="button"
           tabIndex={0}
           draggable
-          className={`group flex items-center gap-1.5 rounded-md px-2 py-0.5 text-sm text-muted transition-colors ${
+          data-selected={isSelected ? "true" : undefined}
+          data-open={isOpenInTab ? "true" : undefined}
+          className={`poracode-project-tree-row group flex items-center gap-1.5 rounded-md px-2 py-0.5 text-sm text-muted transition-colors ${
             isSelected
               ? "bg-[var(--row-active)] text-foreground"
               : isOpenInTab

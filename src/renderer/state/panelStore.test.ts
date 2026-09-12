@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { initializeAdaptiveLayout, resetAdaptiveLayoutForTest } from "@/renderer/adaptiveLayout";
 import { selectAnyObstructingOverlayOpen, usePanelStore } from "./panelStore";
 import { useFileEditorStore } from "./fileEditorStore";
 
@@ -20,6 +21,7 @@ function resetPanelStore() {
     browserOverlayOpen: false,
     settingsOpen: false,
     projectSettingsId: null,
+    mobileUtilityPage: null,
     threadSearchOpen: false,
   });
 }
@@ -33,6 +35,70 @@ function resetFileEditorStore() {
 
 it("defaults the thread list to the flat layout", () => {
   expect(initialPanelState.threadListLayout).toBe("flat");
+});
+
+function stubMatchMedia(matches: (query: string) => boolean) {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn((query: string) => ({
+      media: query,
+      matches: matches(query),
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => true,
+    })),
+  );
+}
+
+describe("compact project settings navigation", () => {
+  beforeEach(() => {
+    resetPanelStore();
+    resetAdaptiveLayoutForTest();
+    Reflect.deleteProperty(window, "poracodeHost");
+    stubMatchMedia((query) => query === "(max-width: 767px)");
+    initializeAdaptiveLayout();
+  });
+
+  afterEach(() => {
+    resetPanelStore();
+    resetAdaptiveLayoutForTest();
+    vi.unstubAllGlobals();
+  });
+
+  it("opens project settings as a top-level mobile page", () => {
+    usePanelStore.getState().openProjectSettings("proj-1");
+
+    expect(usePanelStore.getState()).toMatchObject({
+      mobileUtilityPage: "projectSettings",
+      projectSettingsId: "proj-1",
+    });
+  });
+
+  it("clears both the page and project identity when navigating back", () => {
+    usePanelStore.getState().openProjectSettings("proj-1");
+    usePanelStore.getState().closeProjectSettings();
+
+    expect(usePanelStore.getState()).toMatchObject({
+      mobileUtilityPage: null,
+      projectSettingsId: null,
+    });
+  });
+
+  it("keeps the desktop project settings overlay route unchanged", () => {
+    resetAdaptiveLayoutForTest();
+    stubMatchMedia(() => false);
+    initializeAdaptiveLayout();
+
+    usePanelStore.getState().openProjectSettings("proj-1");
+
+    expect(usePanelStore.getState()).toMatchObject({
+      mobileUtilityPage: null,
+      projectSettingsId: "proj-1",
+    });
+  });
 });
 
 describe("selectAnyObstructingOverlayOpen", () => {

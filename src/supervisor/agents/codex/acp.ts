@@ -12,6 +12,7 @@ import {
   type AgentSlashCommand,
   type PromptSegment,
   type ProjectLocation,
+  type ProviderRevertAnchor,
   type ResolvedMcpServer,
   type RuntimeEvent,
   type SessionRef,
@@ -90,7 +91,55 @@ const CODEX_SYSTEM_ERROR_FALLBACK_DELAY_MS = 250;
 const CODEX_RESUME_STATUS_REPLAY_SUPPRESSION_MS = 500;
 const CODEX_FORK_NOTIFICATION_BUFFER_LIMIT = 100;
 const CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS = 2_000;
+const CODEX_DISPOSE_TIMEOUT_MS = 10_000;
+const CODEX_DISPOSE_POLL_MS = 100;
 const CODEX_EVENT_DEBUG_ENV = "PORACODE_DEBUG_CODEX_EVENTS";
+
+/**
+ * Absolute, provider-side revert target (WS2 stage 3). `fork` carries the
+ * retained turn id the next `thread/fork` anchors on plus the planned turn
+ * count for the legacy fallback; `rollback` preserves the provider-relative
+ * `thread/rollback` fallback for app-servers without fork support or a
+ * readable turn history.
+ */
+type CodexRevertTarget =
+  | { variant: "fork"; sourceThreadId: string; lastTurnId: string; numTurns: number }
+  | { variant: "rollback"; sourceThreadId: string; numTurns: number; reason: string };
+
+/** Validates the opaque anchor payload for this provider. */
+function parseCodexRevertAnchor(anchor: ProviderRevertAnchor): CodexRevertTarget {
+  const data = anchor.data as Record<string, unknown> | null | undefined;
+  if (anchor.version !== 1 || !data) {
+    throw new Error("Codex revert anchor payload is invalid or from an incompatible version.");
+  }
+  const numTurns = data.numTurns;
+  if (typeof numTurns !== "number" || !Number.isInteger(numTurns) || numTurns <= 0) {
+    throw new Error("Codex revert anchor is missing a valid turn count.");
+  }
+  if (data.variant === "fork") {
+    if (typeof data.lastTurnId !== "string" || typeof data.sourceThreadId !== "string") {
+      throw new Error("Codex fork revert anchor is missing its absolute turn/thread ids.");
+    }
+    return {
+      variant: "fork",
+      sourceThreadId: data.sourceThreadId,
+      lastTurnId: data.lastTurnId,
+      numTurns,
+    };
+  }
+  if (data.variant === "rollback") {
+    if (typeof data.sourceThreadId !== "string") {
+      throw new Error("Codex rollback revert anchor is missing its thread id.");
+    }
+    return {
+      variant: "rollback",
+      sourceThreadId: data.sourceThreadId,
+      numTurns,
+      reason: typeof data.reason === "string" ? data.reason : "restored revert anchor",
+    };
+  }
+  throw new Error("Codex revert anchor payload is invalid or from an incompatible version.");
+}
 
 type CodexEventDebugDirection =
   | "codex->poracode"
@@ -173,6 +222,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private readonly releaseAppServer: () => void;
   private listener: StructuredSessionListener | undefined;
   private isDisposed = false;
+  private disposePromise: Promise<void> | undefined;
   private activated = false;
   private remoteThreadId: string | undefined;
   private rolloutPath: string | undefined;
@@ -977,57 +1027,132 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   }
 
   async rollbackThread(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory> {
-    await this.liveVoice.disconnect();
     if (!Number.isInteger(numTurns) || numTurns <= 0) {
       throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
     }
+    const target = await this.planRevertTarget(numTurns);
+    return this.applyRevertTarget(target, config);
+  }
+
+  /**
+   * WS2 stage 3: freeze an absolute revert target without mutating anything.
+   * `thread/read` is a pure query, so re-creating a lost anchor is safe; the
+   * backend still journals the created anchor and restores from the stored
+   * copy so a resumed revert never re-plans against mutated state.
+   */
+  async createRevertAnchor(numTurns: number): Promise<ProviderRevertAnchor> {
+    const target = await this.planRevertTarget(numTurns);
+    return { version: 1, data: target };
+  }
+
+  /**
+   * Applies a journaled revert anchor. For the fork variant, re-applying an
+   * already-applied anchor forks the (possibly already forked) thread at the
+   * same absolute turn id — the inherited history converges on the anchor
+   * position, which is what makes the restore idempotent in content. Forking
+   * does mint a new provider thread id per application; the session adopts it
+   * below, and the old thread is unsubscribed.
+   */
+  async restoreToRevertAnchor(
+    anchor: ProviderRevertAnchor,
+    config?: ThreadConfig,
+  ): Promise<ThreadHistory> {
+    const target = parseCodexRevertAnchor(anchor);
+    return this.applyRevertTarget(target, config);
+  }
+
+  /** Pure revert planning: validates the request and reads provider state. */
+  private async planRevertTarget(numTurns: number): Promise<CodexRevertTarget> {
     const threadId = await this.waitForRemoteThreadId();
-    this.forkNotificationBuffer = undefined;
-
-    const rollbackLegacy = async (reason: string): Promise<ThreadHistory> => {
-      this.forkNotificationBuffer = undefined;
-      console.log(`[codex] ${reason}; falling back to thread/rollback.`);
-      try {
-        await this.rpc.request("thread/rollback", {
-          threadId,
-          numTurns,
-        });
-      } catch (error) {
-        if (isUnsupportedCodexRequestError(error)) {
-          throw new Error(
-            "Codex cannot roll back this thread because neither thread/fork nor thread/rollback is supported.",
-            { cause: error },
-          );
-        }
-        throw error;
-      }
-      this.pendingTurnInterrupt = false;
-      this.activeTurnId = undefined;
-      this.activeTurnIds.clear();
-      await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
-      return {
-        providerSessionId: threadId,
-        messages: [],
-      };
-    };
-
     const readResult = await this.rpc.request("thread/read", {
       threadId,
       includeTurns: true,
     });
     const turns = readResult.thread?.turns;
     if (!Array.isArray(turns)) {
-      return rollbackLegacy("thread/read omitted turn history");
+      return {
+        variant: "rollback",
+        sourceThreadId: threadId,
+        numTurns,
+        reason: "thread/read omitted turn history",
+      };
     }
     if (turns.length <= numTurns) {
-      return rollbackLegacy("thread/fork has no retained turn");
+      return {
+        variant: "rollback",
+        sourceThreadId: threadId,
+        numTurns,
+        reason: "thread/fork has no retained turn",
+      };
     }
-
     const retainedTurn = turns.at(turns.length - numTurns - 1);
     if (!retainedTurn || typeof retainedTurn.id !== "string") {
-      return rollbackLegacy("thread/read omitted the retained turn id");
+      return {
+        variant: "rollback",
+        sourceThreadId: threadId,
+        numTurns,
+        reason: "thread/read omitted the retained turn id",
+      };
     }
+    return {
+      variant: "fork",
+      sourceThreadId: threadId,
+      lastTurnId: retainedTurn.id,
+      numTurns,
+    };
+  }
 
+  private async applyRevertTarget(
+    target: CodexRevertTarget,
+    config: ThreadConfig | undefined,
+  ): Promise<ThreadHistory> {
+    await this.liveVoice.disconnect();
+    if (target.variant === "rollback") {
+      return this.rollbackLegacyNumTurns(target.sourceThreadId, target.numTurns, target.reason);
+    }
+    return this.forkAtTurn(target.sourceThreadId, target.lastTurnId, target.numTurns, config);
+  }
+
+  /** The legacy provider-relative fallback (`thread/rollback`). */
+  private async rollbackLegacyNumTurns(
+    threadId: string,
+    numTurns: number,
+    reason: string,
+  ): Promise<ThreadHistory> {
+    this.forkNotificationBuffer = undefined;
+    console.log(`[codex] ${reason}; falling back to thread/rollback.`);
+    try {
+      await this.rpc.request("thread/rollback", {
+        threadId,
+        numTurns,
+      });
+    } catch (error) {
+      if (isUnsupportedCodexRequestError(error)) {
+        throw new Error(
+          "Codex cannot roll back this thread because neither thread/fork nor thread/rollback is supported.",
+          { cause: error },
+        );
+      }
+      throw error;
+    }
+    this.pendingTurnInterrupt = false;
+    this.activeTurnId = undefined;
+    this.activeTurnIds.clear();
+    await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
+    return {
+      providerSessionId: threadId,
+      messages: [],
+    };
+  }
+
+  /** Forks the thread so its history ends at the absolute turn `lastTurnId`. */
+  private async forkAtTurn(
+    threadId: string,
+    lastTurnId: string,
+    fallbackNumTurns: number,
+    config: ThreadConfig | undefined,
+  ): Promise<ThreadHistory> {
+    this.forkNotificationBuffer = undefined;
     let forkResult: CodexClientRequestMap["thread/fork"]["result"];
     const rollbackConfig = config ?? this.currentConfig;
     if (!rollbackConfig) {
@@ -1043,7 +1168,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       forkResult = await this.rpc.request("thread/fork", {
         ...threadOverrides,
         threadId,
-        lastTurnId: retainedTurn.id,
+        lastTurnId,
       });
     } catch (error) {
       this.forkNotificationBuffer = undefined;
@@ -1051,7 +1176,11 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      return rollbackLegacy(`thread/fork is unsupported (${message})`);
+      return this.rollbackLegacyNumTurns(
+        threadId,
+        fallbackNumTurns,
+        `thread/fork is unsupported (${message})`,
+      );
     }
 
     const newThreadId = forkResult.thread?.id;
@@ -1092,16 +1221,30 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     return this.rpc.ownsThread(providerSessionId);
   }
 
-  async dispose(): Promise<void> {
-    if (this.isDisposed) {
-      return;
-    }
+  dispose(): Promise<void> {
+    this.disposePromise ??= this.disposeOnce().catch((error) => {
+      // A failed confirmation must retain the lease and be retryable.
+      this.disposePromise = undefined;
+      throw error;
+    });
+    return this.disposePromise;
+  }
+
+  private async disposeOnce(): Promise<void> {
     this.isDisposed = true;
+    const deadline = Date.now() + CODEX_DISPOSE_TIMEOUT_MS;
+    const requestTimeout = (): number => {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        throw new Error("Codex thread did not stop before the disposal deadline.");
+      }
+      return Math.min(CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS, remaining);
+    };
     await this.liveVoice.disconnect();
 
     this.clearPendingSystemErrorFallback();
     const remoteThreadId = this.remoteThreadId;
-    if (remoteThreadId) {
+    if (remoteThreadId && this.rpc.ownsThread(remoteThreadId)) {
       const activeTurnIds = new Set(this.activeTurnIds);
       if (this.activeTurnId) {
         activeTurnIds.add(this.activeTurnId);
@@ -1111,7 +1254,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           .request(
             "thread/read",
             { threadId: remoteThreadId, includeTurns: true },
-            CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
+            requestTimeout(),
           )
           .catch(() => undefined);
         for (const turn of result?.thread?.turns ?? []) {
@@ -1120,16 +1263,42 @@ export class CodexStructuredSession implements StructuredSessionHandle {
           }
         }
       }
+      let interruptFailure: Error | undefined;
       for (const activeTurnId of activeTurnIds) {
         if (!this.rpc.ownsThread(remoteThreadId)) {
           break;
         }
-        await this.interruptActiveTurn(
-          remoteThreadId,
-          activeTurnId,
-          CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
-          () => this.rpc.ownsThread(remoteThreadId),
-        ).catch(() => undefined);
+        await this.interruptActiveTurn(remoteThreadId, activeTurnId, requestTimeout(), () =>
+          this.rpc.ownsThread(remoteThreadId),
+        ).catch((error) => {
+          if (this.rpc.ownsThread(remoteThreadId)) {
+            interruptFailure = error instanceof Error ? error : new Error(String(error));
+          }
+        });
+      }
+      if (activeTurnIds.size > 0 || this.currentThreadStatus.type === "active") {
+        // Interrupt ACKs acknowledge the request; only a fresh provider read
+        // confirms that execution stopped before this pooled lease is released.
+        while (this.rpc.ownsThread(remoteThreadId)) {
+          const result = await this.rpc.request(
+            "thread/read",
+            { threadId: remoteThreadId, includeTurns: true },
+            requestTimeout(),
+          );
+          if (!this.rpc.ownsThread(remoteThreadId)) break;
+          if (!result.thread?.status || !Array.isArray(result.thread.turns)) {
+            throw new Error("Codex did not return thread shutdown status.");
+          }
+          if (
+            result.thread.status.type !== "active" &&
+            result.thread.turns.every((turn) => turn.status !== "inProgress")
+          )
+            break;
+          // Completion can race an interrupt and make its turn id stale. A
+          // confirmed idle thread is safe; a failed interrupt on live work is not.
+          if (interruptFailure) throw interruptFailure;
+          await new Promise<void>((resolve) => setTimeout(resolve, CODEX_DISPOSE_POLL_MS));
+        }
       }
       // Re-check ownership *after* the interrupt round-trip: a force-stopped
       // session is replaced while this teardown drains, and the replacement
@@ -1138,12 +1307,10 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       // strand it on "working" with no output.
       if (this.rpc.ownsThread(remoteThreadId)) {
         await this.rpc
-          .request(
-            "thread/unsubscribe",
-            { threadId: remoteThreadId },
-            CODEX_DISPOSE_INTERRUPT_TIMEOUT_MS,
-          )
-          .catch(() => undefined);
+          .request("thread/unsubscribe", { threadId: remoteThreadId }, requestTimeout())
+          .catch((error) => {
+            if (this.rpc.ownsThread(remoteThreadId)) throw error;
+          });
       }
     }
     this.rpc.dispose(new Error("Codex app-server session disposed."));

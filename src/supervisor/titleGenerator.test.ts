@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { AgentAdapter } from "./agents/base";
 
@@ -33,6 +33,7 @@ vi.mock("./agents/base", async (importOriginal) => ({
 }));
 
 import { generateTitle } from "./titleGenerator";
+import { MockAgentLaunchBlockedError } from "./agentLaunchGuard";
 
 const windowsProject: ProjectLocation = { kind: "windows", path: "C:\\Users\\demo\\project" };
 const baseSpawnEnv = { DROID_DISABLE_AUTO_UPDATE: "true" };
@@ -156,5 +157,58 @@ describe("generateTitle CLI spawn", () => {
       windowsProject,
       undefined,
     );
+  });
+});
+
+describe("title generation mock isolation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubEnv("PORACODE_IS_DEV", "1");
+    vi.stubEnv("PORACODE_MOCK_AGENTS", "1");
+    resolveAgentProjectLocationMock.mockImplementation(async (_adapter, location) => location);
+  });
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each(["structured", "cli"] as const)(
+    "refuses %s title generation before dispatch or location resolution",
+    async (lane) => {
+      const runOneShot = vi.fn<NonNullable<AgentAdapter["runOneShot"]>>(
+        async () => "Unexpected real turn",
+      );
+      const buildOneShotCommand = vi.fn<NonNullable<AgentAdapter["buildOneShotCommand"]>>(() => ({
+        command: "fixture-agent",
+        args: [],
+      }));
+      const adapter = {
+        label: "Fixture agent",
+        defaultOneShotModel: "fixture-model",
+        ...(lane === "structured" ? { runOneShot } : { buildOneShotCommand }),
+      } as unknown as AgentAdapter;
+
+      await expect(
+        generateTitle(windowsProject, adapter, "Private message"),
+      ).rejects.toBeInstanceOf(MockAgentLaunchBlockedError);
+
+      expect(runOneShot).not.toHaveBeenCalled();
+      expect(buildOneShotCommand).not.toHaveBeenCalled();
+      expect(resolveAgentProjectLocationMock).not.toHaveBeenCalled();
+      expect(prepareOneShotMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("preserves structured generation outside the mock profile", async () => {
+    vi.stubEnv("PORACODE_MOCK_AGENTS", "0");
+    const runOneShot = vi.fn<NonNullable<AgentAdapter["runOneShot"]>>(async () => "Fixture title");
+    const adapter = {
+      label: "Fixture agent",
+      defaultOneShotModel: "fixture-model",
+      runOneShot,
+    } as unknown as AgentAdapter;
+
+    await expect(generateTitle(windowsProject, adapter, "Title this task")).resolves.toBe(
+      "Fixture title",
+    );
+    expect(runOneShot).toHaveBeenCalledOnce();
   });
 });

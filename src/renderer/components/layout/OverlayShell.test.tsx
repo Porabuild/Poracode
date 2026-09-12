@@ -107,9 +107,33 @@ describe("OverlayShell", () => {
     );
 
     expect(surface(container).className).toContain("opacity-0");
+    expect(surface(container).className).toContain("pointer-events-none");
     expect(screen.getByText("GitHub Actions")).toBeInTheDocument();
 
     fireEvent.transitionEnd(surface(container), { propertyName: "opacity" });
     expect(onExited).toHaveBeenCalledOnce();
+  });
+
+  it("finishes an exit when the browser omits transitionend", async () => {
+    vi.useFakeTimers();
+    const onExited = vi.fn<() => void>();
+    const { container, rerender } = render(
+      <OverlayShell open instantEnter onExited={onExited}>
+        <div>Settings</div>
+      </OverlayShell>,
+    );
+
+    rerender(
+      <OverlayShell open={false} instantEnter onExited={onExited}>
+        {null}
+      </OverlayShell>,
+    );
+    expect(surface(container)).toHaveClass("pointer-events-none", "opacity-0");
+
+    await act(() => vi.advanceTimersByTimeAsync(200));
+
+    expect(container.querySelector("[data-overlay-surface]")).toBeNull();
+    expect(onExited).toHaveBeenCalledOnce();
+    void vi.useRealTimers();
   });
 });

@@ -673,35 +673,73 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(store.getState().runtimeItemIdsByThread["t2"]).toEqual(["i2"]);
   });
 
-  it("truncates a thread transcript to a checkpoint item", () => {
-    for (const itemId of ["user-1", "assistant-1", "user-2", "assistant-2"]) {
+  it.each(["checkpoint", "unloaded-checkpoint"])(
+    "prunes only server-declared turn anchors when reverting %s",
+    (checkpoint) => {
+      for (const itemId of ["checkpoint", "removed"]) {
+        apply("t1", {
+          type: "item.started",
+          threadId: "t1",
+          itemId,
+          itemType: "assistant_message",
+        });
+      }
+      const older = { startedAt: 1, endedAt: 2, anchorItemId: "older-unloaded" };
+      store
+        .getState()
+        .hydrateThreadCompletedTurns("t1", [
+          older,
+          { startedAt: 3, endedAt: 4, anchorItemId: "removed" },
+        ]);
       apply("t1", {
-        type: "item.started",
+        type: "runtime.truncated",
         threadId: "t1",
-        itemId,
-        itemType: itemId.startsWith("user") ? "user_message" : "assistant_message",
+        itemId: checkpoint,
+        removedCompletedTurnAnchors: ["removed"],
       });
-    }
+      expect(store.getState().runtimeCompletedTurnsByThread.t1).toEqual([older]);
+      expect(store.getState().runtimeItemIdsByThread.t1).toEqual(
+        checkpoint === "checkpoint" ? ["checkpoint"] : ["checkpoint", "removed"],
+      );
+    },
+  );
+
+  it("prunes server-declared turns even when the checkpoint is already last", () => {
     apply("t1", {
-      type: "request.opened",
+      type: "item.started",
       threadId: "t1",
-      requestId: "r1",
-      requestType: "tool_user_input",
-      payload: { summary: "Pick" },
+      itemId: "checkpoint",
+      itemType: "assistant_message",
     });
-    store.getState().hydrateThreadCompletedTurns("t1", [
-      { startedAt: 1, endedAt: 2, anchorItemId: "assistant-1" },
-      { startedAt: 3, endedAt: 4, anchorItemId: "assistant-2" },
-    ]);
+    store
+      .getState()
+      .hydrateThreadCompletedTurns("t1", [{ startedAt: 1, endedAt: 2, anchorItemId: "removed" }]);
+    apply("t1", {
+      type: "runtime.truncated",
+      threadId: "t1",
+      itemId: "checkpoint",
+      removedCompletedTurnAnchors: ["removed"],
+    });
+    expect(store.getState().runtimeCompletedTurnsByThread.t1).toEqual([]);
+  });
 
-    store.getState().truncateThreadRuntimeAfter("t1", "assistant-1");
-
-    expect(store.getState().runtimeItemIdsByThread["t1"]).toEqual(["user-1", "assistant-1"]);
-    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["user-2"]).toBeUndefined();
-    expect(store.getState().runtimeRequestsByThread["t1"]).toEqual([]);
-    expect(store.getState().runtimeCompletedTurnsByThread["t1"]).toEqual([
-      { startedAt: 1, endedAt: 2, anchorItemId: "assistant-1" },
+  it("keeps events after a live truncation in the same batch", () => {
+    for (const itemId of ["checkpoint", "removed"]) {
+      apply("t1", { type: "item.started", threadId: "t1", itemId, itemType: "assistant_message" });
+    }
+    const previousVersion = store.getState().runtimeStructuralVersionByThread.t1 ?? 0;
+    applyBatch("t1", [
+      {
+        type: "runtime.truncated",
+        threadId: "t1",
+        itemId: "checkpoint",
+        removedCompletedTurnAnchors: [],
+      },
+      { type: "item.started", threadId: "t1", itemId: "new", itemType: "assistant_message" },
     ]);
+    expect(store.getState().runtimeItemIdsByThread.t1).toEqual(["checkpoint", "new"]);
+    expect(store.getState().runtimeItemsByIdByThread.t1?.removed).toBeUndefined();
+    expect(store.getState().runtimeStructuralVersionByThread.t1).toBe(previousVersion + 1);
   });
 
   it("merges persisted completed turns with live turns during hydration", () => {
@@ -716,6 +754,21 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(store.getState().runtimeCompletedTurnsByThread["t1"]).toEqual([
       { startedAt: 1, endedAt: 10, anchorItemId: "old" },
       { startedAt: 20, endedAt: 30, anchorItemId: "live" },
+    ]);
+  });
+
+  it("collapses the same completed-turn window stored under two anchors", () => {
+    store
+      .getState()
+      .hydrateThreadCompletedTurns("t1", [
+        { startedAt: 20, endedAt: 42, anchorItemId: "assistant-1" },
+      ]);
+    store
+      .getState()
+      .hydrateThreadCompletedTurns("t1", [{ startedAt: 20, endedAt: 42, anchorItemId: "goal-1" }]);
+
+    expect(store.getState().runtimeCompletedTurnsByThread["t1"]).toEqual([
+      { startedAt: 20, endedAt: 42, anchorItemId: "assistant-1" },
     ]);
   });
 

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Trans } from "@lingui/react/macro";
+import { Button } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
@@ -14,6 +15,7 @@ import {
   releaseThreadRuntimeItems,
   retainThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
+import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
 import {
   finalizeFileCheckpoint,
   hydrateFileCheckpoints,
@@ -38,6 +40,7 @@ import {
   type TurnTiming,
 } from "./ChatTurnElapsed";
 import {
+  selectCompletedTurnsByAnchorItem,
   selectMostRecentDisplayableCompletedTurn,
   selectVisibleThreadTimelineEntries,
   type ChatTimelineEntry,
@@ -258,8 +261,21 @@ export function ChatPane(props: ChatPaneProps) {
 
   useEffect(() => {
     retainThreadRuntimeItems(threadId);
-    if (!isRemoteThread) void hydrateThreadRuntimeItems(threadId);
-    return () => releaseThreadRuntimeItems(threadId);
+    if (isRemoteThread) {
+      void hydrateThreadRuntimeItems(threadId);
+      return () => releaseThreadRuntimeItems(threadId);
+    }
+
+    let active = true;
+    const interest = retainRendererEventInterest("runtime", threadId);
+    void interest.ready.then(() => {
+      if (active) void hydrateThreadRuntimeItems(threadId);
+    });
+    return () => {
+      active = false;
+      interest.release();
+      releaseThreadRuntimeItems(threadId);
+    };
   }, [isRemoteThread, threadId]);
 
   useEffect(() => {
@@ -316,6 +332,18 @@ export function ChatPane(props: ChatPaneProps) {
     (s) => s.provisioningWorktreeThreadIds[threadId] === true && status === "launching",
   );
   const isConnecting = useAppStore((s) => s.connectingThreadIds[threadId] !== undefined);
+  const hydrationStatus = useAppStore((s) => s.runtimeHydrationStatus[threadId]);
+  // Remote only: the server deleted transcript this pane could not confirm
+  // (bounded authoritative reloads exhausted), so the view may lag the host.
+  const truncateReloadBlocked = useAppStore((s) => {
+    if (!thread.remoteServerId || !thread.remoteId) return false;
+    return s.truncateReloadExhausted[`${thread.remoteServerId}\u0000${thread.remoteId}`] === true;
+  });
+  const remoteServerOffline = useRemoteServersStore((s) => {
+    if (!thread.remoteServerId) return false;
+    const runtimeStatus = s.runtime[thread.remoteServerId]?.status;
+    return runtimeStatus === "offline" || runtimeStatus === "error";
+  });
   // Detached background work keeps the thread doing real work after the
   // foreground turn settles. Treat that as "still working" for the tail-loader
   // timer (so it keeps ticking "Working for ...") without touching `status` -
@@ -333,15 +361,23 @@ export function ChatPane(props: ChatPaneProps) {
   const mostRecentDisplayableCompletedTurn = useAppStore((s) =>
     selectMostRecentDisplayableCompletedTurn(s, threadId),
   );
+  const completedTurnsByAnchor = useAppStore((s) => selectCompletedTurnsByAnchorItem(s, threadId));
   const mostRecentCompletedTurnAnchor = mostRecentDisplayableCompletedTurn?.anchorItemId ?? null;
   const completedTurnAnchorAtTail = isCompletedTurnAnchorAtTimelineTail(
     mostRecentCompletedTurnAnchor,
     timelineEntries,
   );
+  // A later turn that could not claim a row (goal-only close, status blip)
+  // keeps `anchorItemId: null` and would otherwise share the tail with the
+  // previous turn's inline duration — two stacked "Worked for" lines.
+  const lastRowAlreadyShowsATurn =
+    mostRecentCompletedTurnAnchor === null &&
+    lastTimelineEntryHasCompletedTurn(timelineEntries, completedTurnsByAnchor);
   const completedTurnCanRenderInTail =
     !showWorkingTimer &&
     (turn?.endedAt != null || mostRecentDisplayableCompletedTurn !== null) &&
-    completedTurnAnchorAtTail;
+    completedTurnAnchorAtTail &&
+    !lastRowAlreadyShowsATurn;
   const tailTurn =
     completedTurnCanRenderInTail && mostRecentDisplayableCompletedTurn
       ? mostRecentDisplayableCompletedTurn
@@ -356,7 +392,9 @@ export function ChatPane(props: ChatPaneProps) {
   // request before that round-trip completes, leaving status stuck at
   // `needs_approval` even though the user has already answered.
   const isTurnPaused = hasOpenRuntimeRequest;
-  const showEmptyHint = isEmpty && !isLive && !isConnecting;
+  const showEmptyHint = isEmpty && !isLive && !isConnecting && hydrationStatus === undefined;
+  const isHydrating = isEmpty && hydrationStatus === "pending";
+  const hydrationFailed = isEmpty && hydrationStatus === "failed";
   // The tail loader displays the most recent completed turn's frozen elapsed
   // time when the thread is idle and no newer timeline row exists. Once an
   // optimistic next prompt is appended, keep the completed indicator inline at
@@ -389,10 +427,38 @@ export function ChatPane(props: ChatPaneProps) {
     <ChatPaneActionsContext.Provider value={paneActionsOverride ?? paneActions}>
       <div className="flex h-full min-h-0 flex-col">
         <div className="relative min-h-0 flex-1">
+          {truncateReloadBlocked ? (
+            <div className="flex items-center justify-between gap-2 border-b border-warning-soft-foreground/20 bg-warning-soft/60 px-3 py-1.5 text-xs text-warning-soft-foreground">
+              <span>
+                <Trans>
+                  A message deletion could not be confirmed. Refresh to resync this conversation.
+                </Trans>
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() => {
+                  if (thread.remoteServerId) {
+                    void useRemoteServersStore
+                      .getState()
+                      .refreshServer(thread.remoteServerId, { includeAgentStatuses: false });
+                  }
+                }}
+              >
+                <Trans>Refresh</Trans>
+              </Button>
+            </div>
+          ) : remoteServerOffline ? (
+            <div
+              className="border-b border-border bg-surface-container/60 px-3 py-1.5 text-xs text-muted"
+              role="status"
+            >
+              <Trans>Server offline — this conversation may be out of date.</Trans>
+            </div>
+          ) : null}
           <MessageList
             key={threadId}
             threadId={threadId}
-            threadConfig={thread.config}
             entries={timelineEntries}
             isTurnActive={isLive}
             setScrollContainer={setScrollContainer}
@@ -411,7 +477,21 @@ export function ChatPane(props: ChatPaneProps) {
             scrollStyle={scrollFadeStyle}
             contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
             emptyContent={
-              isEmpty && !showTailLoader && showEmptyHint ? (
+              hydrationFailed && !showTailLoader ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 text-foreground-muted">
+                  <span>
+                    <Trans>Messages could not be loaded.</Trans>
+                  </span>
+                  <Button
+                    variant="tertiary"
+                    onPress={() => {
+                      void hydrateThreadRuntimeItems(threadId);
+                    }}
+                  >
+                    <Trans>Retry</Trans>
+                  </Button>
+                </div>
+              ) : isEmpty && !showTailLoader && showEmptyHint ? (
                 <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
                   <span>
                     <Trans>No messages yet</Trans>
@@ -423,6 +503,8 @@ export function ChatPane(props: ChatPaneProps) {
               isWorktreeProvisioning ? (
                 <ChatWorktreeProvisioningFooter />
               ) : isConnecting ? (
+                <ChatConnectingFooter />
+              ) : isHydrating ? (
                 <ChatConnectingFooter />
               ) : showTailLoader && tailTurn ? (
                 <ChatTurnElapsedFooter turn={tailTurn} isPaused={isTurnPaused} />
@@ -481,7 +563,9 @@ export function ChatPane(props: ChatPaneProps) {
             layoutChangeToken={layoutChangeToken}
             tailEntryId={timelineEntries.at(-1)?.id ?? null}
             threadId={threadId}
-            tailLoaderVisible={isWorktreeProvisioning || isConnecting || showTailLoader}
+            tailLoaderVisible={
+              isWorktreeProvisioning || isConnecting || isHydrating || showTailLoader
+            }
             initialScrollSettled={isInitialScrollSettled}
             initialScrollRevealDelayMs={props.initialScrollRevealDelayMs ?? 0}
             virtualScrollToBottomRef={virtualScrollToBottomRef}
@@ -580,6 +664,17 @@ function isCompletedTurnAnchorAtTimelineTail(
   return lastEntry.kind === "item"
     ? lastEntry.id === anchorItemId
     : lastEntry.itemIds.includes(anchorItemId);
+}
+
+function lastTimelineEntryHasCompletedTurn(
+  entries: readonly ChatTimelineEntry[],
+  byAnchor: ReadonlyMap<string, unknown>,
+): boolean {
+  const lastEntry = entries[entries.length - 1];
+  if (!lastEntry) return false;
+  return lastEntry.kind === "item"
+    ? byAnchor.has(lastEntry.id)
+    : lastEntry.itemIds.some((itemId) => byAnchor.has(itemId));
 }
 
 type CheckpointGuard = {
