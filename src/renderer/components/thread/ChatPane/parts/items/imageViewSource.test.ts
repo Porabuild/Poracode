@@ -12,6 +12,8 @@ import {
 // A minimal valid 1x1 PNG, base64-encoded (starts with the PNG magic prefix).
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+// A real 2x1 WebP, deliberately labelled as a PNG by the tests that use it.
+const WEBP_BASE64 = "UklGRi4AAABXRUJQVlA4ICIAAABwAQCdASoCAAEAAUAmJZQCdAFAAAD+/DeBV/fU6D4r4AAA";
 
 describe("resolveImageViewSource", () => {
   it("resolves raw base64 PNG from a string result into a data URL", () => {
@@ -81,6 +83,42 @@ describe("resolveImageViewSource", () => {
     const source = resolveImageViewSource({ name: "imageGeneration", result: jpeg });
     expect(source?.mime).toBe("image/jpeg");
     expect(source?.extension).toBe("jpg");
+  });
+
+  it("repairs a URL-safe body inside a data: URL result", () => {
+    // An agent can hand over a URL-safe body under a `;base64` label. Chromium
+    // refuses to decode that combination, so the row used to paint a broken
+    // picture; the body must be repaired, not trusted.
+    const urlSafe = PNG_BASE64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const source = resolveImageViewSource({
+      name: "imageGeneration",
+      images: [`data:image/png;base64,${urlSafe}`],
+    });
+    expect(source?.src).toBe(`data:image/png;base64,${PNG_BASE64}`);
+    expect(source?.width).toBe(1);
+    expect(source?.height).toBe(1);
+  });
+
+  it("corrects a mislabelled format so the download name matches the pixels", () => {
+    const source = resolveImageViewSource({
+      name: "imageGeneration",
+      args: { prompt: "A red square" },
+      images: [`data:image/png;base64,${WEBP_BASE64}`],
+    });
+    expect(source?.mime).toBe("image/webp");
+    expect(source?.fileName).toBe("a-red-square.webp");
+  });
+
+  it("falls back to the accordion for an inline payload that is not an image", () => {
+    // Already-persisted rows can carry an empty or garbage body; showing a
+    // broken-image glyph is worse than showing the tool call. The grouping probe
+    // has to reach the same verdict or the row lands in a media slot with no
+    // picture in it.
+    for (const images of [["data:image/png;base64,"], ["data:image/png;base64,   "]]) {
+      const payload = { status: "success", images };
+      expect(resolveImageViewSource(payload)).toBeNull();
+      expect(imageViewRendersInline(payload)).toBe(false);
+    }
   });
 
   it("does NOT render agent-supplied URLs or file paths (inline-only, no outbound requests)", () => {
