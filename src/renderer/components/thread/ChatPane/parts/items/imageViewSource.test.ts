@@ -121,6 +121,15 @@ describe("resolveImageViewSource", () => {
     }
   });
 
+  it("still renders a body padded with heavy whitespace", () => {
+    // The grouping probe scans for a non-whitespace body without copying the
+    // multi-MB string; a whitespace-padded payload must keep probing true.
+    const padded = `data:image/png;base64,${" ".repeat(1e5)}${PNG_BASE64}`;
+    const payload = { status: "success", images: [padded] };
+    expect(imageViewRendersInline(payload)).toBe(true);
+    expect(resolveImageViewSource(payload)?.width).toBe(1);
+  });
+
   it("does NOT render agent-supplied URLs or file paths (inline-only, no outbound requests)", () => {
     // Remote URL → would be a tracking pixel / SSRF if auto-loaded.
     expect(

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { normalizeInlineImageDataUrl } from "./inlineImagePayload";
 
-// Real 2x1 PNG / JPEG emitted by sharp during authoring, so every case carries
-// bytes an image decoder actually accepts rather than a tolerated placeholder.
+// Real 2x1 PNG / JPEG emitted by sharp, so every case carries bytes an image
+// decoder actually accepts rather than a tolerated placeholder.
 const PNG_B64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADklEQVQImWPgEpH7D8IACDMCd75ivFQAAAAASUVORK5CYII=";
 const JPEG_B64 =
@@ -61,6 +61,13 @@ describe("normalizeInlineImageDataUrl", () => {
 
   it("preserves a non-base64 data URL and only fixes its label", () => {
     const svg = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'/>";
+    expect(normalizeInlineImageDataUrl(svg)).toEqual({ dataUrl: svg, mime: "image/svg+xml" });
+  });
+
+  it("keeps a percent-encoded non-base64 data URL by trusting its label", () => {
+    // The sniffer cannot read a percent-encoded body, but the previous builder
+    // stored such URLs verbatim and they rendered, so the label is trusted.
+    const svg = "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
     expect(normalizeInlineImageDataUrl(svg)).toEqual({ dataUrl: svg, mime: "image/svg+xml" });
   });
 

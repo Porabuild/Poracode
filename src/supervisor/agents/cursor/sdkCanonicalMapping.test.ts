@@ -12,8 +12,10 @@ import {
 import type {
   CursorSdkAssistantMessage,
   CursorSdkMessage,
+  CursorSdkRawToolCall,
   CursorSdkToolCallMessage,
 } from "./sdkProtocol";
+import { mapCursorSdkRawToolUpdate } from "./sdkCanonicalToolMapping";
 
 const envelope = { agent_id: "agent-1", run_id: "run-1" } as const;
 
@@ -878,6 +880,51 @@ describe("Cursor SDK canonical mapping — tool lifecycle and payloads", () => {
       result: { status: "success", value: { filePath: "owl.png", imageData: PNG_B64 } },
     });
     expect(updatedImages(events)).toBeUndefined();
+  });
+
+  it("keeps a full result that arrives after a truncated partial update", () => {
+    // The marker is per-message: a cut-down running update must not suppress
+    // the complete result the finishing message carries.
+    const state = createCursorSdkMapperState("thread-1");
+    mapCursorSdkRawToolUpdate(
+      state,
+      "image-1",
+      {
+        type: "generateImage",
+        args: { description: "owl" },
+        truncated: { result: true },
+        result: { status: "success", value: { filePath: "owl.png", imageData: "" } },
+      } as CursorSdkRawToolCall,
+      false,
+    );
+    const events = mapCursorSdkRawToolUpdate(
+      state,
+      "image-1",
+      {
+        type: "generateImage",
+        args: { description: "owl" },
+        result: { status: "success", value: { filePath: "owl.png", imageData: PNG_B64 } },
+      } as CursorSdkRawToolCall,
+      true,
+    );
+    expect(updatedImages(events)).toEqual([`data:image/png;base64,${PNG_B64}`]);
+  });
+
+  it("passes a percent-encoded svg data URL through instead of dropping it", () => {
+    // The previous builder stored such URLs verbatim and they rendered; the
+    // boundary must keep trusting their label for non-base64 bodies.
+    const events = generateImageEvents({
+      type: "generateImage",
+      args: { description: "owl" },
+      result: {
+        status: "success",
+        value: {
+          filePath: "owl.svg",
+          imageData: "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
+        },
+      },
+    });
+    expect(updatedImages(events)?.[0]).toMatch(/^data:image\/svg\+xml/);
   });
 
   it("drops image bytes that are not a decodable image", () => {
