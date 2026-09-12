@@ -105,38 +105,14 @@ const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
-  queueThreadFollowUp: [
-    { platform: "ios", token: "queueThreadFollowUp" },
-    { platform: "android", token: "queueThreadFollowUp" },
-  ],
-  removeQueuedThreadFollowUp: [
-    { platform: "ios", token: "removeQueuedThreadFollowUp" },
-    { platform: "android", token: "removeQueuedThreadFollowUp" },
-  ],
-  reorderQueuedThreadFollowUp: [
-    { platform: "ios", token: "reorderQueuedThreadFollowUp" },
-    { platform: "android", token: "reorderQueuedThreadFollowUp" },
-  ],
-  editQueuedThreadFollowUp: [
-    { platform: "ios", token: "editQueuedThreadFollowUp" },
-    { platform: "android", token: "editQueuedThreadFollowUp" },
-  ],
-  steerQueuedThreadFollowUp: [
-    { platform: "ios", token: "steerQueuedThreadFollowUp" },
-    { platform: "android", token: "steerQueuedThreadFollowUp" },
-  ],
-  pauseThreadFollowUps: [
-    { platform: "ios", token: "pauseThreadFollowUps" },
-    { platform: "android", token: "pauseThreadFollowUps" },
-  ],
-  resumeThreadFollowUps: [
-    { platform: "ios", token: "resumeThreadFollowUps" },
-    { platform: "android", token: "resumeThreadFollowUps" },
-  ],
-  getThreadFollowUpQueue: [
-    { platform: "ios", token: "getThreadFollowUpQueue" },
-    { platform: "android", token: "getThreadFollowUpQueue" },
-  ],
+  queueThreadFollowUp: [{ platform: "ios", token: "queueThreadFollowUp" }],
+  removeQueuedThreadFollowUp: [{ platform: "ios", token: "removeQueuedThreadFollowUp" }],
+  reorderQueuedThreadFollowUp: [{ platform: "ios", token: "reorderQueuedThreadFollowUp" }],
+  editQueuedThreadFollowUp: [{ platform: "ios", token: "editQueuedThreadFollowUp" }],
+  steerQueuedThreadFollowUp: [{ platform: "ios", token: "steerQueuedThreadFollowUp" }],
+  pauseThreadFollowUps: [{ platform: "ios", token: "pauseThreadFollowUps" }],
+  resumeThreadFollowUps: [{ platform: "ios", token: "resumeThreadFollowUps" }],
+  getThreadFollowUpQueue: [{ platform: "ios", token: "getThreadFollowUpQueue" }],
   "thread-follow-up-queue": [
     { platform: "ios", token: "thread-follow-up-queue" },
     { platform: "android", token: "thread-follow-up-queue" },
