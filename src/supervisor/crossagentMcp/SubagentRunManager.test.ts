@@ -430,6 +430,27 @@ describe("SubagentRunManager", () => {
     });
   });
 
+  it("reconciles stream snapshots in delegated output before later text", async () => {
+    const h = makeHarness();
+    const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
+    await flush();
+    const handle = h.handles[0]!;
+    const base = {
+      type: "content.delta" as const,
+      threadId: "child",
+      itemId: "m1",
+      stream: "assistant_text" as const,
+    };
+    handle.emit({ ...base, delta: "partial" });
+    handle.emit({ ...base, delta: "correct", replace: true });
+    handle.emit({ ...base, delta: " tail" });
+    handle.completeTurn("completed");
+    expect(await h.manager.waitFor(runId, 1000, undefined, parseWaitOptions({}))).toMatchObject({
+      output: "correct tail",
+      status: "completed",
+    });
+  });
+
   it("replaces an item's streamed output with its authoritative display payload", async () => {
     const h = makeHarness();
     const { runId } = h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });

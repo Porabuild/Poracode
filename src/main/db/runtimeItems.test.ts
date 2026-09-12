@@ -80,6 +80,45 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
 
+  it("replaces pre-snapshot chunked streams and preserves other streams", () => {
+    const threadId = "thread-1",
+      itemId = "recovery";
+    dbReplaceThreadRuntimeItems(threadId, [
+      {
+        id: itemId,
+        type: "assistant_message",
+        state: "updated",
+        streams: { assistant_text: "old".repeat(HEAD_CHARS), reasoning_text: "keep" },
+      },
+    ]);
+    dbApplyThreadRuntimeEvents(threadId, [
+      {
+        type: "content.delta",
+        threadId,
+        itemId,
+        stream: "assistant_text",
+        delta: "correct",
+        replace: true,
+      },
+      { type: "content.delta", threadId, itemId, stream: "assistant_text", delta: " tail" },
+    ]);
+    expect(dbGetThreadRuntimeItems(threadId)[0]?.streams).toEqual({
+      assistant_text: "correct tail",
+      reasoning_text: "keep",
+    });
+    dbApplyThreadRuntimeEvents(threadId, [
+      {
+        type: "content.delta",
+        threadId,
+        itemId,
+        stream: "assistant_text",
+        delta: "",
+        replace: true,
+      },
+    ]);
+    expect(dbGetThreadRuntimeItems(threadId)[0]?.streams.assistant_text).toBe("");
+  });
+
   it("applies streamed item and context updates without replacing the transcript", () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {

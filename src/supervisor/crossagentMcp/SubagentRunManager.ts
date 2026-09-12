@@ -772,26 +772,39 @@ export class SubagentRunManager {
         break;
       case "content.delta":
         if (event.stream === "assistant_text") {
-          const cursorStart = record.cursorOutput.length;
-          record.output += event.delta;
-          record.cursorOutput += event.delta;
-          const segment = record.outputSegments.find((s) => s.itemId === event.itemId);
-          if (segment) {
-            segment.text += event.delta;
-            const lastRange = segment.cursorRanges.at(-1);
-            if (lastRange?.end === cursorStart) lastRange.end += event.delta.length;
-            else {
-              segment.cursorRanges.push({
-                start: cursorStart,
-                end: cursorStart + event.delta.length,
+          if (event.replace) {
+            this.applyAuthoritativeOutput(record, attemptIndex, {
+              type: "item.updated",
+              threadId: event.threadId,
+              itemId: event.itemId,
+              payload: {
+                content: [{ kind: "text", text: event.delta }],
+                displayAuthoritative: true,
+              },
+            });
+          } else {
+            const cursorStart = record.cursorOutput.length;
+            record.output += event.delta;
+            record.cursorOutput += event.delta;
+            const segment = record.outputSegments.find((s) => s.itemId === event.itemId);
+            if (segment) {
+              segment.text += event.delta;
+              if (segment.override !== undefined) segment.override += event.delta;
+              const lastRange = segment.cursorRanges.at(-1);
+              if (lastRange?.end === cursorStart) lastRange.end += event.delta.length;
+              else {
+                segment.cursorRanges.push({
+                  start: cursorStart,
+                  end: cursorStart + event.delta.length,
+                });
+              }
+            } else {
+              record.outputSegments.push({
+                itemId: event.itemId,
+                text: event.delta,
+                cursorRanges: [{ start: cursorStart, end: cursorStart + event.delta.length }],
               });
             }
-          } else {
-            record.outputSegments.push({
-              itemId: event.itemId,
-              text: event.delta,
-              cursorRanges: [{ start: cursorStart, end: cursorStart + event.delta.length }],
-            });
           }
         }
         this.deps.host.appendRuntimeEvent(

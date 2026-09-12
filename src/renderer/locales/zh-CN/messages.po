@@ -660,6 +660,10 @@ msgstr "{totalCount} 中的 {visibleCount} 个可见"
 msgid "@cursor/sdk is not installed."
 msgstr "@cursor/sdk 未安装。"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "@scope/plugin@version"
+msgstr "@scope/plugin@version"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "/absolute/path/to/project"
 #~ msgstr "/absolute/path/to/project"
@@ -913,6 +917,7 @@ msgstr "活动指标"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -945,6 +950,10 @@ msgstr "登录前添加项目。"
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before updating an agent."
 msgstr "请先添加项目，再更新智能体。"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Add a project in this environment before signing in."
+msgstr "请先在此环境中添加项目，再登录。"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
@@ -1045,7 +1054,7 @@ msgstr "添加项目"
 msgid "Add project options"
 msgstr "添加项目选项"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "Add provider"
 msgstr "添加提供商"
 
@@ -1111,6 +1120,7 @@ msgstr "传递给每个新终端面板 shell 的附加参数。包含空格的�
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "公布自定义基础 URL，例如反向代理或隧道。留空则自动设置。"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -1245,7 +1255,7 @@ msgstr "AI 助手"
 msgid "AI judge"
 msgstr "AI 评审"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "AI providers"
 msgstr "AI 提供商"
 
@@ -1295,6 +1305,10 @@ msgstr "所有文件"
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "所有设备"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "All plugins are up to date."
+msgstr "所有插件均为最新版本。"
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
@@ -1883,6 +1897,10 @@ msgstr "bash 输出"
 msgid "Basic (CLI)"
 msgstr "基本（CLI）"
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Beta next-generation OpenCode runtime with native GUI sessions."
+msgstr "OpenCode 下一代 Beta 运行时，支持原生 GUI 会话。"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Better (Whisper base)"
 msgstr "更好（Whisper base）"
@@ -1997,10 +2015,18 @@ msgstr "带上未提交的更改"
 msgid "Browse"
 msgstr "浏览"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Browse ecosystem"
+msgstr "浏览生态系统"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
 msgstr "浏览父文件夹"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Browse plugins"
+msgstr "浏览插件"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Browse your GitHub repositories or paste a clone URL."
@@ -2024,7 +2050,7 @@ msgstr "在 Poracode 隔离的内置浏览器中浏览、检查并测试网站�
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "浏览器"
@@ -2297,6 +2323,10 @@ msgstr "更改"
 msgid "Changes ({0})"
 msgstr "更改（{0}）"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Changes apply globally to this environment."
+msgstr "更改将全局应用于此环境。"
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
 msgstr "更改会应用于新聊天。支持实时重新加载技能的提供商可能会更早更新。"
@@ -2350,10 +2380,15 @@ msgstr "再次检查 {serverName}"
 msgid "Check again"
 msgstr "再次检查"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Check agent plugin updates"
+msgstr "检查代理插件更新"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Check for update"
 msgstr "检查更新"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
@@ -2535,7 +2570,7 @@ msgstr "选择、说明并协调子代理进行并行工作。"
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -2675,6 +2710,7 @@ msgstr "克隆…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
@@ -3072,6 +3108,10 @@ msgstr "沟通协作"
 msgid "Community"
 msgstr "社区"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Community plugin. V2 support is declared by its author; compatibility depends on your OpenCode version."
+msgstr "社区插件。作者声明支持 V2；兼容性取决于你的 OpenCode 版本。"
+
 #: src/renderer/components/providers/muse/index.tsx
 msgid "Compact the conversation context"
 msgstr "压缩对话上下文"
@@ -3147,7 +3187,7 @@ msgstr "Composer 控件"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Computer Use"
 msgstr "计算机操作"
 
@@ -3199,8 +3239,12 @@ msgstr "配置目录"
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "配置 Poracode 在受支持的代理启动时添加的服务器。"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Configured"
+msgstr "已配置"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Configured MCP servers"
 msgstr "已配置的 MCP 服务器"
 
@@ -3262,6 +3306,10 @@ msgstr "通过 SSH 连接"
 #: src/mobile/setupEmptyState.tsx
 msgid "Connect Poracode on your desktop before starting a thread."
 msgstr "开始线程前，请先连接桌面端的 Poracode。"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Connect the AI providers OpenCode 2 can use and sign out of them here."
+msgstr "在此连接 OpenCode 2 可使用的 AI 提供商，并退出登录。"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Connect the AI providers OpenCode can use and sign out of them here."
@@ -3397,7 +3445,7 @@ msgstr "在其他工具中继续..."
 msgid "Continue on the desktop address"
 msgstr "在桌面地址上继续"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
 msgstr "控制外部 Chrome 浏览器。"
 
@@ -3409,7 +3457,7 @@ msgstr "控制外部 Chrome 浏览器。"
 msgid "Control desktop apps in the background and complete visual workflows."
 msgstr "在后台控制桌面应用并完成可视化工作流。"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Control the desktop."
 msgstr "控制桌面。"
 
@@ -3614,6 +3662,7 @@ msgstr "无法安装 {0}。"
 msgid "Couldn't list repositories."
 msgstr "无法列出存储库。"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Couldn't load plugins."
 msgstr "无法加载插件。"
@@ -3629,6 +3678,10 @@ msgstr "无法加载技能。"
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "无法加载你的资料统计。"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Couldn't manage plugins. Check the package name, OpenCode version, and network connection, then retry."
+msgstr "无法管理插件。请检查包名、OpenCode 版本和网络连接，然后重试。"
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't move the thread to a worktree."
@@ -3838,7 +3891,7 @@ msgstr "Crossagent：{subagent}"
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
 
@@ -4039,6 +4092,14 @@ msgstr "每日简报"
 msgid "Dark"
 msgstr "深色"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Date"
+msgstr "日期"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Date and time"
+msgstr "日期和时间"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Days"
 #~ msgstr "星期"
@@ -4095,7 +4156,7 @@ msgstr "默认线程删除"
 msgid "Delegate focused work to other installed agents and coordinate the results."
 msgstr "将专项工作委派给其他已安装的代理并协调结果。"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Delegate work to other AI agents."
 msgstr "将工作委派给其他 AI 智能体。"
 
@@ -4391,7 +4452,7 @@ msgstr "当此桌面可访问时，设备可以配对。"
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Disable {0}"
 msgstr "禁用 {0}"
 
@@ -4509,6 +4570,10 @@ msgstr "放弃未保存的编辑器更改？"
 msgid "Disconnect server"
 msgstr "断开服务器连接"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Discover"
+msgstr "发现"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
 msgstr "正在发现编码代理……"
@@ -4570,6 +4635,7 @@ msgstr "完成"
 
 #. Notification status: thread is done
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4774,10 +4840,14 @@ msgstr "{modelName} 的思考级别"
 msgid "Electron"
 msgstr "Electron"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Email address"
+msgstr "电子邮件地址"
+
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Enable {0}"
 msgstr "启用 {0}"
 
@@ -4914,6 +4984,10 @@ msgstr "请输入有效的项目名称。"
 msgid "Enter a valid SSH target and port."
 msgstr "请输入有效的 SSH 目标和端口。"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Enter a valid value."
+msgstr "请输入有效值。"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
 #~ msgstr "输入 @cursor/sdk 软件包的绝对路径，或留空以使用自动发现。"
@@ -4938,6 +5012,7 @@ msgstr "请输入 SSH 密码。"
 msgid "Enter valid JSON."
 msgstr "请输入有效的 JSON。"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "环境"
@@ -5256,6 +5331,10 @@ msgstr "无法创建拉取请求：{detail}"
 #~ msgid "Failed to interrupt remote thread."
 #~ msgstr "无法中断远程线程。"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Failed to load"
+msgstr "加载失败"
+
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
 msgstr "加载资料统计失败。"
@@ -5312,6 +5391,7 @@ msgid "Favorites"
 msgstr "收藏夹"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Featured"
 msgstr "精选"
 
@@ -6335,6 +6415,8 @@ msgstr "安装"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -6396,6 +6478,10 @@ msgstr "在 {environment} 中安装 ACP"
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
 #~ msgstr "安装 ACP、SDK 或两者，然后选择用于启动新 Cursor GUI 聊天的运行时。现有聊天会继续固定到创建它们的运行时。"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Install and manage native OpenCode plugins."
+msgstr "安装和管理 OpenCode 原生插件。"
 
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
@@ -6484,6 +6570,10 @@ msgstr "安装到 {env}"
 msgid "Install on Windows"
 msgstr "在 Windows 上安装"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Install OpenCode 2 to manage its plugins."
+msgstr "安装 OpenCode 2 以管理其插件。"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "安装包"
@@ -6525,6 +6615,8 @@ msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "远程设备暂不支持安装、更新和登录。"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -6848,6 +6940,7 @@ msgstr "正在加载笔记..."
 #~ msgid "Loading PDF…"
 #~ msgstr "正在加载 PDF…"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Loading plugins…"
 msgstr "正在加载插件…"
@@ -6983,7 +7076,8 @@ msgstr "登录{0}"
 msgid "Login required"
 msgstr "需要登录"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -7032,6 +7126,14 @@ msgstr "管理"
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
 msgstr "管理 MCP 服务器"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
+#~ msgstr "通过 OpenCode 原生插件管理器管理软件包。更改将全局应用于所选环境，包括终端插件。"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Manage plugins"
+msgstr "管理插件"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -7181,6 +7283,21 @@ msgstr "最大化"
 msgid "Maximize browser"
 msgstr "最大化浏览器"
 
+#. placeholder {0}: property.maxLength
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum characters: {0}"
+msgstr "最多字符数：{0}"
+
+#. placeholder {0}: property.maxItems
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum selections: {0}"
+msgstr "最多选择数：{0}"
+
+#. placeholder {0}: property.maximum
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum: {0}"
+msgstr "最大值：{0}"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "MCP"
 msgstr "MCP"
@@ -7247,8 +7364,8 @@ msgstr "MCP 服务器 URL"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "MCP servers"
 msgstr "MCP服务器"
 
@@ -7262,7 +7379,7 @@ msgstr "MCP服务器"
 msgid "MCP Servers"
 msgstr "MCP 服务器"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "MCP servers updated."
 msgstr "MCP 服务器已更新。"
 
@@ -7450,6 +7567,21 @@ msgstr "将浏览器最小化到右侧面板"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize to panel"
 msgstr "最小化到面板"
+
+#. placeholder {0}: property.minLength
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum characters: {0}"
+msgstr "最少字符数：{0}"
+
+#. placeholder {0}: property.minItems
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum selections: {0}"
+msgstr "最少选择数：{0}"
+
+#. placeholder {0}: property.minimum
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum: {0}"
+msgstr "最小值：{0}"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Minute"
@@ -8082,7 +8214,7 @@ msgid "No commits found."
 msgstr "没有找到提交。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "No configured MCP servers yet"
 msgstr "尚未配置 MCP 服务器"
 
@@ -8259,6 +8391,10 @@ msgstr "未找到模型"
 msgid "No other agents installed"
 msgstr "没有安装其他代理"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "No package plugins installed."
+msgstr "尚未安装插件包。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "No paired devices yet."
 msgstr "还没有已配对的设备。"
@@ -8307,7 +8443,7 @@ msgstr "无提示"
 msgid "No providers are being tracked."
 msgstr "未跟踪任何提供商。"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "尚未连接任何提供商。"
 
@@ -8903,6 +9039,26 @@ msgstr "打开模型选择器"
 msgid "OpenCode"
 msgstr "OpenCode"
 
+#: src/renderer/components/providers/opencode2/manifest.ts
+msgid "OpenCode 2"
+msgstr "OpenCode 2"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "OpenCode 2 plugins"
+msgstr "OpenCode 2 插件"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#~ msgid "OpenCode 2 shares its sign-in with OpenCode."
+#~ msgstr "OpenCode 2 与 OpenCode 共享登录。"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "OpenCode Goal Plugin"
+msgstr "OpenCode Goal 插件"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "OpenCode reloads watched configuration automatically. Reopen your thread to refresh plugin commands; terminal-only changes may need a new terminal session."
+msgstr "OpenCode 会自动重新加载监视的配置。重新打开对话以刷新插件命令；仅终端相关的更改可能需要新的终端会话。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "OpenCode request failed, retrying..."
 msgstr "OpenCode 请求失败，正在重试..."
@@ -8961,6 +9117,7 @@ msgstr "或者写一个自定义答案"
 msgid "Orange"
 msgstr "橙色"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
 msgstr "其他"
@@ -9016,6 +9173,10 @@ msgstr "包配置"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Package manager"
 msgstr "包管理器"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Package name or Git URL"
+msgstr "包名或 Git URL"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Page"
@@ -9234,6 +9395,10 @@ msgstr "永久删除 {0} 中选定的归档条目。"
 msgid "permission"
 msgstr "权限"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Persistent goals, budgets, and automatic continuation with /goal."
+msgstr "通过 /goal 使用持久目标、预算和自动继续功能。"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Personal"
 msgstr "个人"
@@ -9322,6 +9487,10 @@ msgstr "播放通知声音"
 msgid "Plugin"
 msgstr "插件"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Plugin details"
+msgstr "插件详情"
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
 msgstr "插件文件夹"
@@ -9329,6 +9498,10 @@ msgstr "插件文件夹"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Plugin servers"
 msgstr "插件服务器"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Plugin views"
+msgstr "插件视图"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "plugin.json could not be read as JSON."
@@ -9349,10 +9522,15 @@ msgstr "plugin.json 指向此版本不支持的 Agent Plugins 版本。"
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Plugins"
 msgstr "插件"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Plugins run code with your account's access. Install packages from authors you trust."
+msgstr "插件会以你的账户权限执行代码。请安装来自可信作者的软件包。"
 
 #: src/mobile/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
@@ -9421,7 +9599,7 @@ msgstr "Poracode 将在 SSH 主机上安装或复用其服务器，并将凭据�
 msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
 msgstr "Poracode 将重新启动，备份当前数据，并用 Lightcode 数据的完整副本替换当前数据。"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Poracode 内置的浏览器工具。"
 
@@ -10136,6 +10314,7 @@ msgstr "隐藏通知内容"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -10303,15 +10482,23 @@ msgid "Remote URL"
 msgstr "远程网址"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Remove"
 msgstr "删除"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Remove “{removingTarget}” from OpenCode 2? You can install it again from Discover."
+msgstr "要从 OpenCode 2 中删除“{removingTarget}”吗？你可以稍后在“发现”中重新安装。"
+
 #. placeholder {0}: att.name
+#. placeholder {0}: pkg.target
 #. placeholder {0}: removeConfirm.target.name
-#. placeholder {0}: window.label
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Remove {0}"
 msgstr "删除{0}"
@@ -10328,6 +10515,10 @@ msgstr "删除{pattern}"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {rowTitle} from panel"
 msgstr "从面板中删除{rowTitle}"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
+msgid "Remove {value}"
+msgstr "删除{value}"
 
 #. placeholder {0}: removeConfirm.target.name
 #: src/mobile/views/ManageProjectsView.tsx
@@ -10401,6 +10592,10 @@ msgstr "移除模型"
 msgid "Remove pinned route for {tagLabel}"
 msgstr "移除 {tagLabel} 的固定路由"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Remove plugin"
+msgstr "删除插件"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Remove profile {label}"
 msgstr "移除配置文件 {label}"
@@ -10437,6 +10632,10 @@ msgstr "移除已链接的技能“{0}”？其源文件夹不会被删除。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Remove the project's experiments before removing the project."
 msgstr "删除项目前，请先删除该项目的实验。"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
+msgstr "要删除此提供商已保存的凭据吗？你可以在“添加提供商”中重新连接。"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -10716,6 +10915,7 @@ msgstr "恢复排队的后续消息"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -11042,7 +11242,7 @@ msgstr "饱和度与亮度"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -11085,7 +11285,7 @@ msgstr "保存文件"
 msgid "Save image"
 msgstr "保存图像"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
 msgstr "保存 MCP 服务器"
 
@@ -11841,7 +12041,9 @@ msgid "Sign out {label}"
 msgstr "退出{label}"
 
 #. placeholder {0}: provider.label
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#. placeholder {0}: signingOut?.provider.label ?? ""
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "Sign out of {0}"
 msgstr "退出 {0}"
 
@@ -12699,6 +12901,7 @@ msgstr "告诉目标提供商下一步该做什么..."
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -13007,6 +13210,10 @@ msgstr "主题"
 #: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "主题和聊天字号"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "These built-in MCP servers are shared by OpenCode 2 threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
+msgstr "这些内置 MCP 服务器由 OpenCode 2 线程共享。保存后会更新正在运行的 GUI 项目；移除服务器可能会中断进行中的轮次。终端线程将在下次启动时获取更改。"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
@@ -14036,6 +14243,7 @@ msgstr "上一级"
 msgid "update"
 msgstr "更新"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
@@ -14044,7 +14252,9 @@ msgstr "更新"
 msgid "Update"
 msgstr "更新"
 
+#. placeholder {0}: pkg.target
 #. placeholder {0}: props.agentLabel
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0}"
 msgstr "更新 {0}"
@@ -14221,6 +14431,7 @@ msgid "Updating to v{0}"
 msgstr "正在更新到 v{0}"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "URL"
 msgstr "URL"
 
@@ -14289,6 +14500,10 @@ msgstr "请使用字母、数字、点、连字符或下划线，且不要包含
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
 msgstr "使用一个全局文件夹，或将工作树嵌套在每个项目的 .poracode/worktrees 内。"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Use OpenCode’s CLI to update terminal-only packages."
+msgstr "请使用 OpenCode CLI 更新仅供终端使用的软件包。"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"

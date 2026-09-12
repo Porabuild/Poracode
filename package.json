@@ -105,6 +105,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@number-flow/react": "^0.6.2",
     "@opencode-ai/sdk": "^1.18.27",
+    "@opencode/client": "2.0.0",
     "@poracode/activity-bridge": "file:native/activity-bridge",
     "@poracode/agents-usage": "workspace:*",
     "@poracode/codex-protocol": "workspace:*",

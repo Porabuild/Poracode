@@ -42,13 +42,11 @@ describe("supportsOneShot capability", () => {
       .filter((adapter) => adapter.capabilities.supportsTextOnlyOneShot === true)
       .map((adapter) => adapter.kind)
       .sort();
-    expect(supported).toEqual(["claude", "pi"]);
+    expect(supported).toEqual(["claude", "opencode2", "pi"]);
   });
 
   it("marks every first-class adapter as one-shot capable", () => {
-    // First-class providers are CLIs with a headless prompt path, so each must
-    // expose one-shot support. Only runtime-registered ACP-registry generics
-    // outside this built-in registry may lack it.
+    // First-class providers all expose a headless generation path.
     const missing = adapters
       .filter((adapter) => adapter.capabilities.supportsOneShot !== true)
       .map((adapter) => adapter.kind);

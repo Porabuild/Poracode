@@ -45,6 +45,7 @@ const RUNTIME_DEPS = [
   "@anthropic-ai/claude-agent-sdk",
   "@modelcontextprotocol/client",
   "@opencode-ai/sdk",
+  "@opencode/client",
   "@sentry/electron",
   "@sentry/node",
   "better-sqlite3",

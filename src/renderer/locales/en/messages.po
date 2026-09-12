@@ -660,6 +660,10 @@ msgstr "{visibleCount} of {totalCount} visible"
 msgid "@cursor/sdk is not installed."
 msgstr "@cursor/sdk is not installed."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "@scope/plugin@version"
+msgstr "@scope/plugin@version"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "/absolute/path/to/project"
 #~ msgstr "/absolute/path/to/project"
@@ -913,6 +917,7 @@ msgstr "Activity metric"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -945,6 +950,10 @@ msgstr "Add a project before signing in."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before updating an agent."
 msgstr "Add a project before updating an agent."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Add a project in this environment before signing in."
+msgstr "Add a project in this environment before signing in."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
@@ -1045,7 +1054,7 @@ msgstr "Add Project"
 msgid "Add project options"
 msgstr "Add project options"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "Add provider"
 msgstr "Add provider"
 
@@ -1111,6 +1120,7 @@ msgstr "Additional arguments passed to each new Terminal-panel shell. Quote valu
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -1245,7 +1255,7 @@ msgstr "AI Helpers"
 msgid "AI judge"
 msgstr "AI judge"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "AI providers"
 msgstr "AI providers"
 
@@ -1295,6 +1305,10 @@ msgstr "All files"
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "All machines"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "All plugins are up to date."
+msgstr "All plugins are up to date."
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
@@ -1883,6 +1897,10 @@ msgstr "Bash output"
 msgid "Basic (CLI)"
 msgstr "Basic (CLI)"
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Beta next-generation OpenCode runtime with native GUI sessions."
+msgstr "Beta next-generation OpenCode runtime with native GUI sessions."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Better (Whisper base)"
 msgstr "Better (Whisper base)"
@@ -1997,10 +2015,18 @@ msgstr "Bring Uncommitted Changes"
 msgid "Browse"
 msgstr "Browse"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Browse ecosystem"
+msgstr "Browse ecosystem"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
 msgstr "Browse for parent folder"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Browse plugins"
+msgstr "Browse plugins"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Browse your GitHub repositories or paste a clone URL."
@@ -2024,7 +2050,7 @@ msgstr "Browse, inspect, and test websites in Poracode's isolated in-app browser
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "Browser"
@@ -2301,6 +2327,10 @@ msgstr "Changes"
 msgid "Changes ({0})"
 msgstr "Changes ({0})"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Changes apply globally to this environment."
+msgstr "Changes apply globally to this environment."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
 msgstr "Changes apply to new chats. Providers that support live skill reload may update sooner."
@@ -2354,10 +2384,15 @@ msgstr "Check {serverName} again"
 msgid "Check again"
 msgstr "Check again"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Check agent plugin updates"
+msgstr "Check agent plugin updates"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Check for update"
 msgstr "Check for update"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
@@ -2539,7 +2574,7 @@ msgstr "Choose, brief, and coordinate subagents for parallel work."
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -2679,6 +2714,7 @@ msgstr "Cloning…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
@@ -3076,6 +3112,10 @@ msgstr "Communication"
 msgid "Community"
 msgstr "Community"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Community plugin. V2 support is declared by its author; compatibility depends on your OpenCode version."
+msgstr "Community plugin. V2 support is declared by its author; compatibility depends on your OpenCode version."
+
 #: src/renderer/components/providers/muse/index.tsx
 msgid "Compact the conversation context"
 msgstr "Compact the conversation context"
@@ -3151,7 +3191,7 @@ msgstr "Composer controls"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Computer Use"
 msgstr "Computer Use"
 
@@ -3203,8 +3243,12 @@ msgstr "Config directory"
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "Configure the server Poracode will add when supported agents start."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Configured"
+msgstr "Configured"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Configured MCP servers"
 msgstr "Configured MCP servers"
 
@@ -3266,6 +3310,10 @@ msgstr "Connect over SSH"
 #: src/mobile/setupEmptyState.tsx
 msgid "Connect Poracode on your desktop before starting a thread."
 msgstr "Connect Poracode on your desktop before starting a thread."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Connect the AI providers OpenCode 2 can use and sign out of them here."
+msgstr "Connect the AI providers OpenCode 2 can use and sign out of them here."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Connect the AI providers OpenCode can use and sign out of them here."
@@ -3401,7 +3449,7 @@ msgstr "Continue in..."
 msgid "Continue on the desktop address"
 msgstr "Continue on the desktop address"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
 msgstr "Control an external Chrome browser."
 
@@ -3413,7 +3461,7 @@ msgstr "Control an external Chrome browser."
 msgid "Control desktop apps in the background and complete visual workflows."
 msgstr "Control desktop apps in the background and complete visual workflows."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Control the desktop."
 msgstr "Control the desktop."
 
@@ -3618,6 +3666,7 @@ msgstr "Couldn't install {0}."
 msgid "Couldn't list repositories."
 msgstr "Couldn't list repositories."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Couldn't load plugins."
 msgstr "Couldn't load plugins."
@@ -3633,6 +3682,10 @@ msgstr "Couldn't load the skill."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Couldn't load your profile stats."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Couldn't manage plugins. Check the package name, OpenCode version, and network connection, then retry."
+msgstr "Couldn't manage plugins. Check the package name, OpenCode version, and network connection, then retry."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't move the thread to a worktree."
@@ -3842,7 +3895,7 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
 
@@ -4043,6 +4096,14 @@ msgstr "Daily brief"
 msgid "Dark"
 msgstr "Dark"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Date"
+msgstr "Date"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Date and time"
+msgstr "Date and time"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Days"
 #~ msgstr "Days"
@@ -4099,7 +4160,7 @@ msgstr "Default thread removal"
 msgid "Delegate focused work to other installed agents and coordinate the results."
 msgstr "Delegate focused work to other installed agents and coordinate the results."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Delegate work to other AI agents."
 msgstr "Delegate work to other AI agents."
 
@@ -4395,7 +4456,7 @@ msgstr "Devices can pair while this desktop is reachable."
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Disable {0}"
 msgstr "Disable {0}"
 
@@ -4513,6 +4574,10 @@ msgstr "Discard unsaved editor changes?"
 msgid "Disconnect server"
 msgstr "Disconnect server"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Discover"
+msgstr "Discover"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
 msgstr "Discovering coding agents…"
@@ -4574,6 +4639,7 @@ msgstr "done"
 
 #. Notification status: thread is done
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4778,10 +4844,14 @@ msgstr "Effort levels for {modelName}"
 msgid "Electron"
 msgstr "Electron"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Email address"
+msgstr "Email address"
+
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Enable {0}"
 msgstr "Enable {0}"
 
@@ -4918,6 +4988,10 @@ msgstr "Enter a valid project name."
 msgid "Enter a valid SSH target and port."
 msgstr "Enter a valid SSH target and port."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Enter a valid value."
+msgstr "Enter a valid value."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
 #~ msgstr "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
@@ -4942,6 +5016,7 @@ msgstr "Enter the SSH password."
 msgid "Enter valid JSON."
 msgstr "Enter valid JSON."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "Environment"
@@ -5260,6 +5335,10 @@ msgstr "Failed to create pull request: {detail}"
 #~ msgid "Failed to interrupt remote thread."
 #~ msgstr "Failed to interrupt remote thread."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Failed to load"
+msgstr "Failed to load"
+
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
 msgstr "Failed to load profile stats."
@@ -5316,6 +5395,7 @@ msgid "Favorites"
 msgstr "Favorites"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Featured"
 msgstr "Featured"
 
@@ -6339,6 +6419,8 @@ msgstr "install"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -6400,6 +6482,10 @@ msgstr "Install ACP in {environment}"
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
 #~ msgstr "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Install and manage native OpenCode plugins."
+msgstr "Install and manage native OpenCode plugins."
 
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
@@ -6488,6 +6574,10 @@ msgstr "Install on {env}"
 msgid "Install on Windows"
 msgstr "Install on Windows"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Install OpenCode 2 to manage its plugins."
+msgstr "Install OpenCode 2 to manage its plugins."
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "Install packages"
@@ -6529,6 +6619,8 @@ msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Install, update, and sign-in are not yet available on remote machines."
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -6852,6 +6944,7 @@ msgstr "Loading notes…"
 #~ msgid "Loading PDF…"
 #~ msgstr "Loading PDF…"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Loading plugins…"
 msgstr "Loading plugins…"
@@ -6987,7 +7080,8 @@ msgstr "Login {0}"
 msgid "Login required"
 msgstr "Login required"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -7036,6 +7130,14 @@ msgstr "Manage"
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
 msgstr "Manage MCP servers"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
+#~ msgstr "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Manage plugins"
+msgstr "Manage plugins"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -7185,6 +7287,21 @@ msgstr "Maximize"
 msgid "Maximize browser"
 msgstr "Maximize browser"
 
+#. placeholder {0}: property.maxLength
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum characters: {0}"
+msgstr "Maximum characters: {0}"
+
+#. placeholder {0}: property.maxItems
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum selections: {0}"
+msgstr "Maximum selections: {0}"
+
+#. placeholder {0}: property.maximum
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum: {0}"
+msgstr "Maximum: {0}"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "MCP"
 msgstr "MCP"
@@ -7251,8 +7368,8 @@ msgstr "MCP server URL"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "MCP servers"
 msgstr "MCP servers"
 
@@ -7266,7 +7383,7 @@ msgstr "MCP servers"
 msgid "MCP Servers"
 msgstr "MCP Servers"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "MCP servers updated."
 msgstr "MCP servers updated."
 
@@ -7455,6 +7572,21 @@ msgstr "Minimize browser to right panel"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize to panel"
 msgstr "Minimize to panel"
+
+#. placeholder {0}: property.minLength
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum characters: {0}"
+msgstr "Minimum characters: {0}"
+
+#. placeholder {0}: property.minItems
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum selections: {0}"
+msgstr "Minimum selections: {0}"
+
+#. placeholder {0}: property.minimum
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum: {0}"
+msgstr "Minimum: {0}"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Minute"
@@ -8087,7 +8219,7 @@ msgid "No commits found."
 msgstr "No commits found."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "No configured MCP servers yet"
 msgstr "No configured MCP servers yet"
 
@@ -8264,6 +8396,10 @@ msgstr "No models found"
 msgid "No other agents installed"
 msgstr "No other agents installed"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "No package plugins installed."
+msgstr "No package plugins installed."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "No paired devices yet."
 msgstr "No paired devices yet."
@@ -8312,7 +8448,7 @@ msgstr "No prompts"
 msgid "No providers are being tracked."
 msgstr "No providers are being tracked."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "No providers connected yet."
 
@@ -8908,6 +9044,26 @@ msgstr "Open the model picker"
 msgid "OpenCode"
 msgstr "OpenCode"
 
+#: src/renderer/components/providers/opencode2/manifest.ts
+msgid "OpenCode 2"
+msgstr "OpenCode 2"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "OpenCode 2 plugins"
+msgstr "OpenCode 2 plugins"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#~ msgid "OpenCode 2 shares its sign-in with OpenCode."
+#~ msgstr "OpenCode 2 shares its sign-in with OpenCode."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "OpenCode Goal Plugin"
+msgstr "OpenCode Goal Plugin"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "OpenCode reloads watched configuration automatically. Reopen your thread to refresh plugin commands; terminal-only changes may need a new terminal session."
+msgstr "OpenCode reloads watched configuration automatically. Reopen your thread to refresh plugin commands; terminal-only changes may need a new terminal session."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "OpenCode request failed, retrying..."
 msgstr "OpenCode request failed, retrying..."
@@ -8966,6 +9122,7 @@ msgstr "Or write a custom answer"
 msgid "Orange"
 msgstr "Orange"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
 msgstr "Other"
@@ -9021,6 +9178,10 @@ msgstr "Package config"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Package manager"
 msgstr "Package manager"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Package name or Git URL"
+msgstr "Package name or Git URL"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Page"
@@ -9239,6 +9400,10 @@ msgstr "Permanently delete the selected archive entries from {0}."
 msgid "permission"
 msgstr "permission"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Persistent goals, budgets, and automatic continuation with /goal."
+msgstr "Persistent goals, budgets, and automatic continuation with /goal."
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Personal"
 msgstr "Personal"
@@ -9327,6 +9492,10 @@ msgstr "Play notification sound"
 msgid "Plugin"
 msgstr "Plugin"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Plugin details"
+msgstr "Plugin details"
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
 msgstr "Plugin folder"
@@ -9334,6 +9503,10 @@ msgstr "Plugin folder"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Plugin servers"
 msgstr "Plugin servers"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Plugin views"
+msgstr "Plugin views"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "plugin.json could not be read as JSON."
@@ -9354,10 +9527,15 @@ msgstr "plugin.json targets an Agent Plugins version this build does not support
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Plugins"
 msgstr "Plugins"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Plugins run code with your account's access. Install packages from authors you trust."
+msgstr "Plugins run code with your account's access. Install packages from authors you trust."
 
 #: src/mobile/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
@@ -9426,7 +9604,7 @@ msgstr "Poracode will install or reuse its server on the SSH host and keep crede
 msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
 msgstr "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Poracode's built-in browser tools."
 
@@ -10141,6 +10319,7 @@ msgstr "Redact notification content"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -10308,15 +10487,23 @@ msgid "Remote URL"
 msgstr "Remote URL"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Remove"
 msgstr "Remove"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Remove “{removingTarget}” from OpenCode 2? You can install it again from Discover."
+msgstr "Remove “{removingTarget}” from OpenCode 2? You can install it again from Discover."
+
 #. placeholder {0}: att.name
+#. placeholder {0}: pkg.target
 #. placeholder {0}: removeConfirm.target.name
-#. placeholder {0}: window.label
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Remove {0}"
 msgstr "Remove {0}"
@@ -10333,6 +10520,10 @@ msgstr "Remove {pattern}"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {rowTitle} from panel"
 msgstr "Remove {rowTitle} from panel"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
+msgid "Remove {value}"
+msgstr "Remove {value}"
 
 #. placeholder {0}: removeConfirm.target.name
 #: src/mobile/views/ManageProjectsView.tsx
@@ -10406,6 +10597,10 @@ msgstr "Remove model"
 msgid "Remove pinned route for {tagLabel}"
 msgstr "Remove pinned route for {tagLabel}"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Remove plugin"
+msgstr "Remove plugin"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Remove profile {label}"
 msgstr "Remove profile {label}"
@@ -10442,6 +10637,10 @@ msgstr "Remove the linked skill “{0}”? Its source folder will not be deleted
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Remove the project's experiments before removing the project."
 msgstr "Remove the project's experiments before removing the project."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
+msgstr "Remove the saved credential for this provider? You can connect it again from Add provider."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -10721,6 +10920,7 @@ msgstr "Resume queued follow-ups"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -11047,7 +11247,7 @@ msgstr "Saturation and brightness"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -11090,7 +11290,7 @@ msgstr "Save File"
 msgid "Save image"
 msgstr "Save image"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
 msgstr "Save MCP servers"
 
@@ -11846,7 +12046,9 @@ msgid "Sign out {label}"
 msgstr "Sign out {label}"
 
 #. placeholder {0}: provider.label
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#. placeholder {0}: signingOut?.provider.label ?? ""
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "Sign out of {0}"
 msgstr "Sign out of {0}"
 
@@ -12704,6 +12906,7 @@ msgstr "Tell the target provider what to do next..."
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -13012,6 +13215,10 @@ msgstr "Theme"
 #: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "Theme and chat font size"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "These built-in MCP servers are shared by OpenCode 2 threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
+msgstr "These built-in MCP servers are shared by OpenCode 2 threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
@@ -14045,6 +14252,7 @@ msgstr "Up one level"
 msgid "update"
 msgstr "update"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
@@ -14053,7 +14261,9 @@ msgstr "update"
 msgid "Update"
 msgstr "Update"
 
+#. placeholder {0}: pkg.target
 #. placeholder {0}: props.agentLabel
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0}"
 msgstr "Update {0}"
@@ -14230,6 +14440,7 @@ msgid "Updating to v{0}"
 msgstr "Updating to v{0}"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "URL"
 msgstr "URL"
 
@@ -14298,6 +14509,10 @@ msgstr "Use letters, numbers, dots, dashes, or underscores without spaces."
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
 msgstr "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Use OpenCode’s CLI to update terminal-only packages."
+msgstr "Use OpenCode’s CLI to update terminal-only packages."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"

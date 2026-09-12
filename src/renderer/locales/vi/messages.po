@@ -660,6 +660,10 @@ msgstr "{visibleCount} trong số {totalCount} hiển thị"
 msgid "@cursor/sdk is not installed."
 msgstr "@cursor/sdk chưa được cài đặt."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "@scope/plugin@version"
+msgstr "@scope/plugin@version"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "/absolute/path/to/project"
 #~ msgstr "/absolute/path/to/project"
@@ -913,6 +917,7 @@ msgstr "Chỉ số hoạt động"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -945,6 +950,10 @@ msgstr "Thêm một dự án trước khi đăng nhập."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before updating an agent."
 msgstr "Thêm dự án trước khi cập nhật tác nhân."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Add a project in this environment before signing in."
+msgstr "Thêm dự án trong môi trường này trước khi đăng nhập."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
@@ -1045,7 +1054,7 @@ msgstr "Thêm dự án"
 msgid "Add project options"
 msgstr "Thêm tùy chọn dự án"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "Add provider"
 msgstr "Thêm nhà cung cấp"
 
@@ -1111,6 +1120,7 @@ msgstr "Các đối số bổ sung được truyền cho mỗi shell mới của
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy hoặc tunnel. Để trống để dùng tự động."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -1245,7 +1255,7 @@ msgstr "Trợ lý AI"
 msgid "AI judge"
 msgstr "AI đánh giá"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "AI providers"
 msgstr "Nhà cung cấp AI"
 
@@ -1295,6 +1305,10 @@ msgstr "Tất cả các tập tin"
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "Tất cả các máy"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "All plugins are up to date."
+msgstr "Tất cả plugin đều là bản mới nhất."
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
@@ -1883,6 +1897,10 @@ msgstr "Đầu ra Bash"
 msgid "Basic (CLI)"
 msgstr "Cơ bản (CLI)"
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Beta next-generation OpenCode runtime with native GUI sessions."
+msgstr "Runtime OpenCode thế hệ mới bản beta với các phiên GUI gốc."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Better (Whisper base)"
 msgstr "Tốt hơn (Whisper base)"
@@ -1997,10 +2015,18 @@ msgstr "Mang theo các thay đổi chưa được cam kết"
 msgid "Browse"
 msgstr "Duyệt"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Browse ecosystem"
+msgstr "Khám phá hệ sinh thái"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
 msgstr "Duyệt tìm thư mục mẹ"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Browse plugins"
+msgstr "Duyệt plugin"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Browse your GitHub repositories or paste a clone URL."
@@ -2024,7 +2050,7 @@ msgstr "Duyệt, kiểm tra và thử nghiệm trang web trong trình duyệt t�
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "Trình duyệt"
@@ -2297,6 +2323,10 @@ msgstr "Thay đổi"
 msgid "Changes ({0})"
 msgstr "Thay đổi ({0})"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Changes apply globally to this environment."
+msgstr "Các thay đổi áp dụng toàn cục cho môi trường này."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
 msgstr "Thay đổi áp dụng cho cuộc trò chuyện mới. Nhà cung cấp hỗ trợ tải lại skill trực tiếp có thể cập nhật sớm hơn."
@@ -2350,10 +2380,15 @@ msgstr "Kiểm tra lại {serverName}"
 msgid "Check again"
 msgstr "Kiểm tra lại"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Check agent plugin updates"
+msgstr "Kiểm tra cập nhật plugin tác nhân"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Check for update"
 msgstr "Kiểm tra bản cập nhật"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
@@ -2535,7 +2570,7 @@ msgstr "Chọn, hướng dẫn và điều phối các subagent cho công việc
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -2675,6 +2710,7 @@ msgstr "Nhân bản…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
@@ -3072,6 +3108,10 @@ msgstr "Giao tiếp"
 msgid "Community"
 msgstr "Cộng đồng"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Community plugin. V2 support is declared by its author; compatibility depends on your OpenCode version."
+msgstr "Plugin cộng đồng. Tác giả công bố hỗ trợ V2; khả năng tương thích phụ thuộc vào phiên bản OpenCode của bạn."
+
 #: src/renderer/components/providers/muse/index.tsx
 msgid "Compact the conversation context"
 msgstr "Nén ngữ cảnh cuộc trò chuyện"
@@ -3147,7 +3187,7 @@ msgstr "Điều khiển trình soạn thảo"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Computer Use"
 msgstr "Sử dụng máy tính"
 
@@ -3199,8 +3239,12 @@ msgstr "Thư mục cấu hình"
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "Cấu hình máy chủ mà Poracode sẽ thêm khi khởi động các tác nhân được hỗ trợ."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Configured"
+msgstr "Đã cấu hình"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Configured MCP servers"
 msgstr "Máy chủ MCP đã cấu hình"
 
@@ -3262,6 +3306,10 @@ msgstr "Kết nối qua SSH"
 #: src/mobile/setupEmptyState.tsx
 msgid "Connect Poracode on your desktop before starting a thread."
 msgstr "Kết nối Poracode trên máy tính trước khi bắt đầu một luồng."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Connect the AI providers OpenCode 2 can use and sign out of them here."
+msgstr "Kết nối các nhà cung cấp AI mà OpenCode 2 có thể dùng và đăng xuất khỏi chúng tại đây."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Connect the AI providers OpenCode can use and sign out of them here."
@@ -3397,7 +3445,7 @@ msgstr "Tiếp tục trong..."
 msgid "Continue on the desktop address"
 msgstr "Tiếp tục trên địa chỉ của desktop"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
 msgstr "Điều khiển trình duyệt Chrome bên ngoài."
 
@@ -3409,7 +3457,7 @@ msgstr "Điều khiển trình duyệt Chrome bên ngoài."
 msgid "Control desktop apps in the background and complete visual workflows."
 msgstr "Điều khiển ứng dụng máy tính ở chế độ nền và hoàn thành quy trình làm việc trực quan."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Control the desktop."
 msgstr "Điều khiển máy tính."
 
@@ -3614,6 +3662,7 @@ msgstr "Không thể cài đặt {0}."
 msgid "Couldn't list repositories."
 msgstr "Không thể liệt kê các kho lưu trữ."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Couldn't load plugins."
 msgstr "Không thể tải plugin."
@@ -3629,6 +3678,10 @@ msgstr "Không thể tải skill."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "Không thể tải thống kê hồ sơ của bạn."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Couldn't manage plugins. Check the package name, OpenCode version, and network connection, then retry."
+msgstr "Không thể quản lý plugin. Hãy kiểm tra tên gói, phiên bản OpenCode và kết nối mạng, rồi thử lại."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't move the thread to a worktree."
@@ -3838,7 +3891,7 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
 
@@ -4039,6 +4092,14 @@ msgstr "Bản tóm tắt hằng ngày"
 msgid "Dark"
 msgstr "Tối"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Date"
+msgstr "Ngày"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Date and time"
+msgstr "Ngày và giờ"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Days"
 #~ msgstr "Ngày"
@@ -4095,7 +4156,7 @@ msgstr "Hành vi xóa chủ đề mặc định"
 msgid "Delegate focused work to other installed agents and coordinate the results."
 msgstr "Giao việc cụ thể cho các agent đã cài khác và điều phối kết quả."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Delegate work to other AI agents."
 msgstr "Giao việc cho các tác nhân AI khác."
 
@@ -4391,7 +4452,7 @@ msgstr "Thiết bị có thể ghép nối khi máy tính này có thể truy c�
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Disable {0}"
 msgstr "Tắt {0}"
 
@@ -4509,6 +4570,10 @@ msgstr "Hủy các thay đổi chưa lưu trong trình chỉnh sửa?"
 msgid "Disconnect server"
 msgstr "Ngắt kết nối máy chủ"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Discover"
+msgstr "Khám phá"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
 msgstr "Đang khám phá các tác nhân lập trình…"
@@ -4570,6 +4635,7 @@ msgstr "xong"
 
 #. Notification status: thread is done
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4774,10 +4840,14 @@ msgstr "Mức nỗ lực cho {modelName}"
 msgid "Electron"
 msgstr "Electron"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Email address"
+msgstr "Địa chỉ email"
+
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Enable {0}"
 msgstr "Bật {0}"
 
@@ -4914,6 +4984,10 @@ msgstr "Nhập tên dự án hợp lệ."
 msgid "Enter a valid SSH target and port."
 msgstr "Nhập đích SSH và cổng hợp lệ."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Enter a valid value."
+msgstr "Nhập giá trị hợp lệ."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
 #~ msgstr "Nhập đường dẫn tuyệt đối đến gói @cursor/sdk hoặc để trống để tự động phát hiện."
@@ -4938,6 +5012,7 @@ msgstr "Nhập mật khẩu SSH."
 msgid "Enter valid JSON."
 msgstr "Nhập JSON hợp lệ."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "Môi trường"
@@ -5256,6 +5331,10 @@ msgstr "Không tạo được pull request: {detail}"
 #~ msgid "Failed to interrupt remote thread."
 #~ msgstr "Không thể ngắt luồng từ xa."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Failed to load"
+msgstr "Tải thất bại"
+
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
 msgstr "Không tải được thống kê hồ sơ."
@@ -5312,6 +5391,7 @@ msgid "Favorites"
 msgstr "Yêu thích"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Featured"
 msgstr "Nổi bật"
 
@@ -6335,6 +6415,8 @@ msgstr "cài đặt"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -6396,6 +6478,10 @@ msgstr "Cài đặt ACP trong {environment}"
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
 #~ msgstr "Cài đặt ACP, SDK hoặc cả hai, sau đó chọn môi trường chạy để bắt đầu các cuộc trò chuyện Cursor GUI mới. Các cuộc trò chuyện hiện có vẫn gắn với môi trường đã tạo ra chúng."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Install and manage native OpenCode plugins."
+msgstr "Cài đặt và quản lý plugin gốc của OpenCode."
 
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
@@ -6484,6 +6570,10 @@ msgstr "Cài đặt trên {env}"
 msgid "Install on Windows"
 msgstr "Cài đặt trên Windows"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Install OpenCode 2 to manage its plugins."
+msgstr "Cài OpenCode 2 để quản lý các plugin của nó."
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "Cài đặt gói"
@@ -6525,6 +6615,8 @@ msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "Cài đặt, cập nhật và đăng nhập chưa khả dụng trên máy từ xa."
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -6848,6 +6940,7 @@ msgstr "Đang tải ghi chú…"
 #~ msgid "Loading PDF…"
 #~ msgstr "Đang tải PDF…"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Loading plugins…"
 msgstr "Đang tải plugin…"
@@ -6983,7 +7076,8 @@ msgstr "Đăng nhập {0}"
 msgid "Login required"
 msgstr "Yêu cầu đăng nhập"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -7032,6 +7126,14 @@ msgstr "Quản lý"
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
 msgstr "Quản lý máy chủ MCP"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
+#~ msgstr "Quản lý gói bằng trình quản lý plugin gốc của OpenCode. Các thay đổi áp dụng toàn cục trong môi trường đã chọn, bao gồm plugin terminal."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Manage plugins"
+msgstr "Quản lý plugin"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -7181,6 +7283,21 @@ msgstr "Tối đa hóa"
 msgid "Maximize browser"
 msgstr "Tối đa hóa trình duyệt"
 
+#. placeholder {0}: property.maxLength
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum characters: {0}"
+msgstr "Số ký tự tối đa: {0}"
+
+#. placeholder {0}: property.maxItems
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum selections: {0}"
+msgstr "Số lựa chọn tối đa: {0}"
+
+#. placeholder {0}: property.maximum
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum: {0}"
+msgstr "Tối đa: {0}"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "MCP"
 msgstr "MCP"
@@ -7247,8 +7364,8 @@ msgstr "URL của máy chủ MCP"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "MCP servers"
 msgstr "Máy chủ MCP"
 
@@ -7262,7 +7379,7 @@ msgstr "Máy chủ MCP"
 msgid "MCP Servers"
 msgstr "Máy chủ MCP"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "MCP servers updated."
 msgstr "Đã cập nhật máy chủ MCP."
 
@@ -7451,6 +7568,21 @@ msgstr "Thu nhỏ trình duyệt sang bảng bên phải"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize to panel"
 msgstr "Thu nhỏ vào bảng điều khiển"
+
+#. placeholder {0}: property.minLength
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum characters: {0}"
+msgstr "Số ký tự tối thiểu: {0}"
+
+#. placeholder {0}: property.minItems
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum selections: {0}"
+msgstr "Số lựa chọn tối thiểu: {0}"
+
+#. placeholder {0}: property.minimum
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum: {0}"
+msgstr "Tối thiểu: {0}"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Minute"
@@ -8083,7 +8215,7 @@ msgid "No commits found."
 msgstr "Không tìm thấy cam kết nào."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "No configured MCP servers yet"
 msgstr "Chưa có máy chủ MCP nào được cấu hình"
 
@@ -8260,6 +8392,10 @@ msgstr "Không tìm thấy mô hình nào"
 msgid "No other agents installed"
 msgstr "Không có tác nhân nào khác được cài đặt"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "No package plugins installed."
+msgstr "Chưa cài gói plugin nào."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "No paired devices yet."
 msgstr "Chưa có thiết bị nào được ghép đôi."
@@ -8308,7 +8444,7 @@ msgstr "Không có lời nhắc"
 msgid "No providers are being tracked."
 msgstr "Không có nhà cung cấp đang được theo dõi."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "Chưa có nhà cung cấp nào được kết nối."
 
@@ -8904,6 +9040,26 @@ msgstr "Mở bộ chọn mô hình"
 msgid "OpenCode"
 msgstr "OpenCode"
 
+#: src/renderer/components/providers/opencode2/manifest.ts
+msgid "OpenCode 2"
+msgstr "OpenCode 2"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "OpenCode 2 plugins"
+msgstr "Plugin OpenCode 2"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#~ msgid "OpenCode 2 shares its sign-in with OpenCode."
+#~ msgstr "OpenCode 2 dùng chung đăng nhập với OpenCode."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "OpenCode Goal Plugin"
+msgstr "Plugin OpenCode Goal"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "OpenCode reloads watched configuration automatically. Reopen your thread to refresh plugin commands; terminal-only changes may need a new terminal session."
+msgstr "OpenCode tự động tải lại cấu hình đang theo dõi. Mở lại cuộc trò chuyện để làm mới lệnh plugin; thay đổi dành riêng cho terminal có thể cần phiên mới."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "OpenCode request failed, retrying..."
 msgstr "Yêu cầu OpenCode thất bại, đang thử lại..."
@@ -8962,6 +9118,7 @@ msgstr "Hoặc viết một câu trả lời tùy chỉnh"
 msgid "Orange"
 msgstr "Cam"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
 msgstr "Khác"
@@ -9017,6 +9174,10 @@ msgstr "Cấu hình gói"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Package manager"
 msgstr "Trình quản lý gói"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Package name or Git URL"
+msgstr "Tên gói hoặc URL Git"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Page"
@@ -9235,6 +9396,10 @@ msgstr "Xóa vĩnh viễn các mục lưu trữ đã chọn khỏi {0}."
 msgid "permission"
 msgstr "sự cho phép"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Persistent goals, budgets, and automatic continuation with /goal."
+msgstr "Mục tiêu bền vững, ngân sách và tự động tiếp tục với /goal."
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Personal"
 msgstr "Cá nhân"
@@ -9323,6 +9488,10 @@ msgstr "Phát âm thanh thông báo"
 msgid "Plugin"
 msgstr "Plugin"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Plugin details"
+msgstr "Chi tiết plugin"
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
 msgstr "Thư mục plugin"
@@ -9330,6 +9499,10 @@ msgstr "Thư mục plugin"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Plugin servers"
 msgstr "Máy chủ plugin"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Plugin views"
+msgstr "Chế độ xem plugin"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "plugin.json could not be read as JSON."
@@ -9350,10 +9523,15 @@ msgstr "plugin.json nhắm tới phiên bản Agent Plugins mà bản dựng nà
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Plugins"
 msgstr "Plugin"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Plugins run code with your account's access. Install packages from authors you trust."
+msgstr "Plugin thực thi mã với quyền truy cập của tài khoản bạn. Hãy cài gói từ tác giả đáng tin cậy."
 
 #: src/mobile/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
@@ -9422,7 +9600,7 @@ msgstr "Poracode sẽ cài đặt hoặc tái sử dụng máy chủ trên máy 
 msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
 msgstr "Poracode sẽ khởi động lại, sao lưu dữ liệu hiện tại và thay thế bằng bản sao đầy đủ của dữ liệu Lightcode."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Công cụ trình duyệt tích hợp sẵn của Poracode."
 
@@ -10137,6 +10315,7 @@ msgstr "Ẩn nội dung thông báo"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -10304,15 +10483,23 @@ msgid "Remote URL"
 msgstr "URL từ xa"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Remove"
 msgstr "Xóa"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Remove “{removingTarget}” from OpenCode 2? You can install it again from Discover."
+msgstr "Xóa “{removingTarget}” khỏi OpenCode 2? Bạn có thể cài lại từ mục “Khám phá”."
+
 #. placeholder {0}: att.name
+#. placeholder {0}: pkg.target
 #. placeholder {0}: removeConfirm.target.name
-#. placeholder {0}: window.label
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Remove {0}"
 msgstr "Xóa {0}"
@@ -10329,6 +10516,10 @@ msgstr "Xóa {pattern}"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {rowTitle} from panel"
 msgstr "Xóa {rowTitle} khỏi bảng điều khiển"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
+msgid "Remove {value}"
+msgstr "Xóa {value}"
 
 #. placeholder {0}: removeConfirm.target.name
 #: src/mobile/views/ManageProjectsView.tsx
@@ -10402,6 +10593,10 @@ msgstr "Xóa mô hình"
 msgid "Remove pinned route for {tagLabel}"
 msgstr "Xóa tuyến đã ghim cho {tagLabel}"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Remove plugin"
+msgstr "Xóa plugin"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Remove profile {label}"
 msgstr "Xóa hồ sơ {label}"
@@ -10438,6 +10633,10 @@ msgstr "Gỡ skill đã liên kết “{0}”? Thư mục nguồn sẽ không b�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Remove the project's experiments before removing the project."
 msgstr "Hãy xóa các thử nghiệm của dự án trước khi xóa dự án."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
+msgstr "Xóa thông tin đăng nhập đã lưu của nhà cung cấp này? Bạn có thể kết nối lại từ “Thêm nhà cung cấp”."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -10717,6 +10916,7 @@ msgstr "Tiếp tục tin nhắn tiếp theo trong hàng đợi"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -11043,7 +11243,7 @@ msgstr "Độ bão hòa và độ sáng"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -11086,7 +11286,7 @@ msgstr "Lưu tập tin"
 msgid "Save image"
 msgstr "Lưu hình ảnh"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
 msgstr "Lưu máy chủ MCP"
 
@@ -11842,7 +12042,9 @@ msgid "Sign out {label}"
 msgstr "Đăng xuất {label}"
 
 #. placeholder {0}: provider.label
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#. placeholder {0}: signingOut?.provider.label ?? ""
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "Sign out of {0}"
 msgstr "Đăng xuất khỏi {0}"
 
@@ -12700,6 +12902,7 @@ msgstr "Cho nhà cung cấp mục tiêu biết phải làm gì tiếp theo..."
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -13008,6 +13211,10 @@ msgstr "Chủ đề"
 #: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "Giao diện và cỡ chữ chat"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "These built-in MCP servers are shared by OpenCode 2 threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
+msgstr "Các máy chủ MCP tích hợp sẵn này được chia sẻ giữa các luồng OpenCode 2. Việc lưu sẽ cập nhật các dự án GUI đang chạy; xóa một máy chủ có thể làm gián đoạn lượt đang hoạt động. Các luồng terminal sẽ nhận thay đổi ở lần khởi chạy tiếp theo."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
@@ -14037,6 +14244,7 @@ msgstr "Lên một cấp"
 msgid "update"
 msgstr "cập nhật"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
@@ -14045,7 +14253,9 @@ msgstr "cập nhật"
 msgid "Update"
 msgstr "cập nhật"
 
+#. placeholder {0}: pkg.target
 #. placeholder {0}: props.agentLabel
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0}"
 msgstr "Cập nhật {0}"
@@ -14222,6 +14432,7 @@ msgid "Updating to v{0}"
 msgstr "Đang cập nhật lên v{0}"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "URL"
 msgstr "URL"
 
@@ -14290,6 +14501,10 @@ msgstr "Sử dụng chữ cái, chữ số, dấu chấm, dấu gạch ngang ho�
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
 msgstr "Dùng một thư mục toàn cục, hoặc lồng các cây làm việc bên trong mỗi dự án tại .poracode/worktrees."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Use OpenCode’s CLI to update terminal-only packages."
+msgstr "Dùng CLI OpenCode để cập nhật các gói chỉ dành cho terminal."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"

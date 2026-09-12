@@ -171,19 +171,20 @@ Model/effort lists below are the **statically declared defaults**. Several provi
 
 The **Structured Session** column reflects whether the adapter implements `createStructuredSession` (i.e. supports a `"gui"` presentation mode); it is not a model-list default and is authoritative.
 
-| Provider     | Models                                                                   | Efforts                                  | Live Input            | Structured Session               |
-| ------------ | ------------------------------------------------------------------------ | ---------------------------------------- | --------------------- | -------------------------------- |
-| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku                     | low, medium, high, xHigh, max, ultracode | terminal              | Yes (SDK)                        |
-| Codex        | (probed dynamically via app-server)                                      | (probed dynamically)                     | terminal / GUI server | Yes (stdio app-server)           |
-| Gemini       | (probed dynamically via ACP)                                             | (probed dynamically)                     | terminal              | Yes (ACP)                        |
-| Copilot      | (probed via ACP)                                                         | (probed via ACP)                         | terminal              | Yes (ACP)                        |
-| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`) | (embedded in model name)                 | terminal              | Yes (ACP)                        |
-| Grok         | grok-build (probed via ACP)                                              | (none)                                   | terminal              | Yes (ACP)                        |
-| OpenCode     | (probed dynamically via SDK)                                             | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)                 |
-| Pi           | (authenticated models probed via SDK)                                    | off…max, per model                       | terminal              | Yes (native SDK)                 |
-| Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                           | ACP registry probe                       | terminal / GUI server | Yes (official `antigravity-acp`) |
-| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                   | (none)                                   | terminal              | No                               |
-| Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries       | probed (`none…ultra` fallback)           | terminal              | Yes (MSP over `muse serve`)      |
+| Provider     | Models                                                                             | Efforts                                  | Live Input            | Structured Session               |
+| ------------ | ---------------------------------------------------------------------------------- | ---------------------------------------- | --------------------- | -------------------------------- |
+| Claude       | opus-4-8, fable-5, opus-4-7, opus-4-6, sonnet, haiku                               | low, medium, high, xHigh, max, ultracode | terminal              | Yes (SDK)                        |
+| Codex        | (probed dynamically via app-server)                                                | (probed dynamically)                     | terminal / GUI server | Yes (stdio app-server)           |
+| Gemini       | (probed dynamically via ACP)                                                       | (probed dynamically)                     | terminal              | Yes (ACP)                        |
+| Copilot      | (probed via ACP)                                                                   | (probed via ACP)                         | terminal              | Yes (ACP)                        |
+| Cursor       | auto, composer-\*, GPT/Opus/Sonnet variants (probed via `--list-models`)           | (embedded in model name)                 | terminal              | Yes (ACP)                        |
+| Grok         | grok-build (probed via ACP)                                                        | (none)                                   | terminal              | Yes (ACP)                        |
+| OpenCode     | (probed dynamically via SDK)                                                       | (probed dynamically)                     | terminal / GUI server | Yes (SDK server)                 |
+| OpenCode 2   | (probed dynamically via `@opencode/client`; utility default `opencode/big-pickle`) | Probed per model                         | terminal / GUI server | Yes (V2 HTTP server)             |
+| Pi           | (authenticated models probed via SDK)                                              | off…max, per model                       | terminal              | Yes (native SDK)                 |
+| Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                                     | ACP registry probe                       | terminal / GUI server | Yes (official `antigravity-acp`) |
+| Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                             | (none)                                   | terminal              | No                               |
+| Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries                 | probed (`none…ultra` fallback)           | terminal              | Yes (MSP over `muse serve`)      |
 
 Antigravity is one built-in agent and one registry card with two managed runtime
 prerequisites: `agy` backs Terminal, while the official `antigravity-acp` registry
@@ -198,6 +199,52 @@ in `acpRegistryAutoInstallOptOuts`, so a deliberate removal is never undone; the
 next explicit install clears it. Composer, registry-card, and
 provider-settings update surfaces compare both installed versions with their
 independent latest sources, then one action updates whichever runtimes are stale.
+
+### OpenCode 2 (`opencode2`)
+
+OpenCode 2 is a separate built-in provider from OpenCode 1. Install and update
+`@opencode/cli@2.0.0` with npm's `--prefix "$HOME/.opencode2"` (Windows uses
+`$env:USERPROFILE/.opencode2`). This preserves the existing V1 executable.
+Recent packages contain the actual binary at `bin/opencode.exe`; `opencode2.cjs`
+is only a migration notice. The resolver unwraps that notice and validates the
+version before launching. The client is pinned to `2.0.0`; beta 19500
+is the minimum supported protocol because it introduced `permission.rules`.
+
+- **Data isolation:** every V2 launch uses `OPENCODE_DB=opencode-v2.db`.
+  Configuration paths remain in the OpenCode directories; Session state uses the isolated V2 database; authentication retains the provider's shared credential store.
+  A V2-first database at the default filename breaks V1 startup on a fresh
+  profile. Never rename or migrate the shared V1 database automatically.
+  Session references from pre-isolation development builds fail explicitly on
+  resume rather than silently starting a replacement conversation.
+- **Server:** the pooled runtime starts `serve --hostname=127.0.0.1 --port=0
+--print-logs`, reads its URL and generated Basic-auth password, and redacts
+  readiness credentials from diagnostics. Catalog reads wait for
+  `plugin.awaitActivation()`. All client types live behind `clientTypes.ts`;
+  the ESM-only client is dynamically imported by the supervisor.
+- **Events:** `event.subscribe` is live-tail only. Admission waits for the first
+  connection. Reconnection reconciles message snapshots, outstanding forms and
+  permissions, and active-session state before admitting another prompt.
+  Completed provider message IDs prevent duplicate rows, and authoritative final
+  text replaces divergent partial text. Child sessions are attached through
+  native subagent tool metadata and do not change the parent turn's lifecycle.
+- **GUI controls:** model and variant selection, built-in Plan mode, primary
+  agent commands, native commands and skills, attachment URI references,
+  structured forms and permissions, Stop and native steering, compaction,
+  rollback, and resume use the V2 API. Permission policy is applied per session
+  before a turn, without separate server processes for different policies.
+- **Terminal:** model, variant, agent, and permissions are persisted through the
+  API before attaching the real PTY with `--session`. The default TUI command
+  has no model/agent flags. Status uses terminal heuristics; there is no V2
+  hook plugin. GUI cross-agent MCP calls use trusted provider-session routing.
+- **MCP and generation:** provider settings manage the directory-scoped MCP set.
+  Utility generation uses `session.generate` without a tool loop, then removes
+  its temporary session. Both one-shot capability flags are supported.
+- **Compatibility copies:** provider discovery changes invalidate both the
+  supervisor status cache and the renderer's persisted capability cache.
+  Runtime `content.delta.replace` carries authoritative stream snapshots; remote
+  protocol v10 prevents older peers from appending them as deltas. Existing
+  persisted streams remain valid. Provider wire compatibility is enforced at
+  detection and server acquisition.
 
 ### ACP session ownership
 

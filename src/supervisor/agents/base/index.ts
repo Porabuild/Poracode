@@ -714,6 +714,34 @@ export function createRecursiveDirWatcher(
 }
 
 /**
+ * The `AgentStatus` a provider returns when its own binary resolution rejects
+ * every candidate. Providers that resolve a binary before delegating to
+ * `detectAgentInstall` need this shape twice — nothing found, and found but
+ * rejected — so the optional fields live here instead of being hand-copied.
+ * Accepts either a `DetectionSpec` or an already-probed `AgentStatus` as the
+ * source of the identity/update fields.
+ */
+export function notInstalledAgentStatus(
+  source: {
+    kind: DetectionSpec["kind"];
+    label: string;
+    loginCommand?: DetectionSpec["loginCommand"] | undefined;
+    update?: DetectionSpec["update"] | undefined;
+  },
+  capabilities: AgentStatus["capabilities"],
+): AgentStatus {
+  return {
+    kind: source.kind,
+    label: source.label,
+    installed: false,
+    authState: "missing",
+    capabilities,
+    ...(typeof source.loginCommand === "string" ? { loginCommand: source.loginCommand } : {}),
+    ...(source.update ? { update: source.update } : {}),
+  };
+}
+
+/**
  * Run the shared install-detection flow for an adapter.
  *
  * Steps:

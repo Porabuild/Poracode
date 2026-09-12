@@ -94,7 +94,9 @@ const execFileAsync = promisify(execFile);
 // v29 advertises session-local MCP tools for Command Code.
 // v30 refreshes terminal MCP capabilities across supported CLIs.
 // v32 invalidates capabilities from the removed persistent MCP proxy prototype.
-export const STATUS_CACHE_VERSION = 32;
+// v33 discovers the OpenCode 2 provider and re-probes its per-provider
+// credential lists alongside auth state.
+export const STATUS_CACHE_VERSION = 33;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

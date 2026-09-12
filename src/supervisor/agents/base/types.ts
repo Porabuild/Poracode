@@ -1,5 +1,9 @@
 import type { NativeMcpConfigFile } from "../../mcp/nativeSetup/configFile";
 import type {
+  ManageAgentCredentialsPayload,
+  ManageAgentCredentialsResult,
+  ManageAgentPluginsPayload,
+  ManageAgentPluginsResult,
   AgentAuthMethod,
   AgentCapability,
   AgentKind,
@@ -771,9 +775,25 @@ export interface AgentAdapter
     Partial<AgentAcpAuth>,
     Partial<AgentCliHookPluginSupport>,
     Partial<AgentNativePluginSupport> {
+  /** Manage native provider package plugins in the selected execution environment. */
+  managePlugins?(
+    input: Omit<ManageAgentPluginsPayload, "agentKind">,
+  ): Promise<ManageAgentPluginsResult>;
+
+  /**
+   * List and remove per-upstream-provider credentials. Implemented by agents
+   * that authenticate against several AI providers instead of one account.
+   */
+  manageCredentials?(
+    input: Omit<ManageAgentCredentialsPayload, "agentKind">,
+  ): Promise<ManageAgentCredentialsResult>;
+
   /** Run this provider inside WSL when its project lives on native Windows. */
   readonly windowsProjectExecution?: "wsl";
   readonly skillSupport?: AgentSkillSupport;
+  /** Release provider-owned shared processes after all thread sessions have closed. */
+  shutdown?(): void | Promise<void>;
+
   /** Route stdio MCPs with an explicit cwd through the proxy when the native runtime ignores cwd. */
   readonly mcpRequiresStdioCwdProxy?: boolean;
 

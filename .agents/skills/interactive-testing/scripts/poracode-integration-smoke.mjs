@@ -218,6 +218,7 @@ async function runSmoke(plan) {
       ).catch(() => undefined);
     }
     if (mode === "mock" && plan.manual.length > 0) {
+      await resetDrivenState(client);
       await runMockIntegrations(report, client, plan.manual);
     }
     const collected = await evaluate(client, "window.__smokeErrors ?? []");
@@ -322,16 +323,24 @@ async function welcomeDismissalScenario(client) {
     return { dismissed: false, detail: "welcome screen was already dismissed" };
   }
 
-  const clicked = await evaluate(
-    client,
-    `(() => {
-      const button = document.querySelector(".poracode-welcome-page button");
-      if (!(button instanceof HTMLButtonElement)) return false;
-      button.click();
-      localStorage.setItem("poracode-welcome-seen-v16", "true");
-      return true;
-    })()`,
-  );
+  // Bounded re-click until .poracode-welcome-page is gone (handlers may attach late).
+  let clicked = false;
+  let dismissed = false;
+  for (let attempt = 0; attempt < 5 && !dismissed; attempt += 1) {
+    clicked = await evaluate(
+      client,
+      `(() => {
+        const button = document.querySelector(".poracode-welcome-page button");
+        if (!(button instanceof HTMLButtonElement)) return false;
+        button.click();
+        localStorage.setItem("poracode-welcome-seen-v16", "true");
+        return true;
+      })()`,
+    );
+    if (!clicked) break;
+    await new Promise((resolveWait) => setTimeout(resolveWait, 1_500));
+    dismissed = await evaluate(client, `!document.querySelector(".poracode-welcome-page")`);
+  }
   assert(clicked, "welcome screen primary action was not clickable");
   const final = await waitForValue(
     () =>

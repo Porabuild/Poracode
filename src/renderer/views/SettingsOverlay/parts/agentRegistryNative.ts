@@ -14,6 +14,7 @@ import { ClaudeAgentSettingsPanel, claudeProfileSupport } from "./ClaudeProfileS
 import { CodexProviderSettings } from "./CodexProviderSettings";
 import { cursorProfileSupport } from "./CursorProfileSettings";
 import { CursorProviderSettings } from "./CursorProviderSettings";
+import { OpenCode2ProviderSettings } from "./OpenCode2ProviderSettings";
 import { OpenCodeProviderSettings } from "./OpenCodeProviderSettings";
 import { cursorAgentInstallCommand, cursorRuntimeSlots } from "./cursorRuntimeInstall";
 import type { NativeAgentRuntimeSlots } from "./nativeAgentRuntimes";
@@ -243,6 +244,19 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
           "if (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g opencode-ai } else { Write-Host 'No supported installer found. Install Node.js/npm first, then refresh detected agents.' }",
       }),
     settingsPanel: OpenCodeProviderSettings,
+    ownsAuthUi: true,
+  },
+  {
+    id: "opencode2",
+    description: msg`Beta next-generation OpenCode runtime with native GUI sessions.`,
+    docsUrl: "https://opencode.ai/v2/docs",
+    installCommand: (project) =>
+      nativeInstallCommand(project, {
+        mac: 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.0',
+        posix: 'npm install --prefix "$HOME/.opencode2" @opencode/cli@2.0.0',
+        windows: 'npm install --prefix "$env:USERPROFILE/.opencode2" @opencode/cli@2.0.0',
+      }),
+    settingsPanel: OpenCode2ProviderSettings,
     ownsAuthUi: true,
   },
   {

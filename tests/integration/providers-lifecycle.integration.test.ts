@@ -40,6 +40,7 @@ const PREFERRED_MODEL: Record<string, string> = {
   antigravity: "auto",
   commandcode: "google/gemini-3.1-flash-lite",
   opencode: "opencode/big-pickle",
+  opencode2: "opencode-go/deepseek-v4.1-flash",
   kimi: "kimi-code/kimi-for-coding",
   muse: "muse-spark-1.3",
   qwen: "qwen3.8-max",

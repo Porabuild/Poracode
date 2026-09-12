@@ -61,8 +61,8 @@ describe("remote thread snapshots", () => {
         updatedAt: "2026-01-01T00:00:00.000Z",
       }).thread.config.executionEnvironment,
     ).toEqual({ kind: "wsl", distro: "Ubuntu-24.04" });
-    expect(PORACODE_REMOTE_PROTOCOL_VERSION).toBe(9);
-    expect(LAUNCH_REMOTE_SERVER_SCRIPT).toContain("descriptor.protocolVersion === 9");
+    expect(PORACODE_REMOTE_PROTOCOL_VERSION).toBe(10);
+    expect(LAUNCH_REMOTE_SERVER_SCRIPT).toContain("descriptor.protocolVersion === 10");
   });
 });
 

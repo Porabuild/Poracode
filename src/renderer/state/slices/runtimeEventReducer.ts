@@ -336,7 +336,9 @@ function applyRuntimeItemEvent(
         state: prev.state === "completed" ? "completed" : "updated",
         streams: {
           ...prev.streams,
-          [event.stream]: (prev.streams[event.stream] ?? "") + event.delta,
+          [event.stream]: event.replace
+            ? event.delta
+            : (prev.streams[event.stream] ?? "") + event.delta,
         },
       };
       return true;

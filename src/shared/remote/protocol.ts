@@ -23,7 +23,8 @@ import { sharedSettingsSchema } from "../settings";
 // procedures and optional thread-snapshot field remain readable by older v9
 // peers, while the client reports an explicit unsupported error when an older
 // host does not advertise the procedures.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 9;
+// v10 supports authoritative content stream replacement during reconnect recovery.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 10;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([

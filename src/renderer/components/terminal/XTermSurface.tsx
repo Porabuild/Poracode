@@ -154,6 +154,7 @@ export const XTermSurface = forwardRef<
     onTerminalResize,
     className,
     baseFontSize = 12,
+    enabled = true,
     openLinksInNativeBrowser = false,
     preferDomRenderer = false,
     visible = true,
@@ -270,6 +271,8 @@ export const XTermSurface = forwardRef<
     let scrollbackHydrationToken = 0;
     let hydratingScrollback = false;
     let bufferedOutputDuringHydration = "";
+    // First live output proves the PTY exists after a launch-race drop.
+    let refitOnFirstOutput = true;
     // Fit the canvas every frame for live visual feedback, but DEBOUNCE the PTY
     // resize RPC, mirroring VS Code's TerminalResizeDebouncer. A full-height
     // repaint-in-place TUI (Claude no-flicker, codex) re-emits its whole frame
@@ -563,6 +566,8 @@ export const XTermSurface = forwardRef<
     requestRefitRef.current = () => {
       lastFitWidth = -1;
       lastFitHeight = -1;
+      lastCols = -1;
+      lastRows = -1;
       scheduleResize();
     };
     revealRef.current = () => {
@@ -848,6 +853,10 @@ export const XTermSurface = forwardRef<
         bufferedOutputDuringHydration += data;
         return;
       }
+      if (refitOnFirstOutput) {
+        refitOnFirstOutput = false;
+        requestRefitRef.current?.();
+      }
       terminal.write(data);
     };
     const handleExited = (exitCode: number | null) => {
@@ -940,6 +949,13 @@ export const XTermSurface = forwardRef<
   useEffect(() => {
     requestRefitRef.current?.();
   }, [baseFontSize]);
+
+  // Status flipping to active is the "PTY now exists" signal after a dropped launch fit.
+  useEffect(() => {
+    if (enabled) {
+      requestRefitRef.current?.();
+    }
+  }, [enabled]);
 
   // Re-run the search (highlighting all matches and jumping to the nearest) as
   // the query/case toggle changes; clear decorations when find closes or empties.
