@@ -4361,6 +4361,7 @@ msgstr "Найти агентов на этом компьютере"
 #~ msgid "Detect from project files"
 #~ msgstr "Определить по файлам проекта"
 
+#: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Detected"
 msgstr "Обнаружено"

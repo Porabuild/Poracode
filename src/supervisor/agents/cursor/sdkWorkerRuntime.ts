@@ -72,13 +72,15 @@ export interface RuntimeSdkModule extends CursorSdkModule {
 export class CursorSdkWorkerRuntime {
   private loadedSdk: RuntimeSdkModule | undefined;
   private discoveryKey: string | undefined;
-  private sdkMetadata: Pick<CursorSdkWorkerProbeResult, "sdkVersion" | "source"> | undefined;
+  private sdkMetadata:
+    | Pick<CursorSdkWorkerProbeResult, "sdkVersion" | "source" | "packageRoot">
+    | undefined;
 
   get module(): RuntimeSdkModule | undefined {
     return this.loadedSdk;
   }
 
-  get metadata(): Pick<CursorSdkWorkerProbeResult, "sdkVersion" | "source"> {
+  get metadata(): Pick<CursorSdkWorkerProbeResult, "sdkVersion" | "source" | "packageRoot"> {
     return this.sdkMetadata ?? { sdkVersion: "unknown", source: "explicit-entry" };
   }
 
@@ -106,6 +108,7 @@ export class CursorSdkWorkerRuntime {
     } else {
       const result = await loadCursorSdk({
         ...(discovery.configuredPath ? { configuredPath: discovery.configuredPath } : {}),
+        ...(discovery.pinnedRoot ? { pinnedRoot: discovery.pinnedRoot } : {}),
         projectCwd,
         ...(apiKey ? { apiKey } : {}),
         env: process.env,
@@ -119,6 +122,7 @@ export class CursorSdkWorkerRuntime {
       this.sdkMetadata = {
         sdkVersion: result.value.version,
         source: result.value.source,
+        packageRoot: result.value.packageRoot,
       };
     }
 

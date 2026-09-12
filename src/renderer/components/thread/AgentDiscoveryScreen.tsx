@@ -30,10 +30,17 @@ function renderStatusLine(
 function renderCombinedStatusLine(discovered: readonly AgentStatus[]): ReactNode {
   if (discovered.length === 0) return <Trans>Warming up shell environments...</Trans>;
   const readyKinds = new Set(
-    discovered.filter((status) => status.installed).map((status) => status.kind),
+    discovered.filter((status) => isReadyCountable(status)).map((status) => status.kind),
   );
   if (readyKinds.size === 0) return <Trans>No providers ready yet</Trans>;
   return <Plural value={readyKinds.size} one="# provider ready" other="# providers ready" />;
+}
+
+/** Installed, not awaiting sign-in, and carrying a model catalog the probe verified. */
+function isVerifiedUsable(status: AgentStatus): boolean {
+  return (
+    status.installed && status.authState !== "missing" && status.capabilities.models.length > 0
+  );
 }
 
 function readyBadge(status: AgentStatus): { label: MessageDescriptor; toneClass: string } | null {
@@ -41,12 +48,23 @@ function readyBadge(status: AgentStatus): { label: MessageDescriptor; toneClass:
   if (status.authState === "missing") {
     return { label: msg`Sign in needed`, toneClass: "text-warning" };
   }
+  // An install whose probe reached no verdict carries no model catalog, so it
+  // must not read as launchable: detection found it, but could not verify it
+  // works.
+  if (!isVerifiedUsable(status)) {
+    return { label: msg`Detected`, toneClass: "text-warning" };
+  }
   return { label: msg`Ready`, toneClass: "text-success" };
 }
 
 function statusRank(status: AgentStatus): number {
   if (!status.installed) return 0;
-  return status.authState === "missing" ? 1 : 2;
+  return isVerifiedUsable(status) ? 2 : 1;
+}
+
+/** "Ready"-countable: installed and either awaiting sign-in or verified usable. */
+function isReadyCountable(status: AgentStatus): boolean {
+  return status.installed && (status.authState === "missing" || isVerifiedUsable(status));
 }
 
 interface ScanTarget {
@@ -92,7 +110,7 @@ export function AgentDiscoveryScreen(props: {
     }
     statusesByKind.set(status.kind, [...(statusesByKind.get(status.kind) ?? []), status]);
   }
-  const installedCount = discovered.reduce((n, s) => n + (s.installed ? 1 : 0), 0);
+  const installedCount = discovered.reduce((n, s) => n + (isReadyCountable(s) ? 1 : 0), 0);
   const wslDistro = props.location?.kind === "wsl" ? props.location.distro : undefined;
   const scanTargets: ScanTarget[] =
     wslDistro !== undefined

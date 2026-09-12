@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { type PoracodeChannel, resolvePoracodeChannel, userDataDirNameFor } from "./channel";
 
 export interface PoracodePaths {
@@ -24,6 +24,14 @@ export interface PoracodePaths {
   /** Parent of the per-plugin `PLUGIN_DATA` directories handed to MCP servers. */
   pluginDataDir: string;
   /**
+   * Durable record of package installations Poracode discovered outside its own
+   * bundle, keyed by an opaque provider slot id. Lives beside `settings.json`
+   * rather than under `cacheDir` because it is the one thing that must survive
+   * an app update: it is what lets a resolved installation be re-found without
+   * a PATH-dependent package-manager probe.
+   */
+  packageInstallPinsPath: string;
+  /**
    * Cache directory for ACP registry agent icons. Icons are downloaded once
    * at install/backfill time, served from disk via the `poracode-local://`
    * protocol so the renderer paints them synchronously on app start instead
@@ -37,6 +45,19 @@ export function resolvePoracodeBaseDir(
   homeDir: string = homedir(),
 ): string {
   return join(homeDir, userDataDirNameFor(channel));
+}
+
+/**
+ * The supervisor's data base dir as handed down through the environment, or
+ * `undefined` when it is absent or unusable. The guards mirror the supervisor
+ * boot's own parsing: `process.env.X = undefined` coerces to the literal
+ * string "undefined", and a relative path would make writes land relative to
+ * an arbitrary cwd. Callers compose their own fallback (the supervisor boots
+ * with `~/.poracode`).
+ */
+export function poracodeBaseDirFromEnv(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const raw = env["PORACODE_DATA_DIR"]?.trim();
+  return raw && raw !== "undefined" && isAbsolute(raw) ? raw : undefined;
 }
 
 export function resolvePoracodePaths(baseDir: string = resolvePoracodeBaseDir()): PoracodePaths {
@@ -56,6 +77,7 @@ export function resolvePoracodePaths(baseDir: string = resolvePoracodeBaseDir())
     agentPluginsDir: join(baseDir, "agent-plugins"),
     pluginsDir: join(baseDir, "plugins"),
     pluginDataDir: join(baseDir, "plugin-data"),
+    packageInstallPinsPath: join(baseDir, "package-install-pins.json"),
     acpIconsDir: join(cacheDir, "acp-icons"),
   };
 }

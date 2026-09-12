@@ -3,8 +3,19 @@ import type {
   CursorSdkMessage,
   CursorSdkRunResult,
 } from "./sdkProtocol";
+import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSupport";
 
-export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 1;
+/**
+ * Bumped to 2 for the additive `sdk.pinnedRoot` request field and
+ * `packageRoot` probe result field: the host now hands the worker a previously
+ * resolved installation to try before probing for one, and needs the absolute
+ * root back to record it. Both ends ship in this app and the handshake
+ * requires an exact version match, so a stale staged helper fails the boot
+ * loudly instead of silently ignoring the new fields — that failure is what
+ * gets it re-staged from current source (the SSH runtime bundle re-installs
+ * whenever the built worker bytes change).
+ */
+export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 2;
 
 export interface CursorSdkWorkerModelParameter {
   id: string;
@@ -41,17 +52,15 @@ export interface CursorSdkWorkerModel {
 export interface CursorSdkWorkerProbeResult {
   models: CursorSdkWorkerModel[];
   sdkVersion: string;
-  source:
-    | "configured"
-    | "project"
-    | "node-path"
-    | "global-explicit"
-    | "global-inferred"
-    | "global-npm"
-    | "global-pnpm"
-    | "explicit-entry";
+  source: CursorSdkPackageSource | "explicit-entry";
   /** Account the probed API key belongs to, from `Cursor.me()`. */
   authenticatedAs?: string;
+  /**
+   * Absolute directory of the resolved package, so the host can record it for
+   * later probes. Absent when the worker loaded an explicit entry path rather
+   * than discovering an installation.
+   */
+  packageRoot?: string;
 }
 
 export type CursorSdkWorkerMcpServer =
@@ -191,6 +200,13 @@ export type CursorSdkWorkerEvent =
 
 export interface CursorSdkWorkerDiscovery {
   configuredPath?: string;
+  /**
+   * An installation the host already resolved and recorded, tried after every
+   * freely re-derivable candidate and before the package-manager probes.
+   * Keeps a working install resolvable when the package manager is not
+   * reachable from this process' `PATH`.
+   */
+  pinnedRoot?: CursorSdkPinHint;
   /**
    * Test/fast-path only. Normal callers let the worker discover the package
    * inside its own execution environment.
