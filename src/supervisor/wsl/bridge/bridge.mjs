@@ -53,7 +53,10 @@ import { createRequire } from "node:module";
 
 // Bumped on every behavioural change. Windows side reads this via regex.
 // Parent-pipe EOF now releases idle bridges and orphaned helpers.
-const BRIDGE_VERSION = "2.16.0";
+// 2.17.0: forces replacement of 2.16.0 helpers deployed before
+// symlink-ancestor mutation rejection — that behavior shipped while the
+// constant still said 2.16.0, so the handshake cannot tell them apart.
+const BRIDGE_VERSION = "2.17.0";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
