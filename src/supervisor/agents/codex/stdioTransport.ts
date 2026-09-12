@@ -27,6 +27,14 @@ export class CodexStdioTransport {
 
     child.stdout?.on("data", (chunk) => this.handleStdout(String(chunk)));
     child.stderr?.on("data", (chunk) => this.recordOutput(String(chunk)));
+    child.stdin?.on("error", (error) => {
+      // EPIPE means the app-server exited while a write was still in
+      // flight — the exit handler below is the authoritative failure path.
+      if ((error as NodeJS.ErrnoException).code === "EPIPE") return;
+      if (!this.disposed) {
+        this.listener?.onError(error);
+      }
+    });
     child.once("error", (error) => {
       if (!this.disposed) {
         this.listener?.onError(error);

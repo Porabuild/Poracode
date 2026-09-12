@@ -101,6 +101,16 @@ function runProcess(
       if (code === 0) resolve(result);
       else reject(commandError(command, result, code));
     });
+    child.stdin.on("error", (error) => {
+      // An ssh that dies before consuming stdin (auth failure, refused
+      // connection) surfaces here as EPIPE; the exit handler above is the
+      // authoritative outcome. Other stdin errors reject like child errors.
+      if ((error as NodeJS.ErrnoException).code !== "EPIPE" && !settled) {
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      }
+    });
     if (options.stdin !== undefined) child.stdin.end(options.stdin);
     else child.stdin.end();
   });
@@ -387,6 +397,12 @@ export class SshConnectionManager {
       windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
     });
+    // A tunnel that exits immediately (ExitOnForwardFailure, refused
+    // connection) can close stdin before the end() flushes. The exited
+    // promise below owns every tunnel failure mode, so stdin stream errors
+    // here never change the outcome — swallowing them only prevents an
+    // unhandled 'error' from taking down the main process.
+    child.stdin.on("error", () => undefined);
     child.stdin.end();
     let stderr = "";
     child.stderr.on("data", (chunk: Buffer) => {
