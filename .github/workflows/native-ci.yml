@@ -236,8 +236,6 @@ jobs:
           disable-animations: true
           working-directory: android
           script: |
-            # The runner's own boot wait has been observed to proceed while the
-            # device is still offline; gate every assert on a completed boot.
             adb wait-for-device
             for attempt in $(seq 1 120); do
               boot="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
