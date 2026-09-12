@@ -203,12 +203,25 @@ not close these UI/transport gaps.
 _Status 2026-09-13: queue order 1 is in flight. Stage 0 landed — shared
 `protocol/remote/v3/fixtures/thread-follow-up-queue-envelope.json` (schema-validated
 against `threadFollowUpQueueStateSchema`/`setPendingSteerPayloadSchema`, carrying
-procedure requests, the get-result, and set/paused/clear broadcasts). Android stage
-A1 landed (`5a592780f`) — all eight procedures ride the generic procedure-call
-transport with generated codec validation, pinned by a fixture-driven round-trip
-test; remaining Android work is decode/state (A2), queue strip UI + all-locale
-strings (A3), and race pins (A4), then the iOS mirror and the nine-entry ledger
-flip per platform._
+procedure requests, the get-result, and set/paused/clear broadcasts). Android:
+A1 landed (`5a592780f`) — all eight procedures ride the generated procedure-call
+transport with codec validation, pinned by a fixture round-trip test; A2 landed
+(`352d83569`) — event decode into `RichThreadState`, replace-on-event reduction,
+snapshot seeding with the desktop's absent-vs-null tri-state (absent = supervisor
+read failed, preserve; explicit null clears; the install path preserves on absent);
+A3 landed (`a5bae74ef`) — gateway/controller queue mutations (controller
+extensions under the size gate), steer-default routing with a long-press-to-queue
+send affordance (`combinedClickable`, single coordinated gesture), the queue
+strip (steer-now / edit-pauses-first-with-segments / remove / beforeId reorder
+anchors / paused+resume; no optimistic mutations), and strings in all 13 Android
+locales with the `%1$d` placeholder pinned. Critic review of both stages fixed
+real blockers (double-fire long-press, edit dropping segments, pause-before-edit
+ordering). Remaining: A4 race pins (runtime broadcast wiring test, buffered
+queue-then-snapshot ordering, gateway payload shapes), the iOS mirror (B1–B4),
+and the `thread-follow-up-queue` event-entry ledger flip per platform. Hosted CI
+has not triggered for pushes since 07:31Z 2026-09-12 (suspected Actions quota —
+needs user-side restoration; all stages verified against the full local gradle
+suite + lint + assemble in the meantime)._
 
 Queue adoption and cursor-sync adoption can proceed independently. Protocol-policy
 and pairing-fixture work should accompany affected paths, not block unrelated native
