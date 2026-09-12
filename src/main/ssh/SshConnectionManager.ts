@@ -101,7 +101,7 @@ function runProcess(
       if (code === 0) resolve(result);
       else reject(commandError(command, result, code));
     });
-    child.stdin.on("error", (error) => {
+    child.stdin.on?.("error", (error) => {
       // An ssh that dies before consuming stdin (auth failure, refused
       // connection) surfaces here as EPIPE; the exit handler above is the
       // authoritative outcome. Other stdin errors reject like child errors.
