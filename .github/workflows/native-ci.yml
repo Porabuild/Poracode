@@ -258,9 +258,7 @@ jobs:
             bash -euo pipefail -c 'mapfile -d "" sources < <(find app/src/androidTest -type f \( -name "*.kt" -o -name "*.java" \) -print0 2>/dev/null); test "${#sources[@]}" -gt 0 || { echo "::error::API 37 androidTest coverage is required; no instrumentation sources exist."; exit 1; }; grep -Eiq "ACCESS_LOCAL_NETWORK|LocalNetworkAccess\.PERMISSION" "${sources[@]}" || { echo "::error::androidTest must exercise ACCESS_LOCAL_NETWORK."; exit 1; }; grep -Eiq "grant(ed)?|allow(ed)?" "${sources[@]}" || { echo "::error::androidTest must exercise the granted local-network path."; exit 1; }; grep -Eiq "den(i|y|ied)|revoke(d)?|not[_ ]?allow" "${sources[@]}" || { echo "::error::androidTest must exercise denial or revocation."; exit 1; }'
             adb reverse tcp:49160 tcp:49160
             adb reverse tcp:49161 tcp:49161
-            ./gradlew connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.capability="$capability" \
-              --no-daemon --stacktrace
+            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.capability="$capability" --no-daemon --stacktrace
             printf '%s\n' '### Android 17 runtime evidence' '' '- API 37 emulator booted as Android 17 (REL).' '- The targetSdk 37 / minSdk 26 APK installed and launched.' '- The API 37 instrumentation suite passed.' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Android 17 runtime evidence
@@ -326,9 +324,7 @@ jobs:
           working-directory: android
           script: |
             test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "26"
-            ./gradlew connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.class=com.poracode.app.MinimumSdkLaunchInstrumentedTest \
-              --no-daemon --stacktrace
+            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.poracode.app.MinimumSdkLaunchInstrumentedTest --no-daemon --stacktrace
             printf '%s\n' '### Android 8 minimum-SDK evidence' '' '- API 26 emulator booted.' '- The current APK launched and exposed the pairing entry point.' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Android 8 runtime evidence
