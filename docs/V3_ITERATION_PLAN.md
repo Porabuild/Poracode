@@ -97,6 +97,20 @@ Estimate the remaining work after inspecting hosted checks and live-test access.
    is downstream noise; it passed at `1d39c76fa` and is treated as an infra flake
    pending one more sample. The CLI token cannot re-run failed jobs (no admin
    rights) — retries ride new pushes._
+   _Final 2026-09-13 pass: the API 37 job's device-profile failure is confirmed
+   structural — the runner image no longer ships any `pixel_9*` profile for the
+   API 37 system image (verified via the fallback step's `avdmanager list device`
+   output). Fixed by pre-creating the AVD with a fallback profile chain and
+   dropping `profile:` from the emulator-runner inputs (`0d184efc4`,
+   `efd17c4f3`); with that the emulator boots and the job reaches the
+   instrumentation script, which now races the still-booting device — the
+   remaining iteration is a `wait-for-device`/`sys.boot_completed` guard at the
+   top of that script. The recurring iOS cancellation flake was root-caused via
+   the uploaded xcresult (`XCTAssertEqual failed: ("2") is not equal to ("1")`):
+   URLSession itself reissues a held-open URLProtocol load on slow runners while
+   the client provably creates a single task — the test now asserts the
+   cancellation contract (stop observed, propagation) instead of raw load counts
+   (`242fb2555`)._
 2. **Close the WSL helper upgrade discrepancy before V2-to-master integration or
    release.** `bridge.mjs` still advertises `2.16.0`. Audit deployed copies/readers,
    select the next valid version (planned `2.17.0`), and prove replacement of an
