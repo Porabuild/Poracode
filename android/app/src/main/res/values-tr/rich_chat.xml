@@ -135,4 +135,14 @@
     <string name="rich_chat_app_controls">Uygulama denetimleri</string>
     <string name="rich_chat_remove_context">%1$s öğesini kaldır</string>
     <string name="rich_chat_send_steer">Takip talimatını gönder</string>
+    <string name="rich_chat_queue_title">Sıradaki takipler (%1$d)</string>
+    <string name="rich_chat_queue_steer_now">Şimdi yönlendir</string>
+    <string name="rich_chat_queue_edit">Sıradaki iletiyi düzenle</string>
+    <string name="rich_chat_queue_remove">Sıradan kaldır</string>
+    <string name="rich_chat_queue_move_up">Sırada yukarı taşı</string>
+    <string name="rich_chat_queue_move_down">Sırada aşağı taşı</string>
+    <string name="rich_chat_queue_paused">Teslim duraklatıldı</string>
+    <string name="rich_chat_queue_resume">Sürdür</string>
+    <string name="rich_chat_queue_edit_title">Sıradaki iletiyi düzenle</string>
+    <string name="rich_chat_queue_save">Kaydet</string>
 </resources>

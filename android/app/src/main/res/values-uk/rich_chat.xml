@@ -130,4 +130,14 @@
     <string name="rich_chat_app_controls">Керування застосунком</string>
     <string name="rich_chat_remove_context">Вилучити %1$s</string>
     <string name="rich_chat_send_steer">Надіслати подальшу вказівку</string>
+    <string name="rich_chat_queue_title">Відкладені доручення (%1$d)</string>
+    <string name="rich_chat_queue_steer_now">Скерувати зараз</string>
+    <string name="rich_chat_queue_edit">Редагувати повідомлення в черзі</string>
+    <string name="rich_chat_queue_remove">Вилучити з черги</string>
+    <string name="rich_chat_queue_move_up">Перемістити вище в черзі</string>
+    <string name="rich_chat_queue_move_down">Перемістити нижче в черзі</string>
+    <string name="rich_chat_queue_paused">Доставку призупинено</string>
+    <string name="rich_chat_queue_resume">Відновити</string>
+    <string name="rich_chat_queue_edit_title">Редагувати повідомлення в черзі</string>
+    <string name="rich_chat_queue_save">Зберегти</string>
 </resources>

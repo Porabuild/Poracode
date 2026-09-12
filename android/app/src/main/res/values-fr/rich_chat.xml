@@ -130,4 +130,14 @@
     <string name="rich_chat_app_controls">Contrôles de l’application</string>
     <string name="rich_chat_remove_context">Supprimer %1$s</string>
     <string name="rich_chat_send_steer">Envoyer l’instruction de suivi</string>
+    <string name="rich_chat_queue_title">Relances en file d\'attente (%1$d)</string>
+    <string name="rich_chat_queue_steer_now">Réorienter maintenant</string>
+    <string name="rich_chat_queue_edit">Modifier le message en attente</string>
+    <string name="rich_chat_queue_remove">Retirer de la file d\'attente</string>
+    <string name="rich_chat_queue_move_up">Monter dans la file</string>
+    <string name="rich_chat_queue_move_down">Descendre dans la file</string>
+    <string name="rich_chat_queue_paused">Livraison en pause</string>
+    <string name="rich_chat_queue_resume">Reprendre</string>
+    <string name="rich_chat_queue_edit_title">Modifier le message en attente</string>
+    <string name="rich_chat_queue_save">Enregistrer</string>
 </resources>

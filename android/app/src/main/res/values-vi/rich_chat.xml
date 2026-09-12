@@ -135,4 +135,14 @@
     <string name="rich_chat_app_controls">Điều khiển ứng dụng</string>
     <string name="rich_chat_remove_context">Xóa %1$s</string>
     <string name="rich_chat_send_steer">Gửi chỉ dẫn tiếp theo</string>
+    <string name="rich_chat_queue_title">Việc theo dõi đang chờ (%1$d)</string>
+    <string name="rich_chat_queue_steer_now">Điều hướng ngay</string>
+    <string name="rich_chat_queue_edit">Chỉnh sửa tin nhắn đang chờ</string>
+    <string name="rich_chat_queue_remove">Xóa khỏi hàng đợi</string>
+    <string name="rich_chat_queue_move_up">Chuyển lên trong hàng đợi</string>
+    <string name="rich_chat_queue_move_down">Chuyển xuống trong hàng đợi</string>
+    <string name="rich_chat_queue_paused">Đã tạm dừng gửi</string>
+    <string name="rich_chat_queue_resume">Tiếp tục</string>
+    <string name="rich_chat_queue_edit_title">Chỉnh sửa tin nhắn đang chờ</string>
+    <string name="rich_chat_queue_save">Lưu</string>
 </resources>

@@ -161,6 +161,30 @@ interface RichChatSessionGateway {
     suspend fun updateGoal(lease: RichChatHostLease, threadId: String, update: ThreadGoalUpdate)
     suspend fun setSteer(lease: RichChatHostLease, threadId: String, input: ThreadSteerInput)
     suspend fun clearSteer(lease: RichChatHostLease, threadId: String)
+
+    // Follow-up queue mutations (501 follow_up_queue_unsupported on old hosts
+    // maps to a definite rejection through the shared error classification).
+    suspend fun queueFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        prompt: String,
+        config: JsonObject,
+        segments: JsonArray?,
+    )
+
+    suspend fun removeQueuedFollowUp(lease: RichChatHostLease, threadId: String, id: String)
+    suspend fun reorderQueuedFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        id: String,
+        beforeId: String?,
+    )
+
+    suspend fun editQueuedFollowUp(lease: RichChatHostLease, threadId: String, payload: JsonObject)
+    suspend fun steerQueuedFollowUp(lease: RichChatHostLease, threadId: String, id: String)
+    suspend fun pauseFollowUps(lease: RichChatHostLease, threadId: String, id: String)
+    suspend fun resumeFollowUps(lease: RichChatHostLease, threadId: String)
+
     suspend fun threadCommand(lease: RichChatHostLease, threadId: String, command: JsonObject)
     suspend fun closeThread(lease: RichChatHostLease, threadId: String)
     suspend fun resolveRequest(

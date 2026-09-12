@@ -130,4 +130,14 @@
     <string name="rich_chat_app_controls">앱 제어</string>
     <string name="rich_chat_remove_context">%1$s 삭제</string>
     <string name="rich_chat_send_steer">후속 지시 보내기</string>
+    <string name="rich_chat_queue_title">대기 중인 후속 작업 (%1$d)</string>
+    <string name="rich_chat_queue_steer_now">지금 조정</string>
+    <string name="rich_chat_queue_edit">대기 중인 메시지 편집</string>
+    <string name="rich_chat_queue_remove">대기열에서 제거</string>
+    <string name="rich_chat_queue_move_up">대기열에서 위로 이동</string>
+    <string name="rich_chat_queue_move_down">대기열에서 아래로 이동</string>
+    <string name="rich_chat_queue_paused">전달 일시중지됨</string>
+    <string name="rich_chat_queue_resume">재개</string>
+    <string name="rich_chat_queue_edit_title">대기 중인 메시지 편집</string>
+    <string name="rich_chat_queue_save">저장</string>
 </resources>

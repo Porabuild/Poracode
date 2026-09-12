@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 fun interface RichThreadCommandTransport {
     suspend fun execute(threadId: String, command: JsonObject)
@@ -129,6 +131,53 @@ class GeneratedRichChatSessionGateway(
 
     override suspend fun clearSteer(lease: RichChatHostLease, threadId: String) =
         invoke(lease, RichChatCapability.Operate, true) { rich.clearSteer(threadId) }
+
+    override suspend fun queueFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        prompt: String,
+        config: JsonObject,
+        segments: JsonArray?,
+    ) = invoke(lease, RichChatCapability.Operate, true) {
+        rich.queueFollowUp(
+            threadId,
+            buildJsonObject {
+                put("threadId", threadId)
+                put("prompt", prompt)
+                segments?.let { put("segments", it) }
+                put("config", config)
+            },
+        )
+    }
+
+    override suspend fun removeQueuedFollowUp(lease: RichChatHostLease, threadId: String, id: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.removeQueuedFollowUp(threadId, id) }
+
+    override suspend fun reorderQueuedFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        id: String,
+        beforeId: String?,
+    ) = invoke(lease, RichChatCapability.Operate, true) {
+        rich.reorderQueuedFollowUp(threadId, id, beforeId)
+    }
+
+    override suspend fun editQueuedFollowUp(
+        lease: RichChatHostLease,
+        threadId: String,
+        payload: JsonObject,
+    ) = invoke(lease, RichChatCapability.Operate, true) {
+        rich.editQueuedFollowUp(threadId, JsonObject(payload + ("threadId" to JsonPrimitive(threadId))))
+    }
+
+    override suspend fun steerQueuedFollowUp(lease: RichChatHostLease, threadId: String, id: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.steerQueuedFollowUp(threadId, id) }
+
+    override suspend fun pauseFollowUps(lease: RichChatHostLease, threadId: String, id: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.pauseFollowUps(threadId, id) }
+
+    override suspend fun resumeFollowUps(lease: RichChatHostLease, threadId: String) =
+        invoke(lease, RichChatCapability.Operate, true) { rich.resumeFollowUps(threadId) }
 
     override suspend fun threadCommand(
         lease: RichChatHostLease,
