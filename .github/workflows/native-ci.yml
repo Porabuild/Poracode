@@ -228,9 +228,7 @@ jobs:
           api-level: "37.0"
           target: google_apis
           arch: x86_64
-          profile: pixel_9
           avd-name: poracode-pixel9-api37
-          force-avd-creation: false
           cores: 2
           ram-size: 4096M
           heap-size: 512M
