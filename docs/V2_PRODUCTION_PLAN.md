@@ -627,10 +627,56 @@ checkpoint restore, transcript truncate, numTurns 2), and the post-revert turn a
 Evidence: `tmp/v2-production-review/shared-host/checkpoint-revert-provider-backed.json`.
 The journey's first draft also verified the guardrail: anchoring at the FIRST user
 prompt (rolling back past turn 1) is correctly refused with `providerPhase: failed` /
-`completed_local_only`. Remaining WS9 manual-only items (need devices/user
-participation — fresh-install iOS simulator, two live hosts, shaped radio): iOS
-saved-pairing v9→v10 UI upgrade (never the C6 sim), multi-host transitions on both
-natives, 32 kbps shaped-radio UI cold start, I-Stream-3 on-device pass.
+`completed_local_only`.
+
+**Status 2026-09-12: all four residual on-device items EXECUTED with live evidence**
+(`tmp/v2-production-review/ws9-manual/`). Every journey ran on a freshly created
+iPhone 17 simulator (`ws9-manual-qa`, UDID FF1D3200…) / freshly created Pixel 9 AVD
+(`ws9-android-qa`, API 37, emulator-5554) against freshly launched headless hosts —
+the C6 simulator and all pre-existing AVDs were never touched, no repair/wipe/credential
+reset was performed anywhere.
+
+- **I-Up-1 iOS saved-pairing v9→v10 upgrade — PASS.** v9 app (commit `6f95e7c0f`;
+  build needed the one-line `REMOTE_BROWSER_FORWARD_VERSION` definition the v10 bump
+  later added — every v9-window commit lacks it, so a clean v9 desktop build does not
+  exist) fresh-installed, paired via the `poracode://pair` deep link against a v9 host;
+  in-place host upgrade to the v10 build (`1de973a21`, same data dir + port) and
+  data-preserving `simctl install` of the v10 app; cold launch went straight to the
+  connected home and Connections showed Online+Selected — no onboarding, no repair.
+  The journey then continued v10→HEAD (protocol 11) with the same result (bonus
+  v10→v11 upgrade evidence). `iup1/evidence.json` + 8 screenshots.
+- **A/I-MH-1 multi-host transitions — PASS on both natives.** Two HEAD hosts seeded
+  with distinct projects (Alpha/Beta Workspace). iOS: two simultaneous connections
+  (selected + "Kept ready" warm secondary), selection switched A→B→A with exact
+  per-host project isolation, verified by lsof dual ESTABLISHED sockets.
+  Android: replace-with-confirmation flow ("This will replace your current desktop
+  connection."), previous desktop stays saved+Connected, Desktops-sheet switching
+  A→B→A with per-host Manage-projects isolation. `mh/evidence-ios.json`,
+  `mh-android/evidence-android.json` + screenshots.
+- **32 kbps / 1.5 s RTT web UI cold start — PASS.** The calibrated
+  `ConstrainedTcpProxy` shaper (rtt1500ms-32kbps profile) in front of the host with a
+  fixed browser origin; paired PWA with primed service-worker shell. Steady-state
+  cold start: restored UI at ~1.0 s with zero wire bytes (SW cache + IndexedDB),
+  authoritative snapshot + agent-statuses landed by ~2.6 s — inside the 10 s budget.
+  Findings: a fully cold shell over 32 kbps is physics-bound (~3 MB ≈ tens of
+  minutes) and out of the gate's scope (the plan's byte analysis always assumed a
+  cached shell); harness caveat — with default shaper buffer caps a long transfer is
+  torn down and the browser receives a truncated 200 which the SW then caches
+  (black-screen artifact); raise soft/hard buffer bytes when shaping browser loads.
+  `coldstart-evidence.json` + timing breakdown from Navigation Timing.
+- **I-Stream-3 on-device delayed-history pass — PASS.** A selective delaying proxy
+  inserted on the host's own port held `GET /api/threads/:id/history` for 75 s while
+  the WebSocket stayed live (device endpoint/pairing untouched). During the hold the
+  app surfaced its explicit error+retry state (no infinite spinner), the composer and
+  live-turn spinner stayed functional, and app RSS stayed flat (414,080–415,136 KB).
+  Turns sent via the wire API during the delay streamed over the live WS; after the
+  link recovered, Try Again converged the on-device transcript to exactly the server
+  history (3 user + 3 assistant, code ISLE-4417 present, no duplicates, no lost
+  deltas). `istream3-evidence.json` + screenshots.
+
+With these executed, every item of the §7 evidence-gap matrix has automated or
+executed-live coverage; the remaining release-gate items are the post-code-block
+platform gates (physical-device push, signing, packaging, accessibility automation).
 
 ---
 
