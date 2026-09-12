@@ -186,15 +186,188 @@ export function collectInlineImageLocationsDeep(payload: unknown): InlineImageLo
 export function classifyInlineImageCandidate(value: string): InlineImageClassification | null {
   const trimmedHead = value.slice(0, 16).trimStart();
   if (/^data:image\//i.test(trimmedHead)) {
+    // A `data:` URL with nothing after the comma renders as a broken picture, so
+    // it is not an inline image. The scan must stay allocation-free — `slice`
+    // here would copy the multi-MB body on every grouping probe, and this probe
+    // is contractually prefix-only (see `resolveImageViewSource`). Bodies that
+    // fail base64 validation in a narrower way (a cut-off alphabet, bad
+    // padding) still probe positive and are dropped by the renderer, which
+    // parks the row on its own accordion rather than a media slot.
+    const comma = value.indexOf(",");
+    if (comma < 0) return null;
+    const afterComma = /\S/g;
+    afterComma.lastIndex = comma + 1;
+    if (!afterComma.test(value)) return null;
     return { kind: "dataUrl", mime: parseDataUrlMime(value) };
   }
-  if (/^<svg[\s>]/i.test(trimmedHead) || /^<\?xml/i.test(trimmedHead)) {
+  if (sniffTextImageMime(trimmedHead)) {
     return { kind: "rawSvg", mime: "image/svg+xml" };
   }
   for (const [prefix, mime] of BASE64_IMAGE_SIGNATURES) {
     if (value.startsWith(prefix)) return { kind: "base64", mime };
   }
   return null;
+}
+
+/** Base64 characters needed to decode the longest header the sniffer reads. */
+const SNIFF_BASE64_CHARS = 44;
+const STANDARD_BASE64_BODY = /^[A-Za-z0-9+/]+={0,2}$/;
+/** Whole 4-character groups with exact padding: needs no repair at all. */
+const CANONICAL_BASE64_BODY = /^(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+export interface NormalizedInlineImage {
+  /** A data URL Chromium is guaranteed to attempt to decode. */
+  dataUrl: string;
+  /** MIME type read from the image's own header bytes. */
+  mime: string;
+}
+
+/**
+ * Repair a provider-supplied inline image into a data URL the renderer can trust.
+ *
+ * An `<img src>` is all-or-nothing on the base64 alphabet: Chromium decodes a
+ * `;base64` body strictly, so a `data:` URL that declares `base64` but carries
+ * the URL-safe alphabet (`-`/`_`, padding stripped), embedded whitespace, or an
+ * empty body renders as a broken picture rather than the near-miss the string
+ * suggests. Agents hand these strings over verbatim — anything running on Node
+ * can produce `Buffer.toString("base64url")`, and a tool result may carry no
+ * MIME type at all — so the boundary that builds the payload has to normalize
+ * what it stores and the renderer must not promote what it cannot repair.
+ *
+ * The declared MIME is never trusted: the format is read back out of the image's
+ * own header bytes, so the copy/download filename follows the actual pixels
+ * instead of the label the agent guessed.
+ *
+ * Accepts either a `data:` URL or a bare base64/base64url string. Returns
+ * `null` when the bytes are not a recognizable image — unless a declared MIME
+ * type names a format the header sniffer does not know, which stays
+ * displayable (AVIF, HEIC) — so callers can drop the entry and fall back to an
+ * inert row rather than paint a broken image.
+ */
+export function normalizeInlineImageDataUrl(
+  value: string,
+  declaredMimeType?: string,
+): NormalizedInlineImage | null {
+  const dataUrl = splitDataUrl(value);
+  if (dataUrl && !dataUrl.base64) {
+    // Non-base64 payloads (`;utf8,`, percent-encoded) are already in the form
+    // the browser expects; the sniffer and then the URL's own label settle the
+    // MIME. The label is trusted here because the previous builder passed such
+    // URLs through verbatim — dropping them now would delete rendered images.
+    const mime = sniffTextImageMime(dataUrl.body) ?? dataUrl.mimeLabel ?? declaredMimeType;
+    return mime?.startsWith("image/") ? { dataUrl: value.trim(), mime } : null;
+  }
+  const normalized = normalizeBase64Body(dataUrl ? dataUrl.body : value);
+  if (!normalized) return null;
+  const mime = sniffImageMime(normalized.bytes) ?? declaredMimeType;
+  if (!mime?.startsWith("image/")) return null;
+  // Emitting the canonical URL would copy the body a second time, and hot
+  // callers run this on every render pass — hand back the input when it
+  // already has exactly the form the build would produce.
+  if (dataUrl && dataUrl.head === `data:${mime};base64` && normalized.text === dataUrl.body) {
+    return { dataUrl: value.trim(), mime };
+  }
+  return { dataUrl: `data:${mime};base64,${normalized.text}`, mime };
+}
+
+interface SplitDataUrl {
+  /** The URL up to the first comma — a short prefix, e.g. `data:image/png;base64`. */
+  readonly head: string;
+  readonly body: string;
+  readonly base64: boolean;
+  readonly mimeLabel: string | null;
+}
+
+function splitDataUrl(value: string): SplitDataUrl | null {
+  const trimmed = value.trimStart();
+  if (!/^data:/i.test(trimmed)) return null;
+  const comma = trimmed.indexOf(",");
+  if (comma < 0) return null;
+  const head = trimmed.slice(0, comma);
+  const label = /^data:([^;,]+)/i.exec(head)?.[1];
+  return {
+    head,
+    body: trimmed.slice(comma + 1),
+    base64: /;base64$/i.test(head),
+    mimeLabel: label?.toLowerCase() ?? null,
+  };
+}
+
+function normalizeBase64Body(
+  body: string,
+): { readonly text: string; readonly bytes: Uint8Array } | null {
+  // Canonical bodies — everything stored since the normalizer landed — need
+  // one regex scan and the header decode, with zero full-size copies; hot
+  // callers run this several times per render pass.
+  if (CANONICAL_BASE64_BODY.test(body)) {
+    const bytes = decodeBase64Prefix(body);
+    return bytes ? { text: body, bytes } : null;
+  }
+  const compact = body.replace(/\s+/g, "");
+  if (compact.length === 0) return null;
+  const standard = compact.replace(/-/g, "+").replace(/_/g, "/").replace(/=+$/, "");
+  if (standard.length % 4 === 1) return null;
+  const padded = standard + "=".repeat((4 - (standard.length % 4)) % 4);
+  if (!STANDARD_BASE64_BODY.test(padded)) return null;
+  const bytes = decodeBase64Prefix(padded);
+  return bytes ? { text: padded, bytes } : null;
+}
+
+function decodeBase64Prefix(padded: string): Uint8Array | null {
+  try {
+    const binary = atob(padded.slice(0, SNIFF_BASE64_CHARS));
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+function sniffImageMime(bytes: Uint8Array): string | null {
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return "image/png";
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x47 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x38
+  ) {
+    return "image/gif";
+  }
+  if (
+    bytes.length >= 12 &&
+    readAscii(bytes, 0, 4) === "RIFF" &&
+    readAscii(bytes, 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return sniffTextImageMime(readAscii(bytes, 0, Math.min(bytes.length, 64)));
+}
+
+function sniffTextImageMime(head: string): string | null {
+  const trimmed = head.trimStart();
+  if (/^<svg[\s>]/i.test(trimmed) || /^<\?xml/i.test(trimmed)) return "image/svg+xml";
+  return null;
+}
+
+function readAscii(bytes: Uint8Array, start: number, end: number): string {
+  let out = "";
+  for (let index = start; index < end && index < bytes.length; index += 1) {
+    out += String.fromCharCode(bytes[index]!);
+  }
+  return out;
 }
 
 interface ResultCandidate {
