@@ -1,4 +1,8 @@
 import type {
+  ManageAgentCredentialsPayload,
+  ManageAgentCredentialsResult,
+  ManageAgentPluginsPayload,
+  ManageAgentPluginsResult,
   AgentKind,
   AgentStatus,
   AgentStatusesResponse,
@@ -119,6 +123,22 @@ export class AgentRegistryService {
   private readonly adapterInputKeys = new Map<AgentKind, string>();
 
   constructor(private readonly deps: AgentRegistryServiceDeps) {}
+
+  async manageAgentPlugins(payload: ManageAgentPluginsPayload): Promise<ManageAgentPluginsResult> {
+    const adapter = this.deps.adapters.get(payload.agentKind);
+    if (!adapter?.managePlugins)
+      throw new Error("This provider does not support package management.");
+    return adapter.managePlugins(payload);
+  }
+
+  async manageAgentCredentials(
+    payload: ManageAgentCredentialsPayload,
+  ): Promise<ManageAgentCredentialsResult> {
+    const adapter = this.deps.adapters.get(payload.agentKind);
+    if (!adapter?.manageCredentials)
+      throw new Error("This provider does not support credential management.");
+    return adapter.manageCredentials(payload);
+  }
 
   private get agentStatusService(): AgentStatusService {
     return this.deps.getAgentStatusService();

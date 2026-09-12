@@ -264,8 +264,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 25,
-      // v25 mirrors supervisor STATUS_CACHE_VERSION=28: re-probe live voice.
+      version: 27,
+      // v27 mirrors supervisor STATUS_CACHE_VERSION=30: re-probe the per-provider
+      // credentials agents report alongside their auth state.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

@@ -91,7 +91,9 @@ const execFileAsync = promisify(execFile);
 // v26 refreshes model aliases and configured profile labels.
 // v27 coalesces resolved model aliases with their selectable catalog entries.
 // v28 re-probes live voice instead of retaining old capability negatives.
-export const STATUS_CACHE_VERSION = 28;
+// v29 invalidates caches that predate per-provider credential lists on status.
+// v30 discovers the OpenCode 2 provider and its protocol-gated capabilities.
+export const STATUS_CACHE_VERSION = 30;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

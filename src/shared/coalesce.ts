@@ -30,7 +30,9 @@ export function appendCoalescedRuntimeEvent(target: RuntimeEvent[], event: Runti
     previous.itemId === event.itemId &&
     previous.stream === event.stream
   ) {
-    target[target.length - 1] = { ...previous, delta: previous.delta + event.delta };
+    target[target.length - 1] = event.replace
+      ? event
+      : { ...previous, delta: previous.delta + event.delta };
     return;
   }
   target.push(event);

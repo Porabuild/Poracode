@@ -295,6 +295,34 @@ describe("XTermSurface", () => {
     });
   });
 
+  it("resends the fitted PTY size when the surface becomes enabled after mount", async () => {
+    // Launch race: the surface mounts while the session is still launching
+    // (enabled={false}), so the first fitted resize reaches the supervisor
+    // before the PTY is registered and is silently dropped — while the flush
+    // guard pins the size as already applied. When the status flips to active
+    // the refit must resend the same size even though nothing changed.
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+    const view = render(<XTermSurface terminalId="test-1" enabled={false} />);
+    await flushFrame();
+    expect(state.bridge.resizeTerminal).toHaveBeenCalledWith({
+      threadId: "test-1",
+      cols: 80,
+      rows: 24,
+    });
+    const callsAfterMount = state.bridge.resizeTerminal.mock.calls.length;
+
+    view.rerender(<XTermSurface terminalId="test-1" enabled={true} />);
+    await flushFrame();
+
+    expect(state.bridge.resizeTerminal.mock.calls.length).toBeGreaterThan(callsAfterMount);
+    expect(state.bridge.resizeTerminal).toHaveBeenLastCalledWith({
+      threadId: "test-1",
+      cols: 80,
+      rows: 24,
+    });
+  });
+
   it("does not nudge on a fresh launch with no scrollback", async () => {
     state.bridge.readTerminalScrollback.mockResolvedValueOnce("");
 
@@ -339,6 +367,35 @@ describe("XTermSurface", () => {
   });
 
   // ── Event handling ────────────────────────────────────────────
+
+  it("refits on the first live output so the launch-race resize reaches the PTY", async () => {
+    // The first fitted resize can land before the supervisor registers the
+    // backing PTY and is silently dropped. The first live output proves the
+    // PTY exists — the surface must refit then so the real winsize is finally
+    // delivered, even though the fitted size never changed.
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+    render(<XTermSurface terminalId="test-1" />);
+    await flushFrame();
+    expect(state.bridge.resizeTerminal).toHaveBeenCalledWith({
+      threadId: "test-1",
+      cols: 80,
+      rows: 24,
+    });
+    const callsAfterMount = state.bridge.resizeTerminal.mock.calls.length;
+
+    act(() => {
+      emitEvent({ type: "thread-output", threadId: "test-1", data: "frame", outputLength: 5 });
+    });
+    await flushFrame();
+
+    expect(state.bridge.resizeTerminal.mock.calls.length).toBeGreaterThan(callsAfterMount);
+    expect(state.bridge.resizeTerminal).toHaveBeenLastCalledWith({
+      threadId: "test-1",
+      cols: 80,
+      rows: 24,
+    });
+  });
 
   it("writes thread-output data to the terminal", async () => {
     render(<XTermSurface terminalId="test-1" />);

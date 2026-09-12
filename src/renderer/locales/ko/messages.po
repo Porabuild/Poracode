@@ -660,6 +660,10 @@ msgstr "{totalCount}개 중 {visibleCount}개 표시"
 msgid "@cursor/sdk is not installed."
 msgstr "@cursor/sdk가 설치되지 않았습니다."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "@scope/plugin@version"
+msgstr "@scope/plugin@version"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "/absolute/path/to/project"
 #~ msgstr "/absolute/path/to/project"
@@ -913,6 +917,7 @@ msgstr "활동 지표"
 
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -945,6 +950,10 @@ msgstr "로그인하기 전에 프로젝트를 추가하세요."
 #: src/renderer/actions/agentLoginActions.ts
 msgid "Add a project before updating an agent."
 msgstr "에이전트를 업데이트하기 전에 프로젝트를 추가하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Add a project in this environment before signing in."
+msgstr "로그인하기 전에 이 환경에 프로젝트를 추가하세요."
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Add a project to see pull requests."
@@ -1045,7 +1054,7 @@ msgstr "프로젝트 추가"
 msgid "Add project options"
 msgstr "프로젝트 추가 옵션"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "Add provider"
 msgstr "공급자 추가"
 
@@ -1107,6 +1116,7 @@ msgstr "새 터미널 패널 셸마다 전달할 추가 인수입니다. 공백�
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "사용자 정의 기본 URL을 게시합니다(예: 리버스 프록시 또는 터널). 자동으로 설정하려면 비워 두세요."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -1241,7 +1251,7 @@ msgstr "AI 도우미"
 msgid "AI judge"
 msgstr "AI 심사"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "AI providers"
 msgstr "AI 공급자"
 
@@ -1291,6 +1301,10 @@ msgstr "모든 파일"
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "모든 기기"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "All plugins are up to date."
+msgstr "모든 플러그인이 최신 상태입니다."
 
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
@@ -1879,6 +1893,10 @@ msgstr "Bash 출력"
 msgid "Basic (CLI)"
 msgstr "기본(CLI)"
 
+#: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
+msgid "Beta next-generation OpenCode runtime with native GUI sessions."
+msgstr "네이티브 GUI 세션을 갖춘 OpenCode 차세대 베타 런타임입니다."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 msgid "Better (Whisper base)"
 msgstr "Better (위스퍼 베이스)"
@@ -1993,10 +2011,18 @@ msgstr "커밋되지 않은 변경 사항 가져오기"
 msgid "Browse"
 msgstr "찾아보기"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Browse ecosystem"
+msgstr "생태계 둘러보기"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectModal.tsx
 msgid "Browse for parent folder"
 msgstr "상위 폴더 찾아보기"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Browse plugins"
+msgstr "플러그인 둘러보기"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Browse your GitHub repositories or paste a clone URL."
@@ -2020,7 +2046,7 @@ msgstr "Poracode의 격리된 내장 브라우저에서 웹사이트를 탐색�
 #: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
 #: src/renderer/views/MainView/parts/SidebarHeaderControls.tsx
 #: src/renderer/views/SettingsOverlay/parts/BrowserSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Browser"
 msgstr "브라우저"
@@ -2293,6 +2319,10 @@ msgstr "변경 사항"
 msgid "Changes ({0})"
 msgstr "변경사항({0})"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Changes apply globally to this environment."
+msgstr "변경 사항은 이 환경 전체에 적용됩니다."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
 msgstr "변경 사항은 새 채팅에 적용됩니다. 실시간 스킬 다시 불러오기를 지원하는 제공자는 더 빨리 업데이트될 수 있습니다."
@@ -2346,10 +2376,15 @@ msgstr "{serverName} 다시 확인"
 msgid "Check again"
 msgstr "다시 확인"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Check agent plugin updates"
+msgstr "에이전트 플러그인 업데이트 확인"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Check for update"
 msgstr "업데이트 확인"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Check for updates"
@@ -2531,7 +2566,7 @@ msgstr "서브에이전트를 선택하고 지시하고 병렬 작업을 조율�
 #: src/renderer/components/composer/composerMcpServers.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/pluginCopy.ts
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Chrome"
 msgstr "Chrome"
 
@@ -2671,6 +2706,7 @@ msgstr "복제 중…"
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/common/ResponsiveMenuSurface.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/components/skills/SkillViewModal.tsx
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
@@ -3068,6 +3104,10 @@ msgstr "커뮤니케이션"
 msgid "Community"
 msgstr "커뮤니티"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Community plugin. V2 support is declared by its author; compatibility depends on your OpenCode version."
+msgstr "커뮤니티 플러그인입니다. 제작자가 V2 지원을 명시했으며, 호환성은 OpenCode 버전에 따라 달라집니다."
+
 #: src/renderer/components/providers/muse/index.tsx
 msgid "Compact the conversation context"
 msgstr "대화 컨텍스트 압축"
@@ -3143,7 +3183,7 @@ msgstr "작성기 컨트롤"
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Computer Use"
 msgstr "컴퓨터 사용"
 
@@ -3195,8 +3235,12 @@ msgstr "설정 디렉터리"
 msgid "Configure the server Poracode will add when supported agents start."
 msgstr "지원되는 에이전트가 시작될 때 Poracode에서 추가할 서버를 구성하세요."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Configured"
+msgstr "설정됨"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Configured MCP servers"
 msgstr "구성된 MCP 서버"
 
@@ -3258,6 +3302,10 @@ msgstr "SSH로 연결"
 #: src/mobile/setupEmptyState.tsx
 msgid "Connect Poracode on your desktop before starting a thread."
 msgstr "스레드를 시작하기 전에 데스크톱의 Poracode에 연결하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Connect the AI providers OpenCode 2 can use and sign out of them here."
+msgstr "OpenCode 2가 사용할 수 있는 AI 공급자를 여기에서 연결하고 로그아웃하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "Connect the AI providers OpenCode can use and sign out of them here."
@@ -3393,7 +3441,7 @@ msgstr "다음에서 계속..."
 msgid "Continue on the desktop address"
 msgstr "데스크톱 주소에서 계속"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
 msgstr "외부 Chrome 브라우저를 제어합니다."
 
@@ -3405,7 +3453,7 @@ msgstr "외부 Chrome 브라우저를 제어합니다."
 msgid "Control desktop apps in the background and complete visual workflows."
 msgstr "데스크톱 앱을 백그라운드에서 조작하고 시각적 워크플로를 완료합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Control the desktop."
 msgstr "데스크톱을 제어합니다."
 
@@ -3610,6 +3658,7 @@ msgstr "{0}을(를) 설치할 수 없습니다."
 msgid "Couldn't list repositories."
 msgstr "저장소를 나열할 수 없습니다."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Couldn't load plugins."
 msgstr "플러그인을 불러오지 못했습니다."
@@ -3625,6 +3674,10 @@ msgstr "스킬을 불러올 수 없습니다."
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
 msgstr "프로필 통계를 불러오지 못했습니다."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Couldn't manage plugins. Check the package name, OpenCode version, and network connection, then retry."
+msgstr "플러그인을 관리하지 못했습니다. 패키지 이름, OpenCode 버전 및 네트워크 연결을 확인한 후 다시 시도하세요."
 
 #: src/mobile/useRemoteDesktop.ts
 msgid "Couldn't move the thread to a worktree."
@@ -3834,7 +3887,7 @@ msgstr "Crossagent: {subagent}"
 #: src/renderer/components/plugins/pluginCopy.ts
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 #: src/renderer/views/SettingsOverlay/parts/McpServersSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Crossagents"
 msgstr "Crossagents"
 
@@ -4035,6 +4088,14 @@ msgstr "일일 브리핑"
 msgid "Dark"
 msgstr "다크"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Date"
+msgstr "날짜"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Date and time"
+msgstr "날짜 및 시간"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Days"
 #~ msgstr "요일"
@@ -4091,7 +4152,7 @@ msgstr "기본 스레드 제거"
 msgid "Delegate focused work to other installed agents and coordinate the results."
 msgstr "설치된 다른 에이전트에 작업을 위임하고 결과를 조율합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Delegate work to other AI agents."
 msgstr "다른 AI 에이전트에게 작업을 위임합니다."
 
@@ -4387,7 +4448,7 @@ msgstr "이 데스크톱에 연결할 수 있는 동안 기기를 페어링할 �
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Disable {0}"
 msgstr "{0} 비활성화"
 
@@ -4501,6 +4562,10 @@ msgstr "저장되지 않은 편집기 변경사항을 삭제하시겠습니까?"
 msgid "Disconnect server"
 msgstr "서버 연결 해제"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Discover"
+msgstr "탐색"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Discovering coding agents…"
 msgstr "코딩 에이전트 검색 중…"
@@ -4562,6 +4627,7 @@ msgstr "완료"
 
 #. Notification status: thread is done
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4766,10 +4832,14 @@ msgstr "{modelName}의 추론 강도 단계"
 msgid "Electron"
 msgstr "Electron"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Email address"
+msgstr "이메일 주소"
+
 #. placeholder {0}: server.name
 #. placeholder {0}: skill.name
 #: src/renderer/components/skills/SkillsManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Enable {0}"
 msgstr "{0} 활성화"
 
@@ -4906,6 +4976,10 @@ msgstr "유효한 프로젝트 이름을 입력하세요."
 msgid "Enter a valid SSH target and port."
 msgstr "올바른 SSH 대상과 포트를 입력하세요."
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Enter a valid value."
+msgstr "유효한 값을 입력하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Enter an absolute @cursor/sdk package path, or leave this blank for automatic discovery."
 #~ msgstr "@cursor/sdk 패키지의 절대 경로를 입력하거나 자동 검색을 사용하려면 비워 두세요."
@@ -4930,6 +5004,7 @@ msgstr "SSH 암호를 입력하세요."
 msgid "Enter valid JSON."
 msgstr "유효한 JSON을 입력하세요."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
 msgid "Environment"
 msgstr "환경"
@@ -5244,6 +5319,10 @@ msgstr "풀 요청 생성 실패: {detail}"
 #~ msgid "Failed to interrupt remote thread."
 #~ msgstr "원격 스레드를 중단하지 못했습니다."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Failed to load"
+msgstr "불러오기 실패"
+
 #: src/renderer/views/ProfileOverlay/useProfileData.ts
 msgid "Failed to load profile stats."
 msgstr "프로필 통계를 불러오지 못했습니다."
@@ -5300,6 +5379,7 @@ msgid "Favorites"
 msgstr "즐겨찾기"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 msgid "Featured"
 msgstr "추천"
 
@@ -6323,6 +6403,8 @@ msgstr "설치"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
@@ -6383,6 +6465,10 @@ msgstr "{environment}에 ACP 설치"
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Install ACP, SDK, or both, then choose which runtime starts new Cursor GUI chats. Existing chats stay pinned to the runtime that created them."
 #~ msgstr "ACP, SDK 또는 둘 다 설치한 다음 새 Cursor GUI 채팅을 시작할 런타임을 선택하세요. 기존 채팅은 생성한 런타임에 계속 고정됩니다."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Install and manage native OpenCode plugins."
+msgstr "OpenCode 기본 플러그인을 설치하고 관리합니다."
 
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 msgid "Install and restart"
@@ -6471,6 +6557,10 @@ msgstr "{env}에 설치"
 msgid "Install on Windows"
 msgstr "Windows에 설치"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Install OpenCode 2 to manage its plugins."
+msgstr "플러그인을 관리하려면 OpenCode 2를 설치하세요."
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Install packages"
 msgstr "패키지 설치"
@@ -6512,6 +6602,8 @@ msgid "Install, update, and sign-in are not yet available on remote machines."
 msgstr "원격 기기에서는 설치, 업데이트, 로그인을 아직 사용할 수 없습니다."
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #: src/renderer/views/SettingsOverlay/parts/antigravityRuntimeInstall.ts
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
@@ -6834,6 +6926,7 @@ msgstr "메모 로드 중…"
 #~ msgid "Loading PDF…"
 #~ msgstr "PDF 불러오는 중…"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 msgid "Loading plugins…"
 msgstr "플러그인 불러오는 중…"
@@ -6969,7 +7062,8 @@ msgstr "로그인 {0}"
 msgid "Login required"
 msgstr "로그인이 필요합니다"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Logout"
@@ -7018,6 +7112,14 @@ msgstr "관리"
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
 msgid "Manage MCP servers"
 msgstr "MCP 서버 관리"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+#~ msgid "Manage packages with OpenCode's native plugin manager. Changes apply globally in the selected environment, including terminal plugins."
+#~ msgstr "OpenCode의 기본 플러그인 관리자로 패키지를 관리합니다. 변경 사항은 터미널 플러그인을 포함하여 선택한 환경 전체에 적용됩니다."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "Manage plugins"
+msgstr "플러그인 관리"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarRemoteServers.tsx
 #~ msgid "Manage remote environments"
@@ -7167,6 +7269,21 @@ msgstr "최대화"
 msgid "Maximize browser"
 msgstr "브라우저 최대화"
 
+#. placeholder {0}: property.maxLength
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum characters: {0}"
+msgstr "최대 문자 수: {0}"
+
+#. placeholder {0}: property.maxItems
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum selections: {0}"
+msgstr "최대 선택 수: {0}"
+
+#. placeholder {0}: property.maximum
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Maximum: {0}"
+msgstr "최댓값: {0}"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "MCP"
 msgstr "MCP"
@@ -7233,8 +7350,8 @@ msgstr "MCP 서버 URL"
 
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "MCP servers"
 msgstr "MCP 서버"
 
@@ -7248,7 +7365,7 @@ msgstr "MCP 서버"
 msgid "MCP Servers"
 msgstr "MCP 서버"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "MCP servers updated."
 msgstr "MCP 서버가 업데이트되었습니다."
 
@@ -7437,6 +7554,21 @@ msgstr "브라우저를 오른쪽 패널로 최소화"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Minimize to panel"
 msgstr "패널로 최소화"
+
+#. placeholder {0}: property.minLength
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum characters: {0}"
+msgstr "최소 문자 수: {0}"
+
+#. placeholder {0}: property.minItems
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum selections: {0}"
+msgstr "최소 선택 수: {0}"
+
+#. placeholder {0}: property.minimum
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
+msgid "Minimum: {0}"
+msgstr "최솟값: {0}"
 
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Minute"
@@ -8061,7 +8193,7 @@ msgid "No commits found."
 msgstr "커밋을 찾을 수 없습니다."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "No configured MCP servers yet"
 msgstr "아직 구성된 MCP 서버가 없습니다"
 
@@ -8238,6 +8370,10 @@ msgstr "모델을 찾을 수 없습니다."
 msgid "No other agents installed"
 msgstr "다른 에이전트가 설치되어 있지 않습니다."
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "No package plugins installed."
+msgstr "설치된 플러그인 패키지가 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "No paired devices yet."
 msgstr "아직 페어링된 기기가 없습니다."
@@ -8286,7 +8422,7 @@ msgstr "프롬프트 없음"
 msgid "No providers are being tracked."
 msgstr "추적 중인 공급자가 없습니다."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "No providers connected yet."
 msgstr "아직 연결된 공급자가 없습니다."
 
@@ -8881,6 +9017,26 @@ msgstr "모델 선택기 열기"
 msgid "OpenCode"
 msgstr "OpenCode"
 
+#: src/renderer/components/providers/opencode2/manifest.ts
+msgid "OpenCode 2"
+msgstr "OpenCode 2"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
+msgid "OpenCode 2 plugins"
+msgstr "OpenCode 2 플러그인"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#~ msgid "OpenCode 2 shares its sign-in with OpenCode."
+#~ msgstr "OpenCode 2는 OpenCode와 로그인을 공유합니다."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "OpenCode Goal Plugin"
+msgstr "OpenCode Goal 플러그인"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "OpenCode reloads watched configuration automatically. Reopen your thread to refresh plugin commands; terminal-only changes may need a new terminal session."
+msgstr "OpenCode는 감시 중인 설정을 자동으로 다시 불러옵니다. 플러그인 명령을 새로 고치려면 대화를 다시 여세요. 터미널 전용 변경에는 새 터미널 세션이 필요할 수 있습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "OpenCode request failed, retrying..."
 msgstr "OpenCode 요청이 실패했습니다. 다시 시도하는 중..."
@@ -8935,6 +9091,7 @@ msgstr "또는 맞춤 답변을 작성하세요."
 msgid "Orange"
 msgstr "오렌지"
 
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
 msgstr "기타"
@@ -8990,6 +9147,10 @@ msgstr "패키지 구성"
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Package manager"
 msgstr "패키지 관리자"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Package name or Git URL"
+msgstr "패키지 이름 또는 Git URL"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Page"
@@ -9208,6 +9369,10 @@ msgstr "{0}에서 선택한 보관 항목을 영구적으로 삭제합니다."
 msgid "permission"
 msgstr "권한"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Persistent goals, budgets, and automatic continuation with /goal."
+msgstr "/goal로 지속적인 목표, 예산 및 자동 계속 기능을 사용합니다."
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Personal"
 msgstr "개인"
@@ -9296,6 +9461,10 @@ msgstr "알림 소리 재생"
 msgid "Plugin"
 msgstr "플러그인"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Plugin details"
+msgstr "플러그인 세부 정보"
+
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Plugin folder"
 msgstr "플러그인 폴더"
@@ -9303,6 +9472,10 @@ msgstr "플러그인 폴더"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Plugin servers"
 msgstr "플러그인 서버"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Plugin views"
+msgstr "플러그인 보기"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "plugin.json could not be read as JSON."
@@ -9323,10 +9496,15 @@ msgstr "plugin.json이 이 빌드에서 지원하지 않는 Agent Plugins 버전
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/MentionPopover.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Plugins"
 msgstr "플러그인"
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Plugins run code with your account's access. Install packages from authors you trust."
+msgstr "플러그인은 계정 권한으로 코드를 실행합니다. 신뢰할 수 있는 제작자의 패키지를 설치하세요."
 
 #: src/mobile/QrScanner.tsx
 msgid "Point at the QR code in Settings → Remote Access"
@@ -9395,7 +9573,7 @@ msgstr "Poracode는 SSH 호스트에 서버를 설치하거나 기존 서버를 
 msgid "Poracode will restart, back up its current data, and replace it with a complete copy of your Lightcode data."
 msgstr "Poracode가 다시 시작되어 현재 데이터를 백업한 다음 Lightcode 데이터의 전체 복사본으로 교체합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Poracode's built-in browser tools."
 msgstr "Poracode의 기본 제공 브라우저 도구."
 
@@ -10110,6 +10288,7 @@ msgstr "알림 내용 가리기"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/pr/PrOverviewPage.tsx
 #: src/mobile/views/WorkspaceView.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 #: src/renderer/views/GitReviewOverlay/GitReviewOverlay.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewPanel.tsx
@@ -10276,15 +10455,23 @@ msgid "Remote URL"
 msgstr "원격 URL"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Remove"
 msgstr "제거"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Remove “{removingTarget}” from OpenCode 2? You can install it again from Discover."
+msgstr "OpenCode 2에서 “{removingTarget}”을(를) 제거할까요? ‘탐색’에서 다시 설치할 수 있습니다."
+
 #. placeholder {0}: att.name
+#. placeholder {0}: pkg.target
 #. placeholder {0}: removeConfirm.target.name
-#. placeholder {0}: window.label
 #: src/mobile/views/ManageProjectsView.tsx
 #: src/renderer/components/composer/AttachmentBar.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Remove {0}"
 msgstr "{0} 제거"
@@ -10301,6 +10488,10 @@ msgstr "{pattern} 제거"
 #: src/renderer/components/thread/ChatPane/parts/items/ActiveSubAgentTile.tsx
 msgid "Remove {rowTitle} from panel"
 msgstr "패널에서 {rowTitle} 제거"
+
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
+msgid "Remove {value}"
+msgstr "{value} 제거"
 
 #. placeholder {0}: removeConfirm.target.name
 #: src/mobile/views/ManageProjectsView.tsx
@@ -10374,6 +10565,10 @@ msgstr "모델 제거"
 msgid "Remove pinned route for {tagLabel}"
 msgstr "{tagLabel}의 고정 경로 제거"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
+msgid "Remove plugin"
+msgstr "플러그인 제거"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Remove profile {label}"
 msgstr "프로필 {label} 제거"
@@ -10410,6 +10605,10 @@ msgstr "연결된 스킬 “{0}”을(를) 제거할까요? 원본 폴더는 삭
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Remove the project's experiments before removing the project."
 msgstr "프로젝트를 제거하기 전에 프로젝트의 실험을 제거하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
+msgstr "이 공급자의 저장된 자격 증명을 제거할까요? ‘공급자 추가’에서 다시 연결할 수 있습니다."
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -10689,6 +10888,7 @@ msgstr "대기 중인 후속 메시지 재개"
 #: src/mobile/views/PortsView.tsx
 #: src/mobile/views/TerminalView.tsx
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
@@ -11015,7 +11215,7 @@ msgstr "채도와 밝기"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -11058,7 +11258,7 @@ msgstr "파일 저장"
 msgid "Save image"
 msgstr "이미지 저장"
 
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 msgid "Save MCP servers"
 msgstr "MCP 서버 저장"
 
@@ -11814,7 +12014,9 @@ msgid "Sign out {label}"
 msgstr "{label} 로그아웃"
 
 #. placeholder {0}: provider.label
-#: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
+#. placeholder {0}: signingOut?.provider.label ?? ""
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/ProviderAccountsSection.tsx
 msgid "Sign out of {0}"
 msgstr "{0}에서 로그아웃"
 
@@ -12672,6 +12874,7 @@ msgstr "대상 공급자에게 다음에 무엇을 해야 할지 알려주세요
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/layout/PanelDock/panelTabMeta.ts
 #: src/renderer/components/plugins/pluginCopy.ts
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadToolRail.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -12980,6 +13183,10 @@ msgstr "테마"
 #: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "테마 및 채팅 글꼴 크기"
+
+#: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
+msgid "These built-in MCP servers are shared by OpenCode 2 threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
+msgstr "이 기본 제공 MCP 서버는 OpenCode 2 스레드 간에 공유됩니다. 저장하면 실행 중인 GUI 프로젝트가 업데이트되며, 서버를 제거하면 진행 중인 턴이 중단될 수 있습니다. 터미널 스레드는 다음 실행 시 변경 사항을 반영합니다."
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCodeProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
@@ -13996,6 +14203,7 @@ msgstr "한 단계 위로"
 msgid "update"
 msgstr "업데이트"
 
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
@@ -14004,7 +14212,9 @@ msgstr "업데이트"
 msgid "Update"
 msgstr "업데이트"
 
+#. placeholder {0}: pkg.target
 #. placeholder {0}: props.agentLabel
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Update {0}"
 msgstr "{0} 업데이트"
@@ -14181,6 +14391,7 @@ msgid "Updating to v{0}"
 msgstr "v{0}(으)로 업데이트 중"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "URL"
 msgstr "URL"
 
@@ -14249,6 +14460,10 @@ msgstr "공백 없이 문자, 숫자, 마침표, 대시 또는 밑줄을 사용�
 #: src/renderer/views/SettingsOverlay/parts/WorktreeSettings.tsx
 msgid "Use one global folder, or nest worktrees inside each project at .poracode/worktrees."
 msgstr "하나의 전역 폴더를 사용하거나, 각 프로젝트의 .poracode/worktrees에 작업 트리를 중첩합니다."
+
+#: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+msgid "Use OpenCode’s CLI to update terminal-only packages."
+msgstr "터미널 전용 패키지를 업데이트하려면 OpenCode CLI를 사용하세요."
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"

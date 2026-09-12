@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
       ) => CommandSpec
     >(),
   createOpencodeClient: vi.fn<() => unknown>(),
-  resolveAgentBinaryPath: vi.fn<() => string>(),
+  resolveOpenCode1Binary: vi.fn<() => Promise<string | undefined>>(),
   resolveWslHomeDirectoryAsync: vi.fn<() => Promise<string>>(),
   installOpenCodePlugin: vi.fn<() => { ok: true; version: string }>(),
   spawnOpenCodeServer: vi.fn<() => OpenCodeServerHandle>(),
@@ -27,8 +27,8 @@ vi.mock("../base", async (importOriginal) => ({
   resolveWslHomeDirectoryAsync: mocks.resolveWslHomeDirectoryAsync,
 }));
 
-vi.mock("../binaryResolver", () => ({
-  resolveAgentBinaryPath: mocks.resolveAgentBinaryPath,
+vi.mock("./binary", () => ({
+  resolveOpenCode1Binary: mocks.resolveOpenCode1Binary,
 }));
 
 vi.mock("./argv", () => ({
@@ -78,7 +78,7 @@ describe("acquireOpenCodeServer", () => {
       env: {},
     });
     mocks.createOpencodeClient.mockReset().mockImplementation(() => makeSubagentClient());
-    mocks.resolveAgentBinaryPath.mockReset().mockReturnValue("opencode");
+    mocks.resolveOpenCode1Binary.mockReset().mockResolvedValue("opencode");
     mocks.resolveWslHomeDirectoryAsync.mockReset().mockResolvedValue("/home/test");
     mocks.installOpenCodePlugin.mockReset().mockReturnValue({ ok: true, version: "1.0.0" });
     mocks.spawnOpenCodeServer.mockReset();

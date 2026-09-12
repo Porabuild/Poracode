@@ -1029,10 +1029,15 @@ export class SupervisorRuntime {
     await this.cliHookPluginCoordinator.dispose().catch((error) => {
       console.warn("[supervisor] CLI hook plugin coordinator dispose failed:", error);
     });
-    const { shutdownSpawnedOpenCodeServers } = await import("./agents/opencode/sdkClient");
-    shutdownSpawnedOpenCodeServers();
-    const { shutdownSpawnedCodexAppServers } = await import("./agents/codex/serverPool");
-    shutdownSpawnedCodexAppServers();
+    await Promise.all(
+      [...this.adapters.values()].map(async (adapter) => {
+        try {
+          await adapter.shutdown?.();
+        } catch (error) {
+          console.warn("[supervisor] provider shutdown failed:", adapter.kind, error);
+        }
+      }),
+    );
   }
 
   private handlePtyData(session: SessionRuntime, data: string): void {
