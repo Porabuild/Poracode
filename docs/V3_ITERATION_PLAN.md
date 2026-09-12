@@ -86,12 +86,17 @@ Estimate the remaining work after inspecting hosted checks and live-test access.
    linux node-pty build; stale native-e2e operation pins (222 keys / 108
    procedures). On `3994c561d` the CI workflow is fully green and Native clients
    passes Android build+tests, the API 26 runtime, and contract freshness.
-   Remaining red: the foundation job's `sharedHostBackpressure` eviction assertion
-   (paused client not closed on the Linux runner — under investigation), the API 37
-   emulator boot flake (`5554: Connection refused`; passed at `1d39c76fa`), and one
-   timing-sensitive iOS cancellation test (budgets widened; 3×/3× green locally).
-   The CLI token cannot re-run failed jobs (no admin rights) — retries ride new
-   pushes._
+   \*Update, pushed `21fae2637`: the foundation job is GREEN — the backpressure
+   eviction assertion was a Linux kernel-buffer artifact (autotuned rcvbuf+sndbuf
+   absorbed the 8 MiB storm, so the app-level `ws.bufferedAmount` guard never
+   tripped; the storm is now sized to 16 MiB to exceed any kernel absorption), and
+   iOS AppTests are GREEN (raw-cancellation fulfillment budgets widened for loaded
+   runners). The only remaining red is the API 37 emulator job, root-caused to
+   `No device found matching --device pixel_9` — the runner's system-image install
+   flaked, the AVD was never created, and the subsequent `5554: Connection refused`
+   is downstream noise; it passed at `1d39c76fa` and is treated as an infra flake
+   pending one more sample. The CLI token cannot re-run failed jobs (no admin
+   rights) — retries ride new pushes._
 2. **Close the WSL helper upgrade discrepancy before V2-to-master integration or
    release.** `bridge.mjs` still advertises `2.16.0`. Audit deployed copies/readers,
    select the next valid version (planned `2.17.0`), and prove replacement of an
@@ -180,6 +185,16 @@ not close these UI/transport gaps.
 | 2               | Native cursor-sync v2, including the iOS background-task event gap | Both natives pass chunked-baseline, ACK credit, resume, duplicate/gap, interrupted baseline, bounded-memory, and reconnect scenarios. Shared fixtures and parity ledger updated in the same change.                                                                                                                                                           |
 | 3               | Relay HTTP streaming                                               | Document negotiated frames and buffered fallback, cancellation, ordering, errors before/after headers, end-of-stream, header/origin policy, bounded queues, slow-consumer backpressure, and idle/resource limits. Test long-running responses, disconnect cleanup, and 32 kbps constrained links on both hops.                                                |
 | 4               | Measured payload reduction                                         | Baseline small and many-thread/long-history hosts first. Record bytes, p50/p95 readiness, memory and CPU. Set numeric budgets before implementation; page completed turns and slim rows only where measured benefit justifies the change.                                                                                                                     |
+
+_Status 2026-09-13: queue order 1 is in flight. Stage 0 landed — shared
+`protocol/remote/v3/fixtures/thread-follow-up-queue-envelope.json` (schema-validated
+against `threadFollowUpQueueStateSchema`/`setPendingSteerPayloadSchema`, carrying
+procedure requests, the get-result, and set/paused/clear broadcasts). Android stage
+A1 landed (`5a592780f`) — all eight procedures ride the generic procedure-call
+transport with generated codec validation, pinned by a fixture-driven round-trip
+test; remaining Android work is decode/state (A2), queue strip UI + all-locale
+strings (A3), and race pins (A4), then the iOS mirror and the nine-entry ledger
+flip per platform._
 
 Queue adoption and cursor-sync adoption can proceed independently. Protocol-policy
 and pairing-fixture work should accompany affected paths, not block unrelated native
