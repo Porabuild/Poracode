@@ -264,6 +264,8 @@ data class RemoteThreadSnapshot(
     val completedTurns: List<JsonElement> = emptyList(),
     val contextUsage: JsonElement? = null,
     val terminalScrollback: String? = null,
+    /** Authoritative follow-up queue for GUI threads; absent on old hosts. */
+    val followUpQueue: JsonElement? = null,
     val updatedAt: String,
 )
 

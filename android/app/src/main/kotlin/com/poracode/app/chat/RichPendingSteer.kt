@@ -147,7 +147,7 @@ object RichPendingSteerDecoder {
         val value: List<RichPromptSegment>?,
     )
 
-    private fun decodePending(value: JsonElement): RichPendingSteer? {
+    internal fun decodePending(value: JsonElement): RichPendingSteer? {
         val objectValue = value.objectOrNull() ?: return null
         val id = objectValue.requiredString("id", allowEmpty = false) ?: return null
         val prompt = objectValue.requiredString("prompt") ?: return null

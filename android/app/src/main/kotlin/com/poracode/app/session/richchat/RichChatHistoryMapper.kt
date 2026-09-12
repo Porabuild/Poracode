@@ -1,6 +1,7 @@
 package com.poracode.app.session.richchat
 
 import com.poracode.app.chat.RichContentDecoder
+import com.poracode.app.chat.RichFollowUpQueueDecoder
 import com.poracode.app.chat.RichItemState
 import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.chat.RichSnapshotMapping
@@ -10,6 +11,7 @@ import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.PersistedRuntimeItem
 import com.poracode.app.model.RemoteRuntimeItemsPage
 import com.poracode.app.model.RemoteThreadSnapshot
+import kotlinx.serialization.json.JsonNull
 
 object RichChatHistoryMapper {
     fun snapshot(
@@ -37,13 +39,21 @@ object RichChatHistoryMapper {
             turns.isNotEmpty() -> false
             else -> null
         }
+        // JsonNull is the adapter's sentinel for an explicit wire null; a
+        // Kotlin null means the field was absent (queue read failed).
+        val followUpQueue = when (val rawQueue = value.followUpQueue) {
+            null, is JsonNull -> null
+            else -> RichFollowUpQueueDecoder.decodeQueue(rawQueue) ?: invalid("follow-up queue")
+        }
+        val followUpQueuePresent = value.followUpQueue != null
         return RichChatHistorySnapshot(
             key = key,
             snapshotSeq = value.snapshotSeq,
-            state = hydrated.copy(openTurn = openTurn),
+            state = hydrated.copy(openTurn = openTurn, followUpQueue = followUpQueue),
             olderCursor = value.runtimeNextCursor,
             config = value.thread.config,
             terminalScrollback = value.terminalScrollback,
+            followUpQueuePresent = followUpQueuePresent,
             updatedAt = value.updatedAt,
         )
     }

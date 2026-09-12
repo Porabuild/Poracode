@@ -1,5 +1,6 @@
 package com.poracode.app.session.richchat
 
+import com.poracode.app.chat.RichFollowUpQueueEnvelope
 import com.poracode.app.chat.RichPendingSteerEnvelope
 import com.poracode.app.chat.RichReducer
 import com.poracode.app.chat.RichRuntimeEvent
@@ -9,7 +10,8 @@ import com.poracode.app.chat.RichThreadState
 internal data class RichChatLiveFrame(
     val sequence: Int?,
     val events: List<RichRuntimeEvent>,
-    val pendingSteer: RichPendingSteerEnvelope?,
+    val pendingSteer: RichPendingSteerEnvelope? = null,
+    val followUpQueue: RichFollowUpQueueEnvelope? = null,
 )
 
 internal fun reduceLiveFrame(state: RichThreadState, frame: RichChatLiveFrame): RichThreadState {
@@ -18,6 +20,7 @@ internal fun reduceLiveFrame(state: RichThreadState, frame: RichChatLiveFrame): 
     }
     var next = RichReducer.reduceAll(state, stateEvents)
     frame.pendingSteer?.let { next = RichReducer.applyPendingSteer(next, it) }
+    frame.followUpQueue?.let { next = RichReducer.applyFollowUpQueue(next, it) }
     return next
 }
 

@@ -1,6 +1,7 @@
 package com.poracode.app.session.richchat
 
 import com.poracode.app.chat.RichEventDecoder
+import com.poracode.app.chat.RichFollowUpQueueDecoder
 import com.poracode.app.chat.RichPendingSteerDecoder
 import com.poracode.app.model.terminal.TerminalProcessState
 import com.poracode.app.protocol.RuntimeEventReducer
@@ -246,7 +247,16 @@ class RichChatSessionRuntime(
         val pendingSteer = RichPendingSteerDecoder
             .decodeEnvelope(selected.host.connectionId, value)
             ?.takeIf { it.threadKey == selected.key }
-        return chat.applyServerFrame(selected, sequence, decodedEvents, pendingSteer)
+        val followUpQueue = RichFollowUpQueueDecoder
+            .decodeEnvelope(selected.host.connectionId, value)
+            ?.takeIf { it.threadKey == selected.key }
+        return chat.applyServerFrame(
+            selected,
+            sequence,
+            decodedEvents,
+            pendingSteer,
+            followUpQueue,
+        )
     }
 
     fun enterBackground() {

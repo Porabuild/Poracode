@@ -10,6 +10,9 @@ import com.poracode.app.model.RemoteThreadSnapshot
 import com.poracode.app.model.RemoteWebSocketTicketResult
 import com.poracode.app.protocol.GeneratedRemoteV3Contract
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.jsonObject
 
 /** Projects canonical generated snapshots into the app's stable transport domain. */
 internal object RemoteV3TransportAdapters {
@@ -31,11 +34,28 @@ internal object RemoteV3TransportAdapters {
         "shell snapshot",
     )
 
-    fun threadHistory(raw: String): RemoteThreadSnapshot = project(
-        GeneratedRemoteV3Contract.threadHistoryResponse(raw),
-        RemoteThreadSnapshot.serializer(),
-        "thread history",
-    )
+    fun threadHistory(raw: String): RemoteThreadSnapshot {
+        val snapshot = project(
+            GeneratedRemoteV3Contract.threadHistoryResponse(raw),
+            RemoteThreadSnapshot.serializer(),
+            "thread history",
+        )
+        // kotlinx maps both an absent field and an explicit JSON null to the
+        // nullable element's default. The queue contract needs the split:
+        // absent means the supervisor read failed (keep the prior queue);
+        // explicit null means no queue. Mark explicit nulls with the JsonNull
+        // sentinel so the mapper can tell them apart from absence.
+        if (snapshot.followUpQueue == null && containsFollowUpQueueKey(raw)) {
+            return snapshot.copy(followUpQueue = JsonNull)
+        }
+        return snapshot
+    }
+
+    private fun containsFollowUpQueueKey(raw: String): Boolean = try {
+        Json.parseToJsonElement(raw).jsonObject.containsKey("followUpQueue")
+    } catch (_: Exception) {
+        false
+    }
 
     fun historyItems(raw: String): RemoteRuntimeItemsPage = project(
         GeneratedRemoteV3Contract.historyItemsResponse(raw),
