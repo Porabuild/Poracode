@@ -100,6 +100,13 @@ data class RichChatHistorySnapshot(
     val olderCursor: Int?,
     val config: ThreadConfig,
     val terminalScrollback: String?,
+    /**
+     * True when the wire snapshot carried an explicit followUpQueue value
+     * (object or null). Absent means the supervisor queue read failed and the
+     * install must preserve the previously projected queue — the desktop
+     * contract; only an explicit null clears it.
+     */
+    val followUpQueuePresent: Boolean = false,
     val updatedAt: String,
 )
 

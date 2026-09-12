@@ -13,6 +13,7 @@ data class RichThreadState(
     val contextUsage: RichContextUsage? = null,
     val completedTurns: List<RichCompletedTurn> = emptyList(),
     val pendingSteer: RichPendingSteer? = null,
+    val followUpQueue: RichFollowUpQueue? = null,
     /** null means no turn-boundary evidence has arrived yet. */
     val openTurn: Boolean? = null,
     val lastUsageSpent: JsonObject? = null,
@@ -108,6 +109,15 @@ object RichReducer {
         envelope: RichPendingSteerEnvelope,
     ): RichThreadState = if (state.key == envelope.threadKey) {
         state.copy(pendingSteer = envelope.pending)
+    } else {
+        state
+    }
+
+    fun applyFollowUpQueue(
+        state: RichThreadState,
+        envelope: RichFollowUpQueueEnvelope,
+    ): RichThreadState = if (state.key == envelope.threadKey) {
+        state.copy(followUpQueue = envelope.queue)
     } else {
         state
     }

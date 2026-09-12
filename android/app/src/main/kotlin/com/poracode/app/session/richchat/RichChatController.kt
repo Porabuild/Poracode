@@ -1,5 +1,6 @@
 package com.poracode.app.session.richchat
 
+import com.poracode.app.chat.RichFollowUpQueueEnvelope
 import com.poracode.app.chat.RichPendingSteerEnvelope
 import com.poracode.app.chat.RichReducer
 import com.poracode.app.chat.RichRequestQueue
@@ -105,6 +106,7 @@ class RichChatController(
                     contextUsage = live.contextUsage,
                 ).copy(
                     pendingSteer = live.pendingSteer,
+                    followUpQueue = live.followUpQueue,
                     openTurn = live.openTurn,
                     lastUsageSpent = live.lastUsageSpent,
                     structuralVersion = live.structuralVersion + if (older.isEmpty()) 0 else 1,
@@ -133,8 +135,15 @@ class RichChatController(
         // window needs one authoritative catchup. Frames at or below
         // snapshotSeq were already reflected in the snapshot and are dropped
         // without catchup (per-thread installed baseline gate).
+        val previousQueue = mutableState.value.transcript?.followUpQueue
         val replayed = frameBuffer.replayAfterSnapshot(snapshot)
-        val transcript = replayed.transcript
+        var transcript = replayed.transcript
+        if (!snapshot.followUpQueuePresent) {
+            // Absent queue field = the supervisor read failed; the desktop
+            // contract keeps the previously projected queue instead of
+            // silently clearing the strip.
+            transcript = transcript.copy(followUpQueue = previousQueue)
+        }
         val truncationCatchup = replayed.truncationCatchup
         val needsFollowUp = replayed.hadOverflow
         mutableState.update {
@@ -167,20 +176,22 @@ class RichChatController(
         sequence: Int?,
         events: List<RichRuntimeEvent>,
         pendingSteer: RichPendingSteerEnvelope? = null,
+        followUpQueue: RichFollowUpQueueEnvelope? = null,
     ): Boolean {
         if (!lifecycle.isForeground || !isSelected(lease) || !session.isCurrent(lease.host)) {
             return false
         }
-        if (events.isEmpty() && pendingSteer == null) return false
+        if (events.isEmpty() && pendingSteer == null && followUpQueue == null) return false
         if (events.any { it.threadKey != lease.key } ||
-            pendingSteer?.let { it.threadKey != lease.key } == true
+            pendingSteer?.let { it.threadKey != lease.key } == true ||
+            followUpQueue?.let { it.threadKey != lease.key } == true
         ) {
             return false
         }
         if (frameBuffer.isStale(sequence)) {
             return false
         }
-        val frame = RichChatLiveFrame(sequence, events, pendingSteer)
+        val frame = RichChatLiveFrame(sequence, events, pendingSteer, followUpQueue)
         var accepted = false
         mutableState.update { current ->
             val transcript = current.transcript
