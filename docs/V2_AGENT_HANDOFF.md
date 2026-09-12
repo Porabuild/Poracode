@@ -335,10 +335,18 @@ the production sign-off blocker — is ALSO automated now:
 `tests/native-e2e/checkpointRevertProviderBacked.test.ts` (`57a29c707`, opt-in via
 `PORACODE_E2E_PROVIDER_REVERT=1` + an authenticated `claude` CLI) runs four real model turns
 and proves the provider session itself rolls back (live answer BLUE-7741 before the compound
-revert, "NO CODE GIVEN" after). Remaining manual-only items, all needing devices or a
-freshly launched live stack: iOS saved-pairing v9→v10 upgrade (fresh-install journey; never
-repair or wipe the C6 simulator), multi-host transitions on both natives, 32 kbps
-shaped-radio cold start, and the I-Stream-3 on-device pass.
+revert, "NO CODE GIVEN" after). **2026-09-12: the four residual on-device items were
+EXECUTED live with evidence under `tmp/v2-production-review/ws9-manual/`** — iOS
+saved-pairing v9→v10 upgrade (fresh iPhone 17 sim `ws9-manual-qa`, FF1D3200…; v9 pair
+→ in-place v10 host+app upgrade → saved-pairing restore with no repair; continued to
+v10→HEAD as bonus), multi-host transitions on iOS (dual connections, A→B→A selection,
+per-host isolation) and Android (replace-with-confirm flow on fresh AVD
+`ws9-android-qa`, previous desktop stays Connected), 32 kbps/1.5 s RTT web cold start
+(cached-shell steady state: restored ~1.0 s, snapshot+agent-statuses ~2.6 s — inside
+the 10 s budget), and the I-Stream-3 delayed-history pass (75 s history hold via a
+selective proxy on the host's port; flat RSS, error+retry surface, exact convergence).
+The C6 simulator and all pre-existing AVDs were untouched; no repair/wipe/credential
+reset was performed. Full status in [V2_PRODUCTION_PLAN.md](V2_PRODUCTION_PLAN.md) §WS9.
 
 ## Resource ownership and safe continuation
 
