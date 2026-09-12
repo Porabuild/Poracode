@@ -363,6 +363,26 @@ jobs:
       - name: Install JavaScript dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Build test native dependencies
+        # node-pty ships no Linux prebuild, so the plain-node headless host
+        # used by the foundation smoke compiles it from source (the install
+        # step above runs with --ignore-scripts). Retry the rebuild like
+        # ci.yml shards: node-gyp's Node-header download fails uncleanly on
+        # flaky transfers.
+        run: |
+          for attempt in 1 2 3; do
+            if pnpm rebuild node-pty; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Native dependency rebuild failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::Native dependency rebuild attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
+        shell: bash
+
       - name: Build the production headless host
         run: |
           pnpm run codex-protocol:gen
