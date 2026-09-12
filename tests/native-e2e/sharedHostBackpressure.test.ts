@@ -78,9 +78,17 @@ it("isolates a paused terminal receiver under incompressible output and recovers
     slow.pauseSocket();
     const pausedAt = performance.now();
     let payloadBytes = 0;
+    // 32 x 384KiB random bytes -> 32 x 512KiB base64 = 16 MiB total. The
+    // eviction guard counts only bytes queued in the server process
+    // (ws.bufferedAmount = Node Writable queue + ws sender queue), NOT bytes
+    // the kernel already accepted. Linux autotunes socket buffers
+    // (tcp_rmem max ~6 MiB + tcp_wmem max ~4 MiB) that can absorb ~10 MiB
+    // for a stalled-but-window-open receiver, so an 8 MiB storm never
+    // reaches the 4 MiB app-level guard on linux runners while macOS evicts
+    // early. 16 MiB forces the app-level queue past the guard on both.
     const batches = 32;
     for (let index = 0; index < batches; index++) {
-      const payload = randomBytes(192 * 1024).toString("base64");
+      const payload = randomBytes(384 * 1024).toString("base64");
       payloadBytes += Buffer.byteLength(payload);
       const file = join(project.location.path, "pressure-payload.txt");
       writeFileSync(file, payload);
