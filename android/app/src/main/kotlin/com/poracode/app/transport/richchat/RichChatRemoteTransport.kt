@@ -27,6 +27,41 @@ interface RichChatRemoteTransport {
     suspend fun subagentUnsubscribe(payload: JsonObject)
     suspend fun stageThreadInput(payload: JsonObject)
 
+    // Follow-up queue procedures. Hosts without the queue answer the stable
+    // 501 follow_up_queue_unsupported, which the client layer maps; payloads
+    // carry the canonical {threadId, ...} shapes from the generated contract.
+    suspend fun queueFollowUp(threadId: String, payload: JsonObject) {
+        throw RichChatTransportUnavailableException()
+    }
+
+    suspend fun removeQueuedFollowUp(threadId: String, id: String) {
+        throw RichChatTransportUnavailableException()
+    }
+
+    suspend fun reorderQueuedFollowUp(threadId: String, id: String, beforeId: String?) {
+        throw RichChatTransportUnavailableException()
+    }
+
+    suspend fun editQueuedFollowUp(threadId: String, payload: JsonObject) {
+        throw RichChatTransportUnavailableException()
+    }
+
+    suspend fun steerQueuedFollowUp(threadId: String, id: String) {
+        throw RichChatTransportUnavailableException()
+    }
+
+    suspend fun pauseFollowUps(threadId: String, id: String) {
+        throw RichChatTransportUnavailableException()
+    }
+
+    suspend fun resumeFollowUps(threadId: String) {
+        throw RichChatTransportUnavailableException()
+    }
+
+    suspend fun getFollowUpQueue(threadId: String): JsonObject? {
+        throw RichChatTransportUnavailableException()
+    }
+
     suspend fun uploadAttachment(
         threadId: String,
         name: String,

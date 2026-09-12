@@ -9,6 +9,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
@@ -149,6 +150,69 @@ class GeneratedRichChatRemoteTransportTest {
                 )
                 assertNull(request.getHeader("x-poracode-command-id"))
             }
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun followUpQueueProceduresRideTheProcedureRouteWithCanonicalBodies() = runBlocking {
+        val fixture = fixture("thread-follow-up-queue-envelope.json")
+        val requests = fixture.getValue("procedureRequests").jsonObject
+        val getResult = fixture.getValue("getResult").jsonObject
+        val server = MockWebServer()
+        repeat(7) { server.enqueue(MockResponse().setBody("{}")) }
+        server.enqueue(MockResponse().setBody(buildJsonObject { put("result", getResult) }.toString()))
+        server.start()
+        try {
+            val transport = transport(server)
+            transport.queueFollowUp(
+                "thread-rich",
+                requests.getValue("queueThreadFollowUp").jsonObject,
+            )
+            transport.editQueuedFollowUp(
+                "thread-rich",
+                requests.getValue("editQueuedThreadFollowUp").jsonObject,
+            )
+            transport.reorderQueuedFollowUp("thread-rich", "queue-rich-2", null)
+            transport.steerQueuedFollowUp("thread-rich", "queue-rich-2")
+            transport.removeQueuedFollowUp("thread-rich", "queue-rich-1")
+            transport.pauseFollowUps("thread-rich", "queue-rich-1")
+            transport.resumeFollowUps("thread-rich")
+            assertEquals(getResult, transport.getFollowUpQueue("thread-rich"))
+
+            // RecordedRequest bodies are single-use okio buffers — parse once.
+            val sent = List(8) { server.takeRequest() }
+            val bodies = sent.map { body(it) }
+            val procedureNames = listOf(
+                "queueThreadFollowUp",
+                "editQueuedThreadFollowUp",
+                "reorderQueuedThreadFollowUp",
+                "steerQueuedThreadFollowUp",
+                "removeQueuedThreadFollowUp",
+                "pauseThreadFollowUps",
+                "resumeThreadFollowUps",
+                "getThreadFollowUpQueue",
+            )
+            sent.forEachIndexed { index, request ->
+                assertEquals("POST", request.method)
+                assertEquals("/base/api/git/call", request.requestUrl!!.encodedPath)
+                assertNull(request.getHeader("x-poracode-command-id"))
+                assertEquals(procedureNames[index], bodies[index].getValue("procedure").jsonPrimitive.content)
+            }
+            val payloads = bodies.map { it.getValue("payload").jsonObject }
+            assertEquals(
+                "Run the integration suite after the current turn.",
+                payloads[0].getValue("prompt").jsonPrimitive.content,
+            )
+            assertEquals(
+                1786557600000L,
+                payloads[1].getValue("expectedStagedAt").jsonPrimitive.long,
+            )
+            assertEquals(JsonNull, payloads[2].getValue("beforeId"))
+            assertEquals("queue-rich-2", payloads[3].getValue("id").jsonPrimitive.content)
+            assertEquals("thread-rich", payloads[6].getValue("threadId").jsonPrimitive.content)
+            assertEquals("thread-rich", payloads[7].getValue("threadId").jsonPrimitive.content)
         } finally {
             server.shutdown()
         }
