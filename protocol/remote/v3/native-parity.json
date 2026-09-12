@@ -1217,10 +1217,13 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3RichChatContract.kt"
+          ]
         },
-        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+        "note": "Merged desktop/PWA follow-up queues. Android transport adopted: all eight procedures ride the generated procedure-call contract with codec validation and a fixture round-trip test; the queue UI and the thread-follow-up-queue event entry land with it."
       },
       {
         "id": "removeQueuedThreadFollowUp",
@@ -1230,10 +1233,13 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3RichChatContract.kt"
+          ]
         },
-        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+        "note": "Merged desktop/PWA follow-up queues. Android transport adopted: all eight procedures ride the generated procedure-call contract with codec validation and a fixture round-trip test; the queue UI and the thread-follow-up-queue event entry land with it."
       },
       {
         "id": "reorderQueuedThreadFollowUp",
@@ -1243,10 +1249,13 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3RichChatContract.kt"
+          ]
         },
-        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+        "note": "Merged desktop/PWA follow-up queues. Android transport adopted: all eight procedures ride the generated procedure-call contract with codec validation and a fixture round-trip test; the queue UI and the thread-follow-up-queue event entry land with it."
       },
       {
         "id": "editQueuedThreadFollowUp",
@@ -1256,10 +1265,13 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3RichChatContract.kt"
+          ]
         },
-        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+        "note": "Merged desktop/PWA follow-up queues. Android transport adopted: all eight procedures ride the generated procedure-call contract with codec validation and a fixture round-trip test; the queue UI and the thread-follow-up-queue event entry land with it."
       },
       {
         "id": "steerQueuedThreadFollowUp",
@@ -1269,10 +1281,13 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3RichChatContract.kt"
+          ]
         },
-        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+        "note": "Merged desktop/PWA follow-up queues. Android transport adopted: all eight procedures ride the generated procedure-call contract with codec validation and a fixture round-trip test; the queue UI and the thread-follow-up-queue event entry land with it."
       },
       {
         "id": "pauseThreadFollowUps",
@@ -1282,10 +1297,13 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3RichChatContract.kt"
+          ]
         },
-        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+        "note": "Merged desktop/PWA follow-up queues. Android transport adopted: all eight procedures ride the generated procedure-call contract with codec validation and a fixture round-trip test; the queue UI and the thread-follow-up-queue event entry land with it."
       },
       {
         "id": "resumeThreadFollowUps",
@@ -1295,10 +1313,13 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3RichChatContract.kt"
+          ]
         },
-        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+        "note": "Merged desktop/PWA follow-up queues. Android transport adopted: all eight procedures ride the generated procedure-call contract with codec validation and a fixture round-trip test; the queue UI and the thread-follow-up-queue event entry land with it."
       },
       {
         "id": "getThreadFollowUpQueue",
@@ -1308,10 +1329,13 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/transport/richchat/GeneratedRichChatRemoteTransport.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/GeneratedRemoteV3RichChatContract.kt"
+          ]
         },
-        "note": "Merged desktop/PWA follow-up queues; native UI and transport adoption remain planned."
+        "note": "Merged desktop/PWA follow-up queues. Android transport adopted: all eight procedures ride the generated procedure-call contract with codec validation and a fixture round-trip test; the queue UI and the thread-follow-up-queue event entry land with it."
       },
       {
         "id": "createFileCheckpoint",
