@@ -216,12 +216,36 @@ strip (steer-now / edit-pauses-first-with-segments / remove / beforeId reorder
 anchors / paused+resume; no optimistic mutations), and strings in all 13 Android
 locales with the `%1$d` placeholder pinned. Critic review of both stages fixed
 real blockers (double-fire long-press, edit dropping segments, pause-before-edit
-ordering). Remaining: A4 race pins (runtime broadcast wiring test, buffered
-queue-then-snapshot ordering, gateway payload shapes), the iOS mirror (B1–B4),
-and the `thread-follow-up-queue` event-entry ledger flip per platform. Hosted CI
-has not triggered for pushes since 07:31Z 2026-09-12 (suspected Actions quota —
-needs user-side restoration; all stages verified against the full local gradle
-suite + lint + assemble in the meantime)._
+ordering). A4 landed (`b142c8bc7`) — race pins plus one real ordering fix:
+preserve-on-absent now substitutes on the replay base so a queue broadcast
+buffered during a history read (newer than the failed snapshot field) survives
+install while frames at or below the snapshot baseline still drop; pinned by a
+first-open buffering test (proven to fail against the pre-fix controller), a
+fixture-driven runtime wiring test through `applyServerEvent` (set/paused/clear
+plus foreign-thread, malformed, and stale-sequence rejection), and gateway
+payload-shape tests against the fixture procedure requests.
+
+_Status 2026-09-14: the iOS mirror (B1–B4) landed. All eight procedures ride
+the generated procedure-call contract with codec validation
+(`GeneratedRichChatProcedureContract` + `RichChatRemoteAPI`); the domain decoder
+(`RichFollowUpQueue.swift`) mirrors pending-steer strictness; the snapshot field
+is tri-state via `RemoteThreadSnapshot` custom Codable (absent = preserve,
+explicit null = clear, object = install); queue broadcasts buffer during a
+history read and replay over the install base only when newer than
+`snapshotSeq` (the A4 semantics, expressed natively); the conversation
+controller exposes queue/remove/reorder/edit/steer/pause/resume without
+optimistic mutations; the compact dock gains a queue strip opening a native
+management sheet (swipe move up/down with `beforeId` anchors, edit pauses first
+and rides the original segments, steer-now, remove, paused+resume) and the
+composer send button grows a queue-instead-of-steer long-press menu while a
+turn is active; strings localized across all 13 catalog locales (Android
+terminology reused). The ledger flipped: eight iOS procedure entries plus the
+`thread-follow-up-queue` replayable-event entry on both platforms are
+implemented with transport/runtime evidence, and the corresponding
+PLANNED_ABSENCE_TOKENS rules were removed. Hosted CI has not triggered for
+pushes since 07:31Z 2026-09-12 (user-side restoration pending; every stage was
+verified against the full local gradle suite + lint and AppTests in the
+meantime)._
 
 Queue adoption and cursor-sync adoption can proceed independently. Protocol-policy
 and pairing-fixture work should accompany affected paths, not block unrelated native

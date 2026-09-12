@@ -10,6 +10,13 @@ enum RichChatConversationOperation: Equatable, Sendable {
   case goal
   case setSteer
   case clearSteer
+  case queueFollowUp
+  case removeQueuedFollowUp
+  case reorderQueuedFollowUp
+  case editQueuedFollowUp
+  case steerQueuedFollowUp
+  case pauseFollowUps
+  case resumeFollowUps
   case stage
   case rollback
   case revertCheckpoint
@@ -187,6 +194,69 @@ final class RichChatConversationController {
   func clearPendingSteer() async {
     await runMutation(.clearSteer, refreshOnSuccess: false) { gateway, target in
       try await gateway.clearRichSteer(target: target)
+    }
+  }
+
+  /// Queue mutations never request an authoritative refresh on success: the
+  /// host republishes the queue per thread via the replayable
+  /// `thread-follow-up-queue` broadcast, which is the source of truth.
+  @discardableResult
+  func queueFollowUp(_ input: RichSetPendingSteerInput) async -> Bool {
+    guard !input.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      state.failure = .invalidRequest
+      return false
+    }
+    await runMutation(.queueFollowUp, refreshOnSuccess: false) { gateway, target in
+      try await gateway.queueRichFollowUp(target: target, input: input)
+    }
+    return state.lastCompletedOperation == .queueFollowUp && state.failure == nil
+  }
+
+  func removeQueuedFollowUp(id: String) async {
+    await runMutation(.removeQueuedFollowUp, refreshOnSuccess: false) { gateway, target in
+      try await gateway.removeRichQueuedFollowUp(target: target, id: id)
+    }
+  }
+
+  func reorderQueuedFollowUp(id: String, beforeID: String?) async {
+    await runMutation(.reorderQueuedFollowUp, refreshOnSuccess: false) { gateway, target in
+      try await gateway.reorderRichQueuedFollowUp(target: target, id: id, beforeID: beforeID)
+    }
+  }
+
+  @discardableResult
+  func editQueuedFollowUp(_ edit: RichQueuedFollowUpEdit) async -> Bool {
+    guard !edit.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      state.failure = .invalidRequest
+      return false
+    }
+    await runMutation(.editQueuedFollowUp, refreshOnSuccess: false) { gateway, target in
+      try await gateway.editRichQueuedFollowUp(target: target, edit: edit)
+    }
+    return state.lastCompletedOperation == .editQueuedFollowUp && state.failure == nil
+  }
+
+  @discardableResult
+  func steerQueuedFollowUp(id: String) async -> Bool {
+    await runMutation(.steerQueuedFollowUp, refreshOnSuccess: false) { gateway, target in
+      try await gateway.steerRichQueuedFollowUp(target: target, id: id)
+    }
+    return state.lastCompletedOperation == .steerQueuedFollowUp && state.failure == nil
+  }
+
+  /// Must complete before an edit with `expectedStagedAt` is accepted: the
+  /// server rejects staged-at edits on unpaused records.
+  @discardableResult
+  func pauseFollowUps(id: String) async -> Bool {
+    await runMutation(.pauseFollowUps, refreshOnSuccess: false) { gateway, target in
+      try await gateway.pauseRichFollowUps(target: target, id: id)
+    }
+    return state.lastCompletedOperation == .pauseFollowUps && state.failure == nil
+  }
+
+  func resumeFollowUps() async {
+    await runMutation(.resumeFollowUps, refreshOnSuccess: false) { gateway, target in
+      try await gateway.resumeRichFollowUps(target: target)
     }
   }
 

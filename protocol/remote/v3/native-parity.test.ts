@@ -105,18 +105,6 @@ const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
-  queueThreadFollowUp: [{ platform: "ios", token: "queueThreadFollowUp" }],
-  removeQueuedThreadFollowUp: [{ platform: "ios", token: "removeQueuedThreadFollowUp" }],
-  reorderQueuedThreadFollowUp: [{ platform: "ios", token: "reorderQueuedThreadFollowUp" }],
-  editQueuedThreadFollowUp: [{ platform: "ios", token: "editQueuedThreadFollowUp" }],
-  steerQueuedThreadFollowUp: [{ platform: "ios", token: "steerQueuedThreadFollowUp" }],
-  pauseThreadFollowUps: [{ platform: "ios", token: "pauseThreadFollowUps" }],
-  resumeThreadFollowUps: [{ platform: "ios", token: "resumeThreadFollowUps" }],
-  getThreadFollowUpQueue: [{ platform: "ios", token: "getThreadFollowUpQueue" }],
-  "thread-follow-up-queue": [
-    { platform: "ios", token: "thread-follow-up-queue" },
-    { platform: "android", token: "thread-follow-up-queue" },
-  ],
   "background_tasks.changed": [{ platform: "ios", token: "background_tasks" }],
   "terminal-watch-baseline-ack": [
     { platform: "ios", token: "terminal-watch-baseline-ack" },

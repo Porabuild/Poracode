@@ -163,6 +163,18 @@ final class RichChatControllerSuite {
     )
   }
 
+  func receiveFollowUpQueuePayload(
+    _ payload: RichJSON,
+    sequence: Int,
+    target: RichChatThreadTarget
+  ) throws {
+    transcript.receiveFollowUpQueue(
+      try RichFollowUpQueueDecoder.decodeEnvelope(payload),
+      sequence: sequence,
+      target: target
+    )
+  }
+
   func refreshAuthoritativeHistory(targetEntryCount: Int? = 40) async {
     await transcript.loadHistory(targetEntryCount: targetEntryCount)
     switch transcript.state.loadState {

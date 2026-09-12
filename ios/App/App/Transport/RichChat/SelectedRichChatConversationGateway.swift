@@ -58,6 +58,59 @@ extension SelectedRichChatSessionGateway: RichChatConversationGateway {
     }
   }
 
+  func queueRichFollowUp(
+    target: RichChatThreadTarget,
+    input: RichSetPendingSteerInput
+  ) async throws {
+    try await executeMutation(target: target, capability: .sessionOperate) { api in
+      try await api.richQueueFollowUp(threadID: target.threadID, input: input)
+    }
+  }
+
+  func removeRichQueuedFollowUp(target: RichChatThreadTarget, id: String) async throws {
+    try await executeMutation(target: target, capability: .sessionOperate) { api in
+      try await api.richRemoveQueuedFollowUp(threadID: target.threadID, id: id)
+    }
+  }
+
+  func reorderRichQueuedFollowUp(
+    target: RichChatThreadTarget,
+    id: String,
+    beforeID: String?
+  ) async throws {
+    try await executeMutation(target: target, capability: .sessionOperate) { api in
+      try await api.richReorderQueuedFollowUp(
+        threadID: target.threadID, id: id, beforeID: beforeID)
+    }
+  }
+
+  func editRichQueuedFollowUp(
+    target: RichChatThreadTarget,
+    edit: RichQueuedFollowUpEdit
+  ) async throws {
+    try await executeMutation(target: target, capability: .sessionOperate) { api in
+      try await api.richEditQueuedFollowUp(threadID: target.threadID, edit: edit)
+    }
+  }
+
+  func steerRichQueuedFollowUp(target: RichChatThreadTarget, id: String) async throws {
+    try await executeMutation(target: target, capability: .sessionOperate) { api in
+      try await api.richSteerQueuedFollowUp(threadID: target.threadID, id: id)
+    }
+  }
+
+  func pauseRichFollowUps(target: RichChatThreadTarget, id: String) async throws {
+    try await executeMutation(target: target, capability: .sessionOperate) { api in
+      try await api.richPauseThreadFollowUps(threadID: target.threadID, id: id)
+    }
+  }
+
+  func resumeRichFollowUps(target: RichChatThreadTarget) async throws {
+    try await executeMutation(target: target, capability: .sessionOperate) { api in
+      try await api.richResumeThreadFollowUps(threadID: target.threadID)
+    }
+  }
+
   func uploadRichAttachment(
     target: RichChatThreadTarget,
     attachment: RichChatAttachment

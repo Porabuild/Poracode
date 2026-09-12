@@ -337,6 +337,36 @@ extension RichChatRemoteAPI {
   fileprivate func richClearSteer(threadID _: String) async throws {
     throw RichChatTransportFailure.invalidResponse
   }
+  fileprivate func richQueueFollowUp(threadID _: String, input _: RichSetPendingSteerInput)
+    async throws
+  {
+    throw RichChatTransportFailure.invalidResponse
+  }
+  fileprivate func richRemoveQueuedFollowUp(threadID _: String, id _: String) async throws {
+    throw RichChatTransportFailure.invalidResponse
+  }
+  fileprivate func richReorderQueuedFollowUp(
+    threadID _: String, id _: String, beforeID _: String?
+  ) async throws {
+    throw RichChatTransportFailure.invalidResponse
+  }
+  fileprivate func richEditQueuedFollowUp(
+    threadID _: String, edit _: RichQueuedFollowUpEdit
+  ) async throws {
+    throw RichChatTransportFailure.invalidResponse
+  }
+  fileprivate func richSteerQueuedFollowUp(threadID _: String, id _: String) async throws {
+    throw RichChatTransportFailure.invalidResponse
+  }
+  fileprivate func richPauseThreadFollowUps(threadID _: String, id _: String) async throws {
+    throw RichChatTransportFailure.invalidResponse
+  }
+  fileprivate func richResumeThreadFollowUps(threadID _: String) async throws {
+    throw RichChatTransportFailure.invalidResponse
+  }
+  fileprivate func richGetFollowUpQueue(threadID _: String) async throws -> RichJSON {
+    throw RichChatTransportFailure.invalidResponse
+  }
   fileprivate func richResolveRequest(
     threadID _: String, resolution _: RichChatRequestResolution
   ) async throws { throw RichChatTransportFailure.invalidResponse }

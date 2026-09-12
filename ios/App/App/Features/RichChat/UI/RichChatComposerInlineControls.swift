@@ -95,6 +95,7 @@ struct RichChatComposerTrailingAction: View {
   let showsSendWhenEmpty: Bool
   let importing: Bool
   let isResolvingRequest: Bool
+  var queue: (() -> Void)?
   let interrupt: () -> Void
   let send: () -> Void
 
@@ -112,23 +113,40 @@ struct RichChatComposerTrailingAction: View {
       .accessibilityLabel(RichChatStrings.stop)
       .accessibilityIdentifier("native-e2e.interrupt")
     } else if hasPrompt || showsSendWhenEmpty {
-      Button(action: send) {
-        Image(systemName: "arrow.up")
-          .font(.system(size: 13, weight: .semibold))
-          .foregroundStyle(hasPrompt ? Color.white : Color.secondary)
-          .frame(width: 32, height: 32)
-          .background(
-            hasPrompt ? Color.accentColor.opacity(0.78) : Color.secondary.opacity(0.12),
-            in: Circle()
-          )
+      // While a turn is active the plain tap steers (desktop default); a
+      // long-press menu offers queueing the same draft as a follow-up — one
+      // control, two explicit choices, no accidental double submission.
+      if isTurnActive && hasPrompt, let queue {
+        sendButton.contextMenu {
+          Button {
+            queue()
+          } label: {
+            Label(RichChatStrings.queueSendAction, systemImage: "arrow.triangle.branch")
+          }
+        }
+      } else {
+        sendButton
       }
-      .buttonStyle(.plain)
-      .disabled(!hasPrompt || importing || isSending || isResolvingRequest)
-      .accessibilityLabel(RichChatStrings.send)
-      .accessibilityIdentifier("native-e2e.send")
     } else {
       Color.clear
     }
+  }
+
+  private var sendButton: some View {
+    Button(action: send) {
+      Image(systemName: "arrow.up")
+        .font(.system(size: 13, weight: .semibold))
+        .foregroundStyle(hasPrompt ? Color.white : Color.secondary)
+        .frame(width: 32, height: 32)
+        .background(
+          hasPrompt ? Color.accentColor.opacity(0.78) : Color.secondary.opacity(0.12),
+          in: Circle()
+        )
+    }
+    .buttonStyle(.plain)
+    .disabled(!hasPrompt || importing || isSending || isResolvingRequest)
+    .accessibilityLabel(RichChatStrings.send)
+    .accessibilityIdentifier("native-e2e.send")
   }
 }
 

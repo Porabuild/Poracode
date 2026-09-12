@@ -22,6 +22,14 @@ protocol RichChatRemoteAPI: Sendable {
   func richGoal(threadID: String, update: RichChatGoalUpdate) async throws
   func richSetSteer(threadID: String, input: RichSetPendingSteerInput) async throws
   func richClearSteer(threadID: String) async throws
+  func richQueueFollowUp(threadID: String, input: RichSetPendingSteerInput) async throws
+  func richRemoveQueuedFollowUp(threadID: String, id: String) async throws
+  func richReorderQueuedFollowUp(threadID: String, id: String, beforeID: String?) async throws
+  func richEditQueuedFollowUp(threadID: String, edit: RichQueuedFollowUpEdit) async throws
+  func richSteerQueuedFollowUp(threadID: String, id: String) async throws
+  func richPauseThreadFollowUps(threadID: String, id: String) async throws
+  func richResumeThreadFollowUps(threadID: String) async throws
+  func richGetFollowUpQueue(threadID: String) async throws -> RichJSON
   func richResolveRequest(threadID: String, resolution: RichChatRequestResolution) async throws
   func richUploadAttachment(threadID: String, attachment: RichChatAttachment) async throws -> String
 
@@ -220,6 +228,72 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
   func richClearSteer(threadID: String) async throws {
     let route = try prepare { try GeneratedRemoteV3Contract.richClearSteer(threadID: threadID) }
     try await mutate(.steerClear, route: route, suffix: "steer/clear")
+  }
+
+  func richQueueFollowUp(threadID: String, input: RichSetPendingSteerInput) async throws {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.richQueueFollowUpRequest(threadID: threadID, input: input)
+    }
+    try await procedureMutation(.queueThreadFollowUp, body: body)
+  }
+
+  func richRemoveQueuedFollowUp(threadID: String, id: String) async throws {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.richQueuedFollowUpItemRequest(
+        .removeQueuedThreadFollowUp, threadID: threadID, itemID: id)
+    }
+    try await procedureMutation(.removeQueuedThreadFollowUp, body: body)
+  }
+
+  func richReorderQueuedFollowUp(
+    threadID: String,
+    id: String,
+    beforeID: String?
+  ) async throws {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.richReorderQueuedFollowUpRequest(
+        threadID: threadID, itemID: id, beforeID: beforeID)
+    }
+    try await procedureMutation(.reorderQueuedThreadFollowUp, body: body)
+  }
+
+  func richEditQueuedFollowUp(threadID: String, edit: RichQueuedFollowUpEdit) async throws {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.richEditQueuedFollowUpRequest(threadID: threadID, edit: edit)
+    }
+    try await procedureMutation(.editQueuedThreadFollowUp, body: body)
+  }
+
+  func richSteerQueuedFollowUp(threadID: String, id: String) async throws {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.richQueuedFollowUpItemRequest(
+        .steerQueuedThreadFollowUp, threadID: threadID, itemID: id)
+    }
+    try await procedureMutation(.steerQueuedThreadFollowUp, body: body)
+  }
+
+  func richPauseThreadFollowUps(threadID: String, id: String) async throws {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.richQueuedFollowUpItemRequest(
+        .pauseThreadFollowUps, threadID: threadID, itemID: id)
+    }
+    try await procedureMutation(.pauseThreadFollowUps, body: body)
+  }
+
+  func richResumeThreadFollowUps(threadID: String) async throws {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.richThreadFollowUpsRequest(
+        .resumeThreadFollowUps, threadID: threadID)
+    }
+    try await procedureMutation(.resumeThreadFollowUps, body: body)
+  }
+
+  func richGetFollowUpQueue(threadID: String) async throws -> RichJSON {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.richThreadFollowUpsRequest(
+        .getThreadFollowUpQueue, threadID: threadID)
+    }
+    return try await procedureRead(.getThreadFollowUpQueue, body: body)
   }
 
   func richResolveRequest(

@@ -139,7 +139,7 @@ enum RichPendingSteerDecoder {
     throw RichDomainDecodeError.invalidPendingSteer
   }
 
-  private static func decodePending(_ value: RichJSON) throws -> RichPendingSteer {
+  static func decodePending(_ value: RichJSON) throws -> RichPendingSteer {
     guard let object = value.objectValue,
       let id = RichDecoding.requiredString(object, "id", allowEmpty: false),
       let prompt = RichDecoding.requiredString(object, "prompt"),

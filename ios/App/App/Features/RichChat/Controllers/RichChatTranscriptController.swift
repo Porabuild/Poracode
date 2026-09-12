@@ -34,6 +34,7 @@ struct RichChatTranscriptControllerState: Equatable, Sendable {
   var completedTurns: [RichCompletedTurn] = []
   var contextUsage: RichContextUsage?
   var pendingSteer: RichPendingSteer?
+  var followUpQueue: RichFollowUpQueue?
   var terminalScrollback: String?
   var olderCursor: Int?
   var snapshotSequence: Int?
@@ -59,6 +60,11 @@ private struct RichChatBufferedRuntimeBatch: Sendable {
   let receivedAtMilliseconds: Int64
 }
 
+private struct RichChatBufferedFollowUpQueue: Sendable {
+  let sequence: Int
+  let envelope: RichFollowUpQueueEnvelope
+}
+
 /// Owns one selected host/thread transcript. History is installed authoritatively and
 /// only newer, uniquely-sequenced live batches are replayed over it.
 @MainActor
@@ -82,6 +88,11 @@ final class RichChatTranscriptController {
   private var isBackgrounded = false
   private var bufferedBatches: [RichChatBufferedRuntimeBatch] = []
   private var bufferedSequences: Set<Int> = []
+  /// Queue broadcasts are replace-on-event and sequence-tagged by the host
+  /// session; ones arriving mid-history-read buffer here and replay over the
+  /// installed snapshot (only sequences newer than it), mirroring the batch
+  /// buffer's baseline rule.
+  private var bufferedFollowUpQueues: [RichChatBufferedFollowUpQueue] = []
   /// A cap drop while buffering lost replay coverage; must survive until the
   /// history install folds it into `requiresAuthoritativeRefresh` (WS7 P1-14).
   private var bufferOverflowed = false
@@ -101,6 +112,7 @@ final class RichChatTranscriptController {
     pageTask.cancel()
     bufferedBatches.removeAll(keepingCapacity: true)
     bufferedSequences.removeAll(keepingCapacity: true)
+    bufferedFollowUpQueues.removeAll(keepingCapacity: true)
     bufferOverflowed = false
     isBackgrounded = false
     let target = RichChatThreadTarget(lease: access.lease, threadID: threadID)
@@ -126,6 +138,7 @@ final class RichChatTranscriptController {
     pageTask.cancel()
     bufferedBatches.removeAll(keepingCapacity: false)
     bufferedSequences.removeAll(keepingCapacity: false)
+    bufferedFollowUpQueues.removeAll(keepingCapacity: false)
     bufferOverflowed = false
     isBackgrounded = false
     state = RichChatTranscriptControllerState()
@@ -139,6 +152,7 @@ final class RichChatTranscriptController {
     pageTask.cancel()
     bufferedBatches.removeAll(keepingCapacity: false)
     bufferedSequences.removeAll(keepingCapacity: false)
+    bufferedFollowUpQueues.removeAll(keepingCapacity: false)
     bufferOverflowed = false
     state.isLoadingOlder = false
     if state.loadState == .loading { state.loadState = .idle }
@@ -162,6 +176,7 @@ final class RichChatTranscriptController {
     state.isLoadingOlder = false
     bufferedBatches.removeAll(keepingCapacity: true)
     bufferedSequences.removeAll(keepingCapacity: true)
+    bufferedFollowUpQueues.removeAll(keepingCapacity: true)
     bufferOverflowed = false
     state.loadState = .loading
     historyTask.launch { [weak self] in
@@ -250,6 +265,25 @@ final class RichChatTranscriptController {
     state.pendingSteer = pending.pending
   }
 
+  /// Replace-on-event for the selected thread's queue. While a history read is
+  /// in flight the broadcast buffers instead, then replays over the installed
+  /// snapshot only when its sequence is newer (same baseline rule as batches).
+  func receiveFollowUpQueue(
+    _ envelope: RichFollowUpQueueEnvelope,
+    sequence: Int,
+    target: RichChatThreadTarget
+  ) {
+    guard !isBackgrounded, target == state.target, envelope.threadID == target.threadID else {
+      return
+    }
+    if state.loadState == .loading {
+      bufferedFollowUpQueues.append(
+        RichChatBufferedFollowUpQueue(sequence: sequence, envelope: envelope))
+      return
+    }
+    state.followUpQueue = envelope.queue
+  }
+
   private func performHistoryLoad(
     target: RichChatThreadTarget,
     targetEntryCount: Int?,
@@ -280,6 +314,20 @@ final class RichChatTranscriptController {
       var needsCatchup = false
       var mergedContext = context
       var liveSequence = history.snapshotSeq
+      // Queue install is tri-state: absent field = the supervisor read failed,
+      // so preserve the projected queue (never silently clear the strip);
+      // explicit null clears; an object installs. Buffered broadcasts newer
+      // than the snapshot then replay on top, so a replace during the read
+      // always beats the failed/older snapshot value.
+      var installedQueue = state.followUpQueue
+      if history.followUpQueuePresent {
+        installedQueue = try history.followUpQueue.map { rawQueue in
+          try RichFollowUpQueueDecoder.decodeQueue(try RichChatRemoteModelBridge.json(rawQueue))
+        }
+      }
+      for bufferedQueue in bufferedFollowUpQueues where bufferedQueue.sequence > history.snapshotSeq {
+        installedQueue = bufferedQueue.envelope.queue
+      }
       for batch in bufferedBatches.sorted(by: { $0.sequence < $1.sequence })
       where batch.sequence > history.snapshotSeq {
         needsCatchup =
@@ -297,6 +345,7 @@ final class RichChatTranscriptController {
       state.transcript = transcript
       state.completedTurns = turns
       state.contextUsage = mergedContext
+      state.followUpQueue = installedQueue
       state.terminalScrollback = history.terminalScrollback
       state.olderCursor = history.runtimeNextCursor
       state.snapshotSequence = history.snapshotSeq
@@ -305,6 +354,7 @@ final class RichChatTranscriptController {
       state.requiresAuthoritativeRefresh = needsCatchup || bufferOverflowed
       bufferedBatches.removeAll(keepingCapacity: false)
       bufferedSequences.removeAll(keepingCapacity: false)
+      bufferedFollowUpQueues.removeAll(keepingCapacity: false)
       bufferOverflowed = false
       if state.requiresAuthoritativeRefresh { scheduleAuthoritativeRefresh() }
     } catch is CancellationError {
@@ -315,6 +365,7 @@ final class RichChatTranscriptController {
       state.loadState = .failed(.map(error))
       bufferedBatches.removeAll(keepingCapacity: false)
       bufferedSequences.removeAll(keepingCapacity: false)
+      bufferedFollowUpQueues.removeAll(keepingCapacity: false)
       bufferOverflowed = false
     }
   }

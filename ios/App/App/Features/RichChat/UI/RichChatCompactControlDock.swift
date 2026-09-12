@@ -34,6 +34,14 @@ struct RichChatCompactControlDock: View {
 
       if let pendingSteer { pendingSteerStrip(pendingSteer) }
 
+      if let followUpQueue, !followUpQueue.items.isEmpty || followUpQueue.paused {
+        RichFollowUpQueueStrip(
+          queue: followUpQueue,
+          canOperate: canOperate,
+          open: { destination = .followUpQueue }
+        )
+      }
+
       if !infoControls.isEmpty {
         RichChatCompactInfoControls(controls: infoControls) { selected in
           destination = selected
@@ -56,6 +64,10 @@ struct RichChatCompactControlDock: View {
 
   private var pendingSteer: RichPendingSteer? {
     suite.transcript.state.pendingSteer
+  }
+
+  private var followUpQueue: RichFollowUpQueue? {
+    suite.transcript.state.followUpQueue
   }
 
   private var contextSummary: RichContextUsagePresentation? {
@@ -88,7 +100,9 @@ struct RichChatCompactControlDock: View {
   }
 
   private var showsAnyContent: Bool {
-    !requests.isEmpty || pendingSteer != nil || !infoControls.isEmpty
+    !requests.isEmpty || pendingSteer != nil
+      || (followUpQueue.map { !$0.items.isEmpty || $0.paused } == true)
+      || !infoControls.isEmpty
   }
 
   private var infoControls: [RichChatCompactInfoControl] {
@@ -259,6 +273,14 @@ struct RichChatCompactControlDock: View {
         conversation: suite.conversation,
         canOperate: canOperate
       )
+    case .followUpQueue:
+      if let followUpQueue {
+        RichFollowUpQueueSheet(
+          queue: followUpQueue,
+          conversation: suite.conversation,
+          canOperate: canOperate
+        )
+      }
     case .git(let location):
       if let thread, let project {
         ThreadDetailDestinationView(

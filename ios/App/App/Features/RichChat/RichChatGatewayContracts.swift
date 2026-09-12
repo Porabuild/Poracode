@@ -75,6 +75,19 @@ protocol RichChatConversationGateway: Sendable {
   func updateRichGoal(target: RichChatThreadTarget, update: RichChatGoalUpdate) async throws
   func setRichSteer(target: RichChatThreadTarget, input: RichSetPendingSteerInput) async throws
   func clearRichSteer(target: RichChatThreadTarget) async throws
+  func queueRichFollowUp(
+    target: RichChatThreadTarget, input: RichSetPendingSteerInput
+  ) async throws
+  func removeRichQueuedFollowUp(target: RichChatThreadTarget, id: String) async throws
+  func reorderRichQueuedFollowUp(
+    target: RichChatThreadTarget, id: String, beforeID: String?
+  ) async throws
+  func editRichQueuedFollowUp(
+    target: RichChatThreadTarget, edit: RichQueuedFollowUpEdit
+  ) async throws
+  func steerRichQueuedFollowUp(target: RichChatThreadTarget, id: String) async throws
+  func pauseRichFollowUps(target: RichChatThreadTarget, id: String) async throws
+  func resumeRichFollowUps(target: RichChatThreadTarget) async throws
   func uploadRichAttachment(
     target: RichChatThreadTarget, attachment: RichChatAttachment
   ) async throws -> String
