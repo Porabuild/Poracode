@@ -154,6 +154,58 @@ class RichChatFollowUpQueueTest {
         )
     }
 
+    @Test
+    fun bufferedQueueBroadcastsReplayOverTheSnapshotBaseNotThePreservedQueue() = runTest {
+        val session = MutableStateFlow<RichChatHostLease?>(richLease())
+        val controller = RichChatController(session, FakeRichChatSessionGateway())
+        controller.selectThread("thread-a")
+        val lease = controller.selection.value!!
+
+        // First open: history is in flight (transcript null), so both frames
+        // buffer without reducing. The seq-9 frame predates the snapshot
+        // baseline and must drop on replay; the seq-11 frame is newer than
+        // the snapshot and must win even though the snapshot's queue field is
+        // absent (supervisor read failed → preserve the prior projection,
+        // which here is empty — not discard the newer broadcast).
+        assertTrue(
+            controller.applyServerFrame(
+                lease,
+                sequence = 9,
+                events = emptyList(),
+                followUpQueue = RichFollowUpQueueEnvelope(lease.key, queue("queue-stale")),
+            ),
+        )
+        assertTrue(
+            controller.applyServerFrame(
+                lease,
+                sequence = 11,
+                events = emptyList(),
+                followUpQueue = RichFollowUpQueueEnvelope(lease.key, queue("queue-1")),
+            ),
+        )
+        assertNull(controller.state.value.transcript)
+
+        controller.installAuthoritativeSnapshot(lease, snapshot(lease, seq = 10))
+        assertEquals(
+            listOf("queue-1"),
+            controller.state.value.transcript?.followUpQueue?.items?.map { it.id },
+        )
+
+        // The installed baseline watermark keeps already-reflected replays out.
+        assertFalse(
+            controller.applyServerFrame(
+                lease,
+                sequence = 11,
+                events = emptyList(),
+                followUpQueue = RichFollowUpQueueEnvelope(lease.key, queue("queue-stale")),
+            ),
+        )
+        assertEquals(
+            listOf("queue-1"),
+            controller.state.value.transcript?.followUpQueue?.items?.map { it.id },
+        )
+    }
+
     // MARK: - Helpers
 
     private fun queue(id: String): RichFollowUpQueue = RichFollowUpQueue(

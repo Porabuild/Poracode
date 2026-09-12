@@ -139,15 +139,18 @@ class RichChatController(
         // window needs one authoritative catchup. Frames at or below
         // snapshotSeq were already reflected in the snapshot and are dropped
         // without catchup (per-thread installed baseline gate).
+        // Absent queue field = the supervisor read failed; the desktop contract
+        // keeps the previously projected queue instead of silently clearing the
+        // strip. The substitution happens on the replay base, not the result,
+        // so buffered queue frames newer than the snapshot still win.
         val previousQueue = mutableState.value.transcript?.followUpQueue
-        val replayed = frameBuffer.replayAfterSnapshot(snapshot)
-        var transcript = replayed.transcript
-        if (!snapshot.followUpQueuePresent) {
-            // Absent queue field = the supervisor read failed; the desktop
-            // contract keeps the previously projected queue instead of
-            // silently clearing the strip.
-            transcript = transcript.copy(followUpQueue = previousQueue)
+        val base = if (snapshot.followUpQueuePresent) {
+            snapshot.state
+        } else {
+            snapshot.state.copy(followUpQueue = previousQueue)
         }
+        val replayed = frameBuffer.replayAfterSnapshot(snapshot, base)
+        val transcript = replayed.transcript
         val truncationCatchup = replayed.truncationCatchup
         val needsFollowUp = replayed.hadOverflow
         mutableState.update {

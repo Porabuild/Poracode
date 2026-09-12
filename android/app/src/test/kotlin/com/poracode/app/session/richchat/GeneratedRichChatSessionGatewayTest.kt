@@ -24,7 +24,9 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -237,6 +239,46 @@ class GeneratedRichChatSessionGatewayTest {
         assertEquals(0, core.sendCalls)
     }
 
+    @Test
+    fun queueAndEditPayloadsMatchTheSharedProtocolFixture() = runTest {
+        val host = richLease()
+        val specialized = FakeSpecializedTransport()
+        val gateway = generatedGateway(host, FakeCoreGateway(), specialized)
+        val root = Json.parseToJsonElement(fixture("thread-follow-up-queue-envelope.json")).jsonObject
+        val requests = root.getValue("procedureRequests").jsonObject
+        val expectedSet = requests.getValue("queueThreadFollowUp").jsonObject
+        val expectedEdit = requests.getValue("editQueuedThreadFollowUp").jsonObject
+        val segments = root.getValue("snapshotField").jsonObject
+            .getValue("items").jsonArray[1].jsonObject.getValue("segments").jsonArray
+
+        gateway.queueFollowUp(
+            host,
+            "thread-rich",
+            prompt = expectedSet.getValue("prompt").jsonPrimitive.content,
+            config = expectedSet.getValue("config").jsonObject,
+            segments = null,
+        )
+        gateway.queueFollowUp(
+            host,
+            "thread-rich",
+            prompt = expectedSet.getValue("prompt").jsonPrimitive.content,
+            config = expectedSet.getValue("config").jsonObject,
+            segments = segments,
+        )
+        // The caller edits without a threadId; the gateway injects the lease's.
+        gateway.editQueuedFollowUp(
+            host,
+            "thread-rich",
+            payload = JsonObject(expectedEdit.filterKeys { it != "threadId" }),
+        )
+
+        assertEquals(listOf("thread-rich", "thread-rich"), specialized.queuePayloads.map { it.first })
+        assertEquals(expectedSet, specialized.queuePayloads[0].second)
+        assertFalse(specialized.queuePayloads[0].second.containsKey("segments"))
+        assertEquals(JsonObject(expectedSet + ("segments" to segments)), specialized.queuePayloads[1].second)
+        assertEquals(listOf("thread-rich" to expectedEdit), specialized.editPayloads)
+    }
+
     private fun generatedGateway(
         host: RichChatHostLease,
         core: FakeCoreGateway,
@@ -325,8 +367,18 @@ private class FakeSpecializedTransport : RichChatRemoteTransport {
     var listCalls = 0
     var revertCalls = 0
     var revertFailure: Exception? = null
+    val queuePayloads = mutableListOf<Pair<String, JsonObject>>()
+    val editPayloads = mutableListOf<Pair<String, JsonObject>>()
 
     override suspend fun truncateRuntime(threadId: String, itemId: String) = Unit
+    override suspend fun queueFollowUp(threadId: String, payload: JsonObject) {
+        queuePayloads += threadId to payload
+    }
+
+    override suspend fun editQueuedFollowUp(threadId: String, payload: JsonObject) {
+        editPayloads += threadId to payload
+    }
+
     override suspend fun checkpointRevert(threadId: String, payload: JsonObject): String {
         revertCalls += 1
         revertFailure?.let { throw it }
