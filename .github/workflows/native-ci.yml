@@ -193,6 +193,28 @@ jobs:
       - name: Install Android 17 SDK
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
 
+      - name: Pre-create the API 37 AVD with a fallback device profile
+        # The runner's system-image package occasionally drops device profiles
+        # (seen persistently with pixel_9 since 2026-09-12): avdmanager then
+        # fails with "No device found matching --device pixel_9" and the boot
+        # dies on "5554: Connection refused". Create the AVD ourselves against
+        # the first profile the installed image actually ships; the emulator
+        # runner below reuses it (force-avd-creation: false).
+        run: |
+          sdkmanager "system-images;android-37.0;google_apis;x86_64" > /dev/null
+          avdmanager list device | sed -n 's/^id: \([0-9]*\) or "\(.*\)"$/\2/p' | grep -i '^pixel' | head -20 || true
+          for device in pixel_9 pixel_9_pro pixel_9_pro_xl pixel_8 pixel_7 pixel_6 pixel; do
+            if echo no | avdmanager create avd \
+              -n poracode-pixel9-api37 \
+              -k "system-images;android-37.0;google_apis;x86_64" \
+              --device "$device"; then
+              echo "Created poracode-pixel9-api37 with device profile: $device"
+              exit 0
+            fi
+          done
+          echo "::error::No usable device profile in the installed API 37 system image."
+          exit 1
+
       - name: Enable KVM for the emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
@@ -208,6 +230,7 @@ jobs:
           arch: x86_64
           profile: pixel_9
           avd-name: poracode-pixel9-api37
+          force-avd-creation: false
           cores: 2
           ram-size: 4096M
           heap-size: 512M
