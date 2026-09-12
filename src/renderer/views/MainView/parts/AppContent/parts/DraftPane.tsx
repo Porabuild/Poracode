@@ -7,7 +7,8 @@ import {
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useDraggable, useDroppable } from "@dnd-kit/react";
-import { useIsDraggingPane, usePaneDropIndicatorState, type DragSourceData } from "@/renderer/dnd";
+import { useIsDraggingPane, usePaneDropIndicatorState } from "@/renderer/dnd";
+import { paneDragSourceOptions } from "./paneDragSource";
 import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 
 export function DraftPane(props: {
@@ -24,12 +25,13 @@ export function DraftPane(props: {
   const draftEnvironment = useDraftEnvironment(project);
 
   const paneElementRef = useRef<HTMLDivElement>(null);
+  const paneDragSource = paneDragSourceOptions({
+    paneId: props.paneId,
+    paneCount: props.paneCount,
+  });
   const { handleRef } = useDraggable({
-    id: `pane:${props.paneId}`,
-    type: "pane",
-    data: { type: "pane", paneId: props.paneId } satisfies DragSourceData,
-    disabled: props.paneCount <= 1,
-    element: paneElementRef,
+    ...paneDragSource.options,
+    ...(paneDragSource.registerElement ? { element: paneElementRef } : {}),
   });
   useDroppable({
     id: `pane-drop:${props.paneId}`,
