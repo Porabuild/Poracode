@@ -92,16 +92,21 @@ internal class RichChatLiveFrameBuffer(
     /**
      * Replays frames newer than the installed snapshot (`sequence == null ||
      * `> snapshotSeq`); frames at or below the baseline were already reflected
-     * in the snapshot and are dropped without catchup. Checked incrementally
-     * per replayed frame so a later frame pruning an earlier checkpoint cannot
-     * false-positive an already-correct apply.
+     * in the snapshot and are dropped without catchup. `base` overrides the
+     * replay starting transcript for snapshot-field substitutions that must
+     * not clobber buffered frames. Checked incrementally per replayed frame
+     * so a later frame pruning an earlier checkpoint cannot false-positive an
+     * already-correct apply.
      */
-    fun replayAfterSnapshot(snapshot: RichChatHistorySnapshot): RichChatBufferedReplay {
+    fun replayAfterSnapshot(
+        snapshot: RichChatHistorySnapshot,
+        base: RichThreadState = snapshot.state,
+    ): RichChatBufferedReplay {
         val replay = frames.toList()
         val hadOverflow = overflow
         frames.clear()
         overflow = false
-        var transcript = snapshot.state
+        var transcript = base
         var truncationCatchup = false
         replay.forEach { frame ->
             if (frame.sequence == null || frame.sequence > snapshot.snapshotSeq) {
