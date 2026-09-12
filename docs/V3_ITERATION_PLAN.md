@@ -77,6 +77,21 @@ Estimate the remaining work after inspecting hosted checks and live-test access.
 1. **Inspect hosted PR/CI state for `1d39c76fa`.** Verify the actual remote SHA,
    existing PR target, required checks, skipped jobs, and failures. Push or update
    only if inspection shows it is necessary. Local tracking refs currently match.
+   _Status 2026-09-12: inspected and acted on. PR #725 hosts the branch. Both
+   workflows failed on `1d39c76fa`; diagnosis and fixes landed (pushed through
+   `3994c561d`): unhandled stdin-EPIPE crashes in one-shots, the codex probe, ssh
+   runs, and the WSL bridge relay; the GitHubOperations gates' checkout-name-dependent
+   repo-root walk (now marker-based, proven via a renamed-checkout simulation); the
+   Android 500-line gate (thread dialogs extracted); the foundation job's missing
+   linux node-pty build; stale native-e2e operation pins (222 keys / 108
+   procedures). On `3994c561d` the CI workflow is fully green and Native clients
+   passes Android build+tests, the API 26 runtime, and contract freshness.
+   Remaining red: the foundation job's `sharedHostBackpressure` eviction assertion
+   (paused client not closed on the Linux runner — under investigation), the API 37
+   emulator boot flake (`5554: Connection refused`; passed at `1d39c76fa`), and one
+   timing-sensitive iOS cancellation test (budgets widened; 3×/3× green locally).
+   The CLI token cannot re-run failed jobs (no admin rights) — retries ride new
+   pushes._
 2. **Close the WSL helper upgrade discrepancy before V2-to-master integration or
    release.** `bridge.mjs` still advertises `2.16.0`. Audit deployed copies/readers,
    select the next valid version (planned `2.17.0`), and prove replacement of an
