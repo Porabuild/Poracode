@@ -1,0 +1,101 @@
+{
+  "authority": {
+    "routeBodies": "remote route registry Zod schemas",
+    "broadcastEnvelope": "SupervisorEvent TypeScript shape mirrored by the focused fixture test",
+    "stateSchema": "threadFollowUpQueueStateSchema in src/shared/contracts/thread.ts",
+    "snapshotField": "followUpQueue on the remote thread snapshot (src/shared/remote/protocol.ts)"
+  },
+  "snapshotField": {
+    "items": [
+      {
+        "id": "queue-rich-1",
+        "prompt": "Run the integration suite after the current turn.",
+        "stagedAt": 1786557600000
+      },
+      {
+        "id": "queue-rich-2",
+        "prompt": "Please include the attachment.",
+        "segments": [
+          { "kind": "text", "content": "Please include " },
+          { "kind": "attachment", "path": "/tmp/fixture.txt", "mimeType": "text/plain" },
+          { "kind": "thread", "threadId": "thread-related", "title": "Related investigation" }
+        ],
+        "stagedAt": 1786557660000
+      }
+    ],
+    "paused": false
+  },
+  "procedureRequests": {
+    "queueThreadFollowUp": {
+      "threadId": "thread-rich",
+      "prompt": "Run the integration suite after the current turn.",
+      "config": { "model": "gpt-5" }
+    },
+    "editQueuedThreadFollowUp": {
+      "threadId": "thread-rich",
+      "id": "queue-rich-1",
+      "expectedStagedAt": 1786557600000,
+      "prompt": "Run the full integration suite, then report timings."
+    },
+    "reorderQueuedThreadFollowUp": {
+      "threadId": "thread-rich",
+      "id": "queue-rich-2",
+      "beforeId": null
+    },
+    "steerQueuedThreadFollowUp": { "threadId": "thread-rich", "id": "queue-rich-2" },
+    "removeQueuedThreadFollowUp": { "threadId": "thread-rich", "id": "queue-rich-1" },
+    "pauseThreadFollowUps": { "threadId": "thread-rich", "id": "queue-rich-1" },
+    "resumeThreadFollowUps": { "threadId": "thread-rich" },
+    "getThreadFollowUpQueue": { "threadId": "thread-rich" }
+  },
+  "getResult": {
+    "items": [
+      {
+        "id": "queue-rich-1",
+        "prompt": "Run the full integration suite, then report timings.",
+        "stagedAt": 1786557700000
+      }
+    ],
+    "paused": true
+  },
+  "broadcasts": [
+    {
+      "type": "thread-follow-up-queue",
+      "threadId": "thread-rich",
+      "queue": {
+        "items": [
+          {
+            "id": "queue-rich-1",
+            "prompt": "Run the integration suite after the current turn.",
+            "stagedAt": 1786557600000
+          },
+          {
+            "id": "queue-rich-2",
+            "prompt": "Please include the attachment.",
+            "segments": [
+              { "kind": "text", "content": "Please include " },
+              {
+                "kind": "attachment",
+                "path": "/tmp/fixture.txt",
+                "mimeType": "text/plain"
+              },
+              {
+                "kind": "thread",
+                "threadId": "thread-related",
+                "title": "Related investigation"
+              }
+            ],
+            "stagedAt": 1786557660000
+          }
+        ],
+        "paused": false
+      }
+    },
+    {
+      "type": "thread-follow-up-queue",
+      "threadId": "thread-rich",
+      "queue": { "items": [], "paused": true }
+    },
+    { "type": "thread-follow-up-queue", "threadId": "thread-rich", "queue": null }
+  ]
+}
