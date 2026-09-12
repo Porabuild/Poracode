@@ -4,14 +4,14 @@ import { expect, it, vi } from "vitest";
 import type { RuntimeEvent, ThreadConfig } from "@/shared/contracts";
 import { ClaudeSdkSession } from "@/supervisor/agents/claude/sdkSession";
 
-// Opt-in: requires an authenticated Claude CLI and consumes two live turns.
+// Opt-in: requires an authenticated Claude CLI and consumes live provider usage.
 it.runIf(process.env.PORACODE_LIVE_CLAUDE_STEER === "1")(
-  "finishes live foreground Bash before answering a steered follow-up",
+  "steers after live foreground Bash without running the remaining commands",
   async () => {
     await mkdir(resolve("tmp"), { recursive: true });
     const cwd = await mkdtemp(resolve("tmp/claude-steer-"));
     const config: ThreadConfig = {
-      model: "haiku",
+      model: "claude-sonnet-5",
       mode: "agent",
       approvalPolicy: "bypassPermissions",
     };
@@ -33,7 +33,7 @@ it.runIf(process.env.PORACODE_LIVE_CLAUDE_STEER === "1")(
     try {
       await session.openThread(config);
       await session.startTurn(
-        "Use Bash to run exactly: sleep 3; printf PORACODE_BASH_FINISHED. Wait for it to finish, then reply FIRST_DONE. Do nothing else.",
+        "Use Bash to run exactly: sleep 5; printf PORACODE_BASH_FINISHED. After it completes, make a separate Bash call: printf SHOULD_NOT_RUN. Then reply FIRST_DONE. Do not write files or run any other commands.",
         config,
       );
       await vi.waitFor(
@@ -47,11 +47,14 @@ it.runIf(process.env.PORACODE_LIVE_CLAUDE_STEER === "1")(
         },
         { timeout: 120_000, interval: 100 },
       );
-      await session.steerTurn("Reply SECOND_DONE, with no tool calls.", config);
+      await session.steerTurn(
+        "Change of plan: let the current command finish, skip the remaining command, then reply SECOND_DONE with no more tool calls.",
+        config,
+      );
       await vi.waitFor(
         () => {
           expect(errors).toEqual([]);
-          expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(2);
+          expect(events.filter((event) => event.type === "turn.completed")).toHaveLength(1);
           expect(statuses.at(-1)).toBe("idle");
         },
         { timeout: 120_000, interval: 100 },
@@ -72,7 +75,12 @@ it.runIf(process.env.PORACODE_LIVE_CLAUDE_STEER === "1")(
       const reply = events
         .flatMap((event) => (event.type === "content.delta" ? [event.delta] : []))
         .join("");
-      expect(reply).toContain("FIRST_DONE");
+      expect(reply).not.toContain("FIRST_DONE");
+      expect(
+        events.filter(
+          (event) => event.type === "item.started" && event.itemType === "command_execution",
+        ),
+      ).toHaveLength(1);
       expect(reply).toContain("SECOND_DONE");
       expect(statuses.filter((status) => status === "idle")).toHaveLength(1);
     } finally {
