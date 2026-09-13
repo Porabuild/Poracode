@@ -93,14 +93,16 @@ describe("SupervisorClient.start idempotency", () => {
     expect(terminateChildProcessTreeMock).not.toHaveBeenCalled();
   });
 
-  it("restart() explicitly replaces a running supervisor", () => {
+  it("restart() explicitly replaces a running supervisor after it closes", async () => {
     const { client, child } = makeClient();
     const replacement = makeFakeChild();
     forkMock.mockReturnValue(replacement);
 
-    client.restart();
+    const restarting = client.restart();
 
     expect(terminateChildProcessTreeMock).toHaveBeenCalledTimes(1);
+    child.emit("close", 0);
+    await restarting;
     expect(forkMock).toHaveBeenCalledTimes(2);
     void child;
   });
@@ -234,6 +236,7 @@ describe("SupervisorClient.call", () => {
     firstChild.emit("message", { replyTo: firstId(), ok: true, data: null });
     await first;
     firstChild.emit("exit", 0);
+    firstChild.emit("close", 0);
     const secondId = captureSentId(secondChild);
 
     const second = client.call("second" as never, undefined as never);
@@ -277,6 +280,7 @@ describe("SupervisorClient.call", () => {
     });
     client.start();
     child.emit("exit", 1);
+    child.emit("close", 1);
 
     client.dispose();
     await vi.advanceTimersByTimeAsync(1_000);
@@ -407,6 +411,7 @@ describe("SupervisorClient lifecycle", () => {
 
     client.dispose();
     child.emit("exit", 1);
+    child.emit("close", 1);
     await vi.advanceTimersByTimeAsync(1_000);
 
     expect(terminateChildProcessTreeMock).toHaveBeenCalledExactlyOnceWith(child);

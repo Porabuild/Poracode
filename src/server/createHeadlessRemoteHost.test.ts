@@ -15,7 +15,7 @@ const h = vi.hoisted(() => ({
   capturedOnEvent: undefined as ((event: unknown) => void) | undefined,
   capturedOnReset: undefined as (() => void) | undefined,
   supervisorStart: vi.fn<() => void>(),
-  supervisorDispose: vi.fn<() => void>(),
+  supervisorDispose: vi.fn<() => Promise<void>>(),
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
   initDatabase: vi.fn<(dbPath: string) => void>(),
   closeDatabase: vi.fn<() => void>(),
@@ -131,6 +131,7 @@ describe("createHeadlessRemoteHost", () => {
     h.capturedOnReset = undefined;
     h.supervisorStart.mockReset();
     h.supervisorDispose.mockReset();
+    h.supervisorDispose.mockResolvedValue();
     h.initDatabase.mockReset();
     h.closeDatabase.mockReset();
     h.supervisorCall.mockReset();
@@ -400,6 +401,27 @@ describe("createHeadlessRemoteHost", () => {
 
     expect(h.supervisorDispose).toHaveBeenCalledTimes(1);
     expect(h.closeDatabase).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not resolve headless disposal or close SQLite before the supervisor joins", async () => {
+    let finishSupervisor!: () => void;
+    h.supervisorDispose.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishSupervisor = resolve;
+      }),
+    );
+    const host = await makeHost();
+    await host.start();
+    let disposed = false;
+    const disposal = host.dispose().then(() => {
+      disposed = true;
+    });
+    await vi.waitFor(() => expect(h.supervisorDispose).toHaveBeenCalledOnce());
+    expect(disposed).toBe(false);
+    expect(h.closeDatabase).not.toHaveBeenCalled();
+    finishSupervisor();
+    await disposal;
+    expect(h.closeDatabase).toHaveBeenCalledOnce();
   });
 });
 
