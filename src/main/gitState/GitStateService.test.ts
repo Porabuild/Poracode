@@ -127,6 +127,136 @@ describe("GitStateService", () => {
     vi.useRealTimers();
   });
 
+  it("joins a held snapshot and prevents post-dispose database reads and publication", async () => {
+    const snapshot =
+      Promise.withResolvers<Awaited<ReturnType<GitStateExecutor["gitProjectSnapshot"]>>>();
+    const entered = Promise.withResolvers<void>();
+    const getProject = vi.fn<GitStateServiceOptions["getProject"]>(() => project);
+    const { service, executor: fakeExecutor, patches } = createService({ getProject });
+    vi.mocked(fakeExecutor.gitProjectSnapshot).mockImplementation(() => {
+      entered.resolve();
+      return snapshot.promise;
+    });
+    const refreshing = service.refreshProject(project.id);
+    await entered.promise;
+    getProject.mockClear();
+    let disposed = false;
+    const disposal = Promise.resolve(service.dispose()).then(() => {
+      disposed = true;
+    });
+    await Promise.resolve();
+    expect.soft(disposed).toBe(false);
+    snapshot.resolve({ status: status(), branches: null, worktrees: null, ghAvailable: true });
+    await Promise.all([refreshing, disposal]);
+    expect.soft(getProject).not.toHaveBeenCalled();
+    expect.soft(fakeExecutor.ghGetPrForBranch).not.toHaveBeenCalled();
+    expect.soft(patches).not.toHaveBeenCalled();
+  });
+
+  it.each(["success", "failure"])(
+    "does not fan out after disposal during remote fetch %s",
+    async (outcome) => {
+      const fetch = Promise.withResolvers<void>();
+      const entered = Promise.withResolvers<void>();
+      const getProject = vi.fn<GitStateServiceOptions["getProject"]>(() => project);
+      const { service, executor: fakeExecutor, patches } = createService({ getProject });
+      vi.mocked(fakeExecutor.gitFetch).mockImplementation(() => {
+        entered.resolve();
+        return fetch.promise;
+      });
+      const refreshing = service.refreshInterests([{ kind: "target", projectId: project.id }], {
+        fetchRemote: true,
+      });
+      await entered.promise;
+      getProject.mockClear();
+      let disposed = false;
+      const disposal = Promise.resolve(service.dispose()).then(() => {
+        disposed = true;
+      });
+      await Promise.resolve();
+      expect.soft(disposed).toBe(false);
+      if (outcome === "success") fetch.resolve();
+      else fetch.reject(new Error("synthetic fetch shutdown rejection"));
+      await Promise.all([refreshing, disposal]);
+      expect.soft(getProject).not.toHaveBeenCalled();
+      expect.soft(fakeExecutor.gitProjectSnapshot).not.toHaveBeenCalled();
+      expect.soft(patches).not.toHaveBeenCalled();
+    },
+  );
+
+  it("joins every review-bundle branch even when another branch already rejected", async () => {
+    const files = Promise.withResolvers<Awaited<ReturnType<GitStateExecutor["ghGetPrFiles"]>>>();
+    const entered = Promise.withResolvers<void>();
+    const { service, executor: fakeExecutor, patches } = createService();
+    service.applyObservedPullRequest(
+      { projectId: project.id, headBranch: "feature/unified" },
+      pr(),
+    );
+    patches.mockClear();
+    vi.mocked(fakeExecutor.ghGetPrDetails).mockRejectedValue(
+      new Error("synthetic details failure"),
+    );
+    vi.mocked(fakeExecutor.ghGetPrFiles).mockImplementation(() => {
+      entered.resolve();
+      return files.promise;
+    });
+    const refreshing = service.refreshPullRequestReviewBundle({
+      projectId: project.id,
+      prNumber: 42,
+    });
+    void refreshing.catch(() => undefined);
+    await entered.promise;
+    let disposed = false;
+    const disposal = Promise.resolve(service.dispose()).then(() => {
+      disposed = true;
+    });
+    await Promise.resolve();
+    expect.soft(disposed).toBe(false);
+    files.resolve({ files: [] });
+    await Promise.all([refreshing.catch(() => undefined), disposal]);
+    expect(patches).not.toHaveBeenCalled();
+  });
+
+  it("registers a refresh before its executor synchronously initiates disposal", async () => {
+    const snapshot =
+      Promise.withResolvers<Awaited<ReturnType<GitStateExecutor["gitProjectSnapshot"]>>>();
+    const { service, executor: fakeExecutor, patches } = createService();
+    let disposed = false;
+    let closing: Promise<void> | undefined;
+    vi.mocked(fakeExecutor.gitProjectSnapshot).mockImplementation(() => {
+      closing = service.dispose().then(() => {
+        disposed = true;
+      });
+      return snapshot.promise;
+    });
+    const refreshing = service.refreshProject(project.id);
+    await Promise.resolve();
+    expect(disposed).toBe(false);
+    snapshot.resolve({ status: status(), branches: null, worktrees: null, ghAvailable: true });
+    await Promise.all([refreshing, closing]);
+    expect(patches).not.toHaveBeenCalled();
+    expect(fakeExecutor.ghGetPrForBranch).not.toHaveBeenCalled();
+  });
+
+  it("refuses new refresh database reads and ignores new interests/observations after disposal", async () => {
+    const getProject = vi.fn<GitStateServiceOptions["getProject"]>(() => project);
+    const { service, patches } = createService({ getProject });
+    await service.dispose();
+    await expect(service.refreshProject(project.id)).rejects.toThrow("shutting down");
+    await expect(
+      service.refreshTarget({ projectId: project.id, worktreePath: "/synthetic" }),
+    ).rejects.toThrow("shutting down");
+    await expect(service.refreshPullRequestForBranch(project.id, "fixture")).rejects.toThrow(
+      "shutting down",
+    );
+    await expect(service.refreshProjectPullRequests(project.id)).rejects.toThrow("shutting down");
+    service.setInterests("fixture-client", [{ kind: "target", projectId: project.id }]);
+    service.observeSupervisorEvent({ type: "git-changed", projectId: project.id });
+    service.applyObservedPullRequest({ projectId: project.id, headBranch: "fixture" }, pr());
+    expect(getProject).not.toHaveBeenCalled();
+    expect(patches).not.toHaveBeenCalled();
+  });
+
   it("normalizes a branch PR once and associates every matching target", async () => {
     const { service, executor: fakeExecutor } = createService();
     const worktreeA = "/repo/.poracode/worktrees/a";

@@ -10,6 +10,7 @@ import {
 } from "@/main/db";
 import { BackendHostCore, RevertCheckpointRefusedError } from "@/backend/BackendHostCore";
 import { BackendDurableServices } from "@/backend/BackendDurableServices";
+import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
 import { preparePoracodeDataRoot } from "@/main/poracodeData";
 import { migrateLegacyDataOnLaunch } from "@/main/legacyDataMigration";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
@@ -412,17 +413,24 @@ export async function createHeadlessRemoteHost(
   serverRef = server;
 
   let started = false;
+  let stopping = false;
+  const assertRunning = () => {
+    if (stopping) throw new Error("Headless host is shutting down.");
+  };
   let relayHandle: RelayHostHandle | null = null;
   return {
     server,
     forwardOriginSecret,
     async start() {
+      assertRunning();
       if (!started) {
         await durableServices?.startIngress();
+        assertRunning();
         durableServices?.startBackgroundServices();
         started = true;
       }
       const info = await server.start();
+      assertRunning();
       // Optionally register with a relay so devices can reach this server across
       // networks. The relay only ever talks to the server's own loopback port,
       // so RemoteAccessServer is unchanged. Requires a secret to claim the id.
@@ -450,19 +458,21 @@ export async function createHeadlessRemoteHost(
       return info;
     },
     async dispose() {
-      relayHandle?.dispose();
-      relayHandle = null;
-      // Await the HTTP server close FIRST so in-flight requests finish before
-      // the database (which they may read/write) is torn down — and before
-      // the port-forward gateway/proxy are disposed: a POST /api/ports/forward
-      // in flight during shutdown must not race a gateway torn down out from
-      // under it (the gateway's own `disposed` guard makes this airtight
-      // regardless of ordering, but disposing after keeps the two aligned).
-      await server.dispose();
-      durableServices?.dispose();
+      stopping = true;
+      // Close all admission immediately, then join every participant. HTTP
+      // failure must not skip automation/supervisor stop or release SQLite.
+      await joinRuntimeShutdown([
+        () => {
+          relayHandle?.dispose();
+          relayHandle = null;
+        },
+        () => server.dispose(),
+        () => durableServices?.dispose(),
+        () => backendHost.disposeSupervisor(),
+      ]);
       durableServices = null;
       portForwarding.dispose();
-      await backendHost.dispose();
+      backendHost.closeDatabase();
     },
   };
 }

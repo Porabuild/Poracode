@@ -73,11 +73,44 @@ interface PendingRun {
  */
 export class ScheduleRunCoordinator {
   private readonly pending = new Map<string, PendingRun>();
+  private readonly launches = new Set<Promise<void>>();
+  private readonly completions = new Set<PromiseWithResolvers<string>>();
+  private disposed = false;
+  private disposal: Promise<void> | null = null;
 
   constructor(private readonly deps: ScheduleRunCoordinatorDeps) {}
 
+  /** Stop new work, interrupt tracked runs, and join launch continuations only. */
+  dispose(): Promise<void> {
+    if (this.disposal) return this.disposal;
+    this.disposed = true;
+    const barrier = Promise.withResolvers<void>();
+    this.disposal = barrier.promise;
+    const errors: unknown[] = [];
+    const error = new Error("Scheduled run interrupted because the host is shutting down.");
+    for (const run of this.pending.values()) {
+      try {
+        this.deps.updateRun(run.runId, { completedAt: this.nowIso(), status: "interrupted" });
+      } catch (failure) {
+        errors.push(failure);
+      }
+    }
+    this.pending.clear();
+    for (const completion of this.completions) completion.reject(error);
+    // Waiting for whole task-completion promises would deadlock shutdown while
+    // the supervisor is still running. Launch continuations must finish before
+    // DB close; active task promises were interrupted above.
+    void Promise.allSettled([...this.launches]).then(() => {
+      if (errors.length)
+        barrier.reject(new AggregateError(errors, "Unable to persist interrupted scheduled runs."));
+      else barrier.resolve();
+    });
+    return barrier.promise;
+  }
+
   /** Wire into the supervisor event tap (main.ts `onEvent`). */
   observeSupervisorEvent(event: SupervisorEvent): void {
+    if (this.disposed) return;
     if (event.type !== "thread-state") return;
     const run = this.pending.get(event.threadId);
     if (!run) return;
@@ -110,11 +143,37 @@ export class ScheduleRunCoordinator {
   }
 
   async runScheduleAsThread(task: ScheduledTask): Promise<string> {
+    this.assertOpen();
+    const completion = Promise.withResolvers<string>();
+    this.completions.add(completion);
+    void completion.promise.then(
+      () => this.completions.delete(completion),
+      () => this.completions.delete(completion),
+    );
+    const launch = Promise.withResolvers<void>();
+    this.launches.add(launch.promise);
+    const finishLaunch = () => {
+      this.launches.delete(launch.promise);
+      launch.resolve();
+    };
+    void this.launchSchedule(task, completion).then(finishLaunch, (error: unknown) => {
+      completion.reject(error);
+      finishLaunch();
+    });
+    return completion.promise;
+  }
+
+  private async launchSchedule(
+    task: ScheduledTask,
+    completion: PromiseWithResolvers<string>,
+  ): Promise<void> {
+    this.assertOpen();
     const project = this.resolveProject(task);
     const threadId = (this.deps.newId ?? randomUUID)();
     const nowIso = this.nowIso();
 
     const config = await this.buildThreadConfig(task, project.location);
+    this.assertOpen();
     const thread: Thread = {
       id: threadId,
       projectId: project.id,
@@ -167,8 +226,11 @@ export class ScheduleRunCoordinator {
     };
     this.deps.insertRun(run);
 
-    const settled = new Promise<string>((resolve, reject) => {
-      this.pending.set(threadId, { runId: run.id, sawActive: false, resolve, reject });
+    this.pending.set(threadId, {
+      runId: run.id,
+      sawActive: false,
+      resolve: completion.resolve,
+      reject: completion.reject,
     });
 
     const startPayload: StartThreadPayload = {
@@ -185,6 +247,7 @@ export class ScheduleRunCoordinator {
     try {
       await this.deps.startThread(startPayload);
     } catch (error) {
+      if (this.disposed) return;
       this.pending.delete(threadId);
       const message = error instanceof Error ? error.message : String(error);
       this.deps.updateRun(run.id, {
@@ -200,8 +263,10 @@ export class ScheduleRunCoordinator {
       }
       throw error instanceof Error ? error : new Error(message);
     }
+  }
 
-    return settled;
+  private assertOpen(): void {
+    if (this.disposed) throw new Error("Schedule coordinator is shutting down.");
   }
 
   /**

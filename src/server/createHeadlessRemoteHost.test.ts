@@ -10,6 +10,8 @@ import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { createHeadlessRemoteHost, resolveLocalProxyBase } from "./createHeadlessRemoteHost";
+import { RemoteAccessServer } from "@/main/remote/RemoteAccessServer";
+import { BackendDurableServices } from "@/backend/BackendDurableServices";
 
 // Mutable state shared with the hoisted vi.mock factories.
 const h = vi.hoisted(() => ({
@@ -150,6 +152,70 @@ describe("createHeadlessRemoteHost", () => {
   afterEach(() => {
     rmSync(h.tmpBase, { recursive: true, force: true });
   });
+
+  it.each(["success", "failure"])(
+    "stops durable admission and joins supervisor work while HTTP shutdown is held (%s)",
+    async (outcome) => {
+      const host = await makeHost();
+      await host.start();
+      const http = Promise.withResolvers<void>();
+      const entered = Promise.withResolvers<void>();
+      const supervisor = Promise.withResolvers<void>();
+      h.supervisorDispose.mockReturnValue(supervisor.promise);
+      const originalDispose = RemoteAccessServer.prototype.dispose;
+      const stopHttp = vi
+        .spyOn(RemoteAccessServer.prototype, "dispose")
+        .mockImplementation(async function (this: RemoteAccessServer) {
+          entered.resolve();
+          await http.promise;
+          // Close the real fixture listener even when injecting a shutdown failure.
+          await originalDispose.call(this);
+          if (outcome === "failure") throw new Error("synthetic HTTP shutdown failure");
+        });
+      const stopDurable = vi.spyOn(BackendDurableServices.prototype, "dispose");
+      let settled = false;
+      const closing = host.dispose();
+      void closing.then(
+        () => {
+          settled = true;
+        },
+        () => {
+          settled = true;
+        },
+      );
+      try {
+        await entered.promise;
+        await expect.soft(host.start()).rejects.toThrow("shutting down");
+        expect.soft(stopDurable).toHaveBeenCalledOnce();
+        expect.soft(h.supervisorDispose).toHaveBeenCalledOnce();
+        expect(h.closeDatabase).not.toHaveBeenCalled();
+        http.resolve();
+        // Give a rejected HTTP stop the opportunity to incorrectly break the join.
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        expect.soft(settled).toBe(false);
+        expect(h.closeDatabase).not.toHaveBeenCalled();
+        supervisor.resolve();
+        const result = await closing.then(
+          () => ({ ok: true, aggregateError: false }),
+          (error: unknown) => ({ ok: false, aggregateError: error instanceof AggregateError }),
+        );
+        expect(result).toEqual({
+          ok: outcome === "success",
+          aggregateError: outcome === "failure",
+        });
+        expect(h.closeDatabase).toHaveBeenCalledTimes(outcome === "success" ? 1 : 0);
+      } finally {
+        http.resolve();
+        supervisor.resolve();
+        await closing.catch(() => undefined);
+        stopHttp.mockRestore();
+        stopDurable.mockRestore();
+        // A reported failure retained SQLite; retry fixture cleanup with the real
+        // HTTP disposer after inspecting the failed-join state.
+        await host.dispose();
+      }
+    },
+  );
 
   it("persists routing and confirms it before any external event observer in a headless host", async () => {
     const observed = vi.fn<(event: SupervisorEvent) => void>();
