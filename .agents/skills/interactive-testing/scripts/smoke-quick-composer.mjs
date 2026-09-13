@@ -54,7 +54,7 @@ export async function mockQuickComposerGate({
   try {
     assert.equal(
       await main("window.__poracodeSmokeNative?.version"),
-      1,
+      2,
       "the native gate requires an unpackaged development app in mock mode",
     );
     await main(prepare);
