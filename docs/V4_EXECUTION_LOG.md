@@ -12,7 +12,7 @@ obligations. No qualification gate has been waived.
 | ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 0 — master integration and baselines | In progress | Root V2 `832fc5467`; fetched master `9a4096ea8`; isolated `poracode/v4-integration` worktree has the expected 32 merge conflicts. Resolve semantic conflicts, native replacement deltas, and compatibility generations; capture live before evidence on unchanged root source. |
 | 1 — exclusive server ownership       | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                     |
-| 2 — operation safety and lifecycle   | Pending     | All eight work items and acceptance scenarios remain open.                                                                                                                                                                                                                     |
+| 2 — operation safety and lifecycle   | In progress | Transport admission and shared-renderer outcome feedback are verified focused slices. All eight full work items and their acceptance scenarios remain open.                                                                                                                    |
 | 3 — off-main bulk transport          | Pending     | All six work items and acceptance scenarios remain open.                                                                                                                                                                                                                       |
 | 4 — off-thread client engine         | Pending     | All ten work items and acceptance scenarios remain open.                                                                                                                                                                                                                       |
 | 5 — server/relay fairness            | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                     |
@@ -91,3 +91,95 @@ The same baseline exposed **F13**, a verified smoke-tooling isolation defect now
 added to the plan: the managed runner uses checkout `dist/main` instead of a
 session-local runtime. Fix and prove isolation before final qualification; the
 baseline was stopped cleanly and its bundles preserved before source changes.
+
+## Checkpoint transport admission — live AFTER at `d7595e93d`
+
+A fresh managed real session rebuilt the candidate and repeated two harmless
+Qwen3.8 Flash turns, the actual checkpoint dialog, and a subsequent provider turn.
+The renderer received the matching successful reply in 1.621 seconds; its socket
+stayed open, local history was truncated, the removed prompt returned to the
+composer, and the subsequent marker completed idle. Captured production file
+hashes and the complete production patch match committed `d7595e93d` exactly.
+The owned session was stopped through its managed owner after capture.
+
+After evidence:
+`/Users/svecherenko/.poracode-smoke/v4-after-revert-1789288800/artifacts/AFTER.md`.
+The report preserves screenshot paths, source and bundle hashes, request and
+operation journals, and the explicit scope limits. This verifies the focused
+transport admission correction in development builds; final production/browser
+qualification and the rest of Phase 2 remain pending.
+
+The journal reported `completed_local_only`, with provider rollback failed and
+no provider anchor. This is **not** successful provider rewind evidence. That
+result exposed F14: the renderer showed no partial-outcome warning.
+
+## F14 — disclose local-only checkpoint reverts (in progress)
+
+Before: the real AFTER screenshot above showed the trimmed transcript and
+restored draft without explaining that the provider could still use removed
+messages. A regression now exercises the real rendered warning in both the
+confirmation and skip-confirmation paths. Both cases fail on the prior behavior;
+see `tmp/v4-architecture-audit/f14-before-regression.log`.
+
+The focused correction uses the existing persistent HeroUI warning toast and
+localizes the existing failed/ambiguous messages. It describes local history and
+provider context without guessing whether files changed. Operation keys,
+journaling, and concurrency are unchanged. The focused ChatPane, MessageList, and
+toast-provider suites pass (118 tests); full typecheck and touched type-aware
+lint/format checks pass. All four messages are translated in all 12 non-English
+catalogs; a second extraction reports zero missing. Logs are under
+`tmp/v4-architecture-audit/f14-*`.
+
+Independent critic review and fresh manual AFTER disclosure evidence remain
+required before this slice is marked verified. Native counterpart disclosure
+remains development work; Phase 2 remains open.
+
+### Outcome-feedback critic — F15
+
+The primary critic accepted F14's outcome guard, wording, translations, and
+rendered-UI coverage. It identified a separate adjacent failure: opting out of
+confirmation also hides failed/ambiguous errors because the existing catch only
+logs them. Added F15 to the plan and first reproduced both missing visible errors
+in `tmp/v4-architecture-audit/f15-before-regression.log` (two failures).
+
+The focused follow-up adds the existing danger-toast pattern with `friendlyError`
+to that catch. Tests require visible feedback, retained history, no rescued draft
+on failure, and one request only. No automatic retry or journal change is added.
+The preliminary manual session was stopped before any provider prompt; final
+source checks, delta re-review, and fresh F14 disclosure evidence remain pending.
+
+### F14/F15 — verified focused feedback slice
+
+The final primary critic review accepted both corrections with no further
+production changes requested. The three focused ChatPane, MessageList, and
+toast-provider suites pass all 120 tests. The tests render the actual warning in
+both confirmation modes and the actual failed/ambiguous error toast when
+confirmation is disabled; they preserve history/draft behavior and assert one
+request. Full typecheck, touched type-aware lint, format, and diff checks pass.
+Extraction reports zero missing translations in all 12 non-English catalogs.
+Final logs are `tmp/v4-architecture-audit/f14-f15-*` and
+`tmp/v4-architecture-audit/f14-i18n-final.log`. F15's injected failure evidence is
+deterministic rendered-UI coverage, not a live provider failure reproduction.
+
+Fresh real Electron evidence is retained at
+`/Users/svecherenko/.poracode-smoke/v4-feedback-after-1789291800/artifacts/FEEDBACK.md`.
+This managed session rebuilt from `d7595e93d` plus the recorded feedback patch;
+the complete production diff and all changed source hashes were captured before
+interaction and matched again after teardown. The MessageList SHA-256 was
+`fe0c0ff6740e7b4ec6eb2efa03c8d1b3a83c99a17d50f663abddc80828ab7238`.
+
+Two harmless Qwen3.8 Flash turns followed by the actual Revert dialog produced
+`completed_local_only` with provider rollback failed and local phases completed.
+The exact warning appeared, the removed prompt returned to the composer, and
+the warning persisted beyond 39 seconds until dismissed through the actual Close
+control. A subsequent turn completed idle after answering a provider question
+caused by the test helper inserting text before the restored draft; that input
+mistake is recorded in the report. The session captured no window errors,
+unhandled rejections, console warnings, or socket closes during the interaction.
+The fixture project stayed clean, and managed reset/stop completed successfully.
+
+This proves the focused shared-renderer disclosure behavior in a development
+Electron build. It does not prove provider rewind, native disclosure, production
+artifact qualification, browser/mobile-web manual coverage, or any remaining
+Phase 2 identity, concurrency, recovery, and crash guarantees. Those gates remain
+open. The smoke-tooling artifact-isolation defect F13 also remains open.

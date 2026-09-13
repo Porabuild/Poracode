@@ -121,6 +121,42 @@ rebuild and session B launch, including A's backend/supervisor restart; stopping
 must not remove A's assets. The initial sequential before/after reproduction is
 valid only with the checkout artifacts frozen and their actual hashes recorded.
 
+**F14 — verified during execution: local-only checkpoint reverts are silent.**
+After the admission correction (`d7595e93d`), a real Qwen revert completed with
+`provider_phase: failed` and `outcome: completed_local_only`. The renderer closed
+the dialog, removed local history, and restored the prompt without explaining that
+the provider conversation had not been restored. `MessageList.tsx` only used this
+outcome for analytics. Before evidence is retained in
+`/Users/svecherenko/.poracode-smoke/v4-after-revert-1789288800/artifacts/AFTER.md`.
+Phase 2 must visibly disclose this partial outcome on the shared Electron/web
+renderer, including when confirmation was disabled, without misreporting file or
+provider restoration. Preserve the existing outcome/retry contract; localize the
+warning and the existing failed/ambiguous messages. This focused feedback change
+does not complete Phase 2's operation identity, concurrency, or crash guarantees.
+Native disclosure remains development work and is not implied by shared-renderer
+coverage.
+
+Focused correction status: shared-renderer warning and both confirmation modes
+are covered by rendered-UI tests; a fresh real Electron local-only revert visibly
+disclosed the outcome and preserved the restored draft. Exact source/artifact
+evidence is in
+`/Users/svecherenko/.poracode-smoke/v4-feedback-after-1789291800/artifacts/FEEDBACK.md`.
+This closes the focused feedback defect only, with the broader gates still open.
+
+**F15 — verified by the outcome-feedback critic: skipped-confirmation errors are
+invisible.** With "Don't ask again" enabled, `requestRevert` catches a failed or
+ambiguous outcome only to log a warning. The user sees neither the normal dialog
+error nor a notification. Two rendered-UI regressions reproduce the missing error
+feedback (`tmp/v4-architecture-audit/f15-before-regression.log`). Phase 2's feedback
+slice must show the existing localized/friendly error through the shared toast
+pattern, preserve history and the draft, and make no automatic retry. This does
+not change the checkpoint journal or decide how an ambiguous operation settles.
+
+Focused correction status: the catch now shows the existing friendly error as a
+danger toast. Failed and ambiguous responses are verified through actual rendered
+toast regressions, including one request and unchanged local history/draft. This
+is deterministic injected-response evidence, not a live provider failure test.
+
 ## 4. Correct the evidence before relying on it
 
 The existing suites are valuable, but their names and comments sometimes claim
@@ -322,7 +358,10 @@ Owner: runtime/persistence maintainer. Depends on the single-owner contract.
 5. Preserve explicit states for running, retryable failure, completed, and
    ambiguous external side effects. Never automatically repeat a provider action
    merely because a transport request timed out. Do not add an offline-send outbox
-   as part of this work.
+   as part of this work. Disclose `completed_local_only` to the user rather than
+   presenting it as a complete provider rewind (F14), including after opting out
+   of the confirmation dialog. Failed and ambiguous outcomes must also remain
+   visible when confirmation is disabled (F15); never retry them automatically.
 6. Implement shutdown phases: stop admission and background producers; settle or
    drain tracked requests; stop supervisor with bounded join/escalation; process
    final valid events; flush persistence; close DB; release ownership. A deadline
