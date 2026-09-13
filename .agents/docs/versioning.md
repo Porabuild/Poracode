@@ -50,6 +50,27 @@ Version bumps are required by compatibility, not by every code edit. Record the 
 | Native push registration store                    | `src/main/remote/push/PushRegistrationStore.ts` (`PUSH_REGISTRATIONS_FILE_FORMAT_VERSION`)                                                                                                                                                                                                                                                                                                                                                        | Registration identity/keying, token ownership, routing metadata, or native alert preferences. Format 2 reads both the unversioned legacy `{ registrations }` file and format 1, then writes device-owned sound/status filters on the next mutation; routed records remain keyed by normalized `clientConnectionId`. Unknown future formats are never overwritten. Keep the remote push-registration schema, native clients, and hosted gateway payload consumers aligned.                                                                         |
 | Shared settings and other unversioned JSON stores | `src/shared/settings.ts`, `src/main/sharedSettingsFile.ts`, remote auth/identity/push stores, MCP OAuth, and usage secrets                                                                                                                                                                                                                                                                                                                        | These normalize or validate instead of carrying a version. Any incompatible change still requires an explicit migration, tolerant parser, or introduction of a version field plus legacy handling.                                                                                                                                                                                                                                                                                                                                                |
 
+The prepared settings authority in `src/backend/settings/` introduces a flat
+`$poracodeSettingsVersion: 1` marker. Absence is legacy generation 0; malformed
+or future markers and corrupt known values are refused without rewriting the
+file. Existing migrations run over validated values while retaining unknown
+fields and ciphertext on disk. The first authority commit persists that
+canonical document and adds the marker. Public snapshots omit unknown fields.
+
+`src/shared/settingsTransactions.ts` defines transaction vocabulary version 1
+and subject content revisions prefixed `s1:`. Revisions express content equality,
+not event ordering; an authority UUID invalidates revisions across owner
+lifetimes. Serialized commits sync a unique temporary file before rename, then
+attempt directory sync. A directory-sync error reports separately from the
+already committed result. Process-crash tests do not establish power-loss
+durability or exactly-once request receipts.
+
+This foundation is not connected to the live writers yet. Activation must remove
+every old settings writer, finish leased-root import/key preparation first, and
+coordinate the backend-host, renderer-stream, remote/native and supervisor
+reverse-service fences. Current live wire versions remain unchanged until that
+composition is complete; native release and full F2/Phase 1 gates remain open.
+
 ## Wire protocols and deployed artifacts
 
 | Boundary                             | Version location                                                                                                                                                                                                                                                                | Coupled producers/consumers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
