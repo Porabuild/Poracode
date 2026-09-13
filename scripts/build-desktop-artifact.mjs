@@ -50,6 +50,7 @@ const RUNTIME_DEPS = [
   "@sentry/node",
   "better-sqlite3",
   "json5",
+  "jsonc-parser",
   "micromatch",
   "node-pty",
   "smol-toml",
