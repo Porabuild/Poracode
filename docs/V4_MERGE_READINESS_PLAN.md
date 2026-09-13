@@ -731,6 +731,15 @@ replies as well as live events. A congested renderer receives the same bounded
 This fixes one local fallback memory path; it does not yet satisfy the Phase 3
 requirement to move steady-state bulk traffic out of Electron main.
 
+The local request path also has finite admission now. Each renderer connection
+can hold at most 64 active requests; duplicate request IDs are rejected and a
+full connection receives a bounded error reply. The renderer-side pending map
+uses the same limit and sends excess calls through the existing IPC fallback.
+This prevents a stalled window from retaining unbounded request promises, while
+preserving a compatibility path for callers during transport pressure. It does
+not provide cooperative cancellation for an already admitted backend operation;
+disconnect and shutdown still rely on the backend's tracked work drain.
+
 The remote server also caps admitted HTTP/WebSocket continuations with a
 configurable global in-flight limit, returning `host_busy` 503 when saturated.
 This bounds the server's admission set and preserves an explicit retry signal;

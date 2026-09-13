@@ -36,6 +36,9 @@ const BACKPRESSURE_HIGH_WATERMARK_BYTES = MAX_CLIENT_BUFFERED_BYTES / 2;
 const BACKPRESSURE_LOW_WATERMARK_BYTES = MAX_CLIENT_BUFFERED_BYTES / 8;
 const HEALTHY_SENDS_BEFORE_BUDGET_REDUCTION = 256;
 const MAX_REQUEST_BYTES = 64 * 1024 * 1024;
+/** A renderer can issue many independent reads, but admission is finite so a
+ * disconnected or stalled window cannot retain an unbounded set of promises. */
+const MAX_CLIENT_IN_FLIGHT_REQUESTS = 64;
 const SHUTDOWN_SOCKET_GRACE_MS = 500;
 
 interface ReplayEntry {
@@ -51,6 +54,7 @@ interface ClientState {
   ready: boolean;
   bufferedBudgetBytes: number;
   healthySends: number;
+  inFlightRequestIds: Set<string>;
 }
 
 export interface BackendRendererStreamDiagnostics {
@@ -355,6 +359,7 @@ export class BackendRendererStream {
       ready: false,
       bufferedBudgetBytes: MIN_CLIENT_BUFFERED_BYTES,
       healthySends: 0,
+      inFlightRequestIds: new Set(),
     };
     for (const threadId of this.terminalBootstrapTimers.keys()) {
       state.router.retainTerminalBootstrap(threadId);
@@ -387,9 +392,25 @@ export class BackendRendererStream {
       return;
     }
     if (isBackendRendererRequest(message)) {
+      if (state.inFlightRequestIds.has(message.id)) {
+        socket.close(1008, "Duplicate renderer request id");
+        return;
+      }
+      if (state.inFlightRequestIds.size >= MAX_CLIENT_IN_FLIGHT_REQUESTS) {
+        this.sendReply(socket, state, {
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "reply",
+          id: message.id,
+          ok: false,
+          error: "Renderer request concurrency limit reached.",
+        });
+        return;
+      }
+      state.inFlightRequestIds.add(message.id);
       void this.requests
         .run(() => this.handleRequest(socket, state, message))
-        .catch(() => socket.terminate());
+        .catch(() => socket.terminate())
+        .finally(() => state.inFlightRequestIds.delete(message.id));
       return;
     }
     if (!isInterestMessage(message)) {
