@@ -242,3 +242,41 @@ investigation; no timeout increase or flaky-test dismissal is accepted as a fix.
 Full typecheck and type-aware lint pass. Production desktop and canonical web
 builds pass; the latter finalized the service worker and embedded SSH runtime.
 These artifact builds do not substitute for the required real-client journeys.
+
+## Phase 0 memory accounting — verified focused correction
+
+`ProcessMemorySampler` overwrote its single root-PID map entry on every probe;
+the summary therefore reported the last own-process RSS as the peak. The focused
+regression failed with 100 KB instead of the earlier 400 KB. A scalar maximum now
+retains that peak independently of the summed descendant peak. Three tests cover
+the two peaks, unrelated processes, process exit/probe failure, and unknown data.
+Reports carry `samplerVersion: 2` so unversioned old own-process peaks cannot be
+mistaken for corrected measurements. Focused tests and touched type-aware lint
+pass; independent critic review accepted the accounting, regressions, report
+version, and limits of the controlled-child evidence.
+
+A controlled child-process check ran old and new samplers against the same
+allocation/release sequence. Python mmap RSS fell from 113,232 KB to 14,928 KB;
+the old sampler reported 14,928 KB as its own peak and the corrected sampler
+retained 113,232 KB. The child was stopped and joined. Evidence and the exact
+driver are under `tmp/v4-architecture-audit/memory-peak-*`. An earlier Node Buffer
+attempt did not release resident memory, failed the driver's evidence assertion,
+and is retained as `memory-peak-real-node-no-release.json`; it is not a successful
+before/after result. This validates accounting only, not app memory budgets,
+process CPU, event-loop latency, or the remaining Phase 0 instrumentation.
+
+F19's settings registration gaps are also corrected in the integration worktree:
+three regressions failed before and 27 focused tests pass after. Two real-file gap
+probes now read the current value immediately, 200 atomic transitions pass, and
+a 10,000-read healthy-cache probe performs zero filesystem calls. Primary review
+accepted the change; full typecheck/lint/format pass. The original full-suite
+watcher failure is preserved with its cause explicitly unproven. The final full
+integration suite is running after this correction.
+
+The final integration run after F19 passed 12,990 tests across 1,143 suites;
+120 tests in five suites remain skipped by the existing configuration. Full
+typecheck, both lint modes, and full format check pass. The docs critic corrected
+claims about persistence-before-delivery, CLI-vs-desktop locking, SQLite required
+at startup, iOS startup compatibility checks, current N-API dependencies, and
+configured CI versus actual candidate evidence. No application performance
+qualification is implied by these correctness checks.

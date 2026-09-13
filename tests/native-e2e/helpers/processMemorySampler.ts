@@ -8,6 +8,8 @@ import { spawnSync } from "node:child_process";
  */
 
 export interface ProcessMemorySummary {
+  /** Version 2 corrects own-process peak accounting; older reports are unversioned. */
+  readonly samplerVersion: 2;
   readonly samples: number;
   readonly probeFailures: number;
   /** Peak summed RSS (host + descendants) in KB across the sampled window. */
@@ -39,7 +41,7 @@ function readProcessTable(): PsRow[] | null {
 }
 
 export class ProcessMemorySampler {
-  private readonly ownRss = new Map<number, number>();
+  private peakOwnKb: number | null = null;
   private peakTotalKb: number | null = null;
   private probeFailures = 0;
   private sampleCount = 0;
@@ -62,12 +64,12 @@ export class ProcessMemorySampler {
   }
 
   summary(): ProcessMemorySummary {
-    const ownValues = [...this.ownRss.values()];
     return {
+      samplerVersion: 2,
       samples: this.sampleCount,
       probeFailures: this.probeFailures,
       peakTotalRssKb: this.peakTotalKb,
-      peakOwnRssKb: ownValues.length > 0 ? Math.max(...ownValues) : null,
+      peakOwnRssKb: this.peakOwnKb,
     };
   }
 
@@ -81,7 +83,7 @@ export class ProcessMemorySampler {
     const byPid = new Map(rows.map((row) => [row.pid, row]));
     const root = byPid.get(this.rootPid);
     if (!root) return; // Process not (yet or anymore) present.
-    this.ownRss.set(this.rootPid, root.rssKb);
+    this.peakOwnKb = Math.max(this.peakOwnKb ?? 0, root.rssKb);
     const descendants = new Set<number>([this.rootPid]);
     let changed = true;
     while (changed) {
