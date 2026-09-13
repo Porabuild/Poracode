@@ -1224,3 +1224,24 @@ The remaining F11 work must wire main/native admission and actual execution join
 reconcile the parent one-second and app two-second deadlines, join backend and
 provider/PTY descendants, and qualify Windows shutdown. The sealed red evidence is
 retained under `/Users/svecherenko/.poracode-smoke/v4-push-drain-ctPW9q/evidence/`.
+
+## F41 — native helper and computer-use lifetimes
+
+The isolated native lifetime slice is merged as `1d3196fe1` from the reviewed
+31-file candidate. Browser, Chrome and computer-use ingress disposal now returns
+joinable promises. Persistent JSON-line hosts keep retiring children and their
+pipe closure observable; short-lived native commands retain callback completion
+until the owned child closes. Permanent driver close is separate from reusable
+action interruption, and Chrome's HTTP, keep-alive and upgraded sockets are
+joined through the shared connection tracker. Every helper and platform driver
+uses the same permanent close contract.
+
+The source manifest has 31 matching hashes (`4203f1c2…6f4cd`). The final focused
+run passed 107 tests across 16 suites, full typecheck, both touched lint modes,
+formatting and diff checks. Actual disposable fixtures cover held loopback HTTP,
+pre-hello sockets, retiring helper generations, native callbacks, pipe closure
+and invalid-PID safety. They do not launch providers, drive real computer input,
+terminate arbitrary descendants or wire the main process's outer quit path.
+The one-second parent and two-second app deadlines, process trees, Windows
+packaging and OS-level action completion therefore remain open; F43's sealed GUI
+run is the current evidence for that gap.

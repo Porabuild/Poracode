@@ -434,6 +434,25 @@ The direct renderer listener uses the shared socket/work barriers. These changes
 require the owner's early cancellation hook at activation, and do not complete
 parent deadlines, native facade execution, process-tree or Windows qualification.
 
+**F41 — native helper and computer-use lifetimes are joined locally.** Browser,
+Chrome and computer-use ingress now return joinable disposal promises. The
+JSON-line helper retains retiring child generations and joins their pipes;
+`ChildProcessLifetime` observes the actual `close` event, guards positive finite
+owned PIDs, and escalates only while the original child is still live. Native
+short-lived commands retain callback results until child close, while permanent
+driver close is distinct from reusable action interruption. Chrome bridge HTTP,
+keep-alive and upgraded sockets are tracked through real closure; macOS, Windows
+and composite drivers implement the same permanent close contract.
+
+The isolated 31-file candidate passed 107 tests across 16 suites, full typecheck,
+both touched lint modes, formatting and diff checks, and all frozen source hashes
+match its manifest. Real fixtures cover held loopback requests, pre-hello sockets,
+retired helper generations, native callbacks, pipes and harmless invalid-PID
+guards. The scope deliberately excludes main bootstrap wiring, provider/PTY
+descendants, process trees, Windows packaged behavior, parent/app deadlines and
+completion of an OS-level action after transport closure. The sealed Electron run
+below proves those outer joins are still required.
+
 **F42 — verified push gateway response lifetime and byte-limit gaps.** Three
 real disposable loopback HTTP regressions reproduce a config response body
 remaining pending beyond the configured timeout, acceptance of an oversized
