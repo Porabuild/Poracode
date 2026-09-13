@@ -102,6 +102,56 @@ export interface SupervisorClientOptions {
   onStarted?(): void;
 }
 
+/**
+ * Calls which mutate one thread's provider/session state are serialized by the
+ * supervisor client. Control messages that stop or answer an active session
+ * deliberately bypass this queue so a long-running mutation can still be
+ * interrupted. The coordinator is transport-level: desktop, headless, and
+ * remote compositions all share the same ordering boundary.
+ */
+const THREAD_EXCLUSIVE_PROCEDURES = new Set<SupervisorProcedureName>([
+  "startThread",
+  "ensureThreadRunning",
+  "sendThreadInput",
+  "controlThreadGoal",
+  "rollbackThreadConversation",
+  "createRevertAnchor",
+  "restoreToRevertAnchor",
+  "setPendingSteer",
+  "clearPendingSteer",
+  "queueThreadFollowUp",
+  "removeQueuedThreadFollowUp",
+  "reorderQueuedThreadFollowUp",
+  "editQueuedThreadFollowUp",
+  "steerQueuedThreadFollowUp",
+  "pauseThreadFollowUps",
+  "resumeThreadFollowUps",
+]);
+
+const THREAD_CONTROL_PROCEDURES = new Set<SupervisorProcedureName>([
+  "interruptThread",
+  "resolveThreadServerRequest",
+  "closeThread",
+  "cancelExtractContext",
+]);
+
+const THREAD_CANCELLING_PROCEDURES = new Set<SupervisorProcedureName>([
+  "interruptThread",
+  "closeThread",
+]);
+
+function threadIdForProcedure(type: SupervisorProcedureName, payload: unknown): string | undefined {
+  if (!THREAD_EXCLUSIVE_PROCEDURES.has(type) && !THREAD_CONTROL_PROCEDURES.has(type)) return;
+  if (!payload || typeof payload !== "object" || !("threadId" in payload)) return;
+  const threadId = (payload as { threadId?: unknown }).threadId;
+  return typeof threadId === "string" && threadId.length > 0 ? threadId : undefined;
+}
+
+interface SupervisorCallOptions {
+  /** Internal use while a compound operation already owns the thread lock. */
+  readonly skipThreadMutation?: boolean;
+}
+
 export class SupervisorClient {
   private child: ChildProcess | null = null;
   private disposed = false;
@@ -117,6 +167,8 @@ export class SupervisorClient {
       reject: (reason?: unknown) => void;
     }
   >();
+  private readonly threadMutationTails = new Map<string, Promise<void>>();
+  private readonly threadMutationEpochs = new Map<string, number>();
 
   constructor(private readonly options: SupervisorClientOptions) {}
 
@@ -308,11 +360,84 @@ export class SupervisorClient {
   dispose(): Promise<void> {
     if (this.disposePromise) return this.disposePromise;
     this.disposed = true;
-    this.disposePromise = this.stop(new Error("Supervisor exited"));
+    for (const threadId of this.threadMutationTails.keys()) {
+      this.cancelQueuedThreadMutations(threadId);
+    }
+    this.disposePromise = this.stop(new Error("Supervisor exited")).finally(() =>
+      this.drainThreadMutations(),
+    );
     return this.disposePromise;
   }
 
+  /** Join queued compound operations before their owning database can close. */
+  private async drainThreadMutations(): Promise<void> {
+    while (this.threadMutationTails.size > 0) {
+      await Promise.all([...this.threadMutationTails.values()]);
+    }
+  }
+
+  /** Hold the per-thread mutation lock across a multi-step backend operation. */
+  runThreadMutation<Result>(threadId: string, operation: () => Promise<Result>): Promise<Result> {
+    if (!threadId) throw new Error("A thread mutation requires a thread id.");
+    if (this.disposed) return Promise.reject(new Error("Supervisor client is disposed."));
+    const previous = this.threadMutationTails.get(threadId);
+    const epoch = this.threadMutationEpochs.get(threadId) ?? 0;
+    const invoke = (): Promise<Result> => {
+      if ((this.threadMutationEpochs.get(threadId) ?? 0) !== epoch) {
+        return Promise.reject(new Error("Thread mutation was cancelled by a control operation."));
+      }
+      try {
+        return Promise.resolve(operation());
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    };
+    // Invoke the first operation synchronously so a control call in the same
+    // turn cannot overtake its admission. Later operations wait for the tail.
+    const current = previous ? previous.then(invoke, invoke) : invoke();
+    const settled = current.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.threadMutationTails.set(threadId, settled);
+    void settled.then(() => {
+      if (this.threadMutationTails.get(threadId) === settled) {
+        this.threadMutationTails.delete(threadId);
+      }
+    });
+    return current;
+  }
+
+  private cancelQueuedThreadMutations(threadId: string): void {
+    this.threadMutationEpochs.set(threadId, (this.threadMutationEpochs.get(threadId) ?? 0) + 1);
+  }
+
   async call<Name extends SupervisorProcedureName>(
+    type: Name,
+    payload: IpcProcedurePayload<Name>,
+    options: SupervisorCallOptions = {},
+  ): Promise<IpcProcedureResult<Name>> {
+    const threadId = threadIdForProcedure(type, payload);
+    if (
+      !options.skipThreadMutation &&
+      threadId !== undefined &&
+      THREAD_CANCELLING_PROCEDURES.has(type)
+    ) {
+      this.cancelQueuedThreadMutations(threadId);
+    }
+    if (
+      !options.skipThreadMutation &&
+      threadId !== undefined &&
+      THREAD_EXCLUSIVE_PROCEDURES.has(type)
+    ) {
+      return this.runThreadMutation(threadId, () =>
+        this.callUncoordinated(type, payload),
+      ) as Promise<IpcProcedureResult<Name>>;
+    }
+    return this.callUncoordinated(type, payload);
+  }
+
+  private async callUncoordinated<Name extends SupervisorProcedureName>(
     type: Name,
     payload: IpcProcedurePayload<Name>,
   ): Promise<IpcProcedureResult<Name>> {
