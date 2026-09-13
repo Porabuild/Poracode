@@ -37,6 +37,7 @@ interface FakeForwarding {
 interface FakePushCoordinator {
   readonly options: unknown;
   readonly handleSupervisorEvent: ReturnType<typeof vi.fn>;
+  readonly dispose: ReturnType<typeof vi.fn>;
 }
 
 const h = vi.hoisted(() => ({
@@ -128,6 +129,7 @@ vi.mock("./push", () => ({
   },
   PushCoordinator: class {
     readonly handleSupervisorEvent = vi.fn<(event: SupervisorEvent) => void>();
+    readonly dispose = vi.fn<() => Promise<void>>(async () => {});
 
     constructor(readonly options: unknown) {
       h.pushCoordinators.push(this);

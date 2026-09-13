@@ -371,6 +371,19 @@ after failure. These are host HTTP-client lifetimes; they do not imply that a
 client timeout reverses an already accepted push delivery. The F37/F39 coordinator
 and exact-token corrections remain separately required.
 
+**F37/F39 — verified push work and retiring server generations.** A held gateway
+response could outlive its coordinator and later rewrite registrations; an old
+unregistered-token response could also delete a newer token for the same device.
+The shared coordinator now closes admission and joins actual sends and their
+continuations, while token removal compares the exact registration and token
+that were sent. Desktop composition must retain disabled and replaced HTTP/push
+generations through final shutdown, including a previously settled failed join,
+and wait for retirement before opening a replacement. A shared lazy registration
+store avoids separate caches across those generations. Root's controller tests
+prove these joins with an actual coordinator and disposable registration files;
+they use a synthetic HTTP server and gateway. Headless composition, real-app
+integration and the full F11 process shutdown gate remain separate requirements.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 
