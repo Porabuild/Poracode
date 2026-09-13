@@ -56,25 +56,29 @@ export function readRunResult(
   const quiet = !fullOutput && options?.outputMode === "quiet" && record.status === "running";
   const incremental = !fullOutput && options?.afterOutputChars !== undefined;
   const cursorOffset = options?.afterOutputChars ?? 0;
-  const displayOutput = [
-    ...record.attemptResults
-      .filter((attempt) => attempt.attempt !== record.attemptIndex + 1)
-      .map((attempt) => attempt.output),
-    record.output,
-  ].join("");
+  const displayOutput = quiet
+    ? ""
+    : [
+        ...record.attemptResults
+          .filter((attempt) => attempt.attempt !== record.attemptIndex + 1)
+          .map((attempt) => attempt.output),
+        record.output,
+      ].join("");
   // Non-zero cursors index the append-only live stream a caller has already
   // observed. Reads from the beginning and full reads use the final display
   // projection so replaced or suppressed text is not exposed again.
   const useCursorOutput = incremental && cursorOffset !== 0;
-  const source = fullOutput
-    ? options?.currentAttemptOnly === true
-      ? record.output
-      : displayOutput
-    : useCursorOutput
-      ? cursorOutputAfter(record, cursorOffset)
-      : incremental
-        ? displayOutput
-        : record.output;
+  const source = quiet
+    ? ""
+    : fullOutput
+      ? options?.currentAttemptOnly === true
+        ? record.output
+        : displayOutput
+      : useCursorOutput
+        ? cursorOutputAfter(record, cursorOffset)
+        : incremental
+          ? displayOutput
+          : record.output;
   const total = record.cursorOutput.length;
   const delta = source;
   const tailCap =
@@ -99,7 +103,9 @@ export function readRunResult(
             ...attempt,
             output: fullOutput
               ? attempt.output
-              : clipOutputTail(attempt.output, MAX_ATTEMPT_OUTPUT_TAIL_CHARS),
+              : quiet
+                ? ""
+                : clipOutputTail(attempt.output, MAX_ATTEMPT_OUTPUT_TAIL_CHARS),
           })),
         }
       : {}),

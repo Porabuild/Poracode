@@ -27,6 +27,8 @@ import { MAX_CONCURRENT_CHILDREN_PER_PARENT, type SubagentRunManager } from "./S
 import {
   errorResult,
   jsonResult,
+  runToolResult,
+  WAIT_AGAIN_INSTRUCTION,
   parseWaitOptions,
   parseOutputMode,
   parseWaitTimeoutMs,
@@ -80,8 +82,8 @@ export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
   "Pass 1-5 task tags to list_agents and spawn_agent. Omit unspecified provider/model/reasoning/fast to use configured and learned routing; explicit selections win. get_agent supplies model and reasoning values. Change persistent routing preferences only on clear user intent.",
   "Always set name on each task to describe its work; omit selection details because Crossagents appends those automatically. Give self-contained context, exact file/resource ownership, acceptance checks and a concise evidence-backed outcome. Children do not share your conversation. No overlapping writes; validate their work.",
   `spawn_agent waits by default; tasks launches up to ${MAX_CONCURRENT_CHILDREN_PER_PARENT} independent agents together, also the running limit per parent. background=true returns immediately and never injects a new message into the parent. Runs survive parent-turn interruption but stop when its thread closes.`,
-  "At synchronization, batch required run_ids in wait_for_agent. Waits default to 120 seconds, capped at 240 for transport safety; keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because a wait timed out. Cancel only at user request or when work is no longer needed for reasons unrelated to elapsed time.",
-  "Use output_mode=quiet to suppress running narration without consuming unread evidence; errors and pending request counts remain visible. Settled output is unchanged. This reduces payload, not parent wakeups. Progress remains in the UI/logs. Pass total_output_chars back as after_output_chars (or after_output_chars_by_run for batches); full_output=true retrieves complete output. Legacy progress output clips running/settled tails at 1000/16000 characters.",
+  "At synchronization, batch required run_ids in wait_for_agent. Do not end your turn or promise a later report while required runs are still running; background completion never wakes you. Waits default to 240 seconds, also the transport-safety cap; keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because a wait timed out. Cancel only at user request or when work is no longer needed for reasons unrelated to elapsed time.",
+  "Wait/status/spawn reads default to output_mode=quiet, suppressing running narration without consuming unread evidence; errors and pending request counts remain visible. Settled output is unchanged. This reduces payload, not parent wakeups. Progress remains in the UI/logs. Pass total_output_chars back as after_output_chars (or after_output_chars_by_run for batches); full_output=true retrieves complete output. Legacy progress output clips running/settled tails at 1000/16000 characters.",
   "Prefer result_mode=compact on spawn_agent: the worker authors its final report; default reads return it without consuming transcript evidence. Invalid reports surface result_error. full_output retrieves retained evidence; output_mode=progress restores narration. For known dependencies, run_workflow validates and schedules stages, forwards compact reports and returns sink/blocking reports. Use its action wait/status/cancel/list with workflow_id. Foreground start waits; background=true is for useful independent work. Workflows are memory-only and never resume the parent automatically.",
   "list_runs include_capacity=true reports available_slots, not a reservation. wait_mode=any returns when one run settles; next wait includes only remaining running IDs. steer_agent is for new evidence, constraints or conflicts, not repeated status requests.",
   "Fallback retries default to startup-only. retry_on=any-failure may repeat side effects and needs explicit justification and authority. Child permissions must stay within the user's authorized scope.",
@@ -126,7 +128,7 @@ const OUTPUT_MODE_PROPERTY = {
   type: "string",
   enum: ["quiet", "progress"],
   description:
-    "quiet suppresses running narration and preserves the unread cursor; errors and pending request counts remain visible. Settled output is unchanged. progress is the legacy default; full_output overrides quiet.",
+    "quiet is the default: running reads contain status, unread cursor, errors and pending request counts, without worker narration. Settled evidence is unchanged. progress restores narration; full_output retrieves the complete transcript.",
 } as const;
 
 const FULL_OUTPUT_PROPERTY = {
@@ -250,7 +252,7 @@ const RAW_TOOLS: ToolSpec[] = [
         timeout_s: {
           type: "number",
           description:
-            "Max seconds for this call (default 120, cap 240). Timeout leaves stages running; continue with run_workflow action=wait and workflow_id when results remain required.",
+            "Max seconds for this call (default and cap 240). Timeout leaves stages running; continue with run_workflow action=wait and workflow_id when results remain required.",
         },
       },
     },
@@ -747,7 +749,7 @@ export async function dispatchTool(
           background: true as const,
         }));
         const runs = ctx.runManager.spawnMany(ctx.parentThreadId, requests);
-        return jsonResult({ run_ids: runs.map(({ runId }) => runId) });
+        return jsonResult({ run_ids: runs.map(({ runId }) => runId) }, WAIT_AGAIN_INSTRUCTION);
       }
       case "wait_for_agent": {
         parseOutputMode(args);
@@ -759,7 +761,7 @@ export async function dispatchTool(
         }
         if (Array.isArray(args.run_ids)) {
           const runIds = parseRunIds(args);
-          return jsonResult(
+          return runToolResult(
             await ctx.runManager.waitForMany(
               runIds,
               parseWaitTimeoutMs(args),
@@ -771,7 +773,7 @@ export async function dispatchTool(
         }
         const runId = typeof args.run_id === "string" ? args.run_id : "";
         if (!runId) return errorResult("run_id is required");
-        return jsonResult(
+        return runToolResult(
           await ctx.runManager.waitFor(
             runId,
             parseWaitTimeoutMs(args),
@@ -783,7 +785,7 @@ export async function dispatchTool(
       case "wait_for_agents": {
         parseOutputMode(args);
         const runIds = parseRunIds(args);
-        return jsonResult(
+        return runToolResult(
           await ctx.runManager.waitForMany(
             runIds,
             parseWaitTimeoutMs(args),
@@ -798,7 +800,7 @@ export async function dispatchTool(
       case "get_status": {
         const runId = typeof args.run_id === "string" ? args.run_id : "";
         if (!runId) return errorResult("run_id is required");
-        return jsonResult(
+        return runToolResult(
           ctx.runManager.getStatus(runId, ctx.parentThreadId, parseWaitOptions(args)),
         );
       }

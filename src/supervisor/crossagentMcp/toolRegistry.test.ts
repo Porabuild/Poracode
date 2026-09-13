@@ -667,9 +667,12 @@ describe("subagent tool registration", () => {
     await dispatchTool("wait_for_agent", { run_id: "r", full_output: true }, ctx);
     await dispatchTool("get_status", { run_id: "r", after_output_chars: 25 }, ctx);
     expect(calls).toEqual([
-      { timeoutMs: 30_000, options: { fullOutput: false, afterOutputChars: 0 } },
-      { timeoutMs: 120_000, options: { fullOutput: true } },
-      { options: { fullOutput: false, afterOutputChars: 25 } },
+      {
+        timeoutMs: 30_000,
+        options: { outputMode: "quiet", fullOutput: false, afterOutputChars: 0 },
+      },
+      { timeoutMs: 240_000, options: { fullOutput: true } },
+      { options: { outputMode: "quiet", fullOutput: false, afterOutputChars: 25 } },
     ]);
   });
 
@@ -701,8 +704,8 @@ describe("subagent tool registration", () => {
     );
 
     expect(optionsByRun).toEqual([
-      { fullOutput: false, afterOutputChars: 100 },
-      { fullOutput: false, afterOutputChars: 20 },
+      { outputMode: "quiet", fullOutput: false, afterOutputChars: 100 },
+      { outputMode: "quiet", fullOutput: false, afterOutputChars: 20 },
     ]);
   });
 
@@ -992,7 +995,11 @@ describe("subagent tool registration", () => {
       status: "completed",
       output: "done",
     });
-    expect(waitOptions).toEqual({ fullOutput: false, currentAttemptOnly: true });
+    expect(waitOptions).toEqual({
+      outputMode: "quiet",
+      fullOutput: false,
+      currentAttemptOnly: true,
+    });
   });
 
   it.each([false, true])(
@@ -1028,7 +1035,11 @@ describe("subagent tool registration", () => {
         ctx,
       );
 
-      expect(waitOptions).toEqual({ fullOutput: fullOutput, currentAttemptOnly: true });
+      expect(waitOptions).toEqual({
+        outputMode: "quiet",
+        fullOutput: fullOutput,
+        currentAttemptOnly: true,
+      });
     },
   );
 
@@ -1406,12 +1417,12 @@ describe("quiet monitoring contract", () => {
         (await dispatchTool("spawn_agent", { ...shape, output_mode: "quiet" }, ctx)).isError,
       ).not.toBe(true);
     }
-    expect(waitFor).toHaveBeenLastCalledWith("a", 120000, "parent-1", {
+    expect(waitFor).toHaveBeenLastCalledWith("a", 240000, "parent-1", {
       outputMode: "quiet",
       fullOutput: false,
       currentAttemptOnly: true,
     });
-    expect(waitForMany).toHaveBeenLastCalledWith(["a"], 120000, "parent-1", {
+    expect(waitForMany).toHaveBeenLastCalledWith(["a"], 240000, "parent-1", {
       outputMode: "quiet",
       fullOutput: false,
       currentAttemptOnly: true,
@@ -1419,7 +1430,7 @@ describe("quiet monitoring contract", () => {
     for (const name of ["wait_for_agent", "get_status"]) {
       await dispatchTool(name, { run_id: "a", output_mode: "quiet", after_output_chars: 7 }, ctx);
     }
-    expect(waitFor).toHaveBeenLastCalledWith("a", 120000, "parent-1", {
+    expect(waitFor).toHaveBeenLastCalledWith("a", 240000, "parent-1", {
       outputMode: "quiet",
       fullOutput: false,
       afterOutputChars: 7,

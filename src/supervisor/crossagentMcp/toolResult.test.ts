@@ -26,8 +26,13 @@ describe("parseWaitTimeoutMs", () => {
 
 describe("parseWaitOptions", () => {
   it("uses a caller-owned output cursor and lets full_output override it", () => {
-    expect(parseWaitOptions({})).toEqual({ fullOutput: false, afterOutputChars: 0 });
+    expect(parseWaitOptions({})).toEqual({
+      outputMode: "quiet",
+      fullOutput: false,
+      afterOutputChars: 0,
+    });
     expect(parseWaitOptions({ after_output_chars: 25 })).toEqual({
+      outputMode: "quiet",
       fullOutput: false,
       afterOutputChars: 25,
     });
@@ -36,8 +41,9 @@ describe("parseWaitOptions", () => {
         { after_output_chars: 25, after_output_chars_by_run: { a: 100, b: 20 } },
         "b",
       ),
-    ).toEqual({ fullOutput: false, afterOutputChars: 20 });
+    ).toEqual({ outputMode: "quiet", fullOutput: false, afterOutputChars: 20 });
     expect(parseWaitOptions({ after_output_chars: -4 })).toEqual({
+      outputMode: "quiet",
       fullOutput: false,
       afterOutputChars: 0,
     });
