@@ -407,6 +407,35 @@ protocol vitest 61/61 + pairingUrl 10/10, typecheck/oxlint/oxfmt clean, full
 Android `:app:testDebugUnitTest :app:lintDebug` green (fixture test passing
 after the first-wins fix), full iOS AppTests green after the empty-host fix._
 
+_Status 2026-09-13 (M0 order 3): merge-specific live matrix executed on a
+managed real-mode desktop session (isolated data dir, low-cost providers
+Qwen3.8 Flash / Qwen3.8 Max / Kimi-K3; evidence and per-gate verdicts in
+`tmp/v2-production-review/m0-3-live-matrix.md`, screenshots `m0-*.png`).
+Changed-path analysis since WS9: queues, cursor-sync v2, relay streaming and
+background-task adoption all post-date the WS9 device evidence, so no WS9
+evidence was carried forward for the queue/terminal scenarios. LIVE PASS:
+queue/steer/stop/edit/remove/pause-resume including queueing-during-approval
+(dock untouched, queue auto-pauses), permission-deny (file verified not
+created), mid-turn steer cancels the original turn and completes the
+replacement, compact/PWA-shaped layout dock; same-supervisor reconnect
+restores the queue after a mid-turn renderer reload (auto-paused, resume
+drains); terminal PTY lifecycle across navigate-away/back and reload
+hydration without duplicate output; real provider MCP tool invocation
+(`read_thread`) plus the provider CLI's explicit MCP-server approval gate;
+provider handoff (Qwen Code → Qoder/Kimi-K3) with context transfer and no
+route errors; mid-thread model change; reopen/resume without duplication.
+Deterministic-only legs (pinned by host/unit tests, documented): supervisor-
+restart queue clear, delayed-history race, host-isolation replay scoping,
+helper packaging, credentials-in-argv. **BLOCKER CANDIDATE (scenario 5):
+checkpoint revert fails reproducibly (3/3, two checkpoints, idle thread) with
+"Backend renderer transport disconnected." — the direct-events WebSocket
+closes while the revert request is pending (`electronBackendTransport.ts:242`
+`handleClose` → `rejectPending`), the dialog stays open and the revert never
+applies; the session remains healthy around the failure (post-failure send
+completed). Voice leg not run live — outside release scope per the release
+reconciliation. Device/relay legs of the matrix still require on-device
+requalification before release.**_
+
 Queue adoption and cursor-sync adoption can proceed independently. Protocol-policy
 and pairing-fixture work should accompany affected paths, not block unrelated native
 UI adoption. Prioritize queue parity because it is a new user-visible divergence;
