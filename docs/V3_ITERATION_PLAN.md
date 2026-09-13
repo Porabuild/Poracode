@@ -299,6 +299,42 @@ stable (key order follows dictionary iteration) — compare structurally. Gates:
 full AppTests 1254/1254 (iPhone 17 sim), parity/conformance vitest 61/61,
 Android full gradle suite + lintDebug green after the fixup (commit 942f87757)._
 
+_Status 2026-09-12 (final): M2 order 2 fully closed. iOS adopted
+`background_tasks.changed` (`3e773d0c1`): strict decode (tasks required;
+taskId min 1; kind closed enum command|other; description string; unknown
+fields stripped) into session-scoped `RuntimeThreadDomainState.backgroundTasks`
+with REPLACE semantics (empty drains to nil, unchanged no-op), dropped on
+session.exited, never persisted, never bumps structuralVersion, no surface
+renders it — mirroring the Android adoption test-for-test. The parity ledger
+now has 221 implemented entries per platform and ZERO planned entries;
+PLANNED_ABSENCE_TOKENS is empty (guard retained). Gates: full AppTests
+1264/1264, parity vitest 61/61; critic pass clean._
+
+_Status 2026-09-12 (later still): M2 order 3 (relay HTTP streaming) landed.
+Capability-gated, additive within relay protocol v3: the relay advertises
+`httpStreaming` in its `registered` reply; a host that sees it answers `req`
+with `res-open` (headers) → `res-chunk` (≤256 KiB base64 slices, per-chunk
+pre-measured, bound clamped to the control frame limit) → `res-end`
+(optional mid-stream error → connection reset, never a fabricated status).
+The relay streams to the visitor with an idle deadline (re-armed per chunk;
+replaces the whole-request deadline after res-open, mirrored host-side by
+per-slice local-idle re-arms), slow-consumer isolation (writable-buffer bound
+1 MiB → destroy + req-cancel), mid-stream disconnect cancellation, and the
+buffered single-`res` path retained as the old-pairing fallback. Design and
+semantics documented in docs/RELAY_HTTP_STREAMING.md. Adversarial review
+hardened the trust boundary before commit: schema-bounded HTTP status (both
+`res` and `res-open` — a hostile host could crash the shared relay process
+via writeHead), defensive try/catch around res-open header application,
+settle-on-protocol-violating `res-end`, stale idle-timer clears on all unwind
+paths, abort-aware host backpressure pacing, and res-open send-result
+handling. Gates: 139 relay tests (131 existing + 8 new streaming/fallback) +
+513 main/remote tests green, typecheck + oxlint + oxfmt clean. The
+constrained-link failure modes are pinned on real sockets (progressive
+delivery gate, idle re-arm vs retirement, cancellation, isolation unwind,
+mid-stream reset, buffered fallback); the writable-length comparison itself
+is documented as review-verified only (loopback kernel auto-tuning absorbs
+any test firehose before Node backpressure engages)._
+
 Queue adoption and cursor-sync adoption can proceed independently. Protocol-policy
 and pairing-fixture work should accompany affected paths, not block unrelated native
 UI adoption. Prioritize queue parity because it is a new user-visible divergence;

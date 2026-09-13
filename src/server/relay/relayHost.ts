@@ -10,6 +10,7 @@ import {
 import {
   DEFAULT_RELAY_MAX_BODY_BYTES,
   PORACODE_RELAY_PROTOCOL_VERSION,
+  RELAY_RES_CHUNK_BYTES,
   relayServerFrameSchema,
   relayWebSocketPayloadLimit,
   safeJsonParse,
@@ -158,6 +159,13 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
   // an oversized control frame acceptable to the receiver.
   const controlFrameLimit = Math.min(maxWebSocketPayloadBytes, maxWebSocketOutboundBufferBytes);
   const binaryMessageLimit = relayBinaryMessageLimit(controlFrameLimit);
+  // Streaming slice bound: the constant default, clamped to what one control
+  // frame can actually carry (base64 + JSON overhead) for deployments with
+  // small configured limits.
+  const resChunkBytes = Math.max(
+    1_024,
+    Math.min(RELAY_RES_CHUNK_BYTES, Math.floor(((controlFrameLimit - 4_096) * 3) / 4)),
+  );
   const droppableStreamSoftBufferBytes = Math.min(
     DROPPABLE_STREAM_SOFT_BUFFER_BYTES,
     Math.floor(maxWebSocketOutboundBufferBytes / 2),
@@ -165,6 +173,10 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
 
   let disposed = false;
   let control: RelaySocket | null = null;
+  /** The connected relay advertised the additive streaming response frames
+   * (`httpStreaming` in its `registered` reply); re-derived on every control
+   * (re)connection. Old relays never set it, leaving the buffered path. */
+  let httpStreamingEnabled = false;
   let forwardOrigin: { ownerId: string; policy: ForwardOriginPolicy } | undefined;
   const expectedOwner = options.forwardOriginSecret
     ? deriveForwardOwner(options.forwardOriginSecret, options.serverId)
@@ -254,6 +266,27 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     if (control) sendOn(control, frame);
   };
 
+  /**
+   * Backpressure pacing for streaming chunk sends: when the control socket's
+   * outbound buffer is congested (slow relay→visitor consumer behind it),
+   * stop reading the upstream body until it drains. Bounded total wait — a
+   * dead socket fails the send itself rather than parking here forever, and
+   * an aborted exchange (idle deadline, req-cancel) stops pacing immediately.
+   */
+  const waitForControlRoom = async (socket: RelaySocket, signal: AbortSignal): Promise<void> => {
+    for (
+      let waited = 0;
+      !signal.aborted &&
+      (socket.bufferedAmount ?? 0) > droppableStreamSoftBufferBytes &&
+      waited < 10_000;
+      waited += 20
+    ) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 20);
+      });
+    }
+  };
+
   const closeAllChannels = () => {
     for (const channel of wsChannels.values()) {
       closeSocket(channel.socket);
@@ -310,6 +343,19 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     };
     pendingRequests.set(frame.id, entry);
     entry.timeout.unref?.();
+    // Streaming idle semantics: once headers are out, every sent chunk re-arms
+    // the local deadline so a slow-but-progressing response is never retired
+    // mid-stream while a stalled one still unwinds within requestTimeoutMs.
+    const rearmLocalIdle = (): void => {
+      clearTimeout(entry.timeout);
+      entry.timeout = setTimeout(() => {
+        if (pendingRequests.get(frame.id) === entry) {
+          controller.abort();
+          rejectTimedOut(timeoutError);
+        }
+      }, requestTimeoutMs);
+      entry.timeout.unref?.();
+    };
     try {
       const body = frame.body === undefined ? undefined : Buffer.from(frame.body, "base64");
       // Drop hop-by-hop / relay-specific headers; the local fetch sets its own
@@ -356,10 +402,6 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
         }),
         timedOut,
       ]);
-      const buffer = await Promise.race([
-        readBoundedResponseBody(response, maxBodyBytes),
-        timedOut,
-      ]);
       // `headersToRecord` iterates the fetch `Headers` API generically, which
       // collapses/loses repeated `set-cookie` entries (the Headers API has no
       // reliable generic multi-value read for it) — so `set-cookie` is dropped
@@ -367,48 +409,136 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
       // the one API that returns every value intact.
       const responseHeaders = headersToRecord(response.headers);
       delete responseHeaders["set-cookie"];
-      // `readBoundedResponseBody` reads the DECODED body (`fetch` undoes any
-      // `content-encoding` transparently), so echoing the origin's
-      // `content-encoding` would label plaintext bytes as gzip and the visitor
-      // would fail to parse them. `content-length` describes the encoded body
-      // and is equally stale. Both must go now that the origin can compress.
+      // The body is read DECODED (`fetch` undoes any `content-encoding`
+      // transparently), so echoing the origin's `content-encoding` would label
+      // plaintext bytes as gzip and the visitor would fail to parse them.
+      // `content-length` describes the encoded body and is equally stale. Both
+      // must go now that the origin can compress.
       delete responseHeaders["content-encoding"];
       delete responseHeaders["content-length"];
       const setCookies = response.headers.getSetCookie();
       // The entry check suppresses a late response for a canceled request:
-      // once `req-cancel`/control loss removed it, neither the visitor nor the
-      // relay's pending entry exists anymore.
+      // once `req-cancel`/control loss removed it, neither the visitor nor
+      // the relay's pending entry exists anymore.
       if (pendingRequests.get(frame.id) === entry) {
-        pendingRequests.delete(frame.id);
-        if (control === sourceControl) {
-          // P1-7: pre-measure the exact frame. The body is bounded by
-          // maxBodyBytes, but base64 expansion, JSON escaping, and headers can
-          // push the frame past the relay's receive limit — which would kill
-          // the shared control socket for every channel and request. Fail this
-          // one request instead.
-          const resFrame = {
-            t: "res" as const,
-            id: frame.id,
-            status: response.status,
-            headers: responseHeaders,
-            ...(setCookies.length > 0 ? { setCookies } : {}),
-            body: Buffer.from(buffer).toString("base64"),
-          };
-          if (Buffer.byteLength(JSON.stringify(resFrame)) > controlFrameLimit) {
-            sendOn(sourceControl, {
-              t: "req-error",
+        if (!httpStreamingEnabled) {
+          const buffer = await Promise.race([
+            readBoundedResponseBody(response, maxBodyBytes),
+            timedOut,
+          ]);
+          if (pendingRequests.get(frame.id) !== entry) return;
+          pendingRequests.delete(frame.id);
+          if (control === sourceControl) {
+            // P1-7: pre-measure the exact frame. The body is bounded by
+            // maxBodyBytes, but base64 expansion, JSON escaping, and headers can
+            // push the frame past the relay's receive limit — which would kill
+            // the shared control socket for every channel and request. Fail this
+            // one request instead.
+            const resFrame = {
+              t: "res" as const,
               id: frame.id,
-              message: "response too large for the relay link",
-            });
+              status: response.status,
+              headers: responseHeaders,
+              ...(setCookies.length > 0 ? { setCookies } : {}),
+              body: Buffer.from(buffer).toString("base64"),
+            };
+            if (Buffer.byteLength(JSON.stringify(resFrame)) > controlFrameLimit) {
+              sendOn(sourceControl, {
+                t: "req-error",
+                id: frame.id,
+                message: "response too large for the relay link",
+              });
+              return;
+            }
+            sendOn(sourceControl, resFrame);
+          }
+          return;
+        }
+        // Streaming path (relay advertised httpStreaming): headers go out
+        // immediately, the body follows as bounded `res-chunk` slices, and
+        // both the local timeout and the relay's deadline become idle-based
+        // (rearmed by every chunk, so a slow-but-progressing response is
+        // never retired mid-stream).
+        let opened = false;
+        try {
+          if (
+            !sendOn(sourceControl, {
+              t: "res-open",
+              id: frame.id,
+              status: response.status,
+              headers: responseHeaders,
+              ...(setCookies.length > 0 ? { setCookies } : {}),
+            })
+          ) {
             return;
           }
-          sendOn(sourceControl, resFrame);
+          opened = true;
+          rearmLocalIdle();
+          let totalBytes = 0;
+          if (response.body) {
+            for await (const raw of response.body) {
+              if (pendingRequests.get(frame.id) !== entry) return;
+              const piece = Buffer.from(raw);
+              totalBytes += piece.length;
+              if (totalBytes > maxBodyBytes) {
+                throw new Error("response too large for the relay link");
+              }
+              for (let offset = 0; offset < piece.length; offset += resChunkBytes) {
+                const slice = piece.subarray(
+                  offset,
+                  Math.min(offset + resChunkBytes, piece.length),
+                );
+                // P1-7 discipline applies per chunk: pre-measure so a single
+                // slice can never exceed the shared control frame limit.
+                const chunkFrame = {
+                  t: "res-chunk" as const,
+                  id: frame.id,
+                  body: slice.toString("base64"),
+                };
+                if (Buffer.byteLength(JSON.stringify(chunkFrame)) > controlFrameLimit) {
+                  throw new Error("response too large for the relay link");
+                }
+                // Backpressure pacing: when the control socket's outbound
+                // buffer is congested, stop reading upstream until it drains
+                // (bounded wait; a dead or aborted exchange stops instead).
+                await waitForControlRoom(sourceControl, controller.signal);
+                if (pendingRequests.get(frame.id) !== entry) return;
+                if (!sendOn(sourceControl, chunkFrame)) return;
+                rearmLocalIdle();
+              }
+            }
+          }
+          if (pendingRequests.get(frame.id) !== entry) return;
+          pendingRequests.delete(frame.id);
+          if (control === sourceControl) {
+            sendOn(sourceControl, { t: "res-end", id: frame.id });
+          }
+        } catch (streamError) {
+          if (pendingRequests.get(frame.id) !== entry) return;
+          pendingRequests.delete(frame.id);
+          if (control === sourceControl) {
+            const abortedLocally = controller.signal.aborted && streamError !== timeoutError;
+            const streamMessage = abortedLocally
+              ? `local request timed out after ${requestTimeoutMs}ms`
+              : streamError instanceof Error
+                ? streamError.message
+                : String(streamError);
+            if (opened) {
+              // Headers already went out: the only honest report is a
+              // mid-stream failure the relay turns into a connection reset.
+              sendOn(sourceControl, { t: "res-end", id: frame.id, error: streamMessage });
+            } else {
+              sendOn(sourceControl, { t: "req-error", id: frame.id, message: streamMessage });
+            }
+          }
+          return;
         }
       }
     } catch (error) {
       // A canceled request (or one whose control was lost, or the host
-      // disposed) has no one left to answer: stay quiet instead of reporting
-      // the abort as if it were a local failure.
+      // disposed, or a streaming response that already answered through its
+      // own res-end/req-error) has no one left to answer: stay quiet instead
+      // of reporting the abort as if it were a local failure.
       if (pendingRequests.get(frame.id) !== entry) return;
       pendingRequests.delete(frame.id);
       const message =
@@ -578,6 +708,7 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
           ) {
             throw new Error("Relay forward origin ownership mismatch.");
           }
+          httpStreamingEnabled = frame.httpStreaming === true;
           forwardOrigin = frame.forwardOrigin
             ? {
                 ownerId: frame.forwardOrigin.ownerId,

@@ -393,6 +393,83 @@ describe("startRelayHost", () => {
     handle.dispose();
   });
 
+  it("answers with streaming frames when the relay advertises httpStreaming, buffered otherwise", async () => {
+    // A streaming-capable relay: registered carries httpStreaming, so the
+    // response travels as res-open → res-chunk → res-end.
+    const streamingControl = fakeSocket();
+    const streamingHandle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      socketFactory: () => streamingControl,
+      fetchImpl: async () => new Response("streamed-body", { status: 200 }),
+    });
+    streamingControl.onopen?.();
+    streamingControl.onmessage?.(
+      frame({
+        t: "registered",
+        serverId: "srv-1",
+        publicUrl: "https://relay.test/s/srv-1/",
+        httpStreaming: true,
+      }),
+    );
+    streamingControl.onmessage?.(
+      frame({ t: "req", id: "req-stream", method: "GET", path: "/", headers: {} }),
+    );
+    await vi.waitFor(() => {
+      expect(streamingControl.sent.map((data) => JSON.parse(data) as unknown)).toContainEqual({
+        t: "res-open",
+        id: "req-stream",
+        status: 200,
+        headers: { "content-type": "text/plain;charset=UTF-8" },
+      });
+    });
+    await vi.waitFor(() => {
+      expect(streamingControl.sent.map((data) => JSON.parse(data) as unknown)).toContainEqual({
+        t: "res-chunk",
+        id: "req-stream",
+        body: Buffer.from("streamed-body").toString("base64"),
+      });
+    });
+    await vi.waitFor(() => {
+      expect(streamingControl.sent.map((data) => JSON.parse(data) as unknown)).toContainEqual({
+        t: "res-end",
+        id: "req-stream",
+      });
+    });
+    streamingHandle.dispose();
+
+    // An older relay never sets the capability: the same host keeps the
+    // buffered single-`res` answer.
+    const bufferedControl = fakeSocket();
+    const bufferedHandle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      socketFactory: () => bufferedControl,
+      fetchImpl: async () => new Response("buffered-body", { status: 200 }),
+    });
+    bufferedControl.onopen?.();
+    bufferedControl.onmessage?.(
+      frame({ t: "registered", serverId: "srv-1", publicUrl: "https://relay.test/s/srv-1/" }),
+    );
+    bufferedControl.onmessage?.(
+      frame({ t: "req", id: "req-buffered", method: "GET", path: "/", headers: {} }),
+    );
+    await vi.waitFor(() => {
+      expect(bufferedControl.sent.map((data) => JSON.parse(data) as unknown)).toContainEqual({
+        t: "res",
+        id: "req-buffered",
+        status: 200,
+        headers: { "content-type": "text/plain;charset=UTF-8" },
+        body: Buffer.from("buffered-body").toString("base64"),
+      });
+    });
+    bufferedHandle.dispose();
+  });
+
   it("forwards the relay's clientId as a stable x-forwarded-for identity across requests", async () => {
     const control = fakeSocket();
     const identities: string[] = [];

@@ -97,6 +97,13 @@ export const relayRegisteredFrameSchema = z.object({
   serverId: z.string().min(1),
   publicUrl: z.string().url(),
   forwardOrigin: relayForwardOriginSchema.optional(),
+  /**
+   * The relay understands the additive v3 streaming response frames
+   * (`res-open`/`res-chunk`/`res-end`, see below). Additive/optional: older
+   * relays omit it and older hosts strip it, leaving the fully buffered
+   * single-`res` response path unchanged.
+   */
+  httpStreaming: z.literal(true).optional(),
 });
 
 /** Relay → host: a visitor HTTP request to proxy to the local server. */
@@ -117,11 +124,16 @@ export const relayRequestFrameSchema = z.object({
   clientId: z.string().min(1).max(128).optional(),
 });
 
+/** HTTP status as an honest response status: a value `writeHead` accepts.
+ * Bounds a hostile/buggy host from crashing the relay's shared process with
+ * an invalid status code (applies to both `res` and `res-open`). */
+const relayHttpStatusSchema = z.number().int().min(100).max(599);
+
 /** Host → relay: the response for a `req` frame. */
 export const relayResponseFrameSchema = z.object({
   t: z.literal("res"),
   id: z.string().min(1),
-  status: z.number().int(),
+  status: relayHttpStatusSchema,
   headers: z.record(z.string(), z.string()),
   /**
    * Raw `Set-Cookie` header values, one entry each. The fetch `Headers` API
@@ -142,6 +154,51 @@ export const relayRequestErrorFrameSchema = z.object({
   id: z.string().min(1),
   message: z.string(),
 });
+
+/**
+ * Streaming response frames (additive in v3, gated on the relay advertising
+ * `httpStreaming` in its `registered` reply):
+ *
+ * - `res-open` — the origin's status and headers are ready; body slices
+ *   follow. Sent exactly once per request, instead of the buffered `res`.
+ * - `res-chunk` — one base64 body slice, in order, bounded by
+ *   `RELAY_RES_CHUNK_BYTES` on the host side and pre-measured against the
+ *   control frame limit before sending.
+ * - `res-end` — the body finished successfully, or (`error`) failed
+ *   mid-stream AFTER headers were already delivered. The relay destroys the
+ *   visitor response on a mid-stream error: headers went out, so no status
+ *   code can honestly describe the failure.
+ *
+ * Ordering is the control socket's own: frames from one host arrive in send
+ * order. The relay replaces its whole-request deadline with an idle deadline
+ * (reset by every chunk) once `res-open` arrives, so a slow-but-progressing
+ * response is never retired mid-stream. An older relay never advertises
+ * `httpStreaming`, so it never receives these frames; an older host strips
+ * the capability and keeps answering with the buffered `res`.
+ */
+export const relayResponseOpenFrameSchema = z.object({
+  t: z.literal("res-open"),
+  id: z.string().min(1),
+  status: relayHttpStatusSchema,
+  headers: z.record(z.string(), z.string()),
+  setCookies: z.array(z.string()).optional(),
+});
+
+export const relayResponseChunkFrameSchema = z.object({
+  t: z.literal("res-chunk"),
+  id: z.string().min(1),
+  /** base64 body slice. */
+  body: z.string(),
+});
+
+export const relayResponseEndFrameSchema = z.object({
+  t: z.literal("res-end"),
+  id: z.string().min(1),
+  error: z.string().optional(),
+});
+
+/** Host-side body slice bound for `res-chunk` (raw bytes, before base64). */
+export const RELAY_RES_CHUNK_BYTES = 256 * 1024;
 
 /**
  * Relay → host: stop working on the pending `req` with this id — the visitor
@@ -238,6 +295,9 @@ export const relayHostFrameSchema = z.discriminatedUnion("t", [
   relayRegisterFrameSchema,
   relayResponseFrameSchema,
   relayRequestErrorFrameSchema,
+  relayResponseOpenFrameSchema,
+  relayResponseChunkFrameSchema,
+  relayResponseEndFrameSchema,
   relayWsDataFrameSchema,
   relayWsCloseFrameSchema,
 ]);
