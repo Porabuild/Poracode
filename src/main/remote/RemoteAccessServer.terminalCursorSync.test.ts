@@ -179,6 +179,48 @@ function createCursorSyncServer(
 }
 
 describe("RemoteAccessServer terminal cursor-sync", () => {
+  it("bounds legacy and reliable terminal interests per connection", async () => {
+    const onEventInterestsChanged =
+      vi.fn<NonNullable<RemoteAccessServerOptions["onEventInterestsChanged"]>>();
+    const server = createCursorSyncServer({ onEventInterestsChanged });
+    const info = await server.start();
+    const legacy = await openTerminalWatchSocket(info);
+
+    for (let index = 0; index < 257; index += 1) {
+      legacy.ws.send(JSON.stringify({ type: "terminal-watch", id: `legacy-${index}` }));
+    }
+    await vi.waitFor(() => {
+      const interests = onEventInterestsChanged.mock.lastCall?.[0];
+      expect(interests?.terminalThreadIds).toHaveLength(256);
+    });
+    const interests = onEventInterestsChanged.mock.lastCall?.[0];
+    expect(interests?.terminalThreadIds).toHaveLength(256);
+
+    // The reliable capacity result uses the same per-connection bound. An
+    // existing legacy watch set is still a real occupied interest set.
+    legacy.ws.send(
+      JSON.stringify({
+        type: "terminal-watch",
+        id: "reliable-over-cap",
+        cursorSync: { version: 1, watchId: "watch-over-cap" },
+      }),
+    );
+    await expect(legacy.next()).resolves.toEqual({
+      type: "terminal-watch-result",
+      id: "reliable-over-cap",
+      cursorSync: {
+        version: 1,
+        watchId: "watch-over-cap",
+        result: {
+          status: "error",
+          code: "unavailable",
+          retryable: true,
+          reason: "client-watch-capacity",
+        },
+      },
+    });
+  });
+
   it("serves terminal cursor-sync watch results and tags only reliable output", async () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
       if (name === "readTerminalSnapshot") {

@@ -746,6 +746,12 @@ This bounds the server's admission set and preserves an explicit retry signal;
 per-client fairness, operation-class priority, and relay-wide budgets remain
 Phase 5 work.
 
+Remote WebSocket terminal interests are also capped at 256 IDs per connection.
+Legacy watches beyond the cap are ignored, while cursor-synchronized watches
+receive a retryable capacity result. This bounds the per-client interest index
+and supervisor filter cost; it is a cardinality guard, not the Phase 5 fair
+outbound scheduler.
+
 Acceptance: concurrent desktop/server launches in both orders; separate roots;
 stale-lock recovery; old/master Electron already using the root in either startup
 order; attach/detach/restart; schedules and providers continuing with
