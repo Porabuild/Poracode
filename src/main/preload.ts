@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import { installSmokeNativePreload } from "./testing/smokeNativeControls";
 import { type PoracodeChannel, normalizeChannel } from "@/shared/channel";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { RemoteAccessPairingInfo } from "@/shared/remote";
@@ -312,6 +313,12 @@ const bridge: ElectronHostBridge = {
 };
 
 contextBridge.exposeInMainWorld("poracodeHost", bridge);
+installSmokeNativePreload({
+  contextBridge,
+  ipcRenderer,
+  isDev: bridge.isDev,
+  mockAgents: process.env.PORACODE_MOCK_AGENTS === "1",
+});
 
 function isBackendRendererStreamInfo(value: unknown): value is BackendRendererStreamInfo {
   if (typeof value !== "object" || value === null) return false;

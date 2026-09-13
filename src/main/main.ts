@@ -97,6 +97,7 @@ import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
 import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
 import { installProcessStdioErrorHandlers } from "./processStdio";
+import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
 
 // Electron can remain alive after its launching terminal or dev runner exits.
 // Install this before any startup logging so a detached diagnostic pipe cannot
@@ -1202,6 +1203,19 @@ if (!hasSingleInstanceLock) {
       });
 
       const initialMainWindow = ensureMainWindow(showMainWindowOnReady);
+
+      registerSmokeNativeControls({
+        ipcMain,
+        isDev,
+        isPackaged: app.isPackaged,
+        mockAgents: process.env.PORACODE_MOCK_AGENTS === "1",
+        getMainWebContents: () => mainWindow?.webContents ?? null,
+        toggleQuickComposer: toggleQuickComposerWindow,
+        inspectQuickComposer: () =>
+          quickComposerWindow && !quickComposerWindow.isDestroyed()
+            ? { visible: quickComposerWindow.isVisible(), focused: quickComposerWindow.isFocused() }
+            : null,
+      });
 
       tray = createTray({
         channel,
