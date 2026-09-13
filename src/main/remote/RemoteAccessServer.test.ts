@@ -1059,6 +1059,7 @@ describe("RemoteAccessServer", () => {
     const serviceWorker = await serviceWorkerResponse.text();
     expect(serviceWorker).toContain("poracode-remote-local-1.0.0");
     expect(serviceWorker).toContain("caches.delete(LEGACY_CACHE_NAME)");
+    expect(serviceWorker).not.toContain("self.skipWaiting()");
     expect(serviceWorker).toContain('self.addEventListener("push"');
     expect(serviceWorker).toContain("showNotification");
     expect(serviceWorker).toContain('self.addEventListener("notificationclick"');

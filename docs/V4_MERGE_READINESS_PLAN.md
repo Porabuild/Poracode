@@ -990,6 +990,11 @@ Owner: web/PWA maintainer. Depends on Phases 2–6 where their paths are affecte
    until old clients retire, or coordinate a safe reload after drafts are durable.
    Verify actual deployment asset retention; do not assume deleted cache entries
    remain available from the server.
+   The canonical and Electron-served workers now use the first safe option:
+   installation pre-caches the new shell but leaves the previous worker in
+   control until its clients retire, so activation does not delete assets still
+   referenced by an old document. Installed cross-browser upgrade evidence is
+   still required.
 4. Verify desktop browser, iOS Safari browser, installed iOS PWA, Android Chrome,
    and installed Android PWA. Cover keyboard/IME, safe areas, viewport/rotation,
    attachments, terminal paste/resize, background resume, offline/online, server

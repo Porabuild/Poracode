@@ -79,6 +79,16 @@ describe("canonical service worker", () => {
     expect(source).toContain("caches.match(request, { ignoreVary: true })");
   });
 
+  it("waits for existing documents before activating a new asset cache", () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, "../../../public/service-worker.js"),
+      "utf8",
+    );
+
+    expect(source).not.toContain("self.skipWaiting()");
+    expect(source).toContain("old document still requests one of those URLs");
+  });
+
   it("invalidates the cache identity when service-worker behavior changes", () => {
     const root = mkdtempSync(resolve(tmpdir(), "poracode-web-build-"));
 

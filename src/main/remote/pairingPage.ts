@@ -219,7 +219,9 @@ const SHELL_URLS = ["/", "/manifest.webmanifest", "/app-icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS)));
-  self.skipWaiting();
+  // Keep the previous worker in control until its documents close or reload.
+  // Activating immediately can delete the previous hashed asset cache while
+  // an old document still requests one of those URLs.
 });
 
 self.addEventListener("activate", (event) => {
