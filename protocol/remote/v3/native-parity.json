@@ -3520,8 +3520,11 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/terminal/TerminalRemoteV3Codec.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/terminal/ProductionTerminalWatchTransport.kt"
+          ]
         }
       }
     ],
@@ -3702,8 +3705,11 @@
           "evidence": []
         },
         "android": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "android/app/src/main/kotlin/com/poracode/app/protocol/terminal/TerminalRemoteV3Codec.kt",
+            "android/app/src/main/kotlin/com/poracode/app/transport/terminal/ProductionTerminalWatchTransport.kt"
+          ]
         }
       }
     ],

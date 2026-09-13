@@ -130,6 +130,14 @@ Estimate the remaining work after inspecting hosted checks and live-test access.
    protocol/inventory references and feature claims, preserving dated evidence.
    Record native queue gaps and experimental voice scope. After fixes, rerun
    affected checks; require the normal integration gates on the final revision.
+   _Status 2026-09-12: RELEASE_MOBILE.md reconciled — protocol v11 inventory
+   (63 routes / 108 procedures / 9+10 WS messages / 16 replayable events), ledger
+   counts (iOS 218 implemented + 3 planned, Android 221 implemented,
+   `push-config` unsupported), the follow-up
+   queue recorded as fully adopted on both natives with dated evidence, and an
+   explicit "no voice outside the experimental desktop toggle" scope line.
+   V2_PRODUCTION_READINESS.md left as dated history per the preserving-evidence
+   rule._
 6. **Integrate V2 into master only after qualification.** Validate the resulting
    integration revision before release promotion. Do not schedule another merge
    of the same fetched master revision into V2.
@@ -186,9 +194,9 @@ Start from the merged baseline on separate changes. Freeze the first release
 candidate after Milestone 0; subsequent protocol work does not enter it without a
 release-blocking justification.
 
-The parity ledger now contains **12 planned entries on iOS and 11 on Android**:
-**nine queue entries each** (eight procedures plus `thread-follow-up-queue`), two
-cursor-sync v2 entries each, and `background_tasks.changed` on iOS. Both retain the
+The parity ledger now contains **3 planned entries on iOS and none on Android**:
+the two cursor-sync v2 entries (iOS; Android implemented) and
+`background_tasks.changed` (iOS). Both platforms retain the
 intentional `push-config` unsupported-by-wire entry. Generated bindings alone do
 not close these UI/transport gaps.
 
@@ -225,7 +233,7 @@ fixture-driven runtime wiring test through `applyServerEvent` (set/paused/clear
 plus foreign-thread, malformed, and stale-sequence rejection), and gateway
 payload-shape tests against the fixture procedure requests.
 
-_Status 2026-09-14: the iOS mirror (B1–B4) landed. All eight procedures ride
+_Status 2026-09-12: the iOS mirror (B1–B4) landed. All eight procedures ride
 the generated procedure-call contract with codec validation
 (`GeneratedRichChatProcedureContract` + `RichChatRemoteAPI`); the domain decoder
 (`RichFollowUpQueue.swift`) mirrors pending-steer strictness; the snapshot field
@@ -246,6 +254,27 @@ PLANNED_ABSENCE_TOKENS rules were removed. Hosted CI has not triggered for
 pushes since 07:31Z 2026-09-12 (user-side restoration pending; every stage was
 verified against the full local gradle suite + lint and AppTests in the
 meantime)._
+
+_Status 2026-09-12: cursor-sync order 2, Android half landed. Shared golden
+`protocol/remote/v3/fixtures/ws-terminal-cursor-sync-v2.json` plus a conformance
+test pin v2 watch with/without resume, the ack, 3-chunk contiguity, and the
+up-to-date resume marker. Android: v2 watch requests carry the 4096/8192 bounds
+and the retained durable position as resume; the transport negotiates v2→v1 from
+the environment, ACKs every chunk cumulatively (including the final one),
+assembles chunks into exactly one v1-shaped BASELINE for the reconciler (raw
+chunks never cross the transport boundary), discards the assembly on
+gap/overlap/generation-flip/resume-flip/mid-stream overflow, downgrades on the
+explicit `unsupported-version` verdict by re-watching as v1 on the same socket,
+and enforces a 10 s per-frame baseline idle deadline. A rewatch seeds the new
+watch with the retained established position so a served resume suffix APPENDS
+to the transcript (an adversarial review caught the original bare-watching-cursor
+seed making the suffix replace history); the continuation clears a pending
+resync, and the up-to-date marker still reports process state. Ledger: both
+terminal v2 entries flipped to implemented on Android with codec+transport
+evidence; iOS stays planned (mirror next). Gates: full `:app:testDebugUnitTest` +
+`:app:lintDebug` (size gate held by extracting `RichTerminalWatchPolicy` and
+`TerminalCursorSyncSession`), parity vitest 61/61. Hosted CI still down (see
+above)._
 
 Queue adoption and cursor-sync adoption can proceed independently. Protocol-policy
 and pairing-fixture work should accompany affected paths, not block unrelated native

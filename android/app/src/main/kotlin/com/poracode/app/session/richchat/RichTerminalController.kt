@@ -5,10 +5,10 @@ import com.poracode.app.chat.TerminalCursorFrame
 import com.poracode.app.chat.TerminalCursorReconciler
 import com.poracode.app.chat.TerminalCursorState
 import com.poracode.app.model.terminal.TerminalConnectionPhase
-import com.poracode.app.model.terminal.TerminalConnectionFailure
 import com.poracode.app.model.terminal.TerminalConnectionStatus
 import com.poracode.app.model.terminal.TerminalProcessState
 import com.poracode.app.model.terminal.TerminalServerFrame
+import com.poracode.app.protocol.terminal.TerminalRemoteV3Codec
 import com.poracode.app.transport.richchat.TerminalStartInput
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -55,18 +55,38 @@ class RichTerminalController(
             return rejected(RichChatOperationFailure.InvalidRequest)
         }
         val host = prepareHost(RichChatCapability.TerminalRead) ?: run {
-            markWatchGateFailure()
+            mutableState.value.failure?.let { failure ->
+                mutableState.update {
+                    it.copy(connection = RichTerminalWatchPolicy.gateStatus(failure))
+                }
+            }
             return currentRejection()
         }
         val token = begin(terminalId, host, OP_WATCH)
         val lease = RichTerminalLease(host, terminalId, token.generation)
+        // Request cursor-sync v2 with the retained position as resume (only
+        // with a durable generation); the transport negotiates down to v1 on
+        // hosts that do not advertise v2. The new watch's cursor is seeded
+        // from the same retained position so a served resume suffix (or the
+        // up-to-date marker) APPENDS — a bare watching cursor here would make
+        // the suffix REPLACE the retained transcript.
+        val retained = mutableState.value.cursor
+        val resume = RichTerminalWatchPolicy.resumeFromRetained(retained)
         mutableState.value = RichTerminalState(
             lease = lease,
-            cursor = TerminalCursorState.watching(watchId),
+            cursor = RichTerminalWatchPolicy.seedFromRetained(retained, watchId),
             activeOperations = setOf(OP_WATCH),
         )
         return run(token, RichChatCapability.TerminalRead, false) {
-            gateway.watchTerminal(host, RichTerminalWatchRequest(terminalId, watchId))
+            gateway.watchTerminal(
+                host,
+                RichTerminalWatchRequest(
+                    terminalId = terminalId,
+                    watchId = watchId,
+                    cursorSyncVersion = TerminalRemoteV3Codec.CURSOR_SYNC_V2_VERSION,
+                    resume = resume,
+                ),
+            )
             if (!canPublish(token)) return@run RichChatOperationResult.Stale
             mutableState.update {
                 it.copy(watching = true, activeOperations = it.activeOperations - OP_WATCH)
@@ -143,7 +163,13 @@ class RichTerminalController(
         return when (frame) {
             is TerminalServerFrame.Cursor -> {
                 val applied = applyFrame(lease, frame.frame)
-                if (applied && frame.frame.kind == com.poracode.app.chat.TerminalCursorFrameKind.BASELINE) {
+                // A BASELINE carries authoritative process/dimension state
+                // even when the reconciler ignores its payload — the v2
+                // up-to-date resume marker has an empty range but still
+                // reports the live process state.
+                if (frame.frame.kind == com.poracode.app.chat.TerminalCursorFrameKind.BASELINE &&
+                    frame.frame.terminalId == lease.terminalId
+                ) {
                     updateWatch(lease, frame.frame.watchId) { current ->
                         current.copy(
                             processState = frame.processState,
@@ -158,6 +184,9 @@ class RichTerminalController(
                 if (frame.error.terminalId != lease.terminalId) return false
                 updateWatch(lease, frame.error.watchId) { it.copy(watchError = frame.error) }
             }
+            // Raw chunks never cross the transport boundary — the watch transport
+            // assembles them into one synthesized BASELINE cursor frame.
+            is TerminalServerFrame.BaselineChunk -> false
         }
     }
 
@@ -170,8 +199,11 @@ class RichTerminalController(
         val lease = mutableState.value.lease ?: return false
         if (lease.host.key != sourceHost || lease.terminalId != terminalId) return false
         return updateWatch(lease, watchId) { current ->
+            // Retain an established durable position across reconnects — the
+            // v2 resume request presents it and the reconciler appends the
+            // served suffix; buffered pre-reset frames are dropped as before.
             current.copy(
-                cursor = TerminalCursorState.watching(watchId),
+                cursor = RichTerminalWatchPolicy.retainedForReset(current.cursor, watchId),
                 connection = status,
                 needsAuthoritativeRefresh = false,
                 processState = null,
@@ -377,7 +409,9 @@ class RichTerminalController(
             if (lifecycle.isCurrent(lifecycleToken)) result else RichChatOperationResult.Stale
         }
     } catch (error: CancellationException) {
-        if (canPublish(token)) clearActive(token.kind)
+        if (canPublish(token)) {
+            mutableState.update { it.copy(activeOperations = it.activeOperations - token.kind) }
+        }
         throw error
     } catch (_: RichChatBackgroundException) {
         rejected(RichChatOperationFailure.Backgrounded)
@@ -422,35 +456,9 @@ class RichTerminalController(
             current.generation == token.generation
     }
 
-    private fun currentRejection(): RichChatOperationResult.Failed =
-        RichChatOperationResult.Failed(
-            mutableState.value.failure ?: RichChatOperationFailure.NoThread,
-        )
-
-    private fun markWatchGateFailure() {
-        val failure = mutableState.value.failure ?: return
-        val status = when (failure) {
-            RichChatOperationFailure.Backgrounded ->
-                TerminalConnectionStatus(TerminalConnectionPhase.Suspended)
-            RichChatOperationFailure.AuthenticationRequired -> TerminalConnectionStatus(
-                TerminalConnectionPhase.Failed,
-                TerminalConnectionFailure.Authentication,
-            )
-            is RichChatOperationFailure.AuthorizationDenied -> TerminalConnectionStatus(
-                TerminalConnectionPhase.Failed,
-                TerminalConnectionFailure.Permission,
-            )
-            else -> TerminalConnectionStatus(
-                TerminalConnectionPhase.Failed,
-                TerminalConnectionFailure.Network,
-            )
-        }
-        mutableState.update { it.copy(connection = status) }
-    }
-
-    private fun clearActive(kind: String) {
-        mutableState.update { it.copy(activeOperations = it.activeOperations - kind) }
-    }
+    private fun currentRejection() = RichChatOperationResult.Failed(
+        mutableState.value.failure ?: RichChatOperationFailure.NoThread,
+    )
 
     private fun <T> rejected(failure: RichChatOperationFailure): RichChatOperationResult<T> {
         mutableState.update { it.copy(failure = failure) }

@@ -150,6 +150,24 @@ object TerminalCursorReconciler {
         state: TerminalCursorState,
         frame: TerminalCursorFrame,
     ): TerminalCursorResult {
+        // Cursor-sync v2 resume suffix: an assembled baseline that continues
+        // exactly at the retained position under the same durable generation
+        // appends (the server served only the uncovered suffix); everything
+        // else — full window, generation change, gap — replaces as before.
+        // The continuation is authoritative, so it also clears a pending
+        // resync (the covered range includes everything through its toCursor).
+        if (state.baselineReceived &&
+            frame.generation != null &&
+            frame.generation == state.generation &&
+            frame.fromCursor == state.toCursor
+        ) {
+            val appended = appendOutput(state, frame)
+            return if (appended.action == TerminalCursorAction.RESYNC) {
+                appended
+            } else {
+                TerminalCursorResult(appended.state.copy(needsResync = false), appended.action)
+            }
+        }
         var next = state.copy(
             baselineReceived = true,
             generation = frame.generation,

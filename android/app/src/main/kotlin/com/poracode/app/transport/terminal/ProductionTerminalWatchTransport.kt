@@ -1,5 +1,6 @@
 package com.poracode.app.transport.terminal
 
+import com.poracode.app.chat.TerminalBaselineAssembler
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.model.terminal.TerminalConnectionFailure
 import com.poracode.app.model.terminal.TerminalConnectionPhase
@@ -10,6 +11,7 @@ import com.poracode.app.protocol.terminal.TerminalRemoteV3Codec
 import com.poracode.app.session.richchat.RichChatGatewayException
 import com.poracode.app.session.richchat.RichChatHostKey
 import com.poracode.app.session.richchat.RichTerminalWatchRequest
+import com.poracode.app.session.richchat.RichTerminalWatchResume
 import com.poracode.app.session.richchat.RichTerminalWatchTransport
 import com.poracode.app.transport.ForegroundNetworkGate
 import com.poracode.app.transport.RemoteApiClient
@@ -26,7 +28,8 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 
-/** One-host, one-terminal reliable cursor-v1 WebSocket. It never requests event replay. */
+/** One-host, one-terminal reliable cursor-sync WebSocket (v2 chunked baseline
+ * with v1 downgrade). It never requests event replay. */
 class ProductionTerminalWatchTransport(
     private val host: RichChatHostKey,
     private val http: RemoteApiClient,
@@ -52,18 +55,29 @@ class ProductionTerminalWatchTransport(
     private var foreground = true
     private var closed = false
     private var environmentValidated = false
+    private val cursorSync = TerminalCursorSyncSession()
+    /** Idle deadline for the in-flight baseline (reset by every frame). */
+    private var baselineDeadlineJob: Job? = null
 
     override suspend fun watch(request: RichTerminalWatchRequest) {
-        if (request.cursorSyncVersion != TerminalRemoteV3Codec.CURSOR_SYNC_VERSION) {
+        if (request.cursorSyncVersion != TerminalRemoteV3Codec.CURSOR_SYNC_VERSION &&
+            request.cursorSyncVersion != TerminalRemoteV3Codec.CURSOR_SYNC_V2_VERSION
+        ) {
             throw RichChatGatewayException(409, "unsupported_capability", false)
         }
-        val next = WatchTarget(request.terminalId, request.watchId)
+        val next = WatchTarget(
+            terminalId = request.terminalId,
+            watchId = request.watchId,
+            requestedVersion = request.cursorSyncVersion,
+            resume = request.resume,
+        )
         synchronized(lock) {
             check(!closed) { "terminal transport is closed" }
             target = next
             environmentValidated = false
             generation += 1L
             reconnectAttempt = 0
+            cursorSync.reset()
             cancelConnectionLocked()
         }
         launchConnect(next, reconnecting = false)
@@ -148,13 +162,13 @@ class ProductionTerminalWatchTransport(
             if (synchronized(lock) { !environmentValidated }) {
                 val environment = http.requestText(ProtocolConstants.ENVIRONMENT_PATH)
                 if (!isCurrent(expected, gen)) return
-                val supported = try {
-                    TerminalRemoteV3Codec.supportsCursorV1(environment)
+                val negotiated = try {
+                    cursorSync.negotiate(expected.requestedVersion, environment)
                 } catch (_: Exception) {
                     fail(expected, gen, TerminalConnectionFailure.Protocol)
                     return
                 }
-                if (!supported) {
+                if (negotiated == null) {
                     fail(expected, gen, TerminalConnectionFailure.Unsupported)
                     return
                 }
@@ -224,39 +238,33 @@ class ProductionTerminalWatchTransport(
             gate.release(webSocket)
             clearSocket(webSocket)
             if (!isCurrent(expected, gen)) return
-            val failure = if (code == 1008) {
-                TerminalConnectionFailure.Authentication
-            } else {
-                TerminalConnectionFailure.Network
-            }
-            if (failure == TerminalConnectionFailure.Authentication) fail(expected, gen, failure)
-            else scheduleReconnect(expected, gen, failure)
+            if (code == 1008) fail(expected, gen, TerminalConnectionFailure.Authentication)
+            else scheduleReconnect(expected, gen, TerminalConnectionFailure.Network)
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             gate.release(webSocket)
             clearSocket(webSocket)
             if (!isCurrent(expected, gen)) return
-            val failure = if (response?.code == 401 || response?.code == 403) {
-                TerminalConnectionFailure.Authentication
-            } else {
-                TerminalConnectionFailure.Network
-            }
-            if (failure == TerminalConnectionFailure.Authentication) fail(expected, gen, failure)
-            else scheduleReconnect(expected, gen, failure)
+            val unauthorized = response?.code == 401 || response?.code == 403
+            if (unauthorized) fail(expected, gen, TerminalConnectionFailure.Authentication)
+            else scheduleReconnect(expected, gen, TerminalConnectionFailure.Network)
         }
     }
 
     private fun receive(expected: WatchTarget, gen: Long, webSocket: WebSocket, raw: String) {
         if (!isCurrent(expected, gen)) return
         if (TerminalRemoteV3Codec.isReadyFrame(raw)) {
-            val sent = webSocket.send(
-                TerminalRemoteV3Codec.encodeWatch(expected.terminalId, expected.watchId),
-            )
+            val watchMessage = synchronized(lock) {
+                if (!isCurrentLocked(expected, gen)) return
+                cursorSync.watchMessage(expected.terminalId, expected.watchId, expected.resume)
+            }
+            val sent = webSocket.send(watchMessage)
             if (!sent) {
                 scheduleReconnect(expected, gen, TerminalConnectionFailure.Network)
                 return
             }
+            armBaselineDeadline(expected, gen)
             observer().onStatus(host, expected.terminalId, expected.watchId, status(
                 TerminalConnectionPhase.WaitingForBaseline,
             ))
@@ -268,39 +276,137 @@ class ProductionTerminalWatchTransport(
             fail(expected, gen, TerminalConnectionFailure.Protocol)
             return
         } ?: return
-        if (!frame.matches(expected)) return
+        if (!frame.matchesAttempt(expected.terminalId, expected.watchId)) return
+        // Every matched frame proves the attempt is progressing — a slow but
+        // moving baseline must never hit the idle deadline mid-transfer.
+        if (frame !is TerminalServerFrame.WatchError) armBaselineDeadline(expected, gen)
         when (frame) {
-            is TerminalServerFrame.Cursor -> {
-                observer().onFrame(host, frame)
-                if (frame.frame.kind == com.poracode.app.chat.TerminalCursorFrameKind.BASELINE) {
-                    synchronized(lock) { if (isCurrentLocked(expected, gen)) reconnectAttempt = 0 }
-                    observer().onStatus(
-                        host,
-                        expected.terminalId,
-                        expected.watchId,
-                        status(TerminalConnectionPhase.Live),
-                    )
+            is TerminalServerFrame.BaselineChunk -> {
+                when (val outcome = cursorSync.offerChunk(frame.chunk)) {
+                    is TerminalBaselineAssembler.Outcome.Acknowledge -> {
+                        sendAck(expected, gen, webSocket, outcome.throughCursor)
+                    }
+                    is TerminalBaselineAssembler.Outcome.Complete -> {
+                        sendAck(expected, gen, webSocket, outcome.throughCursor)
+                        deliverBaseline(
+                            expected = expected,
+                            gen = gen,
+                            frame = TerminalServerFrame.Cursor(
+                                frame = outcome.frame,
+                                processState = outcome.processState,
+                                dimensions = outcome.dimensions,
+                            ),
+                        )
+                    }
+                    TerminalBaselineAssembler.Outcome.Duplicate -> Unit
+                    TerminalBaselineAssembler.Outcome.Discard ->
+                        scheduleReconnect(expected, gen, TerminalConnectionFailure.Network)
                 }
             }
+            is TerminalServerFrame.Cursor -> deliverBaseline(expected, gen, frame)
             is TerminalServerFrame.WatchError -> {
+                if (downgradeOnUnsupportedVersion(expected, gen, webSocket, frame.error)) {
+                    return
+                }
                 observer().onFrame(host, frame)
                 if (frame.error.retryable) {
                     scheduleReconnect(expected, gen, TerminalConnectionFailure.Network)
                 } else {
-                    fail(
-                        expected,
-                        gen,
-                        when (frame.error.code) {
-                            com.poracode.app.model.terminal.TerminalWatchErrorCode.Forbidden ->
-                                TerminalConnectionFailure.Authentication
-                            com.poracode.app.model.terminal.TerminalWatchErrorCode.NotFound ->
-                                TerminalConnectionFailure.Offline
-                            com.poracode.app.model.terminal.TerminalWatchErrorCode.Unavailable ->
-                                TerminalConnectionFailure.Unsupported
-                        },
-                    )
+                    fail(expected, gen, cursorSync.failureFor(frame.error))
                 }
             }
+        }
+    }
+
+    /**
+     * Explicit v2→v1 downgrade (mirrors the desktop feed swap): a
+     * non-retryable `unavailable` with `reason: "unsupported-version"` means
+     * "re-watch as v1 on this connection", not a hard failure. Returns true
+     * when the downgrade was applied (the error frame is consumed here and
+     * never delivered).
+     */
+    private fun downgradeOnUnsupportedVersion(
+        expected: WatchTarget,
+        gen: Long,
+        webSocket: WebSocket,
+        error: com.poracode.app.model.terminal.TerminalWatchError,
+    ): Boolean {
+        if (!cursorSync.downgradeIfUnsupportedVersion(error)) return false
+        if (!isCurrent(expected, gen)) return false
+        val sent = webSocket.send(
+            cursorSync.watchMessage(expected.terminalId, expected.watchId, expected.resume),
+        )
+        if (!sent) {
+            scheduleReconnect(expected, gen, TerminalConnectionFailure.Network)
+            return true
+        }
+        armBaselineDeadline(expected, gen)
+        observer().onStatus(
+            host,
+            expected.terminalId,
+            expected.watchId,
+            status(TerminalConnectionPhase.WaitingForBaseline),
+        )
+        return true
+    }
+
+    /** Arms (or re-arms) the baseline idle deadline for the current attempt. */
+    private fun armBaselineDeadline(expected: WatchTarget, gen: Long) {
+        val job = scope.launch {
+            delay(BASELINE_TIMEOUT_MS)
+            if (isCurrent(expected, gen)) {
+                scheduleReconnect(expected, gen, TerminalConnectionFailure.Network)
+            }
+        }
+        synchronized(lock) {
+            if (!isCurrentLocked(expected, gen)) {
+                job.cancel()
+                return
+            }
+            baselineDeadlineJob?.cancel()
+            baselineDeadlineJob = job
+        }
+    }
+
+    private fun sendAck(
+        expected: WatchTarget,
+        gen: Long,
+        webSocket: WebSocket,
+        throughCursor: Long,
+    ) {
+        if (!isCurrent(expected, gen)) return
+        if (!webSocket.send(
+                TerminalRemoteV3Codec.encodeBaselineAck(
+                    expected.terminalId,
+                    expected.watchId,
+                    throughCursor,
+                ),
+            )
+        ) {
+            scheduleReconnect(expected, gen, TerminalConnectionFailure.Network)
+        }
+    }
+
+    private fun deliverBaseline(
+        expected: WatchTarget,
+        gen: Long,
+        frame: TerminalServerFrame.Cursor,
+    ) {
+        observer().onFrame(host, frame)
+        if (frame.frame.kind == com.poracode.app.chat.TerminalCursorFrameKind.BASELINE) {
+            synchronized(lock) {
+                if (isCurrentLocked(expected, gen)) {
+                    reconnectAttempt = 0
+                    baselineDeadlineJob?.cancel()
+                    baselineDeadlineJob = null
+                }
+            }
+            observer().onStatus(
+                host,
+                expected.terminalId,
+                expected.watchId,
+                status(TerminalConnectionPhase.Live),
+            )
         }
     }
 
@@ -315,6 +421,7 @@ class ProductionTerminalWatchTransport(
             reconnectAttempt = (reconnectAttempt + 1).coerceAtMost(RECONNECT_DELAYS.lastIndex)
             delayMs = RECONNECT_DELAYS[reconnectAttempt]
             generation += 1L
+            cursorSync.reset()
             cancelConnectionLocked()
         }
         observer().onConnectionReset(
@@ -362,24 +469,25 @@ class ProductionTerminalWatchTransport(
     private fun cancelConnectionLocked() {
         connectJob?.cancel()
         connectJob = null
+        baselineDeadlineJob?.cancel()
+        baselineDeadlineJob = null
         placeholder?.cancel()
         placeholder = null
         socket?.cancel()
         socket = null
     }
 
-    private fun TerminalServerFrame.matches(expected: WatchTarget): Boolean = when (this) {
-        is TerminalServerFrame.Cursor ->
-            frame.terminalId == expected.terminalId && frame.watchId == expected.watchId
-        is TerminalServerFrame.WatchError ->
-            error.terminalId == expected.terminalId && error.watchId == expected.watchId
-    }
-
     private fun status(phase: TerminalConnectionPhase) = TerminalConnectionStatus(phase)
 
-    private data class WatchTarget(val terminalId: String, val watchId: String)
+    private data class WatchTarget(
+        val terminalId: String,
+        val watchId: String,
+        val requestedVersion: Int,
+        val resume: RichTerminalWatchResume?,
+    )
 
     private companion object {
         val RECONNECT_DELAYS = longArrayOf(0, 250, 1_000, 2_000, 5_000, 10_000)
+        const val BASELINE_TIMEOUT_MS = 10_000L
     }
 }

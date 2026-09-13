@@ -52,6 +52,7 @@ internal fun richSnapshot(
 
 internal class FakeRichChatSessionGateway : RichChatSessionGateway {
     val calls = mutableListOf<String>()
+    val watchRequests = mutableListOf<RichTerminalWatchRequest>()
     var historyHandler: suspend (RichChatHostLease, String) -> RichChatHistorySnapshot =
         { lease, threadId -> richSnapshot(lease, threadId) }
     var olderHandler: suspend (RichChatHostLease, String, Int) -> RichChatHistoryPage =
@@ -240,7 +241,10 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
     override suspend fun watchTerminal(
         lease: RichChatHostLease,
         request: RichTerminalWatchRequest,
-    ) = call("terminal-watch")
+    ) {
+        calls += "terminal-watch"
+        watchRequests += request
+    }
 
     override suspend fun unwatchTerminal(lease: RichChatHostLease, terminalId: String) =
         call("terminal-unwatch")

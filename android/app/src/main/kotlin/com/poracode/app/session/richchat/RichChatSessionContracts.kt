@@ -120,10 +120,22 @@ data class RichCheckpointCollection(
     val turns: List<RichCheckpoint>,
 )
 
+/** Retained cache position presented as cursor-sync v2 `resume`. */
+data class RichTerminalWatchResume(
+    val generation: String,
+    val cursor: Long,
+) {
+    init {
+        require(generation.isNotEmpty()) { "generation must not be empty" }
+        require(cursor >= 0L) { "cursor must be non-negative" }
+    }
+}
+
 data class RichTerminalWatchRequest(
     val terminalId: String,
     val watchId: String,
     val cursorSyncVersion: Int = 1,
+    val resume: RichTerminalWatchResume? = null,
 ) {
     init {
         require(terminalId.isNotEmpty()) { "terminalId must not be empty" }

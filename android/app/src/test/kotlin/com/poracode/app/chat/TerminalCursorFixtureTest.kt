@@ -47,6 +47,59 @@ class TerminalCursorFixtureTest {
     }
 
     @Test
+    fun v2ResumeSuffixBaselineAppendsAtTheDurablePosition() {
+        val state = TerminalCursorState.established("watch", "generation-a", 108, transcript = "kept")
+        val continuation = TerminalCursorFrame(
+            TerminalCursorFrameKind.BASELINE, "terminal", "watch", "generation-a", 108, 111, "ijk",
+        )
+        val appended = TerminalCursorReconciler.reconcile(state, continuation)
+        assertEquals(TerminalCursorAction.APPEND, appended.action)
+        assertEquals("keptijk", appended.state.transcript)
+        assertEquals(111L, appended.state.toCursor)
+
+        val fullWindow = TerminalCursorFrame(
+            TerminalCursorFrameKind.BASELINE, "terminal", "watch", "generation-a", 0, 3, "xyz",
+        )
+        val replaced = TerminalCursorReconciler.reconcile(state, fullWindow)
+        assertEquals(TerminalCursorAction.REPLACE, replaced.action)
+        assertEquals("xyz", replaced.state.transcript)
+
+        val generationChange = TerminalCursorFrame(
+            TerminalCursorFrameKind.BASELINE, "terminal", "watch", "generation-b", 108, 111, "ijk",
+        )
+        val resnapshotted = TerminalCursorReconciler.reconcile(state, generationChange)
+        assertEquals(TerminalCursorAction.REPLACE, resnapshotted.action)
+    }
+
+    @Test
+    fun v2ContinuationClearsAPendingResyncAndTheUpToDateMarkerIgnoresCleanly() {
+        // A drift RESYNC armed needsResync; the authoritative continuation
+        // covers everything through its toCursor, so it must clear the flag
+        // (otherwise every later output keeps returning RESYNC).
+        val drifted = TerminalCursorState.established(
+            "watch",
+            "generation-a",
+            108,
+            transcript = "kept",
+        ).copy(needsResync = true)
+        val continuation = TerminalCursorFrame(
+            TerminalCursorFrameKind.BASELINE, "terminal", "watch", "generation-a", 108, 111, "ijk",
+        )
+        val appended = TerminalCursorReconciler.reconcile(drifted, continuation)
+        assertEquals(TerminalCursorAction.APPEND, appended.action)
+        assertFalse(appended.state.needsResync)
+
+        // Up-to-date marker: empty continuation at the retained position.
+        val marker = TerminalCursorFrame(
+            TerminalCursorFrameKind.BASELINE, "terminal", "watch", "generation-a", 111, 111, "",
+        )
+        val current = TerminalCursorReconciler.reconcile(appended.state, marker)
+        assertEquals(TerminalCursorAction.IGNORE, current.action)
+        assertFalse(current.state.needsResync)
+        assertEquals("keptijk", current.state.transcript)
+    }
+
+    @Test
     fun exactAppendAndPreBaselineDrainUseUtf16CursorUnits() {
         var state = TerminalCursorState.watching("watch")
         val early = frame(

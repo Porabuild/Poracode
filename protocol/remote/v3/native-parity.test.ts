@@ -106,14 +106,8 @@ const PLANNED_ABSENCE_TOKENS: Record<
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
   "background_tasks.changed": [{ platform: "ios", token: "background_tasks" }],
-  "terminal-watch-baseline-ack": [
-    { platform: "ios", token: "terminal-watch-baseline-ack" },
-    { platform: "android", token: "terminal-watch-baseline-ack" },
-  ],
-  "terminal-watch-baseline-chunk": [
-    { platform: "ios", token: "terminal-watch-baseline-chunk" },
-    { platform: "android", token: "terminal-watch-baseline-chunk" },
-  ],
+  "terminal-watch-baseline-ack": [{ platform: "ios", token: "terminal-watch-baseline-ack" }],
+  "terminal-watch-baseline-chunk": [{ platform: "ios", token: "terminal-watch-baseline-chunk" }],
 };
 type LedgerEntry = z.infer<typeof entrySchema>;
 type Platform = "ios" | "android";

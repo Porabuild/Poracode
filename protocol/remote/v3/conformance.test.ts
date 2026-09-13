@@ -652,6 +652,81 @@ describe("language-neutral remote protocol v3 contract", () => {
     });
   });
 
+  it("parses terminal cursor-sync v2 goldens with chunk invariants", () => {
+    const v2 = readJson("fixtures/ws-terminal-cursor-sync-v2.json") as {
+      watchV2: unknown;
+      watchV2Resume: unknown;
+      ack: unknown;
+      chunks: unknown[];
+      resumeUpToDateChunk: unknown;
+    };
+
+    const watchV2 = remoteWebSocketClientMessageSchema.parse(v2.watchV2) as {
+      cursorSync: { version: number; maxChunkBytes: number; maxWindowBytes: number };
+    };
+    expect(watchV2.cursorSync).toMatchObject({ version: 2, maxChunkBytes: 4096 });
+
+    const watchResume = remoteWebSocketClientMessageSchema.parse(v2.watchV2Resume) as {
+      cursorSync: { resume: { generation: string; cursor: number } };
+    };
+    expect(watchResume.cursorSync.resume).toEqual({
+      generation: "instance-fixture-aaa",
+      cursor: 108,
+    });
+
+    const ack = remoteWebSocketClientMessageSchema.parse(v2.ack) as {
+      type: string;
+      cursorSync: { version: number; throughCursor: number };
+    };
+    expect(ack.type).toBe("terminal-watch-baseline-ack");
+    expect(ack.cursorSync).toMatchObject({ version: 2, throughCursor: 106 });
+
+    const chunks = v2.chunks.map((chunk) => remoteWebSocketServerMessageSchema.parse(chunk)) as {
+      type: string;
+      cursorSync: {
+        chunkIndex: number;
+        chunkCount: number;
+        fromCursor: number;
+        toCursor: number;
+        data: string;
+      };
+    }[];
+    expect(chunks).toHaveLength(3);
+    for (const [index, message] of chunks.entries()) {
+      expect(message.type).toBe("terminal-watch-baseline-chunk");
+      const { fromCursor, toCursor, data } = message.cursorSync;
+      expect(message.cursorSync.chunkIndex).toBe(index);
+      expect(toCursor - fromCursor).toBe(data.length);
+      // Contiguity: each chunk starts where the previous one ended (the first
+      // chunk anchors only itself).
+      const previousEnd = index > 0 ? chunks[index - 1]!.cursorSync.toCursor : fromCursor;
+      expect(fromCursor).toBe(previousEnd);
+    }
+    expect(chunks[2]!.cursorSync.chunkIndex).toBe(chunks[2]!.cursorSync.chunkCount - 1);
+
+    const upToDate = remoteWebSocketServerMessageSchema.parse(v2.resumeUpToDateChunk) as {
+      cursorSync: {
+        chunkCount: number;
+        fromCursor: number;
+        toCursor: number;
+        data: string;
+        resumeServed: boolean;
+      };
+    };
+    expect(upToDate.cursorSync.chunkCount).toBe(1);
+    expect(upToDate.cursorSync.fromCursor).toBe(upToDate.cursorSync.toCursor);
+    expect(upToDate.cursorSync.data).toBe("");
+    expect(upToDate.cursorSync.resumeServed).toBe(true);
+
+    expect(
+      remoteWebSocketClientMessageSchema.safeParse({
+        type: "terminal-watch-baseline-ack",
+        id: "t",
+        cursorSync: { version: 1, watchId: "w", throughCursor: 1 },
+      }).success,
+    ).toBe(false);
+  });
+
   it("locks terminal cursor-sync capability versions across manifest, constants, and server", () => {
     expect(TERMINAL_CURSOR_SYNC_VERSION).toBe(1);
     expect(manifest.protocolVersion).toBe(PORACODE_REMOTE_PROTOCOL_VERSION);
