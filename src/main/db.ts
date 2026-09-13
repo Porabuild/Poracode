@@ -67,6 +67,7 @@ export {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
   dbFailRemoteCommand,
+  dbResetRemoteCommand,
 } from "./db/remoteCommandReceipts";
 
 export {

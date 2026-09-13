@@ -57,6 +57,7 @@ import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
   dbFailRemoteCommand,
+  dbResetRemoteCommand,
   dbGetProject,
   dbGetProjectNotes,
   dbGetThread,
@@ -238,11 +239,16 @@ async function runIdempotentRemoteMutation<T>(
   req: IncomingMessage,
   route: string,
   operation: () => Promise<T>,
+  options: { readonly isRetryableResult?: (response: T) => boolean } = {},
 ): Promise<T> {
   const commandId = remoteCommandId(req);
   if (!commandId) return operation();
 
-  const claim = dbClaimRemoteCommand(commandId, route);
+  const claim = dbClaimRemoteCommand(commandId, route, {
+    ...(options.isRetryableResult
+      ? { isCompletedResponseRetryable: (response) => options.isRetryableResult!(response as T) }
+      : {}),
+  });
   if (claim.state === "completed") return claim.response as T;
   if (claim.state === "conflict") {
     throw new RemoteHttpError(
@@ -264,7 +270,13 @@ async function runIdempotentRemoteMutation<T>(
 
   try {
     const response = await operation();
-    dbCompleteRemoteCommand(commandId, response);
+    if (options.isRetryableResult?.(response)) {
+      // The operation journal owns retryable application phases. Release the
+      // transport receipt so the same command ID can explicitly resume it.
+      dbResetRemoteCommand(commandId);
+    } else {
+      dbCompleteRemoteCommand(commandId, response);
+    }
     return response;
   } catch (error) {
     dbFailRemoteCommand(commandId);
@@ -1063,8 +1075,15 @@ export async function handleHttp(
         ...(typeof body === "object" && body !== null ? body : {}),
         threadId: revertThreadId,
       });
-      const result = await runIdempotentRemoteMutation(req, url.pathname, () =>
-        ctx.options.revertCheckpoint!(payload),
+      const result = await runIdempotentRemoteMutation(
+        req,
+        url.pathname,
+        () => ctx.options.revertCheckpoint!(payload),
+        {
+          isRetryableResult: (value) =>
+            Boolean(value && typeof value === "object" && "outcome" in value) &&
+            (value as { outcome?: unknown }).outcome === "failed",
+        },
       );
       ctx.publishThreadsChanged([payload.threadId]);
       await writeNegotiatedJsonResponse(req, res, 200, result);

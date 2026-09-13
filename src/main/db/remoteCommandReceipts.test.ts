@@ -7,6 +7,7 @@ import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
   dbFailRemoteCommand,
+  dbResetRemoteCommand,
 } from "./remoteCommandReceipts";
 import { nativeBindingEnv, sqliteAvailable } from "./runtimeItems.testFixtures";
 
@@ -70,5 +71,43 @@ describe.skipIf(!sqliteAvailable)("remote_command_receipts startup recovery", ()
     expect(dbClaimRemoteCommand("shared-id", "/api/threads/t1/start")).toEqual({
       state: "in_progress",
     });
+  });
+
+  it("releases a retryable receipt while preserving route ownership semantics", () => {
+    expect(dbClaimRemoteCommand("retryable-cmd", "/api/threads/t1/checkpoint-revert")).toEqual({
+      state: "claimed",
+    });
+    dbResetRemoteCommand("retryable-cmd");
+    expect(dbClaimRemoteCommand("retryable-cmd", "/api/other/route")).toEqual({
+      state: "conflict",
+    });
+    expect(dbClaimRemoteCommand("retryable-cmd", "/api/threads/t1/checkpoint-revert")).toEqual({
+      state: "claimed",
+    });
+    expect(dbClaimRemoteCommand("retryable-cmd", "/api/other/route")).toEqual({
+      state: "conflict",
+    });
+  });
+
+  it("reclaims a legacy completed retryable response only with an explicit predicate", () => {
+    expect(dbClaimRemoteCommand("legacy-failed", "/api/checkpoint-revert")).toEqual({
+      state: "claimed",
+    });
+    dbCompleteRemoteCommand("legacy-failed", {
+      outcome: "failed",
+      providerPhase: "completed",
+      filesPhase: "failed",
+      truncatePhase: "pending",
+    });
+    expect(dbClaimRemoteCommand("legacy-failed", "/api/checkpoint-revert")).toMatchObject({
+      state: "completed",
+    });
+    expect(
+      dbClaimRemoteCommand("legacy-failed", "/api/checkpoint-revert", {
+        isCompletedResponseRetryable: (response) =>
+          Boolean(response && typeof response === "object" && "outcome" in response) &&
+          (response as { outcome?: unknown }).outcome === "failed",
+      }),
+    ).toEqual({ state: "claimed" });
   });
 });
