@@ -3,6 +3,8 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { isIP } from "node:net";
 import { decodeThreadIdentity, type McpThreadIdentity } from "@/shared/browserMcpThread";
 import { isLocalhostOrigin, readBoundedNodeRequestBody, writeJsonResponse } from "@/shared/http";
+import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
+import { HttpServerConnections } from "@/shared/httpServerConnections";
 
 export interface StreamableHttpMcpIngressInfo {
   url: string;
@@ -79,44 +81,88 @@ interface JsonRpcResponseErr {
 type JsonRpcResponse = JsonRpcResponseOk | JsonRpcResponseErr;
 
 export class StreamableHttpMcpIngress<TContext> {
-  private server: Server | null = null;
+  private readonly server: Server;
+  private readonly connections: HttpServerConnections;
+  private readonly work = new AsyncWorkTracker();
   private token = randomBytes(32).toString("hex");
   private info: StreamableHttpMcpIngressInfo | null = null;
+  private starting: Promise<StreamableHttpMcpIngressInfo> | undefined;
+  private closing: Promise<void> | undefined;
+  private stopping = false;
 
-  constructor(private readonly options: StreamableHttpMcpIngressOptions<TContext>) {}
+  constructor(private readonly options: StreamableHttpMcpIngressOptions<TContext>) {
+    this.server = createServer((req, res) => {
+      if (this.stopping) {
+        this.sendJson(res, 503, { error: "MCP ingress is shutting down." });
+        return;
+      }
+      void this.work.run(() => this.handle(req, res)).catch(() => res.destroy());
+    });
+    this.connections = new HttpServerConnections(this.server);
+  }
 
-  async start(): Promise<StreamableHttpMcpIngressInfo> {
-    if (this.info) return this.info;
+  start(): Promise<StreamableHttpMcpIngressInfo> {
+    if (this.stopping) return Promise.reject(new Error("MCP ingress is shutting down."));
+    if (this.starting) return this.starting;
+    const starting = this.listen();
+    this.starting = starting;
+    void starting.catch(() => {
+      if (!this.stopping && this.starting === starting) this.starting = undefined;
+    });
+    return starting;
+  }
+
+  private listen(): Promise<StreamableHttpMcpIngressInfo> {
     const bindHost = this.options.bindHost ?? "0.0.0.0";
-    return await new Promise<StreamableHttpMcpIngressInfo>((resolve, reject) => {
-      const server = createServer((req, res) => {
-        void this.handle(req, res);
-      });
-      server.on("error", reject);
-      // Access is guarded by a 256-bit bearer token regenerated per app launch;
-      // the URL is only ever passed to immediate child processes via env vars.
-      server.listen(0, bindHost, () => {
-        const addr = server.address();
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        this.server.off("error", onError);
+        this.server.off("listening", onListening);
+      };
+      const onError = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+      const onListening = () => {
+        cleanup();
+        if (this.stopping) {
+          reject(new Error("MCP ingress is shutting down."));
+          return;
+        }
+        const addr = this.server.address();
         const port = typeof addr === "object" && addr ? addr.port : 0;
-        this.server = server;
         this.info = { url: `http://127.0.0.1:${port}`, token: this.token, port };
         resolve(this.info);
-      });
+      };
+      this.server.once("error", onError);
+      this.server.once("listening", onListening);
+      // Access is guarded by a 256-bit bearer token regenerated per app launch;
+      // the URL is only ever passed to immediate child processes via env vars.
+      try {
+        this.server.listen(0, bindHost);
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
     });
   }
 
   getInfo(): StreamableHttpMcpIngressInfo | null {
-    return this.info;
+    return this.stopping ? null : this.info;
   }
 
-  dispose(): void {
-    try {
-      this.server?.closeAllConnections?.();
-    } catch {}
-    try {
-      this.server?.close();
-    } catch {}
-    this.server = null;
+  dispose(): Promise<void> {
+    if (this.closing) return this.closing;
+    this.stopping = true;
+    this.closing = Promise.resolve().then(async () => {
+      await this.starting?.catch(() => undefined);
+      // Preserve prompt transport cancellation, but retain ownership of every
+      // admitted tool continuation until it has actually settled.
+      await this.connections.close(0);
+      await this.work.drain();
+      this.info = null;
+    });
+    return this.closing;
   }
 
   private async readBody(req: IncomingMessage): Promise<string> {
@@ -125,6 +171,7 @@ export class StreamableHttpMcpIngress<TContext> {
   }
 
   private sendJson(res: ServerResponse, status: number, body: unknown): void {
+    if (res.destroyed || res.writableEnded) return;
     writeJsonResponse(res, status, body, { cacheControl: "no-store" });
   }
 
@@ -326,6 +373,9 @@ export class StreamableHttpMcpIngress<TContext> {
         };
       }
       if (method === "tools/call") {
+        // A partially read body or later batch entry has not admitted a tool
+        // yet. Shutdown must not let it start another operation.
+        if (this.stopping) throw new Error("MCP ingress is shutting down.");
         const p = (params ?? {}) as { name?: string; arguments?: Record<string, unknown> };
         const normalize = this.options.normalizeToolName ?? ((name: string) => name);
         const name = normalize(String(p.name ?? ""));
@@ -364,6 +414,7 @@ export class StreamableHttpMcpIngress<TContext> {
           };
         }
         this.options.onBeforeToolCall?.(name, ctx);
+        if (this.stopping) throw new Error("MCP ingress is shutting down.");
         let raw: unknown;
         try {
           raw = await this.options.dispatchTool(name, args, ctx);

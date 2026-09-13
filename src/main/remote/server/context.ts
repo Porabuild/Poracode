@@ -77,6 +77,8 @@ export interface RemoteServerContext {
   /** Live in-memory event sequence; read through a getter so replays see the
    * current value rather than a snapshot taken at context-build time. */
   readonly seq: number;
+  /** Becomes true synchronously when external admission closes. */
+  readonly stopping: boolean;
   exchangePairingCredential(input: {
     readonly credential: string;
     readonly scopes?: readonly RemoteAccessScope[];
@@ -101,6 +103,8 @@ export interface RemoteServerContext {
    * before taking a snapshot.
    */
   notifyEventInterestsChanged(): void | Promise<void>;
+  /** Admit and join asynchronous work initiated by HTTP or WebSocket clients. */
+  runIngressWork<T>(operation: () => T | PromiseLike<T>): Promise<T>;
   waitForSupervisorEvent(
     match: (event: RemoteBroadcastEvent) => boolean,
     timeoutMs: number,
