@@ -106,9 +106,17 @@ export class HostOwnerLease {
         throw error;
       }
     }
-    // Create with private permissions without truncating an existing lease.
-    const descriptor = openSync(paths.leasePath, "a", 0o600);
-    closeSync(descriptor);
+    // Never open an existing lease outside SQLite. On POSIX, closing any such
+    // descriptor releases this process's fcntl locks on the same inode, even
+    // when another SQLite connection still owns the lease.
+    try {
+      const descriptor = openSync(paths.leasePath, "wx", 0o600);
+      closeSync(descriptor);
+    } catch (error) {
+      if (!error || typeof error !== "object" || !("code" in error) || error.code !== "EEXIST") {
+        throw error;
+      }
+    }
     if (!lstatSync(paths.leasePath).isFile()) throw new Error("Invalid Poracode owner lease file.");
     let database: InstanceType<typeof Database> | undefined;
     try {
