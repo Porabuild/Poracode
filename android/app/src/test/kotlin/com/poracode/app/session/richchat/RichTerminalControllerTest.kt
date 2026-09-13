@@ -56,6 +56,139 @@ class RichTerminalControllerTest {
     }
 
     @Test
+    fun rewatchesRequestCursorV2WithTheRetainedDurablePositionAsResume() = runTest {
+        val host = richLease()
+        val session = MutableStateFlow<RichChatHostLease?>(host)
+        val gateway = FakeRichChatSessionGateway()
+        val controller = RichTerminalController(session, gateway, ForegroundOperationRegistry()) {
+            "watch-a"
+        }
+        val steps = Json.parseToJsonElement(fixture("terminal-cursor-sequence.json"))
+            .jsonObject.getValue("steps").jsonArray.associate { step ->
+                val obj = step.jsonObject
+                obj.getValue("id").jsonPrimitive.content to
+                    TerminalCursorFrameDecoder.decode(obj.getValue("message"))!!
+            }
+        val lease = (controller.watch("terminal-rich", "watch-a")
+            as RichChatOperationResult.Success).value
+        assertEquals(2, gateway.watchRequests.single().cursorSyncVersion)
+        assertEquals(null, gateway.watchRequests.single().resume)
+
+        listOf("pre-baseline", "baseline", "duplicate", "overlap").forEach {
+            assertTrue(controller.applyFrame(lease, steps.getValue(it)))
+        }
+        assertEquals(9L, controller.state.value.cursor?.toCursor)
+
+        // A reconnect retains the durable position and the next watch presents
+        // it as v2 resume; the transport negotiates down to v1 on old hosts.
+        assertTrue(
+            controller.connectionReset(
+                host.key,
+                "terminal-rich",
+                "watch-a",
+                com.poracode.app.model.terminal.TerminalConnectionStatus(
+                    com.poracode.app.model.terminal.TerminalConnectionPhase.Reconnecting,
+                ),
+            ),
+        )
+        controller.watch("terminal-rich", "watch-b")
+        val resumed = gateway.watchRequests.last()
+        assertEquals(2, resumed.cursorSyncVersion)
+        assertEquals(RichTerminalWatchResume("generation-a", 9L), resumed.resume)
+    }
+
+    @Test
+    fun resumeSuffixAppendsOntoTheRetainedTranscriptAfterRewatch() = runTest {
+        val host = richLease()
+        val session = MutableStateFlow<RichChatHostLease?>(host)
+        val gateway = FakeRichChatSessionGateway()
+        val controller = RichTerminalController(session, gateway, ForegroundOperationRegistry()) {
+            "watch-a"
+        }
+        val steps = Json.parseToJsonElement(fixture("terminal-cursor-sequence.json"))
+            .jsonObject.getValue("steps").jsonArray.associate { step ->
+                val obj = step.jsonObject
+                obj.getValue("id").jsonPrimitive.content to
+                    TerminalCursorFrameDecoder.decode(obj.getValue("message"))!!
+            }
+        val lease = (controller.watch("terminal-rich", "watch-a")
+            as RichChatOperationResult.Success).value
+        listOf("pre-baseline", "baseline", "duplicate", "overlap").forEach {
+            assertTrue(controller.applyFrame(lease, steps.getValue(it)))
+        }
+        assertEquals("hello!!xy", controller.state.value.cursor?.transcript)
+
+        // Reconnect + rewatch: the seeded cursor keeps the established
+        // position under the NEW watch id, so a served resume suffix APPENDS
+        // instead of replacing the retained transcript.
+        assertTrue(
+            controller.connectionReset(
+                host.key,
+                "terminal-rich",
+                "watch-a",
+                com.poracode.app.model.terminal.TerminalConnectionStatus(
+                    com.poracode.app.model.terminal.TerminalConnectionPhase.Reconnecting,
+                ),
+            ),
+        )
+        val rewatchLease = (controller.watch("terminal-rich", "watch-b")
+            as RichChatOperationResult.Success).value
+        val seeded = controller.state.value.cursor!!
+        assertEquals("watch-b", seeded.watchId)
+        assertEquals("generation-a", seeded.generation)
+        assertTrue(seeded.baselineReceived)
+        assertEquals("hello!!xy", seeded.transcript)
+
+        val suffix = com.poracode.app.chat.TerminalCursorFrame(
+            kind = com.poracode.app.chat.TerminalCursorFrameKind.BASELINE,
+            terminalId = "terminal-rich",
+            watchId = "watch-b",
+            generation = "generation-a",
+            fromCursor = 9L,
+            toCursor = 12L,
+            data = "abc",
+        )
+        assertTrue(controller.applyFrame(rewatchLease, suffix))
+        assertEquals("hello!!xyabc", controller.state.value.cursor?.transcript)
+        assertEquals(12L, controller.state.value.cursor?.toCursor)
+
+        // Up-to-date marker on a later rewatch: an empty continuation keeps
+        // the history and still reports authoritative process state.
+        controller.connectionReset(
+            host.key,
+            "terminal-rich",
+            "watch-b",
+            com.poracode.app.model.terminal.TerminalConnectionStatus(
+                com.poracode.app.model.terminal.TerminalConnectionPhase.Reconnecting,
+            ),
+        )
+        controller.watch("terminal-rich", "watch-c")
+        val marker = com.poracode.app.chat.TerminalCursorFrame(
+            kind = com.poracode.app.chat.TerminalCursorFrameKind.BASELINE,
+            terminalId = "terminal-rich",
+            watchId = "watch-c",
+            generation = "generation-a",
+            fromCursor = 12L,
+            toCursor = 12L,
+            data = "",
+        )
+        assertFalse(
+            controller.applyTransportFrame(
+                host.key,
+                com.poracode.app.model.terminal.TerminalServerFrame.Cursor(
+                    frame = marker,
+                    processState = com.poracode.app.model.terminal.TerminalProcessState.Exited,
+                ),
+            ),
+        )
+        assertEquals("hello!!xyabc", controller.state.value.cursor?.transcript)
+        assertEquals(
+            com.poracode.app.model.terminal.TerminalProcessState.Exited,
+            controller.state.value.processState,
+        )
+    }
+
+    @Test
     fun writesAreSerializedAndOldHostFramesAreSuppressed() = runTest {
         val hostA = richLease()
         val session = MutableStateFlow<RichChatHostLease?>(hostA)

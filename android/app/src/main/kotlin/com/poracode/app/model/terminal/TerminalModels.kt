@@ -25,6 +25,9 @@ data class TerminalWatchError(
     val watchId: String,
     val code: TerminalWatchErrorCode,
     val retryable: Boolean,
+    /** Server verdict discriminator, e.g. `unsupported-version` marks an
+     * explicit cursor-sync downgrade instead of a hard failure. */
+    val reason: String? = null,
 )
 
 sealed interface TerminalServerFrame {
@@ -33,6 +36,10 @@ sealed interface TerminalServerFrame {
         val processState: TerminalProcessState? = null,
         val dimensions: TerminalDimensions? = null,
     ) : TerminalServerFrame
+
+    /** Cursor-sync v2 slice; the transport assembles + acks these and never
+     * forwards them — completion is delivered as a [Cursor] BASELINE frame. */
+    data class BaselineChunk(val chunk: TerminalBaselineChunk) : TerminalServerFrame
 
     data class WatchError(val error: TerminalWatchError) : TerminalServerFrame
 }

@@ -29,8 +29,10 @@ device and simulator SDKs. Android compiles and targets API 37 while retaining
 ## Remote-v3 release status
 
 `protocol/remote/v3/manifest.json` is the canonical cross-client inventory. It
-currently declares protocol v3 with 56 HTTP routes, 100 supervisor procedures,
-8 client WebSocket messages, and 9 server WebSocket messages.
+currently declares protocol version 11 with 63 HTTP routes, 108 supervisor
+procedures, 9 client WebSocket messages, 10 server WebSocket messages, and 16
+replayable event types. (The `remote/v3` path names the contract family; the
+protocol version inside the manifest is authoritative and has moved past 3.)
 
 The generator currently commits these normalized artifacts:
 
@@ -54,11 +56,20 @@ membership check. Stable app-owned facades keep hash-derived generated names out
 of UI and domain state while validating the HTTP and WebSocket boundaries that
 are currently implemented.
 
-The bundle contains roots for all 56 routes, 100 procedures, and 17 WebSocket
+The bundle contains roots for all 63 routes, 108 procedures, and 19 WebSocket
 message types. The native parity ledger
-(`protocol/remote/v3/native-parity.json`) records 200 implemented entries and 1
-unsupported-by-wire entry on each platform; `push-config` is the intentional
-unsupported entry. A green binding or parity gate proves executable wire-schema
+(`protocol/remote/v3/native-parity.json`) records 218 implemented plus 3
+planned entries on iOS and 221 implemented entries on Android;
+`push-config` is the intentional unsupported-by-wire entry on both. The
+remaining planned entries are all iOS: the terminal cursor-sync v2 pair
+(`terminal-watch-baseline-ack`/`-chunk`, Android implemented 2026-09-12) plus
+`background_tasks.changed` (Android implemented). The merged follow-up queue is fully adopted
+on both natives (2026-09-12, `b142c8bc7`/`af5820991`): all eight queue
+procedures and the `thread-follow-up-queue` replayable event are implemented
+with transport/runtime evidence and localized strings, so release claims may
+state native queue parity. Desktop live voice remains experimental and has no
+native or remote surface: do not advertise voice outside the experimental
+desktop toggle. A green binding or parity gate proves executable wire-schema
 coverage and source freshness, not UI end-to-end proof, so native journey tests
 remain the authority for whether an operation is actually user-accessible.
 

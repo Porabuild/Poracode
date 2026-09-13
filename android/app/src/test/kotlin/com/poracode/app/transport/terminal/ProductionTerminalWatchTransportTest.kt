@@ -238,6 +238,217 @@ class ProductionTerminalWatchTransportTest {
         transport.close()
     }
 
+    @Test
+    fun v2HostStreamsChunkedBaselineWithPerChunkAcksAsOneBaselineFrame() = runBlocking {
+        server.enqueue(
+            MockResponse().setBody(
+                fixture("environment-terminal-cursor-sync.json").replace("[1]", "[1, 2]"),
+            ),
+        )
+        server.enqueue(ticket())
+        val serverMessages = CopyOnWriteArrayList<String>()
+        val acksRecorded = CountDownLatch(3)
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(chunkServer(serverMessages, acksRecorded)),
+        )
+        val frames = CopyOnWriteArrayList<TerminalServerFrame>()
+        val live = CountDownLatch(1)
+        val transport = ProductionTerminalWatchTransport(
+            host = RichChatHostKey(connectionId(), 9),
+            http = RemoteApiClient(
+                endpoint = server.url("/desktop-prefix").toString(),
+                accessToken = "secret-token",
+                networkGate = gate,
+            ),
+            client = OkHttpClient(),
+            scope = scope,
+            networkGate = gate,
+            observer = {
+                object : TerminalTransportObserver by NoOpTerminalTransportObserver {
+                    override fun onFrame(
+                        host: RichChatHostKey,
+                        frame: TerminalServerFrame,
+                    ) {
+                        frames += frame
+                    }
+
+                    override fun onStatus(
+                        host: RichChatHostKey,
+                        terminalId: String,
+                        watchId: String,
+                        status: TerminalConnectionStatus,
+                    ) {
+                        if (status.phase == TerminalConnectionPhase.Live) live.countDown()
+                    }
+                }
+            },
+        )
+        try {
+            transport.watch(
+                RichTerminalWatchRequest("terminal-1", "watch-1", cursorSyncVersion = 2),
+            )
+            assertTrue("chunked baseline must reach Live", live.await(8, TimeUnit.SECONDS))
+            assertTrue("server must observe all three acks", acksRecorded.await(4, TimeUnit.SECONDS))
+
+            val baselines = frames.filterIsInstance<TerminalServerFrame.Cursor>()
+                .filter {
+                    it.frame.kind == com.poracode.app.chat.TerminalCursorFrameKind.BASELINE
+                }
+            assertEquals(1, baselines.size)
+            val baseline = baselines.single()
+            assertEquals("abcdefgh", baseline.frame.data)
+            assertEquals(100L, baseline.frame.fromCursor)
+            assertEquals(108L, baseline.frame.toCursor)
+            assertEquals("instance-1", baseline.frame.generation)
+            assertEquals(
+                com.poracode.app.model.terminal.TerminalProcessState.Running,
+                baseline.processState,
+            )
+            assertEquals(com.poracode.app.model.terminal.TerminalDimensions(80, 24), baseline.dimensions)
+            // Chunks never leak past the transport.
+            assertTrue(frames.none { it is TerminalServerFrame.BaselineChunk })
+
+            val watch = serverMessages.single { it.contains("\"type\":\"terminal-watch\"") }
+            assertTrue(watch.contains("\"version\":2"))
+            assertTrue(watch.contains("\"maxChunkBytes\":4096"))
+            val acks = serverMessages.filter { it.contains("terminal-watch-baseline-ack") }
+            assertEquals(
+                listOf(103L, 106L, 108L),
+                acks.map { ack ->
+                    Regex("\"throughCursor\":(\\d+)").find(ack)!!.groupValues[1].toLong()
+                },
+            )
+        } finally {
+            transport.close()
+        }
+    }
+
+    @Test
+    fun unsupportedVersionVerdictDowngradesToV1WatchOnTheSameConnection() = runBlocking {
+        server.enqueue(
+            MockResponse().setBody(
+                fixture("environment-terminal-cursor-sync.json").replace("[1]", "[1, 2]"),
+            ),
+        )
+        server.enqueue(ticket())
+        val serverMessages = CopyOnWriteArrayList<String>()
+        val frames = CopyOnWriteArrayList<TerminalServerFrame>()
+        val live = CountDownLatch(1)
+        val failed = CountDownLatch(1)
+        server.enqueue(
+            MockResponse().withWebSocketUpgrade(downgradingServer(serverMessages)),
+        )
+        val transport = ProductionTerminalWatchTransport(
+            host = RichChatHostKey(connectionId(), 9),
+            http = RemoteApiClient(
+                endpoint = server.url("/desktop-prefix").toString(),
+                accessToken = "secret-token",
+                networkGate = gate,
+            ),
+            client = OkHttpClient(),
+            scope = scope,
+            networkGate = gate,
+            observer = {
+                object : TerminalTransportObserver by NoOpTerminalTransportObserver {
+                    override fun onFrame(
+                        host: RichChatHostKey,
+                        frame: TerminalServerFrame,
+                    ) {
+                        frames += frame
+                    }
+
+                    override fun onStatus(
+                        host: RichChatHostKey,
+                        terminalId: String,
+                        watchId: String,
+                        status: TerminalConnectionStatus,
+                    ) {
+                        if (status.phase == TerminalConnectionPhase.Live) live.countDown()
+                        if (status.phase == TerminalConnectionPhase.Failed) failed.countDown()
+                    }
+                }
+            },
+        )
+        try {
+            transport.watch(
+                RichTerminalWatchRequest("terminal-1", "watch-1", cursorSyncVersion = 2),
+            )
+            assertTrue("v1 downgrade must reach Live", live.await(8, TimeUnit.SECONDS))
+            assertEquals("downgrade must not fail the watch", 1, failed.count)
+
+            val watches = serverMessages.filter { it.contains("\"type\":\"terminal-watch\"") }
+            assertEquals(2, watches.size)
+            assertTrue(watches[0].contains("\"version\":2"))
+            assertTrue(watches[1].contains("\"version\":1"))
+            assertTrue(watches.none { it.contains("\"resume\"") })
+            // The rejection verdict is consumed by the downgrade and never
+            // delivered past the transport.
+            assertTrue(frames.none { it is TerminalServerFrame.WatchError })
+        } finally {
+            transport.close()
+        }
+    }
+
+    /** v2-advertised server that rejects the first v2 watch with the explicit
+     * `unsupported-version` verdict and serves a v1 baseline afterwards. */
+    private fun downgradingServer(
+        messages: CopyOnWriteArrayList<String>,
+    ) = object : WebSocketListener() {
+        private var rejectedV2 = false
+
+        override fun onOpen(webSocket: WebSocket, response: Response) {
+            webSocket.send("""{"type":"ready","seq":0}""")
+        }
+
+        override fun onMessage(webSocket: WebSocket, text: String) {
+            messages += text
+            if (!text.contains("\"type\":\"terminal-watch\"")) return
+            if (!rejectedV2 && text.contains("\"version\":2")) {
+                rejectedV2 = true
+                // The rejection travels on the version-1 watch-result error
+                // channel; `reason` discriminates the downgrade verdict.
+                webSocket.send("""{"type":"terminal-watch-result","id":"terminal-1",
+                  "cursorSync":{"version":1,"watchId":"watch-1","result":{
+                    "status":"error","code":"unavailable","reason":"unsupported-version",
+                    "retryable":false}}}""")
+            } else {
+                webSocket.send(baseline("downgraded"))
+            }
+        }
+    }
+
+    /** v2 server: sends the baseline as three chunks and records client traffic. */
+    private fun chunkServer(
+        messages: CopyOnWriteArrayList<String>,
+        acksRecorded: CountDownLatch,
+    ) = object : WebSocketListener() {
+        override fun onOpen(webSocket: WebSocket, response: Response) {
+            webSocket.send("""{"type":"ready","seq":0}""")
+        }
+
+        override fun onMessage(webSocket: WebSocket, text: String) {
+            messages += text
+            if (text.contains("terminal-watch-baseline-ack")) acksRecorded.countDown()
+            if (!text.contains("\"type\":\"terminal-watch\"")) return
+            for (chunk in listOf(
+                chunk(0, 3, 100, 103, "abc"),
+                chunk(1, 3, 103, 106, "def"),
+                chunk(2, 3, 106, 108, "gh"),
+            )) {
+                webSocket.send(chunk)
+            }
+        }
+    }
+
+    private fun chunk(index: Int, count: Int, from: Int, to: Int, data: String): String = """{
+      "type":"terminal-watch-baseline-chunk","id":"terminal-1",
+      "cursorSync":{"version":2,"watchId":"watch-1","generation":"instance-1",
+      "chunkIndex":$index,"chunkCount":$count,"fromCursor":$from,"toCursor":$to,
+      "data":"$data","processState":"running",
+      "terminalSize":${if (index == count - 1) "{\"cols\":80,\"rows\":24}" else "null"},
+      "resumeServed":false}
+    }"""
+
     private fun terminalServer(
         socketRef: AtomicReference<WebSocket>,
         closeAfterBaseline: Boolean,
