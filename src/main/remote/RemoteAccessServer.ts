@@ -99,6 +99,7 @@ const EVENT_BUFFER_LIMIT = 4_000;
 const EVENT_BUFFER_MAX_BYTES = DEFAULT_EVENT_BUFFER_MAX_BYTES;
 const DEFAULT_LISTEN_RETRY_ATTEMPTS = 5;
 const DEFAULT_LISTEN_RETRY_DELAY_MS = 500;
+const DEFAULT_MAX_CONCURRENT_INGRESS_WORK = 128;
 
 export interface RemoteAccessServerInfo {
   readonly httpBaseUrl: string;
@@ -164,6 +165,8 @@ export interface RemoteAccessServerOptions {
   /** Same-port retries absorb brief listener overlap during app relaunches. */
   readonly listenRetryAttempts?: number;
   readonly listenRetryDelayMs?: number;
+  /** Maximum concurrently admitted HTTP/WebSocket continuations. */
+  readonly maxConcurrentIngressWork?: number;
   /** Grace before closing active transports; admitted handlers are still joined. */
   readonly shutdownConnectionGraceMs?: number;
   readonly authStore?: RemoteAuthStore;
@@ -401,6 +404,8 @@ export class RemoteAccessServer {
   private readonly eventBuffer: BufferedSupervisorEvent[] = [];
   private readonly backgroundTasksByThread = new Map<string, readonly BackgroundTask[]>();
   private readonly context: RemoteServerContext;
+  private readonly maxConcurrentIngressWork: number;
+  private ingressWorkCount = 0;
   private seq = 0;
   private info: RemoteAccessServerInfo | null = null;
   private activePairingCredential: string | null = null;
@@ -410,6 +415,14 @@ export class RemoteAccessServer {
   private closing: Promise<void> | undefined;
 
   constructor(private readonly options: RemoteAccessServerOptions) {
+    this.maxConcurrentIngressWork =
+      options.maxConcurrentIngressWork ?? DEFAULT_MAX_CONCURRENT_INGRESS_WORK;
+    if (
+      !Number.isSafeInteger(this.maxConcurrentIngressWork) ||
+      this.maxConcurrentIngressWork <= 0
+    ) {
+      throw new Error("maxConcurrentIngressWork must be a positive safe integer.");
+    }
     this.auth = options.authStore ?? new RemoteAuthStore();
     this.security = new RemoteServerSecurity({
       getHttpBaseUrl: () => this.info?.httpBaseUrl,
@@ -509,7 +522,19 @@ export class RemoteAccessServer {
     if (this.stopping) {
       return Promise.reject(new RemoteHttpError("host_stopping", "The host is stopping.", 503));
     }
-    return this.work.run(operation);
+    if (this.ingressWorkCount >= this.maxConcurrentIngressWork) {
+      return Promise.reject(
+        new RemoteHttpError(
+          "host_busy",
+          "The host is busy with other requests; retry shortly.",
+          503,
+        ),
+      );
+    }
+    this.ingressWorkCount += 1;
+    return this.work.run(operation).finally(() => {
+      this.ingressWorkCount -= 1;
+    });
   }
 
   private waitForSupervisorEvent(
