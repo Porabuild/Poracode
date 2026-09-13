@@ -212,6 +212,10 @@ export class BackendHostCore {
   readonly supervisorClient: SupervisorClient;
   private readonly terminalScrollbackPersistence = new TerminalScrollbackPersistence();
   private databaseOpen = false;
+  private closing = false;
+  private supervisorJoined = false;
+  private supervisorDisposal: Promise<void> | null = null;
+  private disposal: Promise<void> | null = null;
   /** Serializes checkpoint reverts per thread: two clients reverting the same
    * thread run one after the other, and the second recount happens only after
    * the first compound fully settles. */
@@ -270,6 +274,7 @@ export class BackendHostCore {
     truncated: boolean;
     removedCompletedTurnAnchors: string[];
   } {
+    if (this.closing) throw new Error("Backend host is shutting down.");
     this.assertRevertAllowed(threadId);
     return this.truncateThreadRuntimeOwned(threadId, itemId);
   }
@@ -338,6 +343,7 @@ export class BackendHostCore {
    *   retries deliberately do not re-issue it.
    */
   async revertCheckpoint(input: RevertCheckpointInput): Promise<RevertCheckpointResult> {
+    if (this.closing) throw new Error("Backend host is shutting down.");
     const previous = this.revertLocks.get(input.threadId) ?? Promise.resolve();
     const operation = previous.catch(() => {}).then(() => this.runRevertCheckpoint(input));
     // The tracked (swallowed) twin keeps the lock map free of rejecting
@@ -571,8 +577,9 @@ export class BackendHostCore {
     };
   }
 
-  startSupervisor(): void {
-    this.supervisorClient.start();
+  startSupervisor(): Promise<void> {
+    if (this.closing) throw new Error("Backend host is shutting down.");
+    return this.supervisorClient.start();
   }
 
   /**
@@ -584,23 +591,36 @@ export class BackendHostCore {
     this.supervisorClient.setOutputBackpressured(paused);
   }
 
-  restartSupervisor(): void {
-    this.supervisorClient.restart();
+  restartSupervisor(): Promise<void> {
+    if (this.closing) throw new Error("Backend host is shutting down.");
+    return this.supervisorClient.restart();
   }
 
-  disposeSupervisor(): void {
-    this.supervisorClient.dispose();
+  disposeSupervisor(): Promise<void> {
+    if (this.supervisorDisposal) return this.supervisorDisposal;
+    // Close admission before taking the continuation snapshot. The last lock
+    // for each thread includes every previously queued compound operation.
+    this.closing = true;
+    const continuations = [...this.revertLocks.values()];
+    this.supervisorDisposal = (async () => {
+      await this.supervisorClient.dispose();
+      await Promise.all(continuations);
+      this.supervisorJoined = true;
+    })();
+    return this.supervisorDisposal;
   }
 
   closeDatabase(): void {
     if (!this.databaseOpen) return;
+    if (!this.supervisorJoined)
+      throw new Error("Cannot close the database before supervisor work has joined.");
     this.terminalScrollbackPersistence.flush();
     this.databaseOpen = false;
     closeDatabase();
   }
 
-  dispose(): void {
-    this.disposeSupervisor();
-    this.closeDatabase();
+  dispose(): Promise<void> {
+    this.disposal ??= this.disposeSupervisor().then(() => this.closeDatabase());
+    return this.disposal;
   }
 }

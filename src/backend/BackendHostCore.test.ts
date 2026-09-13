@@ -74,7 +74,7 @@ describe("BackendHostCore", () => {
     mocks.supervisorConstructorError = null;
   });
 
-  it("owns database and supervisor lifecycle", () => {
+  it("owns database and supervisor lifecycle", async () => {
     const host = new BackendHostCore({
       baseDir: "/data",
       dbPath: "/data/state.sqlite",
@@ -92,7 +92,7 @@ describe("BackendHostCore", () => {
 
     host.startSupervisor();
     host.restartSupervisor();
-    host.dispose();
+    await host.dispose();
     host.closeDatabase();
 
     expect(mocks.initDatabase).toHaveBeenCalledExactlyOnceWith("/data/state.sqlite");
@@ -104,7 +104,7 @@ describe("BackendHostCore", () => {
     expect(mocks.closeDatabase).toHaveBeenCalledOnce();
   });
 
-  it("persists each supervisor event before publishing it", () => {
+  it("persists each supervisor event before publishing it", async () => {
     const order: string[] = [];
     mocks.persistSupervisorEvent.mockImplementation(() => order.push("persist"));
     const host = new BackendHostCore({
@@ -123,7 +123,7 @@ describe("BackendHostCore", () => {
     const event: SupervisorEvent = { type: "git-changed", projectId: "project" };
 
     mocks.supervisorOptions?.onEvent(event);
-    host.dispose();
+    await host.dispose();
 
     expect(order).toEqual(["persist", "publish"]);
   });
@@ -150,7 +150,7 @@ describe("BackendHostCore", () => {
     expect(mocks.closeDatabase).toHaveBeenCalledOnce();
   });
 
-  it("can validate a schema owned by the desktop main process", () => {
+  it("can validate a schema owned by the desktop main process", async () => {
     const host = new BackendHostCore({
       baseDir: "/data",
       dbPath: "/data/state.sqlite",
@@ -169,7 +169,7 @@ describe("BackendHostCore", () => {
     expect(mocks.initDatabase).toHaveBeenCalledExactlyOnceWith("/data/state.sqlite", {
       schemaMode: "validate",
     });
-    host.dispose();
+    await host.dispose();
   });
 
   it("publishes high-volume events only for interested threads", () => {
