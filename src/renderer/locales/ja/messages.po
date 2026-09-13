@@ -7118,6 +7118,10 @@ msgstr "ローカル"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "ローカルの変更は{branch}からプルする前に隠しておく必要があります"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Local chat history was reverted. The provider may still use the removed messages."
+msgstr "ローカルのチャット履歴を元に戻しました。プロバイダーは削除されたメッセージを引き続き使用する可能性があります。"
+
 #. placeholder {0}: forward.targetPort
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
@@ -10134,6 +10138,10 @@ msgstr "プロバイダー"
 msgid "Provider"
 msgstr "プロバイダー"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Provider conversation was not restored"
+msgstr "プロバイダー側の会話は復元されませんでした"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Provider has not reported token usage."
@@ -11184,6 +11192,10 @@ msgstr "すべての変更を元に戻す"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert changes"
 msgstr "変更を元に戻す"
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Revert state is unknown; the provider did not confirm the rollback in time."
+msgstr "復元の状態は不明です。プロバイダーが時間内にロールバックを確認しませんでした。"
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to checkpoint?"
@@ -13269,6 +13281,10 @@ msgstr "審査後に候補が変更されました。もう一度比較してく
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "候補はまだ変更を加えていません。"
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "The checkpoint could not be restored."
+msgstr "チェックポイントを復元できませんでした。"
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"

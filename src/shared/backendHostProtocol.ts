@@ -65,11 +65,15 @@ export interface BackendRendererStreamInfo {
   token: string;
 }
 
-export type BackendRendererRequestOperation =
-  | "supervisor"
-  | "database"
-  | "service"
-  | "revert-checkpoint";
+/** Shared by request construction and transport admission so their vocabulary cannot drift. */
+export const BACKEND_RENDERER_REQUEST_OPERATIONS = [
+  "supervisor",
+  "database",
+  "service",
+  "revert-checkpoint",
+] as const;
+
+export type BackendRendererRequestOperation = (typeof BACKEND_RENDERER_REQUEST_OPERATIONS)[number];
 
 export interface BackendRendererRequest {
   version: typeof BACKEND_RENDERER_STREAM_VERSION;

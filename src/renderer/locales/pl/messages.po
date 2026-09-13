@@ -7119,6 +7119,10 @@ msgstr "Lokalny"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "Lokalne zmiany muszą zostać schowane przed pobraniem z {branch}"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Local chat history was reverted. The provider may still use the removed messages."
+msgstr "Przywrócono lokalną historię czatu. Dostawca może nadal korzystać z usuniętych wiadomości."
+
 #. placeholder {0}: forward.targetPort
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
@@ -10136,6 +10140,10 @@ msgstr "dostawca"
 msgid "Provider"
 msgstr "Dostawca"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Provider conversation was not restored"
+msgstr "Nie przywrócono rozmowy po stronie dostawcy"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Provider has not reported token usage."
@@ -11186,6 +11194,10 @@ msgstr "Cofnij wszystkie zmiany"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert changes"
 msgstr "Cofnij zmiany"
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Revert state is unknown; the provider did not confirm the rollback in time."
+msgstr "Stan przywracania jest nieznany; dostawca nie potwierdził go na czas."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to checkpoint?"
@@ -13271,6 +13283,10 @@ msgstr "Kandydaci zmienili się od czasu oceny. Porównaj ich ponownie."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Kandydaci nie wprowadzili jeszcze żadnych zmian."
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "The checkpoint could not be restored."
+msgstr "Nie udało się przywrócić punktu kontrolnego."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
