@@ -925,3 +925,64 @@ development/mock queue hooks, the corrected visible Browser flow and this idle
 native-close path. Real providers/devices, active request/process shutdown,
 observer overhead, controlled master comparisons, latency/rendering budgets and
 full load/soak qualification remain open.
+
+## F11 private backend and direct-renderer work join
+
+The follow-up starts from clean consolidation `d31c836bc`. Four entrypoint tests
+first failed with synthetic runtime dependencies: database-close ownership ended
+while an IPC service, direct-renderer service, initializer or reverse-native
+continuation was still pending. Five real loopback stream tests separately
+reproduced premature handler disposal, concurrent-start refusal, an unjoined
+partial upgrade socket and a pre-listen shutdown hang. Logs and exact evidence
+limits are in `.tmp/v4-request-drain/tmp/f11-backend-drain/REPORT.md`.
+
+Normal backend admission now closes before the work barrier. Startup is joined
+before runtime handles are collected; producer cancellation starts before waiting
+for calls that require it to settle. Service references and SQLite stay installed
+through the join, with the F30 failure guard preserved. Native replies bypass
+normal admission, and the extracted reverse-request owner drains cleanup work
+after all producers/calls settle. Signals cancel backend waits without claiming
+the native action itself has stopped. The direct renderer listener tracks actual
+handlers and uses the shared HTTP socket owner, including partial upgrades.
+Existing protocol and disk versions remain compatible.
+
+Self-review traced the actual parent and caught its disposed guard dropping
+required native replies. Three additional red regressions prove missing success
+and failure replies during disposal, and an old completion sent to a replacement
+child. The narrow parent fix preserves reverse replies to the originating child
+during drain and fences replaced generations. It does not join native execution
+or change the outer timeout/tree policy.
+
+The independent critic additionally reproduced a synchronous native callback
+exception escaping IPC without a failure reply, matching main's browser-watch
+startup path. Its retained actual-client probe and the added red regression led
+to a promise-contained invocation, with origin checks before deferred work and
+before reply. A late old-child result is tested after callback admission; a
+different case refuses deferred work if its child already exited.
+
+The final combined run passed 97 tests / nine suites, full typecheck and both touched
+lint modes. The independent critic verified all eight source hashes, passed 53
+tests across four suites, and reran its actual-client exception probe successfully.
+Its original red log remains; the generic JSON was overwritten by the rerun and
+is not cited as retained red evidence. No Important remains in the independent
+scope. The primary critic also verified all eight frozen hashes and independently
+passed 97 tests across nine suites, then approved the coherent ten-file slice.
+Tests use
+synthetic entrypoint dependencies and real disposable loopback
+peers, with no GUI or provider action. Full F11 is open: owner startup cancellation
+wiring, outer deadlines, main/native facade joins, descendants, Windows shutdown
+and the native-e2e process-stop harness remain required before final qualification.
+
+Root merged the separately reviewed startup-cancellation primitive `dde3951eb`
+as `bc57d3b62`, then joined the backend drain candidate `70457542b`. Cancelling
+startup closes admission and abandons native byte-transform waits while retaining
+the data-root lease and initialized credential capability. Only the caller's
+final close releases ownership after runtime work and SQLite have drained.
+The actual child-contender and held-backup tests cover that distinction; production
+owner activation remains a separate candidate. Root's combined ownership,
+backend/native request, stream, HTTP/work tracker and diagnostic checks passed
+119 tests across ten suites, plus full typecheck. The exact logs are
+`tmp/v4-architecture-audit/owner-backend-combined-tests.log` and
+`owner-backend-combined-typecheck.log`. Merge conflicts were concurrent evidence
+additions; the final documents retain F34 and both F11 records without duplicating
+the existing F32 section.
