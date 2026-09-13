@@ -8,9 +8,11 @@ import type {
 
 // Separate QA-only boundary. This does not extend the public client runtime or
 // backend protocol; an old driver must fail rather than invoke a different action.
-const SMOKE_NATIVE_VERSION = 1;
+const SMOKE_NATIVE_VERSION = 2;
 const QUICK_COMPOSER_CHANNEL = `poracode:smoke-toggle-quick-composer:v${SMOKE_NATIVE_VERSION}`;
 const QUICK_COMPOSER_STATE_CHANNEL = `poracode:smoke-inspect-quick-composer:v${SMOKE_NATIVE_VERSION}`;
+const CLOSE_MAIN_WINDOW_CHANNEL = `poracode:smoke-close-main-window:v${SMOKE_NATIVE_VERSION}`;
+const QUIT_APP_CHANNEL = `poracode:smoke-quit-app:v${SMOKE_NATIVE_VERSION}`;
 
 interface SmokeMode {
   isDev: boolean;
@@ -24,6 +26,8 @@ export function registerSmokeNativeControls(
     getMainWebContents(): WebContents | null;
     toggleQuickComposer(): void;
     inspectQuickComposer(): { visible: boolean; focused: boolean } | null;
+    closeMainWindow(): void;
+    quitApp(): void;
   },
 ): void {
   if (!options.isDev || options.isPackaged || !options.mockAgents) return;
@@ -39,14 +43,17 @@ export function registerSmokeNativeControls(
       throw new Error("Native smoke controls require the current main window's top frame");
     }
   };
-  options.ipcMain.handle(QUICK_COMPOSER_CHANNEL, (event, version: unknown) => {
-    authorize(event, version);
-    options.toggleQuickComposer();
-  });
-  options.ipcMain.handle(QUICK_COMPOSER_STATE_CHANNEL, (event, version: unknown) => {
-    authorize(event, version);
-    return options.inspectQuickComposer();
-  });
+  for (const [channel, action] of [
+    [QUICK_COMPOSER_CHANNEL, options.toggleQuickComposer],
+    [QUICK_COMPOSER_STATE_CHANNEL, options.inspectQuickComposer],
+    [CLOSE_MAIN_WINDOW_CHANNEL, options.closeMainWindow],
+    [QUIT_APP_CHANNEL, options.quitApp],
+  ] as const) {
+    options.ipcMain.handle(channel, (event, version: unknown) => {
+      authorize(event, version);
+      return action();
+    });
+  }
 }
 
 export function installSmokeNativePreload(
@@ -62,5 +69,8 @@ export function installSmokeNativePreload(
       options.ipcRenderer.invoke(QUICK_COMPOSER_CHANNEL, SMOKE_NATIVE_VERSION),
     inspectQuickComposer: () =>
       options.ipcRenderer.invoke(QUICK_COMPOSER_STATE_CHANNEL, SMOKE_NATIVE_VERSION),
+    closeMainWindow: () =>
+      options.ipcRenderer.invoke(CLOSE_MAIN_WINDOW_CHANNEL, SMOKE_NATIVE_VERSION),
+    quitApp: () => options.ipcRenderer.invoke(QUIT_APP_CHANNEL, SMOKE_NATIVE_VERSION),
   });
 }
