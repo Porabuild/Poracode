@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
@@ -21,6 +22,7 @@ import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import { ipcProcedureMap, type IpcProcedureName } from "@/shared/ipc";
 
+const performanceDiagnostics = startNodePerformanceDiagnostics("backend");
 let backendHost: BackendHostCore | null = null;
 let desktopServices: BackendDesktopServices | null = null;
 let rendererStream: BackendRendererStream | null = null;
@@ -493,6 +495,7 @@ async function shutdown(exitCode: number, flush: boolean): Promise<void> {
         backendHost?.closeDatabase();
         backendHost = null;
       },
+      () => performanceDiagnostics?.stop(),
     ],
     exitCode,
     reportError: (error) => console.error("[backend] shutdown failed:", error),

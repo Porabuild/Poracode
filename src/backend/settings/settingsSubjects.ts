@@ -6,6 +6,7 @@ import {
   SETTINGS_LIST_FIELDS,
   SETTINGS_MISSING_REVISION,
   settingsSubjectId,
+  settingsSubjectField,
   type SettingsSubject,
   type SettingsSubjectState,
 } from "@/shared/settingsTransactions";
@@ -75,16 +76,48 @@ export function settingsSubjectState(
   const value = getSettingsSubjectValue(settings, subject);
   return {
     subject,
-    revision:
-      value === undefined
-        ? SETTINGS_MISSING_REVISION
-        : `s1:${createHash("sha256")
-            .update(canonicalSettingsJson([settingsSubjectId(subject), value]))
-            .digest("hex")}`,
+    revision: settingsSubjectRevision(settings, subject),
     ...(value === undefined
       ? {}
       : { value: JSON.parse(JSON.stringify(value)) as SettingsSubjectState["value"] }),
   } as SettingsSubjectState;
+}
+
+export function settingsSubjectRevision(
+  settings: SharedSettings,
+  subject: SettingsSubject,
+): string {
+  const value = getSettingsSubjectValue(settings, subject);
+  return value === undefined
+    ? SETTINGS_MISSING_REVISION
+    : `s1:${createHash("sha256")
+        .update(canonicalSettingsJson([settingsSubjectId(subject), value]))
+        .digest("hex")}`;
+}
+
+/** Entry edits include ancestor revisions; field replacements also refresh their descendant revisions. */
+export function affectedSettingsRevisions(
+  settings: SharedSettings,
+  subjects: readonly SettingsSubject[],
+  previous = settings,
+): Record<string, string> {
+  const affected = new Map<string, SettingsSubject>();
+  for (const subject of subjects) {
+    affected.set(settingsSubjectId(subject), subject);
+    const field: SettingsSubject = { kind: "field", field: settingsSubjectField(subject) };
+    affected.set(settingsSubjectId(field), field);
+  }
+  const replacedFields = new Set(
+    subjects.filter((subject) => subject.kind === "field").map((subject) => subject.field),
+  );
+  if (replacedFields.size > 0) {
+    for (const subject of [...allSettingsSubjects(previous), ...allSettingsSubjects(settings)])
+      if (subject.kind !== "field" && replacedFields.has(settingsSubjectField(subject)))
+        affected.set(settingsSubjectId(subject), subject);
+  }
+  return Object.fromEntries(
+    [...affected].map(([id, subject]) => [id, settingsSubjectRevision(settings, subject)]),
+  );
 }
 
 export function allSettingsSubjects(settings: SharedSettings): SettingsSubject[] {

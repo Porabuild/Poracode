@@ -85,6 +85,7 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   reloadRenderer(): Promise<void>;
   onQuickComposerSubmit(listener: (submission: QuickComposerSubmission) => void): () => void;
   onQuickComposerDismissRequested(listener: () => void): () => void;
+  onQuickComposerShown(listener: () => void): () => void;
 };
 
 export function createInvokeBridge(
