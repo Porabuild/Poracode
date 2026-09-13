@@ -296,6 +296,10 @@ function handleConnection(
   lastSeenSeq: number | null,
   initialItemInterests: ReadonlySet<string> | null,
 ): void {
+  if (ctx.stopping) {
+    ws.terminate();
+    return;
+  }
   ctx.clients.set(ws, session);
   ctx.replayingClients.add(ws);
   ctx.clientLiveness.set(ws, true);
@@ -350,6 +354,7 @@ function handleConnection(
     // Revocation/expiry starts an asynchronous close handshake. A peer can
     // still transmit frames during it, but no longer has authority to do work.
     if (
+      ctx.stopping ||
       ws.readyState !== WebSocket.OPEN ||
       ctx.clients.get(ws) !== session ||
       session.expiresAtMs <= Date.now()
@@ -402,15 +407,19 @@ function handleConnection(
       }
       if (message.type === "browser-input") {
         if (!ctx.options.browser || !session.scopes.includes("session:operate")) return;
-        void ctx.options.browser.dispatchInput(message.input).catch(() => {});
+        const browser = ctx.options.browser;
+        void ctx.runIngressWork(() => browser.dispatchInput(message.input)).catch(() => {});
       }
       if (message.type === "terminal-watch") {
         if (message.cursorSync) {
           // Fire-and-forget setup; swallow rejections so a late throw cannot
           // become an unhandled promise rejection on the host process.
-          void handleReliableTerminalWatch(ctx, ws, session, message.id, message.cursorSync).catch(
-            () => {},
-          );
+          const cursorSync = message.cursorSync;
+          void ctx
+            .runIngressWork(() =>
+              handleReliableTerminalWatch(ctx, ws, session, message.id, cursorSync),
+            )
+            .catch(() => {});
           return;
         }
         if (!session.scopes.includes("terminal:read")) return;

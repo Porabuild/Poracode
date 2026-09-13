@@ -705,12 +705,11 @@ the twenty-test lease suite successfully. The initial unsupported Vitest repeat
 flag and probe-loader path errors remain as failed tooling attempts, not runtime
 evidence.
 
-This bounded correction changes neither lease format 1 nor owner metadata format
-
-1. Actual headless/bootstrap wiring is a separate uncommitted candidate and must
-   wait for confirmed ingress/request drains before claiming safe lease release.
-   All roots and processes here were disposable; Linux/Windows, installed upgrades,
-   real profiles and full Phase 1 acceptance remain open.
+This bounded correction changes neither lease format 1 nor owner metadata format 1.
+Actual headless/bootstrap wiring is a separate uncommitted candidate and must wait
+for confirmed ingress/request drains before claiming safe lease release. All roots
+and processes here were disposable; Linux/Windows, installed upgrades, real profiles
+and full Phase 1 acceptance remain open.
 
 ## Joined durable services and native credential codec integrated
 
@@ -818,3 +817,52 @@ an actual GUI session, enabled/disabled observer overhead, complete transport
 coverage, correlated command/event latency, frame/input traces, controlled master
 comparisons and final load/soak qualification remain open. A blocked synthetic
 receiver is not an application performance benchmark.
+
+## F11 HTTP and shared MCP drain prerequisite
+
+The isolated `poracode/v4-request-drain` branch starts at reviewed consolidation
+`ad7143d53`. Four real loopback/SQLite regressions first proved premature database
+close after the HTTP deadline or client abort, duplicate startup pairing state,
+and a listener bound after disposal. Two real forwarded-stream fixtures also
+failed against the original proxy implementation, which returned while the
+streams were open. Three shared-MCP regressions proved early tool disposal,
+orphaned concurrent listeners and publication after an immediate stop.
+
+The candidate joins one listener lifecycle, closes admission synchronously and
+tracks actual HTTP/WS/tool continuations independently of sockets. The existing
+five-second HTTP grace now closes owned transports; it does not resolve the work
+barrier. Proxy requests and upgrades join their outgoing streams. Shared MCP
+uses the same work/socket helpers and AppControls awaits its disposal; remaining
+batch entries and a reentrant pre-call hook cannot start a tool after stop.
+No remote, renderer, backend-host, MCP or persisted shape changes; existing wire
+versions remain valid and shutdown uses the existing error response envelopes.
+
+The HTTP/controller group passed 156 tests across seven suites; the MCP/native
+facade group passed 41 tests across six separate suites. Full typecheck and both
+touched lint modes pass. The MCP test-only cleanup refactor was checked again
+with its five lifecycle cases. Details and exact commands are in
+`.tmp/v4-request-drain/tmp/f11-request-drain/REPORT.md`; all network peers and
+SQLite files in these checks are disposable fixtures. Self-review caught two
+introduced startup-cache regressions: retaining a failed listen and returning
+an obsolete pairing token after rotation. Both were corrected, with separate
+reds; the final ten HTTP lifecycle cases also validate a successful real token
+exchange after rotation. These are not attributed to the original defects.
+
+The independent ingress critic passed 24 tests across five suites plus the final
+real pairing-token exchange regression, with no remaining Important finding.
+The primary review also passed its 25 targeted cases and verified all 17 frozen
+file hashes. Both reviews accepted this prerequisite; integration remains pending.
+This is not complete F11
+qualification: private backend request draining, main/native facade joins, parent
+timeouts, provider/PTY descendants, Windows graceful stop and the native-e2e stop
+harness remain assigned. A handler which cannot be canceled keeps its join
+pending; the later process escalation must prove termination rather than release
+the owner lease while that handler can still run. No GUI/performance claim is
+made from these ingress fixtures.
+
+Root integrated `c0471f27a` with queue diagnostics `73792f1fb`. The combined remote,
+MCP, app-controls, backend-client and diagnostic checks passed 740 tests / 61
+suites plus full typecheck (`queue-f11-combined-*` logs under
+`tmp/v4-architecture-audit/`). Only concurrent documentation additions conflicted;
+both sides' findings and evidence are retained. A fresh isolated GUI recording is
+the next integration check, not implied by these tests.

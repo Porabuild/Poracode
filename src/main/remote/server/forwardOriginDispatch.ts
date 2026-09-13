@@ -354,7 +354,7 @@ export async function handleRemoteAccessHttpRequest(
       return;
     }
     const lifetime = resolveChildLifetime(ctx, target, req);
-    proxyForwardedHttpRequest(req, res, lifetime);
+    await proxyForwardedHttpRequest(req, res, lifetime);
   } catch (error) {
     writeForwardError(res, error);
   }
@@ -368,19 +368,19 @@ export async function handleRemoteAccessHttpRequest(
  * session and a live forward — then the upgrade, established or still
  * dialing, rides the forward's lifetime.
  */
-export function handleRemoteAccessUpgrade(
+export async function handleRemoteAccessUpgrade(
   ctx: RemoteServerContext,
   req: IncomingMessage,
   socket: Duplex,
   head: Buffer,
-): void {
+): Promise<void> {
   const child = resolveChildRequest(ctx, req);
   if (child.kind === "relay-api") {
     rejectUpgrade(socket, 403, "Forbidden");
     return;
   }
   if (child.kind === "ordinary") {
-    void handleUpgrade(ctx, req, socket, head);
+    await handleUpgrade(ctx, req, socket, head);
     return;
   }
   try {
@@ -395,7 +395,7 @@ export function handleRemoteAccessUpgrade(
       );
     }
     const lifetime = resolveChildLifetime(ctx, target, req);
-    proxyForwardedWebSocketUpgrade(req, socket, head, lifetime);
+    await proxyForwardedWebSocketUpgrade(req, socket, head, lifetime);
   } catch (error) {
     if (error instanceof RemoteHttpError) {
       rejectUpgrade(socket, error.status, error.status === 401 ? "Unauthorized" : "Forbidden");
