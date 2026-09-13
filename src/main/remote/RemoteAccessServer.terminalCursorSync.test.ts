@@ -221,6 +221,67 @@ describe("RemoteAccessServer terminal cursor-sync", () => {
     });
   });
 
+  it("returns a correlated retryable result when a reliable watch hits source admission", async () => {
+    const releaseSnapshot = Promise.withResolvers<void>();
+    const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
+      if (name === "readTerminalSnapshot") {
+        await releaseSnapshot.promise;
+        return {
+          generation: "gen-held",
+          fromCursor: 0,
+          toCursor: 0,
+          data: "",
+          processState: "running",
+          terminalSize: { cols: 80, rows: 24 },
+        } as never;
+      }
+      return "" as never;
+    });
+    const server = createCursorSyncServer({
+      callSupervisor,
+      maxConcurrentIngressWorkPerSource: 1,
+    });
+    const info = await server.start();
+    const { ws, next } = await openTerminalWatchSocket(info);
+
+    ws.send(
+      JSON.stringify({
+        type: "terminal-watch",
+        id: "term-held",
+        cursorSync: { version: 1, watchId: "watch-held" },
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(callSupervisor).toHaveBeenCalledWith("readTerminalSnapshot", {
+        threadId: "term-held",
+      }),
+    );
+
+    ws.send(
+      JSON.stringify({
+        type: "terminal-watch",
+        id: "term-rejected",
+        cursorSync: { version: 1, watchId: "watch-rejected" },
+      }),
+    );
+    await expect(next()).resolves.toEqual({
+      type: "terminal-watch-result",
+      id: "term-rejected",
+      cursorSync: {
+        version: 1,
+        watchId: "watch-rejected",
+        result: { status: "error", code: "unavailable", retryable: true },
+      },
+    });
+
+    releaseSnapshot.resolve();
+    await expect(next()).resolves.toMatchObject({
+      type: "terminal-watch-result",
+      id: "term-held",
+      cursorSync: { watchId: "watch-held", result: { status: "ready" } },
+    });
+  });
+
   it("serves terminal cursor-sync watch results and tags only reliable output", async () => {
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
       if (name === "readTerminalSnapshot") {

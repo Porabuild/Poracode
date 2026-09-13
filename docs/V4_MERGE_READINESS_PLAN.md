@@ -958,6 +958,11 @@ and no-gap guarantees; memory settles after drain; stalled channels cannot kill
 the control socket or providers. Repeat with congestion on each relay hop and on
 a shared bottleneck. Include large concurrent RPC replies, not just event floods.
 
+The host now adds a bounded per-source admission counter for HTTP sockets and
+WebSocket sessions alongside the global limit. This is the first fairness slice;
+relay scheduling, outbound budgets, and the full multi-client capacity run remain
+required for Phase 5 exit.
+
 ### Phase 6 — make payload cost proportional to visible work
 
 Owner: protocol/read-model maintainer. Depends on corrected measurement and
