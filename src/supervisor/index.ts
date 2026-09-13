@@ -95,18 +95,22 @@ async function shutdownSupervisor(exitCode = 0): Promise<void> {
     return;
   }
   isShuttingDown = true;
+  let finalExitCode = exitCode;
   try {
     await Promise.race([
       runtime.disposeAsync(),
       new Promise<void>((resolve) => setTimeout(resolve, SUPERVISOR_SHUTDOWN_TIMEOUT_MS)),
     ]);
+  } catch (error) {
+    finalExitCode = 1;
+    console.error("[supervisor] shutdown was not confirmed:", error);
   } finally {
     if (process.connected) {
       const drained = await ipcSender.flushAndWait(SUPERVISOR_IPC_FLUSH_TIMEOUT_MS);
       if (!drained) console.error("[supervisor] IPC queue did not drain before shutdown.");
     }
     await performanceDiagnostics?.stop();
-    process.exit(exitCode);
+    process.exit(finalExitCode);
   }
 }
 

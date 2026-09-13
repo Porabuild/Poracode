@@ -1500,3 +1500,19 @@ remain Phase 4 work.
 The exact-tree full suite then passed: 1,211 test files passed and 5 skipped;
 13,624 tests passed and 119 skipped. The known synthetic listener and canvas
 warnings were emitted, but the run exited successfully.
+
+## Phase 8 bounded PTY shutdown join
+
+The supervisor runtime already tracked PTY exit callbacks, but manager shutdown
+killed active agent and shell PTYs without joining those callbacks. Shutdown now
+waits for every tracked PTY after issuing kills, with the existing two-second
+per-process bound. The join now returns explicit confirmation; an unconfirmed
+PTY makes supervisor disposal fail and exit non-zero instead of claiming a
+clean shutdown. The focused lifecycle, restart-terminal, and supervisor-runtime
+suites pass 62 tests (one platform-skipped), with typecheck, touched type-aware
+lint, and formatting green. Provider descendants, Windows process-tree proof,
+and the outer Electron quit barrier remain open F11 work.
+
+The exact-tree full suite then passed: 1,211 test files passed and 5 skipped;
+13,626 tests passed and 119 skipped. The known synthetic listener and canvas
+warnings were emitted, but the run exited successfully.
