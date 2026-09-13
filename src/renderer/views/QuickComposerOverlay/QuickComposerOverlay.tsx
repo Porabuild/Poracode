@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import type { Project } from "@/shared/contracts";
+import type { AgentStatus, Project } from "@/shared/contracts";
 import { isAgentStatusSupervisorEvent } from "@/shared/ipc";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
@@ -22,10 +22,16 @@ import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 
 type OverlayPhase = "opening" | "idle" | "closing" | "sending";
+const EMPTY_AGENT_STATUSES: AgentStatus[] = [];
 
 export function QuickComposerOverlay() {
   const { t } = useLingui();
   const [composerRevision, setComposerRevision] = useState(0);
+  const [pendingForm, setPendingForm] = useState<{
+    project: Project;
+    agentStatuses: AgentStatus[];
+  } | null>(null);
+  const submissionPending = pendingForm !== null;
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [phase, setPhase] = useState<OverlayPhase>("opening");
   const phaseRef = useRef<OverlayPhase>("opening");
@@ -36,7 +42,7 @@ export function QuickComposerOverlay() {
     phaseRef.current = next;
     setPhase(next);
   };
-  // The focus listener below is subscribed once, but must always invoke the
+  // The native show listener is subscribed once, but must always invoke the
   // latest transition — route it through a ref synced after every render
   // (same pattern as ChatPane's onOpenThreadRef) so the effect takes no
   // per-render dependency.
@@ -45,13 +51,14 @@ export function QuickComposerOverlay() {
     transitionPhaseRef.current = transitionPhase;
   });
   const animationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lifecycleRef = useRef({ showGeneration: 0, mounted: false });
   const projects = useAppStore((state) => state.projects);
   const threads = useAppStore((state) => state.threads);
   const view = useAppStore((state) => state.view);
   const focusedPaneId = useAppStore((state) => state.focusedPaneId);
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const disabledAgents = useSharedSettings((state) => state.disabledAgents);
-  const project = resolveQuickComposerProject({
+  const resolvedProject = resolveQuickComposerProject({
     projects,
     threads,
     view,
@@ -59,19 +66,29 @@ export function QuickComposerOverlay() {
     homeScopeEnabled,
     selectedProjectId,
   });
+  // Native reopen refreshes shared state. Keep the submitted form's identity
+  // stable until its acknowledgement so a different active project or a probe
+  // result cannot unmount its editor and lose failure recovery.
+  const project = pendingForm?.project ?? resolvedProject;
   const projectAgentStatuses = useAgentStatusesStore((state) =>
-    project
-      ? getProjectAgentStatuses(project.location, state.agentStatuses, state.wslAgentStatuses)
-      : [],
+    pendingForm
+      ? pendingForm.agentStatuses
+      : project
+        ? getProjectAgentStatuses(project.location, state.agentStatuses, state.wslAgentStatuses)
+        : EMPTY_AGENT_STATUSES,
   );
   const isDetectingAgents = useAgentStatusesStore((state) =>
-    project ? isDetectingAgentsForLocation(state, project.location) : false,
+    project && !pendingForm ? isDetectingAgentsForLocation(state, project.location) : false,
   );
-  const hasInstalledAgent = projectAgentStatuses.some(
-    (status) => status.installed && !disabledAgents.includes(status.kind),
-  );
+  const hasInstalledAgent =
+    submissionPending ||
+    projectAgentStatuses.some(
+      (status) => status.installed && !disabledAgents.includes(status.kind),
+    );
 
   useEffect(() => {
+    const lifecycle = lifecycleRef.current;
+    lifecycle.mounted = true;
     const refresh = async () => {
       await useAppStore.persist.rehydrate();
       const wslDistros = parseWslProjectDistrosKey(
@@ -85,17 +102,11 @@ export function QuickComposerOverlay() {
         });
       }
     };
-    // Focus fires both when the hidden window is re-shown and when focus merely
-    // returns (e.g. after the native file dialog closes). Only the former needs
-    // the enter animation and a store/agent refresh — gate on having actually
-    // been hidden since the last run.
-    let wasHiddenSinceRefresh = true;
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") wasHiddenSinceRefresh = true;
-    };
-    const onFocus = () => {
-      if (!wasHiddenSinceRefresh) return;
-      wasHiddenSinceRefresh = false;
+    // Native show is authoritative: Chromium can keep visibilityState="visible"
+    // while this window is hidden, and the OS may refuse a focus request. Merely
+    // returning from a file dialog must not replay this transition.
+    const onShown = () => {
+      lifecycle.showGeneration++;
       frameRef.current
         ?.querySelector<HTMLElement>('[data-composer-input-anchor] [contenteditable="true"]')
         ?.focus();
@@ -106,13 +117,11 @@ export function QuickComposerOverlay() {
       }, 220);
       void refresh().catch(() => undefined);
     };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("focus", onFocus);
+    const unsubscribeShown = readBridge().onQuickComposerShown(onShown);
     // Mount runs the same enter sequence as a fresh focus. The phase is
     // already "opening", so this inlines the DOM focus, the idle timer, and
     // the refresh without invoking the phase transition synchronously on
     // effect entry.
-    wasHiddenSinceRefresh = false;
     frameRef.current
       ?.querySelector<HTMLElement>('[data-composer-input-anchor] [contenteditable="true"]')
       ?.focus();
@@ -122,8 +131,9 @@ export function QuickComposerOverlay() {
     }, 220);
     void refresh().catch(() => undefined);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("focus", onFocus);
+      unsubscribeShown();
+      lifecycle.showGeneration++;
+      lifecycle.mounted = false;
       if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
     };
   }, []);
@@ -145,17 +155,26 @@ export function QuickComposerOverlay() {
     };
   }, [project]);
 
-  // An EffectEvent for the same reason as transitionPhase: the dismiss-request
-  // subscription below must not depend on its per-render identity, and it is
-  // only ever invoked from event handlers and subscriptions.
+  // The dismiss-request subscription below calls the latest dismiss callback
+  // through a ref, so its lifetime does not depend on this render's identity.
   const dismiss = (openMainWindow = false) => {
     if (phaseRef.current === "closing" || phaseRef.current === "sending") return;
     transitionPhase("closing");
+    const lifecycle = lifecycleRef.current;
+    const generation = lifecycle.showGeneration;
     if (animationTimerRef.current) clearTimeout(animationTimerRef.current);
     animationTimerRef.current = setTimeout(() => {
+      if (!lifecycle.mounted || lifecycle.showGeneration !== generation) return;
       const reveal = openMainWindow ? readBridge().focusWindow() : Promise.resolve();
-      void reveal.finally(() => {
-        void readBridge().dismissQuickComposer();
+      const finish = () => {
+        if (!lifecycle.mounted || lifecycle.showGeneration !== generation) return;
+        void readBridge()
+          .dismissQuickComposer()
+          .catch((error: unknown) => console.warn(error));
+      };
+      void reveal.then(finish, (error: unknown) => {
+        console.warn(error);
+        finish();
       });
     }, 180);
   };
@@ -167,14 +186,29 @@ export function QuickComposerOverlay() {
   });
   const startThread = async (input: DraftStartInput) => {
     if (!project) return;
+    const lifecycle = lifecycleRef.current;
+    const generation = lifecycle.showGeneration;
+    setPendingForm({ project, agentStatuses: projectAgentStatuses });
     transitionPhase("sending");
     try {
       await readBridge().submitQuickComposer({ projectId: project.id, input });
       await new Promise((resolve) => setTimeout(resolve, 220));
+      if (!lifecycle.mounted) return;
+      // Keep the submitted form mounted and inert until acknowledgement. Clear
+      // it before re-enabling input, even if a newer show is already visible.
       setComposerRevision((revision) => revision + 1);
-      await readBridge().dismissQuickComposer();
+      setPendingForm(null);
+      if (lifecycle.showGeneration === generation) {
+        // A native hide failure cannot undo the accepted submission.
+        void readBridge()
+          .dismissQuickComposer()
+          .catch((error: unknown) => console.warn(error));
+      }
     } catch (error) {
-      transitionPhase("idle");
+      if (lifecycle.mounted) {
+        setPendingForm(null);
+        if (lifecycle.showGeneration === generation) transitionPhase("idle");
+      }
       throw error;
     }
   };
@@ -192,7 +226,13 @@ export function QuickComposerOverlay() {
         className="quick-composer-dismiss-backdrop"
         onClick={() => dismiss()}
       />
-      <section ref={frameRef} className="quick-composer-frame" data-overlay-surface="">
+      <section
+        ref={frameRef}
+        className="quick-composer-frame"
+        data-overlay-surface=""
+        inert={submissionPending}
+        aria-busy={submissionPending}
+      >
         {!project ? (
           <QuickComposerUnavailable onOpenMainWindow={() => dismiss(true)}>
             <Trans>Add a project to start</Trans>

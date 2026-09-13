@@ -299,6 +299,13 @@ admitted continuations before settings authority, SQLite and the host lease are
 released. Retain the synthetic PR regression; no real automation action is needed
 to prove this boundary. This extends F11's remaining service-drain work.
 
+**F31 — verified usage-cookie continuation races.** A delayed Chromium cookie
+read can restore a stored login after Clear, and the native mirror's Stop can
+return before that read finishes and writes again. The usage-secret adapter must
+check current consent and equality atomically at the backend and join/cancel
+native mirror continuations during stop. Keep delayed-read/clear/stop regressions
+and ensure session-only credentials and retired owners cannot persist new secrets.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 

@@ -113,6 +113,22 @@ replacement. Discovery PID metadata never grants ownership; only the kernel
 lease does. Never open an existing leased SQLite inode through an unmanaged
 descriptor in the same process, since closing it can release POSIX file locks.
 
+## Electron preload compatibility
+
+The Electron preload must advertise `clientRuntimeVersion` from
+`PORACODE_CLIENT_RUNTIME_VERSION`. The renderer checks this peer value before
+creating its transport. Version 8 requires the native quick-composer show
+subscription; absent, version-6, and version-7 preload artifacts are rejected.
+Browser runtimes use the same local facade version; this desktop window event
+does not change the remote wire, backend-host protocol, or persisted state.
+
+Unactivated V4 branch reservations are backend-host 8 for owner bootstrap, 9 for
+settings authority, and 11 for the private usage-secret service. Their combined
+backend-host contract will use a fresh version 12, superseding the earlier
+two-parent reservation of 10. Settings reserves renderer stream 4 and remote 13;
+the combined client facade/preload will use 9. These are coordination reservations,
+not the currently running wire versions or evidence that activation is complete.
+
 ## Measurement evidence
 
 `ProcessMemorySummary` in `tests/native-e2e/helpers/processMemorySampler.ts` emits

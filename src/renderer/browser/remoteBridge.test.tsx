@@ -58,6 +58,7 @@ describe("remote bridge", () => {
     expect(window.poracode.onRemoteAccessPairingChanged(() => undefined)).toBeTypeOf("function");
     expect(window.poracode.onQuickComposerSubmit(() => undefined)).toBeTypeOf("function");
     expect(window.poracode.onQuickComposerDismissRequested(() => undefined)).toBeTypeOf("function");
+    expect(window.poracode.onQuickComposerShown(() => undefined)).toBeTypeOf("function");
   });
 
   it("tracks the paired desktop platform after bridge installation", () => {

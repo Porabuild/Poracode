@@ -199,6 +199,17 @@ Exit meanings:
 
 The runner first dismisses the welcome screen through its real primary action and verifies the overlay stays absent. It then checks boot/render health, the preload and dev bridges, crash-screen markers, runtime exceptions, unhandled rejections, console errors, and screenshots. Depending on the plan it also walks every Settings section, opens thread search, runs the dedicated Browser harness, and executes mock IPC/project/provider/auth/terminal/runtime checks against the isolated fixture.
 
+Renderer mock gates load optional modules through the bundled `__poracodeDev`
+loaders; never import `/src/...` URLs from CDP scripts, since frozen renderer
+snapshots do not serve Vite's source namespace. The quick-composer mock gate uses
+the separate version-1 `__poracodeSmokeNative` bridge, registered only for an
+unpackaged development app with mock agents and restricted to the current main
+window's top frame. It drives the actual native overlay and submits through its
+normal IPC path, intercepting provider launch at main-renderer thread creation.
+Its `mocked` result does not acknowledge the real quick-composer gate: global
+shortcut/tray invocation, OS dragging/reopening, visual dismissal motion, and a
+real provider-backed thread handoff still require the manual workflow below.
+
 Do not acknowledge a real gate before exercising it. After completing real gates through real controls, record them:
 
 ```sh
@@ -251,6 +262,8 @@ coordinates. Re-query selectors after navigation, portal opening, or hot reload;
 HeroUI menus and dialogs render in portals. A successful click/type confirms
 safe input dispatch, not application behavior; immediately evaluate or
 screenshot the expected state change before marking the gate passed.
+Smoke drivers share these pointer checks through `scripts/poracode-cdp-actions.mjs`;
+import that module rather than duplicating dispatch logic or importing the CLI.
 
 For a changed provider, start a fresh thread in the isolated project, observe the user row and first provider output, then stop it. For a permission flow, request a harmless read-only command and choose Deny unless the user authorized execution. For terminal changes, verify a real PTY launch, input, resize, interrupt, and stop. For git/file changes, mutate only the fixture repository.
 
