@@ -31,6 +31,9 @@ struct RemoteEnvironmentDescriptor: Codable, Sendable, Equatable {
         /// Additive since browser-origin forward entry shipped. Absent on older
         /// hosts; unknown keys on newer hosts are ignored by the decoder.
         var browserForward: VersionedCapability?
+        /// Additive: cursor-sync versions the host advertises (v2 = chunked
+        /// terminal baselines with ack credit). Absent on older hosts.
+        var terminalCursorSync: VersionedCapability?
 
         struct VersionedCapability: Codable, Sendable, Equatable {
             var versions: [Int]

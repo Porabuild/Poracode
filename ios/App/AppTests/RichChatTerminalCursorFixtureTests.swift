@@ -98,6 +98,87 @@ final class RichChatTerminalCursorFixtureTests: XCTestCase {
     XCTAssertEqual(impossible.reason, .invalidUTF16Boundary)
   }
 
+  func testV2ResumeSuffixBaselineAppendsAtTheDurablePosition() throws {
+    let state = TerminalCursorState.established(
+      watchID: "watch", generation: "generation-a", toCursor: 108, transcript: "kept"
+    )
+    let continuation = TerminalCursorFrame(
+      kind: .baseline,
+      terminalID: "terminal",
+      watchID: "watch",
+      generation: "generation-a",
+      fromCursor: 108,
+      toCursor: 111,
+      data: "ijk"
+    )
+    let appended = TerminalCursorReconciler.reconcile(state: state, frame: continuation)
+    XCTAssertEqual(appended.action, .append)
+    XCTAssertEqual(appended.state.transcript, "keptijk")
+    XCTAssertEqual(appended.state.toCursor, 111)
+
+    let fullWindow = TerminalCursorFrame(
+      kind: .baseline,
+      terminalID: "terminal",
+      watchID: "watch",
+      generation: "generation-a",
+      fromCursor: 0,
+      toCursor: 3,
+      data: "xyz"
+    )
+    let replaced = TerminalCursorReconciler.reconcile(state: state, frame: fullWindow)
+    XCTAssertEqual(replaced.action, .replace)
+    XCTAssertEqual(replaced.state.transcript, "xyz")
+
+    let generationChange = TerminalCursorFrame(
+      kind: .baseline,
+      terminalID: "terminal",
+      watchID: "watch",
+      generation: "generation-b",
+      fromCursor: 108,
+      toCursor: 111,
+      data: "ijk"
+    )
+    let resnapshotted = TerminalCursorReconciler.reconcile(state: state, frame: generationChange)
+    XCTAssertEqual(resnapshotted.action, .replace)
+  }
+
+  func testV2ContinuationClearsAPendingResyncAndTheUpToDateMarkerIgnoresCleanly() throws {
+    // A drift RESYNC armed needsResync; the authoritative continuation
+    // covers everything through its toCursor, so it must clear the flag
+    // (otherwise every later output keeps returning RESYNC).
+    var drifted = TerminalCursorState.established(
+      watchID: "watch", generation: "generation-a", toCursor: 108, transcript: "kept"
+    )
+    drifted.needsResync = true
+    let continuation = TerminalCursorFrame(
+      kind: .baseline,
+      terminalID: "terminal",
+      watchID: "watch",
+      generation: "generation-a",
+      fromCursor: 108,
+      toCursor: 111,
+      data: "ijk"
+    )
+    let appended = TerminalCursorReconciler.reconcile(state: drifted, frame: continuation)
+    XCTAssertEqual(appended.action, .append)
+    XCTAssertFalse(appended.state.needsResync)
+
+    // Up-to-date marker: empty continuation at the retained position.
+    let marker = TerminalCursorFrame(
+      kind: .baseline,
+      terminalID: "terminal",
+      watchID: "watch",
+      generation: "generation-a",
+      fromCursor: 111,
+      toCursor: 111,
+      data: ""
+    )
+    let current = TerminalCursorReconciler.reconcile(state: appended.state, frame: marker)
+    XCTAssertEqual(current.action, .ignore)
+    XCTAssertFalse(current.state.needsResync)
+    XCTAssertEqual(current.state.transcript, "keptijk")
+  }
+
   private func decodePrevious(_ value: RichJSON?) throws -> TerminalCursorPosition? {
     guard let value, value != .null else { return nil }
     let object = try richFixtureObject(value)

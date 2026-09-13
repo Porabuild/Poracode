@@ -340,6 +340,7 @@
 		A10000000000000000000083 /* RichTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000083 /* RichTimeline.swift */; };
 		A10000000000000000000084 /* RichTranscriptReducer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000084 /* RichTranscriptReducer.swift */; };
 		A10000000000000000000085 /* TerminalCursorReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000085 /* TerminalCursorReconciler.swift */; };
+		A91000000000000000000001 /* TerminalBaselineAssembler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91000000000000000000001 /* TerminalBaselineAssembler.swift */; };
 		A10000000000000000000086 /* RichChatContentFixtureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000086 /* RichChatContentFixtureTests.swift */; };
 		A10000000000000000000087 /* RichChatFixtureSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000087 /* RichChatFixtureSupport.swift */; };
 		A10000000000000000000088 /* RichChatReducerFixtureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000088 /* RichChatReducerFixtureTests.swift */; };
@@ -547,6 +548,7 @@
 		D47D0529D24A4C2AACCE9014 /* TerminalUnicodeLicense.txt in Resources */ = {isa = PBXBuildFile; fileRef = D47D0529D24A4C2AACCE9013 /* TerminalUnicodeLicense.txt */; };
 		A20000000000000000000007 /* TerminalANSIParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000007 /* TerminalANSIParserTests.swift */; };
 		A20000000000000000000008 /* RichChatTerminalTransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* RichChatTerminalTransportTests.swift */; };
+		A91000000000000000000002 /* TerminalBaselineAssemblerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */; };
 		FE1000000005 /* TerminalStartReachabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2000000005 /* TerminalStartReachabilityTests.swift */; };
 		PU4000000000000000000001 /* PullRequestReviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU3000000000000000000001 /* PullRequestReviewTests.swift */; };
 		A20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */; };
@@ -1095,6 +1097,7 @@
 		B10000000000000000000083 /* RichTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTimeline.swift; sourceTree = "<group>"; };
 		B10000000000000000000084 /* RichTranscriptReducer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTranscriptReducer.swift; sourceTree = "<group>"; };
 		B10000000000000000000085 /* TerminalCursorReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalCursorReconciler.swift; sourceTree = "<group>"; };
+		B91000000000000000000001 /* TerminalBaselineAssembler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalBaselineAssembler.swift; sourceTree = "<group>"; };
 		B10000000000000000000086 /* RichChatContentFixtureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatContentFixtureTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000087 /* RichChatFixtureSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatFixtureSupport.swift; sourceTree = "<group>"; };
 		B10000000000000000000088 /* RichChatReducerFixtureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatReducerFixtureTests.swift; sourceTree = "<group>"; };
@@ -1302,6 +1305,7 @@
 		D47D0529D24A4C2AACCE9013 /* TerminalUnicodeLicense.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = TerminalUnicodeLicense.txt; sourceTree = "<group>"; };
 		B20000000000000000000007 /* TerminalANSIParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalANSIParserTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000008 /* RichChatTerminalTransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalTransportTests.swift; sourceTree = "<group>"; };
+		B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalBaselineAssemblerTests.swift; sourceTree = "<group>"; };
 		FE2000000005 /* TerminalStartReachabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalStartReachabilityTests.swift; sourceTree = "<group>"; };
 		PU3000000000000000000001 /* PullRequestReviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestReviewTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalLocalWebSocketTests.swift; sourceTree = "<group>"; };
@@ -2073,6 +2077,7 @@
 				B10000000000000000000083 /* RichTimeline.swift */,
 				B10000000000000000000084 /* RichTranscriptReducer.swift */,
 				B10000000000000000000085 /* TerminalCursorReconciler.swift */,
+				B91000000000000000000001 /* TerminalBaselineAssembler.swift */,
 				D72000000000000000000006 /* RichChatComposerDraftStore.swift */,
 				DD1000000000000000000001 /* RichChatMessageRevert.swift */,
 				B1000000000000000000009A /* RichChatGatewayContracts.swift */,
@@ -2518,6 +2523,7 @@
 				B100000000000000000000FC /* SettingsUICompositionTests.swift */,
 				B20000000000000000000007 /* TerminalANSIParserTests.swift */,
 				B20000000000000000000008 /* RichChatTerminalTransportTests.swift */,
+				B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */,
 				CE2000000000000000000002 /* TerminalCommandFieldTests.swift */,
 				FE2000000005 /* TerminalStartReachabilityTests.swift */,
 				PU3000000000000000000001 /* PullRequestReviewTests.swift */,
@@ -3287,6 +3293,7 @@
 				A10000000000000000000083 /* RichTimeline.swift in Sources */,
 				A10000000000000000000084 /* RichTranscriptReducer.swift in Sources */,
 				A10000000000000000000085 /* TerminalCursorReconciler.swift in Sources */,
+				A91000000000000000000001 /* TerminalBaselineAssembler.swift in Sources */,
 				A1000000000000000000008B /* GeneratedProjectContract.swift in Sources */,
 				A1000000000000000000008C /* ProjectRemoteAPI.swift in Sources */,
 				A1000000000000000000008D /* SelectedProjectSessionGateway.swift in Sources */,
@@ -3658,6 +3665,7 @@
 				A100000000000000000000FC /* SettingsUICompositionTests.swift in Sources */,
 				A20000000000000000000007 /* TerminalANSIParserTests.swift in Sources */,
 				A20000000000000000000008 /* RichChatTerminalTransportTests.swift in Sources */,
+				A91000000000000000000002 /* TerminalBaselineAssemblerTests.swift in Sources */,
 				CE1000000000000000000002 /* TerminalCommandFieldTests.swift in Sources */,
 				FE1000000005 /* TerminalStartReachabilityTests.swift in Sources */,
 				PU4000000000000000000001 /* PullRequestReviewTests.swift in Sources */,

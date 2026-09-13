@@ -4,13 +4,18 @@ extension SelectedRichChatSessionGateway: RichChatTerminalGateway {
   func watchRichTerminal(
     target: RichChatThreadTarget,
     terminalID: String,
-    watchID: String
+    watchID: String,
+    resume: RichChatTerminalWatchResume?
   ) async throws {
     let message: Data
     do {
-      message = try GeneratedRemoteV3Contract.richTerminalWatchMessage(
+      // Always request cursor-sync v2 (chunk/window bounds plus the retained
+      // position when durable); the transport negotiates down to v1 on hosts
+      // that do not advertise v2.
+      message = try GeneratedRemoteV3Contract.richTerminalWatchMessageV2(
         terminalID: terminalID,
-        watchID: watchID
+        watchID: watchID,
+        resume: resume
       )
     } catch {
       throw RichChatGatewayError.invalidRequest

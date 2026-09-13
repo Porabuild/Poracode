@@ -210,6 +210,22 @@ enum TerminalCursorReconciler {
   private static func replaceBaseline(
     _ state: TerminalCursorState, _ frame: TerminalCursorFrame
   ) -> TerminalCursorResult {
+    // Cursor-sync v2 resume suffix: an assembled baseline that continues
+    // exactly at the retained position under the same durable generation
+    // appends (the server served only the uncovered suffix); everything else
+    // — full window, generation change, gap — replaces as before. The
+    // continuation is authoritative, so it also clears a pending resync (its
+    // range covers everything through the new toCursor).
+    if state.baselineReceived,
+      let generation = frame.generation, generation == state.generation,
+      frame.fromCursor == state.toCursor
+    {
+      let appended = appendOutput(state, frame)
+      if appended.action == .resync { return appended }
+      var next = appended.state
+      next.needsResync = false
+      return result(next, appended.action, appended: appended.appendedText)
+    }
     var next = TerminalCursorState.established(
       watchID: state.watchID,
       generation: frame.generation,

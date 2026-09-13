@@ -48,7 +48,70 @@ final class RichChatTerminalControllerTests: XCTestCase {
     let watches = await gateway.watchIDs()
     XCTAssertEqual(watches, ["watch-1", "watch-2"])
     XCTAssertEqual(controller.state.watchID, "watch-2")
-    XCTAssertFalse(controller.state.cursor?.baselineReceived == true)
+    // The v2 rewatch retains the durable position: the seeded cursor keeps
+    // the baseline/transcript under the new watch id and presents resume, so
+    // a served suffix APPENDS instead of replacing the history.
+    XCTAssertEqual(controller.state.cursor?.baselineReceived, true)
+    XCTAssertEqual(controller.state.cursor?.generation, "generation-1")
+    XCTAssertEqual(controller.state.cursor?.transcript, "abc")
+    let resumes = await gateway.recordedResumes()
+    XCTAssertEqual(resumes.count, 2)
+    XCTAssertNil(resumes[0])
+    XCTAssertEqual(resumes[1], RichChatTerminalWatchResume(generation: "generation-1", cursor: 3))
+  }
+
+  func testResumeSuffixAppendsOntoTheRetainedTranscriptAfterRewatch() async {
+    let gateway = TerminalControllerGateway()
+    let controller = RichChatTerminalController(
+      gateway: gateway,
+      watchIDGenerator: TerminalSequenceWatchIDGenerator(["watch-1", "watch-2"])
+    )
+    let access = Self.access()
+    let target = RichChatThreadTarget(lease: access.lease, threadID: "thread-1")
+    controller.activate(access: access, threadID: target.threadID)
+    await controller.watch(terminalID: target.threadID)
+    await controller.receive(
+      .cursor(
+        TerminalCursorFrame(
+          kind: .baseline,
+          terminalID: target.threadID,
+          watchID: "watch-1",
+          generation: "generation-1",
+          fromCursor: 0,
+          toCursor: 3,
+          data: "abc"
+        )
+      ),
+      target: target
+    )
+
+    // Rewatch: the seeded cursor keeps the established position under the
+    // NEW watch id, so a served resume suffix APPENDS onto the transcript.
+    await controller.watch(terminalID: target.threadID)
+    XCTAssertEqual(controller.state.cursor?.watchID, "watch-2")
+    XCTAssertEqual(controller.state.cursor?.transcript, "abc")
+    let lastResume = await gateway.recordedResumes().last ?? nil
+    XCTAssertEqual(
+      lastResume,
+      RichChatTerminalWatchResume(generation: "generation-1", cursor: 3)
+    )
+
+    await controller.receive(
+      .cursor(
+        TerminalCursorFrame(
+          kind: .baseline,
+          terminalID: target.threadID,
+          watchID: "watch-2",
+          generation: "generation-1",
+          fromCursor: 3,
+          toCursor: 6,
+          data: "def"
+        )
+      ),
+      target: target
+    )
+    XCTAssertEqual(controller.state.cursor?.transcript, "abcdef")
+    XCTAssertEqual(controller.state.cursor?.toCursor, 6)
   }
 
   func testBackgroundStopsTransportAndLateFramesCannotPublish() async {
@@ -143,6 +206,7 @@ final class TerminalSequenceWatchIDGenerator: RichChatWatchIDGenerating, @unchec
 
 actor TerminalControllerGateway: RichChatTerminalGateway {
   private var watches: [String] = []
+  private var resumes: [RichChatTerminalWatchResume?] = []
   private var writes = 0
   private var stops = 0
   private let writeFailure: RichChatGatewayError?
@@ -154,10 +218,14 @@ actor TerminalControllerGateway: RichChatTerminalGateway {
   func watchRichTerminal(
     target _: RichChatThreadTarget,
     terminalID _: String,
-    watchID: String
+    watchID: String,
+    resume: RichChatTerminalWatchResume?
   ) {
     watches.append(watchID)
+    resumes.append(resume)
   }
+
+  func recordedResumes() -> [RichChatTerminalWatchResume?] { resumes }
 
   func unwatchRichTerminal(target _: RichChatThreadTarget, terminalID _: String) {}
   func startRichTerminal(target _: RichChatThreadTarget, input _: RichChatTerminalStartInput) {}

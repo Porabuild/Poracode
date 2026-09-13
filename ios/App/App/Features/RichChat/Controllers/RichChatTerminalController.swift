@@ -173,7 +173,15 @@ final class RichChatTerminalController {
     watchTask.cancel()
     state.terminalID = terminalID
     state.watchID = watchID
-    state.cursor = .watching(watchID)
+    // Request cursor-sync v2 with the retained durable position as resume
+    // (only with a durable generation); the transport negotiates down to v1
+    // on hosts that do not advertise v2. The new watch's cursor is seeded
+    // from the same retained position so a served resume suffix (or the
+    // up-to-date marker) APPENDS — a bare watching cursor here would make
+    // the suffix REPLACE the retained transcript.
+    let retained = state.cursor
+    let resume = RichChatTerminalWatchPolicy.resumeFromRetained(retained)
+    state.cursor = RichChatTerminalWatchPolicy.seedFromRetained(retained, watchID: watchID)
     state.lifecycle = .starting
     state.connectionState = .connecting
     state.failure = nil
@@ -197,7 +205,8 @@ final class RichChatTerminalController {
         try await self.gateway.watchRichTerminal(
           target: context.target,
           terminalID: terminalID,
-          watchID: watchID
+          watchID: watchID,
+          resume: resume
         )
         try Task.checkCancellation()
         guard self.owns(context), self.state.terminalID == terminalID,
@@ -272,6 +281,10 @@ final class RichChatTerminalController {
     case .legacyOutput(let terminalID, _):
       guard terminalID == state.terminalID else { return }
       state.failure = .invalidResponse
+    case .baselineChunk:
+      // Raw chunks never cross the transport boundary — the transport
+      // assembles them into one synthesized baseline cursor frame.
+      return
     case .watchError(let error):
       guard error.terminalID == state.terminalID, error.watchID == state.watchID else { return }
       state.lifecycle = .watchFailed(retryable: error.retryable)

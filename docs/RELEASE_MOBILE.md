@@ -58,12 +58,13 @@ are currently implemented.
 
 The bundle contains roots for all 63 routes, 108 procedures, and 19 WebSocket
 message types. The native parity ledger
-(`protocol/remote/v3/native-parity.json`) records 218 implemented plus 3
-planned entries on iOS and 221 implemented entries on Android;
-`push-config` is the intentional unsupported-by-wire entry on both. The
-remaining planned entries are all iOS: the terminal cursor-sync v2 pair
-(`terminal-watch-baseline-ack`/`-chunk`, Android implemented 2026-09-12) plus
-`background_tasks.changed` (Android implemented). The merged follow-up queue is fully adopted
+(`protocol/remote/v3/native-parity.json`) records 220 implemented plus 1
+planned entry on iOS and 221 implemented entries on Android;
+`push-config` is the intentional unsupported-by-wire entry on both. The only
+remaining planned entry is `background_tasks.changed` on iOS (Android
+implemented). The terminal cursor-sync v2 pair
+(`terminal-watch-baseline-ack`/`-chunk`) is implemented on both natives
+(2026-09-12) with transport evidence. The merged follow-up queue is fully adopted
 on both natives (2026-09-12, `b142c8bc7`/`af5820991`): all eight queue
 procedures and the `thread-follow-up-queue` replayable event are implemented
 with transport/runtime evidence and localized strings, so release claims may

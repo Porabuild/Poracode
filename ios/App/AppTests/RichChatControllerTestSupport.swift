@@ -290,7 +290,8 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
   func watchRichTerminal(
     target _: RichChatThreadTarget,
     terminalID _: String,
-    watchID: String
+    watchID: String,
+    resume _: RichChatTerminalWatchResume?
   ) async throws {
     terminalWatchIDs.append(watchID)
     if terminalWatchIDs.count >= terminalWatchTarget, let waiter = terminalWatchWaiter {

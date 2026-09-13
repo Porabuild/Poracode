@@ -132,7 +132,7 @@ Estimate the remaining work after inspecting hosted checks and live-test access.
    affected checks; require the normal integration gates on the final revision.
    _Status 2026-09-12: RELEASE_MOBILE.md reconciled — protocol v11 inventory
    (63 routes / 108 procedures / 9+10 WS messages / 16 replayable events), ledger
-   counts (iOS 218 implemented + 3 planned, Android 221 implemented,
+   counts (iOS 220 implemented + 1 planned, Android 221 implemented,
    `push-config` unsupported), the follow-up
    queue recorded as fully adopted on both natives with dated evidence, and an
    explicit "no voice outside the experimental desktop toggle" scope line.
@@ -194,8 +194,7 @@ Start from the merged baseline on separate changes. Freeze the first release
 candidate after Milestone 0; subsequent protocol work does not enter it without a
 release-blocking justification.
 
-The parity ledger now contains **3 planned entries on iOS and none on Android**:
-the two cursor-sync v2 entries (iOS; Android implemented) and
+The parity ledger now contains **1 planned entry on iOS and none on Android**:
 `background_tasks.changed` (iOS). Both platforms retain the
 intentional `push-config` unsupported-by-wire entry. Generated bindings alone do
 not close these UI/transport gaps.
@@ -275,6 +274,30 @@ evidence; iOS stays planned (mirror next). Gates: full `:app:testDebugUnitTest` 
 `:app:lintDebug` (size gate held by extracting `RichTerminalWatchPolicy` and
 `TerminalCursorSyncSession`), parity vitest 61/61. Hosted CI still down (see
 above)._
+
+_Status 2026-09-12 (later): cursor-sync order 2 COMPLETE — the iOS mirror
+landed. iOS: the gateway always requests v2 (4096/8192 bounds plus the retained
+durable position as resume via the new `RichChatTerminalWatchResume`); the
+terminal watch transport (`RichChatTerminalWebSocketTransport`) negotiates v2
+vs v1 from the environment capability (`terminalCursorSync.versions`), ACKs
+every `terminal-watch-baseline-chunk` cumulatively over the live socket,
+assembles chunks in `TerminalBaselineAssembler` into exactly one v1-shaped
+baseline cursor frame (chunks never cross the transport boundary), discards on
+gap/overlap/generation-flip/resume-flip/mid-stream overflow, downgrades on the
+explicit `unsupported-version` verdict by re-watching as v1 on the same
+connection, and enforces a per-chunk 10 s baseline idle deadline. The rewatch
+seeds the new watch from the retained established position
+(`RichChatTerminalWatchPolicy`) so a served resume suffix APPENDS; the
+reconciler continuation clears a pending resync and the up-to-date marker
+ignores cleanly. Ledger: `terminal-watch-baseline-ack`/`-chunk` implemented on
+BOTH platforms; their PLANNED_ABSENCE_TOKENS rules removed; only
+`background_tasks.changed` (iOS) remains planned. A deadline-scoping fix also
+landed on Android (chunks-only re-arm; post-baseline output must never re-arm
+— a quiet live terminal was reconnect-looping every 10 s). Note for tests:
+byte-equality between two separately-built canonical JSON messages is not
+stable (key order follows dictionary iteration) — compare structurally. Gates:
+full AppTests 1254/1254 (iPhone 17 sim), parity/conformance vitest 61/61,
+Android full gradle suite + lintDebug green after the fixup (commit 942f87757)._
 
 Queue adoption and cursor-sync adoption can proceed independently. Protocol-policy
 and pairing-fixture work should accompany affected paths, not block unrelated native

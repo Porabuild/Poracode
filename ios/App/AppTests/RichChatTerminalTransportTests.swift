@@ -76,6 +76,205 @@ final class RichChatTerminalTransportTests: XCTestCase {
     withExtendedLifetime(events) {}
   }
 
+  func testV2ChunkedBaselineAcksEachChunkAndDeliversOneBaselineCursorFrame() async throws {
+    let connection = TerminalScriptedConnection(messages: [Self.ready])
+    let connector = TerminalScriptedConnector(connections: [connection])
+    let transport = RichChatTerminalWebSocketTransport(
+      connector: connector,
+      reconnectDelay: { _ in .zero }
+    )
+    let owner = Self.owner()
+    let events = await transport.richChatTerminalEvents(owner: owner)
+    let watch = try GeneratedRemoteV3Contract.richTerminalWatchMessageV2(
+      terminalID: "thread-1", watchID: "watch-1", resume: nil
+    )
+
+    try await transport.sendRichChatTerminalMessage(watch, owner: owner)
+    await connection.push(Self.baselineChunk(index: 0, count: 3, from: 100, to: 103, data: "abc"))
+    await connection.push(Self.baselineChunk(index: 1, count: 3, from: 103, to: 106, data: "def"))
+    await connection.push(Self.baselineChunk(index: 2, count: 3, from: 106, to: 108, data: "gh"))
+    try await Self.eventually { await connection.sentMessages().count == 4 }
+
+    let sent = await connection.sentMessages()
+    XCTAssertEqual(sent.first, watch)
+    let ackCursors = try sent.dropFirst().map { try Self.ackThroughCursor($0) }
+    XCTAssertEqual(ackCursors, [103, 106, 108])
+
+    let frames = try await Self.collectFrames(in: events) { frame in
+      if case .cursor(let cursor) = frame { return cursor.kind == .baseline }
+      return false
+    }
+    // Chunks never leak past the transport — exactly one synthesized baseline.
+    XCTAssertEqual(frames.count, 1)
+    for frame in frames {
+      if case .baselineChunk = frame { XCTFail("chunk crossed the transport boundary") }
+    }
+    guard case .cursor(let baseline) = frames[0] else { return XCTFail("Expected cursor") }
+    XCTAssertEqual(baseline.fromCursor, 100)
+    XCTAssertEqual(baseline.toCursor, 108)
+    XCTAssertEqual(baseline.data, "abcdefgh")
+    XCTAssertEqual(baseline.generation, "instance-1")
+    withExtendedLifetime(events) {}
+  }
+
+  func testV2RequestDowngradesToV1WhenEnvironmentLacksV2() async throws {
+    let connection = TerminalScriptedConnection(messages: [Self.ready])
+    let connector = TerminalScriptedConnector(
+      connections: [connection],
+      environment: Self.cursorSyncEnvironment(versions: [1])
+    )
+    let transport = RichChatTerminalWebSocketTransport(
+      connector: connector,
+      reconnectDelay: { _ in .zero }
+    )
+    let owner = Self.owner()
+    let events = await transport.richChatTerminalEvents(owner: owner)
+    let v2 = try GeneratedRemoteV3Contract.richTerminalWatchMessageV2(
+      terminalID: "thread-1", watchID: "watch-1", resume: nil
+    )
+    try await transport.sendRichChatTerminalMessage(v2, owner: owner)
+    try await Self.eventually { await connection.sentMessages().count == 1 }
+    // Byte equality is not stable across separately-built canonical messages
+    // (key order follows dictionary iteration); compare structurally.
+    let negotiatedMessages = await connection.sentMessages()
+    XCTAssertEqual(negotiatedMessages.count, 1)
+    XCTAssertEqual(try Self.watchVersion(negotiatedMessages[0]), 1)
+    withExtendedLifetime(events) {}
+  }
+
+  func testUnsupportedVersionVerdictRewatchesAsV1OnTheSameConnection() async throws {
+    let connection = TerminalScriptedConnection(messages: [Self.ready])
+    let connector = TerminalScriptedConnector(connections: [connection])
+    let transport = RichChatTerminalWebSocketTransport(
+      connector: connector,
+      reconnectDelay: { _ in .zero }
+    )
+    let owner = Self.owner()
+    let events = await transport.richChatTerminalEvents(owner: owner)
+    let v2 = try GeneratedRemoteV3Contract.richTerminalWatchMessageV2(
+      terminalID: "thread-1", watchID: "watch-1", resume: nil
+    )
+
+    try await transport.sendRichChatTerminalMessage(v2, owner: owner)
+    await connection.push(Self.unsupportedVersionVerdict(watchID: "watch-1"))
+    await connection.push(Self.baseline(watchID: "watch-1"))
+
+    let frames = try await Self.collectFrames(in: events) { frame in
+      if case .cursor(let cursor) = frame { return cursor.kind == .baseline }
+      return false
+    }
+    let sent = await connection.sentMessages()
+    // The v2 watch was rejected, then re-sent as v1 on the same socket; the
+    // verdict itself is consumed by the downgrade and never delivered.
+    // (Structural comparison — see the negotiation test for why.)
+    XCTAssertEqual(sent.count, 2)
+    XCTAssertEqual(try Self.watchVersion(sent[0]), 2)
+    XCTAssertEqual(try Self.watchVersion(sent[1]), 1)
+    for frame in frames {
+      if case .watchError = frame { XCTFail("downgrade verdict must not be delivered") }
+    }
+    XCTAssertEqual(frames.count, 1)
+    withExtendedLifetime(events) {}
+  }
+
+  func testStalledBaselineRetiresTheAttemptAndReconnects() async throws {
+    let first = TerminalScriptedConnection(messages: [Self.ready])
+    let second = TerminalScriptedConnection(messages: [Self.ready])
+    let connector = TerminalScriptedConnector(connections: [first, second])
+    let transport = RichChatTerminalWebSocketTransport(
+      connector: connector,
+      reconnectDelay: { _ in .zero },
+      baselineTimeout: .milliseconds(50)
+    )
+    let owner = Self.owner()
+    let events = await transport.richChatTerminalEvents(owner: owner)
+    let watch = try GeneratedRemoteV3Contract.richTerminalWatchMessage(
+      terminalID: "thread-1", watchID: "watch-stalled"
+    )
+
+    try await transport.sendRichChatTerminalMessage(watch, owner: owner)
+    // The second socket receives the watch and serves the baseline promptly.
+    try await Self.eventually { await second.sentMessages().count == 1 }
+    await second.push(Self.baseline(watchID: "watch-stalled"))
+    let frames = try await Self.collectFrames(in: events) { frame in
+      if case .cursor(let cursor) = frame { return cursor.kind == .baseline }
+      return false
+    }
+    XCTAssertEqual(frames.count, 1)
+    let requested = await connector.requestedOwners()
+    XCTAssertEqual(requested.count, 2)
+    withExtendedLifetime(events) {}
+  }
+
+  func testNonRetryableWatchVerdictStopsTheAttemptWithoutReconnect() async throws {
+    let connection = TerminalScriptedConnection(messages: [Self.ready])
+    let connector = TerminalScriptedConnector(connections: [connection])
+    let transport = RichChatTerminalWebSocketTransport(
+      connector: connector,
+      reconnectDelay: { _ in .zero },
+      baselineTimeout: .milliseconds(80)
+    )
+    let owner = Self.owner()
+    let events = await transport.richChatTerminalEvents(owner: owner)
+    let watch = try GeneratedRemoteV3Contract.richTerminalWatchMessage(
+      terminalID: "thread-1", watchID: "watch-1"
+    )
+
+    try await transport.sendRichChatTerminalMessage(watch, owner: owner)
+    await connection.push(
+      Data(
+        #"{"type":"terminal-watch-result","id":"thread-1","cursorSync":{"version":1,"watchId":"watch-1","result":{"status":"error","code":"not-found","retryable":false}}}"#
+          .utf8
+      )
+    )
+    // The error must be delivered exactly once…
+    let frames = try await Self.collectFrames(in: events) { frame in
+      if case .watchError = frame { return true }
+      return false
+    }
+    XCTAssertEqual(frames.count, 1)
+    // …and the attempt must END: no deadline reconnect, no second socket,
+    // even beyond the (short) baseline idle timeout.
+    try? await Task.sleep(for: .milliseconds(300))
+    let connects = await connector.requestedOwners().count
+    let sent = await connection.sentMessages().count
+    XCTAssertEqual(connects, 1)
+    XCTAssertEqual(sent, 1)
+    withExtendedLifetime(events) {}
+  }
+
+  func testFastPathRewatchArmsTheBaselineDeadline() async throws {
+    let first = TerminalScriptedConnection(messages: [Self.ready])
+    let second = TerminalScriptedConnection(messages: [Self.ready])
+    let connector = TerminalScriptedConnector(connections: [first, second])
+    let transport = RichChatTerminalWebSocketTransport(
+      connector: connector,
+      reconnectDelay: { _ in .zero },
+      baselineTimeout: .milliseconds(80)
+    )
+    let owner = Self.owner()
+    let events = await transport.richChatTerminalEvents(owner: owner)
+    let firstWatch = try GeneratedRemoteV3Contract.richTerminalWatchMessage(
+      terminalID: "thread-1", watchID: "watch-1"
+    )
+
+    try await transport.sendRichChatTerminalMessage(firstWatch, owner: owner)
+    await first.push(Self.baseline(watchID: "watch-1"))
+    _ = try await Self.collectFrames(in: events) { frame in
+      if case .cursor(let cursor) = frame { return cursor.kind == .baseline }
+      return false
+    }
+
+    // A re-watch on the still-live connection (fast path) must arm the
+    // baseline deadline: the stalled second baseline retires the attempt.
+    let secondWatch = try GeneratedRemoteV3Contract.richTerminalWatchMessage(
+      terminalID: "thread-1", watchID: "watch-2"
+    )
+    try await transport.sendRichChatTerminalMessage(secondWatch, owner: owner)
+    try await Self.eventually { await connector.requestedOwners().count == 2 }
+    withExtendedLifetime(events) {}
+  }
+
   func testTerminalSocketURLOmitsReplayCursorAndSuppressesBulkThreadContent() async throws {
     let api = RemoteAPIClient(endpoint: "https://example.test/prefix", accessToken: "token")
     let url = try await api.websocketURL(
@@ -124,6 +323,72 @@ final class RichChatTerminalTransportTests: XCTestCase {
       #"{"type":"terminal-watch-result","id":"thread-1","cursorSync":{"version":1,"watchId":"\#(watchID)","result":{"status":"ready","generation":"generation-1","fromCursor":0,"toCursor":5,"data":"hello","processState":"running","terminalSize":{"cols":80,"rows":24}}}}"#
         .utf8
     )
+  }
+
+  private static func baselineChunk(
+    index: Int,
+    count: Int,
+    from: Int64,
+    to: Int64,
+    data: String,
+    resumeServed: Bool = false
+  ) -> Data {
+    Data(
+      #"{"type":"terminal-watch-baseline-chunk","id":"thread-1","cursorSync":{"version":2,"watchId":"watch-1","generation":"instance-1","chunkIndex":\#(index),"chunkCount":\#(count),"fromCursor":\#(from),"toCursor":\#(to),"data":"\#(data)","processState":"running","terminalSize":null,"resumeServed":\#(resumeServed)}}"#
+        .utf8
+    )
+  }
+
+  /// The rejection travels on the version-1 watch-result error channel;
+  /// `reason` discriminates the downgrade verdict.
+  private static func unsupportedVersionVerdict(watchID: String) -> Data {
+    Data(
+      #"{"type":"terminal-watch-result","id":"thread-1","cursorSync":{"version":1,"watchId":"\#(watchID)","result":{"status":"error","code":"unavailable","reason":"unsupported-version","retryable":false}}}"#
+        .utf8
+    )
+  }
+
+  private static func ackThroughCursor(_ data: Data) throws -> Int64? {
+    try RichJSON.decode(data).objectValue?["cursorSync"]?.objectValue?["throughCursor"]?
+      .exactInt64Value
+  }
+
+  private static func watchVersion(_ data: Data) throws -> Int? {
+    try RichJSON.decode(data).objectValue?["cursorSync"]?.objectValue?["version"]?
+      .exactInt64Value.map(Int.init)
+  }
+
+  private static func cursorSyncEnvironment(versions: [Int]) -> RemoteEnvironmentDescriptor {
+    RemoteEnvironmentDescriptor(
+      protocolVersion: ProtocolConstants.remoteProtocolVersion,
+      hostMode: nil,
+      desktopId: "desk-terminal",
+      label: "Desktop Terminal",
+      appVersion: "1.0.0",
+      platform: "macOS",
+      auth: .init(
+        policy: ProtocolConstants.authPolicy,
+        bootstrapMethods: [ProtocolConstants.bootstrapMethod],
+        sessionMethods: [ProtocolConstants.sessionMethod],
+        scopes: ProtocolConstants.standardScopes
+      ),
+      endpoints: .init(httpBaseUrl: "https://a.test", wsBaseUrl: "wss://a.test"),
+      capabilities: .init(terminalCursorSync: .init(versions: versions))
+    )
+  }
+
+  private static func collectFrames(
+    in events: AsyncStream<RichChatTerminalTransportEvent>,
+    until predicate: @escaping (RichChatTerminalServerFrame) -> Bool
+  ) async throws -> [RichChatTerminalServerFrame] {
+    var frames: [RichChatTerminalServerFrame] = []
+    for await event in events {
+      if case .frame(let frame) = event {
+        frames.append(frame)
+        if predicate(frame) { return frames }
+      }
+    }
+    throw RichChatGatewayError.transport
   }
 
   private static func owner(threadID: String = "thread-1") -> RichChatThreadTarget {
@@ -188,15 +453,24 @@ actor TerminalFailingConnector: RichChatTerminalWebSocketConnecting {
 actor TerminalScriptedConnector: RichChatTerminalWebSocketConnecting {
   private var connections: [TerminalScriptedConnection]
   private var owners: [RichChatThreadTarget] = []
+  private let environmentValue: RemoteEnvironmentDescriptor?
 
-  init(connections: [TerminalScriptedConnection]) {
+  init(
+    connections: [TerminalScriptedConnection],
+    environment: RemoteEnvironmentDescriptor? = nil
+  ) {
     self.connections = connections
+    self.environmentValue = environment
   }
 
   func connect(owner: RichChatThreadTarget) throws -> any RichChatTerminalWebSocketConnection {
     owners.append(owner)
     guard !connections.isEmpty else { throw RichChatGatewayError.transport }
     return connections.removeFirst()
+  }
+
+  func environment(owner _: RichChatThreadTarget) throws -> RemoteEnvironmentDescriptor? {
+    environmentValue
   }
 
   func requestedOwners() -> [RichChatThreadTarget] { owners }

@@ -131,7 +131,8 @@ protocol RichChatTerminalGateway: Sendable {
   func watchRichTerminal(
     target: RichChatThreadTarget,
     terminalID: String,
-    watchID: String
+    watchID: String,
+    resume: RichChatTerminalWatchResume?
   ) async throws
   func unwatchRichTerminal(
     target: RichChatThreadTarget,
