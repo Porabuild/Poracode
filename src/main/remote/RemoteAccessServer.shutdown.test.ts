@@ -238,6 +238,52 @@ it("refuses another request on an already connected socket once shutdown starts"
   }
 });
 
+it("bounds admitted HTTP continuations with an explicit busy response", async () => {
+  const admitted = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<void>();
+  const auth = new RemoteAuthStore();
+  const credential = auth.issuePairingCredential({ scopes: ["projects:manage"] });
+  const { accessToken } = auth.exchangePairingCredential({ credential: credential.credential });
+  const server = new RemoteAccessServer(
+    createServerOptions({
+      authStore: auth,
+      maxConcurrentIngressWork: 1,
+      updates: {
+        currentVersion: () => "fixture",
+        status: () => null,
+        install() {},
+        async check() {
+          admitted.resolve();
+          await release.promise;
+        },
+      },
+    }),
+  );
+  let first: Promise<Response> | undefined;
+  try {
+    const info = await server.start();
+    first = fetch(new URL("/api/host-update/check", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    await admitted.promise;
+    const second = await fetch(new URL("/api/host-update/check", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(second.status).toBe(503);
+    await expect(second.json()).resolves.toMatchObject({
+      error: { code: "host_busy" },
+    });
+    release.resolve();
+    await expect(first).resolves.toMatchObject({ status: 200 });
+  } finally {
+    release.resolve();
+    await first?.catch(() => undefined);
+    await server.dispose();
+  }
+});
+
 it("closes a partial request body at the transport deadline without a late auth mutation", async () => {
   const auth = new RemoteAuthStore();
   const exchange = vi.spyOn(auth, "exchangePairingCredential");

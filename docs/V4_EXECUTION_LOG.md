@@ -1280,6 +1280,13 @@ the 1013 backpressure close; the complete renderer-stream suite passes 20 tests.
 This bounds the local fallback path, while moving bulk traffic off Electron main
 and proving steady-state zero bulk bytes still remain Phase 3 work.
 
+The remote server now also caps admitted HTTP/WebSocket continuations with a
+configurable global in-flight limit (128 by default). Excess work receives an
+explicit `host_busy` 503 instead of entering an unbounded drain set. A held
+HTTP continuation with a limit of one verifies the busy response and then
+confirms the original request still completes after release. The shutdown suite
+passes 11 tests with this admission gate.
+
 The remaining F11 work must wire main/native admission and actual execution joins,
 reconcile the parent one-second and app two-second deadlines, join backend and
 provider/PTY descendants, and qualify Windows shutdown. The sealed red evidence is

@@ -731,6 +731,12 @@ replies as well as live events. A congested renderer receives the same bounded
 This fixes one local fallback memory path; it does not yet satisfy the Phase 3
 requirement to move steady-state bulk traffic out of Electron main.
 
+The remote server also caps admitted HTTP/WebSocket continuations with a
+configurable global in-flight limit, returning `host_busy` 503 when saturated.
+This bounds the server's admission set and preserves an explicit retry signal;
+per-client fairness, operation-class priority, and relay-wide budgets remain
+Phase 5 work.
+
 Acceptance: concurrent desktop/server launches in both orders; separate roots;
 stale-lock recovery; old/master Electron already using the root in either startup
 order; attach/detach/restart; schedules and providers continuing with
