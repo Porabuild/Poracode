@@ -57,7 +57,14 @@ session and make wrong ports, shared state, and duplicate launches possible.
 The smoke runner owns and tears down its app. The managed launcher keeps one app
 alive for repeated manual actions, and its owner process performs every stop.
 
-The one-command runner below allocates its own free ports, so each invocation spawns a fully isolated dev app. Runs from multiple worktrees can execute side by side without colliding on the Vite or CDP port.
+Never symlink an entire `node_modules` directory between worktrees or invoke
+`pnpm` through such a link: pnpm 12 can reconcile links relative to the other
+worktree and rewrite the target checkout's dependency tree. Use a checkout-local
+install (`pnpm install --frozen-lockfile`) or invoke already-installed tooling
+directly without sharing the directory. Session staging creates its own temporary
+build links and replaces them with copied runtime dependencies before launch.
+
+The one-command runner allocates its own free ports and builds a session-owned development app. Main, backend, supervisor, preload, workers, native dependencies, resources, and renderer assets are snapshots; checkout rebuilds cannot change a lazy child or chunk load. Runs can coexist without sharing runtime files or renderer/CDP ports.
 
 ```sh
 node .agents/skills/interactive-testing/scripts/run-poracode-smoke.mjs --scope changed --mode mock
@@ -74,6 +81,12 @@ isolated profile and compiled runtime, dismisses and verifies the first-launch
 welcome screen, runs the integration suite, writes screenshots/report artifacts
 under `~/.poracode-smoke`, and tears down the process automatically. Managed
 launches never reclaim an occupied port or rebuild another session's runtime.
+The frozen renderer keeps the DEV test bridge for deterministic controls. This is
+development integration evidence, not a production artifact or performance build.
+For deliberate UI hot reload, add `--rendererViteHMR` to either launcher: only the
+renderer then follows the checkout through Vite. The session records that mode;
+do not describe an HMR run as a frozen candidate.
+
 No provider credentials, PTY input, git mutations, MCP server, mobile device, or
 native update flow is required for the default mock run.
 
@@ -117,16 +130,24 @@ complete, request verified teardown from any shell with:
 node .agents/skills/interactive-testing/scripts/poracode-cdp.mjs stop
 ```
 
-The stop command returns success only after the owner has closed both ports,
-removed its isolated build, and marked `session.json` stopped. Ctrl-C in the
+The stop command returns success only after the owner has joined its owned
+process groups, closed both ports, removed its isolated build, and marked
+`session.json` stopped. On POSIX, a child that outlives its wrapper receives
+escalated signals; an unverified group is left untouched and teardown fails
+with artifacts retained. Ctrl-C in the
 owning terminal is a fallback and uses the same teardown path, but some Windows
 PTY hosts report the outer shell interruption as exit 1 even after clean
 teardown. A cold renderer transform can take about a minute on
 a busy Windows checkout; `state: "starting"` still owns the launch, so wait for
 `READY` or a concrete failure instead of starting another app.
+`stop` allows 60 seconds for escalation and removing copied runtime files;
+`--timeout <seconds>` changes that deadline without weakening teardown checks.
 
-The launcher reuses an existing healthy debug session for this checkout instead
-of launching a duplicate. Only use `--new` when concurrent same-checkout apps
+The launcher reuses an existing healthy debug session only when its source bytes
+and requested renderer mode still match this checkout. Source edits or switching
+`--rendererViteHMR` require stopping the old session or explicitly using `--new`;
+explicit `info --session` remains available to inspect an older baseline.
+Only use `--new` when concurrent same-checkout apps
 are the behavior under test. If more than one session exists, every helper
 refuses to guess; pass the exact session printed by its launcher:
 
@@ -134,9 +155,23 @@ refuses to guess; pass the exact session printed by its launcher:
 node .agents/skills/interactive-testing/scripts/poracode-cdp.mjs info --session "<session.json path printed by launcher>"
 ```
 
-The authoritative `<run-id>/session.json` records the unique token, lifecycle,
-repo/worktree, app URL, distinct ports, base directory, isolated build, and
-owner PIDs. `ports.json` remains report metadata, not an attachment instruction.
+The authoritative `<run-id>/session.json` (schema 2) records the unique token,
+lifecycle, checkout, URL/ports, base directory, owner PIDs, and runtime source SHA,
+dirty status, source/artifact hashes, paths, and renderer mode. `runtime-manifest.json`
+retains the build identity after teardown removes `runtime/`. Schema 1 sessions
+remain inspectable/stoppable, but cannot be reused as isolated-build evidence.
+Native helper compilation uses a session-owned Cargo target directory; installed
+production dependencies (including lazy `createRequire` paths) are copied and validated with the staged
+`ensure-native-deps.mjs --electron-native` before the artifact hash is recorded.
+Managed launches clear inherited helper/plugin/native-module overrides so those
+paths cannot silently select a checkout artifact.
+Verify the running session's retained files before recording final evidence:
+
+```sh
+node .agents/skills/interactive-testing/scripts/poracode-cdp.mjs verify-runtime --session "<session.json>"
+```
+
+`ports.json` remains report metadata, not an attachment instruction.
 Never invent a port or copy one from another run. The helpers accept a complete
 explicit port + URL pair only for deliberate unmanaged-app diagnosis; they
 reject either value alone and have no `9222`/`3100` fallback.
