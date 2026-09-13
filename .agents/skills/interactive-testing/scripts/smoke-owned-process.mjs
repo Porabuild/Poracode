@@ -2,6 +2,23 @@ import { execFileSync, spawnSync } from "node:child_process";
 
 const pendingStops = new WeakMap();
 
+/** Preserve stop order, attempt every sibling, then report all unconfirmed joins. */
+export async function stopOwnedProcesses(children, options) {
+  const failures = [];
+  for (const child of children) {
+    try {
+      await stopOwnedProcess(child, options);
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length)
+    throw new AggregateError(
+      failures,
+      failures.map((error) => (error instanceof Error ? error.message : String(error))).join("; "),
+    );
+}
+
 /** Stop only this live ChildProcess's detached group, and join descendants after its leader exits. */
 export function stopOwnedProcess(child, { graceMs = 5_000 } = {}) {
   if (!child?.pid) return Promise.resolve();

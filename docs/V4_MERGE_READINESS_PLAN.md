@@ -457,6 +457,43 @@ prove these joins with an actual coordinator and disposable registration files;
 they use a synthetic HTTP server and gateway. Headless composition, real-app
 integration and the full F11 process shutdown gate remain separate requirements.
 
+**F38 — inactive captured runtime admission is now reviewable, but not active.**
+The build declares the Node runtime input closure and replaces its fixed-width
+source identity at output time before hashing. Startup validates closed code and
+resource manifests, captures regular bytes through bounded descriptors, and keeps
+the captured child behind a private admission protocol. SSH manifest generation
+is now 4; the eventual owner-control/settings combination is reserved for
+generation 5. The candidate leaves `SupervisorClient` settings service 0 and all
+existing writers unchanged, so it cannot yet be used as the production settings
+owner. Current Node, minimum Node, Electron and first-party ASAR fixture capture
+passed, along with 74 focused tests, full typecheck, touched lint and archive
+checks. This proves admission and packaging prerequisites only; it does not prove
+immutable arbitrary runtime code, provider descendants, multi-client performance
+or 120 Hz rendering.
+
+**F44 — physical staging alias could delete the source tree, caught before
+activation.** The first F38 caller implementation checked lexical paths only. A
+real disposable source/stage probe placed the destination below a symlinked parent
+of the source, causing prune to erase the source marker, plugin and shared runtime
+while returning success. Staging now resolves existing ancestors and preserves
+not-yet-created suffixes before rejecting physical source/output overlap, with the
+check before all reads, writes and pruning. Same-root and uncreated-child alias
+tests pass and source bytes remain unchanged. No destructive staging candidate was
+merged.
+
+**F43 — smoke teardown exposed an outer lifecycle gap.** During a real Electron
+mock run, a paired loopback client held `/api/push/config` after headers. The native
+window close request was issued at the recorded timestamp; main diagnostics ended
+about 1.1 seconds later while backend diagnostics ended about 8.8 seconds later,
+and the held socket closed after roughly 5.1 seconds. The managed runner stopped
+after the app group leader had exited and initially skipped its renderer and
+static fixture siblings; an exact-PID cleanup proved those siblings were still
+owned and could be stopped safely. The runner now attempts every owned sibling and
+then reports all join failures as an aggregate, retaining runtime artifacts when
+ownership is unconfirmed. This harness repair does not fix application shutdown:
+the parent one-second and app two-second deadlines, native callback admission,
+backend/descendant joining and Windows behavior remain F11 work.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 

@@ -1164,3 +1164,63 @@ both touched lint modes passed. Rereview and fresh built-CLI evidence are still
 required before committing the remaining headless/control candidate. Root owns
 separate Electron push integration and F42
 gateway body-lifetime correction; neither is claimed complete by this owner slice.
+
+## F38/F44 — captured runtime admission and staging alias correction
+
+The inactive runtime-capture candidate is now merged as `edd3f6e25`, on top of
+the separately reviewed exclusive atomic writer `cdc5ca1f0`. It declares the
+Node input closure, embeds the source identity with equal-width output-time
+replacement before code hashing, validates code/resource manifests, captures
+regular files through bounded descriptors, and keeps startup behind a private
+activation protocol. SSH manifest generation 4 is reserved for this candidate;
+the eventual owner-control/settings combination uses fresh generation 5.
+`SupervisorClient` remains on settings service 0 and no existing writer was
+activated. The captured runtime was exercised with current Node, minimum Node,
+Electron and a first-party ASAR fixture; package/archive checks and 74 focused
+tests passed, with full typecheck and touched lint/format checks. This is an
+inactive admission prerequisite, not a production settings or immutable-runtime
+claim.
+
+The F38 caller review then found F44. A real disposable symlink-parent probe
+showed lexical source/output checks could resolve to one physical directory and
+prune the source marker, plugin and shared runtime. `prepare-agent-plugins.mjs`
+now resolves the nearest existing physical ancestor while retaining an uncreated
+suffix and rejects overlap before any staging read/write/prune. The same-root and
+uncreated-child regressions pass, and all source bytes remain unchanged. The
+focused post-fix run passed 10 files / 77 tests; touched normal and type-aware
+lint and formatting passed. The F44 red probe remains under the owner scratch
+directory, and capture source identities were refreshed after this correction.
+
+The candidate still does not activate the settings authority, reverse supervisor
+service, or any renderer/main writer migration. It does not qualify provider
+descendants, server concurrency, memory, latency, or 120 Hz rendering.
+
+## F43 — sealed Electron shutdown ordering evidence
+
+The managed Electron smoke ran from clean revision `28f402099` with a frozen
+development artifact and no provider credentials. The full mock suite passed with
+zero captured renderer/runtime errors; Browser page and Browser settings
+screenshots were visibly inspected. Remote Access was enabled through the real
+settings control, a loopback peer completed OAuth with status 200, and a synthetic
+gateway held the push-config response body after headers.
+
+The native close request was recorded at `1789316468954`. Main's last diagnostic
+sample was about 1.1 seconds later; backend's last sample was about 8.8 seconds
+later. The client socket closed about 5.1 seconds after the quit request, and all
+three diagnostic writers eventually emitted complete zero-drop end records. This
+is a real application ordering failure: the app shutdown deadline released main
+before backend/held transport work finished. The managed runner also stopped
+after the Electron leader exited and skipped later owned siblings; exact-PID
+cleanup confirmed the static renderer was still owned and then stopped it, while
+an unrelated `rapportd` listener on port 49152 was left untouched.
+
+The smoke harness now attempts each owned child even after a sibling stop reports
+an ownership failure, then throws an aggregate error and retains the runtime for
+inspection. Four node:test cases pass, including a dead-leader refusal that still
+stops a separate owned renderer. This fixes evidence collection and cleanup only;
+it does not hide the application failure or weaken process-group ownership.
+
+The remaining F11 work must wire main/native admission and actual execution joins,
+reconcile the parent one-second and app two-second deadlines, join backend and
+provider/PTY descendants, and qualify Windows shutdown. The sealed red evidence is
+retained under `/Users/svecherenko/.poracode-smoke/v4-push-drain-ctPW9q/evidence/`.

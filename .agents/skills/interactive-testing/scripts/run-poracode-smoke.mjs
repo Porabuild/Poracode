@@ -12,7 +12,7 @@ import {
   verifyReusableSmokeRuntime,
 } from "./poracode-smoke-runtime.mjs";
 import { startSmokeRenderer, waitForSmokeRenderer } from "./smoke-runtime-processes.mjs";
-import { stopOwnedProcess as stopProcess } from "./smoke-owned-process.mjs";
+import { stopOwnedProcess as stopProcess, stopOwnedProcesses } from "./smoke-owned-process.mjs";
 import {
   acquireDebugLaunchLock,
   assertSessionRootOutsideRepo,
@@ -332,10 +332,7 @@ try {
   await releaseLaunchLock?.();
   let teardownError;
   try {
-    await stopProcess(integrationProcess);
-    await stopProcess(appProcess);
-    await stopProcess(rendererProcess);
-    await stopProcess(buildProcess);
+    await stopOwnedProcesses([integrationProcess, appProcess, rendererProcess, buildProcess]);
     if (sessionManifest) await waitForSessionPortsClosed(sessionManifest, 5_000);
     if (sessionManifest)
       await removeSmokeRuntime(
