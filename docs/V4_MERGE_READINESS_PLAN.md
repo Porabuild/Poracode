@@ -824,6 +824,14 @@ generation fencing, crash recovery, and cross-transport race evidence remain.
 Queued mutations are cancelled by control and shutdown, and accepted compound
 reverts are joined before the database closes.
 
+The HTTP checkpoint route now releases a retryable file-phase receipt into a
+route-bound `retryable` state so an explicit same-ID retry can resume the durable
+journal without permitting command-ID reuse on another route. This remains a
+partial operation-identity fix; cross-transport response-loss reconciliation and
+crash-boundary evidence are still required. The claim path also recognizes the
+legacy completed receipt shape produced before this correction, but only for the
+checkpoint route's explicitly validated retryable outcome.
+
 ### Phase 3 — keep bulk traffic out of Electron main
 
 Owner: Electron/client transport maintainer. Can overlap Phase 2 after Phase 1's

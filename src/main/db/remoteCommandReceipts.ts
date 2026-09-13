@@ -7,7 +7,16 @@ export type RemoteCommandClaim =
   | { state: "in_progress" | "failed" }
   | { state: "conflict" };
 
-export function dbClaimRemoteCommand(commandId: string, route: string): RemoteCommandClaim {
+export interface RemoteCommandClaimOptions {
+  /** Route-specific compatibility for a legacy completed retryable response. */
+  isCompletedResponseRetryable?(response: unknown): boolean;
+}
+
+export function dbClaimRemoteCommand(
+  commandId: string,
+  route: string,
+  options: RemoteCommandClaimOptions = {},
+): RemoteCommandClaim {
   const sqlite = getSqlite();
   const claim = sqlite.transaction((): RemoteCommandClaim => {
     const now = Date.now();
@@ -17,10 +26,31 @@ export function dbClaimRemoteCommand(commandId: string, route: string): RemoteCo
     if (existing) {
       if (existing.route !== route) return { state: "conflict" };
       if (existing.state === "completed") {
+        const response = existing.response === null ? null : safeParse(existing.response);
+        if (options.isCompletedResponseRetryable?.(response)) {
+          sqlite
+            .prepare(
+              `UPDATE remote_command_receipts
+               SET state = 'in_progress', response = NULL, updated_at = ?
+               WHERE command_id = ?`,
+            )
+            .run(now, commandId);
+          return { state: "claimed" };
+        }
         return {
           state: "completed",
-          response: existing.response === null ? null : safeParse(existing.response),
+          response,
         };
+      }
+      if (existing.state === "retryable") {
+        sqlite
+          .prepare(
+            `UPDATE remote_command_receipts
+             SET state = 'in_progress', response = NULL, updated_at = ?
+             WHERE command_id = ?`,
+          )
+          .run(now, commandId);
+        return { state: "claimed" };
       }
       return { state: existing.state === "failed" ? "failed" : "in_progress" };
     }
@@ -51,6 +81,21 @@ export function dbFailRemoteCommand(commandId: string): void {
     .prepare(
       `UPDATE remote_command_receipts
        SET state = 'failed', updated_at = ?
+       WHERE command_id = ?`,
+    )
+    .run(Date.now(), commandId);
+}
+
+/**
+ * Release a receipt whose operation returned a retryable application failure.
+ * The operation's own journal remains authoritative, so a deterministic retry
+ * can reclaim the same command ID and resume its idempotent phases.
+ */
+export function dbResetRemoteCommand(commandId: string): void {
+  getSqlite()
+    .prepare(
+      `UPDATE remote_command_receipts
+       SET state = 'retryable', response = NULL, updated_at = ?
        WHERE command_id = ?`,
     )
     .run(Date.now(), commandId);

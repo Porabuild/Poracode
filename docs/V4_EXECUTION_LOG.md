@@ -1434,3 +1434,29 @@ smoke passed welcome-dismissal and baseline with zero renderer/runtime errors.
 The changed-surface run had no additional mock IPC gates because the remaining
 production delta was supervisor-only. Evidence is retained at
 `/Users/svecherenko/.poracode-smoke/automated-1789328214218-72517/artifacts/smoke-report.json`.
+
+## Phase 2 retryable checkpoint receipt
+
+Before: an HTTP checkpoint revert that returned the journal's retryable
+`outcome: "failed"` was stored as a permanently failed generic command receipt.
+An explicit retry with the same command ID then returned `command_failed`, even
+though the checkpoint journal had an idempotent file phase that could resume.
+
+After: idempotent remote mutations can classify a result as retryable. The
+checkpoint route keeps terminal and ambiguous results replayable, but transitions
+a retryable receipt to a retained `retryable` state. The next explicit retry
+atomically reclaims it only for the same route, preserving command-ID route
+ownership and allowing the journal to resume. The database receipt suite and
+remote server/shutdown suites pass 117 tests, with full typecheck and touched
+type-aware lint green.
+
+The claim path also recognizes the prior version's completed receipt containing
+the same retryable checkpoint outcome and reclaims it through the route-bound
+predicate. Terminal and ambiguous completed receipts still replay unchanged.
+This is the retryable receipt correction only. Full operation identity across
+desktop and HTTP, response-loss reconciliation, and crash-boundary evidence
+remain open Phase 2 work.
+
+The post-correction full suite passes: 1,211 test files passed and 5 skipped;
+13,619 tests passed and 119 skipped. The known synthetic listener and canvas
+warnings were emitted, but the run exited successfully.
