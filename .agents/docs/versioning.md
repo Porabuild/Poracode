@@ -60,7 +60,22 @@ canonical document and adds the marker. Public snapshots omit unknown fields.
 `src/shared/settingsTransactions.ts` defines transaction vocabulary version 1
 and subject content revisions prefixed `s1:`. Revisions express content equality,
 not event ordering; an authority UUID invalidates revisions across owner
-lifetimes. Serialized commits sync a unique temporary file before rename, then
+lifetimes. A volatile commit sequence orders snapshots/deltas and advances with
+the cache after rename. Entry replies include containing-field revisions without
+copying those field values; whole-field changes refresh affected entry revisions.
+Clients bind callbacks and one-use read tokens to a connection generation. A
+sequence gap sets a required publication floor: a refresh must cover the highest
+observed sequence before it can replace client state. Insufficient refreshes
+explicitly request another read; authority changes require a new connection and
+invalidate older callbacks. None of this metadata is persisted in settings.
+
+The inactive authority has explicit initial ceilings of 128 pending transactions
+(including the active write), 4 MiB of queued UTF-8 request bytes, and 1 MiB per
+request. These are admission bounds, not measured throughput budgets. Oversized
+or full-queue requests return an overload outcome; they do not join the queue or
+implicitly repeat. Parse failures and every settlement path release capacity.
+
+Serialized commits sync a unique temporary file before rename, then
 attempt directory sync. A directory-sync error reports separately from the
 already committed result. Process-crash tests do not establish power-loss
 durability or exactly-once request receipts.

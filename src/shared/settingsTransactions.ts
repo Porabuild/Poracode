@@ -4,6 +4,17 @@ import { sharedSettingsSchema } from "./settings";
 /** The settings transaction vocabulary is independent of transport framing. */
 export const SETTINGS_TRANSACTION_VERSION = 1 as const;
 export const SETTINGS_MISSING_REVISION = "missing" as const;
+/** Initial admission ceilings, not measured throughput or latency budgets. */
+export const DEFAULT_SETTINGS_ADMISSION_LIMITS = {
+  maxPendingTransactions: 128,
+  maxPendingBytes: 4 * 1024 * 1024,
+  maxTransactionBytes: 1024 * 1024,
+} as const;
+export interface SettingsAdmissionLimits {
+  maxPendingTransactions: number;
+  maxPendingBytes: number;
+  maxTransactionBytes: number;
+}
 
 export const SETTINGS_ENTRY_FIELDS = [
   "machineSettings",
@@ -103,15 +114,27 @@ export const settingsMutationResultSchema = z.discriminatedUnion("status", [
     .object({
       status: z.literal("committed"),
       authorityId: z.string().uuid(),
+      sequence: z.number().int().nonnegative(),
       changes: z.array(settingsSubjectStateSchema),
+      revisions: z.record(z.string(), settingsRevisionSchema),
     })
     .strict(),
   z
     .object({
       status: z.literal("conflict"),
       authorityId: z.string().uuid(),
+      sequence: z.number().int().nonnegative(),
       reason: z.enum(["authority-changed", "revision-changed"]),
       current: z.array(settingsSubjectStateSchema),
+      revisions: z.record(z.string(), settingsRevisionSchema),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("overloaded"),
+      authorityId: z.string().uuid(),
+      sequence: z.number().int().nonnegative(),
+      reason: z.enum(["request-too-large", "queue-full"]),
     })
     .strict(),
 ]);
@@ -119,6 +142,7 @@ export type SettingsMutationResult = z.infer<typeof settingsMutationResultSchema
 
 export const settingsSnapshotSchema = z.object({
   authorityId: z.string().uuid(),
+  sequence: z.number().int().nonnegative(),
   settings: sharedSettingsSchema,
   revisions: z.record(z.string(), settingsRevisionSchema),
 });
