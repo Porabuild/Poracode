@@ -1569,37 +1569,40 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
   );
   const parsed = z.record(z.string(), z.unknown()).safeParse(migratedValue);
   if (!parsed.success) return { settings: normalized, acpAliasMigrated: false };
+  return migrateSharedSettingsValues(
+    { ...normalized, machineSettings: normalizeMachineSettings(parsed.data.machineSettings) },
+    parsed.data,
+  );
+}
 
-  const hasAutomationMode = prAutomationModeSchema.safeParse(
-    parsed.data.prAutomationDefault,
-  ).success;
+/** Applies existing migrations to validated values; object spreads retain private future fields. */
+export function migrateSharedSettingsValues(
+  normalized: SharedSettings,
+  source: Record<string, unknown>,
+): { settings: SharedSettings; acpAliasMigrated: boolean } {
+  const hasAutomationMode = prAutomationModeSchema.safeParse(source.prAutomationDefault).success;
   const legacyAutomationMode =
-    parsed.data.prAutoMergeDefault === true
-      ? "merge"
-      : parsed.data.prWatchDefault === true
-        ? "fix"
-        : "off";
+    source.prAutoMergeDefault === true ? "merge" : source.prWatchDefault === true ? "fix" : "off";
   // Unversioned settings file: migrate the two legacy sleep booleans into
   // the single `preventSleep` enum. An explicit valid value always wins.
   const hasPreventSleep = sharedSettingsSchema.shape.preventSleep.safeParse(
-    parsed.data.preventSleep,
+    source.preventSleep,
   ).success;
   const hasLegacyPreventSleepKeys =
-    "preventSleepWhileWorking" in parsed.data || "remoteAccessPreventSleep" in parsed.data;
+    "preventSleepWhileWorking" in source || "remoteAccessPreventSleep" in source;
   const migratedPreventSleep =
     !hasPreventSleep && hasLegacyPreventSleepKeys
-      ? parsed.data.remoteAccessPreventSleep === true
+      ? source.remoteAccessPreventSleep === true
         ? ("while-remote-access" as const)
         : ("while-working" as const)
       : normalized.preventSleep;
-  const usage = z.record(z.string(), z.unknown()).safeParse(parsed.data.usage);
+  const usage = z.record(z.string(), z.unknown()).safeParse(source.usage);
   const disabledProviders = usage.success
     ? z.array(z.string()).safeParse(usage.data.disabledProviders)
     : undefined;
   return migrateAntigravityAcpAliasState(
     migrateRetiredQwenPreviewModel({
       ...normalized,
-      machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
       threadDocksOrder: normalizeThreadDocksOrder(normalized.threadDocksOrder),
       // Legacy `chrome_`-prefixed tool names are normalized once here at the
@@ -1628,11 +1631,11 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
  * stricter schema parses the list so one legacy entry does not reset all MCP
  * servers to the default empty list.
  */
-function sanitizeLegacyMcpServerUrls(value: unknown): unknown {
+export function sanitizeLegacyMcpServerUrls(value: unknown): unknown {
   const root = z.record(z.string(), z.unknown()).safeParse(value);
   if (!root.success || !Array.isArray(root.data.mcpServers)) return value;
   return {
-    ...root.data,
+    ...(value as Record<string, unknown>),
     mcpServers: root.data.mcpServers.map((entry) => {
       const server = z.record(z.string(), z.unknown()).safeParse(entry);
       if (!server.success) return entry;
@@ -1650,8 +1653,8 @@ function sanitizeLegacyMcpServerUrls(value: unknown): unknown {
         url.password = "";
         url.hash = "";
         return {
-          ...server.data,
-          transport: { ...transport.data, url: url.toString() },
+          ...(entry as Record<string, unknown>),
+          transport: { ...(server.data.transport as Record<string, unknown>), url: url.toString() },
         };
       } catch {
         return entry;
