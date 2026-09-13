@@ -1,5 +1,12 @@
 package com.poracode.app.protocol
 
+import com.poracode.app.model.RemoteJson
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -186,5 +193,63 @@ class PairingUrlTest {
         assertNull(PairingUrl.parseIpv4("10.example.com"))
         assertNull(PairingUrl.parseIpv4("192.168.1"))
         assertNotNull(PairingUrl.parseIpv4("192.168.1.1"))
+    }
+
+    /**
+     * The shared pairing-URL conformance fixture (protocol/remote/v3/fixtures/
+     * pairing-url-cases.json) is asserted verbatim on desktop TS and iOS too:
+     * the desktop reference implementation defines the canonical answers, and
+     * the fixture's documentedDifferences section carries the cases that
+     * legitimately differ per platform (query-token fallback, custom-scheme
+     * links, 127.0.0.0/8 loopback scope — pinned by the Android-only tests
+     * above instead).
+     */
+    @Test
+    fun sharedPairingUrlConformanceFixtures() {
+        val root =
+            RemoteJson.parseToJsonElement(readFixture("pairing-url-cases.json")).jsonObject
+        for (entry in root["parseParts"]!!.jsonArray) {
+            val case = entry.jsonObject
+            val name = case["name"]!!.jsonPrimitive.content
+            val parsed = PairingUrl.parseParts(case["url"]!!.jsonPrimitive.content)
+            if (case["expectNull"]?.jsonPrimitive?.booleanOrNull == true) {
+                assertNull(name, parsed)
+                continue
+            }
+            assertNotNull(name, parsed)
+            assertEquals(name, case["token"]!!.jsonPrimitive.content, parsed!!.token)
+            assertEquals(
+                name,
+                case["host"]?.jsonPrimitive?.contentOrNull,
+                parsed.host,
+            )
+        }
+        for (entry in root["normalizeEndpoint"]!!.jsonArray) {
+            val case = entry.jsonObject
+            val name = case["name"]!!.jsonPrimitive.content
+            val normalized = runCatching {
+                PairingUrl.normalizeEndpoint(case["url"]!!.jsonPrimitive.content)
+            }.getOrNull()
+            if (case["expectInvalid"]?.jsonPrimitive?.booleanOrNull == true) {
+                assertNull(name, normalized)
+                continue
+            }
+            assertEquals(name, case["endpoint"]!!.jsonPrimitive.content, normalized)
+        }
+        for (entry in root["cleartextLanUrl"]!!.jsonArray) {
+            val case = entry.jsonObject
+            val name = case["name"]!!.jsonPrimitive.content
+            assertEquals(
+                name,
+                case["cleartext"]!!.jsonPrimitive.boolean,
+                PairingUrl.isCleartextLanUrl(case["url"]!!.jsonPrimitive.content),
+            )
+        }
+    }
+
+    private fun readFixture(name: String): String {
+        val stream = javaClass.classLoader!!.getResourceAsStream("fixtures/$name")
+            ?: error("Missing fixture fixtures/$name from protocol/remote/v3")
+        return stream.bufferedReader().use { it.readText() }
     }
 }
