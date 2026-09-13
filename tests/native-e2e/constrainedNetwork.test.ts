@@ -25,6 +25,7 @@ import {
 } from "./helpers/experimentArtifacts.ts";
 import { HostLoadSampler } from "./helpers/hostLoadSampler.ts";
 import { ProcessMemorySampler } from "./helpers/processMemorySampler.ts";
+import { ProcessCpuSampler } from "./helpers/processCpuSampler.ts";
 import {
   acquireDeviceCredential,
   allocateLoopbackPort,
@@ -160,6 +161,7 @@ let warmupColdGitStatusMs = 0;
 let provenance: ReturnType<typeof describeArtifact> | undefined;
 let sampler: HostLoadSampler | undefined;
 let memorySampler: ProcessMemorySampler | undefined;
+let cpuSampler: ProcessCpuSampler | undefined;
 let runStartedAtIso: string | undefined;
 let calibration: Record<string, unknown> | null = null;
 let loadWorkload: LoadWorkloadSpec | undefined;
@@ -378,6 +380,8 @@ describe.skipIf(!entrypoint)(
       sampler.start(2_000);
       memorySampler = new ProcessMemorySampler(host.pid);
       memorySampler.start(1_000);
+      cpuSampler = new ProcessCpuSampler(host.pid);
+      cpuSampler.start(1_000);
       runStartedAtIso = new Date().toISOString();
       provenance = describeArtifact(entrypoint, observeSources(repoRoot));
       writeEvidence("build.json", provenance);
@@ -433,6 +437,7 @@ describe.skipIf(!entrypoint)(
       try {
         await sampler?.stop();
         await memorySampler?.stop();
+        await cpuSampler?.stop();
         if (sampler && runStartedAtIso) {
           writeEvidence("hostLoad.json", {
             runStartedAtIso,
@@ -441,6 +446,7 @@ describe.skipIf(!entrypoint)(
             // Peak summed RSS of the host server process + descendants, the
             // M2-4 "memory" column (recorded, never asserted).
             ...(memorySampler ? { processMemory: memorySampler.summary() } : {}),
+            ...(cpuSampler ? { processCpu: cpuSampler.summary() } : {}),
             environment: BUILD_PROVENANCE_NOTE.buildNote,
             samples: sampler.allSamples(),
           });

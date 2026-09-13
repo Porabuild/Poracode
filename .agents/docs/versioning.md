@@ -80,6 +80,18 @@ Version bumps are required by compatibility, not by every code edit. Record the 
 
 External protocol identifiers such as MCP protocol dates and ACP SDK protocol versions are negotiated standards, not Poracode cache generations. Change them only with the corresponding dependency/protocol implementation and interoperability tests.
 
+## Host ownership helpers
+
+The staged V4 helper boundary is `HOST_ROOT_LAYOUT_VERSION = 1` in
+`src/backend/ownership/hostRootPaths.ts` and owner metadata format 1 / lease
+database `user_version = 1` in `hostOwnerLease.ts`. These helpers are not yet
+startup wiring. Audit the profile-to-sibling mapping, client-data separation,
+permanent external lease path, metadata vocabulary and every eventual bootstrap
+consumer together before changing them. Unknown lease formats must fail without
+replacement. Discovery PID metadata never grants ownership; only the kernel
+lease does. Never open an existing leased SQLite inode through an unmanaged
+descriptor in the same process, since closing it can release POSIX file locks.
+
 ## Measurement evidence
 
 `ProcessMemorySummary` in `tests/native-e2e/helpers/processMemorySampler.ts` emits
@@ -103,6 +115,16 @@ remeasured before use as peak-memory evidence. Machine load and foreign-tool
 presence are contention indicators, not process CPU measurements or proof of an
 idle machine. Keep measurement versions separate from the application's wire and
 storage versions, and record both with the exact tested artifact.
+
+`ProcessCpuSampler` emits its independent `samplerVersion: 1`. It records
+per-process cumulative CPU deltas only between matching PID/start identities,
+with counter resolution, missing roots, discarded counter regressions, untracked
+identities and lost exit tails explicit. It is partial external POSIX observation,
+not complete CPU accounting or a strict lower bound: counter quantization can
+overstate a short interval. Windows reports an unsupported platform rather than
+valid zero usage. The 4,096 cap bounds historical metric records; the most recent
+tree is separately bounded by the 8 MiB process-output limit. Preserve these
+limits when supplementing in-process CPU/event-loop traces.
 
 ## Mirrored-boundary rule
 
