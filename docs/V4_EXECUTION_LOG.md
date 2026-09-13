@@ -1501,6 +1501,43 @@ The exact-tree full suite then passed: 1,211 test files passed and 5 skipped;
 13,624 tests passed and 119 skipped. The known synthetic listener and canvas
 warnings were emitted, but the run exited successfully.
 
+## Phase 4 bounded runtime presentation queue
+
+Before: desktop and remote renderers coalesced runtime events per animation
+frame, but each pending thread still used an unbounded array. A stalled window
+or background tab could therefore retain an arbitrary number of deltas before
+the next frame or background timer ran.
+
+After: both delivery paths use one bounded, byte-accounted runtime queue: 4,096
+events and 8 MiB per client, with a 2 MiB per-thread limit. An overflow drops
+the incomplete batch, clears that thread's partial projection, and keeps a
+bounded post-baseline tail while an authoritative recovery runs. Local
+recovery repeats the read when that thread's sequenced stream advances and
+discards only tail entries covered by the stable observed sequence. Remote
+recovery resumes before its ordered replay buffer is delivered. A second
+overflow or failed recovery keeps the thread blocked with a retryable hydration
+state; a reset cannot unblock it ahead of the recovery generation. The queue,
+transport, synchronization, and Electron renderer suites pass 76 tests;
+typecheck, touched type-aware lint, and formatting are green.
+
+This closes the final-consumer memory admission gap. Worker-side decode and
+reduction, incremental markdown work, and measured frame-budget qualification
+remain open Phase 4 work.
+
+The exact-tree changed-surface Electron smoke then passed from the frozen
+renderer, including the new IPC-contract and shared-runtime selections:
+`/Users/svecherenko/.poracode-smoke/automated-1789333381594-81453/artifacts/smoke-report.json`.
+All automated scenarios and mock gates passed with zero captured
+renderer/runtime errors; the existing teardown-time shell-state warning was
+the only emitted app error.
+
+The widened repository run at this candidate reached 1,210 passing test files
+and 13,630 passing tests (5 files and 119 tests skipped). Two unrelated real
+mode-parity provider fixture tests (`src/supervisor/agents/codex/probe.test.ts`
+and `src/supervisor/agents/copilot/detection.mockGuard.test.ts`) failed because
+their sentinel subprocess did not start; the renderer/transport suites and
+smoke remain green.
+
 ## Phase 8 bounded PTY shutdown join
 
 The supervisor runtime already tracked PTY exit callbacks, but manager shutdown

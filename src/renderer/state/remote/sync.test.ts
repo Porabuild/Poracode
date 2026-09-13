@@ -11,7 +11,11 @@ import {
   useThreadFollowUpQueueStore,
 } from "@/renderer/state/threadFollowUpQueueStore";
 import { projectRemoteThreadSnapshot } from "../remoteProjection";
-import { applyThreadSnapshot, dispatchRemoteSupervisorEvent } from "./sync";
+import {
+  applyThreadSnapshot,
+  clearPendingRuntimeEvents,
+  dispatchRemoteSupervisorEvent,
+} from "./sync";
 
 const thread: Thread = {
   id: "thread-1",
@@ -107,6 +111,30 @@ describe("remote thread background-task snapshots", () => {
       lastSeenEventSeq: 10,
     });
     expect(thread.id in useAppStore.getState().runtimeBackgroundTasksByThread).toBe(false);
+  });
+});
+
+describe("remote recovery replay delivery", () => {
+  afterEach(() => {
+    clearPendingRuntimeEvents();
+    useAppStore.getState().clearThreadRuntimeEvents("thread-1");
+  });
+
+  it("can apply an ordered authoritative replay without re-entering the bounded queue", () => {
+    dispatchRemoteSupervisorEvent(
+      {
+        type: "thread-runtime-event",
+        threadId: "thread-1",
+        event: {
+          type: "item.started",
+          threadId: "thread-1",
+          itemId: "item-1",
+          itemType: "assistant_message",
+        },
+      },
+      { deliverRuntimeEventsImmediately: true },
+    );
+    expect(useAppStore.getState().runtimeItemIdsByThread["thread-1"]).toEqual(["item-1"]);
   });
 });
 

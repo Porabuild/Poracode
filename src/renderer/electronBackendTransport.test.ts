@@ -126,6 +126,19 @@ afterEach(() => {
 });
 
 describe("ElectronBackendTransport event handoff", () => {
+  it("notifies consumers when the direct stream generation rotates", async () => {
+    const { host, streamChanged } = makeHost();
+    const transport = new ElectronBackendTransport(host);
+    const generationChanged = vi.fn<() => void>();
+    transport.onGenerationChanged(generationChanged);
+    streamChanged({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      url: "ws://127.0.0.1:43211/events",
+      token: "next-secret",
+    });
+    expect(generationChanged).toHaveBeenCalledOnce();
+  });
+
   it("falls back to main when direct request admission is full", async () => {
     const { host, invokeProcedure } = makeHost();
     const transport = new ElectronBackendTransport(host);
