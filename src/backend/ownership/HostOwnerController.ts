@@ -88,11 +88,21 @@ export class HostOwnerController {
     this.phase = "ready";
   }
 
-  /** Cancellation stops admission; release waits for admitted filesystem work. */
-  close(): Promise<void> {
-    if (this.closing) return this.closing;
+  /**
+   * Stop startup admission and abandon native byte transforms without releasing
+   * ownership. Initialized runtime services keep their live capability while
+   * their caller drains work and closes SQLite before the final close().
+   */
+  cancelStartup(): void {
+    if (this.phase === "closed" || this.cancellation.signal.aborted) return;
     this.phase = "closing";
     this.cancellation.abort(new Error("The Poracode host owner is closing."));
+  }
+
+  /** Release only after the caller's runtime drain and admitted startup work. */
+  close(): Promise<void> {
+    if (this.closing) return this.closing;
+    this.cancelStartup();
     this.closing = Promise.resolve(this.activeWork)
       .catch(() => undefined)
       .then(() => {
