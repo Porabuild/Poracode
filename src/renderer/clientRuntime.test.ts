@@ -17,6 +17,7 @@ function bridge(arch: string): PoracodeBridge {
 
 function electronHost(arch: string): ElectronHostBridge {
   return {
+    clientRuntimeVersion: PORACODE_CLIENT_RUNTIME_VERSION,
     arch,
     platform: "win32",
     onSupervisorEvent: () => () => {},
@@ -33,6 +34,20 @@ describe("client runtime", () => {
     Reflect.deleteProperty(window, "poracode");
     Reflect.deleteProperty(window, "poracodeHost");
   });
+
+  it.each([undefined, 6, 7])(
+    "refuses an old preload host version %s before creating its transport",
+    (version) => {
+      const host = {
+        ...electronHost("x64"),
+        clientRuntimeVersion: version,
+      } as unknown as ElectronHostBridge;
+      expect(() => installElectronClientRuntime(host)).toThrow(
+        /Unsupported client runtime version/,
+      );
+      expect(() => readClientRuntime()).toThrow(/not installed/);
+    },
+  );
 
   it("describes the Electron desktop host and its native capabilities", () => {
     const host = electronHost("x64");

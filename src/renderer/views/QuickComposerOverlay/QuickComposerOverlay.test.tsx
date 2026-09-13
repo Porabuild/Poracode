@@ -37,6 +37,7 @@ const { bridge, installedStatus, installedStatuses, settingsState } = vi.hoisted
       onQuickComposerDismissRequested: vi.fn<(listener: () => void) => () => void>(
         () => () => undefined,
       ),
+      onQuickComposerShown: vi.fn<(listener: () => void) => () => void>(() => () => undefined),
       submitQuickComposer: vi
         .fn<(submission: unknown) => Promise<void>>()
         .mockResolvedValue(undefined),
@@ -127,10 +128,9 @@ describe("QuickComposerOverlay", () => {
     expect(input).toHaveFocus();
 
     screen.getByRole("button", { name: "Switch test project" }).focus();
-    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
-    fireEvent(document, new Event("visibilitychange"));
-    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
-    fireEvent.focus(window);
+    act(() => {
+      bridge.onQuickComposerShown.mock.calls[0]?.[0]();
+    });
 
     expect(input).toHaveFocus();
   });
@@ -164,6 +164,93 @@ describe("QuickComposerOverlay", () => {
     expect(bridge.dismissQuickComposer).toHaveBeenCalledOnce();
     expect(container.querySelector(".quick-composer-drag-handle")).not.toBeInTheDocument();
     expect(container.querySelector(".quick-composer-frame")).toBeInTheDocument();
+  });
+
+  it("reopens after native hide/show without a DOM visibility or focus transition", async () => {
+    const { container } = render(<QuickComposerOverlay />);
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    await act(async () => {
+      vi.advanceTimersByTime(180);
+    });
+    expect(bridge.dismissQuickComposer).toHaveBeenCalledOnce();
+    expect(container.querySelector(".quick-composer-root--closing")).toBeInTheDocument();
+
+    act(() => {
+      bridge.onQuickComposerShown.mock.calls[0]?.[0]();
+    });
+    expect(document.visibilityState).toBe("visible");
+    expect(container.querySelector(".quick-composer-root--opening")).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+    expect(container.querySelector(".quick-composer-root--idle")).toBeInTheDocument();
+  });
+
+  it("does not replay the enter animation or refetch when a file dialog returns focus", async () => {
+    const { container } = render(<QuickComposerOverlay />);
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+    const refreshes = bridge.getAgentStatuses.mock.calls.length;
+    fireEvent.focus(window);
+    expect(container.querySelector(".quick-composer-root--idle")).toBeInTheDocument();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(bridge.getAgentStatuses).toHaveBeenCalledTimes(refreshes);
+  });
+
+  it("does not let a pending main-window reveal hide a newly shown overlay", async () => {
+    let finishReveal!: () => void;
+    bridge.focusWindow.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishReveal = resolve;
+      }),
+    );
+    useAppStore.setState({ projects: [] });
+    const { container } = render(<QuickComposerOverlay />);
+    fireEvent.click(screen.getByRole("button", { name: "Add a project" }));
+    await act(async () => {
+      vi.advanceTimersByTime(180);
+    });
+    expect(bridge.focusWindow).toHaveBeenCalledOnce();
+    act(() => {
+      bridge.onQuickComposerShown.mock.calls[0]?.[0]();
+    });
+    await act(async () => {
+      finishReveal();
+    });
+    expect(bridge.dismissQuickComposer).not.toHaveBeenCalled();
+    expect(container.querySelector(".quick-composer-root--opening")).toBeInTheDocument();
+  });
+
+  it("does not let an old pending submission dismiss a newly shown overlay", async () => {
+    let finishSubmission!: () => void;
+    bridge.submitQuickComposer.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishSubmission = resolve;
+      }),
+    );
+    const { container } = render(<QuickComposerOverlay />);
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send overlay" }));
+    expect(container.querySelector(".quick-composer-root--sending")).toBeInTheDocument();
+    act(() => {
+      bridge.onQuickComposerShown.mock.calls[0]?.[0]();
+    });
+    await act(async () => {
+      finishSubmission();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+    expect(container.querySelector(".quick-composer-root--idle")).toBeInTheDocument();
+    expect(bridge.dismissQuickComposer).not.toHaveBeenCalled();
   });
 
   it("prefers the project represented by the active pane", () => {
