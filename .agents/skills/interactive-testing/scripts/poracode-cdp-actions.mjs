@@ -56,3 +56,19 @@ export async function clickCdpElements({ client, evaluate, elementsExpression, l
     clickCount: 1,
   });
 }
+
+/** Optional means absent only; hidden, occluded and ambiguous controls still fail. */
+export async function clickCdpLabel({
+  client,
+  evaluate,
+  label,
+  selector = "button,[role=button],a",
+  optional = false,
+}) {
+  const elementsExpression = `[...document.querySelectorAll(${JSON.stringify(selector)})].filter((element) =>
+    (element.getAttribute("aria-label") || element.title || element.textContent?.trim() || "") === ${JSON.stringify(label)})`;
+  if (optional && (await evaluate(client, `${elementsExpression}.length`)) === 0)
+    return { ok: false };
+  await clickCdpElements({ client, evaluate, elementsExpression, label });
+  return { ok: true };
+}

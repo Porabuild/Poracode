@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { JSDOM } from "jsdom";
-import { clickCdpElements } from "./poracode-cdp-actions.mjs";
+import { clickCdpElements, clickCdpLabel } from "./poracode-cdp-actions.mjs";
 
 function fixture(t) {
   const dom = new JSDOM('<main><button id="target"><span>Action</span></button></main>', {
@@ -68,6 +68,47 @@ for (const [name, expression, error] of [
     assert.deepEqual(events, []);
   });
 }
+
+await test("an optional label skips only an absent control", async (t) => {
+  const { window, events } = fixture(t);
+  const result = await clickCdpLabel({
+    client: { send: async (method, payload) => events.push({ method, payload }) },
+    evaluate: (_client, expression) => window.eval(expression),
+    label: "Missing action",
+    optional: true,
+  });
+  assert.deepEqual(result, { ok: false });
+  assert.deepEqual(events, []);
+});
+
+await test("an optional label still refuses a present but occluded control", async (t) => {
+  const { window, events } = fixture(t);
+  window.document.elementFromPoint = () => window.document.body;
+  await assert.rejects(
+    clickCdpLabel({
+      client: { send: async (method, payload) => events.push({ method, payload }) },
+      evaluate: (_client, expression) => window.eval(expression),
+      label: "Action",
+      optional: true,
+    }),
+    /occluded/,
+  );
+  assert.deepEqual(events, []);
+});
+
+await test("a matching label uses pointer input instead of synthetic DOM activation", async (t) => {
+  const { window, events, element } = fixture(t);
+  element.click = () => {
+    throw new Error("Synthetic activation must not be used.");
+  };
+  const result = await clickCdpLabel({
+    client: { send: async (method, payload) => events.push({ method, payload }) },
+    evaluate: (_client, expression) => window.eval(expression),
+    label: "Action",
+  });
+  assert.deepEqual(result, { ok: true });
+  assert.equal(events.length, 3);
+});
 
 for (const [name, change, error] of [
   ["disabled", ({ element }) => (element.disabled = true), "disabled"],
