@@ -10,7 +10,7 @@ import {
   isSupervisorEventGap,
   type BackendRendererStreamInfo,
 } from "@/shared/backendHostProtocol";
-import type { ElectronHostBridge } from "@/shared/clientRuntime";
+import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import {
   IPC_EVENT_CHANNELS,
   IPC_WINDOW_CHANNELS,
@@ -115,6 +115,7 @@ function resolveArgBoolean(prefix: string): boolean {
 
 const homeDir = resolveHomeDir();
 const bridge: ElectronHostBridge = {
+  clientRuntimeVersion: PORACODE_CLIENT_RUNTIME_VERSION,
   platform: process.platform,
   appVersion: resolveAppVersion(),
   arch: process.arch,
@@ -299,6 +300,13 @@ const bridge: ElectronHostBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.quickComposerDismissRequested, handler);
     return () => {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.quickComposerDismissRequested, handler);
+    };
+  },
+  onQuickComposerShown(listener) {
+    const handler = () => listener();
+    ipcRenderer.on(IPC_EVENT_CHANNELS.quickComposerShown, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.quickComposerShown, handler);
     };
   },
 };

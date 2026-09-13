@@ -80,6 +80,15 @@ Version bumps are required by compatibility, not by every code edit. Record the 
 
 External protocol identifiers such as MCP protocol dates and ACP SDK protocol versions are negotiated standards, not Poracode cache generations. Change them only with the corresponding dependency/protocol implementation and interoperability tests.
 
+## Electron preload compatibility
+
+The Electron preload must advertise `clientRuntimeVersion` from
+`PORACODE_CLIENT_RUNTIME_VERSION`. The renderer checks this peer value before
+creating its transport. Version 8 requires the native quick-composer show
+subscription; absent, version-6, and version-7 preload artifacts are rejected.
+Browser runtimes use the same local facade version; this desktop window event
+does not change the remote wire, backend-host protocol, or persisted state.
+
 ## Measurement evidence
 
 `ProcessMemorySummary` in `tests/native-e2e/helpers/processMemorySampler.ts` emits

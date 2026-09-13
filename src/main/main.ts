@@ -44,6 +44,7 @@ import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { showOsNotification } from "./osNotifications";
 import { createMainWindow, saveWindowBounds } from "./window/createMainWindow";
 import { createMainWindowCloseLifecycle } from "./window/mainWindowClose";
+import { installMainRendererInvalidation } from "./window/mainRendererInvalidation";
 import { requestTrackedRendererReload } from "./window/windowHardening";
 import {
   createQuickComposerWindow,
@@ -515,24 +516,25 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
     showOnReady,
     onClosed: () => {
       const wasMainWindow = mainWindow === window;
-      if (wasMainWindow) mainWindow = null;
-      mainRendererReady = false;
       if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
-      closeLifecycle.handleClosed();
+      if (wasMainWindow) {
+        mainWindow = null;
+        mainRendererReady = false;
+        closeLifecycle.handleClosed();
+      }
     },
     onClose: (event) => closeLifecycle.handleClose(event),
     onRendererProcessGone: (details, intent) => {
-      mainRendererReady = false;
-      if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
       captureRendererProcessGone(details, "renderer", intent);
     },
   });
   windowSenderId = window.webContents.id;
-  window.webContents.on("did-start-loading", () => {
-    if (mainWindow === window) {
+  installMainRendererInvalidation(window.webContents, {
+    isCurrent: () => mainWindow === window,
+    invalidate: () => {
       mainRendererReady = false;
       if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
-    }
+    },
   });
   return window;
 }
