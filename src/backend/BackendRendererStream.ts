@@ -5,6 +5,7 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import {
   BACKEND_RENDERER_STREAM_VERSION,
+  BACKEND_RENDERER_REQUEST_OPERATIONS,
   type BackendRendererRequest,
   type BackendRendererReply,
   type BackendRendererStreamInfo,
@@ -609,9 +610,7 @@ function isBackendRendererRequest(value: unknown): value is BackendRendererReque
     input.version === BACKEND_RENDERER_STREAM_VERSION &&
     input.type === "request" &&
     typeof input.id === "string" &&
-    (input.operation === "supervisor" ||
-      input.operation === "database" ||
-      input.operation === "service") &&
+    BACKEND_RENDERER_REQUEST_OPERATIONS.some((operation) => operation === input.operation) &&
     typeof input.name === "string" &&
     "payload" in input
   );

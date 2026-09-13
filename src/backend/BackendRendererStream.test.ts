@@ -49,40 +49,65 @@ describe("BackendRendererStream", () => {
     await expect(nextClose(socket)).resolves.toBe(1008);
   });
 
-  it("carries authenticated backend requests and replies on the same connection", async () => {
-    const onRequest = vi.fn<() => Promise<{ projects: number }>>(async () => ({ projects: 3 }));
-    const stream = new BackendRendererStream({ onRequest });
-    streams.push(stream);
-    const info = await stream.start();
-    const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
-    await hello;
-    socket.send(
-      JSON.stringify({
+  it.each([
+    { operation: "database", name: "dbGetProjects", payload: {} },
+    {
+      operation: "revert-checkpoint",
+      name: "revertCheckpoint",
+      payload: { threadId: "thread-1", checkpointItemId: "checkpoint-1", operationKey: "revert-1" },
+    },
+  ])(
+    "carries authenticated $operation requests and replies on the same connection",
+    async ({ operation, name, payload }) => {
+      const onRequest = vi.fn<() => Promise<{ projects: number }>>(async () => ({ projects: 3 }));
+      const stream = new BackendRendererStream({ onRequest });
+      streams.push(stream);
+      const info = await stream.start();
+      const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+      await hello;
+      socket.send(
+        JSON.stringify({
+          version: 2,
+          type: "request",
+          id: "request-1",
+          operation,
+          name,
+          payload,
+        }),
+      );
+
+      await expect(
+        Promise.race([nextMessage(socket), nextClose(socket).then((code) => ({ closed: code }))]),
+      ).resolves.toEqual({
+        version: 2,
+        type: "reply",
+        id: "request-1",
+        ok: true,
+        data: { projects: 3 },
+      });
+      expect(onRequest).toHaveBeenCalledWith({
         version: 2,
         type: "request",
         id: "request-1",
-        operation: "database",
-        name: "dbGetProjects",
-        payload: {},
-      }),
-    );
+        operation,
+        name,
+        payload,
+      });
 
-    await expect(nextMessage(socket)).resolves.toEqual({
-      version: 2,
-      type: "reply",
-      id: "request-1",
-      ok: true,
-      data: { projects: 3 },
-    });
-    expect(onRequest).toHaveBeenCalledWith({
-      version: 2,
-      type: "request",
-      id: "request-1",
-      operation: "database",
-      name: "dbGetProjects",
-      payload: {},
-    });
-  });
+      socket.send(
+        JSON.stringify({
+          version: 2,
+          type: "request",
+          id: "unknown-1",
+          operation: "unknown",
+          name,
+          payload,
+        }),
+      );
+      await expect(nextClose(socket)).resolves.toBe(1008);
+      expect(onRequest).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("delivers bootstrapped terminal output before the client interest arrives", async () => {
     const stream = new BackendRendererStream();

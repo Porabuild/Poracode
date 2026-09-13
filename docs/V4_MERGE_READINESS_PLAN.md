@@ -110,6 +110,17 @@ includes all completed-turn metadata (`src/main/remote/server/snapshots.ts:269`)
 These are concrete scaling/lifecycle mechanisms, but this audit did not reproduce
 a deployment failure or measure a large-history regression.
 
+**F13 — verified during execution: managed smoke builds are not isolated.**
+`run-poracode-smoke.mjs:187` launches the checkout's `pnpm run dev`, whose tsdown
+watcher writes `dist/main`; the live baseline's backend argv confirmed that path.
+Another same-checkout build or session can replace binaries used by a later lazy
+supervisor/backend restart. Phase 0 must stage immutable session-local runtime and
+helper assets, record and validate their identities, and distinguish Vite HMR from
+production qualification. Prove session A keeps its paths/hashes after checkout
+rebuild and session B launch, including A's backend/supervisor restart; stopping B
+must not remove A's assets. The initial sequential before/after reproduction is
+valid only with the checkout artifacts frozen and their actual hashes recorded.
+
 ## 4. Correct the evidence before relying on it
 
 The existing suites are valuable, but their names and comments sometimes claim
