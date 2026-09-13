@@ -623,3 +623,36 @@ shortcut/tray, dragging, motion, provider execution and the final combined build
 are not claimed by these mock results. The product source differs from frozen05
 by the documented stale-comment correction; frozen06 is a separate targeted
 tooling run, not another full-suite result.
+
+## F32 — retained ownership and first-open liveness
+
+The owner lane reproduced a live process losing its kernel lease after its last
+JavaScript lease reference was abandoned and explicit GC ran. A real second child
+then acquired the same namespace. `HostOwnerLease` now retains successfully
+acquired leases until explicit release; failed acquisition is never retained.
+Normal release closes SQLite and removes the retained entry. The real child
+regression verifies continued exclusion after GC and successor acquisition after
+the actual holder exits.
+
+The broader lease run also caught simultaneous first-open attempts both refusing
+ownership. A thirty-pair real-process probe reproduced five such liveness failures
+and no dual-owner outcome. Enabling retained locking before the exclusive
+transaction can retain each connection's schema-read shared lock during upgrade.
+The transaction now acquires first and only then enables retention across commit.
+The same thirty-pair probe subsequently admitted one owner per pair. No random
+sleep, PID authority or raw read/open of an existing lease inode was added.
+
+Evidence is under `.tmp/v4-owner/.tmp/v4-owner/`: `owner-lease-gc-before.log`,
+`owner-lease-gc-after.log` (the first-open failure remains in that broader run),
+`lease-first-open-before.json`, `lease-first-open-reordered.json`, and
+`owner-lease-gc-and-first-open-after.log`. All twenty lease tests pass, as do full
+typecheck and touched lint/format. Independent and primary review each repeated
+the twenty-test lease suite successfully. The initial unsupported Vitest repeat
+flag and probe-loader path errors remain as failed tooling attempts, not runtime
+evidence.
+
+This bounded correction changes neither lease format 1 nor owner metadata format
+1. Actual headless/bootstrap wiring is a separate uncommitted candidate and must
+wait for confirmed ingress/request drains before claiming safe lease release.
+All roots and processes here were disposable; Linux/Windows, installed upgrades,
+real profiles and full Phase 1 acceptance remain open.
