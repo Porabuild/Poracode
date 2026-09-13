@@ -80,6 +80,15 @@ Version bumps are required by compatibility, not by every code edit. Record the 
 
 External protocol identifiers such as MCP protocol dates and ACP SDK protocol versions are negotiated standards, not Poracode cache generations. Change them only with the corresponding dependency/protocol implementation and interoperability tests.
 
+## Measurement evidence
+
+`ProcessMemorySummary` in `tests/native-e2e/helpers/processMemorySampler.ts` emits
+`samplerVersion: 2`, which corrects own-process RSS peak accounting. Earlier
+unversioned reports contain a last-sample value in that field and must be
+remeasured before use as peak-memory evidence. Keep measurement versions separate
+from the application's wire and storage versions, and record both with the exact
+tested artifact.
+
 ## Mirrored-boundary rule
 
 Some state has more than one durable layer. A version audit must follow the value end to end, not stop at the file being edited. The agent-status path is the canonical example:
