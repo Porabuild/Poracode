@@ -52,9 +52,14 @@ function contains(parent: string, child: string): boolean {
 export async function stageHostImport(
   lease: HostOwnerLease,
   request: { readonly sourceBackupPath: string; readonly sourceDeclaredOffline: true },
+  signal?: AbortSignal,
 ): Promise<HostImportReceipt> {
   const generation = lease.generation;
-  lease.assertActive(generation);
+  function assertOperationActive(): void {
+    lease.assertActive(generation);
+    signal?.throwIfAborted();
+  }
+  assertOperationActive();
   if (request.sourceDeclaredOffline !== true) {
     throw new Error("Host import requires an explicitly offline source backup.");
   }
@@ -107,7 +112,7 @@ export async function stageHostImport(
         : keyFiles[0]?.path === "secret-key.headless"
           ? "headless-file-unverified"
           : "unknown";
-    await database.copyTo(join(staging, "state.sqlite"), () => lease.assertActive(generation));
+    await database.copyTo(join(staging, "state.sqlite"), assertOperationActive);
     copyImportFiles(source, staging, before);
     const after = inventoryImportFiles(source);
     const identityAfter = lstatSync(source);
@@ -152,7 +157,7 @@ export async function stageHostImport(
       { encoding: "utf8", mode: 0o600 },
     );
     // All asynchronous work has joined and the same owner still holds the lease.
-    lease.assertActive(generation);
+    assertOperationActive();
     renameSync(staging, lease.paths.dataRoot);
     return receipt;
   } finally {
