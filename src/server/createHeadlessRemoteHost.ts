@@ -461,7 +461,7 @@ export async function createHeadlessRemoteHost(
       durableServices?.dispose();
       durableServices = null;
       portForwarding.dispose();
-      backendHost.dispose();
+      await backendHost.dispose();
     },
   };
 }
