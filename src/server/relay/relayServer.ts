@@ -84,6 +84,8 @@ interface RegisteredHost {
    * socket (and every other channel + request with it).
    */
   readonly channelBytes: Map<string, number>;
+  /** Bytes consumed from the bounded reserve for terminal control notices. */
+  forcedControlBytes: number;
 }
 
 /**
@@ -224,6 +226,8 @@ export class RelayServer {
   private info: RelayServerInfo | null = null;
   /** Hard outbound cap per control/visitor socket — congestion backpressure. */
   private readonly outboundBufferLimit: number;
+  /** Bounded reserve for tiny close/cancel notices under bulk congestion. */
+  private readonly forcedControlReserveBytes: number;
   /** Per-frame admission bound; custom peers must use compatible receive limits. */
   private readonly controlFrameLimit: number;
   private readonly binaryMessageLimit: number;
@@ -245,6 +249,10 @@ export class RelayServer {
     this.outboundBufferLimit =
       options.maxWebSocketOutboundBufferBytes ??
       relayWebSocketPayloadLimit(options.maxBodyBytes ?? DEFAULT_RELAY_MAX_BODY_BYTES);
+    this.forcedControlReserveBytes = Math.min(
+      64 * 1024,
+      Math.max(4 * 1024, this.outboundBufferLimit * 2),
+    );
     const inboundLimit =
       options.maxWebSocketPayloadBytes ??
       relayWebSocketPayloadLimit(options.maxBodyBytes ?? DEFAULT_RELAY_MAX_BODY_BYTES);
@@ -445,7 +453,7 @@ export class RelayServer {
         };
         const timer = setTimeout(() => {
           if (abandon(new Error("Relay request timed out."))) {
-            this.sendToHost(host, { t: "req-cancel", id });
+            this.sendFrameForced(host, { t: "req-cancel", id });
           }
         }, this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
         this.pending.set(id, {
@@ -467,10 +475,10 @@ export class RelayServer {
         // host's local work instead of leaving a zombie until the deadline.
         onVisitorGone = () => {
           if (abandon(new Error("Visitor disconnected."))) {
-            this.sendToHost(host, { t: "req-cancel", id });
+            this.sendFrameForced(host, { t: "req-cancel", id });
           }
         };
-        const sent = this.sendRaw(host.control, reqFrameText);
+        const sent = this.sendRaw(host.control, reqFrameText, false);
         if (!sent) {
           abandon(new Error("server offline"));
         }
@@ -615,7 +623,10 @@ export class RelayServer {
           // P1-6: the visitor socket is gone mid-forward — tell the host so
           // its channel entry and local socket do not leak as zombies.
           this.visitors.delete(decoded.id);
-          this.sendFrame(control, { t: "ws-close", id: decoded.id });
+          const registeredHost = this.hosts.get(serverId);
+          if (registeredHost?.control === control) {
+            this.sendFrameForced(registeredHost, { t: "ws-close", id: decoded.id });
+          }
         }
         return;
       }
@@ -658,10 +669,11 @@ export class RelayServer {
         this.hosts.set(frame.serverId, {
           control,
           channelBytes: new Map(),
+          forcedControlBytes: 0,
           ...(forwardOwnerId ? { forwardOwnerId } : {}),
         });
         if (forwardOwnerId) this.forwardOwners.set(forwardOwnerId, frame.serverId);
-        this.sendFrame(control, {
+        const registered = this.sendFrame(control, {
           t: "registered",
           serverId: frame.serverId,
           publicUrl: this.publicUrlFor(frame.serverId),
@@ -675,6 +687,15 @@ export class RelayServer {
               }
             : {}),
         });
+        if (!registered) {
+          // Registration is the one reliable control frame that cannot be
+          // retried on this socket: without the acknowledgement the host
+          // cannot know it is live, while retaining it here would create a
+          // registered-but-unusable control entry. Tear down this attempt so
+          // the host reconnects and retries registration cleanly.
+          this.removeHost(frame.serverId);
+          control.close(1013, "relay link congestion");
+        }
         return;
       }
       if (!serverId) {
@@ -682,6 +703,8 @@ export class RelayServer {
         control.close(1008, "host must register first");
         return;
       }
+      const registeredHost = this.hosts.get(serverId);
+      if (!registeredHost || registeredHost.control !== control) return;
       if (frame.t === "res") {
         const pending = this.pending.get(frame.id);
         if (pending && pending.serverId === serverId && this.pending.delete(frame.id)) {
@@ -733,7 +756,7 @@ export class RelayServer {
             if (current.stream.res.writableEnded) return;
             this.pending.delete(frame.id);
             clearTimeout(current.timer);
-            this.sendFrame(control, { t: "req-cancel", id: frame.id });
+            this.sendFrameForced(registeredHost, { t: "req-cancel", id: frame.id });
           });
           // Resolves the request promise as streamed (which clears the
           // whole-request deadline), then arms the idle deadline.
@@ -756,7 +779,7 @@ export class RelayServer {
             this.pending.delete(frame.id);
             clearTimeout(pending.timer);
             stream.destroy();
-            this.sendFrame(control, { t: "req-cancel", id: frame.id });
+            this.sendFrameForced(registeredHost, { t: "req-cancel", id: frame.id });
           }
         }
         return;
@@ -785,7 +808,7 @@ export class RelayServer {
         if (visitor && visitor.serverId === serverId && !this.sendRaw(visitor.socket, frame.data)) {
           // P1-6: same zombie-channel cleanup as the binary branch above.
           this.visitors.delete(frame.id);
-          this.sendFrame(control, { t: "ws-close", id: frame.id });
+          this.sendFrameForced(registeredHost, { t: "ws-close", id: frame.id });
         }
         return;
       }
@@ -914,11 +937,11 @@ export class RelayServer {
       }
     });
     visitor.on("close", () => {
-      if (this.visitors.delete(id)) this.sendToHost(host, { t: "ws-close", id });
+      if (this.visitors.delete(id)) this.sendFrameForced(host, { t: "ws-close", id });
     });
     visitor.on("error", () => {
       if (this.visitors.delete(id)) {
-        this.sendToHost(host, { t: "ws-close", id });
+        this.sendFrameForced(host, { t: "ws-close", id });
         visitor.terminate();
       }
     });
@@ -930,7 +953,7 @@ export class RelayServer {
    * other channel, and in-flight requests are untouched. */
   private rejectOversizeVisitor(host: RegisteredHost, id: string, visitor: WebSocket): void {
     if (!this.visitors.delete(id)) return;
-    this.sendToHost(host, { t: "ws-close", id, reason: RELAY_WS_PAYLOAD_TOO_LARGE_REASON });
+    this.sendFrameForced(host, { t: "ws-close", id, reason: RELAY_WS_PAYLOAD_TOO_LARGE_REASON });
     visitor.close(1009, RELAY_WS_PAYLOAD_TOO_LARGE_REASON);
   }
 
@@ -959,7 +982,7 @@ export class RelayServer {
       if (worst !== channelId) this.evictChannel(host, serverId, channelId);
       return false;
     }
-    if (!this.sendRaw(control, data)) return false;
+    if (!this.sendRaw(control, data, false)) return false;
     if (control.bufferedAmount === 0) {
       host.channelBytes.clear(); // fully drained: start the accounting window fresh
     }
@@ -991,7 +1014,7 @@ export class RelayServer {
     }
     this.visitors.delete(channelId);
     host.channelBytes.delete(channelId);
-    this.sendFrameForced(host.control, {
+    this.sendFrameForced(host, {
       t: "ws-close",
       id: channelId,
       reason: "relay link congestion",
@@ -999,15 +1022,38 @@ export class RelayServer {
     visitor.socket.terminate();
   }
 
-  /** Enqueue a tiny control frame bypassing the outbound soft limit — eviction
-   * notices must reach the host for the drain to start. Never used for bulk
-   * channel traffic. */
-  private sendFrameForced(control: WebSocket, frame: RelayServerFrame): boolean {
+  /** Enqueue a tiny terminal notice through a bounded reserve. Never used for
+   * bulk channel traffic; exhausting the reserve tears down this host so the
+   * peer cannot retain a stale channel or request forever. */
+  private sendFrameForced(host: RegisteredHost, frame: RelayServerFrame): boolean {
+    const control = host.control;
     if (control.readyState !== WebSocket.OPEN) return false;
+    const data = JSON.stringify(frame);
+    const bytes = Buffer.byteLength(data);
+    if (control.bufferedAmount === 0) host.forcedControlBytes = 0;
+    if (
+      host.forcedControlBytes + bytes > this.forcedControlReserveBytes ||
+      control.bufferedAmount + bytes > this.outboundBufferLimit + this.forcedControlReserveBytes
+    ) {
+      this.socketLiveness.delete(control);
+      try {
+        control.terminate();
+      } catch {
+        // ignore
+      }
+      return false;
+    }
     try {
-      control.send(JSON.stringify(frame));
+      control.send(data);
+      host.forcedControlBytes += bytes;
       return true;
     } catch {
+      this.socketLiveness.delete(control);
+      try {
+        control.terminate();
+      } catch {
+        // ignore
+      }
       return false;
     }
   }
@@ -1041,7 +1087,7 @@ export class RelayServer {
       if (pending.stream?.opened) pending.stream.res.destroy();
       pending.reject(new Error("Relay request timed out."));
       const host = this.hosts.get(pending.serverId);
-      if (host) this.sendFrame(host.control, { t: "req-cancel", id });
+      if (host) this.sendFrameForced(host, { t: "req-cancel", id });
     }, this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
   }
 
@@ -1072,18 +1118,20 @@ export class RelayServer {
   }
 
   private sendFrame(control: WebSocket, frame: RelayServerFrame): boolean {
-    return this.sendRaw(control, JSON.stringify(frame));
+    return this.sendRaw(control, JSON.stringify(frame), false);
   }
 
-  private sendRaw(socket: WebSocket, data: string | Uint8Array): boolean {
+  private sendRaw(socket: WebSocket, data: string | Uint8Array, closeOnOverflow = true): boolean {
     if (socket.readyState !== WebSocket.OPEN) return false;
     // Buffer.byteLength counts UTF-8 bytes for strings and .byteLength for views.
     if (socket.bufferedAmount + Buffer.byteLength(data) > this.outboundBufferLimit) {
-      this.socketLiveness.delete(socket);
-      try {
-        socket.terminate();
-      } catch {
-        // ignore
+      if (closeOnOverflow) {
+        this.socketLiveness.delete(socket);
+        try {
+          socket.terminate();
+        } catch {
+          // ignore
+        }
       }
       return false;
     }

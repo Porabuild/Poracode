@@ -624,6 +624,7 @@ describe("relay end-to-end", () => {
     expect(response.status).toBe(502);
     await expect(response.text()).resolves.toContain("server offline");
     expect(state.pending.size).toBe(0);
+    expect(control!.readyState).toBe(WebSocket.OPEN);
   });
 
   it("evicts only the flooding channel when the host control link is congested", async () => {
@@ -945,6 +946,38 @@ describe("relay end-to-end", () => {
     });
   });
 
+  it("forwards visitor close notices through the reserved host control budget", async () => {
+    const relay = new RelayServer({
+      host: "127.0.0.1",
+      port: 0,
+      maxWebSocketOutboundBufferBytes: 512,
+    });
+    const relayInfo = await relay.start();
+    cleanups.push(() => relay.dispose());
+    const control = await openRawHost(relayInfo.port, "srv-close-notice");
+
+    const visitor = new WebSocket(`ws://127.0.0.1:${relayInfo.port}/s/srv-close-notice/ws`);
+    cleanups.push(() => visitor.close());
+    await new Promise<void>((resolve, reject) => {
+      visitor.once("open", resolve);
+      visitor.once("error", reject);
+    });
+    const openFrame = (await readRawHostFrame(control)) as { id: string };
+    expect(openFrame).toMatchObject({ t: "ws-open" });
+
+    Object.defineProperty(control, "bufferedAmount", {
+      configurable: true,
+      value: 1024,
+    });
+    visitor.close();
+
+    await expect(readRawHostFrame(control)).resolves.toMatchObject({
+      t: "ws-close",
+      id: openFrame.id,
+    });
+    expect(control.readyState).toBe(WebSocket.OPEN);
+  });
+
   it("drops slow visitor WebSockets before relay outbound buffers grow unbounded", async () => {
     const relay = new RelayServer({
       host: "127.0.0.1",
@@ -1064,6 +1097,36 @@ describe("relay end-to-end", () => {
       code: 1008,
       reason: "host must register first",
     });
+  });
+
+  it("does not retain a host when the registration acknowledgement is congested", async () => {
+    const relay = new RelayServer({
+      host: "127.0.0.1",
+      port: 0,
+      maxWebSocketOutboundBufferBytes: 1,
+    });
+    const relayInfo = await relay.start();
+    cleanups.push(() => relay.dispose());
+
+    const control = new WebSocket(`ws://127.0.0.1:${relayInfo.port}/host`);
+    cleanups.push(() => control.terminate());
+    await new Promise<void>((resolve, reject) => {
+      control.once("open", resolve);
+      control.once("error", reject);
+    });
+    const closed = waitRelaySocketClose(control);
+    control.send(
+      JSON.stringify({
+        t: "register",
+        protocolVersion: PORACODE_RELAY_PROTOCOL_VERSION,
+        serverId: "srv-congested-registration",
+        secret: "raw-secret",
+      }),
+    );
+
+    await expect(closed).resolves.toMatchObject({ code: 1013, reason: "relay link congestion" });
+    const state = relay as unknown as { hosts: Map<string, unknown> };
+    expect(state.hosts.has("srv-congested-registration")).toBe(false);
   });
 
   it("prevents hijacking an offline server id with a different secret", async () => {

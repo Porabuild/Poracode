@@ -237,18 +237,49 @@ describe("startRelayHost", () => {
       serverId: "srv-1",
       secret: "secret",
       localHttpUrl: "http://127.0.0.1:38987",
-      maxWebSocketOutboundBufferBytes: 64,
+      maxWebSocketOutboundBufferBytes: 256,
       socketFactory: () => control,
       wsFactory: () => local,
     });
 
     control.onopen?.();
     control.onmessage?.(frame({ t: "ws-open", id: "ch-1", path: "/ws?ticket=t" }));
-    control.bufferedAmount = 128;
+    control.bufferedAmount = 512;
     local.onmessage?.({ data: "hello" });
 
-    expect(control.closed).toBe(true);
+    expect(control.closed).toBe(false);
     expect(local.closed).toBe(true);
+    expect(control.sent.map((data) => JSON.parse(data) as unknown)).toContainEqual({
+      t: "ws-close",
+      id: "ch-1",
+      reason: "relay link congestion",
+    });
+    handle.dispose();
+  });
+
+  it("forwards a local websocket close through the reserved control budget", () => {
+    const control = fakeSocket();
+    const local = fakeSocket();
+    const handle = startRelayHost({
+      relayUrl: "ws://relay.test/host",
+      serverId: "srv-1",
+      secret: "secret",
+      localHttpUrl: "http://127.0.0.1:38987",
+      maxWebSocketOutboundBufferBytes: 256,
+      socketFactory: () => control,
+      wsFactory: () => local,
+    });
+
+    control.onopen?.();
+    control.onmessage?.(frame({ t: "ws-open", id: "ch-1", path: "/ws?ticket=t" }));
+    control.bufferedAmount = 512;
+    local.onclose?.();
+
+    expect(control.closed).toBe(false);
+    expect(control.sent.map((data) => JSON.parse(data) as unknown)).toContainEqual({
+      t: "ws-close",
+      id: "ch-1",
+    });
     handle.dispose();
   });
 
