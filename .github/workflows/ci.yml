@@ -2,9 +2,13 @@ name: CI
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, poracode/v2, poracode/v4-integration]
   push:
-    branches: [master]
+    branches: [master, poracode/v2, poracode/v4-integration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -65,6 +69,9 @@ jobs:
 
       - name: Release version regression tests
         run: node --test scripts/resolve-release-version.test.mjs
+
+      - name: Nightly qualification regression tests
+        run: node --test scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs
 
   fmt:
     name: Format
@@ -240,3 +247,15 @@ jobs:
     steps:
       - name: Verify test shards
         run: test "${{ needs.test_shard.result }}" = "success"
+
+  ci_gate:
+    name: CI required gate
+    if: ${{ always() }}
+    needs: [typecheck, lint, fmt, web_build, rust_helper, test_shard, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all core checks
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: node -e 'if (Object.values(JSON.parse(process.env.JOB_RESULTS)).some(job => job.result !== "success")) process.exit(1)'
