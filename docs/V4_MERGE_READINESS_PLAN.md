@@ -346,6 +346,21 @@ pointer input, require the Browser settings step and screenshots, and repeat the
 visible flow. The old Browser PASS is not accepted as visible-surface evidence;
 no production Browser rendering defect is established by this harness failure.
 
+**F11 backend continuation follow-up.** The private backend entrypoint also
+released its database before admitted IPC/direct-renderer callbacks or initial
+stream binding settled. Real loopback stream disposal could finish before its
+handler, and partial upgrade sockets were outside the close barrier. The bounded
+follow-up registers normal requests and initialization separately, closes
+admission, joins startup before collecting handles, then initiates producer
+cancellation while joining normal callbacks. Reverse-native replies stay live;
+their promises drain after producer cleanup. Failed joins retain the database.
+The parent reply path remains available for the retiring child and fences late
+native completions from replacement children; its prior disposed guard would
+have stalled the new drain despite correct backend admission.
+The direct renderer listener uses the shared socket/work barriers. These changes
+require the owner's early cancellation hook at activation, and do not complete
+parent deadlines, native facade execution, process-tree or Windows qualification.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 

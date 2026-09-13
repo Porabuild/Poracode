@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import {
@@ -14,6 +14,7 @@ import {
 import { BackendEventRouter, BackendHostCore } from "./BackendHostCore";
 import { BackendDesktopServices } from "./BackendDesktopServices";
 import { BackendRendererStream } from "./BackendRendererStream";
+import { BackendNativeRequests } from "./BackendNativeRequests";
 import { createBackendHostShedPolicy, createSupervisorEventRelay } from "./supervisorEventRelay";
 import { shutdownBackendHost } from "./shutdown";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
@@ -38,14 +39,8 @@ let remoteEventInterests: LiveEventInterests = {
   runtimeThreadIds: [],
   allRuntimeEvents: false,
 };
-const pendingNativeRequests = new Map<
-  string,
-  {
-    resolve(value: unknown): void;
-    reject(reason: unknown): void;
-    timeout: ReturnType<typeof setTimeout>;
-  }
->();
+const requests = new AsyncWorkTracker();
+const initialization = new AsyncWorkTracker();
 let shuttingDown = false;
 let acceptingRequests = true;
 let runtimeStop: Promise<void> | null = null;
@@ -56,13 +51,24 @@ function stopRuntimeWork(): Promise<void> {
   acceptingRequests = false;
   const barrier = Promise.withResolvers<void>();
   runtimeStop = barrier.promise;
-  void joinRuntimeShutdown([
-    () => desktopServices?.dispose(),
-    () => backendHost?.disposeSupervisor(),
-  ]).then(() => {
+  void (async () => {
+    // Startup can create owned handles after an await. Its eventual owner
+    // cancellation must run before this join, without releasing the root lease.
+    await initialization.drain();
+    try {
+      // Stop producers before waiting for calls that need their cancellation.
+      // Keep service references and SQLite alive through every continuation.
+      await joinRuntimeShutdown([
+        () => desktopServices?.dispose(),
+        () => backendHost?.disposeSupervisor(),
+        () => rendererStream?.dispose(),
+        () => requests.drain(),
+      ]);
+    } finally {
+      await nativeRequests.drain();
+    }
     runtimeWorkJoined = true;
-    barrier.resolve();
-  }, barrier.reject);
+  })().then(barrier.resolve, barrier.reject);
   return runtimeStop;
 }
 
@@ -115,6 +121,8 @@ function send(message: BackendHostOutboundMessage): void {
   sender.sendMessage(message);
 }
 
+const nativeRequests = new BackendNativeRequests(send);
+
 function reportError(
   error: unknown,
   tags?: import("@/shared/diagnostics/sentryPrivacy").PoracodeDiagnosticTags,
@@ -149,16 +157,7 @@ function syncEventInterests(): void {
 function requestNative(
   request: import("@/shared/backendHostProtocol").BackendNativeRequest,
 ): Promise<unknown> {
-  const id = randomUUID();
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      pendingNativeRequests.delete(id);
-      reject(new Error(`Native request "${request.operation}" timed out.`));
-    }, 60_000);
-    timeout.unref?.();
-    pendingNativeRequests.set(id, { resolve, reject, timeout });
-    send({ version: BACKEND_HOST_PROTOCOL_VERSION, kind: "native-request", id, request });
-  });
+  return nativeRequests.request(request);
 }
 
 function replySuccess(replyTo: string, data: unknown = null): void {
@@ -273,6 +272,7 @@ async function initialize(
     onRequest: handleRendererRequest,
   });
   const rendererStreamInfo = await rendererStream.start();
+  if (!acceptingRequests) throw new Error("Backend host is shutting down.");
   return { rendererStream: rendererStreamInfo };
 }
 
@@ -324,18 +324,37 @@ async function handleRendererRequest(request: BackendRendererRequest): Promise<u
   });
 }
 
-async function handleRequest(request: BackendHostRequest): Promise<unknown> {
-  if (
-    !acceptingRequests &&
-    request.operation !== "dispose" &&
-    request.operation !== "resolve-native-request"
-  ) {
-    throw new Error("Backend host is shutting down.");
+function handleRequest(request: BackendHostRequest): Promise<unknown> {
+  // Control replies must bypass both normal admission and its work tracker:
+  // admitted calls may need them to settle, and dispose must not join itself.
+  if (request.operation === "resolve-native-request") {
+    nativeRequests.resolve(request.payload);
+    return Promise.resolve(null);
   }
-  if (request.operation === "initialize") {
-    return initialize(request);
-  }
+  if (request.operation === "dispose") return disposeRuntime();
+  if (!acceptingRequests) return Promise.reject(new Error("Backend host is shutting down."));
+  return requests.run(() =>
+    request.operation === "initialize"
+      ? initialization.run(() => initialize(request))
+      : executeRequest(request),
+  );
+}
 
+async function disposeRuntime(): Promise<null> {
+  await stopRuntimeWork();
+  desktopServices = null;
+  rendererStream = null;
+  backendHost?.closeDatabase();
+  backendHost = null;
+  return null;
+}
+
+async function executeRequest(
+  request: Exclude<
+    BackendHostRequest,
+    { operation: "initialize" | "dispose" | "resolve-native-request" }
+  >,
+): Promise<unknown> {
   const host = backendHost;
   if (!host) throw new Error("Backend host is not initialized.");
 
@@ -418,25 +437,8 @@ async function handleRequest(request: BackendHostRequest): Promise<unknown> {
       rendererEventInterests = request.payload;
       syncEventInterests();
       return null;
-    case "resolve-native-request": {
-      const pending = pendingNativeRequests.get(request.payload.requestId);
-      if (!pending) return null;
-      pendingNativeRequests.delete(request.payload.requestId);
-      clearTimeout(pending.timeout);
-      if (request.payload.ok) pending.resolve(request.payload.data);
-      else pending.reject(new Error(request.payload.error));
-      return null;
-    }
     case "browser-event":
       desktopServices?.publishBrowserEvent(request.payload);
-      return null;
-    case "dispose":
-      await stopRuntimeWork();
-      desktopServices = null;
-      await rendererStream?.dispose();
-      rendererStream = null;
-      host.closeDatabase();
-      backendHost = null;
       return null;
   }
 }
@@ -473,19 +475,12 @@ async function shutdown(exitCode: number, flush: boolean): Promise<void> {
   shuttingDown = true;
   acceptingRequests = false;
   eventRouter.dispose();
-  for (const pending of pendingNativeRequests.values()) {
-    clearTimeout(pending.timeout);
-    pending.reject(new Error("Backend host is shutting down."));
-  }
-  pendingNativeRequests.clear();
+  nativeRequests.cancel(new Error("Backend host is shutting down."));
   await shutdownBackendHost({
     steps: [
       async () => {
         await stopRuntimeWork();
         desktopServices = null;
-      },
-      async () => {
-        await rendererStream?.dispose();
         rendererStream = null;
       },
       async () => {

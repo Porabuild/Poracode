@@ -352,6 +352,137 @@ describe("BackendHostClient", () => {
     });
   });
 
+  it.each([true, false])(
+    "returns a held native completion during backend disposal (ok=%s)",
+    async (ok) => {
+      vi.useFakeTimers();
+      const child = makeFakeChild();
+      forkMock.mockReturnValue(child);
+      const { client, handleNativeRequest } = createClient();
+      await startClient(client, child);
+      const result = Promise.withResolvers<unknown>();
+      handleNativeRequest.mockReturnValue(result.promise);
+      child.emit("message", {
+        version: BACKEND_HOST_PROTOCOL_VERSION,
+        kind: "native-request",
+        id: "native-held",
+        request: { operation: "browser-state", payload: {} },
+      });
+      const closing = client.disposeAsync();
+      try {
+        await vi.advanceTimersByTimeAsync(0);
+        expect(requestFor(child, "dispose")).toBeDefined();
+        if (ok) result.resolve("synthetic-result");
+        else result.reject(new Error("Synthetic native failure"));
+        await vi.advanceTimersByTimeAsync(0);
+        const reverseReply = requestFor(child, "resolve-native-request");
+        expect(reverseReply.payload).toEqual(
+          ok
+            ? { requestId: "native-held", ok: true, data: "synthetic-result" }
+            : { requestId: "native-held", ok: false, error: "Synthetic native failure" },
+        );
+        reply(child, reverseReply);
+        reply(child, requestFor(child, "dispose"));
+        await closing;
+      } finally {
+        result.resolve(null);
+        await vi.advanceTimersByTimeAsync(1_000);
+        await closing;
+      }
+    },
+  );
+
+  it("does not send an old native completion to a replacement child", async () => {
+    vi.useFakeTimers();
+    const first = makeFakeChild(1);
+    const second = makeFakeChild(2);
+    forkMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const { client, handleNativeRequest } = createClient();
+    await startClient(client, first);
+    const result = Promise.withResolvers<unknown>();
+    handleNativeRequest.mockReturnValue(result.promise);
+    first.emit("message", {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "native-request",
+      id: "native-old",
+      request: { operation: "browser-state", payload: {} },
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(handleNativeRequest).toHaveBeenCalledOnce();
+    first.emit("exit", 1);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(forkMock).toHaveBeenCalledTimes(2);
+    try {
+      result.resolve("old-result");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(
+        requests(second).some((request) => request.operation === "resolve-native-request"),
+      ).toBe(false);
+      expect(
+        requests(first).some((request) => request.operation === "resolve-native-request"),
+      ).toBe(false);
+    } finally {
+      result.resolve(null);
+      const closing = client.disposeAsync();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await closing;
+    }
+  });
+
+  it("returns a failure reply when a native callback throws synchronously", async () => {
+    vi.useFakeTimers();
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client, handleNativeRequest } = createClient();
+    await startClient(client, child);
+    handleNativeRequest.mockImplementation(() => {
+      throw new Error("Browser unavailable.");
+    });
+    try {
+      expect(() =>
+        child.emit("message", {
+          version: BACKEND_HOST_PROTOCOL_VERSION,
+          kind: "native-request",
+          id: "native-throw",
+          request: { operation: "browser-watch-start", payload: {} },
+        }),
+      ).not.toThrow();
+      await vi.advanceTimersByTimeAsync(0);
+      const failure = requestFor(child, "resolve-native-request");
+      expect(failure.payload).toEqual({
+        requestId: "native-throw",
+        ok: false,
+        error: "Browser unavailable.",
+      });
+      reply(child, failure);
+    } finally {
+      const closing = client.disposeAsync();
+      await vi.advanceTimersByTimeAsync(1_000);
+      await closing;
+    }
+  });
+
+  it("does not begin deferred native work after its requesting child exits", async () => {
+    vi.useFakeTimers();
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client, handleNativeRequest } = createClient();
+    await startClient(client, child);
+    child.emit("message", {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "native-request",
+      id: "native-not-admitted",
+      request: { operation: "browser-watch-start", payload: {} },
+    });
+    child.emit("exit", 0);
+    await client.disposeAsync();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(handleNativeRequest).not.toHaveBeenCalled();
+    expect(requests(child).some((request) => request.operation === "resolve-native-request")).toBe(
+      false,
+    );
+  });
+
   it("sends deduplicated live-event interests to the backend", async () => {
     const child = makeFakeChild();
     forkMock.mockReturnValue(child);

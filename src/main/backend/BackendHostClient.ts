@@ -204,7 +204,7 @@ export class BackendHostClient {
       // A replaced child can still emit in-flight messages; they must never
       // mutate the state of the current child.
       if (this.child !== child) return;
-      this.handleMessage(message);
+      this.handleMessage(message, child);
     });
     child.on("error", (error) => this.reportProcessError(error));
     child.on("exit", (code) => this.handleExit(child, code));
@@ -314,7 +314,7 @@ export class BackendHostClient {
     this.settleInitializationWaiters((waiter) => waiter.reject(fatal));
   }
 
-  private handleMessage(message: unknown): void {
+  private handleMessage(message: unknown, child: ChildProcess): void {
     if (!isBackendHostOutboundMessage(message)) {
       this.reportProcessError(new Error("Received an invalid backend-host IPC message."));
       return;
@@ -346,15 +346,21 @@ export class BackendHostClient {
         this.options.onReset();
         return;
       case "native-request":
-        void Promise.resolve(this.options.handleNativeRequest?.(message.request)).then(
-          (data) => this.resolveNativeRequest(message.id, true, data),
-          (error: unknown) =>
-            this.resolveNativeRequest(
-              message.id,
-              false,
-              error instanceof Error ? error.message : String(error),
-            ),
-        );
+        void Promise.resolve()
+          .then(() => {
+            if (this.child !== child) return;
+            return this.options.handleNativeRequest?.(message.request);
+          })
+          .then(
+            (data) => this.resolveNativeRequest(child, message.id, true, data),
+            (error: unknown) =>
+              this.resolveNativeRequest(
+                child,
+                message.id,
+                false,
+                error instanceof Error ? error.message : String(error),
+              ),
+          );
         return;
       case "native-event":
         this.options.onNativeEvent?.(message.event);
@@ -491,8 +497,15 @@ export class BackendHostClient {
     });
   }
 
-  private resolveNativeRequest(requestId: string, ok: boolean, value: unknown): void {
-    if (this.disposed || !this.sender) return;
+  private resolveNativeRequest(
+    child: ChildProcess,
+    requestId: string,
+    ok: boolean,
+    value: unknown,
+  ): void {
+    // Disposal closes normal admission, but the retiring backend may need this
+    // reply to finish its drain. A completion never transfers to a replacement.
+    if (this.child !== child || !this.sender) return;
     void this.request({
       version: BACKEND_HOST_PROTOCOL_VERSION,
       id: randomUUID(),
