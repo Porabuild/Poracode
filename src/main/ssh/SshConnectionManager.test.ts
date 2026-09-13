@@ -1,6 +1,15 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -20,6 +29,9 @@ import {
   SshConnectionManager,
 } from "./SshConnectionManager";
 import { ensureSshRuntimeBundle } from "./runtimeBundle";
+import { RUNTIME_BUILD_SOURCE_HASH } from "@/shared/runtimeBuildIdentity";
+
+vi.mock("@/shared/runtimeBuildIdentity", () => ({ RUNTIME_BUILD_SOURCE_HASH: "d".repeat(64) }));
 
 const tempDirs: string[] = [];
 
@@ -59,7 +71,24 @@ function writeRuntimeManifest(
 ): void {
   writeFileSync(
     join(mainBundleDir, sshRuntimeManifestFileName(entry)),
-    `${JSON.stringify({ version: SSH_RUNTIME_MANIFEST_VERSION, files, dependencies: runtimeDependencies })}\n`,
+    `${JSON.stringify({
+      version: SSH_RUNTIME_MANIFEST_VERSION,
+      entry,
+      sourceHash: RUNTIME_BUILD_SOURCE_HASH,
+      captureProtocolVersion: 1,
+      settingsServiceVersion: 0,
+      resources: [],
+      files: files.map((path) => {
+        const bytes = readFileSync(join(mainBundleDir, path));
+        return {
+          path,
+          format: path.endsWith(".mjs") ? "module" : "commonjs",
+          bytes: bytes.length,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        };
+      }),
+      dependencies: runtimeDependencies,
+    })}\n`,
     "utf8",
   );
 }
@@ -249,6 +278,7 @@ describe("SSH runtime bundle", () => {
     expect(entries).toContain("runtime-generated.cjs");
     expect(entries).toContain("transcriptReader-generated.cjs");
     expect(entries).toContain("cursorSdkWorker.mjs");
+    expect(entries).toContain("supervisor.ssh-runtime-manifest.json");
     expect(entries).not.toContain("main.cjs");
     const packageEntry = execFileSync(tar, ["-xOf", archiveName, "./package.json"], {
       cwd: archiveDir,
@@ -271,6 +301,110 @@ describe("SSH runtime bundle", () => {
     expect(() => ensureSshRuntimeBundle(options)).toThrow(
       "Poracode Helper cannot include Electron",
     );
+  });
+
+  it.each([2, 3])(
+    "refuses a predecessor manifest v%i before a warm archive cache can hide it",
+    (version) => {
+      const options = createRuntimeFixture();
+      ensureSshRuntimeBundle(options);
+      const path = join(options.mainBundleDir, sshRuntimeManifestFileName("supervisor"));
+      const manifest = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+      writeFileSync(path, JSON.stringify({ ...manifest, version }));
+      expect(() => ensureSshRuntimeBundle(options)).toThrow(/manifest/i);
+    },
+  );
+
+  it("refuses a mixed source declaration before either archive cache lookup", () => {
+    const options = createRuntimeFixture();
+    ensureSshRuntimeBundle(options);
+    const path = join(options.mainBundleDir, sshRuntimeManifestFileName("supervisor"));
+    const manifest = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+    writeFileSync(path, JSON.stringify({ ...manifest, sourceHash: "e".repeat(64) }));
+    expect(() => ensureSshRuntimeBundle(options)).toThrow(/manifest/i);
+  });
+
+  it("rebuilds a same-path archive when declared bytes change with unchanged size and mtime", () => {
+    const options = createRuntimeFixture();
+    const path = join(options.mainBundleDir, "supervisor.cjs");
+    const manifestPath = join(options.mainBundleDir, sshRuntimeManifestFileName("supervisor"));
+    const original = statSync(path);
+    const originalManifest = statSync(manifestPath);
+    const first = ensureSshRuntimeBundle(options);
+    writeFileSync(path, "SUPERvisor");
+    writeRuntimeManifest(options.mainBundleDir, "supervisor", ["supervisor.cjs"]);
+    utimesSync(path, original.atime, original.mtime);
+    utimesSync(manifestPath, originalManifest.atime, originalManifest.mtime);
+    expect(statSync(path).size).toBe(original.size);
+    expect(statSync(manifestPath).size).toBe(originalManifest.size);
+    const second = ensureSshRuntimeBundle(options);
+    expect(second.hash).not.toBe(first.hash);
+    const code = execFileSync(
+      process.platform === "win32" ? "tar.exe" : "tar",
+      ["-xOf", basename(second.archivePath), "./supervisor.cjs"],
+      { cwd: options.cacheDir, encoding: "utf8" },
+    );
+    expect(code).toBe("SUPERvisor");
+  });
+
+  it("does not reuse an actual predecessor archive through a legacy disk cache marker", () => {
+    const options = createRuntimeFixture();
+    const current = ensureSshRuntimeBundle(options);
+    const markerPath = join(options.cacheDir, "bundle-manifest.json");
+    const marker = JSON.parse(readFileSync(markerPath, "utf8")) as { signature: string };
+    const oldStage = join(options.cacheDir, "predecessor");
+    mkdirSync(oldStage);
+    writeFileSync(join(oldStage, "supervisor.cjs"), "predecessor runtime");
+    writeFileSync(
+      join(oldStage, "supervisor.ssh-runtime-manifest.json"),
+      JSON.stringify({ version: 2, files: ["supervisor.cjs"], dependencies: [] }),
+    );
+    const oldHash = "b".repeat(64);
+    const tar = process.platform === "win32" ? "tar.exe" : "tar";
+    execFileSync(tar, ["-czf", `${oldHash}.tar.gz`, "-C", oldStage, "."], {
+      cwd: options.cacheDir,
+    });
+    writeFileSync(
+      markerPath,
+      JSON.stringify({
+        key: JSON.stringify([
+          options.mainBundleDir,
+          options.agentPluginsDir,
+          options.wslHelpersDir,
+          null,
+          null,
+          options.cacheDir,
+          null,
+        ]),
+        signature: marker.signature,
+        hash: oldHash,
+      }),
+    );
+    // Evict only the in-memory entry by building another owned fixture. The
+    // original call must now decide whether the persisted predecessor is valid.
+    ensureSshRuntimeBundle(createRuntimeFixture());
+    const rebuilt = ensureSshRuntimeBundle(options);
+    expect(rebuilt.hash).toBe(current.hash);
+    expect(rebuilt.hash).not.toBe(oldHash);
+    const packaged = JSON.parse(
+      execFileSync(
+        tar,
+        ["-xOf", basename(rebuilt.archivePath), "./supervisor.ssh-runtime-manifest.json"],
+        { cwd: options.cacheDir, encoding: "utf8" },
+      ),
+    ) as { version: number; sourceHash: string };
+    expect(packaged).toMatchObject({
+      version: SSH_RUNTIME_MANIFEST_VERSION,
+      sourceHash: RUNTIME_BUILD_SOURCE_HASH,
+    });
+  });
+
+  it("refuses a dependency inherited from Object.prototype", () => {
+    const options = createRuntimeFixture();
+    const path = join(options.mainBundleDir, sshRuntimeManifestFileName("supervisor"));
+    const manifest = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+    writeFileSync(path, JSON.stringify({ ...manifest, dependencies: ["constructor"] }));
+    expect(() => ensureSshRuntimeBundle(options)).toThrow(/dependency/);
   });
 });
 
