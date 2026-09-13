@@ -59,3 +59,35 @@ Independent plan critic validated and corrected four execution gaps:
 
 These are now requirements in the plan. No implementation or acceptance result is
 being claimed by this initial documentation checkpoint.
+
+## Checkpoint transport admission — focused correction
+
+Before: a fresh managed real Qwen thread with two harmless marker turns reproduced
+the Revert failure. The client sent `operation: revert-checkpoint` on stream v2;
+the host closed with code 1008, reason `Invalid renderer transport message`, before
+creating any checkpoint journal entry. This isolates admission failure from the
+separate operation-journal/concurrency defects in Phase 2.
+
+Before evidence directory:
+`/Users/svecherenko/.poracode-smoke/v4-before-832fc5467-1789284600/artifacts/`.
+The report, client socket journal, empty operation journal, screenshot, and actual
+bundle hashes are retained there. The loaded backend SHA-256 was
+`a17f137d6a3c01524a0c2317e43b42e00d9d983909389d649eff9d17734b485f`.
+
+The focused real-WebSocket regression failed as expected with `{closed: 1008}`
+instead of a reply; see `tmp/v4-architecture-audit/revert-admission-before.log`.
+The fix derives the operation type and admission guard from one runtime vocabulary.
+This restores an operation already declared by host v5/stream v2, so no new wire
+version is needed for this correction.
+
+After source correction, four targeted suites passed (51 tests), covering renderer
+stream admission, protocol request construction, compound checkpoint behavior,
+and client transport. Independent critic requested a negative otherwise-valid
+unknown-operation request; it was added and closes 1008 without dispatch. Critic
+review of the final three-file delta is clean. Fresh manual AFTER remains pending
+until a rebuilt candidate repeats the journey; this does not close Phase 2.
+
+The same baseline exposed **F13**, a verified smoke-tooling isolation defect now
+added to the plan: the managed runner uses checkout `dist/main` instead of a
+session-local runtime. Fix and prove isolation before final qualification; the
+baseline was stopped cleanly and its bundles preserved before source changes.
