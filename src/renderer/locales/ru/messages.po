@@ -7026,6 +7026,10 @@ msgstr "Локальный"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "Перед выполнением pull из {branch} локальные изменения нужно поместить в stash"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Local chat history was reverted. The provider may still use the removed messages."
+msgstr "Локальная история чата возвращена к прежнему состоянию. Провайдер по-прежнему может использовать удалённые сообщения."
+
 #. placeholder {0}: forward.targetPort
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
@@ -9958,6 +9962,10 @@ msgstr "провайдер"
 msgid "Provider"
 msgstr "Провайдер"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Provider conversation was not restored"
+msgstr "История разговора у провайдера не восстановлена"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Provider has not reported token usage."
@@ -10986,6 +10994,10 @@ msgstr "Откатить все изменения"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert changes"
 msgstr "Откатить изменения"
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Revert state is unknown; the provider did not confirm the rollback in time."
+msgstr "Состояние отката неизвестно: провайдер не подтвердил откат вовремя."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to checkpoint?"
@@ -13068,6 +13080,10 @@ msgstr "Кандидаты изменились после оценки. Сра�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Кандидаты пока не внесли изменений."
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "The checkpoint could not be restored."
+msgstr "Не удалось восстановить контрольную точку."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"

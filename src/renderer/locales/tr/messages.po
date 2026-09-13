@@ -7026,6 +7026,10 @@ msgstr "Yerel"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "{branch}'dan çekilmeden önce yerel değişikliklerin saklanması gerekiyor"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Local chat history was reverted. The provider may still use the removed messages."
+msgstr "Yerel sohbet geçmişi geri alındı. Sağlayıcı kaldırılan mesajları kullanmaya devam edebilir."
+
 #. placeholder {0}: forward.targetPort
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
@@ -9958,6 +9962,10 @@ msgstr "sağlayıcı"
 msgid "Provider"
 msgstr "Sağlayıcı"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Provider conversation was not restored"
+msgstr "Sağlayıcıdaki konuşma geri yüklenmedi"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Provider has not reported token usage."
@@ -10986,6 +10994,10 @@ msgstr "Tüm değişiklikleri geri al"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert changes"
 msgstr "Değişiklikleri geri al"
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Revert state is unknown; the provider did not confirm the rollback in time."
+msgstr "Geri alma durumu bilinmiyor; sağlayıcı geri almayı zamanında onaylamadı."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to checkpoint?"
@@ -13068,6 +13080,10 @@ msgstr "Adaylar değerlendirmeden sonra değişti. Yeniden karşılaştırın."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Adaylar henüz herhangi bir değişiklik yapmadı."
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "The checkpoint could not be restored."
+msgstr "Kontrol noktası geri yüklenemedi."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"

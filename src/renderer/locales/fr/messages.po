@@ -7026,6 +7026,10 @@ msgstr "Local"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "Les modifications locales doivent être mises de côté (stash) avant de récupérer depuis {branch}"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Local chat history was reverted. The provider may still use the removed messages."
+msgstr "L’historique local du chat a été rétabli. Le fournisseur peut toujours utiliser les messages supprimés."
+
 #. placeholder {0}: forward.targetPort
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
@@ -9957,6 +9961,10 @@ msgstr "fournisseur"
 msgid "Provider"
 msgstr "Fournisseur"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Provider conversation was not restored"
+msgstr "La conversation côté fournisseur n’a pas été restaurée"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Provider has not reported token usage."
@@ -10985,6 +10993,10 @@ msgstr "Annuler toutes les modifications"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert changes"
 msgstr "Annuler les modifications"
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Revert state is unknown; the provider did not confirm the rollback in time."
+msgstr "L’état du rétablissement est inconnu ; le fournisseur ne l’a pas confirmé à temps."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to checkpoint?"
@@ -13067,6 +13079,10 @@ msgstr "Les candidats ont changé depuis l’évaluation. Comparez-les à nouvea
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Les candidats n’ont encore apporté aucune modification."
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "The checkpoint could not be restored."
+msgstr "Le point de contrôle n’a pas pu être restauré."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"

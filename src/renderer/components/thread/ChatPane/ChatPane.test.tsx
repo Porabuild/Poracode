@@ -179,6 +179,7 @@ vi.mock("@legendapp/list/react", async () => {
   };
 });
 
+const showDangerToast = toast.danger;
 const toastDangerSpy = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
 
 const originalResizeObserver = globalThis.ResizeObserver;
@@ -240,6 +241,7 @@ afterAll(() => {
 describe("ChatPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    toast.clear();
     mockLegendSizes.clear();
     toastDangerSpy.mockClear();
     vi.useRealTimers();
@@ -2463,39 +2465,85 @@ describe("ChatPane", () => {
     expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
   });
 
-  it("reverts silently when the compound settles local_only", async () => {
-    const thread = { ...makeThread(), status: "idle" as const };
-    const revertCheckpoint = vi
-      .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
-      .mockImplementation(async ({ threadId }) => {
-        await publishRuntimeTruncation({ threadId, itemId: "assistant-1" });
-        return { outcome: "completed_local_only" };
+  it.each([false, true])(
+    "discloses a local-only checkpoint revert (skip confirmation: %s)",
+    async (skipConfirmation) => {
+      if (skipConfirmation) {
+        localStorage.setItem("poracode-chat-checkpoint-revert-skip-confirm", "1");
+      }
+      const thread = { ...makeThread(), status: "idle" as const };
+      const revertCheckpoint = vi
+        .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+        .mockImplementation(async ({ threadId }) => {
+          await publishRuntimeTruncation({ threadId, itemId: "assistant-1" });
+          return { outcome: "completed_local_only" };
+        });
+      Object.assign(window, {
+        poracode: {
+          revertCheckpoint,
+          dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+          setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        },
       });
-    Object.assign(window, {
-      poracode: {
-        revertCheckpoint,
-        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
-      },
-    });
-    seedUserMessage(thread.id, "Initial prompt", "user-1");
-    seedAssistantMessage(thread.id, "First answer", "assistant-1");
-    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
-    seedAssistantMessage(thread.id, "Second answer", "assistant-2");
+      seedUserMessage(thread.id, "Initial prompt", "user-1");
+      seedAssistantMessage(thread.id, "First answer", "assistant-1");
+      seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+      seedAssistantMessage(thread.id, "Second answer", "assistant-2");
 
-    renderChatPane(thread);
-    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+      renderChatPane(thread);
+      await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
 
-    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
+      fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+      if (!skipConfirmation) {
+        fireEvent.click(await screen.findByRole("button", { name: "Revert" }));
+      }
 
-    await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
-    expect(screen.queryByText("does not support checkpoint rollback")).not.toBeInTheDocument();
-    expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
-    expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
-      { kind: "text", text: "Follow-up prompt" },
-    ]);
-  });
+      await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
+      expect(await screen.findByText("Provider conversation was not restored")).toBeVisible();
+      expect(
+        screen.getByText(
+          "Local chat history was reverted. The provider may still use the removed messages.",
+        ),
+      ).toBeVisible();
+      expect(screen.queryByText("Revert to checkpoint?")).not.toBeInTheDocument();
+      expect(screen.queryByText("Second answer")).not.toBeInTheDocument();
+      expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
+        { kind: "text", text: "Follow-up prompt" },
+      ]);
+    },
+  );
+
+  it.each([
+    { outcome: "failed", message: "The checkpoint could not be restored." },
+    {
+      outcome: "ambiguous",
+      message: "Revert state is unknown; the provider did not confirm the rollback in time.",
+    },
+  ])(
+    "shows a $outcome checkpoint error when confirmation is disabled",
+    async ({ outcome, message }) => {
+      localStorage.setItem("poracode-chat-checkpoint-revert-skip-confirm", "1");
+      toastDangerSpy.mockImplementationOnce(showDangerToast);
+      const thread = { ...makeThread(), status: "idle" as const };
+      const revertCheckpoint = vi
+        .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+        .mockResolvedValue({ outcome });
+      Object.assign(window.poracode, { revertCheckpoint });
+      seedUserMessage(thread.id, "Initial prompt", "user-1");
+      seedAssistantMessage(thread.id, "First answer", "assistant-1");
+      seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+
+      renderChatPane(thread);
+      await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+      fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+
+      expect(await screen.findByText(message)).toBeVisible();
+      expect(screen.queryByText("Revert to checkpoint?")).not.toBeInTheDocument();
+      expect(screen.getByText("Follow-up prompt")).toBeInTheDocument();
+      expect(useRevertedPromptStore.getState().byThread[thread.id]).toBeUndefined();
+      expect(revertCheckpoint).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("warns when checkpoint file restore would affect another chat on the main tree", async () => {
     const thread = { ...makeThread(), status: "idle" as const };

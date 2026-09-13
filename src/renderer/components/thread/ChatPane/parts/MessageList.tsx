@@ -12,9 +12,10 @@ import {
   type WheelEventHandler,
 } from "react";
 import { LegendList, type LegendListRef, type LegendListState } from "@legendapp/list/react";
-import { Surface } from "@heroui/react";
-import { Trans } from "@lingui/react/macro";
+import { Surface, toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import type { MessageItemPayload, ProjectLocation, ToolCallPayload } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { threadMentionLabel } from "@/shared/promptContent";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
@@ -146,6 +147,7 @@ export function MessageList({
   suppressInlineTurnAnchorId = null,
   registerScrollToIndex,
 }: MessageListProps) {
+  const { t } = useLingui();
   const hasItems = entries.length > 0;
   const parentActions = useChatPaneActions();
   const listRef = useRef<LegendListRef | null>(null);
@@ -347,9 +349,15 @@ export function MessageList({
       if (result.outcome === "failed" || result.outcome === "ambiguous") {
         throw new Error(
           result.outcome === "ambiguous"
-            ? "Revert state is unknown; the provider did not confirm the rollback in time."
-            : "The checkpoint could not be restored.",
+            ? t`Revert state is unknown; the provider did not confirm the rollback in time.`
+            : t`The checkpoint could not be restored.`,
         );
+      }
+      if (result.outcome === "completed_local_only") {
+        toast.warning(t`Provider conversation was not restored`, {
+          description: t`Local chat history was reverted. The provider may still use the removed messages.`,
+          timeout: 0,
+        });
       }
       if (restoredContent?.length) {
         useRevertedPromptStore.getState().restore(threadId, restoredContent);
@@ -367,7 +375,7 @@ export function MessageList({
       parentActions?.onContentHeightChange?.();
       return true;
     },
-    [checkpointActions, parentActions, threadId],
+    [checkpointActions, parentActions, t, threadId],
   );
 
   const requestRevert = useCallback(
@@ -375,6 +383,7 @@ export function MessageList({
       if (localStorage.getItem(SKIP_REVERT_CONFIRM_PREF_KEY) === "1") {
         void performRevert(itemId, userItemId).catch((error) => {
           console.warn("[checkpoint] failed to revert checkpoint", error);
+          toast.danger(friendlyError(error));
         });
         return;
       }

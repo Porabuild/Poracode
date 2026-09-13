@@ -7026,6 +7026,10 @@ msgstr "Lokal"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "Lokale Änderungen müssen vor dem Pull von {branch} gestasht werden"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Local chat history was reverted. The provider may still use the removed messages."
+msgstr "Der lokale Chatverlauf wurde zurückgesetzt. Der Anbieter verwendet möglicherweise weiterhin die entfernten Nachrichten."
+
 #. placeholder {0}: forward.targetPort
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
@@ -9958,6 +9962,10 @@ msgstr "Anbieter"
 msgid "Provider"
 msgstr "Anbieter"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Provider conversation was not restored"
+msgstr "Der Gesprächsverlauf beim Anbieter wurde nicht wiederhergestellt"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Provider has not reported token usage."
@@ -10986,6 +10994,10 @@ msgstr "Alle Änderungen rückgängig machen"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert changes"
 msgstr "Änderungen rückgängig machen"
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Revert state is unknown; the provider did not confirm the rollback in time."
+msgstr "Der Status der Wiederherstellung ist unbekannt; der Anbieter hat sie nicht rechtzeitig bestätigt."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to checkpoint?"
@@ -13068,6 +13080,10 @@ msgstr "Die Kandidaten haben sich nach der Bewertung geändert. Vergleichen Sie 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Die Kandidaten haben noch keine Änderungen vorgenommen."
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "The checkpoint could not be restored."
+msgstr "Der Kontrollpunkt konnte nicht wiederhergestellt werden."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"

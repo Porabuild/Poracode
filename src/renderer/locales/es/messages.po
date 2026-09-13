@@ -7026,6 +7026,10 @@ msgstr "Local"
 msgid "Local changes need to be stashed before pulling from {branch}"
 msgstr "Es necesario guardar los cambios locales en stash antes de hacer pull desde {branch}"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Local chat history was reverted. The provider may still use the removed messages."
+msgstr "Se revirtió el historial local del chat. El proveedor aún puede usar los mensajes eliminados."
+
 #. placeholder {0}: forward.targetPort
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "localhost:{0} on desktop"
@@ -9958,6 +9962,10 @@ msgstr "proveedor"
 msgid "Provider"
 msgstr "Proveedor"
 
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Provider conversation was not restored"
+msgstr "No se restauró la conversación del proveedor"
+
 #: src/renderer/components/thread/ThreadContextDock.tsx
 #: src/renderer/components/thread/threadContextUsage.ts
 msgid "Provider has not reported token usage."
@@ -10986,6 +10994,10 @@ msgstr "Revertir todos los cambios"
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 msgid "Revert changes"
 msgstr "Revertir cambios"
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "Revert state is unknown; the provider did not confirm the rollback in time."
+msgstr "Se desconoce el estado de la reversión; el proveedor no la confirmó a tiempo."
 
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "Revert to checkpoint?"
@@ -13068,6 +13080,10 @@ msgstr "Los candidatos cambiaron después de la evaluación. Compáralos de nuev
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The candidates have not made any changes yet."
 msgstr "Los candidatos aún no han realizado ningún cambio."
+
+#: src/renderer/components/thread/ChatPane/parts/MessageList.tsx
+msgid "The checkpoint could not be restored."
+msgstr "No se pudo restaurar el punto de control."
 
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
