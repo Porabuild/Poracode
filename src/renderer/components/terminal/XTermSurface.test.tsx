@@ -984,6 +984,103 @@ describe("XTermSurface", () => {
     expect(state.writeLog.map((entry) => entry.data)).toEqual(["", "replayed", "live1"]);
   });
 
+  it("restarts a feed-backed baseline when live output exceeds the hydration cap", async () => {
+    const listeners: TerminalFeedListener[] = [];
+    const authoritativeSnapshot: RemoteTerminalWatchResultReady = {
+      status: "ready",
+      generation: "gen-authoritative",
+      fromCursor: 0,
+      toCursor: 12,
+      data: "authoritative",
+      processState: "running",
+      terminalSize: { cols: 80, rows: 24 },
+    };
+    const outputSource = vi.fn<(listener: TerminalFeedListener) => () => void>((listener) => {
+      listeners.push(listener);
+      if (listeners.length === 2) listener.onSnapshot?.(authoritativeSnapshot);
+      return vi.fn<() => void>();
+    });
+
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        outputSource={outputSource}
+        initialScrollback="initial history"
+      />,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      listeners[0]?.onOutput("x".repeat(1_000_001));
+    });
+    await flushFrame();
+
+    expect(outputSource).toHaveBeenCalledTimes(2);
+    expect(state.writeLog.map((entry) => entry.data)).toEqual([
+      "",
+      "initial history",
+      "",
+      "authoritative",
+    ]);
+    expect(state.writeLog.some((entry) => entry.data.length > 1_000_000)).toBe(false);
+  });
+
+  it("blocks a live-only feed after overflow until a baseline or reset arrives", async () => {
+    const listeners: TerminalFeedListener[] = [];
+    const outputSource = vi.fn<(listener: TerminalFeedListener) => () => void>((listener) => {
+      listeners.push(listener);
+      return vi.fn<() => void>();
+    });
+
+    render(
+      <XTermSurface
+        terminalId="test-1"
+        outputSource={outputSource}
+        initialScrollback="initial history"
+      />,
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      listeners[0]?.onOutput("x".repeat(1_000_001));
+    });
+    await flushFrame();
+    act(() => {
+      listeners[1]?.onOutput("late output");
+    });
+
+    expect(outputSource).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("status")).toHaveTextContent("Reconnecting to terminal");
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", "initial history"]);
+  });
+
+  it("clears stale history when authoritative overflow recovery is empty", async () => {
+    state.bridge.readTerminalScrollback.mockResolvedValueOnce("");
+    render(<XTermSurface terminalId="test-1" initialScrollback="initial history" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      emitEvent({
+        type: "thread-output",
+        threadId: "test-1",
+        data: "x".repeat(1_000_001),
+        outputLength: 1_000_001,
+        terminalInstanceId: "gen-test",
+      });
+    });
+    await flushFrame();
+
+    expect(state.bridge.readTerminalScrollback).toHaveBeenCalledWith({ threadId: "test-1" });
+    expect(terminal().reset).toHaveBeenCalledTimes(2);
+    expect(state.writeLog.map((entry) => entry.data)).toEqual(["", "initial history", ""]);
+  });
+
   it("wipes a queued replay on thread-reset and keeps live output flowing", async () => {
     const onReset = vi.fn<() => void>();
     let resolveScrollback: (value: string) => void = () => {};
