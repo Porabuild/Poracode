@@ -81,6 +81,11 @@ export class PushWorkScope {
         errors.push(error);
       }
     }
+    try {
+      this.sendPush.dispose?.();
+    } catch (error) {
+      errors.push(error);
+    }
     void this.work
       .drain()
       .then(() => {

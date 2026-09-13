@@ -124,3 +124,23 @@ it("cancels an unused delivery response body after consuming its status", async 
   ).resolves.toMatchObject({ ok: true, status: 200 });
   await vi.waitFor(() => expect(closed).toBe(true), { timeout: 1000 });
 });
+
+it("cancels an admitted delivery request when the sender is disposed", async () => {
+  const received = Promise.withResolvers<ServerResponse>();
+  const gatewayUrl = await gateway((response) => {
+    response.writeHead(200, { "content-type": "text/plain" });
+    response.write("held delivery response");
+    received.resolve(response);
+  });
+  const send = createPushGateway({ gatewayUrl, timeoutMs: 5_000 });
+  const pending = send({
+    platform: "android",
+    token: "synthetic-token",
+    pushType: "alert",
+    payload: {},
+  });
+  const response = await received.promise;
+  send.dispose?.();
+  await expect(pending).resolves.toMatchObject({ ok: false, status: 0 });
+  await vi.waitFor(() => expect(response.destroyed).toBe(true), { timeout: 1_000 });
+});
