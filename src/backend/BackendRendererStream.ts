@@ -388,7 +388,7 @@ export class BackendRendererStream {
     }
     if (isBackendRendererRequest(message)) {
       void this.requests
-        .run(() => this.handleRequest(socket, message))
+        .run(() => this.handleRequest(socket, state, message))
         .catch(() => socket.terminate());
       return;
     }
@@ -415,10 +415,14 @@ export class BackendRendererStream {
     );
   }
 
-  private async handleRequest(socket: WebSocket, request: BackendRendererRequest): Promise<void> {
+  private async handleRequest(
+    socket: WebSocket,
+    state: ClientState,
+    request: BackendRendererRequest,
+  ): Promise<void> {
     const handler = this.options.onRequest;
     if (!handler) {
-      this.sendReply(socket, {
+      this.sendReply(socket, state, {
         version: BACKEND_RENDERER_STREAM_VERSION,
         type: "reply",
         id: request.id,
@@ -429,7 +433,7 @@ export class BackendRendererStream {
     }
     try {
       const data = await handler(request);
-      this.sendReply(socket, {
+      this.sendReply(socket, state, {
         version: BACKEND_RENDERER_STREAM_VERSION,
         type: "reply",
         id: request.id,
@@ -437,7 +441,7 @@ export class BackendRendererStream {
         data,
       });
     } catch (error) {
-      this.sendReply(socket, {
+      this.sendReply(socket, state, {
         version: BACKEND_RENDERER_STREAM_VERSION,
         type: "reply",
         id: request.id,
@@ -447,11 +451,13 @@ export class BackendRendererStream {
     }
   }
 
-  private sendReply(socket: WebSocket, reply: BackendRendererReply): void {
+  private sendReply(socket: WebSocket, state: ClientState, reply: BackendRendererReply): void {
     if (socket.readyState !== WebSocket.OPEN) return;
     const payload = JSON.stringify(reply);
     if (Buffer.byteLength(payload) > MAX_REQUEST_BYTES) {
-      socket.send(
+      this.send(
+        socket,
+        state,
         JSON.stringify({
           version: BACKEND_RENDERER_STREAM_VERSION,
           type: "reply",
@@ -462,7 +468,7 @@ export class BackendRendererStream {
       );
       return;
     }
-    socket.send(payload);
+    this.send(socket, state, payload);
   }
 
   private replayFrom(socket: WebSocket, state: ClientState, lastSeq: number): void {

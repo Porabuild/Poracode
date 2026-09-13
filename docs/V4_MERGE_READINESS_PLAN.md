@@ -725,6 +725,12 @@ headless owner. This is the duplicate-owner gate only; Electron attach, explicit
 managed-local versus externally managed lifecycle, and old-version migration
 qualification remain required.
 
+The backend renderer stream now applies its per-client byte budget to request
+replies as well as live events. A congested renderer receives the same bounded
+1013 backpressure close instead of bypassing the budget through `socket.send()`.
+This fixes one local fallback memory path; it does not yet satisfy the Phase 3
+requirement to move steady-state bulk traffic out of Electron main.
+
 Acceptance: concurrent desktop/server launches in both orders; separate roots;
 stale-lock recovery; old/master Electron already using the root in either startup
 order; attach/detach/restart; schedules and providers continuing with
