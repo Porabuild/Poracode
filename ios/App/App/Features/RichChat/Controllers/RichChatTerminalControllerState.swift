@@ -64,4 +64,37 @@ enum RichChatTerminalWatchPolicy {
       return true
     }
   }
+
+  /// Resume for the next v2 watch — only an established position with a
+  /// durable generation can resume; null-generation caches are replace-only
+  /// and can never resume.
+  static func resumeFromRetained(_ cursor: TerminalCursorState?) -> RichChatTerminalWatchResume? {
+    guard let durable = retainedDurable(cursor) else { return nil }
+    return RichChatTerminalWatchResume(generation: durable.generation, cursor: durable.toCursor)
+  }
+
+  /// Cursor seeded for a fresh watch attempt: the retained established
+  /// position re-armed under the NEW watch id, so a served resume suffix (or
+  /// the up-to-date marker) appends instead of replacing the transcript.
+  /// Anything non-durable restarts as a bare watching cursor.
+  static func seedFromRetained(_ cursor: TerminalCursorState?, watchID: String)
+    -> TerminalCursorState
+  {
+    guard let durable = retainedDurable(cursor) else { return .watching(watchID) }
+    return .established(
+      watchID: watchID,
+      generation: durable.generation,
+      toCursor: durable.toCursor,
+      transcript: durable.transcript
+    )
+  }
+
+  /// The retained position is resumable only with a baseline under a durable
+  /// generation; null/empty generations are replace-only.
+  private static func retainedDurable(_ cursor: TerminalCursorState?) -> TerminalCursorState? {
+    guard let cursor, cursor.baselineReceived,
+      let generation = cursor.generation, !generation.isEmpty
+    else { return nil }
+    return cursor
+  }
 }

@@ -3516,8 +3516,11 @@
         "id": "terminal-watch-baseline-ack",
         "batch": "terminal",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatTerminalWire.swift",
+            "ios/App/App/Transport/Terminal/RichChatTerminalWebSocketTransport.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -3701,8 +3704,12 @@
         "id": "terminal-watch-baseline-chunk",
         "batch": "terminal",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Transport/RichChat/RichChatTerminalWire.swift",
+            "ios/App/App/Transport/Terminal/RichChatTerminalWebSocketTransport.swift",
+            "ios/App/App/Features/RichChat/TerminalBaselineAssembler.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",

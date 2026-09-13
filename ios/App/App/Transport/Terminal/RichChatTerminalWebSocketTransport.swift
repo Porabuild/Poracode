@@ -14,6 +14,16 @@ protocol RichChatTerminalWebSocketConnection: Sendable {
 protocol RichChatTerminalWebSocketConnecting: Sendable {
   func connect(owner: RichChatThreadTarget) async throws
     -> any RichChatTerminalWebSocketConnection
+  /// Environment for cursor-sync negotiation; nil when the connector has no
+  /// environment source (the requested watch message then passes through).
+  func environment(owner: RichChatThreadTarget) async throws
+    -> RemoteEnvironmentDescriptor?
+}
+
+extension RichChatTerminalWebSocketConnecting {
+  func environment(owner _: RichChatThreadTarget) async throws
+    -> RemoteEnvironmentDescriptor?
+  { nil }
 }
 
 struct RichChatURLSessionTerminalConnector: RichChatTerminalWebSocketConnecting {
@@ -46,6 +56,15 @@ struct RichChatURLSessionTerminalConnector: RichChatTerminalWebSocketConnecting 
       threadItemInterests: []
     )
     return RichChatURLSessionTerminalConnection(url: url)
+  }
+
+  func environment(owner: RichChatThreadTarget) async throws
+    -> RemoteEnvironmentDescriptor?
+  {
+    guard let endpoint = await endpointProvider(), endpoint.lease == owner.lease else {
+      throw CancellationError()
+    }
+    return try await endpoint.api.environment()
   }
 }
 
@@ -107,14 +126,33 @@ actor RichChatURLSessionTerminalConnection: RichChatTerminalWebSocketConnection 
 /// A terminal-only production socket. The actor gates every callback by an internal connection
 /// generation and the externally selected host/thread owner. It deliberately does not consume the
 /// replayable event stream; every reconnect re-installs the current watch and receives a baseline.
+/// Cursor-sync v2 watches stream chunked baselines: each chunk is acknowledged
+/// cumulatively and the assembly completes into exactly one baseline cursor
+/// frame, so chunk slices never cross the transport boundary.
 actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
   typealias Delay = @Sendable (_ failedAttempts: Int) -> Duration
 
+  /// One watch attempt decoded from the client watch message; owns the v2
+  /// negotiation/downgrade state for the current watch.
+  private struct WatchRequest {
+    let terminalID: String
+    let watchID: String
+    let version: Int
+    let resume: RichChatTerminalWatchResume?
+
+    var isV2: Bool { version == TerminalCursorSyncV2.version }
+  }
+
   private let connector: any RichChatTerminalWebSocketConnecting
   private let reconnectDelay: Delay
+  private let baselineTimeout: Duration
 
   private var owner: RichChatThreadTarget?
   private var activeWatch: Data?
+  private var watchRequest: WatchRequest?
+  private var negotiated = false
+  private var assembler = TerminalBaselineAssembler()
+  private var baselineDeadlineTask: Task<Void, Never>?
   private var connection: (any RichChatTerminalWebSocketConnection)?
   private var connectionGeneration: UInt64 = 0
   private var ready = false
@@ -128,10 +166,12 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
     connector: any RichChatTerminalWebSocketConnecting,
     reconnectDelay: @escaping Delay = { attempt in
       .milliseconds(Int64(min(20_000, 1_000 * (1 << min(max(0, attempt - 1), 4)))))
-    }
+    },
+    baselineTimeout: Duration = TerminalCursorSyncV2.baselineTimeout
   ) {
     self.connector = connector
     self.reconnectDelay = reconnectDelay
+    self.baselineTimeout = baselineTimeout
   }
 
   func sendRichChatTerminalMessage(_ data: Data) async throws {
@@ -146,12 +186,17 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
     case "terminal-watch":
       if owner != nextOwner { await stopCurrent(finishEvents: false) }
       owner = nextOwner
+      watchRequest = try Self.decodeWatchRequest(data)
+      negotiated = false
+      assembler.reset()
+      cancelBaselineDeadline()
       activeWatch = data
       reconnectTask?.cancel()
       reconnectTask = nil
       if ready, let connection {
         do {
           try await connection.send(data)
+          armBaselineDeadline(generation: connectionGeneration)
           emit(.connection(.watching))
           return
         } catch is CancellationError {
@@ -194,6 +239,7 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
         }
       }
       activeWatch = nil
+      watchRequest = nil
       await stopCurrent(finishEvents: false)
     default:
       throw RichChatGatewayError.invalidRequest
@@ -228,6 +274,29 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
     let generation = connectionGeneration
     ready = false
     emit(.connection(failedAttempts == 0 ? .connecting : .reconnecting))
+    if !negotiated {
+      // Capability discovery is part of the retrying connection attempt: a v2
+      // request downgrades to v1 when the environment does not advertise v2,
+      // and a host advertising no cursor-sync at all stops the watch.
+      let environment = try await connector.environment(owner: expectedOwner)
+      guard owns(expectedOwner, generation: generation) else { throw CancellationError() }
+      if let environment, let request = watchRequest {
+        let advertised = environment.capabilities?.terminalCursorSync?.versions ?? []
+        if request.isV2 && !advertised.contains(TerminalCursorSyncV2.version) {
+          guard advertised.contains(1) else { throw RichChatGatewayError.invalidResponse }
+          activeWatch = try Self.v1WatchMessage(request)
+          watchRequest = WatchRequest(
+            terminalID: request.terminalID,
+            watchID: request.watchID,
+            version: 1,
+            resume: nil
+          )
+        } else if !request.isV2 && !advertised.contains(1) {
+          throw RichChatGatewayError.invalidResponse
+        }
+      }
+      negotiated = true
+    }
     let newConnection = try await connector.connect(owner: expectedOwner)
     guard owns(expectedOwner, generation: generation) else {
       await newConnection.cancel()
@@ -245,6 +314,7 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
         guard let watch = activeWatch else { throw CancellationError() }
         try await newConnection.send(watch)
         guard owns(expectedOwner, generation: generation) else { throw CancellationError() }
+        armBaselineDeadline(generation: generation)
         ready = true
         failedAttempts = 0
         emit(.connection(.watching))
@@ -256,9 +326,11 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
           )
         }
         return
-      case "terminal-output", "terminal-watch-result":
+      case "terminal-output", "terminal-watch-result", "terminal-watch-baseline-chunk":
         // Defensive only: the server cannot emit terminal data before a watch is installed.
-        try consumeTerminalFrame(data, owner: expectedOwner, generation: generation)
+        try await consumeTerminalFrame(
+          data, connection: newConnection, owner: expectedOwner, generation: generation
+        )
       default:
         continue
       }
@@ -275,8 +347,15 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
         let data = try await expectedConnection.receive()
         guard owns(expectedOwner, generation: generation) else { return }
         let type = try Self.serverMessageType(data)
-        if type == "terminal-output" || type == "terminal-watch-result" {
-          try consumeTerminalFrame(data, owner: expectedOwner, generation: generation)
+        if type == "terminal-output" || type == "terminal-watch-result"
+          || type == "terminal-watch-baseline-chunk"
+        {
+          try await consumeTerminalFrame(
+            data,
+            connection: expectedConnection,
+            owner: expectedOwner,
+            generation: generation
+          )
         }
       }
     } catch is CancellationError {
@@ -289,13 +368,160 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
 
   private func consumeTerminalFrame(
     _ data: Data,
+    connection: any RichChatTerminalWebSocketConnection,
     owner expectedOwner: RichChatThreadTarget,
     generation: UInt64
-  ) throws {
+  ) async throws {
     guard owns(expectedOwner, generation: generation) else { return }
-    let event = RichChatTerminalTransportEvent.frame(
-      try GeneratedRemoteV3Contract.richTerminalServerFrame(data)
+    let frame = try GeneratedRemoteV3Contract.richTerminalServerFrame(data)
+    switch frame {
+    case .baselineChunk(let chunk):
+      guard let request = watchRequest,
+        chunk.terminalID == request.terminalID, chunk.watchID == request.watchID
+      else { return }
+      // Chunks prove the baseline stream is progressing — only they re-arm
+      // the idle deadline (post-baseline output must not; a quiet live
+      // terminal is healthy).
+      armBaselineDeadline(generation: generation)
+      switch assembler.offer(chunk) {
+      case .acknowledge(let throughCursor):
+        try await sendBaselineAck(
+          request, throughCursor: throughCursor, connection: connection,
+          owner: expectedOwner, generation: generation
+        )
+      case .complete(let baseline, let throughCursor):
+        try await sendBaselineAck(
+          request, throughCursor: throughCursor, connection: connection,
+          owner: expectedOwner, generation: generation
+        )
+        cancelBaselineDeadline()
+        yieldFrame(.frame(.cursor(baseline)))
+      case .duplicate:
+        break
+      case .discard:
+        await connectionFailed(error: nil)
+      }
+    case .cursor(let cursorFrame):
+      if cursorFrame.kind == .baseline { cancelBaselineDeadline() }
+      yieldFrame(.frame(frame))
+    case .watchError(let error):
+      if try await downgradeOnUnsupportedVersion(
+        error, connection: connection, owner: expectedOwner, generation: generation
+      ) {
+        return
+      }
+      if !error.retryable {
+        // A non-retryable verdict ends the attempt (mirrors Android's fail):
+        // tear the socket and the deadline down so no idle reconnect can
+        // revive a dead watch; the error frame itself tells the controller.
+        // The owner/watch intent stays armed for an explicit future watch.
+        connectionGeneration &+= 1
+        receiveTask?.cancel()
+        receiveTask = nil
+        cancelBaselineDeadline()
+        assembler.reset()
+        ready = false
+        let oldConnection = self.connection
+        self.connection = nil
+        await oldConnection?.cancel()
+      }
+      yieldFrame(.frame(frame))
+    case .legacyOutput:
+      yieldFrame(.frame(frame))
+    }
+  }
+
+  /// Sends the per-chunk cumulative acknowledgment over the live connection;
+  /// a failed send tears the socket down for a reconnecting retry.
+  private func sendBaselineAck(
+    _ request: WatchRequest,
+    throughCursor: Int64,
+    connection: any RichChatTerminalWebSocketConnection,
+    owner expectedOwner: RichChatThreadTarget,
+    generation: UInt64
+  ) async throws {
+    guard owns(expectedOwner, generation: generation) else { return }
+    do {
+      try await connection.send(
+        try GeneratedRemoteV3Contract.richTerminalBaselineAckMessage(
+          terminalID: request.terminalID,
+          watchID: request.watchID,
+          throughCursor: throughCursor
+        )
+      )
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      await connectionFailed(error: nil)
+    }
+  }
+
+  /// Explicit v2→v1 downgrade (mirrors the desktop feed swap and the Android
+  /// transport): a non-retryable `unavailable` with reason
+  /// `unsupported-version` means "re-watch as v1 on this connection", not a
+  /// hard failure. Returns true when the downgrade was applied (the error
+  /// frame is consumed here and never delivered).
+  private func downgradeOnUnsupportedVersion(
+    _ error: RichChatTerminalWatchError,
+    connection: any RichChatTerminalWebSocketConnection,
+    owner expectedOwner: RichChatThreadTarget,
+    generation: UInt64
+  ) async throws -> Bool {
+    guard let request = watchRequest,
+      error.terminalID == request.terminalID, error.watchID == request.watchID,
+      error.code == .unavailable, !error.retryable, request.isV2,
+      error.reason == TerminalCursorSyncV2.unsupportedVersionReason
+    else { return false }
+    guard owns(expectedOwner, generation: generation) else { return false }
+    activeWatch = try Self.v1WatchMessage(request)
+    watchRequest = WatchRequest(
+      terminalID: request.terminalID,
+      watchID: request.watchID,
+      version: 1,
+      resume: nil
     )
+    assembler.reset()
+    do {
+      try await connection.send(activeWatch!)
+      guard owns(expectedOwner, generation: generation) else { return true }
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      await connectionFailed(error: nil)
+      return true
+    }
+    armBaselineDeadline(generation: generation)
+    emit(.connection(.watching))
+    return true
+  }
+
+  // MARK: - Baseline idle deadline
+
+  /// Arms (or re-arms) the idle deadline for the in-flight baseline of the
+  /// given connection generation.
+  private func armBaselineDeadline(generation: UInt64) {
+    baselineDeadlineTask?.cancel()
+    baselineDeadlineTask = Task { [weak self, baselineTimeout] in
+      do {
+        try await Task.sleep(for: baselineTimeout)
+      } catch { return }
+      guard !Task.isCancelled else { return }
+      await self?.baselineDeadlineFired(generation: generation)
+    }
+  }
+
+  private func cancelBaselineDeadline() {
+    baselineDeadlineTask?.cancel()
+    baselineDeadlineTask = nil
+  }
+
+  private func baselineDeadlineFired(generation: UInt64) {
+    guard connectionGeneration == generation, activeWatch != nil else { return }
+    baselineDeadlineTask = nil
+    Task { await self.connectionFailed(error: nil) }
+  }
+
+  private func yieldFrame(_ event: RichChatTerminalTransportEvent) {
     if case .dropped = continuation?.yield(event) {
       Task { [weak self] in await self?.connectionFailed(error: nil) }
     }
@@ -309,6 +535,8 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
     connectionGeneration &+= 1
     receiveTask?.cancel()
     receiveTask = nil
+    cancelBaselineDeadline()
+    assembler.reset()
     let oldConnection = connection
     connection = nil
     ready = false
@@ -355,6 +583,8 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
     reconnectTask = nil
     receiveTask?.cancel()
     receiveTask = nil
+    cancelBaselineDeadline()
+    assembler.reset()
     let oldConnection = connection
     connection = nil
     ready = false
@@ -374,11 +604,44 @@ actor RichChatTerminalWebSocketTransport: RichChatTerminalSocketSending {
     consumerID = nil
     continuation = nil
     activeWatch = nil
+    watchRequest = nil
     await stopCurrent(finishEvents: false)
   }
 
   private func owns(_ expectedOwner: RichChatThreadTarget, generation: UInt64) -> Bool {
     owner == expectedOwner && connectionGeneration == generation && activeWatch != nil
+  }
+
+  /// Decodes the cursor-sync request embedded in a client terminal-watch
+  /// message (already canonicalized by `clientMessageType`'s caller path).
+  private static func decodeWatchRequest(_ data: Data) throws -> WatchRequest {
+    let value = try RichJSON.decode(try GeneratedRemoteV3Contract.clientWebSocketMessage(data))
+    guard let object = value.objectValue,
+      let terminalID = RichDecoding.requiredString(object, "id", allowEmpty: false),
+      let sync = object["cursorSync"]?.objectValue,
+      let watchID = RichDecoding.requiredString(sync, "watchId", allowEmpty: false),
+      let version = sync["version"]?.exactInt64Value.map(Int.init),
+      (1...TerminalCursorSyncV2.version).contains(version)
+    else { throw RichChatGatewayError.invalidRequest }
+    var resume: RichChatTerminalWatchResume?
+    if let resumeObject = sync["resume"]?.objectValue {
+      guard let generation = RichDecoding.requiredString(
+        resumeObject, "generation", allowEmpty: false
+      ), let cursor = resumeObject["cursor"]?.exactInt64Value,
+        let parsed = RichChatTerminalWatchResume(generation: generation, cursor: cursor)
+      else { throw RichChatGatewayError.invalidRequest }
+      resume = parsed
+    }
+    return WatchRequest(
+      terminalID: terminalID, watchID: watchID, version: version, resume: resume
+    )
+  }
+
+  private static func v1WatchMessage(_ request: WatchRequest) throws -> Data {
+    try GeneratedRemoteV3Contract.richTerminalWatchMessage(
+      terminalID: request.terminalID,
+      watchID: request.watchID
+    )
   }
 
   private func emit(_ event: RichChatTerminalTransportEvent) {

@@ -32,7 +32,7 @@ final class SelectedRichChatSessionGatewayTests: XCTestCase {
     }
     await assertMissingScope("terminal:read") {
       try await gateway.watchRichTerminal(
-        target: target, terminalID: "terminal-1", watchID: "watch-1"
+        target: target, terminalID: "terminal-1", watchID: "watch-1", resume: nil
       )
     }
     await assertMissingScope("terminal:operate") {
@@ -144,7 +144,7 @@ final class SelectedRichChatSessionGatewayTests: XCTestCase {
     let gateway = SelectedRichChatSessionGateway { box.selection }
 
     try await gateway.watchRichTerminal(
-      target: Self.target(), terminalID: "terminal-rich", watchID: "watch-rich"
+      target: Self.target(), terminalID: "terminal-rich", watchID: "watch-rich", resume: nil
     )
 
     let socketMessages = await socket.messages()
@@ -156,6 +156,14 @@ final class SelectedRichChatSessionGatewayTests: XCTestCase {
       object["cursorSync"]?.objectValue?["watchId"],
       .string("watch-rich")
     )
+    // The gateway always requests cursor-sync v2 with the negotiated bounds
+    // (no resume without a durable retained position); the transport
+    // negotiates down to v1 on hosts that do not advertise v2.
+    let cursorSync = try XCTUnwrap(object["cursorSync"]?.objectValue)
+    XCTAssertEqual(cursorSync["version"]?.exactInt64Value, 2)
+    XCTAssertEqual(cursorSync["maxChunkBytes"]?.exactInt64Value, 4096)
+    XCTAssertEqual(cursorSync["maxWindowBytes"]?.exactInt64Value, 8192)
+    XCTAssertNil(cursorSync["resume"])
   }
 
   private func assertMissingScope(
