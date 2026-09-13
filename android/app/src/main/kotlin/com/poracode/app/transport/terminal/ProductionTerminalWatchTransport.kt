@@ -277,11 +277,12 @@ class ProductionTerminalWatchTransport(
             return
         } ?: return
         if (!frame.matchesAttempt(expected.terminalId, expected.watchId)) return
-        // Every matched frame proves the attempt is progressing — a slow but
-        // moving baseline must never hit the idle deadline mid-transfer.
-        if (frame !is TerminalServerFrame.WatchError) armBaselineDeadline(expected, gen)
         when (frame) {
             is TerminalServerFrame.BaselineChunk -> {
+                // Chunks prove the baseline stream is progressing — only they
+                // re-arm the idle deadline (post-baseline output must not; a
+                // quiet live terminal is healthy).
+                armBaselineDeadline(expected, gen)
                 when (val outcome = cursorSync.offerChunk(frame.chunk)) {
                     is TerminalBaselineAssembler.Outcome.Acknowledge -> {
                         sendAck(expected, gen, webSocket, outcome.throughCursor)
