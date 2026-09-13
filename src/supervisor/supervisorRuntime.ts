@@ -1027,7 +1027,10 @@ export class SupervisorRuntime {
     this.mcpOAuthService.dispose();
     this.lspManager.dispose();
     await this._projectWatcher?.dispose();
-    await this.threadSessionManager.dispose();
+    const ptysExited = await this.threadSessionManager.dispose();
+    if (!ptysExited) {
+      throw new Error("Supervisor PTY shutdown was not confirmed before the deadline.");
+    }
     this.crossagentMcpIngress.dispose();
     this.sharedSettingsCache.dispose();
     await this.cliHookPluginCoordinator.dispose().catch((error) => {

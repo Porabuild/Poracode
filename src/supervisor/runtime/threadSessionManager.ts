@@ -1618,7 +1618,7 @@ export class ThreadSessionManager {
     return this.spawnPipeline.spawnThread(input);
   }
 
-  async dispose(): Promise<void> {
+  async dispose(): Promise<boolean> {
     this.disposed = true;
     this.followUpQueue.dispose();
     for (const threadId of this.startLocks.keys()) {
@@ -1643,8 +1643,13 @@ export class ThreadSessionManager {
       this.rememberRemovedThread(shell.shellId);
       this.ptyLifecycle.killShell(shell);
     }
+    // Do not report supervisor shutdown complete while a killed PTY can still
+    // emit bytes or mutate its session. The lifecycle helper bounds each wait
+    // so a broken native exit callback cannot hold the owner forever.
+    const ptysExited = await this.ptyLifecycle.waitForAllExits();
     this.shellSessions.clear();
     this.logWriter.dispose();
+    return ptysExited;
   }
 
   private requireSession(threadId: string): SessionRuntime {

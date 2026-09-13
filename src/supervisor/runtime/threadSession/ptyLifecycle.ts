@@ -57,15 +57,26 @@ export class PtyLifecycle {
     }
   }
 
-  async waitForExit(session: SessionRuntime | ShellSessionRuntime): Promise<void> {
+  async waitForExit(session: SessionRuntime | ShellSessionRuntime): Promise<boolean> {
     if (session.ptyExited) {
-      return;
+      return true;
     }
     const exitPromise = this.exitPromises.get(session);
     if (!exitPromise) {
-      return;
+      return true;
     }
-    await Promise.race([exitPromise, sleep(PtyLifecycle.CLOSE_TIMEOUT_MS).then(() => undefined)]);
+    return await Promise.race([
+      exitPromise.then(() => true),
+      sleep(PtyLifecycle.CLOSE_TIMEOUT_MS).then(() => false),
+    ]);
+  }
+
+  /** Join every PTY that was admitted before the owner begins closing. */
+  async waitForAllExits(): Promise<boolean> {
+    const results = await Promise.all(
+      [...this.trackedSessions].map((session) => this.waitForExit(session)),
+    );
+    return results.every(Boolean);
   }
 
   kill(session: SessionRuntime): void {
