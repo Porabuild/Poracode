@@ -1270,6 +1270,16 @@ at `phase: "stopped"` after verified teardown. Ownership fixtures pass the
 desktop-first/headless-contender refusal. This closes duplicate-owner admission,
 but Electron attach and managed-local/server lifecycle selection remain open.
 
+## Phase 3 reply-budget correction
+
+The backend renderer stream had a bounded per-client byte budget for live events
+but sent request replies directly through `socket.send()`. Replies now use the
+same adaptive budget and slow-client close path, including oversized-response
+errors. A real WebSocket regression forces a 2 MiB buffered amount and observes
+the 1013 backpressure close; the complete renderer-stream suite passes 20 tests.
+This bounds the local fallback path, while moving bulk traffic off Electron main
+and proving steady-state zero bulk bytes still remain Phase 3 work.
+
 The remaining F11 work must wire main/native admission and actual execution joins,
 reconcile the parent one-second and app two-second deadlines, join backend and
 provider/PTY descendants, and qualify Windows shutdown. The sealed red evidence is

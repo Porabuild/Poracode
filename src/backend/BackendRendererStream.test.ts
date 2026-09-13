@@ -137,6 +137,45 @@ describe("BackendRendererStream", () => {
     },
   );
 
+  it("applies the renderer byte budget to replies on a congested socket", async () => {
+    const onRequest = vi.fn<() => Promise<unknown>>(async () => ({ ok: true }));
+    const stream = new BackendRendererStream({ onRequest });
+    streams.push(stream);
+    const info = await stream.start();
+    const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+    await hello;
+    socket.send(
+      JSON.stringify({
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "interests",
+        terminalThreadIds: [],
+        runtimeThreadIds: [],
+        lastSeq: 0,
+      }),
+    );
+    await nextMessage(socket);
+
+    const clients = (stream as unknown as { clients: Map<WebSocket, unknown> }).clients;
+    const serverSocket = [...clients.keys()][0];
+    expect(serverSocket).toBeDefined();
+    Object.defineProperty(serverSocket, "bufferedAmount", {
+      configurable: true,
+      value: 2 * 1024 * 1024,
+    });
+    socket.send(
+      JSON.stringify({
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "request",
+        id: "congested-reply",
+        operation: "database",
+        name: "dbGetProjects",
+        payload: {},
+      }),
+    );
+    await expect(nextClose(socket)).resolves.toBe(1013);
+    expect(stream.getDiagnostics().slowClientDisconnects).toBe(1);
+  });
+
   it("delivers bootstrapped terminal output before the client interest arrives", async () => {
     const stream = new BackendRendererStream();
     streams.push(stream);
