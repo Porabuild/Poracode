@@ -1330,6 +1330,14 @@ PWA and remote-server checks pass; this protects old-document/new-worker
 coexistence but does not substitute for an installed upgrade and offline
 recovery run on every supported browser.
 
+The browser renderer now installs one lifecycle coordinator for `pageshow`,
+`online`, and visible `visibilitychange`. Signals in the same turn coalesce into
+one `connectAll` pass, hidden documents do not initiate network work, and
+cleanup removes all listeners. The focused lifecycle suite passes two tests,
+with typecheck, touched oxlint, and formatting green. This removes the observed
+resume delay before the existing reconnect policy runs; endpoint replacement,
+Safari suspension, and installed-PWA evidence still require device runs.
+
 ## F41 — native helper and computer-use lifetimes
 
 The isolated native lifetime slice is merged as `1d3196fe1` from the reviewed
