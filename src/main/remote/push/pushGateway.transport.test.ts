@@ -63,6 +63,21 @@ it("keeps the public-key deadline active through an actual held response body", 
   expect(calls).toBe(2);
 });
 
+it("cancels an admitted public-key request when its resolver is disposed", async () => {
+  const received = Promise.withResolvers<ServerResponse>();
+  const gatewayUrl = await gateway((response) => {
+    response.writeHead(200, { "content-type": "application/json" });
+    response.write('{"publicKey":"');
+    received.resolve(response);
+  });
+  const resolveKey = createWebPushPublicKeyResolver({ gatewayUrl, timeoutMs: 5_000 });
+  const pending = resolveKey().catch((error: unknown) => error);
+  const response = await received.promise;
+  resolveKey.dispose?.();
+  await expect(pending).resolves.toBeInstanceOf(Error);
+  await vi.waitFor(() => expect(response.destroyed).toBe(true), { timeout: 1_000 });
+});
+
 it.each(["declared", "chunked"])("refuses an oversized %s public-key response", async (framing) => {
   const body = JSON.stringify({ publicKey: "synthetic-key", padding: "x".repeat(32 * 1024) });
   const gatewayUrl = await gateway((response) => {

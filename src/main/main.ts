@@ -94,6 +94,7 @@ import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
 import { installProcessStdioErrorHandlers } from "./processStdio";
 import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
+import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
 
 // Electron can remain alive after its launching terminal or dev runner exits.
 // Install this before any startup logging so a detached diagnostic pipe cannot
@@ -1254,20 +1255,26 @@ if (!hasSingleInstanceLock) {
         if (quickComposerDismissTimer) clearTimeout(quickComposerDismissTimer);
         quickComposerDismissTimer = null;
         pendingQuickComposerSubmissions.length = 0;
-        browserMcpIngress?.dispose();
+        const browserMcpToClose = browserMcpIngress;
         browserMcpIngress = null;
-        computerUseMcpIngress?.dispose();
+        const computerUseToClose = computerUseMcpIngress;
         computerUseMcpIngress = null;
         computerUseDesktopOverlay?.dispose();
         computerUseDesktopOverlay = null;
         computerUseWakeLock.dispose();
-        chromeMcpIngress?.dispose();
+        const chromeMcpToClose = chromeMcpIngress;
         chromeMcpIngress = null;
-        chromeBridgeServer?.dispose();
+        const chromeBridgeToClose = chromeBridgeServer;
         chromeBridgeServer = null;
-        const sshDispose = sshConnectionManager.dispose().catch((error) => {
-          captureMainException(error, { "poracode.feature_area": "ssh" });
-        });
+        const ingressDispose = joinRuntimeShutdown(
+          [
+            () => browserMcpToClose?.dispose(),
+            () => computerUseToClose?.dispose(),
+            () => chromeMcpToClose?.dispose(),
+            () => chromeBridgeToClose?.dispose(),
+          ],
+          "Main ingress shutdown did not complete cleanly.",
+        );
         browserExtractWindow?.close();
         browserExtractWindow = null;
         quickComposerWindow?.close();
@@ -1287,14 +1294,21 @@ if (!hasSingleInstanceLock) {
           await performanceDiagnostics?.stop();
           app.quit();
         };
-        void raceWithTimeout(
-          Promise.all([sshDispose, shellState.close()])
-            .then(() => backendHost.disposeAsync())
-            .catch((error) => {
-              captureMainException(error, { "poracode.feature_area": "backend-host" });
-            }),
-          APP_QUIT_CLEANUP_TIMEOUT_MS,
-        ).then(finishQuit, finishQuit);
+        const cleanup = joinRuntimeShutdown(
+          [
+            () => ingressDispose,
+            () =>
+              sshConnectionManager.dispose().catch((error) => {
+                captureMainException(error, { "poracode.feature_area": "ssh" });
+              }),
+            () => shellState.close(),
+            () => backendHost.disposeAsync({ timeoutMs: APP_QUIT_CLEANUP_TIMEOUT_MS }),
+          ],
+          "Main shutdown did not complete cleanly.",
+        ).catch((error) => {
+          captureMainException(error, { "poracode.feature_area": "main-shutdown" });
+        });
+        void raceWithTimeout(cleanup, APP_QUIT_CLEANUP_TIMEOUT_MS).then(finishQuit, finishQuit);
       });
     })
     .catch((error: unknown) => {

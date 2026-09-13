@@ -657,7 +657,7 @@ export class BackendHostClient {
     void this.disposeAsync();
   }
 
-  async disposeAsync(): Promise<void> {
+  async disposeAsync(options: { timeoutMs?: number } = {}): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
     this.resolveStartedGate();
@@ -680,7 +680,9 @@ export class BackendHostClient {
             }),
           )
           .catch(() => undefined),
-        new Promise<void>((resolve) => setTimeout(resolve, DISPOSE_TIMEOUT_MS)),
+        new Promise<void>((resolve) =>
+          setTimeout(resolve, options.timeoutMs ?? DISPOSE_TIMEOUT_MS),
+        ),
       ]);
     } finally {
       if (this.child === child) {

@@ -513,6 +513,18 @@ ownership is unconfirmed. This harness repair does not fix application shutdown:
 the parent one-second and app two-second deadlines, native callback admission,
 backend/descendant joining and Windows behavior remain F11 work.
 
+The next shutdown slice keeps the application alive for a bounded remote
+transport drain, joins main ingress and backend disposal through one barrier, and
+passes the outer deadline to the backend-host client. Gateway transports retain
+their admitted abort controllers, and both desktop and headless remote servers
+dispose the public-key resolver before waiting for HTTP work. A real held
+`/api/push/config` response therefore closes during native quit; the observed
+close was 8.8 seconds after headers, down from 9.9 seconds in the sealed run.
+The focused transport regression and changed-surface Electron smoke are green,
+but this remains an F11 prerequisite: the app still relies on bounded escalation,
+provider/PTY descendants and Windows shutdown are unqualified, and this evidence
+does not establish latency, concurrency, or 120 Hz acceptance.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 

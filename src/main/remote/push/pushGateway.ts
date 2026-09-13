@@ -165,6 +165,8 @@ interface GatewayTransport {
     init: { method: string; headers?: Record<string, string>; body?: string },
     consume: (response: Response) => T | Promise<T>,
   ): Promise<T>;
+  /** Abort requests that were admitted by a host which is shutting down. */
+  close(): void;
 }
 
 /**
@@ -179,9 +181,13 @@ function createGatewayTransport(options: CreatePushGatewayOptions): GatewayTrans
   const doFetch: FetchLike = options.fetchImpl ?? ((url, init) => fetch(url, init as RequestInit));
   const timeoutMs = options.timeoutMs ?? DEFAULT_GATEWAY_TIMEOUT_MS;
   const endpoint = new URL("/api/push", base).toString();
+  const controllers = new Set<AbortController>();
+  let closed = false;
   return {
     async request(init, consume) {
+      if (closed) throw new Error("Push gateway transport is closed.");
       const controller = new AbortController();
+      controllers.add(controller);
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       let response: Response | undefined;
       try {
@@ -190,8 +196,13 @@ function createGatewayTransport(options: CreatePushGatewayOptions): GatewayTrans
       } finally {
         clearTimeout(timer);
         controller.abort();
+        controllers.delete(controller);
         await response?.body?.cancel().catch(() => {});
       }
+    },
+    close() {
+      closed = true;
+      for (const controller of controllers) controller.abort();
     },
   };
 }
@@ -261,7 +272,9 @@ export function createPushGateway(options: CreatePushGatewayOptions = {}): SendP
   };
 }
 
-export type ResolveWebPushPublicKey = () => Promise<string>;
+export type ResolveWebPushPublicKey = (() => Promise<string>) & {
+  dispose?: () => void;
+};
 
 /**
  * Resolves the public VAPID application-server key from the hosted gateway.
@@ -329,7 +342,7 @@ export function createWebPushPublicKeyResolver(
   // Cache the resolved (or in-flight) promise so those collapse into one fetch;
   // drop it on failure so a transient error still retries on the next call.
   let cached: Promise<string> | null = null;
-  return () => {
+  const resolve: ResolveWebPushPublicKey = () => {
     if (!cached) {
       cached = fetchPublicKey().catch((error) => {
         cached = null;
@@ -338,4 +351,6 @@ export function createWebPushPublicKeyResolver(
     }
     return cached;
   };
+  resolve.dispose = () => transport.close();
+  return resolve;
 }
