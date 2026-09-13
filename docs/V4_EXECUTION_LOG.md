@@ -1553,3 +1553,32 @@ and the outer Electron quit barrier remain open F11 work.
 The exact-tree full suite then passed: 1,211 test files passed and 5 skipped;
 13,626 tests passed and 119 skipped. The known synthetic listener and canvas
 warnings were emitted, but the run exited successfully.
+
+## Phase 5 relay control-link congestion isolation
+
+Before: a relay host's bounded outbound admission used the same overflow action
+for registration, HTTP responses, and WebSocket channel traffic. A slow visitor
+or a full host-to-relay control buffer could therefore close the shared control
+socket and take healthy channels and requests with it. The relay server had the
+same failure mode when writing visitor requests or forwarded channel frames to a
+congested host control socket.
+
+After: host control-link bulk sends now report per-request failure without
+closing the shared socket; a failed streaming response removes and aborts only
+that local request. Local WebSocket data congestion closes only its channel and
+uses a bounded reserved control budget for the `ws-close` notice so the relay
+can evict the matching visitor. The relay server keeps host control sockets open
+when a request or channel frame cannot be admitted, while visitor sockets still
+close independently on their own outbound overflow. Close and cancel notices
+use the same bounded per-host reserve; exhausting that reserve tears down the
+affected host so a stale channel or request cannot remain registered forever. A
+congested registration acknowledgement removes the unacknowledged host entry
+and closes that registration attempt so the host can retry cleanly. Buffered
+HTTP fallback and older negotiated peers remain intact.
+
+The focused relay host/server, HTTP streaming, and binary-fidelity suites pass
+100 tests, with typecheck, touched-file lint, formatting, and diff checks green.
+Registration-ack, local-close, visitor-close, HTTP request, and sibling-channel
+congestion regressions are covered in the same run. Local renderer global
+shedding, weighted relay scheduling, reserved control capacity qualification,
+and the full multi-client capacity run remain Phase 5 work.

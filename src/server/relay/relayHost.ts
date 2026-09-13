@@ -234,6 +234,11 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     }) as unknown as RelaySocket;
   const makeControl = options.socketFactory ?? defaultSocketFactory;
   const makeLocalWs = options.wsFactory ?? defaultLocalWsFactory;
+  const forcedControlReserveBytes = Math.min(
+    64 * 1024,
+    Math.max(4 * 1024, maxWebSocketOutboundBufferBytes * 2),
+  );
+  let forcedControlBytes = 0;
 
   const closeSocket = (socket: RelaySocket): void => {
     try {
@@ -243,10 +248,14 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     }
   };
 
-  const sendRaw = (socket: RelaySocket, data: string | Uint8Array): boolean => {
+  const sendRaw = (
+    socket: RelaySocket,
+    data: string | Uint8Array,
+    closeOnOverflow = false,
+  ): boolean => {
     // Buffer.byteLength counts UTF-8 bytes for strings and .byteLength for views.
     if ((socket.bufferedAmount ?? 0) + Buffer.byteLength(data) > maxWebSocketOutboundBufferBytes) {
-      closeSocket(socket);
+      if (closeOnOverflow) closeSocket(socket);
       return false;
     }
     try {
@@ -262,8 +271,35 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
   const sendOn = (socket: RelaySocket, frame: RelayHostFrame): boolean =>
     sendRaw(socket, JSON.stringify(frame));
 
+  /** Tiny channel-control notices must still cross a congested control link;
+   * otherwise the relay keeps a visitor/channel entry after this host has
+   * already evicted its local socket. Bulk frames continue to use sendRaw's
+   * bounded admission. */
+  const sendOnForced = (socket: RelaySocket, frame: RelayHostFrame): boolean => {
+    if (socket.readyState !== undefined && socket.readyState !== WEB_SOCKET_OPEN) return false;
+    const data = JSON.stringify(frame);
+    const bytes = Buffer.byteLength(data);
+    if ((socket.bufferedAmount ?? 0) === 0) forcedControlBytes = 0;
+    if (
+      forcedControlBytes + bytes > forcedControlReserveBytes ||
+      (socket.bufferedAmount ?? 0) + bytes >
+        maxWebSocketOutboundBufferBytes + forcedControlReserveBytes
+    ) {
+      closeSocket(socket);
+      return false;
+    }
+    try {
+      socket.send(data);
+      forcedControlBytes += bytes;
+      return true;
+    } catch {
+      closeSocket(socket);
+      return false;
+    }
+  };
+
   const send = (frame: RelayHostFrame) => {
-    if (control) sendOn(control, frame);
+    if (control) sendRaw(control, JSON.stringify(frame), true);
   };
 
   /**
@@ -470,6 +506,8 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
               ...(setCookies.length > 0 ? { setCookies } : {}),
             })
           ) {
+            pendingRequests.delete(frame.id);
+            controller.abort();
             return;
           }
           opened = true;
@@ -503,7 +541,11 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
                 // (bounded wait; a dead or aborted exchange stops instead).
                 await waitForControlRoom(sourceControl, controller.signal);
                 if (pendingRequests.get(frame.id) !== entry) return;
-                if (!sendOn(sourceControl, chunkFrame)) return;
+                if (!sendOn(sourceControl, chunkFrame)) {
+                  pendingRequests.delete(frame.id);
+                  controller.abort();
+                  return;
+                }
                 rearmLocalIdle();
               }
             }
@@ -576,7 +618,11 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     } catch (error) {
       options.reportError?.(error);
       if (control === sourceControl) {
-        sendOn(sourceControl, { t: "ws-close", id: frame.id, reason: "local socket error" });
+        sendOnForced(sourceControl, {
+          t: "ws-close",
+          id: frame.id,
+          reason: "local socket error",
+        });
       }
       return;
     }
@@ -587,7 +633,7 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
       if (wsChannels.delete(frame.id)) {
         closeSocket(local);
         if (control === sourceControl) {
-          sendOn(sourceControl, { t: "ws-close", id: frame.id, reason });
+          sendOnForced(sourceControl, { t: "ws-close", id: frame.id, reason });
         }
       }
     };
@@ -643,7 +689,14 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
           return;
         }
         if (!sendRaw(sourceControl, framed)) {
-          if (wsChannels.delete(frame.id)) closeSocket(local);
+          if (wsChannels.delete(frame.id)) {
+            closeSocket(local);
+            sendOnForced(sourceControl, {
+              t: "ws-close",
+              id: frame.id,
+              reason: "relay link congestion",
+            });
+          }
         }
         return;
       }
@@ -658,12 +711,19 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
       // The envelope re-frames this channel's id; ws-open validated it against
       // the codec's id rule (relayChannelIdSchema), so the encode cannot throw.
       if (!sendRaw(sourceControl, encodeRelayBinaryFrame(frame.id, bytes))) {
-        if (wsChannels.delete(frame.id)) closeSocket(local);
+        if (wsChannels.delete(frame.id)) {
+          closeSocket(local);
+          sendOnForced(sourceControl, {
+            t: "ws-close",
+            id: frame.id,
+            reason: "relay link congestion",
+          });
+        }
       }
     };
     local.onclose = () => {
       if (wsChannels.delete(frame.id) && control === sourceControl) {
-        sendOn(sourceControl, { t: "ws-close", id: frame.id });
+        sendOnForced(sourceControl, { t: "ws-close", id: frame.id });
       }
     };
     local.onerror = () => {
