@@ -67,6 +67,9 @@ export const REMOTE_PER_MESSAGE_DEFLATE = {
 } as const;
 export const DEFAULT_WEBSOCKET_HEARTBEAT_INTERVAL_MS = 30_000;
 const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
+/** A client normally watches only the visible terminals. Keep interest state
+ * finite even if a malformed or runaway client sends unique watch IDs. */
+const MAX_TERMINAL_WATCHES_PER_CLIENT = 256;
 
 /** Caches the serialized `browser-frame` message so a frame fanned out to many
  * watchers is only stringified once. */
@@ -159,6 +162,26 @@ async function handleReliableTerminalWatch(
   if (!session.scopes.includes("terminal:read")) {
     if (ws.readyState === WebSocket.OPEN) {
       ctx.send(ws, buildTerminalWatchResultMessage(terminalId, watchId, forbiddenWatchResult()));
+    }
+    return;
+  }
+
+  const terminalWatches = ctx.terminalWatches.get(ws);
+  if (
+    terminalWatches &&
+    !terminalWatches.has(terminalId) &&
+    terminalWatches.size >= MAX_TERMINAL_WATCHES_PER_CLIENT
+  ) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ctx.send(
+        ws,
+        buildTerminalWatchResultMessage(terminalId, watchId, {
+          status: "error",
+          code: "unavailable",
+          retryable: true,
+          reason: "client-watch-capacity",
+        }),
+      );
     }
     return;
   }
@@ -425,8 +448,15 @@ function handleConnection(
         if (!session.scopes.includes("terminal:read")) return;
         // One interest per (connection, terminalId): legacy rewatch drops any
         // prior reliable registration so we never dual-stream the same id.
+        const terminalWatches = ctx.terminalWatches.get(ws);
+        if (
+          terminalWatches &&
+          !terminalWatches.has(message.id) &&
+          terminalWatches.size >= MAX_TERMINAL_WATCHES_PER_CLIENT
+        )
+          return;
         ctx.terminalCursorSync.clearReliable(ws, message.id);
-        ctx.terminalWatches.get(ws)?.add(message.id);
+        terminalWatches?.add(message.id);
         void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
       }
       if (message.type === "terminal-unwatch") {

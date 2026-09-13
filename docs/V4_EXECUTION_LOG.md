@@ -1308,6 +1308,17 @@ accepted by the backend remains tracked until it settles or shutdown drains it.
 The direct stream still needs a measured off-main bulk-transfer path and an
 explicit cancellation protocol before Phase 3 can close.
 
+## Phase 5 terminal-interest cardinality guard
+
+Review of the remote WebSocket path found that terminal watch IDs were stored in
+an unbounded per-connection set. A client can now hold at most 256 terminal
+interests. Legacy watches beyond the cap are ignored; cursor-synchronized
+watches receive a retryable `unavailable` result with reason
+`client-watch-capacity`, so a real client can unwatch and retry. The focused
+cursor-sync suite passed 20 tests, with typecheck, touched oxlint, and
+formatting green. This bounds interest bookkeeping but does not yet provide
+per-client outbound fairness or a shared relay scheduler.
+
 ## F41 — native helper and computer-use lifetimes
 
 The isolated native lifetime slice is merged as `1d3196fe1` from the reviewed
