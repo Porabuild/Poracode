@@ -26,6 +26,24 @@ const debugSessionModule = import(debugSessionModulePath);
 const cdpTargetModule = import(cdpTargetModulePath);
 
 describe("managed CDP scripts", () => {
+  it("keeps compiled and native runtime revisions isolated across sessions", async () => {
+    await expect(
+      execFileAsync(
+        process.execPath,
+        [
+          "--test",
+          ...["poracode-smoke-runtime.test.mjs", "smoke-owned-process.test.mjs"].map((name) =>
+            join(repoRoot, ".agents/skills/interactive-testing/scripts", name),
+          ),
+        ],
+        {
+          cwd: repoRoot,
+          timeout: 10_000,
+        },
+      ),
+    ).resolves.toMatchObject({ stderr: "" });
+  });
+
   it("sets Electron userData before the isolated Windows identity is resolved", async () => {
     const [runnerSource, devLaunchSource] = await Promise.all([
       readFile(runnerScript, "utf8"),
