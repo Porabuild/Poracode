@@ -1,16 +1,17 @@
-import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { spawn, type ChildProcess } from "node:child_process";
 import { LOOPBACK_HOST, STARTUP_TIMEOUT_MS } from "./constants.ts";
 import { loadProtocolManifest } from "./manifest.ts";
 import { detectServerNativeBinding } from "./paths.ts";
 import { ProcessCleanup } from "./processCleanup.ts";
 import { createLineRedactor, redactLogLine } from "./secrets.ts";
 import type { HarnessBlocker, PairingControlResponse } from "./types.ts";
+import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import { REAL_HOST_FIXTURE_KEY } from "./realHostRoot";
 
 export interface HeadlessLaunch {
   child: ChildProcess;
-  readonly baseDir: string;
+  readonly profileNamespace: string;
+  readonly dataRoot: string;
   readonly httpBaseUrl: string;
   readonly wsBaseUrl: string;
   readonly hostPort: number;
@@ -23,27 +24,20 @@ export function supportsProcessGroups(): boolean {
   return process.platform === "darwin" || process.platform === "linux";
 }
 
-export function seedGitFixture(baseDir: string): string {
-  const fixtureDir = join(baseDir, "fixture-repo");
-  mkdirSync(fixtureDir, { recursive: true });
-  writeFileSync(join(fixtureDir, "README.md"), "native-e2e fixture\n", "utf8");
-  spawnSync("git", ["-C", fixtureDir, "init"], { stdio: "ignore" });
-  return fixtureDir;
-}
-
 export async function launchHeadlessServer(input: {
   readonly host: string;
   readonly port: number;
   readonly repoRoot: string;
   readonly entrypoint: string;
-  readonly baseDir: string;
+  readonly profileNamespace: string;
   readonly startupTimeoutMs?: number;
   readonly cleanup?: ProcessCleanup;
 }): Promise<HeadlessLaunch> {
   const nativeBinding = detectServerNativeBinding(input.repoRoot);
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    PORACODE_BASE_DIR: input.baseDir,
+    PORACODE_BASE_DIR: input.profileNamespace,
+    PORACODE_SECRET_STORAGE_KEY: REAL_HOST_FIXTURE_KEY,
     PORACODE_REMOTE_ACCESS_HOST: input.host,
     PORACODE_REMOTE_ACCESS_PORT: String(input.port),
     PORACODE_REMOTE_ACCESS_ADVERTISED_HOST: input.host,
@@ -67,7 +61,8 @@ export async function launchHeadlessServer(input: {
   await waitForEnvironment(httpBaseUrl, input.startupTimeoutMs ?? STARTUP_TIMEOUT_MS, child);
   return {
     child,
-    baseDir: input.baseDir,
+    profileNamespace: input.profileNamespace,
+    dataRoot: resolveHostRootPaths(input.profileNamespace).dataRoot,
     httpBaseUrl,
     wsBaseUrl,
     hostPort: input.port,
@@ -79,7 +74,7 @@ export async function launchHeadlessServer(input: {
 
 export async function requestPairingJson(
   entrypoint: string,
-  baseDir: string,
+  profileNamespace: string,
   repoRoot: string,
   env: NodeJS.ProcessEnv,
 ): Promise<PairingControlResponse> {
@@ -87,7 +82,7 @@ export async function requestPairingJson(
     (resolve, reject) => {
       const child = spawn(process.execPath, [entrypoint, "pair", "--json"], {
         cwd: repoRoot,
-        env: { ...env, PORACODE_BASE_DIR: baseDir },
+        env: { ...env, PORACODE_BASE_DIR: profileNamespace },
         stdio: ["ignore", "pipe", "pipe"],
       });
       let stdout = "";

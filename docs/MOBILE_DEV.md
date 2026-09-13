@@ -167,8 +167,9 @@ can still be used in either IDE when an isolated component canvas is preferable.
 ## Start a development remote host
 
 The apps connect to the same production remote server used by desktop clients.
-Use an isolated data directory so the development server cannot contend with a
-running desktop app:
+Use a fresh disposable profile namespace for development. The server reports and
+writes its `.host-v1` sibling; it refuses an existing legacy profile until the V4
+activation/recovery path is available. See [Host ownership](HOST_OWNERSHIP.md).
 
 ```bash
 pnpm install --frozen-lockfile
@@ -205,9 +206,9 @@ clients intentionally reject unsafe public cleartext endpoints.
 
 ## Pairing and deep links
 
-The server prints a one-time pairing URL. Paste the complete URL into the native
-onboarding screen. While that server remains running, a fresh machine-readable
-link can be requested without parsing log output:
+While the server remains running, request a one-time pairing URL explicitly with
+the same profile namespace, then paste the complete URL into native onboarding.
+Ordinary serve logs do not contain pairing credentials:
 
 ```bash
 PORACODE_BASE_DIR="$PWD/.tmp/poracode-native-dev" \

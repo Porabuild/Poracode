@@ -10,12 +10,14 @@ import {
   readdirSync,
 } from "node:fs";
 import { join } from "node:path";
+import { HOST_CONTROL_DISCOVERY_FILE } from "@/shared/hostControlProtocol";
 
-const SQLITE_ENTRIES = new Set([
+const EXCLUDED_ROOT_ENTRIES = new Set([
   "state.sqlite",
   "state.sqlite-shm",
   "state.sqlite-wal",
   "state.sqlite-journal",
+  HOST_CONTROL_DISCOVERY_FILE,
 ]);
 
 interface ImportEntry {
@@ -49,12 +51,12 @@ export function hashImportFile(path: string): string {
   }
 }
 
-/** The source database is handled exclusively through SQLite's backup API. */
+/** SQLite uses its backup API; ephemeral owner control credentials never migrate. */
 export function inventoryImportFiles(root: string): ImportFileInventory {
   const entries: ImportEntry[] = [];
   function visit(relative: string): void {
     for (const name of readdirSync(join(root, relative)).sort()) {
-      if (!relative && SQLITE_ENTRIES.has(name)) continue;
+      if (!relative && EXCLUDED_ROOT_ENTRIES.has(name)) continue;
       const path = relative ? `${relative}/${name}` : name;
       const absolute = join(root, path);
       const metadata = lstatSync(absolute);

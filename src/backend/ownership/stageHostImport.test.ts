@@ -17,6 +17,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { LATEST_SCHEMA_VERSION } from "@/main/db/migrations";
+import { HOST_CONTROL_DISCOVERY_FILE } from "@/shared/hostControlProtocol";
 import { HostOwnerLease } from "./hostOwnerLease";
 import { HOST_ROOT_MANIFEST_FILE, resolveHostRootPaths } from "./hostRootPaths";
 import {
@@ -69,6 +70,18 @@ afterEach(() => {
 });
 
 describe("explicit offline backup staging", () => {
+  it("excludes the old owner's ephemeral control credential from an otherwise valid offline backup", async () => {
+    const value = fixture();
+    const sourceControl = join(value.source, HOST_CONTROL_DISCOVERY_FILE);
+    const bytes = JSON.stringify({ token: "synthetic-old-owner-control-secret" });
+    writeFileSync(sourceControl, bytes);
+    const receipt = await importFixture(value);
+    expect(existsSync(join(value.lease.paths.dataRoot, HOST_CONTROL_DISCOVERY_FILE))).toBe(false);
+    expect(readFileSync(sourceControl, "utf8")).toBe(bytes);
+    expect(receipt.files).toBe(1);
+    expect(() => prepareOwnedHostRoot(value.lease)).toThrow(HostActivationRequiredError);
+  });
+
   it.each(["secret-key.safe", "secret-key.headless"])(
     "preserves %s and database content behind the activation gate",
     async (keyFile) => {

@@ -10,6 +10,7 @@ import {
   type PersistedRuntimeItem,
 } from "@/main/db";
 import type { Thread } from "@/shared/contracts";
+import { acquireRealHostFixtureRoot } from "../harness/realHostRoot";
 
 /**
  * Deterministic many-thread/long-history host workload for payload baselines
@@ -135,16 +136,16 @@ function buildTurns(
 }
 
 /**
- * Opens the host database at `<baseDir>/state.sqlite` (the path the headless
- * server derives from `PORACODE_BASE_DIR`), seeds the workload, and closes the
- * connection before the server process starts.
+ * Acquires the disposable namespace, initializes its synthetic credentials,
+ * seeds the mapped owned database, and closes SQLite before releasing the lease.
+ * The later server process opens the same root through the normal bootstrap.
  */
-export function seedLoadWorkload(baseDir: string): LoadWorkloadSpec {
-  const projectPath = join(baseDir, "load-fixture");
-  mkdirSync(projectPath, { recursive: true, mode: 0o700 });
-  const dbPath = join(baseDir, "state.sqlite");
-  initDatabase(dbPath);
+export async function seedLoadWorkload(profileNamespace: string): Promise<LoadWorkloadSpec> {
+  const { owner, runtime } = await acquireRealHostFixtureRoot(profileNamespace);
   try {
+    const projectPath = join(runtime.paths.baseDir, "load-fixture");
+    mkdirSync(projectPath, { recursive: true, mode: 0o700 });
+    initDatabase(runtime.paths.dbPath);
     const createdAt = new Date(SEED_EPOCH_MS).toISOString();
     dbUpsertProject(
       {
@@ -194,5 +195,6 @@ export function seedLoadWorkload(baseDir: string): LoadWorkloadSpec {
     };
   } finally {
     closeDatabase();
+    await owner.close();
   }
 }

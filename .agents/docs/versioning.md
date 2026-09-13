@@ -116,17 +116,29 @@ composition is complete; native release and full F2/Phase 1 gates remain open.
 
 External protocol identifiers such as MCP protocol dates and ACP SDK protocol versions are negotiated standards, not Poracode cache generations. Change them only with the corresponding dependency/protocol implementation and interoperability tests.
 
-## Host ownership helpers
+## Host ownership and local control
 
-The staged V4 helper boundary is `HOST_ROOT_LAYOUT_VERSION = 1` in
-`src/backend/ownership/hostRootPaths.ts` and owner metadata format 1 / lease
-database `user_version = 1` in `hostOwnerLease.ts`. These helpers are not yet
-startup wiring. Audit the profile-to-sibling mapping, client-data separation,
-permanent external lease path, metadata vocabulary and every eventual bootstrap
-consumer together before changing them. Unknown lease formats must fail without
-replacement. Discovery PID metadata never grants ownership; only the kernel
-lease does. Never open an existing leased SQLite inode through an unmanaged
-descriptor in the same process, since closing it can release POSIX file locks.
+The standalone entry now consumes the shared ownership boundary; desktop entry
+wiring remains pending. [Host ownership](../../docs/HOST_OWNERSHIP.md) describes
+the active headless mapping, credential/import refusals and shutdown obligations.
+Audit these separate identities together before changing their meaning:
+
+| Boundary                   | Current version/source                                                                     | Compatibility requirement                                                                                                                                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Owned root layout          | `HOST_ROOT_LAYOUT_VERSION = 1`, `hostRootPaths.ts` / `hostRootManifest.ts`                 | Map the original namespace once to its sibling; reject unknown layouts and staged activation.                                                                              |
+| Permanent lease / metadata | SQLite `user_version = 1` / owner format 1, `hostOwnerLease.ts`                            | Never replace an unknown lease; PID metadata is informational. Keep strong lease retention and the unmanaged-descriptor prohibition.                                       |
+| Credential provenance      | `HOST_CREDENTIAL_STATE_VERSION = 1`, `hostCredentialState.ts`                              | Root, mode and fingerprint must match; malformed or cross-mode state never rotates silently.                                                                               |
+| Offline import receipt     | `HOST_IMPORT_RECEIPT_VERSION = 1`, `stageHostImport.ts`                                    | Imported state requires activation and later inventory revalidation; ephemeral control discovery is excluded.                                                              |
+| Local management wire      | `HOST_CONTROL_PROTOCOL_VERSION = 1`, `hostControlProtocol.ts`                              | Closed operations, generation-bound HMAC request/response proofs; no bearer or PID-signal fallback.                                                                        |
+| Private control discovery  | `HOST_CONTROL_DISCOVERY_VERSION = 1`, `hostControlProtocol.ts` / `hostControlDiscovery.ts` | Bounded private file, exact namespace/root/generation, authenticated running peer.                                                                                         |
+| SSH deployment manifest    | `SSH_RUNTIME_MANIFEST_VERSION = 3`, `sshRuntimeManifest.ts`                                | Refuse predecessor manifests 1/2 for the changed owner/pair command. Settings preflight reserves 4; the combined deployment must use fresh 5 and validate warm caches too. |
+
+Only the kernel lease grants ownership. Never open an existing leased SQLite
+inode through an unmanaged descriptor in its owning process: closing it can
+release POSIX file locks. `cancelStartup()` retains this lease for runtime drain;
+only final joined `close()` releases it. The existing unversioned headless-key
+and relay-secret byte formats remain valid inside their root-bound provenance;
+blank, malformed or mismatched state is refused rather than converted.
 
 ## Electron preload compatibility
 

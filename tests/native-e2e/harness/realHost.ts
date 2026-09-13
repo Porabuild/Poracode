@@ -10,11 +10,11 @@ import {
   launchHeadlessServer,
   pairingTokenFromPairingUrl,
   requestPairingJson,
-  seedGitFixture,
   stopHeadlessChild,
   supportsProcessGroups,
 } from "./realHostProcess.ts";
 import type { HarnessBlocker, PairingControlResponse } from "./types.ts";
+import { prepareRealHostFixture, trackRealHostPaths } from "./realHostRoot";
 
 export interface RealHostOptions {
   readonly host?: string;
@@ -25,9 +25,9 @@ export interface RealHostOptions {
   readonly secretsDir?: string;
   readonly baseDirRoot?: string;
   /**
-   * Explicit host data dir, e.g. one pre-seeded with a SQLite workload before
-   * boot. Defaults to a fresh mkdtemp under `baseDirRoot`. Whatever dir ends up
-   * used is still registered with `cleanup` for deletion.
+   * Explicit disposable profile namespace, optionally prepared by the load seed
+   * helper. The server uses its versioned sibling; all mapped fixture paths are
+   * registered with `cleanup`. Defaults to a fresh namespace under `baseDirRoot`.
    */
   readonly baseDir?: string;
 }
@@ -35,7 +35,9 @@ export interface RealHostOptions {
 export interface RealHostHandle {
   readonly mode: "real";
   readonly pid: number;
+  /** Actual owned data root, preserving existing fixture database callers. */
   readonly baseDir: string;
+  readonly profileNamespace: string;
   readonly httpBaseUrl: string;
   readonly wsBaseUrl: string;
   readonly hostPort: number;
@@ -64,20 +66,23 @@ export async function startRealHost(options: RealHostOptions): Promise<RealHostH
     });
   }
   if (!supportsProcessGroups()) {
-    throw Object.assign(new Error("Machine-readable pairing requires a POSIX headless server."), {
-      blocker: {
-        code: "posix-pairing-required",
-        message: "pair --json uses SIGUSR2 and is unavailable on this platform.",
-      } satisfies HarnessBlocker,
-    });
+    throw Object.assign(
+      new Error("The real-host harness currently requires POSIX process cleanup."),
+      {
+        blocker: {
+          code: "host-mode-unavailable",
+          message: "Windows process-tree cleanup is not qualified by this real-host harness.",
+        } satisfies HarnessBlocker,
+      },
+    );
   }
 
   const host = assertLoopbackHost(options.host ?? LOOPBACK_HOST, "real host");
   const baseParent = options.baseDirRoot ?? join(findRepoRoot(), ".tmp", "native-e2e");
   if (!options.baseDir) mkdirSync(baseParent, { recursive: true, mode: 0o700 });
-  const baseDir = options.baseDir ?? mkdtempSync(join(baseParent, "poracode-base-"));
-  options.cleanup?.trackTempDir(baseDir);
-  const fixtureDir = seedGitFixture(baseDir);
+  const profileNamespace = options.baseDir ?? mkdtempSync(join(baseParent, "poracode-base-"));
+  trackRealHostPaths(profileNamespace, options.cleanup);
+  const fixtureDir = await prepareRealHostFixture(profileNamespace);
   const startupTimeoutMs = options.startupTimeoutMs ?? STARTUP_TIMEOUT_MS;
 
   let launch = await launchHeadlessServer({
@@ -85,7 +90,7 @@ export async function startRealHost(options: RealHostOptions): Promise<RealHostH
     port: options.port,
     repoRoot,
     entrypoint,
-    baseDir,
+    profileNamespace,
     startupTimeoutMs,
     ...(options.cleanup ? { cleanup: options.cleanup } : {}),
   });
@@ -106,7 +111,7 @@ export async function startRealHost(options: RealHostOptions): Promise<RealHostH
   const pair = async (): Promise<PairingControlResponse> => {
     const pairing = await requestPairingJson(
       launch.entrypoint,
-      launch.baseDir,
+      launch.profileNamespace,
       launch.repoRoot,
       launch.env,
     );
@@ -123,7 +128,10 @@ export async function startRealHost(options: RealHostOptions): Promise<RealHostH
       return launch.child.pid ?? 0;
     },
     get baseDir() {
-      return launch.baseDir;
+      return launch.dataRoot;
+    },
+    get profileNamespace() {
+      return launch.profileNamespace;
     },
     get httpBaseUrl() {
       return launch.httpBaseUrl;
@@ -149,7 +157,7 @@ export async function startRealHost(options: RealHostOptions): Promise<RealHostH
         port: options.port,
         repoRoot,
         entrypoint,
-        baseDir,
+        profileNamespace,
         startupTimeoutMs,
         ...(options.cleanup ? { cleanup: options.cleanup } : {}),
       });

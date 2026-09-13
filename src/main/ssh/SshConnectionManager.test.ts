@@ -217,6 +217,22 @@ Host build
 });
 
 describe("SSH runtime bundle", () => {
+  it.each([1, 2])(
+    "refuses an installed manifest from before owner control (version %s)",
+    (version) => {
+      const options = createRuntimeFixture();
+      writeFileSync(
+        join(options.mainBundleDir, sshRuntimeManifestFileName("server")),
+        JSON.stringify({
+          version,
+          files: ["server.cjs"],
+          dependencies: runtimeDependencies,
+        }),
+      );
+      expect(() => ensureSshRuntimeBundle(options)).toThrow(/manifest/i);
+    },
+  );
+
   it("includes every manifest-declared chunk and runtime dependency", () => {
     const options = createRuntimeFixture();
     const { mainBundleDir, cacheDir } = options;

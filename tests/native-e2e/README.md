@@ -61,7 +61,11 @@ deterministic variants of that authoritative route positively cover the route.
 ## Real host
 
 `pnpm native:e2e:real-host` starts `dist/main/server.cjs` with a disposable
-`PORACODE_BASE_DIR`, waits on `/.well-known/poracode/environment`, and pairs
-only through `pair --json`. Missing artifacts surface as
+profile namespace in `PORACODE_BASE_DIR`, waits on
+`/.well-known/poracode/environment`, and pairs only through authenticated
+`pair --json`. Fixture preparation holds a temporary owner lease, uses a synthetic
+storage key, and writes the mapped `.host-v1` root. `RealHostHandle.baseDir` remains
+the actual database/fixture root; `profileNamespace` is the CLI input. Cleanup
+tracks both the namespace and its owned/lease siblings. Missing artifacts surface as
 `missing-server-artifact` rather than a fake pass. Production has no fault or
 emit injection.
