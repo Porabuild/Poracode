@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { isAbsolute, join } from "node:path";
 import { performance } from "node:perf_hooks";
+import { IpcQueueObservations } from "./ipcQueueObservations";
+import {
+  IPC_QUEUE_SAMPLE_FORMAT_VERSION,
+  type IpcQueueCapture,
+  type IpcQueueName,
+  type IpcQueueSample,
+} from "./ipcQueueSample";
 import {
   PerformanceEvidenceWriter,
   type PerformanceWriterStats,
@@ -14,8 +21,11 @@ type ProcessRole = "desktop-main" | "backend" | "supervisor" | "server" | "relay
 const DEFAULT_INTERVAL_MS = 1_000;
 const DEFAULT_MAX_BYTES = 64 * 1_024 * 1_024;
 const STOP_TIMEOUT_MS = 500;
+export const NODE_PERFORMANCE_EVIDENCE_FORMAT_VERSION = 2;
 
 export interface NodePerformanceDiagnostics {
+  readonly queueCapture: IpcQueueCapture;
+  observeIpcQueue(name: IpcQueueName, reader: () => IpcQueueSample | undefined): void;
   stop(): Promise<void>;
 }
 
@@ -62,6 +72,8 @@ export function startNodePerformanceDiagnostics(
     return undefined;
   }
   const sampler = new ProcessPerformanceSampler();
+  const queueCapture = { active: true };
+  const queues = new IpcQueueObservations();
   const writer = new PerformanceEvidenceWriter(
     join(directory, `${role}-${process.pid}-${randomUUID()}.ndjson`),
     maxBytes,
@@ -71,7 +83,9 @@ export function startNodePerformanceDiagnostics(
   let warningReported = false;
   writer.append({
     kind: "start",
-    formatVersion: PROCESS_PERFORMANCE_FORMAT_VERSION,
+    formatVersion: NODE_PERFORMANCE_EVIDENCE_FORMAT_VERSION,
+    processSampleFormatVersion: PROCESS_PERFORMANCE_FORMAT_VERSION,
+    ipcQueueSampleFormatVersion: IPC_QUEUE_SAMPLE_FORMAT_VERSION,
     role,
     pid: process.pid,
     parentPid: process.ppid,
@@ -88,6 +102,8 @@ export function startNodePerformanceDiagnostics(
     eventLoopDelayWindow: "callback completion; an interval may start before the window",
     eventLoopDelayResolutionMs: 1,
     observerOverhead: "included; qualify overhead with a separate disabled-control run",
+    ipcQueueScope: "registered application waiting queues only; sizes are admission estimates",
+    ipcQueueExclusions: "native IPC buffers, terminal coalescer bytes/ages, peer acknowledgments",
   });
 
   function warnIncomplete(stats?: PerformanceWriterStats): void {
@@ -100,11 +116,15 @@ export function startNodePerformanceDiagnostics(
   }
 
   function appendSample(): void {
+    const { formatVersion: processSampleFormatVersion, ...sample } = sampler.sample();
     writer.append({
       kind: "sample",
+      formatVersion: NODE_PERFORMANCE_EVIDENCE_FORMAT_VERSION,
+      processSampleFormatVersion,
       sequence: sequence++,
       writer: writer.stats(),
-      ...sampler.sample(),
+      ...sample,
+      ipcQueues: queues.sample(),
     });
   }
 
@@ -121,6 +141,7 @@ export function startNodePerformanceDiagnostics(
     if (completion) return completion;
     clearInterval(timer);
     if (reason === "shutdown") appendSample();
+    queueCapture.active = false;
     sampler.dispose();
     completion = finish(reason);
     return completion;
@@ -139,5 +160,11 @@ export function startNodePerformanceDiagnostics(
       warnIncomplete(state);
   }
 
-  return { stop: () => stop() };
+  return {
+    queueCapture,
+    observeIpcQueue: (name, reader) => {
+      if (!completion) queues.register(name, reader);
+    },
+    stop: () => stop(),
+  };
 }

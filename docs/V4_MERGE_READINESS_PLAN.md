@@ -436,6 +436,14 @@ Owner: integration maintainer and performance owner. Dependencies: none.
    Keep diagnostics bounded and free of message content, tokens, file contents,
    and credentials. Local/CI diagnostics are sufficient; new product telemetry is
    not required.
+   The implementation now covers process CPU/event-loop/GC and opt-in application
+   IPC waiting-queue estimates/ages, with explicit missing/error observations and
+   per-sender generation identities. Native IPC bytes, terminal coalescer bytes
+   and ages, other client/relay queues, command/event correlation and frame/input
+   traces still need coverage. A complete diagnostic file alone does not qualify
+   any latency, memory or rendering gate.
+   Diagnostic budget/error stops must also end per-message capture work; this
+   requirement was reproduced and fixed during the queue collector review.
 5. Build exact master and integration revisions on the same toolchain/hardware.
    Use SQLite online backups or controlled synthetic fixtures. Copied state must
    point only at disposable cloned projects, have real automation disabled, and

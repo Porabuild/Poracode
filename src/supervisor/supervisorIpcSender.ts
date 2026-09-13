@@ -1,4 +1,6 @@
 import type { SupervisorEvent, SupervisorReply } from "@/shared/ipc";
+import type { IpcQueueCapture, IpcQueueSample } from "@/shared/diagnostics/ipcQueueSample";
+import { IpcQueueProbe } from "./ipcQueueProbe";
 
 const TERMINAL_OUTPUT_BATCH_MS = 8;
 const TERMINAL_OUTPUT_BATCH_MAX_CHARS = 64 * 1024;
@@ -14,6 +16,7 @@ interface QueueEntry<AdditionalMessage> {
   message: OutboundMessage<AdditionalMessage>;
   bytes: number;
   retries: number;
+  queuedAt?: number;
 }
 
 /**
@@ -68,6 +71,8 @@ export interface SupervisorIpcSenderOptions<AdditionalMessage = never> {
   shedPolicy?: SupervisorIpcShedPolicy<AdditionalMessage>;
   /** Called once per enqueue that shed queued messages. */
   onMessagesShed?(shed: { count: number; bytes: number }): void;
+  /** Observe application queue residence and estimates without retaining message content. */
+  queueDiagnostics?: IpcQueueCapture;
 }
 
 /**
@@ -96,8 +101,16 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
   private draining = false;
   private failed = false;
   private eagerShed = false;
+  private probe: IpcQueueProbe | undefined;
 
-  constructor(private readonly options: SupervisorIpcSenderOptions<AdditionalMessage>) {}
+  constructor(private readonly options: SupervisorIpcSenderOptions<AdditionalMessage>) {
+    this.probe = options.queueDiagnostics?.active ? new IpcQueueProbe() : undefined;
+  }
+
+  private get queueProbe(): IpcQueueProbe | undefined {
+    if (!this.options.queueDiagnostics?.active) this.probe = undefined;
+    return this.probe;
+  }
 
   /**
    * Downstream consumers report pressure through this (P1-2). While set,
@@ -160,6 +173,19 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     return { messages: this.queue.length, bytes: this.queuedBytes };
   }
 
+  getQueueDiagnostics(): IpcQueueSample | undefined {
+    return this.queueProbe?.sample({
+      queue: this.queue,
+      waitingEstimatedBytes: this.queuedBytes,
+      maxWaitingMessages: this.options.maxQueuedMessages ?? IPC_MAX_QUEUED_MESSAGES,
+      maxWaitingEstimatedBytes: this.options.maxQueuedBytes ?? IPC_MAX_QUEUED_BYTES,
+      terminalBatchMessages: this.pendingTerminalOutput.size,
+      inFlightMessages: this.inFlightSends,
+      backpressured: this.waitingForDrain,
+      failed: this.failed,
+    });
+  }
+
   private bufferTerminalOutput(event: TerminalOutputEvent): void {
     if (this.failed) return;
     const pending = this.pendingTerminalOutput.get(event.threadId);
@@ -209,7 +235,12 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
   }
 
   private enqueue(message: OutboundMessage<AdditionalMessage>): void {
-    this.enqueueEntry({ message, bytes: estimateMessageBytes(message), retries: 0 });
+    this.enqueueEntry({
+      message,
+      bytes: estimateMessageBytes(message),
+      retries: 0,
+      ...(this.queueProbe ? { queuedAt: this.queueProbe.admittedAt() } : {}),
+    });
   }
 
   private enqueueEntry(entry: QueueEntry<AdditionalMessage>, front = false): void {
@@ -242,6 +273,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     if (front) this.queue.unshift(entry);
     else this.queue.push(entry);
     this.queuedBytes += entry.bytes;
+    this.queueProbe?.observeWaiting(this.queue.length, this.queuedBytes);
     this.drain();
   }
 
@@ -258,6 +290,13 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
       message: policy.createRecoverySignal([entry.message], merging),
       bytes: 0,
       retries: 0,
+      ...(merging
+        ? leading?.queuedAt === undefined
+          ? {}
+          : { queuedAt: leading.queuedAt }
+        : this.queueProbe
+          ? { queuedAt: this.queueProbe.admittedAt() }
+          : {}),
     };
     signal.bytes = estimateMessageBytes(signal.message);
     if (merging && leading) {
@@ -267,7 +306,8 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
       this.queue.unshift(signal);
     }
     this.queuedBytes += signal.bytes;
-    this.options.onMessagesShed?.({ count: 1, bytes: entry.bytes });
+    this.reportShed(1, entry.bytes);
+    this.queueProbe?.observeWaiting(this.queue.length, this.queuedBytes);
     this.drain();
   }
 
@@ -318,6 +358,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
         message: policy.createRecoverySignal(shed, previous),
         bytes: 0,
         retries: 0,
+        ...(this.queueProbe ? { queuedAt: this.queueProbe.admittedAt() } : {}),
       });
       const adjacentEntry = firstShedIndex > 0 ? this.queue[firstShedIndex - 1] : undefined;
       const adjacentIndex =
@@ -335,19 +376,24 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
         this.queuedBytes + incomingBytes + signalByteReserve <= maxBytes
       ) {
         if (replacing && adjacentIndex !== null && previousEntry !== undefined) {
+          if (previousEntry.queuedAt !== undefined) signalEntry.queuedAt = previousEntry.queuedAt;
+          else delete signalEntry.queuedAt;
           this.queuedBytes -= previousEntry.bytes;
           this.queue[adjacentIndex] = signalEntry;
         } else {
           this.queue.splice(firstShedIndex, 0, signalEntry);
         }
         this.queuedBytes += signalEntry.bytes;
-        this.options.onMessagesShed?.({ count, bytes });
+        this.reportShed(count, bytes);
+        this.queueProbe?.observeWaiting(this.queue.length, this.queuedBytes);
         return true;
       }
       for (let index = Math.min(firstShedIndex, this.queue.length) - 1; index >= 0; index -= 1) {
         const candidate = this.queue[index];
         if (!candidate || !policy.isRecoverySignal(candidate.message)) continue;
         const merged = buildSignal(candidate.message);
+        if (candidate.queuedAt !== undefined) merged.queuedAt = candidate.queuedAt;
+        else delete merged.queuedAt;
         merged.bytes = estimateMessageBytes(merged.message);
         if (this.queue.length + incomingSlotReserve > maxMessages) return false;
         if (this.queuedBytes + incomingBytes + merged.bytes - candidate.bytes > maxBytes) {
@@ -356,7 +402,8 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
         this.queuedBytes -= candidate.bytes;
         this.queue[index] = merged;
         this.queuedBytes += merged.bytes;
-        this.options.onMessagesShed?.({ count, bytes });
+        this.reportShed(count, bytes);
+        this.queueProbe?.observeWaiting(this.queue.length, this.queuedBytes);
         return true;
       }
       return false;
@@ -395,6 +442,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
         let accepted: boolean | undefined;
         let callbackCompleted = false;
         this.inFlightSends += 1;
+        this.queueProbe?.attemptSend(entry.bytes);
         const callback: SendCallback = (error) => {
           if (callbackCompleted) return;
           callbackCompleted = true;
@@ -438,6 +486,11 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
       return;
     }
     this.failFatal(new Error(`Supervisor IPC send failed permanently: ${error.message}`));
+  }
+
+  private reportShed(count: number, bytes: number): void {
+    this.queueProbe?.shed(count, bytes);
+    this.options.onMessagesShed?.({ count, bytes });
   }
 
   private startBackpressureTimer(): void {

@@ -188,8 +188,12 @@ valid zero usage. The 4,096 cap bounds historical metric records; the most recen
 tree is separately bounded by the 8 MiB process-output limit. Preserve these
 limits when supplementing in-process CPU/event-loop traces.
 
-`src/shared/diagnostics/processPerformanceSampler.ts` introduces local diagnostic
-format 1. With `PORACODE_PERF_OUTPUT_DIR` set to an existing absolute directory,
+`src/shared/diagnostics/processPerformanceSampler.ts` retains process-sample
+format 1. The surrounding local NDJSON evidence envelope in
+`nodePerformanceDiagnostics.ts` is now format 2: it declares process-sample format
+1 and IPC-queue sample format 1 independently. Existing format-1 evidence remains
+unchanged; each run creates new exclusive files. Readers must check the envelope
+version before interpreting its samples. With `PORACODE_PERF_OUTPUT_DIR` set to an existing absolute directory,
 the desktop main, backend, supervisor, standalone server and relay write distinct
 private NDJSON files. No collector starts by default. CPU/RSS are process-wide;
 event loop, heap and GC describe the current thread/isolate. Completed callback
@@ -207,6 +211,29 @@ output. A missing/truncated end marker or incomplete-output warning cannot quali
 a gate. Successful writes are not a power-loss durability guarantee. No message
 content, argv, environment dump or credentials are recorded. The observer's CPU
 and timer work is included; qualify its overhead against a disabled control.
+
+Format 2 adds opt-in observations for the application waiting queues from main to
+backend, backend to main, and supervisor to its host (backend or standalone
+server). Registration is limited to those three names with one current reader
+each; the recorder copies only the fixed numeric/boolean schema and a random
+sender-instance UUID. Sender replacement changes that UUID. An absent sender is
+`unavailable`, a failed/invalid observation is `error`, and an unregistered queue
+is absent. None means measured zero. A complete end marker describes file output,
+not queue-observation coverage or successful delivery.
+
+Waiting bytes are the existing sender admission estimates, not native IPC buffer
+measurements. Age starts at initial waiting-queue admission; a queued retry keeps
+that time, and merging an existing recovery marker preserves the marker's age.
+Any missing/invalid admission time makes the oldest age unknown. In-flight counts
+and send-adapter attempts (including a local adapter rejection) are separate from
+waiting messages and are not peer processing acknowledgments. Terminal coalescer count is separate; its bytes/ages and other
+transport queues remain outside this measurement. Per-sample queue collection
+work is reported separately from process sampler work. With diagnostics disabled,
+the sender creates no probe or admission timestamps; the optional code branches
+remain, so this is not a claim of zero overhead.
+Stopping the recorder, including budget/error stops, also ends the shared capture
+lifetime; existing senders stop timestamps/counters and replacement senders do
+not reactivate them. Application message admission and delivery continue normally.
 
 ## Mirrored-boundary rule
 

@@ -43,6 +43,7 @@ let shedLogCount = 0;
 let shedLogBytes = 0;
 let shedLogAt = 0;
 const ipcSender = new SupervisorIpcSender<SupervisorOutputShedSignal>({
+  ...(performanceDiagnostics ? { queueDiagnostics: performanceDiagnostics.queueCapture } : {}),
   send: (message, callback) => {
     if (!process.connected || !process.send) {
       callback(new Error("Supervisor IPC channel is disconnected."));
@@ -71,6 +72,9 @@ const ipcSender = new SupervisorIpcSender<SupervisorOutputShedSignal>({
     shedLogBytes = 0;
   },
 });
+performanceDiagnostics?.observeIpcQueue("supervisor-to-host", () =>
+  ipcSender.getQueueDiagnostics(),
+);
 const runtime = new SupervisorRuntime((event) => ipcSender.emit(event));
 
 const handlers = createSupervisorIpcHandlers(runtime);
