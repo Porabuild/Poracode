@@ -34,6 +34,7 @@ import { isThreadTurnActive } from "@/shared/contracts";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { SharedSettings } from "@/shared/settings";
+import { observeRoutingSettingsEvent } from "./BackendRoutingSettings";
 
 export interface BackendDurableServicesOptions {
   appVersion: string;
@@ -51,6 +52,7 @@ export interface BackendDurableServicesOptions {
   onPrMerged?(watch: PrWatch): void;
   onPrObserved?(watch: PrWatch, pr: PrData, details?: PrDetails): void;
   onGitPatch(patch: GitStatePatch): void;
+  reportError?(error: unknown): void;
 }
 
 /** Shared durable service graph used by both desktop BackendHost and headless server. */
@@ -196,11 +198,13 @@ export class BackendDurableServices {
     this.gitStateService.start();
   }
 
-  observeSupervisorEvent(event: SupervisorEvent): void {
+  observeSupervisorEvent(event: SupervisorEvent): boolean {
+    if (observeRoutingSettingsEvent(this.options, event)) return true;
     this.appControls.observeSupervisorEvent(event);
     this.scheduleCoordinator.observeSupervisorEvent(event);
     this.prWatchService.observeSupervisorEvent(event);
     this.gitStateService.observeSupervisorEvent(event);
+    return false;
   }
 
   dispose(): void {

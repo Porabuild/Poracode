@@ -98,6 +98,8 @@ import type {
   BackendHostInitializePayload,
   BackendNativeRequest,
 } from "@/shared/backendHostProtocol";
+import { writeSharedSettingsFile } from "@/main/sharedSettingsFile";
+import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 
 function initialize(desktop: boolean): BackendHostInitializePayload {
   return {
@@ -136,6 +138,27 @@ describe("BackendDesktopServices projection invalidation", () => {
     expect(affectsShellProjection("dbGetState")).toBe(false);
     expect(affectsShellProjection("dbUpsertProject")).toBe(true);
     expect(affectsShellProjection("dbUpsertThread")).toBe(true);
+  });
+});
+
+describe("BackendDesktopServices settings notifications", () => {
+  it("keeps a committed routing write successful when notifying main fails", () => {
+    const serviceOptions = options(true);
+    const error = new Error("Fixture main disconnected");
+    serviceOptions.emitNativeEvent.mockImplementationOnce(() => {
+      throw error;
+    });
+    void new BackendDesktopServices(serviceOptions);
+    const durable = mocks.durableOptions.at(-1) as unknown as {
+      writeSharedSettings(settings: SharedSettings): void;
+    };
+
+    expect(() => durable.writeSharedSettings(defaultSharedSettings)).not.toThrow();
+    expect(writeSharedSettingsFile).toHaveBeenCalledExactlyOnceWith(
+      "/data/settings.json",
+      defaultSharedSettings,
+    );
+    expect(serviceOptions.reportError).toHaveBeenCalledExactlyOnceWith(error);
   });
 });
 
