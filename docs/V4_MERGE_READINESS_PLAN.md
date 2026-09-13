@@ -189,6 +189,18 @@ AdvancedOperations suites then passed 173/173. Phase 0's compatibility audit and
 future native qualification must include these portable consumers. Evidence is
 retained under the integration worktree's `tmp/v4-native-broad/`.
 
+**F19 — verified during the settings-watcher investigation: cache reads can
+precede observation.** If the settings file is absent on the first read, defaults
+remain cached after the file appears and the watcher finally attaches. An atomic
+replacement between the first cache fill and watch registration creates the same
+stale-cache state. Three regressions cover creation, that registration interleaving,
+and failed-watch recovery. The fix registers observation before reading and
+invalidates old cache data on successful attachment. A healthy watcher still makes
+hot reads return without filesystem I/O. The separate full-suite first-replacement
+failure that led to this investigation has an unproven cause; preserve that limit
+instead of treating a retry as diagnosis. Phase 1's authoritative settings service
+must preserve these guarantees.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 
@@ -210,7 +222,8 @@ more than their execution establishes:
 - `processMemorySampler.ts:84` overwrites the root RSS sample, so the reported
   own-process “peak” is the last sample. Total RSS includes descendants. Machine
   load is not per-process CPU. Repair these measurements and reject contaminated
-  benchmark runs.
+  benchmark runs. Corrected reports carry `samplerVersion: 2`; older unversioned
+  own-process peaks are invalid evidence and must be remeasured.
 - Existing performance budgets are largely recorded in documentation rather
   than asserted. Raw traces and build identity must become durable CI artifacts;
   an ignored `tmp/` directory or an old dirty build is insufficient release proof.
