@@ -182,8 +182,8 @@ export async function createHeadlessRemoteHost(
       ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
     },
     onEvent: (event) => {
+      if (durableServices?.observeSupervisorEvent(event)) return;
       options.onSupervisorEvent?.(event);
-      durableServices?.observeSupervisorEvent(event);
       serverRef?.publishSupervisorEvent(event);
       pushCoordinator?.handleSupervisorEvent(event);
       threadNotifications?.handleSupervisorEvent(event);
@@ -286,6 +286,7 @@ export async function createHeadlessRemoteHost(
     hostId: identity.desktopId,
     supervisor: supervisorClient,
     getSharedSettings,
+    ...(options.reportError ? { reportError: options.reportError } : {}),
     writeSharedSettings: (next) => writeSharedSettingsFile(paths.settingsPath, next),
     sendThreadCommand: () => false,
     publishProjectsChanged: publishHeadlessProjectsChanged,
@@ -461,7 +462,7 @@ export async function createHeadlessRemoteHost(
       durableServices?.dispose();
       durableServices = null;
       portForwarding.dispose();
-      backendHost.dispose();
+      await backendHost.dispose();
     },
   };
 }

@@ -31,11 +31,17 @@ import type {
   BackendServiceCall,
   BackendServiceProcedureName,
   BackendServiceResult,
+  BackendSettingsProcedureName,
 } from "@/shared/backendHostProtocol";
 import { RevertCheckpointRefusedError, type BackendHostCore } from "./BackendHostCore";
 import { BackendDurableServices } from "./BackendDurableServices";
 import { BackendRemoteBrowserProxy } from "./BackendRemoteBrowserProxy";
 import { generateBackendImagePreview } from "./BackendImagePreview";
+import { createBackendSettingsHandlers } from "./BackendSettingsService";
+import {
+  notifySettingsChanged,
+  type BackendSettingsNotifications,
+} from "./BackendSettingsNotifications";
 
 export interface BackendDesktopServicesOptions {
   initialize: BackendHostInitializePayload;
@@ -75,12 +81,25 @@ export class BackendDesktopServices {
   private readonly remote: DesktopRemoteAccessController | null;
   private readonly browser: BackendRemoteBrowserProxy;
   private readonly stopProjectionWatch: () => void;
+  private readonly settings: ReturnType<typeof createBackendSettingsHandlers>;
   private updateStatus: RemoteHostUpdateStatus | null = null;
 
   constructor(private readonly options: BackendDesktopServicesOptions) {
     const { initialize, host } = options;
     const desktop = initialize.desktop;
     const supervisor = host.supervisorClient;
+    const settingsNotifications: BackendSettingsNotifications = {
+      onChanged: (settings) =>
+        options.emitNativeEvent({ type: "shared-settings-changed", settings }),
+      reportError: options.reportError,
+    };
+    this.settings = createBackendSettingsHandlers({
+      settingsPath: () => {
+        if (!desktop) throw new Error("Desktop services are not configured.");
+        return desktop.settingsPath;
+      },
+      ...settingsNotifications,
+    });
     this.browser = new BackendRemoteBrowserProxy(options.requestNative, options.reportError);
     this.stopProjectionWatch = onProjectThreadDataChanged(() => {
       options.emitNativeEvent({ type: "database-projection-changed" });
@@ -112,11 +131,12 @@ export class BackendDesktopServices {
       sendThreadCommand,
       emitRemoteThreadCommand: dispatchThreadCommand,
       getSharedSettings,
+      reportError: options.reportError,
       publishProjectsChanged,
       writeSharedSettings: (next) => {
         if (!desktop) return;
         writeSharedSettingsFile(desktop.settingsPath, next);
-        options.emitNativeEvent({ type: "shared-settings-changed", settings: next });
+        notifySettingsChanged(next, settingsNotifications);
       },
       hasRendererWindow: true,
       openThreadInUi: (threadId) => {
@@ -268,9 +288,10 @@ export class BackendDesktopServices {
     await this.remote?.startIfEnabled();
   }
 
-  observeSupervisorEvent(event: SupervisorEvent): void {
-    this.durable.observeSupervisorEvent(event);
+  observeSupervisorEvent(event: SupervisorEvent): boolean {
+    if (this.durable.observeSupervisorEvent(event)) return true;
     this.remote?.handleSupervisorEvent(event);
+    return false;
   }
 
   /**
@@ -343,6 +364,17 @@ export class BackendDesktopServices {
     payload: Extract<BackendServiceCall, { name: Name }>["payload"],
   ): BackendServiceResult<Name> | Promise<BackendServiceResult<Name>> {
     switch (name) {
+      case "getSharedSettings":
+      case "setSharedSettings":
+      case "setAgentSecretSetting":
+      case "removeCrossagentRoutingOverride":
+      case "removeCrossagentMemoryEntry":
+      case "updateCrossagentMemoryEntryTags":
+      case "setProfileEnvironment":
+      case "createProfile":
+        return this.settings[name as BackendSettingsProcedureName](
+          payload as never,
+        ) as BackendServiceResult<Name>;
       case "getRemoteAccessPairing":
         return getRemoteAccessPairingInfo(
           this.remote?.getServer() ?? null,

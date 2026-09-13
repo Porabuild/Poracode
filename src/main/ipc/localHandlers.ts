@@ -1,5 +1,4 @@
 import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
 import {
   app,
   clipboard,
@@ -24,14 +23,6 @@ import { createProjectDirectory } from "../projectDirectory";
 import { detectProjectIconFile, listProjectIconFiles } from "../projectIconDetect";
 import { showOsNotification } from "../osNotifications";
 import { showAndFocusWindow } from "../window/showAndFocusWindow";
-import {
-  applyAgentSecretSetting,
-  applyCreateProfile,
-  applyProfileEnvironment,
-  mergeManagedSharedSettings,
-  readSharedSettingsFile,
-  writeSharedSettingsFile,
-} from "../sharedSettingsFile";
 import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
 import type { KeybindingsFile } from "@/shared/keybindings";
 import type { RendererEventSender } from "../backend/rendererEventInterestRegistry";
@@ -50,12 +41,6 @@ import type {
   BackendServiceCaller,
 } from "@/shared/backendHostProtocol";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
-import type { SharedSettings } from "@/shared/settings";
-import {
-  removeCrossagentRoutingOverride,
-  removeCrossagentSelectionUsageEntry,
-  retagCrossagentSelectionUsageEntry,
-} from "@/shared/crossagentRanking";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { CheckpointRevertResult } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
@@ -74,8 +59,7 @@ interface CreateLocalIpcHandlersOptions {
   legacyBaseDir?: string;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
-  /** Called with the settings just written, so consumers don't re-read the file. */
-  onSharedSettingsChanged?(settings: SharedSettings): void;
+  /** Called with the keybindings just written, so consumers don't re-read the file. */
   onKeybindingsChanged?(file: KeybindingsFile): void;
   setGlobalShortcutsSuspended?(suspended: boolean): void;
   setRendererEventInterests(
@@ -163,17 +147,6 @@ export function createLocalIpcHandlers(
     payload: IpcProcedurePayload<Name>,
   ): Promise<IpcProcedureResult<Name>> | IpcProcedureResult<Name> => {
     return options.database.callDatabase(name, payload);
-  };
-  // Shared plumbing for the main-local secret/profile handlers: read the
-  // settings file, apply one encrypting transform, persist, and notify.
-  const applyToSharedSettingsFile = <T>(
-    apply: (settings: SharedSettings, baseDir: string) => { settings: SharedSettings; result: T },
-  ): T => {
-    const settingsPath = options.requirePoracodePaths().settingsPath;
-    const applied = apply(readSharedSettingsFile(settingsPath), dirname(settingsPath));
-    writeSharedSettingsFile(settingsPath, applied.settings);
-    options.onSharedSettingsChanged?.(applied.settings);
-    return applied.result;
   };
   return defineMainLocalIpcHandlers({
     pickFolder: async (defaultPath) => {
@@ -347,64 +320,16 @@ export function createLocalIpcHandlers(
     publishRemoteGitSummaries: (payload) => {
       return callService("publishRemoteGitSummaries", payload);
     },
-    getSharedSettings: () => readSharedSettingsFile(options.requirePoracodePaths().settingsPath),
-    setSharedSettings: (settings) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      // Preserve supervisor-managed fields and encrypted provider-profile
-      // environments so the renderer's persist cycle doesn't clobber writes
-      // made out-of-band by the supervisor. (Shared with the app-controls MCP
-      // `update_settings` tool via `mergeManagedSharedSettings`.)
-      const merged = mergeManagedSharedSettings(readSharedSettingsFile(settingsPath), settings);
-      writeSharedSettingsFile(settingsPath, merged);
-      options.updatePowerSaveBlocker();
-      options.onSharedSettingsChanged?.(merged);
-    },
-    setAgentSecretSetting: (payload) =>
-      applyToSharedSettingsFile((settings, baseDir) => {
-        const { settings: next, storedValue } = applyAgentSecretSetting(settings, payload, baseDir);
-        return { settings: next, result: { storedValue } };
-      }),
-    removeCrossagentRoutingOverride: ({ tags }) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      const current = readSharedSettingsFile(settingsPath);
-      const overrides = removeCrossagentRoutingOverride(current.crossagentRoutingOverrides, tags);
-      const settings = { ...current, crossagentRoutingOverrides: overrides };
-      writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.(settings);
-      return overrides;
-    },
-    removeCrossagentMemoryEntry: ({ entry }) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      const current = readSharedSettingsFile(settingsPath);
-      const usage = removeCrossagentSelectionUsageEntry(current.crossagentSelectionUsage, entry);
-      const settings = { ...current, crossagentSelectionUsage: usage };
-      writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.(settings);
-      return usage;
-    },
-    updateCrossagentMemoryEntryTags: ({ entry, tags }) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      const current = readSharedSettingsFile(settingsPath);
-      const usage = retagCrossagentSelectionUsageEntry(
-        current.crossagentSelectionUsage,
-        entry,
-        tags,
-      );
-      const settings = { ...current, crossagentSelectionUsage: usage };
-      writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.(settings);
-      return usage;
-    },
-    setProfileEnvironment: (payload) =>
-      applyToSharedSettingsFile((settings, baseDir) => {
-        const { settings: next, instance } = applyProfileEnvironment(settings, payload, baseDir);
-        return { settings: next, result: instance };
-      }),
-    createProfile: (payload) =>
-      applyToSharedSettingsFile((settings, baseDir) => {
-        const { settings: next, instance } = applyCreateProfile(settings, payload, baseDir);
-        return { settings: next, result: instance };
-      }),
+    getSharedSettings: () => callService("getSharedSettings", {}),
+    setSharedSettings: (settings) => callService("setSharedSettings", settings),
+    setAgentSecretSetting: (payload) => callService("setAgentSecretSetting", payload),
+    removeCrossagentRoutingOverride: (payload) =>
+      callService("removeCrossagentRoutingOverride", payload),
+    removeCrossagentMemoryEntry: (payload) => callService("removeCrossagentMemoryEntry", payload),
+    updateCrossagentMemoryEntryTags: (payload) =>
+      callService("updateCrossagentMemoryEntryTags", payload),
+    setProfileEnvironment: (payload) => callService("setProfileEnvironment", payload),
+    createProfile: (payload) => callService("createProfile", payload),
     setWindowChrome: async (payload: WindowChromePayload): Promise<WindowChromeResult> => {
       const nativeCapable = supportsNativeWindowMaterial();
       const mainWindow = options.getMainWindow();

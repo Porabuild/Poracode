@@ -119,8 +119,8 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     host = makeHost((event) => events.push(event));
   });
 
-  afterEach(() => {
-    host?.dispose();
+  afterEach(async () => {
+    await host?.dispose();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
@@ -174,6 +174,42 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     });
     expect(providerCalls()).toHaveLength(0);
     expect(truncateEvents()).toHaveLength(1);
+  });
+
+  it("closes admission and waits for an owned file-restore continuation before closing SQLite", async () => {
+    seedThread({ status: "idle" });
+    seedTranscript(2);
+    let finishRestore!: () => void;
+    supervisorHarness.handlers.set(
+      "restoreFileCheckpoint",
+      () =>
+        new Promise<void>((resolve) => {
+          finishRestore = resolve;
+        }),
+    );
+    const operation = host!.revertCheckpoint(revertInput("shutdown-held-restore"));
+    await vi.waitFor(() => expect(finishRestore).toBeTypeOf("function"));
+
+    let disposed = false;
+    const disposal = host!.dispose().then(() => {
+      disposed = true;
+    });
+    await Promise.resolve();
+    expect(disposed).toBe(false);
+    expect(dbGetThread("thread-1")?.id).toBe("thread-1");
+    await expect(host!.revertCheckpoint(revertInput("late-after-shutdown"))).rejects.toThrow(
+      "shutting down",
+    );
+    expect(() => host!.truncateThreadRuntime("thread-1", "checkpoint")).toThrow("shutting down");
+
+    finishRestore();
+    await expect(operation).resolves.toMatchObject({
+      outcome: "completed",
+      truncatePhase: "completed",
+    });
+    await disposal;
+    expect(disposed).toBe(true);
+    expect(() => dbGetThread("thread-1")).toThrow(/Database not initialized/i);
   });
 
   it("refuses a revert while the thread is working without touching the journal", async () => {
@@ -232,7 +268,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
       expect(JSON.stringify(restoreCalls()[1]!.payload.anchor)).toBe(JSON.stringify(CLAUDE_ANCHOR));
       expect(truncateEvents()).toHaveLength(1);
     } finally {
-      restarted.dispose();
+      await restarted.dispose();
     }
   });
 
@@ -340,7 +376,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
       expect(restoreCalls()).toHaveLength(1);
       expect(truncateEvents()).toHaveLength(1);
     } finally {
-      restarted.dispose();
+      await restarted.dispose();
     }
   });
 
@@ -405,7 +441,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
       expect(itemIds).not.toContain("late-2");
       expect(truncateEvents()).toHaveLength(2);
     } finally {
-      restarted.dispose();
+      await restarted.dispose();
     }
   });
 

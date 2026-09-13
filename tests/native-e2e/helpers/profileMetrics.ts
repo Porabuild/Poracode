@@ -72,6 +72,7 @@ export function buildMetricsArtifact(
   );
   return {
     ...extra,
+    metricsVersion: 2,
     clients: clients.length,
     controlLatency,
     eventPropagation: summarizeLatencies(
@@ -117,6 +118,8 @@ export function buildMetricsArtifact(
       ),
       seqGaps: clients.reduce((total, client) => total + client.metrics.eventSeqGaps, 0),
     },
-    perClient: clients.map((client) => ({ ...client.metrics })),
+    // Finalized resource windows can await a pending process probe. Keep raw
+    // samples consistent with the aggregates even if clients receive more data.
+    perClient: clients.map((client) => structuredClone(client.metrics)),
   };
 }
