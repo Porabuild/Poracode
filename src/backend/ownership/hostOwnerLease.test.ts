@@ -221,6 +221,19 @@ describe("host owner kernel lease", () => {
     expect(() => own(profile)).toThrow(HostRootInUseError);
   });
 
+  it("keeps its kernel lock after a duplicate acquisition in the same process", async () => {
+    const profile = namespace();
+    const lease = own(profile);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      expect(() => own(profile)).toThrow(HostRootInUseError);
+      expect((await contender(profile, "headless")).result).toMatchObject({
+        status: "refused",
+        code: "HOST_ROOT_IN_USE",
+      });
+    }
+    lease.assertActive();
+  });
+
   it("does not overwrite an unsupported future lease format", () => {
     const profile = namespace();
     const paths = resolveHostRootPaths(profile);
