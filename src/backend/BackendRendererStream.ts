@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { IncomingMessage } from "node:http";
+import { createServer, type IncomingMessage } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
@@ -12,6 +12,9 @@ import {
 } from "@/shared/backendHostProtocol";
 import { BackendEventRouter } from "./BackendHostCore";
 import { capBroadcastEvent, maxBroadcastEventBytes } from "@/main/remote/server/eventSizeGuard";
+import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
+import { HttpServerConnections } from "@/shared/httpServerConnections";
+import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 
 // WS5 P1-9: matched with the remote transport's window widening — the byte
 // budget bounds memory, so the entry cap only bounds worst-case counts of
@@ -33,6 +36,7 @@ const BACKPRESSURE_HIGH_WATERMARK_BYTES = MAX_CLIENT_BUFFERED_BYTES / 2;
 const BACKPRESSURE_LOW_WATERMARK_BYTES = MAX_CLIENT_BUFFERED_BYTES / 8;
 const HEALTHY_SENDS_BEFORE_BUDGET_REDUCTION = 256;
 const MAX_REQUEST_BYTES = 64 * 1024 * 1024;
+const SHUTDOWN_SOCKET_GRACE_MS = 500;
 
 interface ReplayEntry {
   seq: number;
@@ -103,7 +107,13 @@ export class BackendRendererStream {
   private pressured = false;
   private replayBytes = 0;
   private sequence = 0;
-  private server: WebSocketServer | null = null;
+  private readonly httpServer;
+  private readonly connections: HttpServerConnections;
+  private readonly server: WebSocketServer;
+  private readonly requests = new AsyncWorkTracker();
+  private starting: Promise<BackendRendererStreamInfo> | undefined;
+  private disposal: Promise<void> | undefined;
+  private stopping = false;
   private readonly diagnostics: Omit<BackendRendererStreamDiagnostics, "connectedClients"> = {
     deliveredEvents: 0,
     replayedEvents: 0,
@@ -115,30 +125,66 @@ export class BackendRendererStream {
     peakBufferedBytes: 0,
   };
 
-  constructor(private readonly options: BackendRendererStreamOptions = {}) {}
-
-  async start(): Promise<BackendRendererStreamInfo> {
-    if (this.server) throw new Error("Backend renderer stream is already started.");
-    const server = new WebSocketServer({
-      host: "127.0.0.1",
-      port: 0,
+  constructor(private readonly options: BackendRendererStreamOptions = {}) {
+    this.httpServer = createServer((_request, response) => {
+      response.writeHead(this.stopping ? 503 : 426, { "content-type": "text/plain" });
+      response.end(this.stopping ? "Backend host shutting down" : "Upgrade Required");
+    });
+    this.connections = new HttpServerConnections(this.httpServer);
+    this.server = new WebSocketServer({
+      server: this.httpServer,
       perMessageDeflate: false,
       maxPayload: MAX_REQUEST_BYTES,
       verifyClient: ({ req }: { req: IncomingMessage }) => {
         try {
-          return new URL(req.url ?? "/", "ws://127.0.0.1").searchParams.get("token") === this.token;
+          return (
+            !this.stopping &&
+            new URL(req.url ?? "/", "ws://127.0.0.1").searchParams.get("token") === this.token
+          );
         } catch {
           return false;
         }
       },
     });
-    this.server = server;
-    server.on("connection", (socket) => this.accept(socket));
-    await new Promise<void>((resolve, reject) => {
-      server.once("listening", resolve);
-      server.once("error", reject);
+    this.server.on("connection", (socket) => this.accept(socket));
+  }
+
+  start(): Promise<BackendRendererStreamInfo> {
+    if (this.stopping)
+      return Promise.reject(new Error("Backend renderer stream is shutting down."));
+    this.starting ??= this.listen().catch((error) => {
+      this.starting = undefined;
+      throw error;
     });
-    const address = server.address();
+    return this.starting;
+  }
+
+  private async listen(): Promise<BackendRendererStreamInfo> {
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        this.server.off("listening", onListening);
+        this.server.off("error", onError);
+      };
+      const onListening = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+      // WebSocketServer forwards its HTTP listener events, including bind errors.
+      this.server.once("listening", onListening);
+      this.server.once("error", onError);
+      try {
+        this.httpServer.listen(0, "127.0.0.1");
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
+    });
+    if (this.stopping) throw new Error("Backend renderer stream is shutting down.");
+    const address = this.httpServer.address();
     if (!address || typeof address === "string")
       throw new Error("Renderer stream did not bind TCP.");
     return {
@@ -270,21 +316,40 @@ export class BackendRendererStream {
     return { connectedClients: this.clients.size, ...this.diagnostics };
   }
 
-  async dispose(): Promise<void> {
-    const server = this.server;
-    this.server = null;
-    for (const [socket, client] of this.clients) {
-      client.router.dispose();
-      socket.close(1001, "Backend host shutting down");
-    }
-    this.clients.clear();
+  dispose(): Promise<void> {
+    if (this.disposal) return this.disposal;
+    this.stopping = true;
+    const barrier = Promise.withResolvers<void>();
+    this.disposal = barrier.promise;
     for (const timer of this.terminalBootstrapTimers.values()) clearTimeout(timer);
     this.terminalBootstrapTimers.clear();
-    if (!server) return;
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    void (async () => {
+      await this.starting?.catch(() => {});
+      for (const [socket, client] of this.clients) {
+        client.router.dispose();
+        socket.close(1001, "Backend host shutting down");
+      }
+      await joinRuntimeShutdown(
+        [
+          () =>
+            new Promise<void>((resolve, reject) =>
+              this.server.close((error) => (error ? reject(error) : resolve())),
+            ),
+          () => this.connections.close(SHUTDOWN_SOCKET_GRACE_MS),
+          () => this.requests.drain(),
+        ],
+        "Backend renderer stream did not shut down cleanly.",
+      );
+      this.clients.clear();
+    })().then(barrier.resolve, barrier.reject);
+    return this.disposal;
   }
 
   private accept(socket: WebSocket): void {
+    if (this.stopping) {
+      socket.terminate();
+      return;
+    }
     const state: ClientState = {
       router: new BackendEventRouter(),
       ready: false,
@@ -313,6 +378,7 @@ export class BackendRendererStream {
   }
 
   private handleClientMessage(socket: WebSocket, state: ClientState, raw: string): void {
+    if (this.stopping) return;
     let message: unknown;
     try {
       message = JSON.parse(raw);
@@ -321,7 +387,9 @@ export class BackendRendererStream {
       return;
     }
     if (isBackendRendererRequest(message)) {
-      void this.handleRequest(socket, message);
+      void this.requests
+        .run(() => this.handleRequest(socket, message))
+        .catch(() => socket.terminate());
       return;
     }
     if (!isInterestMessage(message)) {
