@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { AsyncSamplingLoop, readProcessOutput, type SamplingTiming } from "./asyncSampling.ts";
 
 /**
  * Periodically samples the resident memory of one process and all of its
@@ -8,8 +8,9 @@ import { spawnSync } from "node:child_process";
  */
 
 export interface ProcessMemorySummary {
-  /** Version 2 corrects own-process peak accounting; older reports are unversioned. */
-  readonly samplerVersion: 2;
+  /** Version 3 uses asynchronous, joined probes; version 2 corrected own RSS peaks. */
+  readonly samplerVersion: 3;
+  readonly sampling: SamplingTiming;
   readonly samples: number;
   readonly probeFailures: number;
   /** Peak summed RSS (host + descendants) in KB across the sampled window. */
@@ -24,15 +25,11 @@ interface PsRow {
   readonly rssKb: number;
 }
 
-function readProcessTable(): PsRow[] | null {
-  const result = spawnSync("ps", ["-eo", "pid=,ppid=,rss="], {
-    encoding: "utf8",
-    maxBuffer: 8 * 1024 * 1024,
-    timeout: 1_000,
-  });
-  if (result.error || result.status !== 0 || typeof result.stdout !== "string") return null;
+async function readProcessTable(): Promise<PsRow[] | null> {
+  const output = await readProcessOutput("pid=,ppid=,rss=");
+  if (output === null) return null;
   const rows: PsRow[] = [];
-  for (const line of result.stdout.split("\n")) {
+  for (const line of output.split("\n")) {
     const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s*$/u.exec(line);
     if (!match) continue;
     rows.push({ pid: Number(match[1]), ppid: Number(match[2]), rssKb: Number(match[3]) });
@@ -45,37 +42,32 @@ export class ProcessMemorySampler {
   private peakTotalKb: number | null = null;
   private probeFailures = 0;
   private sampleCount = 0;
-  private timer: ReturnType<typeof setInterval> | undefined;
+  private readonly loop = new AsyncSamplingLoop(() => this.sample());
 
   constructor(private readonly rootPid: number) {}
 
   start(intervalMs = 1_000): void {
-    if (this.timer) return;
-    this.sample();
-    this.timer = setInterval(() => this.sample(), intervalMs);
-    this.timer.unref();
+    this.loop.start(intervalMs);
   }
 
-  stop(): void {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = undefined;
-    }
+  stop(): Promise<void> {
+    return this.loop.stop();
   }
 
   summary(): ProcessMemorySummary {
     return {
-      samplerVersion: 2,
+      samplerVersion: 3,
+      sampling: this.loop.timing(),
       samples: this.sampleCount,
-      probeFailures: this.probeFailures,
+      probeFailures: this.probeFailures + this.loop.timing().unexpectedFailures,
       peakTotalRssKb: this.peakTotalKb,
       peakOwnRssKb: this.peakOwnKb,
     };
   }
 
-  private sample(): void {
+  private async sample(): Promise<void> {
     this.sampleCount += 1;
-    const rows = readProcessTable();
+    const rows = await readProcessTable();
     if (!rows) {
       this.probeFailures += 1;
       return;
