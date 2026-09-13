@@ -1477,3 +1477,26 @@ full typecheck and touched type-aware lint green.
 This isolates host admission by source. Relay-wide scheduling, weighted
 fairness, outbound byte budgets, and cross-host queue isolation remain Phase 5
 work.
+
+## Phase 4 bounded terminal hydration
+
+Before: `XTermSurface` appended every live PTY chunk to one string while xterm
+parsed historical scrollback. A slow parser could therefore retain an
+unbounded suffix and then flush an incomplete cursor range into the visible
+terminal.
+
+After: renderer-side hydration keeps at most one million UTF-16 units. When a
+chunk would cross that bound, the incomplete suffix is discarded and the
+surface requests an authoritative local scrollback read or a fresh remote
+cursor baseline. Three consecutive overflow recoveries are the limit; after
+that the surface reports terminal output unavailable instead of retrying
+forever. The regression suite covers feed resubscription, authoritative
+replacement, live-only blocking, empty authoritative replacement, and the
+absence of an oversized xterm write. The focused XTerm suite passed 46 tests,
+with typecheck, touched type-aware lint, and formatting green. Worker-side
+reduction, frame-budgeted presentation, and broader client queue accounting
+remain Phase 4 work.
+
+The exact-tree full suite then passed: 1,211 test files passed and 5 skipped;
+13,624 tests passed and 119 skipped. The known synthetic listener and canvas
+warnings were emitted, but the run exited successfully.

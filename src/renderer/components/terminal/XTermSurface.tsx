@@ -70,6 +70,10 @@ export interface XTermSurfaceHandle {
 
 const TERMINAL_SCROLLBAR_WIDTH = 9;
 const TERMINAL_INTERNAL_SCROLLBAR_WIDTH = 0.01;
+/** Keep parser-side live output bounded while a large historical replay drains. */
+const MAX_HYDRATION_BUFFER_CHARS = 1_000_000;
+/** Avoid an unbounded resnapshot loop when output permanently outruns parsing. */
+const MAX_HYDRATION_OVERFLOW_RESYNCS = 3;
 
 // Terminal colors track the active theme by reading the same CSS custom
 // properties the rest of the app uses, so presets (Dracula, Nord, ...) apply to
@@ -276,6 +280,10 @@ export const XTermSurface = forwardRef<
     let scrollbackHydrationToken = 0;
     let hydratingScrollback = false;
     let bufferedOutputDuringHydration = "";
+    let hydrationBufferOverflowed = false;
+    let hydrationOverflowResyncs = 0;
+    let hydrationBlocked = false;
+    let resubscribeOutput: (() => void) | null = null;
     let resetBeforeInitialHydration = false;
     let initialHydrationStarted = false;
     let receivedFeedSnapshot = false;
@@ -343,6 +351,35 @@ export const XTermSurface = forwardRef<
       }
       hydratingScrollback = false;
       if (restoredScrollback) hydrated = true;
+      if (hydrationBufferOverflowed) {
+        // The replay was followed by a known gap. Do not let a previously
+        // cached terminal be stashed as hydrated while recovery is pending.
+        hydrated = false;
+        hydrationBufferOverflowed = false;
+        bufferedOutputDuringHydration = "";
+        if (hydrationOverflowResyncs >= MAX_HYDRATION_OVERFLOW_RESYNCS) {
+          hydrationOverflowResyncs = 0;
+          hydrationBlocked = true;
+          setWatchError({ status: "error", code: "unavailable", retryable: false });
+          return;
+        }
+        hydrationOverflowResyncs += 1;
+        // The buffered suffix is incomplete and cannot be safely appended to
+        // the replay. Re-read the authoritative local transcript, or force a
+        // fresh remote cursor baseline when this surface is feed-backed.
+        if (resubscribeOutput) {
+          // Older/live-only feeds may not answer a rewatch with a baseline.
+          // Keep dropping live bytes until a snapshot or PTY reset proves that
+          // the cursor gap has been repaired.
+          hydrationBlocked = true;
+          setWatchError({ status: "error", code: "unavailable", retryable: true });
+          resubscribeOutput();
+        } else {
+          hydrateScrollback(true);
+        }
+        return;
+      }
+      hydrationOverflowResyncs = 0;
       if (bufferedOutputDuringHydration.length > 0) {
         terminal.write(bufferedOutputDuringHydration);
         bufferedOutputDuringHydration = "";
@@ -355,6 +392,7 @@ export const XTermSurface = forwardRef<
     const hydrateScrollback = (requireAuthoritativeScrollback = false) => {
       const token = ++scrollbackHydrationToken;
       hydratingScrollback = true;
+      hydrationBlocked = false;
       hydrated = false;
       bufferedOutputDuringHydration = "";
       // Every replay path funnels through replayGate: replay bytes must parse
@@ -370,7 +408,7 @@ export const XTermSurface = forwardRef<
       };
       // Caller-supplied scrollback (the PWA thread snapshot) needs no bridge
       // round-trip; an empty string hydrates nothing.
-      if (initialScrollback !== undefined) {
+      if (initialScrollback !== undefined && !requireAuthoritativeScrollback) {
         if (initialScrollback.length > 0) {
           beginReplay(initialScrollback);
         } else {
@@ -408,18 +446,24 @@ export const XTermSurface = forwardRef<
             return;
           }
           hydrated = true;
-          if (scrollback.length > 0) {
+          if (scrollback.length > 0 || requireAuthoritativeScrollback) {
             restoredScrollback = true;
             beginReplay(scrollback);
           }
         })
-        .catch(() => undefined)
+        .catch(() => {
+          if (requireAuthoritativeScrollback && isActive && token === scrollbackHydrationToken) {
+            hydrationBlocked = true;
+            setWatchError({ status: "error", code: "unavailable", retryable: false });
+          }
+        })
         .finally(() => {
           // When the bridge yielded nothing hydratable no gate session ends
           // the window — close it here so live output keeps flowing.
           if (restoredScrollback || !isActive || token !== scrollbackHydrationToken) {
             return;
           }
+          if (requireAuthoritativeScrollback && hydrationBlocked) return;
           finishHydration(token, false);
         });
     };
@@ -428,6 +472,9 @@ export const XTermSurface = forwardRef<
       scrollbackHydrationToken++;
       hydratingScrollback = false;
       bufferedOutputDuringHydration = "";
+      hydrationBufferOverflowed = false;
+      hydrationOverflowResyncs = 0;
+      hydrationBlocked = false;
       hydrated = true;
       terminal.reset();
       // A replay chunk may already be queued behind this reset. Wipe again
@@ -889,7 +936,16 @@ export const XTermSurface = forwardRef<
         refitOnFirstOutput = false;
         requestRefitRef.current?.();
       }
+      if (hydrationBlocked) return;
       if (hydratingScrollback) {
+        if (bufferedOutputDuringHydration.length + data.length > MAX_HYDRATION_BUFFER_CHARS) {
+          // Once one chunk crosses the cap, discard the whole pending suffix;
+          // flushing a partial stream would create a cursor gap and render a
+          // plausible-looking but incorrect terminal.
+          hydrationBufferOverflowed = true;
+          bufferedOutputDuringHydration = "";
+          return;
+        }
         bufferedOutputDuringHydration += data;
         return;
       }
@@ -900,11 +956,13 @@ export const XTermSurface = forwardRef<
     };
     const handleSnapshot = (snapshot: RemoteTerminalWatchResultReady) => {
       setWatchError(null);
+      hydrationBlocked = false;
       receivedFeedSnapshot = true;
       const token = ++scrollbackHydrationToken;
       hydratingScrollback = true;
       hydrated = false;
       bufferedOutputDuringHydration = "";
+      hydrationBufferOverflowed = false;
       // A feed baseline replaces the display. Its historical queries must not
       // produce replies to the current PTY while reconciled live bytes wait.
       replayGate.begin(snapshot.data, {
@@ -913,25 +971,37 @@ export const XTermSurface = forwardRef<
       });
     };
 
-    const unsubscribe = outputSource
-      ? outputSource({
-          onOutput: handleOutput,
-          onReset: handleReset,
-          onExited: handleExited,
-          onSnapshot: handleSnapshot,
-          onWatchError: setWatchError,
-        })
-      : readBridge().onSupervisorEvent((event) => {
-          if (event.type === "thread-reset" && event.threadId === terminalId) {
-            handleReset();
-          } else if (event.type === "thread-scrollback-resync" && event.threadId === terminalId) {
-            hydrateScrollback(true);
-          } else if (event.type === "thread-output" && event.threadId === terminalId) {
-            handleOutput(event.data);
-          } else if (event.type === "thread-exited" && event.threadId === terminalId) {
-            handleExited(event.exitCode);
-          }
-        });
+    let unsubscribe: () => void;
+    if (outputSource) {
+      const outputListener = {
+        onOutput: handleOutput,
+        onReset: handleReset,
+        onExited: handleExited,
+        onSnapshot: handleSnapshot,
+        onWatchError: setWatchError,
+      } satisfies TerminalFeedListener;
+      const subscribeOutput = () => {
+        unsubscribe = outputSource(outputListener);
+      };
+      resubscribeOutput = () => {
+        if (!isActive) return;
+        unsubscribe();
+        subscribeOutput();
+      };
+      subscribeOutput();
+    } else {
+      unsubscribe = readBridge().onSupervisorEvent((event) => {
+        if (event.type === "thread-reset" && event.threadId === terminalId) {
+          handleReset();
+        } else if (event.type === "thread-scrollback-resync" && event.threadId === terminalId) {
+          hydrateScrollback(true);
+        } else if (event.type === "thread-output" && event.threadId === terminalId) {
+          handleOutput(event.data);
+        } else if (event.type === "thread-exited" && event.threadId === terminalId) {
+          handleExited(event.exitCode);
+        }
+      });
+    }
 
     // Fit synchronously before hydrating: reading clientWidth forces layout, so
     // in a real browser the terminal is already at the viewport width when the
@@ -980,6 +1050,7 @@ export const XTermSurface = forwardRef<
       mount.removeEventListener("focusin", onTerminalFocusIn);
       clearActiveTerminalFind(findController);
       unsubscribe();
+      resubscribeOutput = null;
       eventInterest?.release();
       resizeObserver.disconnect();
       screen.remove();
@@ -990,7 +1061,7 @@ export const XTermSurface = forwardRef<
           fit,
           search,
           screen,
-          hydrated: hydrated && !hydratingScrollback,
+          hydrated: hydrated && !hydratingScrollback && !hydrationBlocked,
           replayGate,
         });
       } else {
