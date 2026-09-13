@@ -100,13 +100,28 @@ interface SecretBinding {
 interface PendingRequest {
   readonly serverId: string;
   readonly clientId: string;
-  readonly timer: ReturnType<typeof setTimeout>;
-  resolve(result: {
-    status: number;
-    headers: Record<string, string>;
-    body: Buffer;
-    setCookies?: string[];
-  }): void;
+  timer: ReturnType<typeof setTimeout>;
+  /**
+   * Streaming state, present once the request was dispatched and the visitor
+   * response object exists. Until `res-open` arrives (or a buffered `res`
+   * resolves the request) only the timer/reject machinery is live; after it,
+   * `res-chunk` frames write through `res` under the bounded-buffer policy
+   * and the timer is an idle deadline rearmed by every chunk.
+   */
+  stream?: {
+    res: ServerResponse;
+    opened: boolean;
+  };
+  resolve(
+    result:
+      | {
+          status: number;
+          headers: Record<string, string>;
+          body: Buffer;
+          setCookies?: string[];
+        }
+      | { streamed: true },
+  ): void;
   reject(error: Error): void;
 }
 
@@ -115,6 +130,14 @@ interface VisitorChannel {
   readonly socket: WebSocket;
   readonly clientId: string;
 }
+
+/**
+ * Slow-consumer bound for a streaming response: the visitor socket's own
+ * writable buffer (Node streams buffer internally when the peer stops
+ * reading). Past this, the response is destroyed and the host work canceled —
+ * one stalled visitor must never buffer unboundedly on the relay.
+ */
+const RELAY_STREAM_MAX_BUFFERED_BYTES = 1024 * 1024;
 
 /**
  * P1-8: per-owner admission caps. One clientId (a stable socket-peer identity)
@@ -268,7 +291,11 @@ export class RelayServer {
     this.secretBindings.clear();
     this.socketLiveness.clear();
     for (const [id, pending] of this.pending) {
-      if (this.pending.delete(id)) pending.reject(new Error("Relay shutting down."));
+      if (this.pending.delete(id)) {
+        clearTimeout(pending.timer);
+        if (pending.stream?.opened) pending.stream.res.destroy();
+        pending.reject(new Error("Relay shutting down."));
+      }
     }
     this.wss.close();
     this.server.closeIdleConnections?.();
@@ -387,13 +414,19 @@ export class RelayServer {
       res.end("request too large for the relay link");
       return;
     }
+    // True once a streaming res-open wrote the visitor's headers — from there
+    // the response can only end via res-end or destruction, never a 502.
+    let headed = false;
     try {
-      const result = await new Promise<{
-        status: number;
-        headers: Record<string, string>;
-        body: Buffer;
-        setCookies?: string[];
-      }>((resolve, reject) => {
+      const result = await new Promise<
+        | {
+            status: number;
+            headers: Record<string, string>;
+            body: Buffer;
+            setCookies?: string[];
+          }
+        | { streamed: true }
+      >((resolve, reject) => {
         // Settle the pending entry exactly once; when we are the first to give
         // up on it, also tell the host to stop its local work. A cancel never
         // reaches a replaced host control: any replacement drops the pending
@@ -404,6 +437,9 @@ export class RelayServer {
           if (!pending || pending.serverId !== serverId || !this.pending.delete(id)) {
             return false;
           }
+          // Clear the live timer (idle re-arms replace the original handle).
+          clearTimeout(pending.timer);
+          if (pending.stream?.opened) pending.stream.res.destroy();
           pending.reject(error);
           return true;
         };
@@ -416,8 +452,10 @@ export class RelayServer {
           serverId,
           clientId,
           timer,
+          stream: { res, opened: false },
           resolve: (value) => {
             clearTimeout(timer);
+            if ("streamed" in value) headed = true;
             resolve(value);
           },
           reject: (error) => {
@@ -437,6 +475,13 @@ export class RelayServer {
           abandon(new Error("server offline"));
         }
       });
+      if ("streamed" in result) {
+        // The response headers were already written by the res-open handler
+        // and the body streams via res-chunk/res-end frames; a mid-stream
+        // failure already destroyed the response there is no status left to
+        // report honestly.
+        return;
+      }
       // Strip hop-by-hop headers the relay shouldn't echo verbatim.
       const { "content-length": _cl, "transfer-encoding": _te, ...rest } = result.headers;
       const responseHeaders: Record<string, string | string[]> = { ...rest };
@@ -449,6 +494,9 @@ export class RelayServer {
       // The visitor is gone: nothing is left to answer, and a canceled id's
       // late host response was already dropped by the missing pending entry.
       if (visitorGone) return;
+      // Headers already streamed out: the response was destroyed by whoever
+      // rejected (idle deadline, disconnect, host loss).
+      if (headed) return;
       // Only the stable transport verdicts reach the visitor verbatim;
       // arbitrary internal error text collapses to a generic body.
       const text =
@@ -617,6 +665,10 @@ export class RelayServer {
           t: "registered",
           serverId: frame.serverId,
           publicUrl: this.publicUrlFor(frame.serverId),
+          // Additive v3 capability: this relay understands the streaming
+          // response frames (res-open/res-chunk/res-end). Older hosts strip
+          // the field and keep the buffered `res` path.
+          httpStreaming: true,
           ...(forwardOwnerId && this.forwardPolicy
             ? {
                 forwardOrigin: { baseUrl: this.forwardPolicy.baseUrl, ownerId: forwardOwnerId },
@@ -646,6 +698,85 @@ export class RelayServer {
         const pending = this.pending.get(frame.id);
         if (pending && pending.serverId === serverId && this.pending.delete(frame.id)) {
           pending.reject(new Error(frame.message));
+        }
+        return;
+      }
+      if (frame.t === "res-open") {
+        const pending = this.pending.get(frame.id);
+        if (pending && pending.serverId === serverId && pending.stream && !pending.stream.opened) {
+          // Strip hop-by-hop headers the relay shouldn't echo verbatim; the
+          // body now arrives as res-chunk slices, so the origin's framing
+          // (content-length/transfer-encoding) is stale by construction.
+          const { "content-length": _cl, "transfer-encoding": _te, ...rest } = frame.headers;
+          const responseHeaders: Record<string, string | string[]> = { ...rest };
+          if (frame.setCookies && frame.setCookies.length > 0) {
+            responseHeaders["set-cookie"] = [...frame.setCookies];
+          }
+          try {
+            pending.stream.res.writeHead(frame.status, responseHeaders);
+          } catch {
+            // A hostile/buggy host sent a frame Node rejects: fail THIS
+            // exchange (a 502 is still honest — nothing was written) and
+            // never let a bad frame take down the shared relay process.
+            this.pending.delete(frame.id);
+            clearTimeout(pending.timer);
+            pending.reject(new Error("relay error"));
+            return;
+          }
+          pending.stream.opened = true;
+          // Mid-stream visitor death: the request path's listener was detached
+          // when this response became streaming-owned, so watch here — cancel
+          // host work instead of leaving it running to its own deadline.
+          pending.stream.res.on("close", () => {
+            const current = this.pending.get(frame.id);
+            if (current !== pending || current.stream?.opened !== true) return;
+            if (current.stream.res.writableEnded) return;
+            this.pending.delete(frame.id);
+            clearTimeout(current.timer);
+            this.sendFrame(control, { t: "req-cancel", id: frame.id });
+          });
+          // Resolves the request promise as streamed (which clears the
+          // whole-request deadline), then arms the idle deadline.
+          pending.resolve({ streamed: true });
+          this.rearmStreamingIdle(frame.id, pending);
+        }
+        return;
+      }
+      if (frame.t === "res-chunk") {
+        const pending = this.pending.get(frame.id);
+        if (pending && pending.serverId === serverId && pending.stream?.opened) {
+          this.rearmStreamingIdle(frame.id, pending);
+          const stream = pending.stream.res;
+          if (stream.destroyed) return;
+          stream.write(Buffer.from(frame.body, "base64"));
+          if (stream.writableLength > RELAY_STREAM_MAX_BUFFERED_BYTES) {
+            // Slow-consumer isolation: the visitor stopped reading; destroy
+            // this response and stop the host's upstream work instead of
+            // buffering without bound.
+            this.pending.delete(frame.id);
+            clearTimeout(pending.timer);
+            stream.destroy();
+            this.sendFrame(control, { t: "req-cancel", id: frame.id });
+          }
+        }
+        return;
+      }
+      if (frame.t === "res-end") {
+        const pending = this.pending.get(frame.id);
+        if (pending && pending.serverId === serverId && this.pending.delete(frame.id)) {
+          clearTimeout(pending.timer);
+          if (pending.stream?.opened) {
+            // A mid-stream error arrives after headers went out — no status
+            // code can honestly describe the failure, so the connection is
+            // reset rather than answered.
+            if (frame.error) pending.stream.res.destroy();
+            else pending.stream.res.end();
+          } else {
+            // Protocol violation (an end without an open): settle the
+            // exchange like a request error instead of leaving the visitor
+            // hanging with every other unwind path disarmed.
+            pending.reject(new Error("relay error"));
+          }
         }
         return;
       }
@@ -884,6 +1015,8 @@ export class RelayServer {
   private dropHostTraffic(serverId: string, reason: string): void {
     for (const [id, pending] of this.pending) {
       if (pending.serverId === serverId && this.pending.delete(id)) {
+        clearTimeout(pending.timer);
+        if (pending.stream?.opened) pending.stream.res.destroy();
         pending.reject(new Error(reason));
       }
     }
@@ -892,6 +1025,24 @@ export class RelayServer {
         visitor.socket.close(1012, reason);
       }
     }
+  }
+
+  /**
+   * Streaming idle deadline: once `res-open` arrived, the whole-request
+   * deadline becomes an inactivity budget — every `res-chunk` re-arms it, so
+   * a slow-but-progressing response is never retired mid-stream while a
+   * stalled one still unwinds within the same timeout.
+   */
+  private rearmStreamingIdle(id: string, pending: PendingRequest): void {
+    clearTimeout(pending.timer);
+    pending.timer = setTimeout(() => {
+      if (this.pending.get(id) !== pending) return;
+      this.pending.delete(id);
+      if (pending.stream?.opened) pending.stream.res.destroy();
+      pending.reject(new Error("Relay request timed out."));
+      const host = this.hosts.get(pending.serverId);
+      if (host) this.sendFrame(host.control, { t: "req-cancel", id });
+    }, this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS);
   }
 
   private liveHost(serverId: string): RegisteredHost | undefined {
