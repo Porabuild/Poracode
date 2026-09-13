@@ -28,6 +28,10 @@ export function installDevBridge(): void {
   if (target.__poracodeDev) return;
 
   target.__poracodeDev = {
+    // Literal bundled imports work in both the frozen development renderer and
+    // Vite HMR. CDP scripts must not depend on Vite's /src module URL namespace.
+    loadLiveVoice: () => import("./speech/liveVoice"),
+    loadBrowserAttachInbox: () => import("./state/browserAttachInbox"),
     /** Raw Zustand stores — call `.getState()` / `.setState()` to inspect or drive any state. */
     stores: {
       update: useUpdateStore,
