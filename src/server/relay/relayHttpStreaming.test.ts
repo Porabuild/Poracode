@@ -176,13 +176,19 @@ describe("relay HTTP streaming", () => {
     // (~1.1s): only per-chunk idle re-arms keep it alive end to end, with a
     // wide margin so CI event-loop stalls cannot flake the pin.
     const relayInfo = await startRelay({ requestTimeoutMs: 600 });
-    const origin = await startOrigin(async (_req, res) => {
+    const origin = await startOrigin((_req, res) => {
       res.writeHead(200, { "content-type": "text/plain" });
-      for (let index = 0; index < 14; index += 1) {
+      let index = 0;
+      const writeNextSlice = (): void => {
+        if (index >= 14) {
+          res.end();
+          return;
+        }
         res.write(`slice-${index};`);
-        await new Promise((resolve) => setTimeout(resolve, 80));
-      }
-      res.end();
+        index += 1;
+        setTimeout(writeNextSlice, 80);
+      };
+      writeNextSlice();
     });
     await registerHost(relayInfo, origin.base, "stream-host", { requestTimeoutMs: 600 });
 
