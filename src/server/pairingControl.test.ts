@@ -1,153 +1,77 @@
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fulfillPairingControlRequest, requestPairingFromRunningServer } from "./pairingControl";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { HostControlServer } from "@/backend/ownership/HostControlServer";
+import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
+import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import { prepareOwnedHostRoot } from "@/backend/ownership/hostRootManifest";
+import { requestPairingFromRunningServer } from "./pairingControl";
 
-describe("pairingControl", () => {
-  let baseDir: string;
+const cleanup: Array<() => Promise<void>> = [];
 
-  beforeEach(() => {
-    baseDir = mkdtempSync(join(tmpdir(), "lc-pairing-control-"));
+async function fixture() {
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-pair-control-")));
+  const profile = join(root, "profile");
+  const paths = resolveHostRootPaths(profile);
+  const lease = HostOwnerLease.acquire(paths, "headless");
+  prepareOwnedHostRoot(lease);
+  const issuePairing = vi.fn<() => string>(() => "https://fixture.test/pair#token=fixture");
+  const control = new HostControlServer({
+    lease,
+    describe: () => ({
+      state: "ready",
+      remoteProtocolVersion: 12,
+      endpoint: "https://fixture.test/",
+    }),
+    issuePairing,
+  });
+  cleanup.push(async () => {
+    await control.dispose();
+    lease.release();
+    rmSync(root, { recursive: true, force: true });
+  });
+  return { profile, control, issuePairing };
+}
+
+afterEach(async () => {
+  for (const close of cleanup.splice(0)) await close();
+  vi.restoreAllMocks();
+});
+
+describe("pairing CLI owner adapter", () => {
+  it("preserves the pair --json result while allowing concurrent local clients", async () => {
+    const test = await fixture();
+    await test.control.start();
+    const replies = await Promise.all([
+      requestPairingFromRunningServer(test.profile),
+      requestPairingFromRunningServer(test.profile),
+    ]);
+    for (const reply of replies) {
+      expect(Object.keys(reply).sort()).toEqual(["pairingUrl", "requestId"]);
+      expect(reply.pairingUrl).toBe("https://fixture.test/pair#token=fixture");
+    }
+    expect(replies[0]!.requestId).not.toBe(replies[1]!.requestId);
+    expect(test.issuePairing).toHaveBeenCalledTimes(2);
   });
 
-  afterEach(() => {
-    rmSync(baseDir, { recursive: true, force: true });
+  it("does not signal or repair a legacy PID record when current control is unavailable", async () => {
+    const test = await fixture();
+    mkdirSync(test.profile);
+    const marker = join(test.profile, "server.lock");
+    writeFileSync(marker, "4242");
+    const signal = vi.spyOn(process, "kill").mockReturnValue(true);
+    await expect(requestPairingFromRunningServer(test.profile)).rejects.toThrow("unavailable");
+    expect(signal).not.toHaveBeenCalled();
+    expect(readFileSync(marker, "utf8")).toBe("4242");
+    expect(test.issuePairing).not.toHaveBeenCalled();
   });
 
-  it("leaves a manual SIGUSR2 request unhandled", () => {
-    const issuePairingUrl = vi.fn<() => string>(() => "http://127.0.0.1/pair#token=unused");
-
-    expect(fulfillPairingControlRequest(baseDir, issuePairingUrl)).toBe(false);
-    expect(issuePairingUrl).not.toHaveBeenCalled();
-  });
-
-  it("writes the machine response for a pending request", () => {
-    writeFileSync(join(baseDir, "server-pairing-request.lock"), String(process.pid), "utf8");
-    writeFileSync(
-      join(baseDir, "server-pairing-request.json"),
-      JSON.stringify({ requestId: "request-1" }),
-      "utf8",
-    );
-    const issuePairingUrl = vi.fn<() => string>(() => "http://127.0.0.1/pair#token=lc_pair_test");
-
-    expect(fulfillPairingControlRequest(baseDir, issuePairingUrl)).toBe(true);
-    expect(issuePairingUrl).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(readFileSync(join(baseDir, "server-pairing-response.json"), "utf8"))).toEqual(
-      {
-        requestId: "request-1",
-        pairingUrl: "http://127.0.0.1/pair#token=lc_pair_test",
-      },
-    );
-    expect(() => statSync(join(baseDir, "server-pairing-request.json"))).toThrow(/ENOENT/);
-  });
-
-  it.skipIf(process.platform === "win32")(
-    "writes the pairing response with owner-only permissions",
-    () => {
-      writeFileSync(join(baseDir, "server-pairing-request.lock"), String(process.pid), "utf8");
-      writeFileSync(
-        join(baseDir, "server-pairing-request.json"),
-        JSON.stringify({ requestId: "secure-request" }),
-        "utf8",
-      );
-      fulfillPairingControlRequest(baseDir, () => "http://127.0.0.1/pair#token=secure");
-
-      expect(statSync(join(baseDir, "server-pairing-response.json")).mode & 0o777).toBe(0o600);
-    },
-  );
-
-  it("leaves a manual request unhandled when the machine requester died", () => {
-    writeFileSync(join(baseDir, "server-pairing-request.lock"), "999999999", "utf8");
-    writeFileSync(
-      join(baseDir, "server-pairing-request.json"),
-      JSON.stringify({ requestId: "stale-request" }),
-      "utf8",
-    );
-    const issuePairingUrl = vi.fn<() => string>(() => "http://127.0.0.1/pair#token=unused");
-
-    expect(fulfillPairingControlRequest(baseDir, issuePairingUrl)).toBe(false);
-    expect(issuePairingUrl).not.toHaveBeenCalled();
-    expect(() => statSync(join(baseDir, "server-pairing-request.json"))).toThrow(/ENOENT/);
-  });
-
-  it("requests and receives a fresh URL from the running process", async () => {
-    writeFileSync(join(baseDir, "server.lock"), "4242", "utf8");
-    const signalProcess = vi.fn<() => void>(() => {
-      fulfillPairingControlRequest(baseDir, () => "http://127.0.0.1/pair#token=lc_pair_fresh");
-    });
-
-    await expect(
-      requestPairingFromRunningServer(baseDir, {
-        requestId: () => "request-2",
-        isProcessAlive: () => true,
-        signalProcess,
-      }),
-    ).resolves.toEqual({
-      requestId: "request-2",
-      pairingUrl: "http://127.0.0.1/pair#token=lc_pair_fresh",
-    });
-    expect(signalProcess).toHaveBeenCalledExactlyOnceWith(4242);
-    expect(() => statSync(join(baseDir, "server-pairing-request.lock"))).toThrow(/ENOENT/);
-    expect(() => statSync(join(baseDir, "server-pairing-response.json"))).toThrow(/ENOENT/);
-  });
-
-  it("rejects a dead server process", async () => {
-    writeFileSync(join(baseDir, "server.lock"), "4242", "utf8");
-
-    await expect(
-      requestPairingFromRunningServer(baseDir, {
-        isProcessAlive: () => false,
-        signalProcess: () => undefined,
-      }),
-    ).rejects.toThrow(/is not running/);
-  });
-
-  it("rejects a concurrent pairing request", async () => {
-    writeFileSync(join(baseDir, "server.lock"), "4242", "utf8");
-    writeFileSync(join(baseDir, "server-pairing-request.lock"), "4343", "utf8");
-
-    await expect(
-      requestPairingFromRunningServer(baseDir, {
-        isProcessAlive: (pid) => pid === 4242 || pid === 4343,
-        signalProcess: () => undefined,
-      }),
-    ).rejects.toThrow(/already in progress/);
-  });
-
-  it("reclaims a pairing lock left by a dead requester", async () => {
-    writeFileSync(join(baseDir, "server.lock"), "4242", "utf8");
-    writeFileSync(join(baseDir, "server-pairing-request.lock"), "4343", "utf8");
-
-    await expect(
-      requestPairingFromRunningServer(baseDir, {
-        requestId: () => "request-after-crash",
-        isProcessAlive: (pid) => pid === 4242,
-        signalProcess: () => {
-          fulfillPairingControlRequest(baseDir, () => "http://127.0.0.1/pair#token=fresh");
-        },
-      }),
-    ).resolves.toMatchObject({ requestId: "request-after-crash" });
-  });
-
-  it("ignores a stale response and times out", async () => {
-    writeFileSync(join(baseDir, "server.lock"), "4242", "utf8");
-    writeFileSync(
-      join(baseDir, "server-pairing-response.json"),
-      JSON.stringify({ requestId: "stale", pairingUrl: "http://old.invalid/pair" }),
-      "utf8",
-    );
-
-    await expect(
-      requestPairingFromRunningServer(baseDir, {
-        timeoutMs: 10,
-        pollIntervalMs: 1,
-        requestId: () => "fresh",
-        isProcessAlive: () => true,
-        signalProcess: () => undefined,
-      }),
-    ).rejects.toThrow(/Timed out/);
-    expect(() => statSync(join(baseDir, "server-pairing-request.json"))).toThrow(/ENOENT/);
-    expect(() => statSync(join(baseDir, "server-pairing-response.json"))).toThrow(/ENOENT/);
+  it("refuses pairing after joined control stop", async () => {
+    const test = await fixture();
+    await test.control.start();
+    await test.control.dispose();
+    await expect(requestPairingFromRunningServer(test.profile)).rejects.toThrow("unavailable");
+    expect(test.issuePairing).not.toHaveBeenCalled();
   });
 });

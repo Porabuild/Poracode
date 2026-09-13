@@ -321,6 +321,79 @@ locks in [locking-mode behavior](https://www.sqlite.org/pragma.html#pragma_locki
 These helper checks do not qualify runtime bootstrap, ingress drain, desktop
 attachment, or Linux/Windows ownership behavior.
 
+**F33 — draft local-control peer impersonation, caught before activation.** A
+real replacement loopback listener with no private discovery credential echoed
+public request/generation IDs and supplied an unrelated pairing URL; the draft
+bearer client accepted it. The replacement receives any transmitted bearer, so
+signing with that same disclosed value would not prove the peer. The candidate
+now keeps the discovery secret off the socket and domain-separates HMAC request
+and response proofs over exact bounded bytes, version, route/Host, fresh nonce,
+generation and response status. It authenticates replies before parsing them.
+Wrong-key, reflected/stale proof, modified body/status, retired generation and
+stale-port tests cover the boundary. Threat scope is another OS user without
+private-record access, not same-privilege compromise. This is local control 1,
+separate from remote OAuth and the still-unimplemented desktop attach operation.
+
+**F35 — draft control-discovery cleanup could hang completed shutdown.** After
+a real temporary control listener and request completed, making its directory
+read-only caused discovery unlink to throw EACCES. The draft disposal promise
+remained pending and emitted an unhandled rejection. Cleanup now runs only after
+actual connection/listener/work joins and reports a fixed error without a private
+path or credential; a failed unlink alone does not strand the lease. The closed
+port refuses calls, and stopped/successor generations reject its stale record.
+A failed or unconfirmed listener/work join still prevents database/owner release.
+The real-child before/after probe and realfs stale-generation regression remain
+separate from packaged shutdown qualification.
+
+**F36 — concurrent control pairing revoked a successful earlier result.** Two
+real owner-control calls returned different URLs, but the second call reused the
+desktop QR rotation method and revoked the first credential. Its OAuth exchange
+then returned 401; a retained receipt could only replay the revoked URL. Owner
+control now issues independent one-time credentials through the existing auth
+store. The real regression requests both URLs, replays the first receipt and
+exchanges both successfully, while consumed-token replay is still refused.
+Displayed desktop QR rotation retains its existing behavior and coverage. No
+remote wire or persisted auth format changes are needed for this internal method.
+
+**F37 — an admitted push outlived headless ownership.** The real factory/lease
+probe held a synthetic Android delivery, completed host disposal, acquired a
+successor and wrote its registration. The predecessor's late 410 then overwrote
+that file. The shared coordinator now closes event/send/timer admission
+synchronously and joins all admitted continuations, including parallel sends
+after a sibling rejects. Headless composition awaits that barrier before SQLite
+and owner release. Electron must join the same API across disable, retry and
+reconfiguration; that sibling integration is a separate reviewed slice. A
+transport deadline cannot substitute for the actual continuation join.
+
+**F39 — a late rejection removed a refreshed push credential.** Updating a token
+while its old request was pending did not protect the replacement from the old
+410 response. Pruning now compares the exact sent token or web subscription and
+its device/platform/host/client identity. Eleven real coordinator/store cases
+cover native token kinds, web endpoint/keys and routing replacement; unchanged
+credential pruning remains covered. The internal compare-and-remove API changes,
+but the persisted format and remote payload remain compatible.
+
+**F40 — startup had no signal owner.** SIGINT/SIGTERM were registered only after
+factory and listener startup. Real owned Node children exited during held startup
+before cancellation or cleanup could run. The CLI now registers before calling
+the factory, forwards startup cancellation without releasing the owner, starts
+available runtime disposal immediately and joins actual construction/start/cleanup
+before exit. SIGINT and SIGTERM tests retain a real lease until the final held
+drain is released; an unconfirmed drain retains the child and its lease. The child
+uses synthetic application services, so these cases qualify CLI signal ordering,
+not provider descendants or an installed application's complete shutdown.
+
+**Headless ownership activation status.** The standalone candidate now composes
+through the shared owner controller and versioned sibling root before key/DB
+initialization. Its explicit pair command uses the common authenticated control
+service. Startup cancellation retains ownership through runtime drain; CLI startup
+and shutdown reporters do not force exit after unconfirmed cleanup. Synthetic
+real-host fixture preparation now follows the same root mapping and credential
+provenance, preserving the existing seeded workload rather than silently testing
+an empty database. Desktop startup/attach, all settings/usage writers, legacy
+activation/recovery, combined SSH preflight/cache fencing and cross-platform
+installed lifecycle remain open Phase 1 work. See [Host ownership](HOST_OWNERSHIP.md).
+
 **F11 ingress follow-up — actual continuations must outlive their transport.**
 Real loopback requests with disposable SQLite reproduce early database closure
 both after the old five-second HTTP deadline and within 100 ms of a client abort.

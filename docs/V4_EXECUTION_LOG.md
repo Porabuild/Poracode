@@ -1052,3 +1052,115 @@ No wire, settings or registration format changes were needed. This qualifies the
 controller and shared push scope only: real Electron integration, headless
 activation, main/native execution, outer deadlines and the complete shutdown and
 performance gates remain open.
+
+## Headless ownership and authenticated local control candidate
+
+The owner lane now builds on `dde3951eb`, whose separately reviewed two-file
+controller change adds `cancelStartup()` without releasing a live lease. Primary,
+independent and author checks each passed its 12 controller cases. The two retained
+pre-split failures showed that using final close merely to cancel native startup
+invalidated the generation before a runtime shutdown barrier. Held native and real
+SQLite backup cases now retain exclusion until final close.
+
+The next uncommitted candidate wires only the standalone entry. It maps a profile
+namespace once, initializes credentials under the lease and composes required
+private runtime state before database/services. Startup and partial-construction
+cleanup are joined; disposal closes ingress/producer admission together and waits
+for concurrent start and actual work before SQLite/controller close. Four initial
+ownership regressions, two partial-construction regressions, a held-start regression
+and two outer-CLI unconfirmed-cleanup regressions are retained. Application DB and
+supervisor adapters are mocked in the factory suite; the lease and loopback remote
+server are real. The initial CLI tests intercept exit; the F40 correction below
+also runs actual owned Node children with synthetic application services.
+
+Local control/discovery format 1 supports only describe and explicit issue-pairing.
+It retains a private MAC key, uses fresh request nonces and authenticates exact
+request/response bytes and status before parsing replies. F33's real wrong-listener
+regression failed against the bearer draft before activation. Request/body/header
+limits, absolute input deadlines, connection/admission bounds, bounded mutation
+receipts, lost replies, expired retries and held callbacks have real loopback tests.
+The existing pair --json result shape is preserved; ordinary serve and relay logs
+carry no automatic pairing URL, and the old PID/SIGUSR2 request path is removed.
+F36's real two-client exchange caught use of the displayed-QR rotation method:
+the first of two successful control replies carried an already revoked credential
+and OAuth returned 401. Owner control now issues independent one-time credentials;
+the first receipt replays the same still-usable URL, both credentials exchange,
+and existing desktop QR rotation and consumed-token replay refusal remain covered.
+
+F35's real child reproduced pending disposal plus an unhandled EACCES after a
+read-only directory blocked discovery removal. The same child now resolves with
+no unhandled error; its private record remains. A realfs test proves the stopped
+port refuses calls and stopped/successor generations refuse that stale record.
+Only post-join metadata cleanup is best effort; listener/work failures are not.
+
+Compatibility review found the native-e2e harness still seeded the namespace
+itself. Its real SQLite regression failed with `load-fixture` and `state.sqlite`
+in the legacy namespace. Fixture setup now acquires a temporary owner, initializes
+a fixed synthetic key, seeds the mapped root and closes SQLite before release.
+The server receives that synthetic key rather than an inherited operator key.
+The unchanged load fixture remains 60 threads, with ten 40-item histories; this
+root correction does not improve or qualify its performance workload. Existing
+consumer `baseDir` remains the actual data root, while pairing/restart use the
+separate namespace and cleanup tracks the sibling paths. The old F11 harness
+stop/deadline logic is deliberately still assigned to the lifecycle lane.
+
+Evidence is retained under `.tmp/v4-owner/.tmp/v4-owner/`:
+`headless-ownership-consolidated-before.log`, `headless-construction-before.log`,
+`headless-start-join-before.log`, `headless-cli-startup-close-before.log`,
+`host-control-peer-proof-before.log`, `host-control-cleanup-{before,after}.json`,
+`owner-control-concurrent-pair-before.log`, and `headless-load-root-before.log`.
+The original frozen production/ownership/SSH/control
+check passed 388 tests across 25 suites; fixture preparation and the harness
+line count gate passed four tests across two suites. Full typecheck and both touched
+lint modes pass. Early stale-option typecheck failures, missing mock types, and
+a cleanup-test error-message expectation mismatch remain in their original logs;
+they are not attributed to production defects.
+
+This candidate awaits primary/independent review and a fresh built-CLI smoke.
+SSH manifest 3 rejects cold predecessor 1/2 artifacts; the settings lane's warm
+cache/source-declaration work and final combined manifest 5 remain required before
+deployment. No remote/native/renderer wire changes are made here. Existing-profile
+activation, settings/key-without-DB recovery, desktop discover/attach and custody,
+provider/PTY descendants, Windows/Linux packaged shutdown and performance/120 Hz
+qualification remain open. No real user profile was imported or initialized.
+
+## Headless push and early-signal review corrections
+
+Independent review of the original 48-file headless candidate established three
+additional lifecycle defects before activation. F37's actual factory/lease/store
+probe allowed successor acquisition before an old push returned 410 and overwrote
+the successor's registrations. F39's same-owner probe showed that a refreshed
+credential was also removed by the old request. F40 found no signal handlers
+while factory/listener startup was pending; actual Node SIGINT/SIGTERM fixtures
+then reproduced process exit before startup cancellation.
+
+The shared push correction is separately reviewed and committed as `cf89df25a`.
+Primary and independent checks each passed 56 tests across five suites, and the
+independent original F39 probe is green. It provides one permanent coordinator
+stop/join, cancels both platform timer sets and joins held siblings after delivery
+failure. Exact sent-token/subscription and registration comparison preserves
+refreshes without changing the file or remote protocol format. Its seven-file
+manifest/diff and `SHARED_PUSH_EVIDENCE.md` remain under the owner scratch directory.
+The original factory F37 probe alone was not qualified by this helper commit.
+
+The headless correction now includes that actual push barrier before SQLite and
+lease release. The early CLI signal handler cancels factory admission and starts
+available host disposal while joining actual startup. Confirmed stop alone exits
+successfully; failed joins keep signal handling and the owner alive. Three actual
+factory regressions (pre-cancelled roots, held port resolution and held push) failed
+before the wiring. Two signal-registration cases and five real-child cases also
+failed before the correction. The child fixture bundles the actual CLI/signal
+helper and uses a real disposable kernel lease, with only application services
+and diagnostics replaced. It does not launch a provider or qualify descendants.
+
+Retained evidence: `headless-push-cancellation-before.log`,
+`cli-startup-signals-before.log`, `cli-os-signals-before.log`, and
+`headless-push-cancellation-first-after.log` (42 tests/four suites passed).
+The initial esbuild fixture regex failure is separately retained in
+`cli-os-signals-fixture-build-failure.log` and is not counted as a product failure.
+The corrected combined run passed 398 tests across 26 suites, and the real-host
+fixture/line-count checks passed four tests across two suites. Full typecheck and
+both touched lint modes passed. Rereview and fresh built-CLI evidence are still
+required before committing the remaining headless/control candidate. Root owns
+separate Electron push integration and F42
+gateway body-lifetime correction; neither is claimed complete by this owner slice.

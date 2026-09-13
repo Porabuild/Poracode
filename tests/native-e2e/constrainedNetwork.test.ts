@@ -8,6 +8,7 @@ import { PORACODE_REMOTE_PROTOCOL_VERSION } from "../../src/shared/remote/protoc
 import { LOOPBACK_HOST } from "./harness/constants.ts";
 import { detectHeadlessServerEntrypoint, findRepoRoot } from "./harness/paths.ts";
 import { ProcessCleanup } from "./harness/processCleanup.ts";
+import { trackRealHostPaths } from "./harness/realHostRoot";
 import {
   missingServerArtifactBlocker,
   startRealHost,
@@ -349,8 +350,8 @@ describe.skipIf(!entrypoint)(
       let baseDir: string | undefined;
       if (SEED_LOAD_WORKLOAD) {
         baseDir = mkdtempSync(join(baseDirRoot, "poracode-base-"));
-        cleanup.trackTempDir(baseDir);
-        loadWorkload = seedLoadWorkload(baseDir);
+        trackRealHostPaths(baseDir, cleanup);
+        loadWorkload = await seedLoadWorkload(baseDir);
       }
       host = await startRealHost({
         host: LOOPBACK_HOST,

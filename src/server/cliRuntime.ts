@@ -7,28 +7,39 @@ import { writeSync } from "node:fs";
  */
 
 /**
- * Register idempotent SIGINT/SIGTERM handlers that dispose `dispose`, then run
- * `onExit` (if any) and exit 0. Callers may register extra handlers on top.
+ * Exit successfully only after confirmed disposal. A failed join sets failure
+ * status without forcing exit while resources may still be active.
  */
-export function installShutdown(
-  prefix: string,
-  dispose: () => Promise<void>,
-  onExit?: () => void,
-): void {
+export function installShutdown(prefix: string, dispose: () => Promise<void>): () => void {
   let shuttingDown = false;
   const shutdown = (signal: string): void => {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log("\n%s %s received, shutting down…", prefix, signal);
-    void dispose()
-      .catch((error) => console.error("%s shutdown error:", prefix, error))
-      .finally(() => {
-        onExit?.();
-        process.exit(0);
-      });
+    try {
+      // Close startup/runtime admission within the signal callback itself.
+      void dispose().then(
+        () => process.exit(0),
+        (error: unknown) => reportUnconfirmedShutdown(prefix, error),
+      );
+    } catch (error) {
+      reportUnconfirmedShutdown(prefix, error);
+    }
   };
-  process.on("SIGINT", () => shutdown("SIGINT"));
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  const interrupt = () => shutdown("SIGINT");
+  const terminate = () => shutdown("SIGTERM");
+  process.on("SIGINT", interrupt);
+  process.on("SIGTERM", terminate);
+  return () => {
+    process.off("SIGINT", interrupt);
+    process.off("SIGTERM", terminate);
+  };
+}
+
+/** Keep live resource handles and their owner lease intact after a failed join. */
+export function reportUnconfirmedShutdown(prefix: string, error: unknown): void {
+  process.exitCode = 1;
+  console.error("%s shutdown remains unconfirmed:", prefix, error);
 }
 
 /**

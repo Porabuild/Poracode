@@ -1,5 +1,5 @@
-// v2 packs `@opencode/client` with the supervisor so SSH helpers can run OpenCode 2.
-export const SSH_RUNTIME_MANIFEST_VERSION = 2 as const;
+// v3 requires owned-root startup and authenticated local owner control for pairing.
+export const SSH_RUNTIME_MANIFEST_VERSION = 3 as const;
 
 export const SSH_RUNTIME_ENTRY_CONFIG = {
   server: [],

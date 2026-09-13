@@ -262,6 +262,9 @@ export class ConstrainedTcpProxy {
       get baseDir() {
         return handle.baseDir;
       },
+      get profileNamespace() {
+        return handle.profileNamespace;
+      },
       httpBaseUrl: this.httpBaseUrl,
       wsBaseUrl: this.wsBaseUrl,
       hostPort: this.portValue,

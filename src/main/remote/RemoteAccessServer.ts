@@ -905,6 +905,16 @@ export class RemoteAccessServer {
     return pairingUrl;
   }
 
+  /** One-time local-control grants coexist without replacing the displayed QR. */
+  issueIndependentPairingUrl(label?: string): string {
+    if (this.stopping) throw new Error("Remote access server is stopping.");
+    const info = this.requireInfo();
+    const issued = this.auth.issuePairingCredential({
+      ...(label ? { label } : {}),
+    });
+    return this.mintPairingUrl(info.httpBaseUrl, issued.credential);
+  }
+
   private exchangePairingCredential(input: {
     readonly credential: string;
     readonly scopes?: readonly RemoteAccessScope[];
