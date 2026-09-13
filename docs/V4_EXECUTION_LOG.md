@@ -183,3 +183,62 @@ Electron build. It does not prove provider rewind, native disclosure, production
 artifact qualification, browser/mobile-web manual coverage, or any remaining
 Phase 2 identity, concurrency, recovery, and crash guarantees. Those gates remain
 open. The smoke-tooling artifact-isolation defect F13 also remains open.
+
+## Master integration — compatibility and critic evidence (in progress)
+
+The isolated `poracode/v4-integration` branch combines original V2 `832fc5467`
+with `origin/master` `9a4096ea8`. The 32 textual conflicts have been resolved in
+the worktree; the merge is not yet committed. Independent review accepted the
+pane/accessibility, welcome, provider settings, package, and database resolutions.
+It found F16: first PTY output arriving during scrollback hydration skipped the
+launch resize retry. The existing normal-output case passed and the new hydration
+case failed before the fix. Moving live-output detection before buffering passed
+both cases, and the critic closed the finding. The full XTerm suite also passed.
+
+Fresh compatibility generations are remote protocol 12, local host protocol 6,
+direct renderer stream 3, supervisor status cache 35, and renderer status cache 32. SSH runtime manifest 2 preserves master's dependency-aware format. Generated
+remote bindings and the native operation map are rebuilt. Actual old cache
+rehydration tests failed with the previous V2 cache constants and pass with the
+new constants; old local wire frames are rejected before dispatch. Current
+architecture docs now describe the backend child, headless composition, direct
+stream, and remaining main/UI-thread work.
+
+Both native reducer paths implement authoritative replacement streams. Shared
+fixtures cover append/replace/empty replacement, separate streams, payload and
+completion preservation, malformed flags, and stale replay after history load.
+The saved-pairing upgrade gate explicitly reviews disk versions 9, 10, and 11;
+an authenticated read of a current host is required before rebinding. Old live
+hosts remain incompatible. Native red/green evidence is under the integration
+worktree's `tmp/v4-native-replacement/`.
+
+The subsequent broad native run passed Android 1,170/1,170 JVM tests plus
+assembleDebug/lintDebug, iOS AppTests 1,269/1,269, and 73 shared contract tests.
+Neither native run skipped tests. Results, logs, and the iOS result bundle are
+under the integration worktree's `tmp/v4-native-broad/`; the owned simulator was
+shut down. Portable Swift package pin auditing remains in progress.
+
+The first full JavaScript run passed 12,979 tests and exposed the deliberately
+failing F16 regression, stale v11 parity-test pins, and F17's inherited Git
+identity. The parity pins and test isolation are corrected; the affected real
+checkpoint/ledger suites pass 9/9. A final full run is still required. F17 changes
+only fixture environment isolation. These checks are correctness evidence during
+concurrent build/test work; they are not latency, frame-rate, or resource metrics.
+
+All Phase 0 measurement, comparable master, artifact, deployment, and final
+manual gates remain open. The complete Phase 1–8 plan remains pending beyond the
+focused checkpoint admission and feedback fixes already recorded.
+
+Follow-up compatibility verification exposed F18: four portable Swift harnesses
+still pinned protocol 9. Their generated metadata gate failed real route
+canonicalization tests before the four pins were updated to 12. Full portable
+suites passed 173/173 afterward, and primary review accepted the four-line change.
+Aggregate evidence is `tmp/v4-native-broad/verification-summary.json` in the
+integration worktree. AppTests, Android, generated app bindings, and production
+native sources were unchanged during this portable verification.
+
+The second full JavaScript run passed 12,986 tests but failed the real settings
+watcher test on its first atomic replacement. That failure remains under
+investigation; no timeout increase or flaky-test dismissal is accepted as a fix.
+Full typecheck and type-aware lint pass. Production desktop and canonical web
+builds pass; the latter finalized the service worker and embedded SSH runtime.
+These artifact builds do not substitute for the required real-client journeys.

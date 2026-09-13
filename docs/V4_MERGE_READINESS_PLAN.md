@@ -159,6 +159,36 @@ is deterministic injected-response evidence, not a live provider failure test.
 
 ## 4. Correct the evidence before relying on it
 
+**F16 — verified during master integration: first-output terminal refit can be
+lost during hydration.** Master's launch-race retry was placed after V2's
+hydration buffer early return. With an initially missing PTY, a pending empty
+scrollback read, and one live prompt, the display receives the prompt but no
+second resize reaches the PTY. The independent critic reproduced a resize count
+of one in `XTermSurface.test.tsx`. Phase 0 must preserve the first-live-output
+signal before buffering display bytes; historical replay must not consume it.
+The focused correction and regression are in the integration branch. It requires
+the normal terminal manual gate before final qualification.
+
+**F17 — verified in the full test run: checkpoint fixtures inherit the runner's
+Git identity.** Two fixture tests failed because inherited `GIT_AUTHOR_*` and
+`GIT_COMMITTER_*` values override repository configuration and also prevent the
+missing-identity case from running. This is a test-isolation defect, not a
+checkpoint product regression. Phase 0 must clear and restore identity environment
+variables inside the fixture suite, keep production Git identity behavior, and
+rerun the real temporary-repository operations. The original full-run failures
+and focused green result are retained under `tmp/v4-architecture-audit/`.
+
+**F18 — verified by broad native verification: portable Swift harnesses retained
+protocol 9.** Four independent Swift packages compile `HarnessShims.swift` when
+the iOS App module is absent. Their mirrored protocol constants were still 9,
+so generated protocol 12 metadata rejected valid route requests and responses.
+The normal AppTests build binds production constants and cannot expose this
+drift. PortForwarding's real contract tests failed 3/5 cases before updating the
+four mirrors; the full PortForwarding, BrowserMirror, GitHubOperations, and
+AdvancedOperations suites then passed 173/173. Phase 0's compatibility audit and
+future native qualification must include these portable consumers. Evidence is
+retained under the integration worktree's `tmp/v4-native-broad/`.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 
