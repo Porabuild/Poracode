@@ -1248,6 +1248,18 @@ loopback response body and verifies that disposal closes it. The combined push,
 remote-server, desktop-controller, and headless suites passed 125 tests, with
 typecheck, touched typed lint, and formatting green.
 
+## Phase 1 owner discovery — authenticated status inspection
+
+The standalone CLI now has `status --json`, backed by the existing authenticated
+loopback host-control protocol. It reads the owner generation, lifecycle state,
+mode, protocol version, and endpoint without minting or rotating a pairing
+credential. The control fixture verifies the status path against a live loopback
+listener and confirms that the pairing callback is untouched; CLI parsing and
+runtime tests pass 15 tests across three suites. This is an operational attach
+prerequisite, not Electron attach behavior: Electron still needs to consume the
+description and choose attach, managed-local start, or a clear incompatible-owner
+result before Phase 1 can exit.
+
 The remaining F11 work must wire main/native admission and actual execution joins,
 reconcile the parent one-second and app two-second deadlines, join backend and
 provider/PTY descendants, and qualify Windows shutdown. The sealed red evidence is

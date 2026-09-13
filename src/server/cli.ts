@@ -8,7 +8,10 @@ import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
 import { installShutdown, reportFatalStartupError, reportUnconfirmedShutdown } from "./cliRuntime";
 import { createHeadlessRemoteHost } from "./createHeadlessRemoteHost";
 import { HeadlessCompositionShutdownError } from "./headlessRemoteComposition";
-import { requestPairingFromRunningServer } from "./pairingControl";
+import {
+  requestHostStatusFromRunningServer,
+  requestPairingFromRunningServer,
+} from "./pairingControl";
 
 /**
  * Standalone owner of one Poracode profile. PORACODE_BASE_DIR names the profile
@@ -125,13 +128,14 @@ async function serve(): Promise<void> {
   );
 }
 
-export type ServerCliCommand = "serve" | "pair-json" | "help";
+export type ServerCliCommand = "serve" | "pair-json" | "status-json" | "help";
 
 export function parseServerCliCommand(args: readonly string[]): ServerCliCommand {
   if (args.length === 0) return "serve";
   if (args.length === 1 && ["--help", "-h", "help"].includes(args[0]!)) return "help";
   if (args.length === 2 && args[0] === "pair" && args[1] === "--json") return "pair-json";
-  throw new Error("Usage: poracode-server [pair --json | --help]");
+  if (args.length === 2 && args[0] === "status" && args[1] === "--json") return "status-json";
+  throw new Error("Usage: poracode-server [pair --json | status --json | --help]");
 }
 
 async function printPairingJson(): Promise<void> {
@@ -139,13 +143,19 @@ async function printPairingJson(): Promise<void> {
   process.stdout.write(`${JSON.stringify(response)}\n`);
 }
 
+async function printStatusJson(): Promise<void> {
+  const response = await requestHostStatusFromRunningServer(profileNamespace());
+  process.stdout.write(`${JSON.stringify(response)}\n`);
+}
+
 function printHelp(): void {
   process.stdout.write(
-    "Usage: poracode-server [pair --json | --help]\n" +
+    "Usage: poracode-server [pair --json | status --json | --help]\n" +
       "\nPORACODE_BASE_DIR selects a profile namespace. The server owns its .host-v1 sibling.\n" +
       "Set PORACODE_SECRET_STORAGE_KEY for an explicit 32-byte base64 key, or use the owned key file.\n" +
       "Set PORACODE_REMOTE_ACCESS_HOST/PORT to configure the remote listener.\n" +
       "Run pair --json with the same profile to request a pairing URL from its running owner.\n" +
+      "Run status --json with the same profile to inspect the authenticated running owner.\n" +
       "Pairing credentials are printed only by that explicit command; PID signaling is unsupported.\n",
   );
 }
@@ -161,7 +171,12 @@ export function runCli(): void {
     printHelp();
     return;
   }
-  const operation = command === "pair-json" ? printPairingJson() : serve();
+  const operation =
+    command === "pair-json"
+      ? printPairingJson()
+      : command === "status-json"
+        ? printStatusJson()
+        : serve();
   operation.catch(async (error) => {
     await performanceDiagnostics?.stop();
     if (error instanceof HeadlessCompositionShutdownError) {
