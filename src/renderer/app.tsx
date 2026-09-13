@@ -18,8 +18,8 @@ import {
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import { applyProjectStateSnapshot } from "./state/projectStateSync";
 import { useThreadFollowUpQueueStore } from "./state/threadFollowUpQueueStore";
-import { useExperimentStore } from "./state/experimentStore";
 import { useGitReadModelStore } from "./state/gitReadModelStore";
 import {
   acknowledgeThread,
@@ -451,10 +451,7 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       // Main-process project mutations must reach this whole-store snapshot
       // before its next dbSyncAll persistence write.
       readBridge().onProjectStateChanged(({ projects }) => {
-        useAppStore.setState({ projects });
-        useExperimentStore
-          .getState()
-          .reconcileExperiments(new Set(projects.map((project) => project.id)));
+        applyProjectStateSnapshot(projects);
       }),
       readBridge().onGitStateChanged((patch) => {
         useGitReadModelStore.getState().applyPatch(patch);

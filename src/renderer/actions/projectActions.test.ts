@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitHubAccountRef, McpServer, Project, ProjectScripts } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
+import * as bridgeRuntime from "@/renderer/bridge";
 import {
   setProjectDisabled,
+  relocateProject,
   updateProjectGhAccount,
   updateProjectIcon,
   updateProjectMcpServers,
@@ -66,6 +68,38 @@ describe("remote project actions", () => {
       projectId: "remote-project",
       patch: { scripts },
     });
+  });
+
+  it("blocks a local relocation conflict before asking the supervisor to repair worktrees", async () => {
+    const first: Project = {
+      id: "first",
+      name: "First",
+      location: { kind: "windows", path: "C:\\first" },
+      createdAt: project.createdAt,
+    };
+    const second: Project = {
+      ...first,
+      id: "second",
+      location: { kind: "windows", path: "C:\\second" },
+    };
+    useAppStore.setState({ projects: [first, second], threads: [] });
+    const relocate = vi.fn<ReturnType<typeof bridgeRuntime.readBridge>["relocateProject"]>();
+    const readBridge = vi.spyOn(bridgeRuntime, "readBridge").mockReturnValue({
+      platform: "win32",
+      pickFolder: async () => "c:/FIRST/",
+      relocateProject: relocate,
+    } as unknown as ReturnType<typeof bridgeRuntime.readBridge>);
+    try {
+      await relocateProject(second.id);
+      expect(relocate).not.toHaveBeenCalled();
+      expect(toast.danger).toHaveBeenCalledWith("This folder is already registered as a project.");
+      expect(useAppStore.getState().projects).toEqual([first, second]);
+      expect(() => useAppStore.getState().updateProjectLocation(second.id, first.location)).toThrow(
+        /already registered/,
+      );
+    } finally {
+      readBridge.mockRestore();
+    }
   });
 
   it("keeps project settings unchanged when the remote host is offline", async () => {

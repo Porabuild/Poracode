@@ -271,6 +271,7 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
     message: "Could not create the project folder.",
   }),
   "remote.project.notFound": msg({ message: "Project not found." }),
+  "project.locationConflict": msg({ message: "This folder is already registered as a project." }),
   "remote.project.runningThreads": msg({
     message: "Stop the project's running threads before changing its folder.",
   }),

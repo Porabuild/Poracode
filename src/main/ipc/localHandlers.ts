@@ -521,7 +521,7 @@ export function createLocalIpcHandlers(
       const projectsChanged = syncedProjectsChanged(dbGetProjects(), projects);
       const { changedThreadIds, viewedThreadIds } = diffSyncedThreads(dbGetThreads(), threads);
       dbSyncAll(projects, threads, viewJson);
-      if (projectsChanged) publishProjectsChanged(projects);
+      if (projectsChanged) publishProjectsChanged();
       publishThreadsChanged(changedThreadIds, viewedThreadIds);
     },
     dbPersistExperimentState: async (payload) => {

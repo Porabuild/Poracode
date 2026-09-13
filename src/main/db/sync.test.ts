@@ -3,11 +3,20 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { Project, Thread } from "@/shared/contracts";
+import type { PrWatch, Project, Thread } from "@/shared/contracts";
 import { closeDatabase, initDatabase } from "./connection";
-import { dbGetThread, dbUpsertProject, dbUpsertThread } from "./projectsThreads";
+import {
+  dbDeleteProject,
+  dbGetProjects,
+  dbGetState,
+  dbGetThread,
+  dbUpsertProject,
+  dbUpsertThread,
+} from "./projectsThreads";
 import { dbApplyThreadRuntimeEvents, dbGetThreadRuntimeItems } from "./runtimeItems";
 import { dbSyncAll } from "./sync";
+import { dbGetProjectNotes, dbSetProjectNotes } from "./notes";
+import { dbGetPrWatch, dbGetPrWatches, dbUpsertPrWatch } from "./prWatches";
 
 const serverNativeBinding = join(process.cwd(), "dist", "server-native", "better_sqlite3.node");
 let nativeBindingEnv: string | undefined;
@@ -107,6 +116,208 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     expect(dbGetThread("thread-remote")).toBeNull();
     expect(dbGetThreadRuntimeItems("thread-remote")).toEqual([]);
   });
+
+  it("rehomes duplicate-project threads before deleting the duplicate row", () => {
+    const duplicate: Project = {
+      ...project,
+      id: "project-duplicate",
+      name: "Duplicate",
+      location: { kind: "posix", path: "/tmp/project/" },
+    };
+    dbUpsertProject(duplicate, 1);
+    const duplicateThread = {
+      ...remoteStartedThread(),
+      id: "thread-duplicate",
+      projectId: duplicate.id,
+    };
+    dbUpsertThread(duplicateThread, 1);
+    persistLaunchUserMessage(duplicateThread.id);
+
+    dbSyncAll(
+      [project],
+      [duplicateThread],
+      JSON.stringify({ kind: "draft", projectId: duplicate.id }),
+    );
+
+    expect(dbGetProjects().map((item) => item.id)).toEqual([project.id]);
+    expect(dbGetThread(duplicateThread.id)?.projectId).toBe(project.id);
+    expect(JSON.parse(dbGetState("view")!)).toEqual({ kind: "draft", projectId: project.id });
+    expect(dbGetThreadRuntimeItems(duplicateThread.id).map((item) => item.type)).toEqual([
+      "user_message",
+    ]);
+  });
+
+  it("recreates a missing canonical row before rehoming and preserves an unseen thread once", () => {
+    dbDeleteProject(project.id);
+    const duplicate: Project = {
+      ...project,
+      id: "project-duplicate-only",
+      location: { kind: "posix", path: "/tmp/project/" },
+    };
+    dbUpsertProject(duplicate, 0);
+    const duplicateThread = {
+      ...remoteStartedThread(),
+      id: "thread-unseen",
+      projectId: duplicate.id,
+    };
+    dbUpsertThread(duplicateThread, 0);
+    persistLaunchUserMessage(duplicateThread.id);
+
+    dbSyncAll([project], [], JSON.stringify({ kind: "home" }));
+
+    expect(dbGetProjects().map((item) => item.id)).toEqual([project.id]);
+    expect(dbGetThread(duplicateThread.id)?.projectId).toBe(project.id);
+    expect(dbGetThreadRuntimeItems(duplicateThread.id).map((item) => item.type)).toEqual([
+      "user_message",
+    ]);
+  });
+
+  it("normalizes duplicate project ids in an incoming snapshot before upserting threads", () => {
+    const duplicate: Project = {
+      ...project,
+      id: "project-incoming-duplicate",
+      location: { kind: "posix", path: "/tmp/project/" },
+    };
+    const duplicateThread = {
+      ...remoteStartedThread(),
+      id: "thread-incoming-duplicate",
+      projectId: duplicate.id,
+    };
+
+    dbSyncAll(
+      [project, duplicate],
+      [duplicateThread],
+      JSON.stringify({ kind: "draft", projectId: duplicate.id }),
+    );
+
+    expect(dbGetProjects().map((item) => item.id)).toEqual([project.id]);
+    expect(dbGetThread(duplicateThread.id)?.projectId).toBe(project.id);
+    expect(JSON.parse(dbGetState("view")!)).toEqual({ kind: "draft", projectId: project.id });
+  });
+
+  it("keeps both documents and to-do lists when duplicate projects have populated notes", () => {
+    const duplicate = { ...project, id: "duplicate-with-notes" };
+    dbUpsertProject(duplicate, 1);
+    const paragraph = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
+    const todo = (text: string) => ({
+      id: "same-todo-id",
+      text,
+      done: false,
+      createdAt: project.createdAt,
+    });
+    dbSetProjectNotes({
+      projectId: project.id,
+      doc: { type: "doc", content: [paragraph("first")] },
+      todos: [todo("first task")],
+      updatedAt: project.createdAt,
+    });
+    dbSetProjectNotes({
+      projectId: duplicate.id,
+      doc: { type: "doc", content: [paragraph("second")] },
+      todos: [todo("second task")],
+      updatedAt: project.createdAt,
+    });
+    dbSyncAll([project], [], JSON.stringify({ kind: "home" }));
+    const notes = dbGetProjectNotes(project.id);
+    expect(notes?.doc).toEqual({ type: "doc", content: [paragraph("first"), paragraph("second")] });
+    expect(notes?.todos.map((item) => item.text)).toEqual(["first task", "second task"]);
+    expect(new Set(notes?.todos.map((item) => item.id)).size).toBe(2);
+    expect(dbGetProjectNotes(duplicate.id)).toBeNull();
+  });
+
+  it.each([
+    {
+      canonicalActive: null,
+      duplicateActive: "watch-duplicate",
+      preferred: "duplicate",
+      paused: false,
+    },
+    {
+      canonicalActive: "watch-canonical",
+      duplicateActive: "watch-duplicate",
+      preferred: "canonical",
+      paused: true,
+    },
+    { canonicalActive: null, duplicateActive: null, preferred: "duplicate", paused: false },
+    {
+      canonicalActive: "watch-canonical",
+      duplicateActive: "watch-canonical",
+      preferred: "canonical",
+      paused: false,
+    },
+    {
+      canonicalActive: null,
+      duplicateActive: "watch-duplicate",
+      preferred: "duplicate",
+      paused: true,
+      alreadyPaused: true,
+    },
+  ])(
+    "reconciles colliding PR watches while preserving their fix threads: $preferred/$paused",
+    (scenario) => {
+      const { canonicalActive, duplicateActive, preferred, paused } = scenario;
+      const duplicate = { ...project, id: "duplicate-with-watch" };
+      dbUpsertProject(duplicate, 1);
+      const threads = [
+        { ...remoteStartedThread(), id: "watch-canonical", projectId: project.id },
+        { ...remoteStartedThread(), id: "watch-duplicate", projectId: duplicate.id },
+      ];
+      threads.forEach((thread, index) => dbUpsertThread(thread, index));
+      const makeWatch = (
+        projectId: string,
+        label: string,
+        activeThreadId: string | null,
+        enabled: boolean,
+      ): PrWatch => ({
+        projectId,
+        prNumber: 42,
+        headBranch: "fix",
+        worktreePath: `/worktrees/${label}`,
+        watchEnabled: enabled,
+        autoMerge: enabled,
+        agentKind: "test-agent",
+        config: { model: label },
+        activeThreadId,
+        lastCheckKey: `${label}-checkpoint`,
+        lastCommentCursor: label,
+        lastReviewCursor: label,
+        lastReviewCommentCursor: label,
+        lastError: `${label}-error`,
+        blockedReason: null,
+      });
+      const canonicalWatch = makeWatch(
+        project.id,
+        "canonical",
+        canonicalActive,
+        Boolean(canonicalActive),
+      );
+      const duplicateWatch = makeWatch(duplicate.id, "duplicate", duplicateActive, true);
+      if ("alreadyPaused" in scenario && scenario.alreadyPaused) {
+        canonicalWatch.blockedReason = "duplicate-project-watches";
+      }
+      dbUpsertPrWatch(canonicalWatch);
+      dbUpsertPrWatch(duplicateWatch);
+
+      dbSyncAll([project], threads, JSON.stringify({ kind: "home" }));
+
+      const selected = preferred === "canonical" ? canonicalWatch : duplicateWatch;
+      expect(dbGetPrWatches()).toHaveLength(1);
+      expect(dbGetPrWatch(project.id, 42)).toEqual({
+        ...selected,
+        projectId: project.id,
+        ...(paused
+          ? {
+              watchEnabled: false,
+              autoMerge: false,
+              lastError: null,
+              blockedReason: "duplicate-project-watches",
+            }
+          : {}),
+      });
+      expect(dbGetThread("watch-canonical")?.projectId).toBe(project.id);
+      expect(dbGetThread("watch-duplicate")?.projectId).toBe(project.id);
+    },
+  );
 
   // Rows written before provider switching existed are already on disk with
   // their original agent_kind. Both upsert paths omitted agent_kind from their

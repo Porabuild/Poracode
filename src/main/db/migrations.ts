@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
+import { repairDuplicateProjects } from "./projectDeduplication";
 import { HEAD_CHARS } from "./runtimeStreamCap";
 import { writeItemStreams } from "./runtimeStreamStore";
 
@@ -605,6 +606,11 @@ export const DATABASE_MIGRATIONS = [
     // ACP/CLI-overlapping 3.5 slug. Re-run the now context-aware repair for
     // profiles that already recorded schema 39 in a dev or nightly build.
     migrate: normalizeAntigravityAcpConfigs,
+  },
+  {
+    version: 42,
+    name: "deduplicate project locations",
+    migrate: repairDuplicateProjects,
   },
 ] as const satisfies readonly DatabaseMigration[];
 

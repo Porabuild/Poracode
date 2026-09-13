@@ -181,6 +181,7 @@ const messages = {
     "Enter a safe repository URL using HTTPS, HTTP, SSH, Git, FTP, FTPS, or scp syntax.",
   "remote.project.directoryFailed": "Could not create the project folder.",
   "remote.project.notFound": "Project not found.",
+  "project.locationConflict": "This folder is already registered as a project.",
   "remote.project.runningThreads": "Stop the project's running threads before changing its folder.",
   "remote.project.experimentsOwned":
     "Remove the project's experiments before removing the project.",
@@ -376,6 +377,7 @@ const remoteErrorMessageKeys: Readonly<Record<string, MessageKey>> = {
   invalid_clone_url: "remote.project.invalidCloneUrl",
   project_directory_failed: "remote.project.directoryFailed",
   project_not_found: "remote.project.notFound",
+  project_location_conflict: "project.locationConflict",
   project_has_running_threads: "remote.project.runningThreads",
   experiment_owned: "remote.project.experimentsOwned",
   worktree_threads_changed: "remote.worktree.threadsChanged",

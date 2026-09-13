@@ -13,6 +13,16 @@ import type { AppStoreState } from "./slices/shared";
 import { createSubAgentOverlaySlice } from "./slices/subAgentOverlaySlice";
 import { createThreadSlice } from "./slices/threadSlice";
 import { createViewSlice } from "./slices/viewSlice";
+import { dedupeProjects } from "@/shared/projectIdentity";
+import {
+  currentProjectIdentityOptions,
+  mergeDraftContent,
+  mergePendingComposerSeeds,
+  remapProjectRecord,
+  remapProjectGroupLayouts,
+  remapProjectView,
+  remapThreadProjectIds,
+} from "./projectReferences";
 
 export { makeThreadTitle } from "./slices/helpers";
 export type { AppStoreState } from "./slices/shared";
@@ -56,16 +66,49 @@ export const useAppStore = create<AppStoreState>()(
             (persistedState as (Partial<AppStoreState> & { threads?: Thread[] }) | undefined) ??
             ({} as Partial<AppStoreState>);
 
-          const threads = (state.threads ?? currentState.threads).map((t) => ({
-            ...normalizeStoredThreadStatus(t),
-            ...(t.archived ? { archivedAt: t.archivedAt ?? t.updatedAt } : {}),
-            done: t.done ?? false,
-            doneAt: t.done ? (t.doneAt ?? t.updatedAt) : undefined,
-          }));
+          const deduped = dedupeProjects(
+            state.projects ?? currentState.projects,
+            currentProjectIdentityOptions(),
+          );
+          const projects = deduped.projects;
+          const view = remapProjectView(state.view ?? currentState.view, deduped.duplicateIds);
+          const threads = remapThreadProjectIds(
+            (state.threads ?? currentState.threads).map((t) => ({
+              ...normalizeStoredThreadStatus(t),
+              ...(t.archived ? { archivedAt: t.archivedAt ?? t.updatedAt } : {}),
+              done: t.done ?? false,
+              doneAt: t.done ? (t.doneAt ?? t.updatedAt) : undefined,
+            })),
+            deduped.duplicateIds,
+          );
           const merged = {
             ...currentState,
             ...state,
+            projects,
+            view,
             threads,
+            groupLayouts: remapProjectGroupLayouts(
+              state.groupLayouts ?? currentState.groupLayouts,
+              deduped.duplicateIds,
+            ),
+            draftContents: remapProjectRecord(
+              state.draftContents ?? currentState.draftContents,
+              deduped.duplicateIds,
+              mergeDraftContent,
+            ),
+            pendingDraftWorktreeSelections: remapProjectRecord(
+              state.pendingDraftWorktreeSelections ?? currentState.pendingDraftWorktreeSelections,
+              deduped.duplicateIds,
+            ),
+            pendingComposerSeeds: remapProjectRecord(
+              state.pendingComposerSeeds ?? currentState.pendingComposerSeeds,
+              deduped.duplicateIds,
+              mergePendingComposerSeeds,
+            ),
+            draftContentDiscardRequests: remapProjectRecord(
+              state.draftContentDiscardRequests ?? currentState.draftContentDiscardRequests,
+              deduped.duplicateIds,
+            ),
             lastRuntimeConfigByThreadId: Object.fromEntries(
               threads.map((thread) => [thread.id, thread.config]),
             ),

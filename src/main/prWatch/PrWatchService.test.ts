@@ -117,6 +117,49 @@ function setup(
 }
 
 describe("PrWatchService", () => {
+  it("keeps conflicting duplicate watches paused through agent sync until a mode is selected", async () => {
+    const { service, store, createThread, mergePr } = setup(
+      watch({
+        watchEnabled: false,
+        autoMerge: false,
+        blockedReason: "duplicate-project-watches",
+      }),
+      { getPrForBranch: async () => behindPr },
+    );
+    await service.tick();
+    service.syncAgent({
+      projectId: project.id,
+      agentKind: "test-agent",
+      config: { model: "updated" },
+    });
+    await service.tick();
+    expect(createThread).not.toHaveBeenCalled();
+    expect(mergePr).not.toHaveBeenCalled();
+    expect(store.get(project.id, 42)?.blockedReason).toBe("duplicate-project-watches");
+    service.upsert(watch());
+    await vi.waitFor(() => expect(createThread).toHaveBeenCalledOnce());
+    expect(store.get(project.id, 42)?.blockedReason).toBeNull();
+  });
+
+  it("does not launch a second fix if a repaired watch gains an active thread during checkout", async () => {
+    const context = Promise.withResolvers<{ kind: "worktree"; path: string }>();
+    const ensureWorkContext = vi.fn<PrWatchServiceOptions["ensureWorkContext"]>(
+      () => context.promise,
+    );
+    const { service, store, createThread } = setup(watch(), {
+      getPrForBranch: async () => behindPr,
+      ensureWorkContext,
+      isThreadActive: (threadId) => threadId === "existing-fix",
+    });
+    const checking = service.tick();
+    await vi.waitFor(() => expect(ensureWorkContext).toHaveBeenCalledOnce());
+    store.upsert(watch({ activeThreadId: "existing-fix" }));
+    context.resolve({ kind: "worktree", path: "/worktree" });
+    await checking;
+    expect(createThread).not.toHaveBeenCalled();
+    expect(store.get(project.id, 42)?.activeThreadId).toBe("existing-fix");
+  });
+
   it("never treats ordinary PR comments as merge blockers", async () => {
     const comments = [
       {

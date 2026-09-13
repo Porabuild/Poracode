@@ -75,6 +75,14 @@ describe("experimentStore", () => {
     expect(Object.keys(useExperimentStore.getState().experiments)).toEqual(["experiment-2"]);
   });
 
+  it("remaps experiments when a duplicate project is collapsed", () => {
+    useExperimentStore.getState().addExperiment(experiment({ projectId: "duplicate" }));
+
+    useExperimentStore.getState().remapProjectIds(new Map([["duplicate", "project-1"]]));
+
+    expect(useExperimentStore.getState().experiments["experiment-1"]?.projectId).toBe("project-1");
+  });
+
   it("retains candidate ownership when a thread row is missing", () => {
     const record = experiment({
       candidates: [

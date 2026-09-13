@@ -4728,6 +4728,10 @@ msgstr "첨부하려면 여기에 드롭하세요."
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
 msgstr "에이전트가 설치 또는 iTerm2 알림을 건드리지 않고 L2(OSC 9;4 진행)로 돌아갈 수 있도록 감독자에게 수신 후크 봉투를 삭제합니다. 다음 후크 이벤트에 적용됩니다. 다시 시작할 필요가 없습니다."
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Duplicate projects had different automation threads. Review those threads, then choose an automation mode to resume."
+msgstr "중복 프로젝트에 서로 다른 자동화 스레드가 있었습니다. 해당 스레드를 검토한 후 자동화 모드를 선택하여 다시 시작하세요."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Duplicate server name in scan"
 msgstr "스캔에 중복된 서버 이름이 있습니다"
@@ -9665,6 +9669,10 @@ msgid "PR automation"
 msgstr "PR 자동화"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused"
+msgstr "PR 자동화 일시 중지"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation paused: Auto Fix"
 msgstr "PR 자동화 일시 중지: 자동 수정"
 
@@ -13288,6 +13296,10 @@ msgstr "이 파일은 내장 편집기에 비해 너무 큽니다."
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "이 파일은 지원되지 않는 인코딩을 사용합니다."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This folder is already registered as a project."
+msgstr "이 폴더는 이미 프로젝트로 등록되어 있습니다."
 
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx

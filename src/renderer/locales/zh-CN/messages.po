@@ -4728,6 +4728,10 @@ msgstr "拖放到此处以附加"
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
 msgstr "在监管进程上丢弃传入的挂钩信封，以便代理回退到 L2（OSC 9;4 进度），而无需触及安装或 iTerm2 通知。在下一个挂钩事件时生效——无需重启。"
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Duplicate projects had different automation threads. Review those threads, then choose an automation mode to resume."
+msgstr "重复项目关联了不同的自动化线程。请检查这些线程，然后选择自动化模式以恢复运行。"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Duplicate server name in scan"
 msgstr "扫描结果中存在重复的服务器名称"
@@ -9664,6 +9668,10 @@ msgid "PR automation"
 msgstr "PR 自动化"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused"
+msgstr "PR 自动化已暂停"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation paused: Auto Fix"
 msgstr "PR 自动化已暂停：自动修复"
 
@@ -13287,6 +13295,10 @@ msgstr "该文件过大，内置编辑器无法打开。"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "此文件使用不受支持的编码。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This folder is already registered as a project."
+msgstr "此文件夹已注册为项目。"
 
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
