@@ -25,7 +25,7 @@ describe("push gateway client", () => {
       gatewayUrl: "https://gateway.example.test",
       fetchImpl: vi.fn<GatewayFetch>(async (_url, init) => {
         body = JSON.parse(init?.body ?? "{}") as Record<string, unknown>;
-        return { ok: false, status: 404 };
+        return new Response(null, { status: 404 });
       }),
     });
 
@@ -52,11 +52,7 @@ describe("push gateway client", () => {
   it("resolves the gateway VAPID public key", async () => {
     const resolve = createWebPushPublicKeyResolver({
       gatewayUrl: "https://gateway.example.test",
-      fetchImpl: vi.fn<GatewayFetch>(async () => ({
-        ok: true,
-        status: 200,
-        json: async () => ({ publicKey: "vapid-key" }),
-      })),
+      fetchImpl: vi.fn<GatewayFetch>(async () => Response.json({ publicKey: "vapid-key" })),
     });
 
     await expect(resolve()).resolves.toBe("vapid-key");
@@ -67,7 +63,7 @@ describe("push gateway client", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const send = createPushGateway({
       gatewayUrl: "https://gateway.example.test",
-      fetchImpl: vi.fn<GatewayFetch>(async () => ({ ok: false, status: 503 })),
+      fetchImpl: vi.fn<GatewayFetch>(async () => new Response(null, { status: 503 })),
       onError,
     });
     const input = {
@@ -137,7 +133,7 @@ describe("push gateway client", () => {
   it("bounds repeated Web Push key 503 reports while allowing request retries", async () => {
     const onError = vi.fn<(error: unknown) => void>();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const fetchImpl = vi.fn<GatewayFetch>(async () => ({ ok: false, status: 503 }));
+    const fetchImpl = vi.fn<GatewayFetch>(async () => new Response(null, { status: 503 }));
     const resolve = createWebPushPublicKeyResolver({
       gatewayUrl: "https://gateway.example.test",
       fetchImpl,
@@ -160,7 +156,7 @@ describe("push gateway client", () => {
     const onError = vi.fn<(error: unknown) => void>();
     const send = createPushGateway({
       gatewayUrl: "https://gateway.example.test",
-      fetchImpl: vi.fn<GatewayFetch>(async () => ({ ok: false, status: 400 })),
+      fetchImpl: vi.fn<GatewayFetch>(async () => new Response(null, { status: 400 })),
       onError,
     });
 

@@ -986,3 +986,29 @@ backend/native request, stream, HTTP/work tracker and diagnostic checks passed
 `owner-backend-combined-typecheck.log`. Merge conflicts were concurrent evidence
 additions; the final documents retain F34 and both F11 records without duplicating
 the existing F32 section.
+
+## F42 — push gateway body ownership
+
+Root's actual loopback HTTP regressions reproduced three independent failures:
+the public-key request stayed pending after its timeout once headers had arrived,
+a 32 KiB JSON config was accepted, and a successful push response kept its unused
+body open. `tmp/v4-architecture-audit/push-gateway-body-before.log` retains all
+three failures. The peers, credentials and payloads were synthetic; no hosted
+gateway or external push was contacted.
+
+The corrected private transport keeps one deadline through response consumption
+and cancellation. Config parsing reuses the existing bounded body reader with a
+16 KiB ceiling, and delivery responses release unused bodies after status is
+read. The private fetch injection now uses actual `Response` objects, with the
+same `SendPush` signature and result shapes. Config failures still clear the
+cached promise; successful concurrent reads share it. Twelve tests across two
+suites pass, including real held-body timeout/retry, declared/chunked overflow,
+exact-limit success/cache reuse and unused-body close. Both touched lint modes
+pass. The retained final test log is `push-gateway-body-final-tests.log` in the
+same audit directory. The independent critic matched all three frozen source
+identities, repeated all twelve tests and found no Important issue. Root merged
+the separately reviewed shared push lifetime/token correction `cf89df25a` as
+`bcf4be8d7`; its combined push/Desktop candidate group passed 123 tests across
+thirteen suites and full typecheck. The Desktop composition still has its own
+review and real-app gate. These checks do not qualify the complete process
+shutdown or performance gates.
