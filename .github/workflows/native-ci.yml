@@ -3,9 +3,9 @@ name: Native clients
 on:
   workflow_call:
   pull_request:
-    branches: [master]
+    branches: [master, poracode/v2, poracode/v4-integration]
   push:
-    branches: [master]
+    branches: [master, poracode/v2, poracode/v4-integration]
   workflow_dispatch:
 
 permissions:
@@ -125,6 +125,17 @@ jobs:
             awk -v version="$deployment_target" 'BEGIN { exit !(version + 0 >= 17) }'
           done
 
+      - name: Run portable Swift contract suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/poracode-swift-contracts"
+          for suite in PortForwarding BrowserMirror GitHubOperations AdvancedOperations; do
+            swift test --package-path "ios/App/AppTests/$suite" \
+              --scratch-path "$RUNNER_TEMP/poracode-swift-contracts/$suite" --jobs 2 \
+              2>&1 | tee "$RUNNER_TEMP/poracode-swift-contracts/$suite.log"
+          done
+
       - name: Build iOS tests for Simulator
         working-directory: ios/App
         run: |
@@ -151,7 +162,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ios-native-ci-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/AppTests.xcresult
+          path: |
+            ${{ runner.temp }}/AppTests.xcresult
+            ${{ runner.temp }}/poracode-swift-contracts/*.log
           if-no-files-found: warn
           retention-days: 7
 
