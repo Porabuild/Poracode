@@ -24,6 +24,7 @@ import { useDndHandlers } from "@/renderer/hooks/useDndHandlers";
 import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { installRemoteServerLifecycle } from "@/renderer/state/remoteServers/lifecycle";
 
 import { AppOverlays } from "@/renderer/views/MainView/parts/AppOverlays";
 import { WorktreeDeleteDialogs } from "@/renderer/views/MainView/parts/WorktreeDeleteDialogs";
@@ -93,6 +94,8 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
       active = false;
     };
   }, [connectAllRemoteServers]);
+
+  useEffect(() => installRemoteServerLifecycle(connectAllRemoteServers), [connectAllRemoteServers]);
 
   useEffect(() => {
     if (!storeHydrated || !sharedSettingsHydrated || !homeScopeEnabled) {

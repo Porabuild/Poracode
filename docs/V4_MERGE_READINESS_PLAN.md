@@ -983,6 +983,10 @@ Owner: web/PWA maintainer. Depends on Phases 2–6 where their paths are affecte
    network-online, suspension, and endpoint changes. Probe or reconnect immediately
    when appropriate, fence obsolete sockets, restore interests, then replay or
    resnapshot. Do not wait for a stale periodic heartbeat cycle after Safari wakes.
+   The renderer now installs a coalescing coordinator for `pageshow`, `online`,
+   and visible `visibilitychange`; its reconnect pass reuses the existing
+   `connectAll` generation fencing and snapshot/replay path. Suspension,
+   endpoint replacement, and installed-device evidence remain to be qualified.
 2. Keep offline drafts, current host identity, and cached data usable. Mutations
    get a truthful offline/ambiguous state; do not silently retry accepted actions.
    Bound actions issued before any host is available or after removal.
