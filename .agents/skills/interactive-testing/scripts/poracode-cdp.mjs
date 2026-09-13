@@ -39,6 +39,7 @@ import { dirname, isAbsolute, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 import { closeWebSocket, inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
 import { launchDetachedSession } from "./poracode-cdp-launch.mjs";
+import { verifySmokeRuntime } from "./poracode-smoke-runtime.mjs";
 import {
   listDebugSessions,
   readDebugSession,
@@ -75,6 +76,14 @@ try {
 
 async function main() {
   switch (cmd) {
+    case "verify-runtime": {
+      if (!connection.sessionFile || !connection.root)
+        throw new Error("verify-runtime requires a managed session");
+      const session = await readDebugSession(connection.sessionFile);
+      await verifySmokeRuntime(session.runtime, session.root);
+      console.log(JSON.stringify({ verified: true, runtime: session.runtime }, null, 2));
+      return;
+    }
     case "sessions": {
       const sessions = await listDebugSessions({ repoRoot });
       console.log(
@@ -121,12 +130,15 @@ async function main() {
       if (!connection.sessionFile || !connection.root) {
         throw new Error("stop requires a managed debug session, not an explicit port and URL");
       }
+      const stopTimeoutMs = Number(flags.timeout ?? 60) * 1000;
+      if (!Number.isFinite(stopTimeoutMs) || stopTimeoutMs <= 0)
+        throw new Error("stop --timeout must be a positive number of seconds");
       await writeFile(
         join(connection.root, "stop-request.json"),
         `${JSON.stringify({ requestedAt: new Date().toISOString(), requesterPid: process.pid })}\n`,
       );
       const started = Date.now();
-      while (Date.now() - started < 15_000) {
+      while (Date.now() - started < stopTimeoutMs) {
         const session = await readDebugSession(connection.sessionFile);
         if (session.state === "stopped") {
           console.log("stop:ok");
@@ -148,6 +160,7 @@ async function main() {
             sessionFile: connection.sessionFile,
             sessionId: connection.sessionId,
             sessionToken: connection.sessionToken,
+            runtime: connection.runtime,
             repoRoot: connection.repoRoot,
             cdpPort: port,
             appUrl,
