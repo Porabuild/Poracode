@@ -207,6 +207,83 @@ describe("owned host startup composition", () => {
     expect(existsSync(join(next.lease.paths.dataRoot, "secret-key.safe"))).toBe(false);
   });
 
+  it("cancels a native startup wait while retaining ownership for the runtime shutdown barrier", async () => {
+    const value = fixture("desktop");
+    const entered = Promise.withResolvers<NativeSecretValue>();
+    const reply = Promise.withResolvers<NativeSecretValue>();
+    const codec = syntheticNativeCodec();
+    codec.seal.mockImplementation((request) => {
+      entered.resolve(request);
+      return reply.promise;
+    });
+    const initializing = value.owner.initialize({ mode: "os-sealed", codec });
+    void initializing.catch(() => undefined);
+    const request = await entered.promise;
+    value.owner.cancelStartup();
+    value.owner.cancelStartup();
+    await expect(initializing).rejects.toThrow("closing");
+    value.owner.lease.assertActive();
+    expect(await externalContender(value.namespace)).toMatchObject({
+      status: "refused",
+      code: "HOST_ROOT_IN_USE",
+    });
+    await expect(value.owner.initialize({ mode: "headless" })).rejects.toThrow("closing");
+    await expect(value.owner.stageImport(backup(value.root))).rejects.toThrow("closing");
+    expect(() => value.owner.markReady()).toThrow("closing");
+    reply.resolve({
+      ownerGeneration: request.ownerGeneration,
+      value: Buffer.from("synthetic-cancelled-sealed").toString("base64"),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(existsSync(join(value.owner.lease.paths.dataRoot, "secret-key.safe"))).toBe(false);
+    await value.owner.close();
+    expect(await externalContender(value.namespace)).toMatchObject({ status: "owned" });
+  });
+
+  it("retains initialized credential capabilities during cancellation until final close", async () => {
+    const value = fixture();
+    const runtime = await value.owner.initialize({ mode: "headless" });
+    value.owner.markReady();
+    value.owner.cancelStartup();
+    value.owner.cancelStartup();
+    runtime.lease.assertActive(runtime.lease.generation);
+    runtime.credentialCapabilities.assertCanPersistSecrets();
+    expect(await externalContender(value.namespace)).toMatchObject({
+      status: "refused",
+      code: "HOST_ROOT_IN_USE",
+    });
+    expect(() => value.owner.markReady()).toThrow("closing");
+    await value.owner.close();
+    expect(() => runtime.credentialCapabilities.assertCanPersistSecrets()).toThrow(
+      "no longer active",
+    );
+    expect(await externalContender(value.namespace)).toMatchObject({ status: "owned" });
+  });
+
+  it("cancels a staged backup without releasing its lease before the explicit close barrier", async () => {
+    const value = fixture();
+    const held = holdBackup();
+    const importing = value.owner.stageImport(backup(value.root));
+    void importing.catch(() => undefined);
+    await held.entered;
+    value.owner.cancelStartup();
+    expect(await externalContender(value.namespace)).toMatchObject({
+      status: "refused",
+      code: "HOST_ROOT_IN_USE",
+    });
+    held.release();
+    await expect(importing).rejects.toThrow("closing");
+    expect(existsSync(value.owner.lease.paths.dataRoot)).toBe(false);
+    expect(await externalContender(value.namespace)).toMatchObject({
+      status: "refused",
+      code: "HOST_ROOT_IN_USE",
+    });
+    await value.owner.close();
+    value.owner.cancelStartup();
+    expect(await externalContender(value.namespace)).toMatchObject({ status: "owned" });
+  });
+
   it("does not advertise ready before credentials and runtime construction finish", async () => {
     const value = fixture();
     expect(() => value.owner.markReady()).toThrow("acquired");
