@@ -14,6 +14,12 @@
 
 Electron main forks `backendHost.cjs` through `BackendHostClient`; the backend starts `supervisor.cjs` when needed. Standalone `server.cjs` owns the backend core in its own process and starts the same supervisor. Only the supervisor may spawn an agent runtime or own its PTY.
 
+The standalone factory acquires a shared owner lease before preparing its versioned
+sibling root, credentials or SQLite. `PORACODE_BASE_DIR` is a profile namespace;
+startup reports its actual `.host-v1` data root. A private, authenticated loopback
+control endpoint supplies `describe` and explicit `pair --json`. Electron bootstrap
+and attach are still pending; see [Host ownership](../../docs/HOST_OWNERSHIP.md).
+
 The desktop renderer has an authenticated loopback WebSocket to `BackendRendererStream` for supported requests and live events. Preload IPC remains the bootstrap/native-service boundary and a fallback transport. Backend/main request/reply uses the versioned `backendHostProtocol`; supervisor calls use the typed procedure map in `src/shared/ipc/`. Browser/PWA and native clients use authenticated remote HTTP plus ordered WebSocket events.
 
 The preload bridge (`window.poracode`) exposes typed async methods defined by `PoracodeBridge` in `src/shared/ipc/bridge.ts`. Backend operations validate procedure schemas before dispatch. Every independently updated wire peer must satisfy the compatibility gate documented in [Versioned State & Protocols](versioning.md).
