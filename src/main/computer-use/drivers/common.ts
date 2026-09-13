@@ -1,8 +1,4 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import type { ComputerUseInteractiveResult, ComputerUseWindow } from "../mcp/types";
-
-const execFileAsync = promisify(execFile);
 
 /**
  * Refusal returned by the legacy Windows/macOS drivers for every accessibility
@@ -74,24 +70,4 @@ export function readNumber(value: unknown, name: string): number {
 export function readString(value: unknown, name: string): string {
   if (typeof value !== "string" || value.length === 0) throw new Error(`${name} is required`);
   return value;
-}
-
-export function runProcess(
-  command: string,
-  args: string[],
-  options?: {
-    timeoutMs?: number;
-    maxBufferBytes?: number;
-  },
-): Promise<{ stdout: string; stderr: string }> {
-  // Native execFile enforces timeout/maxBuffer and appends stderr to the
-  // thrown error's message ("Command failed: <cmd>\n<stderr>"), so failures
-  // still surface the process's own diagnostics.
-  return execFileAsync(command, args, {
-    windowsHide: true,
-    maxBuffer: options?.maxBufferBytes ?? 12 * 1024 * 1024,
-    ...(options?.timeoutMs !== undefined && options.timeoutMs > 0
-      ? { timeout: options.timeoutMs }
-      : {}),
-  });
 }
