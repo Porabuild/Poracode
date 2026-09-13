@@ -13,7 +13,9 @@ describe("backendHostProtocol", () => {
     const request = createBackendDatabaseRequest("id", "dbGetProjects", {});
 
     expect(isBackendHostRequest(request)).toBe(true);
-    // The previous V2 host generation cannot interpret authoritative replacements.
+    // The previous host generation still leaves durable routing writes to main.
+    expect(isBackendHostRequest({ ...request, version: 6 })).toBe(false);
+    // Older V2 hosts also cannot interpret authoritative replacements.
     expect(isBackendHostRequest({ ...request, version: 5 })).toBe(false);
     expect(isBackendHostRequest({ ...request, version: 0 })).toBe(false);
     expect(
@@ -56,6 +58,23 @@ describe("backendHostProtocol", () => {
         payload: { name: "run-arbitrary-main-code", payload: {} },
       }),
     ).toBe(false);
+  });
+
+  it("fences settings commands and notifications from the previous ownership generation", () => {
+    const request = createBackendServiceRequest("settings", "setAgentSecretSetting", {
+      agentKind: "fixture-agent",
+      key: "fixture-key",
+      value: "fixture-secret",
+    });
+    const notification = {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "native-event",
+      event: { type: "shared-settings-changed", settings: {} },
+    };
+    expect(isBackendHostRequest(request)).toBe(true);
+    expect(isBackendHostOutboundMessage(notification)).toBe(true);
+    expect(isBackendHostRequest({ ...request, version: 6 })).toBe(false);
+    expect(isBackendHostOutboundMessage({ ...notification, version: 6 })).toBe(false);
   });
 
   it("rejects malformed lifecycle env and outbound envelopes", () => {

@@ -13,7 +13,7 @@ export interface RendererStreamDelivery {
 
 export interface SupervisorEventRelayDeps {
   publishToRendererStream(event: SupervisorEvent): RendererStreamDelivery | undefined;
-  observeEvent(event: SupervisorEvent): void;
+  observeEvent(event: SupervisorEvent): boolean | void;
   filterForIpcConsumers(event: SupervisorEvent): SupervisorEvent | null;
   sendToMain(message: BackendHostOutboundMessage): void;
 }
@@ -36,7 +36,7 @@ export function createSupervisorEventRelay(
 ): (event: SupervisorEvent) => void {
   return (event) => {
     const rendererDelivery = deps.publishToRendererStream(event);
-    deps.observeEvent(event);
+    if (deps.observeEvent(event) === true) return;
     const filtered = deps.filterForIpcConsumers(event);
     if (!filtered) return;
     deps.sendToMain({
@@ -58,8 +58,7 @@ export function createSupervisorEventRelay(
  * trusting any post-gap sequence. Everything else on the channel — replies,
  * native requests/events, supervisor-reset, error notices — has no replay
  * path and keeps the fail-closed semantics, as do main-only supervisor
- * events (`thread-state` drives main's sleep state; crossagent events
- * persist routing) and events emitted before the renderer stream existed,
+ * events (`thread-state` drives main's sleep state) and events emitted before the renderer stream existed,
  * which carry no sequence to anchor the gap signal to.
  */
 export function createBackendHostShedPolicy(): SupervisorIpcShedPolicy<BackendHostOutboundMessage> {
