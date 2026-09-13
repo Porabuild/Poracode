@@ -247,6 +247,24 @@ check. Add safe fixture coverage through the real isolated window and keep the
 external/global-shortcut manual gate honest. Do not acknowledge unexercised
 controls or mark the full smoke passed while this gate is absent.
 
+**F25 — verified lease-helper regression, caught before startup wiring.** The
+first kernel-lease helper opened and closed the existing lease file outside
+SQLite during a repeated acquisition attempt. On POSIX that unmanaged descriptor
+close released the same process's existing `fcntl` lock; a real second process
+then acquired ownership while the first lease still appeared active. Exclusive
+file creation (`wx`) now touches only a new file before acquisition. Existing
+lease files must never be opened/read/copied outside SQLite while owned. Repeated
+same-process refusal followed by an actual external contender is a required
+regression. Import snapshot code must respect the same SQLite descriptor rule.
+
+**F26 — verified Quick Composer reopen state.** The actual native window
+successfully hides and shows, but its renderer can remain in `closing` when the
+OS does not grant focus and Chromium emits no hidden visibility transition.
+The current reset depends on both signals. Drive reopening from the native show
+transition, preserve focus-only returns from dialogs, and test the no-focus case
+before repeating the real frozen window journey. Keep ordinary shortcut/drag/
+motion/provider verification distinct from this reproduced scenario.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 

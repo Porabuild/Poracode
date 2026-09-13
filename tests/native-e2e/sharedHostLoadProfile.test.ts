@@ -30,6 +30,7 @@ import {
 } from "./helpers/profileClientFactory.ts";
 import { HostLoadSampler } from "./helpers/hostLoadSampler.ts";
 import { ProcessMemorySampler } from "./helpers/processMemorySampler.ts";
+import { ProcessCpuSampler } from "./helpers/processCpuSampler.ts";
 import { buildMetricsArtifact } from "./helpers/profileMetrics.ts";
 import {
   expectOk,
@@ -336,6 +337,7 @@ let project: WorkloadProject | undefined;
 let guiThreadFixtures: GuiThreadFixture[] = [];
 let sampler: HostLoadSampler | undefined;
 let memory: ProcessMemorySampler | undefined;
+let cpu: ProcessCpuSampler | undefined;
 let provenance: ReturnType<typeof describeArtifact> | undefined;
 let runStartedAtIso: string | undefined;
 
@@ -378,6 +380,8 @@ describe.skipIf(!entrypoint)(
       sampler.start(2_000);
       memory = new ProcessMemorySampler(host.pid);
       memory.start(1_000);
+      cpu = new ProcessCpuSampler(host.pid);
+      cpu.start(1_000);
       runStartedAtIso = new Date().toISOString();
       provenance = describeArtifact(entrypoint, observeSources(repoRoot));
       writeExperimentArtifact(repoRoot, "ws5-load-profile-build.json", provenance);
@@ -431,6 +435,7 @@ describe.skipIf(!entrypoint)(
       try {
         await sampler?.stop();
         await memory?.stop();
+        await cpu?.stop();
         if (sampler && runStartedAtIso) {
           writeExperimentArtifact(repoRoot, "ws5-load-profile-hostload.json", {
             runStartedAtIso,
@@ -887,6 +892,7 @@ describe.skipIf(!entrypoint)(
 
         // Healthy-client stream accounting for the artifact.
         await memory.stop();
+        await cpu?.stop();
         const memorySummary = memory.summary();
         const healthyStreamAccounting = guiClients.map((client) => ({
           label: client.label,
@@ -996,6 +1002,7 @@ describe.skipIf(!entrypoint)(
           memory: {
             process: memorySummary,
           },
+          processCpu: cpu?.summary() ?? null,
           metrics: metricsArtifact,
           protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
           environment: RUN_ENVIRONMENT,

@@ -419,3 +419,75 @@ messages. Its real final-IPC test covers POSIX; Windows currently uses forced
 process-tree termination. Descendant joins, graceful Windows shutdown, backend
 parent timeout and the remaining request drains must still be completed. None of
 these first slices closes its phase or establishes final merge readiness.
+
+## Reviewed ownership slices integrated
+
+`1941434fa` moves Electron settings commands and common headless routing
+persistence into the backend and fixes F22. Its 133 focused tests, full typecheck,
+both lint modes and independent critic passed. In a frozen isolated Electron
+session, real Appearance controls changed the theme; real IPC created/updated a
+profile with synthetic secrets. Backend reads, disk inspection and renderer
+reload agreed, and no plaintext secret was persisted. Selected smoke scenarios
+passed before and after reload with zero renderer/runtime errors. The owned
+session was stopped. Evidence is
+`.tmp/v4-settings-owner/tmp/v4-settings-owner/EVIDENCE.md`.
+
+`07e0ccfdc` adds joined supervisor shutdown and stale-child fencing, including
+the owned checkpoint continuation barrier. Its 76 focused tests, full typecheck,
+lint and primary review passed. Real disposable POSIX children prove delayed
+final IPC reaches SQLite before closure and an unresponsive leader is escalated
+and joined. The real SIGTERM fixture explicitly skips Windows; descendant joins,
+Windows graceful shutdown, parent quit deadlines and full request drains remain
+open. Evidence is `.tmp/v4-shutdown/tmp/f11-evidence/REPORT.md`. The two slices
+were combined with sampler correction `952aa83e1`; root `0354a0c68` passed 153
+tests across 18 affected suites and full typecheck. Host protocol is now 7;
+renderer stream 3 and remote 12 are unchanged.
+
+Lease/path helper `86c4d50ef` and its F25 correction `2adbbe58e` were integrated
+together as `7ab21fa43`. They remain unwired. Nineteen tests passed on root,
+including concurrent desktop/headless acquisition, crash recovery, replacement
+of the owned data directory, symlink-alias refusal, future-format refusal and
+three repeated same-process attempts followed by actual child contenders. The
+initial helper's six alias/metadata failures and F25 lock-loss failure are
+retained in the owner worktree. These tests qualify the helper, not startup
+ownership or safe import/activation as a whole.
+
+## Process CPU instrumentation — verified counter-accounting slice
+
+The two existing load profiles now also sample cumulative CPU counters for the
+root and its observed descendants, without retaining command lines. Accounting
+uses matching PID/start identities and monotonic sample intervals, preserves
+counter precision, and records lost exit tails, missing/replaced roots, counter
+regressions and a 4,096 historical-metric limit. The latest tree is separately
+bounded by the 8 MiB probe-output cap. This is partial observation; quantization
+can overstate a short interval, so it is not a strict lower bound. Unsupported
+platforms cannot report a valid zero.
+
+A disposable Node parent/child fixture reported 599.581 ms and 799.948 ms of CPU
+work via `process.cpuUsage`. Eleven external probes recorded 600 ms and 800 ms,
+with zero probe failures; both children were joined and their PIDs no longer
+existed. Raw data, source hashes and exact drivers are under
+`tmp/v4-architecture-audit/process-cpu-real*` and `cpu-fixture.mjs`. This is a
+counter-accounting check, not application performance qualification. Short-lived
+processes, exit tails, same-second PID reuse and probe timing/quantization remain
+explicit limitations. The independent critic accepted the accounting/stop wiring
+and corrected the lower-bound/retention wording above. In-process CPU/event-loop/
+GC, command/event correlation, queue metrics, compositor/input traces and
+controlled master comparisons remain open. Fourteen targeted tests, full
+typecheck and touched type-aware lint/format pass; logs are `process-cpu-*-final`
+under the same evidence directory. The final source differs from the real probe's
+recorded sampler hash only by the critic's correction of its lower-bound comment;
+the executed accounting code is unchanged. Linux formatting has parser coverage
+and was checked against the upstream procps manual; actual child evidence here
+is macOS. No Linux or Windows runtime measurement is claimed.
+
+## Further smoke findings in progress
+
+The F23 frozen voice loader now executes through bundled DEV imports. One full
+run passed its voice checks; a later full run failed at draft-button state and
+is being investigated, so stable full-suite voice coverage is not yet claimed.
+The Quick Composer native query confirmed actual hide/show transitions while DOM
+visibility stayed `visible`. Without granted OS focus, the renderer remained in
+`closing`; this is F26, now added to the plan for a native-show-driven reset.
+The QA driver will not fabricate focus/visibility events or acknowledge the
+remaining real shortcut, dragging, visual motion and provider manual gates.
