@@ -104,9 +104,7 @@ type Ledger = z.infer<typeof ledgerSchema>;
 const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
-> = {
-  "background_tasks.changed": [{ platform: "ios", token: "background_tasks" }],
-};
+> = {};
 type LedgerEntry = z.infer<typeof entrySchema>;
 type Platform = "ios" | "android";
 type Category = keyof Ledger["entries"];

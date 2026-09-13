@@ -4253,8 +4253,12 @@
         "id": "background_tasks.changed",
         "batch": "rich-chat-requests",
         "ios": {
-          "disposition": "planned",
-          "evidence": []
+          "disposition": "implemented",
+          "evidence": [
+            "ios/App/App/Protocol/RuntimeEventDecoder.swift",
+            "ios/App/App/Protocol/RuntimeEventReducer.swift",
+            "ios/App/App/Features/Session/SessionState.swift"
+          ]
         },
         "android": {
           "disposition": "implemented",
@@ -4263,7 +4267,7 @@
             "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeThreadState.kt"
           ]
         },
-        "note": "Protocol v9 adds live background-task levels inside the replayable thread-runtime-event envelopes and thread snapshots. Android decodes the event strictly and reduces it into session-scoped background-task state (replace/drain, not persisted, not rendered); iOS does not reduce it yet; no native client renders a background-tasks surface."
+        "note": "Protocol v9 adds live background-task levels inside the replayable thread-runtime-event envelopes and thread snapshots. Both natives decode the event strictly and reduce it into session-scoped background-task state (replace/drain, not persisted, not rendered); no native client renders a background-tasks surface."
       },
       {
         "id": "request.opened",
