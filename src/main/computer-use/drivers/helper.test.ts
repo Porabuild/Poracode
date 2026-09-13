@@ -23,11 +23,23 @@ function createDriver(
   return driver;
 }
 
-afterEach(() => {
-  for (const driver of drivers.splice(0)) driver.dispose();
+afterEach(async () => {
+  for (const driver of drivers.splice(0)) await driver.close();
 });
 
 describe("HelperComputerUseDriver", () => {
+  it("cancels an old handshake without degrading a later helper generation", async () => {
+    const driver = createDriver();
+    const first = driver.describeStatus().catch((error: unknown) => error);
+    driver.dispose();
+    const next = driver.describeStatus();
+    expect(await first).toBeInstanceOf(Error);
+    expect(await first).not.toBeInstanceOf(HelperUnavailableError);
+    await expect(next).resolves.toMatchObject({ backend: "helper" });
+    await driver.close();
+    await expect(driver.describeStatus()).rejects.toThrow("closed");
+  });
+
   it("handshakes lazily and forwards delivery modes", async () => {
     const driver = createDriver();
     await expect(driver.describeStatus()).resolves.toMatchObject({

@@ -8,6 +8,7 @@ import type {
   ComputerUseWindow,
 } from "../mcp/types";
 import { HelperUnavailableError } from "./helper";
+import { NativeActionLifetime } from "./nativeActionLifetime";
 
 // The helper is what provides every background and element route, so when it
 // is gone foreground really is all that is left. Say that as a degraded state
@@ -33,43 +34,55 @@ export interface CompositeComputerUseDriverOptions {
 type PrimaryResult<T> = { available: true; value: T } | { available: false };
 
 export class CompositeComputerUseDriver implements ComputerUseDriver {
+  private readonly actions = new NativeActionLifetime();
   private degradedReason: string | null = null;
   private warned = false;
 
   constructor(private readonly options: CompositeComputerUseDriverOptions) {}
 
   dispose(): void {
+    this.actions.interrupt();
     this.options.primary?.dispose();
     this.options.fallback?.dispose();
   }
 
-  async describeStatus(): Promise<ComputerUseDriverStatus> {
-    const primary = await this.tryPrimary((driver) => driver.describeStatus());
-    if (primary.available) return primary.value;
-    if (this.options.fallback) {
-      const status = await this.options.fallback.describeStatus();
+  close(): Promise<void> {
+    return this.actions.close([
+      () => this.options.primary?.close(),
+      () => this.options.fallback?.close(),
+    ]);
+  }
+
+  describeStatus(): Promise<ComputerUseDriverStatus> {
+    return this.actions.run(async (signal) => {
+      const primary = await this.tryPrimary((driver) => driver.describeStatus(), signal);
+      if (primary.available) return primary.value;
+      signal.throwIfAborted();
+      if (this.options.fallback) {
+        const status = await this.options.fallback.describeStatus();
+        return {
+          ...status,
+          notes: [...status.notes, this.degradedNote()],
+        };
+      }
       return {
-        ...status,
-        notes: [...status.notes, this.degradedNote()],
+        backend: "unavailable",
+        helper: null,
+        capabilities: {
+          backgroundPointer: false,
+          backgroundKeyboard: false,
+          backgroundChords: false,
+          accessibilityTree: false,
+          elementActions: false,
+          occludedCapture: false,
+          foregroundInput: false,
+          launchApp: false,
+          stableWindowIds: false,
+        },
+        permissions: { accessibility: "unknown", screenRecording: "unknown" },
+        notes: [this.degradedNote()],
       };
-    }
-    return {
-      backend: "unavailable",
-      helper: null,
-      capabilities: {
-        backgroundPointer: false,
-        backgroundKeyboard: false,
-        backgroundChords: false,
-        accessibilityTree: false,
-        elementActions: false,
-        occludedCapture: false,
-        foregroundInput: false,
-        launchApp: false,
-        stableWindowIds: false,
-      },
-      permissions: { accessibility: "unknown", screenRecording: "unknown" },
-      notes: [this.degradedNote()],
-    };
+    });
   }
 
   listApps(input?: ComputerUseListAppsInput): ReturnType<ComputerUseDriver["listApps"]> {
@@ -148,49 +161,61 @@ export class CompositeComputerUseDriver implements ComputerUseDriver {
     return this.elementCall(input.window, (driver) => driver.setElementValue(input));
   }
 
-  private async passive<T>(call: (driver: ComputerUseDriver) => Promise<T>): Promise<T> {
-    const primary = await this.tryPrimary(call);
-    if (primary.available) return primary.value;
-    if (!this.options.fallback) throw new Error(this.degradedNote());
-    return await call(this.options.fallback);
+  private passive<T>(call: (driver: ComputerUseDriver) => Promise<T>): Promise<T> {
+    return this.actions.run(async (signal) => {
+      const primary = await this.tryPrimary(call, signal);
+      if (primary.available) return primary.value;
+      signal.throwIfAborted();
+      if (!this.options.fallback) throw new Error(this.degradedNote());
+      return await call(this.options.fallback);
+    });
   }
 
-  private async input(
+  private input(
     window: ComputerUseWindow,
     mode: "background" | "foreground" | undefined,
     call: (driver: ComputerUseDriver) => Promise<ComputerUseInteractiveResult>,
   ): Promise<ComputerUseInteractiveResult> {
-    const primary = await this.tryPrimary(call);
-    if (primary.available) return primary.value;
-    if ((mode ?? "background") !== "foreground") {
-      return refusal(
-        window,
-        "background_unavailable",
-        "Background input is unavailable because the bundled native helper could not start.",
-      );
-    }
-    if (!this.options.fallback) {
-      return refusal(window, "capability_unavailable", this.degradedNote());
-    }
-    return await call(this.options.fallback);
+    return this.actions.run(async (signal) => {
+      const primary = await this.tryPrimary(call, signal);
+      if (primary.available) return primary.value;
+      signal.throwIfAborted();
+      if ((mode ?? "background") !== "foreground") {
+        return refusal(
+          window,
+          "background_unavailable",
+          "Background input is unavailable because the bundled native helper could not start.",
+        );
+      }
+      if (!this.options.fallback) {
+        return refusal(window, "capability_unavailable", this.degradedNote());
+      }
+      return await call(this.options.fallback);
+    });
   }
 
   /** Element work has no legacy fallback: it refuses when the helper is gone. */
-  private async elementCall<T>(
+  private elementCall<T>(
     window: ComputerUseWindow,
     call: (driver: ComputerUseDriver) => Promise<T>,
   ): Promise<T | ComputerUseInteractiveResult> {
-    const primary = await this.tryPrimary(call);
-    return primary.available ? primary.value : this.elementUnavailable(window);
+    return this.actions.run(async (signal) => {
+      const primary = await this.tryPrimary(call, signal);
+      signal.throwIfAborted();
+      return primary.available ? primary.value : this.elementUnavailable(window);
+    });
   }
 
   private async tryPrimary<T>(
     call: (driver: ComputerUseDriver) => Promise<T>,
+    signal: AbortSignal,
   ): Promise<PrimaryResult<T>> {
+    signal.throwIfAborted();
     if (!this.degradedReason && this.options.primary) {
       try {
         return { available: true, value: await call(this.options.primary) };
       } catch (error) {
+        signal.throwIfAborted();
         if (!(error instanceof HelperUnavailableError)) throw error;
         this.degrade(error);
       }

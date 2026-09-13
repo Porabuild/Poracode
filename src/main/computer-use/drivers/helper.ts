@@ -20,6 +20,7 @@ import type {
 } from "../mcp/types";
 import { COMPUTER_USE_REFUSAL_CODES } from "../mcp/types";
 import { HostUnavailableError, JsonLineActionError, PersistentJsonLineHost } from "./jsonLineHost";
+import { NativeActionLifetime } from "./nativeActionLifetime";
 
 export type HelperUnavailableCode = "protocol_mismatch" | "handshake_failed";
 
@@ -89,6 +90,7 @@ export interface HelperComputerUseDriverOptions {
 }
 
 export class HelperComputerUseDriver implements ComputerUseDriver {
+  private readonly actions = new NativeActionLifetime();
   private readonly host: PersistentJsonLineHost;
   private helloPromise: Promise<ComputerUseHelperHello> | null = null;
 
@@ -112,19 +114,26 @@ export class HelperComputerUseDriver implements ComputerUseDriver {
   }
 
   dispose(): void {
+    this.actions.interrupt();
     this.host.dispose();
     this.helloPromise = null;
   }
 
-  async describeStatus(): Promise<ComputerUseDriverStatus> {
-    const helper = await this.ensureHello();
-    return {
-      backend: "helper",
-      helper,
-      capabilities: helper.capabilities,
-      permissions: helper.permissions,
-      notes: helper.notes,
-    };
+  close(): Promise<void> {
+    return this.actions.close([() => this.host.close()]);
+  }
+
+  describeStatus(): Promise<ComputerUseDriverStatus> {
+    return this.actions.run(async (signal) => {
+      const helper = await this.ensureHello(signal);
+      return {
+        backend: "helper",
+        helper,
+        capabilities: helper.capabilities,
+        permissions: helper.permissions,
+        notes: helper.notes,
+      };
+    });
   }
 
   listApps(input: ComputerUseListAppsInput = {}): Promise<ComputerUseApp[]> {
@@ -201,50 +210,65 @@ export class HelperComputerUseDriver implements ComputerUseDriver {
     return this.callInteractive("set_element_value", input);
   }
 
-  private async ensureHello(): Promise<ComputerUseHelperHello> {
-    this.helloPromise ??= this.host
-      .request("hello", {
-        protocolVersion: COMPUTER_USE_HELPER_PROTOCOL_VERSION,
-        clientVersion: "poracode",
-      })
-      .then((value) => {
-        const hello = computerUseHelperHelloSchema.safeParse(value);
-        if (!hello.success) {
+  private async ensureHello(signal: AbortSignal): Promise<ComputerUseHelperHello> {
+    signal.throwIfAborted();
+    if (!this.helloPromise) {
+      const attempt = this.host
+        .request("hello", {
+          protocolVersion: COMPUTER_USE_HELPER_PROTOCOL_VERSION,
+          clientVersion: "poracode",
+        })
+        .then((value) => {
+          const hello = computerUseHelperHelloSchema.safeParse(value);
+          if (!hello.success) {
+            throw new HelperUnavailableError(
+              "handshake_failed",
+              `computer-use helper returned an invalid handshake: ${hello.error.message}`,
+            );
+          }
+          if (hello.data.protocolVersion !== COMPUTER_USE_HELPER_PROTOCOL_VERSION) {
+            throw new HelperUnavailableError(
+              "protocol_mismatch",
+              `computer-use helper protocol ${hello.data.protocolVersion} does not match client protocol ${COMPUTER_USE_HELPER_PROTOCOL_VERSION}`,
+            );
+          }
+          return hello.data;
+        })
+        .catch((error: unknown) => {
+          if (this.helloPromise === attempt) this.helloPromise = null;
+          if (error instanceof HelperUnavailableError) {
+            throw error;
+          }
+          if (error instanceof HostUnavailableError) {
+            throw new HelperUnavailableError("handshake_failed", error.message);
+          }
+          if (error instanceof JsonLineActionError && error.code === "protocol_mismatch") {
+            throw new HelperUnavailableError("protocol_mismatch", error.message);
+          }
           throw new HelperUnavailableError(
             "handshake_failed",
-            `computer-use helper returned an invalid handshake: ${hello.error.message}`,
+            error instanceof Error ? error.message : String(error),
           );
-        }
-        if (hello.data.protocolVersion !== COMPUTER_USE_HELPER_PROTOCOL_VERSION) {
-          throw new HelperUnavailableError(
-            "protocol_mismatch",
-            `computer-use helper protocol ${hello.data.protocolVersion} does not match client protocol ${COMPUTER_USE_HELPER_PROTOCOL_VERSION}`,
-          );
-        }
-        return hello.data;
-      })
-      .catch((error: unknown) => {
-        this.helloPromise = null;
-        if (error instanceof HelperUnavailableError) {
-          throw error;
-        }
-        if (error instanceof HostUnavailableError) {
-          throw new HelperUnavailableError("handshake_failed", error.message);
-        }
-        if (error instanceof JsonLineActionError && error.code === "protocol_mismatch") {
-          throw new HelperUnavailableError("protocol_mismatch", error.message);
-        }
-        throw new HelperUnavailableError(
-          "handshake_failed",
-          error instanceof Error ? error.message : String(error),
-        );
-      });
-    return await this.helloPromise;
+        });
+      this.helloPromise = attempt;
+    }
+    try {
+      const hello = await this.helloPromise;
+      signal.throwIfAborted();
+      return hello;
+    } catch (error) {
+      // A cancelled handshake is not evidence that a fallback should start.
+      signal.throwIfAborted();
+      throw error;
+    }
   }
 
-  private async call<T>(action: string, input?: unknown): Promise<T> {
-    await this.ensureHello();
-    return await this.host.request<T>(action, input);
+  private call<T>(action: string, input?: unknown): Promise<T> {
+    return this.actions.run(async (signal) => {
+      await this.ensureHello(signal);
+      signal.throwIfAborted();
+      return await this.host.request<T>(action, input);
+    });
   }
 
   private async callInteractive(

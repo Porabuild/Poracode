@@ -1,6 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
+import { HttpServerConnections } from "@/shared/httpServerConnections";
+import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
 import { ExternalChromeConnection } from "./ExternalChromeConnection";
 
 /**
@@ -39,31 +42,64 @@ export interface ChromeBridgeInfo {
 export interface ChromeBridgeOptions {
   /** File to write `{ port, token }` to for extension pairing. */
   pairingFilePath: string;
+  /** Override discovery ports for isolated integration fixtures. */
+  ports?: readonly number[];
 }
 
 export class ChromeBridgeServer {
   private readonly token = randomBytes(24).toString("hex");
-  private wss: WebSocketServer | null = null;
+  private readonly server = createServer((_, response) => {
+    response.writeHead(404, { connection: "close" });
+    response.end();
+  });
+  private readonly connections = new HttpServerConnections(this.server);
+  private readonly wss = new WebSocketServer({
+    noServer: true,
+    maxPayload: 8 * 1024 * 1024,
+    verifyClient: (info, cb) => this.verifyClient(info.origin, info.req.url, cb),
+  });
   private connection: ExternalChromeConnection | null = null;
   private info: ChromeBridgeInfo | null = null;
   private readonly changeListeners = new Set<() => void>();
+  private starting: Promise<ChromeBridgeInfo> | undefined;
+  private closing: Promise<void> | undefined;
+  private stopping = false;
 
-  constructor(private readonly options: ChromeBridgeOptions) {}
+  constructor(private readonly options: ChromeBridgeOptions) {
+    this.server.on("upgrade", (request, socket, head) => {
+      if (this.stopping) {
+        socket.destroy();
+        return;
+      }
+      this.wss.handleUpgrade(request, socket, head, (client) => this.handleConnection(client));
+    });
+  }
 
-  async start(): Promise<ChromeBridgeInfo> {
-    if (this.info) return this.info;
-    const port = await this.listenOnAvailablePort();
-    this.info = { port, token: this.token };
-    this.writePairingFile(this.info);
-    // eslint-disable-next-line no-console
-    console.log(
-      `[poracode] Chrome bridge listening on ws://127.0.0.1:${port} — pairing file: ${this.options.pairingFilePath}`,
-    );
-    return this.info;
+  start(): Promise<ChromeBridgeInfo> {
+    if (this.stopping) return Promise.reject(new Error("Chrome bridge is stopping."));
+    if (this.starting) return this.starting;
+    const barrier = Promise.withResolvers<ChromeBridgeInfo>();
+    this.starting = barrier.promise;
+    void this.listenOnAvailablePort()
+      .then((port) => {
+        if (this.stopping) throw new Error("Chrome bridge is stopping.");
+        this.info = { port, token: this.token };
+        this.writePairingFile(this.info);
+        // eslint-disable-next-line no-console
+        console.log(
+          `[poracode] Chrome bridge listening on ws://127.0.0.1:${port} — pairing file: ${this.options.pairingFilePath}`,
+        );
+        return this.info;
+      })
+      .then(barrier.resolve, (error: unknown) => {
+        if (!this.stopping) this.starting = undefined;
+        barrier.reject(error);
+      });
+    return barrier.promise;
   }
 
   getInfo(): ChromeBridgeInfo | null {
-    return this.info;
+    return this.stopping ? null : this.info;
   }
 
   getConnection(): ExternalChromeConnection | null {
@@ -76,15 +112,29 @@ export class ChromeBridgeServer {
     return () => this.changeListeners.delete(listener);
   }
 
-  dispose(): void {
+  dispose(): Promise<void> {
+    if (this.closing) return this.closing;
+    this.stopping = true;
+    const barrier = Promise.withResolvers<void>();
+    this.closing = barrier.promise;
     this.connection?.dispose();
     this.connection = null;
-    try {
-      this.wss?.close();
-    } catch {}
-    this.wss = null;
-    this.info = null;
-    this.changeListeners.clear();
+    for (const client of this.wss.clients) client.close();
+    void Promise.resolve(this.starting)
+      .catch(() => undefined)
+      .then(async () => {
+        const websocketClose = new Promise<void>((resolve, reject) => {
+          this.wss.close((error) => (error ? reject(error) : resolve()));
+        });
+        await joinRuntimeShutdown(
+          [() => websocketClose, () => this.connections.close(250)],
+          "Chrome bridge shutdown is unconfirmed.",
+        );
+        this.info = null;
+        this.changeListeners.clear();
+      })
+      .then(barrier.resolve, barrier.reject);
+    return barrier.promise;
   }
 
   private notifyChange(): void {
@@ -95,35 +145,55 @@ export class ChromeBridgeServer {
     }
   }
 
-  private listenOnAvailablePort(): Promise<number> {
-    return new Promise<number>((resolve, reject) => {
-      const ports = PORT_RANGES.flatMap(({ start, count }) =>
+  private async listenOnAvailablePort(): Promise<number> {
+    const ports =
+      this.options.ports ??
+      PORT_RANGES.flatMap(({ start, count }) =>
         Array.from({ length: count }, (_, index) => start + index),
       );
-      let portIndex = 0;
-      const tryPort = (port: number): void => {
-        const wss = new WebSocketServer({
-          host: "127.0.0.1",
-          port,
-          maxPayload: 8 * 1024 * 1024,
-          verifyClient: (info, cb) => this.verifyClient(info.origin, info.req.url, cb),
-        });
-        wss.once("error", (err: NodeJS.ErrnoException) => {
-          wss.close();
-          if (err.code === "EADDRINUSE" && portIndex < ports.length - 1) {
-            portIndex += 1;
-            tryPort(ports[portIndex]!);
-            return;
-          }
-          reject(err);
-        });
-        wss.once("listening", () => {
-          this.wss = wss;
-          wss.on("connection", (socket) => this.handleConnection(socket));
-          resolve(port);
-        });
+    for (const [index, port] of ports.entries()) {
+      if (this.stopping) throw new Error("Chrome bridge is stopping.");
+      try {
+        return await this.listen(port);
+      } catch (error) {
+        if (
+          !error ||
+          typeof error !== "object" ||
+          !("code" in error) ||
+          error.code !== "EADDRINUSE" ||
+          index === ports.length - 1
+        )
+          throw error;
+      }
+    }
+    throw new Error("No Chrome bridge discovery ports are configured.");
+  }
+
+  private listen(port: number): Promise<number> {
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        this.server.off("error", failed);
+        this.server.off("listening", listening);
       };
-      tryPort(ports[portIndex]!);
+      const failed = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+      const listening = () => {
+        cleanup();
+        const address = this.server.address();
+        if (!address || typeof address === "string")
+          reject(new Error("Chrome bridge address is unavailable."));
+        else resolve(address.port);
+      };
+      this.server.once("error", failed);
+      this.server.once("listening", listening);
+      try {
+        this.server.listen(port, "127.0.0.1");
+      } catch (error) {
+        cleanup();
+        reject(error);
+      }
     });
   }
 
@@ -137,7 +207,7 @@ export class ChromeBridgeServer {
     // scheme check keeps malicious pages out; the actual consent for control is
     // Chrome's own "started debugging this browser" banner. The token path stays
     // available for hardened setups.
-    if (this.tokenMatches(url) || isExtensionOrigin(origin)) {
+    if (!this.stopping && (this.tokenMatches(url) || isExtensionOrigin(origin))) {
       cb(true);
     } else {
       cb(false, 401);
@@ -155,10 +225,18 @@ export class ChromeBridgeServer {
   }
 
   private handleConnection(socket: WebSocket): void {
+    if (this.stopping) {
+      socket.terminate();
+      return;
+    }
     // The `hello` frame carries the extension version; wait for it before
     // publishing the connection so consumers see a populated status.
     const onFirst = (data: unknown): void => {
       socket.off("message", onFirst);
+      if (this.stopping) {
+        socket.terminate();
+        return;
+      }
       let hello: { extensionVersion?: string } = {};
       try {
         const text = Buffer.isBuffer(data) ? data.toString("utf8") : String(data);

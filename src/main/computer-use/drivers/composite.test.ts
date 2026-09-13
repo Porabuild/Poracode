@@ -32,6 +32,7 @@ function createDriver(overrides: Partial<ComputerUseDriver> = {}): ComputerUseDr
       notes: [],
     }),
     dispose: vi.fn<ComputerUseDriver["dispose"]>(),
+    close: vi.fn<ComputerUseDriver["close"]>().mockResolvedValue(),
     drag: vi.fn<ComputerUseDriver["drag"]>().mockResolvedValue(delivered),
     findElements: vi.fn<ComputerUseDriver["findElements"]>(),
     getWindow: vi.fn<ComputerUseDriver["getWindow"]>(),
@@ -49,6 +50,53 @@ function createDriver(overrides: Partial<ComputerUseDriver> = {}): ComputerUseDr
 }
 
 describe("CompositeComputerUseDriver", () => {
+  it("does not start a fallback from a handshake interrupted by permanent close", async () => {
+    const held = Promise.withResolvers<Awaited<ReturnType<ComputerUseDriver["listWindows"]>>>();
+    const primary = createDriver({
+      listWindows: () => held.promise,
+      close: async () => {
+        held.reject(new HelperUnavailableError("handshake_failed", "synthetic cancellation"));
+      },
+    });
+    const fallback = createDriver();
+    const warn = vi.fn<(message: string) => void>();
+    const driver = new CompositeComputerUseDriver({ primary, fallback, warn });
+    const result = driver.listWindows().catch((error: unknown) => error);
+    await driver.close();
+    expect(await result).toBeInstanceOf(Error);
+    expect(fallback.listWindows).not.toHaveBeenCalled();
+    expect(fallback.close).toHaveBeenCalledOnce();
+    expect(warn).not.toHaveBeenCalled();
+    await expect(driver.listWindows()).rejects.toThrow("closed");
+  });
+
+  it("joins an admitted fallback even if its own close settles first", async () => {
+    const held = Promise.withResolvers<Awaited<ReturnType<ComputerUseDriver["listWindows"]>>>();
+    const entered = Promise.withResolvers<void>();
+    const fallback = createDriver({
+      listWindows: () => {
+        entered.resolve();
+        return held.promise;
+      },
+    });
+    const driver = new CompositeComputerUseDriver({ primary: null, fallback });
+    const result = driver.listWindows();
+    await entered.promise;
+    let joined = false;
+    const closing = driver.close().then(() => {
+      joined = true;
+    });
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(joined).toBe(false);
+      held.resolve([]);
+      await Promise.all([result, closing]);
+    } finally {
+      held.resolve([]);
+      await closing;
+    }
+  });
+
   it("refuses background input and warns once when helper startup fails", async () => {
     const failure = new HelperUnavailableError("handshake_failed", "bad handshake");
     const primary = createDriver({

@@ -13,6 +13,7 @@ import type {
 } from "../mcp/types";
 import { legacyElementRefusal } from "./common";
 import { PersistentJsonLineHost } from "./jsonLineHost";
+import { NativeActionLifetime } from "./nativeActionLifetime";
 import { validateWindowsLaunchAppInput } from "./launchAppValidation";
 
 const WINDOWS_HELPER = String.raw`
@@ -976,6 +977,7 @@ function withLegacyDelivery(result: LegacyInteractiveResult): ComputerUseInterac
 }
 
 export class WindowsComputerUseDriver implements ComputerUseDriver {
+  private readonly actions = new NativeActionLifetime();
   private readonly host = new PersistentJsonLineHost({
     label: "computer-use host",
     maxStdoutBufferBytes: MAX_STDOUT_BUFFER_BYTES,
@@ -1000,11 +1002,16 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
   });
 
   dispose(): void {
+    this.actions.interrupt();
     this.host.dispose();
   }
 
-  async describeStatus(): Promise<ComputerUseDriverStatus> {
-    return {
+  close(): Promise<void> {
+    return this.actions.close([() => this.host.close()]);
+  }
+
+  describeStatus(): Promise<ComputerUseDriverStatus> {
+    return this.actions.run(() => ({
       backend: "legacy",
       helper: null,
       capabilities: {
@@ -1020,7 +1027,7 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
       },
       permissions: { accessibility: "not_required", screenRecording: "not_required" },
       notes: ["Using the foreground-only legacy Windows driver."],
-    };
+    }));
   }
 
   async listApps(input?: ComputerUseListAppsInput): Promise<ComputerUseApp[]> {
@@ -1110,15 +1117,15 @@ export class WindowsComputerUseDriver implements ComputerUseDriver {
   }
 
   findElements(input: Parameters<ComputerUseDriver["findElements"]>[0]) {
-    return Promise.resolve(legacyElementRefusal(input.window));
+    return this.actions.run(() => legacyElementRefusal(input.window));
   }
 
   invokeElement(input: Parameters<ComputerUseDriver["invokeElement"]>[0]) {
-    return Promise.resolve(legacyElementRefusal(input.window));
+    return this.actions.run(() => legacyElementRefusal(input.window));
   }
 
   setElementValue(input: Parameters<ComputerUseDriver["setElementValue"]>[0]) {
-    return Promise.resolve(legacyElementRefusal(input.window));
+    return this.actions.run(() => legacyElementRefusal(input.window));
   }
 
   /**
