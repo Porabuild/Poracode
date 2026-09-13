@@ -656,3 +656,99 @@ This bounded correction changes neither lease format 1 nor owner metadata format
 wait for confirmed ingress/request drains before claiming safe lease release.
 All roots and processes here were disposable; Linux/Windows, installed upgrades,
 real profiles and full Phase 1 acceptance remain open.
+
+## Settings admission and publication ordering integrated
+
+Reviewed inactive slice `dc24042bf` is merged as `e99a8e67d`. It bounds active plus
+queued settings transactions to 128 requests / 4 MiB, with a 1 MiB individual
+request ceiling, and publishes authority/sequence and affected ancestor revisions.
+These limits have held-persistence regression coverage; they are not measured
+throughput or heap budgets. The primary review reproduced an older pending read
+being accepted after a known publication gap. The corrected connection-scoped
+guard retains the highest observed sequence and returns explicit resync/reconnect
+decisions. Older connections cannot restore prior authority state.
+
+The author reports 81 tests / nine suites and full checks. The primary verified
+all ten frozen file hashes and independently ran 52 tests / seven relevant suites;
+the root combination with diagnostics then passed 95 tests / 13 suites and full
+typecheck. Logs are `authority-admission-primary-tests.log` in the settings
+worktree and `integrated-settings-diagnostics-{tests,typecheck}.log` under
+`tmp/v4-architecture-audit/`. No client writer is activated by this slice.
+
+## Combined Electron diagnostics and mock coverage
+
+Clean `78b387fea` was frozen into session
+`/Users/svecherenko/.poracode-smoke/v4-integrated-diagnostics-NlbiOW/session.json`.
+Source hash is `27096a52961dd59f44d5eb9ecabc57edfbfbb49370bf7b2c28960d85503e0ac0`;
+artifact hash is `85e24754b44b84869c8ee79a017a184ed1be475103ae3b7ff8160d5929d82c9e`.
+The full mock run passed nine automated scenarios and all 17 mock gates with
+zero captured runtime errors. Primary inspected Quick Composer input/handoff and
+preserved voice-draft screenshots. Runtime verification passed before teardown;
+the managed owner reported stopped and removed its runtime directory.
+
+Opt-in diagnostics ran in the actual desktop main, backend and supervisor.
+The retained files contain respectively 974, 973 and 973 contiguous samples and
+complete end records, with zero dropped records or writer errors. Exact headers,
+hashes, permissions, counts and teardown state are in
+`tmp/v4-architecture-audit/integrated-diagnostics-recording.json`; the raw NDJSON
+and screenshots remain in the session directory. Concurrent development work and
+the frozen development build disqualify this run from performance acceptance.
+
+An attempted normal-close probe used HTML `window.close()`. It removed the main
+target but left the other window/processes alive. Electron 44's sandboxed renderer
+does not install the native-close override in
+[`window-setup.ts`](https://raw.githubusercontent.com/electron/electron/v44.0.0/lib/renderer/window-setup.ts);
+its native source routes WebContents destruction to immediate window destruction.
+Independent source review agrees this probe does not prove a native-close bug.
+The exact-app native automation request subsequently timed out. Final cleanup used
+the managed process-group stop, so those end records are not normal-quit evidence.
+
+QA bridge version 2 adds guarded calls to the actual `BrowserWindow.close()` and
+`app.quit()` methods. The two missing-action regressions are retained in
+`native-shutdown-controls-before.log`; the final 37 tests / four suites,
+typecheck, touched lint and inventory audit pass. An independent trust/lifecycle/
+R4 critic also passed 15 tests / three suites. This boundary remains development,
+unpackaged, mock-only and restricted to the current main window's top frame;
+version-1 peers are rejected. Fresh native shutdown evidence is still pending.
+
+## F11 HTTP and shared MCP drain prerequisite
+
+The isolated `poracode/v4-request-drain` branch starts at reviewed consolidation
+`ad7143d53`. Four real loopback/SQLite regressions first proved premature database
+close after the HTTP deadline or client abort, duplicate startup pairing state,
+and a listener bound after disposal. Two real forwarded-stream fixtures also
+failed against the original proxy implementation, which returned while the
+streams were open. Three shared-MCP regressions proved early tool disposal,
+orphaned concurrent listeners and publication after an immediate stop.
+
+The candidate joins one listener lifecycle, closes admission synchronously and
+tracks actual HTTP/WS/tool continuations independently of sockets. The existing
+five-second HTTP grace now closes owned transports; it does not resolve the work
+barrier. Proxy requests and upgrades join their outgoing streams. Shared MCP
+uses the same work/socket helpers and AppControls awaits its disposal; remaining
+batch entries and a reentrant pre-call hook cannot start a tool after stop.
+No remote, renderer, backend-host, MCP or persisted shape changes; existing wire
+versions remain valid and shutdown uses the existing error response envelopes.
+
+The HTTP/controller group passed 156 tests across seven suites; the MCP/native
+facade group passed 41 tests across six separate suites. Full typecheck and both
+touched lint modes pass. The MCP test-only cleanup refactor was checked again
+with its five lifecycle cases. Details and exact commands are in
+`.tmp/v4-request-drain/tmp/f11-request-drain/REPORT.md`; all network peers and
+SQLite files in these checks are disposable fixtures. Self-review caught two
+introduced startup-cache regressions: retaining a failed listen and returning
+an obsolete pairing token after rotation. Both were corrected, with separate
+reds; the final ten HTTP lifecycle cases also validate a successful real token
+exchange after rotation. These are not attributed to the original defects.
+
+The independent ingress critic passed 24 tests across five suites plus the final
+real pairing-token exchange regression, with no remaining Important finding.
+The primary review also passed its 25 targeted cases and verified all 17 frozen
+file hashes. Both reviews accepted this prerequisite; integration remains pending.
+This is not complete F11
+qualification: private backend request draining, main/native facade joins, parent
+timeouts, provider/PTY descendants, Windows graceful stop and the native-e2e stop
+harness remain assigned. A handler which cannot be canceled keeps its join
+pending; the later process escalation must prove termination rather than release
+the owner lease while that handler can still run. No GUI/performance claim is
+made from these ingress fixtures.

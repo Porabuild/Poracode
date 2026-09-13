@@ -1146,6 +1146,8 @@ if (!hasSingleInstanceLock) {
         mockAgents: process.env.PORACODE_MOCK_AGENTS === "1",
         getMainWebContents: () => mainWindow?.webContents ?? null,
         toggleQuickComposer: toggleQuickComposerWindow,
+        closeMainWindow: () => mainWindow?.close(),
+        quitApp: () => app.quit(),
         inspectQuickComposer: () =>
           quickComposerWindow && !quickComposerWindow.isDestroyed()
             ? { visible: quickComposerWindow.isVisible(), focused: quickComposerWindow.isFocused() }

@@ -321,6 +321,20 @@ locks in [locking-mode behavior](https://www.sqlite.org/pragma.html#pragma_locki
 These helper checks do not qualify runtime bootstrap, ingress drain, desktop
 attachment, or Linux/Windows ownership behavior.
 
+**F11 ingress follow-up — actual continuations must outlive their transport.**
+Real loopback requests with disposable SQLite reproduce early database closure
+both after the old five-second HTTP deadline and within 100 ms of a client abort.
+Concurrent starts also minted different pairing credentials, and a retry could
+bind after disposal returned. The isolated request-drain slice now closes
+admission synchronously, joins a single listener start/stop, and tracks HTTP,
+WebSocket and forwarded stream continuations through settlement. The same shared
+work/socket barriers repair MCP's orphaned concurrent listeners and late tool
+continuations; AppControls awaits that ingress join. A connection deadline ends
+transports only. It cannot authorize database closure or lease release while an
+admitted handler remains. Private backend request draining, native facade/main
+joins, parent deadlines, provider descendants and Windows shutdown remain open
+F11 work; these ingress results do not qualify the full shutdown gate.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 
@@ -530,6 +544,9 @@ Owner: runtime/persistence maintainer. Depends on the single-owner contract.
    drain tracked requests; stop supervisor with bounded join/escalation; process
    final valid events; flush persistence; close DB; release ownership. A deadline
    must not mean an untracked handler can continue into a closed database.
+   Join the handler continuation after a client disconnect, and join pending
+   listen/start attempts before closing their sockets. Existing keep-alive,
+   upgraded and MCP batch inputs must not admit new operations once stop starts.
 7. Fence supervisor messages and replies by child generation, matching the more
    complete fencing already present in `BackendHostClient`.
 8. State durability precisely. A command acknowledged as durably accepted needs a
@@ -801,7 +818,7 @@ not the whole authorization/concurrency model.
 | Remote small control acknowledgement    | p95 at most measured connection RTT plus 100 ms under ordinary load, plus 250 ms under defined link saturation                                                                                                          | Same connection/topology, warm auth; break out admission wait and server work.                                                             |
 | State propagation after host acceptance | p95 at most 50 ms locally; remote excess over measured path latency at most 100 ms                                                                                                                                      | Correlated command/event IDs and per-process spans; do not subtract unsynchronized wall clocks.                                            |
 | Healthy-peer impact of a stalled client | No forced resync/close caused solely by the stalled peer; latency remains within its gate                                                                                                                               | Simultaneous healthy/control and impaired channels, both relay directions.                                                                 |
-| Host control-loop delay                 | p95 below 10 ms, p99 below 25 ms in the declared normal load                                                                                                                                                            | `monitorEventLoopDelay`, event-loop utilization, CPU and GC recorded per process.                                                          |
+| Host control-loop delay                 | p95 below 10 ms, p99 below 25 ms in the declared normal load                                                                                                                                                            | Versioned timer-callback intervals and pending tail, event-loop utilization, CPU and GC per process; qualify the recorder's overhead.      |
 | Existing small payload fixture          | Preserve V3 limits: 60-thread shell at most 60 KB decoded/6 KB wire; 40-item history at most 60 KB/8 KB                                                                                                                 | Realistic-content companion fixtures added; do not generalize the eight-word compression ratio.                                            |
 | Large-history initial read              | Tail byte budget independent of total retained history; completed-turn metadata included in that limit                                                                                                                  | Test 40/400/4,000 items and one oversized item; large bodies fetched separately.                                                           |
 | 32 kbps usable data                     | Preserve V3 cached-shell targets: snapshot p95 at most 4 s, history p95 at most 5 s for the specified small/tail fixture                                                                                                | Include RTT, both relay hops when applicable, and contention. Fresh web asset download is a separate metric.                               |

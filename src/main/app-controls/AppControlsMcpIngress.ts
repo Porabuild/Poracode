@@ -101,15 +101,14 @@ export class AppControlsMcpIngress {
     if (this.disposal) return this.disposal;
     this.disposed = true;
     this.threadStates.dispose();
-    this.ingress.dispose();
-    this.disposal = Promise.resolve(this.starting)
-      .catch(() => undefined)
-      .then(async () => {
-        // The shared ingress publishes its server only once listen completes.
-        // Close it again after a concurrent start joins, then drain admitted tools.
-        this.ingress.dispose();
-        await Promise.allSettled([...this.calls]);
-      });
+    const ingressStop = this.ingress.dispose();
+    this.disposal = Promise.allSettled([
+      ingressStop,
+      Promise.resolve(this.starting).catch(() => undefined),
+      Promise.allSettled([...this.calls]),
+    ]).then(([ingress]) => {
+      if (ingress.status === "rejected") throw ingress.reason;
+    });
     return this.disposal;
   }
 

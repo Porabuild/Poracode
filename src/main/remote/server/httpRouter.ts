@@ -490,7 +490,8 @@ export async function handleHttp(
         );
       }
       writeJson(res, 202, {});
-      setImmediate(() => updates.install());
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      updates.install();
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/provider-usage") {
