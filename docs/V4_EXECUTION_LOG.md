@@ -1554,6 +1554,25 @@ The exact-tree full suite then passed: 1,211 test files passed and 5 skipped;
 13,626 tests passed and 119 skipped. The known synthetic listener and canvas
 warnings were emitted, but the run exited successfully.
 
+## Phase 4 remote thread-membership index
+
+Before: every remote event rebuilt a `Set` from all runtime threads and then
+added the open thread, provisioning thread, and background interests. The cost
+was proportional to the whole thread list even when a token update touched one
+row.
+
+After: the runtime thread array feeds an identity-keyed membership index that is
+reused until its source array changes. The event path adds only the small set of
+open, provisioning, and background-interest ids and passes a structural `has()`
+matcher to the existing filter, preserving the same event selection and
+ordering. A focused remote-store and event-routing run passes 123 tests, with
+typecheck, touched-file lint, formatting, and diff checks green.
+
+This removes one measured per-event allocation pattern. JSON decoding,
+validation, reconciliation, persistence, and UI reduction still run on the
+client thread; the worker engine, incremental reducers, and frame-budgeted view
+patches remain open F9 work.
+
 ## Phase 5 relay control-link congestion isolation
 
 Before: a relay host's bounded outbound admission used the same overflow action
