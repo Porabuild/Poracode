@@ -12,7 +12,11 @@ let authority: import("./SettingsAuthority").SettingsAuthority | undefined;
 process.on("message", (message) => {
   if (message === "continue") resume?.();
   if (message === "read")
-    process.send?.({ type: "read", theme: authority?.readSettings().themeMode });
+    process.send?.({
+      type: "read",
+      theme: authority?.readSettings().themeMode,
+      sequence: authority?.snapshot().sequence,
+    });
 });
 async function pause(stage: string): Promise<void> {
   const gate = Promise.withResolvers<void>();
