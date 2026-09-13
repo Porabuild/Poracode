@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { test } from "node:test";
-import { stopOwnedProcess } from "./smoke-owned-process.mjs";
+import { stopOwnedProcess, stopOwnedProcesses } from "./smoke-owned-process.mjs";
 
 test(
   "cancellation during the first session write never starts the runtime build",
@@ -107,3 +107,40 @@ function isExecuting(pid) {
     return false;
   }
 }
+
+test(
+  "an unconfirmed app stop still stops its owned renderer sibling and retains the failure",
+  { skip: process.platform === "win32" },
+  async () => {
+    const start = () => {
+      const child = spawn(
+        process.execPath,
+        ["-e", 'process.send("ready");setInterval(()=>{},1000);'],
+        { detached: true, stdio: ["ignore", "ignore", "pipe", "ipc"] },
+      );
+      const closed = new Promise((resolve) => child.once("close", resolve));
+      child.on("error", () => {});
+      const ready = once(child, "message");
+      void ready.catch(() => {});
+      return { child, closed, ready };
+    };
+    const refused = start();
+    const renderer = start();
+    try {
+      await Promise.all([refused.ready, renderer.ready]);
+      const stoppedRecord = { pid: refused.child.pid, exitCode: 0, signalCode: null };
+      await assert.rejects(
+        stopOwnedProcesses([undefined, stoppedRecord, renderer.child], { graceMs: 100 }),
+        (error) =>
+          error instanceof AggregateError &&
+          error.errors.length === 1 &&
+          /Cannot safely reclaim/.test(error.errors[0].message),
+      );
+      assert.equal(isExecuting(refused.child.pid), true, "the refused group must remain untouched");
+      assert.equal(isExecuting(renderer.child.pid), false, "the owned sibling must still stop");
+    } finally {
+      await stopOwnedProcesses([refused.child, renderer.child], { graceMs: 100 });
+      await Promise.all([refused.closed, renderer.closed]);
+    }
+  },
+);
