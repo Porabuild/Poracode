@@ -306,6 +306,21 @@ check current consent and equality atomically at the backend and join/cancel
 native mirror continuations during stop. Keep delayed-read/clear/stop regressions
 and ensure session-only credentials and retired owners cannot persist new secrets.
 
+**F32 — verified live-owner lease loss through garbage collection.** A child
+acquired the kernel lease, dropped its last JavaScript reference, and remained
+alive. Forced garbage collection closed its SQLite connection, allowing a second
+child to acquire the same root. Retain successfully acquired leases until explicit
+release or process exit; an abandoned startup/shutdown failure must not imply a
+confirmed join. The regression now proves exclusion through GC and successful
+acquisition only after the actual holder exits. A separate first-open liveness
+race produced two refusals in five of thirty simultaneous startup pairs, never
+two owners. Acquire `BEGIN EXCLUSIVE` before enabling retained locking, so schema
+reads cannot retain shared locks while both contenders attempt an upgrade. Thirty
+pairs then each admitted exactly one owner. SQLite documents retained shared-read
+locks in [locking-mode behavior](https://www.sqlite.org/pragma.html#pragma_locking_mode).
+These helper checks do not qualify runtime bootstrap, ingress drain, desktop
+attachment, or Linux/Windows ownership behavior.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 
