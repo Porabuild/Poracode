@@ -866,3 +866,62 @@ suites plus full typecheck (`queue-f11-combined-*` logs under
 `tmp/v4-architecture-audit/`). Only concurrent documentation additions conflicted;
 both sides' findings and evidence are retained. A fresh isolated GUI recording is
 the next integration check, not implied by these tests.
+
+## F34 — visible Browser coverage repaired during the real queue recording
+
+Clean `d31c836bc` was frozen into
+`/Users/svecherenko/.poracode-smoke/v4-queue-f11-IGagAM/session.json`: source
+`c7d98bbe0636a03677af6f06d66388d4ba340827c00a1cc5a82ddec2fa01f548`, artifact
+`9a8c3b161d2533feaa4cc1279cc1cf4f3f4ab4b6f82578fe473b30439237fd45`.
+The first full mock report passed nine automated scenarios and 17 mock gates,
+with zero captured errors. Primary image inspection nevertheless found that its
+Browser navigation screenshot displayed GitHub Actions. That Browser PASS is
+not accepted as visible-surface evidence.
+
+The preceding scenario left a fullscreen overlay open. The Browser driver used
+synthetic DOM clicks behind it and accepted an existing, enabled URL input without
+checking occlusion. The added actual pointer assertion failed with `occluded`;
+the recorded live state had both GitHub Actions and Browser open with the input
+covered by the overlay header. The correction returns through the visible UI,
+uses the shared pointer guard for label actions, scopes Settings controls, and
+requires Settings and screenshot evidence. Optional means an absent control,
+never permission to ignore an occluded/disabled/ambiguous one. The driver also
+waits finite transitions and frames before capture, gives its synthetic page a
+legible foreground/background, and constructs its default output path portably.
+
+Stricter selection caught two local locator failures while refining the fix:
+three matching Browser roles, and two Open Browser buttons including Sidebar's
+invisible sizing copy. Both failed safely and remain in separate logs. The final
+selectors target the Settings overlay and exclude that precise sizing copy.
+Primary and independent critics inspected the final screenshots. Seventeen shared
+pointer/label tests pass independently; primary's helper/inventory group passes
+20 tests. Normal lint, syntax, formatting, diff checks and the 2,139-file coverage
+inventory audit pass. There is no product UI or wire/schema change in this fix.
+
+The final full replay passed nine automated scenarios and 17 mock gates with zero
+captured errors. Its separate report and visible Browser screenshots are under
+`artifacts/visibility-sidebar-fixed/` in that same frozen app session. The app
+artifact stayed unchanged; the harness script revision changed during these
+before/after checks. Logs under `tmp/v4-architecture-audit/` include
+`browser-visible-before*`, the failed `browser-visible-after.log` and
+`queue-gui-full-smoke-visibility-fixed.log`, and final
+`queue-gui-full-smoke-visibility-sidebar-fixed.log`. Earlier artifacts were not
+overwritten to conceal the false positive or the locator failures.
+
+The exact runtime was verified before native close. After resetting driven state,
+the test confirmed native QA peer 2 and persisted close-to-tray false, then invoked
+the actual native window close. Main, backend, supervisor and the managed owner
+exited; both assigned ports refused connections and the owner removed its runtime.
+No managed stop command caused that exit. Format-2 recording files contain 2,687
+main, 2,686 backend and 2,686 supervisor samples with contiguous sequences,
+complete end markers, zero drops and zero writer errors. All three actual queue
+hooks were observed; one main sample explicitly reports an unavailable sender.
+`queue-gui-recording.json` and `queue-gui-processes-after.json` retain the evidence.
+
+Native stderr also retains four macOS task-policy errors plus mock-provider
+refusals and ACP installation failures; their presence is distinct from the
+runner's zero captured renderer/runtime-error count. These results prove the
+development/mock queue hooks, the corrected visible Browser flow and this idle
+native-close path. Real providers/devices, active request/process shutdown,
+observer overhead, controlled master comparisons, latency/rendering budgets and
+full load/soak qualification remain open.

@@ -335,6 +335,17 @@ admitted handler remains. Private backend request draining, native facade/main
 joins, parent deadlines, provider descendants and Windows shutdown remain open
 F11 work; these ingress results do not qualify the full shutdown gate.
 
+**F34 — verified Browser smoke visibility false-positive.** On frozen `d31c836bc`,
+the full mock suite reported Browser success while its navigation screenshot
+still showed GitHub Actions. The prior scenario left that fullscreen overlay
+open; synthetic DOM clicks operated the Browser behind it, and toolbar existence
+checks accepted an occluded input. A real pointer assertion reproduced the failure
+(`browser-visible-before.log`), with both panel states and the occluding header
+recorded separately. Return through the visible overlay control, use guarded
+pointer input, require the Browser settings step and screenshots, and repeat the
+visible flow. The old Browser PASS is not accepted as visible-surface evidence;
+no production Browser rendering defect is established by this harness failure.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 
