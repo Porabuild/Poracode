@@ -50,7 +50,7 @@ function makeDeps(overrides?: {
     publishToRendererStream: vi.fn<(event: SupervisorEvent) => RendererStreamDelivery | undefined>(
       () => overrides?.delivery,
     ),
-    observeEvent: vi.fn<(event: SupervisorEvent) => void>(),
+    observeEvent: vi.fn<(event: SupervisorEvent) => boolean | void>(),
     filterForIpcConsumers: vi.fn<(event: SupervisorEvent) => SupervisorEvent | null>(() =>
       overrides?.filtered !== undefined ? overrides.filtered : BULK_EVENT,
     ),
@@ -62,6 +62,18 @@ function makeDeps(overrides?: {
 }
 
 describe("createSupervisorEventRelay", () => {
+  it("does not send handled routing events to a second main-process writer", () => {
+    const { deps, sent } = makeDeps();
+    deps.observeEvent.mockReturnValue(true);
+    const event: SupervisorEvent = { type: "crossagent-selection-used", selections: [] };
+
+    createSupervisorEventRelay(deps)(event);
+
+    expect(deps.observeEvent).toHaveBeenCalledExactlyOnceWith(event);
+    expect(deps.filterForIpcConsumers).not.toHaveBeenCalled();
+    expect(sent).toEqual([]);
+  });
+
   it("relays bulk events over IPC even when the direct stream delivered them", () => {
     // Regression (MC-1): a ready WS client receiving the event must not
     // suppress the desktop-IPC fallback — a sibling window whose socket is

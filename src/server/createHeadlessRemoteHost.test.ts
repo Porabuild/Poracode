@@ -7,6 +7,8 @@ import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
+import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
+import type { SupervisorEvent } from "@/shared/ipc";
 import { createHeadlessRemoteHost, resolveLocalProxyBase } from "./createHeadlessRemoteHost";
 
 // Mutable state shared with the hoisted vi.mock factories.
@@ -21,10 +23,7 @@ const h = vi.hoisted(() => ({
   closeDatabase: vi.fn<() => void>(),
   projects: [] as unknown[],
   threads: [] as unknown[],
-  sharedSettings: {
-    mcpServers: [] as unknown[],
-    disabledBuiltInMcpServers: {} as Record<string, boolean>,
-  },
+  sharedSettings: {} as SharedSettings,
 }));
 
 // `../db` (used by RemoteAccessServer) and `@/main/db` resolve to the same
@@ -104,10 +103,17 @@ vi.mock("@/main/poracodeData", () => ({
   },
 }));
 
-vi.mock("@/main/sharedSettingsFile", () => ({
-  readSharedSettingsFile: () => h.sharedSettings,
-  patchSharedSettingsFile: () => ({}),
-}));
+vi.mock("@/main/sharedSettingsFile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/main/sharedSettingsFile")>();
+  return {
+    readSharedSettingsFile: () => h.sharedSettings,
+    patchSharedSettingsFile: () => ({}),
+    writeSharedSettingsFile: (path: string, settings: SharedSettings) => {
+      actual.writeSharedSettingsFile(path, settings);
+      h.sharedSettings = settings;
+    },
+  };
+});
 
 function makeHost(overrides: Partial<Parameters<typeof createHeadlessRemoteHost>[0]> = {}) {
   return createHeadlessRemoteHost({
@@ -138,11 +144,35 @@ describe("createHeadlessRemoteHost", () => {
     h.supervisorCall.mockResolvedValue({});
     h.projects = [];
     h.threads = [];
-    h.sharedSettings = { mcpServers: [], disabledBuiltInMcpServers: {} };
+    h.sharedSettings = { ...defaultSharedSettings, mcpServers: [], disabledBuiltInMcpServers: {} };
   });
 
   afterEach(() => {
     rmSync(h.tmpBase, { recursive: true, force: true });
+  });
+
+  it("persists routing and confirms it before any external event observer in a headless host", async () => {
+    const observed = vi.fn<(event: SupervisorEvent) => void>();
+    const host = await makeHost({ onSupervisorEvent: observed });
+    const override = { tags: ["review"], agentKind: "fixture-agent", updatedAt: 1 };
+    try {
+      h.capturedOnEvent?.({
+        type: "crossagent-routing-override-changed",
+        requestId: "fixture-set",
+        change: { action: "set", override },
+      });
+      expect(
+        JSON.parse(readFileSync(join(h.tmpBase, "settings.json"), "utf8"))
+          .crossagentRoutingOverrides,
+      ).toEqual([override]);
+      expect(h.supervisorCall).toHaveBeenCalledExactlyOnceWith("confirmCrossagentRoutingOverride", {
+        requestId: "fixture-set",
+        ok: true,
+      });
+      expect(observed).not.toHaveBeenCalled();
+    } finally {
+      await host.dispose();
+    }
   });
 
   const specificAddress = Object.values(networkInterfaces())
@@ -326,7 +356,7 @@ describe("createHeadlessRemoteHost", () => {
   });
 
   it("resolves MCP launch settings from the headless settings file and project row", async () => {
-    const globalServer = {
+    const globalServer: SharedSettings["mcpServers"][number] = {
       id: "global-memory",
       name: "memory",
       description: "global",
@@ -351,6 +381,7 @@ describe("createHeadlessRemoteHost", () => {
       },
     ];
     h.sharedSettings = {
+      ...defaultSharedSettings,
       mcpServers: [globalServer],
       disabledBuiltInMcpServers: { chrome: true },
     };
@@ -367,6 +398,7 @@ describe("createHeadlessRemoteHost", () => {
     expect(resolver?.("project-1")).toEqual({
       mcpServers: [projectServer],
       disabledBuiltInMcpServerIds: ["chrome"],
+      disabledBuiltInMcpTools: {},
     });
     await host.dispose();
   });
