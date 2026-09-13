@@ -64,10 +64,12 @@ provider, or Git authority and is then reused.
 This is the intended authority split, with remaining gaps recorded in
 `docs/V4_MERGE_READINESS_PLAN.md`. In the current implementation, interested
 desktop events still travel through Electron main as well as the direct stream;
-the renderer deduplicates them. Shared settings and some cross-agent routing
-side effects also remain in main. The CLI lock does not yet exclude a desktop
-host using the same data root. Treat complete main-process isolation and safe
-multi-host ownership as pending work.
+the renderer deduplicates them. Some shared settings writers also remain in main.
+The standalone entry now acquires the shared kernel lease and writes a separate versioned sibling root;
+Electron startup has not yet adopted owner bootstrap or attach. Existing-profile
+activation, complete settings custody and main-process isolation remain pending.
+See [Host ownership and local control](HOST_OWNERSHIP.md) for the changed
+`PORACODE_BASE_DIR` meaning and the explicit authenticated pairing command.
 
 ### Supervisor
 
@@ -224,10 +226,12 @@ host during confirmation.
   an earlier draft keyed it on the relay's per-request frame id, which handed
   every request a fresh bucket and silently disabled the limiter. Relays too old
   to send `clientId` share one conservative bucket instead.
-- **Headless data-dir lock + host binding (high, stability/bug).** The headless
-  CLI takes an exclusive `server.lock` with stale-PID reclaim, which excludes
-  other CLI owners. Electron does not yet take this lock, so it does not prevent
-  co-opening a desktop data root with a mismatched secret key. The relay adapter's
+- **Headless ownership + host binding (high, stability/bug).** The earlier
+  CLI-only `server.lock` is superseded by the shared kernel lease and versioned
+  sibling data root described in [Host ownership](HOST_OWNERSHIP.md). Root/key/DB
+  initialization now follows acquisition. Desktop bootstrap and usable legacy
+  activation are still required; PID checks do not exclude a later legacy launch.
+  The relay adapter's
   local proxy base is derived from the actual bind host (only `127.0.0.1` for
   wildcard binds), fixing ECONNREFUSED when bound to a Tailscale/VPN IP. SQLite
   uses its package-bundled N-API binary, independent of the launch directory.
