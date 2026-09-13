@@ -1,6 +1,7 @@
 import { watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import {
   app,
   BrowserWindow,
@@ -218,6 +219,8 @@ let clearRendererEventInterests: ((senderId?: number) => void) | null = null;
 let tray: TrayHandle | null = null;
 let quickComposerShortcutManager: QuickComposerShortcutManager | null = null;
 let isQuitting = false;
+
+const performanceDiagnostics = startNodePerformanceDiagnostics("desktop-main");
 
 function requireBackendStateStore(): BackendStateStore {
   if (!backendStateStore) throw new Error("Backend state projection is not initialized.");
@@ -1254,6 +1257,12 @@ if (!hasSingleInstanceLock) {
         sleepInhibitor.dispose();
         tray?.destroy();
         tray = null;
+        const finishQuit = async () => {
+          windowsJobObjectManager?.dispose();
+          windowsJobObjectManager = null;
+          await performanceDiagnostics?.stop();
+          app.quit();
+        };
         void raceWithTimeout(
           Promise.all([sshDispose, shellState.close()])
             .then(() => backendHost.disposeAsync())
@@ -1261,11 +1270,7 @@ if (!hasSingleInstanceLock) {
               captureMainException(error, { "poracode.feature_area": "backend-host" });
             }),
           APP_QUIT_CLEANUP_TIMEOUT_MS,
-        ).finally(() => {
-          windowsJobObjectManager?.dispose();
-          windowsJobObjectManager = null;
-          app.quit();
-        });
+        ).then(finishQuit, finishQuit);
       });
     })
     .catch((error: unknown) => {
