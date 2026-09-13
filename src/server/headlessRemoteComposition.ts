@@ -229,6 +229,7 @@ export async function composeHeadlessRemoteHost(
     const pushGatewayOptions = {
       ...(options.reportError ? { onError: (error: unknown) => options.reportError?.(error) } : {}),
     };
+    const webPublicKey = createWebPushPublicKeyResolver(pushGatewayOptions);
     pushCoordinator = new PushCoordinator({
       store: pushStore,
       sendPush: createPushGateway(pushGatewayOptions),
@@ -386,7 +387,8 @@ export async function composeHeadlessRemoteHost(
       prWatches: prWatchService,
       gitState: gitStateService,
       pushRegistrations: {
-        webPublicKey: createWebPushPublicKeyResolver(pushGatewayOptions),
+        webPublicKey,
+        dispose: () => webPublicKey.dispose?.(),
         upsert: (registration) => pushStore.upsert(registration),
         remove: (deviceId, routing) => pushStore.remove(deviceId, routing),
       },

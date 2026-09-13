@@ -322,6 +322,7 @@ export interface RemoteAccessServerOptions {
    */
   readonly pushRegistrations?: {
     webPublicKey(): Promise<string>;
+    dispose?(): void | Promise<void>;
     upsert(registration: RemotePushRegistration): void;
     remove(deviceId: string, routing?: RemotePushRegistrationRouting): void;
   };
@@ -662,6 +663,9 @@ export class RemoteAccessServer {
     this.gitStateInterests.clear();
     this.itemInterests.clear();
     void Promise.resolve(this.notifyEventInterestsChanged()).catch(() => {});
+    // Abort host-side gateway requests before waiting for handlers. A public
+    // key fetch can otherwise hold the handler until its transport timeout.
+    await this.options.pushRegistrations?.dispose?.();
     const webSocketsClosed = new Promise<void>((resolve) => this.wss.close(() => resolve()));
     await this.starting?.catch(() => undefined);
     await Promise.all([

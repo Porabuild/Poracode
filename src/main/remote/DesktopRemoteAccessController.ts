@@ -357,6 +357,7 @@ export function createDesktopRemoteAccessController(
         onError: (error: unknown) =>
           options.reportError(error, { "poracode.feature_area": "remote-push" }),
       };
+      const webPublicKey = createWebPushPublicKeyResolver(pushGatewayOptions);
       const coordinator = new PushCoordinator({
         store: pushStore,
         sendPush: createPushGateway(pushGatewayOptions),
@@ -445,7 +446,8 @@ export function createDesktopRemoteAccessController(
         schedules: options.scheduleService,
         prWatches: options.prWatchService,
         pushRegistrations: {
-          webPublicKey: createWebPushPublicKeyResolver(pushGatewayOptions),
+          webPublicKey,
+          dispose: () => webPublicKey.dispose?.(),
           upsert: (registration) => pushStore.upsert(registration),
           remove: (deviceId, routing) => pushStore.remove(deviceId, routing),
         },
