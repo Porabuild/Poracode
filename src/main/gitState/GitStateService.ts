@@ -1,17 +1,6 @@
-import type {
-  GhGetPrDetailsResult,
-  GhGetPrDiffResult,
-  GhGetPrFilesResult,
-  GhGetPrReviewThreadsResult,
-  GhListPullRequestsResult,
-  GitGetWorktreeSourceBranchResult,
-  GitProjectSnapshotResult,
-  GitStatusResult,
-  GitWorktreeStatusBatchResult,
-  PrDetails,
-  Project,
-  ProjectLocation,
-} from "@/shared/contracts";
+import type { PrDetails, Project } from "@/shared/contracts";
+import type { GitStateServiceOptions } from "./gitStateExecutor";
+export type { GitStateExecutor, GitStateServiceOptions } from "./gitStateExecutor";
 import {
   applyGitStatePatch,
   emptyGitStateSnapshot,
@@ -57,69 +46,16 @@ function mergePullRequestState(input: {
   };
 }
 
-export interface GitStateExecutor {
-  gitFetch(input: {
-    projectLocation: ProjectLocation;
-    remote: string;
-    prune: boolean;
-  }): Promise<void>;
-  gitProjectSnapshot(input: {
-    projectLocation: ProjectLocation;
-    includeGhCheck: boolean;
-  }): Promise<GitProjectSnapshotResult>;
-  getGitStatus(input: { projectLocation: ProjectLocation }): Promise<GitStatusResult>;
-  gitWorktreeStatusBatch(input: {
-    projectLocation: ProjectLocation;
-    worktreePaths: string[];
-    detail?: "summary" | "full";
-  }): Promise<GitWorktreeStatusBatchResult>;
-  gitGetWorktreeSourceBranch(input: {
-    projectLocation: ProjectLocation;
-    branch: string;
-  }): Promise<GitGetWorktreeSourceBranchResult>;
-  ghGetPrForBranch(input: {
-    projectLocation: ProjectLocation;
-    branch: string;
-  }): Promise<PullRequestState["data"] | null>;
-  ghGetPrDetails(input: {
-    projectLocation: ProjectLocation;
-    prNumber: number;
-  }): Promise<GhGetPrDetailsResult>;
-  ghGetPrFiles(input: {
-    projectLocation: ProjectLocation;
-    prNumber: number;
-  }): Promise<GhGetPrFilesResult>;
-  ghGetPrDiff(input: {
-    projectLocation: ProjectLocation;
-    prNumber: number;
-  }): Promise<GhGetPrDiffResult>;
-  ghGetPrReviewComments(input: {
-    projectLocation: ProjectLocation;
-    prNumber: number;
-  }): Promise<GhGetPrReviewThreadsResult>;
-  ghListPullRequests(input: {
-    projectLocation: ProjectLocation;
-  }): Promise<GhListPullRequestsResult>;
-}
-
-export interface GitStateServiceOptions {
-  readonly hostId: string;
-  readonly executor: GitStateExecutor;
-  readonly getProject: (projectId: string) => Project | null;
-  readonly onPatch?: ((patch: GitStatePatch) => void) | undefined;
-  readonly now?: (() => Date) | undefined;
-  readonly pollIntervalMs?: number | undefined;
-  readonly remoteFetchIntervalMs?: number | undefined;
-}
-
 export class GitStateService {
   private snapshot: GitStateSnapshot = emptyGitStateSnapshot();
   private readonly inFlight = new Map<string, Promise<unknown>>();
+  private readonly pendingWork = new Set<Promise<unknown>>();
   private readonly interestsByOwner = new Map<string, readonly GitStateInterest[]>();
   private readonly lastRemoteFetchAt = new Map<string, number>();
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private started = false;
   private disposed = false;
+  private disposal: Promise<void> | null = null;
 
   constructor(private readonly options: GitStateServiceOptions) {}
 
@@ -129,12 +65,15 @@ export class GitStateService {
     this.schedulePollIfNeeded();
   }
 
-  dispose(): void {
+  dispose(): Promise<void> {
+    if (this.disposal) return this.disposal;
     this.disposed = true;
     if (this.pollTimer) clearTimeout(this.pollTimer);
     this.pollTimer = null;
     this.interestsByOwner.clear();
     this.lastRemoteFetchAt.clear();
+    this.disposal = Promise.allSettled([...this.pendingWork]).then(() => undefined);
+    return this.disposal;
   }
 
   getSnapshot(): GitStateSnapshot {
@@ -142,6 +81,7 @@ export class GitStateService {
   }
 
   setInterests(ownerId: string, interests: readonly GitStateInterest[]): void {
+    if (this.disposed) return;
     if (interests.length === 0) {
       this.clearInterests(ownerId);
       return;
@@ -162,6 +102,7 @@ export class GitStateService {
   }
 
   observeSupervisorEvent(event: SupervisorEvent): void {
+    if (this.disposed) return;
     if (event.type !== "git-changed" && event.type !== "project-tree-changed") return;
     void this.refreshInterestedProject(event.projectId);
   }
@@ -173,6 +114,7 @@ export class GitStateService {
         projectLocation: project.location,
         includeGhCheck: true,
       });
+      if (this.disposed) return;
       const refreshedAt = this.timestamp();
       const projectRef = { hostId: this.options.hostId, projectId };
       const projectKey = gitProjectKey(projectRef);
@@ -225,6 +167,7 @@ export class GitStateService {
     await this.dedupe(`target:${targetKey}`, async () => {
       const projectLocation = buildWorktreeLocation(project.location, input.worktreePath!);
       const status = await this.options.executor.getGitStatus({ projectLocation });
+      if (this.disposed) return;
       const branch = input.branch ?? status.branch;
       const sourceInfo = branch
         ? await this.options.executor
@@ -234,6 +177,7 @@ export class GitStateService {
             })
             .catch(() => undefined)
         : undefined;
+      if (this.disposed) return;
       this.publish({
         targets: {
           [targetKey]: {
@@ -266,6 +210,7 @@ export class GitStateService {
         projectLocation: project.location,
         branch,
       });
+      if (this.disposed) return null;
       if (!data) {
         this.publish({
           pullRequestKeyByBranch: { [branchKey]: null },
@@ -287,6 +232,7 @@ export class GitStateService {
             .then((result) => result.details)
             .catch(() => undefined)
         : undefined;
+      if (this.disposed) return null;
       this.publish({
         pullRequests: {
           [key]: mergePullRequestState({ existing, ref, data, details, at: fetchedAt }),
@@ -314,6 +260,7 @@ export class GitStateService {
     data: PullRequestState["data"],
     details?: PrDetails,
   ): void {
+    if (this.disposed) return;
     const projectRef = { hostId: this.options.hostId, projectId: watch.projectId };
     const ref = { ...projectRef, prNumber: data.number };
     const key = pullRequestKey(ref);
@@ -357,7 +304,8 @@ export class GitStateService {
       } else if (!this.snapshot.pullRequests[key]) {
         await this.refreshProjectPullRequests(input.projectId);
       }
-      const [detailsResult, filesResult, diffResult, reviewResult] = await Promise.all([
+      if (this.disposed) return;
+      const [details, files, diff, reviews] = await Promise.allSettled([
         this.options.executor.ghGetPrDetails({
           projectLocation: project.location,
           prNumber: input.prNumber,
@@ -375,6 +323,11 @@ export class GitStateService {
           prNumber: input.prNumber,
         }),
       ]);
+      if (this.disposed) return;
+      if (details.status === "rejected") throw details.reason;
+      if (files.status === "rejected") throw files.reason;
+      if (diff.status === "rejected") throw diff.reason;
+      if (reviews.status === "rejected") throw reviews.reason;
       const existing = this.snapshot.pullRequests[key];
       if (!existing) {
         throw new Error(
@@ -386,10 +339,10 @@ export class GitStateService {
         pullRequests: {
           [key]: {
             ...existing,
-            details: detailsResult.details,
-            files: filesResult.files,
-            diff: diffResult.diff,
-            reviewThreads: reviewResult.threads,
+            details: details.value.details,
+            files: files.value.files,
+            diff: diff.value.diff,
+            reviewThreads: reviews.value.threads,
             freshness: {
               ...existing.freshness,
               details: fetchedAt,
@@ -411,6 +364,7 @@ export class GitStateService {
       const result = await this.options.executor.ghListPullRequests({
         projectLocation: project.location,
       });
+      if (this.disposed) return;
       const refreshedAt = this.timestamp();
       const pullRequests: Record<string, PullRequestState> = {};
       const aliases: Record<string, string> = {};
@@ -451,34 +405,37 @@ export class GitStateService {
     const interests =
       explicitInterests ??
       [...this.interestsByOwner.values()].flatMap((ownerInterests) => ownerInterests);
-    if (options.fetchRemote) {
-      await this.refreshRemoteRefs(interests);
-    }
-    const tasks = new Map<string, Promise<void>>();
-    for (const interest of interests) {
-      if (interest.kind === "target") {
-        const key = JSON.stringify(interest);
-        tasks.set(key, this.refreshTarget(interest));
-        continue;
+    await this.track(async () => {
+      if (options.fetchRemote) {
+        await this.refreshRemoteRefs(interests);
       }
-      if (interest.kind === "project-pull-requests") {
-        tasks.set(
-          `list:${interest.projectId}`,
-          this.refreshProjectPullRequests(interest.projectId),
-        );
-        continue;
+      if (this.disposed) return;
+      const tasks = new Map<string, Promise<void>>();
+      for (const interest of interests) {
+        if (interest.kind === "target") {
+          const key = JSON.stringify(interest);
+          tasks.set(key, this.refreshTarget(interest));
+          continue;
+        }
+        if (interest.kind === "project-pull-requests") {
+          tasks.set(
+            `list:${interest.projectId}`,
+            this.refreshProjectPullRequests(interest.projectId),
+          );
+          continue;
+        }
+        const key = `pr:${interest.projectId}:${interest.prNumber}:${interest.branch ?? ""}`;
+        const task = interest.includeReviewBundle
+          ? this.refreshPullRequestReviewBundle(interest)
+          : interest.branch
+            ? this.refreshPullRequestForBranch(interest.projectId, interest.branch).then(
+                () => undefined,
+              )
+            : Promise.resolve();
+        tasks.set(key, task);
       }
-      const key = `pr:${interest.projectId}:${interest.prNumber}:${interest.branch ?? ""}`;
-      const task = interest.includeReviewBundle
-        ? this.refreshPullRequestReviewBundle(interest)
-        : interest.branch
-          ? this.refreshPullRequestForBranch(interest.projectId, interest.branch).then(
-              () => undefined,
-            )
-          : Promise.resolve();
-      tasks.set(key, task);
-    }
-    await Promise.allSettled(tasks.values());
+      await Promise.allSettled(tasks.values());
+    });
   }
 
   private schedulePollIfNeeded(): void {
@@ -504,6 +461,7 @@ export class GitStateService {
     const interval = this.options.remoteFetchIntervalMs ?? DEFAULT_REMOTE_FETCH_INTERVAL_MS;
     await Promise.allSettled(
       [...projectIds].map(async (projectId) => {
+        if (this.disposed) return;
         const lastFetchedAt = this.lastRemoteFetchAt.get(projectId) ?? 0;
         if (now - lastFetchedAt < interval) return;
         this.lastRemoteFetchAt.set(projectId, now);
@@ -520,6 +478,7 @@ export class GitStateService {
   }
 
   private async refreshInterestedProject(projectId: string): Promise<void> {
+    if (this.disposed) return;
     const interests = [...this.interestsByOwner.values()]
       .flat()
       .filter((interest) => interest.projectId === projectId);
@@ -550,6 +509,7 @@ export class GitStateService {
   }
 
   private publish(patch: Omit<GitStatePatch, "revision">): void {
+    if (this.disposed) return;
     const revision = this.snapshot.revision + 1;
     const revisioned = { ...patch, revision };
     this.snapshot = applyGitStatePatch(this.snapshot, revisioned);
@@ -567,19 +527,40 @@ export class GitStateService {
   }
 
   private dedupe<T>(key: string, task: () => Promise<T>): Promise<T> {
+    this.assertOpen();
     const existing = this.inFlight.get(key);
     if (existing) return existing as Promise<T>;
-    const pending = task().finally(() => {
-      if (this.inFlight.get(key) === pending) this.inFlight.delete(key);
+    return this.track(task, key);
+  }
+
+  private track<T>(task: () => Promise<T>, key?: string): Promise<T> {
+    this.assertOpen();
+    const result = Promise.withResolvers<T>();
+    const pending = result.promise.finally(() => {
+      this.pendingWork.delete(pending);
+      if (key !== undefined && this.inFlight.get(key) === pending) this.inFlight.delete(key);
     });
-    this.inFlight.set(key, pending);
+    // Register both lifetime and dedupe identity before an adapter can initiate
+    // shutdown or re-enter the same refresh synchronously.
+    this.pendingWork.add(pending);
+    if (key !== undefined) this.inFlight.set(key, pending);
+    try {
+      void task().then(result.resolve, result.reject);
+    } catch (error) {
+      result.reject(error);
+    }
     return pending;
   }
 
   private requireProject(projectId: string): Project {
+    this.assertOpen();
     const project = this.options.getProject(projectId);
     if (!project) throw new Error(`Project "${projectId}" was not found.`);
     return project;
+  }
+
+  private assertOpen(): void {
+    if (this.disposed) throw new Error("Git state service is shutting down.");
   }
 
   private timestamp(): string {

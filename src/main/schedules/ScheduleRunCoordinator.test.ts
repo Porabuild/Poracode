@@ -152,6 +152,77 @@ function flush(): Promise<void> {
 }
 
 describe("ScheduleRunCoordinator", () => {
+  it("cancels a pending capability lookup before thread creation and joins the lookup", async () => {
+    const lookup = Promise.withResolvers<AgentStatusesResponse>();
+    const entered = Promise.withResolvers<void>();
+    const { coordinator, threads, runs, sent, startThread } = makeHarness({
+      getAgentStatuses: () => {
+        entered.resolve();
+        return lookup.promise;
+      },
+    });
+    const completion = coordinator.runScheduleAsThread(task);
+    void completion.catch(() => undefined);
+    await entered.promise;
+    let disposed = false;
+    const disposal = coordinator.dispose().then(() => {
+      disposed = true;
+    });
+    await expect(completion).rejects.toThrow("shutting down");
+    expect(disposed).toBe(false);
+    lookup.resolve(agentStatuses());
+    await disposal;
+    expect(threads.size).toBe(0);
+    expect(runs.size).toBe(0);
+    expect(sent).toEqual([]);
+    expect(startThread).not.toHaveBeenCalled();
+  });
+
+  it.each(["success", "failure"])(
+    "joins an admitted launch %s and preserves interrupted history",
+    async (outcome) => {
+      const launch = Promise.withResolvers<unknown>();
+      const entered = Promise.withResolvers<void>();
+      const start = vi.fn<ScheduleRunCoordinatorDeps["startThread"]>(() => {
+        entered.resolve();
+        return launch.promise;
+      });
+      const { coordinator, threads, runs, sent } = makeHarness({ startThread: start });
+      const completion = coordinator.runScheduleAsThread(task);
+      void completion.catch(() => undefined);
+      await entered.promise;
+      const closing = coordinator.dispose();
+      expect(coordinator.dispose()).toBe(closing);
+      let disposed = false;
+      void closing.then(() => {
+        disposed = true;
+      });
+      await expect(completion).rejects.toThrow("shutting down");
+      expect(disposed).toBe(false);
+      expect(runs.get("run-1")?.status).toBe("interrupted");
+      if (outcome === "success") launch.resolve({});
+      else launch.reject(new Error("synthetic late launch failure"));
+      await closing;
+      expect(threads.has("thread-1")).toBe(true);
+      expect(sent.map((command) => command.kind)).toEqual(["start"]);
+      coordinator.observeSupervisorEvent(threadState("thread-1", "finished"));
+      expect(runs.get("run-1")?.status).toBe("interrupted");
+    },
+  );
+
+  it("interrupts a running task without waiting for its whole turn and rejects new launches", async () => {
+    const ensureHomeProject = vi.fn<() => Project>(() => HOME_PROJECT);
+    const { coordinator, runs, startThread } = makeHarness({ ensureHomeProject });
+    const completion = coordinator.runScheduleAsThread(task);
+    void completion.catch(() => undefined);
+    await vi.waitFor(() => expect(startThread).toHaveBeenCalledOnce());
+    await coordinator.dispose();
+    await expect(completion).rejects.toThrow("shutting down");
+    expect(runs.get("run-1")?.status).toBe("interrupted");
+    await expect(coordinator.runScheduleAsThread(task)).rejects.toThrow("shutting down");
+    expect(ensureHomeProject).toHaveBeenCalledOnce();
+  });
+
   it("creates a real GUI thread, records a running run, then settles succeeded", async () => {
     const { coordinator, threads, runs, sent, startThread } = makeHarness();
 

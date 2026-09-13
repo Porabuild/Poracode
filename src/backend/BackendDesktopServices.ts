@@ -37,6 +37,7 @@ import { RevertCheckpointRefusedError, type BackendHostCore } from "./BackendHos
 import { BackendDurableServices } from "./BackendDurableServices";
 import { BackendRemoteBrowserProxy } from "./BackendRemoteBrowserProxy";
 import { generateBackendImagePreview } from "./BackendImagePreview";
+import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { createBackendSettingsHandlers } from "./BackendSettingsService";
 import {
   notifySettingsChanged,
@@ -77,6 +78,7 @@ export function affectsShellProjection(name: BackendDatabaseCall["name"]): boole
  * is reached only through the explicitly typed native request/event boundary.
  */
 export class BackendDesktopServices {
+  private disposal: Promise<void> | null = null;
   private readonly durable: BackendDurableServices;
   private readonly remote: DesktopRemoteAccessController | null;
   private readonly browser: BackendRemoteBrowserProxy;
@@ -468,11 +470,20 @@ export class BackendDesktopServices {
     }
   }
 
-  async dispose(): Promise<void> {
-    this.stopProjectionWatch();
-    await this.remote?.dispose();
-    this.durable.dispose();
-    this.browser.dispose();
+  dispose(): Promise<void> {
+    if (this.disposal) return this.disposal;
+    const barrier = Promise.withResolvers<void>();
+    this.disposal = barrier.promise;
+    void joinRuntimeShutdown(
+      [
+        () => this.stopProjectionWatch(),
+        () => this.durable.dispose(),
+        () => this.browser.dispose(),
+        () => this.remote?.dispose(),
+      ],
+      "Backend desktop services did not shut down cleanly.",
+    ).then(barrier.resolve, barrier.reject);
+    return this.disposal;
   }
 
   private requireRemote(): DesktopRemoteAccessController {

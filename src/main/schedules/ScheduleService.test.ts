@@ -24,6 +24,32 @@ const input: ScheduledTaskInput = {
 };
 
 describe("ScheduleService", () => {
+  it("refuses database access and manual launches after admission closes", () => {
+    const store = memoryStore();
+    const runTask = vi.fn<() => Promise<string>>(async () => "fixture");
+    const service = new ScheduleService({ store, runTask });
+    const task = service.create(input);
+    service.dispose();
+    const list = vi.spyOn(store, "list");
+    const get = vi.spyOn(store, "get");
+    const upsert = vi.spyOn(store, "upsert");
+    const remove = vi.spyOn(store, "delete");
+    for (const operation of [
+      () => service.list(),
+      () => service.get(task.id),
+      () => service.create(input),
+      () => service.update(task.id, input),
+      () => service.delete(task.id),
+      () => service.runNow(task.id),
+    ])
+      expect(operation).toThrow("shutting down");
+    expect(list).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+    expect(runTask).not.toHaveBeenCalled();
+  });
+
   it("creates device schedules with a future next run and no project fields", () => {
     const now = new Date(2026, 6, 6, 7, 0).getTime();
     const service = new ScheduleService({
