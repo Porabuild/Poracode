@@ -22,7 +22,7 @@ enum ProtocolConstants {
   /// compiled feature contracts compare the generated bindings metadata
   /// against this value, so it must move together with the app constant on
   /// every protocol bump (a stale value fails the package contract tests).
-  static let remoteProtocolVersion = 9
+  static let remoteProtocolVersion = 12
   static let bearerTokenType = "Bearer"
 }
 

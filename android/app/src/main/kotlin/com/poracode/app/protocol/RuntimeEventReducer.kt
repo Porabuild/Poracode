@@ -43,6 +43,7 @@ object RuntimeEventReducer {
         val state: String? = null,
         val stream: String? = null,
         val delta: String? = null,
+        val replace: Boolean = false,
         val payload: JsonElement? = null,
         /**
          * True when the wire object contained a `payload` key (including JsonNull).
@@ -223,7 +224,7 @@ object RuntimeEventReducer {
                 if (index < 0) return
                 val item = items[index]
                 val streams = item.streams.toMutableMap()
-                streams[stream] = (streams[stream].orEmpty()) + delta
+                streams[stream] = if (event.replace) delta else streams[stream].orEmpty() + delta
                 items[index] = item.copy(
                     streams = streams,
                     state = monotonicState(item.state, "updated"),
@@ -424,12 +425,14 @@ object RuntimeEventReducer {
         delta: String,
         parentItemId: String? = null,
         raw: JsonObject = JsonObject(emptyMap()),
+        replace: Boolean = false,
     ): RuntimeEvent = RuntimeEvent(
         type = "content.delta",
         threadId = threadId,
         itemId = itemId,
         stream = stream,
         delta = delta,
+        replace = replace,
         parentItemId = parentItemId,
         raw = raw,
     )

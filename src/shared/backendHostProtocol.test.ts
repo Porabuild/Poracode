@@ -13,11 +13,33 @@ describe("backendHostProtocol", () => {
     const request = createBackendDatabaseRequest("id", "dbGetProjects", {});
 
     expect(isBackendHostRequest(request)).toBe(true);
+    // The previous V2 host generation cannot interpret authoritative replacements.
+    expect(isBackendHostRequest({ ...request, version: 5 })).toBe(false);
     expect(isBackendHostRequest({ ...request, version: 0 })).toBe(false);
     expect(
       isBackendHostRequest({
         ...request,
         payload: { name: "delete-everything", payload: {} },
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects replacement events from the previous host generation", () => {
+    expect(
+      isBackendHostOutboundMessage({
+        version: 5,
+        kind: "supervisor-event",
+        event: {
+          type: "thread-runtime-event",
+          threadId: "thread-1",
+          event: {
+            type: "content.delta",
+            itemId: "item-1",
+            stream: "text",
+            delta: "replacement",
+            replace: true,
+          },
+        },
       }),
     ).toBe(false);
   });

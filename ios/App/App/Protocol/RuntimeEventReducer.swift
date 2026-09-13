@@ -19,6 +19,7 @@ enum RuntimeEventReducer {
         var state: String?
         var stream: String?
         var delta: String?
+        var replace: Bool
         var payload: JSONValue?
         /// True when the wire object contained a `payload` key (even if null).
         var payloadSpecified: Bool
@@ -41,6 +42,7 @@ enum RuntimeEventReducer {
             state: String? = nil,
             stream: String? = nil,
             delta: String? = nil,
+            replace: Bool = false,
             payload: JSONValue? = nil,
             payloadSpecified: Bool? = nil,
             parentItemId: String? = nil,
@@ -59,6 +61,7 @@ enum RuntimeEventReducer {
             self.state = state
             self.stream = stream
             self.delta = delta
+            self.replace = replace
             self.payload = payload
             self.payloadSpecified = payloadSpecified ?? (payload != nil)
             self.parentItemId = parentItemId
@@ -224,7 +227,7 @@ enum RuntimeEventReducer {
             }
             var item = items[index]
             var streams = item.streams
-            streams[stream, default: ""] += delta
+            streams[stream] = event.replace ? delta : streams[stream, default: ""] + delta
             item.streams = streams
             item.state = monotonicState(current: item.state, incoming: "updated")
             items[index] = item

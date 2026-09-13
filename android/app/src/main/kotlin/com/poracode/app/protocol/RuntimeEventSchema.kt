@@ -101,6 +101,7 @@ object RuntimeEventSchema {
             val itemId: String,
             val stream: String,
             val delta: String,
+            val replace: Boolean,
             override val raw: JsonObject,
         ) : CanonicalRuntimeEvent()
 
@@ -239,7 +240,13 @@ object RuntimeEventSchema {
                 val stream = objectMap.requireString("stream") ?: return null
                 if (stream !in CANONICAL_STREAMS) return null
                 val delta = objectMap.requireString("delta") ?: return null
-                CanonicalRuntimeEvent.ContentDelta(threadId, itemId, stream, delta, objectMap)
+                val replace = objectMap["replace"]?.let {
+                    if (it is JsonPrimitive && it.isString) return null
+                    RuntimeEventValidators.strictBoolean(it) ?: return null
+                } ?: false
+                CanonicalRuntimeEvent.ContentDelta(
+                    threadId, itemId, stream, delta, replace, objectMap,
+                )
             }
             "context.updated" -> {
                 val usage = objectMap["usage"] ?: return null
@@ -339,7 +346,7 @@ object RuntimeEventSchema {
         )
         is CanonicalRuntimeEvent.ContentDelta -> RuntimeEventReducer.RuntimeEvent(
             type = "content.delta", threadId = c.threadId, itemId = c.itemId,
-            stream = c.stream, delta = c.delta, raw = c.raw, canonical = c,
+            stream = c.stream, delta = c.delta, replace = c.replace, raw = c.raw, canonical = c,
         )
         is CanonicalRuntimeEvent.ContextUpdated -> RuntimeEventReducer.RuntimeEvent(
             type = "context.updated", threadId = c.threadId, payload = c.usage,

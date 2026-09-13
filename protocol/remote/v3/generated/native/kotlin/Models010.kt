@@ -321,9 +321,10 @@ enum class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DType
 }
 
 @Serializable
-data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_311561bc27(
+data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_996ce1c4e0(
     @SerialName("delta") val delta: String,
     @SerialName("itemId") val itemId: String,
+    @SerialName("replace") val replace: RemoteField<Boolean> = RemoteField.Missing,
     @SerialName("stream") val stream: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DStream_b5c1f44eaf,
     @SerialName("threadId") val threadId: String,
     @SerialName("type") val type: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DType_f30731ffd8,
@@ -332,6 +333,7 @@ data class ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_311561
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("delta", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("itemId", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("replace", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("stream", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DStream_b5c1f44eaf", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("threadId", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("type", "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DType_f30731ffd8", true, false, null, null, null, null, null, null, null, null, listOf()),

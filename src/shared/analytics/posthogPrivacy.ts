@@ -328,6 +328,7 @@ const ANALYTICS_PROVIDER_IDS = new Set([
   "grok",
   "kimi",
   "opencode",
+  "opencode2",
   "pi",
   "qoder",
   "qwen",

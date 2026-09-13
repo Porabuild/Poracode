@@ -18,6 +18,8 @@ allowBuilds:
   electron: true
   electron-winstaller: true
   esbuild: true
+  # Optional native accelerator for msgpackr; the pure-JS decode path is fine.
+  msgpackr-extract: false
   node-pty: true
   onnxruntime-node: false
   protobufjs: false
@@ -66,6 +68,10 @@ minimumReleaseAgeExclude:
   - "qs@6.16.0"
   # The OpenCode connector tracks the current SDK used by Desktop's compatibility path.
   - "@opencode-ai/sdk@1.18.3 || 1.18.10 || 1.18.27"
+  # The OpenCode 2 connector tracks the published 2.0.0 HTTP API client.
+  - "@opencode/client@2.0.0"
+  - "@opencode/protocol@2.0.0"
+  - "@opencode/schema@2.0.0"
   - "@anthropic-ai/claude-agent-sdk@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233"
   - "@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233"
   - "@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.205 || 0.3.218 || 0.3.219 || 0.3.233"

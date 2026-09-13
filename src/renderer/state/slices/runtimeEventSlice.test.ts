@@ -37,6 +37,37 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     store.getState().applyRuntimeEvents(threadId, events);
   }
 
+  it("replaces an existing reasoning stream and continues appending", () => {
+    applyBatch("t1", [
+      { type: "item.started", threadId: "t1", itemId: "i1", itemType: "reasoning" },
+      {
+        type: "content.delta",
+        threadId: "t1",
+        itemId: "i1",
+        stream: "reasoning_text",
+        delta: "partial",
+      },
+      {
+        type: "content.delta",
+        threadId: "t1",
+        itemId: "i1",
+        stream: "reasoning_text",
+        delta: "correct",
+        replace: true,
+      },
+      {
+        type: "content.delta",
+        threadId: "t1",
+        itemId: "i1",
+        stream: "reasoning_text",
+        delta: " tail",
+      },
+    ]);
+    expect(store.getState().runtimeItemsByIdByThread.t1?.i1?.streams.reasoning_text).toBe(
+      "correct tail",
+    );
+  });
+
   it("appends a new item on item.started", () => {
     apply("t1", {
       type: "item.started",

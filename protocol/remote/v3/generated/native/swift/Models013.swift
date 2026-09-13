@@ -1,6 +1,6 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
-public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0: Codable, Sendable {
+public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_7162208437: Codable, Sendable {
   case option1(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D1_2778fa8937)
   case option2(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D2_66846085f3)
   case option3(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D3_4244283735)
@@ -8,7 +8,7 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0: Codabl
   case option5(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D5_fe7522595f)
   case option6(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D6_c55a346c73)
   case option7(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D7_1371f7bedc)
-  case option8(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_311561bc27)
+  case option8(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_996ce1c4e0)
   case option9(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9_cdd89e732d)
   case option10(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D10_9b83e18a93)
   case option11(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D11_0bffd4a90c)
@@ -19,7 +19,7 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0: Codabl
   case option16(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D16_f7a8f76390)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0)] = []
+    var matches: [(Int, ProceduresubagentSubscribeResultU2DHistoryU2DItem_7162208437)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("session.started")]), let value = try? container.decode(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D1_2778fa8937.self) {
       matches.append((1, .option1(value)))
     }
@@ -41,7 +41,7 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0: Codabl
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("item.completed")]), let value = try? container.decode(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D7_1371f7bedc.self) {
       matches.append((7, .option7(value)))
     }
-    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("content.delta")]), let value = try? container.decode(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_311561bc27.self) {
+    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("content.delta")]), let value = try? container.decode(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_996ce1c4e0.self) {
       matches.append((8, .option8(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("context.updated")]), let value = try? container.decode(ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D9_cdd89e732d.self) {
@@ -69,8 +69,8 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0: Codabl
       matches.append((16, .option16(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0" : "Ambiguous union ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched ProceduresubagentSubscribeResultU2DHistoryU2DItem_7162208437" : "Ambiguous union ProceduresubagentSubscribeResultU2DHistoryU2DItem_7162208437 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(ProceduresubagentSubscribeResultU2DHistoryU2DItem_7162208437.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }
@@ -97,11 +97,11 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0: Codabl
   }
 }
 
-public struct ProceduresubagentSubscribeResult_c72313d5ab: Codable, Sendable, RemoteModelMetadata {
-  public var history: [ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0]
+public struct ProceduresubagentSubscribeResult_7e9898b3ae: Codable, Sendable, RemoteModelMetadata {
+  public var history: [ProceduresubagentSubscribeResultU2DHistoryU2DItem_7162208437]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "history", typeName: "[ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "history", typeName: "[ProceduresubagentSubscribeResultU2DHistoryU2DItem_7162208437]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
@@ -175,11 +175,11 @@ public struct ProcedureworkflowAgentChatRequest_014d2dfae8: Codable, Sendable, R
   }
 }
 
-public struct ProcedureworkflowAgentChatResult_856c6768b5: Codable, Sendable, RemoteModelMetadata {
-  public var events: [ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0]
+public struct ProcedureworkflowAgentChatResult_f5c102dcef: Codable, Sendable, RemoteModelMetadata {
+  public var events: [ProceduresubagentSubscribeResultU2DHistoryU2DItem_7162208437]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "events", typeName: "[ProceduresubagentSubscribeResultU2DHistoryU2DItem_53673f39e0]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "events", typeName: "[ProceduresubagentSubscribeResultU2DHistoryU2DItem_7162208437]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {

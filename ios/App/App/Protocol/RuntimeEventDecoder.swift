@@ -188,12 +188,14 @@ enum RuntimeEventDecoder {
                   contentStreams.contains(stream),
                   let delta = object["delta"]?.stringValue
             else { return nil }
+            if let replace = object["replace"], replace.boolValue == nil { return nil }
             return .init(
                 type: type,
                 threadId: threadId,
                 itemId: itemId,
                 stream: stream,
                 delta: delta,
+                replace: object["replace"]?.boolValue ?? false,
                 raw: object
             )
 

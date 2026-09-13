@@ -53,11 +53,11 @@ describe("remote v3 native binding generator", () => {
       expect(second).toEqual(third);
       expect(first.manifest).toMatchObject({
         formatVersion: 1,
-        protocolVersion: 11,
+        protocolVersion: 12,
         bindingFormatVersion: 2,
         generatorVersion: 3,
-        sourceHash: "sha256:20702f089ef9ef2df977c54246df116b264684ea008550fa5879f34a62273ec1",
-        manifestHash: "sha256:3b6063bf27d11686181b65e189404e89978f8745187868eb1a23915a3ed7b5d4",
+        sourceHash: "sha256:651087791c54c1b71d54e96dcf0e9c2bf0740778beb3754f7a060d346c55b21a",
+        manifestHash: "sha256:11a5c78613ef282507c0fec78d3c5315f42945ecca4efada25d09ddb8ec0d460",
         counts: {
           routes: 63,
           procedures: 108,

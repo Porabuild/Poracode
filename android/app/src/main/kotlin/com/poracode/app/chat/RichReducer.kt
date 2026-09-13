@@ -79,7 +79,7 @@ object RichReducer {
             is RichRuntimeEvent.ItemStarted -> startItem(state, event)
             is RichRuntimeEvent.ItemUpdated -> updateItem(state, event)
             is RichRuntimeEvent.ItemCompleted -> completeItem(state, event)
-            is RichRuntimeEvent.ContentDelta -> appendDelta(state, event)
+            is RichRuntimeEvent.ContentDelta -> applyDelta(state, event)
             is RichRuntimeEvent.ContextUpdated -> {
                 val merged = RichSnapshotMapping.mergeContext(state.contextUsage, event.usage)
                 if (merged == state.contextUsage) state else state.copy(contextUsage = merged)
@@ -183,14 +183,13 @@ object RichReducer {
         return state.withItem(next, structural = true)
     }
 
-    private fun appendDelta(
+    private fun applyDelta(
         state: RichThreadState,
         event: RichRuntimeEvent.ContentDelta,
     ): RichThreadState {
         val previous = state.itemsById[event.itemId] ?: return state
-        val streams = previous.streams + (
-            event.stream to (previous.streams[event.stream].orEmpty() + event.delta)
-        )
+        val text = if (event.replace) event.delta else previous.streams[event.stream].orEmpty() + event.delta
+        val streams = previous.streams + (event.stream to text)
         val next = previous.copy(
             state = if (previous.state == RichItemState.COMPLETED) {
                 RichItemState.COMPLETED

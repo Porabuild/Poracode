@@ -4,6 +4,8 @@ import { EXTRACTION_PROMPT } from "@/supervisor/contextExtractor";
 import {
   createKnownSessionRef,
   detectAgentInstall,
+  detectProbeLocation,
+  notInstalledAgentStatus,
   shortenHomePath,
   type AgentAdapter,
   type CreateStructuredSessionInput,
@@ -12,7 +14,14 @@ import {
 } from "../base";
 import { warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildOpenCodeArgs } from "./argv";
+import {
+  acceptOpenCode1Binary,
+  cachedOpenCode1Binary,
+  cachedOpenCode1Version,
+  resolveOpenCode1Binary,
+} from "./binary";
 import { opencodeDefaultCapabilities, opencodeDetectionSpec } from "./detection";
+import { shutdownSpawnedOpenCodeServers } from "./sdkClient";
 import { OpencodeSdkSession } from "./sdkSession";
 import {
   installOpenCodePlugin,
@@ -143,7 +152,22 @@ export function createOpenCodeAdapter(): AgentAdapter {
 
     // ── Detection ────────────────────────────────────────────────────────
     async detectInstall(ctx) {
-      const status = await detectAgentInstall(ctx, opencodeDetectionSpec);
+      const location = detectProbeLocation(ctx);
+      const binary = await resolveOpenCode1Binary(location, ctx?.signal);
+      if (!binary) {
+        return notInstalledAgentStatus(opencodeDetectionSpec, opencodeDefaultCapabilities);
+      }
+      // Binary resolution already ran `--version` to tell 1.x from 2.x; reuse
+      // that result so detection doesn't spawn the CLI a second time.
+      const knownVersion = cachedOpenCode1Version(location);
+      const status = await detectAgentInstall(ctx, {
+        ...opencodeDetectionSpec,
+        binary,
+        ...(knownVersion ? { versionProbe: async () => knownVersion } : {}),
+      });
+      if (!acceptOpenCode1Binary(status.executablePath, status.version)) {
+        return notInstalledAgentStatus(status, opencodeDefaultCapabilities);
+      }
       capabilities = status.capabilities;
       return status;
     },
@@ -158,22 +182,22 @@ export function createOpenCodeAdapter(): AgentAdapter {
     // The TUI process below picks up the pre-allocated id via `--session <id>`,
     // so the supervisor knows the providerSessionId synchronously instead of
     // polling `opencode session list` after spawn.
-    buildLaunchArgv(_location, config, prompt, _sessionRef, launchOptions) {
+    buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const sessionId = launchOptions?.resumeThreadId;
       const args = buildOpenCodeArgs(config, prompt, sessionId);
       const env = buildOpenCodeMcpEnv(launchOptions?.mcpServers);
       return {
-        binary: "opencode",
+        binary: cachedOpenCode1Binary(location) ?? "opencode",
         args,
         ...(env ? { env } : {}),
         preferShell: true,
         ...(sessionId ? { sessionRef: createKnownSessionRef(sessionId) } : {}),
       };
     },
-    buildResumeArgv(_location, config, prompt, sessionRef, launchOptions) {
+    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       const env = buildOpenCodeMcpEnv(launchOptions?.mcpServers);
       return {
-        binary: "opencode",
+        binary: cachedOpenCode1Binary(location) ?? "opencode",
         args: buildOpenCodeArgs(config, prompt, sessionRef.providerSessionId),
         ...(env ? { env } : {}),
         preferShell: true,
@@ -203,6 +227,7 @@ export function createOpenCodeAdapter(): AgentAdapter {
       if (isResume && isTerminal) return undefined;
       return OpencodeSdkSession.create(input);
     },
+    shutdown: shutdownSpawnedOpenCodeServers,
 
     // ── Input ────────────────────────────────────────────────────────────
     buildDirectInput(prompt) {

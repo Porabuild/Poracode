@@ -253,10 +253,10 @@ enum class RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f {
     @SerialName("linux") LINUX,
 }
 
-typealias RouteenvironmentU2DLegacyResponseU2DProtocolVersion_832a7f0ba2 = Double
+typealias RouteenvironmentU2DLegacyResponseU2DProtocolVersion_1f7ce34362 = Double
 
 @Serializable
-data class RouteenvironmentU2DLegacyResponse_1fd6794d19(
+data class RouteenvironmentU2DLegacyResponse_5a3e9fbc22(
     @SerialName("appVersion") val appVersion: String,
     @SerialName("auth") val auth: RouteenvironmentU2DLegacyResponseU2DAuth_2a8bc62fab,
     @SerialName("capabilities") val capabilities: RemoteField<RouteenvironmentU2DLegacyResponseU2DCapabilities_a7161d7f63> = RemoteField.Missing,
@@ -265,7 +265,7 @@ data class RouteenvironmentU2DLegacyResponse_1fd6794d19(
     @SerialName("hostMode") val hostMode: RemoteField<RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d> = RemoteField.Missing,
     @SerialName("label") val label: String,
     @SerialName("platform") val platform: RemoteField<RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f> = RemoteField.Missing,
-    @SerialName("protocolVersion") val protocolVersion: RouteenvironmentU2DLegacyResponseU2DProtocolVersion_832a7f0ba2,
+    @SerialName("protocolVersion") val protocolVersion: RouteenvironmentU2DLegacyResponseU2DProtocolVersion_1f7ce34362,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
@@ -277,7 +277,7 @@ data class RouteenvironmentU2DLegacyResponse_1fd6794d19(
             RemoteFieldDescriptor("hostMode", "RouteenvironmentU2DLegacyResponseU2DHostMode_d1d1696e7d", false, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("label", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("platform", "RouteenvironmentU2DLegacyResponseU2DPlatform_7583b8d37f", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("protocolVersion", "RouteenvironmentU2DLegacyResponseU2DProtocolVersion_832a7f0ba2", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("protocolVersion", "RouteenvironmentU2DLegacyResponseU2DProtocolVersion_1f7ce34362", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

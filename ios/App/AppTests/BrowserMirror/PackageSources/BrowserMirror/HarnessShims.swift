@@ -6,5 +6,5 @@ import Foundation
 // value, so it must move together with the app constant on every protocol
 // bump (a stale value fails this package's contract tests).
 enum ProtocolConstants {
-  static let remoteProtocolVersion = 9
+  static let remoteProtocolVersion = 12
 }

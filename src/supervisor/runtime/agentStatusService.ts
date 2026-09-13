@@ -98,7 +98,9 @@ const execFileAsync = promisify(execFile);
 // v34 re-probes the Cursor SDK once so its resolved installation gets recorded:
 // an SDK variant can now report `installed` from that record with an unknown
 // auth state instead of losing the install when a probe reaches no verdict.
-export const STATUS_CACHE_VERSION = 34;
+// v35 invalidates both pre-merge parents: V2 v34 lacks OpenCode 2 discovery,
+// while master v33 lacks V2's resolved SDK installation and capability metadata.
+export const STATUS_CACHE_VERSION = 35;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

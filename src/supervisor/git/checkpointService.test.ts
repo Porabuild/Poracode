@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { GitCheckpointService } from "./checkpointService";
 
@@ -18,7 +18,22 @@ function hasGit(): boolean {
 
 const tempDirs: string[] = [];
 
+beforeEach(() => {
+  // Git's environment identity overrides repository config. Each fixture must
+  // exercise its own configured or missing identity, not the test runner's.
+  for (const key of [
+    "GIT_AUTHOR_NAME",
+    "GIT_AUTHOR_EMAIL",
+    "GIT_COMMITTER_NAME",
+    "GIT_COMMITTER_EMAIL",
+    "EMAIL",
+  ]) {
+    vi.stubEnv(key, undefined);
+  }
+});
+
 afterEach(async () => {
+  vi.unstubAllEnvs();
   for (const dir of tempDirs.splice(0)) {
     try {
       await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });

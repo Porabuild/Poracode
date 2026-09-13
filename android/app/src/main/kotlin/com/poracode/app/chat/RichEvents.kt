@@ -64,6 +64,7 @@ sealed interface RichRuntimeEvent {
         val itemId: String,
         val stream: String,
         val delta: String,
+        val replace: Boolean = false,
     ) : RichRuntimeEvent
 
     data class ContextUpdated(
@@ -220,7 +221,11 @@ object RichEventDecoder {
         val itemId = value.requiredString("itemId") ?: return null
         val stream = value.requiredString("stream")?.takeIf { it in streams } ?: return null
         val delta = value.requiredString("delta") ?: return null
-        return RichRuntimeEvent.ContentDelta(key, itemId, stream, delta)
+        val replace = value.optionalBoolean("replace")
+        if (replace is RichField.Invalid) return null
+        return RichRuntimeEvent.ContentDelta(
+            key, itemId, stream, delta, replace.booleanValueOrNull() ?: false,
+        )
     }
 
     private fun decodeRequestOpened(

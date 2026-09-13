@@ -60,37 +60,46 @@ class StoredPairingUpgradeTest {
         advanceUntilIdle()
         assertEquals(AppSession.Phase.Ready, h.session.state.value.phase)
         val selected = h.catalog.snapshot().selected!!
-        assertEquals(h.record.copy(protocolVersion = 11, browserForwardVersions = emptyList()), selected)
+        assertEquals(h.record.copy(protocolVersion = 12, browserForwardVersions = emptyList()), selected)
         assertEquals("saved-token", h.catalog.token(selected.connectionId))
         assertEquals(1, h.catalog.snapshot().hosts.size)
     }
 
     @Test
-    fun versionTenBindingUpgradesOnlyAfterAuthenticatedRead() = runTest {
-        val api = FakeApiGateway().apply { snapshotHold = CompletableDeferred() }
-        val h = fixture(api = api, version = 10)
-        h.session.bootstrap()
-        runCurrent()
-        assertEquals(1, api.snapshotCalls.get())
-        assertArrayEquals(h.before, h.repository.rawV2BytesForTests())
-        api.snapshotHold!!.complete(Unit)
-        advanceUntilIdle()
-        assertEquals(AppSession.Phase.Ready, h.session.state.value.phase)
-        assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, h.catalog.snapshot().selected!!.protocolVersion)
-        assertEquals("saved-token", h.catalog.token(h.record.connectionId))
+    fun reviewedBindingsUpgradeOnlyAfterAuthenticatedRead() = runTest {
+        for (version in listOf(10, 11)) {
+            val api = FakeApiGateway().apply { snapshotHold = CompletableDeferred() }
+            val h = fixture(api = api, version = version)
+            h.session.bootstrap()
+            runCurrent()
+            assertEquals(1, api.snapshotCalls.get())
+            assertArrayEquals(h.before, h.repository.rawV2BytesForTests())
+            assertFalse(h.session.state.value.canSessionRead)
+            assertFalse(h.session.state.value.canSessionOperate)
+            assertNull(h.session.socketForTests())
+            api.snapshotHold!!.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(AppSession.Phase.Ready, h.session.state.value.phase)
+            val selected = h.catalog.snapshot().selected!!
+            assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, selected.protocolVersion)
+            assertEquals(h.record.connectionId, selected.connectionId)
+            assertEquals("saved-token", h.catalog.token(h.record.connectionId))
+        }
     }
 
     @Test
     fun incompatibleLiveServerCannotRebindOrReadProtectedState() = runTest {
-        val api = FakeApiGateway().apply {
-            environmentResponse = environmentResponse.copy(protocolVersion = 9)
+        for (version in listOf(9, 10, 11)) {
+            val api = FakeApiGateway().apply {
+                environmentResponse = environmentResponse.copy(protocolVersion = version)
+            }
+            val h = fixture(api = api)
+            h.session.bootstrap()
+            advanceUntilIdle()
+            assertEquals(AppSession.Phase.ProtocolIncompatible, h.session.state.value.phase)
+            assertEquals(0, api.snapshotCalls.get())
+            assertArrayEquals(h.before, h.repository.rawV2BytesForTests())
         }
-        val h = fixture(api = api)
-        h.session.bootstrap()
-        advanceUntilIdle()
-        assertEquals(AppSession.Phase.ProtocolIncompatible, h.session.state.value.phase)
-        assertEquals(0, api.snapshotCalls.get())
-        assertArrayEquals(h.before, h.repository.rawV2BytesForTests())
     }
 
     @Test

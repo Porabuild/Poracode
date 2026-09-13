@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
+  BACKEND_RENDERER_STREAM_VERSION,
   type BackendNativeEvent,
   type BackendNativeRequest,
   type BackendHostRequest,
@@ -98,7 +99,14 @@ function createClient(
     async () => ({ delivered: true }),
   );
   const onNativeEvent = vi.fn<(event: BackendNativeEvent) => void>();
-  const onRendererStreamInfo = vi.fn<(info: { version: 2; url: string; token: string }) => void>();
+  const onRendererStreamInfo =
+    vi.fn<
+      (info: {
+        version: typeof BACKEND_RENDERER_STREAM_VERSION;
+        url: string;
+        token: string;
+      }) => void
+    >();
   const client = new BackendHostClient({
     backendHostPath: "/dist/backendHost.cjs",
     initialize: {
@@ -274,14 +282,14 @@ describe("BackendHostClient", () => {
     const { client, handleNativeRequest, onNativeEvent } = createClient();
     await startClient(client, child, {
       rendererStream: {
-        version: 2,
+        version: BACKEND_RENDERER_STREAM_VERSION,
         url: "ws://127.0.0.1:4567/events",
         token: "secret",
       },
     });
 
     await expect(client.getRendererStreamInfo()).resolves.toEqual({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       url: "ws://127.0.0.1:4567/events",
       token: "secret",
     });
@@ -414,10 +422,14 @@ describe("BackendHostClient", () => {
     forkMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
     const { client, onRendererStreamInfo } = createClient();
     await startClient(client, first, {
-      rendererStream: { version: 2, url: "ws://127.0.0.1:1001/events", token: "first" },
+      rendererStream: {
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        url: "ws://127.0.0.1:1001/events",
+        token: "first",
+      },
     });
     expect(onRendererStreamInfo).toHaveBeenLastCalledWith({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       url: "ws://127.0.0.1:1001/events",
       token: "first",
     });
@@ -426,12 +438,16 @@ describe("BackendHostClient", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await vi.waitFor(() => expect(requests(second)).toHaveLength(1));
     reply(second, requestFor(second, "initialize"), {
-      rendererStream: { version: 2, url: "ws://127.0.0.1:1002/events", token: "second" },
+      rendererStream: {
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        url: "ws://127.0.0.1:1002/events",
+        token: "second",
+      },
     });
 
     await vi.waitFor(() => expect(onRendererStreamInfo).toHaveBeenCalledTimes(2));
     expect(onRendererStreamInfo).toHaveBeenLastCalledWith({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       url: "ws://127.0.0.1:1002/events",
       token: "second",
     });
@@ -469,7 +485,11 @@ describe("BackendHostClient", () => {
     const { client, onRendererStreamInfo } = createClient(assignPid);
     const call = client.callDatabase("dbGetProjects", {});
     reply(first, requestFor(first, "initialize"), {
-      rendererStream: { version: 2, url: "ws://127.0.0.1:1001/events", token: "old" },
+      rendererStream: {
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        url: "ws://127.0.0.1:1001/events",
+        token: "old",
+      },
     });
     first.emit("exit", 1);
     await vi.advanceTimersByTimeAsync(1_000);
@@ -479,13 +499,17 @@ describe("BackendHostClient", () => {
     expect(requests(second).map((request) => request.operation)).toEqual(["initialize"]);
 
     reply(second, requestFor(second, "initialize"), {
-      rendererStream: { version: 2, url: "ws://127.0.0.1:1002/events", token: "new" },
+      rendererStream: {
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        url: "ws://127.0.0.1:1002/events",
+        token: "new",
+      },
     });
     await vi.advanceTimersByTimeAsync(0);
     reply(second, requestFor(second, "call-database"), [{ id: "project" }]);
     await expect(call).resolves.toEqual([{ id: "project" }]);
     expect(onRendererStreamInfo).toHaveBeenCalledExactlyOnceWith({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       url: "ws://127.0.0.1:1002/events",
       token: "new",
     });
@@ -542,7 +566,11 @@ describe("BackendHostClient", () => {
 
     await vi.waitFor(() => expect(requests(first)).toHaveLength(1));
     reply(first, requestFor(first, "initialize"), {
-      rendererStream: { version: 2, url: "ws://127.0.0.1:1001/events", token: "stale" },
+      rendererStream: {
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        url: "ws://127.0.0.1:1001/events",
+        token: "stale",
+      },
     });
     // The initialize reply settled, but the whole initialization is bounded:
     // a hung assignment must not wedge the child past the deadline.
@@ -795,7 +823,11 @@ describe("BackendHostClient", () => {
     await vi.waitFor(() => expect(requests(second)).toHaveLength(1));
 
     reply(first, requestFor(first, "initialize"), {
-      rendererStream: { version: 2, url: "ws://127.0.0.1:9999/events", token: "stale" },
+      rendererStream: {
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        url: "ws://127.0.0.1:9999/events",
+        token: "stale",
+      },
     });
     first.emit("message", {
       version: BACKEND_HOST_PROTOCOL_VERSION,

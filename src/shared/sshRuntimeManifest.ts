@@ -1,8 +1,9 @@
-export const SSH_RUNTIME_MANIFEST_VERSION = 1 as const;
+// v2 packs `@opencode/client` with the supervisor so SSH helpers can run OpenCode 2.
+export const SSH_RUNTIME_MANIFEST_VERSION = 2 as const;
 
 export const SSH_RUNTIME_ENTRY_CONFIG = {
   server: [],
-  supervisor: ["@opencode-ai/sdk", "@sentry/node"],
+  supervisor: ["@opencode-ai/sdk", "@opencode/client", "@sentry/node"],
   claudeSdkProbeWorker: [],
   cursorSdkWorker: [],
 } as const satisfies Record<string, readonly string[]>;
