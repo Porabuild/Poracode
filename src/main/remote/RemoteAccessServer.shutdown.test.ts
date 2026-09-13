@@ -110,6 +110,37 @@ it("shares a concurrent start and refuses start once disposal begins", async () 
   }
 });
 
+it("isolates one ingress source from the shared work budget", async () => {
+  const server = new RemoteAccessServer(
+    createServerOptions({ maxConcurrentIngressWork: 2, maxConcurrentIngressWorkPerSource: 1 }),
+  );
+  const release = Promise.withResolvers<void>();
+  const runIngressWork = (
+    source: object,
+    operation: () => PromiseLike<unknown> | unknown,
+  ): Promise<unknown> =>
+    (
+      server as unknown as {
+        runIngressWork<T>(operation: () => T | PromiseLike<T>, source: object): Promise<T>;
+      }
+    ).runIngressWork(operation, source);
+  const sourceA = {};
+  const sourceB = {};
+  try {
+    const first = runIngressWork(sourceA, () => release.promise);
+    await expect(runIngressWork(sourceA, () => undefined)).rejects.toMatchObject({
+      status: 503,
+      code: "host_busy",
+    });
+    await expect(runIngressWork(sourceB, () => "healthy")).resolves.toBe("healthy");
+    release.resolve();
+    await first;
+  } finally {
+    release.resolve();
+    await server.dispose();
+  }
+});
+
 it("returns a usable current pairing credential after the original startup token rotates", async () => {
   const server = new RemoteAccessServer(createServerOptions());
   try {

@@ -100,6 +100,7 @@ const EVENT_BUFFER_MAX_BYTES = DEFAULT_EVENT_BUFFER_MAX_BYTES;
 const DEFAULT_LISTEN_RETRY_ATTEMPTS = 5;
 const DEFAULT_LISTEN_RETRY_DELAY_MS = 500;
 const DEFAULT_MAX_CONCURRENT_INGRESS_WORK = 128;
+const DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_SOURCE = 32;
 
 export interface RemoteAccessServerInfo {
   readonly httpBaseUrl: string;
@@ -167,6 +168,8 @@ export interface RemoteAccessServerOptions {
   readonly listenRetryDelayMs?: number;
   /** Maximum concurrently admitted HTTP/WebSocket continuations. */
   readonly maxConcurrentIngressWork?: number;
+  /** Maximum admitted continuations from one HTTP socket or WebSocket client. */
+  readonly maxConcurrentIngressWorkPerSource?: number;
   /** Grace before closing active transports; admitted handlers are still joined. */
   readonly shutdownConnectionGraceMs?: number;
   readonly authStore?: RemoteAuthStore;
@@ -405,6 +408,8 @@ export class RemoteAccessServer {
   private readonly backgroundTasksByThread = new Map<string, readonly BackgroundTask[]>();
   private readonly context: RemoteServerContext;
   private readonly maxConcurrentIngressWork: number;
+  private readonly maxConcurrentIngressWorkPerSource: number;
+  private readonly ingressWorkBySource = new WeakMap<object, number>();
   private ingressWorkCount = 0;
   private seq = 0;
   private info: RemoteAccessServerInfo | null = null;
@@ -417,11 +422,19 @@ export class RemoteAccessServer {
   constructor(private readonly options: RemoteAccessServerOptions) {
     this.maxConcurrentIngressWork =
       options.maxConcurrentIngressWork ?? DEFAULT_MAX_CONCURRENT_INGRESS_WORK;
+    this.maxConcurrentIngressWorkPerSource =
+      options.maxConcurrentIngressWorkPerSource ?? DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_SOURCE;
     if (
       !Number.isSafeInteger(this.maxConcurrentIngressWork) ||
       this.maxConcurrentIngressWork <= 0
     ) {
       throw new Error("maxConcurrentIngressWork must be a positive safe integer.");
+    }
+    if (
+      !Number.isSafeInteger(this.maxConcurrentIngressWorkPerSource) ||
+      this.maxConcurrentIngressWorkPerSource <= 0
+    ) {
+      throw new Error("maxConcurrentIngressWorkPerSource must be a positive safe integer.");
     }
     this.auth = options.authStore ?? new RemoteAuthStore();
     this.security = new RemoteServerSecurity({
@@ -454,14 +467,15 @@ export class RemoteAccessServer {
     // configured forward namespace) is proxied or bounded-errored there and
     // NEVER falls through to Poracode API/PWA handlers.
     this.server = createServer((req, res) => {
-      void this.runIngressWork(() => handleRemoteAccessHttpRequest(this.context, req, res)).catch(
-        (error: unknown) => {
-          if (!res.destroyed && !res.writableEnded) {
-            if (res.headersSent) res.destroy();
-            else writeError(res, error);
-          }
-        },
-      );
+      void this.runIngressWork(
+        () => handleRemoteAccessHttpRequest(this.context, req, res),
+        req.socket,
+      ).catch((error: unknown) => {
+        if (!res.destroyed && !res.writableEnded) {
+          if (res.headersSent) res.destroy();
+          else writeError(res, error);
+        }
+      });
     });
     this.connections = new HttpServerConnections(this.server);
     this.server.on("upgrade", (req, socket, head) => {
@@ -469,8 +483,9 @@ export class RemoteAccessServer {
         rejectUpgrade(socket, 503, "Service Unavailable");
         return;
       }
-      void this.runIngressWork(() =>
-        handleRemoteAccessUpgrade(this.context, req, socket, head),
+      void this.runIngressWork(
+        () => handleRemoteAccessUpgrade(this.context, req, socket, head),
+        socket,
       ).catch(() => socket.destroy());
     });
   }
@@ -513,12 +528,12 @@ export class RemoteAccessServer {
       send: (ws, message) => this.send(ws, message),
       sendRaw: (ws, data, onSent) => this.sendRaw(ws, data, onSent),
       notifyEventInterestsChanged: () => this.notifyEventInterestsChanged(),
-      runIngressWork: (operation) => this.runIngressWork(operation),
+      runIngressWork: (operation, source) => this.runIngressWork(operation, source),
       waitForSupervisorEvent: (match, timeoutMs) => this.waitForSupervisorEvent(match, timeoutMs),
     };
   }
 
-  private runIngressWork<T>(operation: () => T | PromiseLike<T>): Promise<T> {
+  private runIngressWork<T>(operation: () => T | PromiseLike<T>, source?: object): Promise<T> {
     if (this.stopping) {
       return Promise.reject(new RemoteHttpError("host_stopping", "The host is stopping.", 503));
     }
@@ -531,9 +546,25 @@ export class RemoteAccessServer {
         ),
       );
     }
+    const sourceCount = source === undefined ? 0 : (this.ingressWorkBySource.get(source) ?? 0);
+    if (source !== undefined && sourceCount >= this.maxConcurrentIngressWorkPerSource) {
+      return Promise.reject(
+        new RemoteHttpError(
+          "host_busy",
+          "This client has too much work in flight; retry shortly.",
+          503,
+        ),
+      );
+    }
     this.ingressWorkCount += 1;
+    if (source !== undefined) this.ingressWorkBySource.set(source, sourceCount + 1);
     return this.work.run(operation).finally(() => {
       this.ingressWorkCount -= 1;
+      if (source !== undefined) {
+        const next = (this.ingressWorkBySource.get(source) ?? 1) - 1;
+        if (next > 0) this.ingressWorkBySource.set(source, next);
+        else this.ingressWorkBySource.delete(source);
+      }
     });
   }
 

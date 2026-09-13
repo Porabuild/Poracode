@@ -431,7 +431,7 @@ function handleConnection(
       if (message.type === "browser-input") {
         if (!ctx.options.browser || !session.scopes.includes("session:operate")) return;
         const browser = ctx.options.browser;
-        void ctx.runIngressWork(() => browser.dispatchInput(message.input)).catch(() => {});
+        void ctx.runIngressWork(() => browser.dispatchInput(message.input), ws).catch(() => {});
       }
       if (message.type === "terminal-watch") {
         if (message.cursorSync) {
@@ -439,10 +439,31 @@ function handleConnection(
           // become an unhandled promise rejection on the host process.
           const cursorSync = message.cursorSync;
           void ctx
-            .runIngressWork(() =>
-              handleReliableTerminalWatch(ctx, ws, session, message.id, cursorSync),
+            .runIngressWork(
+              () => handleReliableTerminalWatch(ctx, ws, session, message.id, cursorSync),
+              ws,
             )
-            .catch(() => {});
+            .catch((error: unknown) => {
+              // Admission can reject before the watch handler installs any
+              // state. Keep that rejection correlated with the request so a
+              // client does not wait for its baseline timeout. Handler
+              // failures are still swallowed here because the handler owns
+              // its setup/error result lifecycle.
+              if (
+                error instanceof RemoteHttpError &&
+                error.code === "host_busy" &&
+                ws.readyState === WebSocket.OPEN
+              ) {
+                ctx.send(
+                  ws,
+                  buildTerminalWatchResultMessage(
+                    message.id,
+                    cursorSync.watchId,
+                    unavailableWatchResult(),
+                  ),
+                );
+              }
+            });
           return;
         }
         if (!session.scopes.includes("terminal:read")) return;

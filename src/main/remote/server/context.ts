@@ -104,7 +104,7 @@ export interface RemoteServerContext {
    */
   notifyEventInterestsChanged(): void | Promise<void>;
   /** Admit and join asynchronous work initiated by HTTP or WebSocket clients. */
-  runIngressWork<T>(operation: () => T | PromiseLike<T>): Promise<T>;
+  runIngressWork<T>(operation: () => T | PromiseLike<T>, source?: object): Promise<T>;
   waitForSupervisorEvent(
     match: (event: RemoteBroadcastEvent) => boolean,
     timeoutMs: number,

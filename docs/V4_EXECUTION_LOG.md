@@ -1460,3 +1460,20 @@ remain open Phase 2 work.
 The post-correction full suite passes: 1,211 test files passed and 5 skipped;
 13,619 tests passed and 119 skipped. The known synthetic listener and canvas
 warnings were emitted, but the run exited successfully.
+
+## Phase 5 per-source ingress fairness
+
+Before: the remote host had one global in-flight admission limit, so a single
+slow HTTP/WebSocket source could consume the shared budget and return `host_busy`
+to every other client.
+
+After: HTTP sockets and WebSocket sessions now have their own bounded admission
+counter (32 by default) in addition to the global cap. Saturating one source
+returns the same explicit 503 `host_busy` result while another source can still
+enter available global capacity; all admitted work remains in the existing
+shutdown tracker. The regression and remote server suites pass 127 tests, with
+full typecheck and touched type-aware lint green.
+
+This isolates host admission by source. Relay-wide scheduling, weighted
+fairness, outbound byte budgets, and cross-host queue isolation remain Phase 5
+work.
