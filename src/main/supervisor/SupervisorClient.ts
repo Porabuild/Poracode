@@ -3,7 +3,7 @@ import type { Readable } from "node:stream";
 import { randomUUID } from "node:crypto";
 import { constants as osConstants, setPriority } from "node:os";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
-import { terminateChildProcessTree } from "@/shared/processTree";
+import { stopSupervisorChild } from "./stopSupervisorChild";
 import type { StartThreadPayload } from "@/shared/contracts";
 import {
   IpcProcedurePayload,
@@ -105,6 +105,11 @@ export interface SupervisorClientOptions {
 export class SupervisorClient {
   private child: ChildProcess | null = null;
   private disposed = false;
+  private stopPromise: Promise<void> | null = null;
+  private restartPromise: Promise<void> | null = null;
+  private disposePromise: Promise<void> | null = null;
+  private restartTimer: ReturnType<typeof setTimeout> | null = null;
+  private retiringChild: ChildProcess | null = null;
   private readonly pendingRequests = new Map<
     string,
     {
@@ -133,20 +138,32 @@ export class SupervisorClient {
    * healthy is a no-op, so it can never kill a working child mid-stream.
    * Use {@link restart} for explicit force-restart semantics.
    */
-  start(): void {
+  start(): Promise<void> {
     if (this.disposed) throw new Error("Supervisor client is disposed.");
-    if (this.child) return;
-    this.launch();
+    if (this.restartPromise) return this.restartPromise;
+    if (this.stopPromise) return this.stopPromise.then(() => this.start());
+    if (!this.child) this.launch();
+    return Promise.resolve();
   }
 
   /** Kill any running supervisor and launch a fresh child. */
-  restart(): void {
+  restart(): Promise<void> {
     if (this.disposed) throw new Error("Supervisor client is disposed.");
-    this.stop(new Error("Supervisor restarting"));
-    this.launch();
+    if (this.restartPromise) return this.restartPromise;
+    this.restartPromise = this.stop(new Error("Supervisor restarting"))
+      .then(() => {
+        if (this.disposed) throw new Error("Supervisor client is disposed.");
+        this.launch();
+      })
+      .finally(() => {
+        this.restartPromise = null;
+      });
+    return this.restartPromise;
   }
 
   private launch(): void {
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.restartTimer = null;
     const extraEnv = this.options.resolveExtraEnv?.() ?? {};
     const child = fork(this.options.supervisorPath, [], {
       stdio: ["ignore", "pipe", "pipe", "ipc"],
@@ -187,6 +204,7 @@ export class SupervisorClient {
         }
       }
       void this.options.assignPid?.(child.pid).catch((error) => {
+        if (this.child !== child) return;
         console.error(
           "[poracode] failed to assign supervisor to Windows Job Object:",
           error instanceof Error ? error.message : String(error),
@@ -196,6 +214,9 @@ export class SupervisorClient {
     }
 
     child.on("message", (message: SupervisorReply | SupervisorEvent) => {
+      // Retiring-child events remain valid until channel closure, while its database is
+      // still open. No message from an exited/replaced generation is accepted.
+      if (this.child !== child) return;
       if (isSupervisorOutputShedSignal(message)) {
         this.options.onOutputShed?.(message.threadIds);
         return;
@@ -217,38 +238,55 @@ export class SupervisorClient {
       this.options.onEvent(message);
     });
 
-    this.options.onStarted?.();
-
-    child.on("exit", (code) => {
+    child.on("close", (code) => {
       if (this.child !== child) {
         return;
       }
       this.child = null;
       this.reset(new Error("Supervisor exited"));
-      if (!this.disposed && code !== 0) {
+      if (!this.disposed && this.retiringChild !== child && code !== 0) {
         const error = new Error(`Supervisor exited with code ${code ?? "unknown"}`);
         console.error(`[poracode] ${error.message}, restarting…`);
         this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
-        setTimeout(() => {
+        this.restartTimer = setTimeout(() => {
+          this.restartTimer = null;
           if (!this.disposed && !this.child) {
-            this.start();
+            void this.start().catch((restartError) =>
+              this.options.reportError?.(restartError, { "poracode.feature_area": "supervisor" }),
+            );
           }
         }, 1000);
       }
     });
+    child.on("error", (error) => {
+      if (this.child !== child) return;
+      this.rejectPendingRequests(error);
+      this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
+    });
+    this.options.onStarted?.();
   }
 
-  stop(error: Error): void {
+  stop(error: Error): Promise<void> {
+    if (this.restartTimer) clearTimeout(this.restartTimer);
+    this.restartTimer = null;
+    if (this.stopPromise) return this.stopPromise;
     const child = this.child;
-    if (!child) {
-      return;
-    }
-    this.child = null;
-    this.reset(error);
-    terminateChildProcessTree(child);
+    if (!child) return Promise.resolve();
+    this.rejectPendingRequests(error);
+    this.retiringChild = child;
+    this.stopPromise = stopSupervisorChild(child).then(() => {
+      if (this.child === child) {
+        this.child = null;
+        this.reset(error);
+      }
+      this.retiringChild = null;
+      this.stopPromise = null;
+    });
+    return this.stopPromise;
   }
 
   setOutputBackpressured(paused: boolean): void {
+    if (this.disposed || this.stopPromise) return;
     const child = this.child;
     if (!child?.connected) return;
     const message: SupervisorFlowControl = {
@@ -257,6 +295,7 @@ export class SupervisorClient {
     };
     try {
       child.send(message, (error) => {
+        if (this.child !== child) return;
         if (error) {
           this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
         }
@@ -266,16 +305,25 @@ export class SupervisorClient {
     }
   }
 
-  dispose(): void {
+  dispose(): Promise<void> {
+    if (this.disposePromise) return this.disposePromise;
     this.disposed = true;
-    this.stop(new Error("Supervisor exited"));
+    this.disposePromise = this.stop(new Error("Supervisor exited"));
+    return this.disposePromise;
   }
 
   async call<Name extends SupervisorProcedureName>(
     type: Name,
     payload: IpcProcedurePayload<Name>,
   ): Promise<IpcProcedureResult<Name>> {
-    if (!this.child?.connected) this.start();
+    if (this.disposed) throw new Error("Supervisor client is disposed.");
+    const transition = this.restartPromise ?? this.stopPromise;
+    if (transition) await transition;
+    if (this.disposed) throw new Error("Supervisor client is disposed.");
+    if (!this.child?.connected) {
+      const starting = this.start();
+      if (!this.child?.connected) await starting;
+    }
     const child = this.child;
     if (!child || !child.connected) {
       return Promise.reject(new Error("Supervisor is not running."));
