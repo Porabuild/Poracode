@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BackendDatabaseCaller, BackendServiceCaller } from "@/shared/backendHostProtocol";
 import type { Thread } from "@/shared/contracts";
+import { defaultSharedSettings } from "@/shared/settings";
 import { createLocalIpcHandlers } from "./localHandlers";
 
 type FetchMock = (url: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
-function makeHandlers(database?: BackendDatabaseCaller) {
+function makeHandlers(database?: BackendDatabaseCaller, backendServices?: BackendServiceCaller) {
   return createLocalIpcHandlers({
     getMainWindow: () => null,
     getBrowserPanelManager: () => null,
@@ -39,15 +40,53 @@ function makeHandlers(database?: BackendDatabaseCaller) {
     extractBrowserToWindow: vi.fn<() => void>(),
     injectBrowserToMain: vi.fn<() => void>(),
     requestRelaunch: vi.fn<() => void>(),
-    backendServices: {
-      callService: vi.fn<BackendServiceCaller["callService"]>(),
-    } as BackendServiceCaller,
+    backendServices:
+      backendServices ??
+      ({
+        callService: vi.fn<BackendServiceCaller["callService"]>(),
+      } as BackendServiceCaller),
     database:
       database ??
       ({ callDatabase: vi.fn<BackendDatabaseCaller["callDatabase"]>() } as BackendDatabaseCaller),
     revertCheckpoint: vi.fn<() => Promise<never>>(),
   });
 }
+
+describe("local settings delegation", () => {
+  it("forwards settings reads, replacements and narrow edits through the backend caller", async () => {
+    const reply = { fromBackend: true };
+    const callService = vi.fn<() => Promise<typeof reply>>(async () => reply);
+    const handlers = makeHandlers(undefined, { callService } as unknown as BackendServiceCaller);
+    const entry = { agentKind: "fixture-agent", modelId: "small", fast: false };
+    const commands = [
+      ["setSharedSettings", defaultSharedSettings],
+      ["setAgentSecretSetting", { agentKind: "fixture-agent", key: "token", value: "fixture" }],
+      ["removeCrossagentRoutingOverride", { tags: ["review"] }],
+      ["removeCrossagentMemoryEntry", { entry }],
+      ["updateCrossagentMemoryEntryTags", { entry, tags: ["review"] }],
+      ["setProfileEnvironment", { instanceId: "fixture", environment: {} }],
+      ["createProfile", { driver: "fixture", id: "fixture", displayName: "Fixture" }],
+    ] as const;
+    await expect(handlers.getSharedSettings({})).resolves.toBe(reply);
+    expect(callService).toHaveBeenCalledExactlyOnceWith("getSharedSettings", {});
+    for (const [name, payload] of commands) {
+      callService.mockClear();
+      await expect(handlers[name](payload as never)).resolves.toBe(reply);
+      expect(callService).toHaveBeenCalledExactlyOnceWith(name, payload);
+    }
+  });
+
+  it("returns a backend settings rejection instead of attempting a local fallback write", async () => {
+    const callService = vi.fn<() => Promise<never>>(async () => {
+      throw new Error("Fixture backend stopped");
+    });
+    const handlers = makeHandlers(undefined, { callService } as unknown as BackendServiceCaller);
+    await expect(handlers.setSharedSettings(defaultSharedSettings)).rejects.toThrow(
+      "Fixture backend stopped",
+    );
+    expect(callService).toHaveBeenCalledOnce();
+  });
+});
 
 describe("local remoteHttpRequest handler", () => {
   afterEach(() => {
