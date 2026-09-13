@@ -623,3 +623,57 @@ shortcut/tray, dragging, motion, provider execution and the final combined build
 are not claimed by these mock results. The product source differs from frozen05
 by the documented stale-comment correction; frozen06 is a separate targeted
 tooling run, not another full-suite result.
+
+## Settings admission and publication ordering integrated
+
+Reviewed inactive slice `dc24042bf` is merged as `e99a8e67d`. It bounds active plus
+queued settings transactions to 128 requests / 4 MiB, with a 1 MiB individual
+request ceiling, and publishes authority/sequence and affected ancestor revisions.
+These limits have held-persistence regression coverage; they are not measured
+throughput or heap budgets. The primary review reproduced an older pending read
+being accepted after a known publication gap. The corrected connection-scoped
+guard retains the highest observed sequence and returns explicit resync/reconnect
+decisions. Older connections cannot restore prior authority state.
+
+The author reports 81 tests / nine suites and full checks. The primary verified
+all ten frozen file hashes and independently ran 52 tests / seven relevant suites;
+the root combination with diagnostics then passed 95 tests / 13 suites and full
+typecheck. Logs are `authority-admission-primary-tests.log` in the settings
+worktree and `integrated-settings-diagnostics-{tests,typecheck}.log` under
+`tmp/v4-architecture-audit/`. No client writer is activated by this slice.
+
+## Combined Electron diagnostics and mock coverage
+
+Clean `78b387fea` was frozen into session
+`/Users/svecherenko/.poracode-smoke/v4-integrated-diagnostics-NlbiOW/session.json`.
+Source hash is `27096a52961dd59f44d5eb9ecabc57edfbfbb49370bf7b2c28960d85503e0ac0`;
+artifact hash is `85e24754b44b84869c8ee79a017a184ed1be475103ae3b7ff8160d5929d82c9e`.
+The full mock run passed nine automated scenarios and all 17 mock gates with
+zero captured runtime errors. Primary inspected Quick Composer input/handoff and
+preserved voice-draft screenshots. Runtime verification passed before teardown;
+the managed owner reported stopped and removed its runtime directory.
+
+Opt-in diagnostics ran in the actual desktop main, backend and supervisor.
+The retained files contain respectively 974, 973 and 973 contiguous samples and
+complete end records, with zero dropped records or writer errors. Exact headers,
+hashes, permissions, counts and teardown state are in
+`tmp/v4-architecture-audit/integrated-diagnostics-recording.json`; the raw NDJSON
+and screenshots remain in the session directory. Concurrent development work and
+the frozen development build disqualify this run from performance acceptance.
+
+An attempted normal-close probe used HTML `window.close()`. It removed the main
+target but left the other window/processes alive. Electron 44's sandboxed renderer
+does not install the native-close override in
+[`window-setup.ts`](https://raw.githubusercontent.com/electron/electron/v44.0.0/lib/renderer/window-setup.ts);
+its native source routes WebContents destruction to immediate window destruction.
+Independent source review agrees this probe does not prove a native-close bug.
+The exact-app native automation request subsequently timed out. Final cleanup used
+the managed process-group stop, so those end records are not normal-quit evidence.
+
+QA bridge version 2 adds guarded calls to the actual `BrowserWindow.close()` and
+`app.quit()` methods. The two missing-action regressions are retained in
+`native-shutdown-controls-before.log`; the final 37 tests / four suites,
+typecheck, touched lint and inventory audit pass. An independent trust/lifecycle/
+R4 critic also passed 15 tests / three suites. This boundary remains development,
+unpackaged, mock-only and restricted to the current main window's top frame;
+version-1 peers are rejected. Fresh native shutdown evidence is still pending.

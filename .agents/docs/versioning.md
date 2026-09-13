@@ -144,6 +144,16 @@ two-parent reservation of 10. Settings reserves renderer stream 4 and remote 13;
 the combined client facade/preload will use 9. These are coordination reservations,
 not the currently running wire versions or evidence that activation is complete.
 
+## Native mock controls
+
+`src/main/testing/smokeNativeControls.ts` owns the separate version-2 QA bridge
+and versioned channels. The preload and Quick Composer smoke driver must agree;
+version-1 drivers are rejected. Version 2 adds native `BrowserWindow.close()` and
+`app.quit()` probes. Registration requires development mode, an unpackaged app,
+mock agents, and the current main window's top frame. It adds no public
+ClientRuntime, backend-host, or remote operation. HTML `window.close()` is not a
+substitute for the native close callback in a sandboxed Electron renderer.
+
 ## Measurement evidence
 
 `ProcessMemorySummary` in `tests/native-e2e/helpers/processMemorySampler.ts` emits
