@@ -1,5 +1,8 @@
 import { installShutdown, reportFatalStartupError } from "../cliRuntime";
 import { RelayServer } from "./relayServer";
+import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
+
+const performanceDiagnostics = startNodePerformanceDiagnostics("relay");
 
 /**
  * Standalone, self-hostable Poracode relay (docs/REMOTE_ARCHITECTURE.md, Phase
@@ -28,7 +31,16 @@ async function main(): Promise<void> {
   console.log("[poracode-relay] public base:   %s", info.url);
   console.log("[poracode-relay] host control:  %s/host", info.url.replace(/^http/, "ws"));
 
-  installShutdown("[poracode-relay]", () => relay.dispose());
+  installShutdown("[poracode-relay]", async () => {
+    try {
+      await relay.dispose();
+    } finally {
+      await performanceDiagnostics?.stop();
+    }
+  });
 }
 
-main().catch((error) => reportFatalStartupError("[poracode-relay]", error));
+main().catch(async (error) => {
+  await performanceDiagnostics?.stop();
+  reportFatalStartupError("[poracode-relay]", error);
+});

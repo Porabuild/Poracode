@@ -1,5 +1,9 @@
 import { closeSync, openSync, unlinkSync, writeSync } from "node:fs";
 import { join } from "node:path";
+import {
+  startNodePerformanceDiagnostics,
+  type NodePerformanceDiagnostics,
+} from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import { preparePoracodeDataRoot } from "@/main/poracodeData";
@@ -139,7 +143,10 @@ export function acquireDataDirLock(
   }
 }
 
+let performanceDiagnostics: NodePerformanceDiagnostics | undefined;
+
 async function serve(): Promise<void> {
+  performanceDiagnostics = startNodePerformanceDiagnostics("server");
   process.env.PORACODE_HEADLESS_SERVER = "1";
   const baseDir = process.env.PORACODE_BASE_DIR?.trim() || resolvePoracodeBaseDir();
   // Ensure the data dir exists before the secret key is written into it.
@@ -196,7 +203,13 @@ async function serve(): Promise<void> {
   // the next start (or a desktop launch) can reclaim the dir cleanly.
   installShutdown(
     "[poracode-server]",
-    () => host.dispose(),
+    async () => {
+      try {
+        await host.dispose();
+      } finally {
+        await performanceDiagnostics?.stop();
+      }
+    },
     () => dataDirLock.release(),
   );
   // Last-resort release on any normal/abrupt process exit (unlinkSync is sync,
@@ -239,7 +252,10 @@ export function runCli(): void {
     reportFatalStartupError("[poracode-server]", error);
   }
   const operation = command === "pair-json" ? printPairingJson() : serve();
-  operation.catch((error) => reportFatalStartupError("[poracode-server]", error));
+  operation.catch(async (error) => {
+    await performanceDiagnostics?.stop();
+    reportFatalStartupError("[poracode-server]", error);
+  });
 }
 
 // Only boot when run as the CLI entrypoint (node dist/main/server.cjs). Guarded

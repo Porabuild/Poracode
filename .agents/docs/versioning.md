@@ -60,7 +60,22 @@ canonical document and adds the marker. Public snapshots omit unknown fields.
 `src/shared/settingsTransactions.ts` defines transaction vocabulary version 1
 and subject content revisions prefixed `s1:`. Revisions express content equality,
 not event ordering; an authority UUID invalidates revisions across owner
-lifetimes. Serialized commits sync a unique temporary file before rename, then
+lifetimes. A volatile commit sequence orders snapshots/deltas and advances with
+the cache after rename. Entry replies include containing-field revisions without
+copying those field values; whole-field changes refresh affected entry revisions.
+Clients bind callbacks and one-use read tokens to a connection generation. A
+sequence gap sets a required publication floor: a refresh must cover the highest
+observed sequence before it can replace client state. Insufficient refreshes
+explicitly request another read; authority changes require a new connection and
+invalidate older callbacks. None of this metadata is persisted in settings.
+
+The inactive authority has explicit initial ceilings of 128 pending transactions
+(including the active write), 4 MiB of queued UTF-8 request bytes, and 1 MiB per
+request. These are admission bounds, not measured throughput budgets. Oversized
+or full-queue requests return an overload outcome; they do not join the queue or
+implicitly repeat. Parse failures and every settlement path release capacity.
+
+Serialized commits sync a unique temporary file before rename, then
 attempt directory sync. A directory-sync error reports separately from the
 already committed result. Process-crash tests do not establish power-loss
 durability or exactly-once request receipts.
@@ -113,6 +128,22 @@ replacement. Discovery PID metadata never grants ownership; only the kernel
 lease does. Never open an existing leased SQLite inode through an unmanaged
 descriptor in the same process, since closing it can release POSIX file locks.
 
+## Electron preload compatibility
+
+The Electron preload must advertise `clientRuntimeVersion` from
+`PORACODE_CLIENT_RUNTIME_VERSION`. The renderer checks this peer value before
+creating its transport. Version 8 requires the native quick-composer show
+subscription; absent, version-6, and version-7 preload artifacts are rejected.
+Browser runtimes use the same local facade version; this desktop window event
+does not change the remote wire, backend-host protocol, or persisted state.
+
+Unactivated V4 branch reservations are backend-host 8 for owner bootstrap, 9 for
+settings authority, and 11 for the private usage-secret service. Their combined
+backend-host contract will use a fresh version 12, superseding the earlier
+two-parent reservation of 10. Settings reserves renderer stream 4 and remote 13;
+the combined client facade/preload will use 9. These are coordination reservations,
+not the currently running wire versions or evidence that activation is complete.
+
 ## Measurement evidence
 
 `ProcessMemorySummary` in `tests/native-e2e/helpers/processMemorySampler.ts` emits
@@ -146,6 +177,26 @@ overstate a short interval. Windows reports an unsupported platform rather than
 valid zero usage. The 4,096 cap bounds historical metric records; the most recent
 tree is separately bounded by the 8 MiB process-output limit. Preserve these
 limits when supplementing in-process CPU/event-loop traces.
+
+`src/shared/diagnostics/processPerformanceSampler.ts` introduces local diagnostic
+format 1. With `PORACODE_PERF_OUTPUT_DIR` set to an existing absolute directory,
+the desktop main, backend, supervisor, standalone server and relay write distinct
+private NDJSON files. No collector starts by default. CPU/RSS are process-wide;
+event loop, heap and GC describe the current thread/isolate. Completed callback
+intervals are assigned at capture, can span a window boundary, and include the
+configured timer period. The unfinished callback tail is recorded separately.
+This method is distinct from native timer/iteration histograms; do not compare
+their percentiles as if they were the same measurement.
+
+The reporting interval defaults to 1,000 ms (`PORACODE_PERF_INTERVAL_MS`, range
+100–60,000). The per-file cap defaults to 64 MiB (`PORACODE_PERF_MAX_BYTES`, range
+64 KiB–512 MiB). Output serializes at most four pending 16 KiB records; overflow,
+budget exhaustion and I/O failures invalidate that recording. Normal shutdown
+attempts a final sample and end marker, with at most 500 ms added for diagnostic
+output. A missing/truncated end marker or incomplete-output warning cannot qualify
+a gate. Successful writes are not a power-loss durability guarantee. No message
+content, argv, environment dump or credentials are recorded. The observer's CPU
+and timer work is included; qualify its overhead against a disabled control.
 
 ## Mirrored-boundary rule
 
