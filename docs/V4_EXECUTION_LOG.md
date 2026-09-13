@@ -677,3 +677,100 @@ typecheck, touched lint and inventory audit pass. An independent trust/lifecycle
 R4 critic also passed 15 tests / three suites. This boundary remains development,
 unpackaged, mock-only and restricted to the current main window's top frame;
 version-1 peers are rejected. Fresh native shutdown evidence is still pending.
+
+## F32 — retained ownership and first-open liveness
+
+The owner lane reproduced a live process losing its kernel lease after its last
+JavaScript lease reference was abandoned and explicit GC ran. A real second child
+then acquired the same namespace. `HostOwnerLease` now retains successfully
+acquired leases until explicit release; failed acquisition is never retained.
+Normal release closes SQLite and removes the retained entry. The real child
+regression verifies continued exclusion after GC and successor acquisition after
+the actual holder exits.
+
+The broader lease run also caught simultaneous first-open attempts both refusing
+ownership. A thirty-pair real-process probe reproduced five such liveness failures
+and no dual-owner outcome. Enabling retained locking before the exclusive
+transaction can retain each connection's schema-read shared lock during upgrade.
+The transaction now acquires first and only then enables retention across commit.
+The same thirty-pair probe subsequently admitted one owner per pair. No random
+sleep, PID authority or raw read/open of an existing lease inode was added.
+
+Evidence is under `.tmp/v4-owner/.tmp/v4-owner/`: `owner-lease-gc-before.log`,
+`owner-lease-gc-after.log` (the first-open failure remains in that broader run),
+`lease-first-open-before.json`, `lease-first-open-reordered.json`, and
+`owner-lease-gc-and-first-open-after.log`. All twenty lease tests pass, as do full
+typecheck and touched lint/format. Independent and primary review each repeated
+the twenty-test lease suite successfully. The initial unsupported Vitest repeat
+flag and probe-loader path errors remain as failed tooling attempts, not runtime
+evidence.
+
+This bounded correction changes neither lease format 1 nor owner metadata format
+
+1. Actual headless/bootstrap wiring is a separate uncommitted candidate and must
+   wait for confirmed ingress/request drains before claiming safe lease release.
+   All roots and processes here were disposable; Linux/Windows, installed upgrades,
+   real profiles and full Phase 1 acceptance remain open.
+
+## Joined durable services and native credential codec integrated
+
+F30 commit `0fa3dfb93` closes PR-watch, schedule, Git-state and app-controls
+admission and joins admitted continuations. Headless composition begins HTTP,
+durable and supervisor shutdown together, rather than leaving automation active
+while waiting for HTTP close. A failed participant cannot skip other stops or
+reach SQLite close. Schedule launch/configuration continuations are joined
+separately from interrupted task-completion promises, avoiding a whole-turn wait.
+
+The primary review found and required the headless ordering and Git-state fixes;
+their real/synthetic held-work reds remain in the owner lane. The final author
+run passed 152 tests / 14 suites; the independent proof/compatibility/R4 critic
+passed 127 tests / 12 suites. Full typecheck and touched checks passed. Broader
+HTTP-handler, proxy, provider-descendant, Windows and outer-process shutdown still
+belong to F11. In particular, the existing five-second HTTP disposal timeout
+does not yet prove that its admitted handler work has completed.
+
+`db53f2a4c` adds the separately reviewed, inactive native key codec: current-owner
+generation, canonical bounded key bytes, OS-backed storage availability, and
+fixed error messages. It reads/writes no files. Primary and independent review
+accepted it; 46 credential tests / three suites passed independently. Root
+consolidation `ad7143d53` passed 476 tests / 49 suites and full typecheck before
+the following frozen app run. Main's actual custody conversion remains pending.
+
+The four-file inactive preference/credential adapter `77bad9b67` is separately
+merged as `caa76fa4d`. It rejects the reproduced profile-driver credential-guard
+bypass, scopes dedicated commands, checks persistent custody before sealing, and
+rechecks CAS inside the authority. Intentional deletion and explicit plaintext
+storage remain possible. The author passed 145 tests / 12 suites; primary passed
+30 policy/command tests and verified all four frozen hashes; the independent
+custody/R4 critic passed 52 tests / three suites. No legacy writer is removed or
+production authority activated by that commit.
+
+## Real native-close path on the combined development build
+
+Clean `ad7143d53` was frozen into
+`/Users/svecherenko/.poracode-smoke/v4-native-close-P8dcer/session.json`, source
+`60834c7eb18b3367895d56d0f96e290e303470facdefd01796d211c5ca50995b`, artifact
+`ebfa6c201d87ba1610352c83d6e05c740703a439c869233c9dfe0eca5e0b685d`.
+The full mock suite again passed nine automated scenarios and 17 mock gates with
+zero captured renderer/runtime errors. Primary inspected handoff/draft screenshots
+and verified the complete runtime hash before closing.
+
+The test confirmed native QA peer 2 and the persisted fixture close-to-tray value
+of false, then invoked the actual `BrowserWindow.close()` through the guarded
+bridge. The main, backend and supervisor processes exited; the managed owner
+completed teardown and removed its runtime. Their files contain respectively
+285, 284 and 284 contiguous samples with complete end markers, zero drops and
+zero writer errors. `native-close-combined-recording.json` and companion logs in
+`tmp/v4-architecture-audit/` pin raw-file identities, pre-close PIDs and subsequent
+absence. A redundant stop command after the owner had finished refused the
+already-inactive session; that log is retained and is not a teardown failure.
+
+Native stderr retains two Chromium WidgetHost rejection lines during the run and
+two macOS task-policy lines during close; their causes are not assigned by this
+test. The script's zero captured-error count is not a claim of empty stderr.
+This is an idle mock native-close check, not OS-menu/shortcut coverage, active
+provider/held-request shutdown, production performance, or completion of F11.
+
+The final root combination of F32 and the scoped settings adapter passed 507 tests
+/ 51 suites and full typecheck (`lease-command-final-combined-*` logs). The only
+merge conflict was concurrent execution-log additions; both records are retained.
