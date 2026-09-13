@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { writeFileAtomic } from "@/shared/atomicFile";
+import type { NativeSecretValue } from "@/shared/hostCredentialProtocol";
+export type { NativeSecretValue } from "@/shared/hostCredentialProtocol";
 import type { HostOwnerLease } from "./hostOwnerLease";
 import { prepareOwnedHostRoot } from "./hostRootManifest";
 import {
@@ -10,11 +12,6 @@ import {
   writeHostCredentialState,
   type HostCredentialMode,
 } from "./hostCredentialState";
-
-export interface NativeSecretValue {
-  readonly ownerGeneration: string;
-  readonly value: string;
-}
 
 /** Native code transforms bytes only. It never receives a root or key-file path. */
 export interface NativeSecretCodec {
