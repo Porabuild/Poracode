@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
-import type { AppView, Thread } from "@/shared/contracts";
+import type { Thread } from "@/shared/contracts";
 import { createDbStorage } from "./dbStorage";
 import { createDraftSlice } from "./slices/draftSlice";
 import { normalizeStoredThreadStatus } from "./slices/helpers";
@@ -14,6 +14,15 @@ import { createSubAgentOverlaySlice } from "./slices/subAgentOverlaySlice";
 import { createThreadSlice } from "./slices/threadSlice";
 import { createViewSlice } from "./slices/viewSlice";
 import { dedupeProjects } from "@/shared/projectIdentity";
+import {
+  currentProjectIdentityOptions,
+  mergeDraftContent,
+  mergePendingComposerSeeds,
+  remapProjectRecord,
+  remapProjectGroupLayouts,
+  remapProjectView,
+  remapThreadProjectIds,
+} from "./projectReferences";
 
 export { makeThreadTitle } from "./slices/helpers";
 export type { AppStoreState } from "./slices/shared";
@@ -57,22 +66,49 @@ export const useAppStore = create<AppStoreState>()(
             (persistedState as (Partial<AppStoreState> & { threads?: Thread[] }) | undefined) ??
             ({} as Partial<AppStoreState>);
 
-          const deduped = dedupeProjects(state.projects ?? currentState.projects);
+          const deduped = dedupeProjects(
+            state.projects ?? currentState.projects,
+            currentProjectIdentityOptions(),
+          );
           const projects = deduped.projects;
           const view = remapProjectView(state.view ?? currentState.view, deduped.duplicateIds);
-          const threads = (state.threads ?? currentState.threads).map((t) => ({
-            ...normalizeStoredThreadStatus(t),
-            ...(t.archived ? { archivedAt: t.archivedAt ?? t.updatedAt } : {}),
-            done: t.done ?? false,
-            doneAt: t.done ? (t.doneAt ?? t.updatedAt) : undefined,
-            projectId: deduped.duplicateIds.get(t.projectId) ?? t.projectId,
-          }));
+          const threads = remapThreadProjectIds(
+            (state.threads ?? currentState.threads).map((t) => ({
+              ...normalizeStoredThreadStatus(t),
+              ...(t.archived ? { archivedAt: t.archivedAt ?? t.updatedAt } : {}),
+              done: t.done ?? false,
+              doneAt: t.done ? (t.doneAt ?? t.updatedAt) : undefined,
+            })),
+            deduped.duplicateIds,
+          );
           const merged = {
             ...currentState,
             ...state,
             projects,
             view,
             threads,
+            groupLayouts: remapProjectGroupLayouts(
+              state.groupLayouts ?? currentState.groupLayouts,
+              deduped.duplicateIds,
+            ),
+            draftContents: remapProjectRecord(
+              state.draftContents ?? currentState.draftContents,
+              deduped.duplicateIds,
+              mergeDraftContent,
+            ),
+            pendingDraftWorktreeSelections: remapProjectRecord(
+              state.pendingDraftWorktreeSelections ?? currentState.pendingDraftWorktreeSelections,
+              deduped.duplicateIds,
+            ),
+            pendingComposerSeeds: remapProjectRecord(
+              state.pendingComposerSeeds ?? currentState.pendingComposerSeeds,
+              deduped.duplicateIds,
+              mergePendingComposerSeeds,
+            ),
+            draftContentDiscardRequests: remapProjectRecord(
+              state.draftContentDiscardRequests ?? currentState.draftContentDiscardRequests,
+              deduped.duplicateIds,
+            ),
             lastRuntimeConfigByThreadId: Object.fromEntries(
               threads.map((thread) => [thread.id, thread.config]),
             ),
@@ -114,10 +150,3 @@ export const useAppStore = create<AppStoreState>()(
     ),
   ),
 );
-
-function remapProjectView(view: AppView, duplicateIds: ReadonlyMap<string, string>): AppView {
-  if ((view.kind === "draft" || view.kind === "experiment") && duplicateIds.has(view.projectId)) {
-    return { ...view, projectId: duplicateIds.get(view.projectId)! };
-  }
-  return view;
-}

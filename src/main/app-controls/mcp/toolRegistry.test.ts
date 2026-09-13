@@ -829,6 +829,23 @@ describe("Poracode app control tools — projects", () => {
     expect(result.project?.id).toBe("p3");
   });
 
+  it("create_project reports when an existing location is reused", async () => {
+    const existing = projects[0]!;
+    const { ctx, applyProjectCommand } = context({ projects, directoryExists: () => true });
+    applyProjectCommand.mockResolvedValueOnce({
+      projects,
+      project: existing,
+      created: false,
+    });
+    const result = (await dispatchTool("create_project", { path: "/work/alpha" }, ctx)) as {
+      created: boolean;
+      project: Project | null;
+    };
+
+    expect(result.created).toBe(false);
+    expect(result.project?.id).toBe(existing.id);
+  });
+
   it("update_project renames while preserving other fields", async () => {
     const { ctx, updateProject } = context({ projects });
     await dispatchTool("update_project", { projectId: "p1", name: "Renamed" }, ctx);

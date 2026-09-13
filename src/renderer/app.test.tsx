@@ -1077,6 +1077,87 @@ describe("App", () => {
     );
   });
 
+  it("repairs views, saved layouts, drafts, experiments, and panels from a canonical-only broadcast", () => {
+    render(<App />);
+    const canonical = {
+      id: "canonical",
+      name: "Repo",
+      location: { kind: "windows" as const, path: "C:\\repo" },
+      createdAt: "2026-09-12T00:00:00.000Z",
+    };
+    const duplicate = { ...canonical, id: "duplicate" };
+    act(() => {
+      useAppStore.setState({
+        projects: [canonical, duplicate],
+        view: {
+          kind: "thread",
+          panes: ["draft:duplicate#pane"],
+          paneLayout: { kind: "leaf", paneId: "draft:duplicate#pane" },
+        },
+        focusedPaneId: "draft:duplicate#pane",
+        groupLayouts: {
+          saved: {
+            panes: ["draft:duplicate#pane"],
+            paneLayout: { kind: "leaf", paneId: "draft:duplicate#pane" },
+          },
+        },
+        draftContents: {
+          canonical: { segments: [{ kind: "text", content: "first" }], attachments: [] },
+          duplicate: { segments: [{ kind: "text", content: "second" }], attachments: [] },
+        },
+        pendingComposerSeeds: {
+          canonical: { text: "first seed", nonce: 1 },
+          duplicate: { text: "seed", nonce: 1 },
+        },
+      });
+      useExperimentStore.setState({
+        experiments: {
+          e1: {
+            id: "e1",
+            projectId: "duplicate",
+            title: "Experiment",
+            prompt: "Compare",
+            baseBranch: "main",
+            baseCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            candidates: [],
+            status: "running",
+            createdAt: canonical.createdAt,
+            updatedAt: canonical.createdAt,
+          },
+        },
+      });
+      usePanelStore.setState({
+        projectSettingsId: "duplicate",
+        gitReviewContext: { projectId: "duplicate" },
+      });
+      projectStateChangedListeners.at(-1)?.({ projects: [canonical] });
+    });
+    const state = useAppStore.getState();
+    expect(state.projects).toEqual([canonical]);
+    expect(state.view).toMatchObject({
+      panes: ["draft:canonical#pane"],
+      paneLayout: { paneId: "draft:canonical#pane" },
+    });
+    expect(state.focusedPaneId).toBe("draft:canonical#pane");
+    expect(state.groupLayouts.saved).toMatchObject({
+      panes: ["draft:canonical#pane"],
+      paneLayout: { paneId: "draft:canonical#pane" },
+    });
+    expect(state.draftContents.canonical?.segments).toEqual([
+      { kind: "text", content: "first" },
+      { kind: "text", content: "\n\n" },
+      { kind: "text", content: "second" },
+    ]);
+    expect(state.draftContents.duplicate).toBeUndefined();
+    expect(state.pendingComposerSeeds.canonical?.text).toBe("first seed");
+    expect(state.pendingComposerSeeds.canonical?.queued?.[0]?.text).toBe("seed");
+    expect(useExperimentStore.getState().experiments.e1?.projectId).toBe("canonical");
+    expect(usePanelStore.getState()).toMatchObject({
+      projectSettingsId: "canonical",
+      gitReviewContext: { projectId: "canonical" },
+    });
+  });
+
   it("mirrors a remotely started thread without queueing a duplicate launch", async () => {
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);

@@ -17,6 +17,7 @@ interface ExperimentStore {
   decideExperiment: (experimentId: string, winnerThreadId: string) => void;
   removeExperiment: (experimentId: string) => void;
   removeProjectExperiments: (projectId: string) => void;
+  remapProjectIds: (duplicateIds: ReadonlyMap<string, string>) => void;
   reconcileExperiments: (projectIds: ReadonlySet<string>) => void;
 }
 
@@ -106,6 +107,20 @@ export const useExperimentStore = create<ExperimentStore>()(
           return Object.keys(experiments).length === Object.keys(state.experiments).length
             ? state
             : { experiments };
+        }),
+      remapProjectIds: (duplicateIds) =>
+        set((state) => {
+          if (duplicateIds.size === 0) return state;
+          let changed = false;
+          const experiments = Object.fromEntries(
+            Object.entries(state.experiments).map(([id, experiment]) => {
+              const projectId = duplicateIds.get(experiment.projectId);
+              if (!projectId) return [id, experiment];
+              changed = true;
+              return [id, { ...experiment, projectId }];
+            }),
+          );
+          return changed ? { experiments } : state;
         }),
       reconcileExperiments: (projectIds) =>
         set((state) => {

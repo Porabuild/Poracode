@@ -6,22 +6,23 @@ const mocks = vi.hoisted(() => ({
   createProjectDirectory: vi.fn<(p: unknown) => Promise<{ path: string }>>(),
   cloneRepo: vi.fn<(p: unknown) => Promise<{ path: string }>>(),
   pickFolder: vi.fn<(d?: string) => Promise<string | null>>(),
-  addProject: vi.fn<(location: unknown, name?: string, workspaceId?: string) => unknown>(
+  addProjectWithResult: vi.fn<(location: unknown, name?: string, workspaceId?: string) => unknown>(
     (location, name) => ({
-      id: "p1",
-      name: name ?? "x",
-      location,
-      createdAt: "t",
+      project: { id: "p1", name: name ?? "x", location, createdAt: "t" },
+      created: true,
     }),
   ),
   openDraft: vi.fn<(id: string) => void>(),
   setLastUsedProjectDir: vi.fn<(key: string, dir: string) => void>(),
   autoDetectSetupScript: vi.fn<(project: unknown) => void>(),
+  toastInfo: vi.fn<(message: string) => void>(),
   loadHomeScopeLocation: vi.fn<() => Promise<{ kind: string; path: string }>>(),
   lastUsedProjectDirs: {} as Record<string, string>,
 }));
 
-const { createProjectDirectory, addProject, openDraft, setLastUsedProjectDir } = mocks;
+const { createProjectDirectory, addProjectWithResult, openDraft, setLastUsedProjectDir } = mocks;
+
+vi.mock("@heroui/react", () => ({ toast: { info: mocks.toastInfo } }));
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({
@@ -35,7 +36,12 @@ vi.mock("@/renderer/actions/projectActions", () => ({
   loadHomeScopeLocation: mocks.loadHomeScopeLocation,
 }));
 vi.mock("@/renderer/state/appStore", () => ({
-  useAppStore: { getState: () => ({ addProject: mocks.addProject, openDraft: mocks.openDraft }) },
+  useAppStore: {
+    getState: () => ({
+      addProjectWithResult: mocks.addProjectWithResult,
+      openDraft: mocks.openDraft,
+    }),
+  },
 }));
 // New projects inherit whichever workspace the user is currently viewing.
 vi.mock("@/renderer/state/workspaceStore", () => ({
@@ -75,7 +81,7 @@ describe("commitCreateProject", () => {
     });
 
     expect(createProjectDirectory).not.toHaveBeenCalled();
-    expect(addProject).toHaveBeenCalledWith(
+    expect(addProjectWithResult).toHaveBeenCalledWith(
       { kind: "posix", path: "/Users/me/code/app" },
       "app",
       ACTIVE_WORKSPACE_ID,
@@ -99,13 +105,26 @@ describe("commitCreateProject", () => {
       name: "new",
       kind: "posix",
     });
-    expect(addProject).toHaveBeenCalledWith(
+    expect(addProjectWithResult).toHaveBeenCalledWith(
       { kind: "posix", path: "/Users/me/code/new" },
       "new",
       ACTIVE_WORKSPACE_ID,
     );
     // scratch records the parent the user browsed, not the new folder.
     expect(setLastUsedProjectDir).toHaveBeenCalledWith("native", "/Users/me/code");
+  });
+
+  test("reopens a reused project without running setup detection again", async () => {
+    addProjectWithResult.mockReturnValueOnce({ project: { id: "existing" }, created: false });
+    await commitCreateProject({
+      mode: "existing",
+      choice: { kind: "native" },
+      dir: "/repo",
+      name: "Repo",
+    });
+    expect(mocks.autoDetectSetupScript).not.toHaveBeenCalled();
+    expect(mocks.toastInfo).toHaveBeenCalledWith("This folder is already registered as a project.");
+    expect(openDraft).toHaveBeenCalledWith("existing");
   });
 
   test("scratch failure propagates and does not add a project", async () => {
@@ -122,7 +141,7 @@ describe("commitCreateProject", () => {
       }),
     ).rejects.toThrow(/already exists/i);
 
-    expect(addProject).not.toHaveBeenCalled();
+    expect(addProjectWithResult).not.toHaveBeenCalled();
     expect(setLastUsedProjectDir).not.toHaveBeenCalled();
   });
 });
@@ -155,7 +174,7 @@ describe("commitCloneProject", () => {
         account: { host: "github.com", login: "poracode" },
       },
     });
-    expect(addProject).toHaveBeenCalledWith(
+    expect(addProjectWithResult).toHaveBeenCalledWith(
       { kind: "posix", path: "/Users/me/code/poracode" },
       "poracode",
       ACTIVE_WORKSPACE_ID,
@@ -180,7 +199,7 @@ describe("commitCloneProject", () => {
       name: "repo",
       source: { kind: "url", url: "https://github.com/owner/repo.git" },
     });
-    expect(addProject).toHaveBeenCalledWith(
+    expect(addProjectWithResult).toHaveBeenCalledWith(
       { kind: "posix", path: "/Users/me/code/repo" },
       "repo",
       ACTIVE_WORKSPACE_ID,
@@ -199,7 +218,7 @@ describe("commitCloneProject", () => {
       }),
     ).rejects.toThrow(/authentication/i);
 
-    expect(addProject).not.toHaveBeenCalled();
+    expect(addProjectWithResult).not.toHaveBeenCalled();
     expect(setLastUsedProjectDir).not.toHaveBeenCalled();
   });
 });
@@ -217,7 +236,7 @@ describe("addExistingProject", () => {
     await addExistingProject();
 
     expect(mocks.pickFolder).toHaveBeenCalledWith("/Users/me");
-    expect(addProject).toHaveBeenCalledWith(
+    expect(addProjectWithResult).toHaveBeenCalledWith(
       { kind: "posix", path: "/Users/me/code/app" },
       undefined,
       ACTIVE_WORKSPACE_ID,
@@ -241,7 +260,7 @@ describe("addExistingProject", () => {
 
     await addExistingProject();
 
-    expect(addProject).toHaveBeenCalledWith(
+    expect(addProjectWithResult).toHaveBeenCalledWith(
       {
         kind: "wsl",
         distro: "Ubuntu",
@@ -271,7 +290,7 @@ describe("addExistingProject", () => {
 
     await addExistingProject();
 
-    expect(addProject).not.toHaveBeenCalled();
+    expect(addProjectWithResult).not.toHaveBeenCalled();
     expect(setLastUsedProjectDir).not.toHaveBeenCalled();
   });
 });

@@ -299,6 +299,8 @@ export type RemoteProjectSettings = z.infer<typeof remoteProjectSettingsSchema>;
 export const remoteProjectCommandResultSchema = z.object({
   projects: z.array(remoteProjectSchema),
   project: remoteProjectSchema.optional(),
+  /** True when the command registered a new row; false when an existing location was reused. */
+  created: z.boolean().optional(),
 });
 export type RemoteProjectCommandResult = z.infer<typeof remoteProjectCommandResultSchema>;
 

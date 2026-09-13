@@ -51,7 +51,25 @@ describe("appStore runtime config sync", () => {
 
     expect(second.id).toBe(first.id);
     expect(useAppStore.getState().projects).toHaveLength(1);
-    expect(second.name).toBe(first.name);
+    expect(second.name).toBe("Renamed");
+  });
+
+  it("updates only the label and workspace when reusing a project", () => {
+    const first = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    useAppStore.getState().updateProjectScripts(first.id, {
+      setupScript: "pnpm install",
+      actions: [{ id: "test", name: "Test", command: "pnpm test" }],
+    });
+
+    const second = useAppStore
+      .getState()
+      .addProject({ kind: "windows", path: "c:/REPO/" }, "Renamed", "workspace-2");
+
+    expect(second).toMatchObject({ id: first.id, name: "Renamed", workspaceId: "workspace-2" });
+    expect(second.scripts).toEqual({
+      setupScript: "pnpm install",
+      actions: [{ id: "test", name: "Test", command: "pnpm test" }],
+    });
   });
 
   it("repairs persisted duplicate projects and rehomes their threads", () => {

@@ -181,6 +181,7 @@ export class PrWatchService {
     try {
       const watch = this.options.store.get(snapshot.projectId, snapshot.prNumber);
       if (!watch) return;
+      if (watch.blockedReason === "duplicate-project-watches") return;
       if (watch.activeThreadId && this.options.isThreadActive(watch.activeThreadId)) return;
       const project = this.options.getProject(watch.projectId);
       if (!project) {
@@ -345,6 +346,7 @@ export class PrWatchService {
   private currentLaunchWatch(snapshot: PrWatch): PrWatch | null {
     const current = this.options.store.get(snapshot.projectId, snapshot.prNumber);
     if (!current || !current.watchEnabled) return null;
+    if (current.activeThreadId && this.options.isThreadActive(current.activeThreadId)) return null;
     if (hasSameLaunchInputs(snapshot, current)) return current;
     this.requestCheck(current.projectId, current.prNumber);
     return null;
@@ -380,15 +382,16 @@ export class PrWatchService {
     for (const watch of this.options.store.list()) {
       if (watch.projectId !== agent.projectId || isSameAgent(watch, agent)) continue;
       const wasBlocked = watch.blockedReason !== null;
+      const requiresModeSelection = watch.blockedReason === "duplicate-project-watches";
       this.options.store.upsert({
         ...watch,
         agentKind: agent.agentKind,
         config: agent.config,
-        blockedReason: null,
+        blockedReason: requiresModeSelection ? watch.blockedReason : null,
         lastError: null,
       });
       // A watch blocked on its old agent can act again immediately.
-      if (wasBlocked) this.requestCheck(watch.projectId, watch.prNumber);
+      if (wasBlocked && !requiresModeSelection) this.requestCheck(watch.projectId, watch.prNumber);
     }
   }
 
