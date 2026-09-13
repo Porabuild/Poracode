@@ -18,6 +18,7 @@ import {
 } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
+import { dedupeProjects } from "@/shared/projectIdentity";
 import { useThreadFollowUpQueueStore } from "./state/threadFollowUpQueueStore";
 import { useExperimentStore } from "./state/experimentStore";
 import { useGitReadModelStore } from "./state/gitReadModelStore";
@@ -451,10 +452,21 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       // Main-process project mutations must reach this whole-store snapshot
       // before its next dbSyncAll persistence write.
       readBridge().onProjectStateChanged(({ projects }) => {
-        useAppStore.setState({ projects });
+        const deduped = dedupeProjects(projects);
+        useAppStore.setState((state) => ({
+          projects: deduped.projects,
+          ...(deduped.duplicateIds.size > 0
+            ? {
+                threads: state.threads.map((thread) => ({
+                  ...thread,
+                  projectId: deduped.duplicateIds.get(thread.projectId) ?? thread.projectId,
+                })),
+              }
+            : {}),
+        }));
         useExperimentStore
           .getState()
-          .reconcileExperiments(new Set(projects.map((project) => project.id)));
+          .reconcileExperiments(new Set(deduped.projects.map((project) => project.id)));
       }),
       readBridge().onGitStateChanged((patch) => {
         useGitReadModelStore.getState().applyPatch(patch);

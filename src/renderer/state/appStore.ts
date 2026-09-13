@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
-import type { Thread } from "@/shared/contracts";
+import type { AppView, Thread } from "@/shared/contracts";
 import { createDbStorage } from "./dbStorage";
 import { createDraftSlice } from "./slices/draftSlice";
 import { normalizeStoredThreadStatus } from "./slices/helpers";
@@ -13,6 +13,7 @@ import type { AppStoreState } from "./slices/shared";
 import { createSubAgentOverlaySlice } from "./slices/subAgentOverlaySlice";
 import { createThreadSlice } from "./slices/threadSlice";
 import { createViewSlice } from "./slices/viewSlice";
+import { dedupeProjects } from "@/shared/projectIdentity";
 
 export { makeThreadTitle } from "./slices/helpers";
 export type { AppStoreState } from "./slices/shared";
@@ -56,15 +57,21 @@ export const useAppStore = create<AppStoreState>()(
             (persistedState as (Partial<AppStoreState> & { threads?: Thread[] }) | undefined) ??
             ({} as Partial<AppStoreState>);
 
+          const deduped = dedupeProjects(state.projects ?? currentState.projects);
+          const projects = deduped.projects;
+          const view = remapProjectView(state.view ?? currentState.view, deduped.duplicateIds);
           const threads = (state.threads ?? currentState.threads).map((t) => ({
             ...normalizeStoredThreadStatus(t),
             ...(t.archived ? { archivedAt: t.archivedAt ?? t.updatedAt } : {}),
             done: t.done ?? false,
             doneAt: t.done ? (t.doneAt ?? t.updatedAt) : undefined,
+            projectId: deduped.duplicateIds.get(t.projectId) ?? t.projectId,
           }));
           const merged = {
             ...currentState,
             ...state,
+            projects,
+            view,
             threads,
             lastRuntimeConfigByThreadId: Object.fromEntries(
               threads.map((thread) => [thread.id, thread.config]),
@@ -107,3 +114,10 @@ export const useAppStore = create<AppStoreState>()(
     ),
   ),
 );
+
+function remapProjectView(view: AppView, duplicateIds: ReadonlyMap<string, string>): AppView {
+  if ((view.kind === "draft" || view.kind === "experiment") && duplicateIds.has(view.projectId)) {
+    return { ...view, projectId: duplicateIds.get(view.projectId)! };
+  }
+  return view;
+}

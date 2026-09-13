@@ -12,6 +12,7 @@ import type {
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { getProjectName } from "@/shared/wsl";
+import { projectIdentityKey } from "@/shared/projectIdentity";
 import { reorderIds, type ReorderPlacement } from "../reorder";
 import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import { removePaneFromView } from "./helpers";
@@ -79,9 +80,13 @@ export interface ProjectSlice {
   reorderProjects: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
 }
 
-export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
+export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
   projects: [],
   addProject: (location, nameOverride, workspaceId) => {
+    const identity = projectIdentityKey({ location });
+    const existing = get().projects.find((project) => projectIdentityKey(project) === identity);
+    if (existing) return existing;
+
     const project: Project = {
       id: crypto.randomUUID(),
       name: nameOverride?.trim() || getProjectName(location),
