@@ -202,13 +202,24 @@ The runner first dismisses the welcome screen through its real primary action an
 Renderer mock gates load optional modules through the bundled `__poracodeDev`
 loaders; never import `/src/...` URLs from CDP scripts, since frozen renderer
 snapshots do not serve Vite's source namespace. The quick-composer mock gate uses
-the separate version-1 `__poracodeSmokeNative` bridge, registered only for an
+the separate version-2 `__poracodeSmokeNative` bridge, registered only for an
 unpackaged development app with mock agents and restricted to the current main
 window's top frame. It drives the actual native overlay and submits through its
 normal IPC path, intercepting provider launch at main-renderer thread creation.
 Its `mocked` result does not acknowledge the real quick-composer gate: global
 shortcut/tray invocation, OS dragging/reopening, visual dismissal motion, and a
 real provider-backed thread handoff still require the manual workflow below.
+
+For a mock shutdown check, the same guarded bridge exposes `closeMainWindow()`
+(the actual native window close method, respecting close-to-tray) and `quitApp()`
+(the actual app quit method). Check `version === 2` first. Invoke through the
+managed CDP helper, then verify process exit, owner teardown and any diagnostic
+end records; dispatch or a closed CDP target alone does not prove shutdown.
+Use `--await` when a CDP evaluation needs a promise result, such as confirming a
+fixture setting before closing. Do not use HTML `window.close()` to test native
+close: Electron's sandboxed renderer can destroy the window without firing the
+native close callback. These mock probes do not acknowledge OS menu/shortcut
+coverage or replace managed owner cleanup.
 
 Do not acknowledge a real gate before exercising it. After completing real gates through real controls, record them:
 
