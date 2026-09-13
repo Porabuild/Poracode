@@ -1389,3 +1389,48 @@ terminate arbitrary descendants or wire the main process's outer quit path.
 The one-second parent and two-second app deadlines, process trees, Windows
 packaging and OS-level action completion therefore remain open; F43's sealed GUI
 run is the current evidence for that gap.
+
+## Phase 2 thread-mutation coordination
+
+Before: checkpoint reverts had a backend-local `revertLocks` map, but ordinary
+supervisor calls entered the same thread independently. A start, input, provider
+switch, or queued follow-up could therefore interleave between the provider and
+transcript phases of a revert, and the remote/headless composition had no shared
+lock boundary.
+
+After: `SupervisorClient` now owns a per-thread mutation coordinator shared by
+desktop, headless, and remote callers. Start/resume, input, follow-up queue,
+provider rollback/restore, terminal staging, and related mutations serialize for
+one thread; interrupt, close, and server-request responses bypass the queue so a
+long mutation remains stoppable. The compound checkpoint path holds the same
+lock across every phase and explicitly skips nested acquisition. Separate threads
+still dispatch concurrently.
+
+The focused supervisor, core, and checkpoint suites pass 51 tests, with full
+typecheck and touched type-aware lint passing. This closes the specific
+interleaving gap at the supervisor boundary, while delete/transcript replacement,
+durable operation reconciliation, generation fencing, crash recovery, and the
+full local/HTTP race matrix remain open Phase 2 work.
+
+The exact-tree managed Electron smoke also passed its welcome, baseline,
+mock-integration, and database/settings IPC gates with zero renderer/runtime
+errors. Evidence is retained at
+`/Users/svecherenko/.poracode-smoke/automated-1789327558663-66220/artifacts/smoke-report.json`.
+The known teardown warning about persisting shell bounds after backend shutdown
+remains a harness shutdown race and did not produce a runtime error.
+
+The independent review then found two ordering defects in the first coordinator
+implementation: a same-turn interrupt could overtake a not-yet-admitted start,
+and a queued compound revert was absent from the shutdown join snapshot. The
+coordinator now admits the first mutation synchronously, cancels queued work when
+interrupt/close control arrives while server-request replies only bypass the lock,
+and drains all thread tails during supervisor disposal. `BackendHostCore` registers
+accepted reverts before enqueue and cancels them cleanly when shutdown begins. The
+corrected focused run passes 51 tests;
+the managed Electron smoke above remains valid for the unchanged UI surface.
+
+After the final control-cancellation split, a fresh exact-tree managed Electron
+smoke passed welcome-dismissal and baseline with zero renderer/runtime errors.
+The changed-surface run had no additional mock IPC gates because the remaining
+production delta was supervisor-only. Evidence is retained at
+`/Users/svecherenko/.poracode-smoke/automated-1789328214218-72517/artifacts/smoke-report.json`.

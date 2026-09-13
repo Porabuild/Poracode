@@ -217,6 +217,128 @@ describe("SupervisorClient.call", () => {
     await expect(Promise.all([first, second])).resolves.toEqual(["first", "second"]);
   });
 
+  it("serializes thread mutations while keeping unrelated threads concurrent", async () => {
+    const { client, child } = makeClient();
+    const ids: string[] = [];
+    child.send.mockImplementation((message, callback) => {
+      ids.push((message as { id: string }).id);
+      callback?.();
+      return true;
+    });
+
+    const first = client.call("startThread", { threadId: "thread-a" } as never);
+    const second = client.call("sendThreadInput", { threadId: "thread-a" } as never);
+    const unrelated = client.call("startThread", { threadId: "thread-b" } as never);
+    await vi.waitFor(() => expect(ids).toHaveLength(2));
+
+    child.emit("message", { replyTo: ids[0], ok: true, data: "a-started" });
+    await vi.waitFor(() => expect(ids).toHaveLength(3));
+    child.emit("message", { replyTo: ids[1], ok: true, data: "b-started" });
+    child.emit("message", { replyTo: ids[2], ok: true, data: "a-input" });
+
+    await expect(Promise.all([first, second, unrelated])).resolves.toEqual([
+      "a-started",
+      "a-input",
+      "b-started",
+    ]);
+  });
+
+  it("lets interrupt and server-request replies bypass a queued mutation", async () => {
+    const { client, child } = makeClient();
+    const requests: Array<{ id: string; type: string }> = [];
+    child.send.mockImplementation((message, callback) => {
+      const request = message as { id: string; type: string };
+      requests.push({ id: request.id, type: request.type });
+      callback?.();
+      return true;
+    });
+
+    const mutation = client.call("startThread", { threadId: "thread-a" } as never);
+    const interrupt = client.call("interruptThread", { threadId: "thread-a" } as never);
+    const answer = client.call("resolveThreadServerRequest", { threadId: "thread-a" } as never);
+    await vi.waitFor(() => expect(requests).toHaveLength(3));
+    expect(requests[0]?.type).toBe("startThread");
+
+    const requestByType = (type: string): string => {
+      const request = requests.find((entry) => entry.type === type);
+      if (!request) throw new Error(`Missing ${type} request.`);
+      return request.id;
+    };
+    child.emit("message", {
+      replyTo: requestByType("interruptThread"),
+      ok: true,
+      data: "interrupted",
+    });
+    child.emit("message", {
+      replyTo: requestByType("resolveThreadServerRequest"),
+      ok: true,
+      data: "answered",
+    });
+    child.emit("message", { replyTo: requestByType("startThread"), ok: true, data: "started" });
+
+    await expect(Promise.all([mutation, interrupt, answer])).resolves.toEqual([
+      "started",
+      "interrupted",
+      "answered",
+    ]);
+  });
+
+  it("cancels a queued mutation when a thread control call arrives", async () => {
+    const { client, child } = makeClient();
+    const requests: Array<{ id: string; type: string }> = [];
+    child.send.mockImplementation((message, callback) => {
+      const request = message as { id: string; type: string };
+      requests.push({ id: request.id, type: request.type });
+      callback?.();
+      return true;
+    });
+
+    const first = client.call("startThread", { threadId: "thread-a" } as never);
+    const queued = client.call("sendThreadInput", { threadId: "thread-a" } as never);
+    const interrupt = client.call("interruptThread", { threadId: "thread-a" } as never);
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests.map((request) => request.type)).toEqual(["startThread", "interruptThread"]);
+
+    child.emit("message", { replyTo: requests[1]!.id, ok: true, data: "interrupted" });
+    child.emit("message", { replyTo: requests[0]!.id, ok: true, data: "started" });
+
+    await expect(first).resolves.toBe("started");
+    await expect(interrupt).resolves.toBe("interrupted");
+    await expect(queued).rejects.toThrow("cancelled by a control operation");
+  });
+
+  it("does not cancel queued input when answering a server request", async () => {
+    const { client, child } = makeClient();
+    const requests: Array<{ id: string; type: string }> = [];
+    child.send.mockImplementation((message, callback) => {
+      const request = message as { id: string; type: string };
+      requests.push({ id: request.id, type: request.type });
+      callback?.();
+      return true;
+    });
+
+    const start = client.call("startThread", { threadId: "thread-a" } as never);
+    const input = client.call("sendThreadInput", { threadId: "thread-a" } as never);
+    const answer = client.call("resolveThreadServerRequest", { threadId: "thread-a" } as never);
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests.map((request) => request.type)).toEqual([
+      "startThread",
+      "resolveThreadServerRequest",
+    ]);
+
+    child.emit("message", { replyTo: requests[1]!.id, ok: true, data: "answered" });
+    child.emit("message", { replyTo: requests[0]!.id, ok: true, data: "started" });
+    await vi.waitFor(() => expect(requests).toHaveLength(3));
+    expect(requests[2]?.type).toBe("sendThreadInput");
+    child.emit("message", { replyTo: requests[2]!.id, ok: true, data: "sent" });
+
+    await expect(Promise.all([start, input, answer])).resolves.toEqual([
+      "started",
+      "sent",
+      "answered",
+    ]);
+  });
+
   it("starts again on demand after a clean supervisor exit", async () => {
     const firstChild = makeFakeChild();
     const secondChild = makeFakeChild();
@@ -416,5 +538,18 @@ describe("SupervisorClient lifecycle", () => {
 
     expect(terminateChildProcessTreeMock).toHaveBeenCalledExactlyOnceWith(child);
     expect(forkMock).toHaveBeenCalledOnce();
+  });
+
+  it("joins queued thread mutations before disposal resolves", async () => {
+    const { client, child } = makeClient();
+    const first = client.call("startThread", { threadId: "thread-a" } as never);
+    const queued = client.call("sendThreadInput", { threadId: "thread-a" } as never);
+
+    const disposal = client.dispose();
+    child.emit("close", 0);
+    await disposal;
+
+    await expect(first).rejects.toThrow("Supervisor exited");
+    await expect(queued).rejects.toThrow("cancelled by a control operation");
   });
 });

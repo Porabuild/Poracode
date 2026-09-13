@@ -813,6 +813,17 @@ late old-child events; repeated signals; no orphan processes or post-close write
 Repeat checkpoint journeys through both local direct and HTTP transports and
 include a successful subsequent provider turn.
 
+The supervisor boundary now has a shared per-thread mutation coordinator. Start,
+resume, input, follow-up queue, provider-rollback, terminal staging, and related
+mutations serialize for one thread while interrupt and server-request responses
+bypass the queue; unrelated threads remain concurrent. Compound checkpoint revert
+holds the same coordinator across provider restore, file restore, and transcript
+truncation. This is a verified ordering slice, not completion of the Phase 2
+acceptance: delete/transcript replacement and durable operation reconciliation,
+generation fencing, crash recovery, and cross-transport race evidence remain.
+Queued mutations are cancelled by control and shutdown, and accepted compound
+reverts are joined before the database closes.
+
 ### Phase 3 — keep bulk traffic out of Electron main
 
 Owner: Electron/client transport maintainer. Can overlap Phase 2 after Phase 1's

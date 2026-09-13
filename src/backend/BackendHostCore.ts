@@ -345,16 +345,33 @@ export class BackendHostCore {
   async revertCheckpoint(input: RevertCheckpointInput): Promise<RevertCheckpointResult> {
     if (this.closing) throw new Error("Backend host is shutting down.");
     const previous = this.revertLocks.get(input.threadId) ?? Promise.resolve();
-    const operation = previous.catch(() => {}).then(() => this.runRevertCheckpoint(input));
-    // The tracked (swallowed) twin keeps the lock map free of rejecting
-    // promises; the caller still receives `operation`'s rejection directly.
-    const tracked = operation.catch(() => {});
+    const accepted = Promise.withResolvers<RevertCheckpointResult>();
+    // Register accepted work before handing it to the supervisor coordinator;
+    // an immediate shutdown must join a queued revert even if its callback has
+    // not started yet.
+    const tracked = accepted.promise.then(
+      () => undefined,
+      () => undefined,
+    );
     this.revertLocks.set(input.threadId, tracked);
-    void tracked.finally(() => {
+    void tracked.then(() => {
       if (this.revertLocks.get(input.threadId) === tracked) {
         this.revertLocks.delete(input.threadId);
       }
     });
+    const run = async (): Promise<RevertCheckpointResult> => {
+      await previous.catch(() => {});
+      if (this.closing) throw new Error("Backend host is shutting down.");
+      return this.runRevertCheckpoint(input);
+    };
+    // SupervisorClient owns the cross-composition per-thread coordinator. The
+    // optional fallback keeps the lightweight core unit-test double compatible
+    // while production clients hold the lock across every compound phase.
+    const operation =
+      typeof this.supervisorClient.runThreadMutation === "function"
+        ? this.supervisorClient.runThreadMutation(input.threadId, run)
+        : run();
+    void operation.then(accepted.resolve, accepted.reject);
     return operation;
   }
 
@@ -430,11 +447,15 @@ export class BackendHostCore {
         // Plan phase (fresh attempts only): create and journal the anchor.
         if (!anchorJson && row.providerPhase === "pending") {
           try {
-            const created = await this.supervisorClient.call("createRevertAnchor", {
-              threadId: input.threadId,
-              numTurns: row.numTurns,
-              ...(config ? { config } : {}),
-            });
+            const created = await this.supervisorClient.call(
+              "createRevertAnchor",
+              {
+                threadId: input.threadId,
+                numTurns: row.numTurns,
+                ...(config ? { config } : {}),
+              },
+              { skipThreadMutation: true },
+            );
             anchorJson = JSON.stringify(created.anchor);
             // Freeze the absolute target durably before any restore runs.
             row = this.bumpPhase(journalKey, row, { providerAnchorJson: anchorJson });
@@ -449,11 +470,15 @@ export class BackendHostCore {
         // Restore phase.
         if (anchorJson && (row.providerPhase === "pending" || row.providerPhase === "failed")) {
           try {
-            await this.supervisorClient.call("restoreToRevertAnchor", {
-              threadId: input.threadId,
-              anchor: JSON.parse(anchorJson) as ProviderRevertAnchor,
-              ...(config ? { config } : {}),
-            });
+            await this.supervisorClient.call(
+              "restoreToRevertAnchor",
+              {
+                threadId: input.threadId,
+                anchor: JSON.parse(anchorJson) as ProviderRevertAnchor,
+                ...(config ? { config } : {}),
+              },
+              { skipThreadMutation: true },
+            );
             row = this.bumpPhase(journalKey, row, { providerPhase: "completed" });
           } catch (error) {
             row = this.bumpPhase(journalKey, row, {
@@ -463,11 +488,15 @@ export class BackendHostCore {
         } else if (!anchorJson && row.providerPhase === "pending") {
           // Anchor-unsupported fallback: the legacy relative rollback.
           try {
-            await this.supervisorClient.call("rollbackThreadConversation", {
-              threadId: input.threadId,
-              numTurns: row.numTurns,
-              ...(config ? { config } : {}),
-            });
+            await this.supervisorClient.call(
+              "rollbackThreadConversation",
+              {
+                threadId: input.threadId,
+                numTurns: row.numTurns,
+                ...(config ? { config } : {}),
+              },
+              { skipThreadMutation: true },
+            );
             row = this.bumpPhase(journalKey, row, { providerPhase: "completed" });
           } catch (error) {
             row = this.bumpPhase(journalKey, row, {
