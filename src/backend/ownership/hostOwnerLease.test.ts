@@ -16,7 +16,7 @@ import { dirname, join, parse } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { HostOwnerLease, HostRootInUseError, readHostOwnerRecord } from "./hostOwnerLease";
-import { resolveHostRootPaths } from "./hostRootPaths";
+import { resolveDesktopHostRootPaths, resolveHostRootPaths } from "./hostRootPaths";
 
 const directories: string[] = [];
 const leases: HostOwnerLease[] = [];
@@ -30,6 +30,12 @@ function namespace(): string {
 
 function own(profile: string, kind: "desktop" | "headless" = "desktop") {
   const lease = HostOwnerLease.acquire(resolveHostRootPaths(profile), kind);
+  leases.push(lease);
+  return lease;
+}
+
+function ownDesktopProfile(profile: string) {
+  const lease = HostOwnerLease.acquire(resolveDesktopHostRootPaths(profile), "desktop");
   leases.push(lease);
   return lease;
 }
@@ -95,6 +101,15 @@ describe("host profile namespace", () => {
     expect(resolveHostRootPaths(alias)).toEqual(resolveHostRootPaths(profile));
   });
 
+  it("maps the legacy desktop root to the same lease as its standalone sibling", () => {
+    const profile = namespace();
+    const desktop = resolveDesktopHostRootPaths(profile);
+    const headless = resolveHostRootPaths(profile);
+    expect(desktop.dataRoot).toBe(profile);
+    expect(desktop.leasePath).toBe(headless.leasePath);
+    expect(desktop.ownerRecordPath).toBe(headless.ownerRecordPath);
+  });
+
   it("rejects relative namespaces, filesystem roots and accidental owned-root nesting", () => {
     expect(() => resolveHostRootPaths("relative-profile")).toThrow(/absolute/u);
     expect(() => resolveHostRootPaths(parse(namespace()).root)).toThrow(/filesystem root/u);
@@ -138,6 +153,18 @@ describe("host profile namespace", () => {
 });
 
 describe("host owner kernel lease", () => {
+  it("blocks a standalone owner while the legacy desktop profile is active", async () => {
+    const profile = namespace();
+    const desktop = ownDesktopProfile(profile);
+    expect((await contender(profile, "headless")).result).toMatchObject({
+      status: "refused",
+      code: "HOST_ROOT_IN_USE",
+    });
+    expect(readHostOwnerRecord(desktop.paths)).toMatchObject({
+      kind: "desktop",
+      dataRoot: profile,
+    });
+  });
   it("retains abandoned ownership until the process exits instead of releasing through GC", async () => {
     const profile = namespace();
     const holder = await contender(profile, "headless");

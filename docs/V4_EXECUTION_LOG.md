@@ -1260,6 +1260,16 @@ prerequisite, not Electron attach behavior: Electron still needs to consume the
 description and choose attach, managed-local start, or a clear incompatible-owner
 result before Phase 1 can exit.
 
+The desktop bootstrap now acquires the shared profile kernel lease before legacy
+migration, directory preparation, key setup, or backend startup. Its owner record
+uses `kind: "desktop"` and the legacy profile as `dataRoot`, while headless hosts
+continue using the versioned `.host-v1` data sibling; both contend for the same
+lease inode. A real Electron smoke produced the desktop owner record, completed
+the changed-surface suite with zero renderer/runtime errors, and left the record
+at `phase: "stopped"` after verified teardown. Ownership fixtures pass the
+desktop-first/headless-contender refusal. This closes duplicate-owner admission,
+but Electron attach and managed-local/server lifecycle selection remain open.
+
 The remaining F11 work must wire main/native admission and actual execution joins,
 reconcile the parent one-second and app two-second deadlines, join backend and
 provider/PTY descendants, and qualify Windows shutdown. The sealed red evidence is
