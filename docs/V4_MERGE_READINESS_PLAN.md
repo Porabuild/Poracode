@@ -734,11 +734,14 @@ requirement to move steady-state bulk traffic out of Electron main.
 The local request path also has finite admission now. Each renderer connection
 can hold at most 64 active requests; duplicate request IDs are rejected and a
 full connection receives a bounded error reply. The renderer-side pending map
-uses the same limit and sends excess calls through the existing IPC fallback.
-This prevents a stalled window from retaining unbounded request promises, while
-preserving a compatibility path for callers during transport pressure. It does
-not provide cooperative cancellation for an already admitted backend operation;
-disconnect and shutdown still rely on the backend's tracked work drain.
+uses the same direct-stream limit and sends excess calls through the existing
+IPC fallback. The shared `BackendHostClient` now caps that fallback queue at 128
+pending requests, so the compatibility path cannot move overload into an
+unbounded main-process map. This prevents a stalled window from retaining
+unbounded request promises while preserving a bounded compatibility path during
+transport pressure. It does not provide cooperative cancellation for an already
+admitted backend operation; disconnect and shutdown still rely on the backend's
+tracked work drain.
 
 The remote server also caps admitted HTTP/WebSocket continuations with a
 configurable global in-flight limit, returning `host_busy` 503 when saturated.
@@ -989,8 +992,13 @@ Owner: web/PWA maintainer. Depends on Phases 2–6 where their paths are affecte
    when appropriate, fence obsolete sockets, restore interests, then replay or
    resnapshot. Do not wait for a stale periodic heartbeat cycle after Safari wakes.
    The renderer now installs a coalescing coordinator for `pageshow`, `online`,
-   and visible `visibilitychange`; its reconnect pass reuses the existing
-   `connectAll` generation fencing and snapshot/replay path. Suspension,
+   and visible `visibilitychange`; its resume pass explicitly replaces each
+   existing event socket before the snapshot/replay path, restores histories for
+   the open thread and additive interests behind a bounded sequence barrier, and
+   replays only events newer than each installed history baseline. Matching live
+   frames are held in a bounded queue; overflow or an incomplete baseline keeps
+   the host offline and retries. Signals arriving during an in-flight pass are
+   coalesced. A stale socket is not mistaken for a healthy connection. Suspension,
    endpoint replacement, and installed-device evidence remain to be qualified.
 2. Keep offline drafts, current host identity, and cached data usable. Mutations
    get a truthful offline/ambiguous state; do not silently retry accepted actions.

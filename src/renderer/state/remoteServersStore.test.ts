@@ -1880,6 +1880,147 @@ describe("useRemoteServersStore", () => {
     expect(sync.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
   });
 
+  it("replaces remote event streams when a suspended client resumes", async () => {
+    const sockets: RemoteSocketLike[] = [];
+    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(async () =>
+      remoteThreadSnapshot("rt-1"),
+    );
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(
+        factoryFor(makeClient({ websocketTicket: async () => "resume-ticket", threadHistory })),
+      );
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledOnce());
+    useRemoteServersStore.setState({
+      openThread: { desktopId: "d1", threadId: "rt-1", thread: remoteThread },
+    });
+
+    await useRemoteServersStore.getState().connectAll({ forceTransportReconnect: true });
+    await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledWith("rt-1"));
+
+    expect(sockets[0]?.close).toHaveBeenCalledOnce();
+    expect(sockets[1]).toBeDefined();
+    expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+  });
+
+  it("coalesces resume reconnect signals while a pass is in flight", async () => {
+    const sockets: RemoteSocketLike[] = [];
+    const heldSnapshot = deferred<RemoteShellSnapshot>();
+    const snapshot = vi
+      .fn<RemoteDesktopClient["snapshot"]>()
+      .mockResolvedValueOnce({
+        snapshotSeq: 1,
+        projects: [proj],
+        threads: [],
+        runtimeSummariesByThread: {},
+        updatedAt: "pair",
+      })
+      .mockImplementationOnce(() => heldSnapshot.promise)
+      .mockResolvedValue({
+        snapshotSeq: 2,
+        projects: [proj],
+        threads: [],
+        runtimeSummariesByThread: {},
+        updatedAt: "resume",
+      });
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ snapshot })));
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledOnce());
+
+    const first = useRemoteServersStore.getState().connectAll({ forceTransportReconnect: true });
+    await vi.waitFor(() => expect(snapshot).toHaveBeenCalledTimes(2));
+    const second = useRemoteServersStore.getState().connectAll({ forceTransportReconnect: true });
+    const third = useRemoteServersStore.getState().connectAll({ forceTransportReconnect: true });
+    heldSnapshot.resolve({
+      snapshotSeq: 2,
+      projects: [proj],
+      threads: [],
+      runtimeSummariesByThread: {},
+      updatedAt: "resume",
+    });
+
+    await Promise.all([first, second, third]);
+    expect(snapshot).toHaveBeenCalledTimes(2);
+    expect(socketFactory).toHaveBeenCalledTimes(2);
+    expect(sockets[0]?.close).toHaveBeenCalledOnce();
+  });
+
+  it("replays interested live events after the resume history barrier", async () => {
+    const sockets: RemoteSocketLike[] = [];
+    const heldHistory = deferred<RemoteThreadHistorySnapshot>();
+    const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(() => heldHistory.promise);
+    const socketFactory = vi.fn<RemoteSocketFactory>(() => {
+      const socket = makeSocket();
+      sockets.push(socket);
+      return socket;
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ threadHistory })));
+    useRemoteServersStore.getState().setSocketFactory(socketFactory);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    await vi.waitFor(() => expect(socketFactory).toHaveBeenCalledOnce());
+    useRemoteServersStore.setState({
+      openThread: { desktopId: "d1", threadId: "rt-1", thread: remoteThread },
+    });
+    sync.dispatchRemoteSupervisorEvent.mockClear();
+
+    const reconnecting = useRemoteServersStore
+      .getState()
+      .connectAll({ forceTransportReconnect: true });
+    await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledWith("rt-1"));
+    const queuedRuntimeEvent = (seq: number) => ({
+      data: JSON.stringify({
+        type: "event",
+        seq,
+        event: {
+          type: "thread-runtime-events-multi",
+          batches: [
+            {
+              threadId: "rt-1",
+              events: [
+                {
+                  type: "content.delta",
+                  threadId: "rt-1",
+                  itemId: "answer",
+                  stream: "assistant_text",
+                  delta: "C",
+                  replace: false,
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    });
+    sockets[1]?.onmessage?.(queuedRuntimeEvent(2));
+    sockets[1]?.onmessage?.(queuedRuntimeEvent(3));
+    expect(sync.dispatchRemoteSupervisorEvent).not.toHaveBeenCalled();
+
+    heldHistory.resolve({ ...remoteThreadSnapshot("rt-1"), snapshotSeq: 2 });
+    await reconnecting;
+    expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledOnce();
+  });
+
   it("applies a queue event even when the thread filter has not learned the thread yet", async () => {
     const sockets: RemoteSocketLike[] = [];
     const socketFactory = vi.fn<RemoteSocketFactory>(() => {

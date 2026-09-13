@@ -248,6 +248,8 @@ let openRemoteThreadRequestSeq = 0;
 
 /** In-flight connectAll(), so concurrent callers coalesce onto one pass. */
 let connectAllInFlight: Promise<void> | null = null;
+let connectAllInFlightForce = false;
+let connectAllForceRequested = false;
 let desktopBrowserBridgeServerId: string | null = null;
 let desktopBrowserBridgeClientKey: string | null = null;
 let desktopBrowserMirrorSocket: RemoteSocketLike | null = null;
@@ -377,17 +379,22 @@ function buildOpenThread(
   };
 }
 
-function closeRemoteServerEventSocket(desktopId: string): void {
+function closeRemoteServerEventSocket(
+  desktopId: string,
+  options: { readonly preserveReplayState?: boolean } = {},
+): void {
   // A pending debounced snapshot refresh for this server is now moot; cancel it
   // so a closed/removed server never fires a late GET (finding #5).
   clearRemoteServerRefreshTimer(desktopId);
   const entry = getRemoteServerEventSocketEntry(desktopId);
   if (!entry) return;
   deleteRemoteServerEventSocketEntry(desktopId);
-  deleteRemoteServerSnapshotSeq(desktopId);
-  clearRemoteThreadAppliedSeqs(desktopId);
-  resetTruncateRecoveryEpoch(desktopId);
-  remoteServerRowResyncPendingByDesktopId.delete(desktopId);
+  if (!options.preserveReplayState) {
+    deleteRemoteServerSnapshotSeq(desktopId);
+    clearRemoteThreadAppliedSeqs(desktopId);
+    resetTruncateRecoveryEpoch(desktopId);
+    remoteServerRowResyncPendingByDesktopId.delete(desktopId);
+  }
   if (entry.reconnectTimer) {
     clearTimeout(entry.reconnectTimer);
     entry.reconnectTimer = null;
@@ -415,6 +422,9 @@ function closeAllRemoteServerEventSockets(): void {
 // the PWA's 600ms) so a burst yields a single GET, and tag each in-flight refresh
 // with a monotonic request id so a stale response never overwrites a newer one.
 const REMOTE_SERVER_REFRESH_DEBOUNCE_MS = 600;
+const MAX_RECOVERY_QUEUED_EVENTS = 512;
+const MAX_RECOVERY_QUEUED_BYTES = 2 * 1024 * 1024;
+const recoveryTextEncoder = new TextEncoder();
 const remoteServerRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const remoteServerRefreshSeqByDesktopId = new Map<string, number>();
 /**
@@ -580,12 +590,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       const startRemoteServerEventStream = async (
         server: RemoteServerRecord,
         initialCapabilities?: TerminalConnectionCapabilities,
+        options: { readonly resyncInterestedThreads?: boolean } = {},
       ): Promise<void> => {
         const serverKey = `${server.endpoint}\0${server.accessToken}`;
         const existing = getRemoteServerEventSocketEntry(server.desktopId);
-        if (existing?.serverKey === serverKey) return;
+        if (existing?.serverKey === serverKey && !options.resyncInterestedThreads) return;
 
-        closeRemoteServerEventSocket(server.desktopId);
+        closeRemoteServerEventSocket(
+          server.desktopId,
+          options.resyncInterestedThreads ? { preserveReplayState: true } : undefined,
+        );
         const entry: RemoteServerEventSocketEntry = {
           serverKey,
           socket: null,
@@ -597,7 +611,12 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           health: null,
         };
         setRemoteServerEventSocketEntry(server.desktopId, entry);
-        let resyncInFlight = false;
+        let resyncPromise: Promise<boolean> | null = null;
+        let recoveryThreadIds = new Set<string>();
+        let recoveryQueuedEvents: Array<{ readonly seq: number; readonly event: unknown }> = [];
+        let recoveryQueuedBytes = 0;
+        let recoveryQueueOverflowed = false;
+        let recoveryBaselineSeqByThread = new Map<string, number>();
 
         const isCurrent = () =>
           getRemoteServerEventSocketEntry(server.desktopId) === entry &&
@@ -815,78 +834,150 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             if (socket.readyState === undefined || socket.readyState === 1) {
               activateSocket();
             }
-            const resyncOpenThread = async () => {
-              if (resyncInFlight) return;
+            const resyncOpenThread = (): Promise<boolean> => {
+              if (resyncPromise) return resyncPromise;
               const open = get().openThread;
               const interests = currentRemoteServerThreadItemInterests(server.desktopId);
               const threadIds = new Set<string>();
               if (open?.desktopId === server.desktopId) threadIds.add(open.threadId);
               for (const interest of interests) threadIds.add(interest);
-              if (threadIds.size === 0) return;
-              resyncInFlight = true;
-              try {
-                // Fetch all interested threads concurrently (N−1 RTTs saved on
-                // server-restart resync), then apply in the original order so
-                // per-thread state transitions stay deterministic.
-                const omitScrollback = hasRemoteServerCursorSyncV2(server.desktopId);
-                const fetched = await Promise.all(
-                  [...threadIds].map(async (threadId) => {
-                    try {
-                      return {
-                        threadId,
-                        followUpQueueSnapshotGuard: captureThreadFollowUpQueueSnapshot(
-                          remoteThreadId(server.desktopId, threadId),
-                        ),
-                        snapshot: await client.threadHistory(
+              if (threadIds.size === 0) return Promise.resolve(true);
+              recoveryThreadIds = new Set(threadIds);
+              recoveryQueuedEvents = [];
+              recoveryQueuedBytes = 0;
+              recoveryQueueOverflowed = false;
+              recoveryBaselineSeqByThread = new Map<string, number>();
+              const promise = (async (): Promise<boolean> => {
+                let restored = true;
+                try {
+                  // Fetch all interested threads concurrently (N−1 RTTs saved on
+                  // server-restart resync), then apply in the original order so
+                  // per-thread state transitions stay deterministic.
+                  const omitScrollback = hasRemoteServerCursorSyncV2(server.desktopId);
+                  const fetched = await Promise.all(
+                    [...threadIds].map(async (threadId) => {
+                      try {
+                        return {
                           threadId,
-                          ...(omitScrollback ? [{ omitScrollback: true }] : []),
-                        ),
-                      };
-                    } catch {
-                      return null;
-                    }
-                  }),
-                );
-                for (const result of fetched) {
-                  if (!result) continue;
-                  const { threadId, snapshot: nextSnapshot, followUpQueueSnapshotGuard } = result;
-                  if (!isCurrent() || entry.socket !== socket) return;
-                  const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(
-                    projectRemoteThreadSnapshot(server.desktopId, nextSnapshot),
-                    {
-                      fromServer: true,
-                      followUpQueueSnapshotGuard,
-                      lastSeenEventSeq: remoteThreadAppliedSeq(server.desktopId, threadId),
-                    },
+                          followUpQueueSnapshotGuard: captureThreadFollowUpQueueSnapshot(
+                            remoteThreadId(server.desktopId, threadId),
+                          ),
+                          snapshot: await client.threadHistory(
+                            threadId,
+                            ...(omitScrollback ? [{ omitScrollback: true }] : []),
+                          ),
+                        };
+                      } catch {
+                        return null;
+                      }
+                    }),
                   );
-                  if (applied.installedAuthoritativeHistory) {
-                    recordAuthoritativeHistoryInstall(
-                      server.desktopId,
-                      threadId,
-                      nextSnapshot.snapshotSeq,
+                  for (const result of fetched) {
+                    if (!result) {
+                      restored = false;
+                      continue;
+                    }
+                    const { threadId, snapshot: nextSnapshot, followUpQueueSnapshotGuard } = result;
+                    if (!isCurrent() || entry.socket !== socket) {
+                      restored = false;
+                      break;
+                    }
+                    const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(
+                      projectRemoteThreadSnapshot(server.desktopId, nextSnapshot),
+                      {
+                        fromServer: true,
+                        followUpQueueSnapshotGuard,
+                        lastSeenEventSeq: remoteThreadAppliedSeq(server.desktopId, threadId),
+                      },
                     );
+                    if (applied.installedAuthoritativeHistory) {
+                      recoveryBaselineSeqByThread.set(threadId, nextSnapshot.snapshotSeq);
+                      recordAuthoritativeHistoryInstall(
+                        server.desktopId,
+                        threadId,
+                        nextSnapshot.snapshotSeq,
+                      );
+                    } else {
+                      restored = false;
+                    }
+                    bumpRemoteServerSnapshotSeq(server.desktopId, nextSnapshot.snapshotSeq);
+                    const currentOpen = get().openThread;
+                    if (
+                      currentOpen?.desktopId === server.desktopId &&
+                      currentOpen.threadId === threadId
+                    ) {
+                      set({
+                        openThread: buildOpenThread(server.desktopId, nextSnapshot),
+                      });
+                    }
                   }
-                  bumpRemoteServerSnapshotSeq(server.desktopId, nextSnapshot.snapshotSeq);
-                  const currentOpen = get().openThread;
-                  if (
-                    currentOpen?.desktopId === server.desktopId &&
-                    currentOpen.threadId === threadId
-                  ) {
-                    set({
-                      openThread: buildOpenThread(server.desktopId, nextSnapshot),
-                    });
+                  if (recoveryQueueOverflowed) restored = false;
+                  if (restored) {
+                    const queuedEvents = [...recoveryQueuedEvents].sort(
+                      (left, right) => left.seq - right.seq,
+                    );
+                    for (const queued of queuedEvents) {
+                      const batches = collectRuntimeEventsFromSupervisoryMessage(queued.event);
+                      const keptBatches = batches.filter(
+                        (batch) =>
+                          queued.seq >
+                          (recoveryBaselineSeqByThread.get(batch.threadId) ?? -Infinity),
+                      );
+                      const replay =
+                        batches.length > 0
+                          ? keptBatches.length > 0
+                            ? { type: "thread-runtime-events-multi", batches: keptBatches }
+                            : null
+                          : supervisorEventThreadIds(queued.event).some(
+                                (threadId) =>
+                                  queued.seq >
+                                  (recoveryBaselineSeqByThread.get(threadId) ?? -Infinity),
+                              )
+                            ? queued.event
+                            : null;
+                      if (replay !== null) dispatchForwardEvent(replay, queued.seq);
+                    }
                   }
+                } catch {
+                  restored = false;
                 }
-              } catch {
-                if (entry.socket === socket) {
-                  try {
-                    socket.close();
-                  } catch {
-                    // already closed
-                  }
+                return restored;
+              })();
+              resyncPromise = promise.finally(() => {
+                recoveryThreadIds = new Set<string>();
+                recoveryQueuedEvents = [];
+                recoveryQueuedBytes = 0;
+                recoveryQueueOverflowed = false;
+                recoveryBaselineSeqByThread = new Map<string, number>();
+                resyncPromise = null;
+              });
+              return resyncPromise;
+            };
+            const recoverInterestedThreads = async (): Promise<void> => {
+              if (await resyncOpenThread()) return;
+              if (!isCurrent() || entry.socket !== socket) return;
+              forceReconnect(socket);
+              setRemoteServerFailure(
+                server.desktopId,
+                "offline",
+                sharedMsg("remote.server.unreachable"),
+              );
+            };
+            const dispatchForwardEvent = (forward: unknown, sequence: number): void => {
+              for (const threadId of supervisorEventThreadIds(forward)) {
+                recordRemoteThreadAppliedSeq(server.desktopId, threadId, sequence);
+              }
+              dispatchRemoteSupervisorEvent(projectRemoteThreadEvent(server.desktopId, forward), {
+                onGitSummaries: (summaries) => syncRemoteGitSummaries(server.desktopId, summaries),
+                onGitState: (patch) => syncRemoteGitStatePatch(server.desktopId, patch),
+              });
+              for (const batch of collectRuntimeEventsFromSupervisoryMessage(forward)) {
+                for (const evt of batch.events) {
+                  if (evt.type !== "runtime.truncated") continue;
+                  const projectedId = remoteThreadId(server.desktopId, batch.threadId);
+                  if (isTruncateCheckpointLoaded(projectedId, evt.itemId)) continue;
+                  requestTruncateAuthoritativeReload(batch.threadId, sequence);
                 }
-              } finally {
-                resyncInFlight = false;
               }
             };
             socket.onmessage = (event) => {
@@ -1013,30 +1104,57 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                       }
                     }
                   }
-                  if (forward !== null) {
-                    // Mark the threads whose events actually forwarded into
-                    // the app store — filtered frames (unknown threads,
-                    // irrelevant types) were never applied and must not make
-                    // later snapshots look stale for their threads.
-                    for (const threadId of supervisorEventThreadIds(forward)) {
-                      recordRemoteThreadAppliedSeq(server.desktopId, threadId, message.seq);
-                    }
-                    dispatchRemoteSupervisorEvent(
-                      projectRemoteThreadEvent(server.desktopId, forward),
-                      {
-                        onGitSummaries: (summaries) =>
-                          syncRemoteGitSummaries(server.desktopId, summaries),
-                        onGitState: (patch) => syncRemoteGitStatePatch(server.desktopId, patch),
-                      },
+                  if (forward !== null && recoveryThreadIds.size > 0) {
+                    const batches = collectRuntimeEventsFromSupervisoryMessage(forward);
+                    const recoveringBatches = batches.filter((batch) =>
+                      recoveryThreadIds.has(batch.threadId),
                     );
-                    for (const batch of collectRuntimeEventsFromSupervisoryMessage(forward)) {
-                      for (const evt of batch.events) {
-                        if (evt.type !== "runtime.truncated") continue;
-                        const projectedId = remoteThreadId(server.desktopId, batch.threadId);
-                        if (isTruncateCheckpointLoaded(projectedId, evt.itemId)) continue;
-                        requestTruncateAuthoritativeReload(batch.threadId, message.seq);
+                    if (recoveringBatches.length > 0) {
+                      const recoveryEvent = {
+                        type: "thread-runtime-events-multi",
+                        batches: recoveringBatches,
+                      };
+                      const eventBytes = recoveryTextEncoder.encode(
+                        JSON.stringify(recoveryEvent),
+                      ).byteLength;
+                      if (
+                        recoveryQueuedEvents.length >= MAX_RECOVERY_QUEUED_EVENTS ||
+                        recoveryQueuedBytes + eventBytes > MAX_RECOVERY_QUEUED_BYTES
+                      ) {
+                        recoveryQueueOverflowed = true;
+                      } else {
+                        recoveryQueuedEvents.push({ seq: message.seq, event: recoveryEvent });
+                        recoveryQueuedBytes += eventBytes;
                       }
+                      const liveBatches = batches.filter(
+                        (batch) => !recoveryThreadIds.has(batch.threadId),
+                      );
+                      forward =
+                        liveBatches.length > 0
+                          ? { type: "thread-runtime-events-multi", batches: liveBatches }
+                          : null;
+                    } else if (
+                      supervisorEventThreadIds(forward).some((threadId) =>
+                        recoveryThreadIds.has(threadId),
+                      )
+                    ) {
+                      const eventBytes = recoveryTextEncoder.encode(
+                        JSON.stringify(forward),
+                      ).byteLength;
+                      if (
+                        recoveryQueuedEvents.length >= MAX_RECOVERY_QUEUED_EVENTS ||
+                        recoveryQueuedBytes + eventBytes > MAX_RECOVERY_QUEUED_BYTES
+                      ) {
+                        recoveryQueueOverflowed = true;
+                      } else {
+                        recoveryQueuedEvents.push({ seq: message.seq, event: forward });
+                        recoveryQueuedBytes += eventBytes;
+                      }
+                      forward = null;
                     }
+                  }
+                  if (forward !== null) {
+                    dispatchForwardEvent(forward, message.seq);
                   } else if (
                     message.event &&
                     typeof message.event === "object" &&
@@ -1073,7 +1191,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   resetTruncateRecoveryEpoch(server.desktopId);
                   remoteServerRowResyncPendingByDesktopId.add(server.desktopId);
                   get().scheduleServerRefresh(server.desktopId);
-                  void resyncOpenThread();
+                  void recoverInterestedThreads();
                 }
               } catch {
                 // HTTP snapshots remain authoritative; ignore malformed frames.
@@ -1100,6 +1218,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               }
               disconnectSocket(socket);
             };
+            if (options.resyncInterestedThreads) await recoverInterestedThreads();
           } catch (error) {
             if (!isCurrent()) return;
             if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {
@@ -1129,6 +1248,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             scheduleReconnect();
           } finally {
             entry.connecting = false;
+            if (isCurrent() && !entry.socket && !entry.reconnectTimer) scheduleReconnect();
           }
         };
 
@@ -1163,6 +1283,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       const connectServer = async (
         persistedServer: RemoteServerRecord,
         shouldContinue: () => boolean = () => true,
+        options: { readonly resyncInterestedThreads?: boolean } = {},
       ): Promise<void> => {
         const reconnectGeneration = remoteHostUpdateReconnectSeqByDesktopId.get(
           persistedServer.desktopId,
@@ -1237,7 +1358,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         }
         await refreshPromise;
         if (!canContinue()) return;
-        await startRemoteServerEventStream(server, initialTerminalCapabilities);
+        await startRemoteServerEventStream(server, initialTerminalCapabilities, options);
         checkHostUpdateInBackground(server);
       };
 
@@ -1885,10 +2006,15 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           );
         },
 
-        connectAll: async () => {
+        connectAll: async (options = {}) => {
           // Coalesce concurrent callers (the sidebar and the settings panel both
           // connect on mount) so servers aren't snapshotted twice on startup.
-          if (connectAllInFlight) return connectAllInFlight;
+          if (connectAllInFlight) {
+            if (options.forceTransportReconnect && !connectAllInFlightForce) {
+              connectAllForceRequested = true;
+            }
+            return connectAllInFlight;
+          }
           connectAllInFlight = (async () => {
             // The secure browser vault hydrates asynchronously. Sidebar mount
             // can otherwise observe the empty initial state, finish a no-op
@@ -1896,13 +2022,36 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             if (!useRemoteServersStore.persist.hasHydrated()) {
               await useRemoteServersStore.persist.rehydrate();
             }
-            const servers = get().servers.filter(
-              (server) => get().hostUpdateRestarts[server.desktopId] === undefined,
-            );
-            setServersConnecting(servers);
-            await Promise.all(servers.map((server) => connectServer(server)));
+            const connectPass = async (forceTransportReconnect: boolean): Promise<void> => {
+              connectAllInFlightForce = forceTransportReconnect;
+              const servers = get().servers.filter(
+                (server) => get().hostUpdateRestarts[server.desktopId] === undefined,
+              );
+              if (forceTransportReconnect) {
+                for (const server of servers) {
+                  closeRemoteServerEventSocket(server.desktopId, { preserveReplayState: true });
+                }
+              }
+              setServersConnecting(servers);
+              await Promise.all(
+                servers.map((server) =>
+                  connectServer(
+                    server,
+                    () => true,
+                    forceTransportReconnect ? { resyncInterestedThreads: true } : undefined,
+                  ),
+                ),
+              );
+            };
+            await connectPass(options.forceTransportReconnect === true);
+            if (connectAllForceRequested) {
+              connectAllForceRequested = false;
+              await connectPass(true);
+            }
           })().finally(() => {
             connectAllInFlight = null;
+            connectAllInFlightForce = false;
+            connectAllForceRequested = false;
           });
           return connectAllInFlight;
         },
@@ -2103,6 +2252,8 @@ export function __resetRemoteServersStoreForTest(): void {
   clearRemoteGitState();
   resetRemoteProcedureRouterForTest();
   connectAllInFlight = null;
+  connectAllInFlightForce = false;
+  connectAllForceRequested = false;
   desktopBrowserBridgeServerId = null;
   desktopBrowserBridgeClientKey = null;
   desktopBrowserMirrorSocket = null;

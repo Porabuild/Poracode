@@ -37,6 +37,8 @@ import { terminateChildProcessTree } from "@/shared/processTree";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
+/** Bound the main-process fallback queue shared by all renderer callers. */
+export const BACKEND_HOST_MAX_PENDING_REQUESTS = 128;
 // Bound initialization separately from long-running runtime requests.
 export const BACKEND_HOST_INITIALIZATION_DEADLINE_MS = 60_000;
 const RESTART_DELAY_MS = 1_000;
@@ -111,6 +113,7 @@ export class BackendHostClient {
     new Error("Backend host has not started."),
   );
   private readonly pendingRequests = new Map<string, PendingRequest>();
+  private normalRequestAdmissions = 0;
   private readonly startedGate: Promise<void>;
   private resolveStartedGate!: () => void;
   private readonly initializationWaiters = new Set<InitializationWaiter>();
@@ -463,6 +466,28 @@ export class BackendHostClient {
     }
   }
 
+  private acquireNormalRequest(): () => void {
+    if (this.normalRequestAdmissions >= BACKEND_HOST_MAX_PENDING_REQUESTS) {
+      throw new Error("Backend-host request concurrency limit reached.");
+    }
+    this.normalRequestAdmissions += 1;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.normalRequestAdmissions -= 1;
+    };
+  }
+
+  private async withNormalRequest<Result>(operation: () => Promise<Result>): Promise<Result> {
+    const release = this.acquireNormalRequest();
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  }
+
   private request(request: BackendHostRequest): Promise<unknown> {
     const sender = this.sender;
     if (!sender) return Promise.reject(new Error("Backend host is not running."));
@@ -601,47 +626,57 @@ export class BackendHostClient {
     name: Name,
     payload: IpcProcedurePayload<Name>,
   ): Promise<IpcProcedureResult<Name>> {
-    await this.startedGate;
-    await this.waitUntilInitialized();
-    const id = randomUUID();
-    return this.request(createBackendSupervisorRequest(id, name, payload)) as Promise<
-      IpcProcedureResult<Name>
-    >;
+    return this.withNormalRequest(async () => {
+      await this.startedGate;
+      await this.waitUntilInitialized();
+      const id = randomUUID();
+      return this.request(createBackendSupervisorRequest(id, name, payload)) as Promise<
+        IpcProcedureResult<Name>
+      >;
+    });
   }
 
   async callDatabase<Name extends BackendDatabaseProcedureName>(
     name: Name,
     payload: IpcProcedurePayload<Name>,
   ): Promise<IpcProcedureResult<Name>> {
-    await this.waitUntilInitialized();
-    const id = randomUUID();
-    return this.request(createBackendDatabaseRequest(id, name, payload)) as Promise<
-      IpcProcedureResult<Name>
-    >;
+    return this.withNormalRequest(async () => {
+      await this.waitUntilInitialized();
+      const id = randomUUID();
+      return this.request(createBackendDatabaseRequest(id, name, payload)) as Promise<
+        IpcProcedureResult<Name>
+      >;
+    });
   }
 
   async callService<Name extends BackendServiceProcedureName>(
     name: Name,
     payload: BackendServicePayload<Name>,
   ): Promise<BackendServiceResult<Name>> {
-    await this.waitUntilInitialized();
-    return this.request(createBackendServiceRequest(randomUUID(), name, payload)) as Promise<
-      BackendServiceResult<Name>
-    >;
+    return this.withNormalRequest(async () => {
+      await this.waitUntilInitialized();
+      return this.request(createBackendServiceRequest(randomUUID(), name, payload)) as Promise<
+        BackendServiceResult<Name>
+      >;
+    });
   }
 
   /** WS2 stage 4: the backend-owned compound checkpoint revert. */
   async revertCheckpoint(payload: RevertCheckpointHostCall): Promise<CheckpointRevertResult> {
-    await this.waitUntilInitialized();
-    return this.request(
-      createBackendRevertCheckpointRequest(randomUUID(), payload),
-    ) as Promise<CheckpointRevertResult>;
+    return this.withNormalRequest(async () => {
+      await this.waitUntilInitialized();
+      return this.request(
+        createBackendRevertCheckpointRequest(randomUUID(), payload),
+      ) as Promise<CheckpointRevertResult>;
+    });
   }
 
   async getRendererStreamInfo(): Promise<BackendRendererStreamInfo> {
-    await this.waitUntilInitialized();
-    if (!this.rendererStreamInfo) throw new Error("Backend renderer stream is unavailable.");
-    return this.rendererStreamInfo;
+    return this.withNormalRequest(async () => {
+      await this.waitUntilInitialized();
+      if (!this.rendererStreamInfo) throw new Error("Backend renderer stream is unavailable.");
+      return this.rendererStreamInfo;
+    });
   }
 
   publishBrowserEvent(event: BackendBrowserEvent): void {

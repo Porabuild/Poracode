@@ -26,7 +26,11 @@ vi.mock("node:os", async (importOriginal) => {
 
 vi.mock("@/shared/processTree", () => ({ terminateChildProcessTree: terminateMock }));
 
-import { BACKEND_HOST_INITIALIZATION_DEADLINE_MS, BackendHostClient } from "./BackendHostClient";
+import {
+  BACKEND_HOST_INITIALIZATION_DEADLINE_MS,
+  BACKEND_HOST_MAX_PENDING_REQUESTS,
+  BackendHostClient,
+} from "./BackendHostClient";
 
 type SendCallback = (error: Error | null) => void;
 
@@ -287,6 +291,63 @@ describe("BackendHostClient", () => {
       expect.objectContaining({ message: "worker warning" }),
       undefined,
     );
+  });
+
+  it("bounds the shared main-process fallback queue", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client } = createClient();
+    await startClient(client, child);
+
+    const pending = Array.from({ length: BACKEND_HOST_MAX_PENDING_REQUESTS }, () =>
+      client.call("getAgentStatuses", { wslDistros: [] }),
+    );
+    const settled = Promise.allSettled(pending);
+    await vi.waitFor(() =>
+      expect(
+        requests(child).filter((request) => request.operation === "call-supervisor"),
+      ).toHaveLength(BACKEND_HOST_MAX_PENDING_REQUESTS),
+    );
+
+    await expect(client.call("getAgentStatuses", { wslDistros: [] })).rejects.toThrow(
+      "Backend-host request concurrency limit reached.",
+    );
+
+    child.emit("message", {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "native-request",
+      id: "native-priority",
+      request: { operation: "browser-state", payload: {} },
+    });
+    await vi.waitFor(() =>
+      expect(
+        requests(child).filter((request) => request.operation === "resolve-native-request"),
+      ).toHaveLength(1),
+    );
+    reply(child, requestFor(child, "resolve-native-request"));
+
+    const closing = client.disposeAsync();
+    await vi.waitFor(() => expect(requestFor(child, "dispose")).toBeDefined());
+    reply(child, requestFor(child, "dispose"));
+    await expect(settled).resolves.toHaveLength(BACKEND_HOST_MAX_PENDING_REQUESTS);
+    await closing;
+  });
+
+  it("bounds calls that are waiting for backend initialization", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client } = createClient();
+
+    const pending = Array.from({ length: BACKEND_HOST_MAX_PENDING_REQUESTS }, () =>
+      client.callDatabase("dbGetProjects", {}),
+    );
+    const settled = Promise.allSettled(pending);
+    await expect(client.callDatabase("dbGetProjects", {})).rejects.toThrow(
+      "Backend-host request concurrency limit reached.",
+    );
+
+    await client.disposeAsync({ timeoutMs: 0 });
+    await expect(settled).resolves.toHaveLength(BACKEND_HOST_MAX_PENDING_REQUESTS);
   });
 
   it("forwards renderer sequence metadata with fallback events", async () => {

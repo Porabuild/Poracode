@@ -141,7 +141,7 @@ export interface RemoteServersState {
     desktopId: string,
     options?: { readonly includeAgentStatuses?: boolean },
   ): void;
-  connectAll(): Promise<void>;
+  connectAll(options?: { readonly forceTransportReconnect?: boolean }): Promise<void>;
   reconnectServer(desktopId: string): Promise<void>;
   getHostUpdateState(desktopId: string): ReturnType<RemoteDesktopClient["hostUpdateState"]>;
   checkHostUpdate(desktopId: string): ReturnType<RemoteDesktopClient["checkHostUpdate"]>;
