@@ -10,11 +10,12 @@ renderer.
  Electron desktop          Browser / installed PWA      iOS app        Android app
  React renderer            React renderer               SwiftUI        Compose
        |                           |                     URLSession       OkHttp
- bounded IPC                    HTTP + WS                HTTP + WS      HTTP + WS
-       |                           |                        |               |
- Electron main/backend host      +------------------------+---------------+
+ direct loopback WS             HTTP + WS                HTTP + WS      HTTP + WS
+ + preload/native IPC              |                        |               |
+       |                           +------------------------+---------------+
+ desktop backend child                                     |
        |                                                   |
-       +---------------- backend/headless remote host -----+
+       +------------- shared backend / headless host ------+
                               |
                        supervisor runtime
                   provider SDKs, ACPs and real PTYs
@@ -39,8 +40,10 @@ host selection, project/thread views, composer state, normalized snapshots,
 reconnect state, and platform lifecycle. No React renderer, SwiftUI app, Compose
 app, or browser process may spawn an agent or own a PTY.
 
-The Electron renderer accesses local authority through the versioned
-`ClientRuntime` IPC contract. The browser/PWA uses
+The Electron renderer accesses local authority through the direct loopback
+`BackendRendererStream` transport, with preload IPC for bootstrap, native
+services, and fallback. `ClientRuntime` declares available client capabilities;
+it is not itself a wire protocol. The browser/PWA uses
 `src/renderer/browser/remoteBridge.ts`. The native apps use platform-native HTTP
 and WebSocket clients rather than implementing `ClientRuntime` or loading the
 browser bridge.
@@ -57,6 +60,14 @@ The backend host owns persistence and remote authorization. The headless host
 can begin serving HTTP and WebSocket traffic before the supervisor is forked;
 the supervisor starts lazily on the first operation that needs agent, PTY,
 provider, or Git authority and is then reused.
+
+This is the intended authority split, with remaining gaps recorded in
+`docs/V4_MERGE_READINESS_PLAN.md`. In the current implementation, interested
+desktop events still travel through Electron main as well as the direct stream;
+the renderer deduplicates them. Shared settings and some cross-agent routing
+side effects also remain in main. The CLI lock does not yet exclude a desktop
+host using the same data root. Treat complete main-process isolation and safe
+multi-host ownership as pending work.
 
 ### Supervisor
 
@@ -85,13 +96,13 @@ not evidence of complete protocol coverage.
 ## Remote-v3 contract boundary
 
 `protocol/remote/v3/manifest.json` is the canonical language-neutral inventory.
-The `v3` directory name is retained; the current wire protocol version is 9.
+The `v3` directory name is retained; the current wire protocol version is 12.
 The inventory describes:
 
-- 61 HTTP routes;
-- 100 supervisor procedures;
-- 8 client-to-server WebSocket messages; and
-- 9 server-to-client WebSocket messages.
+- 63 HTTP routes;
+- 108 supervisor procedures;
+- 9 client-to-server WebSocket messages; and
+- 10 server-to-client WebSocket messages.
 
 `pnpm run protocol:remote:v3:generate` derives
 `protocol/remote/v3/generated/inventory.json`, `ir.json`,
@@ -101,7 +112,7 @@ side-effect free and rejects missing, extra, or stale generated artifacts.
 
 The generated inventory carries separate compatibility identities:
 
-- wire `protocolVersion` (currently 11);
+- wire `protocolVersion` (currently 12);
 - generator and binding-format versions (binding format currently 2); and
 - hashes of the source contract and manifest.
 
@@ -110,12 +121,22 @@ null representation changes, even when the wire protocol version is unchanged. A
 binding bundle must embed the matching version/hash identity so stale Swift or
 Kotlin output cannot silently compile against a newer contract.
 
+Protocol 12 combines the two parent branches' additions: daily usage broadcasts
+and authoritative `content.delta.replace` semantics. An omitted or false flag
+appends; true replaces exactly one stream, including clearing it with an empty
+string. Both native reducer paths consume this flag. Live protocol 11 peers are
+rejected; saved pairing bindings from explicitly reviewed versions 9, 10, and 11
+can rebind only after verifying the current host and completing an authenticated
+read. The shared replacement fixture and native upgrade tests cover these gates.
+
 ### Current binding status
 
 The generator emits executable Swift and Kotlin roots for every inventoried
 route, procedure, and WebSocket union. Both production app targets compile the
-manifest-listed language bundle and fail their build on incompatible versions
-or source membership drift. Stable native facades validate canonical JSON at
+manifest-listed language bundle. Android checks compatibility during its build;
+iOS also asserts compatibility at application startup, so a successful iOS build
+alone does not establish that the version gate passes. Contract CI checks
+generated freshness and source membership. Stable native facades validate canonical JSON at
 transport boundaries and project it into app-owned domain models; UI state does
 not depend directly on hash-derived generated wire types.
 
@@ -204,8 +225,9 @@ host during confirmation.
   every request a fresh bucket and silently disabled the limiter. Relays too old
   to send `clientId` share one conservative bucket instead.
 - **Headless data-dir lock + host binding (high, stability/bug).** The headless
-  CLI takes an exclusive `server.lock` (stale-pid reclaim) so it can't co-open
-  the desktop's live data dir with a mismatched secret key; the relay adapter's
+  CLI takes an exclusive `server.lock` with stale-PID reclaim, which excludes
+  other CLI owners. Electron does not yet take this lock, so it does not prevent
+  co-opening a desktop data root with a mismatched secret key. The relay adapter's
   local proxy base is derived from the actual bind host (only `127.0.0.1` for
   wildcard binds), fixing ECONNREFUSED when bound to a Tailscale/VPN IP. SQLite
   uses its package-bundled N-API binary, independent of the launch directory.
@@ -314,10 +336,11 @@ one does not implicitly update the other.
 
 ## Evidence and remaining gaps
 
-The current native CI proves contract artifact consistency, native compilation,
+Native CI is configured to check contract artifact consistency, native compilation,
 iOS unit tests, Android unit/lint checks, Android 17/API 37 install and launch,
-and a real production headless-host pairing/socket smoke path. It does not yet
-prove:
+and a real production headless-host pairing/socket smoke path. Qualification
+requires successful results for the exact candidate revision; workflow definitions
+alone are not execution evidence. These checks also do not establish:
 
 - transport/controller/UI availability for every generated manifest entry;
 - complete feature parity with Electron/PWA;
@@ -343,9 +366,11 @@ client proofs.
   - Operators can explicitly select a compatible SQLite 13 binary with
     `PORACODE_BETTER_SQLITE3_NATIVE_BINDING`.
 
-- **HTTP-server boot is independent of native modules.** `RemoteAccessServer`
-  binds and serves even if the supervisor (which needs `node-pty`) is degraded;
-  `createHeadlessRemoteHost.test.ts` proves a real ephemeral-port bind with the
-  DB stubbed.
+- **Supervisor startup is lazy; SQLite is required at boot.** The headless
+  composition constructs `BackendHostCore` and opens SQLite before binding HTTP.
+  A provider or `node-pty` failure in the lazily started supervisor can therefore
+  be separate from HTTP availability. `createHeadlessRemoteHost.test.ts` proves
+  an ephemeral-port HTTP bind with the DB stubbed; it does not prove that a
+  production host boots without a working SQLite native module.
 - `wsl-helpers` resolution mirrors `main.ts` (packaged vs. dev). On non-Windows
   servers WSL is irrelevant; the path is still passed for parity.

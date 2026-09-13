@@ -74,7 +74,8 @@ enum RichRuntimeEvent: Sendable, Equatable {
   )
   case itemUpdated(threadID: String, itemID: String, payload: RichPayloadPatch)
   case itemCompleted(threadID: String, itemID: String, payload: RichPayloadPatch)
-  case contentDelta(threadID: String, itemID: String, stream: String, delta: String)
+  case contentDelta(
+    threadID: String, itemID: String, stream: String, delta: String, replace: Bool = false)
   case requestOpened(
     threadID: String,
     requestID: RichRequestID,
@@ -99,7 +100,7 @@ enum RichRuntimeEvent: Sendable, Equatable {
     switch self {
     case .turnStarted(let id, _), .turnCompleted(let id, _, _),
       .itemStarted(let id, _, _, _, _), .itemUpdated(let id, _, _),
-      .itemCompleted(let id, _, _), .contentDelta(let id, _, _, _),
+      .itemCompleted(let id, _, _), .contentDelta(let id, _, _, _, _),
       .requestOpened(let id, _, _, _), .requestResolved(let id, _, _),
       .contextUpdated(let id, _), .runtimeTruncated(let id, _, _), .usageSpent(let id),
       .warning(let id):
@@ -162,8 +163,11 @@ enum RichRuntimeEventDecoder {
         streams.contains(stream),
         let delta = RichDecoding.requiredString(object, "delta")
       else { break }
+      let replace = RichDecoding.optionalBool(object, "replace")
+      guard replace != .invalid else { break }
       return .contentDelta(
-        threadID: threadID, itemID: itemID, stream: stream, delta: delta)
+        threadID: threadID, itemID: itemID, stream: stream, delta: delta,
+        replace: replace.value ?? false)
     case "request.opened":
       guard let requestID = RichRequestID(json: object["requestId"]),
         let typeText = RichDecoding.requiredString(object, "requestType"),
@@ -306,10 +310,10 @@ struct RichTranscriptState: Sendable, Equatable {
       } else {
         itemsByID[itemID] = item
       }
-    case .contentDelta(_, let itemID, let stream, let delta):
+    case .contentDelta(_, let itemID, let stream, let delta, let replace):
       guard var item = itemsByID[itemID] else { return }
       if item.state != .completed { item.state = .updated }
-      item.streams[stream, default: ""] += delta
+      item.streams[stream] = replace ? delta : item.streams[stream, default: ""] + delta
       itemsByID[itemID] = item
     case .requestOpened(_, let requestID, let requestType, let payload):
       openRequests = RichRequestQueue.open(

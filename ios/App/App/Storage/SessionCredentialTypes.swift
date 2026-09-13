@@ -76,14 +76,14 @@ enum SessionCredentialLoadOutcome: Sendable, Equatable {
 /// upgraded even when a stale generation abandons the install.
 enum PreservedPairingUpgrade: Sendable {
     /// The previously supported stored generation remains eligible alongside
-    /// the explicitly reviewed v10 binding. Older/future generations remain
+    /// the explicitly reviewed v10/v11 bindings. Older/future generations remain
     /// incompatible. Do not generalize to
     /// `current - 1` — that would silently admit unreviewed generations.
     static let previousReleasedProtocolVersion = 9
 
     static func isEligibleStoredProtocol(_ version: Int) -> Bool {
-        // v10 changed broadcasts, not the stored host/token binding.
-        version == previousReleasedProtocolVersion || version == 10
+        // v10/v11 changed wire content, not the stored host/token binding.
+        version == previousReleasedProtocolVersion || version == 10 || version == 11
     }
 
     /// Pure gate for the bootstrap upgrade attempt. No I/O, no capability

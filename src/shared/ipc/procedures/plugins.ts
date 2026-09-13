@@ -1,4 +1,7 @@
 import {
+  manageAgentPluginsPayloadSchema,
+  type ManageAgentPluginsPayload,
+  type ManageAgentPluginsResult,
   listPluginsPayloadSchema,
   type ListPluginsPayload,
   type ListPluginsResult,
@@ -10,6 +13,11 @@ import { defineNoArgProcedure, definePayloadProcedure } from "../core";
  * renderer reads them over IPC rather than importing a static catalog.
  */
 export const pluginProcedures = {
+  manageAgentPlugins: definePayloadProcedure<
+    ManageAgentPluginsPayload,
+    ManageAgentPluginsResult,
+    "supervisor"
+  >("manageAgentPlugins", "supervisor", manageAgentPluginsPayloadSchema),
   listPlugins: definePayloadProcedure<ListPluginsPayload, ListPluginsResult, "supervisor">(
     "listPlugins",
     "supervisor",

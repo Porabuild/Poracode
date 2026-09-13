@@ -4,6 +4,7 @@ import com.poracode.app.model.PersistedRuntimeItem
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.RemoteWebSocketServerMessage
 import com.poracode.app.model.asObjectOrNull
+import com.poracode.app.model.booleanOrNull
 import com.poracode.app.model.obj
 import com.poracode.app.model.string
 import com.poracode.app.protocol.RuntimeEventReducer
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * Routes live WebSocket events into thread items + domain state.
@@ -224,6 +226,10 @@ class SessionEventRouter(
         val stream = objectMap.string("stream")
         val delta = objectMap.string("delta") ?: objectMap.string("text")
         if (itemId != null && stream != null && delta != null) {
+            val replace = objectMap["replace"]?.let {
+                if (it is JsonPrimitive && it.isString) return
+                it.booleanOrNull() ?: return
+            } ?: false
             updateState { s ->
                 val items = s.threadItems.toMutableList()
                 RuntimeEventReducer.apply(
@@ -232,6 +238,7 @@ class SessionEventRouter(
                         itemId = itemId,
                         stream = stream,
                         delta = delta,
+                        replace = replace,
                         raw = objectMap,
                     ),
                     items,

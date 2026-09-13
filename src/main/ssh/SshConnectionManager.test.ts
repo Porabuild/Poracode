@@ -5,6 +5,11 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
+import {
+  sshRuntimeManifestFileName,
+  SSH_RUNTIME_MANIFEST_VERSION,
+  type SshRuntimeEntryName,
+} from "@/shared/sshRuntimeManifest";
 import { sshConnectionConfigSchema, type SshConnectionConfig } from "@/shared/ssh";
 import * as sshBootstrap from "@/shared/sshBootstrap";
 import { waitForRemoteEndpoint } from "@/shared/sshBootstrap";
@@ -49,12 +54,12 @@ const runtimeDependencies = ["better-sqlite3", "node-pty", "ws", "yaml"] as cons
 
 function writeRuntimeManifest(
   mainBundleDir: string,
-  entry: string,
+  entry: SshRuntimeEntryName,
   files: readonly string[],
 ): void {
   writeFileSync(
-    join(mainBundleDir, `${entry}.ssh-runtime-manifest.json`),
-    `${JSON.stringify({ version: 1, files, dependencies: runtimeDependencies })}\n`,
+    join(mainBundleDir, sshRuntimeManifestFileName(entry)),
+    `${JSON.stringify({ version: SSH_RUNTIME_MANIFEST_VERSION, files, dependencies: runtimeDependencies })}\n`,
     "utf8",
   );
 }

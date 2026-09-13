@@ -5,11 +5,11 @@ public struct RemoteRouteDescriptor: Sendable { public let id: String; public le
 public struct RemoteProcedureDescriptor: Sendable { public let name: String; public let scope: String; public let owner: String; public let resultKind: String; public let requestType: String; public let resultType: String }
 public struct RemoteWebSocketVariantDescriptor: Sendable { public let direction: String; public let type: String; public let modelType: String }
 public enum RemoteContractMetadata {
-  public static let protocolVersion = 11
+  public static let protocolVersion = 12
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 3
-  public static let sourceHash = "sha256:20702f089ef9ef2df977c54246df116b264684ea008550fa5879f34a62273ec1"
-  public static let manifestHash = "sha256:3b6063bf27d11686181b65e189404e89978f8745187868eb1a23915a3ed7b5d4"
+  public static let sourceHash = "sha256:651087791c54c1b71d54e96dcf0e9c2bf0740778beb3754f7a060d346c55b21a"
+  public static let manifestHash = "sha256:11a5c78613ef282507c0fec78d3c5315f42945ecca4efada25d09ddb8ec0d460"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -19,8 +19,8 @@ public enum RemoteContractMetadata {
     .init(id: "attachment-upload", method: "POST", path: "/api/files/attachment", auth: "bearer", scopes: ["session:operate"], bodyKind: "raw-upload", responseKind: "json", status: 200, requestType: "Data", responseType: "RouteattachmentU2DUploadResponse_6a0c18e639", queryCodecs: [.init(name: "threadId", kind: "string", optional: false, repeated: false), .init(name: "name", kind: "string", optional: false, repeated: false)]),
     .init(id: "browser-command", method: "POST", path: "/api/browser/command", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutebrowserU2DCommandRequest_80a9ff940d", responseType: "RoutebrowserU2DCommandResponse_1b7f16955d", queryCodecs: []),
     .init(id: "browser-state", method: "GET", path: "/api/browser/state", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutebrowserU2DCommandResponse_1b7f16955d", queryCodecs: []),
-    .init(id: "environment", method: "GET", path: "/.well-known/poracode/environment", auth: "public", scopes: [], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteenvironmentU2DLegacyResponse_1fd6794d19", queryCodecs: []),
-    .init(id: "environment-legacy", method: "GET", path: "/.well-known/lightcode/environment", auth: "public", scopes: [], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteenvironmentU2DLegacyResponse_1fd6794d19", queryCodecs: []),
+    .init(id: "environment", method: "GET", path: "/.well-known/poracode/environment", auth: "public", scopes: [], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteenvironmentU2DLegacyResponse_5a3e9fbc22", queryCodecs: []),
+    .init(id: "environment-legacy", method: "GET", path: "/.well-known/lightcode/environment", auth: "public", scopes: [], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteenvironmentU2DLegacyResponse_5a3e9fbc22", queryCodecs: []),
     .init(id: "forward-enter", method: "GET", path: "/forward/{forwardId}/enter", auth: "forward-enter-token", scopes: [], bodyKind: "empty", responseKind: "redirect-html", status: 302, requestType: "RemoteUnit", responseType: "String", queryCodecs: [.init(name: "fwt", kind: "string", optional: false, repeated: false)]),
     .init(id: "host-update", method: "GET", path: "/api/host-update", auth: "bearer", scopes: ["projects:manage"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutehostU2DUpdateU2DCheckResponse_5f2c2d7fde", queryCodecs: []),
     .init(id: "host-update-check", method: "POST", path: "/api/host-update/check", auth: "bearer", scopes: ["projects:manage"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutehostU2DUpdateU2DCheckResponse_5f2c2d7fde", queryCodecs: []),
@@ -180,10 +180,10 @@ public enum RemoteContractMetadata {
     .init(name: "setSkillEnabled", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "omitted", requestType: "ProceduresetSkillEnabledRequest_38462ff398", resultType: "RemoteUnit"),
     .init(name: "stageThreadInput", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurestageThreadInputRequest_d4db039cba", resultType: "RemoteUnit"),
     .init(name: "steerQueuedThreadFollowUp", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurepauseThreadFollowUpsRequest_d42717fff2", resultType: "RemoteUnit"),
-    .init(name: "subagentSubscribe", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProceduresubagentSubscribeRequest_ff495aee3e", resultType: "ProceduresubagentSubscribeResult_c72313d5ab"),
+    .init(name: "subagentSubscribe", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProceduresubagentSubscribeRequest_ff495aee3e", resultType: "ProceduresubagentSubscribeResult_7e9898b3ae"),
     .init(name: "subagentUnsubscribe", scope: "session:read", owner: "thread", resultKind: "omitted", requestType: "ProceduresubagentSubscribeRequest_ff495aee3e", resultType: "RemoteUnit"),
     .init(name: "waitMcpServerOauth", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedurewaitMcpServerOauthRequest_e9df8b4f3d", resultType: "ProcedurewaitMcpServerOauthResult_51cc694dc5"),
-    .init(name: "workflowAgentChat", scope: "session:read", owner: "location", resultKind: "json", requestType: "ProcedureworkflowAgentChatRequest_014d2dfae8", resultType: "ProcedureworkflowAgentChatResult_856c6768b5"),
+    .init(name: "workflowAgentChat", scope: "session:read", owner: "location", resultKind: "json", requestType: "ProcedureworkflowAgentChatRequest_014d2dfae8", resultType: "ProcedureworkflowAgentChatResult_f5c102dcef"),
     .init(name: "workflowGetRun", scope: "session:read", owner: "location", resultKind: "json", requestType: "ProcedureworkflowGetRunRequest_13324e3fec", resultType: "ProcedureworkflowGetRunResult_965bd4463b"),
     .init(name: "writeExternalFile", scope: "projects:manage", owner: "projectLocation", resultKind: "json", requestType: "ProcedurewriteExternalFileRequest_551f784ecd", resultType: "ProcedurewriteExternalFileResult_c5c2ecebba"),
     .init(name: "writeProjectFile", scope: "session:operate", owner: "projectLocation", resultKind: "json", requestType: "ProcedurewriteProjectFileRequest_aba5d69bfd", resultType: "ProcedurewriteExternalFileResult_c5c2ecebba"),

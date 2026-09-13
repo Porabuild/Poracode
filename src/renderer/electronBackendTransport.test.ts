@@ -1,3 +1,4 @@
+import { BACKEND_RENDERER_STREAM_VERSION } from "@/shared/backendHostProtocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -78,7 +79,7 @@ function makeHost() {
   let streamListener: ((info: BackendRendererStreamInfo) => void) | null = null;
   const getBackendRendererStreamInfo = vi.fn<() => Promise<BackendRendererStreamInfo>>(
     async () => ({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       url: "ws://127.0.0.1:43210/events",
       token: "secret",
     }),
@@ -131,8 +132,16 @@ describe("ElectronBackendTransport event handoff", () => {
     getBackendRendererStreamInfo.mockReturnValue(initial.promise);
     const transport = new ElectronBackendTransport(host);
     await transport.setEventInterests({ terminalThreadIds: [], runtimeThreadIds: ["thread-1"] });
-    streamChanged({ version: 2, url: "ws://127.0.0.1:43211/events", token: "new-token" });
-    initial.resolve({ version: 2, url: "ws://127.0.0.1:43210/events", token: "old-token" });
+    streamChanged({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      url: "ws://127.0.0.1:43211/events",
+      token: "new-token",
+    });
+    initial.resolve({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      url: "ws://127.0.0.1:43210/events",
+      token: "old-token",
+    });
     await flush();
     expect(FakeWebSocket.instances).toHaveLength(1);
     expect(String(FakeWebSocket.instances[0]!.url)).toContain("43211/events?token=new-token");
@@ -145,7 +154,7 @@ describe("ElectronBackendTransport event handoff", () => {
     await flush();
     FakeWebSocket.instances[0]!.open();
     getBackendRendererStreamInfo.mockResolvedValue({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       url: "ws://127.0.0.1:43211/events",
       token: "replacement-token",
     });
@@ -172,7 +181,11 @@ describe("ElectronBackendTransport event handoff", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     expect(FakeWebSocket.instances).toHaveLength(3);
     expect(getBackendRendererStreamInfo).toHaveBeenCalledTimes(2);
-    pending.resolve({ version: 2, url: "ws://127.0.0.1:43210/events", token: "secret" });
+    pending.resolve({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      url: "ws://127.0.0.1:43210/events",
+      token: "secret",
+    });
     await flush();
   });
 
@@ -188,13 +201,17 @@ describe("ElectronBackendTransport event handoff", () => {
     await flush();
     const socket = FakeWebSocket.instances[0]!;
     socket.open();
-    socket.message({ version: 2, type: "interests-ack", latestSeq: 0 });
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 0,
+    });
 
     // The scope is a narrowing hint: threads this window does not subscribe
     // to are ignored, subscribed threads in scope rebuild, and thread-2
     // (subscribed but unscathed) keeps its transcript.
     socket.message({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       type: "resync-required",
       latestSeq: 3,
       threadIds: ["thread-1", "terminal-1", "thread-unknown"],
@@ -206,7 +223,11 @@ describe("ElectronBackendTransport event handoff", () => {
     ]);
 
     // Absent scope keeps the legacy fail-safe: every subscribed thread resets.
-    socket.message({ version: 2, type: "resync-required", latestSeq: 4 });
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "resync-required",
+      latestSeq: 4,
+    });
 
     expect(events).toEqual([
       { type: "thread-scrollback-resync", threadId: "terminal-1" },
@@ -236,7 +257,11 @@ describe("ElectronBackendTransport event handoff", () => {
     });
 
     expect(events).toHaveLength(1);
-    socket.message({ version: 2, type: "interests-ack", latestSeq: 1 });
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 1,
+    });
     fallback({
       type: "thread-state",
       threadId: "thread-1",
@@ -259,7 +284,11 @@ describe("ElectronBackendTransport event handoff", () => {
     await flush();
     const first = FakeWebSocket.instances[0]!;
     first.open();
-    first.message({ version: 2, type: "interests-ack", latestSeq: 0 });
+    first.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 0,
+    });
     first.close();
 
     const event: SupervisorEvent = {
@@ -273,8 +302,12 @@ describe("ElectronBackendTransport event handoff", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     const second = FakeWebSocket.instances[1]!;
     second.open();
-    second.message({ version: 2, type: "event", seq: 1, event });
-    second.message({ version: 2, type: "interests-ack", latestSeq: 1 });
+    second.message({ version: BACKEND_RENDERER_STREAM_VERSION, type: "event", seq: 1, event });
+    second.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 1,
+    });
 
     expect(events).toEqual([event]);
     expect(JSON.parse(second.sent[0]!)).toMatchObject({ type: "interests", lastSeq: 1 });
@@ -287,7 +320,11 @@ describe("ElectronBackendTransport event handoff", () => {
     await flush();
     const first = FakeWebSocket.instances[0]!;
     first.open();
-    first.message({ version: 2, type: "interests-ack", latestSeq: 501 });
+    first.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 501,
+    });
     first.close();
 
     await vi.advanceTimersByTimeAsync(1_000);
@@ -312,8 +349,16 @@ describe("ElectronBackendTransport event handoff", () => {
       await flush();
       const first = FakeWebSocket.instances[0]!;
       first.open();
-      first.message({ version: 2, type: "interests-ack", latestSeq: 200 });
-      first.message({ version: 2, type: "resync-required", latestSeq });
+      first.message({
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "interests-ack",
+        latestSeq: 200,
+      });
+      first.message({
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "resync-required",
+        latestSeq,
+      });
 
       expect(events).toEqual([
         { type: "thread-scrollback-resync", threadId: "shared" },
@@ -334,8 +379,18 @@ describe("ElectronBackendTransport event handoff", () => {
         attention: "none",
         canResumeWithConfig: false,
       };
-      second.message({ version: 2, type: "event", seq: latestSeq, event });
-      second.message({ version: 2, type: "event", seq: latestSeq + 1, event });
+      second.message({
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "event",
+        seq: latestSeq,
+        event,
+      });
+      second.message({
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "event",
+        seq: latestSeq + 1,
+        event,
+      });
       expect(events.slice(4)).toEqual([event]);
     },
   );
@@ -414,8 +469,17 @@ describe("ElectronBackendTransport desktop-IPC gap recovery", () => {
     const interestsMessage = JSON.parse(socket.sent[0]!) as Record<string, unknown>;
     expect(interestsMessage).toMatchObject({ type: "interests", lastSeq: 1 });
 
-    socket.message({ version: 2, type: "event", seq: 2, event: retainedState });
-    socket.message({ version: 2, type: "interests-ack", latestSeq: 10 });
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "event",
+      seq: 2,
+      event: retainedState,
+    });
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 10,
+    });
     // The replay consumed the range; post-gap IPC copies are deduped, not lost.
     fallback(postGapState, 7);
     expect(events).toEqual([
@@ -462,7 +526,11 @@ describe("ElectronBackendTransport desktop-IPC gap recovery", () => {
     await flush();
     const socket = FakeWebSocket.instances[0]!;
     socket.open();
-    socket.message({ version: 2, type: "interests-ack", latestSeq: 3 });
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 3,
+    });
 
     gap(1, 5);
     fallback(retainedState, 9);

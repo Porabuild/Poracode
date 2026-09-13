@@ -22,7 +22,9 @@ import { userNotificationSchema } from "../threadNotification";
 
 // v11 adds the daily usage window. Older native bindings reject unknown
 // window enum values, so exact-match pairing must prevent mixed generations.
-export const PORACODE_REMOTE_PROTOCOL_VERSION = 11;
+// v12 combines that contract with authoritative content.delta.replace recovery.
+// Previous V2 clients append replacement snapshots and must not pair with this host.
+export const PORACODE_REMOTE_PROTOCOL_VERSION = 12;
 export const REMOTE_COMMAND_ID_HEADER = "x-poracode-command-id";
 
 export const remoteAccessScopeSchema = z.enum([

@@ -409,6 +409,30 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
   }
   const query = search.trim().toLowerCase();
   const isSearching = query.length > 0;
+  // While searching, every provider's rows flatten into one list under
+  // identical-looking headers. When the same model id is offered by more than
+  // one provider (e.g. two agents selling the same upstream model), the rows
+  // are indistinguishable — decorate those rows with the provider label so the
+  // picker stays self-explanatory.
+  const ambiguousModelIds = new Set<string>();
+  if (isSearching && visibleProviders.length > 1) {
+    const seenModelIds = new Set<string>();
+    for (const { cache } of visibleProviderEntries) {
+      for (const model of cache.models) {
+        if (seenModelIds.has(model.id)) ambiguousModelIds.add(model.id);
+        else seenModelIds.add(model.id);
+      }
+    }
+  }
+  /** Append the provider label to rows whose model id alone is ambiguous. */
+  const disambiguatedSubLabel = (
+    modelId: string,
+    subLabel: string | undefined,
+    providerLabel: string | undefined,
+  ): string | undefined => {
+    if (!ambiguousModelIds.has(modelId) || !providerLabel) return subLabel;
+    return [subLabel, providerLabel].filter(Boolean).join(" · ");
+  };
   const out: ProviderModelItem[] = [];
   const singleProviderMode = visibleProviders.length === 1;
   const showProviderHeaders = visibleProviders.length > 1;
@@ -464,6 +488,11 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
         m.ref.presentationMode,
       );
       const providerIcon = visibleProvider?.provider.icon;
+      const shortcutSubLabel = disambiguatedSubLabel(
+        m.ref.modelId,
+        m.subProviderLabel,
+        visibleProvider?.provider.label,
+      );
       out.push({
         type: "model",
         id: `${sectionId}:${m.ref.agentKind}:${m.ref.modelId}`,
@@ -475,7 +504,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
         label: m.label,
         ...(m.ref.presentationMode ? { presentationMode: m.ref.presentationMode } : {}),
         ...(providerIcon ? { providerIcon } : {}),
-        ...(m.subProviderLabel ? { subProviderLabel: m.subProviderLabel } : {}),
+        ...(shortcutSubLabel ? { subProviderLabel: shortcutSubLabel } : {}),
         ...modelHintProps(m),
         ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
         showProviderIcon: true,
@@ -536,6 +565,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     if (isSearching) {
       // Flat under the provider; sub-provider promoted to right-rail label.
       for (const m of sortFavoritesFirst(filtered, provider.kind)) {
+        const subProviderLabel = disambiguatedSubLabel(m.id, m.subLabel, provider.label);
         out.push({
           type: "model",
           id: `model:${key}:${m.id}`,
@@ -547,7 +577,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
           label: m.label,
           ...(provider.presentationMode ? { presentationMode: provider.presentationMode } : {}),
           ...(provider.icon ? { providerIcon: provider.icon } : {}),
-          ...(m.subLabel ? { subProviderLabel: m.subLabel } : {}),
+          ...(subProviderLabel ? { subProviderLabel } : {}),
           ...modelHintProps(m),
           ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
           showProviderIcon: true,

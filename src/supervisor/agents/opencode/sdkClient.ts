@@ -3,8 +3,8 @@ import { resolve as resolvePosixPath } from "node:path/posix";
 import { resolve as resolveWindowsPath } from "node:path/win32";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { resolveWslHomeDirectoryAsync, type AgentEnvContext } from "../base";
-import { resolveAgentBinaryPath } from "../binaryResolver";
 import { buildOpenCodeServerCommand } from "./argv";
+import { resolveOpenCode1Binary } from "./binary";
 import { buildOpenCodeMcp } from "../userMcp";
 import { classifyOpenCodeError, isOpenCodeConnectionLoss } from "./opencodeErrors";
 import { installOpenCodePlugin } from "./plugin/install";
@@ -195,7 +195,10 @@ async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSna
   // sessions. Installing after `opencode serve` starts is too late because its
   // plugin set is fixed for the lifetime of the shared process.
   await installSharedServerPlugin(projectLocation);
-  const resolvedExecPath = resolveAgentBinaryPath(projectLocation, "opencode");
+  const resolvedExecPath = await resolveOpenCode1Binary(projectLocation);
+  if (!resolvedExecPath) {
+    throw new Error("OpenCode 1 is not installed. PATH `opencode` is missing or is OpenCode 2.");
+  }
   const username = "opencode";
   const password = randomUUID();
   const authorization = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;

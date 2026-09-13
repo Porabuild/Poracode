@@ -1,7 +1,7 @@
 {
   "formatVersion": 1,
   "contract": "poracode.remote.native-parity",
-  "protocolVersion": 11,
+  "protocolVersion": 12,
   "entries": {
     "httpRoutes": [
       {
@@ -4195,7 +4195,9 @@
           "evidence": [
             "ios/App/App/Protocol/RuntimeEventReducer.swift",
             "ios/App/App/Features/Session/SessionEventRouter.swift",
-            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift"
+            "ios/App/App/Features/RichChat/UI/RichChatTimelineView.swift",
+            "ios/App/App/Protocol/RuntimeEventDecoder.swift",
+            "ios/App/App/Features/RichChat/RichTranscriptReducer.swift"
           ]
         },
         "android": {
@@ -4203,9 +4205,13 @@
           "evidence": [
             "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventReducer.kt",
             "android/app/src/main/kotlin/com/poracode/app/session/SessionEventRouter.kt",
-            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadScreen.kt"
+            "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatThreadScreen.kt",
+            "android/app/src/main/kotlin/com/poracode/app/protocol/RuntimeEventSchema.kt",
+            "android/app/src/main/kotlin/com/poracode/app/chat/RichReducer.kt",
+            "android/app/src/main/kotlin/com/poracode/app/chat/RichEvents.kt"
           ]
-        }
+        },
+        "note": "Protocol 12 replacement semantics are covered by protocol/remote/v3/fixtures/content-delta-replacement.json and protocol/remote/v3/contentDeltaReplacement.test.ts, ios/App/AppTests/RichChatReducerFixtureTests.swift, android/app/src/test/kotlin/com/poracode/app/chat/ContentDeltaReplacementTest.kt, and android/app/src/test/kotlin/com/poracode/app/session/richchat/ContentDeltaReplacementReplayTest.kt. Implementation evidence stays native production source."
       },
       {
         "id": "context.updated",

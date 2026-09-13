@@ -54,8 +54,10 @@ import type { PoracodeChannel } from "./channel";
 // Version 5 adds the `revert-checkpoint` renderer operation for the backend-owned
 // compound checkpoint revert (provider rollback + file restore + transcript
 // truncation as one journaled operation, WS2 stage 4).
-export const BACKEND_HOST_PROTOCOL_VERSION = 5 as const;
-export const BACKEND_RENDERER_STREAM_VERSION = 2 as const;
+// Version 6 / renderer stream 3 carry authoritative content.delta.replace.
+// Stale local peers would append replacements, so fence both delivery paths.
+export const BACKEND_HOST_PROTOCOL_VERSION = 6 as const;
+export const BACKEND_RENDERER_STREAM_VERSION = 3 as const;
 
 export interface BackendRendererStreamInfo {
   version: typeof BACKEND_RENDERER_STREAM_VERSION;

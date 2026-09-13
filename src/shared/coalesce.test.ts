@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coalesceByKey } from "./coalesce";
+import { coalesceByKey, coalesceRuntimeEvents } from "./coalesce";
 
 describe("coalesceByKey", () => {
   it("shares one in-flight promise per key and evicts it once settled", async () => {
@@ -36,5 +36,23 @@ describe("coalesceByKey", () => {
     const b = coalesceByKey(inFlight, "b", () => Promise.resolve("B"));
     expect(await a).toBe("A");
     expect(await b).toBe("B");
+  });
+});
+
+describe("coalesceRuntimeEvents", () => {
+  it("retains snapshot replacement semantics while coalescing subsequent deltas", () => {
+    const base = {
+      type: "content.delta" as const,
+      threadId: "t",
+      itemId: "i",
+      stream: "assistant_text" as const,
+    };
+    expect(
+      coalesceRuntimeEvents([
+        { ...base, delta: "stale" },
+        { ...base, delta: "correct", replace: true },
+        { ...base, delta: " tail" },
+      ]),
+    ).toEqual([{ ...base, delta: "correct tail", replace: true }]);
   });
 });

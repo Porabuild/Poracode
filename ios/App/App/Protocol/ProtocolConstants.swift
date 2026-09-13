@@ -1,8 +1,9 @@
 import Foundation
 
 /// Mirrors `PORACODE_REMOTE_PROTOCOL_VERSION` in `src/shared/remote/protocol.ts`.
-/// Protocol v11 adds the daily usage-window enum. Older native bindings
-/// reject it, so mixed generations refuse to pair. Guarded against drift by
+/// Protocol v12 adds authoritative content-stream replacement. Older native
+/// bindings would append those snapshots, so wire generations must match.
+/// Guarded against drift by
 /// `protocol/remote/v3/native-protocol-version.test.ts`.
 enum ProtocolConstants {
   /// Cap for boundary buffers that hold sequenced events while an
@@ -10,7 +11,7 @@ enum ProtocolConstants {
   /// past this bound loses replay coverage, so every buffer pairs the cap
   /// with an overflow flag that forces an authoritative refresh/resync.
   static let maxBufferedEnvelopes = 512
-    static let remoteProtocolVersion = 11
+    static let remoteProtocolVersion = 12
     static let commandIdHeader = "x-poracode-command-id"
     static let bearerTokenType = "Bearer"
 

@@ -1,53 +1,19 @@
-import { useState } from "react";
-import { Button } from "@heroui/react";
+import { useId, useState, type ReactNode } from "react";
+import { StructuredCustomValues } from "./StructuredCustomValues";
+import { Button, Input } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { RequestOutcome } from "@/shared/contracts";
+import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 
-type StructuredElicitationChoice = { const: string; title?: string };
-
-type StructuredElicitationChoiceSource = {
-  oneOf?: StructuredElicitationChoice[];
-  anyOf?: StructuredElicitationChoice[];
-};
-
-type StructuredElicitationSchemaProperty =
-  | {
-      type: "string";
-      title?: string;
-      description?: string;
-      default?: string;
-      enum?: string[];
-      enumNames?: string[];
-      // JSON Schema choice lists arrive under either combinator: agents build
-      // single-select from `oneOf` and multi-select item schemas from `anyOf`
-      // (Kimi Code v2 does exactly that). Accept both wherever choices appear.
-      oneOf?: StructuredElicitationChoice[];
-      anyOf?: StructuredElicitationChoice[];
-    }
-  | {
-      type: "integer" | "number";
-      title?: string;
-      description?: string;
-      default?: number;
-    }
-  | {
-      type: "boolean";
-      title?: string;
-      description?: string;
-      default?: boolean;
-    }
-  | {
-      type: "array";
-      title?: string;
-      description?: string;
-      default?: string[];
-      items?: {
-        enum?: string[];
-        enumNames?: string[];
-        oneOf?: StructuredElicitationChoice[];
-        anyOf?: StructuredElicitationChoice[];
-      };
-    };
+import {
+  emptyStructuredValue,
+  initialStructuredFormValues,
+  structuredFieldVisible,
+  structuredFormOptions,
+  validStructuredValue,
+  type StructuredFormProperty,
+  type StructuredFormValue,
+} from "@/shared/structuredForm";
 
 export type StructuredElicitationParams =
   | {
@@ -55,9 +21,10 @@ export type StructuredElicitationParams =
       message: string;
       sourceText: string;
       _meta?: unknown;
+      links?: Array<{ url: string; title: string; description?: string }>;
       requestedSchema: {
         type: "object";
-        properties: Record<string, StructuredElicitationSchemaProperty>;
+        properties: Record<string, StructuredFormProperty>;
         required?: string[];
       };
     }
@@ -75,6 +42,12 @@ export function asStructuredElicitationDetails(
 ): StructuredElicitationParams | undefined {
   if (!value || typeof value !== "object") return undefined;
   const obj = value as Record<string, unknown>;
+  const structured = obj.structuredElicitation;
+  if (structured && typeof structured === "object") {
+    return parseStructuredElicitationCandidate(structured, (source) =>
+      typeof source.sourceText === "string" ? source.sourceText : undefined,
+    );
+  }
   const mcp = obj.mcpElicitation;
   if (mcp && typeof mcp === "object") {
     return parseStructuredElicitationCandidate(mcp, getMcpElicitationSourceText);
@@ -99,6 +72,7 @@ function parseStructuredElicitationCandidate(
   if (!sourceText) return undefined;
   if (mode === "url") {
     if (typeof obj.url !== "string" || typeof obj.elicitationId !== "string") return undefined;
+    if (!isHttpUrl(obj.url)) return undefined;
     return {
       mode: "url",
       message: obj.message,
@@ -125,12 +99,21 @@ function parseStructuredElicitationCandidate(
     mode: "form",
     message: obj.message,
     sourceText,
+    ...(Array.isArray(obj.links)
+      ? {
+          links: obj.links.filter(
+            (link): link is { url: string; title: string; description?: string } =>
+              !!link &&
+              typeof link === "object" &&
+              typeof link.url === "string" &&
+              typeof link.title === "string" &&
+              isHttpUrl(link.url),
+          ),
+        }
+      : {}),
     requestedSchema: {
       type: "object",
-      properties: (schemaObj.properties ?? {}) as Record<
-        string,
-        StructuredElicitationSchemaProperty
-      >,
+      properties: (schemaObj.properties ?? {}) as Record<string, StructuredFormProperty>,
       ...(required.length > 0 ? { required } : {}),
     },
     ...(Object.hasOwn(obj, "_meta") ? { _meta: obj._meta } : {}),
@@ -149,59 +132,25 @@ function getAcpElicitationSourceText(obj: Record<string, unknown>): string {
   return agentName ? `ACP agent "${agentName}"` : "ACP agent";
 }
 
-type StructuredFormValue = boolean | number | string | string[];
-
-function readChoiceOptions(source: StructuredElicitationChoiceSource): {
-  id: string;
-  label: string;
-}[] {
-  const choices = [source.oneOf, source.anyOf].find(Array.isArray) ?? [];
-  return choices.map((choice) => ({ id: choice.const, label: choice.title ?? choice.const }));
+function isHttpUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
 }
 
-function getStructuredElicitationEnumOptions(
-  property: StructuredElicitationSchemaProperty,
-): { id: string; label: string }[] {
-  // A combinator can sit directly on the property (single-select) regardless of
-  // the declared `type`, which agents sometimes omit — so read it off every
-  // property shape rather than narrowing on `type === "string"`.
-  const direct = readChoiceOptions(property as StructuredElicitationChoiceSource);
-  if (direct.length > 0) return direct;
-  if ("enum" in property && Array.isArray(property.enum)) {
-    const names =
-      "enumNames" in property && Array.isArray(property.enumNames) ? property.enumNames : [];
-    return property.enum.map((v, i) => ({ id: v, label: names[i] ?? v }));
-  }
-  if (property.type === "array" && property.items) {
-    const choices = readChoiceOptions(property.items);
-    if (choices.length > 0) return choices;
-    if (Array.isArray(property.items.enum)) {
-      const names = Array.isArray(property.items.enumNames) ? property.items.enumNames : [];
-      return property.items.enum.map((v, i) => ({ id: v, label: names[i] ?? v }));
-    }
-  }
-  return [];
-}
-
-function getInitialStructuredFormValues(schema: {
-  properties: Record<string, StructuredElicitationSchemaProperty>;
-}): Record<string, StructuredFormValue> {
-  const initial: Record<string, StructuredFormValue> = {};
-  for (const [key, property] of Object.entries(schema.properties)) {
-    if (property.type === "boolean") initial[key] = property.default ?? false;
-    else if (property.type === "integer" || property.type === "number")
-      initial[key] = property.default ?? "";
-    else if (property.type === "array") initial[key] = property.default ?? [];
-    else initial[key] = property.default ?? "";
-  }
-  return initial;
-}
-
-function isEmptyRequiredValue(value: StructuredFormValue | undefined): boolean {
-  if (value === undefined || value === null) return true;
-  if (typeof value === "string") return value.length === 0;
-  if (Array.isArray(value)) return value.length === 0;
-  return false;
+function ExternalElicitationLink(props: { href: string; className?: string; children: ReactNode }) {
+  return (
+    <a
+      href={props.href}
+      target="_blank"
+      rel="noreferrer"
+      {...(props.className ? { className: props.className } : {})}
+      onClick={(event) => {
+        event.preventDefault();
+        openExternalWithFeedback(props.href);
+      }}
+    >
+      {props.children}
+    </a>
+  );
 }
 
 export function StructuredElicitationForm(props: {
@@ -211,18 +160,33 @@ export function StructuredElicitationForm(props: {
 }) {
   const { params, isDisabled, onSubmit } = props;
   const { t } = useLingui();
+  const formId = useId();
   const [formValues, setFormValues] = useState<Record<string, StructuredFormValue>>(() =>
-    params.mode === "form" ? getInitialStructuredFormValues(params.requestedSchema) : {},
+    params.mode === "form" ? initialStructuredFormValues(params.requestedSchema.properties) : {},
   );
   const requiredKeys = params.mode === "form" ? (params.requestedSchema.required ?? []) : [];
-  const hasMissing =
-    params.mode === "form" && requiredKeys.some((key) => isEmptyRequiredValue(formValues[key]));
+  const fields =
+    params.mode === "form"
+      ? Object.entries(params.requestedSchema.properties).filter(([, property]) =>
+          structuredFieldVisible(property, formValues),
+        )
+      : [];
+  const hasMissing = fields.some(
+    ([key, property]) =>
+      !validStructuredValue(property, formValues[key], requiredKeys.includes(key)),
+  );
 
   function submitAccept() {
+    if (isDisabled || hasMissing) return;
+    const content = Object.fromEntries(
+      fields
+        .filter(([key]) => requiredKeys.includes(key) || !emptyStructuredValue(formValues[key]))
+        .map(([key]) => [key, formValues[key]]),
+    );
     onSubmit(
       {
         action: "accept",
-        ...(params.mode === "form" ? { content: formValues } : {}),
+        ...(params.mode === "form" ? { content } : {}),
         ...(Object.hasOwn(params, "_meta") ? { _meta: params._meta } : {}),
       },
       "answered",
@@ -232,23 +196,69 @@ export function StructuredElicitationForm(props: {
   return (
     <div className="space-y-2 border-t border-[color:var(--border)] px-2 py-1.5">
       {params.mode === "url" ? (
-        <a
-          className="text-xs font-medium text-[color:var(--accent)] underline-offset-4 hover:underline"
+        <ExternalElicitationLink
           href={params.url}
-          rel="noreferrer"
-          target="_blank"
+          className="text-xs font-medium text-[color:var(--accent)] underline-offset-4 hover:underline"
         >
           <Trans>Open required URL</Trans>
-        </a>
+        </ExternalElicitationLink>
       ) : (
         <div className="space-y-2">
-          {Object.entries(params.requestedSchema.properties).map(([key, property]) => {
+          {params.links?.map((link, index) => (
+            <ExternalElicitationLink
+              key={`${link.url}-${index}`}
+              href={link.url}
+              className="block text-xs text-accent underline"
+            >
+              {link.title}
+              {link.description ? (
+                <span className="block text-[11px] text-[color:var(--muted)] no-underline">
+                  {link.description}
+                </span>
+              ) : null}
+            </ExternalElicitationLink>
+          ))}
+          {fields.map(([key, property]) => {
             const label = property.title ?? key;
             const description = property.description ?? "";
-            const enumOpts = getStructuredElicitationEnumOptions(property);
+            const enumOpts = structuredFormOptions(property);
+            // Array fields read their current selection in three places below;
+            // narrow once here (updates still read `cur[key]` functionally).
+            const selectedValues = Array.isArray(formValues[key])
+              ? (formValues[key] as string[])
+              : [];
             const isRequired = requiredKeys.includes(key);
+            const invalid =
+              !emptyStructuredValue(formValues[key]) &&
+              !validStructuredValue(property, formValues[key], isRequired);
+            const errorId = `${formId}-${key}-error`;
+            const constraints = [
+              property.minimum !== undefined ? t`Minimum: ${property.minimum}` : "",
+              property.maximum !== undefined ? t`Maximum: ${property.maximum}` : "",
+              property.minLength !== undefined ? t`Minimum characters: ${property.minLength}` : "",
+              property.maxLength !== undefined ? t`Maximum characters: ${property.maxLength}` : "",
+              property.minItems !== undefined ? t`Minimum selections: ${property.minItems}` : "",
+              property.maxItems !== undefined ? t`Maximum selections: ${property.maxItems}` : "",
+              property.format
+                ? {
+                    email: t`Email address`,
+                    uri: t`URL`,
+                    date: t`Date`,
+                    "date-time": t`Date and time`,
+                  }[property.format]
+                : "",
+              property.pattern ?? "",
+            ]
+              .filter(Boolean)
+              .join(" · ");
             return (
-              <div key={key} className="space-y-1">
+              <div
+                key={key}
+                className="space-y-1"
+                role="group"
+                aria-label={label}
+                aria-describedby={errorId}
+              >
                 <div>
                   <p className="text-[11px] font-medium text-foreground">
                     {label}
@@ -258,6 +268,14 @@ export function StructuredElicitationForm(props: {
                     <p className="text-[11px] text-[color:var(--muted)]">{description}</p>
                   ) : null}
                 </div>
+                <p id={errorId} className="text-[11px] text-muted">
+                  {constraints}
+                  {invalid ? (
+                    <span className="block text-danger">
+                      <Trans>Enter a valid value.</Trans>
+                    </span>
+                  ) : null}
+                </p>
                 {property.type === "boolean" ? (
                   <label className="flex items-center gap-2 text-[11px] text-foreground">
                     <input
@@ -272,7 +290,13 @@ export function StructuredElicitationForm(props: {
                     <span>{label}</span>
                   </label>
                 ) : property.type === "integer" || property.type === "number" ? (
-                  <input
+                  <Input
+                    aria-label={label}
+                    aria-invalid={invalid}
+                    aria-describedby={errorId}
+                    min={property.minimum}
+                    max={property.maximum}
+                    step={property.type === "integer" ? 1 : "any"}
                     type="number"
                     disabled={isDisabled}
                     value={formValues[key] === "" ? "" : String(formValues[key] ?? "")}
@@ -287,10 +311,7 @@ export function StructuredElicitationForm(props: {
                 ) : property.type === "array" ? (
                   <div className="space-y-0.5">
                     {enumOpts.map((option) => {
-                      const current = Array.isArray(formValues[key])
-                        ? (formValues[key] as string[])
-                        : [];
-                      const checked = current.includes(option.id);
+                      const checked = selectedValues.includes(option.id);
                       return (
                         <label
                           key={option.id}
@@ -319,9 +340,36 @@ export function StructuredElicitationForm(props: {
                         </label>
                       );
                     })}
+                    {property.allowCustom ? (
+                      <StructuredCustomValues
+                        isDisabled={isDisabled}
+                        atLimit={
+                          property.maxItems !== undefined &&
+                          selectedValues.length >= property.maxItems
+                        }
+                        values={selectedValues.filter(
+                          (value) => !enumOpts.some(({ id }) => id === value),
+                        )}
+                        onChange={(custom) =>
+                          setFormValues((current) => ({
+                            ...current,
+                            [key]: [
+                              ...(Array.isArray(current[key])
+                                ? (current[key] as string[])
+                                : []
+                              ).filter((value) => enumOpts.some(({ id }) => id === value)),
+                              ...custom,
+                            ],
+                          }))
+                        }
+                      />
+                    ) : null}
                   </div>
-                ) : enumOpts.length > 0 ? (
+                ) : enumOpts.length > 0 && !property.allowCustom ? (
                   <select
+                    aria-label={label}
+                    aria-invalid={invalid}
+                    aria-describedby={errorId}
                     disabled={isDisabled}
                     value={String(formValues[key] ?? "")}
                     onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
@@ -335,13 +383,31 @@ export function StructuredElicitationForm(props: {
                     ))}
                   </select>
                 ) : (
-                  <input
-                    type="text"
-                    disabled={isDisabled}
-                    value={String(formValues[key] ?? "")}
-                    onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
-                    className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
-                  />
+                  <>
+                    <datalist id={`${formId}-${key}`}>
+                      {enumOpts.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </datalist>
+                    <Input
+                      {...(enumOpts.length > 0 ? { list: `${formId}-${key}` } : {})}
+                      aria-label={label}
+                      aria-invalid={invalid}
+                      aria-describedby={errorId}
+                      {...(property.placeholder !== undefined
+                        ? { placeholder: property.placeholder }
+                        : {})}
+                      minLength={property.minLength}
+                      maxLength={property.maxLength}
+                      type="text"
+                      disabled={isDisabled}
+                      value={String(formValues[key] ?? "")}
+                      onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
+                      className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
+                    />
+                  </>
                 )}
               </div>
             );

@@ -10,6 +10,7 @@ import {
   appendStreamDelta,
   assembleItemStreams,
   clearThreadStreamChunks,
+  clearItemStream,
   readStreamTails,
   streamHasContent,
   type ItemStreamTails,
@@ -649,6 +650,10 @@ function applyThreadRuntimeEventsNow(threadId: string, events: readonly RuntimeE
             const row = readItem(event.itemId);
             if (!row) break;
             const head = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
+            if (event.replace) {
+              clearItemStream(sqlite, threadId, event.itemId, event.stream);
+              head[event.stream] = "";
+            }
             const appended = appendStreamDelta(sqlite, {
               threadId,
               itemId: event.itemId,
@@ -657,7 +662,7 @@ function applyThreadRuntimeEventsNow(threadId: string, events: readonly RuntimeE
               head: head[event.stream] ?? "",
             });
             const nextState = row.state === "completed" ? "completed" : "updated";
-            if (appended.head === undefined) {
+            if (appended.head === undefined && !event.replace) {
               // Content went entirely into the append-only tail, so the item row
               // only needs its lifecycle state refreshed — no blob rewrite.
               setItemState.run(nextState, threadId, event.itemId);
@@ -666,7 +671,7 @@ function applyThreadRuntimeEventsNow(threadId: string, events: readonly RuntimeE
             updateItem.run(
               nextState,
               row.payload,
-              JSON.stringify({ ...head, [event.stream]: appended.head }),
+              JSON.stringify({ ...head, [event.stream]: appended.head ?? "" }),
               threadId,
               event.itemId,
             );

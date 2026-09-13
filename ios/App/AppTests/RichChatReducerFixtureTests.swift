@@ -7,6 +7,118 @@ import XCTest
 #endif
 
 final class RichChatReducerFixtureTests: XCTestCase {
+  func testContentDeltaReplacementFixtureMatrix() throws {
+    let fixture = try loadRichChatFixture("content-delta-replacement.json")
+    let threadID = try XCTUnwrap(fixture["threadId"]?.stringValue)
+    let itemID = try XCTUnwrap(fixture["itemId"]?.stringValue)
+    let cases = try richFixtureArray(try XCTUnwrap(fixture["cases"]))
+    for rawCase in cases {
+      let entry = try richFixtureObject(rawCase)
+      let caseID = try XCTUnwrap(entry["id"]?.stringValue)
+      let events = try richFixtureArray(try XCTUnwrap(entry["events"]))
+        .map(RichRuntimeEventDecoder.decode)
+      var state = RichTranscriptState(threadID: threadID)
+      for event in events { state.apply(event) }
+      let item = state.itemsByID[itemID]
+      let expected = try XCTUnwrap(entry["expected"])
+      if expected == .null {
+        XCTAssertNil(item, caseID)
+      } else {
+        let fields = try richFixtureObject(expected)
+        let actual = try XCTUnwrap(item, caseID)
+        XCTAssertEqual(actual.state.rawValue, fields["state"]?.stringValue, caseID)
+        XCTAssertEqual(actual.payload, fields["payload"], caseID)
+        XCTAssertEqual(.object(actual.streams.mapValues(RichJSON.string)), fields["streams"], caseID)
+      }
+    }
+  }
+
+  func testMalformedContentDeltaReplacementFlagsAreRejected() throws {
+    let fixture = try loadRichChatFixture("content-delta-replacement.json")
+    for event in try richFixtureArray(try XCTUnwrap(fixture["invalidEvents"])) {
+      XCTAssertThrowsError(try RichRuntimeEventDecoder.decode(event))
+    }
+  }
+
+  @MainActor
+  func testBufferedReplacementReplaysAfterHistoryAndStaleReplayKeepsLaterAppends() async throws {
+    let fixture = try loadRichChatFixture("content-delta-replacement.json")
+    let threadID = try XCTUnwrap(fixture["threadId"]?.stringValue)
+    let itemID = try XCTUnwrap(fixture["itemId"]?.stringValue)
+    let cases = try richFixtureArray(try XCTUnwrap(fixture["cases"]))
+    let entry = try richFixtureObject(try XCTUnwrap(cases.first))
+    let events = try richFixtureArray(try XCTUnwrap(entry["events"]))
+      .map(RichRuntimeEventDecoder.decode)
+    let replacementIndex = try XCTUnwrap(events.firstIndex { event in
+      if case .contentDelta(_, _, _, _, true) = event { return true }
+      return false
+    })
+    let expected = try richFixtureObject(try XCTUnwrap(entry["expected"]))
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(
+      .value(RichChatControllerTestValues.history(threadID: threadID, items: [])),
+      barrier: barrier)
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target(threadID: threadID)
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: threadID)
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    for (index, event) in events.enumerated() {
+      controller.receiveLiveEvents([event], sequence: 11 + index, target: target)
+    }
+    await barrier.release()
+    await loading.value
+    controller.receiveLiveEvents(
+      [events[replacementIndex]], sequence: 11 + replacementIndex, target: target)
+    let item = try XCTUnwrap(controller.state.transcript?.itemsByID[itemID])
+    XCTAssertEqual(.object(item.streams.mapValues(RichJSON.string)), expected["streams"])
+    XCTAssertEqual(controller.state.liveSequence, 10 + events.count)
+  }
+
+  #if canImport(App)
+    func testFoundationContentDeltaReplacementFixtureMatrix() throws {
+      let data = try Data(contentsOf: richChatFixtureURL("content-delta-replacement.json"))
+      let fixture = try JSONDecoding.decode([String: JSONValue].self, from: data)
+      let itemID = try XCTUnwrap(fixture["itemId"]?.stringValue)
+      guard case .array(let cases)? = fixture["cases"] else { return XCTFail("Missing cases") }
+      for rawCase in cases {
+        guard case .object(let entry) = rawCase,
+          case .array(let values)? = entry["events"]
+        else { return XCTFail("Invalid case") }
+        let caseID = try XCTUnwrap(entry["id"]?.stringValue)
+        let events = try values.map { value in
+          guard case .object(let object) = value else {
+            throw RichDomainDecodeError.invalidRuntimeEvent
+          }
+          return try XCTUnwrap(RuntimeEventDecoder.decode(object), caseID)
+        }
+        var items: [PersistedRuntimeItem] = []
+        RuntimeEventReducer.apply(events: events, to: &items)
+        let item = items.first { $0.id == itemID }
+        if entry["expected"] == .null {
+          XCTAssertNil(item, caseID)
+        } else {
+          guard case .object(let expected)? = entry["expected"] else {
+            return XCTFail("Missing expected item")
+          }
+          let actual = try XCTUnwrap(item, caseID)
+          XCTAssertEqual(actual.state, expected["state"]?.stringValue, caseID)
+          XCTAssertEqual(actual.payload, expected["payload"], caseID)
+          XCTAssertEqual(
+            .object(actual.streams.mapValues(JSONValue.string)), expected["streams"], caseID)
+        }
+      }
+      guard case .array(let invalidEvents)? = fixture["invalidEvents"] else {
+        return XCTFail("Missing invalid cases")
+      }
+      for event in invalidEvents {
+        guard case .object(let object) = event else { return XCTFail("Invalid event") }
+        XCTAssertNil(RuntimeEventDecoder.decode(object))
+      }
+    }
+  #endif
+
   func testStreamReductionFixtureMatrix() throws {
     let fixture = try loadRichChatFixture("rich-stream-cases.json")
     let cases = try richFixtureArray(try XCTUnwrap(fixture["rendererConventionCases"]))

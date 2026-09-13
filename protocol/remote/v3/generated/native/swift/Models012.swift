@@ -295,9 +295,10 @@ public enum ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DTyp
   case contentU2EDelta = "content.delta"
 }
 
-public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_311561bc27: Codable, Sendable, RemoteModelMetadata {
+public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_996ce1c4e0: Codable, Sendable, RemoteModelMetadata {
   public var delta: String
   public var itemId: String
+  public var replace: RemoteField<Bool> = .missing
   public var stream: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DStream_b5c1f44eaf
   public var threadId: String
   public var typeValue: ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DType_f30731ffd8
@@ -305,6 +306,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_311
   public static let fields: [RemoteFieldDescriptor] = [
     .init(wireName: "delta", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "itemId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "replace", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "stream", typeName: "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DStream_b5c1f44eaf", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "threadId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "type", typeName: "ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8U2DType_f30731ffd8", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
@@ -313,6 +315,7 @@ public struct ProceduresubagentSubscribeResultU2DHistoryU2DItemU2DOptionU2D8_311
   private enum CodingKeys: String, CodingKey {
     case delta = "delta"
     case itemId = "itemId"
+    case replace = "replace"
     case stream = "stream"
     case threadId = "threadId"
     case typeValue = "type"

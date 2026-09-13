@@ -177,10 +177,31 @@ export function appendStreamDelta(
   return nextHead === undefined ? {} : { head: nextHead };
 }
 
+/** Both tables that hold appended stream tails, cleared together. */
+const STREAM_TABLES = [
+  "thread_runtime_item_stream_chunks",
+  "thread_runtime_item_stream_state",
+] as const;
+
+/** Discard a superseded stream without changing other streams on its item. */
+export function clearItemStream(
+  sqlite: SqliteDatabase,
+  threadId: string,
+  itemId: string,
+  stream: string,
+): void {
+  for (const table of STREAM_TABLES) {
+    sqlite
+      .prepare(`DELETE FROM ${table} WHERE thread_id = ? AND item_id = ? AND stream = ?`)
+      .run(threadId, itemId, stream);
+  }
+}
+
 /** Remove every appended tail in a thread. */
 export function clearThreadStreamChunks(sqlite: SqliteDatabase, threadId: string): void {
-  sqlite.prepare("DELETE FROM thread_runtime_item_stream_chunks WHERE thread_id = ?").run(threadId);
-  sqlite.prepare("DELETE FROM thread_runtime_item_stream_state WHERE thread_id = ?").run(threadId);
+  for (const table of STREAM_TABLES) {
+    sqlite.prepare(`DELETE FROM ${table} WHERE thread_id = ?`).run(threadId);
+  }
 }
 
 /** Store complete stream values in the same head/chunk layout used by live deltas. */

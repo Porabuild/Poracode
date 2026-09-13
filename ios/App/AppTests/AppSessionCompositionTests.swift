@@ -1930,11 +1930,14 @@ final class AppSessionCompositionTests: XCTestCase {
   }
 
   func testReviewedStoredBindingsUpgradeOnlyAfterVerifiedRead() async throws {
-    for version in [9, 10] {
+    for version in [9, 10, 11] {
+      let gate = AsyncGate()
       let (session, repo, _) = try await makeSession { e, t in
         let api = FakeRemoteAPI(endpoint: e, accessToken: t)
         api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
         api.snapshotResult = .success(makeShell(seq: 7))
+        api.snapshotGateSkipCount = 0
+        api.snapshotGate = gate
         return api
       }
       defer {
@@ -1947,7 +1950,14 @@ final class AppSessionCompositionTests: XCTestCase {
       profile9.protocolVersion = version
       let seeded = try await seedRegistryV9(
         session.deps.hostCatalog, profile: profile9, token: "tok-9")
-      await session.bootstrap()
+      async let boot: Void = session.bootstrap()
+      try await gate.waitUntilWaiting()
+      let pending = try await session.deps.hostCatalog.snapshot()
+      XCTAssertEqual(pending.selected?.protocolVersion, version)
+      XCTAssertNil(session.state.api)
+      XCTAssertNil(session.state.accessToken)
+      await gate.resume()
+      await boot
       XCTAssertEqual(session.phase, .ready)
       XCTAssertEqual(session.profile?.desktopId, "desk-a")
       XCTAssertEqual(
@@ -2533,10 +2543,11 @@ final class AppSessionCompositionTests: XCTestCase {
       endpoints: .init(httpBaseUrl: "https://a.test", wsBaseUrl: "wss://a.test")
     )
     XCTAssertTrue(PreservedPairingUpgrade.verify(stored: stored9, environment: live10))
-    // Live 9 never verifies.
-    var live9 = live10
-    live9.protocolVersion = 9
-    XCTAssertFalse(PreservedPairingUpgrade.verify(stored: stored9, environment: live9))
+    for version in [9, 10, 11] {
+      var oldEnvironment = live10
+      oldEnvironment.protocolVersion = version
+      XCTAssertFalse(PreservedPairingUpgrade.verify(stored: stored9, environment: oldEnvironment))
+    }
     // Wrong host never verifies (host-switch guard).
     var otherDesk = live10
     otherDesk.desktopId = "desk-other"

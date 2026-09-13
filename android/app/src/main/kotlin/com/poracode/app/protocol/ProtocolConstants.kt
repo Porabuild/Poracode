@@ -7,10 +7,10 @@ package com.poracode.app.protocol
 object ProtocolConstants {
     /**
      * Exact-match generation shared with the host (`PORACODE_REMOTE_PROTOCOL_VERSION`).
-     * v11 adds the daily usage-window enum. Older native bindings reject it,
-     * so mixed generations refuse to pair.
+     * v12 adds authoritative content-stream replacement. Older bindings would
+     * append those snapshots, so wire generations must match.
      */
-    const val REMOTE_PROTOCOL_VERSION = 11
+    const val REMOTE_PROTOCOL_VERSION = 12
     const val COMMAND_ID_HEADER = "x-poracode-command-id"
     const val BEARER_TOKEN_TYPE = "Bearer"
 

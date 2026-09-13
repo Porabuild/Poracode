@@ -23,14 +23,14 @@ export class SupervisorSharedSettingsCache {
   constructor(private readonly settingsPath: string) {}
 
   read(): ReturnType<typeof readSupervisorSharedSettings> {
-    this.cached ??= readSupervisorSharedSettings(this.settingsPath);
     this.ensureWatcher();
+    this.cached ??= readSupervisorSharedSettings(this.settingsPath);
     return this.cached;
   }
 
   readFresh(): ReturnType<typeof readSupervisorSharedSettings> {
-    this.cached = readSupervisorSharedSettings(this.settingsPath);
     this.ensureWatcher();
+    this.cached = readSupervisorSharedSettings(this.settingsPath);
     return this.cached;
   }
 
@@ -54,6 +54,9 @@ export class SupervisorSharedSettingsCache {
         // watcher so the next read attaches to the replacement file.
         this.invalidate();
       });
+      // The previous cache may predate file creation or a failed watch setup.
+      // Read only after attaching: the new watcher cannot replay those writes.
+      this.cached = undefined;
       this.watcher.on("error", () => {
         this.invalidate();
       });

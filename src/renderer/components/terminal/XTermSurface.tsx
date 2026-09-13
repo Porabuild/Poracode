@@ -158,6 +158,7 @@ export const XTermSurface = forwardRef<
     onTerminalResize,
     className,
     baseFontSize = 12,
+    enabled = true,
     openLinksInNativeBrowser = false,
     preferDomRenderer = false,
     visible = true,
@@ -279,6 +280,8 @@ export const XTermSurface = forwardRef<
     let initialHydrationStarted = false;
     let receivedFeedSnapshot = false;
     const eventInterest = outputSource ? null : retainRendererEventInterest("terminal", terminalId);
+    // First live output proves the PTY exists after a launch-race drop.
+    let refitOnFirstOutput = true;
     // Fit the canvas every frame for live visual feedback, but DEBOUNCE the PTY
     // resize RPC, mirroring VS Code's TerminalResizeDebouncer. A full-height
     // repaint-in-place TUI (Claude no-flicker, codex) re-emits its whole frame
@@ -587,6 +590,8 @@ export const XTermSurface = forwardRef<
     requestRefitRef.current = () => {
       lastFitWidth = -1;
       lastFitHeight = -1;
+      lastCols = -1;
+      lastRows = -1;
       scheduleResize();
     };
     revealRef.current = () => {
@@ -878,6 +883,12 @@ export const XTermSurface = forwardRef<
       resetForNewPty();
     };
     const handleOutput = (data: string) => {
+      // Live output proves the PTY exists even while historical bytes are
+      // hydrating. Deliver the launch resize before buffering the display.
+      if (refitOnFirstOutput) {
+        refitOnFirstOutput = false;
+        requestRefitRef.current?.();
+      }
       if (hydratingScrollback) {
         bufferedOutputDuringHydration += data;
         return;
@@ -1008,6 +1019,13 @@ export const XTermSurface = forwardRef<
   useEffect(() => {
     requestRefitRef.current?.();
   }, [baseFontSize]);
+
+  // Status flipping to active is the "PTY now exists" signal after a dropped launch fit.
+  useEffect(() => {
+    if (enabled) {
+      requestRefitRef.current?.();
+    }
+  }, [enabled]);
 
   // Re-run the search (highlighting all matches and jumping to the nearest) as
   // the query/case toggle changes; clear decorations when find closes or empties.

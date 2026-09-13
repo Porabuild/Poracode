@@ -1,3 +1,4 @@
+import { BACKEND_RENDERER_STREAM_VERSION } from "@/shared/backendHostProtocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import { BackendRendererStream } from "./BackendRendererStream";
@@ -9,6 +10,27 @@ afterEach(async () => {
 });
 
 describe("BackendRendererStream", () => {
+  it.each(["interests", "request"])(
+    "rejects previous-generation renderer %s frames",
+    async (type) => {
+      const onRequest = vi.fn<() => Promise<unknown>>(async () => ({}));
+      const stream = new BackendRendererStream({ onRequest });
+      streams.push(stream);
+      const info = await stream.start();
+      const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+      await hello;
+      const payload =
+        type === "interests"
+          ? { terminalThreadIds: [], runtimeThreadIds: [], lastSeq: 0 }
+          : { id: "old-request", operation: "database", name: "dbGetProjects", payload: {} };
+
+      socket.send(JSON.stringify({ version: 2, type, ...payload }));
+
+      await expect(nextClose(socket)).resolves.toBe(1008);
+      expect(onRequest).not.toHaveBeenCalled();
+    },
+  );
+
   it("authenticates, filters by interest, and rejects malformed messages", async () => {
     const stream = new BackendRendererStream();
     streams.push(stream);
@@ -17,7 +39,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 2,
+        version: BACKEND_RENDERER_STREAM_VERSION,
         type: "interests",
         terminalThreadIds: ["wanted"],
         runtimeThreadIds: [],
@@ -45,7 +67,13 @@ describe("BackendRendererStream", () => {
       event: { type: "thread-output", threadId: "wanted", data: "yes" },
     });
 
-    socket.send(JSON.stringify({ version: 2, type: "call-supervisor", name: "startThread" }));
+    socket.send(
+      JSON.stringify({
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "call-supervisor",
+        name: "startThread",
+      }),
+    );
     await expect(nextClose(socket)).resolves.toBe(1008);
   });
 
@@ -58,7 +86,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 2,
+        version: BACKEND_RENDERER_STREAM_VERSION,
         type: "request",
         id: "request-1",
         operation: "database",
@@ -68,14 +96,14 @@ describe("BackendRendererStream", () => {
     );
 
     await expect(nextMessage(socket)).resolves.toEqual({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       type: "reply",
       id: "request-1",
       ok: true,
       data: { projects: 3 },
     });
     expect(onRequest).toHaveBeenCalledWith({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       type: "request",
       id: "request-1",
       operation: "database",
@@ -93,7 +121,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 2,
+        version: BACKEND_RENDERER_STREAM_VERSION,
         type: "interests",
         terminalThreadIds: [],
         runtimeThreadIds: [],
@@ -132,7 +160,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 2,
+        version: BACKEND_RENDERER_STREAM_VERSION,
         type: "interests",
         terminalThreadIds: [],
         runtimeThreadIds: [],
@@ -237,7 +265,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 2,
+        version: BACKEND_RENDERER_STREAM_VERSION,
         type: "interests",
         terminalThreadIds: [],
         runtimeThreadIds: [],
@@ -273,7 +301,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 2,
+        version: BACKEND_RENDERER_STREAM_VERSION,
         type: "interests",
         terminalThreadIds: [],
         runtimeThreadIds: [],
@@ -337,7 +365,7 @@ describe("BackendRendererStream", () => {
     });
     socket.send(
       JSON.stringify({
-        version: 2,
+        version: BACKEND_RENDERER_STREAM_VERSION,
         type: "interests",
         terminalThreadIds: [],
         runtimeThreadIds: ["thread-big"],
@@ -383,7 +411,7 @@ describe("BackendRendererStream", () => {
     });
     socket.send(
       JSON.stringify({
-        version: 2,
+        version: BACKEND_RENDERER_STREAM_VERSION,
         type: "interests",
         terminalThreadIds: [],
         runtimeThreadIds: [],
@@ -436,7 +464,7 @@ describe("BackendRendererStream", () => {
     await hello;
     socket.send(
       JSON.stringify({
-        version: 2,
+        version: BACKEND_RENDERER_STREAM_VERSION,
         type: "interests",
         terminalThreadIds: [],
         runtimeThreadIds: ["thread-1", "thread-2"],
@@ -561,7 +589,7 @@ async function connectWindow(
   await hello;
   socket.send(
     JSON.stringify({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       type: "interests",
       terminalThreadIds: [],
       runtimeThreadIds,
@@ -592,7 +620,7 @@ async function readyClient(
   await hello;
   socket.send(
     JSON.stringify({
-      version: 2,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       type: "interests",
       terminalThreadIds,
       runtimeThreadIds,

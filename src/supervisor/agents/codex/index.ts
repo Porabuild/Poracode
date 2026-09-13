@@ -18,6 +18,7 @@ import { CodexStructuredSession } from "./acp";
 import { buildCodexArgvFor, codexExtraArgsPosition, primeCodexGoalsSupport } from "./argv";
 import { codexDefaultCapabilities, codexDetectionSpec } from "./detection";
 import { detectRateLimitPrompt } from "./rateLimitPrompt";
+import { shutdownSpawnedCodexAppServers } from "./serverPool";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import {
   codexHooksFeatureFlagForSemver,
@@ -237,6 +238,7 @@ export function createCodexAdapter(): AgentAdapter {
       const wslExecPath = resolveAgentBinaryPath(input.projectLocation, "codex");
       return CodexStructuredSession.create(input, wslExecPath);
     },
+    shutdown: shutdownSpawnedCodexAppServers,
     buildAcpLogoutCommand: buildAgentLogoutCommand("codex", ["logout"]),
     buildDirectInput(prompt) {
       return [prompt, "@wait:160", "\r"];
