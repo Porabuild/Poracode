@@ -95,7 +95,13 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
     };
   }, [connectAllRemoteServers]);
 
-  useEffect(() => installRemoteServerLifecycle(connectAllRemoteServers), [connectAllRemoteServers]);
+  useEffect(
+    () =>
+      installRemoteServerLifecycle(() =>
+        connectAllRemoteServers({ forceTransportReconnect: true }),
+      ),
+    [connectAllRemoteServers],
+  );
 
   useEffect(() => {
     if (!storeHydrated || !sharedSettingsHydrated || !homeScopeEnabled) {

@@ -1340,11 +1340,34 @@ recovery run on every supported browser.
 
 The browser renderer now installs one lifecycle coordinator for `pageshow`,
 `online`, and visible `visibilitychange`. Signals in the same turn coalesce into
-one `connectAll` pass, hidden documents do not initiate network work, and
-cleanup removes all listeners. The focused lifecycle suite passes two tests,
-with typecheck, touched oxlint, and formatting green. This removes the observed
-resume delay before the existing reconnect policy runs; endpoint replacement,
-Safari suspension, and installed-PWA evidence still require device runs.
+one reconnect pass, hidden documents do not initiate network work, and cleanup
+removes all listeners. The first review found that a same-key existing socket
+made the pass a snapshot-only operation: a stale socket stayed online and the
+first health ping still waited 25 seconds. Resume now calls `connectAll` with an
+explicit transport-replacement option, closes each existing event socket before
+the snapshot pass, and restores histories for the open thread and additive
+interests immediately after the replacement stream is installed. Matching live
+frames are held behind a bounded per-pass event/byte budget, each thread's
+history sequence is installed before replay, and the replay uses the same
+truncation-reload path as live delivery. Forced calls that arrive while a forced
+pass is active share that pass; a force request that arrives during an ordinary
+pass schedules one coalesced follow-up. An incomplete or overflowing baseline
+leaves the runtime offline for a retry. The focused backend, reducer, lifecycle,
+and remote-store suites pass 173 tests, with typecheck, touched oxlint, and
+formatting green.
+Endpoint replacement, Safari suspension, and installed-PWA evidence still
+require device runs.
+
+## Phase 3/7 admission and resume review correction
+
+The first request-admission implementation bounded the direct renderer stream
+and then routed overflow through IPC. A held-response probe showed 64 direct
+requests plus 192 unresolved IPC fallbacks, so the main-process pending map was
+still unbounded. `BackendHostClient` now rejects new work after 128 shared
+pending requests, preserving the renderer compatibility path without moving
+overload into an unbounded queue. Its regression holds all 128 slots and proves
+the next request is rejected; the focused backend, transport, and renderer
+admission suites pass.
 
 ## F41 — native helper and computer-use lifetimes
 
