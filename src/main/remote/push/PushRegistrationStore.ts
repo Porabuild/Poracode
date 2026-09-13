@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import { writeFileAtomic } from "@/shared/atomicFile";
+import { matchesSentPushToken, samePushRegistrationIdentity } from "./PushRegistrationToken";
 import {
   remotePushRegistrationRoutingSchema,
   remotePushAlertPreferencesSchema,
@@ -189,18 +190,12 @@ export class PushRegistrationStore {
     }
   }
 
-  /** Prunes a single token after APNs reports it unregistered (410). Removes
-   * the whole device record if it has no tokens left. */
-  removeToken(deviceId: string, ref: PushTokenRef, routing?: RemotePushRegistrationRouting): void {
+  /** Prune only the exact sent credential, preserving refreshed registrations. */
+  removeToken(sent: StoredPushRegistration, ref: PushTokenRef): void {
     const map = this.loadForMutation();
-    const key = routing
-      ? storageKeyFor(deviceId, routing)
-      : map.has(legacyStorageKey(deviceId))
-        ? legacyStorageKey(deviceId)
-        : [...map].find(([, entry]) => entry.deviceId === deviceId)?.[0];
-    if (!key) return;
+    const key = pushRegistrationIdentity(sent);
     const existing = map.get(key);
-    if (!existing) return;
+    if (!existing || !matchesSentPushToken(existing, sent, ref)) return;
     let next: StoredPushRegistration;
     if (ref.kind === "device") {
       const { deviceToken: _removed, ...rest } = existing;
@@ -228,6 +223,12 @@ export class PushRegistrationStore {
       map.delete(key);
     }
     this.persist();
+  }
+
+  /** Exact scheduled identity; no legacy-to-routed fallback for delayed work. */
+  getExact(registration: StoredPushRegistration): StoredPushRegistration | undefined {
+    const current = this.load().get(pushRegistrationIdentity(registration));
+    return current && samePushRegistrationIdentity(current, registration) ? current : undefined;
   }
 
   get(

@@ -21,6 +21,8 @@ import {
   webAlertContent,
 } from "./pushAlertContent";
 import type { SendPush } from "./pushGateway";
+import { PushWorkScope, type PushScheduler } from "./PushWorkScope";
+export type { PushScheduler } from "./PushWorkScope";
 import {
   pushRegistrationIdentity,
   type PushRegistrationStore,
@@ -60,16 +62,6 @@ function alertCategory(status: ThreadStatus): "done" | "needsAttention" | "error
 
 const DEBOUNCE_MS = 3_000;
 
-export interface PushScheduler {
-  setTimeout(handler: () => void, ms: number): ReturnType<typeof setTimeout>;
-  clearTimeout(handle: ReturnType<typeof setTimeout>): void;
-}
-
-const defaultScheduler: PushScheduler = {
-  setTimeout: (handler, ms) => setTimeout(handler, ms),
-  clearTimeout: (handle) => clearTimeout(handle),
-};
-
 export interface PushCoordinatorOptions {
   readonly store: PushRegistrationStore;
   readonly sendPush: SendPush;
@@ -107,21 +99,27 @@ export class PushCoordinator {
   private readonly activeThreads = new Map<string, ActiveThreadSnapshot>();
   private readonly lastStatusByThread = new Map<string, ThreadStatus>();
   private readonly liveState = new Map<string, DeviceLiveState>();
-  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
-  /** Android working-push debounce timers, keyed by registration + thread. */
-  private readonly androidTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  private readonly scheduler: PushScheduler;
+  private readonly work: PushWorkScope;
   private readonly now: () => number;
 
   constructor(private readonly options: PushCoordinatorOptions) {
-    this.scheduler = options.scheduler ?? defaultScheduler;
+    this.work = new PushWorkScope(options.sendPush, options.scheduler);
     this.now = options.now ?? (() => Date.now());
   }
 
+  dispose(): Promise<void> {
+    const closing = this.work.dispose();
+    this.activeThreads.clear();
+    this.lastStatusByThread.clear();
+    this.liveState.clear();
+    return closing;
+  }
+
   handleSupervisorEvent(event: SupervisorEvent): void {
+    if (this.work.closed) return;
     if (event.type !== "thread-state") return;
     if (!this.options.getSettings().enabled) return;
-    this.handleThreadState(event);
+    if (!this.work.closed) this.handleThreadState(event);
   }
 
   private handleThreadState(event: Extract<SupervisorEvent, { type: "thread-state" }>): void {
@@ -171,7 +169,7 @@ export class PushCoordinator {
 
     // iOS: ordinary alert pushes on attention / terminal transitions.
     if (changed && !suppressNotification && ALERT_STATUSES.has(status)) {
-      void this.sendAlertPushes(event.threadId, status).catch(() => {});
+      this.work.run(() => this.sendAlertPushes(event.threadId, status));
     }
 
     // Android: per-thread replaceable status notification (no Live Activity).
@@ -209,7 +207,7 @@ export class PushCoordinator {
       });
       if (spec.immediate) {
         this.clearAndroidTimer(pushRegistrationIdentity(reg), threadId);
-        void this.sendAndroidPush(reg, payload, spec.priority).catch(() => {});
+        this.work.run(() => this.sendAndroidPush(reg, payload, spec.priority));
       } else {
         this.scheduleAndroidPush(reg, threadId, payload, spec.priority);
       }
@@ -225,16 +223,11 @@ export class PushCoordinator {
   }
 
   private androidTimerKey(deviceId: string, threadId: string): string {
-    return `${deviceId}\u0000${threadId}`;
+    return `android:${deviceId}\u0000${threadId}`;
   }
 
   private clearAndroidTimer(registrationId: string, threadId: string): void {
-    const key = this.androidTimerKey(registrationId, threadId);
-    const pending = this.androidTimers.get(key);
-    if (pending !== undefined) {
-      this.scheduler.clearTimeout(pending);
-      this.androidTimers.delete(key);
-    }
+    this.work.clearTimer(this.androidTimerKey(registrationId, threadId));
   }
 
   private scheduleAndroidPush(
@@ -246,20 +239,21 @@ export class PushCoordinator {
     const registrationId = pushRegistrationIdentity(registration);
     this.clearAndroidTimer(registrationId, threadId);
     const key = this.androidTimerKey(registrationId, threadId);
-    const handle = this.scheduler.setTimeout(() => {
-      this.androidTimers.delete(key);
-      void this.sendAndroidPush(registration, payload, priority).catch(() => {});
-    }, DEBOUNCE_MS);
-    this.androidTimers.set(key, handle);
+    this.work.schedule(
+      key,
+      () => this.sendAndroidPush(registration, payload, priority),
+      DEBOUNCE_MS,
+    );
   }
 
   private async sendAndroidPush(
-    registration: StoredPushRegistration,
+    scheduledRegistration: StoredPushRegistration,
     payload: AndroidStatusPayload,
     priority: number,
   ): Promise<void> {
-    if (!registration.deviceToken) return;
-    const result = await this.options.sendPush({
+    const registration = this.options.store.getExact(scheduledRegistration);
+    if (!registration?.deviceToken) return;
+    const result = await this.work.send({
       token: registration.deviceToken,
       platform: "android",
       pushType: "alert",
@@ -271,12 +265,8 @@ export class PushCoordinator {
         payload.threadId,
       ),
     });
-    if (result.unregistered) {
-      this.options.store.removeToken(
-        registration.deviceId,
-        { kind: "device" },
-        registration.routing,
-      );
+    if (!this.work.closed && result.unregistered) {
+      this.options.store.removeToken(registration, { kind: "device" });
     }
   }
 
@@ -286,22 +276,18 @@ export class PushCoordinator {
     urgent: boolean,
     alert: IOSLocalizedAlertContent | undefined,
   ): void {
-    const registrationId = pushRegistrationIdentity(registration);
+    const key = `ios:${pushRegistrationIdentity(registration)}`;
     if (urgent) {
-      const pending = this.timers.get(registrationId);
-      if (pending !== undefined) {
-        this.scheduler.clearTimeout(pending);
-        this.timers.delete(registrationId);
-      }
-      void this.syncDevice(registration, threadId, alert ? 10 : 5, alert).catch(() => {});
+      this.work.clearTimer(key);
+      this.work.run(() => this.syncDevice(registration, threadId, alert ? 10 : 5, alert));
       return;
     }
-    if (this.timers.has(registrationId)) return;
-    const handle = this.scheduler.setTimeout(() => {
-      this.timers.delete(registrationId);
-      void this.syncDevice(registration, threadId, 5, undefined).catch(() => {});
-    }, DEBOUNCE_MS);
-    this.timers.set(registrationId, handle);
+    if (this.work.hasTimer(key)) return;
+    this.work.schedule(
+      key,
+      () => this.syncDevice(registration, threadId, 5, undefined),
+      DEBOUNCE_MS,
+    );
   }
 
   private async syncDevice(
@@ -310,10 +296,7 @@ export class PushCoordinator {
     priority: number,
     alert: IOSLocalizedAlertContent | undefined,
   ): Promise<void> {
-    const reg = this.options.store.get(
-      scheduledRegistration.deviceId,
-      scheduledRegistration.routing,
-    );
+    const reg = this.options.store.getExact(scheduledRegistration);
     if (!reg || reg.platform !== "ios") return;
     const active = [...this.activeThreads.values()];
     const contentState = buildContentState(active, this.options.getSettings().redactContent);
@@ -333,21 +316,17 @@ export class PushCoordinator {
           ...(alert ? { alert } : {}),
           ...(routing ? { routing } : {}),
         });
-        await Promise.all(
+        await this.work.join(
           activityEntries.map(async ([activityId, token]) => {
-            const result = await this.options.sendPush({
+            const result = await this.work.send({
               token,
               platform: "ios",
               pushType: "liveactivity",
               payload,
               priority,
             });
-            if (result.unregistered) {
-              this.options.store.removeToken(
-                reg.deviceId,
-                { kind: "activity", activityId },
-                reg.routing,
-              );
+            if (!this.work.closed && result.unregistered) {
+              this.options.store.removeToken(reg, { kind: "activity", activityId });
             }
           }),
         );
@@ -367,16 +346,16 @@ export class PushCoordinator {
           },
           ...(routing ? { routing } : {}),
         });
-        const result = await this.options.sendPush({
+        const result = await this.work.send({
           token: reg.pushToStartToken,
           platform: "ios",
           pushType: "liveactivity",
           payload,
           priority,
         });
-        if (result.unregistered) {
-          this.options.store.removeToken(reg.deviceId, { kind: "pushToStart" }, reg.routing);
-        } else if (result.ok) {
+        if (!this.work.closed && result.unregistered) {
+          this.options.store.removeToken(reg, { kind: "pushToStart" });
+        } else if (!this.work.closed && result.ok) {
           liveState.startSent = true;
         }
       }
@@ -390,28 +369,24 @@ export class PushCoordinator {
           ...(alert ? { alert } : {}),
           ...(routing ? { routing } : {}),
         });
-        await Promise.all(
+        await this.work.join(
           activityEntries.map(async ([activityId, token]) => {
-            const result = await this.options.sendPush({
+            const result = await this.work.send({
               token,
               platform: "ios",
               pushType: "liveactivity",
               payload,
               priority,
             });
-            if (result.unregistered) {
-              this.options.store.removeToken(
-                reg.deviceId,
-                { kind: "activity", activityId },
-                reg.routing,
-              );
+            if (!this.work.closed && result.unregistered) {
+              this.options.store.removeToken(reg, { kind: "activity", activityId });
             }
           }),
         );
       }
       liveState.startSent = false;
     }
-    this.liveState.set(registrationId, liveState);
+    if (!this.work.closed) this.liveState.set(registrationId, liveState);
   }
 
   private async sendAlertPushes(threadId: string, status: ThreadStatus): Promise<void> {
@@ -420,14 +395,14 @@ export class PushCoordinator {
       status,
       this.options.getSettings().redactContent,
     );
-    await Promise.all(
+    await this.work.join(
       this.options.store.list().map(async (reg) => {
         // Android devices get their own status notifications (handleAndroidTransition).
         if (reg.platform === "android") return;
         if (reg.platform === "web") {
           if (!reg.webPushSubscription || !reg.webAppBasePath) return;
           const basePath = reg.webAppBasePath === "/" ? "" : reg.webAppBasePath.replace(/\/$/, "");
-          const result = await this.options.sendPush({
+          const result = await this.work.send({
             platform: "web",
             pushType: "alert",
             subscription: reg.webPushSubscription,
@@ -440,8 +415,8 @@ export class PushCoordinator {
             priority: 10,
             collapseId: pushCollapseId(reg, this.attributes().desktopId, threadId),
           });
-          if (result.unregistered) {
-            this.options.store.removeToken(reg.deviceId, { kind: "web" });
+          if (!this.work.closed && result.unregistered) {
+            this.options.store.removeToken(reg, { kind: "web" });
           }
           return;
         }
@@ -453,7 +428,7 @@ export class PushCoordinator {
           pushPayloadRouting(reg.routing, threadId),
           reg.alertPreferences?.sound ?? true,
         );
-        const result = await this.options.sendPush({
+        const result = await this.work.send({
           token: reg.deviceToken,
           platform: "ios",
           pushType: "alert",
@@ -465,8 +440,8 @@ export class PushCoordinator {
             threadId,
           ),
         });
-        if (result.unregistered) {
-          this.options.store.removeToken(reg.deviceId, { kind: "device" }, reg.routing);
+        if (!this.work.closed && result.unregistered) {
+          this.options.store.removeToken(reg, { kind: "device" });
         }
       }),
     );

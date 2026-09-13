@@ -64,11 +64,11 @@ describe("PushRegistrationStore", () => {
       deviceToken: "dev-a",
       activityTokens: { a: "1" },
     });
-    store.removeToken("device-1234", { kind: "activity", activityId: "a" });
+    store.removeToken(store.get("device-1234")!, { kind: "activity", activityId: "a" });
     expect(store.get("device-1234")?.activityTokens).toEqual({});
     expect(store.get("device-1234")?.deviceToken).toBe("dev-a");
 
-    store.removeToken("device-1234", { kind: "device" });
+    store.removeToken(store.get("device-1234")!, { kind: "device" });
     // No tokens left -> record removed entirely.
     expect(store.get("device-1234")).toBeUndefined();
   });
@@ -119,7 +119,7 @@ describe("PushRegistrationStore", () => {
       webPushSubscription,
       webAppBasePath: "/app",
     });
-    store.removeToken("browser-1234", { kind: "web" });
+    store.removeToken(store.get("browser-1234")!, { kind: "web" });
     expect(store.get("browser-1234")).toBeUndefined();
   });
 
