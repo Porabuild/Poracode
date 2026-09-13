@@ -9,6 +9,8 @@ const bundle = ensureSshRuntimeBundle({
   mainBundleDir: resolve(root, "dist/main"),
   agentPluginsDir: resolve(root, "resources/agent-plugins"),
   wslHelpersDir: resolve(root, "resources/wsl-helpers"),
+  bundledSkillsDir: resolve(root, "resources/skills"),
+  bundledPluginsDir: resolve(root, "resources/plugins"),
   cacheDir: resolve(root, ".tmp/web-ssh-runtime-bundles"),
 });
 const outDir = resolve(root, "resources/web-ssh-runtime");
