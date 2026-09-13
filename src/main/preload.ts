@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import { installSmokeNativePreload } from "./testing/smokeNativeControls";
 import { type PoracodeChannel, normalizeChannel } from "@/shared/channel";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { RemoteAccessPairingInfo } from "@/shared/remote";
@@ -10,7 +11,7 @@ import {
   isSupervisorEventGap,
   type BackendRendererStreamInfo,
 } from "@/shared/backendHostProtocol";
-import type { ElectronHostBridge } from "@/shared/clientRuntime";
+import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import {
   IPC_EVENT_CHANNELS,
   IPC_WINDOW_CHANNELS,
@@ -115,6 +116,7 @@ function resolveArgBoolean(prefix: string): boolean {
 
 const homeDir = resolveHomeDir();
 const bridge: ElectronHostBridge = {
+  clientRuntimeVersion: PORACODE_CLIENT_RUNTIME_VERSION,
   platform: process.platform,
   appVersion: resolveAppVersion(),
   arch: process.arch,
@@ -301,9 +303,22 @@ const bridge: ElectronHostBridge = {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.quickComposerDismissRequested, handler);
     };
   },
+  onQuickComposerShown(listener) {
+    const handler = () => listener();
+    ipcRenderer.on(IPC_EVENT_CHANNELS.quickComposerShown, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.quickComposerShown, handler);
+    };
+  },
 };
 
 contextBridge.exposeInMainWorld("poracodeHost", bridge);
+installSmokeNativePreload({
+  contextBridge,
+  ipcRenderer,
+  isDev: bridge.isDev,
+  mockAgents: process.env.PORACODE_MOCK_AGENTS === "1",
+});
 
 function isBackendRendererStreamInfo(value: unknown): value is BackendRendererStreamInfo {
   if (typeof value !== "object" || value === null) return false;

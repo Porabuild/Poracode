@@ -45,6 +45,7 @@ import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { showOsNotification } from "./osNotifications";
 import { createMainWindow, saveWindowBounds } from "./window/createMainWindow";
 import { createMainWindowCloseLifecycle } from "./window/mainWindowClose";
+import { installMainRendererInvalidation } from "./window/mainRendererInvalidation";
 import { requestTrackedRendererReload } from "./window/windowHardening";
 import {
   createQuickComposerWindow,
@@ -92,6 +93,7 @@ import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
 import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
 import { installProcessStdioErrorHandlers } from "./processStdio";
+import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
 
 // Electron can remain alive after its launching terminal or dev runner exits.
 // Install this before any startup logging so a detached diagnostic pipe cannot
@@ -479,24 +481,25 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
     showOnReady,
     onClosed: () => {
       const wasMainWindow = mainWindow === window;
-      if (wasMainWindow) mainWindow = null;
-      mainRendererReady = false;
       if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
-      closeLifecycle.handleClosed();
+      if (wasMainWindow) {
+        mainWindow = null;
+        mainRendererReady = false;
+        closeLifecycle.handleClosed();
+      }
     },
     onClose: (event) => closeLifecycle.handleClose(event),
     onRendererProcessGone: (details, intent) => {
-      mainRendererReady = false;
-      if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
       captureRendererProcessGone(details, "renderer", intent);
     },
   });
   windowSenderId = window.webContents.id;
-  window.webContents.on("did-start-loading", () => {
-    if (mainWindow === window) {
+  installMainRendererInvalidation(window.webContents, {
+    isCurrent: () => mainWindow === window,
+    invalidate: () => {
       mainRendererReady = false;
       if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
-    }
+    },
   });
   return window;
 }
@@ -1135,6 +1138,19 @@ if (!hasSingleInstanceLock) {
       });
 
       const initialMainWindow = ensureMainWindow(showMainWindowOnReady);
+
+      registerSmokeNativeControls({
+        ipcMain,
+        isDev,
+        isPackaged: app.isPackaged,
+        mockAgents: process.env.PORACODE_MOCK_AGENTS === "1",
+        getMainWebContents: () => mainWindow?.webContents ?? null,
+        toggleQuickComposer: toggleQuickComposerWindow,
+        inspectQuickComposer: () =>
+          quickComposerWindow && !quickComposerWindow.isDestroyed()
+            ? { visible: quickComposerWindow.isVisible(), focused: quickComposerWindow.isFocused() }
+            : null,
+      });
 
       tray = createTray({
         channel,
