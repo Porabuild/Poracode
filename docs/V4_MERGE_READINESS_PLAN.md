@@ -361,6 +361,16 @@ The direct renderer listener uses the shared socket/work barriers. These changes
 require the owner's early cancellation hook at activation, and do not complete
 parent deadlines, native facade execution, process-tree or Windows qualification.
 
+**F42 — verified push gateway response lifetime and byte-limit gaps.** Three
+real disposable loopback HTTP regressions reproduce a config response body
+remaining pending beyond the configured timeout, acceptance of an oversized
+config body, and an unused delivery response left open after status acceptance.
+The timeout covered only response headers. Keep its deadline through bounded
+config consumption, release unused response bodies, and verify cache recovery
+after failure. These are host HTTP-client lifetimes; they do not imply that a
+client timeout reverses an already accepted push delivery. The F37/F39 coordinator
+and exact-token corrections remain separately required.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 
