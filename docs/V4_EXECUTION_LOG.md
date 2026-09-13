@@ -1319,6 +1319,17 @@ cursor-sync suite passed 20 tests, with typecheck, touched oxlint, and
 formatting green. This bounds interest bookkeeping but does not yet provide
 per-client outbound fairness or a shared relay scheduler.
 
+## Phase 7 service-worker activation safety
+
+The canonical hosted worker and the Electron-served pairing worker no longer
+call `skipWaiting()` during install. A new worker still pre-caches its shell,
+but it waits until the previous worker's documents close or reload before
+activation can remove the previous hashed-asset cache. Canonical source and
+desktop-served output assertions cover this same lifecycle rule. The focused
+PWA and remote-server checks pass; this protects old-document/new-worker
+coexistence but does not substitute for an installed upgrade and offline
+recovery run on every supported browser.
+
 ## F41 — native helper and computer-use lifetimes
 
 The isolated native lifetime slice is merged as `1d3196fe1` from the reviewed

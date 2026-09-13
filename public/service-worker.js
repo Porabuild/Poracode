@@ -48,7 +48,9 @@ function validBuildAssetUrls(value) {
 
 self.addEventListener("install", (event) => {
   event.waitUntil(cacheShell());
-  self.skipWaiting();
+  // Keep the previous worker in control until its documents close or reload.
+  // Activating immediately can delete the previous hashed asset cache while
+  // an old document still requests one of those URLs.
 });
 
 self.addEventListener("activate", (event) => {
