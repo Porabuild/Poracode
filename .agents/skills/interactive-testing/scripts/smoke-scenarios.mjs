@@ -187,6 +187,15 @@ export const functionalAreas = [
     manual: ["quick-composer"],
   },
   {
+    id: "performance-diagnostics",
+    title: "Optional local process performance recording and shutdown",
+    patterns: [
+      /^src\/shared\/diagnostics\/(processPerformanceSampler|performanceEvidenceWriter|nodePerformanceDiagnostics)/,
+    ],
+    automated: ["baseline"],
+    manual: ["ipc-roundtrip"],
+  },
+  {
     id: "shared-runtime",
     title: "Shared contracts, persistence, runtime utilities, and server infrastructure",
     patterns: [/^src\/backend\//, /^src\/shared\//, /^src\/supervisor\//, /^src\/server\//],

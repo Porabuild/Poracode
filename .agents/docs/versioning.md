@@ -147,6 +147,26 @@ valid zero usage. The 4,096 cap bounds historical metric records; the most recen
 tree is separately bounded by the 8 MiB process-output limit. Preserve these
 limits when supplementing in-process CPU/event-loop traces.
 
+`src/shared/diagnostics/processPerformanceSampler.ts` introduces local diagnostic
+format 1. With `PORACODE_PERF_OUTPUT_DIR` set to an existing absolute directory,
+the desktop main, backend, supervisor, standalone server and relay write distinct
+private NDJSON files. No collector starts by default. CPU/RSS are process-wide;
+event loop, heap and GC describe the current thread/isolate. Completed callback
+intervals are assigned at capture, can span a window boundary, and include the
+configured timer period. The unfinished callback tail is recorded separately.
+This method is distinct from native timer/iteration histograms; do not compare
+their percentiles as if they were the same measurement.
+
+The reporting interval defaults to 1,000 ms (`PORACODE_PERF_INTERVAL_MS`, range
+100–60,000). The per-file cap defaults to 64 MiB (`PORACODE_PERF_MAX_BYTES`, range
+64 KiB–512 MiB). Output serializes at most four pending 16 KiB records; overflow,
+budget exhaustion and I/O failures invalidate that recording. Normal shutdown
+attempts a final sample and end marker, with at most 500 ms added for diagnostic
+output. A missing/truncated end marker or incomplete-output warning cannot qualify
+a gate. Successful writes are not a power-loss durability guarantee. No message
+content, argv, environment dump or credentials are recorded. The observer's CPU
+and timer work is included; qualify its overhead against a disabled control.
+
 ## Mirrored-boundary rule
 
 Some state has more than one durable layer. A version audit must follow the value end to end, not stop at the file being edited. The agent-status path is the canonical example:

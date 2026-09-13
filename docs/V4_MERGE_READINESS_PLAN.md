@@ -265,6 +265,40 @@ transition, preserve focus-only returns from dialogs, and test the no-focus case
 before repeating the real frozen window journey. Keep ordinary shortcut/drag/
 motion/provider verification distinct from this reproduced scenario.
 
+**F27 — verified Quick Composer empty-project render loop.** The real overlay's
+Zustand selector returns a fresh empty array when no project is selected. React's
+external-store snapshot check repeatedly renders before the Add project action
+can run. Use the existing stable empty-value convention and keep a no-project
+render/action regression alongside the pending-submission tests. This was caught
+while testing F26; final native coverage remains required.
+
+**F28 — verified subframe navigation stalls native handoff.** Electron's broad
+`did-start-loading` listener clears the main renderer's readiness and event
+interests even for an embedded frame. In a frozen app, a control submission
+arrived, but a submission after adding a local `srcdoc` iframe remained queued
+until an explicit diagnostic ready acknowledgment. Reset readiness only for a
+current main-frame document replacement or current renderer loss. Test ordinary
+subframes, same-document navigation and retired-window events, then repeat the
+actual handoff without injecting a ready acknowledgment into the passing path.
+
+**F29 — verified draft instrumentation misses a post-reset stall.** The first
+in-process sampler reported about 1.3 ms maximum delay around an actual 100 ms
+blocking loop. Node's timer histogram reset also clears its previous timestamp,
+so the first subsequent callback does not record a delta. Keep the callback
+timestamp independently from the resettable histogram, record unfinished
+intervals explicitly, and repeat the owned-process CPU/stall/GC check. The
+instrumentation stays opt-in and must have bounded output and measured overhead;
+none of these diagnostic checks qualifies an application performance budget.
+
+**F30 — verified durable-service work survives disposal.** With a PR check held
+inside `getPrForBranch`, disposing the service still allowed two later store
+reads, one delete and a mocked merge invocation. Schedule configuration awaits
+and MCP ingress dispatch have analogous unjoined ownership paths in the traced
+code. Close their admission, cancel work before further side effects, and join
+admitted continuations before settings authority, SQLite and the host lease are
+released. Retain the synthetic PR regression; no real automation action is needed
+to prove this boundary. This extends F11's remaining service-drain work.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 

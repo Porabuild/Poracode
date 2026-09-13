@@ -4,6 +4,7 @@ import type {
   SupervisorReply,
   SupervisorRequest,
 } from "@/shared/ipc";
+import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import {
   captureSupervisorException,
   flushSupervisorSentry,
@@ -18,6 +19,7 @@ import { SupervisorRuntime } from "./supervisorRuntime";
 import { configureSecretStorageKey } from "./secretStorage";
 import { SupervisorIpcSender } from "./supervisorIpcSender";
 
+const performanceDiagnostics = startNodePerformanceDiagnostics("supervisor");
 const isDev = process.env.PORACODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL);
 
 initializeSupervisorSentry({
@@ -99,6 +101,7 @@ async function shutdownSupervisor(exitCode = 0): Promise<void> {
       const drained = await ipcSender.flushAndWait(SUPERVISOR_IPC_FLUSH_TIMEOUT_MS);
       if (!drained) console.error("[supervisor] IPC queue did not drain before shutdown.");
     }
+    await performanceDiagnostics?.stop();
     process.exit(exitCode);
   }
 }
