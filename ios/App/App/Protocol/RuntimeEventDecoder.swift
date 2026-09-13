@@ -1,6 +1,6 @@
 import Foundation
 
-/// Strict decoder for the 14 canonical runtime event types
+/// Strict decoder for the canonical runtime event types
 /// (`src/shared/contracts/runtimeEvent.ts` `runtimeEventSchema`).
 /// Unknown / malformed events return nil and must not partially mutate state.
 enum RuntimeEventDecoder {
@@ -80,6 +80,33 @@ enum RuntimeEventDecoder {
                 type: type,
                 threadId: threadId,
                 message: object["reason"]?.stringValue,
+                raw: object
+            )
+
+        case "background_tasks.changed":
+            // `tasks` is required and must be an array of strict task objects
+            // (TS `backgroundTaskSchema`: taskId min 1, kind enum
+            // "command" | "other", description string; an empty array is a
+            // valid host-driven drain). Unknown fields are stripped.
+            guard let threadId = object["threadId"]?.stringValue,
+                  case .array(let taskValues)? = object["tasks"]
+            else { return nil }
+            var tasks: [RuntimeBackgroundTask] = []
+            for value in taskValues {
+                guard case .object(let taskObject) = value,
+                      let taskId = taskObject["taskId"]?.stringValue, !taskId.isEmpty,
+                      let kind = taskObject["kind"]?.stringValue,
+                      kind == "command" || kind == "other",
+                      let description = taskObject["description"]?.stringValue
+                else { return nil }
+                tasks.append(
+                    RuntimeBackgroundTask(taskId: taskId, kind: kind, description: description)
+                )
+            }
+            return .init(
+                type: type,
+                threadId: threadId,
+                backgroundTasks: tasks,
                 raw: object
             )
 

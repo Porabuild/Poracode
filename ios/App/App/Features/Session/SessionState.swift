@@ -29,6 +29,12 @@ struct RuntimeThreadDomainState: Sendable, Equatable {
     var contextUsage: ThreadContextUsage?
     var completedTurns: [CompletedTurnRecord] = []
     var structuralVersion: Int = 0
+    /// Live background work reported by `background_tasks.changed`.
+    /// Session-scoped only: never hydrated from persisted state, and dropped
+    /// when the session exits. nil = no live list; an empty replacement list
+    /// normalizes back to nil. Reduced for parity only — no iOS surface
+    /// renders it yet (native-parity ledger).
+    var backgroundTasks: [RuntimeBackgroundTask]?
 
     mutating func reset() {
         openTurn = nil
@@ -36,7 +42,18 @@ struct RuntimeThreadDomainState: Sendable, Equatable {
         contextUsage = nil
         completedTurns = []
         structuralVersion = 0
+        backgroundTasks = nil
     }
+}
+
+/// One unit of provider-reported background work that outlives the turn that
+/// launched it (`background_tasks.changed` payload; TS `backgroundTaskSchema`).
+/// `kind` is a coarse, provider-agnostic class ("command" | "other") validated
+/// at parse time and stored verbatim; sub-agent runs are not reported here.
+struct RuntimeBackgroundTask: Sendable, Equatable {
+    var taskId: String
+    var kind: String
+    var description: String
 }
 
 /// Provider-agnostic context-window occupancy (`context.updated` / snapshot.contextUsage).

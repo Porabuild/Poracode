@@ -28,6 +28,8 @@ enum RuntimeEventReducer {
         var message: String?
         var turnId: String?
         var contextUsage: ThreadContextUsage?
+        /// Parsed live background tasks for `background_tasks.changed`.
+        var backgroundTasks: [RuntimeBackgroundTask]?
         var raw: [String: JSONValue]
 
         /// Test/helper convenience: `payloadSpecified` defaults to `payload != nil`.
@@ -47,6 +49,7 @@ enum RuntimeEventReducer {
             message: String? = nil,
             turnId: String? = nil,
             contextUsage: ThreadContextUsage? = nil,
+            backgroundTasks: [RuntimeBackgroundTask]? = nil,
             raw: [String: JSONValue] = [:]
         ) {
             self.type = type
@@ -64,6 +67,7 @@ enum RuntimeEventReducer {
             self.message = message
             self.turnId = turnId
             self.contextUsage = contextUsage
+            self.backgroundTasks = backgroundTasks
             self.raw = raw
         }
     }
@@ -303,6 +307,16 @@ enum RuntimeEventReducer {
             guard let requestId = event.requestId else { return }
             domain.openRequests.removeAll { $0.requestId == requestId }
 
+        case "background_tasks.changed":
+            // REPLACE the thread's live background task list (empty drains;
+            // unchanged is a no-op; never bumps the structural version).
+            guard let tasks = event.backgroundTasks else { return }
+            replaceBackgroundTasks(&domain, tasks: tasks)
+
+        case "session.exited":
+            // Background work dies with the agent process; drop the list.
+            domain.backgroundTasks = nil
+
         case "item.started", "item.updated", "item.completed", "error":
             if eventAffectsStructuralVersion(event) {
                 domain.structuralVersion += 1
@@ -322,6 +336,20 @@ enum RuntimeEventReducer {
         var domain = RuntimeThreadDomainState(openRequests: requests)
         applyDomain(event: event, threadId: threadId, domain: &domain)
         requests = domain.openRequests
+    }
+
+    /// REPLACE semantics for `background_tasks.changed`: an empty list drops
+    /// the key and an unchanged list is a no-op (mirrors the shared reducer
+    /// and the Android `replaceBackgroundTasks`).
+    private static func replaceBackgroundTasks(
+        _ domain: inout RuntimeThreadDomainState,
+        tasks: [RuntimeBackgroundTask]
+    ) {
+        if tasks.isEmpty {
+            domain.backgroundTasks = nil
+        } else if domain.backgroundTasks != tasks {
+            domain.backgroundTasks = tasks
+        }
     }
 
     /// Hydrate domain from a history snapshot (contextUsage, completedTurns, pending requests).

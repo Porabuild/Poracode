@@ -194,9 +194,9 @@ Start from the merged baseline on separate changes. Freeze the first release
 candidate after Milestone 0; subsequent protocol work does not enter it without a
 release-blocking justification.
 
-The parity ledger now contains **1 planned entry on iOS and none on Android**:
-`background_tasks.changed` (iOS). Both platforms retain the
-intentional `push-config` unsupported-by-wire entry. Generated bindings alone do
+The parity ledger now contains **no planned entries on either platform**;
+both retain the intentional `push-config` unsupported-by-wire entry.
+Generated bindings alone do
 not close these UI/transport gaps.
 
 | Order           | Work package                                                       | Acceptance evidence                                                                                                                                                                                                                                                                                                                                           |
