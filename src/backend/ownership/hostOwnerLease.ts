@@ -9,8 +9,7 @@ import { assertHostRootDirectories, type HostRootPaths } from "./hostRootPaths";
 export const HOST_OWNER_RECORD_VERSION = 1;
 const LEASE_DATABASE_VERSION = 1;
 const MAX_OWNER_RECORD_BYTES = 16_384;
-// Concurrent first-open schema reads can briefly hold shared locks. Give the
-// winning exclusive transaction time to proceed after the other reader closes.
+// Allow a brief concurrent first-open/schema read to finish before refusing.
 const LEASE_BUSY_TIMEOUT_MS = 250;
 
 export type HostOwnerKind = "desktop" | "headless";
@@ -75,6 +74,9 @@ export class HostRootInUseError extends Error {
  * partial metadata writes and PID reuse cannot steal a live owner's inode.
  */
 export class HostOwnerLease {
+  // Failed startup/shutdown can abandon its JS caller while admitted work is
+  // still running. Only explicit release or process exit may relinquish ownership.
+  private static readonly activeLeases = new Set<HostOwnerLease>();
   private released = false;
   private record: HostOwnerRecord;
 
@@ -124,8 +126,11 @@ export class HostOwnerLease {
         ...resolveBetterSqliteNativeBindingOptions(),
         timeout: LEASE_BUSY_TIMEOUT_MS,
       });
-      database.pragma("locking_mode = EXCLUSIVE");
+      // Acquire while reads still release their shared locks. Enabling retained
+      // locking first can leave two first-open schema readers waiting on each
+      // other to upgrade. Once exclusive, retain that lock across the commit.
       database.exec("BEGIN EXCLUSIVE");
+      database.pragma("locking_mode = EXCLUSIVE");
       const version = database.pragma("user_version", { simple: true });
       if (version !== 0 && version !== LEASE_DATABASE_VERSION) {
         throw new Error("The Poracode ownership lease uses an unsupported format.");
@@ -141,6 +146,7 @@ export class HostOwnerLease {
       // EXCLUSIVE locking mode keeps the kernel lock after the commit, while
       // making the epoch durable. A crash releases the lock automatically.
       lease.writeRecord();
+      HostOwnerLease.activeLeases.add(lease);
       return lease;
     } catch (error) {
       database?.close();
@@ -184,6 +190,7 @@ export class HostOwnerLease {
       // A stale discovery record is harmless: the kernel lease is authoritative.
     } finally {
       this.database.close();
+      HostOwnerLease.activeLeases.delete(this);
     }
   }
 

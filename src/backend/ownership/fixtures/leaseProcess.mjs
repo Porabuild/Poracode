@@ -9,7 +9,16 @@ try {
   process.send({ status: "refused", code: error.code, message: error.message });
 }
 
-process.on("message", () => {
+process.on("message", async (message) => {
+  if (message === "abandon") {
+    lease = undefined;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      globalThis.gc();
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    process.send({ status: "abandoned" });
+    return;
+  }
   lease?.release();
   process.exit(0);
 });
