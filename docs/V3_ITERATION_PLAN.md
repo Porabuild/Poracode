@@ -188,6 +188,27 @@ Exit: each promoted surface has its own completed evidence checklist; external g
 remain visibly blocked until evidence arrives. Release completion is not inferred from
 workflow configuration or from another platform passing.
 
+_Status 2026-09-13: external-access inventory recorded
+(`tmp/v2-production-review/m1-release-gates.md`); nothing waived. Hosted CI:
+BLOCKED (triggers stalled since 07:31Z 2026-09-12, user-side restoration
+pending) and the repo-secrets audit is UNVERIFIABLE from this session
+(`gh secret list` → 403; admin must confirm the workflow-referenced secrets
+are populated). macOS: a valid local Developer ID Application identity
+exists (personal team 8V6ZAYP43N, SHA-1 08DDDFBB…); notarization rides the
+APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID secrets — unverifiable
+here. Windows: BLOCKED — no signing identity exists anywhere in the release
+configuration (no WIN_CSC_LINK-style secret); production packaging must fail
+closed; Windows promotion and install/update smoke additionally need a
+Windows machine. iOS: App Store Connect API secrets referenced but
+unverifiable; no physical device connected (devicectl → none; the C6 QA
+simulator is not a release device) → TestFlight/device-journey evidence
+blocked. Android: no local upload keystore and no `adb` on this machine;
+keystore/Play-service-account/Firebase secrets referenced but unverifiable →
+signing, device journeys, and Play submission blocked. Push/Live-Activities
+and upgrade/update journeys are composite-blocked on the above.
+Accessibility checklist and rollout-ops preparation remain executable locally
+before candidate freeze._
+
 ## Milestone 2 — deferred protocol completion
 
 Start from the merged baseline on separate changes. Freeze the first release
