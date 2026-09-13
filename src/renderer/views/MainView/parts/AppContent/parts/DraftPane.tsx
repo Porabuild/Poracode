@@ -61,7 +61,7 @@ export function DraftPane(props: {
       headerNeedsTrafficLightPad={props.headerNeedsTrafficLightPad}
       droppableRef={paneElementRef}
       onClose={props.onClose}
-      {...(props.paneCount > 1 ? { dragHandleRef: handleRef } : {})}
+      dragHandleRef={handleRef}
       {...(initialLastDraftConfig ? { lastDraftConfig: initialLastDraftConfig } : {})}
       onStart={(input) => props.onStart(project, input)}
     />

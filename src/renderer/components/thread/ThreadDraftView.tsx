@@ -1194,6 +1194,7 @@ export function ThreadDraftView(props: {
         <ThreadDraftCompactHeader
           alignClass={alignClass}
           dragHandleRef={props.dragHandleRef}
+          paneDraggable={(props.paneCount ?? 1) > 1}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
           onClose={props.onClose}
           projectId={project.id}
