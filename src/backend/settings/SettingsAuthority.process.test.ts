@@ -10,6 +10,7 @@ interface FixtureMessage {
   stage?: string;
   cachedTheme?: string;
   theme?: string;
+  sequence?: number;
   result?: { status: string };
   message?: string;
   reported?: string[];
@@ -133,7 +134,7 @@ describe("settings commit process boundaries", () => {
     const fixture = launch("during-directory-sync");
     await fixture.next("stage");
     fixture.child.send("read");
-    await expect(fixture.next("read")).resolves.toMatchObject({ theme: "light" });
+    await expect(fixture.next("read")).resolves.toMatchObject({ theme: "light", sequence: 1 });
     fixture.child.send("continue");
     await expect(fixture.next("result")).resolves.toMatchObject({
       result: { status: "committed" },

@@ -10,10 +10,12 @@ import {
   type SettingsEdit,
   type SettingsMutationResult,
   type SettingsSnapshot,
+  type SettingsAdmissionLimits,
 } from "@/shared/settingsTransactions";
 import { reportSettingsError } from "../BackendSettingsNotifications";
 import { persistSettingsDocument } from "./persistSettingsDocument";
 import { assertSettingsCredentialPersistence } from "./settingsCredentials";
+import { SettingsAdmission } from "./SettingsAdmission";
 import {
   SETTINGS_DOCUMENT_VERSION,
   SETTINGS_DOCUMENT_VERSION_KEY,
@@ -25,11 +27,13 @@ import {
 } from "./settingsDocument";
 import {
   allSettingsSubjects,
+  affectedSettingsRevisions,
   assertIndependentSettingsSubjects,
   assertOnlyDeclaredSettingsSubjectsChanged,
   getSettingsSubjectValue,
   replaceSettingsSubject,
   settingsSubjectState,
+  settingsSubjectRevision,
 } from "./settingsSubjects";
 
 /** Matches the live root lease capability; the caller must finish root preparation first. */
@@ -49,6 +53,7 @@ export interface SettingsAuthorityOptions {
   lease: SettingsAuthorityLease;
   /** Omit for session-only credentials. Captures the prepared owner's generation and key mode. */
   assertPersistentCredentials?(): void;
+  admissionLimits?: Partial<SettingsAdmissionLimits>;
   onCommitted?(result: SettingsMutationResult, settings: SharedSettings): void;
   reportError?(error: unknown): void;
 }
@@ -58,6 +63,8 @@ export class SettingsAuthority {
   readonly authorityId = randomUUID();
   readonly settingsPath: string;
   private readonly generation: string;
+  private readonly admission: SettingsAdmission;
+  private sequence = 0;
   private pending: Promise<void> = Promise.resolve();
   private closing = false;
 
@@ -66,6 +73,7 @@ export class SettingsAuthority {
     private document: SettingsDocument,
   ) {
     this.generation = options.lease.generation;
+    this.admission = new SettingsAdmission(options.admissionLimits);
     this.settingsPath = join(options.lease.paths.dataRoot, "settings.json");
   }
 
@@ -94,11 +102,12 @@ export class SettingsAuthority {
     this.assertReadable();
     return {
       authorityId: this.authorityId,
+      sequence: this.sequence,
       settings: structuredClone(this.document.settings),
       revisions: Object.fromEntries(
         subjects.map((subject) => [
           settingsSubjectId(subject),
-          settingsSubjectState(this.document.settings, subject).revision,
+          settingsSubjectRevision(this.document.settings, subject),
         ]),
       ),
     };
@@ -110,8 +119,25 @@ export class SettingsAuthority {
     authorize: SettingsMutationAuthorizer,
   ): Promise<SettingsMutationResult> {
     if (this.closing) throw new Error("Settings authority is closing.");
-    const request = settingsMutationSchema.parse(input);
-    const result = this.pending.then(async (): Promise<SettingsMutationResult> => {
+    this.assertLease();
+    const encoded = JSON.stringify(input);
+    if (encoded === undefined) throw new Error("Invalid settings transaction.");
+    const reservation = this.admission.acquire(Buffer.byteLength(encoded, "utf8"));
+    if (typeof reservation === "string")
+      return {
+        status: "overloaded",
+        authorityId: this.authorityId,
+        sequence: this.sequence,
+        reason: reservation,
+      };
+    let request: ReturnType<typeof settingsMutationSchema.parse>;
+    try {
+      request = settingsMutationSchema.parse(input);
+    } catch (error) {
+      reservation.release();
+      throw error;
+    }
+    const operation = this.pending.then(async (): Promise<SettingsMutationResult> => {
       this.assertLease();
       const subjects = request.edits.map((edit) => edit.subject);
       assertIndependentSettingsSubjects(subjects);
@@ -163,33 +189,41 @@ export class SettingsAuthority {
         return {
           status: "conflict",
           authorityId: this.authorityId,
+          sequence: this.sequence,
           reason: "authority-changed",
           current,
+          revisions: affectedSettingsRevisions(this.document.settings, subjects),
         };
       if (current.some((state, index) => state.revision !== request.edits[index]!.expectedRevision))
         return {
           status: "conflict",
           authorityId: this.authorityId,
+          sequence: this.sequence,
           reason: "revision-changed",
           current,
+          revisions: affectedSettingsRevisions(this.document.settings, subjects),
         };
       assertSettingsCredentialPersistence(
         this.document.settings,
         next.settings,
         this.options.assertPersistentCredentials,
       );
+      const revisions = affectedSettingsRevisions(next.settings, subjects, this.document.settings);
       next.raw[SETTINGS_DOCUMENT_VERSION_KEY] = SETTINGS_DOCUMENT_VERSION;
       await persistSettingsDocument(this.settingsPath, `${JSON.stringify(next.raw, null, 2)}\n`, {
         assertActive: () => this.assertLease(),
         committed: () => {
           this.document = next;
+          this.sequence++;
         },
         ...(this.options.reportError ? { reportError: this.options.reportError } : {}),
       });
       const committed: SettingsMutationResult = {
         status: "committed",
         authorityId: this.authorityId,
+        sequence: this.sequence,
         changes: subjects.map((subject) => settingsSubjectState(this.document.settings, subject)),
+        revisions,
       };
       try {
         this.options.onCommitted?.(
@@ -201,6 +235,7 @@ export class SettingsAuthority {
       }
       return committed;
     });
+    const result = operation.finally(() => reservation.release());
     // Rejections belong to the requester; a failed write does not poison the next transaction.
     this.pending = result.then(
       () => undefined,
