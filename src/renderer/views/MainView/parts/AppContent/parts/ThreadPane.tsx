@@ -137,7 +137,7 @@ export function ThreadPane(props: {
       dropIndicator={dropIndicator}
       paneCount={props.paneCount}
       headerNeedsTrafficLightPad={props.headerNeedsTrafficLightPad}
-      {...(props.paneCount > 1 ? { dragHandleRef: handleRef } : {})}
+      dragHandleRef={handleRef}
       droppableRef={paneElementRef}
       onClose={props.onClose}
       {...(!experiment
