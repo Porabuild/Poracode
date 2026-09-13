@@ -1,6 +1,7 @@
 import { watch } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import {
   app,
   BrowserWindow,
@@ -44,6 +45,7 @@ import { createAutoUpdaterController } from "./updates/autoUpdater";
 import { showOsNotification } from "./osNotifications";
 import { createMainWindow, saveWindowBounds } from "./window/createMainWindow";
 import { createMainWindowCloseLifecycle } from "./window/mainWindowClose";
+import { installMainRendererInvalidation } from "./window/mainRendererInvalidation";
 import { requestTrackedRendererReload } from "./window/windowHardening";
 import {
   createQuickComposerWindow,
@@ -91,6 +93,7 @@ import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
 import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
 import { installProcessStdioErrorHandlers } from "./processStdio";
+import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
 
 // Electron can remain alive after its launching terminal or dev runner exits.
 // Install this before any startup logging so a detached diagnostic pipe cannot
@@ -218,6 +221,8 @@ let clearRendererEventInterests: ((senderId?: number) => void) | null = null;
 let tray: TrayHandle | null = null;
 let quickComposerShortcutManager: QuickComposerShortcutManager | null = null;
 let isQuitting = false;
+
+const performanceDiagnostics = startNodePerformanceDiagnostics("desktop-main");
 
 function requireBackendStateStore(): BackendStateStore {
   if (!backendStateStore) throw new Error("Backend state projection is not initialized.");
@@ -476,24 +481,25 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
     showOnReady,
     onClosed: () => {
       const wasMainWindow = mainWindow === window;
-      if (wasMainWindow) mainWindow = null;
-      mainRendererReady = false;
       if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
-      closeLifecycle.handleClosed();
+      if (wasMainWindow) {
+        mainWindow = null;
+        mainRendererReady = false;
+        closeLifecycle.handleClosed();
+      }
     },
     onClose: (event) => closeLifecycle.handleClose(event),
     onRendererProcessGone: (details, intent) => {
-      mainRendererReady = false;
-      if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
       captureRendererProcessGone(details, "renderer", intent);
     },
   });
   windowSenderId = window.webContents.id;
-  window.webContents.on("did-start-loading", () => {
-    if (mainWindow === window) {
+  installMainRendererInvalidation(window.webContents, {
+    isCurrent: () => mainWindow === window,
+    invalidate: () => {
       mainRendererReady = false;
       if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
-    }
+    },
   });
   return window;
 }
@@ -1133,6 +1139,19 @@ if (!hasSingleInstanceLock) {
 
       const initialMainWindow = ensureMainWindow(showMainWindowOnReady);
 
+      registerSmokeNativeControls({
+        ipcMain,
+        isDev,
+        isPackaged: app.isPackaged,
+        mockAgents: process.env.PORACODE_MOCK_AGENTS === "1",
+        getMainWebContents: () => mainWindow?.webContents ?? null,
+        toggleQuickComposer: toggleQuickComposerWindow,
+        inspectQuickComposer: () =>
+          quickComposerWindow && !quickComposerWindow.isDestroyed()
+            ? { visible: quickComposerWindow.isVisible(), focused: quickComposerWindow.isFocused() }
+            : null,
+      });
+
       tray = createTray({
         channel,
         appName: getAppName(channel, isDev),
@@ -1254,6 +1273,12 @@ if (!hasSingleInstanceLock) {
         sleepInhibitor.dispose();
         tray?.destroy();
         tray = null;
+        const finishQuit = async () => {
+          windowsJobObjectManager?.dispose();
+          windowsJobObjectManager = null;
+          await performanceDiagnostics?.stop();
+          app.quit();
+        };
         void raceWithTimeout(
           Promise.all([sshDispose, shellState.close()])
             .then(() => backendHost.disposeAsync())
@@ -1261,11 +1286,7 @@ if (!hasSingleInstanceLock) {
               captureMainException(error, { "poracode.feature_area": "backend-host" });
             }),
           APP_QUIT_CLEANUP_TIMEOUT_MS,
-        ).finally(() => {
-          windowsJobObjectManager?.dispose();
-          windowsJobObjectManager = null;
-          app.quit();
-        });
+        ).then(finishQuit, finishQuit);
       });
     })
     .catch((error: unknown) => {

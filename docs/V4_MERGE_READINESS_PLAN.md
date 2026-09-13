@@ -247,6 +247,65 @@ check. Add safe fixture coverage through the real isolated window and keep the
 external/global-shortcut manual gate honest. Do not acknowledge unexercised
 controls or mark the full smoke passed while this gate is absent.
 
+**F25 — verified lease-helper regression, caught before startup wiring.** The
+first kernel-lease helper opened and closed the existing lease file outside
+SQLite during a repeated acquisition attempt. On POSIX that unmanaged descriptor
+close released the same process's existing `fcntl` lock; a real second process
+then acquired ownership while the first lease still appeared active. Exclusive
+file creation (`wx`) now touches only a new file before acquisition. Existing
+lease files must never be opened/read/copied outside SQLite while owned. Repeated
+same-process refusal followed by an actual external contender is a required
+regression. Import snapshot code must respect the same SQLite descriptor rule.
+
+**F26 — verified Quick Composer reopen state.** The actual native window
+successfully hides and shows, but its renderer can remain in `closing` when the
+OS does not grant focus and Chromium emits no hidden visibility transition.
+The current reset depends on both signals. Drive reopening from the native show
+transition, preserve focus-only returns from dialogs, and test the no-focus case
+before repeating the real frozen window journey. Keep ordinary shortcut/drag/
+motion/provider verification distinct from this reproduced scenario.
+
+**F27 — verified Quick Composer empty-project render loop.** The real overlay's
+Zustand selector returns a fresh empty array when no project is selected. React's
+external-store snapshot check repeatedly renders before the Add project action
+can run. Use the existing stable empty-value convention and keep a no-project
+render/action regression alongside the pending-submission tests. This was caught
+while testing F26; final native coverage remains required.
+
+**F28 — verified subframe navigation stalls native handoff.** Electron's broad
+`did-start-loading` listener clears the main renderer's readiness and event
+interests even for an embedded frame. In a frozen app, a control submission
+arrived, but a submission after adding a local `srcdoc` iframe remained queued
+until an explicit diagnostic ready acknowledgment. Reset readiness only for a
+current main-frame document replacement or current renderer loss. Test ordinary
+subframes, same-document navigation and retired-window events, then repeat the
+actual handoff without injecting a ready acknowledgment into the passing path.
+
+**F29 — verified draft instrumentation misses a post-reset stall.** The first
+in-process sampler reported about 1.3 ms maximum delay around an actual 100 ms
+blocking loop. Node's timer histogram reset also clears its previous timestamp,
+so the first subsequent callback does not record a delta. Keep the callback
+timestamp independently from the resettable histogram, record unfinished
+intervals explicitly, and repeat the owned-process CPU/stall/GC check. The
+instrumentation stays opt-in and must have bounded output and measured overhead;
+none of these diagnostic checks qualifies an application performance budget.
+
+**F30 — verified durable-service work survives disposal.** With a PR check held
+inside `getPrForBranch`, disposing the service still allowed two later store
+reads, one delete and a mocked merge invocation. Schedule configuration awaits
+and MCP ingress dispatch have analogous unjoined ownership paths in the traced
+code. Close their admission, cancel work before further side effects, and join
+admitted continuations before settings authority, SQLite and the host lease are
+released. Retain the synthetic PR regression; no real automation action is needed
+to prove this boundary. This extends F11's remaining service-drain work.
+
+**F31 — verified usage-cookie continuation races.** A delayed Chromium cookie
+read can restore a stored login after Clear, and the native mirror's Stop can
+return before that read finishes and writes again. The usage-secret adapter must
+check current consent and equality atomically at the backend and join/cancel
+native mirror continuations during stop. Keep delayed-read/clear/stop regressions
+and ensure session-only credentials and retired owners cannot persist new secrets.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 

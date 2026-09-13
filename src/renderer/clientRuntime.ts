@@ -30,13 +30,18 @@ const BROWSER_CAPABILITIES: ClientCapabilities = {
 };
 
 export function installClientRuntime(runtime: ClientRuntime): void {
-  if (runtime.version !== PORACODE_CLIENT_RUNTIME_VERSION) {
-    throw new Error(`Unsupported client runtime version: ${String(runtime.version)}`);
-  }
+  assertClientRuntimeVersion(runtime.version);
   installedRuntime = runtime;
 }
 
+function assertClientRuntimeVersion(version: unknown): void {
+  if (version !== PORACODE_CLIENT_RUNTIME_VERSION) {
+    throw new Error(`Unsupported client runtime version: ${String(version)}`);
+  }
+}
+
 export function installElectronClientRuntime(host: ElectronHostBridge): void {
+  assertClientRuntimeVersion(host.clientRuntimeVersion);
   const transport = new ElectronBackendTransport(host);
   const procedures = createProcedureBridge((name, args) => {
     if (name === "setRendererEventInterests") {

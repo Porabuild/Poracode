@@ -1,5 +1,6 @@
 import { BrowserWindow, screen, type Rectangle, type RenderProcessGoneDetails } from "electron";
 import type { PoracodeChannel } from "@/shared/channel";
+import { IPC_EVENT_CHANNELS } from "@/shared/ipc/channels";
 import type { RendererProcessGoneIntent } from "@/main/diagnostics/processGone";
 import { installSessionPermissions } from "../browser/permissions";
 import { showAndFocusWindow } from "./showAndFocusWindow";
@@ -15,6 +16,15 @@ const QUICK_COMPOSER_LOG_LABEL = "quick composer";
 
 export const QUICK_COMPOSER_WIDTH = 560;
 export const QUICK_COMPOSER_HEIGHT = 470;
+const observedVisibility = new WeakMap<BrowserWindow, boolean>();
+
+function publishQuickComposerVisibility(window: BrowserWindow): void {
+  if (window.isDestroyed()) return;
+  const visible = window.isVisible();
+  const wasVisible = observedVisibility.get(window) ?? false;
+  observedVisibility.set(window, visible);
+  if (visible && !wasVisible) window.webContents.send(IPC_EVENT_CHANNELS.quickComposerShown);
+}
 
 export interface CreateQuickComposerWindowOptions {
   title: string;
@@ -63,6 +73,8 @@ export function isQuickComposerBoundsVisible(
 
 export function showQuickComposerWindow(window: BrowserWindow): void {
   if (window.isDestroyed()) return;
+  // Observe the transition even where Electron omits a show/hide event.
+  observedVisibility.set(window, window.isVisible());
   if (
     !isQuickComposerBoundsVisible(
       window.getBounds(),
@@ -72,6 +84,7 @@ export function showQuickComposerWindow(window: BrowserWindow): void {
     positionQuickComposerWindow(window);
   }
   showAndFocusWindow(window);
+  publishQuickComposerVisibility(window);
 }
 
 export function createQuickComposerWindow(
@@ -114,6 +127,7 @@ export function createQuickComposerWindow(
       }),
     },
   });
+  observedVisibility.set(window, window.isVisible());
   installSessionPermissions(window.webContents.session);
   window.webContents.setUserAgent(options.browserUserAgent);
   if (process.platform === "darwin") {
@@ -126,6 +140,8 @@ export function createQuickComposerWindow(
     ...(options.devServerUrl ? { devServerUrl: options.devServerUrl } : {}),
   });
 
+  window.on("show", () => publishQuickComposerVisibility(window));
+  window.on("hide", () => publishQuickComposerVisibility(window));
   window.once("ready-to-show", () => showQuickComposerWindow(window));
 
   const loadRenderer = () => {

@@ -17,6 +17,7 @@ import { finalizeManualOutcomes, recordManualGate } from "./smoke-gate-outcomes.
 import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
 import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 import { mockLiveVoiceGate } from "./smoke-live-voice.mjs";
+import { mockQuickComposerGate } from "./smoke-quick-composer.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "../../../../");
@@ -1679,14 +1680,16 @@ async function runMockGate(client, gate, fixture) {
       assert(fixture.project.id === "smoke-project", "isolated project fixture is not selected");
       return "isolated seeded project was loaded and selected";
     case "quick-composer":
-      // The quick composer window only opens through the real global shortcut
-      // or tray menu, so no deterministic mock check exists for it.
-      throw new Error(
-        "quick-composer has no deterministic mock check; remaining coverage: opening via the " +
-          "real global shortcut or tray menu, drag/reopen and dismissal motion, control exercise, " +
-          "submit, and thread handoff to the main window. Exercise it as a real manual gate " +
-          "(--windowKind quickComposer in a --mode real run).",
-      );
+      return mockQuickComposerGate({
+        client,
+        evaluate,
+        waitForValue,
+        waitForTarget,
+        connectTarget,
+        screenshot,
+        outDir,
+        fixture,
+      });
     case "provider-live": {
       const state = await evaluate(
         client,
@@ -1823,17 +1826,17 @@ async function installWindowErrorCollector(client) {
   );
 }
 
-async function waitForTarget() {
+async function waitForTarget(windowKind = "main") {
   const started = Date.now();
   let cdpRespondedWithPages = false;
   let lastPageUrls = [];
   while (Date.now() - started < timeoutMs) {
     try {
-      const inspection = await inspectCdpWindowTargets({ port, appUrl, windowKind: "main" });
+      const inspection = await inspectCdpWindowTargets({ port, appUrl, windowKind });
       if (inspection.ready.length === 1) return inspection.ready[0];
       if (inspection.ready.length > 1) {
         throw new Error(
-          `multiple ready main targets match ${appUrl}: ${inspection.ready.map((target) => target.id).join(", ")}`,
+          `multiple ready ${windowKind} targets match ${appUrl}: ${inspection.ready.map((target) => target.id).join(", ")}`,
         );
       }
       if (inspection.candidates.length === 0 && inspection.pageTargets.length > 0) {

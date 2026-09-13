@@ -40,6 +40,7 @@ import { fileURLToPath } from "node:url";
 import { closeWebSocket, inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
 import { launchDetachedSession } from "./poracode-cdp-launch.mjs";
 import { verifySmokeRuntime } from "./poracode-smoke-runtime.mjs";
+import { clickCdpElements } from "./poracode-cdp-actions.mjs";
 import {
   listDebugSessions,
   readDebugSession,
@@ -429,44 +430,11 @@ async function screenshot(client, selector, out) {
 }
 
 async function click(client, selector) {
-  const point = await evaluate(
+  await clickCdpElements({
     client,
-    `(() => { const matches = document.querySelectorAll(${JSON.stringify(selector)});` +
-      ` if (matches.length === 0) return { error: "missing" };` +
-      ` if (matches.length > 1) return { error: "ambiguous:" + matches.length };` +
-      ` const el = matches[0]; if (!(el instanceof HTMLElement)) return { error: "not-html" };` +
-      ` if (el.matches(":disabled") || el.getAttribute("aria-disabled") === "true") return { error: "disabled" };` +
-      ` if (el.closest("[inert]")) return { error: "inert" };` +
-      ` el.scrollIntoView({ block: "center", inline: "center" });` +
-      ` const r = el.getBoundingClientRect(); const style = getComputedStyle(el);` +
-      ` if (r.width <= 0 || r.height <= 0 || style.display === "none" || style.visibility !== "visible" || style.opacity === "0" || style.pointerEvents === "none") return { error: "not-visible" };` +
-      ` const x = r.x + r.width / 2; const y = r.y + r.height / 2;` +
-      ` if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) return { error: "outside-viewport" };` +
-      ` const hit = document.elementFromPoint(x, y);` +
-      ` if (!hit || (hit !== el && !el.contains(hit))) return { error: "occluded" };` +
-      ` return { x, y }; })()`,
-  );
-  if (point?.error) throw new Error(`cannot click ${selector}: ${point.error}`);
-  await client.send("Input.dispatchMouseEvent", {
-    type: "mouseMoved",
-    x: point.x,
-    y: point.y,
-  });
-  await client.send("Input.dispatchMouseEvent", {
-    type: "mousePressed",
-    x: point.x,
-    y: point.y,
-    button: "left",
-    buttons: 1,
-    clickCount: 1,
-  });
-  await client.send("Input.dispatchMouseEvent", {
-    type: "mouseReleased",
-    x: point.x,
-    y: point.y,
-    button: "left",
-    buttons: 0,
-    clickCount: 1,
+    evaluate,
+    elementsExpression: `document.querySelectorAll(${JSON.stringify(selector)})`,
+    label: selector,
   });
 }
 

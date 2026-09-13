@@ -4,7 +4,8 @@ import type { IpcProcedureName, PoracodeBridge, PoracodeInvokeBridge } from "./i
 // Version 5 adds sequenced Electron supervisor-event fallback delivery.
 // Version 6 adds the supervisor-event-gap signal that makes desktop windows
 // rebuild after the backend host shed queued IPC copies under backpressure.
-export const PORACODE_CLIENT_RUNTIME_VERSION = 6 as const;
+// Version 8 adds native quick-composer show events and a checked preload version.
+export const PORACODE_CLIENT_RUNTIME_VERSION = 8 as const;
 
 export type ClientHost = "electron" | "browser";
 export type ClientSurface = "adaptive";
@@ -37,6 +38,7 @@ export type PoracodeNativeBridge = Omit<PoracodeBridge, keyof PoracodeInvokeBrid
 
 /** Minimal Electron preload surface. It owns native shell IPC, never agents or SQLite. */
 export type ElectronHostBridge = PoracodeNativeBridge & {
+  readonly clientRuntimeVersion: typeof PORACODE_CLIENT_RUNTIME_VERSION;
   invokeProcedure(name: IpcProcedureName, args: unknown[]): Promise<unknown>;
   getBackendRendererStreamInfo(): Promise<BackendRendererStreamInfo | null>;
   onBackendRendererStreamChanged(listener: (info: BackendRendererStreamInfo) => void): () => void;

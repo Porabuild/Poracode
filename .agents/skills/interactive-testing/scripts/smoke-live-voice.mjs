@@ -14,7 +14,7 @@ export async function mockLiveVoiceGate({
   const run = (expression) => evaluate(client, expression, true);
   try {
     await run(`(async () => {
-      const voice = await import('/src/renderer/speech/liveVoice.ts');
+      const voice = await window.__poracodeDev.loadLiveVoice();
       const stores = window.__poracodeDev.stores;
       const original = stores.agentStatuses.getState();
       const capability = { transport: 'webrtc', dataChannel: 'smoke-events' };
@@ -159,6 +159,19 @@ export async function mockLiveVoiceGate({
       fixture,
     });
     return "single compact voice controls, typed Send during voice, start/cancel, late capture cleanup, mute/unmute, hangup, and preservation/reopening of text and attachment drafts edited during pending microphone permission passed with synthetic media; no real microphone or provider used";
+  } catch (error) {
+    const state = await run(`(() => ({
+      view: window.__poracodeDev.stores.app.getState().view,
+      controls: [...document.querySelectorAll('button')].filter(el => el.getClientRects().length).map(el => el.getAttribute('aria-label')).filter(Boolean),
+      providers: window.__poracodeDev.stores.agentStatuses.getState().agentStatuses.map(status => ({
+        kind: status.kind, installed: status.installed, liveVoice: status.capabilities?.liveVoice,
+      })),
+    }))()`);
+    await screenshot(client, join(outDir, "live-voice-failure.png"));
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}; fixture state: ${JSON.stringify(state)}`,
+      { cause: error },
+    );
   } finally {
     await run(`(async () => {
       const s = window.__liveVoiceSmoke;
