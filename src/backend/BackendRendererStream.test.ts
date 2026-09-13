@@ -137,6 +137,50 @@ describe("BackendRendererStream", () => {
     },
   );
 
+  it("bounds concurrent renderer requests per client", async () => {
+    const deferred = Promise.withResolvers<unknown>();
+    const onRequest = vi.fn<() => Promise<unknown>>(async () => deferred.promise);
+    const stream = new BackendRendererStream({ onRequest });
+    streams.push(stream);
+    const info = await stream.start();
+    const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+    await hello;
+
+    for (let index = 0; index < 64; index += 1) {
+      socket.send(
+        JSON.stringify({
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "request",
+          id: `held-${index}`,
+          operation: "database",
+          name: "dbGetProjects",
+          payload: {},
+        }),
+      );
+    }
+    await vi.waitFor(() => expect(onRequest).toHaveBeenCalledTimes(64));
+
+    socket.send(
+      JSON.stringify({
+        version: BACKEND_RENDERER_STREAM_VERSION,
+        type: "request",
+        id: "rejected-65",
+        operation: "database",
+        name: "dbGetProjects",
+        payload: {},
+      }),
+    );
+    await expect(nextMessage(socket)).resolves.toEqual({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "reply",
+      id: "rejected-65",
+      ok: false,
+      error: "Renderer request concurrency limit reached.",
+    });
+    expect(onRequest).toHaveBeenCalledTimes(64);
+    deferred.resolve({ ok: true });
+  });
+
   it("applies the renderer byte budget to replies on a congested socket", async () => {
     const onRequest = vi.fn<() => Promise<unknown>>(async () => ({ ok: true }));
     const stream = new BackendRendererStream({ onRequest });

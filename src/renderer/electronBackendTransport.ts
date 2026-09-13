@@ -11,6 +11,9 @@ import { ipcProcedureMap, type IpcProcedureName, type SupervisorEvent } from "@/
 
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 const RECONNECT_DELAY_MS = 1_000;
+/** Keep the direct stream bounded; callers beyond this point use the existing
+ * main-process fallback instead of retaining more renderer promises. */
+const MAX_PENDING_REQUESTS = 64;
 
 interface PendingRequest {
   resolve(value: unknown): void;
@@ -101,6 +104,9 @@ export class ElectronBackendTransport {
     try {
       socket = await this.connect();
     } catch {
+      return this.host.invokeProcedure(name, fallbackArgs);
+    }
+    if (this.pending.size >= MAX_PENDING_REQUESTS) {
       return this.host.invokeProcedure(name, fallbackArgs);
     }
     const id = crypto.randomUUID();

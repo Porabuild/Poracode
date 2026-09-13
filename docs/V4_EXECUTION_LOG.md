@@ -1292,6 +1292,22 @@ reconcile the parent one-second and app two-second deadlines, join backend and
 provider/PTY descendants, and qualify Windows shutdown. The sealed red evidence is
 retained under `/Users/svecherenko/.poracode-smoke/v4-push-drain-ctPW9q/evidence/`.
 
+## Phase 3 renderer request admission
+
+The local renderer WebSocket now caps each connection at 64 active request
+continuations. Duplicate request IDs close the connection as a protocol error;
+additional requests receive a bounded error without entering backend work. The
+renderer transport applies the same 64-entry pending limit and routes excess
+calls through the existing main-process fallback, so a stalled direct stream
+cannot grow its promise map without bound. A focused run passed 37 tests across
+the backend stream and renderer transport suites, with typecheck, touched
+oxlint, and formatting green.
+
+This is admission control, not cooperative cancellation: an operation already
+accepted by the backend remains tracked until it settles or shutdown drains it.
+The direct stream still needs a measured off-main bulk-transfer path and an
+explicit cancellation protocol before Phase 3 can close.
+
 ## F41 — native helper and computer-use lifetimes
 
 The isolated native lifetime slice is merged as `1d3196fe1` from the reviewed

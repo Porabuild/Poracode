@@ -126,6 +126,31 @@ afterEach(() => {
 });
 
 describe("ElectronBackendTransport event handoff", () => {
+  it("falls back to main when direct request admission is full", async () => {
+    const { host, invokeProcedure } = makeHost();
+    const transport = new ElectronBackendTransport(host);
+    await flush();
+    const socket = FakeWebSocket.instances[0]!;
+    socket.open();
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 0,
+    });
+
+    const requests = Array.from({ length: 65 }, (_, index) =>
+      transport.call("database", "dbGetProjects", {}, [index]),
+    );
+    await flush();
+
+    expect(invokeProcedure).toHaveBeenCalledTimes(1);
+    expect(invokeProcedure).toHaveBeenCalledWith("dbGetProjects", [64]);
+    expect(socket.sent.filter((raw) => JSON.parse(raw).type === "request")).toHaveLength(64);
+
+    socket.close();
+    await expect(Promise.allSettled(requests)).resolves.toHaveLength(65);
+  });
+
   it("keeps a newer stream notification when the initial IPC lookup returns late", async () => {
     const { host, getBackendRendererStreamInfo, streamChanged } = makeHost();
     const initial = Promise.withResolvers<BackendRendererStreamInfo>();
