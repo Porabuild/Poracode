@@ -716,6 +716,15 @@ must consume this description next and implement the attach versus managed-local
 start decision; the status command alone does not satisfy the attach acceptance
 criteria.
 
+Desktop bootstrap now acquires the same profile kernel lease before migration,
+directory preparation, secret setup, and backend startup. Desktop ownership keeps
+the legacy profile as its data root for this transition, while standalone hosts
+use `.host-v1`; the shared lease prevents both authorities from being live for one
+profile. The Electron path now has an actual owner record and refuses a concurrent
+headless owner. This is the duplicate-owner gate only; Electron attach, explicit
+managed-local versus externally managed lifecycle, and old-version migration
+qualification remain required.
+
 Acceptance: concurrent desktop/server launches in both orders; separate roots;
 stale-lock recovery; old/master Electron already using the root in either startup
 order; attach/detach/restart; schedules and providers continuing with

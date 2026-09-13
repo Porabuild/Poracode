@@ -82,3 +82,33 @@ export function resolveHostRootPaths(profileNamespace: string): HostRootPaths {
   assertHostRootDirectories(paths);
   return paths;
 }
+
+/**
+ * Resolve the legacy desktop data root while sharing the versioned ownership
+ * lease with the standalone host. Desktop migration remains on the existing
+ * profile directory until attach is implemented, but both host kinds now
+ * contend for one kernel lock before touching that profile.
+ */
+export function resolveDesktopHostRootPaths(profileNamespace: string): HostRootPaths {
+  const canonical = canonicalHostPath(profileNamespace);
+  if (canonical === parse(canonical).root) {
+    throw new Error("A filesystem root cannot be a Poracode profile namespace.");
+  }
+  if (
+    canonical.endsWith(HOST_ROOT_SUFFIX) ||
+    existsSync(join(canonical, HOST_ROOT_MANIFEST_FILE))
+  ) {
+    throw new Error(
+      "PORACODE_BASE_DIR selects an owned .host-v1 root, not the original profile namespace.",
+    );
+  }
+  const paths: HostRootPaths = {
+    profileNamespace: canonical,
+    dataRoot: canonical,
+    electronUserDataRoot: `${canonical}.client-v1`,
+    leasePath: `${canonical}.host-owner.sqlite`,
+    ownerRecordPath: `${canonical}.host-owner.json`,
+  };
+  assertHostRootDirectories(paths);
+  return paths;
+}

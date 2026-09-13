@@ -95,6 +95,8 @@ import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
 import { installProcessStdioErrorHandlers } from "./processStdio";
 import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
+import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
+import { resolveDesktopHostRootPaths } from "@/backend/ownership/hostRootPaths";
 
 // Electron can remain alive after its launching terminal or dev runner exits.
 // Install this before any startup logging so a detached diagnostic pipe cannot
@@ -154,26 +156,36 @@ if (baseDirOverride) {
 
 const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 let poracodePaths: PoracodePaths | null = null;
+let desktopOwnerLease: HostOwnerLease | null = null;
+let desktopOwnerAcquisitionError: unknown = null;
 if (hasSingleInstanceLock) {
   const electronUserDataDir = app.getPath("userData");
   const baseDir =
     baseDirOverride ?? (isDev ? join(homedir(), ".poracode-dev") : resolvePoracodeBaseDir(channel));
   try {
-    const result = migrateLegacyDataOutOfProcess({
-      baseDir,
-      channel,
-      electronUserDataDir,
-      legacyElectronUserDataDir,
-      ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
-      allowCustomDataRoot: app.isPackaged,
-    });
-    if (result.status === "migrated") {
-      console.info(`[migrate] imported all available Lightcode data into ${baseDir}`);
-    }
+    desktopOwnerLease = HostOwnerLease.acquire(resolveDesktopHostRootPaths(baseDir), "desktop");
   } catch (error) {
-    console.warn(`[migrate] failed to import Lightcode data into ${baseDir}:`, error);
+    desktopOwnerAcquisitionError = error;
+    console.error("[poracode] failed to acquire the desktop host owner:", error);
   }
-  poracodePaths = preparePoracodeDataRoot(baseDir);
+  if (!desktopOwnerAcquisitionError) {
+    try {
+      const result = migrateLegacyDataOutOfProcess({
+        baseDir,
+        channel,
+        electronUserDataDir,
+        legacyElectronUserDataDir,
+        ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
+        allowCustomDataRoot: app.isPackaged,
+      });
+      if (result.status === "migrated") {
+        console.info(`[migrate] imported all available Lightcode data into ${baseDir}`);
+      }
+    } catch (error) {
+      console.warn(`[migrate] failed to import Lightcode data into ${baseDir}:`, error);
+    }
+    poracodePaths = preparePoracodeDataRoot(baseDir);
+  }
 }
 
 const sentryEnabled = initializeMainSentry({ appVersion: app.getVersion(), isDev, channel });
@@ -654,6 +666,7 @@ if (!hasSingleInstanceLock) {
   void app
     .whenReady()
     .then(async () => {
+      if (desktopOwnerAcquisitionError) throw desktopOwnerAcquisitionError;
       if (preserveLegacySafeStorageIdentity) app.setName(productNameFor(channel));
       repairLegacyMacAppPath(channel, { isPackaged: app.isPackaged });
       refreshMacDockIcon();
@@ -1193,6 +1206,7 @@ if (!hasSingleInstanceLock) {
 
       await Promise.all([mcpInfoReady, chromeMcpReady, computerUseMcpInfoReady]);
       await backendHost.startSupervisor();
+      desktopOwnerLease?.setPhase("ready");
 
       updatePowerSaveBlocker();
 
@@ -1324,6 +1338,8 @@ app.on("will-quit", () => {
   backendHostClient = null;
   backendStateStore = null;
   backendRendererStreamInfo = null;
+  desktopOwnerLease?.release();
+  desktopOwnerLease = null;
 });
 
 app.on("window-all-closed", () => {
