@@ -525,6 +525,13 @@ but this remains an F11 prerequisite: the app still relies on bounded escalation
 provider/PTY descendants and Windows shutdown are unqualified, and this evidence
 does not establish latency, concurrency, or 120 Hz acceptance.
 
+Delivery-side push work now uses the same lifetime boundary. The gateway exposes
+transport disposal, and the push work scope aborts admitted delivery calls before
+joining timers and continuations. A real loopback held-response regression covers
+this path; the combined push, remote-server, desktop-controller, and headless
+suites pass 125 tests. This is still a lifecycle prerequisite, not evidence of
+multi-client throughput or rendering-frame performance.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 

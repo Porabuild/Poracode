@@ -1241,6 +1241,13 @@ close F11: the app still uses the outer bounded escalation path, provider/PTY
 descendants and Windows shutdown are unqualified, and no 120 Hz or multi-client
 performance claim follows from this slice.
 
+Delivery-side push work now uses the same lifetime boundary. `createPushGateway`
+exposes transport disposal, and `PushWorkScope` aborts admitted delivery calls
+before joining timers and continuations. The delivery regression holds a real
+loopback response body and verifies that disposal closes it. The combined push,
+remote-server, desktop-controller, and headless suites passed 125 tests, with
+typecheck, touched typed lint, and formatting green.
+
 The remaining F11 work must wire main/native admission and actual execution joins,
 reconcile the parent one-second and app two-second deadlines, join backend and
 provider/PTY descendants, and qualify Windows shutdown. The sealed red evidence is

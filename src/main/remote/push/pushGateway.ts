@@ -70,7 +70,9 @@ export interface SendPushResult {
   readonly reason?: string;
 }
 
-export type SendPush = (input: SendPushInput) => Promise<SendPushResult>;
+export type SendPush = ((input: SendPushInput) => Promise<SendPushResult>) & {
+  dispose?: () => void;
+};
 
 type FetchLike = (
   url: string | URL,
@@ -215,7 +217,7 @@ function createGatewayTransport(options: CreatePushGatewayOptions): GatewayTrans
 export function createPushGateway(options: CreatePushGatewayOptions = {}): SendPush {
   const transport = createGatewayTransport(options);
   const reportOperationalIssue = createOperationalReporter(options);
-  return async (input: SendPushInput): Promise<SendPushResult> => {
+  const send: SendPush = async (input: SendPushInput): Promise<SendPushResult> => {
     if (input.platform === "ios") {
       try {
         assertIOSPushPayload(input.payload, input.pushType);
@@ -270,6 +272,8 @@ export function createPushGateway(options: CreatePushGatewayOptions = {}): SendP
       };
     }
   };
+  send.dispose = () => transport.close();
+  return send;
 }
 
 export type ResolveWebPushPublicKey = (() => Promise<string>) & {
