@@ -16,6 +16,7 @@ import { BackendDesktopServices } from "./BackendDesktopServices";
 import { BackendRendererStream } from "./BackendRendererStream";
 import { createBackendHostShedPolicy, createSupervisorEventRelay } from "./supervisorEventRelay";
 import { shutdownBackendHost } from "./shutdown";
+import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { callDatabaseRpc } from "@/main/db/databaseRpc";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
@@ -46,6 +47,24 @@ const pendingNativeRequests = new Map<
   }
 >();
 let shuttingDown = false;
+let acceptingRequests = true;
+let runtimeStop: Promise<void> | null = null;
+let runtimeWorkJoined = false;
+
+function stopRuntimeWork(): Promise<void> {
+  if (runtimeStop) return runtimeStop;
+  acceptingRequests = false;
+  const barrier = Promise.withResolvers<void>();
+  runtimeStop = barrier.promise;
+  void joinRuntimeShutdown([
+    () => desktopServices?.dispose(),
+    () => backendHost?.disposeSupervisor(),
+  ]).then(() => {
+    runtimeWorkJoined = true;
+    barrier.resolve();
+  }, barrier.reject);
+  return runtimeStop;
+}
 
 // Shed logging is throttled because sheds arrive per enqueue during a burst —
 // a line per shed would be stderr lines per frame exactly when I/O is worst.
@@ -304,6 +323,13 @@ async function handleRendererRequest(request: BackendRendererRequest): Promise<u
 }
 
 async function handleRequest(request: BackendHostRequest): Promise<unknown> {
+  if (
+    !acceptingRequests &&
+    request.operation !== "dispose" &&
+    request.operation !== "resolve-native-request"
+  ) {
+    throw new Error("Backend host is shutting down.");
+  }
   if (request.operation === "initialize") {
     return initialize(request);
   }
@@ -403,11 +429,11 @@ async function handleRequest(request: BackendHostRequest): Promise<unknown> {
       desktopServices?.publishBrowserEvent(request.payload);
       return null;
     case "dispose":
-      await desktopServices?.dispose();
+      await stopRuntimeWork();
       desktopServices = null;
       await rendererStream?.dispose();
       rendererStream = null;
-      await host.dispose();
+      host.closeDatabase();
       backendHost = null;
       return null;
   }
@@ -424,7 +450,8 @@ process.on("message", (message: unknown) => {
   }
 
   if (message.operation === "browser-event") {
-    void handleRequest(message);
+    if (!acceptingRequests) return;
+    void handleRequest(message).catch(reportError);
     return;
   }
 
@@ -442,6 +469,7 @@ process.on("message", (message: unknown) => {
 async function shutdown(exitCode: number, flush: boolean): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
+  acceptingRequests = false;
   eventRouter.dispose();
   for (const pending of pendingNativeRequests.values()) {
     clearTimeout(pending.timeout);
@@ -451,18 +479,19 @@ async function shutdown(exitCode: number, flush: boolean): Promise<void> {
   await shutdownBackendHost({
     steps: [
       async () => {
-        await desktopServices?.dispose();
+        await stopRuntimeWork();
         desktopServices = null;
       },
       async () => {
         await rendererStream?.dispose();
         rendererStream = null;
       },
-      () => backendHost?.disposeSupervisor(),
       async () => {
         if (flush && process.connected) await sender.flushAndWait(1_000);
       },
       () => {
+        if (backendHost && !runtimeWorkJoined)
+          throw new Error("Cannot close the database before durable runtime work has joined.");
         backendHost?.closeDatabase();
         backendHost = null;
       },

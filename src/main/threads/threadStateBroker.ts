@@ -25,9 +25,18 @@ export class ThreadStateBroker {
   private readonly liveStates = new Map<string, LiveThreadState>();
   private readonly pendingSteer = new Map<string, PendingSteerState>();
   private readonly waiters = new Set<Waiter>();
+  private disposed = false;
+
+  dispose(): void {
+    this.disposed = true;
+    for (const waiter of this.waiters) waiter.wake();
+    this.liveStates.clear();
+    this.pendingSteer.clear();
+  }
 
   /** Wire into the supervisor event tap (main.ts / headless host `onEvent`). */
   observe(event: SupervisorEvent): void {
+    if (this.disposed) return;
     switch (event.type) {
       case "thread-state":
         this.liveStates.set(event.threadId, {
@@ -76,6 +85,7 @@ export class ThreadStateBroker {
   ): Promise<T | undefined> {
     const deadline = Date.now() + Math.max(0, timeoutMs);
     for (;;) {
+      if (this.disposed) throw new Error("Thread-state waits are shutting down.");
       const value = poll();
       if (value !== undefined) return value;
       const remaining = deadline - Date.now();

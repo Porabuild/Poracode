@@ -33,8 +33,8 @@ type SC = AppControlsMcpIngressDeps["supervisor"];
 
 let ingress: AppControlsMcpIngress | null = null;
 
-afterEach(() => {
-  ingress?.dispose();
+afterEach(async () => {
+  await ingress?.dispose();
   ingress = null;
 });
 
@@ -282,6 +282,57 @@ async function callTool(url: string, token: string, name: string, args: Record<s
 }
 
 describe("AppControlsMcpIngress", () => {
+  it("joins a concurrent listen and refuses to advertise or restart a closed ingress", async () => {
+    ingress = new AppControlsMcpIngress(deps());
+    const starting = ingress.start();
+    void starting.catch(() => undefined);
+    const closing = ingress.dispose();
+    await expect(starting).rejects.toThrow("shutting down");
+    await closing;
+    expect(ingress.getInfo()).toBeNull();
+    await expect(ingress.start()).rejects.toThrow("shutting down");
+  });
+
+  it.each(["success", "failure"])(
+    "joins an admitted HTTP tool %s before disposal finishes",
+    async (outcome) => {
+      const result = Promise.withResolvers<CreateAppThreadResult>();
+      const entered = Promise.withResolvers<void>();
+      ingress = new AppControlsMcpIngress(
+        deps({
+          createThread: () => {
+            entered.resolve();
+            return result.promise;
+          },
+        }),
+      );
+      const info = await ingress.start();
+      const request = callTool(info.url, info.token, "create_thread", {
+        projectId: "project-1",
+        prompt: "Synthetic pending creation",
+      });
+      void request.catch(() => undefined);
+      await entered.promise;
+      let disposed = false;
+      const disposal = Promise.resolve(ingress.dispose()).then(() => {
+        disposed = true;
+      });
+      await Promise.resolve();
+      try {
+        expect(disposed).toBe(false);
+      } finally {
+        if (outcome === "success")
+          result.resolve({
+            threadId: "synthetic-created",
+            projectId: "project-1",
+            title: "Fixture",
+          });
+        else result.reject(new Error("synthetic pending failure"));
+        await Promise.all([disposal, request.catch(() => undefined)]);
+      }
+    },
+  );
+
   it("serves schedule tools and applies calling-thread defaults over Streamable HTTP", async () => {
     const d = deps();
     ingress = new AppControlsMcpIngress(d);

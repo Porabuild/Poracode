@@ -81,8 +81,9 @@ interface WatchSignals {
 export class PrWatchService {
   private timer: ReturnType<typeof setInterval> | null = null;
   private disposed = false;
-  private readonly checking = new Set<string>();
+  private readonly checking = new Map<string, Promise<void>>();
   private readonly recheckRequested = new Set<string>();
+  private disposal: Promise<void> | null = null;
 
   constructor(private readonly options: PrWatchServiceOptions) {}
 
@@ -97,18 +98,23 @@ export class PrWatchService {
     this.timer.unref?.();
   }
 
-  dispose(): void {
+  dispose(): Promise<void> {
+    if (this.disposal) return this.disposal;
     this.disposed = true;
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     this.recheckRequested.clear();
+    this.disposal = Promise.allSettled([...this.checking.values()]).then(() => undefined);
+    return this.disposal;
   }
 
   get(projectId: string, prNumber: number): PrWatch | null {
+    this.assertOpen();
     return this.options.store.get(projectId, prNumber);
   }
 
   upsert(input: PrWatchInput): PrWatch {
+    this.assertOpen();
     const parsed = prWatchInputSchema.parse(input);
     const current = this.options.store.get(parsed.projectId, parsed.prNumber);
     const resetSignals =
@@ -133,6 +139,7 @@ export class PrWatchService {
   }
 
   delete(projectId: string, prNumber: number): void {
+    this.assertOpen();
     this.recheckRequested.delete(watchKey({ projectId, prNumber }));
     this.options.store.delete(projectId, prNumber);
   }
@@ -155,6 +162,7 @@ export class PrWatchService {
   }
 
   observeSupervisorEvent(event: SupervisorEvent): void {
+    if (this.disposed) return;
     if (event.type !== "thread-state" && event.type !== "thread-exited") return;
     if (event.type === "thread-state" && isThreadTurnActive(event.status)) {
       return;
@@ -174,10 +182,26 @@ export class PrWatchService {
     }
   }
 
-  private async checkWatch(snapshot: PrWatch): Promise<void> {
+  private checkWatch(snapshot: PrWatch): Promise<void> {
     const key = watchKey(snapshot);
-    if (this.disposed || this.checking.has(key)) return;
-    this.checking.add(key);
+    if (this.disposed || this.checking.has(key)) return Promise.resolve();
+    // Register before invoking an asynchronous adapter so dispose() owns every
+    // admitted continuation, including requestCheck()'s fire-and-forget work.
+    const result = Promise.withResolvers<void>();
+    const pending = result.promise.finally(() => {
+      this.checking.delete(key);
+      if (this.recheckRequested.delete(key) && !this.disposed) {
+        const latest = this.options.store.get(snapshot.projectId, snapshot.prNumber);
+        if (latest) void this.checkWatch(latest);
+      }
+    });
+    this.checking.set(key, pending);
+    void this.runCheckWatch(snapshot).then(result.resolve, result.reject);
+    return pending;
+  }
+
+  private async runCheckWatch(snapshot: PrWatch): Promise<void> {
+    if (this.disposed) return;
     try {
       const watch = this.options.store.get(snapshot.projectId, snapshot.prNumber);
       if (!watch) return;
@@ -189,6 +213,7 @@ export class PrWatchService {
       }
 
       const pr = await this.options.getPrForBranch(project, watch.headBranch);
+      if (this.disposed) return;
       const summaryCurrent = this.options.store.get(watch.projectId, watch.prNumber);
       if (!summaryCurrent) return;
       if (!pr || pr.state === "merged" || pr.state === "closed") {
@@ -205,10 +230,15 @@ export class PrWatchService {
         return;
       }
 
-      const [details, reviewThreads] = await Promise.all([
+      const [detailsResult, reviewThreadsResult] = await Promise.allSettled([
         this.options.getPrDetails(project, watch.prNumber),
         this.options.getPrReviewThreads(project, watch.prNumber),
       ]);
+      if (this.disposed) return;
+      if (detailsResult.status === "rejected") throw detailsResult.reason;
+      if (reviewThreadsResult.status === "rejected") throw reviewThreadsResult.reason;
+      const details = detailsResult.value;
+      const reviewThreads = reviewThreadsResult.value;
 
       const current = this.options.store.get(watch.projectId, watch.prNumber);
       if (!current) return;
@@ -235,6 +265,7 @@ export class PrWatchService {
       if (current.autoMerge && isReadyForAutoMerge(pr, details.checks)) {
         try {
           await this.options.mergePr(project, current.prNumber, this.options.getMergeMethod());
+          if (this.disposed) return;
           // The watch is about to be dropped, so this is the last chance to tell
           // the UI the PR is no longer open. `pr` was fetched moments ago and the
           // merge just succeeded, so patching its state avoids a refetch whose
@@ -251,12 +282,6 @@ export class PrWatchService {
       this.options.store.upsert(observed);
     } catch (error) {
       this.saveError(snapshot, error);
-    } finally {
-      this.checking.delete(key);
-      if (this.recheckRequested.delete(key) && !this.disposed) {
-        const latest = this.options.store.get(snapshot.projectId, snapshot.prNumber);
-        if (latest) void this.checkWatch(latest);
-      }
     }
   }
 
@@ -343,6 +368,7 @@ export class PrWatchService {
 
   /** Abort an in-flight launch when a user or agent sync changed its inputs. */
   private currentLaunchWatch(snapshot: PrWatch): PrWatch | null {
+    if (this.disposed) return null;
     const current = this.options.store.get(snapshot.projectId, snapshot.prNumber);
     if (!current || !current.watchEnabled) return null;
     if (hasSameLaunchInputs(snapshot, current)) return current;
@@ -352,6 +378,7 @@ export class PrWatchService {
 
   /** Record that an enabled watch cannot act, instead of acting uselessly. */
   private block(watch: PrWatch, reason: PrWatchBlockedReason): void {
+    if (this.disposed) return;
     const current = this.options.store.get(watch.projectId, watch.prNumber);
     if (!current || current.blockedReason === reason) return;
     this.options.store.upsert({
@@ -403,6 +430,7 @@ export class PrWatchService {
   }
 
   private saveError(watch: PrWatch, error: unknown): void {
+    if (this.disposed) return;
     const current = this.options.store.get(watch.projectId, watch.prNumber);
     if (!current) return;
     this.options.store.upsert({
@@ -412,6 +440,10 @@ export class PrWatchService {
       // block would make the UI explain the failure with a stale diagnosis.
       blockedReason: null,
     });
+  }
+
+  private assertOpen(): void {
+    if (this.disposed) throw new Error("PR watch service is shutting down.");
   }
 }
 
