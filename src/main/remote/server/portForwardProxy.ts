@@ -6,6 +6,7 @@ import {
 } from "node:http";
 import { type Socket } from "node:net";
 import { pipeline, type Duplex } from "node:stream";
+import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import {
   orderedLoopbackHosts,
   rememberLoopbackHost,
@@ -18,6 +19,16 @@ import {
 import type { ForwardLifetime } from "../RemotePortForwardGateway";
 import { FORWARD_ORIGIN_SESSION_COOKIE_NAME } from "../portForward/portProxy";
 import { writeText } from "./httpResponses";
+
+function trackProxyStream(
+  work: AsyncWorkTracker,
+  stream: ClientRequest | IncomingMessage | ServerResponse | Duplex,
+): void {
+  void work.run(() => {
+    if (stream.closed) return;
+    return new Promise<void>((resolve) => stream.once("close", () => resolve()));
+  });
+}
 
 /** Headers that must never be copied verbatim across a hop (RFC 7230 §6.1),
  * plus `upgrade`/`connection` since the plain-HTTP proxy path never upgrades
@@ -167,11 +178,13 @@ function buildUpstreamRequestHeaders(
  * failure once connected (or after every family has been tried) yields a
  * plain-text 502.
  */
-export function proxyForwardedHttpRequest(
+export async function proxyForwardedHttpRequest(
   req: IncomingMessage,
   res: ServerResponse,
   lifetime: ForwardLifetime,
-): void {
+): Promise<void> {
+  const work = new AsyncWorkTracker();
+  trackProxyStream(work, res);
   const { targetPort, signal, agent } = lifetime;
   const headers = buildUpstreamRequestHeaders(req, targetPort);
 
@@ -199,6 +212,7 @@ export function proxyForwardedHttpRequest(
   // A forward stopped between session resolution and this call must not attach.
   if (signal.aborted) {
     res.destroy();
+    await work.drain();
     return;
   }
   signal.addEventListener("abort", onRevoke, { once: true });
@@ -216,6 +230,7 @@ export function proxyForwardedHttpRequest(
     const upstreamReq = httpRequest(
       { host, port: targetPort, method: req.method, path: req.url, headers, agent },
       (upstreamRes) => {
+        trackProxyStream(work, upstreamRes);
         rememberLoopbackHost(targetPort, host);
         const responseHeaders: Record<string, string | string[]> = {};
         for (const [name, value] of Object.entries(upstreamRes.headers)) {
@@ -235,6 +250,7 @@ export function proxyForwardedHttpRequest(
         pipeline(upstreamRes, res, () => {});
       },
     );
+    trackProxyStream(work, upstreamReq);
     current = upstreamReq;
 
     let connected = false;
@@ -269,6 +285,7 @@ export function proxyForwardedHttpRequest(
   };
 
   attempt(orderedLoopbackHosts(targetPort), 0);
+  await work.drain();
 }
 
 /**
@@ -302,12 +319,14 @@ export function proxyForwardedHttpRequest(
  * while nothing has been answered yet, so an established connection can never
  * be re-dialed against another family.
  */
-export function proxyForwardedWebSocketUpgrade(
+export async function proxyForwardedWebSocketUpgrade(
   req: IncomingMessage,
   clientSocket: Duplex,
   head: Buffer,
   lifetime: ForwardLifetime,
-): void {
+): Promise<void> {
+  const work = new AsyncWorkTracker();
+  trackProxyStream(work, clientSocket);
   const { targetPort, signal } = lifetime;
   let settled = false;
   /** The upstream answered (101 or rejection): no more family fallbacks. */
@@ -334,8 +353,9 @@ export function proxyForwardedWebSocketUpgrade(
   clientSocket.on("close", teardown);
   // `abort` doesn't dispatch retroactively: a forward stopped between session
   // resolution and this upgrade must not attach — or dial — at all.
-  if (signal.aborted) {
+  if (signal.aborted || clientSocket.destroyed) {
     teardown();
+    await work.drain();
     return;
   }
 
@@ -367,9 +387,11 @@ export function proxyForwardedWebSocketUpgrade(
       agent: false,
       headers: buildUpstreamRequestHeaders(req, targetPort, { forUpgrade: true }),
     });
+    trackProxyStream(work, upgradeReq);
     upstreamReq = upgradeReq;
 
     upgradeReq.once("upgrade", (res, socket, handshakeHead) => {
+      trackProxyStream(work, socket);
       rememberLoopbackHost(targetPort, host);
       if (settled) {
         socket.destroy();
@@ -391,6 +413,7 @@ export function proxyForwardedWebSocketUpgrade(
     });
 
     upgradeReq.once("response", (res) => {
+      trackProxyStream(work, res);
       // Non-101: the upstream refused the upgrade. Relay the parsed rejection
       // (reserved cookies filtered) plus its error body, then end the visitor
       // leg — its WS client reports the unexpected status itself. The
@@ -419,4 +442,5 @@ export function proxyForwardedWebSocketUpgrade(
   };
 
   attempt(orderedLoopbackHosts(targetPort), 0);
+  await work.drain();
 }

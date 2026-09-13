@@ -1,6 +1,9 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { setTimeout as delay } from "node:timers/promises";
 import { WebSocket, WebSocketServer } from "ws";
+import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
+import { HttpServerConnections } from "@/shared/httpServerConnections";
 import {
   toWebSocketUrl,
   type RemoteAccessScope,
@@ -71,6 +74,7 @@ import {
   DEFAULT_MAX_WEBSOCKET_PAYLOAD_BYTES,
   REMOTE_PER_MESSAGE_DEFLATE,
   WebSocketHeartbeat,
+  rejectUpgrade,
 } from "./server/wsConnections";
 import { persistSupervisorEvent } from "./server/runtimePersistence";
 import { projectGitStatePatchForInterests } from "./server/gitStateProjection";
@@ -85,6 +89,7 @@ import {
   buildCursorTaggedTerminalOutput,
   TerminalCursorSyncRegistry,
 } from "./server/terminalCursorSync";
+import { writeError } from "./server/httpResponses";
 
 // WS5 P1-9: under streaming load the old 500-entry cap was exhausted by small
 // content deltas long before the 8 MB byte budget, forcing reconnecting
@@ -159,6 +164,8 @@ export interface RemoteAccessServerOptions {
   /** Same-port retries absorb brief listener overlap during app relaunches. */
   readonly listenRetryAttempts?: number;
   readonly listenRetryDelayMs?: number;
+  /** Grace before closing active transports; admitted handlers are still joined. */
+  readonly shutdownConnectionGraceMs?: number;
   readonly authStore?: RemoteAuthStore;
   /**
    * Whether this server owns supervisor-event persistence. Headless servers do;
@@ -371,6 +378,8 @@ const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> =
 export class RemoteAccessServer {
   private readonly auth: RemoteAuthStore;
   private readonly server: Server;
+  private readonly connections: HttpServerConnections;
+  private readonly work = new AsyncWorkTracker();
   private readonly wss: WebSocketServer;
   private readonly security: RemoteServerSecurity;
   private readonly heartbeat: WebSocketHeartbeat;
@@ -395,6 +404,9 @@ export class RemoteAccessServer {
   private info: RemoteAccessServerInfo | null = null;
   private activePairingCredential: string | null = null;
   private stopping = false;
+  private readonly listenCancellation = new AbortController();
+  private starting: Promise<RemoteAccessServerInfo> | undefined;
+  private closing: Promise<void> | undefined;
 
   constructor(private readonly options: RemoteAccessServerOptions) {
     this.auth = options.authStore ?? new RemoteAuthStore();
@@ -428,10 +440,24 @@ export class RemoteAccessServer {
     // configured forward namespace) is proxied or bounded-errored there and
     // NEVER falls through to Poracode API/PWA handlers.
     this.server = createServer((req, res) => {
-      void handleRemoteAccessHttpRequest(this.context, req, res);
+      void this.runIngressWork(() => handleRemoteAccessHttpRequest(this.context, req, res)).catch(
+        (error: unknown) => {
+          if (!res.destroyed && !res.writableEnded) {
+            if (res.headersSent) res.destroy();
+            else writeError(res, error);
+          }
+        },
+      );
     });
+    this.connections = new HttpServerConnections(this.server);
     this.server.on("upgrade", (req, socket, head) => {
-      handleRemoteAccessUpgrade(this.context, req, socket, head);
+      if (this.stopping) {
+        rejectUpgrade(socket, 503, "Service Unavailable");
+        return;
+      }
+      void this.runIngressWork(() =>
+        handleRemoteAccessUpgrade(this.context, req, socket, head),
+      ).catch(() => socket.destroy());
     });
   }
 
@@ -455,6 +481,9 @@ export class RemoteAccessServer {
       get seq() {
         return server.seq;
       },
+      get stopping() {
+        return server.stopping;
+      },
       exchangePairingCredential: (input) => this.exchangePairingCredential(input),
       requireInfo: () => this.requireInfo(),
       requireSettingsGateway: () => this.requireSettingsGateway(),
@@ -470,8 +499,16 @@ export class RemoteAccessServer {
       send: (ws, message) => this.send(ws, message),
       sendRaw: (ws, data, onSent) => this.sendRaw(ws, data, onSent),
       notifyEventInterestsChanged: () => this.notifyEventInterestsChanged(),
+      runIngressWork: (operation) => this.runIngressWork(operation),
       waitForSupervisorEvent: (match, timeoutMs) => this.waitForSupervisorEvent(match, timeoutMs),
     };
+  }
+
+  private runIngressWork<T>(operation: () => T | PromiseLike<T>): Promise<T> {
+    if (this.stopping) {
+      return Promise.reject(new RemoteHttpError("host_stopping", "The host is stopping.", 503));
+    }
+    return this.work.run(operation);
   }
 
   private waitForSupervisorEvent(
@@ -511,28 +548,44 @@ export class RemoteAccessServer {
       }
       for (const threadId of interests) runtimeThreadIds.add(threadId);
     }
-    return this.options.onEventInterestsChanged?.({
+    const interests = {
       terminalThreadIds: [...terminalThreadIds].sort(),
       runtimeThreadIds: [...runtimeThreadIds].sort(),
       allRuntimeEvents,
-    });
+    };
+    // Includes final connection cleanup after external admission has closed.
+    return this.work.run(() => this.options.onEventInterestsChanged?.(interests));
   }
 
-  async start(): Promise<RemoteAccessServerInfo> {
-    if (this.info) return this.info;
-    if (this.stopping) throw new Error("Remote access server is stopping.");
+  start(): Promise<RemoteAccessServerInfo> {
+    if (this.stopping) return Promise.reject(new Error("Remote access server is stopping."));
+    if (this.info) return Promise.resolve(this.info);
+    if (this.starting) return this.starting;
+    const starting = this.startListening();
+    this.starting = starting;
+    void starting.catch(() => {
+      if (!this.stopping && this.starting === starting) this.starting = undefined;
+    });
+    return starting;
+  }
 
+  private async startListening(): Promise<RemoteAccessServerInfo> {
     const maxAttempts = this.options.listenRetryAttempts ?? DEFAULT_LISTEN_RETRY_ATTEMPTS;
     for (let attempt = 1; ; attempt += 1) {
+      if (this.stopping) throw new Error("Remote access server is stopping.");
       try {
         await this.listenOnce();
         break;
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code;
         if (code !== "EADDRINUSE" || attempt >= maxAttempts || this.stopping) throw error;
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.options.listenRetryDelayMs ?? DEFAULT_LISTEN_RETRY_DELAY_MS),
-        );
+        try {
+          await delay(this.options.listenRetryDelayMs ?? DEFAULT_LISTEN_RETRY_DELAY_MS, undefined, {
+            signal: this.listenCancellation.signal,
+          });
+        } catch {
+          throw new Error("Remote access server is stopping.");
+        }
       }
     }
 
@@ -572,18 +625,30 @@ export class RemoteAccessServer {
       };
       this.server.once("error", onError);
       this.server.once("listening", onListening);
-      this.server.listen(this.options.port, this.options.host);
+      try {
+        this.server.listen(this.options.port, this.options.host);
+      } catch (error) {
+        this.server.off("error", onError);
+        this.server.off("listening", onListening);
+        reject(error);
+      }
     });
   }
 
   /**
-   * Stops the server. Resolves once the HTTP server has actually closed so a
-   * caller (e.g. the headless host) can safely tear down the database afterward
-   * without crashing an in-flight request. Idle keep-alive sockets are dropped
-   * immediately; active requests are given a short grace period to finish.
+   * Closes admission, then joins listener startup, transports and actual owned
+   * continuations. A disconnected client or a transport deadline is never
+   * evidence that a handler can no longer write to the database.
    */
-  async dispose(): Promise<void> {
+  dispose(): Promise<void> {
+    if (this.closing) return this.closing;
     this.stopping = true;
+    this.listenCancellation.abort();
+    this.closing = Promise.resolve().then(() => this.finishDispose());
+    return this.closing;
+  }
+
+  private async finishDispose(): Promise<void> {
     this.heartbeat.stop();
     for (const client of this.clients.keys()) {
       client.terminate();
@@ -595,24 +660,16 @@ export class RemoteAccessServer {
     this.terminalCursorSync.clearAll();
     this.terminalBaselineStreams.clearAll();
     this.gitStateInterests.clear();
-    this.supervisorEventListeners.clear();
     this.itemInterests.clear();
     void Promise.resolve(this.notifyEventInterestsChanged()).catch(() => {});
-    this.wss.close();
-    // Drop idle keep-alive connections so close() doesn't wait on them, but let
-    // any in-flight request complete (up to the grace timeout).
-    this.server.closeIdleConnections?.();
-    await new Promise<void>((resolve) => {
-      let settled = false;
-      const done = () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve();
-      };
-      const timer = setTimeout(done, 5000);
-      this.server.close(() => done());
-    });
+    const webSocketsClosed = new Promise<void>((resolve) => this.wss.close(() => resolve()));
+    await this.starting?.catch(() => undefined);
+    await Promise.all([
+      this.connections.close(this.options.shutdownConnectionGraceMs ?? 5_000),
+      webSocketsClosed,
+    ]);
+    await this.work.drain();
+    this.supervisorEventListeners.clear();
     this.info = null;
     this.activePairingCredential = null;
   }

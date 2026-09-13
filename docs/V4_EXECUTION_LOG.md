@@ -677,3 +677,45 @@ typecheck, touched lint and inventory audit pass. An independent trust/lifecycle
 R4 critic also passed 15 tests / three suites. This boundary remains development,
 unpackaged, mock-only and restricted to the current main window's top frame;
 version-1 peers are rejected. Fresh native shutdown evidence is still pending.
+
+## F11 HTTP and shared MCP drain prerequisite
+
+The isolated `poracode/v4-request-drain` branch starts at reviewed consolidation
+`ad7143d53`. Four real loopback/SQLite regressions first proved premature database
+close after the HTTP deadline or client abort, duplicate startup pairing state,
+and a listener bound after disposal. Two real forwarded-stream fixtures also
+failed against the original proxy implementation, which returned while the
+streams were open. Three shared-MCP regressions proved early tool disposal,
+orphaned concurrent listeners and publication after an immediate stop.
+
+The candidate joins one listener lifecycle, closes admission synchronously and
+tracks actual HTTP/WS/tool continuations independently of sockets. The existing
+five-second HTTP grace now closes owned transports; it does not resolve the work
+barrier. Proxy requests and upgrades join their outgoing streams. Shared MCP
+uses the same work/socket helpers and AppControls awaits its disposal; remaining
+batch entries and a reentrant pre-call hook cannot start a tool after stop.
+No remote, renderer, backend-host, MCP or persisted shape changes; existing wire
+versions remain valid and shutdown uses the existing error response envelopes.
+
+The HTTP/controller group passed 156 tests across seven suites; the MCP/native
+facade group passed 41 tests across six separate suites. Full typecheck and both
+touched lint modes pass. The MCP test-only cleanup refactor was checked again
+with its five lifecycle cases. Details and exact commands are in
+`.tmp/v4-request-drain/tmp/f11-request-drain/REPORT.md`; all network peers and
+SQLite files in these checks are disposable fixtures. Self-review caught two
+introduced startup-cache regressions: retaining a failed listen and returning
+an obsolete pairing token after rotation. Both were corrected, with separate
+reds; the final ten HTTP lifecycle cases also validate a successful real token
+exchange after rotation. These are not attributed to the original defects.
+
+The independent ingress critic passed 24 tests across five suites plus the final
+real pairing-token exchange regression, with no remaining Important finding.
+The primary review also passed its 25 targeted cases and verified all 17 frozen
+file hashes. Both reviews accepted this prerequisite; integration remains pending.
+This is not complete F11
+qualification: private backend request draining, main/native facade joins, parent
+timeouts, provider/PTY descendants, Windows graceful stop and the native-e2e stop
+harness remain assigned. A handler which cannot be canceled keeps its join
+pending; the later process escalation must prove termination rather than release
+the owner lease while that handler can still run. No GUI/performance claim is
+made from these ingress fixtures.
