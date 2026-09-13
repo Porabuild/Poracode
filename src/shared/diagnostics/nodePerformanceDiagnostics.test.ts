@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { startNodePerformanceDiagnostics } from "./nodePerformanceDiagnostics";
+import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import {
   PerformanceEvidenceWriter,
   type PerformanceWriterStats,
@@ -54,6 +55,16 @@ describe("opt-in Node performance recording", () => {
       PORACODE_PERF_INTERVAL_MS: "100",
       SYNTHETIC_SECRET: "private-fixture-value",
     })!;
+    const sender = new SupervisorIpcSender({
+      queueDiagnostics: recorder.queueCapture,
+      send: (_message, done) => {
+        done(null);
+        return true;
+      },
+      onError: () => {},
+    });
+    recorder.observeIpcQueue("supervisor-to-host", () => sender.getQueueDiagnostics());
+    sender.reply({ replyTo: "private-fixture-value", ok: true, data: null });
     try {
       await delay(130);
     } finally {
@@ -68,16 +79,41 @@ describe("opt-in Node performance recording", () => {
       .map((line) => JSON.parse(line));
     expect(records[0]).toMatchObject({
       kind: "start",
+      formatVersion: 2,
+      processSampleFormatVersion: 1,
+      ipcQueueSampleFormatVersion: 1,
       role: "server",
       pid: process.pid,
       intervalMs: 100,
     });
     expect(records.filter((record) => record.kind === "sample").length).toBeGreaterThanOrEqual(2);
+    for (const record of records.filter((entry) => entry.kind === "sample")) {
+      expect(record).toMatchObject({
+        formatVersion: 2,
+        processSampleFormatVersion: 1,
+        ipcQueues: {
+          queues: [
+            {
+              name: "supervisor-to-host",
+              status: "observed",
+              sample: {
+                formatVersion: 1,
+                sendAttempts: 1,
+                waitingMessages: 0,
+                oldestQueuedMessageAgeMs: null,
+              },
+            },
+          ],
+        },
+      });
+    }
     expect(records.at(-1)).toMatchObject({ kind: "end", complete: true });
     expect(text).not.toContain("private-fixture-value");
     expect(text).not.toContain(root);
     await recorder.stop();
     expect(await readFile(join(root, files[0]!), "utf8")).toBe(text);
+    sender.reply({ replyTo: "after-recording-stopped", ok: true, data: null });
+    expect(sender.getQueueDiagnostics()).toBeUndefined();
   });
 
   it("does not hold application shutdown indefinitely on stalled diagnostic output", async () => {

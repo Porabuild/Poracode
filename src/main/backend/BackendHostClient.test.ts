@@ -8,6 +8,7 @@ import {
   type BackendHostRequest,
 } from "@/shared/backendHostProtocol";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { IpcQueueCapture } from "@/shared/diagnostics/ipcQueueSample";
 
 const forkMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 const setPriorityMock = vi.hoisted(() => vi.fn<(pid: number, priority: number) => void>());
@@ -87,7 +88,7 @@ function replyFailure(child: FakeChild, request: BackendHostRequest, error: stri
 
 function createClient(
   assignPid = vi.fn<(pid: number) => Promise<void>>(async () => undefined),
-  options: { initWaitTimeoutMs?: number } = {},
+  options: { initWaitTimeoutMs?: number; queueDiagnostics?: IpcQueueCapture } = {},
 ) {
   const onEvent =
     vi.fn<
@@ -122,6 +123,7 @@ function createClient(
       },
     },
     resolveExtraEnv: () => ({ PORACODE_BROWSER_MCP_URL: "http://127.0.0.1" }),
+    ...(options.queueDiagnostics ? { queueDiagnostics: options.queueDiagnostics } : {}),
     assignPid,
     ...(options.initWaitTimeoutMs !== undefined
       ? { initWaitTimeoutMs: options.initWaitTimeoutMs }
@@ -168,6 +170,34 @@ describe("BackendHostClient", () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
+  });
+
+  it("distinguishes a missing queue from a fresh replacement sender generation", async () => {
+    vi.useFakeTimers();
+    const first = makeFakeChild(1);
+    const second = makeFakeChild(2);
+    const third = makeFakeChild(3);
+    const capture = { active: true };
+    forkMock.mockReturnValueOnce(first).mockReturnValueOnce(second).mockReturnValueOnce(third);
+    const { client } = createClient(undefined, { queueDiagnostics: capture });
+    const initial = client.getQueueDiagnostics();
+    expect(initial?.instanceId).toBeTypeOf("string");
+    first.emit("exit", 1);
+    expect(client.getQueueDiagnostics()).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1_000);
+    const replacement = client.getQueueDiagnostics();
+    expect(replacement?.instanceId).toBeTypeOf("string");
+    expect(replacement?.instanceId).not.toBe(initial?.instanceId);
+    expect(replacement?.sendAttempts).toBe(1);
+    capture.active = false;
+    expect(client.getQueueDiagnostics()).toBeUndefined();
+    second.emit("exit", 1);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(forkMock).toHaveBeenCalledTimes(3);
+    expect(client.getQueueDiagnostics()).toBeUndefined();
+    const disposal = client.disposeAsync();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await disposal;
   });
 
   it("initializes the worker, lowers its priority, and starts with current MCP env", async () => {

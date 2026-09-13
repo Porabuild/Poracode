@@ -755,6 +755,9 @@ if (!hasSingleInstanceLock) {
       };
       const backendHost = new BackendHostClient({
         backendHostPath,
+        ...(performanceDiagnostics
+          ? { queueDiagnostics: performanceDiagnostics.queueCapture }
+          : {}),
         initialize: {
           baseDir: paths.baseDir,
           dbPath: paths.dbPath,
@@ -922,6 +925,9 @@ if (!hasSingleInstanceLock) {
           );
         },
       });
+      performanceDiagnostics?.observeIpcQueue("main-to-backend", () =>
+        backendHost.getQueueDiagnostics(),
+      );
       const syncBackendEventInterests = (): Promise<void> =>
         backendHost.setEventInterests(rendererEventInterestRegistry.snapshot());
       const reportEventInterestSyncError = (error: unknown): void => {

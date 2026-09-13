@@ -73,6 +73,7 @@ let shedLogBytes = 0;
 let shedLogAt = 0;
 
 const sender = new SupervisorIpcSender<BackendHostOutboundMessage>({
+  ...(performanceDiagnostics ? { queueDiagnostics: performanceDiagnostics.queueCapture } : {}),
   send: (message, callback) => {
     if (!process.connected || !process.send) {
       callback(new Error("Backend-host IPC channel is disconnected."));
@@ -108,6 +109,7 @@ const sender = new SupervisorIpcSender<BackendHostOutboundMessage>({
     shedLogBytes = 0;
   },
 });
+performanceDiagnostics?.observeIpcQueue("backend-to-main", () => sender.getQueueDiagnostics());
 
 function send(message: BackendHostOutboundMessage): void {
   sender.sendMessage(message);

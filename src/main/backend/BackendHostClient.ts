@@ -26,6 +26,7 @@ import {
 } from "@/shared/backendHostProtocol";
 import type { CheckpointRevertResult } from "@/shared/contracts";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
+import type { IpcQueueCapture, IpcQueueSample } from "@/shared/diagnostics/ipcQueueSample";
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
@@ -64,6 +65,8 @@ export interface BackendHostClientOptions {
   reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
   /** Override for tests so recovery timeouts do not need fake waiter timers. */
   initWaitTimeoutMs?: number;
+  /** Opt-in local evidence; no payloads or delivery acknowledgments are collected. */
+  queueDiagnostics?: IpcQueueCapture;
   onEvent(
     event: SupervisorEvent,
     rendererDeliveredDirect: boolean,
@@ -140,6 +143,10 @@ export class BackendHostClient {
     this.spawn();
   }
 
+  getQueueDiagnostics(): IpcQueueSample | undefined {
+    return this.sender?.getQueueDiagnostics();
+  }
+
   private spawn(): void {
     if (this.disposed) return;
     let child: ChildProcess | null;
@@ -177,6 +184,7 @@ export class BackendHostClient {
     }
 
     const sender = new SupervisorIpcSender<BackendHostRequest>({
+      ...(this.options.queueDiagnostics ? { queueDiagnostics: this.options.queueDiagnostics } : {}),
       send: (message, callback) => {
         if (this.child !== child || !child.connected) {
           callback(new Error("Backend-host IPC channel is disconnected."));

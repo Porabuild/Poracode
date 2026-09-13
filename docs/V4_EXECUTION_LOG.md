@@ -774,3 +774,47 @@ provider/held-request shutdown, production performance, or completion of F11.
 The final root combination of F32 and the scoped settings adapter passed 507 tests
 / 51 suites and full typecheck (`lease-command-final-combined-*` logs). The only
 merge conflict was concurrent execution-log additions; both records are retained.
+
+## Bounded IPC queue observations and recorder lifetime
+
+The opt-in Node evidence envelope is now format 2, declaring the unchanged
+process-sample format 1 and the new queue-sample format 1. It observes the main to
+backend, backend to main, and supervisor to host application waiting queues.
+Admission byte estimates, oldest age, high-water values, adapter attempts,
+in-flight count and shedding are separate measurements. Replacement senders have
+fresh random observation identities; absent/error/untimed observations cannot
+masquerade as measured zero. Registration and serialization use a closed schema
+without message content. Native IPC buffer bytes, terminal coalescer bytes/ages,
+other queues and peer processing acknowledgments are not covered.
+
+Initial sender-observation regressions failed three cases against the previous
+implementation (`ipc-queue-diagnostics-before.log`). During review, a new lifecycle
+flaw was also reproduced: stopping the recorder left per-message timestamp and
+counter work running. Its one failing real recorder-stop regression is retained
+as `ipc-queue-capture-lifetime-before.log`. The correction shares a recorder-owned
+capture lifetime with existing and replacement senders; every stop reason ends
+collection while application delivery continues. This was caught before this
+diagnostic slice was committed or used for a performance qualification.
+
+The final primary run passed 75 tests / seven suites, full typecheck, both touched
+lint modes, formatting and the production Electron/main build. The built
+`ipcQueuePressure.mjs` fixture then exercised actual child IPC on Node 24.20.0 and
+Electron 44 / embedded Node 24.18.1. Each controlled blocked receiver produced 122
+waiting messages / 4,007,114 estimated bytes and an observed oldest age above
+250 ms. Releasing the fixture gate delivered all 128 synthetic messages; waiting
+and in-flight counts reached zero and each owned child closed normally. Both
+format-2 recordings have complete end markers, zero writer drops/errors, and no
+synthetic payload marker. Raw final evidence is
+`tmp/v4-architecture-audit/ipc-queue-lifetime-real-{node,electron}.json` with its
+referenced NDJSON; earlier runs remain separately retained.
+
+The independent critic passed 66 tests / five suites after the lifetime fix and
+verified all 19 frozen source, compiled fixture and raw-evidence hashes with zero
+mismatches (`ipc-queue-independent-lifetime-rereview.log`). No Important finding
+remained in this bounded scope.
+
+These are measurement and output-lifetime checks. The new queue registrations in
+an actual GUI session, enabled/disabled observer overhead, complete transport
+coverage, correlated command/event latency, frame/input traces, controlled master
+comparisons and final load/soak qualification remain open. A blocked synthetic
+receiver is not an application performance benchmark.
