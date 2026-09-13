@@ -419,3 +419,207 @@ messages. Its real final-IPC test covers POSIX; Windows currently uses forced
 process-tree termination. Descendant joins, graceful Windows shutdown, backend
 parent timeout and the remaining request drains must still be completed. None of
 these first slices closes its phase or establishes final merge readiness.
+
+## Reviewed ownership slices integrated
+
+`1941434fa` moves Electron settings commands and common headless routing
+persistence into the backend and fixes F22. Its 133 focused tests, full typecheck,
+both lint modes and independent critic passed. In a frozen isolated Electron
+session, real Appearance controls changed the theme; real IPC created/updated a
+profile with synthetic secrets. Backend reads, disk inspection and renderer
+reload agreed, and no plaintext secret was persisted. Selected smoke scenarios
+passed before and after reload with zero renderer/runtime errors. The owned
+session was stopped. Evidence is
+`.tmp/v4-settings-owner/tmp/v4-settings-owner/EVIDENCE.md`.
+
+`07e0ccfdc` adds joined supervisor shutdown and stale-child fencing, including
+the owned checkpoint continuation barrier. Its 76 focused tests, full typecheck,
+lint and primary review passed. Real disposable POSIX children prove delayed
+final IPC reaches SQLite before closure and an unresponsive leader is escalated
+and joined. The real SIGTERM fixture explicitly skips Windows; descendant joins,
+Windows graceful shutdown, parent quit deadlines and full request drains remain
+open. Evidence is `.tmp/v4-shutdown/tmp/f11-evidence/REPORT.md`. The two slices
+were combined with sampler correction `952aa83e1`; root `0354a0c68` passed 153
+tests across 18 affected suites and full typecheck. Host protocol is now 7;
+renderer stream 3 and remote 12 are unchanged.
+
+Lease/path helper `86c4d50ef` and its F25 correction `2adbbe58e` were integrated
+together as `7ab21fa43`. They remain unwired. Nineteen tests passed on root,
+including concurrent desktop/headless acquisition, crash recovery, replacement
+of the owned data directory, symlink-alias refusal, future-format refusal and
+three repeated same-process attempts followed by actual child contenders. The
+initial helper's six alias/metadata failures and F25 lock-loss failure are
+retained in the owner worktree. These tests qualify the helper, not startup
+ownership or safe import/activation as a whole.
+
+## Process CPU instrumentation — verified counter-accounting slice
+
+The two existing load profiles now also sample cumulative CPU counters for the
+root and its observed descendants, without retaining command lines. Accounting
+uses matching PID/start identities and monotonic sample intervals, preserves
+counter precision, and records lost exit tails, missing/replaced roots, counter
+regressions and a 4,096 historical-metric limit. The latest tree is separately
+bounded by the 8 MiB probe-output cap. This is partial observation; quantization
+can overstate a short interval, so it is not a strict lower bound. Unsupported
+platforms cannot report a valid zero.
+
+A disposable Node parent/child fixture reported 599.581 ms and 799.948 ms of CPU
+work via `process.cpuUsage`. Eleven external probes recorded 600 ms and 800 ms,
+with zero probe failures; both children were joined and their PIDs no longer
+existed. Raw data, source hashes and exact drivers are under
+`tmp/v4-architecture-audit/process-cpu-real*` and `cpu-fixture.mjs`. This is a
+counter-accounting check, not application performance qualification. Short-lived
+processes, exit tails, same-second PID reuse and probe timing/quantization remain
+explicit limitations. The independent critic accepted the accounting/stop wiring
+and corrected the lower-bound/retention wording above. In-process CPU/event-loop/
+GC, command/event correlation, queue metrics, compositor/input traces and
+controlled master comparisons remain open. Fourteen targeted tests, full
+typecheck and touched type-aware lint/format pass; logs are `process-cpu-*-final`
+under the same evidence directory. The final source differs from the real probe's
+recorded sampler hash only by the critic's correction of its lower-bound comment;
+the executed accounting code is unchanged. Linux formatting has parser coverage
+and was checked against the upstream procps manual; actual child evidence here
+is macOS. No Linux or Windows runtime measurement is claimed.
+
+## Further smoke findings in progress
+
+The F23 frozen voice loader now executes through bundled DEV imports. One full
+run passed its voice checks; a later full run failed at draft-button state and
+is being investigated, so stable full-suite voice coverage is not yet claimed.
+The Quick Composer native query confirmed actual hide/show transitions while DOM
+visibility stayed `visible`. Without granted OS focus, the renderer remained in
+`closing`; this is F26, now added to the plan for a native-show-driven reset.
+The QA driver will not fabricate focus/visibility events or acknowledge the
+remaining real shortcut, dragging, visual motion and provider manual gates.
+
+## Offline import and credential foundations integrated
+
+Reviewed staging commit `f1ce72f8d` and credential commit `21943324f` are now
+integrated. Root passed 65 lease/import/manifest/physical-identity tests and 34
+credential tests plus full typecheck. Import operates only on an explicitly
+offline backup and produces an inactive staged root; activation, path/session
+conversion, automation fencing and legacy roots missing SQLite still need their
+required recovery paths. No live startup uses these helpers yet.
+
+Credential provenance version 1 distinguishes OS-sealed, headless file, injected
+environment and session-only modes. The reviewed helpers preserve corrupt,
+replaced or mismatched keys, reject late/missing native generations, and reject
+blank environment injection before coalescing. The persistence capability rejects
+new durable encrypted secrets under a session-only key. The tests establish the
+helper guard; enforcement by actual settings/usage writers remains part of wiring.
+Original red evidence and the old-helper/new-helper key-rotation experiment are
+retained under `.tmp/v4-owner/.tmp/v4-owner/`.
+
+Settings authority foundation `a5a57cfa6` is also integrated but inactive. The
+primary and independent critic reviewed subject revisions, canonical migration,
+unknown-field preservation, credential classification, and the lease/commit
+barrier. Review reproduced ordinary plaintext becoming newly sensitive, or newly
+designated as a driver's credential, bypassing the original equality exemption.
+The corrected exemption requires the previous slot to have been classified as
+secret. Existing explicit plaintext declassification and unchanged legacy values
+remain supported. The paired regressions and unknown-key sanitizer correction
+pass in the 65-test agent run. Evidence is
+`.tmp/v4-settings-owner/tmp/v4-settings-owner/AUTHORITY_FOUNDATION_EVIDENCE.md`.
+Queue admission bounds, ordered snapshots/results, all-writer conversion and
+protocol/native activation remain open; this does not close F2.
+
+## Audited master build identity recorded
+
+Detached, clean master `9a4096ea8` has its own frozen-lockfile dependency install
+and passed native preparation, Codex protocol generation, desktop build and its
+canonical `build:mobile`. The final mobile command rebuilt Electron; hashes were
+recorded afterward. Toolchain is Node 24.20.0, pnpm 12.3.4 and Electron package
+44.0.0 on macOS 26.6.2 / arm64 / Mac17,8, with 18 logical CPUs and 48 GiB RAM.
+Master's remote protocol is 10, read from its actual source; it predates V2's
+contract-manifest layout. An initial provenance-script path assumption failed
+before writing a record and was corrected without changing master source/builds.
+
+`tmp/v4-architecture-audit/master-baseline-provenance.json` records 3,239 `dist`
+files totaling 142,673,349 bytes and manifest hash
+`3189df5b0ed633f30dac746213cdb42930a3788d6f071784f12f1e4dfc5ec7ef`.
+Build logs and exact recorder are beside it. This is an observed checkout build,
+not a packaged/installed artifact or complete immutable runtime closure. No app
+launch, cold/warm comparison, frame/input timing or soak is claimed for it.
+
+## Additional native and instrumentation findings
+
+F27 and F28 are added to the plan. F27 is the no-project selector render loop
+found by the real-component regression; F28 was reproduced in a frozen native
+window with a local iframe and a held Quick Composer handoff. Their fixes and
+fresh full smoke are under review in the smoke-coverage lane.
+
+F29 was caught before the new diagnostics were enabled in a real app. The first
+owned Node fixture's 100 ms loop consumed approximately 102 ms CPU, yet its
+post-reset delay maximum was 1.28 ms. Node 24.20.0 source confirms histogram reset
+clears the prior timestamp used by `RecordDelta`. Raw before/after JSON and the
+initial failed test are `in-process-stall-{before,after}.json` and
+`in-process-initial-tests.log` under `tmp/v4-architecture-audit/`. The corrected
+sampler keeps a separate timestamp and records completed timer intervals plus
+the unfinished tail. These are interval-based observations, including the timer
+period; they are not interchangeable with Node's newer iteration-based mode.
+Installed Electron 44.0.0 embeds Node 24.18.1, which lacks that newer option;
+the actual built-in function was captured in `electron-perf-api.json`.
+
+F30 was then reproduced while wiring the actual owned headless factory: disposing
+PrWatch during an awaited lookup still permitted store reads/deletion and a
+mocked merge. The red test uses only synthetic service dependencies, with evidence
+in `.tmp/v4-owner/.tmp/v4-owner/durable-prwatch-close-before.log`. Owner-lane work
+now includes a coherent durable ingress/PR/schedule admission and join barrier;
+the wider F11 process/descendant/request work remains assigned separately.
+
+## Bounded in-process diagnostics — reviewed and exercised
+
+The opt-in format-1 recorder is wired to desktop main, backend, supervisor,
+standalone server and relay entrypoints. It retains four pending records at most,
+serializes file appends, caps output bytes, and adds at most 500 ms of diagnostic
+grace to normal shutdown. Disabled startup creates no observer or writer. The
+independent critic accepted observation scope, bounded output, privacy and
+shutdown behavior; its log is `node-diagnostics-independent-critic.log` under
+`tmp/v4-architecture-audit/`. Fifteen final focused tests, full typecheck, both
+touched lint modes, format and the smoke inventory audit pass. Initial test-only
+typing/lint failures and the F29 measurement failure remain in their first logs.
+
+The corrected CPU/stall/GC fixture also runs on Electron 44's actual embedded
+Node 24.18.1, with raw data in `electron-in-process-stall-after.json`. The final
+production-mode main-process build passed. Its compiled standalone server and
+relay each reached readiness on loopback with a disposable profile/home, recorded
+four samples with zero dropped records or output errors, and exited normally
+after a leader-only SIGTERM with complete end markers. Their entry hashes were
+unchanged during execution; `diagnostic-entrypoints.json` records the exact
+artifacts, fixture directories and output. The first successful callback-shape
+build remains separately recorded as `diagnostic-entrypoints-initial.json`.
+
+These are instrumentation and shutdown-output checks. The live Electron-main,
+backend and supervisor combination still needs the final integrated smoke; the
+embedded-Node fixture alone does not prove those hooks in a running GUI. Enabled
+versus disabled observer overhead, correlated commands/events, queue byte/age
+metrics, frame/input traces, controlled master comparisons and final production
+qualification remain open. No app latency, throughput, resource or 120 Hz gate is
+qualified by this slice.
+
+## Native smoke follow-up accepted in its own branch
+
+Product commit `3fc2c7ee5` fixes F26/F27/F28 and advertises actual preload peer 8.
+Tooling commit `194c7ea09` fixes F23/F24 and shares the CLI's validated pointer
+actions with Quick Composer. Primary source review and an independent F26 critic
+accepted the product changes. The pointer extraction adds 14 functional refusal/
+dispatch fixtures; 30 focused tooling checks passed.
+
+Frozen05 passed 9 automated scenarios and all 17 mock gates with zero captured
+runtime errors, source `aed79eb2e17d519c8eb2fe8d93af48ebf147eb922d5ae7e3a846faa4c64a97cf`
+and artifact `56e7742bd67ead573d60cbc5c2c5984168c263349cc33366f9485ecd4197b237`.
+The exact iframe before/after probe delivered the second submission without an
+injected ready acknowledgment. The actual no-project view/action also passed.
+Primary inspected ready-to-submit, main handoff, no-project and preserved voice-
+draft screenshots. Frozen06 then passed the Quick Composer gate with the final
+shared pointer helper, source
+`2422bacd23568a9d6459fddcc15398bcf3d0a6b66c8ec14c38a53e8aa3bded62` and artifact
+`ecfbdaf3524775b9fc1d764ecbaf7c399ec016a23a834bac20b5f7667366cd3c`.
+All six owned sessions were stopped and their runtime directories removed.
+
+Details are `.tmp/v4-smoke-coverage/tmp/f23-f24-evidence/REPORT.md`. The single
+dev02 voice draft timeout remains unexplained, despite passing repeats. Real
+shortcut/tray, dragging, motion, provider execution and the final combined build
+are not claimed by these mock results. The product source differs from frozen05
+by the documented stale-comment correction; frozen06 is a separate targeted
+tooling run, not another full-suite result.

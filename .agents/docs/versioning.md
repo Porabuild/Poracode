@@ -116,6 +116,34 @@ composition is complete; native release and full F2/Phase 1 gates remain open.
 
 External protocol identifiers such as MCP protocol dates and ACP SDK protocol versions are negotiated standards, not Poracode cache generations. Change them only with the corresponding dependency/protocol implementation and interoperability tests.
 
+## Host ownership helpers
+
+The staged V4 helper boundary is `HOST_ROOT_LAYOUT_VERSION = 1` in
+`src/backend/ownership/hostRootPaths.ts` and owner metadata format 1 / lease
+database `user_version = 1` in `hostOwnerLease.ts`. These helpers are not yet
+startup wiring. Audit the profile-to-sibling mapping, client-data separation,
+permanent external lease path, metadata vocabulary and every eventual bootstrap
+consumer together before changing them. Unknown lease formats must fail without
+replacement. Discovery PID metadata never grants ownership; only the kernel
+lease does. Never open an existing leased SQLite inode through an unmanaged
+descriptor in the same process, since closing it can release POSIX file locks.
+
+## Electron preload compatibility
+
+The Electron preload must advertise `clientRuntimeVersion` from
+`PORACODE_CLIENT_RUNTIME_VERSION`. The renderer checks this peer value before
+creating its transport. Version 8 requires the native quick-composer show
+subscription; absent, version-6, and version-7 preload artifacts are rejected.
+Browser runtimes use the same local facade version; this desktop window event
+does not change the remote wire, backend-host protocol, or persisted state.
+
+Unactivated V4 branch reservations are backend-host 8 for owner bootstrap, 9 for
+settings authority, and 11 for the private usage-secret service. Their combined
+backend-host contract will use a fresh version 12, superseding the earlier
+two-parent reservation of 10. Settings reserves renderer stream 4 and remote 13;
+the combined client facade/preload will use 9. These are coordination reservations,
+not the currently running wire versions or evidence that activation is complete.
+
 ## Measurement evidence
 
 `ProcessMemorySummary` in `tests/native-e2e/helpers/processMemorySampler.ts` emits
@@ -139,6 +167,36 @@ remeasured before use as peak-memory evidence. Machine load and foreign-tool
 presence are contention indicators, not process CPU measurements or proof of an
 idle machine. Keep measurement versions separate from the application's wire and
 storage versions, and record both with the exact tested artifact.
+
+`ProcessCpuSampler` emits its independent `samplerVersion: 1`. It records
+per-process cumulative CPU deltas only between matching PID/start identities,
+with counter resolution, missing roots, discarded counter regressions, untracked
+identities and lost exit tails explicit. It is partial external POSIX observation,
+not complete CPU accounting or a strict lower bound: counter quantization can
+overstate a short interval. Windows reports an unsupported platform rather than
+valid zero usage. The 4,096 cap bounds historical metric records; the most recent
+tree is separately bounded by the 8 MiB process-output limit. Preserve these
+limits when supplementing in-process CPU/event-loop traces.
+
+`src/shared/diagnostics/processPerformanceSampler.ts` introduces local diagnostic
+format 1. With `PORACODE_PERF_OUTPUT_DIR` set to an existing absolute directory,
+the desktop main, backend, supervisor, standalone server and relay write distinct
+private NDJSON files. No collector starts by default. CPU/RSS are process-wide;
+event loop, heap and GC describe the current thread/isolate. Completed callback
+intervals are assigned at capture, can span a window boundary, and include the
+configured timer period. The unfinished callback tail is recorded separately.
+This method is distinct from native timer/iteration histograms; do not compare
+their percentiles as if they were the same measurement.
+
+The reporting interval defaults to 1,000 ms (`PORACODE_PERF_INTERVAL_MS`, range
+100–60,000). The per-file cap defaults to 64 MiB (`PORACODE_PERF_MAX_BYTES`, range
+64 KiB–512 MiB). Output serializes at most four pending 16 KiB records; overflow,
+budget exhaustion and I/O failures invalidate that recording. Normal shutdown
+attempts a final sample and end marker, with at most 500 ms added for diagnostic
+output. A missing/truncated end marker or incomplete-output warning cannot qualify
+a gate. Successful writes are not a power-loss durability guarantee. No message
+content, argv, environment dump or credentials are recorded. The observer's CPU
+and timer work is included; qualify its overhead against a disabled control.
 
 ## Mirrored-boundary rule
 

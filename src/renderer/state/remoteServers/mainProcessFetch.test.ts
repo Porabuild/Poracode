@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PoracodeBridge } from "@/shared/ipc";
-import type { ElectronHostBridge } from "@/shared/clientRuntime";
+import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import {
   installBrowserClientRuntime,
   installElectronClientRuntime,
@@ -48,6 +48,7 @@ describe("remote server fetch transport", () => {
       remoteHttpRequest,
     } as unknown as PoracodeBridge;
     const host = {
+      clientRuntimeVersion: PORACODE_CLIENT_RUNTIME_VERSION,
       ...electronBridge,
       onSupervisorEvent: () => () => {},
       onSupervisorEventGap: () => () => {},
