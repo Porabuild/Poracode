@@ -1,11 +1,78 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   buildDesktopPairingUrl,
   buildPairingUrl,
+  isCleartextLanUrl,
   normalizePairingEndpoint,
   parsePairingUrlParts,
   retargetPairingUrl,
 } from "./pairingUrl";
+
+/**
+ * The shared pairing-URL conformance fixture (protocol/remote/v3/fixtures/
+ * pairing-url-cases.json) is asserted verbatim on iOS and Android too: the
+ * desktop reference implementation defines the canonical answers, and the
+ * fixture's documentedDifferences section carries the cases that legitimately
+ * differ per platform (pinned by desktop-only or native-only tests instead).
+ */
+const pairingUrlCases = JSON.parse(
+  readFileSync(
+    join(import.meta.dirname, "../../../protocol/remote/v3/fixtures/pairing-url-cases.json"),
+    "utf8",
+  ),
+) as {
+  parseParts: Array<{
+    name: string;
+    url: string;
+    token?: string;
+    host?: string;
+    expectNull?: boolean;
+  }>;
+  normalizeEndpoint: Array<{
+    name: string;
+    url: string;
+    endpoint?: string;
+    expectInvalid?: boolean;
+  }>;
+  cleartextLanUrl: Array<{ name: string; url: string; cleartext: boolean }>;
+};
+
+describe("shared pairing-url conformance fixture", () => {
+  it("parses every shared parseParts case exactly as the natives must", () => {
+    const actual = pairingUrlCases.parseParts.map((entry) => {
+      const parsed = parsePairingUrlParts(entry.url);
+      return { token: parsed?.token ?? null, host: parsed?.host ?? null };
+    });
+    const expected = pairingUrlCases.parseParts.map((entry) =>
+      entry.expectNull
+        ? { token: null, host: null }
+        : { token: entry.token ?? null, host: entry.host ?? null },
+    );
+    expect(actual).toEqual(expected);
+  });
+
+  it("normalizes every shared normalizeEndpoint case exactly as the natives must", () => {
+    const actual = pairingUrlCases.normalizeEndpoint.map((entry) => {
+      try {
+        return normalizePairingEndpoint(entry.url);
+      } catch {
+        return null;
+      }
+    });
+    const expected = pairingUrlCases.normalizeEndpoint.map((entry) =>
+      entry.expectInvalid ? null : (entry.endpoint ?? null),
+    );
+    expect(actual).toEqual(expected);
+  });
+
+  it("classifies every shared cleartextLanUrl case exactly as the natives must", () => {
+    const actual = pairingUrlCases.cleartextLanUrl.map((entry) => isCleartextLanUrl(entry.url));
+    const expected = pairingUrlCases.cleartextLanUrl.map((entry) => entry.cleartext);
+    expect(actual).toEqual(expected);
+  });
+});
 
 /**
  * Exactly what a client does with text decoded from the desktop's QR code:

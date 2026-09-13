@@ -60,8 +60,11 @@ enum PairingURL {
         }
 
         let scheme = components.scheme?.lowercased()
+        // Foundation's parser reports an EMPTY-STRING host for a bare
+        // authority ("https://") — require a non-empty host, matching the
+        // desktop reference, which refuses to parse it at all.
         guard scheme == "http" || scheme == "https",
-              components.host != nil
+              components.host?.isEmpty == false
         else {
             throw PairingError.invalidURL
         }

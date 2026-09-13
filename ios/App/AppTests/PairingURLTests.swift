@@ -200,4 +200,64 @@ final class PairingURLTests: XCTestCase {
             "https://relay.example/s/server-1"
         )
     }
+
+    // MARK: - Shared pairing-URL conformance fixture
+
+    /**
+     * The shared pairing-URL conformance fixture (protocol/remote/v3/fixtures/
+     * pairing-url-cases.json) is asserted verbatim on desktop TS and Android
+     * too: the desktop reference implementation defines the canonical answers,
+     * and the fixture's documentedDifferences section carries the cases that
+     * legitimately differ per platform (query-token fallback on https links,
+     * custom-scheme links, normalizeEndpoint scheme strictness — pinned by the
+     * iOS-only tests above instead).
+     */
+    func testSharedPairingURLConformanceFixtures() throws {
+        let root = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: fixture("pairing-url-cases.json"))
+        ) as! [String: Any]
+
+        for entry in root["parseParts"] as! [[String: Any]] {
+            let name = entry["name"] as! String
+            let parsed = PairingURL.parseParts(entry["url"] as! String)
+            if (entry["expectNull"] as? Bool) == true {
+                XCTAssertNil(parsed, name)
+                continue
+            }
+            XCTAssertNotNil(parsed, name)
+            XCTAssertEqual(parsed?.token, entry["token"] as? String, name)
+            XCTAssertEqual(parsed?.host, entry["host"] as? String, name)
+        }
+
+        for entry in root["normalizeEndpoint"] as! [[String: Any]] {
+            let name = entry["name"] as! String
+            let normalized = try? PairingURL.normalizeEndpoint(entry["url"] as! String)
+            if (entry["expectInvalid"] as? Bool) == true {
+                XCTAssertNil(normalized, name)
+                continue
+            }
+            XCTAssertEqual(normalized, entry["endpoint"] as? String, name)
+        }
+
+        for entry in root["cleartextLanUrl"] as! [[String: Any]] {
+            let name = entry["name"] as! String
+            XCTAssertEqual(
+                PairingURL.isCleartextLanURL(entry["url"] as! String),
+                entry["cleartext"] as? Bool,
+                name
+            )
+        }
+    }
+
+    private var repoRoot: URL {
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+    }
+
+    private func fixture(_ name: String) throws -> Data {
+        try Data(contentsOf: repoRoot.appendingPathComponent("protocol/remote/v3/fixtures/\(name)"))
+    }
 }

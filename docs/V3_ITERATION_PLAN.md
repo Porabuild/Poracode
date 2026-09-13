@@ -374,6 +374,39 @@ link-dominated, so no reduction change is justified by this evidence; revisit
 when a ≥400-item-history workload variant violates a budget (the paged tail
 budget is the binding constraint there)._
 
+_Status 2026-09-13 (supporting lane): canonical native protocol policy + shared
+pairing fixtures landed. New machine-pinned fixture
+`protocol/remote/v3/fixtures/pairing-url-cases.json` — 14 `parseParts` cases
+(valid/invalid URLs, percent-encoded tokens and host params, userinfo decoys,
+whitespace/empty credentials, fragment-vs-query precedence, duplicate
+parameters), 12 `normalizeEndpoint` cases (host-param recursion, suffix
+stripping, relay base-path preservation, dev-port rewrite, invalid inputs), and
+8 `cleartextLanUrl` cases — asserted verbatim by all three platforms:
+`src/shared/remote/pairingUrl.test.ts` (desktop reference),
+`PairingUrlTest.sharedPairingUrlConformanceFixtures`, and
+`PairingURLTests.testSharedPairingURLConformanceFixtures`. The fixture caught
+and fixed one real native bug in the same change: iOS `normalizeEndpoint`
+accepted a bare `"https://"` because Foundation's parser reports an
+empty-string host (not nil), returning a degenerate `"https:"` endpoint; the
+guard now requires a non-empty host, matching the desktop reference (throws)
+and Android (rejects). The fixture also pinned a duplicate-parameter divergence
+fixed in the same change: Android resolved repeated query parameters to the
+LAST occurrence — a repeated `host=` could override the desktop endpoint — so
+`PairingUrl.parseQuery` now keeps the FIRST, matching `URLSearchParams.get`
+and iOS `first(where:)`. Five legitimate platform differences
+(query-token fallback on https links, mobile-only `poracode://` custom scheme,
+Android's 127.0.0.0/8 loopback scope + emulator alias, normalizeEndpoint
+scheme strictness, `+` decoding) are documented with rationale inside the
+fixture's `documentedDifferences` and pinned by platform-only tests.
+`protocol/remote/v3/NATIVE_PROTOCOL_POLICY.md` ties the machine-pinned policy
+surface together: manifest compatibility flags, the environment descriptor's
+auth policy and scope-narrowing rule (unknown server scopes filter, zero-known
+refused), the pairing grammar, and the change discipline requiring all three
+consumer suites to run with any `pairingUrl.ts` parity change. Gates: v3
+protocol vitest 61/61 + pairingUrl 10/10, typecheck/oxlint/oxfmt clean, full
+Android `:app:testDebugUnitTest :app:lintDebug` green (fixture test passing
+after the first-wins fix), full iOS AppTests green after the empty-host fix._
+
 Queue adoption and cursor-sync adoption can proceed independently. Protocol-policy
 and pairing-fixture work should accompany affected paths, not block unrelated native
 UI adoption. Prioritize queue parity because it is a new user-visible divergence;

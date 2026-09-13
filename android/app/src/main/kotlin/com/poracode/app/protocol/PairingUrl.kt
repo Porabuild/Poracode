@@ -329,15 +329,21 @@ object PairingUrl {
 
     private fun parseQuery(raw: String?): Map<String, String> {
         if (raw.isNullOrBlank()) return emptyMap()
-        return raw.split('&')
-            .mapNotNull { pair ->
-                if (pair.isEmpty()) return@mapNotNull null
-                val idx = pair.indexOf('=')
-                val key = if (idx >= 0) pair.substring(0, idx) else pair
-                val value = if (idx >= 0) pair.substring(idx + 1) else ""
-                decode(key) to decode(value)
+        val parsed = LinkedHashMap<String, String>()
+        for (pair in raw.split('&')) {
+            if (pair.isEmpty()) continue
+            val idx = pair.indexOf('=')
+            val key = if (idx >= 0) pair.substring(0, idx) else pair
+            val value = if (idx >= 0) pair.substring(idx + 1) else ""
+            // First occurrence wins, matching desktop URLSearchParams.get() and
+            // iOS queryItems first(where:) — a repeated parameter must never
+            // override the value an earlier one carried.
+            val decodedKey = decode(key)
+            if (!parsed.containsKey(decodedKey)) {
+                parsed[decodedKey] = decode(value)
             }
-            .toMap()
+        }
+        return parsed
     }
 
     private fun decode(value: String): String =
