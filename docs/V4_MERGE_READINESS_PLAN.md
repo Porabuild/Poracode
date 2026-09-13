@@ -709,6 +709,13 @@ Owner: server maintainer. Depends on Phase 0 compatibility decisions.
    diagnostics, backup, upgrade, and recovery. Prove installation outside the
    checkout without Electron or dev dependencies.
 
+The owner-control surface now also exposes authenticated `poracode-server
+status --json` inspection. It returns owner generation, lifecycle state, mode,
+protocol version, and endpoint without rotating pairing credentials. Electron
+must consume this description next and implement the attach versus managed-local
+start decision; the status command alone does not satisfy the attach acceptance
+criteria.
+
 Acceptance: concurrent desktop/server launches in both orders; separate roots;
 stale-lock recovery; old/master Electron already using the root in either startup
 order; attach/detach/restart; schedules and providers continuing with

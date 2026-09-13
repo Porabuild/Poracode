@@ -6,7 +6,10 @@ import { HostControlServer } from "@/backend/ownership/HostControlServer";
 import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { prepareOwnedHostRoot } from "@/backend/ownership/hostRootManifest";
-import { requestPairingFromRunningServer } from "./pairingControl";
+import {
+  requestHostStatusFromRunningServer,
+  requestPairingFromRunningServer,
+} from "./pairingControl";
 
 const cleanup: Array<() => Promise<void>> = [];
 
@@ -53,6 +56,19 @@ describe("pairing CLI owner adapter", () => {
     }
     expect(replies[0]!.requestId).not.toBe(replies[1]!.requestId);
     expect(test.issuePairing).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads owner status without rotating or minting a pairing credential", async () => {
+    const test = await fixture();
+    await test.control.start();
+    await expect(requestHostStatusFromRunningServer(test.profile)).resolves.toMatchObject({
+      description: {
+        mode: "headless",
+        state: "ready",
+        endpoint: "https://fixture.test/",
+      },
+    });
+    expect(test.issuePairing).not.toHaveBeenCalled();
   });
 
   it("does not signal or repair a legacy PID record when current control is unavailable", async () => {

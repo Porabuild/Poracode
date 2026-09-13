@@ -10,6 +10,10 @@ describe("parseServerCliCommand", () => {
     expect(parseServerCliCommand(["pair", "--json"])).toBe("pair-json");
   });
 
+  it("recognizes the authenticated owner status command", () => {
+    expect(parseServerCliCommand(["status", "--json"])).toBe("status-json");
+  });
+
   it.each(["--help", "-h", "help"])("recognizes %s without starting an owner", (argument) => {
     expect(parseServerCliCommand([argument])).toBe("help");
   });
