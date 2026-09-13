@@ -8,7 +8,7 @@ import {
   parseCdpPort,
 } from "./poracode-cdp-target.mjs";
 
-export const DEBUG_SESSION_SCHEMA_VERSION = 1;
+export const DEBUG_SESSION_SCHEMA_VERSION = 2;
 
 export function resolveSmokeRoot() {
   return resolve(process.env.PORACODE_SMOKE_ROOT ?? join(homedir(), ".poracode-smoke"));
@@ -241,6 +241,7 @@ function connectionFromSession(session) {
     repoRoot: session.repoRoot,
     root: session.root,
     mode: session.mode,
+    runtime: session.runtime ?? null,
   };
 }
 
@@ -270,7 +271,9 @@ function validateDebugSession(value, sessionFile) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`invalid debug session object in ${sessionFile}`);
   }
-  if (value.schemaVersion !== DEBUG_SESSION_SCHEMA_VERSION) {
+  // Version 1 used checkout-owned bundles. Keep it inspectable/stoppable, but
+  // the launcher refuses to reuse it as an isolated-runtime session.
+  if (value.schemaVersion !== 1 && value.schemaVersion !== DEBUG_SESSION_SCHEMA_VERSION) {
     throw new Error(`unsupported debug session schema in ${sessionFile}`);
   }
   for (const key of [
