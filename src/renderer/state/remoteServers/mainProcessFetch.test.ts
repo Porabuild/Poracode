@@ -65,7 +65,45 @@ describe("remote server fetch transport", () => {
     const response = await mainProcessFetch("https://host.example/api");
 
     expect(await response.text()).toBe("ok");
-    expect(remoteHttpRequest).toHaveBeenCalledWith({ url: "https://host.example/api" });
+    expect(remoteHttpRequest).toHaveBeenCalledWith({
+      url: "https://host.example/api",
+      requestId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
+    });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("propagates renderer aborts to the main-process request", async () => {
+    const deferred = Promise.withResolvers<never>();
+    const remoteHttpRequestCancel = vi.fn<() => Promise<void>>(async () => {
+      deferred.reject(new Error("cancelled"));
+    });
+    const electronBridge = {
+      arch: "x64",
+      remoteHttpRequest: vi.fn<() => Promise<never>>(async () => deferred.promise),
+      remoteHttpRequestCancel,
+    } as unknown as PoracodeBridge;
+    const host = {
+      clientRuntimeVersion: PORACODE_CLIENT_RUNTIME_VERSION,
+      ...electronBridge,
+      onSupervisorEvent: () => () => {},
+      onSupervisorEventGap: () => () => {},
+      onBackendRendererStreamChanged: () => () => {},
+      getBackendRendererStreamInfo: async () => null,
+      invokeProcedure: async (name: keyof PoracodeBridge, args: unknown[]) => {
+        const method = electronBridge[name] as unknown as (...input: unknown[]) => unknown;
+        return method(...args);
+      },
+    } as unknown as ElectronHostBridge;
+    installElectronClientRuntime(host);
+    const controller = new AbortController();
+    const pending = mainProcessFetch("https://host.example/api", { signal: controller.signal });
+    await vi.waitFor(() => expect(electronBridge.remoteHttpRequest).toHaveBeenCalledOnce());
+
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(remoteHttpRequestCancel).toHaveBeenCalledWith({
+      requestId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
+    });
   });
 });

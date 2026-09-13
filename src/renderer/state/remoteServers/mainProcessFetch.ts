@@ -31,30 +31,54 @@ export const mainProcessFetch: RemoteFetch = async (url, init) => {
       });
     }
   }
-  const result = await readBridge()
-    .remoteHttpRequest({
-      url: String(url),
-      ...(init?.method
-        ? {
-            method: init.method as NonNullable<IpcProcedurePayload<"remoteHttpRequest">["method"]>,
-          }
-        : {}),
-      ...(init?.headers ? { headers: init.headers } : {}),
-      ...(typeof init?.body === "string"
-        ? { body: init.body }
-        : init?.body
-          ? { bodyBase64: arrayBufferToBase64(init.body) }
+  const requestId = crypto.randomUUID();
+  const cancel = () => {
+    void readBridge()
+      .remoteHttpRequestCancel({ requestId })
+      .catch(() => undefined);
+  };
+  if (init?.signal?.aborted) {
+    cancel();
+    throw new DOMException("The remote request was cancelled.", "AbortError");
+  }
+  init?.signal?.addEventListener("abort", cancel, { once: true });
+  try {
+    const result = await readBridge()
+      .remoteHttpRequest({
+        url: String(url),
+        requestId,
+        ...(init?.method
+          ? {
+              method: init.method as NonNullable<
+                IpcProcedurePayload<"remoteHttpRequest">["method"]
+              >,
+            }
           : {}),
-    })
-    .catch((error: unknown) => {
-      throw new RemoteClientError(sharedMsg("remote.server.unreachable"), 0, "network", {
-        cause: error,
+        ...(init?.headers ? { headers: init.headers } : {}),
+        ...(typeof init?.body === "string"
+          ? { body: init.body }
+          : init?.body
+            ? { bodyBase64: arrayBufferToBase64(init.body) }
+            : {}),
+      })
+      .catch((error: unknown) => {
+        if (init?.signal?.aborted) {
+          throw new DOMException("The remote request was cancelled.", "AbortError");
+        }
+        throw new RemoteClientError(sharedMsg("remote.server.unreachable"), 0, "network", {
+          cause: error,
+        });
       });
+    const nullBody =
+      result.status < 200 ||
+      result.status === 204 ||
+      result.status === 205 ||
+      result.status === 304;
+    return new Response(nullBody ? null : result.body, {
+      status: result.status,
+      headers: result.headers,
     });
-  const nullBody =
-    result.status < 200 || result.status === 204 || result.status === 205 || result.status === 304;
-  return new Response(nullBody ? null : result.body, {
-    status: result.status,
-    headers: result.headers,
-  });
+  } finally {
+    init?.signal?.removeEventListener("abort", cancel);
+  }
 };

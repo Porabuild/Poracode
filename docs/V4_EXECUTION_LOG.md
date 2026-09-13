@@ -1308,6 +1308,14 @@ accepted by the backend remains tracked until it settles or shutdown drains it.
 The direct stream still needs a measured off-main bulk-transfer path and an
 explicit cancellation protocol before Phase 3 can close.
 
+The Electron remote HTTP fallback now includes a per-request UUID and a
+`remoteHttpRequestCancel` main-local procedure. Renderer abort signals cancel
+the corresponding main-process `fetch`, and completed or cancelled requests
+remove their controller from the bounded active map. The focused IPC/transport
+run passed 19 tests, with typecheck, touched oxlint, and formatting green. This
+releases cancelled network work; bulk response bytes still cross IPC and remain
+part of the off-main transport work.
+
 ## Phase 5 terminal-interest cardinality guard
 
 Review of the remote WebSocket path found that terminal watch IDs were stored in
