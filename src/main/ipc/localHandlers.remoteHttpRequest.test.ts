@@ -201,6 +201,27 @@ describe("local remoteHttpRequest handler", () => {
     });
   });
 
+  it("cancels an active request by renderer request id", async () => {
+    const requestId = "f7cf6f5a-bc12-4e3a-8d91-c0a602c350f0";
+    const fetchMock = vi.fn<FetchMock>(
+      (_url, init): Promise<Response> =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const handlers = makeHandlers();
+    const pending = handlers.remoteHttpRequest({
+      url: "https://remote.example.test/api/history",
+      requestId,
+    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+    await handlers.remoteHttpRequestCancel({ requestId });
+
+    await expect(pending).rejects.toThrow("Remote request cancelled.");
+  });
+
   it("routes a thread write only through the backend database owner", async () => {
     const callDatabase = vi.fn<() => Promise<void>>(async () => {});
     const database = { callDatabase } as unknown as BackendDatabaseCaller;

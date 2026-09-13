@@ -141,6 +141,7 @@ export async function showAddFilesDialog(
 export function createLocalIpcHandlers(
   options: CreateLocalIpcHandlersOptions,
 ): MainLocalIpcHandlerMap {
+  const pendingRemoteHttpRequests = new Map<string, AbortController>();
   const callService = options.backendServices.callService.bind(options.backendServices);
   const callDatabase = <Name extends BackendDatabaseProcedureName>(
     name: Name,
@@ -205,6 +206,12 @@ export function createLocalIpcHandlers(
         throw new Error(`remoteHttpRequest only supports http(s), got "${protocol}".`);
       }
       const controller = new AbortController();
+      if (payload.requestId !== undefined) {
+        if (pendingRemoteHttpRequests.has(payload.requestId)) {
+          throw new Error("A remote request with this id is already active.");
+        }
+        pendingRemoteHttpRequests.set(payload.requestId, controller);
+      }
       const timeout = setTimeout(() => controller.abort(), REMOTE_HTTP_REQUEST_TIMEOUT_MS);
       timeout.unref?.();
 
@@ -227,6 +234,10 @@ export function createLocalIpcHandlers(
         };
       } catch (error) {
         if (controller.signal.aborted) {
+          const reason = controller.signal.reason;
+          if (reason instanceof Error && reason.message === "Remote request cancelled.") {
+            throw reason;
+          }
           throw new Error(`Remote request timed out after ${REMOTE_HTTP_REQUEST_TIMEOUT_MS}ms.`, {
             cause: error,
           });
@@ -234,7 +245,13 @@ export function createLocalIpcHandlers(
         throw error;
       } finally {
         clearTimeout(timeout);
+        if (payload.requestId !== undefined) {
+          pendingRemoteHttpRequests.delete(payload.requestId);
+        }
       }
+    },
+    remoteHttpRequestCancel: ({ requestId }) => {
+      pendingRemoteHttpRequests.get(requestId)?.abort(new Error("Remote request cancelled."));
     },
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);

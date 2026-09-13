@@ -91,6 +91,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "readLocalImageFile",
   "createProjectDirectory",
   "remoteHttpRequest",
+  "remoteHttpRequestCancel",
   "openExternal",
   "openExternalNative",
   "openMicrophoneSettings",

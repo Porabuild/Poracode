@@ -101,6 +101,8 @@ export interface LegacyDataMigrationRequestResult {
  */
 export const remoteHttpRequestPayloadSchema = z.object({
   url: z.string().url(),
+  /** Correlates an Electron renderer request with its cancellation command. */
+  requestId: z.uuid().optional(),
   method: z.enum(["GET", "POST", "DELETE"]).optional(),
   headers: z.record(z.string(), z.string()).optional(),
   body: z.string().optional(),
@@ -115,12 +117,19 @@ export interface RemoteHttpRequestResult {
   readonly body: string;
 }
 
+export const remoteHttpRequestCancelPayloadSchema = z.object({ requestId: z.uuid() });
+
 export const appProcedures = {
   remoteHttpRequest: definePayloadProcedure<
     RemoteHttpRequestPayload,
     RemoteHttpRequestResult,
     "main-local"
   >("remoteHttpRequest", "main-local", remoteHttpRequestPayloadSchema),
+  remoteHttpRequestCancel: definePayloadProcedure<
+    z.infer<typeof remoteHttpRequestCancelPayloadSchema>,
+    void,
+    "main-local"
+  >("remoteHttpRequestCancel", "main-local", remoteHttpRequestCancelPayloadSchema),
   pickFolder: defineIpcProcedure<[string?], string | undefined, string | null, "main-local">(
     "pickFolder",
     "main-local",

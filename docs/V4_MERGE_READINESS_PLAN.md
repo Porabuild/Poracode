@@ -830,6 +830,11 @@ ownership contract is fixed.
    origin checks; do not broadly disable web security.
 5. Propagate cancellation and request identity. Stream binary chunks with bounded
    queues/transferable buffers instead of base64/full-body IPC copies.
+   Electron's remote HTTP fallback now carries a UUID request identity and a
+   narrow cancellation procedure; an aborted renderer request terminates the
+   main-process fetch and removes its controller from the active map. Binary
+   responses still use the existing bounded base64 fallback until the off-main
+   transport replaces it.
 6. Budget replies as well as events. `BackendRendererStream.sendReply` currently
    bypasses the event sender's buffered-budget path and accepts large responses.
    Bound pending requests, response size, bytes in flight, and cancellation.
