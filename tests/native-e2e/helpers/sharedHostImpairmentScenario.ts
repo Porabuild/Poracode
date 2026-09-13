@@ -275,7 +275,7 @@ export async function runImpairmentScenario(
           replayedApplicationBytes: replayBytes,
           readySeqAfterReconnect: replayer2.metrics.readySeq,
         },
-        hostWorkload: deps.sampler?.window(windowStartedAtMs, Date.now()) ?? null,
+        hostWorkload: (await deps.sampler?.window(windowStartedAtMs, Date.now())) ?? null,
         environment: deps.environment,
         warmupColdGitStatusMs: deps.warmupColdGitStatusMs,
       });

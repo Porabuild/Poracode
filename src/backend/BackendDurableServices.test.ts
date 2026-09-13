@@ -1,4 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { readSharedSettingsFile, writeSharedSettingsFile } from "@/main/sharedSettingsFile";
+import { RoutingOverridePersistence } from "@/supervisor/crossagentMcp/RoutingOverridePersistence";
+import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
+import { defaultSharedSettings } from "@/shared/settings";
 import { BackendDurableServices } from "./BackendDurableServices";
 import type { BackendDurableServicesOptions } from "./BackendDurableServices";
 
@@ -76,7 +83,9 @@ vi.mock("@/main/schedules", () => ({
   ensureHomeProjectRow: vi.fn<() => undefined>(),
 }));
 
-function createDurable(): BackendDurableServices {
+function createDurable(
+  overrides: Partial<BackendDurableServicesOptions> = {},
+): BackendDurableServices {
   return new BackendDurableServices({
     appVersion: "test",
     hostId: "device-1",
@@ -92,8 +101,156 @@ function createDurable(): BackendDurableServices {
     notifyUser: vi.fn<() => Promise<{ delivered: true }>>(async () => ({ delivered: true })),
     checkForUpdate: vi.fn<() => Promise<{ supported: true }>>(async () => ({ supported: true })),
     onGitPatch: () => {},
+    ...overrides,
   } as unknown as BackendDurableServicesOptions);
 }
+
+describe("headless routing durability", () => {
+  it("still confirms a persistence failure if diagnostic reporting itself throws", () => {
+    const error = new Error("Fixture persistence failed");
+    const confirm = vi.fn<() => Promise<null>>(async () => null);
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const durable = createDurable({
+      getSharedSettings: () => defaultSharedSettings,
+      writeSharedSettings: () => {
+        throw error;
+      },
+      supervisor: { call: confirm } as unknown as BackendDurableServicesOptions["supervisor"],
+      reportError: () => {
+        throw new Error("Fixture diagnostics failed");
+      },
+    });
+    try {
+      expect(() =>
+        durable.observeSupervisorEvent({
+          type: "crossagent-routing-override-changed",
+          requestId: "fixture-failure",
+          change: { action: "remove", tags: ["review"] },
+        }),
+      ).not.toThrow();
+      expect(confirm).toHaveBeenCalledExactlyOnceWith("confirmCrossagentRoutingOverride", {
+        requestId: "fixture-failure",
+        ok: false,
+        error: error.message,
+      });
+    } finally {
+      durable.dispose();
+      warning.mockRestore();
+    }
+  });
+
+  it("acknowledges a failed write as failure instead of hanging or reporting success", async () => {
+    const reportError = vi.fn<(error: unknown) => void>();
+    let durable!: BackendDurableServices;
+    const persistence = new RoutingOverridePersistence({
+      emit: (event) => durable.observeSupervisorEvent(event),
+      invalidateSettings: () => {},
+      timeoutMs: 25,
+    });
+    const confirm = vi.fn<(name: string, payload: unknown) => Promise<null>>(
+      async (_name, payload) => {
+        persistence.confirm(payload as ConfirmCrossagentRoutingOverridePayload);
+        return null;
+      },
+    );
+    const error = new Error("Fixture disk is read-only");
+    durable = createDurable({
+      hasRendererWindow: false,
+      supervisor: { call: confirm } as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => defaultSharedSettings,
+      writeSharedSettings: () => {
+        throw error;
+      },
+      reportError,
+    });
+    try {
+      await expect(persistence.persist({ action: "remove", tags: ["review"] })).rejects.toThrow(
+        error.message,
+      );
+      expect(confirm).toHaveBeenCalledExactlyOnceWith("confirmCrossagentRoutingOverride", {
+        requestId: expect.any(String),
+        ok: false,
+        error: error.message,
+      });
+      expect(reportError).toHaveBeenCalledExactlyOnceWith(error);
+    } finally {
+      persistence.dispose();
+      durable.dispose();
+    }
+  });
+
+  it("reports a rejected acknowledgement without leaking an unhandled rejection", async () => {
+    const error = new Error("Fixture supervisor stopped");
+    const reportError = vi.fn<(error: unknown) => void>();
+    const durable = createDurable({
+      getSharedSettings: () => defaultSharedSettings,
+      supervisor: {
+        call: vi.fn<() => Promise<never>>(async () => {
+          throw error;
+        }),
+      } as unknown as BackendDurableServicesOptions["supervisor"],
+      reportError,
+    });
+    try {
+      expect(
+        durable.observeSupervisorEvent({
+          type: "crossagent-routing-override-changed",
+          requestId: "fixture-request",
+          change: { action: "remove", tags: ["review"] },
+        }),
+      ).toBe(true);
+      await vi.waitFor(() => expect(reportError).toHaveBeenCalledExactlyOnceWith(error));
+    } finally {
+      durable.dispose();
+    }
+  });
+
+  it("persists and acknowledges set/remove without an Electron observer", async () => {
+    const root = mkdtempSync(join(tmpdir(), "routing-owner-"));
+    const settingsPath = join(root, "settings.json");
+    let durable!: BackendDurableServices;
+    const persistence = new RoutingOverridePersistence({
+      emit: (event) => durable.observeSupervisorEvent(event),
+      invalidateSettings: () => {},
+      timeoutMs: 25,
+    });
+    const confirm = vi.fn<(name: string, payload: unknown) => Promise<null>>(
+      async (name, payload) => {
+        expect(name).toBe("confirmCrossagentRoutingOverride");
+        // The acknowledgement must arrive after the real atomic file write.
+        expect(readSharedSettingsFile(settingsPath).crossagentRoutingOverrides).toEqual(expected);
+        persistence.confirm(payload as ConfirmCrossagentRoutingOverridePayload);
+        return null;
+      },
+    );
+    const override = {
+      tags: ["review"],
+      agentKind: "fixture-agent",
+      modelId: "small",
+      updatedAt: 1,
+    };
+    let expected = [override];
+    durable = createDurable({
+      hasRendererWindow: false,
+      supervisor: { call: confirm } as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => readSharedSettingsFile(settingsPath),
+      writeSharedSettings: (settings) => writeSharedSettingsFile(settingsPath, settings),
+    });
+    try {
+      await expect(persistence.persist({ action: "set", override })).resolves.toBeUndefined();
+      expect(readSharedSettingsFile(settingsPath).crossagentRoutingOverrides).toEqual([override]);
+      expected = [];
+      await expect(
+        persistence.persist({ action: "remove", tags: ["review"] }),
+      ).resolves.toBeUndefined();
+      expect(confirm).toHaveBeenCalledTimes(2);
+    } finally {
+      persistence.dispose();
+      durable.dispose();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("BackendDurableServices startIngress", () => {
   it("shares one start attempt across concurrent callers", async () => {

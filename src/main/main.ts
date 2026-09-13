@@ -55,11 +55,6 @@ import { readKeybindingsFile } from "./keybindingsFile";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import { shouldStartMinimized, syncWindowsStartupRegistration } from "./startupSettings";
 import { type PoracodePaths, resolvePoracodeBaseDir } from "@/shared/poracodePaths";
-import {
-  incrementCrossagentSelectionUsage,
-  removeCrossagentRoutingOverride,
-  upsertCrossagentRoutingOverride,
-} from "@/shared/crossagentRanking";
 import { getAppName } from "@/shared/appName";
 import { productNameFor, resolvePoracodeChannel } from "@/shared/channel";
 import {
@@ -71,7 +66,7 @@ import {
   type SupervisorEvent,
 } from "@/shared/ipc";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
-import { readSharedSettingsFile, writeSharedSettingsFile } from "./sharedSettingsFile";
+import { readSharedSettingsFile } from "./sharedSettingsFile";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
 import {
@@ -324,40 +319,6 @@ function syncStartupSettings(settings?: SharedSettings): void {
 function handleSharedSettingsChanged(settings: SharedSettings): void {
   primeBrowserAllowFlags(settings);
   syncStartupSettings(settings);
-}
-
-function recordCrossagentSelectionPreference(
-  event: Extract<SupervisorEvent, { type: "crossagent-selection-used" }>,
-): void {
-  const settingsPath = requirePoracodePaths().settingsPath;
-  const current = readSharedSettingsFile(settingsPath);
-  const next = {
-    ...current,
-    crossagentSelectionUsage: incrementCrossagentSelectionUsage(
-      current.crossagentSelectionUsage,
-      event.selections,
-    ),
-  };
-  writeSharedSettingsFile(settingsPath, next);
-  handleSharedSettingsChanged(next);
-  mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
-}
-
-function updateCrossagentRoutingOverride(
-  event: Extract<SupervisorEvent, { type: "crossagent-routing-override-changed" }>,
-): void {
-  const settingsPath = requirePoracodePaths().settingsPath;
-  const current = readSharedSettingsFile(settingsPath);
-  const next = {
-    ...current,
-    crossagentRoutingOverrides:
-      event.change.action === "set"
-        ? upsertCrossagentRoutingOverride(current.crossagentRoutingOverrides, event.change.override)
-        : removeCrossagentRoutingOverride(current.crossagentRoutingOverrides, event.change.tags),
-  };
-  writeSharedSettingsFile(settingsPath, next);
-  handleSharedSettingsChanged(next);
-  mainWindow?.webContents.send(IPC_EVENT_CHANNELS.sharedSettingsChanged, next);
 }
 
 function quickComposerWindowFor(event: Electron.IpcMainInvokeEvent): BrowserWindow | null {
@@ -774,34 +735,6 @@ if (!hasSingleInstanceLock) {
         _rendererDeliveredDirect: boolean,
         rendererSequence?: number,
       ): void => {
-        if (event.type === "crossagent-selection-used") {
-          try {
-            recordCrossagentSelectionPreference(event);
-          } catch (error) {
-            captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
-          }
-          return;
-        }
-        if (event.type === "crossagent-routing-override-changed") {
-          let errorMessage: string | undefined;
-          try {
-            updateCrossagentRoutingOverride(event);
-          } catch (error) {
-            errorMessage =
-              error instanceof Error ? error.message : "Unable to save the routing preference";
-            captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
-          }
-          void supervisorClient
-            .call("confirmCrossagentRoutingOverride", {
-              requestId: event.requestId,
-              ok: errorMessage === undefined,
-              ...(errorMessage ? { error: errorMessage } : {}),
-            })
-            .catch((error) => {
-              captureMainException(error, { "poracode.feature_area": "crossagents-routing" });
-            });
-          return;
-        }
         handleSupervisorEventForSleep(event);
         if (rendererSequence === undefined) {
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
@@ -1136,7 +1069,6 @@ if (!hasSingleInstanceLock) {
           ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
           updatePowerSaveBlocker,
           autoUpdater: autoUpdaterController,
-          onSharedSettingsChanged: handleSharedSettingsChanged,
           onKeybindingsChanged: (file) => quickComposerShortcutManager?.apply(file),
           setGlobalShortcutsSuspended: (suspended) => globalShortcut.setSuspended(suspended),
           setRendererEventInterests: async (interests, sender) => {

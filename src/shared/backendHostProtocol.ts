@@ -56,7 +56,9 @@ import type { PoracodeChannel } from "./channel";
 // truncation as one journaled operation, WS2 stage 4).
 // Version 6 / renderer stream 3 carry authoritative content.delta.replace.
 // Stale local peers would append replacements, so fence both delivery paths.
-export const BACKEND_HOST_PROTOCOL_VERSION = 6 as const;
+// Version 7 moves durable settings/routing ownership and acknowledgements out
+// of Electron main. Mixed owners could lose writes or count a selection twice.
+export const BACKEND_HOST_PROTOCOL_VERSION = 7 as const;
 export const BACKEND_RENDERER_STREAM_VERSION = 3 as const;
 
 export interface BackendRendererStreamInfo {
@@ -175,7 +177,25 @@ export interface BackendHostInitializePayload {
 
 export type BackendEventInterests = LiveEventInterests;
 
-export interface BackendServiceProcedureMap {
+export const BACKEND_SETTINGS_PROCEDURE_NAMES = [
+  "getSharedSettings",
+  "setSharedSettings",
+  "setAgentSecretSetting",
+  "removeCrossagentRoutingOverride",
+  "removeCrossagentMemoryEntry",
+  "updateCrossagentMemoryEntryTags",
+  "setProfileEnvironment",
+  "createProfile",
+] as const;
+export type BackendSettingsProcedureName = (typeof BACKEND_SETTINGS_PROCEDURE_NAMES)[number];
+type BackendSettingsProcedureMap = {
+  [Name in BackendSettingsProcedureName]: {
+    payload: Name extends "getSharedSettings" ? Record<string, never> : IpcProcedurePayload<Name>;
+    result: IpcProcedureResult<Name>;
+  };
+};
+
+export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap {
   getRemoteAccessPairing: { payload: Record<string, never>; result: RemoteAccessPairingInfo };
   refreshRemoteAccessPairing: { payload: Record<string, never>; result: RemoteAccessPairingInfo };
   setRemoteAccessEnabled: { payload: { enabled: boolean }; result: RemoteAccessPairingInfo };
@@ -221,6 +241,7 @@ export interface BackendServiceProcedureMap {
 }
 
 export const BACKEND_SERVICE_PROCEDURE_NAMES = [
+  ...BACKEND_SETTINGS_PROCEDURE_NAMES,
   "getRemoteAccessPairing",
   "refreshRemoteAccessPairing",
   "setRemoteAccessEnabled",

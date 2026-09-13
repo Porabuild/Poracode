@@ -41,7 +41,7 @@ export class RoutingOverridePersistence {
   }
 
   confirm(payload: ConfirmCrossagentRoutingOverridePayload): void {
-    // A late confirmation still means main touched the settings file. Refresh
+    // A late confirmation still means the backend touched the settings file. Refresh
     // even when the MCP caller already timed out and discarded its request.
     this.deps.invalidateSettings();
     const pending = this.pending.get(payload.requestId);

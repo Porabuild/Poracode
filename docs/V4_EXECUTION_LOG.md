@@ -8,17 +8,17 @@ obligations. No qualification gate has been waived.
 
 ## Execution state
 
-| Phase                                | State       | Evidence / next action                                                                                                                                                                                                                                                            |
-| ------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 — master integration and baselines | In progress | Master integrated at `42afd21c4`; fresh wire/cache boundaries, broad native/JS checks and desktop/web builds pass. Focused V2 fixes are being combined. Isolated tooling, full instrumentation, comparable master measurements, hosted CI and final manual baselines remain open. |
-| 1 — exclusive server ownership       | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                        |
-| 2 — operation safety and lifecycle   | In progress | Transport admission and shared-renderer outcome feedback are verified focused slices. All eight full work items and their acceptance scenarios remain open.                                                                                                                       |
-| 3 — off-main bulk transport          | Pending     | All six work items and acceptance scenarios remain open.                                                                                                                                                                                                                          |
-| 4 — off-thread client engine         | Pending     | All ten work items and acceptance scenarios remain open.                                                                                                                                                                                                                          |
-| 5 — server/relay fairness            | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                        |
-| 6 — bounded payloads                 | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                        |
-| 7 — browser/mobile-web lifecycle     | Pending     | All five work items and acceptance scenarios remain open.                                                                                                                                                                                                                         |
-| 8 — artifact/upgrade/soak/merge      | Pending     | All seven work items and acceptance scenarios remain open; no final freeze, merge to master, or promotion authorized by evidence yet.                                                                                                                                             |
+| Phase                                | State       | Evidence / next action                                                                                                                                                                                                                                                                       |
+| ------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 — master integration and baselines | In progress | Combined integration is on V2 at `7c0daf676`; compatibility, broad correctness checks and isolated tooling are verified at their recorded revisions. Full smoke exposed F23/F24. Complete instrumentation, comparable master measurements, hosted CI and final manual baselines remain open. |
+| 1 — exclusive server ownership       | In progress | Common root ownership/bootstrap and backend settings/routing persistence are in isolated implementation/review. No complete Phase 1 acceptance scenario is yet qualified; stale snapshots, all remaining file writers and credential/lifecycle work remain open.                             |
+| 2 — operation safety and lifecycle   | In progress | Admission and shared-renderer feedback are verified focused slices. Joined supervisor shutdown and stale-generation fencing are in review. Full operation identity/concurrency, descendant/process lifetime and recovery acceptance remain open.                                             |
+| 3 — off-main bulk transport          | Pending     | All six work items and acceptance scenarios remain open.                                                                                                                                                                                                                                     |
+| 4 — off-thread client engine         | Pending     | All ten work items and acceptance scenarios remain open.                                                                                                                                                                                                                                     |
+| 5 — server/relay fairness            | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                                   |
+| 6 — bounded payloads                 | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                                   |
+| 7 — browser/mobile-web lifecycle     | Pending     | All five work items and acceptance scenarios remain open.                                                                                                                                                                                                                                    |
+| 8 — artifact/upgrade/soak/merge      | Pending     | All seven work items and acceptance scenarios remain open; no final freeze, merge to master, or promotion authorized by evidence yet.                                                                                                                                                        |
 
 ## Rules for evidence and commits
 
@@ -310,3 +310,184 @@ restored the root links, and package resolution/native loading checks passed.
 The package/lockfile diff remained empty; root metric tests also passed again
 after repair. Before/after evidence is retained in the CI worktree. The no-shared-
 `node_modules` rule is added to the plan and the isolated testing skill.
+
+## F13 — isolated runtime tooling integrated
+
+F13 is fixed in `410197bd9` and merged with the controlled CI change into the
+combined V2 source at `7c0daf676`. The runner snapshots main/backend/supervisor,
+preload/workers, frozen development renderer, resources and the complete declared
+production dependency closure. Native helpers use a private Cargo target and the
+copied native modules pass Electron validation before artifact hashing. The
+previous ABI-swap hypothesis was rejected: current native modules use N-API;
+missing preparation/validation was the actual omission.
+
+Two isolated live sessions retained their own runtime hashes through a checkout
+rebuild, a throwing checkout sentinel and an owned backend restart. Stopping one
+left the other ready. Forced build cancellation and normal teardown joined all
+verified owned groups and closed their ports. Both independent critics accepted
+the final source; 21 CDP-tool tests and eight isolation/process fixtures passed.
+CI's 14 policy tests and the three memory-peak tests also passed after combination.
+Details and cleanup evidence are retained in
+`.tmp/v4-smoke-isolation/tmp/f13-evidence/REPORT.md` and `cleanup.json`.
+
+This closes the reproduced macOS development-runtime isolation defect. It does
+not qualify a packaged artifact, Windows teardown, application performance, or
+every existing smoke scenario against the new frozen renderer. The observed
+window-bounds write failure on process-group teardown is retained separately;
+normal app-quit behavior must be tested independently.
+
+## Combined full smoke — `7c0daf676`, failed with two coverage gaps
+
+A fresh managed full mock run built clean `7c0daf676` into its own runtime. The
+source hash was `95076d3378c903c440e491eb77a4b660e3bd703e5954a11664b06725648aa8a1`
+and artifact hash `377b11c2020d1026481683d8d87dbf304a5fdd4af1dd0586ca3bafff3c70ca83`.
+The retained session and report are under
+`/Users/svecherenko/.poracode-smoke/v4-integration-7c0daf676-full-01/`.
+
+Welcome dismissal, baseline, all 23 Settings sections, control geometry,
+schedules, GitHub Actions, search and browser scenarios passed. Fifteen of the
+seventeen deterministic mock gates passed; their report explicitly records the
+limited mocked assertions. The primary visually inspected the baseline, About
+and browser fixture screenshots. The interaction captured zero renderer console
+errors or runtime exceptions. Mock gates are not proof of real providers,
+speech/microphone use, PTY operation, authentication or remote-client journeys.
+
+The full run failed F23's voice source-URL import and F24's absent Quick Composer
+mock check. Both are now mandatory tooling follow-ups in the plan. The session
+owner completed teardown and marked schema-2 session state `stopped`; its runtime
+was removed. The process-group teardown again logged the main window-bounds write
+warning after backend exit. It does not establish that normal `app.quit()` has
+the same race. The full smoke is not green and must be repeated after the fixes.
+
+## F21 — asynchronous resource probes, verified focused slice
+
+Both existing helpers synchronously executed `ps` on the Node test client's event
+loop. A controlled wrapper added a 150 ms delay before a real system process
+probe. The original memory and host-load helpers produced maximum heartbeat gaps
+of 547.2 ms and 278.8 ms. After asynchronous serialized probes and awaited stop,
+the same driver recorded 12.2 ms and 13.5 ms gaps; starting the samplers returned
+in under 0.05 ms. Raw intervals and source hashes are in
+`tmp/v4-architecture-audit/sampler-delay-{before,after}.json` with the driver.
+Concurrent machine load differed between runs, so these numbers demonstrate the
+blocking boundary only and are not a controlled performance comparison.
+
+Seventeen initial focused helper tests passed, including a held probe with progressing
+client work, no overlap, stop/join, restart, failure accounting and retained peak
+memory semantics. Memory report version 3 and host-load version 2 distinguish
+this observer from prior reports. All four profile callers await pending probes
+before serializing their final summaries. Process CPU and the rest of Phase 0
+instrumentation remain open.
+
+The independent critic found that per-scenario windows could still serialize
+before a pending probe finished. Both a failed external probe and a controlled
+successful delayed probe showed zero samples/zero contamination before joining,
+then one contaminated sample afterward. Those records are retained under the
+owner worktree's `.tmp/v4-owner/sampler-window-join*`. Windows and summaries now
+capture their endpoint first and await the pending probe; the critic's repeated
+real-helper check confirmed the sample is included without extending that end.
+Two tests cover delayed successful and failed probe serialization.
+
+The primary then verified that raw per-client metric arrays could change after
+aggregate capture. A regression failed before copying them. Metrics version 2
+now freezes those arrays, and profile metrics are captured before awaiting the
+resource observer. The asynchronous wait cannot expand their measurement window.
+All 26 tests in the four helper suites pass; full typecheck, touched type-aware
+lint, format and diff checks pass. The independent critic accepted the final
+snapshot and window ordering. Final logs are `async-sampling-*-final.log` under
+`tmp/v4-architecture-audit/`; all new red evidence is preserved alongside the
+original observer-stall result. No application performance budget is qualified.
+
+## Phase 1 and Phase 2 ownership work started
+
+Three isolated lanes at the combined integration base are implementing the
+common root lease/bootstrap, backend settings/routing ownership, and supervisor
+join/fencing. The root design separates the legacy import source from a canonical
+host-owned sibling, holds an external kernel lease before mutation, and stages
+verified imports without activating copied automation. Desktop crypto remains
+native while key-file I/O belongs to the leased backend. The unattended-key and
+complete activation/migration requirements remain open.
+
+The first settings slice moves persistence and routing acknowledgement into the
+backend for both Electron and headless composition. Review exposed F22's false
+failure after a notification exception; red tests and the correction are in the
+same lane. Complete settings authority must include the supervisor ACP registry
+and CLI-hook-support writers, and reject conflicting stale client snapshots.
+
+The shutdown slice joins supervisor process/channel closure and already-owned
+checkpoint continuations before closing SQLite, and fences replaced-child
+messages. Its real final-IPC test covers POSIX; Windows currently uses forced
+process-tree termination. Descendant joins, graceful Windows shutdown, backend
+parent timeout and the remaining request drains must still be completed. None of
+these first slices closes its phase or establishes final merge readiness.
+
+## Reviewed ownership slices integrated
+
+`1941434fa` moves Electron settings commands and common headless routing
+persistence into the backend and fixes F22. Its 133 focused tests, full typecheck,
+both lint modes and independent critic passed. In a frozen isolated Electron
+session, real Appearance controls changed the theme; real IPC created/updated a
+profile with synthetic secrets. Backend reads, disk inspection and renderer
+reload agreed, and no plaintext secret was persisted. Selected smoke scenarios
+passed before and after reload with zero renderer/runtime errors. The owned
+session was stopped. Evidence is
+`.tmp/v4-settings-owner/tmp/v4-settings-owner/EVIDENCE.md`.
+
+`07e0ccfdc` adds joined supervisor shutdown and stale-child fencing, including
+the owned checkpoint continuation barrier. Its 76 focused tests, full typecheck,
+lint and primary review passed. Real disposable POSIX children prove delayed
+final IPC reaches SQLite before closure and an unresponsive leader is escalated
+and joined. The real SIGTERM fixture explicitly skips Windows; descendant joins,
+Windows graceful shutdown, parent quit deadlines and full request drains remain
+open. Evidence is `.tmp/v4-shutdown/tmp/f11-evidence/REPORT.md`. The two slices
+were combined with sampler correction `952aa83e1`; root `0354a0c68` passed 153
+tests across 18 affected suites and full typecheck. Host protocol is now 7;
+renderer stream 3 and remote 12 are unchanged.
+
+Lease/path helper `86c4d50ef` and its F25 correction `2adbbe58e` were integrated
+together as `7ab21fa43`. They remain unwired. Nineteen tests passed on root,
+including concurrent desktop/headless acquisition, crash recovery, replacement
+of the owned data directory, symlink-alias refusal, future-format refusal and
+three repeated same-process attempts followed by actual child contenders. The
+initial helper's six alias/metadata failures and F25 lock-loss failure are
+retained in the owner worktree. These tests qualify the helper, not startup
+ownership or safe import/activation as a whole.
+
+## Process CPU instrumentation — verified counter-accounting slice
+
+The two existing load profiles now also sample cumulative CPU counters for the
+root and its observed descendants, without retaining command lines. Accounting
+uses matching PID/start identities and monotonic sample intervals, preserves
+counter precision, and records lost exit tails, missing/replaced roots, counter
+regressions and a 4,096 historical-metric limit. The latest tree is separately
+bounded by the 8 MiB probe-output cap. This is partial observation; quantization
+can overstate a short interval, so it is not a strict lower bound. Unsupported
+platforms cannot report a valid zero.
+
+A disposable Node parent/child fixture reported 599.581 ms and 799.948 ms of CPU
+work via `process.cpuUsage`. Eleven external probes recorded 600 ms and 800 ms,
+with zero probe failures; both children were joined and their PIDs no longer
+existed. Raw data, source hashes and exact drivers are under
+`tmp/v4-architecture-audit/process-cpu-real*` and `cpu-fixture.mjs`. This is a
+counter-accounting check, not application performance qualification. Short-lived
+processes, exit tails, same-second PID reuse and probe timing/quantization remain
+explicit limitations. The independent critic accepted the accounting/stop wiring
+and corrected the lower-bound/retention wording above. In-process CPU/event-loop/
+GC, command/event correlation, queue metrics, compositor/input traces and
+controlled master comparisons remain open. Fourteen targeted tests, full
+typecheck and touched type-aware lint/format pass; logs are `process-cpu-*-final`
+under the same evidence directory. The final source differs from the real probe's
+recorded sampler hash only by the critic's correction of its lower-bound comment;
+the executed accounting code is unchanged. Linux formatting has parser coverage
+and was checked against the upstream procps manual; actual child evidence here
+is macOS. No Linux or Windows runtime measurement is claimed.
+
+## Further smoke findings in progress
+
+The F23 frozen voice loader now executes through bundled DEV imports. One full
+run passed its voice checks; a later full run failed at draft-button state and
+is being investigated, so stable full-suite voice coverage is not yet claimed.
+The Quick Composer native query confirmed actual hide/show transitions while DOM
+visibility stayed `visible`. Without granted OS focus, the renderer remained in
+`closing`; this is F26, now added to the plan for a native-show-driven reset.
+The QA driver will not fabricate focus/visibility events or acknowledge the
+remaining real shortcut, dragging, visual motion and provider manual gates.

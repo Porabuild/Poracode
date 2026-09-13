@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { configureSecretStorageKey } from "@/shared/secretStorage";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
   isDirectRendererDatabaseProcedure,
@@ -184,6 +185,7 @@ async function initialize(
 ): Promise<unknown> {
   if (backendHost) throw new Error("Backend host is already initialized.");
   const { baseDir, dbPath, supervisor } = request.payload;
+  configureSecretStorageKey(supervisor.secretStorageKey);
   backendHost = new BackendHostCore({
     baseDir,
     dbPath,
@@ -311,13 +313,13 @@ async function handleRequest(request: BackendHostRequest): Promise<unknown> {
     case "start-supervisor":
       supervisorExtraEnv = request.payload.extraEnv;
       await desktopServices?.prepareSupervisor();
-      host.startSupervisor();
+      await host.startSupervisor();
       await desktopServices?.startBackgroundServices();
       return null;
     case "restart-supervisor":
       supervisorExtraEnv = request.payload.extraEnv;
       await desktopServices?.prepareSupervisor();
-      host.restartSupervisor();
+      await host.restartSupervisor();
       await desktopServices?.startBackgroundServices();
       return null;
     case "call-supervisor": {
@@ -403,7 +405,7 @@ async function handleRequest(request: BackendHostRequest): Promise<unknown> {
       desktopServices = null;
       await rendererStream?.dispose();
       rendererStream = null;
-      host.dispose();
+      await host.dispose();
       backendHost = null;
       return null;
   }

@@ -79,6 +79,22 @@ function stubClient(metrics: {
 }
 
 describe("buildMetricsArtifact", () => {
+  it("freezes raw samples before awaiting observer completion", () => {
+    const raw = {
+      label: "c1",
+      controlLatenciesMs: { snapshot: [1] },
+      eventPropagationMs: [2],
+      mutationToEndToEndMs: [3],
+      wsPingRttMs: [4],
+    };
+    const artifact = buildMetricsArtifact([stubClient(raw)], {}) as unknown as MetricsArtifactView;
+    raw.eventPropagationMs.push(999);
+    raw.controlLatenciesMs.snapshot.push(999);
+    expect(artifact.perClient[0]?.eventPropagationMs).toEqual([2]);
+    expect(artifact.eventPropagation.count).toBe(1);
+    expect(artifact.controlLatency.snapshot?.count).toBe(1);
+  });
+
   it("retains raw per-client samples verbatim while summarizing coherently", () => {
     const raw = {
       label: "c1",
