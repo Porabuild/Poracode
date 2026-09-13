@@ -98,6 +98,7 @@ import {
   filterRemoteThreadEvents,
   shouldRefreshRemoteAgentStatusesAfterEvent,
   shouldRefreshRemoteServerAfterEvent,
+  type ThreadIdMatcher,
 } from "@/renderer/state/remoteServers/eventRouting";
 import { syncRemoteGitSummaries } from "@/renderer/state/remoteServers/gitSummaries";
 import { waitForHostUpdateReconnect } from "@/renderer/state/remoteServers/hostUpdateReconnect";
@@ -173,6 +174,22 @@ import { createSecureRemoteServersStorage } from "@/renderer/state/remoteServers
  * against a freshly parsed twin. Entries die with their row object.
  */
 const rowFingerprints = new WeakMap<object, string>();
+
+/**
+ * The event socket receives one frame per provider update, while the runtime
+ * thread list changes much less often. Cache its membership index by array
+ * identity so a hot stream does not rebuild O(thread-count) Sets for every
+ * frame. A new runtime snapshot gets a new array and therefore a fresh index.
+ */
+const threadIdIndexes = new WeakMap<readonly { readonly id: string }[], ReadonlySet<string>>();
+
+function cachedThreadIds(threads: readonly { readonly id: string }[]): ReadonlySet<string> {
+  const cached = threadIdIndexes.get(threads);
+  if (cached) return cached;
+  const index = new Set(threads.map((thread) => thread.id));
+  threadIdIndexes.set(threads, index);
+  return index;
+}
 
 function fingerprintRow(row: object): string {
   let json = rowFingerprints.get(row);
@@ -1012,10 +1029,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   const nextSeq = Math.max(remoteServerSnapshotSeq(server.desktopId), message.seq);
                   setRemoteServerSnapshotSeq(server.desktopId, nextSeq);
                   const open = get().openThread;
-                  const remoteThreadIds = new Set(
-                    get().runtime[server.desktopId]?.threads.map((thread) => thread.id) ?? [],
-                  );
                   const appState = useAppStore.getState();
+                  const runtimeThreadIds = cachedThreadIds(
+                    get().runtime[server.desktopId]?.threads ?? [],
+                  );
+                  const additionalRemoteThreadIds = new Set<string>();
                   if (Object.keys(appState.provisioningWorktreeThreadIds).length > 0) {
                     for (const thread of appState.threads) {
                       if (
@@ -1023,12 +1041,12 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                         thread.remoteServerId === server.desktopId &&
                         thread.remoteId
                       ) {
-                        remoteThreadIds.add(thread.remoteId);
+                        additionalRemoteThreadIds.add(thread.remoteId);
                       }
                     }
                   }
                   if (open?.desktopId === server.desktopId) {
-                    remoteThreadIds.add(open.threadId);
+                    additionalRemoteThreadIds.add(open.threadId);
                   }
                   // Background visible panes keep independent live subscriptions
                   // via additive interests. They must survive even when the
@@ -1037,8 +1055,12 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   // would drop every background pane's events until its row
                   // arrived in the runtime list.
                   for (const interest of currentRemoteServerThreadItemInterests(server.desktopId)) {
-                    remoteThreadIds.add(interest);
+                    additionalRemoteThreadIds.add(interest);
                   }
+                  const remoteThreadIds: ThreadIdMatcher = {
+                    has: (threadId) =>
+                      runtimeThreadIds.has(threadId) || additionalRemoteThreadIds.has(threadId),
+                  };
                   const terminalEvent = message.event as {
                     type?: unknown;
                     threadId?: unknown;
