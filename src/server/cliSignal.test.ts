@@ -42,7 +42,7 @@ beforeAll(async () => {
                 ? "export const startNodePerformanceDiagnostics = () => ({stop: () => globalThis.__cliFixture.stopDiagnostics()});"
                 : args.path.endsWith("headlessRemoteComposition")
                   ? "export class HeadlessCompositionShutdownError extends AggregateError {}"
-                  : "export const requestPairingFromRunningServer = () => { throw new Error('Pairing is outside this fixture.'); };";
+                  : "export const requestPairingFromRunningServer = () => { throw new Error('Pairing is outside this fixture.'); }; export const requestHostStatusFromRunningServer = () => { throw new Error('Status is outside this fixture.'); };";
             return { contents, loader: "js" };
           });
         },

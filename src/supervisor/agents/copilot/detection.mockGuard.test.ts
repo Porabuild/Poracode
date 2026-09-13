@@ -85,7 +85,7 @@ function mockSessionEnv(): void {
 }
 
 function realModeEnv(): void {
-  vi.stubEnv(MOCK_AGENTS_ENV, "");
+  vi.stubEnv(MOCK_AGENTS_ENV, "0");
 }
 
 function sentinelRan(): string | undefined {
