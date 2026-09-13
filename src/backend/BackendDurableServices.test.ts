@@ -8,12 +8,15 @@ import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/proce
 import { defaultSharedSettings } from "@/shared/settings";
 import { BackendDurableServices } from "./BackendDurableServices";
 import type { BackendDurableServicesOptions } from "./BackendDurableServices";
+import { dbUpsertThread } from "@/main/db";
+import { agentStatusesResponseSchema, type ScheduledTask } from "@/shared/contracts";
 
 const mocks = vi.hoisted(() => ({
   ingressInstances: [] as Array<{
     info: { url: string; token: string } | null;
     start: ReturnType<typeof vi.fn<() => Promise<{ url: string; token: string }>>>;
   }>,
+  runScheduleTask: null as ((task: ScheduledTask) => Promise<string>) | null,
 }));
 
 vi.mock("@/main/db", () => ({
@@ -72,16 +75,22 @@ vi.mock("@/main/prWatch", () => ({
   }),
 }));
 
-vi.mock("@/main/schedules", () => ({
-  ScheduleRunCoordinator: class {
-    observeSupervisorEvent = () => {};
-  },
-  createDeviceScheduleService: () => ({
-    start: () => {},
-    dispose: () => {},
-  }),
-  ensureHomeProjectRow: vi.fn<() => undefined>(),
-}));
+vi.mock("@/main/schedules", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/main/schedules")>();
+  return {
+    ScheduleRunCoordinator: actual.ScheduleRunCoordinator,
+    createDeviceScheduleService: (options: { runTask(task: ScheduledTask): Promise<string> }) => {
+      mocks.runScheduleTask = options.runTask;
+      return { start: () => {}, dispose: () => {} };
+    },
+    ensureHomeProjectRow: () => ({
+      id: "fixture-home",
+      name: "Fixture",
+      location: { kind: "posix", path: "/synthetic" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    }),
+  };
+});
 
 function createDurable(
   overrides: Partial<BackendDurableServicesOptions> = {},
@@ -253,6 +262,68 @@ describe("headless routing durability", () => {
 });
 
 describe("BackendDurableServices startIngress", () => {
+  it("cancels a schedule waiting for capabilities and joins its continuation before disposal resolves", async () => {
+    const lookup = Promise.withResolvers<ReturnType<typeof agentStatusesResponseSchema.parse>>();
+    const entered = Promise.withResolvers<void>();
+    const call = vi.fn<(name: string, payload: unknown) => Promise<unknown>>((name) => {
+      if (name === "getAgentStatuses") {
+        entered.resolve();
+        return lookup.promise;
+      }
+      return Promise.resolve({});
+    });
+    const durable = createDurable({
+      supervisor: { call } as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => defaultSharedSettings,
+    });
+    const task: ScheduledTask = {
+      id: "fixture-schedule",
+      name: "Fixture",
+      prompt: "Synthetic task",
+      agentKind: "fixture-agent",
+      config: { model: "fixture-model" },
+      recurrence: { kind: "hourly", minute: 0 },
+      enabled: true,
+      nextRunAt: null,
+      lastRunAt: null,
+      lastCompletedAt: null,
+      lastStatus: "never",
+      lastResult: null,
+      lastError: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const completion = mocks.runScheduleTask!(task);
+    void completion.catch(() => undefined);
+    await entered.promise;
+    let disposed = false;
+    const disposal = Promise.resolve(durable.dispose()).then(() => {
+      disposed = true;
+    });
+    await Promise.resolve();
+    expect.soft(disposed).toBe(false);
+    lookup.resolve(agentStatusesResponseSchema.parse({ fromCache: true, windows: [], wsl: [] }));
+    await disposal;
+    // Also lets the pre-fix composition's abandoned coordinator continuation run.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect.soft(dbUpsertThread).not.toHaveBeenCalled();
+    expect.soft(call.mock.calls.filter(([name]) => name === "startThread")).toHaveLength(0);
+    // Settle the old implementation's synthetic run so a red does not leave
+    // a pending fixture promise; the fixed coordinator has already interrupted it.
+    const launched = call.mock.calls.find(([name]) => name === "startThread")?.[1] as
+      | { threadId: string }
+      | undefined;
+    if (launched)
+      durable.observeSupervisorEvent({
+        type: "thread-state",
+        threadId: launched.threadId,
+        status: "finished",
+        attention: "none",
+        canResumeWithConfig: false,
+      });
+    await completion.catch(() => undefined);
+  });
+
   it("shares one start attempt across concurrent callers", async () => {
     const durable = createDurable();
     const ingress = mocks.ingressInstances[mocks.ingressInstances.length - 1]!;

@@ -1,3 +1,4 @@
+import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import {
   dbDeleteThread,
   dbGetProject,
@@ -57,6 +58,8 @@ export interface BackendDurableServicesOptions {
 
 /** Shared durable service graph used by both desktop BackendHost and headless server. */
 export class BackendDurableServices {
+  private disposed = false;
+  private disposal: Promise<void> | null = null;
   readonly scheduleCoordinator: ScheduleRunCoordinator;
   readonly scheduleService: ScheduleService;
   readonly prWatchService: PrWatchService;
@@ -162,6 +165,7 @@ export class BackendDurableServices {
   }
 
   getSupervisorExtraEnv(): Record<string, string> {
+    if (this.disposed) return {};
     const info = this.appControls.getInfo();
     return info
       ? {
@@ -180,6 +184,8 @@ export class BackendDurableServices {
    * permanently ingress-less.
    */
   startIngress(): Promise<void> {
+    if (this.disposed)
+      return Promise.reject(new Error("Backend durable services are shutting down."));
     this.ingressStart ??= this.appControls.start().then(
       () => undefined,
       (error: unknown) => {
@@ -191,7 +197,7 @@ export class BackendDurableServices {
   }
 
   startBackgroundServices(): void {
-    if (this.backgroundStarted) return;
+    if (this.disposed || this.backgroundStarted) return;
     this.backgroundStarted = true;
     this.scheduleService.start();
     this.prWatchService.start();
@@ -199,6 +205,7 @@ export class BackendDurableServices {
   }
 
   observeSupervisorEvent(event: SupervisorEvent): boolean {
+    if (this.disposed) return true;
     if (observeRoutingSettingsEvent(this.options, event)) return true;
     this.appControls.observeSupervisorEvent(event);
     this.scheduleCoordinator.observeSupervisorEvent(event);
@@ -207,10 +214,23 @@ export class BackendDurableServices {
     return false;
   }
 
-  dispose(): void {
-    this.scheduleService.dispose();
-    this.prWatchService.dispose();
-    this.gitStateService.dispose();
-    this.appControls.dispose();
+  dispose(): Promise<void> {
+    if (this.disposal) return this.disposal;
+    this.disposed = true;
+    const barrier = Promise.withResolvers<void>();
+    this.disposal = barrier.promise;
+    // Every stop runs synchronously before joining, even if another stop throws.
+    // The composition stops the supervisor concurrently while keeping SQLite open.
+    void joinRuntimeShutdown(
+      [
+        () => this.scheduleService.dispose(),
+        () => this.scheduleCoordinator.dispose(),
+        () => this.prWatchService.dispose(),
+        () => this.gitStateService.dispose(),
+        () => this.appControls.dispose(),
+      ],
+      "Backend durable services did not shut down cleanly.",
+    ).then(barrier.resolve, barrier.reject);
+    return this.disposal;
   }
 }

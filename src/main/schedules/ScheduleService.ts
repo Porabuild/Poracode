@@ -51,10 +51,12 @@ export class ScheduleService {
   }
 
   list(): ScheduledTask[] {
+    this.assertOpen();
     return this.options.store.list();
   }
 
   get(id: string): ScheduledTask | null {
+    this.assertOpen();
     return this.options.store.get(id);
   }
 
@@ -64,6 +66,7 @@ export class ScheduleService {
   }
 
   create(input: ScheduledTaskInput): ScheduledTask {
+    this.assertOpen();
     const parsed = this.normalizeInput(input);
     const now = this.now();
     const { enabled, nextRunAt } = this.resolveEnablement(parsed.recurrence, parsed.enabled, now);
@@ -101,6 +104,7 @@ export class ScheduleService {
   }
 
   delete(id: string): void {
+    this.assertOpen();
     this.options.store.delete(id);
   }
 
@@ -220,9 +224,14 @@ export class ScheduleService {
   }
 
   private requireTask(id: string): ScheduledTask {
+    this.assertOpen();
     const task = this.options.store.get(id);
     if (!task) throw new Error("Scheduled task not found.");
     return task;
+  }
+
+  private assertOpen(): void {
+    if (this.disposed) throw new Error("Schedule service is shutting down.");
   }
 
   private now(): number {
