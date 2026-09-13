@@ -40,6 +40,7 @@ async function contender(profile: string, kind: "desktop" | "headless") {
     [profile, kind],
     {
       execArgv: [
+        "--expose-gc",
         "--experimental-transform-types",
         "--disable-warning=ExperimentalWarning",
         "--import",
@@ -137,6 +138,23 @@ describe("host profile namespace", () => {
 });
 
 describe("host owner kernel lease", () => {
+  it("retains abandoned ownership until the process exits instead of releasing through GC", async () => {
+    const profile = namespace();
+    const holder = await contender(profile, "headless");
+    expect(holder.result.status).toBe("owned");
+    const abandoned = once(holder.child, "message");
+    holder.child.send("abandon");
+    await abandoned;
+    expect((await contender(profile, "desktop")).result).toMatchObject({
+      status: "refused",
+      code: "HOST_ROOT_IN_USE",
+    });
+    const exited = once(holder.child, "exit");
+    holder.child.kill("SIGKILL");
+    await exited;
+    expect((await contender(profile, "desktop")).result.status).toBe("owned");
+  });
+
   it("admits exactly one owner when desktop and headless launch together", async () => {
     const profile = namespace();
     const attempts = await Promise.all([
