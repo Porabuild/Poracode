@@ -1012,3 +1012,43 @@ the separately reviewed shared push lifetime/token correction `cf89df25a` as
 thirteen suites and full typecheck. The Desktop composition still has its own
 review and real-app gate. These checks do not qualify the complete process
 shutdown or performance gates.
+
+## F37/F39 — shared push lifetime and Desktop retirement
+
+The shared push correction `cf89df25a`, merged as `bcf4be8d7`, retains active
+delivery continuations and clears both platform debounce timers when admission
+closes. Disposal returns the same join promise, including when a gateway callback
+re-enters disposal; parallel delivery branches are all joined after a sibling
+fails. Exact registration identity and the token or web subscription actually
+sent now guard pruning after an unregistered response. The independent critic
+matched all seven frozen source files and passed 56 tests across five suites.
+The actual headless stale-token probe preserved its replacement registration
+after the fix. Push registration format 2 and gateway wire/result shapes remain
+compatible; these changes do not cancel a delivery already accepted remotely.
+
+Root's Desktop composition then reproduced four premature-settlement cases with
+the actual coordinator and disposable registration files: final stop, disable
+followed by final stop, restart, and HTTP failure while push remained pending.
+The gateway, database reads and HTTP server were synthetic. Typed before evidence
+is retained in `tmp/v4-architecture-audit/desktop-push-before-typed.log`.
+
+Desktop now stops coordinators before dropping their references, retains all
+retiring generations and their failures, waits for retirement before opening a
+replacement, and joins startup plus current and previously disabled HTTP/push
+work on final disposal. A single lazy registration store serves the controller's
+generations. The extracted lifecycle module owns the retirement barrier and
+preserves the existing server-start cleanup. Tailscale teardown remains joined
+on ordinary disable/restart; final application shutdown preserves its historical
+Serve configuration behavior.
+
+The final focused group passes 27 tests across two suites, including held HTTP
+work from a disabled generation and a failed retirement whose promise had already
+settled. Root's broader combined push group passes 123 tests across thirteen
+suites, full typecheck and both touched lint modes. The independent critic
+matched all four frozen Desktop hashes before and after its own 27-test run and
+found no Important or material simplification issue. Its evidence is
+`desktop-push-independent-critic.log` beside the frozen manifest and tracked diff.
+No wire, settings or registration format changes were needed. This qualifies the
+controller and shared push scope only: real Electron integration, headless
+activation, main/native execution, outer deadlines and the complete shutdown and
+performance gates remain open.

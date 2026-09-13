@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
 import type { BrowserPanelManager } from "../browser";
 import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "../db";
 import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
@@ -53,6 +54,11 @@ import {
 import { RemoteBrowserGateway, type RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
 import { createRemoteMcpSettingsGateway } from "./RemoteMcpSettingsGateway";
 import { ThreadNotificationPublisher } from "./ThreadNotificationPublisher";
+import {
+  disposeAttemptServer,
+  RemoteAccessRetirements,
+  type RemoteAccessStartAttempt,
+} from "./remoteAccessLifecycle";
 import {
   buildTailscaleHttpsUrl,
   disableTailscaleServe,
@@ -112,10 +118,7 @@ export interface DesktopRemoteAccessController {
   setTailscaleHttps(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   startTailscale(): Promise<StartTailscaleResult>;
   setAdvertisedUrl(url: string): Promise<RemoteAccessPairingInfo>;
-  /**
-   * Starts the same best-effort shutdown main.ts historically performed during
-   * `before-quit`: server close is not awaited before forwarding is disposed.
-   */
+  /** Stop admission and join current and previously retiring remote work. */
   dispose(): Promise<void>;
 }
 
@@ -155,23 +158,9 @@ function remoteAccessStartupDiagnostic(
   return { error, tags: { "poracode.feature_area": "remote-access" } };
 }
 
-interface RemoteAccessStartAttempt {
-  readonly generation: number;
-  readonly promise: Promise<RemoteAccessServerInfo>;
-  cancelled: boolean;
-  server: RemoteAccessServer | null;
-  serverStartPromise: Promise<RemoteAccessServerInfo> | null;
-  serverDisposalPromise: Promise<void> | null;
-  forwarding: PortForwarding | null;
-  coordinator: PushCoordinator | null;
-  tailscaleServeUrl: string | null;
-  tailscaleTeardownPromise: Promise<void> | null;
-}
-
 /**
- * Owns the desktop-only remote-access composition and its restartable state.
- * Electron remains the lifecycle owner: constructing this controller performs
- * no I/O and callers decide when boot restoration and final disposal happen.
+ * Owns remote services for a desktop-managed backend and their restartable state.
+ * Construction performs no I/O; callers own boot restoration and final disposal.
  */
 export function createDesktopRemoteAccessController(
   options: DesktopRemoteAccessControllerOptions,
@@ -188,6 +177,15 @@ export function createDesktopRemoteAccessController(
   let remoteGitSummaries: RemoteGitSummaries = {};
   let disposePromise: Promise<void> | null = null;
   let gitStatePrewarmed = false;
+  const retirements = new RemoteAccessRetirements();
+  // Retiring HTTP callbacks and replacement listeners share one lazy cache.
+  const pushStore = new PushRegistrationStore(options.paths.baseDir);
+  const clearEventInterests = () =>
+    options.notifyEventInterestsChanged({
+      terminalThreadIds: [],
+      runtimeThreadIds: [],
+      allRuntimeEvents: false,
+    });
   const threadNotifications = new ThreadNotificationPublisher({
     getThread: dbGetThread,
     getProjectName: (projectId) => dbGetProject(projectId)?.name ?? "Project",
@@ -308,44 +306,12 @@ export function createDesktopRemoteAccessController(
     return attempt.tailscaleTeardownPromise;
   };
 
-  /**
-   * A close issued while `server.start()` is pending is not sufficient for a
-   * transport that completes startup afterward. Close immediately, then wait
-   * for startup to settle and close once more if it nevertheless became live.
-   */
-  const disposeAttemptServer = (attempt: RemoteAccessStartAttempt): Promise<void> => {
-    if (attempt.serverDisposalPromise) return attempt.serverDisposalPromise;
-    const server = attempt.server;
-    if (!server) return Promise.resolve();
-
-    attempt.serverDisposalPromise = (async () => {
-      let disposalError: unknown;
-      try {
-        await server.dispose();
-      } catch (error) {
-        disposalError = error;
-      }
-      await attempt.serverStartPromise?.catch(() => {});
-      if (server.getInfo()) {
-        try {
-          await server.dispose();
-        } catch (error) {
-          disposalError ??= error;
-        }
-      }
-      if (disposalError) {
-        throw disposalError instanceof Error
-          ? disposalError
-          : new Error(toErrorMessage(disposalError), { cause: disposalError });
-      }
-    })();
-    return attempt.serverDisposalPromise;
-  };
-
   const performRemoteAccessStart = async (
     attempt: RemoteAccessStartAttempt,
   ): Promise<RemoteAccessServerInfo> => {
     try {
+      if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
+      await retirements.drain();
       if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
 
       remoteTailscaleServeActiveUrl = null;
@@ -387,7 +353,6 @@ export function createDesktopRemoteAccessController(
         ...(forwardOrigin ? { forwardOrigin } : {}),
       });
       attempt.forwarding = portForwarding;
-      const pushStore = new PushRegistrationStore(options.paths.baseDir);
       const pushGatewayOptions = {
         onError: (error: unknown) =>
           options.reportError(error, { "poracode.feature_area": "remote-push" }),
@@ -499,7 +464,12 @@ export function createDesktopRemoteAccessController(
       console.log("[poracode] remote pairing URL: %s", info.pairingUrl);
       return info;
     } catch (error) {
-      await disposeAttemptServer(attempt).catch(() => {});
+      let shutdownFailure: unknown;
+      await retirements
+        .run([() => disposeAttemptServer(attempt), () => attempt.coordinator?.dispose()])
+        .catch((failure: unknown) => {
+          shutdownFailure = failure;
+        });
       // Final application shutdown intentionally leaves `tailscale serve`
       // configured, matching the historical before-quit behavior. An ordinary
       // disable or failed start still tears down a mapping owned by this attempt.
@@ -516,6 +486,9 @@ export function createDesktopRemoteAccessController(
         portForwarding = null;
         attempt.forwarding?.dispose();
       }
+
+      if (shutdownFailure)
+        throw new AggregateError([error, shutdownFailure], toErrorMessage(error), { cause: error });
 
       const superseded = !isCurrentStartAttempt(attempt);
       if (!superseded) {
@@ -570,10 +543,10 @@ export function createDesktopRemoteAccessController(
   };
 
   /** Best-effort teardown of a Tailscale mapping established by this process. */
-  const teardownTailscaleServe = () => {
-    if (!remoteTailscaleServeActiveUrl) return;
+  const teardownTailscaleServe = (): Promise<void> => {
+    if (!remoteTailscaleServeActiveUrl) return Promise.resolve();
     remoteTailscaleServeActiveUrl = null;
-    void disableTailscaleServe().catch(() => {});
+    return disableTailscaleServe().catch(() => {});
   };
 
   const stopRemoteAccessServer = () => {
@@ -581,37 +554,33 @@ export function createDesktopRemoteAccessController(
     remoteAccessGeneration += 1;
     if (attempt) attempt.cancelled = true;
     const server = remoteAccessServer ?? attempt?.server ?? null;
+    const coordinator = pushCoordinator ?? attempt?.coordinator ?? null;
     const forwarding = portForwarding;
     remoteAccessServer = null;
     pushCoordinator = null;
     portForwarding = null;
-    void Promise.resolve(
-      options.notifyEventInterestsChanged({
-        terminalThreadIds: [],
-        runtimeThreadIds: [],
-        allRuntimeEvents: false,
-      }),
-    ).catch(() => {});
-    if (attempt?.tailscaleServeUrl) {
-      void teardownAttemptTailscaleServe(attempt);
-    } else {
-      teardownTailscaleServe();
-    }
-    if (!server) {
-      forwarding?.dispose();
-      return;
-    }
     // Full disable keeps forwarding alive until in-flight HTTP requests finish.
-    const serverDisposal =
-      attempt?.server === server ? disposeAttemptServer(attempt) : server.dispose();
-    void serverDisposal
+    void retirements
+      .run([
+        async () => {
+          try {
+            if (server)
+              await (attempt?.server === server ? disposeAttemptServer(attempt) : server.dispose());
+          } finally {
+            forwarding?.dispose();
+          }
+        },
+        () => coordinator?.dispose(),
+        clearEventInterests,
+        () =>
+          attempt?.tailscaleServeUrl
+            ? teardownAttemptTailscaleServe(attempt)
+            : teardownTailscaleServe(),
+      ])
       .then(() => console.log("[poracode] remote access disabled"))
       .catch((error) =>
         console.warn("[poracode] remote access failed to stop cleanly:", toErrorMessage(error)),
-      )
-      .finally(() => {
-        forwarding?.dispose();
-      });
+      );
   };
 
   const restartRemoteAccessServer = async (): Promise<void> => {
@@ -624,12 +593,14 @@ export function createDesktopRemoteAccessController(
     }
     if (disposed || restartGeneration !== remoteAccessGeneration) return;
     const server = remoteAccessServer;
+    const coordinator = pushCoordinator;
     remoteAccessServer = null;
-    if (remoteTailscaleServeActiveUrl) {
-      remoteTailscaleServeActiveUrl = null;
-      await disableTailscaleServe().catch(() => {});
-    }
-    if (server) await server.dispose().catch(() => {});
+    pushCoordinator = null;
+    await retirements.run([
+      () => server?.dispose(),
+      () => coordinator?.dispose(),
+      teardownTailscaleServe,
+    ]);
     if (disposed || restartGeneration !== remoteAccessGeneration) return;
     try {
       await startRemoteAccessServer();
@@ -793,36 +764,41 @@ export function createDesktopRemoteAccessController(
     setAdvertisedUrl,
     dispose: () => {
       if (disposePromise) return disposePromise;
+      const barrier = Promise.withResolvers<void>();
+      disposePromise = barrier.promise;
       disposed = true;
       remoteAccessGeneration += 1;
       const attempt = remoteAccessStartAttempt;
       if (attempt) attempt.cancelled = true;
       const server = remoteAccessServer ?? attempt?.server ?? null;
+      const coordinator = pushCoordinator ?? attempt?.coordinator ?? null;
       const forwarding = portForwarding;
       remoteAccessServer = null;
       pushCoordinator = null;
       portForwarding = null;
-      void Promise.resolve(
-        options.notifyEventInterestsChanged({
-          terminalThreadIds: [],
-          runtimeThreadIds: [],
-          allRuntimeEvents: false,
-        }),
-      ).catch(() => {});
       // Preserve the historical before-quit ordering: start closing the HTTP
       // server, then immediately tear down forwarding, without disabling Serve.
-      const serverDisposal = server
-        ? attempt?.server === server
-          ? disposeAttemptServer(attempt)
-          : server.dispose()
-        : Promise.resolve();
+      const currentDisposal = retirements.run([
+        () =>
+          server
+            ? attempt?.server === server
+              ? disposeAttemptServer(attempt)
+              : server.dispose()
+            : undefined,
+        () => coordinator?.dispose(),
+        clearEventInterests,
+        () => forwarding?.dispose(),
+      ]);
       const startSettlement = attempt
         ? attempt.promise.catch((error: unknown) => {
             if (!(error instanceof RemoteAccessStartSupersededError)) throw error;
           })
         : Promise.resolve();
-      disposePromise = Promise.all([serverDisposal, startSettlement]).then(() => {});
-      forwarding?.dispose();
+      void joinRuntimeShutdown([
+        () => currentDisposal,
+        () => startSettlement.then(() => undefined),
+        () => retirements.drain(),
+      ]).then(barrier.resolve, barrier.reject);
       return disposePromise;
     },
   };
