@@ -335,6 +335,45 @@ mid-stream reset, buffered fallback); the writable-length comparison itself
 is documented as review-verified only (loopback kernel auto-tuning absorbs
 any test firehose before Node backpressure engages)._
 
+_Status 2026-09-13: M2 order 4 (measured payload reduction) — baseline landed,
+budgets set, no optimization justified yet. `constrainedNetwork.test.ts` now
+seeds a many-thread/long-history workload into the host's own SQLite database
+through the application DB layer (`helpers/loadWorkloadSeed.ts`: one project +
+60 `inactive` threads, 10 of them with 40-item deterministic histories) BEFORE
+the headless server boots, so `/api/snapshot` and `/api/threads/:id/history`
+are measured through the real zod-parsed production serialization path with
+zero model calls; `startRealHost` gained an explicit `baseDir` option, and
+`PORACODE_CONSTRAINED_SEED_LOAD=0` runs the same suite unseeded for the
+small-host baseline. Both host shapes ran green across all three profiles
+(evidence: `tmp/v2-production-review/constrained-network/` — root = seeded,
+`small-host/` = unseeded; seeded-run build sha256 `bcc9d3f4…` at HEAD a0498b0c2
+with four dirty entries recorded by build.json: the two modified test files,
+the new seed helper, and the unrelated untracked `docs/V3_HANDOFF.md`; this
+note and the unseeded run postdate that build). Small host: shell snapshot
+≈ 0.5 KB decoded / ≈ 1.0 KB wire. Seeded host: shell snapshot with 60 thread
+rows + runtime summaries ≈ 33.4 KB decoded / ≈ 2.0 KB wire (transport
+compression ≈ 16×; the delta over the small host is entirely thread rows +
+summaries); full 40-item history read ≈ 27.5 KB decoded / ≈ 3.5 KB wire;
+history-read p50/p95 187/287 ms (rtt150ms-1mbps), 843/867 ms
+(rtt600ms-128kbps), 2452/2471 ms (rtt1500ms-32kbps) — readiness is imposed-RTT
+plus serialization dominated, payload a minor term (snapshot round trips are
+single samples per run, e.g. 2.08 s at 32 kbps). Memory and CPU recorded per
+run: host-process peak RSS ≈ 297 MB seeded / 291 MB small (host alone ≈ 129 MB)
+plus system load averages with contamination flags (hostLoad.json). The paged
+variant (`runtimePage=1`, 40-entry target) returned the whole 40-item history
+in one page, so the paging benefit is unproven at this fixture size — an
+honest gap, not a pass. **Numeric budgets (set from this evidence, before any
+implementation):** shell snapshot at 60 threads ≤ 60 KB decoded and ≤ 6 KB
+wire per refresh; single history read of a 40-item thread ≤ 60 KB decoded and
+≤ 8 KB wire; paged tail ≤ the same 60 KB / 8 KB regardless of total history
+length; p95 readiness at rtt1500ms-32kbps ≤ 4 s (snapshot) and ≤ 5 s
+(history); host RSS peak ≤ 512 MB for this workload. **Optimization gate:**
+completed-turn paging and thread-row slimming stay unimplemented — the
+measured baseline sits at 33–56 % of the decoded/wire budgets and readiness is
+link-dominated, so no reduction change is justified by this evidence; revisit
+when a ≥400-item-history workload variant violates a budget (the paged tail
+budget is the binding constraint there)._
+
 Queue adoption and cursor-sync adoption can proceed independently. Protocol-policy
 and pairing-fixture work should accompany affected paths, not block unrelated native
 UI adoption. Prioritize queue parity because it is a new user-visible divergence;

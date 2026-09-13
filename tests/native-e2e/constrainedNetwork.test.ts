@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createConnection, createServer, type Socket } from "node:net";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "../../src/shared/remote/protocol.ts";
@@ -13,19 +13,25 @@ import {
   startRealHost,
   type RealHostHandle,
 } from "./harness/realHost.ts";
-import { ProfileClient, type ReceivedEvent } from "./helpers/concurrencyProfileClient.ts";
+import {
+  ProfileClient,
+  type FetchResult,
+  type ReceivedEvent,
+} from "./helpers/concurrencyProfileClient.ts";
 import {
   describeArtifact,
   observeSources,
   summarizeProvenance,
 } from "./helpers/experimentArtifacts.ts";
 import { HostLoadSampler } from "./helpers/hostLoadSampler.ts";
+import { ProcessMemorySampler } from "./helpers/processMemorySampler.ts";
 import {
   acquireDeviceCredential,
   allocateLoopbackPort,
   closeProfileClients,
 } from "./helpers/profileClientFactory.ts";
-import { buildMetricsArtifact } from "./helpers/profileMetrics.ts";
+import { buildMetricsArtifact, summarizeLatencies } from "./helpers/profileMetrics.ts";
+import { seedLoadWorkload, type LoadWorkloadSpec } from "./helpers/loadWorkloadSeed.ts";
 import {
   expectOk,
   posixLocation,
@@ -59,6 +65,17 @@ import {
  *  - Pacing proof: a known payload sized to 0.5s of link time travels both
  *    directions byte-exact; measured wire throughput must respect the imposed
  *    rate (serialization-aware window).
+ *  - Payload baseline (M2-4): by default the host is pre-seeded
+ *    (helpers/loadWorkloadSeed.ts) with a many-thread/long-history workload —
+ *    60 threads, 10 of them with 40-item histories — through the app's own
+ *    SQLite layer BEFORE boot, so the production snapshot/history serialization
+ *    path is measured with zero model calls. Each profile records shell-snapshot
+ *    bytes (now including 60 thread rows + runtime summaries) and full-vs-paged
+ *    long-history reads with p50/p95 round trips.
+ *    PORACODE_CONSTRAINED_SEED_LOAD=0 skips the seed for the small-host
+ *    baseline (history phases are absent then). Bytes and latency are recorded,
+ *    never asserted: the numeric budgets are set from this evidence BEFORE any
+ *    payload reduction.
  *  - Shaper calibration: a ≥64KiB known payload crosses a loopback echo path
  *    through the shaper — fidelity by sha256 plus measured bandwidth/delay —
  *    so the profiles are a calibrated link model, not header-latency claims.
@@ -80,6 +97,10 @@ const SEED_PROJECT_NAME = "native-e2e-fixture";
 const CALIBRATION_PAYLOAD_BYTES = 256 * 1024;
 const OFFLINE_RENAMES = 3;
 const LINK_WINDOW_TOLERANCE = 1.15;
+/** Set PORACODE_CONSTRAINED_SEED_LOAD=0 to baseline the small host (no seeded
+ * threads): the shell-snapshot and history phases then measure the fixture
+ * project alone. Default is the seeded many-thread/long-history host. */
+const SEED_LOAD_WORKLOAD = process.env.PORACODE_CONSTRAINED_SEED_LOAD !== "0";
 
 const PROFILES: readonly ShaperProfile[] = [
   { name: "rtt150ms-1mbps", rttMs: 150, bitsPerSecond: 1_000_000 },
@@ -90,7 +111,7 @@ const PROFILES: readonly ShaperProfile[] = [
 const PROFILE_TEST_TIMEOUT_MS: Record<string, number> = {
   "rtt150ms-1mbps": 240_000,
   "rtt600ms-128kbps": 300_000,
-  "rtt1500ms-32kbps": 420_000,
+  "rtt1500ms-32kbps": 540_000,
 };
 
 const BUILD_PROVENANCE_NOTE = {
@@ -138,8 +159,12 @@ let project: WorkloadProject | undefined;
 let warmupColdGitStatusMs = 0;
 let provenance: ReturnType<typeof describeArtifact> | undefined;
 let sampler: HostLoadSampler | undefined;
+let memorySampler: ProcessMemorySampler | undefined;
 let runStartedAtIso: string | undefined;
 let calibration: Record<string, unknown> | null = null;
+let loadWorkload: LoadWorkloadSpec | undefined;
+let bootstrapShellSnapshotThreadCount = 0;
+const payloadBaselineByProfile = new Map<string, Record<string, unknown>>();
 
 function workloadProject(): WorkloadProject {
   if (!project) throw new Error("project fixture was not discovered");
@@ -311,13 +336,28 @@ describe.skipIf(!entrypoint)(
       if (!entrypoint) throw new Error(missingServerArtifactBlocker(repoRoot).message);
       cleanup = new ProcessCleanup();
       const port = await allocateLoopbackPort();
+      const baseDirRoot = join(repoRoot, "tmp", ".tmp", "constrained-network-qa");
+      mkdirSync(baseDirRoot, { recursive: true, mode: 0o700 });
+      // M2-4: seed the many-thread/long-history workload into the host's own
+      // SQLite database BEFORE boot, so every snapshot/history read below is
+      // served by the production serialization path (no model calls anywhere).
+      // PORACODE_CONSTRAINED_SEED_LOAD=0 skips the seed for the small-host
+      // baseline; the dir is tracked before seeding so a seed failure cannot
+      // leak it.
+      let baseDir: string | undefined;
+      if (SEED_LOAD_WORKLOAD) {
+        baseDir = mkdtempSync(join(baseDirRoot, "poracode-base-"));
+        cleanup.trackTempDir(baseDir);
+        loadWorkload = seedLoadWorkload(baseDir);
+      }
       host = await startRealHost({
         host: LOOPBACK_HOST,
         port,
         repoRoot,
         cleanup,
         startupTimeoutMs: 120_000,
-        baseDirRoot: join(repoRoot, "tmp", ".tmp", "constrained-network-qa"),
+        baseDirRoot,
+        ...(baseDir ? { baseDir } : {}),
       });
       assert(
         !host.blockers.some((blocker) => blocker.code === "pair-json-unavailable"),
@@ -336,6 +376,8 @@ describe.skipIf(!entrypoint)(
 
       sampler = new HostLoadSampler();
       sampler.start(2_000);
+      memorySampler = new ProcessMemorySampler(host.pid);
+      memorySampler.start(1_000);
       runStartedAtIso = new Date().toISOString();
       provenance = describeArtifact(entrypoint, observeSources(repoRoot));
       writeEvidence("build.json", provenance);
@@ -366,6 +408,16 @@ describe.skipIf(!entrypoint)(
           join(host.baseDir, "fixture-repo"),
           "seeded project must live in the isolated fixture repo",
         );
+        // M2-4 invariant: the pre-seeded workload must be visible through the
+        // production shell snapshot before any constrained-link measurement.
+        const bootstrapThreads = (snapshot.body as { threads?: unknown[] }).threads ?? [];
+        bootstrapShellSnapshotThreadCount = bootstrapThreads.length;
+        if (SEED_LOAD_WORKLOAD) {
+          assert(
+            loadWorkload && bootstrapShellSnapshotThreadCount >= loadWorkload.threadCount,
+            `shell snapshot must expose the seeded workload (expected >= ${String(loadWorkload?.threadCount ?? 0)} threads, saw ${String(bootstrapShellSnapshotThreadCount)})`,
+          );
+        }
         const cold = await bootstrap.gitProcedure("git-status-cold", "getGitStatus", {
           projectLocation: posixLocation(workloadProject()),
         });
@@ -380,11 +432,15 @@ describe.skipIf(!entrypoint)(
     afterAll(async () => {
       try {
         sampler?.stop();
+        memorySampler?.stop();
         if (sampler && runStartedAtIso) {
           writeEvidence("hostLoad.json", {
             runStartedAtIso,
             runFinishedAtIso: new Date().toISOString(),
             ...sampler.summary(),
+            // Peak summed RSS of the host server process + descendants, the
+            // M2-4 "memory" column (recorded, never asserted).
+            ...(memorySampler ? { processMemory: memorySampler.summary() } : {}),
             environment: BUILD_PROVENANCE_NOTE.buildNote,
             samples: sampler.allSamples(),
           });
@@ -410,6 +466,9 @@ describe.skipIf(!entrypoint)(
         `impaired control plane, WS fan-out, pacing, and replay at ${tag}`,
         async () => {
           if (!host) throw new Error("real host was not started");
+          // A retried attempt must not let a stale prior sample reach the
+          // run-summary evidence.
+          payloadBaselineByProfile.delete(tag);
           const oneWayDelayMs = profile.rttMs / 2;
           const proxy = await ConstrainedTcpProxy.start({
             label: tag,
@@ -452,11 +511,105 @@ describe.skipIf(!entrypoint)(
             );
             const afterSnapshot = proxy.stats();
             const snapshotWire = {
+              threadCount: (snapshot.body as { threads?: unknown[] }).threads?.length ?? 0,
               decodedResponseBytes: impaired.metrics.httpResponseBodyBytes - bodyBeforeSnapshot,
               wireRequestBytes: wireDelta(beforeSnapshot, afterSnapshot, "clientToServer"),
               wireResponseBytes: wireDelta(beforeSnapshot, afterSnapshot, "serverToClient"),
               accounting: EVIDENCE_ACCOUNTING,
             };
+
+            // Phase T — payload baseline. Seeded runs add full and paged
+            // long-history reads through the IMPAIRED link (omitting terminal
+            // scrollback exactly like cursor-sync v2 clients); unseeded runs
+            // record the small-host shell snapshot only. Bytes and round trips
+            // are recorded for budget-setting; only content invariants are
+            // asserted.
+            if (SEED_LOAD_WORKLOAD) {
+              if (!loadWorkload) throw new Error("seeded load workload is missing");
+              const historyReads: Array<Record<string, unknown>> = [];
+              for (const spec of loadWorkload.longThreads) {
+                const beforeHistory = proxy.stats();
+                const bodyBeforeHistory = impaired.metrics.httpResponseBodyBytes;
+                const historyStartedAtMs = Date.now();
+                const history: FetchResult = await impaired.fetchJson(
+                  "history-read",
+                  `/api/threads/${encodeURIComponent(spec.threadId)}/history?omitScrollback=1`,
+                );
+                const historyRoundTripMs = Date.now() - historyStartedAtMs;
+                expectOk(history.status, `history read ${spec.threadId}`, history.body);
+                const historyItems =
+                  (history.body as { runtimeItems?: unknown[] }).runtimeItems ?? [];
+                assert.strictEqual(
+                  historyItems.length,
+                  spec.itemCount,
+                  `long history ${spec.threadId} must serve every seeded item`,
+                );
+                assert.strictEqual(
+                  (history.body as { thread?: { id?: string } }).thread?.id,
+                  spec.threadId,
+                  "history read must echo the requested thread",
+                );
+                historyReads.push({
+                  threadId: spec.threadId,
+                  itemCount: historyItems.length,
+                  roundTripMs: historyRoundTripMs,
+                  decodedBytes: impaired.metrics.httpResponseBodyBytes - bodyBeforeHistory,
+                  wireBytes: wireDelta(beforeHistory, proxy.stats(), "serverToClient"),
+                });
+              }
+              const pagedSpec = loadWorkload.longThreads[0];
+              if (!pagedSpec) throw new Error("seeded load workload has no long thread");
+              const beforePaged = proxy.stats();
+              const bodyBeforePaged = impaired.metrics.httpResponseBodyBytes;
+              const pagedStartedAtMs = Date.now();
+              const paged: FetchResult = await impaired.fetchJson(
+                "history-read-paged",
+                `/api/threads/${encodeURIComponent(pagedSpec.threadId)}/history` +
+                  "?runtimePage=1&omitScrollback=1&targetTimelineEntryCount=40",
+              );
+              const pagedRoundTripMs = Date.now() - pagedStartedAtMs;
+              expectOk(paged.status, `paged history read ${pagedSpec.threadId}`, paged.body);
+              const pagedItems = (paged.body as { runtimeItems?: unknown[] }).runtimeItems ?? [];
+              const pagedNextCursor = (paged.body as { runtimeNextCursor?: unknown })
+                .runtimeNextCursor;
+              assert(
+                pagedItems.length >= 1 && pagedItems.length <= pagedSpec.itemCount,
+                `paged history must return a bounded tail page (got ${String(pagedItems.length)})`,
+              );
+              assert(
+                pagedNextCursor === null || typeof pagedNextCursor === "number",
+                "paged history must expose a continuation cursor",
+              );
+              const historyLatencies = summarizeLatencies(
+                historyReads.map((entry) => entry.roundTripMs as number),
+              );
+              payloadBaselineByProfile.set(tag, {
+                shellSnapshot: snapshotWire,
+                longHistory: {
+                  reads: historyReads,
+                  roundTrip: historyLatencies,
+                  decodedBytesTotal: historyReads.reduce(
+                    (total, entry) => total + (entry.decodedBytes as number),
+                    0,
+                  ),
+                  wireBytesTotal: historyReads.reduce(
+                    (total, entry) => total + (entry.wireBytes as number),
+                    0,
+                  ),
+                  accounting: EVIDENCE_ACCOUNTING,
+                },
+                pagedHistory: {
+                  threadId: pagedSpec.threadId,
+                  itemCount: pagedItems.length,
+                  runtimeNextCursor: pagedNextCursor ?? null,
+                  roundTripMs: pagedRoundTripMs,
+                  decodedBytes: impaired.metrics.httpResponseBodyBytes - bodyBeforePaged,
+                  wireBytes: wireDelta(beforePaged, proxy.stats(), "serverToClient"),
+                },
+              });
+            } else {
+              payloadBaselineByProfile.set(tag, { shellSnapshot: snapshotWire });
+            }
 
             const renameA = `${SEED_PROJECT_NAME}-cn-${tag}-a`;
             const fanoutA = await renameProjectAndAwaitFanout(
@@ -746,6 +899,27 @@ describe.skipIf(!entrypoint)(
     }
 
     it("records the run summary", async () => {
+      const payloadBaselinePath = writeEvidence("payloadBaseline.json", {
+        seededLoadWorkload: SEED_LOAD_WORKLOAD,
+        workload: loadWorkload
+          ? {
+              threadCount: loadWorkload.threadCount,
+              longThreadCount: loadWorkload.longThreads.length,
+              itemsPerLongThread: loadWorkload.longThreads[0]?.itemCount ?? null,
+              itemsPerShortThread: loadWorkload.itemsPerShortThread,
+            }
+          : null,
+        bootstrapShellSnapshotThreadCount,
+        purpose:
+          "M2-4 pre-optimization baseline: bytes and p50/p95 round trips for the " +
+          "shell snapshot and long-history reads over the seeded many-thread host, " +
+          "per constrained profile (run with PORACODE_CONSTRAINED_SEED_LOAD=0 for " +
+          "the small-host baseline; history sections are absent then). Numeric " +
+          "budgets must be derived from this evidence BEFORE any payload-reduction " +
+          "change.",
+        profiles: Object.fromEntries(payloadBaselineByProfile),
+      });
+      console.log(`[constrained] payload baseline → ${payloadBaselinePath}`);
       const path = writeEvidence("summary.json", {
         runStartedAtIso: runStartedAtIso ?? null,
         runFinishedAtIso: new Date().toISOString(),

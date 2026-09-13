@@ -24,6 +24,12 @@ export interface RealHostOptions {
   readonly cleanup?: ProcessCleanup;
   readonly secretsDir?: string;
   readonly baseDirRoot?: string;
+  /**
+   * Explicit host data dir, e.g. one pre-seeded with a SQLite workload before
+   * boot. Defaults to a fresh mkdtemp under `baseDirRoot`. Whatever dir ends up
+   * used is still registered with `cleanup` for deletion.
+   */
+  readonly baseDir?: string;
 }
 
 export interface RealHostHandle {
@@ -68,8 +74,8 @@ export async function startRealHost(options: RealHostOptions): Promise<RealHostH
 
   const host = assertLoopbackHost(options.host ?? LOOPBACK_HOST, "real host");
   const baseParent = options.baseDirRoot ?? join(findRepoRoot(), ".tmp", "native-e2e");
-  mkdirSync(baseParent, { recursive: true, mode: 0o700 });
-  const baseDir = mkdtempSync(join(baseParent, "poracode-base-"));
+  if (!options.baseDir) mkdirSync(baseParent, { recursive: true, mode: 0o700 });
+  const baseDir = options.baseDir ?? mkdtempSync(join(baseParent, "poracode-base-"));
   options.cleanup?.trackTempDir(baseDir);
   const fixtureDir = seedGitFixture(baseDir);
   const startupTimeoutMs = options.startupTimeoutMs ?? STARTUP_TIMEOUT_MS;
