@@ -194,7 +194,10 @@ export interface ComputerUseDriver {
     y: number;
   }): Promise<ComputerUseInteractiveResult>;
   describeStatus(): Promise<ComputerUseDriverStatus>;
+  /** Interrupt the current actions; later actions may restart native helpers. */
   dispose(): void;
+  /** Permanently close admission and join all owned native work/resources. */
+  close(): Promise<void>;
   drag(input: {
     from_x: number;
     from_y: number;

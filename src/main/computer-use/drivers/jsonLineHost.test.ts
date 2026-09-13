@@ -17,8 +17,8 @@ function createHost(options: { maxBytes?: number; timeoutMs?: number } = {}) {
   return host;
 }
 
-afterEach(() => {
-  for (const host of hosts.splice(0)) host.dispose();
+afterEach(async () => {
+  for (const host of hosts.splice(0)) await host.close();
 });
 
 describe("PersistentJsonLineHost", () => {

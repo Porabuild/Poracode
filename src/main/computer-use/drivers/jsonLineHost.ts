@@ -1,4 +1,6 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import { ChildProcessLifetime, type ChildProcessStopOptions } from "@/shared/childProcessLifetime";
+import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
 
 export type HostUnavailableCode = "spawn_failed" | "exited" | "timeout" | "buffer_overflow";
 
@@ -34,6 +36,7 @@ export interface PersistentJsonLineHostOptions {
   maxStdoutBufferBytes: number;
   onTeardown?: (error: Error) => void;
   requestTimeoutMs?: number;
+  stopOptions?: ChildProcessStopOptions;
   spawn(): ChildProcessWithoutNullStreams;
 }
 
@@ -50,6 +53,9 @@ export class PersistentJsonLineHost {
   private readonly pending = new Map<number, PendingRequest>();
   private stderrTail = "";
   private stdoutBuffer = "";
+  private closed = false;
+  private closing: Promise<void> | undefined;
+  private readonly children = new Map<ChildProcessWithoutNullStreams, ChildProcessLifetime>();
 
   constructor(private readonly options: PersistentJsonLineHostOptions) {}
 
@@ -107,7 +113,27 @@ export class PersistentJsonLineHost {
     this.teardown(new HostUnavailableError("exited", `${this.options.label} disposed`), true);
   }
 
+  /** Permanently refuse new actions and join active and previously retired children. */
+  close(): Promise<void> {
+    if (this.closing) return this.closing;
+    this.closed = true;
+    const barrier = Promise.withResolvers<void>();
+    this.closing = barrier.promise;
+    void joinRuntimeShutdown(
+      [
+        () => this.dispose(),
+        ...[...this.children.values()].map((child) => () => child.stop(this.options.stopOptions)),
+      ],
+      `${this.options.label} shutdown is unconfirmed`,
+    ).then(barrier.resolve, (error: unknown) => {
+      this.closing = undefined;
+      barrier.reject(error);
+    });
+    return barrier.promise;
+  }
+
   private ensureChild(): ChildProcessWithoutNullStreams {
+    if (this.closed) throw new HostUnavailableError("exited", `${this.options.label} is closed`);
     if (this.child) return this.child;
     let child: ChildProcessWithoutNullStreams;
     try {
@@ -119,6 +145,9 @@ export class PersistentJsonLineHost {
       );
     }
     this.child = child;
+    const lifetime = new ChildProcessLifetime(child);
+    this.children.set(child, lifetime);
+    void lifetime.closed.then(() => this.children.delete(child));
     this.stdoutBuffer = "";
     this.stderrTail = "";
     child.stdout.setEncoding("utf8");
@@ -217,21 +246,17 @@ export class PersistentJsonLineHost {
       clearTimeout(request.timer);
       request.reject(error);
     }
-    this.options.onTeardown?.(error);
-    if (!child) return;
-    child.stdout.removeAllListeners();
-    child.stderr.removeAllListeners();
-    child.stdin.removeAllListeners();
-    // A stream error can already be queued when teardown starts. Keep a
-    // terminal sink after removing the identity-bound listener so it cannot
-    // become an uncaught EventEmitter error while the process is recycled.
-    child.stdin.on("error", () => {});
-    child.removeAllListeners();
-    if (!kill) return;
-    try {
-      child.kill();
-    } catch {
-      // The process may already be gone.
+    // Retiring listeners are identity-fenced and keep draining the pipes. Do
+    // not remove the lifetime's close observer or another caller's listeners.
+    if (kill && child) {
+      void this.children
+        .get(child)
+        ?.stop(this.options.stopOptions)
+        .catch(() => {
+          // A reusable interrupt cannot report an async join. Keep the child in
+          // the ownership set so permanent close retries and reports failure.
+        });
     }
+    this.options.onTeardown?.(error);
   }
 }

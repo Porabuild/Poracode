@@ -15,6 +15,7 @@ function createDriver(overrides: Partial<ComputerUseDriver> = {}): ComputerUseDr
     click: vi.fn<ComputerUseDriver["click"]>(),
     describeStatus: vi.fn<ComputerUseDriver["describeStatus"]>(),
     dispose: vi.fn<ComputerUseDriver["dispose"]>(),
+    close: vi.fn<ComputerUseDriver["close"]>().mockResolvedValue(),
     drag: vi.fn<ComputerUseDriver["drag"]>(),
     findElements: vi.fn<ComputerUseDriver["findElements"]>(),
     getWindow: vi.fn<ComputerUseDriver["getWindow"]>(),

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComputerUseMcpIngress, type ComputerUseMcpIngressOptions } from "./ComputerUseMcpIngress";
+import { StreamableHttpMcpIngress } from "../mcp/StreamableHttpMcpIngress";
 import type { ComputerUseDriver, ComputerUseInteractiveResult } from "./mcp/types";
 
 let ingress: ComputerUseMcpIngress | null = null;
@@ -26,6 +27,7 @@ function createDriver(overrides: Partial<ComputerUseDriver> = {}): ComputerUseDr
       notes: [],
     }),
     dispose: vi.fn<ComputerUseDriver["dispose"]>(),
+    close: vi.fn<ComputerUseDriver["close"]>().mockResolvedValue(),
     drag: vi.fn<ComputerUseDriver["drag"]>(),
     findElements: vi.fn<ComputerUseDriver["findElements"]>(),
     getWindow: vi.fn<ComputerUseDriver["getWindow"]>(),
@@ -83,8 +85,8 @@ async function readToolError(response: Response): Promise<string> {
   return body.result.content.find((part) => part.type === "text")?.text ?? "";
 }
 
-afterEach(() => {
-  ingress?.dispose();
+afterEach(async () => {
+  await ingress?.dispose();
   ingress = null;
 });
 
@@ -695,4 +697,75 @@ describe("ComputerUseMcpIngress", () => {
       ["foreground", false],
     ]);
   });
+});
+
+it("joins a pending prewarm before permanent native ingress disposal completes", async () => {
+  const status = await createDriver().describeStatus();
+  const held = Promise.withResolvers<typeof status>();
+  const driver = createDriver({ describeStatus: () => held.promise });
+  ingress = new ComputerUseMcpIngress({ driver });
+  await ingress.start();
+  let joined = false;
+  const closing = Promise.resolve(ingress.dispose()).then(() => {
+    joined = true;
+  });
+  try {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(joined).toBe(false);
+    expect(driver.close).toHaveBeenCalledOnce();
+    held.resolve(status);
+    await closing;
+    expect(driver.dispose).not.toHaveBeenCalled();
+  } finally {
+    held.resolve(status);
+    await closing;
+  }
+});
+
+it("refuses prewarm after stop even when its listener-ready promise already resolved", async () => {
+  const listening = vi
+    .spyOn(StreamableHttpMcpIngress.prototype, "start")
+    .mockResolvedValue({ url: "http://127.0.0.1:1", token: "synthetic", port: 1 });
+  const driver = createDriver();
+  ingress = new ComputerUseMcpIngress({ driver });
+  try {
+    const starting = ingress.start().catch((error: unknown) => error);
+    await ingress.dispose();
+    expect(await starting).toBeInstanceOf(Error);
+    expect(driver.describeStatus).not.toHaveBeenCalled();
+  } finally {
+    listening.mockRestore();
+  }
+});
+
+it("initiates native cancellation before awaiting an admitted tool that needs it", async () => {
+  const entered = Promise.withResolvers<void>();
+  const held = Promise.withResolvers<Awaited<ReturnType<ComputerUseDriver["listWindows"]>>>();
+  let nativeSettled = false;
+  const close = vi.fn<ComputerUseDriver["close"]>(async () => {
+    held.resolve([]);
+  });
+  const driver = createDriver({
+    close,
+    listWindows: async () => {
+      entered.resolve();
+      const result = await held.promise;
+      nativeSettled = true;
+      return result;
+    },
+  });
+  ingress = new ComputerUseMcpIngress({ driver, observationSettleMs: 0 });
+  const info = await ingress.start();
+  const request = callTool(info, "list_windows", {}).catch(() => undefined);
+  let closing: Promise<void> | undefined;
+  try {
+    await entered.promise;
+    closing = ingress.dispose();
+    await vi.waitFor(() => expect(close).toHaveBeenCalledOnce());
+    await closing;
+    expect(nativeSettled).toBe(true);
+  } finally {
+    held.resolve([]);
+    await Promise.allSettled([request, closing]);
+  }
 });

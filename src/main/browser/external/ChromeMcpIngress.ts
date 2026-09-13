@@ -25,6 +25,7 @@ export class ChromeMcpIngress {
   private allowDataAccess = false;
   private readonly activeSessions = new Set<string>();
   private getConnection: (() => ExternalChromeConnection | null) | null = null;
+  private closing: Promise<void> | undefined;
   private readonly ingress = new StreamableHttpMcpIngress<ChromeToolContext>({
     // Chrome MCP is intentionally unavailable to WSL agents, so exposing this
     // control surface beyond loopback is unnecessary.
@@ -59,9 +60,13 @@ export class ChromeMcpIngress {
     return this.ingress.getInfo();
   }
 
-  dispose(): void {
-    this.activeSessions.clear();
-    this.ingress.dispose();
+  dispose(): Promise<void> {
+    this.closing ??= this.ingress.dispose().then(() => {
+      // An admitted enable/disable may update presence after awaiting Chrome.
+      // Clear only after every such continuation has finished.
+      this.activeSessions.clear();
+    });
+    return this.closing;
   }
 
   private buildContext(identity: McpThreadIdentity): ChromeToolContext {
