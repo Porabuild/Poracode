@@ -150,6 +150,7 @@ async function runConcurrencyProfile(size: number): Promise<{ snapshotSeq: numbe
     const snapshotSeq = await quiesceAndAssertConvergence(clients, sizeTag);
 
     for (const client of clients) await client.ping();
+    const windowFinishedAtMs = Date.now();
     const artifact = buildMetricsArtifact(clients, {
       profile: sizeTag,
       quietRounds,
@@ -168,9 +169,10 @@ async function runConcurrencyProfile(size: number): Promise<{ snapshotSeq: numbe
         tokenExchangeThrottleRetries: credential?.throttleRetries ?? 0,
         tokenExchangeThrottleWaitMs: credential?.throttleWaitMs ?? 0,
       },
-      hostWorkload: sampler?.window(windowStartedAtMs, Date.now()) ?? null,
+      windowFinishedAtMs,
       environment: RUN_ENVIRONMENT,
     });
+    artifact.hostWorkload = (await sampler?.window(windowStartedAtMs, windowFinishedAtMs)) ?? null;
     const path = writeExperimentArtifact(repoRoot, `metrics-${sizeTag}.json`, artifact);
     const propagation = artifact.eventPropagation as {
       p50Ms: number;
@@ -273,12 +275,12 @@ describe.skipIf(!entrypoint)(
 
     afterAll(async () => {
       try {
-        sampler?.stop();
+        await sampler?.stop();
         if (sampler && runStartedAtIso) {
           writeExperimentArtifact(repoRoot, "hostLoad.json", {
             runStartedAtIso,
             runFinishedAtIso: new Date().toISOString(),
-            ...sampler.summary(),
+            ...(await sampler.summary()),
             environment: RUN_ENVIRONMENT,
             samples: sampler.allSamples(),
           });
@@ -347,7 +349,7 @@ describe.skipIf(!entrypoint)(
           windowMs: 300_000,
           firstFailureEvidence: "logs/first-failure.log",
         },
-        hostWorkload: sampler?.summary() ?? null,
+        hostWorkload: (await sampler?.summary()) ?? null,
         environment: RUN_ENVIRONMENT,
       });
       console.log(`[shared-host] run summary → ${path}`);

@@ -214,6 +214,39 @@ a link. Use independent installs or invoke installed tooling directly. This was
 a tooling error during execution, not a product regression. The before/after
 record is `.tmp/v4-ci-gates/tmp/v4-ci-gates/F20-dependency-links.json`.
 
+**F21 — verified observer stalls: synchronous resource probes.** Both memory and
+host-load samplers execute `spawnSync("ps")` on the test client's event loop.
+A controlled delayed-probe fixture reproduced heartbeat gaps over 200 ms while
+sampling. The correction uses bounded asynchronous subprocesses, serial probes,
+and an awaited stop before final summaries. Memory report version 3 and host-load
+version 2 identify the changed observer. Preserve the raw before/after evidence;
+this verifies observer behavior, not app latency or an idle measurement host.
+Process CPU, queue, event-loop, compositor, and input instrumentation remain
+required by Phase 0.
+
+**F22 — verified settings outcome error: notification failure after persistence.**
+The settings ownership review found that a notification callback throwing after
+an atomic write could produce a failed-save acknowledgement. A throwing error
+reporter could also suppress routing acknowledgement entirely. Keep persistence
+outcomes separate from best-effort notification/reporting, and test both cases
+before completing the first Phase 1 settings slice. The full authority work must
+also remove the supervisor ACP-registry and CLI-hook-support file writers; the
+latter performs a non-atomic whole-file write. These supplement F2's original
+main/backend and stale-renderer snapshot findings.
+
+**F23 — verified frozen-runner coverage defect: voice source import.** The full
+smoke at clean combined `7c0daf676` fails its mock voice gate because it imports
+`/src/renderer/speech/liveVoice.ts`, a Vite development URL absent from the frozen
+bundle. Route the deterministic test through a bundled development test bridge
+and rerun against a fresh snapshot. This result does not demonstrate a product
+voice failure. Do not restore shared checkout/HMR access to hide the defect.
+
+**F24 — verified missing Quick Composer mock coverage.** The same full run
+explicitly fails Quick Composer because the inventory has no deterministic mock
+check. Add safe fixture coverage through the real isolated window and keep the
+external/global-shortcut manual gate honest. Do not acknowledge unexercised
+controls or mark the full smoke passed while this gate is absent.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 
@@ -232,11 +265,12 @@ more than their execution establishes:
   (`constrainedNetwork.test.ts:473`). It does not instantiate the production
   relay. Correct the contrary claim in `docs/RELAY_HTTP_STREAMING.md` and add a
   real two-hop relay test.
-- `processMemorySampler.ts:84` overwrites the root RSS sample, so the reported
-  own-process “peak” is the last sample. Total RSS includes descendants. Machine
-  load is not per-process CPU. Repair these measurements and reject contaminated
-  benchmark runs. Corrected reports carry `samplerVersion: 2`; older unversioned
-  own-process peaks are invalid evidence and must be remeasured.
+- The original `processMemorySampler.ts` overwrote the root RSS sample, so the
+  reported own-process “peak” was the last sample. Memory report version 2 fixed
+  that accounting; version 3 additionally removes the synchronous observer stall
+  described in F21. Total RSS includes descendants. Machine load is not process
+  CPU. Older unversioned own-process peaks are invalid evidence and must be
+  remeasured; contaminated benchmark runs remain disqualified.
 - Existing performance budgets are largely recorded in documentation rather
   than asserted. Raw traces and build identity must become durable CI artifacts;
   an ignored `tmp/` directory or an old dirty build is insufficient release proof.

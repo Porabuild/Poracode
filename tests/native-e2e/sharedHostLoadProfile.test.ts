@@ -429,13 +429,13 @@ describe.skipIf(!entrypoint)(
 
     afterAll(async () => {
       try {
-        sampler?.stop();
-        memory?.stop();
+        await sampler?.stop();
+        await memory?.stop();
         if (sampler && runStartedAtIso) {
           writeExperimentArtifact(repoRoot, "ws5-load-profile-hostload.json", {
             runStartedAtIso,
             runFinishedAtIso: new Date().toISOString(),
-            ...sampler.summary(),
+            ...(await sampler.summary()),
             environment: RUN_ENVIRONMENT,
             samples: sampler.allSamples(),
           });
@@ -886,7 +886,7 @@ describe.skipIf(!entrypoint)(
         }
 
         // Healthy-client stream accounting for the artifact.
-        memory.stop();
+        await memory.stop();
         const memorySummary = memory.summary();
         const healthyStreamAccounting = guiClients.map((client) => ({
           label: client.label,
@@ -937,16 +937,16 @@ describe.skipIf(!entrypoint)(
 
         for (const client of guiClients) await client.ping();
 
+        const windowFinishedAtMs = Date.now();
         const metricsArtifact = buildMetricsArtifact(guiClients, {
           profile: "ws5-load-profile",
           windowStartedAtMs,
-          hostWorkload: sampler?.window(windowStartedAtMs, Date.now()) ?? null,
           environment: RUN_ENVIRONMENT,
         });
         const artifact = {
           gate: RUN_ENVIRONMENT.gate,
           windowStartedAtMs,
-          windowFinishedAtMs: Date.now(),
+          windowFinishedAtMs,
           windowDurationMs,
           profile: {
             agents: AGENT_COUNT,
@@ -995,13 +995,17 @@ describe.skipIf(!entrypoint)(
           },
           memory: {
             process: memorySummary,
-            systemLoadWindow: sampler?.window(windowStartedAtMs, Date.now()) ?? null,
           },
           metrics: metricsArtifact,
           protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
           environment: RUN_ENVIRONMENT,
         };
-        const path = writeExperimentArtifact(repoRoot, "ws5-load-profile.json", artifact);
+        const hostWorkload = (await sampler?.window(windowStartedAtMs, windowFinishedAtMs)) ?? null;
+        const path = writeExperimentArtifact(repoRoot, "ws5-load-profile.json", {
+          ...artifact,
+          memory: { ...artifact.memory, systemLoadWindow: hostWorkload },
+          metrics: { ...metricsArtifact, hostWorkload },
+        });
         console.log(
           `[ws5-load-profile] agents=${String(AGENT_COUNT)} gui=${String(GUI_CLIENT_COUNT)} stalled=1 ` +
             `window=${String(windowDurationMs)}ms evicted=${String(stalledEvicted)} ` +

@@ -431,13 +431,13 @@ describe.skipIf(!entrypoint)(
 
     afterAll(async () => {
       try {
-        sampler?.stop();
-        memorySampler?.stop();
+        await sampler?.stop();
+        await memorySampler?.stop();
         if (sampler && runStartedAtIso) {
           writeEvidence("hostLoad.json", {
             runStartedAtIso,
             runFinishedAtIso: new Date().toISOString(),
-            ...sampler.summary(),
+            ...(await sampler.summary()),
             // Peak summed RSS of the host server process + descendants, the
             // M2-4 "memory" column (recorded, never asserted).
             ...(memorySampler ? { processMemory: memorySampler.summary() } : {}),

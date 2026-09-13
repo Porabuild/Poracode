@@ -173,13 +173,13 @@ describe.skipIf(!entrypoint)(
     }, 120_000);
 
     afterAll(async () => {
-      sampler.stop();
+      await sampler.stop();
       writeFileSync(
         join(evidenceDir, "measurements.json"),
         JSON.stringify(
           {
             measurements,
-            hostLoad: sampler.summary(),
+            hostLoad: await sampler.summary(),
             samples: sampler.allSamples(),
             accounting:
               "Body bytes are raw HTTP entity bytes before content decoding; proxy bytes also include HTTP headers, exclude TCP/IP. Each direction is paced per connection; no loss or shared aggregate bandwidth model.",
@@ -258,7 +258,7 @@ describe.skipIf(!entrypoint)(
               conditionalWireBytes:
                 afterCached.serverToClient.bytesForwarded -
                 afterCompressed.serverToClient.bytesForwarded,
-              hostLoad: sampler.window(from, Date.now()),
+              hostLoad: await sampler.window(from, Date.now()),
             };
             measurements.push(measurement);
             writeFileSync(
