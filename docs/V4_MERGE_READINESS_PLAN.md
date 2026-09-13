@@ -306,6 +306,20 @@ check current consent and equality atomically at the backend and join/cancel
 native mirror continuations during stop. Keep delayed-read/clear/stop regressions
 and ensure session-only credentials and retired owners cannot persist new secrets.
 
+**F11 ingress follow-up — actual continuations must outlive their transport.**
+Real loopback requests with disposable SQLite reproduce early database closure
+both after the old five-second HTTP deadline and within 100 ms of a client abort.
+Concurrent starts also minted different pairing credentials, and a retry could
+bind after disposal returned. The isolated request-drain slice now closes
+admission synchronously, joins a single listener start/stop, and tracks HTTP,
+WebSocket and forwarded stream continuations through settlement. The same shared
+work/socket barriers repair MCP's orphaned concurrent listeners and late tool
+continuations; AppControls awaits that ingress join. A connection deadline ends
+transports only. It cannot authorize database closure or lease release while an
+admitted handler remains. Private backend request draining, native facade/main
+joins, parent deadlines, provider descendants and Windows shutdown remain open
+F11 work; these ingress results do not qualify the full shutdown gate.
+
 The existing suites are valuable, but their names and comments sometimes claim
 more than their execution establishes:
 
@@ -515,6 +529,9 @@ Owner: runtime/persistence maintainer. Depends on the single-owner contract.
    drain tracked requests; stop supervisor with bounded join/escalation; process
    final valid events; flush persistence; close DB; release ownership. A deadline
    must not mean an untracked handler can continue into a closed database.
+   Join the handler continuation after a client disconnect, and join pending
+   listen/start attempts before closing their sockets. Existing keep-alive,
+   upgraded and MCP batch inputs must not admit new operations once stop starts.
 7. Fence supervisor messages and replies by child generation, matching the more
    complete fencing already present in `BackendHostClient`.
 8. State durability precisely. A command acknowledged as durably accepted needs a
