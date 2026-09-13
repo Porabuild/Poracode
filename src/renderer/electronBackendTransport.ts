@@ -34,7 +34,10 @@ export class ElectronBackendTransport {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private lastSequence = 0;
   private directEventsConnected = false;
-  private readonly listeners = new Set<(event: SupervisorEvent) => void>();
+  private readonly listeners = new Set<
+    (event: SupervisorEvent, rendererSequence?: number) => void
+  >();
+  private readonly generationListeners = new Set<() => void>();
   private readonly pending = new Map<string, PendingRequest>();
   private interests: RendererInterests = { terminalThreadIds: [], runtimeThreadIds: [] };
 
@@ -45,7 +48,7 @@ export class ElectronBackendTransport {
         if (rendererSequence <= this.lastSequence) return;
         this.lastSequence = rendererSequence;
       }
-      this.dispatch(event);
+      this.dispatch(event, rendererSequence);
     });
     host.onSupervisorEventGap(() => {
       if (this.directEventsConnected) return;
@@ -75,6 +78,11 @@ export class ElectronBackendTransport {
   subscribe(listener: (event: SupervisorEvent) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  onGenerationChanged(listener: () => void): () => void {
+    this.generationListeners.add(listener);
+    return () => this.generationListeners.delete(listener);
   }
 
   async setEventInterests(interests: RendererInterests): Promise<void> {
@@ -138,6 +146,7 @@ export class ElectronBackendTransport {
     if (this.info?.url === info.url && this.info.token === info.token) return;
     this.info = info;
     this.lastSequence = 0;
+    for (const listener of this.generationListeners) listener();
     this.disconnect(new Error("Backend renderer transport changed."));
     void this.connect().catch(() => undefined);
   }
@@ -211,7 +220,7 @@ export class ElectronBackendTransport {
     if (message.type === "event") {
       if (message.seq <= this.lastSequence) return;
       this.lastSequence = message.seq;
-      this.dispatch(message.event);
+      this.dispatch(message.event, message.seq);
       return;
     }
     if (message.type === "resync-required") {
@@ -290,8 +299,8 @@ export class ElectronBackendTransport {
     await this.host.invokeProcedure("setRendererEventInterests", [this.interests]);
   }
 
-  private dispatch(event: SupervisorEvent): void {
-    for (const listener of this.listeners) listener(event);
+  private dispatch(event: SupervisorEvent, rendererSequence?: number): void {
+    for (const listener of this.listeners) listener(event, rendererSequence);
   }
 }
 

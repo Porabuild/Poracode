@@ -31,6 +31,8 @@ import { snapshotOlderThanAppliedSeq } from "./snapshotSeqArbitration";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCache";
 import { evictOversizedInactiveThreadRuntimeItems } from "../chatRuntimePersister";
+import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
+import { RuntimeEventQueue } from "../runtimeEventQueue";
 
 /**
  * Feeds remote snapshots and live WebSocket events into the same Zustand
@@ -482,7 +484,9 @@ function syncRuntimeRequestsFromSnapshot(
 // four times per second so several concurrent streams do not saturate the UI.
 
 const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
-const pendingRuntimeEvents = new Map<string, RuntimeEvent[]>();
+const pendingRuntimeEvents = new RuntimeEventQueue();
+const runtimeRecoveryInFlight = new Set<string>();
+const runtimeRecoveryInvalidated = new Set<string>();
 let runtimeFlushHandle: number | null = null;
 let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
 let removeRuntimeSchedulingListeners: (() => void) | null = null;
@@ -495,11 +499,7 @@ function isForegroundRuntimeThread(threadId: string): boolean {
 function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): void {
   const store = useAppStore.getState();
   const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
-  for (const [threadId, events] of pendingRuntimeEvents) {
-    if (!shouldFlush(threadId)) continue;
-    batches.push({ threadId, events });
-    pendingRuntimeEvents.delete(threadId);
-  }
+  batches.push(...pendingRuntimeEvents.drain(shouldFlush));
   if (batches.length === 0) return;
   store.applyRuntimeEventBatches(batches);
   evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
@@ -508,7 +508,7 @@ function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): 
 function schedulePendingRuntimeEvents(): void {
   let hasForeground = false;
   let hasBackground = false;
-  for (const threadId of pendingRuntimeEvents.keys()) {
+  for (const threadId of pendingRuntimeEvents.threadIds()) {
     if (isForegroundRuntimeThread(threadId)) hasForeground = true;
     else hasBackground = true;
     if (hasForeground && hasBackground) break;
@@ -547,18 +547,6 @@ function installRuntimeSchedulingListeners(): void {
   };
 }
 
-function enqueueRuntimeEvents(threadId: string, events: readonly RuntimeEvent[]): void {
-  if (events.length === 0) return;
-  const existing = pendingRuntimeEvents.get(threadId);
-  if (existing) {
-    existing.push(...events);
-  } else {
-    pendingRuntimeEvents.set(threadId, [...events]);
-  }
-  installRuntimeSchedulingListeners();
-  schedulePendingRuntimeEvents();
-}
-
 function flushPendingRuntimeEventsSync(threadId: string): void {
   flushPendingRuntimeEvents((pendingThreadId) => pendingThreadId === threadId);
   schedulePendingRuntimeEvents();
@@ -579,6 +567,8 @@ export function clearPendingRuntimeEvents(): void {
   removeRuntimeSchedulingListeners?.();
   removeRuntimeSchedulingListeners = null;
   pendingRuntimeEvents.clear();
+  runtimeRecoveryInFlight.clear();
+  runtimeRecoveryInvalidated.clear();
 }
 
 function asSupervisorEvent(value: unknown): SupervisorEvent | null {
@@ -594,6 +584,17 @@ function asSupervisorEvent(value: unknown): SupervisorEvent | null {
  * terminal feed listeners) or were filtered out before dispatch.
  */
 export interface RemoteDispatchHooks {
+  /**
+   * Called when the final-consumer runtime queue drops a thread's incomplete
+   * delta batch. The host should install an authoritative snapshot before the
+   * queue is resumed; until then subsequent live deltas stay blocked.
+   */
+  readonly onRuntimeQueueOverflow?: (
+    threadIds: readonly string[],
+    resume: () => void,
+  ) => void | Promise<boolean | void>;
+  /** Recovery replay is already ordered behind an authoritative snapshot. */
+  readonly deliverRuntimeEventsImmediately?: boolean;
   /**
    * Fired after a `thread-state` event's core mutation. Mobile uses this to
    * drive the foreground Live Activity notification. Resolves the thread/project
@@ -631,9 +632,77 @@ export interface RemoteDispatchHooks {
 export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDispatchHooks): void {
   const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
   if (runtimeBatches.length > 0) {
-    for (const batch of runtimeBatches) {
-      enqueueRuntimeEvents(batch.threadId, batch.events);
+    if (hooks?.deliverRuntimeEventsImmediately) {
+      useAppStore
+        .getState()
+        .applyRuntimeEventBatches(
+          runtimeBatches.map((batch) => ({ threadId: batch.threadId, events: [...batch.events] })),
+        );
+      evictOversizedInactiveThreadRuntimeItems(runtimeBatches.map((batch) => batch.threadId));
+      return;
     }
+    const overflowedThreadIds = new Set<string>();
+    for (const batch of runtimeBatches) {
+      const result = pendingRuntimeEvents.enqueue(batch.threadId, batch.events);
+      if (result.overflowed) {
+        if (runtimeRecoveryInFlight.has(batch.threadId)) {
+          runtimeRecoveryInvalidated.add(batch.threadId);
+          useAppStore.getState().setRuntimeHydrationStatus(batch.threadId, "failed");
+        } else {
+          overflowedThreadIds.add(batch.threadId);
+        }
+        useAppStore.getState().clearThreadRuntimeEvents(batch.threadId);
+        useAppStore.getState().clearAllPendingSteer(batch.threadId);
+        clearRuntimeItemStoreSelectorCacheForThread(batch.threadId);
+      }
+    }
+    if (overflowedThreadIds.size > 0) {
+      const threadIds = [...overflowedThreadIds];
+      for (const threadId of threadIds) runtimeRecoveryInFlight.add(threadId);
+      const resume = (): void => {
+        if (threadIds.some((threadId) => runtimeRecoveryInvalidated.has(threadId))) {
+          return;
+        }
+        for (const threadId of threadIds) {
+          pendingRuntimeEvents.resume(threadId);
+        }
+        schedulePendingRuntimeEvents();
+      };
+      const recovery = hooks?.onRuntimeQueueOverflow?.(threadIds, resume);
+      if (recovery) {
+        void Promise.resolve(recovery).then(
+          (recovered) => {
+            if (
+              recovered !== false &&
+              !threadIds.some((threadId) => runtimeRecoveryInvalidated.has(threadId))
+            ) {
+              resume();
+              for (const threadId of threadIds) {
+                runtimeRecoveryInFlight.delete(threadId);
+                runtimeRecoveryInvalidated.delete(threadId);
+              }
+            } else {
+              for (const threadId of threadIds) {
+                runtimeRecoveryInFlight.delete(threadId);
+                runtimeRecoveryInvalidated.delete(threadId);
+                useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+              }
+            }
+          },
+          () => {
+            for (const threadId of threadIds) {
+              runtimeRecoveryInFlight.delete(threadId);
+              runtimeRecoveryInvalidated.delete(threadId);
+              useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+            }
+          },
+        );
+      } else {
+        resume();
+      }
+    }
+    installRuntimeSchedulingListeners();
+    schedulePendingRuntimeEvents();
     return;
   }
 
@@ -691,7 +760,12 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
       return;
     }
     case "thread-reset": {
-      pendingRuntimeEvents.delete(event.threadId);
+      pendingRuntimeEvents.discard(event.threadId);
+      if (!runtimeRecoveryInFlight.has(event.threadId)) {
+        // A reset is the authoritative generation boundary when this caller
+        // has no separate snapshot-recovery promise to await.
+        pendingRuntimeEvents.resume(event.threadId);
+      }
       useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
       useAppStore.getState().clearAllPendingSteer(event.threadId);
       // The id may be a dev shell (no thread); a live terminal surface watching

@@ -301,13 +301,14 @@ function evictThreadRuntimeItems(threadId: string): void {
  * Re-seeds the thread from the local DB, which still holds the events the
  * live stream lost (the backend persists them before broadcast).
  */
-export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): Promise<void> {
+export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): Promise<boolean> {
   hydratedThreadRuntimeIds.delete(threadId);
   olderRuntimePageCursorByThread.delete(threadId);
   // An in-flight older page from before the reset must not prepend across the
   // reset boundary or write back its stale cursor after the fresh read.
   cancelPendingOlderRuntimePage(threadId);
   await hydrateThreadRuntimeItems(threadId);
+  return useAppStore.getState().runtimeHydrationStatus[threadId] !== "failed";
 }
 
 function cancelPendingOlderRuntimePage(threadId: string): void {

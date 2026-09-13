@@ -54,6 +54,7 @@ export function installElectronClientRuntime(host: ElectronHostBridge): void {
   const native: PoracodeNativeBridge = {
     ...host,
     onSupervisorEvent: (listener) => transport.subscribe(listener),
+    onBackendRendererStreamGenerationChanged: (listener) => transport.onGenerationChanged(listener),
   };
   installClientRuntime({
     version: PORACODE_CLIENT_RUNTIME_VERSION,

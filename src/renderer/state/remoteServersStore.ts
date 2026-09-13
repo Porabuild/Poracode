@@ -834,7 +834,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             if (socket.readyState === undefined || socket.readyState === 1) {
               activateSocket();
             }
-            const resyncOpenThread = (): Promise<boolean> => {
+            const resyncOpenThread = (beforeReplay?: () => void): Promise<boolean> => {
               if (resyncPromise) return resyncPromise;
               const open = get().openThread;
               const interests = currentRemoteServerThreadItemInterests(server.desktopId);
@@ -913,6 +913,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                   }
                   if (recoveryQueueOverflowed) restored = false;
                   if (restored) {
+                    // The runtime queue may be holding a bounded tail that
+                    // arrived after the snapshots were read. Resume it before
+                    // replaying the transport recovery buffer so those
+                    // sequenced events cannot be discarded by the UI gate.
+                    beforeReplay?.();
                     const queuedEvents = [...recoveryQueuedEvents].sort(
                       (left, right) => left.seq - right.seq,
                     );
@@ -935,7 +940,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
                               )
                             ? queued.event
                             : null;
-                      if (replay !== null) dispatchForwardEvent(replay, queued.seq);
+                      if (replay !== null) dispatchForwardEvent(replay, queued.seq, true);
                     }
                   }
                 } catch {
@@ -953,23 +958,32 @@ export const useRemoteServersStore = create<RemoteServersState>()(
               });
               return resyncPromise;
             };
-            const recoverInterestedThreads = async (): Promise<void> => {
-              if (await resyncOpenThread()) return;
-              if (!isCurrent() || entry.socket !== socket) return;
+            const recoverInterestedThreads = async (
+              beforeReplay?: () => void,
+            ): Promise<boolean> => {
+              if (await resyncOpenThread(beforeReplay)) return true;
+              if (!isCurrent() || entry.socket !== socket) return false;
               forceReconnect(socket);
               setRemoteServerFailure(
                 server.desktopId,
                 "offline",
                 sharedMsg("remote.server.unreachable"),
               );
+              return false;
             };
-            const dispatchForwardEvent = (forward: unknown, sequence: number): void => {
+            const dispatchForwardEvent = (
+              forward: unknown,
+              sequence: number,
+              recoveryReplay = false,
+            ): void => {
               for (const threadId of supervisorEventThreadIds(forward)) {
                 recordRemoteThreadAppliedSeq(server.desktopId, threadId, sequence);
               }
               dispatchRemoteSupervisorEvent(projectRemoteThreadEvent(server.desktopId, forward), {
                 onGitSummaries: (summaries) => syncRemoteGitSummaries(server.desktopId, summaries),
                 onGitState: (patch) => syncRemoteGitStatePatch(server.desktopId, patch),
+                onRuntimeQueueOverflow: (_threadIds, resume) => recoverInterestedThreads(resume),
+                ...(recoveryReplay ? { deliverRuntimeEventsImmediately: true } : {}),
               });
               for (const batch of collectRuntimeEventsFromSupervisoryMessage(forward)) {
                 for (const evt of batch.events) {

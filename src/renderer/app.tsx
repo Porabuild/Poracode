@@ -45,6 +45,7 @@ import {
   evictOversizedInactiveThreadRuntimeItems,
   rehydrateThreadRuntimeItemsAfterReset,
 } from "./state/chatRuntimePersister";
+import { RuntimeEventQueue } from "./state/runtimeEventQueue";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { usePrWatchAgentSync } from "@/renderer/hooks/usePrWatchAgentSync";
@@ -104,7 +105,11 @@ const isMainWindow = windowKind === "main";
 // frame. Non-runtime events flush their own thread first so event ordering is
 // preserved without forcing every background thread through the reducer.
 const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
-const pendingRuntimeEvents = new Map<string, RuntimeEvent[]>();
+const pendingRuntimeEvents = new RuntimeEventQueue();
+const runtimeRecoveryInFlight = new Set<string>();
+const runtimeRecoveryInvalidated = new Set<string>();
+const latestRendererSequenceByThread = new Map<string, number>();
+let rendererTransportGeneration = 0;
 let runtimeFlushHandle: number | null = null;
 let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -118,11 +123,7 @@ function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): 
   const store = useAppStore.getState();
   const threads = store.threads;
   const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
-  for (const [threadId, events] of pendingRuntimeEvents) {
-    if (!shouldFlush(threadId)) continue;
-    batches.push({ threadId, events });
-    pendingRuntimeEvents.delete(threadId);
-  }
+  batches.push(...pendingRuntimeEvents.drain(shouldFlush));
   if (batches.length === 0) return;
   // One Zustand set for all concurrent streams — avoids N selector passes when
   // several chats are working in the background / being switched between.
@@ -141,7 +142,7 @@ function schedulePendingRuntimeEvents(): void {
   const view = useAppStore.getState().view;
   const foregroundThreadIds: readonly string[] =
     document.visibilityState !== "hidden" && view.kind === "thread" ? view.panes : [];
-  for (const threadId of pendingRuntimeEvents.keys()) {
+  for (const threadId of pendingRuntimeEvents.threadIds()) {
     if (foregroundThreadIds.includes(threadId)) hasForeground = true;
     else hasBackground = true;
     if (hasForeground && hasBackground) break;
@@ -170,13 +171,64 @@ function schedulePendingRuntimeEvents(): void {
   }
 }
 
-function appendRuntimeEvents(threadId: string, events: readonly RuntimeEvent[]): void {
-  const existing = pendingRuntimeEvents.get(threadId);
-  if (existing) {
-    for (const evt of events) existing.push(evt);
-  } else {
-    pendingRuntimeEvents.set(threadId, [...events]);
+function appendRuntimeEvents(
+  threadId: string,
+  events: readonly RuntimeEvent[],
+  rendererSequence?: number,
+): void {
+  const result = pendingRuntimeEvents.enqueue(threadId, events, rendererSequence);
+  if (result.overflowed && runtimeRecoveryInFlight.has(threadId)) {
+    // The bounded post-baseline tail also overflowed. The current snapshot
+    // can no longer prove convergence, so leave this thread blocked and make
+    // the UI surface the retryable hydration failure.
+    runtimeRecoveryInvalidated.add(threadId);
+    useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+  } else if (result.overflowed) {
+    runtimeRecoveryInFlight.add(threadId);
+    // The backend persists runtime events before broadcasting them. Once a
+    // final-consumer queue overflows, clear the partial projection and reread
+    // the authoritative local history before accepting new deltas.
+    useAppStore.getState().clearThreadRuntimeEvents(threadId);
+    clearRuntimeItemStoreSelectorCacheForThread(threadId);
+    void recoverRuntimeThread(threadId)
+      .then((recovered) => {
+        if (!recovered || runtimeRecoveryInvalidated.has(threadId)) {
+          useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+          return;
+        }
+        pendingRuntimeEvents.resume(threadId);
+      })
+      .catch((error) => {
+        console.warn("[chat] runtime queue recovery failed", threadId, error);
+      })
+      .finally(() => {
+        runtimeRecoveryInFlight.delete(threadId);
+        runtimeRecoveryInvalidated.delete(threadId);
+        schedulePendingRuntimeEvents();
+      });
   }
+}
+
+async function recoverRuntimeThread(threadId: string): Promise<boolean> {
+  // A local DB snapshot has no event cursor of its own. Repeat the read when
+  // the renderer observed new sequenced events during it; the next read then
+  // includes those persisted rows. A sustained stream eventually becomes an
+  // explicit failed/retryable state instead of an unbounded recovery loop.
+  const generation = rendererTransportGeneration;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const before = latestRendererSequenceByThread.get(threadId) ?? 0;
+    useAppStore.getState().clearThreadRuntimeEvents(threadId);
+    clearRuntimeItemStoreSelectorCacheForThread(threadId);
+    const recovered = await rehydrateThreadRuntimeItemsAfterReset(threadId);
+    if (!recovered) return false;
+    if (rendererTransportGeneration !== generation) return false;
+    const after = latestRendererSequenceByThread.get(threadId) ?? before;
+    if (after !== before) continue;
+    if (pendingRuntimeEvents.hasUnsequenced(threadId)) return false;
+    pendingRuntimeEvents.discardThroughSequence(threadId, after);
+    return true;
+  }
+  return false;
 }
 
 function flushPendingRuntimeEventsSync(threadId: string): void {
@@ -193,7 +245,22 @@ function installRuntimeEventScheduling(): () => void {
   };
 }
 
-function handleSupervisorEvent(event: SupervisorEvent): void {
+function handleSupervisorEvent(event: SupervisorEvent, rendererSequence?: number): void {
+  if (rendererSequence !== undefined) {
+    if (event.type === "thread-runtime-events-multi") {
+      for (const batch of event.batches) {
+        latestRendererSequenceByThread.set(
+          batch.threadId,
+          Math.max(latestRendererSequenceByThread.get(batch.threadId) ?? 0, rendererSequence),
+        );
+      }
+    } else if ("threadId" in event) {
+      latestRendererSequenceByThread.set(
+        event.threadId,
+        Math.max(latestRendererSequenceByThread.get(event.threadId) ?? 0, rendererSequence),
+      );
+    }
+  }
   if ("threadId" in event && event.threadId.startsWith("shell:")) {
     if (event.type === "thread-output") {
       useDevTerminalStore.getState().noteShellOutput(event.threadId);
@@ -214,13 +281,13 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
   }
 
   if (event.type === "thread-runtime-event") {
-    appendRuntimeEvents(event.threadId, [event.event]);
+    appendRuntimeEvents(event.threadId, [event.event], rendererSequence);
     schedulePendingRuntimeEvents();
     return;
   }
   if (event.type === "thread-runtime-events") {
     if (event.events.length > 0) {
-      appendRuntimeEvents(event.threadId, event.events);
+      appendRuntimeEvents(event.threadId, event.events, rendererSequence);
       schedulePendingRuntimeEvents();
     }
     return;
@@ -229,7 +296,7 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
     let hasEvents = false;
     for (const batch of event.batches) {
       if (batch.events.length === 0) continue;
-      appendRuntimeEvents(batch.threadId, batch.events);
+      appendRuntimeEvents(batch.threadId, batch.events, rendererSequence);
       hasEvents = true;
     }
     if (hasEvents) schedulePendingRuntimeEvents();
@@ -259,14 +326,32 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
     useThreadFollowUpQueueStore.getState().setQueue(event.threadId, event.queue);
   }
   if (event.type === "thread-reset") {
-    pendingRuntimeEvents.delete(event.threadId);
+    pendingRuntimeEvents.discard(event.threadId);
     useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
     useAppStore.getState().clearAllPendingSteer(event.threadId);
     clearRuntimeItemStoreSelectorCacheForThread(event.threadId);
+    if (!runtimeRecoveryInFlight.has(event.threadId)) {
+      runtimeRecoveryInFlight.add(event.threadId);
+      void recoverRuntimeThread(event.threadId)
+        .then((recovered) => {
+          if (!recovered || runtimeRecoveryInvalidated.has(event.threadId)) {
+            useAppStore.getState().setRuntimeHydrationStatus(event.threadId, "failed");
+            return;
+          }
+          pendingRuntimeEvents.resume(event.threadId);
+        })
+        .catch((error) => {
+          console.warn("[chat] runtime reset recovery failed", event.threadId, error);
+        })
+        .finally(() => {
+          runtimeRecoveryInFlight.delete(event.threadId);
+          runtimeRecoveryInvalidated.delete(event.threadId);
+          schedulePendingRuntimeEvents();
+        });
+    }
     // WS6 P1-10: the reset wiped the in-memory transcript; re-seed from the
     // local DB (overlap-aware merge) so a loss-range rebuild or fresh spawn
     // converges to the backend-persisted state instead of an empty pane.
-    rehydrateThreadRuntimeItemsAfterReset(event.threadId).catch(() => undefined);
   }
   if (event.type === "thread-exited") {
     useAppStore.getState().markThreadExited(event.threadId);
@@ -363,6 +448,18 @@ export function installUpdateStatusSync(
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
       readBridge().onSupervisorEvent(handleSupervisorEvent),
+      ...(readBridge().onBackendRendererStreamGenerationChanged
+        ? [
+            readBridge().onBackendRendererStreamGenerationChanged!(() => {
+              rendererTransportGeneration += 1;
+              latestRendererSequenceByThread.clear();
+              for (const threadId of runtimeRecoveryInFlight) {
+                runtimeRecoveryInvalidated.add(threadId);
+                useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+              }
+            }),
+          ]
+        : []),
       installRuntimeEventScheduling(),
       ...(hasClientCapability("nativeAppUpdates") ? [installUpdateStatusSync()] : []),
       // Thread-metadata commands issued from paired remote clients (mobile PWA).
@@ -519,6 +616,9 @@ if (import.meta.hot) {
       backgroundRuntimeFlushHandle = null;
     }
     pendingRuntimeEvents.clear();
+    runtimeRecoveryInFlight.clear();
+    runtimeRecoveryInvalidated.clear();
+    latestRendererSequenceByThread.clear();
     uninstallProductAnalytics?.();
     uninstallProductAnalytics = null;
     productAnalyticsStarted = false;
