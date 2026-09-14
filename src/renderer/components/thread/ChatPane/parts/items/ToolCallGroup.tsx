@@ -11,6 +11,7 @@ import {
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import { AnimatedNumber } from "@/renderer/components/common/AnimatedNumber";
+import { StartTruncatedText } from "@/renderer/components/common/StartTruncatedText";
 import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { CircleAlert, FileEdit, Globe, Pencil, Terminal, type LucideIcon } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -611,7 +612,7 @@ function InlineRowTitle({
             />
           </>
         ) : (
-          <span className="lc-truncate-start flex-1">{titleParts.path}</span>
+          <StartTruncatedText className="flex-1">{titleParts.path}</StartTruncatedText>
         )}
       </code>
     );
