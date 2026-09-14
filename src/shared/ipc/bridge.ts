@@ -23,6 +23,11 @@ import type {
   UpdateStatus,
 } from "./events";
 import type { QuickComposerSubmission } from "./schemas";
+import type {
+  RemoteHttpBridgeCancelRequest,
+  RemoteHttpBridgeOpenRequest,
+  RemoteHttpBridgeOpenResult,
+} from "../remote/httpBridgeProtocol";
 
 export {
   IPC_EVENT_CHANNELS,
@@ -88,6 +93,14 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   onQuickComposerSubmit(listener: (submission: QuickComposerSubmission) => void): () => void;
   onQuickComposerDismissRequested(listener: () => void): () => void;
   onQuickComposerShown(listener: () => void): () => void;
+  /**
+   * Electron-only off-main remote HTTP bridge. Browser runtimes omit these and
+   * use native `fetch`; the Electron preload provides them at facade version 11
+   * along with the `remoteHttpBridgeVersion` marker.
+   */
+  remoteHttpBridgeVersion?: number;
+  openRemoteHttpBridge?(request: RemoteHttpBridgeOpenRequest): Promise<RemoteHttpBridgeOpenResult>;
+  cancelRemoteHttpBridge?(request: RemoteHttpBridgeCancelRequest): Promise<void>;
 };
 
 export function createInvokeBridge(

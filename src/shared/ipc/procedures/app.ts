@@ -93,43 +93,7 @@ export interface LegacyDataMigrationRequestResult {
   readonly status: "scheduled" | "no-legacy-data" | "unavailable";
 }
 
-/**
- * Desktop-as-client HTTP proxy. The renderer can't fetch a remote Poracode
- * server directly — the server's CORS allowlist doesn't include the desktop's
- * origin — so remote requests run in the main process, which isn't subject to
- * CORS. See docs/REMOTE_ARCHITECTURE.md, Phase 4.
- */
-export const remoteHttpRequestPayloadSchema = z.object({
-  url: z.string().url(),
-  /** Correlates an Electron renderer request with its cancellation command. */
-  requestId: z.uuid().optional(),
-  method: z.enum(["GET", "POST", "DELETE"]).optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-  body: z.string().optional(),
-  bodyBase64: z.string().optional(),
-  /** Opt-in binary response; omitted by existing text/JSON callers. Local IPC only. */
-  responseEncoding: z.enum(["utf8", "base64"]).optional(),
-});
-export type RemoteHttpRequestPayload = z.infer<typeof remoteHttpRequestPayloadSchema>;
-export interface RemoteHttpRequestResult {
-  readonly status: number;
-  readonly headers: Record<string, string>;
-  readonly body: string;
-}
-
-export const remoteHttpRequestCancelPayloadSchema = z.object({ requestId: z.uuid() });
-
 export const appProcedures = {
-  remoteHttpRequest: definePayloadProcedure<
-    RemoteHttpRequestPayload,
-    RemoteHttpRequestResult,
-    "main-local"
-  >("remoteHttpRequest", "main-local", remoteHttpRequestPayloadSchema),
-  remoteHttpRequestCancel: definePayloadProcedure<
-    z.infer<typeof remoteHttpRequestCancelPayloadSchema>,
-    void,
-    "main-local"
-  >("remoteHttpRequestCancel", "main-local", remoteHttpRequestCancelPayloadSchema),
   pickFolder: defineIpcProcedure<[string?], string | undefined, string | null, "main-local">(
     "pickFolder",
     "main-local",

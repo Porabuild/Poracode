@@ -14,11 +14,14 @@ import type {
 import type { GitStatePatch, GitStateSnapshot } from "@/shared/gitState";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { PORACODE_REMOTE_PROTOCOL_VERSION, type RemoteGitSummaries } from "@/shared/remote";
+import { REMOTE_HTTP_BRIDGE_VERSION } from "@/shared/remote/httpBridgeProtocol";
+import { PORACODE_CLIENT_RUNTIME_VERSION } from "@/shared/clientRuntime";
 import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
 import { __resetRemoteServersStoreForTest, useRemoteServersStore } from "./remoteServersStore";
 import { installRemoteProjectWorkspaceSync } from "./remoteServers/appRows";
 import { filterRemoteThreadEvent } from "./remoteServers/eventRouting";
 import { mainProcessFetch } from "./remoteServers/mainProcessFetch";
+import { resetRemoteHttpBridgeClientForTest } from "./remoteServers/remoteHttpBridgeClient";
 import type {
   RemoteClientFactory,
   RemoteServerRecord,
@@ -39,7 +42,11 @@ import {
 } from "./remote/truncateRecovery";
 import { renameProject } from "../actions/projectActions";
 import { routeRemoteProcedure } from "../remoteProcedureRouter";
-import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
+import {
+  installBrowserClientRuntime,
+  installClientRuntime,
+  resetClientRuntimeForTest,
+} from "@/renderer/clientRuntime";
 import {
   resetBrowserMirror,
   startBrowserWatch,
@@ -58,7 +65,11 @@ async function invokeRemoteRoute<Name extends IpcProcedureName>(
 const bridge = vi.hoisted(() => ({
   sshConnect: vi.fn<() => Promise<unknown>>(),
   sshDisconnect: vi.fn<() => Promise<void>>(async () => {}),
-  remoteHttpRequest: vi.fn<() => Promise<unknown>>(),
+  // Seeded literal because this hoisted mock runs before module imports; the
+  // suite's beforeEach pins it to the real REMOTE_HTTP_BRIDGE_VERSION.
+  remoteHttpBridgeVersion: 2,
+  openRemoteHttpBridge: vi.fn<() => Promise<unknown>>(),
+  cancelRemoteHttpBridge: vi.fn<() => Promise<void>>(async () => {}),
   appendUsageEvents: vi.fn<() => Promise<void>>(async () => {}),
 }));
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
@@ -390,7 +401,10 @@ describe("useRemoteServersStore", () => {
     browserBridge.setClient.mockClear();
     bridge.sshConnect.mockReset();
     bridge.sshDisconnect.mockClear();
-    bridge.remoteHttpRequest.mockReset();
+    bridge.remoteHttpBridgeVersion = REMOTE_HTTP_BRIDGE_VERSION;
+    bridge.openRemoteHttpBridge.mockReset();
+    bridge.cancelRemoteHttpBridge.mockClear();
+    resetRemoteHttpBridgeClientForTest();
     // Mirrors the app-level wiring (app.tsx installs this at mount).
     uninstallWorkspaceSync = installRemoteProjectWorkspaceSync();
     await vi.waitFor(() => {
@@ -1277,9 +1291,9 @@ describe("useRemoteServersStore", () => {
         d1: { status: "online", projects: [proj], threads: [] },
       },
     });
-    bridge.remoteHttpRequest.mockRejectedValueOnce(
+    bridge.openRemoteHttpBridge.mockRejectedValueOnce(
       new Error(
-        "Error invoking remote method 'poracode:remote-http-request': TypeError: fetch failed",
+        "Error invoking remote method 'poracode:remote-http-bridge-open': TypeError: fetch failed",
       ),
     );
 
@@ -1293,6 +1307,37 @@ describe("useRemoteServersStore", () => {
       status: "offline",
       message: "Can't reach the remote server. Check that it is online, then reconnect it.",
     });
+  });
+
+  it("rejects a preload that advertises a different remote HTTP bridge frame set", async () => {
+    installClientRuntime({
+      version: PORACODE_CLIENT_RUNTIME_VERSION,
+      host: "electron",
+      surface: "adaptive",
+      transport: "electron-backend-host",
+      capabilities: {
+        localBackend: true,
+        manageRemoteEnvironments: true,
+        nativeAppUpdates: true,
+        nativeBrowserWebContents: true,
+        nativeShell: true,
+        nativeSsh: true,
+      },
+      procedures: bridge as never,
+      native: bridge as never,
+    });
+    bridge.remoteHttpBridgeVersion = REMOTE_HTTP_BRIDGE_VERSION + 1;
+    window.poracodeHost = {} as NonNullable<typeof window.poracodeHost>;
+    try {
+      await expect(mainProcessFetch("https://host.example.test/api")).rejects.toMatchObject({
+        status: 0,
+        code: "network",
+      });
+      expect(bridge.openRemoteHttpBridge).not.toHaveBeenCalled();
+    } finally {
+      delete window.poracodeHost;
+      resetClientRuntimeForTest();
+    }
   });
 
   it("loads project notes through an offline server recovery probe", async () => {

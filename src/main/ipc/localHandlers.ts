@@ -41,7 +41,6 @@ import type {
   BackendServiceCaller,
 } from "@/shared/backendHostProtocol";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
-import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
 import type { CheckpointRevertResult } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
@@ -107,8 +106,6 @@ function roundRect(rect: { x: number; y: number; width: number; height: number }
 }
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
-const REMOTE_HTTP_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
-const REMOTE_HTTP_REQUEST_TIMEOUT_MS = 60_000;
 
 function assertSafeExternalUrl(rawUrl: string): string {
   let parsed: URL;
@@ -141,7 +138,6 @@ export async function showAddFilesDialog(
 export function createLocalIpcHandlers(
   options: CreateLocalIpcHandlersOptions,
 ): MainLocalIpcHandlerMap {
-  const pendingRemoteHttpRequests = new Map<string, AbortController>();
   const callService = options.backendServices.callService.bind(options.backendServices);
   const callDatabase = <Name extends BackendDatabaseProcedureName>(
     name: Name,
@@ -196,63 +192,6 @@ export function createLocalIpcHandlers(
     },
     readLocalImageFile: ({ url }) => readLocalImageFile(url),
     createProjectDirectory: (payload) => createProjectDirectory(payload),
-    // Desktop-as-client: proxy a remote Poracode server request through the
-    // main process (no browser CORS). Restricted to http(s) and a bounded
-    // response so a hostile/buggy peer can't exfiltrate via odd schemes or
-    // exhaust memory. (The remote is one the user explicitly paired with.)
-    remoteHttpRequest: async (payload) => {
-      const protocol = new URL(payload.url).protocol;
-      if (protocol !== "http:" && protocol !== "https:") {
-        throw new Error(`remoteHttpRequest only supports http(s), got "${protocol}".`);
-      }
-      const controller = new AbortController();
-      if (payload.requestId !== undefined) {
-        if (pendingRemoteHttpRequests.has(payload.requestId)) {
-          throw new Error("A remote request with this id is already active.");
-        }
-        pendingRemoteHttpRequests.set(payload.requestId, controller);
-      }
-      const timeout = setTimeout(() => controller.abort(), REMOTE_HTTP_REQUEST_TIMEOUT_MS);
-      timeout.unref?.();
-
-      try {
-        const response = await fetch(payload.url, {
-          method: payload.method ?? "GET",
-          signal: controller.signal,
-          ...(payload.headers ? { headers: payload.headers } : {}),
-          ...(payload.body !== undefined
-            ? { body: payload.body }
-            : payload.bodyBase64 !== undefined
-              ? { body: Buffer.from(payload.bodyBase64, "base64") }
-              : {}),
-        });
-        const buffer = await readBoundedResponseBody(response, REMOTE_HTTP_RESPONSE_MAX_BYTES);
-        return {
-          status: response.status,
-          headers: headersToRecord(response.headers),
-          body: Buffer.from(buffer).toString(payload.responseEncoding ?? "utf8"),
-        };
-      } catch (error) {
-        if (controller.signal.aborted) {
-          const reason = controller.signal.reason;
-          if (reason instanceof Error && reason.message === "Remote request cancelled.") {
-            throw reason;
-          }
-          throw new Error(`Remote request timed out after ${REMOTE_HTTP_REQUEST_TIMEOUT_MS}ms.`, {
-            cause: error,
-          });
-        }
-        throw error;
-      } finally {
-        clearTimeout(timeout);
-        if (payload.requestId !== undefined) {
-          pendingRemoteHttpRequests.delete(payload.requestId);
-        }
-      }
-    },
-    remoteHttpRequestCancel: ({ requestId }) => {
-      pendingRemoteHttpRequests.get(requestId)?.abort(new Error("Remote request cancelled."));
-    },
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);
       const browserPanel = options.getBrowserPanelManager();

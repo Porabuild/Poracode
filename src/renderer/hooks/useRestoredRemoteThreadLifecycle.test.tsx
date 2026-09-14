@@ -21,7 +21,6 @@ import { useRestoredRemoteThreadLifecycle } from "./useRestoredRemoteThreadLifec
 const bridge = vi.hoisted(() => ({
   sshConnect: vi.fn<() => Promise<unknown>>(),
   sshDisconnect: vi.fn<() => Promise<void>>(async () => {}),
-  remoteHttpRequest: vi.fn<() => Promise<unknown>>(),
 }));
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
 

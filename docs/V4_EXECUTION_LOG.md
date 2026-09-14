@@ -8,17 +8,17 @@ obligations. No qualification gate has been waived.
 
 ## Execution state
 
-| Phase                                | State       | Evidence / next action                                                                                                                                                                                                                                                                                                                                                                |
-| ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 — master integration and baselines | In progress | Combined integration is on V2 at `7c0daf676`; compatibility, broad correctness checks and isolated tooling are verified at their recorded revisions. Full smoke exposed F23/F24. Complete instrumentation, comparable master measurements, hosted CI and final manual baselines remain open.                                                                                          |
-| 1 — exclusive server ownership       | In progress | Shared desktop/headless lease and backend settings/routing slices are implemented. Attach, remaining host-settings writers, stale-snapshot conflicts, credential migration, and full startup acceptance remain open.                                                                                                                                                                  |
-| 2 — operation safety and lifecycle   | In progress | Per-thread coordination, retryable checkpoint receipts, HTTP/push drains, and tracked PTY joins are implemented. Cross-transport response-loss/crash evidence, descendant lifetime, and complete shutdown qualification remain open.                                                                                                                                                  |
-| 3 — off-main bulk transport          | In progress | Request/reply admission and HTTP cancellation are implemented, and backend-enforced per-window direct delivery passed its local mock-host live acceptance on the final candidate (direct zero-bulk, targeted fallback, strict disjoint windows, stale-generation drop, terminal-open a11y). Off-main remote HTTP, binary streaming, and the wider Phase 3 acceptance run remain open. |
-| 4 — off-thread client engine         | In progress | Terminal/runtime queues and a cached remote membership index are implemented. Worker decode/reduction/persistence, bounded view patches, markdown/smoothing costs, and frame-budget evidence remain open.                                                                                                                                                                             |
-| 5 — server/relay fairness            | In progress | Per-source ingress admission and relay congestion isolation are implemented. Weighted scheduling, local-renderer shedding isolation, reserved-control capacity qualification, and the full multi-client run remain open.                                                                                                                                                              |
-| 6 — bounded payloads                 | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                                                                                                                            |
-| 7 — browser/mobile-web lifecycle     | In progress | Service-worker activation safety and resume/reconnect slices are implemented. Real old/new-document, Safari/mobile-web, network-transition, and full lifecycle acceptance remain open.                                                                                                                                                                                                |
-| 8 — artifact/upgrade/soak/merge      | Pending     | All seven work items and acceptance scenarios remain open; no final freeze, merge to master, or promotion authorized by evidence yet.                                                                                                                                                                                                                                                 |
+| Phase                                | State       | Evidence / next action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 — master integration and baselines | In progress | Combined integration is on V2 at `7c0daf676`; compatibility, broad correctness checks and isolated tooling are verified at their recorded revisions. Full smoke exposed F23/F24. Complete instrumentation, comparable master measurements, hosted CI and final manual baselines remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 1 — exclusive server ownership       | In progress | Shared desktop/headless lease and backend settings/routing slices are implemented. Attach, remaining host-settings writers, stale-snapshot conflicts, credential migration, and full startup acceptance remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2 — operation safety and lifecycle   | In progress | Per-thread coordination, retryable checkpoint receipts, HTTP/push drains, and tracked PTY joins are implemented. Cross-transport response-loss/crash evidence, descendant lifetime, and complete shutdown qualification remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 3 — off-main bulk transport          | In progress | Request/reply admission and HTTP cancellation are implemented, and backend-enforced per-window direct delivery passed its local mock-host live acceptance on the final candidate (direct zero-bulk, targeted fallback, strict disjoint windows, stale-generation drop, terminal-open a11y). The F8 candidate implements items 4-5 (one utility-process remote HTTP bridge, per-request renderer ports, credit-bounded chunk streaming, admission-gated replayable uploads, facade 11 / bridge frame set 2) and received two consolidated correction batches after independent source reviews (the second: cold-start admission reservation with post-await revalidation, prompt utility-rejection settles, exact-length upload chunk copies, and the utility-enforced 1 MiB response-credit ceiling); F8 transport/UI qualification is now closed on the frozen candidate (independent source + real-transport + full-mock/packaged-UI evidence in the 2026-09-14 entry below). Hosted CI for the published F8 commit, the wider Phase 3 acceptance run, and the >1 MiB direct-stream reply budgeting item (F9 direction settled, execution NOT started) remain open. |
+| 4 — off-thread client engine         | In progress | Terminal/runtime queues and a cached remote membership index are implemented. Worker decode/reduction/persistence, bounded view patches, markdown/smoothing costs, and frame-budget evidence remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 5 — server/relay fairness            | In progress | Per-source ingress admission and relay congestion isolation are implemented. Weighted scheduling, local-renderer shedding isolation, reserved-control capacity qualification, and the full multi-client run remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 6 — bounded payloads                 | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 7 — browser/mobile-web lifecycle     | In progress | Service-worker activation safety and resume/reconnect slices are implemented. Real old/new-document, Safari/mobile-web, network-transition, and full lifecycle acceptance remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 8 — artifact/upgrade/soak/merge      | Pending     | All seven work items and acceptance scenarios remain open; no final freeze, merge to master, or promotion authorized by evidence yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 ## Rules for evidence and commits
 
@@ -2016,3 +2016,280 @@ follows the plan: Phase 3 off-main remote HTTP/binary transport and the wider
 accepted-workload run, then the off-thread client engine, fairness, payload,
 web lifecycle, and artifact/soak phases. Exact check logs, commit/push
 identity, and CI results are recorded in `tmp/v4-f7-publication/REPORT.md`.
+
+## 2026-09-14 — F8 off-main remote HTTP bridge implementation (candidate)
+
+Status: implementation ready for independent qualification. F8 and Phase 3 stay
+OPEN; nothing here is published, and no live/managed AFTER acceptance has run.
+
+**What changed.** Desktop remote HTTP no longer crosses Electron main with a
+full body. A lazily forked utility process (`src/main/remoteHttp/`) owns client
+outbound `fetch`; main authenticates the invoking window + main frame, admits
+bounded metadata (http(s) only, UUID identity, header/URL/body budgets,
+global/per-window request caps), and hands one half of a per-request
+`MessageChannelMain` to the utility and the other to that exact renderer via
+`webContents.postMessage`. The renderer builds a real `Response` from a
+credit-gated `ReadableStream`; upload bytes stream to the utility as bounded
+chunks and stay retained there until the request settles so 307/308 redirects
+can replay them, with a documented aggregate retention budget and immediate
+release on every settle path. Main receives no body bytes and never auto-retries
+or falls back to a main fetch: a failed bridge request rejects, a later call
+opens a fresh generation.
+
+**Boundaries.** `REMOTE_HTTP_BRIDGE_VERSION = 1` in
+`src/shared/remote/httpBridgeProtocol.ts`; `PORACODE_CLIENT_RUNTIME_VERSION`
+10 → 11 in `src/shared/clientRuntime.ts`; backend host 13 / renderer stream 5
+are unchanged, remote wire 12 and native clients are untouched, and no state is
+persisted (no migration). The old `remoteHttpRequest`/`remoteHttpRequestCancel`
+main-local procedures and their full-body/base64 handler were removed; remote
+image reads now use the same bridge. Preserved limits: 64 MiB response, 60 s
+whole-request, 20 MiB server attachment cap; Node `fetch` redirect/auth
+semantics (cross-origin 307/308 authorization stripping, no cookie jar, no
+`Origin` injection). Electron's `MessagePortMain` transfer list accepts ports
+only, so chunks cross the port as structured-clone copies bounded by credit;
+this milestone claims no zero-copy.
+
+**Verification performed (candidate worktree only).** `pnpm run typecheck`
+exit 0; focused suites green (`src/main/remoteHttp` 24 tests incl. a real
+disposable loopback server for 8 MiB byte identity/order, credit gating,
+mid-body cap, upload retention/aggregate budget, 307/308 cross-origin replay
+with authorization strip, timeout, null-body statuses, unknown frames;
+`src/renderer/state/remoteServers` client races and end-to-end bridge tests;
+`imageActions`, `clientRuntime`, `remoteServersStore` mocks updated);
+`pnpm run build:renderer`, `pnpm run build:web`, and `pnpm run build:electron`
+exit 0; `node scripts/build-desktop-artifact.mjs --skip-build
+--check-runtime-deps` validated 17 emitted runtime dependencies (unchanged);
+touched-file `oxlint`/`oxfmt --check` pass. A focused app-level live probe was
+not run by the implementer.
+
+**Open / not yet claimed.** Independent source review and the managed live
+AFTER fixture (identity-gated main byte counters at zero, server-observed abort,
+packaged `remoteHttpBridge.cjs` utility startup from `app.asar.unpacked`) belong
+to the verifier; hosted CI has not run on this candidate; the wider Phase 3
+accepted-workload run (eight producers, large history/attachment traffic,
+continuous input/resize/menu) remains open; and the separate finding that
+`BackendRendererStream.sendReply` permits 64 MiB while `send()` closes the
+socket at a 1 MiB budget is the next Phase 3 item 6 task, deliberately not
+implemented here. Exact files, commands, bounds, and risks are in
+`tmp/v4-f8-implementation/REPORT.md`.
+
+## 2026-09-14 — F8 post-review correction batch (candidate, uncommitted)
+
+Status: one consolidated correction ready for fresh independent verification.
+F8 and Phase 3 stay OPEN; no live/managed/package smoke ran in this lane.
+
+**Inputs.** `tmp/v4-f8-review/REVIEW.md` confirmed F8-R1: the utility emitted
+response `head` frames its own downstream validator rejects when a legal
+response had more than 64 headers, a name/value beyond 256/8192 chars, or more
+than 32 KiB of metadata; the renderer silently dropped the frame and the
+request failed only at the 60 s deadline. Its nonblocking notes covered missing
+upload admission/credit, a forked-utility leak on spawn timeout, dead
+`frameRoutingId` storage, a stale removed-path mock, and report claims that
+were not true of production builds.
+
+**What changed.** Response metadata now has its own budget — 4096 header pairs,
+1024-char names, 16 KiB values, 64 KiB total, 1024-char status text — enforced
+by the utility before posting `head`; a frame that would fail validation is
+replaced with an explicit bounded `too-large` error and the socket is released.
+The renderer now fails an invalid frame on the active request promptly (still
+fencing valid frames with a different request id/generation). Uploads are
+admission-gated: the declared length is reserved against the 96 MiB aggregate
+account at open, the utility posts an initial `upload-grant` of at most 1 MiB
+only after that reservation, grants accepted bytes back, and the renderer
+posts only within the granted window in bounded quanta — a paused utility
+cannot enqueue a full 64 MiB body and a stalled upload cannot block a sibling.
+The body is retained in one declared-length replay buffer (also the fetch body)
+instead of a chunk list plus a concatenated copy; release on every settle path
+returns reservation and retention to zero. Fork lifecycle cleanup: every
+attempt consumes a generation before forking, spawn timeout/early exit kills
+the owned child with its listeners and timer detached, shutdown during start
+kills the child and refuses to publish it, a natural exit avoids a redundant
+kill, and a retry starts the next generation. `frameRoutingId` and its frame
+parameter were removed (main-frame admission already happens in the IPC
+registration), the stale `remoteHttpRequest` mock was deleted, and the
+utility's global `unhandledRejection` suppression was removed so a stray
+rejection follows Node's default termination path while main fences the
+generation and renderer ports close.
+
+**Boundaries.** `REMOTE_HTTP_BRIDGE_VERSION` 1 → 2 in
+`src/shared/remote/httpBridgeProtocol.ts` (new `upload-grant` frame plus the
+response metadata budget); facade `PORACODE_CLIENT_RUNTIME_VERSION` stays 11
+because the required preload API shape is unchanged and the bridge frame gate
+rejects a mixed pairing loudly. Preload/utility/client mirrors, the version
+inventory (`.agents/docs/versioning.md`), and the packaging `asarUnpack` entry
+were re-audited. F7 host 13 / stream 5, remote wire 12 / relay 3, and
+browser/mobile fetch semantics are untouched. No automatic retry or main-body
+fallback.
+
+**Verification performed (candidate worktree only).** `pnpm run typecheck`
+exit 0; `pnpm run lint` (both modes) and `pnpm run fmt:check` exit 0;
+`pnpm run test` = 1232 file suites passed / 5 skipped, 13,859 tests passed /
+119 skipped / 0 failed; focused node + renderer bridge suites green including
+real-loopback 65-header and 9000-character responses, response-metadata
+overflow, queued/cloning upload-credit with a paused utility and a healthy
+sibling, reservation admission/release, malformed-head prompt failure, and
+supervisor timeout/late-spawn/early-exit/concurrent-start/shutdown-during-start
+lifecycle tests; `pnpm run build:renderer`, `pnpm run build:web`, and
+`pnpm run build:electron` exit 0 (`dist/main/remoteHttpBridge.cjs` is
+require-free and console-free under production minify); `pnpm run
+protocol:remote:v3:check` up to date; `node scripts/build-desktop-artifact.mjs
+--skip-build --check-runtime-deps` validated 17 emitted runtime dependencies;
+the smoke-runtime and IPC-probe node tests pass 6/6 and 14/14.
+
+**Open / not claimed.** Fresh independent source verification of this
+correction, the managed live AFTER fixture (identity-gated main byte counters
+at zero, server-observed abort, packaged utility startup), and hosted CI have
+not run. Log/report claims were corrected instead of worked around: utility
+settle logging exists only in non-minified builds (`dropConsole`), and the
+utility `--inspect` flag is ignored when packaged. The separate
+`BackendRendererStream.sendReply` 64 MiB vs `send()` 1 MiB reply-budgeting
+finding remains the next Phase 3 item. Exact changes, bounds, commands, and
+residual risks are in `tmp/v4-f8-correction/REPORT.md`.
+
+## 2026-09-14 — F8 admission/clone/credit boundary correction (candidate, uncommitted)
+
+Status: second consolidated correction ready for fresh independent verification.
+F8 and Phase 3 stay OPEN; no live/managed/package smoke ran in this lane.
+
+**Inputs.** `tmp/v4-f8-final-review/REVIEW.md` confirmed the R1 closure, the
+upload-grant/credit core, redirect identity, and the startup lifecycle, and
+confirmed three remaining defects with scratch repros. F8-R2: an open admitted
+before `ensureStarted()` yielded kept no record until after the await, so a
+pre-port abort or window navigation/close during a cold start was lost and the
+request was still dispatched and its port handed to whatever document now owned
+the window. F8-R3: admission caps were checked against `records` before the
+await and records inserted after it, so concurrent cold-start opens passed the
+64/128 caps (192 admitted in the repro); a utility-side rejection posted only a
+port error, leaving the main record to the 90 s safety timer, and duplicate
+ids overwrote the count. F8-R4: `pumpUpload` posted `body.subarray(...)`, and V8
+structured clone preserves the whole viewed backing store, so every 1 MiB chunk
+frame cloned the full body and the advertised 1 MiB in-transit bound was false.
+
+**What changed.** Main now reserves the admission record (id, sender, per-window
+and global counts) synchronously before awaiting the shared start, and after the
+await re-validates the record identity, cancellation, published child/generation,
+shutdown epoch, and target destruction before any channel, descriptor, or port
+envelope exists; `cancel`/`abortWindow` retire a starting reservation, and every
+release is fenced by expected-record identity so a stale continuation, safety
+timer, or settlement cannot release a newer record that reused an id. The
+utility emits its existing `settled` control frame for valid descriptors that
+fail admission (overloaded/too-large/retention budget), so main frees the slot
+immediately instead of after the safety timer; duplicate-id and malformed
+descriptors never notify, because they cannot be attributed to a distinct
+main-side reservation without risking the accepted request of the same UUID.
+Upload chunks are posted as exact-length owned copies (`slice` of the logical
+range), so one structured clone carries exactly one chunk and zero bytes from
+the caller's backing store. The utility clamps accumulated response credit to
+the documented 1 MiB ceiling (`REMOTE_HTTP_RESPONSE_CREDIT_BYTES`) and the
+shared upstream validator bounds a single credit frame the same way, so
+ordinary refills, a grant burst, or a duplicate grant cannot authorize a
+full-body response burst. No frame shape changed.
+
+**Boundaries.** `REMOTE_HTTP_BRIDGE_VERSION` stays 2 and
+`PORACODE_CLIENT_RUNTIME_VERSION` stays 11: this is compatible enforcement/bug
+fixing (no new frame or field; the rejection settle reuses the existing
+`settled` control frame, and both credit bounds now match the advertised
+1 MiB contract), so no peer is minted and the packaged utility entry,
+`asarUnpack` entry, preload marker, and renderer gate are unchanged. The 96 MiB
+aggregate upload account is restated as committed utility-side bytes
+(reservation + retention), not total RSS; in-transit clone bytes are separately
+bounded by the 1 MiB upload window per request, and response/consumer copies are
+documented as outside that account. F7 host 13 / stream 5, remote wire 12 /
+relay 3, and browser/mobile fetch semantics are untouched. No automatic retry or
+main-body fallback.
+
+**Verification performed (candidate worktree only).** `pnpm run typecheck`
+exit 0; `pnpm run lint` (both modes) exit 0; `pnpm run fmt:check` all 3,995
+files formatted; `pnpm run test` = 1232 file suites passed / 5 skipped, 13,874
+tests passed / 119 skipped / 0 failed. Focused: node bridge suites (3 files,
+53 tests) and renderer bridge client/e2e suites (2 files, 24 tests) green,
+including the promoted repros (192 open / 72 one-window burst held to 128/64,
+duplicate id during cold start, pre-port cancel, main-frame navigation during
+start, stale settle after restart, utility rejection releasing main immediately,
+64 MiB backing store / 20 MiB attachment with exact 1 MiB cloned chunks,
+response-credit burst clamp) plus the preserved R1, upload-grant,
+redirect-identity, and spawn-lifecycle tests. `pnpm run build:renderer`,
+`pnpm run build:web`, and `pnpm run build:electron` exit 0;
+`dist/main/remoteHttpBridge.cjs` is require-free and console-free under
+production minify; built `dist/main/preload.cjs` advertises
+`remoteHttpBridgeVersion:2`; `pnpm run protocol:remote:v3:check` up to date;
+`node scripts/build-desktop-artifact.mjs --skip-build --check-runtime-deps`
+validated 17 emitted runtime dependencies; the smoke-runtime node test passes
+6/6.
+
+**Open / not claimed.** Fresh independent source verification of this second
+correction, the managed live AFTER fixture (identity-gated main byte counters at
+zero, server-observed abort through the real Electron transport, packaged
+utility startup, real `MessagePort` clone memory), and hosted CI have not run.
+The same-generation reuse boundary is documented: a stale settle is fenced by
+the child/message generation and starting reservations are never dispatched, so
+only a deliberate UUID collision plus a main-side early release could alias one
+id inside one generation. Exact changes, invariants, corrected memory bounds,
+commands, and residual risks are in
+`tmp/v4-f8-admission-correction/REPORT.md`.
+
+## 2026-09-14 — F8 transport/UI qualification and publication
+
+Status: F8 QUALIFIED (transport + UI) and published as one substantial commit
+on `poracode/v2`. No new product edits in this lane: docs-only updates here;
+all F8 source changes are committed as-is. Phase 3 and full V4 stay OPEN.
+
+**Candidate identity.** Base `49f46104078ae8c7d91f708b3d93dfed78be9dd2` plus
+the frozen uncommitted F8 batch; source SHA
+`74dcf4e091d9a63a70bb2fc61a3360e618a1c972ac86d4c08e1a1e45c3acc983`
+(`dirty:true` is the candidate itself). Bridge frame set 2 / facade 11; host
+13 / stream 5, remote 12 / relay 3 unchanged. Product bytes frozen across
+verification: pre-edit hashes of all 19 modified + 13 new product files
+re-verified identical after the doc edits, and the source SHA recomputed equal
+with the repo's own `hashTree` over `SOURCE_PATHS` (docs are outside it).
+
+**Accepted evidence.**
+
+- Source/full checks (`tmp/v4-f8-admission-correction/REPORT.md`):
+  `typecheck` exit 0; `lint` both modes exit 0; `fmt:check` 3,995 files;
+  `pnpm run test` 1232 suites passed / 5 skipped, 13,874 passed / 119 skipped /
+  0 failed; focused node bridge 3 files / 53 pass + renderer bridge 2 files /
+  24 pass closing R1/R2/R3/R4/credit/lifecycle; renderer/electron/web builds
+  exit 0; `protocol:remote:v3:check` up to date; 17 runtime deps;
+  smoke-runtime 6/6.
+- Independent source + real transport (`tmp/v4-f8-qualification/REPORT.md`,
+  `90-summary.json`): main HTTP body bytes 8 MiB before to 0 after on every
+  metered leg; real 8 MiB text/binary/image/upload and 32 MiB response hashes
+  (text8 `bc063c2a…`, binary8 `49df924e…`, text32 `e8b5bb38…`); slow-consumer
+  sibling isolation; all abort paths; utility kill with exactly one POST
+  arrival (no replay) and next-generation health; two real windows at 2x8 MiB
+  main-zero with server concurrency 2; navigation abort server-observed with
+  slot cleanup; packaged `file://` utility request/upload main-zero.
+- Full mock + packaged UI (`tmp/v4-f8-ui-qualification/REPORT.md`): full
+  `--mode mock` smoke 9/9 automated and 17/17 mock gates with 0 errors on the
+  exact source hash; packaged Settings opened via a real control with 0
+  console errors; dist utility/preload rehashed equal to evidence. Full smoke
+  report:
+  `/Users/svecherenko/.poracode-smoke/automated-1789418462202-20574/artifacts/smoke-report.json`.
+- F7 hosted CI confirmed at the base SHA `49f4610`: CI run 34830207321 and
+  Native clients run 34830207274, both success (PR duplicates 34830213345 /
+  34830213360 also success):
+  `https://github.com/Porabuild/Poracode/actions/runs/34830207321` and
+  `https://github.com/Porabuild/Poracode/actions/runs/34830207274`.
+  PR #725 remains OPEN/DRAFT.
+
+**Carried honestly (nonblocking, no product-regression conclusion).**
+Second-window-destruction-mid-transfer and packaged Settings-close legs unrun;
+intermittent packaged CDP-bind flake beside the running foreign Nightly with
+causality NOT proven; the packaged Settings update-error toast and earlier
+worker labels kept as unexplained observations for the wider packaged
+startup/update release-qualification plan. No proven environment/no-network
+cause is asserted.
+
+**OPEN.** Hosted CI for the new F8 commit; real paired headless-client journey;
+eight-producer full acceptance; 120 fps; Phase 4 off-thread client; Phase 5
+fairness; full V4. F9 direction (bounded direct-stream replies, stream 6) is
+settled in `tmp/v4-orchestration/f9-execution-decisions.md` — a coordinator
+artifact, execution NOT started, Phase 3 item 6 not closed by this milestone.
+
+**Publication.** One substantial F8 commit pushed normally with
+`git push origin HEAD:poracode/v2` (fast-forward, no force, no amend of the
+F7 history). No master push, no PR merge/draft change, no external messages.
+Commit SHA, push confirmation, exact-SHA CI/Native run IDs, PR state, and final
+`git status` are recorded in `tmp/v4-f8-publication/REPORT.md` and
+`publication.json`.

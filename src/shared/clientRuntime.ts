@@ -5,6 +5,12 @@ import type {
   SupervisorEventGap,
 } from "./backendHostProtocol";
 import type { IpcProcedureName, PoracodeBridge, PoracodeInvokeBridge } from "./ipc";
+import type {
+  RemoteHttpBridgeCancelRequest,
+  RemoteHttpBridgeOpenRequest,
+  RemoteHttpBridgeOpenResult,
+} from "./remote/httpBridgeProtocol";
+import { REMOTE_HTTP_BRIDGE_VERSION } from "./remote/httpBridgeProtocol";
 
 // Version 5 added sequenced Electron supervisor-event fallback delivery.
 // Version 6 added the supervisor-event-gap signal that makes desktop windows
@@ -18,7 +24,12 @@ import type { IpcProcedureName, PoracodeBridge, PoracodeInvokeBridge } from "./i
 // recovery barriers, so pairing it with a version-10 renderer would silently
 // strand the window on a stale cursor after socket loss — the version gate
 // rejects that pairing loudly instead.
-export const PORACODE_CLIENT_RUNTIME_VERSION = 10 as const;
+// Version 11 is the off-main remote HTTP bridge boundary (V4 F8): the preload
+// must expose the versioned bridge marker plus open/cancel and forward the
+// per-request `MessagePort` into the main world. A version-10 preload cannot
+// deliver request ports, so the renderer's remote HTTP transport has no
+// fallback and the version gate rejects the pairing loudly.
+export const PORACODE_CLIENT_RUNTIME_VERSION = 11 as const;
 
 export type ClientHost = "electron" | "browser";
 export type ClientSurface = "adaptive";
@@ -68,4 +79,15 @@ export type ElectronHostBridge = PoracodeNativeBridge & {
    * then stays a fallback consumer and fences barriers by generation 0.
    */
   getRendererStreamOwnershipGrant(): Promise<RendererStreamOwnershipGrant | null>;
+  /**
+   * Frame-set version of the off-main remote HTTP bridge. Required at facade
+   * version 11: the remote transport itself is port-based, so a preload that
+   * cannot deliver request ports must fail the facade gate instead of silently
+   * routing full response bodies through main.
+   */
+  readonly remoteHttpBridgeVersion: typeof REMOTE_HTTP_BRIDGE_VERSION;
+  /** Admit one remote HTTP request; main replies with the generation it minted. */
+  openRemoteHttpBridge(request: RemoteHttpBridgeOpenRequest): Promise<RemoteHttpBridgeOpenResult>;
+  /** Cancel fallback for a request whose per-request port has not attached yet. */
+  cancelRemoteHttpBridge(request: RemoteHttpBridgeCancelRequest): Promise<void>;
 };

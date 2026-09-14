@@ -1,4 +1,5 @@
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { readBridge } from "@/renderer/bridge";
+import { mainProcessFetch } from "@/renderer/state/remoteServers/mainProcessFetch";
 
 /** Read originals through the desktop bridge for local URLs, or fetch remote/inline URLs. */
 export async function fetchImageBytes(src: string): Promise<Uint8Array<ArrayBuffer>> {
@@ -6,16 +7,13 @@ export async function fetchImageBytes(src: string): Promise<Uint8Array<ArrayBuff
     return new Uint8Array(await readBridge().readLocalImageFile({ url: src }));
   }
   // Images can display without CORS permission, but renderer fetch cannot read their bytes.
-  // Desktop HTTP reads use the bounded main-process transport; the PWA uses browser fetch.
-  if (/^https?:\/\//i.test(src) && !isRemoteSession()) {
-    const response = await readBridge().remoteHttpRequest({
-      url: src,
-      responseEncoding: "base64",
-    });
+  // Desktop HTTP reads use the off-main bridge; the PWA keeps browser fetch semantics.
+  if (/^https?:\/\//i.test(src)) {
+    const response = await mainProcessFetch(src);
     if (response.status < 200 || response.status >= 300) {
       throw new Error(`Failed to load image (${response.status})`);
     }
-    return Uint8Array.from(atob(response.body), (character) => character.charCodeAt(0));
+    return new Uint8Array(await response.arrayBuffer());
   }
   const response = await fetch(src);
   if (!response.ok) throw new Error(`Failed to load image (${response.status})`);

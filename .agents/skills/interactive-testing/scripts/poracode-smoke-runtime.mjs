@@ -181,9 +181,19 @@ export function smokeElectronLaunch(runtime, userDataDir, env) {
     readFileSync(join(electronRoot, "path.txt"), "utf8").trim(),
   );
   assertWithin(realpathSync(runtime.appRoot), realpathSync(electronPath));
+  const args = [`--user-data-dir=${userDataDir}`];
+  // Diagnostic-only, opt-in main-process inspector. Evidence lanes that need
+  // exact main-process accounting (e.g. remote-HTTP byte ownership) set
+  // PORACODE_SMOKE_MAIN_INSPECT_PORT to an explicit loopback port they own;
+  // ordinary smoke runs pass no value and launch exactly as before.
+  const inspectPort = env?.PORACODE_SMOKE_MAIN_INSPECT_PORT;
+  if (inspectPort !== undefined) {
+    args.push(`--inspect=127.0.0.1:${mainInspectPort(inspectPort)}`);
+  }
+  args.push(runtime.appRoot);
   return {
     command: electronPath,
-    args: [`--user-data-dir=${userDataDir}`, runtime.appRoot],
+    args,
     options: {
       cwd: runtime.appRoot,
       env: smokeRuntimeEnvironment(env),
@@ -192,6 +202,17 @@ export function smokeElectronLaunch(runtime, userDataDir, env) {
       stdio: "inherit",
     },
   };
+}
+
+/** Explicit main-process inspector port for diagnostic-only smoke evidence. */
+function mainInspectPort(value) {
+  const port = Number(value);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(
+      `PORACODE_SMOKE_MAIN_INSPECT_PORT must be a TCP port between 1 and 65535, got: ${value}`,
+    );
+  }
+  return port;
 }
 
 export function smokeRuntimeEnvironment(env) {
@@ -203,6 +224,7 @@ export function smokeRuntimeEnvironment(env) {
   delete cleanEnv.NODE_OPTIONS;
   delete cleanEnv.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   delete cleanEnv.PORACODE_COMPUTER_USE_HELPER_PATH;
+  delete cleanEnv.PORACODE_SMOKE_MAIN_INSPECT_PORT;
   delete cleanEnv.PORACODE_BUNDLED_PLUGINS_DIR;
   delete cleanEnv.PORACODE_WSL_HELPERS_DIR;
   delete cleanEnv.PORACODE_WSL_WATCHER_DIR;
