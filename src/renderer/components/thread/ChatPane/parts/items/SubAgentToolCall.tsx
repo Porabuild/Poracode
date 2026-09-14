@@ -6,6 +6,7 @@ import type { TranslateFn } from "@/renderer/i18n/i18n";
 import { Bot, ChevronDown, ChevronRight, CircleAlert, type LucideIcon } from "lucide-react";
 import { isWorkflowRunLive, type ToolCallPayload, type WorkflowRun } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { StartTruncatedText } from "@/renderer/components/common/StartTruncatedText";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   getRuntimeItemPayload,
@@ -147,7 +148,7 @@ export const SubAgentToolCall = memo(function SubAgentToolCall({
                 dirClassName="!text-[color:var(--muted)]"
               />
             ) : (
-              <span className="lc-truncate-start flex-1">{display.parts.path}</span>
+              <StartTruncatedText className="flex-1">{display.parts.path}</StartTruncatedText>
             )}
           </code>
         ) : (

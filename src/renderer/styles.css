@@ -1098,11 +1098,9 @@ html[data-compact-layout] [data-sticky-windowed-header] .poracode-model-menu-hea
   padding-left: 0.5rem;
 }
 
-/* Truncate a single-line element at the START (ellipsis at the beginning)
-   instead of the end. Used for path-like text in tool-call titles where the
-   tail (filename) is more informative than the head. The bidi flip preserves
-   LTR path text inside an isolated RTL container; only the truncation side is
-   affected. */
+/* StartTruncatedText puts the ellipsis at the beginning to preserve path tails.
+   Its inner <bdi dir="ltr"> keeps this RTL container from reordering leading
+   punctuation (e.g. turning ".github" into "github."). */
 .lc-truncate-start {
   direction: rtl;
   text-align: left;
