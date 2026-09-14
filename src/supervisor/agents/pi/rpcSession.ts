@@ -209,6 +209,18 @@ export class PiRpcSession implements StructuredSessionHandle {
     void this.publishSlashCommands();
   }
 
+  /** The factory already selected --session; confirm the CLI's actual identity before input. */
+  async openThread(): Promise<string> {
+    const response = await this.client.request("get_state");
+    const sessionId = recordOf(response.data)?.sessionId;
+    if (!response.success || typeof sessionId !== "string" || !sessionId.trim()) {
+      throw new Error("Pi did not report its session identity");
+    }
+    this.sessionRef = createKnownSessionRef(sessionId);
+    this.publishUpdate("idle", "none");
+    return sessionId;
+  }
+
   async startTurn(
     prompt: string,
     config: ThreadConfig,

@@ -6,6 +6,7 @@ import type { CrossagentRoutingOverride } from "@/shared/settings";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { buildSubagentInstructions, dispatchTool, isKnownToolName, TOOLS } from "./toolRegistry";
 import { errorResult } from "./toolResult";
+import { keepJsonResponseAlive } from "./jsonResponseKeepalive";
 import type { ExplicitSpawnAgentSelection, SpawnableAgent } from "./types";
 
 export interface CrossagentMcpIngressInfo {
@@ -231,9 +232,12 @@ export class CrossagentMcpIngress {
   }
 
   private sendJson(res: ServerResponse, status: number, body: unknown): void {
-    res.statusCode = status;
-    res.setHeader("Content-Type", "application/json");
-    res.setHeader("Cache-Control", "no-store");
+    if (res.destroyed || res.writableEnded) return;
+    if (!res.headersSent) {
+      res.statusCode = status;
+      res.setHeader("Content-Type", "application/json");
+      res.setHeader("Cache-Control", "no-store");
+    }
     res.end(JSON.stringify(body));
   }
 
@@ -297,19 +301,30 @@ export class CrossagentMcpIngress {
     if (typeof sessionId !== "string" || !sessionId) sessionId = randomUUID();
     res.setHeader("Mcp-Session-Id", sessionId);
 
-    if (Array.isArray(body)) {
-      const replies = await Promise.all(body.map((message) => this.handleSingle(message, auth)));
-      const out = replies.filter((reply): reply is JsonRpcResponse => reply !== null);
-      this.sendJson(res, 200, out);
-      return;
+    const messages = Array.isArray(body) ? body : [body];
+    const stopKeepalive = messages.some(
+      (message) =>
+        isJsonRpcRequest(message) && message.method === "tools/call" && message.id !== undefined,
+    )
+      ? keepJsonResponseAlive(res)
+      : undefined;
+    try {
+      if (Array.isArray(body)) {
+        const replies = await Promise.all(body.map((message) => this.handleSingle(message, auth)));
+        const out = replies.filter((reply): reply is JsonRpcResponse => reply !== null);
+        this.sendJson(res, 200, out);
+        return;
+      }
+      const reply = await this.handleSingle(body, auth);
+      if (!reply) {
+        res.statusCode = 202;
+        res.end();
+        return;
+      }
+      this.sendJson(res, 200, reply);
+    } finally {
+      stopKeepalive?.();
     }
-    const reply = await this.handleSingle(body, auth);
-    if (!reply) {
-      res.statusCode = 202;
-      res.end();
-      return;
-    }
-    this.sendJson(res, 200, reply);
   }
 
   private async handleSingle(

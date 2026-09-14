@@ -2949,7 +2949,7 @@ describe("CodexStructuredSession", () => {
       },
     };
 
-    await (session as unknown as CodexStructuredSession).openThread(
+    const opened = (session as unknown as CodexStructuredSession).openThread(
       { model: "gpt-5.4" },
       {
         providerSessionId: "provider-thread",
@@ -2962,6 +2962,15 @@ describe("CodexStructuredSession", () => {
       onUpdate: (update) => updates.push(update),
       onRuntimeEvent: (event) => runtimeEvents.push(event),
     });
+
+    let ready = false;
+    void opened.then(() => {
+      ready = true;
+    });
+    await vi.waitFor(() =>
+      expect(requests.map((request) => request.method)).toContain("thread/read"),
+    );
+    expect(ready).toBe(false);
 
     expect(updates).toEqual([]);
 
@@ -2987,8 +2996,8 @@ describe("CodexStructuredSession", () => {
     });
 
     resolveThreadRead({ thread: { status: { type: "idle" } } });
-    await Promise.resolve();
-    await Promise.resolve();
+    await opened;
+    expect(ready).toBe(true);
 
     onMessage?.({
       jsonrpc: "2.0",

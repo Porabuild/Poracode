@@ -117,6 +117,39 @@ composition is complete; native release and full F2/Phase 1 gates remain open.
 
 External protocol identifiers such as MCP protocol dates and ACP SDK protocol versions are negotiated standards, not Poracode cache generations. Change them only with the corresponding dependency/protocol implementation and interoperability tests.
 
+Crossagents plugin `1.6.0` updates the bundled skills, MCP guidance and prepared worker prompts.
+`steer_agent` still accepts the previous `{ run_id, prompt }` request, but now waits for a
+normal run result by default. `background: true` returns `accepted` without waiting for the result;
+wait/output options are additive. The plugin manifest also supplies the MCP server version.
+Completed structured workers can resume their same provider session through `steer_agent`;
+the additive `continued_from` receipt identifies a new run ID for that turn, preserving old
+reports, cursors and workflow joins. `list_runs.can_steer` includes resumable completed workers,
+and `continued_by` directs old receipts to the latest turn. Resume is memory-only and capability
+gated, never a fallback to a new conversation. Compact envelope version 1 is unchanged; its
+prompt clarifies existing string-array and finding semantics without changing the schema.
+Existing skill projections refresh by source content, and user skill overrides continue to
+win over older bundles. No stored run state or compact-report shape changes; workflows and
+runs remain memory-only. An already connected client must reload its tool catalog and skill
+to use new behavior consistently. Keep old-host guidance in the skill until those clients
+upgrade; instruction changes alone do not add newer server capabilities.
+
+Crossagents plugin `1.7.0` reduces repeated initialization guidance and the core skills,
+uses compact JSON whitespace for tool results without changing their decoded shape, and
+adds an optional exact `model` filter to `get_agent`. Omitting the filter retains the full
+provider response. Instruction/payload footprint gates and previous-bundle tests include
+`1.6.0`; existing clients must refresh their catalog/skill to use the smaller setup path.
+The compact report schema, session continuation semantics and 240-second wait cap are unchanged.
+
+Crossagents plugin `1.8.0` raises the default/cap from 240 to 480 seconds and the
+configured client deadline from 300 to 600 seconds. Authenticated tool responses
+flush headers and legal leading JSON whitespace every 30 seconds while pending,
+so HTTP header/body idle limits do not terminate the longer wait. Responses still
+contain one JSON-RPC value; no MCP protocol date or compact-report schema changes.
+Standalone and batch waits now wake for pending input/approval, as workflows already
+do; deadlines never cancel workers. Prior-bundle tests include `1.7.0`. Existing
+provider sessions need fresh MCP configuration; an updated skill alone cannot raise
+an older host's cap or client timeout.
+
 ## Host ownership and local control
 
 The standalone entry now consumes the shared ownership boundary; desktop entry

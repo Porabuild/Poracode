@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { RuntimeEvent } from "@/shared/contracts";
+import type { RuntimeEvent, SessionRef } from "@/shared/contracts";
 import type { StructuredSessionUpdate } from "../base";
 import { PiRpcClient } from "./rpcClient";
 import { PiRpcSession } from "./rpcSession";
@@ -146,7 +146,7 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     return { events, updates };
   }
 
-  async function createSession() {
+  async function createSession(sessionRef?: SessionRef) {
     const { events, updates } = makeSession();
     const session = await PiRpcSession.create(
       {
@@ -154,6 +154,7 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
         projectLocation: { kind: "posix", path: projectDir },
         config: { model: "mock/model", effort: "off" },
         presentationMode: "gui",
+        ...(sessionRef ? { sessionRef } : {}),
       },
       { binary: mockBinary },
     );
@@ -169,6 +170,34 @@ describe("PiRpcSession (mock pi --mode rpc)", () => {
     });
     return { session, events, updates };
   }
+
+  it.each([false, true])(
+    "confirms the CLI session identity before a turn (resume=%s)",
+    async (resume) => {
+      const { session, updates } = await createSession(
+        resume
+          ? {
+              providerSessionId: "mock-session-1",
+              discoveredAt: "2026-09-13T23:00:00Z",
+            }
+          : undefined,
+      );
+      try {
+        expect(await session.openThread()).toBe("mock-session-1");
+        expect(updates.at(-1)).toMatchObject({
+          status: "idle",
+          sessionRef: { providerSessionId: "mock-session-1" },
+        });
+        const args = vi.mocked(PiRpcClient.spawn).mock.calls.at(-1)![0].args;
+        const sessionFlag = args.indexOf("--session");
+        expect(sessionFlag < 0 ? undefined : args[sessionFlag + 1]).toBe(
+          resume ? "mock-session-1" : undefined,
+        );
+      } finally {
+        await session.dispose();
+      }
+    },
+  );
 
   async function disposeSettledSession(
     session: PiRpcSession,

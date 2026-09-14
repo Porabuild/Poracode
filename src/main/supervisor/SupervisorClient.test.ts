@@ -57,7 +57,7 @@ function makeClient(options: Pick<SupervisorClientOptions, "prepareStartThread">
     onReset: vi.fn<() => void>(),
     ...options,
   });
-  client.start();
+  void client.start();
   return { client, child };
 }
 
@@ -85,8 +85,8 @@ describe("SupervisorClient.start idempotency", () => {
     const { client, child } = makeClient();
 
     // A duplicate boot path must be a no-op, never kill the running child.
-    client.start();
-    client.start();
+    void client.start();
+    void client.start();
 
     expect(forkMock).toHaveBeenCalledTimes(1);
     expect(child.connected).toBe(true);
@@ -131,7 +131,7 @@ describe("SupervisorClient.call", () => {
       onReset: vi.fn<() => void>(),
     });
 
-    client.start();
+    void client.start();
 
     expect(setPriorityMock).toHaveBeenCalledExactlyOnceWith(42, expect.any(Number));
   });
@@ -380,7 +380,7 @@ describe("SupervisorClient.call", () => {
       onReset: vi.fn<() => void>(),
     });
 
-    client.dispose();
+    await client.dispose();
 
     await expect(client.call("any" as never, undefined as never)).rejects.toThrow("disposed");
     expect(forkMock).not.toHaveBeenCalled();
@@ -400,11 +400,11 @@ describe("SupervisorClient.call", () => {
       onEvent: vi.fn<(event: SupervisorEvent) => void>(),
       onReset: vi.fn<() => void>(),
     });
-    client.start();
+    void client.start();
     child.emit("exit", 1);
     child.emit("close", 1);
 
-    client.dispose();
+    await client.dispose();
     await vi.advanceTimersByTimeAsync(1_000);
 
     expect(forkMock).toHaveBeenCalledTimes(1);
@@ -531,9 +531,10 @@ describe("SupervisorClient lifecycle", () => {
     vi.useFakeTimers();
     const { client, child } = makeClient();
 
-    client.dispose();
+    const disposing = client.dispose();
     child.emit("exit", 1);
     child.emit("close", 1);
+    await disposing;
     await vi.advanceTimersByTimeAsync(1_000);
 
     expect(terminateChildProcessTreeMock).toHaveBeenCalledExactlyOnceWith(child);

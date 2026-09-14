@@ -93,7 +93,7 @@ export function readRunResult(
       : incremental || !isCompleteTranscript
         ? { total_output_chars: total }
         : {}),
-    ...(quiet && record.pendingRequestIds.size > 0
+    ...(record.pendingRequestIds.size > 0
       ? { pending_requests: record.pendingRequestIds.size }
       : {}),
     ...(record.error ? { error: record.error } : {}),

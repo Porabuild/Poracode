@@ -94,8 +94,8 @@ type SpawnSpec = {
  * settle from the exit code (0 → completed with accumulated output; non-zero →
  * failed with the stderr tail / exit-code message).
  *
- * Recursion guard parity: one-shot children carry no MCP config, so they can't
- * spawn grandchildren.
+ * One-shot children carry no parent MCP config. Native delegation tools may
+ * still exist; the prepared worker prompt gives scheduling to the coordinator.
  */
 export function runOneShotChild(params: OneShotChildParams): OneShotChildHandle {
   const cmd = params.adapter.buildSubagentOneShotCommand?.({

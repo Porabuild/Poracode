@@ -52,7 +52,7 @@ function fixture() {
     onOutputShed,
     onReset: vi.fn<() => void>(),
   });
-  client.start();
+  void client.start();
   return { client, first, second, onEvent, onOutputShed };
 }
 

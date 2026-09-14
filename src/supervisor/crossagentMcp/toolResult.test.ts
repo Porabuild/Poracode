@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_WAIT_TIMEOUT_MS, MAX_WAIT_TIMEOUT_MS } from "./SubagentRunManager";
-import { parseWaitOptions, parseWaitTimeoutMs } from "./toolResult";
+import { jsonResult, parseWaitOptions, parseWaitTimeoutMs, runToolResult } from "./toolResult";
 
 describe("parseWaitTimeoutMs", () => {
   it("reads timeout_s, clamped to [0, cap]", () => {
@@ -73,6 +73,25 @@ describe("output mode parsing", () => {
       outputMode: "progress",
       fullOutput: false,
       afterOutputChars: 0,
+    });
+  });
+});
+
+describe("compact wire serialization", () => {
+  it("preserves multiline evidence, Unicode and control cues without JSON indentation", () => {
+    const value = {
+      run_id: "run",
+      status: "running" as const,
+      output: "Evidence: café\nline two",
+      total_output_chars: 23,
+    };
+    const response = runToolResult(value);
+    expect(JSON.parse(response.content[0]!.text)).toEqual(value);
+    expect(response.content[0]!.text).not.toContain("\n");
+    expect(response.content).toHaveLength(2);
+    expect(response.content[1]!.text).toContain("wait_for_agent");
+    expect(JSON.parse(jsonResult({ error: "bad\nvalue" }).content[0]!.text)).toEqual({
+      error: "bad\nvalue",
     });
   });
 });

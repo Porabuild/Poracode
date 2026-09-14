@@ -77,8 +77,9 @@ export function resolveSubagentExecution(adapter: {
  * advertised policy, falling back to its declared bypass posture when the
  * probe exposes no choices. Subagents must not inherit a potentially
  * incompatible or supervised parent policy. Browser, Computer Use, and Chrome
- * MCP choices are inherited; Crossagents MCP is deliberately excluded so a child
- * cannot spawn grandchildren. One-shot-only providers already enforce the
+ * MCP choices are inherited; Crossagents MCP is deliberately excluded to prevent
+ * recursive Crossagents runs. Native delegation tools may still be available.
+ * One-shot-only providers already enforce the
  * permission rule in `buildSubagentOneShotCommand`.
  */
 export function buildUnrestrictedChildConfig(
@@ -257,6 +258,8 @@ export interface SubagentRunSummary {
   attempt: number;
   attempt_count: number;
   can_steer: boolean;
+  /** Next turn receipt when a completed worker has already been resumed. */
+  continued_by?: string;
 }
 
 /**

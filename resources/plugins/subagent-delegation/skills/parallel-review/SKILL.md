@@ -1,16 +1,14 @@
 ---
 name: parallel-review
-description: "Get independent reviews of the same work from several agents, then reconcile their findings into one verified verdict."
+description: Get independent reviews of completed work and reconcile the findings into one verified verdict.
 ---
 
 # Parallel Review
 
-Follow the subagent-delegation core skill, including explicit user authorization and live tool availability. Use one risk-based independent review wave. Select only useful lenses: correctness/lifecycle, security/trust, tests/compatibility, or simplification/performance. Merge adjacent lenses for small changes.
+Use the Crossagents core skill once. Review a completed, stable candidate with independent read-only lanes. Choose only lenses justified by risk: correctness/lifecycle, security/trust, tests/compatibility, or simplification/performance; combine lenses for small changes.
 
-Assign each reviewer exact read-only files/resources and a distinct lens; overlap only for meaningful cross-boundary risks. Give the intent, relevant diff and acceptance criteria without another reviewer's conclusions. Require file:line, a concrete failure or cost, severity, evidence and the smallest fix. Target at most 500 words, retaining every critical finding and linking longer evidence. Reviewers own investigation and focused proof, not edits or a narrated search log.
+Give each reviewer intent, exact files/resources, relevant diff and acceptance criteria. Require file:line, severity, a concrete failure or cost, evidence and the smallest fix. Target 500 words while retaining every critical finding. Reviewers investigate and prove claims; they do not edit, delegate further or narrate their search. Keep their conclusions independent.
 
-Submit independent lanes together through `spawn_agent` with `tasks`, review tags and specific names. Use `result_mode="compact"` when advertised so reviewers author their own final reports. For a review dependent on implementation, `run_workflow` can pass the implementation report to a read-only review stage without parent narration; retain independent checks of the actual changes. Use background runs only while useful independent work remains. Before ending the turn, collect all required results by batching `run_ids` in `wait_for_agent`. Omit routine timeout overrides: the default 240-second wait minimizes parent ticks. A transport-bounded wait returning `running` is not a stall: continue waiting for required results, without extra status polling or timeout cancellation. Use quiet output when advertised (the current default); otherwise use incremental cursors. A running tick is control state, not a reason to read the worker transcript. Completion never injects a parent message automatically.
+Batch lanes in `spawn_agent.tasks` with review tags and compact results. For a known implementation→review dependency, use `run_workflow` to pass reports. Use the core skill's normal waits and collect full results before corrections; only a material cannot-wait correction warrants active steering.
 
-Validate every returned claim against real code and guards. Agreement is not proof. Resolve disagreements by checking the execution path. Fix confirmed findings, test the integrated changes, and reuse passing checks only for unchanged inputs and dependencies. Request only a correction-delta review when fixes change meaningful behavior or boundaries; do not restart the full wave.
-
-Return one ranked list of verified findings with file references and evidence, or state no findings. Include covered dimensions, actual verification and remaining limits.
+Validate findings against real code and guards; agreement is not proof. Consolidate confirmed fixes, verify changed behavior, and request only a correction-delta review when it affects meaningful behavior or boundaries. Return verified findings (or none), actual checks and remaining limits.

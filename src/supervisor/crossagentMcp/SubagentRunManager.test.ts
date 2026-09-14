@@ -13,6 +13,25 @@ import { parseWaitOptions } from "./toolResult";
 import { buildUnrestrictedChildConfig, type SubagentRunHost } from "./types";
 
 describe("SubagentRunManager", () => {
+  it.each([undefined, "compact"] as const)(
+    "delivers worker scope instructions with the task in %s result mode",
+    async (resultMode) => {
+      const h = makeHarness();
+      h.manager.spawn(PARENT, {
+        agent: "codex",
+        prompt: "Read the assigned files. Return exactly one finding.",
+        ...(resultMode ? { resultMode } : {}),
+      });
+      await flush();
+      const prompt = h.handles[0]!.startTurns[0]!.prompt;
+      expect(prompt).toContain("Do not spawn nested agents or delegate through any tool");
+      expect(prompt).toContain("unless this assignment explicitly permits it");
+      expect(prompt).toContain("Read the assigned files. Return exactly one finding.");
+      expect(prompt.includes("crossagents-result")).toBe(resultMode === "compact");
+      h.handles[0]!.completeTurn("completed");
+    },
+  );
+
   it("uses a provider's declared unrestricted posture", () => {
     expect(
       buildUnrestrictedChildConfig(
@@ -632,7 +651,9 @@ describe("SubagentRunManager", () => {
     await expect(h.manager.steer(runId, "again", PARENT)).rejects.toThrow(/provider rejected/);
     await h.manager.cancel(runId);
     expect(h.manager.listRuns(PARENT)[0]?.can_steer).toBe(false);
-    await expect(h.manager.steer(runId, "again", PARENT)).rejects.toThrow(/no longer running/);
+    await expect(h.manager.steer(runId, "again", PARENT)).rejects.toThrow(
+      /no completed, resumable/,
+    );
   });
 
   it.each(["event", "accepted"])(

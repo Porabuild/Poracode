@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Computer
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Lan
+import androidx.compose.material.icons.outlined.LinkOff
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
@@ -45,6 +46,7 @@ internal fun HomeMoreSheet(
     onDismiss: () -> Unit,
     onManageHosts: () -> Unit,
     onManageProjects: () -> Unit,
+    onDisconnect: () -> Unit,
     onOpenBrowserMirror: () -> Unit,
     onOpenSchedules: () -> Unit,
     onOpenProfile: () -> Unit,
@@ -144,6 +146,11 @@ internal fun HomeMoreSheet(
             }
             HomeMoreRow(R.string.settings_title, Icons.Outlined.Settings, onOpenSettings)
             HomeMoreRow(R.string.refresh_projects, Icons.Outlined.Refresh, onRefresh)
+            // Pairing lifecycle stays reachable from Home: the one action that
+            // repairs a broken local store or an incompatible desktop without a
+            // fresh pairing link (mirrors the onboarding DisconnectButton).
+            Spacer(Modifier.height(8.dp))
+            HomeMoreRow(R.string.disconnect, Icons.Outlined.LinkOff, onDisconnect)
             Spacer(Modifier.height(12.dp))
         }
     }

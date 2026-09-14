@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
@@ -23,6 +24,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import com.poracode.app.wirelab.AwaitTimeoutException
 import com.poracode.app.wirelab.WireLabArgs
 import com.poracode.app.wirelab.WireLabControl
 import com.poracode.app.wirelab.assertObserved
@@ -186,7 +188,23 @@ class Android37WireLabJourneyInstrumentedTest {
             null,
             application.richChat.chat.state.value.failure,
         )
-        control.waitUntilObserved(listOf("route:thread-send"), 8_000L)
+        // The composer launches its send on the composition's dispatcher, so the
+        // Compose clock must keep advancing while that coroutine resumes from the
+        // credential I/O hop. A raw poll starves that resume, leaving the request
+        // unsent until something else pumps frames. The count below still proves
+        // exactly-once, so this bound only asserts prompt issuance.
+        try {
+            compose.waitUntil(20_000L) {
+                "route:thread-send" in control.observedOperationIds()
+            }
+        } catch (timeout: ComposeTimeoutException) {
+            val chatState = application.richChat.chat.state.value
+            throw AwaitTimeoutException(
+                "${timeout.message} (app send state: " +
+                    "failurePresent=${chatState.failure != null}, " +
+                    "sendActive=${"send" in chatState.activeOperations})",
+            )
+        }
         assertObserved(control, listOf("route:thread-send"))
         assertEquals(
             "one raw send request; production mutations are never retried",
@@ -225,7 +243,11 @@ class Android37WireLabJourneyInstrumentedTest {
             null,
             application.richChat.chat.state.value.failure,
         )
-        control.waitUntilObserved(listOf("route:thread-interrupt"), 20_000L)
+        // Same dispatch rule as the send await: keep Compose advancing so the
+        // interrupt coroutine can resume from its I/O hop.
+        compose.waitUntil(20_000L) {
+            "route:thread-interrupt" in control.observedOperationIds()
+        }
         assertObserved(control, listOf("route:thread-interrupt"))
         assertEquals(
             "one raw interrupt request; production mutations are never retried",

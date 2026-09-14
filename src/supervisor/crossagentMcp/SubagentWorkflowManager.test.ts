@@ -89,6 +89,25 @@ function harness(capacity = 2) {
 }
 
 describe("SubagentWorkflowManager", () => {
+  it("keeps a workflow wait open past four minutes and returns at completion", async () => {
+    vi.useFakeTimers();
+    try {
+      const h = harness();
+      const { workflowId } = h.manager.start("parent", [task("work")]);
+      await flush();
+      const settled = vi.fn<() => void>();
+      const waiting = h.manager.waitFor("parent", workflowId, 480_000);
+      void waiting.then(settled);
+      await vi.advanceTimersByTimeAsync(310_000);
+      expect(settled).not.toHaveBeenCalled();
+      h.settle("run-0");
+      expect((await waiting).status).toBe("completed");
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("schedules an unordered DAG, forwards only compact evidence, and resolves a terminal wait", async () => {
     const h = harness();
     const { workflowId } = h.manager.start("parent", [

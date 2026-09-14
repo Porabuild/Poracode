@@ -1,3 +1,4 @@
+import { MAX_WAIT_TIMEOUT_MS } from "./waitTiming";
 import { randomUUID } from "node:crypto";
 import { posix } from "node:path";
 import { compactResultCanContinue, type CompactResult } from "./compactResult";
@@ -253,7 +254,7 @@ export class SubagentWorkflowManager {
           workflow.waiters.delete(done);
           resolve();
         };
-        const timer = setTimeout(done, Math.min(timeoutMs, 240_000));
+        const timer = setTimeout(done, Math.min(timeoutMs, MAX_WAIT_TIMEOUT_MS));
         workflow.waiters.add(done);
       });
     }

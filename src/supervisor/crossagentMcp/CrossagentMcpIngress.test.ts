@@ -1,5 +1,6 @@
 import pluginManifest from "../../../resources/plugins/subagent-delegation/plugin.json";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { JSON_KEEPALIVE_INTERVAL_MS } from "./jsonResponseKeepalive";
 import { CROSSAGENT_PROVIDER_SESSION_ID_ARG, CrossagentMcpIngress } from "./CrossagentMcpIngress";
 import type { SubagentRunManager } from "./SubagentRunManager";
 import { CROSSAGENT_MCP_INSTRUCTIONS_BASE } from "./toolRegistry";
@@ -112,6 +113,7 @@ describe("CrossagentMcpIngress", () => {
 
   afterEach(() => {
     ingress.dispose();
+    vi.useRealTimers();
   });
 
   async function rpc(method: string, params?: unknown, bearer = token): Promise<Response> {
@@ -143,6 +145,56 @@ describe("CrossagentMcpIngress", () => {
   it("rejects unknown tokens with 401", async () => {
     const res = await rpc("tools/list", undefined, "deadbeef");
     expect(res.status).toBe(401);
+  });
+
+  it("flushes silent keepalives while pending and returns one unchanged JSON result", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const deferred = Promise.withResolvers<{ status: "completed"; output: string }>();
+    setWaitFor(() => deferred.promise);
+    const res = await rpc("tools/call", {
+      name: "wait_for_agent",
+      arguments: { run_id: "run-xyz" },
+    });
+    expect(res.headers.get("content-type")).toBe("application/json");
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let text = decoder.decode((await reader.read()).value);
+    expect(text).toBe("\n");
+    await vi.advanceTimersByTimeAsync(JSON_KEEPALIVE_INTERVAL_MS);
+    text += decoder.decode((await reader.read()).value);
+    expect(text).toBe("\n\n");
+    deferred.resolve({ status: "completed", output: "ready" });
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      text += decoder.decode(chunk.value);
+    }
+    expect(JSON.parse(text)).toEqual({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ status: "completed", output: "ready" }),
+          },
+        ],
+      },
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("cleans up keepalives on disconnection without cancelling the pending worker", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    const deferred = Promise.withResolvers<{ status: "completed"; output: string }>();
+    setWaitFor(() => deferred.promise);
+    const res = await rpc("tools/call", {
+      name: "wait_for_agent",
+      arguments: { run_id: "run-xyz" },
+    });
+    await res.body!.cancel();
+    await vi.waitFor(() => expect(vi.getTimerCount()).toBe(0));
+    deferred.resolve({ status: "completed", output: "ready" });
   });
 
   it("shares one provider credential while routing concurrent sessions independently", async () => {

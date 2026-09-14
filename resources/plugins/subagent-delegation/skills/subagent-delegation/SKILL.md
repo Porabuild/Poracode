@@ -1,50 +1,38 @@
 ---
 name: subagent-delegation
-description: Delegate independent, bounded work to the best available Poracode agents and consolidate verified results. Use for parallel research, independent reviews, specialist work, or non-overlapping implementation; do not delegate trivial, sequential, tightly coupled, or context-heavy work.
+description: Coordinate explicitly requested delegation through research, scoped execution and verification with minimal parent overhead.
 ---
 
 # Crossagents
 
-Use the `crossagents` MCP only after the user explicitly requests delegation in this thread; that authorization persists. The coordinator owns integration and the final result. Resolve tool names against this server's actual catalog.
+Delegate only after an explicit user request in this thread; that authorization persists. Honor the user's provider, model, reasoning and scope. Child permissions do not expand it.
 
-## Assign complete work
+## Start once
 
-Delegate only when independent work can run alongside useful local work, or a specialist or independent review materially helps. Keep trivial, tightly coupled or context-heavy work local. Do not repeat a worker's investigation in the parent while it is running.
+Use the skill path or ID already in context; avoid rediscovering it. Resolve server-qualified tool names and only the schemas needed next in one pass. Reuse loaded instructions, tool bindings and results. When supported, batch independent setup calls in one code execution and print only decision-relevant fields, errors and requested evidence.
 
-Give each worker a self-contained objective, relevant files/resources, exact write ownership (or read-only scope), constraints, acceptance checks and deliverable. Prefer worker-owned investigate → implement → focused verification → concise outcome over returning each phase to the coordinator. Never overlap writes, including shared generated files. Reserve integration and git operations for one owner. Child permissions do not expand user authorization.
+Known provider/model IDs can go straight to `spawn_agent`; the host validates them. For an unfamiliar selection, call `get_agent` directly when the provider ID is known (`model` narrows its response on supported hosts). Use `list_agents` only to choose or identify a provider. Omit unspecified selection fields to use configured routing; persist preferences only when the user asks. Never print the entire tool catalog or reload descriptions between stages.
 
-Target results of at most 500 words: outcome, changed files or artifact references, exact checks/results, all critical findings and unresolved risks. Link detailed evidence instead of copying logs; never omit a critical finding to meet the target. Progress belongs in the UI/logs, not repeated parent narration.
+## Coordinate complete assignments
 
-## Route and launch
+As coordinator, delegate research, implementation and verification; own architecture, dependencies, evidence checks and integration. For shared unknowns, collect read-only research first, settle decisions, then launch dependent execution. Parallelize independent questions and non-overlapping work. Avoid duplicating worker investigation or implementing its task while waiting.
 
-1. Classify with 1–5 concise task tags. Use `list_agents` when selection matters and `get_agent` only for needed model, reasoning, Fast or permissions details. Pass the same tags to `spawn_agent`.
-2. Honor user-selected provider/model/reasoning/Fast; otherwise omit these fields for configured and learned routing. Persist routing preferences only on clear user intent.
-3. Set a specific task `name`. Submit independent tasks together in one `spawn_agent` call with `tasks`. Maximum: 16 active children per parent. `list_runs` with `include_capacity=true` gives a snapshot, not a reservation.
-4. Foreground spawn waits by default. Use `background=true` when useful independent work remains before synchronization. Background completion does not inject a parent message. Before ending your turn, collect every required result with `wait_for_agent`; never finish with a promise to report later while those runs are still running.
-5. Fallbacks retry startup failures by default. `retry_on="any-failure"` can repeat dispatched writes and needs explicit justification and authority. A wait timeout is not a startup failure.
+Each brief needs an objective, settled decisions/references, exact write ownership (or read-only scope), constraints, acceptance checks and a concise outcome. Workers choose routine details and run focused checks before reporting. No nested delegation unless explicitly assigned. Review a completed candidate; consolidate corrections. Keep review proportional to risk and reuse passing checks when their inputs are unchanged. Have each lane owner load its specialized implementation/review instructions; the parent loads them only when it owns that work.
 
-## Let workers report and the host coordinate
+## Run and collect
 
-When the live spawn schema advertises `result_mode`, set `result_mode="compact"`. Poracode adds the final-report contract to the worker prompt. The worker prepares its own summary, changes, checks, findings, risks and evidence references; the parent does not summarize its transcript. Default wait/status reads return the validated report and control state. `result_error` means missing/invalid evidence, not success. Reports are worker claims: inspect the relevant changes and verify integration. Use `full_output=true` for complete retained transcript evidence or `output_mode="progress"` for the legacy tail. Compact reads keep transcript cursors unread.
+Set a descriptive `name` and 1–5 task `tags`; select `result_mode="compact"` when advertised. Launch independent tasks together with `tasks`. For known dependencies, `run_workflow` schedules the graph and forwards compact reports; give each stage `id`, `write_scope` and any `depends_on`. Declared scopes are not sandboxes. Failed/unrun checks, important findings and invalid reports block descendants; research requirements belong in summary/evidence, not defect findings. Workflow support is native macOS/Linux only.
 
-For known dependent tasks, prefer one `run_workflow` call over parent-managed stage handoffs. Each task has a unique `id`, `prompt`, exact project-relative `write_scope` (`[]` for read-only), optional `depends_on` IDs and normal selection fields. Root provider/model/reasoning/Fast/permissions are defaults; task values override them. All stages use compact results and startup-only retries. The host validates the graph, queues for capacity, and passes compact dependency reports directly to downstream workers.
+Spawn, workflow and steer calls wait by default. Use `background=true` only with useful independent work, then join all required results before ending the turn. Workers survive parent-turn interruption but stop on parent close; completion never injects a parent message.
 
-The host checks declared write-scope conflicts within/across active workflows; these declarations are not filesystem sandboxes. Coordinate ownership with standalone runs yourself. A failed, missing or blocked report, important finding or failed/unrun listed check blocks descendants. Do not add unconditional repair loops or publishing stages. Independent stages may still complete.
+Waits default to 480 seconds (eight minutes, also the cap) and return as soon as required work finishes or needs input; omit routine timeout overrides. Keep required joins in the same pending code execution where supported, returning for completion, a blocker/error or a request needing attention. If the harness yields, resume that same call using its longest allowed wait, rather than a short interval by habit. Respect caller responsiveness limits. UI progress needs no status query. Continue waiting for required running work; elapsed time alone never justifies steering, cancellation or abandonment.
 
-`run_workflow` starts and waits by default. Use `background=true` only with useful independent work, then `action="wait"` with `workflow_id`. Waits return on completion, approvals, a newly blocked stage or transport timeout. Repeated waits do not wake for an already-reported blocker. Other actions are `status`, `list`, and `cancel`. Running snapshots include blocking reports when attention is needed; successful reports appear at settlement for sink stages, with other stages available through `get_status` using their `run_id`. No automatic parent-message injection. Host-managed workflows currently require native macOS or Linux execution; Windows and WSL workflows are rejected before launch because worker shutdown cannot yet guarantee write ownership release. Standalone compact `spawn_agent` runs remain available. Limits: 16 tasks/workflow, 4 active workflows/parent, 16 active workers total. Workflows are memory-only, stop on parent close and do not recover after app restart. Compact workflows retain 50 settled records/parent; full transcripts retain the existing 50-run window. Save durable evidence in owned files when needed.
+Default quiet reads preserve unread output and expose control state/errors. Keep compact reports; treat them as claims and verify relevant evidence. Use `get_status` or `full_output=true` only for a specific missing fact. With progress reads, carry returned cursors; after `wait_mode="any"`, join only remaining runs. Save durable evidence within assigned ownership: runs/workflows are memory-only and retained histories are bounded.
 
-If the live catalog lacks these options/tools, use existing spawn/wait with concise worker outcomes; do not claim host-managed scheduling or compact delivery is available.
+## Correct and reuse
 
-## Synchronize economically
+After the complete result, send one consolidated correction through `steer_agent`. Supported completed workers resume the same provider session/context; use the returned new `run_id` and `continued_from`. Old reports/workflows stay unchanged; coordinate write ownership before this standalone follow-up. `continued_by` identifies a later receipt. Failed pre-dispatch startup permits an explicit retry from the original receipt after cleanup; dispatched failures do not.
 
-Batch required `run_ids` in `wait_for_agent` at real dependency points. Waits default to 240 seconds, also the transport-safety cap; omit timeout overrides during routine waiting to minimize parent ticks. A `running` result leaves the worker active: continue bounded waits for required results, without intervening status polls. Never cancel or abandon work merely because time elapsed. Cancel only on user request or when the work is no longer needed for reasons unrelated to elapsed time. Runs survive parent-turn interruption but stop when the parent thread closes.
+Active steering is rare: a changed requirement, verified invalid assumption or ownership conflict that cannot wait. Batch known corrections, then wait for the full result. Another active steer needs a new material fact. Never send reminders, progress requests or speculative suggestions. `accepted`/`can_steer` indicate input availability, not that an earlier message was processed. A running result calls for waiting, not resending.
 
-When the live tool schema advertises `output_mode`, use `"quiet"` for routine spawn/wait/status monitoring. Current hosts default to quiet. It suppresses running narration, including prior retry transcripts, preserves the unread cursor, and retains errors and pending request counts. Handle requests through the host UI; settled evidence is unchanged. `full_output=true` overrides quiet. Quiet reduces response payload, not parent model wakeups. Older installed/running MCP servers may lack this option until app upgrade/restart: omit it there and use existing incremental reads.
-
-Pass each returned `total_output_chars` as the next `after_output_chars`, or use `after_output_chars_by_run` for batches. Quiet running reads preserve that offset so later evidence remains unread. Explicit progress output clips running/settled tails at 1000/16000 characters; use `full_output=true` when omitted evidence is needed. For `wait_mode="any"`, remove settled IDs before the next wait. Use `get_status` for a concrete diagnostic need, not a polling loop. Steer only for new evidence, constraints or ownership conflicts.
-
-## Verify and integrate
-
-Validate worker claims against artifacts and focused evidence. Reuse passing checks only when their inputs and relevant dependencies are unchanged; test integrated changes. Do not rerun identical checks merely to narrate another stage.
-
-Use one independent, risk-based review wave with read-only ownership and distinct lenses. Validate every finding, fix confirmed issues, then review only a correction delta when it changes meaningful behavior or boundaries. Avoid repeated full review rounds. Report the consolidated result, checks and remaining limitations.
+Use the live schema on older hosts: unsupported compact/workflow/reuse options require concise standalone tasks; delivery-only steering requires a subsequent wait. Honor the live host cap; older hosts may allow only 240 seconds. Startup retries are the default; replaying dispatched work requires explicit justification and authority.

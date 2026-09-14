@@ -31,10 +31,10 @@ function value(result: McpToolResult): SubagentWaitResult & { run_id: string } {
   return JSON.parse(result.content[0]!.text);
 }
 
-it("uses the transport-safe four-minute default to minimize parent ticks", () => {
-  expect(parseWaitTimeoutMs({})).toBe(240_000);
+it("uses the transport-safe eight-minute default to minimize parent ticks", () => {
+  expect(parseWaitTimeoutMs({})).toBe(480_000);
   expect(parseWaitTimeoutMs({ timeout_s: 5 })).toBe(5_000);
-  expect(parseWaitTimeoutMs({ timeout_s: 999 })).toBe(240_000);
+  expect(parseWaitTimeoutMs({ timeout_s: 999 })).toBe(480_000);
 });
 
 it("keeps the explicit wait loop tiny without consuming worker history", async () => {

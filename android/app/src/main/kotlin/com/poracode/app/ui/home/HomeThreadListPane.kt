@@ -311,6 +311,7 @@ internal fun ThreadListPane(
                 onDismiss = { showMore = false },
                 onManageHosts = { showMore = false; onManageHosts() },
                 onManageProjects = { showMore = false; onManageProjects() },
+                onDisconnect = onUnpair,
                 onOpenBrowserMirror = { showMore = false; onOpenBrowserMirror() },
                 onOpenSchedules = { showMore = false; onOpenSchedules() },
                 onOpenProfile = { showMore = false; onOpenProfile() },

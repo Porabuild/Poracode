@@ -353,7 +353,7 @@ describe("GitStateService", () => {
 
     expect(fakeExecutor.ghGetPrForBranch).toHaveBeenCalledTimes(2);
     expect(fakeExecutor.ghGetPrDetails).toHaveBeenCalledTimes(2);
-    service.dispose();
+    await service.dispose();
   });
 
   it("does not arm a recurring timer until a remote client has interests", async () => {
@@ -376,7 +376,7 @@ describe("GitStateService", () => {
 
     expect(fakeExecutor.gitFetch).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
-    service.dispose();
+    await service.dispose();
   });
 
   it("ignores repeated identical retained interests and stops polling after disconnect", async () => {
@@ -407,7 +407,7 @@ describe("GitStateService", () => {
     expect(vi.getTimerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(5000);
     expect(fakeExecutor.getGitStatus).toHaveBeenCalledTimes(1);
-    service.dispose();
+    await service.dispose();
   });
 
   it("fetches and prunes once per project before refreshing several target sources", async () => {

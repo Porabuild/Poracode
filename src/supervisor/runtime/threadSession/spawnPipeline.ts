@@ -1,3 +1,4 @@
+import { CROSSAGENT_MCP_TIMEOUT_MS } from "@/supervisor/crossagentMcp/waitTiming";
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
@@ -251,7 +252,7 @@ export function composeResolvedMcpServers(
   return [
     ...snapshot.mcpServers,
     http("browser", browserMcp),
-    http("crossagents", crossagentMcp, 300_000, "approve"),
+    http("crossagents", crossagentMcp, CROSSAGENT_MCP_TIMEOUT_MS, "approve"),
     http("computer-use", computerUseMcp),
     http("chrome", chromeMcp),
     http("app-controls", appControlsMcp),
