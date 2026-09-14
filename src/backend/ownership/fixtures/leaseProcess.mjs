@@ -1,3 +1,4 @@
+import { setImmediate } from "node:timers/promises";
 import { HostOwnerLease } from "../hostOwnerLease.ts";
 import { resolveHostRootPaths } from "../hostRootPaths.ts";
 
@@ -9,14 +10,18 @@ try {
   process.send({ status: "refused", code: error.code, message: error.message });
 }
 
-process.on("message", async (message) => {
+async function abandonLease() {
+  lease = undefined;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    globalThis.gc();
+    await setImmediate();
+  }
+  process.send({ status: "abandoned" });
+}
+
+process.on("message", (message) => {
   if (message === "abandon") {
-    lease = undefined;
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      globalThis.gc();
-      await new Promise((resolve) => setImmediate(resolve));
-    }
-    process.send({ status: "abandoned" });
+    void abandonLease();
     return;
   }
   lease?.release();

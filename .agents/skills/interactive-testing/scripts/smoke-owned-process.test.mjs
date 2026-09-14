@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 import { test } from "node:test";
 import { stopOwnedProcess, stopOwnedProcesses } from "./smoke-owned-process.mjs";
 
-test(
+void test(
   "cancellation during the first session write never starts the runtime build",
   { skip: process.platform === "win32" },
   async () => {
@@ -47,7 +47,7 @@ test(
   },
 );
 
-test(
+void test(
   "stopping a build joins a descendant that outlives its wrapper and ignores SIGINT",
   { skip: process.platform === "win32" },
   async () => {
@@ -75,7 +75,7 @@ test(
   },
 );
 
-test(
+void test(
   "a stopped child record cannot authorize signaling a reused live PID",
   { skip: process.platform === "win32" },
   async () => {
@@ -108,7 +108,7 @@ function isExecuting(pid) {
   }
 }
 
-test(
+void test(
   "an unconfirmed app stop still stops its owned renderer sibling and retains the failure",
   { skip: process.platform === "win32" },
   async () => {

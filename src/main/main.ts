@@ -157,7 +157,7 @@ if (baseDirOverride) {
 const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 let poracodePaths: PoracodePaths | null = null;
 let desktopOwnerLease: HostOwnerLease | null = null;
-let desktopOwnerAcquisitionError: unknown = null;
+let desktopOwnerAcquisitionError: Error | null = null;
 if (hasSingleInstanceLock) {
   const electronUserDataDir = app.getPath("userData");
   const baseDir =
@@ -165,7 +165,8 @@ if (hasSingleInstanceLock) {
   try {
     desktopOwnerLease = HostOwnerLease.acquire(resolveDesktopHostRootPaths(baseDir), "desktop");
   } catch (error) {
-    desktopOwnerAcquisitionError = error;
+    desktopOwnerAcquisitionError =
+      error instanceof Error ? error : new Error(String(error), { cause: error });
     console.error("[poracode] failed to acquire the desktop host owner:", error);
   }
   if (!desktopOwnerAcquisitionError) {
