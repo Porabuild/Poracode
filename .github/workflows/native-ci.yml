@@ -242,9 +242,12 @@ jobs:
           target: google_apis
           arch: x86_64
           avd-name: poracode-pixel9-api37
+          force-avd-creation: false
           cores: 2
           ram-size: 4096M
           heap-size: 512M
+          # Leave room for the APK, test APK, and API 37 package-install staging.
+          disk-size: 6G
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           working-directory: android
