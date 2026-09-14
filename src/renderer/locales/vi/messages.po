@@ -4728,6 +4728,10 @@ msgstr "Thả vào đây để đính kèm"
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
 msgstr "Loại bỏ các gói hook đến tại trình giám sát để các tác nhân quay về L2 (tiến trình OSC 9;4) mà không động đến cài đặt hay thông báo iTerm2. Có hiệu lực ở sự kiện hook tiếp theo — không cần khởi động lại."
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Duplicate projects had different automation threads. Review those threads, then choose an automation mode to resume."
+msgstr "Các dự án trùng lặp có các luồng tự động hóa khác nhau. Hãy xem lại các luồng đó, rồi chọn chế độ tự động hóa để tiếp tục."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Duplicate server name in scan"
 msgstr "Tên máy chủ bị trùng trong kết quả quét"
@@ -9665,6 +9669,10 @@ msgid "PR automation"
 msgstr "Tự động hóa PR"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused"
+msgstr "Tự động hóa PR đã tạm dừng"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation paused: Auto Fix"
 msgstr "Tự động hóa PR đã tạm dừng: Tự động sửa"
 
@@ -13288,6 +13296,10 @@ msgstr "Tệp này quá lớn đối với trình chỉnh sửa tích hợp."
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "Tệp này sử dụng mã hóa không được hỗ trợ."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This folder is already registered as a project."
+msgstr "Thư mục này đã được đăng ký làm dự án."
 
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx

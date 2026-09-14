@@ -9,6 +9,7 @@ import type {
   PrDetails,
   Project,
   RuntimeEvent,
+  Thread,
   ThreadAttention,
   ThreadConfig,
   ThreadFollowUpQueueState,
@@ -199,6 +200,8 @@ export type ThreadOpenRequestedEvent = {
 /** Project rows changed outside the renderer's persisted app-store snapshot. */
 export type ProjectStateChangedEvent = {
   projects: Project[];
+  /** Optional repair data; ordinary project broadcasts retain the existing shape. */
+  recoveredThreads?: Thread[];
 };
 
 /** Successful desktop PR automation merge; consumed once by the runtime-owner renderer. */

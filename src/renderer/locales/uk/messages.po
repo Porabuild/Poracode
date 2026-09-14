@@ -4728,6 +4728,10 @@ msgstr "Перетягніть сюди, щоб прикріпити"
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
 msgstr "Відкидає вхідні конверти хуків на супервайзері, щоб агенти переходили на L2 (прогрес OSC 9;4) без впливу на встановлення чи сповіщення iTerm2. Набуває чинності під час наступної події хука — перезапуск не потрібен."
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Duplicate projects had different automation threads. Review those threads, then choose an automation mode to resume."
+msgstr "Дубльовані проєкти мали різні треди автоматизації. Перегляньте ці треди, а потім виберіть режим автоматизації, щоб продовжити."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Duplicate server name in scan"
 msgstr "Повторювана назва сервера в результатах сканування"
@@ -9665,6 +9669,10 @@ msgid "PR automation"
 msgstr "Автоматизація PR"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused"
+msgstr "Автоматизацію PR призупинено"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation paused: Auto Fix"
 msgstr "Автоматизацію PR призупинено: Автовиправлення"
 
@@ -13288,6 +13296,10 @@ msgstr "Цей файл занадто великий для вбудовано�
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "Цей файл використовує непідтримуване кодування."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This folder is already registered as a project."
+msgstr "Цю папку вже зареєстровано як проєкт."
 
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
