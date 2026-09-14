@@ -128,6 +128,34 @@ jobs:
           test -f dist/web/poracode-ssh-runtime/manifest.json
           test -f dist/web/poracode-ssh-runtime/runtime.bin
 
+  runtime_deps:
+    name: Runtime dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Generate Codex protocol types
+        run: pnpm run codex-protocol:gen
+
+      - name: Build Electron bundles
+        run: pnpm run build:electron
+
+      - name: Validate packaged runtime dependencies
+        run: node scripts/build-desktop-artifact.mjs --skip-build --check-runtime-deps
+
   rust_helper:
     name: Rust helper (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -251,7 +279,7 @@ jobs:
   ci_gate:
     name: CI required gate
     if: ${{ always() }}
-    needs: [typecheck, lint, fmt, web_build, rust_helper, test_shard, test]
+    needs: [typecheck, lint, fmt, web_build, runtime_deps, rust_helper, test_shard, test]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

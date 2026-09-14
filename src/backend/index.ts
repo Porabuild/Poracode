@@ -3,6 +3,7 @@ import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerfor
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
+  createBackendSupervisorRequest,
   isDirectRendererDatabaseProcedure,
   isDirectRendererServiceProcedure,
   isBackendHostRequest,
@@ -27,7 +28,7 @@ import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { callDatabaseRpc } from "@/main/db/databaseRpc";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
-import { ipcProcedureMap, type IpcProcedureName } from "@/shared/ipc";
+import { ipcProcedureMap, type IpcProcedureName, type SupervisorProcedureName } from "@/shared/ipc";
 
 const performanceDiagnostics = startNodePerformanceDiagnostics("backend");
 let backendHost: BackendHostCore | null = null;
@@ -333,17 +334,14 @@ async function handleRendererRequest(
     if (procedure.transport !== "supervisor") {
       throw new Error(`Procedure ${request.name} is not owned by the supervisor.`);
     }
-    return handleRequest({
-      version: BACKEND_HOST_PROTOCOL_VERSION,
-      id: request.id,
-      operation: "call-supervisor",
-      payload: {
-        id: request.id,
-        type: request.name,
-        payload,
-        ...(origin ? { originWindowId: origin.windowId } : {}),
-      } as never,
-    });
+    return handleRequest(
+      createBackendSupervisorRequest(
+        request.id,
+        request.name as SupervisorProcedureName,
+        payload as never,
+        origin?.windowId,
+      ),
+    );
   }
   if (request.operation === "database") {
     if (!isDirectRendererDatabaseProcedure(request.name)) {

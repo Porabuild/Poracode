@@ -146,7 +146,7 @@ class InspectorConnection {
     );
     ws.addEventListener("error", () => {
       this.#failPending(new ProbeError("connection-error", "inspector connection failed"));
-      this.close();
+      void this.close();
     });
   }
 
@@ -224,7 +224,7 @@ class InspectorConnection {
           "inspector response exceeded the configured byte bound",
         ),
       );
-      this.close();
+      void this.close();
       return;
     }
     let message;
@@ -232,7 +232,7 @@ class InspectorConnection {
       message = JSON.parse(raw);
     } catch {
       this.#failPending(new ProbeError("protocol-error", "inspector sent a malformed frame"));
-      this.close();
+      void this.close();
       return;
     }
     if (message && typeof message.id === "number" && this.#pending.has(message.id)) {
@@ -266,7 +266,7 @@ class InspectorConnection {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.#pending.delete(id);
-        this.close();
+        void this.close();
         reject(
           new ProbeError(
             "command-timeout",
@@ -280,7 +280,7 @@ class InspectorConnection {
       } catch {
         clearTimeout(timer);
         this.#pending.delete(id);
-        this.close();
+        void this.close();
         reject(new ProbeError("connection-closed", "inspector connection failed while sending"));
       }
     });

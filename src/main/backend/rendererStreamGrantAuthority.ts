@@ -97,14 +97,25 @@ export class RendererStreamGrantAuthority {
     return minted !== undefined && target.generation < minted.generation;
   }
 
-  /** Composes and pushes the full per-window table to the backend host. */
+  /**
+   * Composes and pushes the full per-window table to the backend host. A
+   * failed push is reported once through
+   * {@link RendererStreamGrantAuthorityOptions.onError} and never rejects:
+   * every caller is a fire-and-forget mutation hook (interests publish, grant
+   * pull, destroy/release), and the host client clears its dedupe key on
+   * failure so the next sync retries the same table.
+   */
   async sync(): Promise<void> {
-    await this.options.pushDeliveryTable(
-      buildRendererDeliveryTable(
-        this.grants,
-        this.options.interestsByWindow(),
-        this.options.shellRemainderWindowId(),
-      ),
-    );
+    try {
+      await this.options.pushDeliveryTable(
+        buildRendererDeliveryTable(
+          this.grants,
+          this.options.interestsByWindow(),
+          this.options.shellRemainderWindowId(),
+        ),
+      );
+    } catch (error) {
+      this.options.onError(error);
+    }
   }
 }

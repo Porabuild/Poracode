@@ -238,6 +238,36 @@ consume a new version; the acceptance tests at every mirror (protocol gate,
 ownership registry, delivery-table builder, host client, grant authority) pin
 the final shape.
 
+Integration-replay note (same uncommitted candidate, same 13/5/10 versions):
+after the local F7 batch was replayed onto the five incoming `poracode/v2`
+commits and `origin/master` (#765) was resolved in, a third review round fixed
+main-side publication and dispatch only — the per-window table is republished
+for every per-window interest/identity change even when the merged union is
+unchanged (a dedicated wiring helper), native/sleep handling is applied exactly
+once on the shell/legacy path instead of on every targeted copy, grant-authority
+sync failures are reported through its `onError` callback instead of rejecting
+into fire-and-forget callers, and the `call-supervisor` envelope is again built
+by one shared origin-aware builder used by both ends. None of these change the
+wire shape or any version identifier; the never-shipped 13/5/10 boundary is
+unchanged, and the remote/native protocols remain untouched.
+
+Final boundary-correction note (same uncommitted candidate, same 13/5/10
+versions): the independent integrated review proved the quick-composer
+duplicate suppression keyed on object identity that cannot survive the
+backend-host IPC boundary — the targeted copy and the shell remainder are
+separate messages, so each `process.send` produces a distinct object in main.
+The correction is main-local only: `createRendererEventDispatcher` never sends
+a targeted agent-status copy to the quick composer window, and the shell
+forward is the overlay's single delivery path (a directly owned overlay keeps
+its direct stream; a hidden overlay refetches on show). No envelope shape,
+operation, payload field, or version identifier changes, so host 13 / stream 5
+/ facade 10 remain correct and no migration or new pre-upgrade fixture is
+required for a change that only alters which already-versioned envelope main
+forwards. Reserved host 8-12, stream 4, and facade 9 remain unconsumed, and the
+existing mixed-pairing gates (protocol request/outbound gates, stream-info
+version check, interests-frame version close, facade version check) still
+reject older peers.
+
 ## Native mock controls
 
 `src/main/testing/smokeNativeControls.ts` owns the separate version-2 QA bridge

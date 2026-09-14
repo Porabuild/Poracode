@@ -38,9 +38,17 @@ for them. Terminal-bootstrap retention for a starting thread is scoped to the
 authenticated request origin (the IPC sender or the backend-validated stream
 bind), so an unrelated window never receives another window's first shell
 output, and originless/server starts widen no window. Main-side grant
-minting/release/table-sync lives in one owner
-(`src/main/backend/rendererStreamGrantAuthority.ts`), which also rejects
-targeted copies planned for a window's previous grant generation. Recovery
+minting/release/table composition lives in one owner
+(`src/main/backend/rendererStreamGrantAuthority.ts`); its production
+publication wiring (`src/main/backend/rendererEventInterestsWiring.ts`)
+republishes the per-window table for every window interest or identity change —
+including one whose merged union is unchanged — and
+`src/main/backend/rendererEventDispatch.ts` routes copies and the shell
+remainder, applying native/control state exactly once on the shell path and
+keeping the quick-composer overlay's agent statuses on a single delivery path
+(the shell forward, never the structurally redundant targeted copy).
+Targeted copies planned for a window's previous grant generation are rejected.
+Recovery
 barriers fail open to a full authoritative rebuild whenever the retained loss
 hints cannot prove coverage of the loss window. Browser runtime JSON parsing,
 state reduction, and much persistence still execute on the UI thread. These

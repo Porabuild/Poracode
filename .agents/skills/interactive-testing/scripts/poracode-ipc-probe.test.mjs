@@ -219,7 +219,7 @@ async function sendEnvelope(fixture, envelope, extra = {}) {
   return fixture.waitFor("returned");
 }
 
-test("install refuses on PID mismatch and installs nothing", async (t) => {
+void test("install refuses on PID mismatch and installs nothing", async (t) => {
   const fixture = await startFixture(t);
   await expectProbeError(
     installProbe(fixture.info.inspectorUrl, {
@@ -241,7 +241,7 @@ test("install refuses on PID mismatch and installs nothing", async (t) => {
   assert.equal(marker.marker, null);
 });
 
-test("install refuses on entry script mismatch and installs nothing", async (t) => {
+void test("install refuses on entry script mismatch and installs nothing", async (t) => {
   const fixture = await startFixture(t);
   await expectProbeError(
     installProbe(fixture.info.inspectorUrl, {
@@ -255,7 +255,7 @@ test("install refuses on entry script mismatch and installs nothing", async (t) 
   assert.equal(marker.isOriginal, true);
 });
 
-test("install requires an IPC channel", async (t) => {
+void test("install requires an IPC channel", async (t) => {
   await mkdir(scratchRoot, { recursive: true });
   const dir = await mkdtemp(join(scratchRoot, "noipc-"));
   const scriptPath = join(dir, "no-ipc.cjs");
@@ -287,7 +287,7 @@ test("install requires an IPC channel", async (t) => {
   );
 });
 
-test("bulk, control, mixed, and non-supervisor frames are counted exactly with byte attribution", async (t) => {
+void test("bulk, control, mixed, and non-supervisor frames are counted exactly with byte attribution", async (t) => {
   const fixture = await startFixture(t);
   const options = { expectedPid: fixture.child.pid, expectedScriptPath: fixture.scriptPath };
   const installed = await installProbe(fixture.info.inspectorUrl, options);
@@ -427,7 +427,7 @@ test("bulk, control, mixed, and non-supervisor frames are counted exactly with b
   assert.equal(afterReset.counters.attempts, 0);
 });
 
-test("callback, return value, and thrown error fidelity are preserved", async (t) => {
+void test("callback, return value, and thrown error fidelity are preserved", async (t) => {
   const fixture = await startFixture(t);
   const options = { expectedPid: fixture.child.pid, expectedScriptPath: fixture.scriptPath };
   await installProbe(fixture.info.inspectorUrl, options);
@@ -492,7 +492,7 @@ test("callback, return value, and thrown error fidelity are preserved", async (t
   assert.equal(snapshot.counters.sendFalse + snapshot.counters.sendThrew, 2);
 });
 
-test("state stays bounded and no payload text is retained", async (t) => {
+void test("state stays bounded and no payload text is retained", async (t) => {
   const fixture = await startFixture(t);
   const options = { expectedPid: fixture.child.pid, expectedScriptPath: fixture.scriptPath };
   await installProbe(fixture.info.inspectorUrl, options);
@@ -523,7 +523,7 @@ test("state stays bounded and no payload text is retained", async (t) => {
   }
 });
 
-test("uninstall restores the original send and is a safe no-op afterwards", async (t) => {
+void test("uninstall restores the original send and is a safe no-op afterwards", async (t) => {
   const fixture = await startFixture(t);
   const options = { expectedPid: fixture.child.pid, expectedScriptPath: fixture.scriptPath };
   await installProbe(fixture.info.inspectorUrl, options);
@@ -542,7 +542,7 @@ test("uninstall restores the original send and is a safe no-op afterwards", asyn
   assert.equal(again.reason, "not-installed");
 });
 
-test("uninstall refuses to restore under a foreign wrapper and stays consistent", async (t) => {
+void test("uninstall refuses to restore under a foreign wrapper and stays consistent", async (t) => {
   const fixture = await startFixture(t);
   const options = { expectedPid: fixture.child.pid, expectedScriptPath: fixture.scriptPath };
   await installProbe(fixture.info.inspectorUrl, options);
@@ -582,7 +582,7 @@ test("uninstall refuses to restore under a foreign wrapper and stays consistent"
   assert.equal(marker.isOriginal, true);
 });
 
-test("installing twice is idempotent and preserves the probe id and counters", async (t) => {
+void test("installing twice is idempotent and preserves the probe id and counters", async (t) => {
   const fixture = await startFixture(t);
   const options = { expectedPid: fixture.child.pid, expectedScriptPath: fixture.scriptPath };
   const first = await installProbe(fixture.info.inspectorUrl, options);
@@ -603,7 +603,7 @@ test("installing twice is idempotent and preserves the probe id and counters", a
   assert.equal(second.wrapperOwned, true);
 });
 
-test("a suspended target times out and later calls recover on a fresh connection", async (t) => {
+void test("a suspended target times out and later calls recover on a fresh connection", async (t) => {
   const fixture = await startFixture(t);
   const options = { expectedPid: fixture.child.pid, expectedScriptPath: fixture.scriptPath };
   await installProbe(fixture.info.inspectorUrl, options);
@@ -647,7 +647,7 @@ test("a suspended target times out and later calls recover on a fresh connection
   assert.equal(snapshot.counters.attempts, 1);
 });
 
-test("peer death while a capture is open rejects promptly instead of hanging", async (t) => {
+void test("peer death while a capture is open rejects promptly instead of hanging", async (t) => {
   const fixture = await startFixture(t);
   const options = { expectedPid: fixture.child.pid, expectedScriptPath: fixture.scriptPath };
   const capturePromise = captureProbe(fixture.info.inspectorUrl, {
@@ -664,7 +664,7 @@ test("peer death while a capture is open rejects promptly instead of hanging", a
   assert.ok(Date.now() - startedAt < 4000, "capture must reject promptly after peer death");
 });
 
-test("CLI install/get/reset/uninstall work across separate processes and validate arguments", async (t) => {
+void test("CLI install/get/reset/uninstall work across separate processes and validate arguments", async (t) => {
   const fixture = await startFixture(t);
   const cli = fileURLToPath(new URL("./poracode-ipc-probe.mjs", import.meta.url));
   const base = [
@@ -799,7 +799,7 @@ test("CLI install/get/reset/uninstall work across separate processes and validat
   }
 });
 
-test("captureProbe performs a bounded in-process window end to end", async (t) => {
+void test("captureProbe performs a bounded in-process window end to end", async (t) => {
   const fixture = await startFixture(t);
   const options = { expectedPid: fixture.child.pid, expectedScriptPath: fixture.scriptPath };
   const capturePromise = captureProbe(fixture.info.inspectorUrl, {
@@ -838,7 +838,7 @@ test("captureProbe performs a bounded in-process window end to end", async (t) =
   assert.equal(await getProbeSnapshot(fixture.info.inspectorUrl, options), null);
 });
 
-test("probe URL validation only accepts loopback ws endpoints with an id path", () => {
+void test("probe URL validation only accepts loopback ws endpoints with an id path", () => {
   assert.doesNotThrow(() =>
     validateProbeUrl("ws://127.0.0.1:9229/166e272e-8a46-4a3e-a1d2-3f4b5c6d7e8f"),
   );

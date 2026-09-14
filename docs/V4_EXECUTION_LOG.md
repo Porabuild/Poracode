@@ -8,17 +8,17 @@ obligations. No qualification gate has been waived.
 
 ## Execution state
 
-| Phase                                | State       | Evidence / next action                                                                                                                                                                                                                                                                       |
-| ------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 — master integration and baselines | In progress | Combined integration is on V2 at `7c0daf676`; compatibility, broad correctness checks and isolated tooling are verified at their recorded revisions. Full smoke exposed F23/F24. Complete instrumentation, comparable master measurements, hosted CI and final manual baselines remain open. |
-| 1 — exclusive server ownership       | In progress | Shared desktop/headless lease and backend settings/routing slices are implemented. Attach, remaining host-settings writers, stale-snapshot conflicts, credential migration, and full startup acceptance remain open.                                                                         |
-| 2 — operation safety and lifecycle   | In progress | Per-thread coordination, retryable checkpoint receipts, HTTP/push drains, and tracked PTY joins are implemented. Cross-transport response-loss/crash evidence, descendant lifetime, and complete shutdown qualification remain open.                                                         |
-| 3 — off-main bulk transport          | In progress | Request/reply admission and HTTP cancellation are implemented. Backend-enforced per-window direct delivery is the active milestone; off-main remote HTTP, binary streaming, and the full multi-window acceptance run remain open.                                                            |
-| 4 — off-thread client engine         | In progress | Terminal/runtime queues and a cached remote membership index are implemented. Worker decode/reduction/persistence, bounded view patches, markdown/smoothing costs, and frame-budget evidence remain open.                                                                                    |
-| 5 — server/relay fairness            | In progress | Per-source ingress admission and relay congestion isolation are implemented. Weighted scheduling, local-renderer shedding isolation, reserved-control capacity qualification, and the full multi-client run remain open.                                                                     |
-| 6 — bounded payloads                 | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                                   |
-| 7 — browser/mobile-web lifecycle     | In progress | Service-worker activation safety and resume/reconnect slices are implemented. Real old/new-document, Safari/mobile-web, network-transition, and full lifecycle acceptance remain open.                                                                                                       |
-| 8 — artifact/upgrade/soak/merge      | Pending     | All seven work items and acceptance scenarios remain open; no final freeze, merge to master, or promotion authorized by evidence yet.                                                                                                                                                        |
+| Phase                                | State       | Evidence / next action                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 — master integration and baselines | In progress | Combined integration is on V2 at `7c0daf676`; compatibility, broad correctness checks and isolated tooling are verified at their recorded revisions. Full smoke exposed F23/F24. Complete instrumentation, comparable master measurements, hosted CI and final manual baselines remain open.                                                                                          |
+| 1 — exclusive server ownership       | In progress | Shared desktop/headless lease and backend settings/routing slices are implemented. Attach, remaining host-settings writers, stale-snapshot conflicts, credential migration, and full startup acceptance remain open.                                                                                                                                                                  |
+| 2 — operation safety and lifecycle   | In progress | Per-thread coordination, retryable checkpoint receipts, HTTP/push drains, and tracked PTY joins are implemented. Cross-transport response-loss/crash evidence, descendant lifetime, and complete shutdown qualification remain open.                                                                                                                                                  |
+| 3 — off-main bulk transport          | In progress | Request/reply admission and HTTP cancellation are implemented, and backend-enforced per-window direct delivery passed its local mock-host live acceptance on the final candidate (direct zero-bulk, targeted fallback, strict disjoint windows, stale-generation drop, terminal-open a11y). Off-main remote HTTP, binary streaming, and the wider Phase 3 acceptance run remain open. |
+| 4 — off-thread client engine         | In progress | Terminal/runtime queues and a cached remote membership index are implemented. Worker decode/reduction/persistence, bounded view patches, markdown/smoothing costs, and frame-budget evidence remain open.                                                                                                                                                                             |
+| 5 — server/relay fairness            | In progress | Per-source ingress admission and relay congestion isolation are implemented. Weighted scheduling, local-renderer shedding isolation, reserved-control capacity qualification, and the full multi-client run remain open.                                                                                                                                                              |
+| 6 — bounded payloads                 | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                                                                                                                            |
+| 7 — browser/mobile-web lifecycle     | In progress | Service-worker activation safety and resume/reconnect slices are implemented. Real old/new-document, Safari/mobile-web, network-transition, and full lifecycle acceptance remain open.                                                                                                                                                                                                |
+| 8 — artifact/upgrade/soak/merge      | Pending     | All seven work items and acceptance scenarios remain open; no final freeze, merge to master, or promotion authorized by evidence yet.                                                                                                                                                                                                                                                 |
 
 ## Rules for evidence and commits
 
@@ -1823,3 +1823,196 @@ republish the delivery table; B. native/sleep handling still applies to every
 targeted copy before staleness branching; C. `RendererStreamGrantAuthority`
 `onError` is unused and destroy/release syncs can reject unhandled; D. duplicated
 hand-built `call-supervisor` envelopes in the main client and backend.
+
+## F7 integration replay, v2/master merge, and correction delta
+
+Checkpoint `2f25fb923` preserved the 37-file F7 batch exactly (allowlist
+`tmp/v4-orchestration/f7-checkpoint-allowlist.txt`; the foreign `.poracode/`
+worktree and tmp scratch excluded), with backup ref
+`v4-backup/f7-checkpoint-2d6a2692-20260914`. The checkpoint rebased cleanly
+onto freshly fetched `origin/poracode/v2` `9ddcbb4d` (five commits; only
+`src/main/main.ts` conflicted — resolved to keep v2's `Error | null` typing and
+the F7 `toError` normalization; `versioning.md` and `BackendHostCore.test.ts`
+auto-merged both sides) -> `3c4cd1107`. `git merge --no-commit origin/master`
+`0c99e7e13` resolved the single `.github/workflows/ci.yml` conflict by keeping
+v2's job set plus master's `runtime_deps` job, with `ci_gate` now depending on
+it; `scripts/build-desktop-artifact.mjs` kept master's JSONC staging line.
+
+Correction delta on the combined source (findings A-D from
+`tmp/v4-f7-final-review/REVIEW.md`):
+
+- A: new `RendererEventInterestsWiring` owns publication and republishes the
+  per-window delivery table for every per-window interest/identity change,
+  including a union-unchanged change; `main.ts` now uses it.
+- B: new `createRendererEventDispatcher` applies native/sleep state exactly
+  once on the shell/legacy path, never on targeted or stale copies, and skips
+  the quick-composer agent-status forward only when the same envelope already
+  reached that window as a targeted copy.
+- C: `RendererStreamGrantAuthority.sync()` reports through `onError` and never
+  rejects; destroy/release paths cannot produce unhandled rejections, and
+  retries stay intact through the host client's dedupe-key reset.
+- D: `createBackendSupervisorRequest` restored as one origin-aware builder used
+  by the main client and the backend forwarder.
+- Follow-on integration fixes: `mainProcessFetch.test.ts` host mocks gained the
+  missing `onRendererStreamRecovery`; `sharp` was added to `RUNTIME_DEPS` after
+  the newly merged runtime_deps check exposed it as a v2-only backend-host
+  runtime external.
+
+Local verification (exact tree, after all edits): `pnpm run typecheck` exit 0;
+`pnpm run lint` exit 0; `pnpm run fmt:check` exit 0; full `pnpm run test`
+13,796 passed / 119 skipped / 0 failed (1,227 files); `node --test
+scripts/*.test.mjs` 29/29; probe `node --test .../poracode-ipc-probe.test.mjs`
+14/14; `codex-protocol:gen` produced no generated drift; `build:web` produced
+every CI-verified output; `build:electron` plus `--check-runtime-deps`
+validated 17 emitted runtime dependencies. The integration remains
+uncommitted; the index holds the resolved merge plus the correction files, and
+the final integration commit is the coordinator's.
+
+Still OPEN: hosted CI for this integrated candidate (full CI matrix including
+`rust_helper` and sharded tests; Native clients including the known Android 17
+emulator gate), a fresh integrated live F7 two-window acceptance run, and the
+remaining Phase 3/full-V4 items. No push, no PR action, and no application
+launch in this stage.
+
+## 2026-09-14 — F7 delivery single-path boundary correction (integrated candidate)
+
+Independent integrated review (`tmp/v4-integrated-review/REVIEW.md`) confirmed one
+Important defect, two Nits, and re-confirmed findings A–D on frozen candidate
+HEAD `3c4cd1107` + MERGE_HEAD `0c99e7e13` (19 staged files, 0 unstaged). The
+correction below is main-local dispatch semantics plus evidence/documentation
+hygiene; no wire shape, operation, or version identifier changed. F7, Phase 3,
+and full V4 remain **OPEN**.
+
+**Finding 1 (Important, proven across IPC).** The quick-composer duplicate
+suppression keyed on `WeakSet<SupervisorEvent>` object identity. That holds only
+in-process: the backend planner hands the same object to the targeted copy and
+the shell remainder, but each `process.send` crosses as its own deserialized
+object, so main delivered the copy and then also forwarded the shell remainder
+to the visible overlay. The review's real forked-child reproduction is promoted
+into production coverage: `rendererEventDispatch.ipc.test.ts` composes the real
+relay, real planner, real `RendererStreamOwnership` table, real
+`BackendHostClient` over a forked backend-host IPC channel, the real grant
+authority, and the real dispatcher. **Decision: single delivery path.** The
+quick-composer overlay's agent statuses are delivered only by the shell forward;
+the dispatcher never sends the structurally redundant targeted copy to the
+overlay window. The choice is robust where correlation is not: the overlay is a
+fallback recipient while its direct stream is unacked, the two envelopes cannot
+be correlated in main after serialization, and the forward is never suppressed
+by a copy, so a dropped or stale copy cannot lose a status and nothing is
+deduped (identical-payload distinct events each deliver). Direct-owned overlays
+keep their direct stream — the renderer transport ignores IPC envelopes while
+connected (`electronBackendTransport.test.ts` "keeps accepting the IPC fallback
+until the direct stream acknowledges interests"), so the direct path does not
+duplicate either. Hidden overlays refetch on show, exactly as the forward's own
+visibility gate already documents. The `WeakSet` is removed.
+
+Regression coverage: serialization identity loss, consecutive identical
+statuses, stale-generation copies, destroyed/unresolvable targets, window
+reload/grant re-mint, legacy pre-table relay, direct-owned overlay, non-agent
+status copies unchanged, and native/control state exactly once on the shell
+path. Failing-before (final test code, staged pre-fix dispatcher):
+`tmp/v4-final-boundary-correction/failing-before-final.log` — 4 failed / 9
+passed, including the forked-IPC duplicate; passing-after
+`passing-after-final.log` — 13/13. The review's own repro remains at
+`tmp/v4-integrated-review/repro-ipc.test.ts` (2/2).
+
+**Finding 2 (Nit).** Restored the `onError` terminator and moved the
+`shellRemainderWindowId` contract above its member in
+`rendererStreamGrantAuthority.ts`; `oxfmt --check` is clean.
+
+**Finding 3 (evidence hygiene).** `tmp/v4-integration-execution/runtime-deps-check.log`
+is preserved as the pre-`sharp` failure and is no longer cited as passing. The
+truthful passing run is captured explicitly at
+`tmp/v4-final-boundary-correction/runtime-deps-check-current.log` (exit 0,
+"validated 17 emitted runtime dependencies"), independently matching the
+critic's `tmp/v4-integrated-review/evidence/runtime-deps-check-current.log`; the
+integration report's issue text and verification table now point at it.
+
+**Finding 4 (real accessibility defect exposed live).** The live inventory's
+first run failed `visual-a11y` with 2 unlabeled controls while real dev
+terminals were open: the desktop terminal-tab close buttons in
+`BottomTerminalLayout.tsx` and `RightTerminalLayout.tsx` carried only a
+`Trash2` icon. The upstream markup was preserved (native button, hover reveal,
+`tabIndex={-1}`) and both now carry `aria-label={t`Close tab`}` — the existing
+`Close tab` message already translated in all 12 non-English catalogs (Lingui
+extract updated references only; 0 missing everywhere). The mobile terminal
+layout already carried its own label and is unchanged, so no native/shared
+parity work was required. A clean rerun with tabs closed does not close this
+finding; the live visual-a11y gate must run with terminals OPEN.
+
+**Compatibility decision.** No envelope, operation, payload field, ordering
+rule, or version changed: host 13 / stream 5 / facade 10 stay exact, reserved
+host 8–12/stream 4/facade 9 remain unconsumed, and remote/native protocols are
+untouched. Because no boundary moved, no migration or new pre-upgrade fixture is
+required; the existing mixed-pairing rejection gates still pin the boundary.
+Recorded in `.agents/docs/versioning.md`, the `BACKEND_HOST_PROTOCOL_VERSION`
+comment, and `.agents/docs/architecture.md`.
+
+**Verification (final tree).** `pnpm run typecheck` exit 0; `pnpm run lint`
+both modes exit 0; `pnpm run fmt:check` exit 0 (3,983 files); full
+`pnpm run test` 13,805 passed / 119 skipped / 0 failed (1,228 file suites passed, 5 skipped); focused
+backend suites 111/111 and dispatcher suites 13/13; `i18n:extract` 0 missing in
+all 12 non-English catalogs; `node --test scripts/*.test.mjs` 29/29; IPC probe
+`node --test .../poracode-ipc-probe.test.mjs` 14/14; `codex-protocol:gen` no
+generated drift; `protocol:remote:v3:check` up to date; `build:renderer` and
+`build:web` (which rebuilds Electron) exit 0; `--skip-build
+--check-runtime-deps` 17 externals exit 0. Logs are under
+`tmp/v4-final-boundary-correction/`.
+
+**Live evidence status (corrected wording).** The previous live run already
+proved active direct ownership at zero backend bulk crossings (31 markers),
+positive targeted fallback during a partition (22 bulk envelopes / 6,424
+estimated bytes, 61 ordered markers, no duplicates), and shared-interest
+recovery; it did **not** explicitly exercise strictly disjoint window sets
+A`[T1]`/B`[T2]` or stale-generation barrier injection, and its P3 pair was the
+shared/role-overlap case A`[T1]`,B`[T1,T2]`,C`[]` — useful partial evidence, not
+a substitute for the strict disjoint case. Its generic "real-provider/live F7
+NOT RUN" wording was overbroad (plain-shell mock-host F7 was live; real
+providers, remote, native, and 120 fps remain unqualified) and is corrected in
+`tmp/v4-integrated-live/REPORT.md`. Next final live verification must replay the
+valid P1/P2/P3/P5 phases plus the strict disjoint case, a stale-generation
+injection, and visual-a11y with terminals OPEN, on the final candidate.
+F7/Phase 3/full V4 stay OPEN pending final critic, live, and hosted-CI gates.
+
+## 2026-09-14 — F7 final critic, live acceptance, and publication
+
+The 35-path frozen candidate (`3c4cd1107` + `MERGE_HEAD 0c99e7e13`) passed the
+independent final critic: the single-path dispatcher fix is structurally
+correct on the real forked backend-IPC path (pre-fix 4 failed / 9 passed,
+post-fix 13/13, with the relay, planner, ownership table, grant authority, and
+`BackendHostClient` all real), A/C/D and the ci.yml merge survive, the version
+stays host 13 / stream 5 / facade 10, and the localized terminal-tab labels are
+present in all 12 non-English catalogs (no added empty `msgstr`). The critic's
+two findings were evidence-hygiene nits only: a stale scratch
+`staged-hashes.txt` entry for this log, and lint/fmt/full-test logs that
+predated the last test-helper simplification. Both are resolved in this
+publication stage: the manifest is regenerated at
+`tmp/v4-f7-publication/staged-hashes.txt` after the final tracked bytes settle,
+and fresh exact-byte `typecheck`/`lint`/`fmt:check`/full-test runs are recorded
+in `tmp/v4-f7-publication/REPORT.md`. No product source changed here.
+
+The final LIVE mock-host run passed all six required cases on source
+`6515ed5d…` / artifact `594459c0…`: active direct ownership with zero backend
+bulk (30 markers, 3 control envelopes); partition fallback (38 targeted bulk /
+12,993 estimated JSON bytes) with ordered reconnect; strict disjoint
+main-DIRECT `[T1]` vs quick-composer FALLBACK `[T2]` (T1-only zero main bulk,
+T2-only 23 targeted / 8,110 B, concurrency preserved); a real window
+generation re-mint to gen 3 that rejected the injected old-gen-1 data envelope
+while an identical-shape gen-3 control was accepted and 23 markers continued;
+20 agent statuses applied 20 times (the producer's identical empty-WSL pair is
+not a transport duplicate); and full mock inventory 9/9 automated + 17/17
+mocked with 0 errors, both terminal layouts labeled with two OPEN tabs. This
+closes the local F7 implementation and live acceptance finding; F7's remaining
+qualification is hosted CI plus real-provider, remote, native, packaged-release,
+and 120 fps evidence, and Phase 3/full V4 remain OPEN.
+
+Publication: after the exact-byte local checks above pass, the pending merge of
+`origin/master` `0c99e7e13` into `poracode/v2` is committed as one milestone
+commit (parents `3c4cd1107` and `0c99e7e13`) and pushed normally to
+`origin/poracode/v2`; the F7 batch, the ci.yml merge, and these docs are one
+commit. Hosted CI and Native clients for the pushed commit are tracked by PR
+#725 checks (dynamic; no future result is preclaimed here). Remaining work
+follows the plan: Phase 3 off-main remote HTTP/binary transport and the wider
+accepted-workload run, then the off-thread client engine, fairness, payload,
+web lifecycle, and artifact/soak phases. Exact check logs, commit/push
+identity, and CI results are recorded in `tmp/v4-f7-publication/REPORT.md`.
