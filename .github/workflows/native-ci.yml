@@ -173,8 +173,6 @@ jobs:
     needs: android
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      ANDROID_AVD_HOME: ${{ runner.temp }}/poracode-api37-avd
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -216,6 +214,8 @@ jobs:
         # the first profile the installed image actually ships. The boot helper
         # reuses this AVD without recreating it.
         run: |
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/poracode-api37-avd"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
           mkdir -p "$ANDROID_AVD_HOME"
           sdkmanager "system-images;android-37.0;google_apis;x86_64" > /dev/null
           avdmanager list device | sed -n 's/^id: \([0-9]*\) or "\(.*\)"$/\2/p' | grep -i '^pixel' | head -20 || true
