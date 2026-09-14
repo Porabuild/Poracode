@@ -6,7 +6,11 @@ import type {
 import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSupport";
 
 /**
- * Bumped to 2 for the additive `sdk.pinnedRoot` request field and
+ * Version 3 requires the worker's detached-cancellation handling: a staged
+ * pre-fix helper can otherwise terminate a parent and all its subagents on
+ * an SDK transport abort. Message shapes remain compatible with version 2.
+ *
+ * Version 2 added the additive `sdk.pinnedRoot` request field and
  * `packageRoot` probe result field: the host now hands the worker a previously
  * resolved installation to try before probing for one, and needs the absolute
  * root back to record it. Both ends ship in this app and the handshake
@@ -15,7 +19,7 @@ import type { CursorSdkPackageSource, CursorSdkPinHint } from "./sdkLoaderSuppor
  * gets it re-staged from current source (the SSH runtime bundle re-installs
  * whenever the built worker bytes change).
  */
-export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 2;
+export const CURSOR_SDK_WORKER_PROTOCOL_VERSION = 3;
 
 export interface CursorSdkWorkerModelParameter {
   id: string;
