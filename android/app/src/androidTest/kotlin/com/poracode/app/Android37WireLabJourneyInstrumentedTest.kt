@@ -186,7 +186,10 @@ class Android37WireLabJourneyInstrumentedTest {
             null,
             application.richChat.chat.state.value.failure,
         )
-        control.waitUntilObserved(listOf("route:thread-send"), 8_000L)
+        // Keep the Compose dispatcher advancing while its UI coroutine resumes from I/O.
+        compose.waitUntil(8_000) {
+            "route:thread-send" in control.observedOperationIds()
+        }
         assertObserved(control, listOf("route:thread-send"))
         assertEquals(
             "one raw send request; production mutations are never retried",
@@ -225,7 +228,9 @@ class Android37WireLabJourneyInstrumentedTest {
             null,
             application.richChat.chat.state.value.failure,
         )
-        control.waitUntilObserved(listOf("route:thread-interrupt"), 20_000L)
+        compose.waitUntil(20_000) {
+            "route:thread-interrupt" in control.observedOperationIds()
+        }
         assertObserved(control, listOf("route:thread-interrupt"))
         assertEquals(
             "one raw interrupt request; production mutations are never retried",
@@ -326,13 +331,20 @@ class Android37WireLabJourneyInstrumentedTest {
         assertEquals(0, control.operationCount("collision-b", "route:thread-send"))
         assertEquals(0, control.operationCount("collision-b", "route:thread-interrupt"))
 
-        // PHASE 10 — disconnect returns the app to pairing.
+        // PHASE 10 — removing the selected desktop returns the app to pairing.
         // The pairing heading is the Pora·code wordmark now, so the landing assertion
         // anchors on the hero subtitle instead of a translated title string.
         compose.onNodeWithContentDescription(context.getString(R.string.home_more)).performClick()
-        compose.onNodeWithText(context.getString(R.string.disconnect))
+        compose.onNodeWithText(context.getString(R.string.home_connections))
             .performScrollTo()
             .performClick()
+        val catalog = session.state.value.hostCatalog
+        val selectedHost = catalog.hosts.first { it.connectionId == catalog.selectedConnectionId }
+        compose.onNodeWithContentDescription(
+            context.getString(R.string.hosts_more_actions, selectedHost.label),
+        ).performClick()
+        compose.onNodeWithText(context.getString(R.string.hosts_remove)).performClick()
+        compose.onNodeWithText(context.getString(R.string.hosts_remove_action)).performClick()
         waitForText(context.getString(R.string.pair_instructions), 20_000L)
     }
 
