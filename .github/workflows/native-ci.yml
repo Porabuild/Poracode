@@ -204,12 +204,22 @@ jobs:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Install Android 17 SDK
-        # Pin the emulator to the stable 36.x line: the 37.1.11 emulator's
-        # gfxstream backend advertises the ReadColorBufferDMA capability to
-        # the guest, while this image's surfaceflinger asserts it must be
-        # absent ("!rcEnc->featureInfo()->hasReadColorBufferDma") and crashes
-        # in a loop. Un-pin once the image or emulator fix ships.
-        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "emulator;36.6.11"
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "emulator"
+
+      - name: Pin the emulator to 36.6.11
+        # The 37.x emulator's gfxstream backend advertises the
+        # ReadColorBufferDMA capability to the guest, while this image's
+        # surfaceflinger asserts it must be absent
+        # ("!rcEnc->featureInfo()->hasReadColorBufferDma") and crashes in a
+        # loop. The repository only serves the latest emulator, so fetch the
+        # last stable build directly. Un-pin once the image or emulator fix
+        # ships.
+        run: |
+          curl -fsSLo "$RUNNER_TEMP/emulator-36.6.11.zip" \
+            https://dl.google.com/android/repository/emulator-linux_x64-15507667.zip
+          rm -rf "$ANDROID_HOME/emulator"
+          unzip -q "$RUNNER_TEMP/emulator-36.6.11.zip" -d "$ANDROID_HOME"
+          "$ANDROID_HOME/emulator/emulator" -version | head -1
 
       - name: Pre-create the API 37 AVD with a fallback device profile
         # The runner's system-image package occasionally drops device profiles
