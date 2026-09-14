@@ -2293,3 +2293,35 @@ F7 history). No master push, no PR merge/draft change, no external messages.
 Commit SHA, push confirmation, exact-SHA CI/Native run IDs, PR state, and final
 `git status` are recorded in `tmp/v4-f8-publication/REPORT.md` and
 `publication.json`.
+
+## 2026-09-14 — Android CI setup repair (workflow-only, committed)
+
+**Blocker.** At F8 SHA `787872f`, Native push run `34897440725` and PR run
+`34897443088` failed identically in step `Setup Android SDK`
+(`android-actions/setup-android@9fc6c4e…`, v3, no `with:` override): the
+action default `packages: tools platform-tools` runs
+`sdkmanager tools`, which exits 1 with `Warning: Failed to find package
+'tools'` before any Gradle/compilation step (evidence:
+`tmp/v4-f8-ci/REPORT.md`, `results.json`).
+
+**Fix.** All 4 `Setup Android SDK` sites (native-ci.yml ×3, release-mobile.yml
+×1) now pass `packages: ''`, per the action's documented input (empty string
+skips default installs; required `platforms;android-37.0` /
+`build-tools;37.0.0` remain explicit `sdkmanager` steps). Pins, API 37
+compile/target, minSdk 26, Gradle/tests/lint/emulator jobs, and required gates
+unchanged; no checks skipped or marked continue-on-error. Primary source:
+`action.yml` at pinned commit `9fc6c4e` (`packages` default
+`tools platform-tools`, `cmdline-tools-version` default `12266719`) and
+`https://github.com/android-actions/setup-android` ("Additional packages").
+
+**Validation.** Edited YAML parses (`yaml.safe_load`); all 4 sites carry
+`packages: ''` with the pin intact; all 4 explicit `sdkmanager` install steps
+present; `git diff --check` clean. Product bytes untouched (workflow + log
+only), so F8 product checks are reused, not rerun.
+
+**Publication.** One focused commit pushed normally with
+`git push origin HEAD:poracode/v2` (no amend/force/master push, no PR
+merge/draft change). Commit SHA, push confirmation, new-SHA CI/Native run IDs,
+PR state, and final `git status` are recorded in
+`tmp/v4-android-ci-repair/REPORT.md` and `publication.json`. CI stays
+**pending** until the new SHA passes; green is claimed only from run results.
