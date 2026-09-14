@@ -206,6 +206,10 @@ jobs:
       - name: Install Android 17 SDK
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
 
+      - name: Build Android runtime APKs before boot
+        working-directory: android
+        run: ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon --stacktrace
+
       - name: Pre-create the API 37 AVD with a fallback device profile
         # The runner's system-image package occasionally drops device profiles
         # (seen persistently with pixel_9 since 2026-09-12): avdmanager then
@@ -214,6 +218,9 @@ jobs:
         # the first profile the installed image actually ships; the emulator
         # runner below reuses it (force-avd-creation: false).
         run: |
+          # Match the emulator action's SDK installer, which resets this path.
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           sdkmanager "system-images;android-37.0;google_apis;x86_64" > /dev/null
           avdmanager list device | sed -n 's/^id: \([0-9]*\) or "\(.*\)"$/\2/p' | grep -i '^pixel' | head -20 || true
           for device in pixel_9 pixel_9_pro pixel_9_pro_xl pixel_8 pixel_7 pixel_6 pixel; do

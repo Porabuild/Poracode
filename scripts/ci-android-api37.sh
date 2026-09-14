@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+harness_pid=""
+cleanup() {
+  runtime_status=$?
+  adb logcat -d -t 2000 -v threadtime >> "$RUNNER_TEMP/android-api37-logcat.txt" 2>&1 || true
+  if [ -n "$harness_pid" ]; then
+    kill "$harness_pid" 2>/dev/null || true
+    wait "$harness_pid" 2>/dev/null || true
+  fi
+  exit "$runtime_status"
+}
+trap cleanup EXIT
+
 cd "$(dirname "${BASH_SOURCE[0]}")/../android"
 adb wait-for-device shell 'while [ "$(getprop sys.boot_completed | tr -d "\r")" != "1" ]; do sleep 5; done'
 test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
@@ -8,8 +20,8 @@ test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "17"
 test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "37"
 test "$(adb shell getprop ro.build.version.codename | tr -d '\r')" = "REL"
 
-./gradlew assembleDebug --no-daemon --stacktrace
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell df -h /data
+adb install --no-streaming -r app/build/outputs/apk/debug/app-debug.apk
 adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'minSdk=26'
 adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'targetSdk=37'
 adb logcat -c
@@ -47,7 +59,6 @@ node --experimental-transform-types \
   > "$RUNNER_TEMP/android-wire-lab.stdout" \
   2> "$RUNNER_TEMP/android-wire-lab.stderr" &
 harness_pid=$!
-trap 'kill "$harness_pid" 2>/dev/null || true; wait "$harness_pid" 2>/dev/null || true' EXIT
 for attempt in $(seq 1 60); do
   if grep -Fq 'native-e2e mock host ready' "$RUNNER_TEMP/android-wire-lab.stderr"; then
     break
