@@ -9,10 +9,11 @@ if ! test "$data_available_kib" -ge 1048576; then
   echo "::error::The emulator needs at least 1 GiB free for APK installation and instrumentation."
   exit 1
 fi
-# SurfaceFlinger on the API 37 image can abort (issuetracker 546200928) even
-# with the DMA readback override, and init then restarts zygote, so the
-# package service disappears for minutes. Wait the restart window out instead
-# of racing it.
+# SurfaceFlinger on the API 37 image can abort (issuetracker 546200928) when
+# the emulator advertises the ReadColorBufferDMA capability, and init then
+# restarts zygote, so the package service disappears for minutes. The job
+# pins the emulator to a version that does not advertise it; until the image
+# fix ships everywhere, wait the restart window out instead of racing it.
 wait_for_framework() {
   for _ in $(seq 1 48); do
     booted="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"

@@ -1,29 +1,7 @@
 #!/usr/bin/env node
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { delimiter, join } from "node:path";
-import { homedir } from "node:os";
 import { BOOT_TIMEOUT_MS, CommandSupervisor, childEnvironment, sleep } from "./native-dev-lib.mjs";
-
-// The API 37 image's SurfaceFlinger aborts inside its RegionSampling thread
-// while sampling composed frames through the emulator's GL DMA readback path
-// (issuetracker.google.com/issues/546200928), and every abort makes init
-// restart zygote, taking the whole framework down with it. Force the plain
-// readback path so the sampler can never reach the broken DMA path.
-async function forcePlainGlReadback() {
-  const androidDir = join(homedir(), ".android");
-  const featuresPath = join(androidDir, "advancedFeatures.ini");
-  let lines = [];
-  try {
-    lines = (await readFile(featuresPath, "utf8")).split("\n").filter((line) => line.trim());
-  } catch {
-    // A missing file means only our override will be present.
-  }
-  const existing = lines.findIndex((line) => line.trim().startsWith("GLDMA"));
-  if (existing >= 0) lines[existing] = "GLDMA = off";
-  else lines.push("GLDMA = off");
-  await mkdir(androidDir, { recursive: true });
-  await writeFile(featuresPath, `${lines.join("\n")}\n`);
-}
 
 const supervisor = new CommandSupervisor();
 supervisor.installSignalHandlers();
@@ -40,7 +18,6 @@ async function main() {
     ANDROID_SERIAL: serial,
     PATH: `${join(sdk, "platform-tools")}${delimiter}${process.env.PATH ?? ""}`,
   });
-  await forcePlainGlReadback();
   let emulatorStopped = false;
   let emulatorFailure;
   const emulatorRun = supervisor
