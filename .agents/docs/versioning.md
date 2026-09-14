@@ -178,17 +178,65 @@ blank, malformed or mismatched state is refused rather than converted.
 
 The Electron preload must advertise `clientRuntimeVersion` from
 `PORACODE_CLIENT_RUNTIME_VERSION`. The renderer checks this peer value before
-creating its transport. Version 8 requires the native quick-composer show
+creating its transport. Version 8 required the native quick-composer show
 subscription; absent, version-6, and version-7 preload artifacts are rejected.
-Browser runtimes use the same local facade version; this desktop window event
-does not change the remote wire, backend-host protocol, or persisted state.
+Version 9 stays RESERVED for the settings-authority activation. Version 10 is
+the per-window delivery-ownership boundary (V4 F7 correction): the facade
+additionally requires the generation-fenced recovery-barrier listener
+(`onRendererStreamRecovery`) and the per-window ownership grant
+(`getRendererStreamOwnershipGrant`). An older preload cannot honor recovery
+barriers, so a version-8/9 preload paired with a version-10 renderer would
+silently trust a cursor advanced past missing bulk after socket loss — the
+version gate rejects that pairing loudly instead. Browser runtimes use the same
+local facade version; this desktop window boundary does not change the remote
+wire, backend-host protocol, or persisted state.
 
-Unactivated V4 branch reservations are backend-host 8 for owner bootstrap, 9 for
-settings authority, and 11 for the private usage-secret service. Their combined
-backend-host contract will use a fresh version 12, superseding the earlier
-two-parent reservation of 10. Settings reserves renderer stream 4 and remote 13;
-the combined client facade/preload will use 9. These are coordination reservations,
-not the currently running wire versions or evidence that activation is complete.
+## Local delivery-ownership wire boundary (backend-host 13 / renderer stream 5)
+
+The V4 F7 correction consumed three previously unused versions for one
+incompatible handoff, chosen deliberately around the active reservations:
+
+- `BACKEND_HOST_PROTOCOL_VERSION` 7 → 13 in `src/shared/backendHostProtocol.ts`
+  — `set-renderer-stream-ownership` now carries a per-window
+  grant+interests table (every entry carries its minted grant — main mints
+  identity and generation before publishing interests, so the former
+  `grant: null` sentinel has no supported producer — plus the explicit
+  `receivesShellRemainder` role that keeps the shell-recipient window's
+  controls exact-once), `supervisor-event` envelopes gained a targeted
+  `windowId`/`generation` recipient, the untargeted shell copy no longer
+  carries a sequence, `call-supervisor` carries an authenticated
+  `originWindowId` (main-assigned from the IPC sender, or the
+  backend-validated stream bind) that scopes terminal-bootstrap retention to
+  the requesting window, and the new `renderer-stream-recovery` kind announces
+  generation-fenced loss windows through the ordered desktop-IPC fallback.
+  Versions 8-12 remain RESERVED for their recorded V4 activations (owner
+  bootstrap 8, settings authority 9, the superseded two-parent combination 10,
+  private usage-secret 11, and 12 for the eventual combined contract); this
+  milestone deliberately skipped them.
+- `BACKEND_RENDERER_STREAM_VERSION` 3 → 5 — the interests-frame version gates
+  recovery ordering and the acknowledged-handoff cursor semantics; a v3/v4
+  frame is closed with 1008 instead of being half-owned. Version 4 remains
+  RESERVED for the settings-authority activation and was deliberately skipped.
+- `PORACODE_CLIENT_RUNTIME_VERSION` 8 → 10 (see above); facade 9 stays
+  RESERVED.
+
+Old-artifact rejection is regression-covered at every boundary (request and
+outbound version gates, stream-info version checks, and the renderer facade
+check), and a stale backend that never receives the per-window table keeps the
+legacy full-relay behavior instead of starving fallback windows. The remote
+wire protocol and its reserved remote 13 are unrelated to this local boundary
+and untouched by it.
+
+Final-correction note (same uncommitted candidate, same 13/5/10 versions): the
+v13 table shape was audited and tightened after independent review — the
+grant-less sentinel was removed (recovery-barrier and delivery targets now
+always fence to a real generation ≥ 1; `RENDERER_STREAM_UNGRANTED_GENERATION`
+survives only as the renderer-presented fallback when a grant pull has not
+confirmed), the shell-remainder role was added, and the call-supervisor origin
+field was added. Because 13 was never shipped, the shape change does not
+consume a new version; the acceptance tests at every mirror (protocol gate,
+ownership registry, delivery-table builder, host client, grant authority) pin
+the final shape.
 
 ## Native mock controls
 

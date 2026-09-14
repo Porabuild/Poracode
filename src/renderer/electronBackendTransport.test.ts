@@ -1,8 +1,11 @@
-import { BACKEND_RENDERER_STREAM_VERSION } from "@/shared/backendHostProtocol";
+import {
+  BACKEND_RENDERER_STREAM_VERSION,
+  type BackendRendererStreamInfo,
+  type RendererStreamRecoveryBarrier,
+} from "@/shared/backendHostProtocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import type { SupervisorEvent } from "@/shared/ipc";
-import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import { ElectronBackendTransport } from "./electronBackendTransport";
 
 class FakeWebSocket {
@@ -69,10 +72,13 @@ function flush(): Promise<void> {
   return new Promise((resolve) => queueMicrotask(resolve));
 }
 
+const OWNERSHIP_GRANT = { windowId: 11, generation: 3, binding: "binding-11" };
+
 function makeHost() {
   let supervisorListener: ((event: SupervisorEvent, rendererSequence?: number) => void) | null =
     null;
   let gapListener: ((gap: { fromSequence: number; toSequence: number }) => void) | null = null;
+  let recoveryListener: ((barrier: RendererStreamRecoveryBarrier) => void) | null = null;
   const invokeProcedure = vi.fn<(name: string, args: unknown[]) => Promise<unknown>>(
     async () => undefined,
   );
@@ -84,6 +90,9 @@ function makeHost() {
       token: "secret",
     }),
   );
+  const getRendererStreamOwnershipGrant = vi.fn<
+    () => Promise<{ windowId: number; generation: number; binding: string } | null>
+  >(async () => OWNERSHIP_GRANT);
   const host = {
     onSupervisorEvent: (listener: (event: SupervisorEvent, rendererSequence?: number) => void) => {
       supervisorListener = listener;
@@ -95,21 +104,28 @@ function makeHost() {
       gapListener = listener;
       return () => {};
     },
+    onRendererStreamRecovery: (listener: (barrier: RendererStreamRecoveryBarrier) => void) => {
+      recoveryListener = listener;
+      return () => {};
+    },
     onBackendRendererStreamChanged: (listener: (info: BackendRendererStreamInfo) => void) => {
       streamListener = listener;
       return () => {};
     },
     getBackendRendererStreamInfo,
+    getRendererStreamOwnershipGrant,
     invokeProcedure,
   } as unknown as ElectronHostBridge;
   return {
     host,
     invokeProcedure,
     getBackendRendererStreamInfo,
+    getRendererStreamOwnershipGrant,
     streamChanged: (info: BackendRendererStreamInfo) => streamListener?.(info),
     fallback: (event: SupervisorEvent, rendererSequence?: number) =>
       supervisorListener?.(event, rendererSequence),
     gap: (fromSequence: number, toSequence: number) => gapListener?.({ fromSequence, toSequence }),
+    recover: (barrier: RendererStreamRecoveryBarrier) => recoveryListener?.(barrier),
   };
 }
 
@@ -340,6 +356,7 @@ describe("ElectronBackendTransport event handoff", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     const second = FakeWebSocket.instances[1]!;
     second.open();
+    await vi.advanceTimersByTimeAsync(0);
     second.message({ version: BACKEND_RENDERER_STREAM_VERSION, type: "event", seq: 1, event });
     second.message({
       version: BACKEND_RENDERER_STREAM_VERSION,
@@ -368,6 +385,7 @@ describe("ElectronBackendTransport event handoff", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     const second = FakeWebSocket.instances[1]!;
     second.open();
+    await vi.advanceTimersByTimeAsync(0);
     const interests = second.sent.map((value) => JSON.parse(value) as Record<string, unknown>)[0];
 
     expect(interests).toMatchObject({ type: "interests", lastSeq: 501 });
@@ -408,6 +426,7 @@ describe("ElectronBackendTransport event handoff", () => {
       await vi.advanceTimersByTimeAsync(1_000);
       const second = FakeWebSocket.instances[1]!;
       second.open();
+      await vi.advanceTimersByTimeAsync(0);
       expect(JSON.parse(second.sent[0]!)).toMatchObject({ type: "interests", lastSeq: latestSeq });
 
       const event: SupervisorEvent = {
@@ -432,6 +451,341 @@ describe("ElectronBackendTransport event handoff", () => {
       expect(events.slice(4)).toEqual([event]);
     },
   );
+});
+
+describe("ElectronBackendTransport ownership handoff", () => {
+  function ackFrame(ownership?: { windowId: number; generation: number }): {
+    version: typeof BACKEND_RENDERER_STREAM_VERSION;
+    type: "interests-ack";
+    latestSeq: number;
+    ownership?: { windowId: number; generation: number };
+  } {
+    return {
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 0,
+      ...(ownership ? { ownership } : {}),
+    };
+  }
+
+  it("presents main's grant on the interests frame and confirms the handoff on the ack echo", async () => {
+    const { host, getRendererStreamOwnershipGrant } = makeHost();
+    const transport = new ElectronBackendTransport(host);
+    await transport.setEventInterests({ terminalThreadIds: [], runtimeThreadIds: ["thread-1"] });
+    await flush();
+    const socket = FakeWebSocket.instances[0]!;
+    socket.open();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(getRendererStreamOwnershipGrant).toHaveBeenCalledExactlyOnceWith();
+    const interests = socket.sent
+      .map((value) => JSON.parse(value) as Record<string, unknown>)
+      .find((frame) => frame.type === "interests");
+    expect(interests).toMatchObject({ ownership: OWNERSHIP_GRANT });
+
+    // The echo confirms the backend accepted the binding: no retry follows.
+    socket.message(ackFrame({ windowId: 11, generation: 3 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(socket.sent.filter((raw) => JSON.parse(raw).type === "interests")).toHaveLength(1);
+
+    socket.close();
+  });
+
+  it("re-pulls the grant and re-sends interests once when the ack lacks the echo", async () => {
+    const { host, getRendererStreamOwnershipGrant } = makeHost();
+    const transport = new ElectronBackendTransport(host);
+    await transport.setEventInterests({ terminalThreadIds: [], runtimeThreadIds: ["thread-1"] });
+    await flush();
+    const socket = FakeWebSocket.instances[0]!;
+    socket.open();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(socket.sent).toHaveLength(1);
+
+    // Grant sync raced the bind: the backend acks without the ownership echo.
+    socket.message(ackFrame());
+    await vi.advanceTimersByTimeAsync(250);
+
+    // Exactly one bounded retry: a fresh grant pull and a re-send.
+    expect(getRendererStreamOwnershipGrant).toHaveBeenCalledTimes(2);
+    expect(socket.sent).toHaveLength(2);
+    expect(JSON.parse(socket.sent[1]!)).toMatchObject({
+      type: "interests",
+      ownership: OWNERSHIP_GRANT,
+    });
+
+    // The confirming ack stops the handoff sequence for this connection.
+    socket.message(ackFrame({ windowId: 11, generation: 3 }));
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(socket.sent).toHaveLength(2);
+
+    socket.close();
+  });
+
+  it("presents no ownership claim and performs no retry without a grant", async () => {
+    const { host, getRendererStreamOwnershipGrant } = makeHost();
+    getRendererStreamOwnershipGrant.mockResolvedValue(null);
+    const transport = new ElectronBackendTransport(host);
+    await transport.setEventInterests({ terminalThreadIds: [], runtimeThreadIds: ["thread-1"] });
+    await flush();
+    const socket = FakeWebSocket.instances[0]!;
+    socket.open();
+    await vi.advanceTimersByTimeAsync(0);
+
+    const interests = socket.sent
+      .map((value) => JSON.parse(value) as Record<string, unknown>)
+      .find((frame) => frame.type === "interests");
+    expect(interests).toMatchObject({ type: "interests" });
+    expect(interests!.ownership).toBeUndefined();
+
+    socket.message(ackFrame());
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(socket.sent.filter((raw) => JSON.parse(raw).type === "interests")).toHaveLength(1);
+
+    socket.close();
+  });
+
+  it("keeps re-presenting the binding on a bounded cadence until the ack confirms", async () => {
+    const { host, getRendererStreamOwnershipGrant } = makeHost();
+    const transport = new ElectronBackendTransport(host);
+    await transport.setEventInterests({ terminalThreadIds: [], runtimeThreadIds: ["thread-1"] });
+    await flush();
+    const socket = FakeWebSocket.instances[0]!;
+    socket.open();
+    await vi.advanceTimersByTimeAsync(0);
+
+    // A grant-sync/bind race keeps the ack unconfirmed; the backend acks
+    // every re-sent interests frame, and the retry loop must not stop after
+    // one attempt.
+    socket.message(ackFrame());
+    await vi.advanceTimersByTimeAsync(250);
+    expect(getRendererStreamOwnershipGrant).toHaveBeenCalledTimes(2);
+    socket.message(ackFrame());
+    await vi.advanceTimersByTimeAsync(250);
+    expect(getRendererStreamOwnershipGrant).toHaveBeenCalledTimes(3);
+    socket.message(ackFrame());
+    await vi.advanceTimersByTimeAsync(250);
+    expect(getRendererStreamOwnershipGrant).toHaveBeenCalledTimes(4);
+
+    // A confirming echo ends the loop.
+    socket.message(ackFrame({ windowId: 11, generation: 3 }));
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(getRendererStreamOwnershipGrant).toHaveBeenCalledTimes(4);
+
+    socket.close();
+  });
+});
+
+describe("ElectronBackendTransport generation-fenced recovery barriers", () => {
+  const THREAD_STATE: SupervisorEvent = {
+    type: "thread-state",
+    threadId: "thread-1",
+    status: "working",
+    attention: "none",
+    canResumeWithConfig: false,
+  };
+
+  /** Opens the socket, processes a confirming ack, and returns the test state. */
+  async function connectedTransport() {
+    const { host, recover, fallback } = makeHost();
+    const transport = new ElectronBackendTransport(host);
+    const events: SupervisorEvent[] = [];
+    transport.subscribe((event) => events.push(event));
+    const interestsReady = transport.setEventInterests({
+      terminalThreadIds: ["shared"],
+      runtimeThreadIds: ["thread-1"],
+    });
+    await interestsReady;
+    await flush();
+    const socket = FakeWebSocket.instances[0]!;
+    socket.open();
+    await flush();
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 5,
+      ownership: { windowId: 11, generation: 3 },
+    });
+    return { host, transport, events, socket, recover, fallback };
+  }
+
+  it("honors a barrier before local onclose: rebuilds the scope, advances to the barrier top, and fences the socket", async () => {
+    const { events, socket, recover, fallback } = await connectedTransport();
+
+    recover({
+      windowId: 11,
+      generation: 3,
+      fromSequence: 6,
+      toSequence: 8,
+      threadIds: ["thread-1"],
+    });
+
+    // Scoped authoritative rebuild happened immediately, cursor took the
+    // barrier top, and the live socket was fenced (closed) even though its
+    // close event never fired.
+    expect(events).toEqual([{ type: "thread-reset", threadId: "thread-1" }]);
+    expect(socket.readyState).toBe(FakeWebSocket.CLOSED);
+
+    // The reconnect presents the repaired cursor, not the stale one.
+    await vi.advanceTimersByTimeAsync(1_000);
+    const second = FakeWebSocket.instances[1]!;
+    second.open();
+    await vi.advanceTimersByTimeAsync(0);
+    const interests = second.sent.map((value) => JSON.parse(value) as Record<string, unknown>)[0];
+    expect(interests).toMatchObject({ type: "interests", lastSeq: 8 });
+
+    // Post-barrier fallback copies apply on top of the recovery.
+    fallback(THREAD_STATE, 9);
+    expect(events.at(-1)).toEqual(THREAD_STATE);
+    second.close();
+  });
+
+  it("takes the barrier top as a full rebuild when the cursor is below the barrier premise", async () => {
+    // A queued-but-unprocessed ack means the window's cursor never reached
+    // the acknowledged handoff point: the premise fails, so EVERY subscribed
+    // thread rebuilds and the cursor takes the barrier top.
+    const { host, recover } = makeHost();
+    const transport = new ElectronBackendTransport(host);
+    const events: SupervisorEvent[] = [];
+    transport.subscribe((event) => events.push(event));
+    await transport.setEventInterests({
+      terminalThreadIds: ["shared"],
+      runtimeThreadIds: ["thread-1"],
+    });
+    await flush();
+    const socket = FakeWebSocket.instances[0]!;
+    socket.open();
+    await flush();
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "event",
+      seq: 2,
+      event: THREAD_STATE,
+    });
+
+    recover({
+      windowId: 11,
+      generation: 3,
+      fromSequence: 5, // lastSequence=2 < 5-1: premise broken
+      toSequence: 9,
+      threadIds: ["thread-1"],
+    });
+
+    expect(events).toEqual([
+      THREAD_STATE,
+      // Full fail-open rebuild: terminal and runtime threads both reset.
+      { type: "thread-scrollback-resync", threadId: "shared" },
+      { type: "thread-reset", threadId: "thread-1" },
+    ]);
+    await vi.advanceTimersByTimeAsync(1_000);
+    const second = FakeWebSocket.instances[1]!;
+    second.open();
+    await vi.advanceTimersByTimeAsync(0);
+    const interests = second.sent.map((value) => JSON.parse(value) as Record<string, unknown>)[0];
+    expect(interests).toMatchObject({ type: "interests", lastSeq: 9 });
+    second.close();
+  });
+
+  it("ignores a barrier whose generation does not match the presented grant", async () => {
+    const { events, socket, recover } = await connectedTransport();
+
+    // A stale barrier for an older generation (pre-re-mint) describes a
+    // window state this transport never had; honoring it would regress the
+    // cursor over live delivery.
+    recover({
+      windowId: 11,
+      generation: 1,
+      fromSequence: 1,
+      toSequence: 99,
+      threadIds: ["thread-1"],
+    });
+
+    expect(events).toEqual([]);
+    expect(socket.readyState).toBe(FakeWebSocket.OPEN);
+  });
+
+  it("ignores a stale barrier the current connection already covered, without tearing it down", async () => {
+    const { events, socket, recover } = await connectedTransport();
+    // The ack above set the acknowledged cursor to 5; a barrier whose whole
+    // loss window is at or below it was healed before this copy arrived.
+    recover({
+      windowId: 11,
+      generation: 3,
+      fromSequence: 1,
+      toSequence: 5,
+      threadIds: ["thread-1"],
+    });
+
+    expect(events).toEqual([]);
+    expect(socket.readyState).toBe(FakeWebSocket.OPEN);
+  });
+
+  it("honors a barrier received while disconnected, without a premise violation", async () => {
+    const { host, recover } = makeHost();
+    const transport = new ElectronBackendTransport(host);
+    const events: SupervisorEvent[] = [];
+    transport.subscribe((event) => events.push(event));
+    await transport.setEventInterests({
+      terminalThreadIds: ["shared"],
+      runtimeThreadIds: ["thread-1"],
+    });
+    await flush();
+    const socket = FakeWebSocket.instances[0]!;
+    socket.open();
+    await flush();
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests-ack",
+      latestSeq: 4,
+    });
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "event",
+      seq: 5,
+      event: THREAD_STATE,
+    });
+    socket.message({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "event",
+      seq: 6,
+      event: THREAD_STATE,
+    });
+    socket.close();
+    await vi.advanceTimersByTimeAsync(0);
+
+    recover({
+      windowId: 11,
+      generation: 3,
+      fromSequence: 7, // cursor 6 >= 7-1: premise holds
+      toSequence: 8,
+      threadIds: ["shared"],
+    });
+
+    expect(events.slice(2)).toEqual([{ type: "thread-scrollback-resync", threadId: "shared" }]);
+    await vi.advanceTimersByTimeAsync(1_000);
+    const second = FakeWebSocket.instances[1]!;
+    second.open();
+    await vi.advanceTimersByTimeAsync(0);
+    const interests = second.sent.map((value) => JSON.parse(value) as Record<string, unknown>)[0];
+    expect(interests).toMatchObject({ type: "interests", lastSeq: 8 });
+    second.close();
+  });
+
+  it("fails open to a full rebuild when the barrier carries no scope", async () => {
+    const { events, recover } = await connectedTransport();
+
+    recover({
+      windowId: 11,
+      generation: 3,
+      fromSequence: 6,
+      toSequence: 8,
+      // No threadIds: the backend could not attribute the loss.
+    });
+
+    expect(events).toEqual([
+      { type: "thread-scrollback-resync", threadId: "shared" },
+      { type: "thread-reset", threadId: "thread-1" },
+    ]);
+  });
 });
 
 describe("ElectronBackendTransport desktop-IPC gap recovery", () => {

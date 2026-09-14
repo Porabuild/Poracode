@@ -22,7 +22,9 @@ function electronHost(arch: string): ElectronHostBridge {
     platform: "win32",
     onSupervisorEvent: () => () => {},
     onSupervisorEventGap: () => () => {},
+    onRendererStreamRecovery: () => () => {},
     onBackendRendererStreamChanged: () => () => {},
+    getRendererStreamOwnershipGrant: async () => null,
     getBackendRendererStreamInfo: async () => null,
     invokeProcedure: async () => undefined,
   } as unknown as ElectronHostBridge;
@@ -35,7 +37,7 @@ describe("client runtime", () => {
     Reflect.deleteProperty(window, "poracodeHost");
   });
 
-  it.each([undefined, 6, 7])(
+  it.each([undefined, 6, 7, 8, 9])(
     "refuses an old preload host version %s before creating its transport",
     (version) => {
       const host = {

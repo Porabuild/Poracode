@@ -390,6 +390,35 @@ describe("BackendHostCore", () => {
     vi.useRealTimers();
   });
 
+  it("attributes bootstrap retention to the authenticated requesting window only", () => {
+    const router = new BackendEventRouter();
+
+    // Originless starts (server, remote, background) widen no window.
+    router.retainTerminalBootstrap("originless");
+    expect(router.isTerminalBootstrapRetainedFor(7, "originless")).toBe(false);
+    expect(router.isTerminalBootstrapRetainedFor(8, "originless")).toBe(false);
+    // The legacy union filter parity (pre-table mainWindow relay) is kept.
+    expect(
+      router.filter({
+        type: "thread-output",
+        threadId: "originless",
+        data: "x",
+        outputLength: 1,
+        terminalInstanceId: "gen-test",
+      }),
+    ).not.toBeNull();
+
+    // Only the authenticated origin window may fail open for the thread.
+    router.retainTerminalBootstrap("shell:new", 7);
+    expect(router.isTerminalBootstrapRetainedFor(7, "shell:new")).toBe(true);
+    expect(router.isTerminalBootstrapRetainedFor(8, "shell:new")).toBe(false);
+    // A re-retain by another origin moves the attribution.
+    router.retainTerminalBootstrap("shell:new", 8);
+    expect(router.isTerminalBootstrapRetainedFor(7, "shell:new")).toBe(false);
+    expect(router.isTerminalBootstrapRetainedFor(8, "shell:new")).toBe(true);
+    router.dispose();
+  });
+
   describe("truncateThreadRuntime", () => {
     function createHost(onEvent: (event: SupervisorEvent) => void): BackendHostCore {
       return new BackendHostCore({

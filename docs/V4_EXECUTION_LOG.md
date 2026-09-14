@@ -11,21 +11,23 @@ obligations. No qualification gate has been waived.
 | Phase                                | State       | Evidence / next action                                                                                                                                                                                                                                                                       |
 | ------------------------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0 — master integration and baselines | In progress | Combined integration is on V2 at `7c0daf676`; compatibility, broad correctness checks and isolated tooling are verified at their recorded revisions. Full smoke exposed F23/F24. Complete instrumentation, comparable master measurements, hosted CI and final manual baselines remain open. |
-| 1 — exclusive server ownership       | In progress | Common root ownership/bootstrap and backend settings/routing persistence are in isolated implementation/review. No complete Phase 1 acceptance scenario is yet qualified; stale snapshots, all remaining file writers and credential/lifecycle work remain open.                             |
-| 2 — operation safety and lifecycle   | In progress | Admission and shared-renderer feedback are verified focused slices. Joined supervisor shutdown and stale-generation fencing are in review. Full operation identity/concurrency, descendant/process lifetime and recovery acceptance remain open.                                             |
-| 3 — off-main bulk transport          | Pending     | All six work items and acceptance scenarios remain open.                                                                                                                                                                                                                                     |
-| 4 — off-thread client engine         | Pending     | All ten work items and acceptance scenarios remain open.                                                                                                                                                                                                                                     |
-| 5 — server/relay fairness            | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                                   |
+| 1 — exclusive server ownership       | In progress | Shared desktop/headless lease and backend settings/routing slices are implemented. Attach, remaining host-settings writers, stale-snapshot conflicts, credential migration, and full startup acceptance remain open.                                                                         |
+| 2 — operation safety and lifecycle   | In progress | Per-thread coordination, retryable checkpoint receipts, HTTP/push drains, and tracked PTY joins are implemented. Cross-transport response-loss/crash evidence, descendant lifetime, and complete shutdown qualification remain open.                                                         |
+| 3 — off-main bulk transport          | In progress | Request/reply admission and HTTP cancellation are implemented. Backend-enforced per-window direct delivery is the active milestone; off-main remote HTTP, binary streaming, and the full multi-window acceptance run remain open.                                                            |
+| 4 — off-thread client engine         | In progress | Terminal/runtime queues and a cached remote membership index are implemented. Worker decode/reduction/persistence, bounded view patches, markdown/smoothing costs, and frame-budget evidence remain open.                                                                                    |
+| 5 — server/relay fairness            | In progress | Per-source ingress admission and relay congestion isolation are implemented. Weighted scheduling, local-renderer shedding isolation, reserved-control capacity qualification, and the full multi-client run remain open.                                                                     |
 | 6 — bounded payloads                 | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                                   |
-| 7 — browser/mobile-web lifecycle     | Pending     | All five work items and acceptance scenarios remain open.                                                                                                                                                                                                                                    |
+| 7 — browser/mobile-web lifecycle     | In progress | Service-worker activation safety and resume/reconnect slices are implemented. Real old/new-document, Safari/mobile-web, network-transition, and full lifecycle acceptance remain open.                                                                                                       |
 | 8 — artifact/upgrade/soak/merge      | Pending     | All seven work items and acceptance scenarios remain open; no final freeze, merge to master, or promotion authorized by evidence yet.                                                                                                                                                        |
 
 ## Rules for evidence and commits
 
 - Record before behavior, change, independent critic findings and dispositions,
   after checks, manual evidence, and exact commit/artifact identity for each slice.
-- Keep fixes small and commit after their relevant checks and review. A merge
-  commit must preserve both parent behaviors and intentional compatibility fences.
+- Develop fixes in reviewable increments and commit complete, verified milestones.
+  The user requested fewer commits; related implementation, tests, critic fixes,
+  and evidence updates belong in one milestone commit. A merge commit must
+  preserve both parent behaviors and intentional compatibility fences.
 - Keep measured runs separate from resource-heavy work, even in another worktree.
   A launch duration or frame sample on a busy host is diagnostic, not a benchmark.
 - Do not overwrite historical evidence with a newer pass. Record which revision
@@ -34,6 +36,201 @@ obligations. No qualification gate has been waived.
   speculative or unverified candidates distinctly; do not invent a causal link.
 - Only mark a phase verified when its complete acceptance scope is proven. The
   active goal remains unfinished while any plan requirement or final gate is open.
+
+## Current coordination and direct-delivery milestone
+
+The user selected Claude Z.AI GLM 5.3 Flash with High reasoning for execution
+and Low reasoning for research. The coordinator owns architecture, file-scope
+assignments, integration, evidence validation, and milestone commits. One
+implementation lane owns the Electron/backend handoff; separate read-only lanes
+reconcile the remaining plan and prepare runtime verification. Independent
+review follows the frozen candidate before commit.
+
+At committed baseline `2d6a2692e`, bulk events still cross backend-to-main IPC.
+The initial uncommitted handoff draft records a renderer readiness boolean and
+drops bulk copies in main after receipt. Code inspection confirms that this
+cannot establish zero bulk bytes entering main: `src/backend/index.ts` still
+filters the union of renderer and remote interests, then
+`createSupervisorEventRelay` emits the IPC copy. This draft is being replaced by
+backend-enforced per-window delivery ownership. F7 remains open until binding,
+acknowledged handoff, socket-loss recovery, and multiple-window behavior are
+proved at the actual backend-to-main boundary.
+
+The interrupted smoke run under
+`/Users/svecherenko/.poracode-smoke/automated-1789335733792-14728/`
+did not produce app-verification evidence. No pass is inferred from its build
+output or from the earlier focused tests of the incomplete draft.
+
+## 2026-09-13 — F7 correction implemented (uncommitted; review and live evidence pending)
+
+The uncommitted draft was rejected by review with three confirmed blockers: (1)
+`needsDesktopIpcFallback()` was all-windows-or-none, so one fallback window
+forced unrelated direct-owned bulk through main, which only delivered ordinary
+fallback to the main window; (2) mixed runtime batches always relayed their
+bulk with controls; (3) a close-skew repro
+(`tmp/v4-f7-review/backend/close-skew-repro.ts`, output retained) lost a
+suppressed event permanently: the event was retained for replay, but the
+renderer's cursor advanced over it via a later IPC copy, so reconnect replay
+skipped it with no recovery signal. Its passing tests pinned these wrong
+semantics. Before-evidence for all three blockers was re-captured against the
+draft at a clean worktree: `tmp/v4-f7-correction/failing-before-blockers12.txt`
+and `failing-before-blocker3-rerun.txt`.
+
+Implemented correction (single execution writer; no subdelegation), all on top
+of `2d6a2692e` with the draft replaced:
+
+- Per-window delivery table (`RendererStreamOwnership.setWindows`): main pushes
+  each window's grant plus its own interests; malformed pushes reject loudly
+  (no silent consumer drop) and the legacy silent 64-window cap is removed.
+  Grant-less windows ship a `null`-grant sentinel and stay fallback consumers.
+- Backend-authoritative fallback planning (`src/backend/supervisorEventFallback.ts`):
+  each event splits into bulk and control halves by the shared
+  `isBulkRuntimeContentEvent` classifier; bulk crosses only as per-window
+  targeted copies (filtered by that window's interests, terminal-bootstrap
+  fail-open per thread) for windows without a live acked owner; the shell
+  remainder crosses untargeted and sequence-less so an IPC control can never
+  advance a cursor past missing bulk. Before main's first push the legacy
+  full-relay behavior is preserved exactly.
+- Close-skew recovery: the stream records each socket's acknowledged handoff
+  cursor (the queued interests-ack's `latestSeq`); on a failed, non-open, or
+  backpressured send, socket loss, or ownership reset it revokes synchronously
+  and enqueues one targeted, generation-fenced `renderer-stream-recovery`
+  barrier per window through the ordered IPC fallback before any later
+  fallback copy, covering `[acked+1, sequence]` with a replay-derived thread
+  scope (omitted, fail-open, above the hint bound). The renderer honors a
+  barrier before its local `onclose`: generation mismatches are ignored, a
+  barrier already covered by the current connection's acknowledged cursor is
+  skipped, the premise-checked loss window recovers by scoped authoritative
+  rebuild (or full rebuild when the cursor is below the barrier premise, e.g.
+  a queued ack never processed), and the live socket is fenced immediately.
+- Grant-sync races: the renderer re-presents its binding on a bounded 250 ms
+  cadence until the ack echo confirms, so one rejected frame cannot park a
+  window on permanent silent bulk fallback; retries are observable on the
+  transport and via the stream's `getDeliveryOwnershipSummary()`.
+- Mixed-batch shedding: targeted sequenced rebuildable copies remain
+  sheddable; recovery barriers are non-sheddable and are NOT recognized as the
+  shed policy's own gap markers, so overflow shedding can never replace or
+  merge into a targeted barrier. Shell remainders carry no sequence and are
+  non-sheddable as before.
+- Compatibility boundary (coordinator decision applied): backend-host 7 → 13,
+  renderer stream 3 → 5, client facade/preload 8 → 10. Reservations 8-12,
+  stream 4, and facade 9 were preserved, not consumed; remote protocol
+  versions are untouched. Old-artifact rejection is regression-covered at the
+  request gate, the outbound gate, stream-info parsing, interests frames
+  (v3/v4 closed 1008), and the facade version check. `.agents/docs/versioning.md`
+  documents the boundary and superseded reservations.
+- Consolidation: grant/claim validation now lives once in
+  `src/shared/backendHostProtocol.ts` (`isRendererStreamOwnershipGrant`,
+  `isRendererStreamOwnershipClaim`) and is reused by the protocol gate, the
+  backend registry, the stream, the preload, and the renderer transport. New
+  cohesive modules (`supervisorEventFallback.ts`,
+  `main/backend/rendererDeliveryTable.ts`) keep `main.ts` and the stream from
+  growing; `BackendRendererStream.needsDesktopIpcFallback()` was removed
+  entirely.
+
+Decisive regressions (all composed on production transport/relay paths; the
+blocker-3 suite uses the real stream, real relay planner, real ownership
+registry, and the real `ElectronBackendTransport` class over real WebSockets,
+simulating only `webContents.send`/the preload bridge): two-window
+disjoint/shared interests with exact targeting; mixed single/list/multi batch
+splitting; close-skew with onclose delayed and with client close first;
+backpressure/server-side send failure barrier emission and ordering; stale
+generation re-bind and old-generation barriers; grant re-mint invalidation and
+backend respawn re-sync; replay-overflow fail-open scope; delayed grant-sync
+recovery; legacy pre-push relay; bootstrap fail-open interest. After-evidence:
+`tmp/v4-f7-correction/passing-after-f7-suites.txt` (37 tests) and
+`passing-after-probe-tests.txt` (15 tests); the full focused run across
+touched areas is 520/520, `pnpm run typecheck` is clean, and touched-file
+ordinary plus type-aware lint pass (one pre-existing type-aware finding at
+`main.ts:681` predates this work and sits outside every touched hunk). The
+IPC probe now classifies targeted envelopes by content and counts recovery
+barriers separately, so renaming an envelope cannot hide bulk from the probe.
+
+Not done here, and still gating: independent review of this correction, and
+frozen live runtime verification through the real PTY producer path
+(`tmp/v4-f7-runtime-verification/producer-path.md`). F7 and Phase 3 remain
+open; no closure is claimed.
+
+## 2026-09-13 — final consolidated F7 corrections implemented (uncommitted; live evidence still pending)
+
+Both independent reviews of the F7 correction finished (backend R1–R4 and the
+client lane; artifacts `tmp/v4-f7-rereview/`), runtime recovery reproduced with
+a conclusively stopped fixture. The final corrections were implemented by a
+single execution writer over the same uncommitted candidate at `2d6a2692e`
+(working-tree diff identity captured before editing in
+`tmp/v4-f7-final-fixes/`):
+
+- Recovery-loss coverage (blocking, re-review F-A): `recoveryScope` now reuses
+  the proven `minUnrecoverableSeq` coverage guard from `gapLossScope` — when
+  the recorded losses do not reach back to the barrier's start, the surviving
+  512-entry hint map cannot prove coverage (its evicted records all sat at or
+  below the surviving minimum), so the barrier fails open to a full
+  authoritative rebuild instead of silently omitting losses dropped from the
+  map. The re-review repro (520 distinct oversized lost-thread events → 512
+  surviving hints → old code omitted lost-1..lost-8 while advancing the
+  cursor) was promoted into `BackendRendererStream.test.ts` with its
+  failing-before evidence re-captured fresh on this tree at 22:31
+  (`tmp/v4-f7-rereview/backend/recovery-scope-repro-output.txt` re-run), plus
+  a companion test proving a fully-covered small loss still ships a present,
+  bounded scope.
+- Bootstrap attribution (blocking spec issue; re-review F-C): the
+  terminal-bootstrap retention that fail-opens a starting shell's first
+  output is now request-attributed. `call-supervisor` carries an
+  authenticated `originWindowId` (main assigns it from the IPC
+  `event.sender.id`; a direct-stream request carries the origin of its
+  backend-validated bind). The planner widens only the originating window's
+  fallback copy, and the renderer stream applies retention only to clients
+  bound to that window (mid-window binds included). Originless/server/remote
+  starts widen no window; the legacy union-filter mainWindow parity is kept.
+  Failing-before evidence for both this and the control-duplication fix is in
+  `tmp/v4-f7-final-fixes/failing-before-corrections-2-3b.txt` (unrelated
+  fallback B received A's retained first output; the shell-recipient's copy
+  carried controls). The old oracle that all unsubscribed fallback windows
+  receive retained output was removed, replaced by initiating-window-only
+  attribution plus shared-interest delivery.
+- Delivery generation + control duplication: main now rejects targeted DATA
+  whose generation predates the window's minted grant (re-mint/reload), in
+  addition to the existing stale-barrier fence; only provably-stale frames
+  are dropped, so an unchanged client never gains a gap. The delivery table
+  declares the shell-remainder recipient; the planner plans that window's
+  fallback copy from the bulk half only, so its controls (and main's
+  native/sleep consumers) apply exactly once via the sequence-less shell
+  remainder, while other fallback windows keep controls in their copies.
+  Grant minting/release/sync moved out of `main.ts` into
+  `src/main/backend/rendererStreamGrantAuthority.ts` (one owner), which
+  allocates identity and generation before interests are published.
+- Bounded cleanup (R4): removed the unread `getDeliveryOwnershipSummary`/
+  `ownershipFellows` (stream), `getOwnershipRetryCount` (transport), and
+  `RendererEventInterestRegistry.entry`; delivery-entry shape validation is
+  consolidated into one shared `isRendererWindowDeliveryState` (protocol gate
+  - backend registry) keeping the grant-to-window binding; the grant-less
+    sentinel was removed — review confirmed no supported flow produces a
+    grant-less table entry (facade 10 already gates grant-incapable preloads,
+    and mint-before-publish closes the race), with explicit rejection tests;
+    targets/barriers now always fence to a real generation.
+- Verified check cleanup (pre-existing, not F7-introduced): the type-aware
+  `only-throw-error` finding at `main.ts:681` (HEAD line 669, byte-identical,
+  explicit `unknown` annotation per `tmp/v4-f7-rereview/client/EVIDENCE.md`)
+  is resolved by normalizing the caught owner-acquisition error through the
+  shared `toError` helper (identity-preserving; the rethrown value is always
+  an Error). No rule suppression, no lint weakening; owner-refusal behavior
+  unchanged.
+
+Boundary audit: versions stay at host 13 / stream 5 / facade 10 — the v13
+shape changes (sentinel removal, shell role, call origin) are documented in
+`.agents/docs/versioning.md` and pinned by tests at every mirror; reserved
+8-12/4/9 remain unconsumed; remote/native protocols untouched; no renderer UI
+strings added; no product debug APIs added for tests.
+
+Verification (this stage): `pnpm run typecheck` 0 errors; ordinary and
+type-aware `oxlint` clean on all touched files; `pnpm run fmt:check` clean;
+19 focused/composed suites covering every touched area pass 219/219 (real
+stream/relay/transport/registry paths, no app launch); the failing-before
+scratch and re-run repro outputs are retained under `tmp/v4-f7-final-fixes/`.
+Still gating, unchanged: the live multi-window runtime verification through
+the real PTY producer path (`tmp/v4-f7-runtime-verification/producer-path.md`,
+authorized for the next stage) — F7 and Phase 3 remain open; no closure is
+claimed.
 
 ## 2026-09-13 — execution started
 
@@ -1568,7 +1765,7 @@ matcher to the existing filter, preserving the same event selection and
 ordering. A focused remote-store and event-routing run passes 123 tests, with
 typecheck, touched-file lint, formatting, and diff checks green.
 
-This removes one measured per-event allocation pattern. JSON decoding,
+This removes a code-confirmed per-event allocation pattern; its latency and allocation savings have not been measured. JSON decoding,
 validation, reconciliation, persistence, and UI reduction still run on the
 client thread; the worker engine, incremental reducers, and frame-budgeted view
 patches remain open F9 work.
@@ -1601,3 +1798,28 @@ Registration-ack, local-close, visitor-close, HTTP request, and sibling-channel
 congestion regressions are covered in the same run. Local renderer global
 shedding, weighted relay scheduling, reserved control capacity qualification,
 and the full multi-client capacity run remain Phase 5 work.
+
+## F7 integration checkpoint and v2/master replay
+
+The F7 correction batch (26 modified + 11 new files, all under the recorded
+checkpoint allowlist) is preserved as one local checkpoint commit before the
+branch replays the five incoming `origin/poracode/v2` commits and merges
+`origin/master` (#765, JSONC runtime dependency). Integration order: checkpoint
+-> rebase onto freshly fetched origin/poracode/v2 -> `merge --no-commit`
+origin/master -> semantic ci.yml resolution (v2 `web_build`/`ci_gate` plus
+master's `runtime_deps`) -> correction fixes A-D -> local full checks. No push,
+no final integration commit, and no application launch in this stage; hosted CI
+and a fresh integrated live F7 run remain explicit gates.
+
+Recovered pre-integration mock evidence (`tmp/v4-f7-final-live/RECOVERY.md`):
+the interrupted mock-mode inventory is substantiated — automated 9/9 PASS with
+0 console/runtime errors over the frozen build; this is mock-mode evidence, not
+real-provider or live qualification. F7 live qualification, Phase 3, and full
+V4 acceptance remain OPEN.
+
+Open findings carried into integration (from the independent final review):
+A. per-window interest/identity changes whose merged union is unchanged do not
+republish the delivery table; B. native/sleep handling still applies to every
+targeted copy before staleness branching; C. `RendererStreamGrantAuthority`
+`onError` is unused and destroy/release syncs can reject unhandled; D. duplicated
+hand-built `call-supervisor` envelopes in the main client and backend.

@@ -8,7 +8,6 @@ import {
   createBackendDatabaseRequest,
   createBackendRevertCheckpointRequest,
   createBackendServiceRequest,
-  createBackendSupervisorRequest,
   type RevertCheckpointHostCall,
   isBackendHostOutboundMessage,
   type BackendEventInterests,
@@ -22,6 +21,9 @@ import {
   type BackendServiceProcedureName,
   type BackendServiceResult,
   type BackendRendererStreamInfo,
+  type RendererStreamDeliveryTarget,
+  type RendererStreamRecoveryBarrier,
+  type RendererWindowDeliveryState,
   type SupervisorEventGap,
 } from "@/shared/backendHostProtocol";
 import type { CheckpointRevertResult } from "@/shared/contracts";
@@ -71,11 +73,17 @@ export interface BackendHostClientOptions {
   queueDiagnostics?: IpcQueueCapture;
   onEvent(
     event: SupervisorEvent,
-    rendererDeliveredDirect: boolean,
     rendererSequence?: number,
+    /** Present on per-window fallback copies: deliver to exactly this window. */
+    target?: RendererStreamDeliveryTarget,
   ): void;
   /** Renderer-stream sequences the desktop-IPC fallback lost to host shedding; windows must rebuild. */
   onSupervisorEventGap?(gap: SupervisorEventGap): void;
+  /**
+   * Generation-fenced recovery barrier for one window's direct-stream loss.
+   * Must reach exactly that window, ahead of any later fallback copy.
+   */
+  onRendererStreamRecovery?(barrier: RendererStreamRecoveryBarrier): void;
   onReset(): void;
   handleNativeRequest?(request: BackendNativeRequest): Promise<unknown> | unknown;
   onNativeEvent?(event: BackendNativeEvent): void;
@@ -134,6 +142,9 @@ export class BackendHostClient {
     allRuntimeEvents: false,
   };
   private syncedEventInterestsKey: string | null = null;
+  /** Desired per-window delivery state (grants + interests); re-synced per child generation. */
+  private ownershipWindows: RendererWindowDeliveryState[] = [];
+  private syncedOwnershipKey: string | null = null;
   private disposed = false;
   private rendererStreamInfo: BackendRendererStreamInfo | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
@@ -170,6 +181,7 @@ export class BackendHostClient {
     }
     this.child = child;
     this.syncedEventInterestsKey = null;
+    this.syncedOwnershipKey = null;
     pipeChildStreamsToParent(child);
 
     let assignmentPromise = Promise.resolve();
@@ -261,6 +273,11 @@ export class BackendHostClient {
       this.rendererStreamInfo = parseRendererStreamInfo(result);
       if (this.rendererStreamInfo) this.options.onRendererStreamInfo?.(this.rendererStreamInfo);
       await this.syncEventInterests(true);
+      // Ownership grants are not part of the deadline: a stale backend that
+      // rejects (or never replies to) the additive operation must not fail
+      // initialization — it just keeps the legacy always-relay behavior. An
+      // empty desired table is skipped here; the first registration syncs it.
+      void this.syncOwnershipGrants(true).catch((error: unknown) => this.reportProcessError(error));
       // The deadline can fire while the interests sync is in flight; a reply
       // that races the kill must not mark the failed attempt ready.
       if (this.disposed || failureHandled || this.child !== child) return result;
@@ -333,17 +350,16 @@ export class BackendHostClient {
       }
       case "supervisor-event":
         if (message.rendererSequence === undefined) {
-          this.options.onEvent(message.event, message.rendererDeliveredDirect === true);
+          this.options.onEvent(message.event, undefined, message.target);
         } else {
-          this.options.onEvent(
-            message.event,
-            message.rendererDeliveredDirect === true,
-            message.rendererSequence,
-          );
+          this.options.onEvent(message.event, message.rendererSequence, message.target);
         }
         return;
       case "supervisor-event-gap":
         this.options.onSupervisorEventGap?.(message);
+        return;
+      case "renderer-stream-recovery":
+        this.options.onRendererStreamRecovery?.(message);
         return;
       case "supervisor-reset":
         this.options.onReset();
@@ -580,6 +596,46 @@ export class BackendHostClient {
   }
 
   /**
+   * Replaces the desktop-window delivery table the backend enforces for the
+   * direct renderer stream: each window's minted grant plus its own
+   * interests. The full table travels on every change so window releases
+   * (destroy, navigate) revoke grants and stale interests without a separate
+   * operation.
+   */
+  async setRendererStreamOwnership(windows: readonly RendererWindowDeliveryState[]): Promise<void> {
+    this.ownershipWindows = windows.map((window) => ({
+      windowId: window.windowId,
+      grant: { ...window.grant },
+      interests: {
+        terminalThreadIds: [...window.interests.terminalThreadIds],
+        runtimeThreadIds: [...window.interests.runtimeThreadIds],
+        allRuntimeEvents: window.interests.allRuntimeEvents,
+      },
+      receivesShellRemainder: window.receivesShellRemainder,
+    }));
+    await this.waitUntilInitialized();
+    await this.syncOwnershipGrants();
+  }
+
+  private syncOwnershipGrants(skipEmpty = false): Promise<unknown> {
+    const key = JSON.stringify(this.ownershipWindows);
+    if (this.syncedOwnershipKey === key) return Promise.resolve(null);
+    if (skipEmpty && this.ownershipWindows.length === 0 && this.syncedOwnershipKey === null) {
+      return Promise.resolve(null);
+    }
+    this.syncedOwnershipKey = key;
+    return this.request({
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      id: randomUUID(),
+      operation: "set-renderer-stream-ownership",
+      payload: { windows: this.ownershipWindows },
+    }).catch((error: unknown) => {
+      if (this.syncedOwnershipKey === key) this.syncedOwnershipKey = null;
+      throw error;
+    });
+  }
+
+  /**
    * Sends `start-supervisor` at most once per child generation and shares the
    * flight with every requester for that child: the respawn hook and a
    * lifecycle caller parked across the recovery must not double-start the
@@ -625,14 +681,25 @@ export class BackendHostClient {
   async call<Name extends SupervisorProcedureName>(
     name: Name,
     payload: IpcProcedurePayload<Name>,
+    originWindowId?: number,
   ): Promise<IpcProcedureResult<Name>> {
     return this.withNormalRequest(async () => {
       await this.startedGate;
       await this.waitUntilInitialized();
       const id = randomUUID();
-      return this.request(createBackendSupervisorRequest(id, name, payload)) as Promise<
-        IpcProcedureResult<Name>
-      >;
+      // `originWindowId` is main-assigned from the authenticated IPC sender;
+      // the backend scopes terminal-bootstrap retention to it.
+      return this.request({
+        version: BACKEND_HOST_PROTOCOL_VERSION,
+        id,
+        operation: "call-supervisor",
+        payload: {
+          id,
+          type: name,
+          payload,
+          ...(originWindowId !== undefined ? { originWindowId } : {}),
+        } as never,
+      }) as Promise<IpcProcedureResult<Name>>;
     });
   }
 

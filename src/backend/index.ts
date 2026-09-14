@@ -11,11 +11,17 @@ import {
   type BackendHostReply,
   type BackendHostRequest,
 } from "@/shared/backendHostProtocol";
-import { BackendEventRouter, BackendHostCore } from "./BackendHostCore";
+import {
+  BackendEventRouter,
+  BackendHostCore,
+  filterSupervisorEventForInterests,
+} from "./BackendHostCore";
 import { BackendDesktopServices } from "./BackendDesktopServices";
 import { BackendRendererStream } from "./BackendRendererStream";
+import { RendererStreamOwnership } from "./RendererStreamOwnership";
 import { BackendNativeRequests } from "./BackendNativeRequests";
 import { createBackendHostShedPolicy, createSupervisorEventRelay } from "./supervisorEventRelay";
+import { planDesktopRelay } from "./supervisorEventFallback";
 import { shutdownBackendHost } from "./shutdown";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { callDatabaseRpc } from "@/main/db/databaseRpc";
@@ -29,6 +35,10 @@ let desktopServices: BackendDesktopServices | null = null;
 let rendererStream: BackendRendererStream | null = null;
 let supervisorExtraEnv: Record<string, string> = {};
 const eventRouter = new BackendEventRouter();
+// Desktop-window delivery ownership for the direct renderer stream. Lives at
+// module scope like the IPC-copy event router so grants pushed by main apply
+// before, between, and after renderer-stream (re)construction.
+const rendererStreamOwnership = new RendererStreamOwnership();
 let rendererEventInterests: LiveEventInterests = {
   terminalThreadIds: [],
   runtimeThreadIds: [],
@@ -198,7 +208,21 @@ const relaySupervisorEvent = createSupervisorEventRelay({
     return result;
   },
   observeEvent: (event) => desktopServices?.observeSupervisorEvent(event),
-  filterForIpcConsumers: (event) => eventRouter.filter(event),
+  // The backend is the authoritative direct/fallback selector: it plans
+  // per-window targeted copies for windows that need the desktop-IPC
+  // fallback and a sequence-less shell remainder for main's own consumers.
+  // Bulk content can cross only inside targeted copies.
+  planDesktopRelay: (event) =>
+    planDesktopRelay({
+      event,
+      ownershipArmed: rendererStreamOwnership.isArmed(),
+      fallbackWindows: rendererStreamOwnership.fallbackWindows(),
+      isTerminalBootstrapRetainedFor: (windowId, threadId) =>
+        eventRouter.isTerminalBootstrapRetainedFor(windowId, threadId),
+      filterEventForInterests: (filtered, interests) =>
+        filterSupervisorEventForInterests(filtered, interests),
+      filterShellEvent: (shell) => eventRouter.filter(shell),
+    }),
   sendToMain: send,
 });
 
@@ -270,13 +294,38 @@ async function initialize(
         { "poracode.feature_area": "renderer-event-stream" },
       ),
     onRequest: handleRendererRequest,
+    ownership: rendererStreamOwnership,
+    // Owner revocation recovery: generation-fenced barriers through the
+    // ordered desktop-IPC fallback, ahead of any later fallback copy.
+    onStreamRecovery: (revocations) => {
+      for (const revocation of revocations) {
+        send({
+          version: BACKEND_HOST_PROTOCOL_VERSION,
+          kind: "renderer-stream-recovery",
+          windowId: revocation.windowId,
+          generation: revocation.generation,
+          fromSequence: revocation.fromSequence,
+          toSequence: revocation.toSequence,
+          ...(revocation.threadIds ? { threadIds: revocation.threadIds } : {}),
+        });
+      }
+    },
   });
   const rendererStreamInfo = await rendererStream.start();
   if (!acceptingRequests) throw new Error("Backend host is shutting down.");
   return { rendererStream: rendererStreamInfo };
 }
 
-async function handleRendererRequest(request: BackendRendererRequest): Promise<unknown> {
+/** Validated authenticated origin window of a call-supervisor request, or undefined. */
+function readCallOriginWindowId(request: { originWindowId?: unknown }): number | undefined {
+  const value = request.originWindowId;
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
+async function handleRendererRequest(
+  request: BackendRendererRequest,
+  origin?: { windowId: number },
+): Promise<unknown> {
   const procedure = ipcProcedureMap[request.name as IpcProcedureName];
   if (!procedure) throw new Error(`Unknown renderer procedure: ${request.name}`);
   const payload = procedure.payloadSchema.parse(request.payload);
@@ -288,7 +337,12 @@ async function handleRendererRequest(request: BackendRendererRequest): Promise<u
       version: BACKEND_HOST_PROTOCOL_VERSION,
       id: request.id,
       operation: "call-supervisor",
-      payload: { id: request.id, type: request.name, payload } as never,
+      payload: {
+        id: request.id,
+        type: request.name,
+        payload,
+        ...(origin ? { originWindowId: origin.windowId } : {}),
+      } as never,
     });
   }
   if (request.operation === "database") {
@@ -385,9 +439,13 @@ async function executeRequest(
           : supervisorRequest.type === "startThread"
             ? payload.threadId
             : undefined;
+      // The start's authenticated origin window (main-assigned from the IPC
+      // sender, or the backend-validated stream bind). Originless starts —
+      // server, remote, background — widen no window's bootstrap retention.
+      const originWindowId = readCallOriginWindowId(supervisorRequest);
       if (bootstrapThreadId) {
-        eventRouter.retainTerminalBootstrap(bootstrapThreadId);
-        rendererStream?.retainTerminalBootstrap(bootstrapThreadId);
+        eventRouter.retainTerminalBootstrap(bootstrapThreadId, originWindowId);
+        rendererStream?.retainTerminalBootstrap(bootstrapThreadId, originWindowId);
       }
       if (supervisorRequest.type === "closeThread" && payload.threadId) {
         eventRouter.clearTerminalBootstrap(payload.threadId);
@@ -436,6 +494,14 @@ async function executeRequest(
     case "set-event-interests":
       rendererEventInterests = request.payload;
       syncEventInterests();
+      return null;
+    case "set-renderer-stream-ownership":
+      // Main's authoritative per-window delivery table (grant + interests).
+      // Applies even while the stream is being (re)constructed: the registry
+      // is injected into every stream instance. A malformed entry throws so
+      // the push fails loudly instead of silently dropping a consumer; an
+      // entry without a live owner keeps the per-window IPC fallback.
+      rendererStreamOwnership.setWindows(request.payload.windows);
       return null;
     case "browser-event":
       desktopServices?.publishBrowserEvent(request.payload);

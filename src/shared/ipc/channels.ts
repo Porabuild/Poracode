@@ -21,11 +21,15 @@ export const IPC_EVENT_CHANNELS = {
   quickComposerShown: createChannel("quickComposerShown"),
   backendRendererStreamChanged: createChannel("backendRendererStreamChanged"),
   backendSupervisorEventGap: createChannel("backendSupervisorEventGap"),
+  /** Per-window generation-fenced direct-stream recovery barrier. */
+  rendererStreamRecovery: createChannel("rendererStreamRecovery"),
 } as const;
 
 export const IPC_WINDOW_CHANNELS = {
   clientProcedureInvoke: createChannel("clientProcedureInvoke"),
   backendRendererStreamInfo: createChannel("backendRendererStreamInfo"),
+  /** Per-window direct-stream ownership grant; main mints it for event.sender only. */
+  rendererStreamOwnershipGrant: createChannel("rendererStreamOwnershipGrant"),
   quickComposerSubmit: createChannel("quickComposerWindowSubmit"),
   quickComposerDismiss: createChannel("quickComposerWindowDismiss"),
   quickComposerPickFiles: createChannel("quickComposerWindowPickFiles"),
