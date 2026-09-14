@@ -165,20 +165,43 @@ export class BackendEventRouter {
     runtimeThreadIds: [],
     allRuntimeEvents: false,
   };
-  private readonly terminalBootstrapInterests = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Retained bootstrap threads with the authenticated request origin window. */
+  private readonly terminalBootstrapInterests = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout>; originWindowId?: number }
+  >();
   private readonly hiddenShellActivityAt = new Map<string, number>();
 
-  retainTerminalBootstrap(threadId: string): void {
+  /**
+   * `originWindowId` is the authenticated requesting window: only its
+   * per-window fallback copy may fail open for the retained thread's first
+   * output. Originless starts (server, remote, background) widen no window;
+   * the legacy union {@link filter} keeps treating any retained thread as
+   * wanted so the pre-table mainWindow relay parity is unchanged.
+   */
+  retainTerminalBootstrap(threadId: string, originWindowId?: number): void {
     this.clearTerminalBootstrap(threadId);
-    const timer = setTimeout(() => this.terminalBootstrapInterests.delete(threadId), 10_000);
-    timer.unref?.();
-    this.terminalBootstrapInterests.set(threadId, timer);
+    const entry = {
+      timer: setTimeout(() => this.terminalBootstrapInterests.delete(threadId), 10_000),
+      ...(originWindowId !== undefined ? { originWindowId } : {}),
+    };
+    entry.timer.unref?.();
+    this.terminalBootstrapInterests.set(threadId, entry);
   }
 
   clearTerminalBootstrap(threadId: string): void {
-    const timer = this.terminalBootstrapInterests.get(threadId);
-    if (timer) clearTimeout(timer);
+    const entry = this.terminalBootstrapInterests.get(threadId);
+    if (entry) clearTimeout(entry.timer);
     this.terminalBootstrapInterests.delete(threadId);
+  }
+
+  /**
+   * True when THIS window may fail open for the retained thread: only the
+   * authenticated request's origin window is ever widened.
+   */
+  isTerminalBootstrapRetainedFor(windowId: number, threadId: string): boolean {
+    const entry = this.terminalBootstrapInterests.get(threadId);
+    return entry !== undefined && entry.originWindowId === windowId;
   }
 
   setInterests(interests: BackendEventInterests): void {
@@ -196,7 +219,7 @@ export class BackendEventRouter {
   }
 
   dispose(): void {
-    for (const timer of this.terminalBootstrapInterests.values()) clearTimeout(timer);
+    for (const entry of this.terminalBootstrapInterests.values()) clearTimeout(entry.timer);
     this.terminalBootstrapInterests.clear();
     this.hiddenShellActivityAt.clear();
   }

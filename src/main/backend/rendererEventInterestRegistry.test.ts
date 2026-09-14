@@ -114,4 +114,28 @@ describe("RendererEventInterestRegistry", () => {
     registry.release(42);
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("exposes per-window entries for the backend delivery table", () => {
+    const registry = new RendererEventInterestRegistry(() => {});
+    const first = fakeSender(1);
+    const second = fakeSender(2);
+    registry.set(first.sender, {
+      terminalThreadIds: ["t1"],
+      runtimeThreadIds: [],
+      allRuntimeEvents: false,
+    });
+    registry.set(second.sender, {
+      terminalThreadIds: [],
+      runtimeThreadIds: ["r2"],
+      allRuntimeEvents: true,
+    });
+
+    const perWindow = registry.snapshotPerWindow();
+    expect(perWindow.size).toBe(2);
+    expect(perWindow.get(2)).toMatchObject({ runtimeThreadIds: ["r2"] });
+
+    second.destroy();
+    expect(registry.snapshotPerWindow().has(2)).toBe(false);
+    expect(registry.snapshotPerWindow().has(1)).toBe(true);
+  });
 });

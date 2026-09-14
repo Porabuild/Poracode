@@ -68,6 +68,7 @@ import {
   type SupervisorEvent,
 } from "@/shared/ipc";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
+import { toError } from "@/shared/errorMessage";
 import { readSharedSettingsFile } from "./sharedSettingsFile";
 import { WindowsJobObjectManager } from "./windowsJobObject";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
@@ -89,8 +90,13 @@ import { APP_QUIT_CLEANUP_TIMEOUT_MS, raceWithTimeout } from "./appQuitCleanup";
 import { BackendHostClient } from "./backend/BackendHostClient";
 import { BackendStateStore } from "./backend/BackendStateStore";
 import { RendererEventInterestRegistry } from "./backend/rendererEventInterestRegistry";
+import { RendererStreamGrantAuthority } from "./backend/rendererStreamGrantAuthority";
+import { resolveDeliveryTargetWindow } from "./backend/rendererDeliveryTable";
 import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
-import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
+import type {
+  BackendRendererStreamInfo,
+  RendererStreamDeliveryTarget,
+} from "@/shared/backendHostProtocol";
 import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
 import { installProcessStdioErrorHandlers } from "./processStdio";
 import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
@@ -157,6 +163,9 @@ if (baseDirOverride) {
 const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 let poracodePaths: PoracodePaths | null = null;
 let desktopOwnerLease: HostOwnerLease | null = null;
+// Always a real Error: the caught acquisition failure is normalized at
+// capture time so the readiness rethrow keeps its identity under the
+// only-throw-error rule.
 let desktopOwnerAcquisitionError: Error | null = null;
 if (hasSingleInstanceLock) {
   const electronUserDataDir = app.getPath("userData");
@@ -165,8 +174,9 @@ if (hasSingleInstanceLock) {
   try {
     desktopOwnerLease = HostOwnerLease.acquire(resolveDesktopHostRootPaths(baseDir), "desktop");
   } catch (error) {
-    desktopOwnerAcquisitionError =
-      error instanceof Error ? error : new Error(String(error), { cause: error });
+    // Normalized so the rethrow at readiness is always an Error with its
+    // identity intact (pre-existing type-aware lint finding at the rethrow).
+    desktopOwnerAcquisitionError = toError(error);
     console.error("[poracode] failed to acquire the desktop host owner:", error);
   }
   if (!desktopOwnerAcquisitionError) {
@@ -736,9 +746,30 @@ if (!hasSingleInstanceLock) {
 
       // Per-window renderer event interests: every window that publishes a
       // snapshot keeps its own entry, so one window can never starve
-      // another's desktop-IPC fallback. The host routes the union.
+      // another's desktop-IPC fallback. The host routes the union for the
+      // shell copy and each window's own entry for its fallback copies.
+      const reportEventInterestSyncError = (error: unknown): void => {
+        captureMainException(error, { "poracode.feature_area": "live-event-routing" });
+      };
+      const syncBackendEventInterests = (): Promise<void> =>
+        backendHost.setEventInterests(rendererEventInterestRegistry.snapshot());
+      // Delivery-ownership authority: main is the minting authority — grants
+      // are keyed by the authoritative webContents id, the binding secret is
+      // shared only with that window's renderer through its preload-bridge
+      // reply, and a destroyed/reloaded window drops its grant so a stale
+      // socket can never hold ownership across a new generation. Identity and
+      // generation are allocated synchronously before a window's interests
+      // are published, so every pushed table entry carries its minted grant.
+      const rendererStreamGrantAuthority = new RendererStreamGrantAuthority({
+        pushDeliveryTable: (windows) => backendHost.setRendererStreamOwnership(windows),
+        onError: reportEventInterestSyncError,
+        shellRemainderWindowId: () =>
+          mainWindow && !mainWindow.isDestroyed() ? mainWindow.webContents.id : null,
+        interestsByWindow: () => rendererEventInterestRegistry.snapshotPerWindow(),
+      });
       const rendererEventInterestRegistry = new RendererEventInterestRegistry(() => {
         void syncBackendEventInterests().catch(reportEventInterestSyncError);
+        void rendererStreamGrantAuthority.sync().catch(reportEventInterestSyncError);
       });
       let trayProjects: Project[] = [];
       let trayThreads: Thread[] = [];
@@ -748,15 +779,30 @@ if (!hasSingleInstanceLock) {
       let supervisorClient: BackendHostClient;
       const dispatchBackendSupervisorEvent = (
         event: SupervisorEvent,
-        // BackendHostClient still passes the legacy rendererDeliveredDirect
-        // flag positionally; the host no longer emits it. Renderer windows
-        // dedupe IPC copies by rendererSequence while their direct stream is
-        // connected, so every routed event is relayed — suppressing on
-        // another window's stream delivery starved a WS-down window silently.
-        _rendererDeliveredDirect: boolean,
         rendererSequence?: number,
+        // Present on per-window fallback copies the backend produced for one
+        // specific window: bulk content must reach exactly that window and
+        // never leak to siblings. Absent means the shell copy (controls and
+        // native state) or the pre-first-push legacy full relay, which follow
+        // the historical mainWindow routing.
+        target?: RendererStreamDeliveryTarget,
       ): void => {
         handleSupervisorEventForSleep(event);
+        if (target) {
+          // A copy planned for a previous grant epoch (same webContents
+          // re-minted by a reload) is stale: drop it instead of applying
+          // old-generation data to the window's current identity. Only
+          // provably-stale generations are dropped, so an unchanged client
+          // never loses a frame to this gate.
+          if (rendererStreamGrantAuthority.isStaleDeliveryTarget(target)) return;
+          const window = resolveDeliveryTargetWindow(target, [
+            mainWindow,
+            quickComposerWindow,
+            browserExtractWindow,
+          ]);
+          window?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event, rendererSequence);
+          return;
+        }
         if (rendererSequence === undefined) {
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
         } else {
@@ -828,6 +874,17 @@ if (!hasSingleInstanceLock) {
               window.webContents.send(IPC_EVENT_CHANNELS.backendSupervisorEventGap, gap);
             }
           }
+        },
+        onRendererStreamRecovery: (barrier) => {
+          // Targeted, generation-fenced loss window for one window's direct
+          // stream. Delivered to exactly that window so it can fence the dead
+          // socket and rebuild before its local onclose even fires.
+          const window = resolveDeliveryTargetWindow(barrier, [
+            mainWindow,
+            quickComposerWindow,
+            browserExtractWindow,
+          ]);
+          window?.webContents.send(IPC_EVENT_CHANNELS.rendererStreamRecovery, barrier);
         },
         onReset: handleBackendReset,
         handleNativeRequest: (request) => {
@@ -943,17 +1000,15 @@ if (!hasSingleInstanceLock) {
       performanceDiagnostics?.observeIpcQueue("main-to-backend", () =>
         backendHost.getQueueDiagnostics(),
       );
-      const syncBackendEventInterests = (): Promise<void> =>
-        backendHost.setEventInterests(rendererEventInterestRegistry.snapshot());
-      const reportEventInterestSyncError = (error: unknown): void => {
-        captureMainException(error, { "poracode.feature_area": "live-event-routing" });
-      };
       clearRendererEventInterests = (senderId?: number) => {
         if (senderId === undefined) {
           rendererEventInterestRegistry.releaseAll();
-          return;
+          rendererStreamGrantAuthority.clear();
+        } else {
+          rendererEventInterestRegistry.release(senderId);
+          rendererStreamGrantAuthority.dropGrant(senderId);
         }
-        rendererEventInterestRegistry.release(senderId);
+        void rendererStreamGrantAuthority.sync().catch(reportEventInterestSyncError);
       };
       backendHostClient = backendHost;
       supervisorClient = backendHost;
@@ -972,6 +1027,18 @@ if (!hasSingleInstanceLock) {
         IPC_WINDOW_CHANNELS.backendRendererStreamInfo,
         () => backendRendererStreamInfo,
       );
+      ipcMain.handle(IPC_WINDOW_CHANNELS.rendererStreamOwnershipGrant, (event) => {
+        // The window identity comes from the IPC event, never from the
+        // renderer: a caller can only ever receive the binding minted for its
+        // own webContents. Fire the backend sync without blocking the reply —
+        // a bind that races the sync is rejected safely and retried once by
+        // the renderer transport.
+        const sender = event.sender;
+        const grant = rendererStreamGrantAuthority.ensureGrant(sender.id);
+        rendererStreamGrantAuthority.observeRelease(sender);
+        void rendererStreamGrantAuthority.sync().catch(reportEventInterestSyncError);
+        return grant;
+      });
       autoUpdaterController = createAutoUpdaterController(
         (status) => {
           mainWindow?.webContents.send(IPC_EVENT_CHANNELS.updateStatus, status);
@@ -1099,11 +1166,20 @@ if (!hasSingleInstanceLock) {
           onKeybindingsChanged: (file) => quickComposerShortcutManager?.apply(file),
           setGlobalShortcutsSuspended: (suspended) => globalShortcut.setSuspended(suspended),
           setRendererEventInterests: async (interests, sender) => {
+            // Every registered window is a desktop bulk consumer until its
+            // direct stream binds the grant, so identity and generation are
+            // minted BEFORE the interests entry publishes: the registry
+            // change then triggers exactly one table sync whose entries all
+            // carry their grants (a window whose transport has never
+            // connected still holds the IPC fallback open).
+            if (sender) rendererStreamGrantAuthority.ensureGrant(sender.id);
             rendererEventInterestRegistry.set(sender ?? null, {
               terminalThreadIds: interests.terminalThreadIds,
               runtimeThreadIds: interests.runtimeThreadIds,
               allRuntimeEvents: false,
             });
+            if (!sender) return;
+            rendererStreamGrantAuthority.observeRelease(sender);
           },
           extractBrowserToWindow,
           injectBrowserToMain,
@@ -1116,7 +1192,8 @@ if (!hasSingleInstanceLock) {
           backendServices: backendHost,
           revertCheckpoint: (input) => backendHost.revertCheckpoint(input),
         }),
-        callSupervisor: (name, payload) => supervisorClient.call(name, payload),
+        callSupervisor: (name, payload, originWindowId) =>
+          supervisorClient.call(name, payload, originWindowId),
       });
 
       ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {

@@ -1,10 +1,14 @@
 import {
   BACKEND_RENDERER_STREAM_VERSION,
+  RENDERER_STREAM_UNGRANTED_GENERATION,
   isDirectRendererDatabaseProcedure,
   isDirectRendererServiceProcedure,
   type BackendRendererReply,
   type BackendRendererRequestOperation,
   type BackendRendererStreamInfo,
+  type RendererStreamOwnershipClaim,
+  type RendererStreamOwnershipGrant,
+  type RendererStreamRecoveryBarrier,
 } from "@/shared/backendHostProtocol";
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import { ipcProcedureMap, type IpcProcedureName, type SupervisorEvent } from "@/shared/ipc";
@@ -14,6 +18,10 @@ const RECONNECT_DELAY_MS = 1_000;
 /** Keep the direct stream bounded; callers beyond this point use the existing
  * main-process fallback instead of retaining more renderer promises. */
 const MAX_PENDING_REQUESTS = 64;
+/** Bounded ownership re-negotiation cadence; a grant-sync/bind race retries
+ * at this interval until the bind confirms, so one rejected frame never
+ * leaves the window on permanent silent bulk fallback. */
+const OWNERSHIP_RETRY_DELAY_MS = 250;
 
 interface PendingRequest {
   resolve(value: unknown): void;
@@ -34,12 +42,28 @@ export class ElectronBackendTransport {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private lastSequence = 0;
   private directEventsConnected = false;
+  /**
+   * latestSeq echoed by the CURRENT connection's interests-ack: everything at
+   * or below it was proven received on this socket. A recovery barrier whose
+   * window is already covered by this cursor is stale and must not tear the
+   * healthy connection down.
+   */
+  private ackedSequence: number | null = null;
   private readonly listeners = new Set<
     (event: SupervisorEvent, rendererSequence?: number) => void
   >();
   private readonly generationListeners = new Set<() => void>();
   private readonly pending = new Map<string, PendingRequest>();
   private interests: RendererInterests = { terminalThreadIds: [], runtimeThreadIds: [] };
+  /**
+   * The ownership grant this window pulled from main for the current
+   * connection. Presented on every interests frame; the backend's ack echo is
+   * the acknowledged handoff that lets it stop copying this window's bulk
+   * through Electron main.
+   */
+  private ownership: RendererStreamOwnershipGrant | null = null;
+  private ownershipRetryScheduled = false;
+  private ownershipRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly host: ElectronHostBridge) {
     host.onSupervisorEvent((event, rendererSequence) => {
@@ -56,6 +80,7 @@ export class ElectronBackendTransport {
       // retained events inside a merged loss range must still be delivered.
       this.dispatchRebuildForInterests();
     });
+    host.onRendererStreamRecovery((barrier) => this.handleStreamRecovery(barrier));
     host.onBackendRendererStreamChanged((info) => this.replaceInfo(info));
     this.refreshInfo();
   }
@@ -146,6 +171,7 @@ export class ElectronBackendTransport {
     if (this.info?.url === info.url && this.info.token === info.token) return;
     this.info = info;
     this.lastSequence = 0;
+    this.ackedSequence = null;
     for (const listener of this.generationListeners) listener();
     this.disconnect(new Error("Backend renderer transport changed."));
     void this.connect().catch(() => undefined);
@@ -166,7 +192,11 @@ export class ElectronBackendTransport {
         () => {
           if (this.socket !== socket) return;
           this.connectPromise = null;
-          this.sendInterests();
+          this.ownershipRetryScheduled = false;
+          // Pull this window's grant first so the interests frame can carry
+          // the ownership binding. A failed or unsupported pull presents no
+          // binding: the window simply keeps the desktop-IPC fallback.
+          void this.pullOwnershipAndSendInterests(socket);
           resolve(socket);
         },
         { once: true },
@@ -214,7 +244,12 @@ export class ElectronBackendTransport {
     }
     if (message.type === "interests-ack") {
       this.lastSequence = Math.max(this.lastSequence, message.latestSeq);
+      // The acknowledged handoff cursor for THIS connection: the backend may
+      // anchor a recovery barrier's loss window at it, and this window may
+      // treat a barrier as stale when this cursor already covers the loss.
+      this.ackedSequence = message.latestSeq;
       this.directEventsConnected = true;
+      this.handleOwnershipAck(message.ownership);
       return;
     }
     if (message.type === "event") {
@@ -228,6 +263,65 @@ export class ElectronBackendTransport {
       this.dispatchRebuildForInterests(
         message.threadIds && message.threadIds.length > 0 ? new Set(message.threadIds) : undefined,
       );
+    }
+  }
+
+  /**
+   * Honors a generation-fenced recovery barrier from the backend. The
+   * backend enqueues it when it revokes this window's direct owner — a
+   * failed, backpressured, or lost socket — so it can arrive BEFORE the
+   * local onclose fires and before any later fallback copy. Handling:
+   *
+   * 1. Generation fence: a barrier for another grant generation describes a
+   *    window state this transport never had (reload, re-mint) and is
+   *    ignored — a stale barrier must never revoke or corrupt the current
+   *    connection.
+   * 2. Stale-supersede fence: when the CURRENT connection's acknowledged
+   *    cursor already covers the barrier's loss window, the loss was healed
+   *    before the barrier arrived and only the idempotent rebuild is
+   *    skipped.
+   * 3. Recovery: the barrier's premise is "you certainly received everything
+   *    below fromSequence". When the cursor satisfies it, a scoped
+   *    authoritative rebuild covers [fromSequence, toSequence] and the cursor
+   *    advances to toSequence; when it does not (the queued ack never
+   *    processed — a message being queued is not receiver acknowledgement),
+   *    the window rebuilds EVERYTHING subscribed and takes toSequence.
+   * 4. Socket fence: a live connection is torn down immediately, so later
+   *    fallback copies apply through the sequence gate even before the
+   *    close event lands.
+   */
+  private handleStreamRecovery(barrier: RendererStreamRecoveryBarrier): void {
+    const presentedGeneration = this.ownership?.generation ?? RENDERER_STREAM_UNGRANTED_GENERATION;
+    if (barrier.generation !== presentedGeneration) return;
+    if (
+      this.directEventsConnected &&
+      this.ackedSequence !== null &&
+      this.ackedSequence >= barrier.toSequence
+    ) {
+      // Already healed: the current connection acknowledged past the loss.
+      return;
+    }
+    const premiseHolds =
+      this.lastSequence >= barrier.fromSequence - 1 && this.lastSequence <= barrier.toSequence;
+    const scope =
+      premiseHolds && barrier.threadIds && barrier.threadIds.length > 0
+        ? new Set(barrier.threadIds)
+        : undefined;
+    this.dispatchRebuildForInterests(scope);
+    this.lastSequence = premiseHolds
+      ? Math.max(this.lastSequence, barrier.toSequence)
+      : barrier.toSequence;
+    if (this.socket) {
+      // Fence before onclose: this window's direct delivery is revoked
+      // backend-side, so any live socket — mid-handshake or established — is
+      // a zombie. Stop trusting it immediately and let its close event
+      // schedule the reconnect, whose interests frame presents the repaired
+      // cursor. Not disconnect(): that clears this.socket first and the
+      // close handler would then swallow the reconnect.
+      this.directEventsConnected = false;
+      this.ackedSequence = null;
+      this.rejectPending(new Error("Backend renderer transport revoked."));
+      this.socket.close();
     }
   }
 
@@ -254,6 +348,8 @@ export class ElectronBackendTransport {
     this.socket = null;
     this.connectPromise = null;
     this.directEventsConnected = false;
+    this.ackedSequence = null;
+    this.resetOwnershipForConnection();
     this.rejectPending(new Error("Backend renderer transport disconnected."));
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
@@ -270,8 +366,62 @@ export class ElectronBackendTransport {
     this.socket = null;
     this.connectPromise = null;
     this.directEventsConnected = false;
+    this.ackedSequence = null;
+    this.resetOwnershipForConnection();
     socket?.close();
     this.rejectPending(error);
+  }
+
+  private resetOwnershipForConnection(): void {
+    if (this.ownershipRetryTimer) clearTimeout(this.ownershipRetryTimer);
+    this.ownershipRetryTimer = null;
+    this.ownershipRetryScheduled = false;
+  }
+
+  private async pullOwnershipAndSendInterests(socket: WebSocket): Promise<void> {
+    let grant: RendererStreamOwnershipGrant | null = null;
+    try {
+      grant = (await this.host.getRendererStreamOwnershipGrant?.()) ?? null;
+    } catch {
+      grant = null;
+    }
+    if (this.socket !== socket) return;
+    this.ownership = grant;
+    this.sendInterests();
+  }
+
+  /**
+   * The ack's ownership echo is the acknowledged handoff: only a backend that
+   * validated our binding against main's minted grant confirms it, and only a
+   * confirming backend stops copying this window's bulk through main. An
+   * unconfirmed ack (grant sync still in flight, superseded generation, stale
+   * backend) re-pulls and re-sends on a bounded 250 ms cadence for as long as
+   * the connection lives, so a transient grant-sync/bind race heals instead
+   * of silently parking the window on permanent bulk fallback. A confirming
+   * echo stops the loop.
+   */
+  private handleOwnershipAck(echo: RendererStreamOwnershipClaim | undefined): void {
+    const presented = this.ownership;
+    const confirmed =
+      presented !== null &&
+      echo !== undefined &&
+      echo.windowId === presented.windowId &&
+      echo.generation === presented.generation;
+    if (confirmed) {
+      this.ownershipRetryScheduled = false;
+      if (this.ownershipRetryTimer) clearTimeout(this.ownershipRetryTimer);
+      this.ownershipRetryTimer = null;
+      return;
+    }
+    if (presented === null || this.ownershipRetryScheduled) return;
+    this.ownershipRetryScheduled = true;
+    this.ownershipRetryTimer = setTimeout(() => {
+      this.ownershipRetryTimer = null;
+      this.ownershipRetryScheduled = false;
+      const socket = this.socket;
+      if (!socket || socket.readyState !== WebSocket.OPEN) return;
+      void this.pullOwnershipAndSendInterests(socket);
+    }, OWNERSHIP_RETRY_DELAY_MS);
   }
 
   private rejectPending(error: Error): void {
@@ -291,6 +441,7 @@ export class ElectronBackendTransport {
         terminalThreadIds: this.interests.terminalThreadIds,
         runtimeThreadIds: this.interests.runtimeThreadIds,
         lastSeq: this.lastSequence,
+        ...(this.ownership ? { ownership: this.ownership } : {}),
       }),
     );
   }
@@ -308,8 +459,15 @@ type BackendRendererMessage =
   | BackendRendererReply
   | {
       version: typeof BACKEND_RENDERER_STREAM_VERSION;
-      type: "hello" | "interests-ack";
+      type: "hello";
       latestSeq: number;
+    }
+  | {
+      version: typeof BACKEND_RENDERER_STREAM_VERSION;
+      type: "interests-ack";
+      latestSeq: number;
+      /** Present exactly when the backend activated the ownership handoff. */
+      ownership?: RendererStreamOwnershipClaim;
     }
   | {
       version: typeof BACKEND_RENDERER_STREAM_VERSION;
@@ -360,8 +518,25 @@ function isBackendRendererMessage(value: unknown): value is BackendRendererMessa
         message.threadIds.every((threadId) => typeof threadId === "string"))
     );
   }
+  if (message.type === "hello") {
+    return typeof message.latestSeq === "number";
+  }
   return (
-    (message.type === "hello" || message.type === "interests-ack") &&
-    typeof message.latestSeq === "number"
+    message.type === "interests-ack" &&
+    typeof message.latestSeq === "number" &&
+    (message.ownership === undefined || isOwnershipClaim(message.ownership))
+  );
+}
+
+function isOwnershipClaim(value: unknown): value is RendererStreamOwnershipClaim {
+  if (typeof value !== "object" || value === null) return false;
+  const claim = value as Record<string, unknown>;
+  return (
+    typeof claim.windowId === "number" &&
+    Number.isSafeInteger(claim.windowId) &&
+    claim.windowId > 0 &&
+    typeof claim.generation === "number" &&
+    Number.isSafeInteger(claim.generation) &&
+    claim.generation > 0
   );
 }

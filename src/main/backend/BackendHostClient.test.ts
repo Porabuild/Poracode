@@ -6,6 +6,7 @@ import {
   type BackendNativeEvent,
   type BackendNativeRequest,
   type BackendHostRequest,
+  type RendererStreamRecoveryBarrier,
 } from "@/shared/backendHostProtocol";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { IpcQueueCapture } from "@/shared/diagnostics/ipcQueueSample";
@@ -96,9 +97,14 @@ function createClient(
 ) {
   const onEvent =
     vi.fn<
-      (event: SupervisorEvent, rendererDeliveredDirect: boolean, rendererSequence?: number) => void
+      (
+        event: SupervisorEvent,
+        rendererSequence?: number,
+        target?: { windowId: number; generation: number },
+      ) => void
     >();
   const onReset = vi.fn<() => void>();
+  const onRendererStreamRecovery = vi.fn<(barrier: RendererStreamRecoveryBarrier) => void>();
   const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
   const handleNativeRequest = vi.fn<(request: BackendNativeRequest) => Promise<unknown>>(
     async () => ({ delivered: true }),
@@ -137,11 +143,13 @@ function createClient(
     onNativeEvent,
     onRendererStreamInfo,
     onEvent,
+    onRendererStreamRecovery,
     onReset,
   });
   return {
     client,
     onEvent,
+    onRendererStreamRecovery,
     onReset,
     reportError,
     handleNativeRequest,
@@ -159,7 +167,11 @@ async function startClient(
   const start = client.startSupervisor();
   await vi.waitFor(() => expect(requests(child)).toHaveLength(1));
   reply(child, requestFor(child, "initialize"), initializeResult);
-  await vi.waitFor(() => expect(requests(child)).toHaveLength(2));
+  // The post-initialization ownership/interests syncs race the supervisor
+  // start; wait for the request itself instead of a fixed position.
+  await vi.waitFor(() =>
+    expect(requests(child).some((r) => r.operation === "start-supervisor")).toBe(true),
+  );
   reply(child, requestFor(child, "start-supervisor"));
   await start;
 }
@@ -285,7 +297,7 @@ describe("BackendHostClient", () => {
       message: "worker warning",
     });
 
-    expect(onEvent).toHaveBeenCalledExactlyOnceWith(event, false);
+    expect(onEvent).toHaveBeenCalledExactlyOnceWith(event, undefined, undefined);
     expect(onReset).toHaveBeenCalledOnce();
     expect(reportError).toHaveBeenCalledWith(
       expect.objectContaining({ message: "worker warning" }),
@@ -364,7 +376,41 @@ describe("BackendHostClient", () => {
       rendererSequence: 42,
     });
 
-    expect(onEvent).toHaveBeenCalledExactlyOnceWith(event, false, 42);
+    expect(onEvent).toHaveBeenCalledExactlyOnceWith(event, 42, undefined);
+  });
+
+  it("routes targeted fallback copies and recovery barriers to their own callbacks", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client, onEvent, onRendererStreamRecovery } = createClient();
+    await startClient(client, child);
+    const event: SupervisorEvent = { type: "git-changed", projectId: "project" };
+
+    child.emit("message", {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "supervisor-event",
+      event,
+      rendererSequence: 9,
+      target: { windowId: 3, generation: 1 },
+    });
+    expect(onEvent).toHaveBeenCalledExactlyOnceWith(event, 9, { windowId: 3, generation: 1 });
+
+    const barrier: RendererStreamRecoveryBarrier = {
+      windowId: 3,
+      generation: 1,
+      fromSequence: 2,
+      toSequence: 7,
+      threadIds: ["thread-1"],
+    };
+    child.emit("message", {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "renderer-stream-recovery",
+      ...barrier,
+    });
+    // The callback receives the validated envelope (which structurally
+    // satisfies the recovery-barrier shape).
+    expect(onRendererStreamRecovery).toHaveBeenCalledOnce();
+    expect(onRendererStreamRecovery.mock.calls[0]?.[0]).toMatchObject(barrier);
   });
 
   it("routes typed services and native callbacks across the backend boundary", async () => {
@@ -1141,5 +1187,125 @@ describe("BackendHostClient", () => {
 
     await expect(call).rejects.toThrow("Backend host initialization timed out.");
     await client.disposeAsync();
+  });
+
+  it("skips arming an empty ownership table at init and syncs every change", async () => {
+    vi.useFakeTimers();
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client } = createClient();
+    await startClient(client, child);
+
+    // With no registered window there is nothing to arm: the first
+    // registration carries the table, and until then the backend keeps the
+    // legacy always-relay behavior.
+    expect(
+      requests(child).some((request) => request.operation === "set-renderer-stream-ownership"),
+    ).toBe(false);
+
+    const syncOwnership = async (grants: Array<Record<string, unknown>>): Promise<void> => {
+      const pending = client.setRendererStreamOwnership(grants as never);
+      await vi.waitFor(() =>
+        expect(requests(child).at(-1)?.operation).toBe("set-renderer-stream-ownership"),
+      );
+      reply(child, requests(child).at(-1)!);
+      await pending;
+    };
+
+    const grant = { windowId: 3, generation: 1, binding: "b-3" };
+    const windowState = {
+      windowId: 3,
+      grant,
+      interests: { terminalThreadIds: [], runtimeThreadIds: [], allRuntimeEvents: false },
+      receivesShellRemainder: false,
+    };
+    await syncOwnership([windowState]);
+    expect(requestFor(child, "set-renderer-stream-ownership")).toMatchObject({
+      payload: { windows: [windowState] },
+    });
+
+    // An unchanged table does not re-send; a change does — including a
+    // release back to empty, which must revoke on the backend.
+    const count = requests(child).length;
+    await syncOwnership([windowState]);
+    expect(requests(child)).toHaveLength(count);
+    await syncOwnership([]);
+    expect(requests(child).at(-1)).toMatchObject({
+      operation: "set-renderer-stream-ownership",
+      payload: { windows: [] },
+    });
+
+    const disposal = client.disposeAsync();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await disposal;
+  });
+
+  it("re-syncs ownership grants when the backend child respawns", async () => {
+    vi.useFakeTimers();
+    const first = makeFakeChild(1);
+    const second = makeFakeChild(2);
+    forkMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const { client } = createClient();
+    await startClient(client, first);
+    const grant = { windowId: 5, generation: 2, binding: "b-5" };
+    const pending = client.setRendererStreamOwnership([
+      {
+        windowId: 5,
+        grant,
+        interests: { terminalThreadIds: ["t-1"], runtimeThreadIds: [], allRuntimeEvents: false },
+        receivesShellRemainder: false,
+      },
+    ]);
+    await vi.waitFor(() =>
+      expect(requests(first).at(-1)?.operation).toBe("set-renderer-stream-ownership"),
+    );
+    reply(first, requestFor(first, "set-renderer-stream-ownership"));
+    await pending;
+    expect(requests(first).at(-1)).toMatchObject({
+      operation: "set-renderer-stream-ownership",
+      payload: {
+        windows: [
+          {
+            windowId: 5,
+            grant,
+            interests: {
+              terminalThreadIds: ["t-1"],
+              runtimeThreadIds: [],
+              allRuntimeEvents: false,
+            },
+          },
+        ],
+      },
+    });
+
+    first.emit("exit", 0);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await startClient(client, second, null);
+
+    // The replacement child starts with an empty backend registry; the
+    // desired table must be re-applied to it.
+    const resynced = requests(second).find(
+      (request) => request.operation === "set-renderer-stream-ownership",
+    );
+    expect(resynced).toMatchObject({
+      payload: {
+        windows: [
+          {
+            windowId: 5,
+            grant,
+            interests: {
+              terminalThreadIds: ["t-1"],
+              runtimeThreadIds: [],
+              allRuntimeEvents: false,
+            },
+          },
+        ],
+      },
+    });
+    reply(second, resynced!);
+
+    const disposal = client.disposeAsync();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await disposal;
   });
 });

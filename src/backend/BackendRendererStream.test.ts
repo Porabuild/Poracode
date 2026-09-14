@@ -1,7 +1,11 @@
-import { BACKEND_RENDERER_STREAM_VERSION } from "@/shared/backendHostProtocol";
+import {
+  BACKEND_RENDERER_STREAM_VERSION,
+  type RendererStreamOwnershipGrant,
+} from "@/shared/backendHostProtocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
-import { BackendRendererStream } from "./BackendRendererStream";
+import { BackendRendererStream, type RendererStreamRevocation } from "./BackendRendererStream";
+import { RendererStreamOwnership } from "./RendererStreamOwnership";
 
 const streams: BackendRendererStream[] = [];
 
@@ -113,14 +117,18 @@ describe("BackendRendererStream", () => {
         ok: true,
         data: { projects: 3 },
       });
-      expect(onRequest).toHaveBeenCalledWith({
-        version: BACKEND_RENDERER_STREAM_VERSION,
-        type: "request",
-        id: "request-1",
-        operation,
-        name,
-        payload,
-      });
+      // Unbound requests carry no authenticated origin.
+      expect(onRequest).toHaveBeenCalledWith(
+        {
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "request",
+          id: "request-1",
+          operation,
+          name,
+          payload,
+        },
+        undefined,
+      );
 
       socket.send(
         JSON.stringify({
@@ -220,24 +228,25 @@ describe("BackendRendererStream", () => {
     expect(stream.getDiagnostics().slowClientDisconnects).toBe(1);
   });
 
-  it("delivers bootstrapped terminal output before the client interest arrives", async () => {
-    const stream = new BackendRendererStream();
+  it("delivers bootstrapped terminal output only to the requesting window's bound connection", async () => {
+    const ownership = new RendererStreamOwnership();
+    const stream = new BackendRendererStream({ ownership });
     streams.push(stream);
     const info = await stream.start();
-    stream.retainTerminalBootstrap("terminal-starting");
-    const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
-    await hello;
-    socket.send(
-      JSON.stringify({
-        version: BACKEND_RENDERER_STREAM_VERSION,
-        type: "interests",
-        terminalThreadIds: [],
-        runtimeThreadIds: [],
-        lastSeq: 0,
-      }),
-    );
-    await nextMessage(socket);
+    const grant: RendererStreamOwnershipGrant = { windowId: 7, generation: 1, binding: "b-7" };
+    ownership.setWindows([
+      {
+        windowId: 7,
+        grant,
+        interests: { terminalThreadIds: [], runtimeThreadIds: [], allRuntimeEvents: false },
+        receivesShellRemainder: false,
+      },
+    ]);
+    const bound = await boundClient(info, grant);
+    const anonymous = await boundClient(info, null);
 
+    // The shell start's authenticated origin is window 7.
+    stream.retainTerminalBootstrap("terminal-starting", 7);
     stream.publish({
       type: "thread-output",
       threadId: "terminal-starting",
@@ -246,10 +255,164 @@ describe("BackendRendererStream", () => {
       terminalInstanceId: "gen-test",
     });
 
-    await expect(nextMessage(socket)).resolves.toMatchObject({
+    await expect(nextMessage(bound.socket)).resolves.toMatchObject({
       type: "event",
       event: { type: "thread-output", threadId: "terminal-starting", data: "first frame" },
     });
+    // The unattributed sibling client never receives another window's
+    // retained bootstrap output.
+    await expect(noEventWithin(anonymous.socket, 100)).resolves.toBe(true);
+
+    bound.socket.close();
+    anonymous.socket.close();
+  });
+
+  it("never widens any client for an originless bootstrap start", async () => {
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    const info = await stream.start();
+    const client = await boundClient(info, null);
+
+    stream.retainTerminalBootstrap("terminal-starting");
+    stream.publish({
+      type: "thread-output",
+      threadId: "terminal-starting",
+      data: "first frame",
+      outputLength: 11,
+      terminalInstanceId: "gen-test",
+    });
+
+    await expect(noEventWithin(client.socket, 100)).resolves.toBe(true);
+    client.socket.close();
+  });
+
+  it("applies a mid-window bind to the initiating window's retained bootstrap thread", async () => {
+    const ownership = new RendererStreamOwnership();
+    const stream = new BackendRendererStream({ ownership });
+    streams.push(stream);
+    const info = await stream.start();
+    const grant: RendererStreamOwnershipGrant = { windowId: 7, generation: 1, binding: "b-7" };
+    ownership.setWindows([
+      {
+        windowId: 7,
+        grant,
+        interests: { terminalThreadIds: [], runtimeThreadIds: [], allRuntimeEvents: false },
+        receivesShellRemainder: false,
+      },
+    ]);
+    stream.retainTerminalBootstrap("terminal-starting", 7);
+
+    // The initiating window binds AFTER the retention was recorded.
+    const bound = await boundClient(info, grant);
+    stream.publish({
+      type: "thread-output",
+      threadId: "terminal-starting",
+      data: "first frame",
+      outputLength: 11,
+      terminalInstanceId: "gen-test",
+    });
+
+    await expect(nextMessage(bound.socket)).resolves.toMatchObject({
+      type: "event",
+      event: { type: "thread-output", threadId: "terminal-starting", data: "first frame" },
+    });
+    bound.socket.close();
+  });
+
+  it("refuses to narrow the recovery barrier when loss records were dropped from the map", async () => {
+    // Recovery-scope coverage guard (rereview F-A): the 512-entry loss map
+    // drops its LOWEST records on overflow. The dropped losses can lie inside
+    // the barrier's window, so a present scope built from the surviving map
+    // would silently omit them (repro: 520 distinct oversized lost threads ->
+    // 512 surviving hints -> barrier omitted lost-1..lost-8 while advancing
+    // the cursor). The barrier must fail open to a full authoritative rebuild.
+    const revocations: RendererStreamRevocation[] = [];
+    const ownership = new RendererStreamOwnership();
+    const stream = new BackendRendererStream({
+      ownership,
+      onStreamRecovery: (revoked) => revocations.push(...revoked),
+    });
+    streams.push(stream);
+    const info = await stream.start();
+    const grant: RendererStreamOwnershipGrant = { windowId: 7, generation: 1, binding: "b-7" };
+    ownership.setWindows([
+      {
+        windowId: 7,
+        grant,
+        interests: {
+          terminalThreadIds: ["lost-1"],
+          runtimeThreadIds: [],
+          allRuntimeEvents: false,
+        },
+        receivesShellRemainder: false,
+      },
+    ]);
+    const client = await boundClient(info, grant);
+    expect(client.ack).toMatchObject({ latestSeq: 0 });
+
+    // 520 undeliverable (> 512 KB, nothing withholdable) terminal outputs.
+    const oversized = "x".repeat(520 * 1024);
+    for (let index = 1; index <= 520; index += 1) {
+      stream.publish({
+        type: "thread-output",
+        threadId: `lost-${index}`,
+        data: oversized,
+        outputLength: oversized.length,
+        terminalInstanceId: "gen-test",
+      });
+    }
+
+    client.socket.close();
+    await vi.waitFor(() => expect(revocations).toHaveLength(1));
+    expect(revocations[0]).toMatchObject({ windowId: 7, fromSequence: 1, toSequence: 520 });
+    // The recorded losses do not reach back to the window's start: no scope
+    // may travel — the old code shipped a present list silently omitting
+    // lost-1..lost-8, foreclosing their recovery.
+    expect(revocations[0]!.threadIds).toBeUndefined();
+  });
+
+  it("keeps a present barrier scope while the loss map retains full coverage", async () => {
+    // Small losses never evict: the barrier narrows to exactly the lost
+    // threads, so the coverage guard does not over-fire.
+    const revocations: RendererStreamRevocation[] = [];
+    const ownership = new RendererStreamOwnership();
+    const stream = new BackendRendererStream({
+      ownership,
+      onStreamRecovery: (revoked) => revocations.push(...revoked),
+    });
+    streams.push(stream);
+    const info = await stream.start();
+    const grant: RendererStreamOwnershipGrant = { windowId: 7, generation: 1, binding: "b-7" };
+    ownership.setWindows([
+      {
+        windowId: 7,
+        grant,
+        interests: { terminalThreadIds: [], runtimeThreadIds: [], allRuntimeEvents: false },
+        receivesShellRemainder: false,
+      },
+    ]);
+    const client = await boundClient(info, grant);
+
+    const oversized = "x".repeat(520 * 1024);
+    stream.publish({
+      type: "thread-output",
+      threadId: "lost-a",
+      data: oversized,
+      outputLength: oversized.length,
+      terminalInstanceId: "gen-test",
+    });
+    stream.publish({
+      type: "thread-output",
+      threadId: "lost-b",
+      data: oversized,
+      outputLength: oversized.length,
+      terminalInstanceId: "gen-test",
+    });
+
+    client.socket.close();
+    await vi.waitFor(() => expect(revocations).toHaveLength(1));
+    expect(revocations[0]).toMatchObject({ fromSequence: 1, toSequence: 2 });
+    expect([...(revocations[0]!.threadIds ?? [])].sort()).toEqual(["lost-a", "lost-b"]);
   });
 
   it("replays retained events after reconnect", async () => {
@@ -737,6 +900,50 @@ async function readyClient(
   );
   await nextMessage(socket);
   return { socket };
+}
+
+/**
+ * Connects and registers empty interests, optionally presenting an ownership
+ * grant. Resolves after the interests-ack, echoing the confirmed handoff.
+ */
+async function boundClient(
+  info: { url: string; token: string },
+  grant: RendererStreamOwnershipGrant | null,
+): Promise<{ socket: WebSocket; ack: Record<string, unknown> }> {
+  const { socket, hello } = await connect(`${info.url}?token=${info.token}`);
+  await hello;
+  socket.send(
+    JSON.stringify({
+      version: BACKEND_RENDERER_STREAM_VERSION,
+      type: "interests",
+      terminalThreadIds: [],
+      runtimeThreadIds: [],
+      lastSeq: 0,
+      ...(grant ? { ownership: grant } : {}),
+    }),
+  );
+  const ack = await nextMessage(socket);
+  expect(ack.type).toBe("interests-ack");
+  expect(ack.ownership).toEqual(
+    grant ? { windowId: grant.windowId, generation: grant.generation } : undefined,
+  );
+  return { socket, ack };
+}
+
+/** Resolves true when no event frame arrives within the delay. */
+async function noEventWithin(socket: WebSocket, delayMs: number): Promise<boolean> {
+  let sawEvent = false;
+  const onMessage = (data: Buffer): void => {
+    try {
+      if ((JSON.parse(data.toString()) as { type?: string }).type === "event") sawEvent = true;
+    } catch {
+      // Non-JSON frames cannot be bootstrap events.
+    }
+  };
+  socket.on("message", onMessage);
+  await new Promise((resolve) => setTimeout(resolve, delayMs));
+  socket.off("message", onMessage);
+  return !sawEvent;
 }
 
 function nextMessage(socket: WebSocket): Promise<Record<string, unknown>> {

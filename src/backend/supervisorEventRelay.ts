@@ -5,6 +5,7 @@ import {
 import { isBulkRuntimeContentEvent } from "@/shared/liveEventInterests";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { SupervisorIpcShedPolicy } from "@/supervisor/supervisorIpcSender";
+import type { DesktopRelayPlan } from "./supervisorEventFallback";
 
 export interface RendererStreamDelivery {
   delivered: boolean;
@@ -14,22 +15,32 @@ export interface RendererStreamDelivery {
 export interface SupervisorEventRelayDeps {
   publishToRendererStream(event: SupervisorEvent): RendererStreamDelivery | undefined;
   observeEvent(event: SupervisorEvent): boolean | void;
-  filterForIpcConsumers(event: SupervisorEvent): SupervisorEvent | null;
   sendToMain(message: BackendHostOutboundMessage): void;
+  /**
+   * Backend-authoritative desktop fallback decision for one event. The
+   * backend owns the direct/fallback selection: legacy mode replays the old
+   * full-relay behavior (before main's first per-window push), targeted mode
+   * carries bulk only as per-window copies for windows that need the IPC
+   * fallback plus a sequence-less control remainder for main's shell
+   * consumers.
+   */
+  planDesktopRelay(event: SupervisorEvent): DesktopRelayPlan;
 }
 
 /**
  * Single delivery path for supervisor events leaving the backend host.
  *
  * The direct renderer stream and the Electron-IPC relay to main are
- * independent delivery surfaces. Stream clients are anonymous — a window
- * whose socket is down is absent from the client map — so "some ready client
- * received the event" can never prove "the desktop IPC consumer received
- * it". The relay therefore never suppresses the IPC copy based on
- * direct-stream delivery: over-delivery is safe because the renderer
- * transport dedupes by `rendererSequence` while its socket is connected, and
- * events that only arrived over IPC still carry the sequence the stream's
- * replay/resync recovery needs.
+ * independent delivery surfaces. Suppression of bulk content keys on the
+ * backend-side per-window ownership table — never on per-event stream
+ * delivery: stream clients are anonymous, so "some ready client received the
+ * event" can never prove "the desktop IPC consumer received it" (MC-1). In
+ * targeted mode the planner produces one sequenced copy per fallback window
+ * that subscribes to the event, sent before the sequence-less shell remainder
+ * so per-window cursor gates never skip targeted content. Recovery barriers
+ * (`renderer-stream-recovery`) are enqueued by the renderer stream itself on
+ * owner revocation, ahead of any later fallback copy on the same ordered
+ * channel.
  */
 export function createSupervisorEventRelay(
   deps: SupervisorEventRelayDeps,
@@ -37,14 +48,40 @@ export function createSupervisorEventRelay(
   return (event) => {
     const rendererDelivery = deps.publishToRendererStream(event);
     if (deps.observeEvent(event) === true) return;
-    const filtered = deps.filterForIpcConsumers(event);
-    if (!filtered) return;
-    deps.sendToMain({
-      version: BACKEND_HOST_PROTOCOL_VERSION,
-      kind: "supervisor-event",
-      event: filtered,
-      ...(rendererDelivery ? { rendererSequence: rendererDelivery.sequence } : {}),
-    });
+    const plan = deps.planDesktopRelay(event);
+    if (plan.mode === "legacy") {
+      if (!plan.shellEvent) return;
+      deps.sendToMain({
+        version: BACKEND_HOST_PROTOCOL_VERSION,
+        kind: "supervisor-event",
+        event: plan.shellEvent,
+        ...(rendererDelivery ? { rendererSequence: rendererDelivery.sequence } : {}),
+      });
+      return;
+    }
+    // Targeted copies go first: a fallback window applies them by sequence,
+    // and the sequence-less shell remainder behind them can never advance the
+    // window's cursor past bulk it has not received.
+    for (const copy of plan.copies) {
+      deps.sendToMain({
+        version: BACKEND_HOST_PROTOCOL_VERSION,
+        kind: "supervisor-event",
+        event: copy.event,
+        ...(rendererDelivery ? { rendererSequence: rendererDelivery.sequence } : {}),
+        target: copy.target,
+      });
+    }
+    if (plan.shellEvent) {
+      // No rendererSequence: shell controls are consumed by main itself and
+      // ignored by connected windows; a disconnected window applies them
+      // ungated. Controls are idempotent, and the missing sequence is what
+      // keeps an IPC control from advancing a cursor past missing bulk.
+      deps.sendToMain({
+        version: BACKEND_HOST_PROTOCOL_VERSION,
+        kind: "supervisor-event",
+        event: plan.shellEvent,
+      });
+    }
   };
 }
 
@@ -56,10 +93,11 @@ export function createSupervisorEventRelay(
  * rebuilt authoritatively: the gap signal tells windows to rebuild through
  * their existing `thread-scrollback-resync` / `thread-reset` recovery before
  * trusting any post-gap sequence. Everything else on the channel — replies,
- * native requests/events, supervisor-reset, error notices — has no replay
- * path and keeps the fail-closed semantics, as do main-only supervisor
- * events (`thread-state` drives main's sleep state) and events emitted before the renderer stream existed,
- * which carry no sequence to anchor the gap signal to.
+ * native requests/events, supervisor-reset, error notices, shell controls,
+ * targeted copies of mixed batches, and recovery barriers — has no replay
+ * path or is itself a recovery signal, and keeps the fail-closed semantics,
+ * as do events emitted before the renderer stream existed, which carry no
+ * sequence to anchor the gap signal to.
  */
 export function createBackendHostShedPolicy(): SupervisorIpcShedPolicy<BackendHostOutboundMessage> {
   return {
@@ -68,6 +106,10 @@ export function createBackendHostShedPolicy(): SupervisorIpcShedPolicy<BackendHo
       message.kind === "supervisor-event" &&
       message.rendererSequence !== undefined &&
       isRendererRebuildableSupervisorEvent(message.event),
+    // Only this policy's OWN gap markers merge. A `renderer-stream-recovery`
+    // barrier is someone else's recovery signal: it is non-sheddable above,
+    // and recognizing it here would let overflow shedding REPLACE a targeted
+    // barrier with a gap marker, silently unmaintaining that window's loss.
     isRecoverySignal: (message) => "kind" in message && message.kind === "supervisor-event-gap",
     createRecoverySignal: (shed, previous) => {
       let fromSequence = Number.POSITIVE_INFINITY;
@@ -110,7 +152,10 @@ function isGapEnvelope(
  * True for bulk renderer content the desktop consumer rebuilds from persisted
  * state: terminal bytes via scrollback resync, bulk runtime items (tool
  * output, streaming deltas) via thread reset. Partially-bulk runtime batches
- * stay non-sheddable — the loss would mix with irreplaceable events.
+ * stay non-sheddable — the loss would mix with irreplaceable events. This is
+ * the same shared classifier the fallback planner splits with, so a message
+ * classed sheddable here is exactly one the planner would have carried as
+ * sequenced bulk content.
  */
 function isRendererRebuildableSupervisorEvent(event: SupervisorEvent): boolean {
   if (event.type === "thread-output") return true;

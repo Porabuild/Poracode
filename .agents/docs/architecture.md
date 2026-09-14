@@ -24,7 +24,30 @@ The desktop renderer has an authenticated loopback WebSocket to `BackendRenderer
 
 The preload bridge (`window.poracode`) exposes typed async methods defined by `PoracodeBridge` in `src/shared/ipc/bridge.ts`. Backend operations validate procedure schemas before dispatch. Every independently updated wire peer must satisfy the compatibility gate documented in [Versioned State & Protocols](versioning.md).
 
-The direct stream does **not yet** establish complete main-process isolation: the desktop backend also forwards interested events through main for IPC consumers, and renderer windows deduplicate sequence-tagged copies. Browser runtime JSON parsing, state reduction, and much persistence still execute on the UI thread. These are current implementation facts; the worker and transport changes in [the V4 merge plan](../../docs/V4_MERGE_READINESS_PLAN.md) are pending work, not performance guarantees. Measure the real clients before claiming a frame-rate or latency budget.
+The direct stream is per-window delivery-owned: main pushes each window's
+grant and its own interests to the backend, and the backend — the authoritative
+direct/fallback selector — sends bulk content through main only as targeted,
+sequenced copies addressed to windows whose direct connection is down or
+unbound, preceded by generation-fenced recovery barriers on socket loss. Main
+still receives untargeted shell controls (sleep state, agent statuses, native
+events) without a sequence, so applying them cannot advance a window's cursor
+past missing bulk. The shell-recipient window's targeted copies carry the bulk
+half only — it receives its controls exactly once through the shell remainder
+— while other fallback windows keep controls in their copies, their only path
+for them. Terminal-bootstrap retention for a starting thread is scoped to the
+authenticated request origin (the IPC sender or the backend-validated stream
+bind), so an unrelated window never receives another window's first shell
+output, and originless/server starts widen no window. Main-side grant
+minting/release/table-sync lives in one owner
+(`src/main/backend/rendererStreamGrantAuthority.ts`), which also rejects
+targeted copies planned for a window's previous grant generation. Recovery
+barriers fail open to a full authoritative rebuild whenever the retained loss
+hints cannot prove coverage of the loss window. Browser runtime JSON parsing,
+state reduction, and much persistence still execute on the UI thread. These
+are current implementation facts; the worker and transport changes in [the V4
+merge plan](../../docs/V4_MERGE_READINESS_PLAN.md) are pending work, not
+performance guarantees. Measure the real clients before claiming a frame-rate
+or latency budget.
 
 ## State Management
 

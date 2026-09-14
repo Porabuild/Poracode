@@ -6,11 +6,16 @@ import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import {
   BACKEND_RENDERER_STREAM_VERSION,
   BACKEND_RENDERER_REQUEST_OPERATIONS,
+  isRendererStreamOwnershipGrant,
   type BackendRendererRequest,
   type BackendRendererReply,
   type BackendRendererStreamInfo,
+  type RendererStreamOwnershipClaim,
+  type RendererStreamOwnershipGrant,
+  type RendererWindowDeliveryState,
 } from "@/shared/backendHostProtocol";
 import { BackendEventRouter } from "./BackendHostCore";
+import { RendererStreamOwnership } from "./RendererStreamOwnership";
 import { capBroadcastEvent, maxBroadcastEventBytes } from "@/main/remote/server/eventSizeGuard";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import { HttpServerConnections } from "@/shared/httpServerConnections";
@@ -55,6 +60,25 @@ interface ClientState {
   bufferedBudgetBytes: number;
   healthySends: number;
   inFlightRequestIds: Set<string>;
+  /** Window grants this connection owns; revoked synchronously on close. */
+  readonly ownedWindowIds: Set<number>;
+  /**
+   * Stream sequence echoed in the queued interests-ack: this socket's
+   * acknowledged handoff cursor. Everything at or below it was proven
+   * received (replay frames are queued before the ack on the same ordered
+   * socket); everything above it is the loss window a recovery barrier must
+   * cover when the connection fails. Null until the first ack.
+   */
+  ackedSequence: number | null;
+}
+
+/** Owner-revocation recovery announcement for one window. */
+export interface RendererStreamRevocation {
+  windowId: number;
+  generation: number;
+  fromSequence: number;
+  toSequence: number;
+  threadIds?: string[];
 }
 
 export interface BackendRendererStreamDiagnostics {
@@ -71,14 +95,38 @@ export interface BackendRendererStreamDiagnostics {
 
 export interface BackendRendererStreamOptions {
   onSlowClient?(details: { bufferedBytes: number; budgetBytes: number }): void;
-  onRequest?(request: BackendRendererRequest): Promise<unknown>;
+  /**
+   * `origin` names the window this connection is bound to (the backend
+   * validated its grant) — it is the authenticated request origin used to
+   * scope terminal-bootstrap retention. Undefined while the connection is
+   * unbound or bound to more than one window: such a request must widen no
+   * desktop window.
+   */
+  onRequest?(request: BackendRendererRequest, origin?: { windowId: number }): Promise<unknown>;
+  /**
+   * Shared per-window delivery-ownership registry, pushed by main over the
+   * backend-host IPC. Defaults to a fresh registry that main has never armed,
+   * which keeps the legacy always-relay-to-main behavior.
+   */
+  ownership?: RendererStreamOwnership;
+  /**
+   * Announces a generation-fenced recovery barrier when a window's owner is
+   * revoked by a failed/non-open/backpressured send or a socket loss. The
+   * host enqueues it through the ordered desktop-IPC fallback, where it
+   * necessarily precedes every later fallback copy for that window.
+   */
+  onStreamRecovery?(revocations: readonly RendererStreamRevocation[]): void;
 }
 
 /** Authenticated loopback transport for renderer requests and bounded live events. */
 export class BackendRendererStream {
   private readonly token = randomBytes(24).toString("base64url");
   private readonly clients = new Map<WebSocket, ClientState>();
-  private readonly terminalBootstrapTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  /** Retained bootstrap threads with the authenticated request origin window. */
+  private readonly terminalBootstrapTimers = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout>; originWindowId?: number }
+  >();
   private readonly replay: ReplayEntry[] = [];
   /**
    * Loss scope for the next `resync-required` broadcast to ready windows:
@@ -111,6 +159,8 @@ export class BackendRendererStream {
   private pressured = false;
   private replayBytes = 0;
   private sequence = 0;
+  /** Per-window delivery ownership; declared in the constructor from options. */
+  private readonly ownership: RendererStreamOwnership;
   private readonly httpServer;
   private readonly connections: HttpServerConnections;
   private readonly server: WebSocketServer;
@@ -130,6 +180,7 @@ export class BackendRendererStream {
   };
 
   constructor(private readonly options: BackendRendererStreamOptions = {}) {
+    this.ownership = options.ownership ?? new RendererStreamOwnership();
     this.httpServer = createServer((_request, response) => {
       response.writeHead(this.stopping ? 503 : 426, { "content-type": "text/plain" });
       response.end(this.stopping ? "Backend host shutting down" : "Upgrade Required");
@@ -296,24 +347,108 @@ export class BackendRendererStream {
     }
   }
 
-  retainTerminalBootstrap(threadId: string): void {
+  /**
+   * Retains a starting thread's first terminal output for the requesting
+   * window's bound connection only: retention is attributed to the
+   * authenticated request origin, so an unrelated or unbound direct client
+   * never receives another window's bootstrap output. A connection that binds
+   * DURING the retention window is covered by the attach-time application in
+   * {@link handleClientMessage}. An originless start widens no client.
+   */
+  retainTerminalBootstrap(threadId: string, originWindowId?: number): void {
     this.clearTerminalBootstrap(threadId);
-    for (const client of this.clients.values()) client.router.retainTerminalBootstrap(threadId);
-    const timer = setTimeout(() => this.terminalBootstrapTimers.delete(threadId), 10_000);
-    timer.unref?.();
-    this.terminalBootstrapTimers.set(threadId, timer);
+    const entry = {
+      timer: setTimeout(() => this.terminalBootstrapTimers.delete(threadId), 10_000),
+      ...(originWindowId !== undefined ? { originWindowId } : {}),
+    };
+    entry.timer.unref?.();
+    this.terminalBootstrapTimers.set(threadId, entry);
+    this.retainBootstrapForBoundClients(threadId);
   }
 
   clearTerminalBootstrap(threadId: string): void {
-    const timer = this.terminalBootstrapTimers.get(threadId);
-    if (timer) clearTimeout(timer);
+    const entry = this.terminalBootstrapTimers.get(threadId);
+    if (entry) clearTimeout(entry.timer);
     this.terminalBootstrapTimers.delete(threadId);
     for (const client of this.clients.values()) client.router.clearTerminalBootstrap(threadId);
+  }
+
+  /** Applies one retained thread to every client currently bound to its origin window. */
+  private retainBootstrapForBoundClients(threadId: string): void {
+    const entry = this.terminalBootstrapTimers.get(threadId);
+    if (!entry || entry.originWindowId === undefined) return;
+    for (const client of this.clients.values()) {
+      if (client.ownedWindowIds.has(entry.originWindowId)) {
+        client.router.retainTerminalBootstrap(threadId);
+      }
+    }
   }
 
   hasReadyClient(): boolean {
     for (const client of this.clients.values()) if (client.ready) return true;
     return false;
+  }
+
+  /** Replaces the desktop-window per-window delivery table pushed by main. */
+  setOwnershipWindows(windows: readonly RendererWindowDeliveryState[]): void {
+    this.ownership.setWindows(windows);
+  }
+
+  /**
+   * Revokes a failing connection's ownership and announces one
+   * generation-fenced recovery barrier per lost window through the ordered
+   * IPC fallback. The loss window starts at the socket's acknowledged handoff
+   * cursor + 1 (a queued ack that the renderer never processed is NOT
+   * receiver acknowledgement — a renderer whose cursor is below the barrier's
+   * premise falls back to a full rebuild on its side) and ends at the current
+   * sequence. Detaching first guarantees the failing window is part of the
+   * next fallback selection, so any targeted copy for it is enqueued after
+   * this barrier.
+   */
+  private failOverClient(state: ClientState): void {
+    if (state.ownedWindowIds.size === 0) return;
+    const revocations: RendererStreamRevocation[] = [];
+    const fromSequence = (state.ackedSequence ?? -1) + 1;
+    const toSequence = this.sequence;
+    const windowIds = [...state.ownedWindowIds];
+    this.ownership.detachClient(state);
+    if (fromSequence > toSequence) return;
+    const threadIds = this.recoveryScope(fromSequence, toSequence);
+    for (const windowId of windowIds) {
+      revocations.push({
+        windowId,
+        generation: this.ownership.generationFor(windowId),
+        fromSequence,
+        toSequence,
+        ...(threadIds && threadIds.length > 0 ? { threadIds } : {}),
+      });
+    }
+    this.options.onStreamRecovery?.(revocations);
+  }
+
+  /**
+   * Threads carried by possibly-missed events in [from, to]: the replay
+   * window plus every unrecoverable-recorded thread. Undefined — the
+   * renderer then rebuilds everything it subscribes to (fail open), never
+   * silently less — when the scope exceeds the hint bound, or when the
+   * recorded losses do not reach back to `from`: the loss map drops its
+   * lowest entries once it overflows, and every evicted record sat at or
+   * below the surviving minimum, so a minimum inside the window proves that
+   * dropped losses may lie in range and the surviving hints cannot prove
+   * coverage (same guard as {@link gapLossScope}).
+   */
+  private recoveryScope(from: number, to: number): string[] | undefined {
+    if (this.minUnrecoverableSeq !== null && this.minUnrecoverableSeq > from) return undefined;
+    const scope = new Set<string>();
+    for (const entry of this.replay) {
+      if (entry.seq < from || entry.seq > to) continue;
+      recordSupervisorEventThreadIds(scope, entry.event);
+    }
+    for (const [threadId, seq] of this.unrecoverableBySeq) {
+      if (seq >= from && seq <= to) scope.add(threadId);
+    }
+    if (scope.size > MAX_LOST_THREAD_IDS) return undefined;
+    return [...scope];
   }
 
   getDiagnostics(): BackendRendererStreamDiagnostics {
@@ -325,7 +460,7 @@ export class BackendRendererStream {
     this.stopping = true;
     const barrier = Promise.withResolvers<void>();
     this.disposal = barrier.promise;
-    for (const timer of this.terminalBootstrapTimers.values()) clearTimeout(timer);
+    for (const entry of this.terminalBootstrapTimers.values()) clearTimeout(entry.timer);
     this.terminalBootstrapTimers.clear();
     void (async () => {
       await this.starting?.catch(() => {});
@@ -360,13 +495,21 @@ export class BackendRendererStream {
       bufferedBudgetBytes: MIN_CLIENT_BUFFERED_BYTES,
       healthySends: 0,
       inFlightRequestIds: new Set(),
+      ownedWindowIds: new Set(),
+      ackedSequence: null,
     };
-    for (const threadId of this.terminalBootstrapTimers.keys()) {
-      state.router.retainTerminalBootstrap(threadId);
-    }
+    // Retained bootstrap threads are NOT applied here: a connection is
+    // unbound (and therefore unattributed) until its interests frame presents
+    // a grant. The bind applies this window's own retained threads.
     this.clients.set(socket, state);
     socket.on("message", (data) => this.handleClientMessage(socket, state, data.toString()));
     socket.once("close", () => {
+      // Synchronous revocation with a recovery barrier: the window may have
+      // missed everything queued since its ack (a message being queued is not
+      // receiver acknowledgement), so the very next publish sees it as a
+      // targeted fallback consumer again and the barrier — enqueued ahead of
+      // those copies — tells it what to rebuild.
+      this.failOverClient(state);
       state.router.dispose();
       this.clients.delete(socket);
     });
@@ -424,16 +567,50 @@ export class BackendRendererStream {
     };
     state.router.setInterests(interests);
     state.ready = true;
+    // The ownership claim is validated before replay so a rejected bind can
+    // never let the ack read as a confirmed handoff.
+    const granted = message.ownership
+      ? this.ownership.match(
+          message.ownership.windowId,
+          message.ownership.generation,
+          message.ownership.binding,
+        )
+      : null;
     if (typeof message.lastSeq === "number") this.replayFrom(socket, state, message.lastSeq);
-    this.send(
+    // Replay and ack are one synchronous block, so no publish can interleave:
+    // everything above the client's cursor that the replay retained arrived
+    // before the ack, and everything published after it is delivered on this
+    // socket only. The echoed claim is the acknowledged handoff boundary, and
+    // the ack's latestSeq is the socket's acknowledged cursor: on ordered
+    // WebSocket delivery, processing the ack proves the client received every
+    // frame queued before it.
+    const echo: RendererStreamOwnershipClaim | null = granted
+      ? { windowId: granted.windowId, generation: granted.generation }
+      : null;
+    const acked = this.send(
       socket,
       state,
       JSON.stringify({
         version: BACKEND_RENDERER_STREAM_VERSION,
         type: "interests-ack",
         latestSeq: this.sequence,
+        ...(echo ? { ownership: echo } : {}),
       }),
     );
+    if (acked) state.ackedSequence = this.sequence;
+    // Ownership activates only once the confirming ack is queued on a live
+    // socket: a failed ack send leaves the window fallback-owned, so main
+    // keeps delivering until a reconnect completes the handoff again.
+    if (acked && granted) {
+      this.ownership.attach(granted.windowId, state);
+      // The freshly bound connection inherits its own window's surviving
+      // bootstrap retention, covering a bind that happens mid-window.
+      for (const [threadId, entry] of this.terminalBootstrapTimers) {
+        if (entry.originWindowId === granted.windowId) {
+          state.router.retainTerminalBootstrap(threadId);
+        }
+      }
+    }
   }
 
   private async handleRequest(
@@ -452,8 +629,13 @@ export class BackendRendererStream {
       });
       return;
     }
+    // The authenticated origin is the bind the backend validated for THIS
+    // connection — never a request-supplied id. Ambiguous multi-window binds
+    // stay originless.
+    const origin =
+      state.ownedWindowIds.size === 1 ? { windowId: [...state.ownedWindowIds][0]! } : undefined;
     try {
-      const data = await handler(request);
+      const data = await handler(request, origin);
       this.sendReply(socket, state, {
         version: BACKEND_RENDERER_STREAM_VERSION,
         type: "reply",
@@ -530,10 +712,40 @@ export class BackendRendererStream {
       if (!this.send(socket, state, payload)) return;
       this.diagnostics.replayedEvents += 1;
     }
+    // An event nothing could deliver is a hole INSIDE the replay window: it
+    // never entered the buffer, so a cursor above `oldest - 1` replays
+    // straight over it. Its thread is recorded in unrecoverableBySeq, and a
+    // client that was disconnected when the resync broadcast fired must still
+    // rebuild that thread — before the handoff ack lets desktop-IPC copies
+    // stop covering the hole for it.
+    const lostThreadIds: string[] = [];
+    for (const [threadId, seq] of this.unrecoverableBySeq) {
+      if (seq > lastSeq) lostThreadIds.push(threadId);
+    }
+    if (lostThreadIds.length > 0) {
+      this.diagnostics.resyncRequests += 1;
+      this.send(
+        socket,
+        state,
+        JSON.stringify({
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "resync-required",
+          latestSeq: this.sequence,
+          threadIds: lostThreadIds,
+        }),
+      );
+    }
   }
 
   private send(socket: WebSocket, state: ClientState, payload: string): boolean {
-    if (socket.readyState !== WebSocket.OPEN) return false;
+    if (socket.readyState !== WebSocket.OPEN) {
+      // The connection is gone or closing while it may still own windows:
+      // revoke now (not on the close event) so the fallback selection and the
+      // recovery barrier see the loss immediately — a renderer whose onclose
+      // has not fired yet must still learn about it this tick.
+      this.failOverClient(state);
+      return false;
+    }
     const nextBufferedBytes = socket.bufferedAmount + Buffer.byteLength(payload);
     this.diagnostics.peakBufferedBytes = Math.max(
       this.diagnostics.peakBufferedBytes,
@@ -557,6 +769,9 @@ export class BackendRendererStream {
         budgetBytes: state.bufferedBudgetBytes,
       });
       socket.close(1013, "Renderer stream backpressure");
+      // Same contract as a dead socket: the window loses this event and every
+      // queued-but-unreceived one, so revoke and announce the loss window now.
+      this.failOverClient(state);
       return false;
     }
     socket.send(payload);
@@ -683,6 +898,8 @@ function isInterestMessage(value: unknown): value is {
   terminalThreadIds: string[];
   runtimeThreadIds: string[];
   lastSeq?: number;
+  /** Ownership binding presented by the preload-bridge grant for this window. */
+  ownership?: RendererStreamOwnershipGrant;
 } {
   if (typeof value !== "object" || value === null) return false;
   const input = value as Record<string, unknown>;
@@ -694,7 +911,8 @@ function isInterestMessage(value: unknown): value is {
     (input.lastSeq === undefined ||
       (typeof input.lastSeq === "number" &&
         Number.isSafeInteger(input.lastSeq) &&
-        input.lastSeq >= 0))
+        input.lastSeq >= 0)) &&
+    (input.ownership === undefined || isRendererStreamOwnershipGrant(input.ownership))
   );
 }
 

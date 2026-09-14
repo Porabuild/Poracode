@@ -33,33 +33,139 @@ import type {
   RemoteAccessTailscaleStatus,
   StartTailscaleResult,
   SupervisorEvent,
-  SupervisorProcedureName,
   SupervisorRequest,
 } from "./ipc";
 import type { LiveEventInterests } from "./liveEventInterests";
 import type { PoracodeChannel } from "./channel";
 
 /** Increment whenever the desktop/backend-host IPC envelope becomes incompatible. */
-// Version 3 carries renderer stream sequence numbers through the Electron IPC fallback.
-// The optional `rendererDeliveredDirect` flag is no longer emitted: direct-stream
-// delivery cannot stand in for the anonymous IPC consumer, so the host relays every
-// routed event and renderers dedupe by `rendererSequence` (compatible shrink —
-// host and main always ship in the same bundle, and the flag was never validated).
-// Version 4 adds the `supervisor-event-gap` control kind announced when the host
-// sheds desktop-IPC copies of bulk renderer events. Host and main always ship in
-// one bundle, but a stale host child from an older build can outlive an update;
-// a pre-4 reader would validate version 3, silently drop the unknown kind, and
-// re-open the exact silent-loss window this signal closes — so the bump makes
-// that pairing fail loudly instead of losing terminal/runtime data quietly.
-// Version 5 adds the `revert-checkpoint` renderer operation for the backend-owned
-// compound checkpoint revert (provider rollback + file restore + transcript
-// truncation as one journaled operation, WS2 stage 4).
-// Version 6 / renderer stream 3 carry authoritative content.delta.replace.
-// Stale local peers would append replacements, so fence both delivery paths.
-// Version 7 moves durable settings/routing ownership and acknowledgements out
-// of Electron main. Mixed owners could lose writes or count a selection twice.
-export const BACKEND_HOST_PROTOCOL_VERSION = 7 as const;
-export const BACKEND_RENDERER_STREAM_VERSION = 3 as const;
+// Version 3 carried renderer stream sequence numbers through the Electron IPC fallback.
+// Version 4 added the `supervisor-event-gap` control kind announced when the host sheds
+// desktop-IPC copies of bulk renderer events. Version 5 added the `revert-checkpoint`
+// renderer operation (WS2 stage 4). Version 6 / renderer stream 3 carried authoritative
+// content.delta.replace. Version 7 moved durable settings/routing ownership and
+// acknowledgements out of Electron main.
+// Versions 8-12 remain RESERVED for the V4 activations recorded in
+// .agents/docs/versioning.md (owner bootstrap, settings authority, superseded two-parent
+// combination, private usage-secret service) — this milestone deliberately does not
+// consume them.
+// Version 13 is the per-window delivery-ownership boundary (V4 F7 correction). It is an
+// incompatible handoff, not an additive one: `set-renderer-stream-ownership` now carries a
+// per-window grant+interests table (every entry minted, plus the shell-remainder role that
+// keeps one window's controls exact-once), `supervisor-event` envelopes gained a targeted
+// `windowId`/`generation` recipient, the new `renderer-stream-recovery` kind announces a
+// generation-fenced loss window through the ordered fallback path, the untargeted
+// shell copy no longer carries a sequence, and `call-supervisor` carries an
+// authenticated `originWindowId` that scopes terminal-bootstrap retention to the
+// requesting window. A pre-13 peer would silently misroute bulk or
+// ignore recovery barriers, so the bump makes mixed pairings fail loudly instead of
+// losing events quietly. Host and main always ship in one bundle; a stale host child from
+// an older build is rejected by the version gate on both sides.
+export const BACKEND_HOST_PROTOCOL_VERSION = 13 as const;
+// Renderer stream 3 added additive ownership fields (`ownership` on the interests frame,
+// the ack echo) — that additive experiment is superseded by the per-window contract.
+// Version 4 remains RESERVED for the settings-authority activation (see
+// .agents/docs/versioning.md); this milestone deliberately skips it.
+// Version 5 is the enforced per-window delivery boundary: the interests frame version
+// gates the recovery-barrier contract (`renderer-stream-recovery` is announced through
+// the desktop-IPC fallback, but replay/resync ordering and the acknowledged-handoff
+// cursor semantics assume a v5 peer). An older renderer presenting a v3/v4 frame is
+// closed with 1008 instead of being half-owned, and a v5 renderer against an old
+// backend fails the stream-info version check and keeps the IPC fallback.
+export const BACKEND_RENDERER_STREAM_VERSION = 5 as const;
+
+/**
+ * Per-window delivery-ownership grant for the direct renderer stream. Main —
+ * the Electron IPC authority — mints one per registered renderer window and
+ * shares the binding secret only with that window's renderer over the preload
+ * bridge; the backend accepts a stream connection as the window's delivery
+ * owner only when its interests frame presents the exact minted binding.
+ */
+export interface RendererStreamOwnershipGrant {
+  /** Authoritative Electron `webContents.id`, assigned by main, never by the caller. */
+  windowId: number;
+  /** Bumps on every re-mint (window registration/reload) so a stale socket cannot re-own. */
+  generation: number;
+  /** Secret proving the presenter received main's grant for this window. */
+  binding: string;
+}
+
+/**
+ * One desktop window's authoritative delivery state, pushed by main over the
+ * trusted backend-host IPC. Every registered window carries a minted grant:
+ * main mints the binding in the same step that publishes the window's
+ * interests, so a table entry without a grant has no supported producer (a
+ * preload too old to receive one is rejected by the facade version gate, and
+ * a failed mint cannot leave a grant-less entry behind). Being on the table
+ * means "known desktop bulk consumer"; having no live owner on the direct
+ * stream — not a missing grant — is what makes a window a fallback consumer.
+ */
+export interface RendererWindowDeliveryState {
+  /** Authoritative Electron `webContents.id`. */
+  windowId: number;
+  /** The window's minted grant; binding and generation are allocated before this table is published. */
+  grant: RendererStreamOwnershipGrant;
+  /** This window's own live-event interests; the backend filters its fallback copies by them. */
+  interests: LiveEventInterests;
+  /**
+   * True for the one window that consumes the untargeted shell remainder
+   * (Electron main's own window). Its targeted fallback copies carry the bulk
+   * half only — its controls arrive exactly once through the shell remainder —
+   * while every other fallback window's copy carries its full filtered event
+   * (controls included), because it has no other path for them.
+   */
+  receivesShellRemainder: boolean;
+}
+
+/**
+ * Recipient of a targeted `supervisor-event` fallback copy: the backend only
+ * produces these for windows that need the desktop-IPC fallback, and main
+ * must deliver them to exactly this window — never to sibling windows.
+ */
+export interface RendererStreamDeliveryTarget {
+  windowId: number;
+  /** Grant generation the copy is fenced to; always the window's minted generation. */
+  generation: number;
+}
+
+/** Ownership echo on an interests-ack: proof the backend activated the handoff. */
+export interface RendererStreamOwnershipClaim {
+  windowId: number;
+  generation: number;
+}
+
+/**
+ * Generation-fenced recovery barrier for one window's direct-stream loss.
+ * Enqueued through the ordered desktop-IPC fallback BEFORE any later fallback
+ * events for that window, at the moment the backend revokes the window's
+ * owner: a failed/non-open/backpressured send, socket loss, or ownership
+ * reset. `[fromSequence, toSequence]` is the stream-sequence window the
+ * renderer may have missed (from is its acknowledged handoff cursor + 1);
+ * `threadIds` narrows the authoritative rebuild when the backend can attribute
+ * the loss, and is absent when it cannot (fail open: rebuild everything
+ * subscribed). A renderer honors the barrier even before its local onclose
+ * fires, and ignores stale barriers whose generation does not match its
+ * presented grant.
+ */
+export interface RendererStreamRecoveryBarrier {
+  windowId: number;
+  /** Grant generation the barrier fences; a renderer presented a different generation ignores it. */
+  generation: number;
+  /** First stream sequence the renderer may have missed (inclusive). */
+  fromSequence: number;
+  /** Backend stream sequence at revocation (inclusive). */
+  toSequence: number;
+  /** Recovery scope hint; absent means rebuild every subscribed thread. */
+  threadIds?: string[];
+}
+
+/**
+ * Generation-0 fallback for a renderer that could not present a grant (pull
+ * failed or unsupported): the backend never binds it, so it stays a fallback
+ * consumer, and barriers fenced to its window's real generation cannot match
+ * until its bounded re-pull presents the binding.
+ */
+export const RENDERER_STREAM_UNGRANTED_GENERATION = 0 as const;
 
 export interface BackendRendererStreamInfo {
   version: typeof BACKEND_RENDERER_STREAM_VERSION;
@@ -339,7 +445,13 @@ export type BackendHostRequest =
     })
   | (BackendHostRequestBase & {
       operation: "call-supervisor";
-      payload: SupervisorRequest;
+      /**
+       * `originWindowId` is main-assigned from the authenticated IPC
+       * `event.sender.id` (or the backend-validated stream bind) and scopes
+       * terminal-bootstrap retention to the requesting window. Absent means
+       * originless: the start must not widen any desktop window's fallback.
+       */
+      payload: SupervisorRequest & { originWindowId?: number };
     })
   | (BackendHostRequestBase & {
       operation: "call-database";
@@ -356,6 +468,10 @@ export type BackendHostRequest =
   | (BackendHostRequestBase & {
       operation: "set-event-interests";
       payload: BackendEventInterests;
+    })
+  | (BackendHostRequestBase & {
+      operation: "set-renderer-stream-ownership";
+      payload: { windows: RendererWindowDeliveryState[] };
     })
   | (BackendHostRequestBase & {
       operation: "resolve-native-request";
@@ -401,6 +517,12 @@ export type BackendHostOutboundMessage =
       kind: "supervisor-event";
       event: SupervisorEvent;
       rendererSequence?: number;
+      /**
+       * Present only on per-window fallback copies: deliver to exactly this
+       * window+generation, never to sibling windows. Absent means the shell
+       * copy (controls/native state, or the pre-first-push legacy full relay).
+       */
+      target?: RendererStreamDeliveryTarget;
       /** Deprecated, no longer emitted. Kept so in-bundle readers of older envelopes stay type-compatible. */
       rendererDeliveredDirect?: boolean;
     }
@@ -408,6 +530,10 @@ export type BackendHostOutboundMessage =
       version: typeof BACKEND_HOST_PROTOCOL_VERSION;
       kind: "supervisor-event-gap";
     } & SupervisorEventGap)
+  | ({
+      version: typeof BACKEND_HOST_PROTOCOL_VERSION;
+      kind: "renderer-stream-recovery";
+    } & RendererStreamRecoveryBarrier)
   | {
       version: typeof BACKEND_HOST_PROTOCOL_VERSION;
       kind: "supervisor-reset";
@@ -429,19 +555,6 @@ export type BackendHostOutboundMessage =
       message: string;
       tags?: PoracodeDiagnosticTags;
     };
-
-export function createBackendSupervisorRequest<Name extends SupervisorProcedureName>(
-  id: string,
-  name: Name,
-  payload: IpcProcedurePayload<Name>,
-): BackendHostRequest {
-  return {
-    version: BACKEND_HOST_PROTOCOL_VERSION,
-    id,
-    operation: "call-supervisor",
-    payload: { id, type: name, payload } as SupervisorRequest,
-  };
-}
 
 export function createBackendDatabaseRequest<Name extends BackendDatabaseProcedureName>(
   id: string,
@@ -519,7 +632,11 @@ export function isBackendHostRequest(message: unknown): message is BackendHostRe
       return (
         typeof message.payload.id === "string" &&
         typeof message.payload.type === "string" &&
-        "payload" in message.payload
+        "payload" in message.payload &&
+        (message.payload.originWindowId === undefined ||
+          (typeof message.payload.originWindowId === "number" &&
+            Number.isSafeInteger(message.payload.originWindowId) &&
+            message.payload.originWindowId > 0))
       );
     case "call-database":
       return (
@@ -548,6 +665,11 @@ export function isBackendHostRequest(message: unknown): message is BackendHostRe
         isStringArray(message.payload.terminalThreadIds) &&
         isStringArray(message.payload.runtimeThreadIds) &&
         typeof message.payload.allRuntimeEvents === "boolean"
+      );
+    case "set-renderer-stream-ownership":
+      return (
+        Array.isArray(message.payload.windows) &&
+        message.payload.windows.every(isRendererWindowDeliveryState)
       );
     case "resolve-native-request":
       return (
@@ -588,10 +710,15 @@ export function isBackendHostOutboundMessage(
         (message.rendererSequence === undefined ||
           (typeof message.rendererSequence === "number" &&
             Number.isSafeInteger(message.rendererSequence) &&
-            message.rendererSequence >= 0))
+            message.rendererSequence >= 0)) &&
+        (message.target === undefined ||
+          (isRecord(message.target) &&
+            isDeliveryTarget(message.target as Partial<RendererStreamDeliveryTarget>)))
       );
     case "supervisor-event-gap":
       return isSupervisorEventGap(message);
+    case "renderer-stream-recovery":
+      return isRendererStreamRecoveryBarrier(message);
     case "supervisor-reset":
       return true;
     case "native-request":
@@ -650,6 +777,97 @@ export function isSupervisorEventGap(value: unknown): value is SupervisorEventGa
     typeof value.toSequence === "number" &&
     Number.isSafeInteger(value.toSequence) &&
     value.toSequence >= value.fromSequence
+  );
+}
+
+/**
+ * The single validator for minted window grants. Shared by the protocol
+ * request gate, the backend ownership registry, the preload bridge, and the
+ * renderer transport so their acceptance rules cannot drift.
+ */
+export function isRendererStreamOwnershipGrant(
+  value: unknown,
+): value is RendererStreamOwnershipGrant {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.windowId === "number" &&
+    Number.isSafeInteger(value.windowId) &&
+    value.windowId > 0 &&
+    typeof value.generation === "number" &&
+    Number.isSafeInteger(value.generation) &&
+    value.generation > 0 &&
+    typeof value.binding === "string" &&
+    value.binding.length > 0 &&
+    value.binding.length <= 256
+  );
+}
+
+/** The single validator for ack-echo claims and delivery targets' identity pair. */
+export function isRendererStreamOwnershipClaim(
+  value: unknown,
+): value is RendererStreamOwnershipClaim {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.windowId === "number" &&
+    Number.isSafeInteger(value.windowId) &&
+    value.windowId > 0 &&
+    typeof value.generation === "number" &&
+    Number.isSafeInteger(value.generation) &&
+    value.generation > 0
+  );
+}
+
+/**
+ * The single validator for one per-window delivery-table entry, shared by the
+ * protocol request gate and the backend ownership registry so their acceptance
+ * rules (including the grant-to-window binding) cannot drift.
+ */
+export function isRendererWindowDeliveryState(
+  value: unknown,
+): value is RendererWindowDeliveryState {
+  if (!isRecord(value)) return false;
+  return (
+    typeof value.windowId === "number" &&
+    Number.isSafeInteger(value.windowId) &&
+    value.windowId > 0 &&
+    isRendererStreamOwnershipGrant(value.grant) &&
+    value.grant.windowId === value.windowId &&
+    typeof value.receivesShellRemainder === "boolean" &&
+    isRecord(value.interests) &&
+    isStringArray(value.interests.terminalThreadIds) &&
+    isStringArray(value.interests.runtimeThreadIds) &&
+    typeof value.interests.allRuntimeEvents === "boolean"
+  );
+}
+
+function isDeliveryTarget(value: Partial<RendererStreamDeliveryTarget>): boolean {
+  return (
+    typeof value.windowId === "number" &&
+    Number.isSafeInteger(value.windowId) &&
+    value.windowId > 0 &&
+    typeof value.generation === "number" &&
+    Number.isSafeInteger(value.generation) &&
+    // Every table grant is minted, so targeted copies and barriers always
+    // fence to a real generation (>= 1).
+    value.generation > 0
+  );
+}
+
+/** Validates a `renderer-stream-recovery` barrier crossing the desktop-IPC fallback. */
+export function isRendererStreamRecoveryBarrier(
+  value: unknown,
+): value is RendererStreamRecoveryBarrier {
+  if (!isRecord(value)) return false;
+  return (
+    isDeliveryTarget(value as Partial<RendererStreamDeliveryTarget>) &&
+    typeof value.fromSequence === "number" &&
+    Number.isSafeInteger(value.fromSequence) &&
+    value.fromSequence >= 0 &&
+    typeof value.toSequence === "number" &&
+    Number.isSafeInteger(value.toSequence) &&
+    value.toSequence >= value.fromSequence &&
+    (value.threadIds === undefined ||
+      (Array.isArray(value.threadIds) && value.threadIds.every((id) => typeof id === "string")))
   );
 }
 

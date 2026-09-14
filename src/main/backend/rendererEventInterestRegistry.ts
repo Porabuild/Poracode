@@ -71,6 +71,11 @@ export class RendererEventInterestRegistry {
     return this.merged;
   }
 
+  /** Per-window interests entries, keyed by authoritative webContents id. */
+  snapshotPerWindow(): Map<number, LiveEventInterests> {
+    return new Map(this.entries);
+  }
+
   private emitMerged(): void {
     const merged = mergeInterests(this.entries.values());
     if (JSON.stringify(merged) === JSON.stringify(this.merged)) return;

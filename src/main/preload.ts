@@ -8,6 +8,8 @@ import type { GitStatePatch } from "@/shared/gitState";
 import type { UserNotification } from "@/shared/threadNotification";
 import {
   BACKEND_RENDERER_STREAM_VERSION,
+  isRendererStreamOwnershipGrant,
+  isRendererStreamRecoveryBarrier,
   isSupervisorEventGap,
   type BackendRendererStreamInfo,
 } from "@/shared/backendHostProtocol";
@@ -142,6 +144,12 @@ const bridge: ElectronHostBridge = {
     const info: unknown = await ipcRenderer.invoke(IPC_WINDOW_CHANNELS.backendRendererStreamInfo);
     return isBackendRendererStreamInfo(info) ? info : null;
   },
+  async getRendererStreamOwnershipGrant() {
+    const grant: unknown = await ipcRenderer.invoke(
+      IPC_WINDOW_CHANNELS.rendererStreamOwnershipGrant,
+    );
+    return isRendererStreamOwnershipGrant(grant) ? grant : null;
+  },
   onBackendRendererStreamChanged(listener) {
     const handler = (_event: Electron.IpcRendererEvent, info: unknown) => {
       if (isBackendRendererStreamInfo(info)) listener(info);
@@ -158,6 +166,15 @@ const bridge: ElectronHostBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.backendSupervisorEventGap, handler);
     return () => {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendSupervisorEventGap, handler);
+    };
+  },
+  onRendererStreamRecovery(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, barrier: unknown) => {
+      if (isRendererStreamRecoveryBarrier(barrier)) listener(barrier);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.rendererStreamRecovery, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.rendererStreamRecovery, handler);
     };
   },
   onSupervisorEvent(listener) {
