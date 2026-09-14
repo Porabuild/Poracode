@@ -38,6 +38,22 @@ install_apk() {
   echo "::error::The Android 17 APK never installed." >&2
   return 1
 }
+# A framework restart can also leave the freshly recovered ActivityManager
+# without the package's activity index for a while ("Error type 3"), so the
+# launch retries until the activity resolves.
+launch_app() {
+  for attempt in $(seq 1 12); do
+    adb shell am force-stop com.lightcodeapp.mobile 2>/dev/null || true
+    if adb shell am start -W -n com.lightcodeapp.mobile/com.poracode.app.MainActivity | tee "$RUNNER_TEMP/android-api37-launch.txt" | grep -F 'Status: ok'; then
+      return 0
+    fi
+    echo "App launch attempt $attempt failed; letting the framework settle before retrying." >&2
+    wait_for_framework
+    sleep 5
+  done
+  echo "::error::The Android 17 app never launched." >&2
+  return 1
+}
 capability="$(openssl rand -hex 32)"
 echo "::add-mask::$capability"
 export NATIVE_E2E_CONTROL_CAPABILITY="$capability"
@@ -70,10 +86,11 @@ test "$(adb shell getprop ro.build.version.codename | tr -d '\r')" = "REL"
 install_apk
 adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'minSdk=26'
 adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'targetSdk=37'
+# Keep a copy of everything logged since boot before the clear, so a
+# framework restart during the build stays diagnosable in the artifacts.
+adb logcat -d -v threadtime > "$RUNNER_TEMP/android-api37-logcat-before-clear.txt" || true
 adb logcat -c
-adb shell am force-stop com.lightcodeapp.mobile
-adb shell am start -W -n com.lightcodeapp.mobile/com.poracode.app.MainActivity | tee "$RUNNER_TEMP/android-api37-launch.txt"
-grep -F 'Status: ok' "$RUNNER_TEMP/android-api37-launch.txt"
+launch_app
 sleep 3
 test -n "$(adb shell pidof com.lightcodeapp.mobile | tr -d '\r')"
 adb logcat -d -v threadtime > "$RUNNER_TEMP/android-api37-logcat.txt"

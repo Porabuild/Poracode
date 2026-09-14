@@ -34,12 +34,15 @@ setInterval(() => {}, 1000);
     join(sdk, "platform-tools", "adb"),
     `${prelude}
 const command = process.argv.slice(2).join(" ");
-const counterPath = path.join(root, "input-polls");
+const counterPath = path.join(root, "gate-polls");
 const polls = fs.existsSync(counterPath) ? Number(fs.readFileSync(counterPath, "utf8")) : 0;
 if (command.endsWith("getprop sys.boot_completed")) console.log("1");
 if (command.endsWith("service check input")) {
   fs.writeFileSync(counterPath, String(polls + 1));
   console.log(polls === 0 ? "Service input: not found" : "Service input: found");
+}
+if (command.endsWith("service check package")) {
+  console.log(polls === 0 ? "Service package: not found" : "Service package: found");
 }
 if (command.endsWith("input keyevent 82")) {
   if (polls < 2) { console.error("cmd: Can't find service: input"); process.exit(20); }
@@ -60,7 +63,7 @@ process.exit(${exitCode});
   );
   const run = () =>
     execute(process.execPath, [runner, "fixture-avd", process.execPath, suite, "one argument"], {
-      env: { ...process.env, ANDROID_HOME: sdk, RUNNER_TEMP: root },
+      env: { ...process.env, ANDROID_HOME: sdk, RUNNER_TEMP: root, HOME: root },
       timeout: 10_000,
     });
   return { root, run };

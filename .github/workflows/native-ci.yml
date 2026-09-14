@@ -252,6 +252,7 @@ jobs:
             ${{ runner.temp }}/android-api37-launch.txt
             ${{ runner.temp }}/android-emulator-logcat.txt
             ${{ runner.temp }}/android-api37-logcat.txt
+            ${{ runner.temp }}/android-api37-logcat-before-clear.txt
             ${{ runner.temp }}/android-wire-lab.stderr
             android/app/build/outputs/androidTest-results/**
             android/app/build/reports/androidTests/**
