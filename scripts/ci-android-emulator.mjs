@@ -32,6 +32,8 @@ async function main() {
         "2",
         "-memory",
         "4096",
+        "-partition-size",
+        "8192",
         "-no-window",
         "-gpu",
         "swiftshader_indirect",

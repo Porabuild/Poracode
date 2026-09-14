@@ -3,6 +3,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
+adb shell df -h /data
+data_available_kib="$(adb shell df -k /data | tr -d '\r' | awk 'NR == 2 { print $4 }')"
+if ! test "$data_available_kib" -ge 1048576; then
+  echo "::error::The emulator needs at least 1 GiB free for APK installation and instrumentation."
+  exit 1
+fi
 capability="$(openssl rand -hex 32)"
 echo "::add-mask::$capability"
 export NATIVE_E2E_CONTROL_CAPABILITY="$capability"
