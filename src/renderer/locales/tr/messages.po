@@ -2907,6 +2907,8 @@ msgid "Close subagents panel"
 msgstr "Alt aracılar panelini kapat"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Close tab"
 msgstr "Sekmeyi kapat"
 

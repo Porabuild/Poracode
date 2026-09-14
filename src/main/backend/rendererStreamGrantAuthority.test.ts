@@ -135,7 +135,33 @@ describe("RendererStreamGrantAuthority", () => {
     expect(authority.isStaleDeliveryTarget({ windowId: 99, generation: 1 })).toBe(false);
   });
 
-  it("reports sync failures through onError instead of throwing into callers", async () => {
+  it("reports sync failures through onError, resolves, and retries on the next sync", async () => {
+    const onError = vi.fn<(error: unknown) => void>();
+    let attempts = 0;
+    const pushedTables: Array<readonly unknown[]> = [];
+    const { options } = makeOptions({
+      pushDeliveryTable: async (windows) => {
+        attempts += 1;
+        if (attempts === 1) throw new Error("host not running");
+        pushedTables.push(windows);
+      },
+      onError,
+    });
+    const authority = new RendererStreamGrantAuthority(options);
+    authority.ensureGrant(3);
+
+    await expect(authority.sync()).resolves.toBeUndefined();
+    expect(onError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: "host not running" }),
+    );
+
+    // A failed push does not latch: the next sync republishes the table.
+    await authority.sync();
+    expect(pushedTables).toHaveLength(1);
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports release-sync failures from the destroyed hook without an unhandled rejection", async () => {
     const onError = vi.fn<(error: unknown) => void>();
     const { options } = makeOptions({
       pushDeliveryTable: async () => {
@@ -144,11 +170,14 @@ describe("RendererStreamGrantAuthority", () => {
       onError,
     });
     const authority = new RendererStreamGrantAuthority(options);
-    authority.ensureGrant(3);
+    const sender = fakeSender(7);
+    authority.ensureGrant(7);
+    authority.observeRelease(sender.sender);
 
-    await expect(authority.sync()).rejects.toThrow("host not running");
-    // Callers that mirror main's wiring catch and report.
-    await authority.sync().catch(onError);
-    expect(onError).toHaveBeenCalledExactlyOnceWith(expect.any(Error));
+    sender.destroy();
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
+    expect(onError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: "host not running" }),
+    );
   });
 });

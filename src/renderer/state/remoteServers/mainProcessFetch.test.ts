@@ -52,6 +52,7 @@ describe("remote server fetch transport", () => {
       ...electronBridge,
       onSupervisorEvent: () => () => {},
       onSupervisorEventGap: () => () => {},
+      onRendererStreamRecovery: () => () => {},
       onBackendRendererStreamChanged: () => () => {},
       getBackendRendererStreamInfo: async () => null,
       invokeProcedure: async (name: keyof PoracodeBridge, args: unknown[]) => {
@@ -87,6 +88,7 @@ describe("remote server fetch transport", () => {
       ...electronBridge,
       onSupervisorEvent: () => () => {},
       onSupervisorEventGap: () => () => {},
+      onRendererStreamRecovery: () => () => {},
       onBackendRendererStreamChanged: () => () => {},
       getBackendRendererStreamInfo: async () => null,
       invokeProcedure: async (name: keyof PoracodeBridge, args: unknown[]) => {

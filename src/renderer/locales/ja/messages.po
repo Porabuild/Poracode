@@ -2906,6 +2906,8 @@ msgid "Close subagents panel"
 msgstr "サブエージェントパネルを閉じる"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/BottomTerminalLayout.tsx
+#: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/parts/RightTerminalLayout.tsx
 msgid "Close tab"
 msgstr "タブを閉じる"
 

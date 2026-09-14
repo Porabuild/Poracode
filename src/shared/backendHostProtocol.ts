@@ -33,6 +33,7 @@ import type {
   RemoteAccessTailscaleStatus,
   StartTailscaleResult,
   SupervisorEvent,
+  SupervisorProcedureName,
   SupervisorRequest,
 } from "./ipc";
 import type { LiveEventInterests } from "./liveEventInterests";
@@ -61,6 +62,10 @@ import type { PoracodeChannel } from "./channel";
 // ignore recovery barriers, so the bump makes mixed pairings fail loudly instead of
 // losing events quietly. Host and main always ship in one bundle; a stale host child from
 // an older build is rejected by the version gate on both sides.
+// The later F7 single-path correction (quick-composer agent statuses are delivered only by
+// the shell forward; the redundant targeted copy is dropped in main's dispatcher) is
+// main-local dispatch semantics: no envelope field, operation, or ordering rule changes,
+// so this boundary deliberately stays at 13 and no pre-upgrade fixture is added for it.
 export const BACKEND_HOST_PROTOCOL_VERSION = 13 as const;
 // Renderer stream 3 added additive ownership fields (`ownership` on the interests frame,
 // the ack echo) — that additive experiment is superseded by the per-window contract.
@@ -555,6 +560,31 @@ export type BackendHostOutboundMessage =
       message: string;
       tags?: PoracodeDiagnosticTags;
     };
+
+/**
+ * Builds a `call-supervisor` request. `originWindowId` is the authenticated
+ * requesting window when one exists (main-assigned IPC sender, or the
+ * backend-validated stream bind on the forwarding side); it scopes
+ * terminal-bootstrap retention to that window. Absent means originless.
+ */
+export function createBackendSupervisorRequest<Name extends SupervisorProcedureName>(
+  id: string,
+  name: Name,
+  payload: IpcProcedurePayload<Name>,
+  originWindowId?: number,
+): BackendHostRequest {
+  return {
+    version: BACKEND_HOST_PROTOCOL_VERSION,
+    id,
+    operation: "call-supervisor",
+    payload: {
+      id,
+      type: name,
+      payload,
+      ...(originWindowId !== undefined ? { originWindowId } : {}),
+    } as SupervisorRequest,
+  };
+}
 
 export function createBackendDatabaseRequest<Name extends BackendDatabaseProcedureName>(
   id: string,

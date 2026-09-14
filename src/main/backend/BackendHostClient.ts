@@ -8,6 +8,7 @@ import {
   createBackendDatabaseRequest,
   createBackendRevertCheckpointRequest,
   createBackendServiceRequest,
+  createBackendSupervisorRequest,
   type RevertCheckpointHostCall,
   isBackendHostOutboundMessage,
   type BackendEventInterests,
@@ -686,20 +687,11 @@ export class BackendHostClient {
     return this.withNormalRequest(async () => {
       await this.startedGate;
       await this.waitUntilInitialized();
-      const id = randomUUID();
       // `originWindowId` is main-assigned from the authenticated IPC sender;
       // the backend scopes terminal-bootstrap retention to it.
-      return this.request({
-        version: BACKEND_HOST_PROTOCOL_VERSION,
-        id,
-        operation: "call-supervisor",
-        payload: {
-          id,
-          type: name,
-          payload,
-          ...(originWindowId !== undefined ? { originWindowId } : {}),
-        } as never,
-      }) as Promise<IpcProcedureResult<Name>>;
+      return this.request(
+        createBackendSupervisorRequest(randomUUID(), name, payload, originWindowId),
+      ) as Promise<IpcProcedureResult<Name>>;
     });
   }
 
