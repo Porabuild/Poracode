@@ -4,6 +4,7 @@ import { dedupeProjects } from "@/shared/projectIdentity";
 import { remapProjectGroupLayouts, remapProjectView } from "@/shared/projectReferences";
 import { rowToProject, safeParse, type ProjectRow } from "./rowMappers";
 import { rehomeProjectWatches } from "./projectWatchRepair";
+import { prepareProjectUpsertStatement, runProjectUpsert } from "./upsertStatements";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -12,9 +13,14 @@ export function repairDuplicateProjects(sqlite: SqliteDatabase): void {
   const rows = sqlite
     .prepare("SELECT * FROM projects ORDER BY sort_order ASC, rowid ASC")
     .all() as ProjectRow[];
-  const { duplicateIds } = dedupeProjects(rows.map(rowToProject), {
+  const { projects, duplicateIds } = dedupeProjects(rows.map(rowToProject), {
     caseInsensitivePosix: process.platform === "darwin",
   });
+  if (duplicateIds.size === 0) return;
+  const upsertProject = prepareProjectUpsertStatement(sqlite);
+  for (const [index, project] of projects.entries()) {
+    runProjectUpsert(upsertProject, project, index);
+  }
   rehomeProjectReferences(sqlite, duplicateIds);
   const deleteProject = sqlite.prepare("DELETE FROM projects WHERE id = ?");
   for (const duplicateId of duplicateIds.keys()) deleteProject.run(duplicateId);

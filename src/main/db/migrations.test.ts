@@ -97,10 +97,12 @@ describe("database migration registry", () => {
         ],
       },
     },
-  ])("repairs duplicate projects and their persisted $kind view", (view) => {
-    const sqlite = new Database(":memory:");
-    try {
-      sqlite.exec(`
+  ])(
+    "upgrades a newest-first duplicate without losing settings, transcripts, or its $kind view",
+    (view) => {
+      const sqlite = new Database(":memory:");
+      try {
+        sqlite.exec(`
         PRAGMA foreign_keys = ON;
         CREATE TABLE app_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE projects (
@@ -119,84 +121,132 @@ describe("database migration registry", () => {
           PRIMARY KEY (project_id, pr_number)
         );
       `);
-      const insertProject = sqlite.prepare(
-        `INSERT INTO projects (id, name, location_kind, location_path, sort_order, created_at)
-         VALUES (?, ?, 'posix', ?, ?, '2026-01-01T00:00:00.000Z')`,
-      );
-      insertProject.run("canonical", "Canonical", "/repo", 0);
-      insertProject.run("duplicate", "Duplicate", "/repo/", 1);
-      insertProject.run(HOME_PROJECT_ID, "Home", "/repo", 2);
-      sqlite.prepare("INSERT INTO threads VALUES (?, ?)").run("thread-1", "duplicate");
-      sqlite
-        .prepare("INSERT INTO thread_runtime_items VALUES (?, ?)")
-        .run("thread-1", "saved reply");
-      sqlite
-        .prepare("INSERT INTO project_notes VALUES (?, ?, ?, ?)")
-        .run("duplicate", "notes", "[]", "2026-01-01T00:00:00.000Z");
-      sqlite
-        .prepare("INSERT INTO project_notes VALUES (?, ?, ?, ?)")
-        .run("canonical", null, "[]", "2026-01-01T00:00:00.000Z");
-      sqlite.prepare("INSERT INTO scheduled_tasks VALUES (?, ?)").run("schedule-1", "duplicate");
-      sqlite.prepare("INSERT INTO pr_watches VALUES (?, ?)").run("duplicate", 7);
-      sqlite.prepare("INSERT INTO app_state VALUES (?, ?)").run("view", JSON.stringify(view));
-      const groupLayouts = {
-        group1: {
-          panes: ["draft:duplicate#pane-2"],
-          paneLayout: { kind: "leaf", paneId: "draft:duplicate#pane-2" },
-        },
-      };
-      sqlite
-        .prepare("INSERT INTO app_state VALUES (?, ?)")
-        .run("groupLayouts", JSON.stringify(groupLayouts));
-      sqlite.prepare("INSERT INTO app_state VALUES (?, ?)").run(
-        "poracode-experiments-v1",
-        JSON.stringify({
-          state: { experiments: { e1: { projectId: "duplicate" } } },
-          version: 1,
-        }),
-      );
-
-      runDatabaseMigrations(sqlite, 41);
-
-      expect(sqlite.prepare("SELECT id FROM projects ORDER BY id").all()).toEqual([
-        { id: HOME_PROJECT_ID },
-        { id: "canonical" },
-      ]);
-      expect(sqlite.prepare("SELECT content FROM thread_runtime_items").get()).toEqual({
-        content: "saved reply",
-      });
-      for (const [key, original] of Object.entries({ view, groupLayouts })) {
-        const persisted = sqlite.prepare("SELECT value FROM app_state WHERE key = ?").get(key) as {
-          value: string;
-        };
-        expect(JSON.parse(persisted.value)).toEqual(
-          JSON.parse(JSON.stringify(original).replaceAll("duplicate", "canonical")),
+        const insertProject = sqlite.prepare(
+          `INSERT INTO projects (id, name, location_kind, location_path, sort_order, created_at)
+         VALUES (?, ?, 'posix', ?, ?, ?)`,
         );
+        insertProject.run("canonical", "Canonical", "/repo", 1, "2024-01-01T00:00:00.000Z");
+        insertProject.run("duplicate", "Duplicate", "/repo/", 0, "2026-01-01T00:00:00.000Z");
+        insertProject.run(HOME_PROJECT_ID, "Home", "/repo", 2, "2024-01-01T00:00:00.000Z");
+        const actions = [1, 2, 3, 4].map((index) => ({
+          id: `action-${index}`,
+          name: `Action ${index}`,
+          command: `echo ${index}`,
+        }));
+        const originalScripts = { setupScript: "custom setup", actions };
+        sqlite
+          .prepare("UPDATE projects SET scripts = ? WHERE id = 'canonical'")
+          .run(JSON.stringify(originalScripts));
+        sqlite.prepare("UPDATE projects SET scripts = ? WHERE id = 'duplicate'").run(
+          JSON.stringify({
+            setupScript: "auto-detected setup",
+            cleanupScript: "custom cleanup",
+            actions: [],
+          }),
+        );
+        const recoveredSettings = {
+          icon: "lucide:rocket",
+          mcp_servers: JSON.stringify([
+            {
+              id: "memory",
+              name: "memory",
+              enabled: false,
+              description: "",
+              timeoutMs: 30000,
+              transport: { type: "stdio", command: "node", args: ["memory.js"], env: {} },
+            },
+          ]),
+          search_settings: JSON.stringify({ useIgnoreFiles: false, exclude: { dist: false } }),
+          gh_account: JSON.stringify({ host: "github.com", login: "original-account" }),
+          worktree_location: JSON.stringify({ mode: "global", basePath: "/worktrees" }),
+          last_draft_config: JSON.stringify({ agentKind: "codex", model: "auto", fast: false }),
+          workspace_id: "workspace-1",
+        };
+        for (const [column, value] of Object.entries(recoveredSettings)) {
+          sqlite.prepare(`UPDATE projects SET ${column} = ? WHERE id = 'duplicate'`).run(value);
+        }
+        sqlite.prepare("INSERT INTO threads VALUES (?, ?)").run("thread-1", "duplicate");
+        for (const content of ["first reply", "second reply", "third reply"]) {
+          sqlite.prepare("INSERT INTO thread_runtime_items VALUES (?, ?)").run("thread-1", content);
+        }
+        sqlite
+          .prepare("INSERT INTO project_notes VALUES (?, ?, ?, ?)")
+          .run("duplicate", "notes", "[]", "2026-01-01T00:00:00.000Z");
+        sqlite
+          .prepare("INSERT INTO project_notes VALUES (?, ?, ?, ?)")
+          .run("canonical", null, "[]", "2026-01-01T00:00:00.000Z");
+        sqlite.prepare("INSERT INTO scheduled_tasks VALUES (?, ?)").run("schedule-1", "duplicate");
+        sqlite.prepare("INSERT INTO pr_watches VALUES (?, ?)").run("duplicate", 7);
+        sqlite.prepare("INSERT INTO app_state VALUES (?, ?)").run("view", JSON.stringify(view));
+        const groupLayouts = {
+          group1: {
+            panes: ["draft:duplicate#pane-2"],
+            paneLayout: { kind: "leaf", paneId: "draft:duplicate#pane-2" },
+          },
+        };
+        sqlite
+          .prepare("INSERT INTO app_state VALUES (?, ?)")
+          .run("groupLayouts", JSON.stringify(groupLayouts));
+        sqlite.prepare("INSERT INTO app_state VALUES (?, ?)").run(
+          "poracode-experiments-v1",
+          JSON.stringify({
+            state: { experiments: { e1: { projectId: "duplicate" } } },
+            version: 1,
+          }),
+        );
+
+        runDatabaseMigrations(sqlite, 41);
+
+        expect(sqlite.prepare("SELECT id FROM projects ORDER BY id").all()).toEqual([
+          { id: HOME_PROJECT_ID },
+          { id: "canonical" },
+        ]);
+        expect(
+          sqlite.prepare("SELECT content FROM thread_runtime_items ORDER BY rowid").all(),
+        ).toEqual(["first reply", "second reply", "third reply"].map((content) => ({ content })));
+        const survivor = sqlite
+          .prepare("SELECT * FROM projects WHERE id = 'canonical'")
+          .get() as Record<string, unknown>;
+        expect(JSON.parse(survivor.scripts as string)).toEqual({
+          ...originalScripts,
+          cleanupScript: "custom cleanup",
+        });
+        expect(survivor).toMatchObject(recoveredSettings);
+        for (const [key, original] of Object.entries({ view, groupLayouts })) {
+          const persisted = sqlite
+            .prepare("SELECT value FROM app_state WHERE key = ?")
+            .get(key) as {
+            value: string;
+          };
+          expect(JSON.parse(persisted.value)).toEqual(
+            JSON.parse(JSON.stringify(original).replaceAll("duplicate", "canonical")),
+          );
+        }
+        expect(sqlite.prepare("SELECT project_id FROM threads").get()).toEqual({
+          project_id: "canonical",
+        });
+        expect(sqlite.prepare("SELECT project_id FROM project_notes").get()).toEqual({
+          project_id: "canonical",
+        });
+        expect(sqlite.prepare("SELECT doc FROM project_notes").get()).toEqual({ doc: "notes" });
+        expect(sqlite.prepare("SELECT project_id FROM scheduled_tasks").get()).toEqual({
+          project_id: "canonical",
+        });
+        expect(sqlite.prepare("SELECT project_id FROM pr_watches").get()).toEqual({
+          project_id: "canonical",
+        });
+        expect(
+          JSON.parse(
+            (
+              sqlite
+                .prepare("SELECT value FROM app_state WHERE key = ?")
+                .get("poracode-experiments-v1") as { value: string }
+            ).value,
+          ).state.experiments.e1.projectId,
+        ).toBe("canonical");
+      } finally {
+        sqlite.close();
       }
-      expect(sqlite.prepare("SELECT project_id FROM threads").get()).toEqual({
-        project_id: "canonical",
-      });
-      expect(sqlite.prepare("SELECT project_id FROM project_notes").get()).toEqual({
-        project_id: "canonical",
-      });
-      expect(sqlite.prepare("SELECT doc FROM project_notes").get()).toEqual({ doc: "notes" });
-      expect(sqlite.prepare("SELECT project_id FROM scheduled_tasks").get()).toEqual({
-        project_id: "canonical",
-      });
-      expect(sqlite.prepare("SELECT project_id FROM pr_watches").get()).toEqual({
-        project_id: "canonical",
-      });
-      expect(
-        JSON.parse(
-          (
-            sqlite
-              .prepare("SELECT value FROM app_state WHERE key = ?")
-              .get("poracode-experiments-v1") as { value: string }
-          ).value,
-        ).state.experiments.e1.projectId,
-      ).toBe("canonical");
-    } finally {
-      sqlite.close();
-    }
-  });
+    },
+  );
 });

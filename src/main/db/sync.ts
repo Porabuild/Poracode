@@ -8,7 +8,11 @@ import type { DbPersistExperimentStatePayload } from "@/shared/ipc";
 import { dedupeProjects, projectIdentityKey } from "@/shared/projectIdentity";
 import { remapThreadProjectIds } from "@/shared/projectReferences";
 import { getSqlite } from "./connection";
-import { acknowledgeMirroredThreadIds, isMainCreatedThreadUnmirrored } from "./mainCreatedThreads";
+import {
+  acknowledgeMirroredThreadIds,
+  isMainCreatedThreadUnmirrored,
+  noteRecoveredThreads,
+} from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
 import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
 import {
@@ -27,20 +31,44 @@ const THREAD_SYNC_OPTIONS = { writeThreadStatusSource: false } as const;
  * Bulk-sync the full project and thread lists from the renderer store.
  * Uses a transaction for atomicity — either everything writes or nothing.
  */
-export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJson: string): void {
+export function dbSyncAll(
+  projectsData: Project[],
+  threadsData: Thread[],
+  viewJson: string,
+): boolean {
   const sqlite = getSqlite();
   const deletedThreadIds = new Set<string>();
-  const incomingDedupe = dedupeProjects(projectsData, {
-    caseInsensitivePosix: process.platform === "darwin",
-  });
-  const incomingProjects = incomingDedupe.projects;
+  const recoveredThreadIds = new Set<string>();
+  const identityOptions = { caseInsensitivePosix: process.platform === "darwin" };
 
-  sqlite.transaction(() => {
+  const repaired = sqlite.transaction(() => {
     const existingThreads = sqlite.prepare("SELECT id, project_id FROM threads").all() as Array<{
       id: string;
       project_id: string;
     }>;
     const existingProjectRows = sqlite.prepare("SELECT * FROM projects").all() as ProjectRow[];
+    const rendererProjectIds = new Set(projectsData.map((project) => project.id));
+    const rendererIdentities = new Set(
+      projectsData.map((project) => projectIdentityKey(project, identityOptions)),
+    );
+    // Recover only omitted IDs for folders the renderer still owns. Including
+    // an older copy of the same ID would resurrect deliberately cleared settings.
+    const persistedDuplicates = existingProjectRows
+      .map(rowToProject)
+      .filter(
+        (project) =>
+          !rendererProjectIds.has(project.id) &&
+          rendererIdentities.has(projectIdentityKey(project, identityOptions)),
+      );
+    const { projects: incomingProjects, duplicateIds } = dedupeProjects(
+      [...projectsData, ...persistedDuplicates],
+      identityOptions,
+    );
+    const recoveredProjectIds = new Set(
+      incomingProjects
+        .filter((project) => !rendererProjectIds.has(project.id))
+        .map((project) => project.id),
+    );
     const existingProjectIds = new Set(existingProjectRows.map((row) => row.id));
     const incomingProjectIds = new Set(incomingProjects.map((p) => p.id));
     const deletedProjectIds = new Set(
@@ -58,22 +86,6 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
     // snapshot reaches the DB. Rehome every dependent row before deleting the
     // duplicate project: deleting the project first would cascade its threads
     // and permanently discard their runtime transcripts.
-    const incomingByIdentity = new Map(
-      incomingProjects.map((project) => [
-        projectIdentityKey(project, { caseInsensitivePosix: process.platform === "darwin" }),
-        project,
-      ]),
-    );
-    const duplicateIds = new Map(incomingDedupe.duplicateIds);
-    const existingProjects = existingProjectRows.map(rowToProject);
-    for (const existing of existingProjects) {
-      if (incomingProjectIds.has(existing.id)) continue;
-      const canonical = incomingByIdentity.get(
-        projectIdentityKey(existing, { caseInsensitivePosix: process.platform === "darwin" }),
-      );
-      if (!canonical) continue;
-      duplicateIds.set(existing.id, canonical.id);
-    }
     const rehomedThreadIds = rehomeProjectReferences(sqlite, duplicateIds);
     const incomingThreads = remapThreadProjectIds(threadsData, duplicateIds);
 
@@ -89,7 +101,13 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
 
     for (const { id: tid, project_id: projectId } of existingThreads) {
       if (incomingThreadIds.has(tid)) continue;
-      if (rehomedThreadIds.has(tid)) continue;
+      // The surviving original may itself have been absent from the renderer's
+      // repaired snapshot. Both kinds of recovered thread stay main-owned until
+      // a later snapshot acknowledges the broadcast, even across queued saves.
+      if (rehomedThreadIds.has(tid) || recoveredProjectIds.has(projectId)) {
+        recoveredThreadIds.add(tid);
+        continue;
+      }
       // A thread main just created (remote `start`, schedule, orchestrator) is
       // absent from this snapshot only because the renderer has not applied the
       // forwarded command yet. Deleting it would cascade away the launch turn's
@@ -110,9 +128,12 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
         "INSERT INTO app_state (key, value) VALUES ('view', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
       )
       .run(remapProjectViewJson(viewJson, duplicateIds));
+    return duplicateIds.size > 0;
   })();
+  noteRecoveredThreads(recoveredThreadIds);
   for (const threadId of deletedThreadIds) dbDiscardThreadRuntimeWrites(threadId);
   notifyProjectThreadDataChanged();
+  return repaired;
 }
 
 export function dbPersistExperimentState(payload: DbPersistExperimentStatePayload): void {

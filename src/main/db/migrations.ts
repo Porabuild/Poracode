@@ -610,6 +610,8 @@ export const DATABASE_MIGRATIONS = [
   {
     version: 42,
     name: "deduplicate project locations",
+    // Unreleased repair: retain the oldest identity and merge its settings
+    // before deleting duplicate rows, including newest-first legacy profiles.
     migrate: repairDuplicateProjects,
   },
 ] as const satisfies readonly DatabaseMigration[];

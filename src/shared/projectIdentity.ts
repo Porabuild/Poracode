@@ -1,5 +1,6 @@
 import type { Project, ProjectLocation } from "./contracts";
 import { HOME_PROJECT_ID } from "./homeScope";
+import { mergeProjectSettings } from "./projectSettingsMerge";
 
 export interface ProjectIdentityOptions {
   /** macOS's default volume comparison is case-insensitive. */
@@ -52,19 +53,39 @@ export function dedupeProjects(
   projects: Project[];
   duplicateIds: Map<string, string>;
 } {
-  const canonicalByIdentity = new Map<string, string>();
+  const groups = new Map<string, Project[]>();
   const duplicateIds = new Map<string, string>();
   const unique: Project[] = [];
   for (const project of projects) {
-    const existingId = canonicalByIdentity.get(projectIdentityKey(project, options));
-    if (existingId) {
-      if (project.id !== existingId) duplicateIds.set(project.id, existingId);
-    } else {
-      canonicalByIdentity.set(projectIdentityKey(project, options), project.id);
-      unique.push(project);
+    const identity = projectIdentityKey(project, options);
+    const group = groups.get(identity);
+    if (group) group.push(project);
+    else groups.set(identity, [project]);
+  }
+  // Sidebar order determines the group's display position, never its keeper.
+  // Prepending a fresh re-add must not replace the original configured project.
+  for (const group of groups.values()) {
+    const [original, ...duplicates] = group.toSorted(compareProjectAge);
+    let canonical = original!;
+    for (const duplicate of duplicates) {
+      canonical = mergeProjectSettings(canonical, duplicate);
+      if (duplicate.id !== canonical.id) duplicateIds.set(duplicate.id, canonical.id);
     }
+    unique.push(canonical);
   }
   return { projects: unique, duplicateIds };
+}
+
+function compareProjectAge(left: Project, right: Project): number {
+  const age = (project: Project) => {
+    const timestamp = Date.parse(project.createdAt);
+    return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
+  };
+  const leftAge = age(left);
+  const rightAge = age(right);
+  if (leftAge !== rightAge) return leftAge < rightAge ? -1 : 1;
+  // Equal or malformed legacy timestamps still produce a stable keeper when reordered.
+  return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
 }
 
 export function findProjectLocationConflict(

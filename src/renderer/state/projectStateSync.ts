@@ -1,4 +1,4 @@
-import type { Project } from "@/shared/contracts";
+import type { Project, Thread } from "@/shared/contracts";
 import { dedupeProjects, projectIdentityKey } from "@/shared/projectIdentity";
 import { remapPaneId } from "@/shared/projectReferences";
 import { useAppStore } from "./appStore";
@@ -15,7 +15,10 @@ import {
 } from "./projectReferences";
 
 /** Apply an authoritative project snapshot and transfer every reference to repaired IDs. */
-export function applyProjectStateSnapshot(projects: Project[]): void {
+export function applyProjectStateSnapshot(
+  projects: Project[],
+  recoveredThreads: Thread[] = [],
+): void {
   const options = currentProjectIdentityOptions();
   const deduped = dedupeProjects(projects, options);
   const canonicalByIdentity = new Map(
@@ -34,7 +37,15 @@ export function applyProjectStateSnapshot(projects: Project[]): void {
   );
   useAppStore.setState((state) => ({
     projects: deduped.projects,
-    threads: remapThreadProjectIds(state.threads, duplicateIds),
+    threads: remapThreadProjectIds(
+      [
+        ...state.threads,
+        ...recoveredThreads.filter(
+          (recovered) => !state.threads.some((thread) => thread.id === recovered.id),
+        ),
+      ],
+      duplicateIds,
+    ),
     view: remapProjectView(state.view, duplicateIds),
     focusedPaneId: state.focusedPaneId ? remapPaneId(state.focusedPaneId, duplicateIds) : null,
     groupLayouts: remapProjectGroupLayouts(state.groupLayouts, duplicateIds),

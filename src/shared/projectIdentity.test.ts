@@ -19,7 +19,7 @@ describe("project identity", () => {
     );
   });
 
-  it("deduplicates equal local locations while preserving the first row", () => {
+  it("deduplicates equal local locations with a stable keeper when dates match", () => {
     const result = dedupeProjects([project("first", "C:\\repo"), project("second", "c:/REPO/")]);
     expect(result.projects.map((item) => item.id)).toEqual(["first"]);
     expect(result.duplicateIds.get("second")).toBe("first");

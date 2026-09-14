@@ -450,8 +450,8 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       }),
       // Main-process project mutations must reach this whole-store snapshot
       // before its next dbSyncAll persistence write.
-      readBridge().onProjectStateChanged(({ projects }) => {
-        applyProjectStateSnapshot(projects);
+      readBridge().onProjectStateChanged(({ projects, recoveredThreads }) => {
+        applyProjectStateSnapshot(projects, recoveredThreads);
       }),
       readBridge().onGitStateChanged((patch) => {
         useGitReadModelStore.getState().applyPatch(patch);

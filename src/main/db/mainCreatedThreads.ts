@@ -1,6 +1,6 @@
 /**
- * Thread rows main inserted itself — remote `start` commands, schedules,
- * orchestrator launches — that the renderer's store has not mirrored yet.
+ * Thread rows main inserted or recovered — remote `start` commands, schedules,
+ * orchestrator launches, duplicate repair — that the renderer has not mirrored yet.
  *
  * The renderer persists its whole store through `dbSyncAll`, which deletes every
  * thread row missing from that snapshot. A main-created row is missing from it
@@ -15,6 +15,11 @@ const unmirroredThreadIds = new Set<string>();
 
 export function noteMainCreatedThread(threadId: string): void {
   unmirroredThreadIds.add(threadId);
+}
+
+/** Repair broadcasts are asynchronous; protect recovered rows through every queued save until echoed. */
+export function noteRecoveredThreads(threadIds: Iterable<string>): void {
+  for (const threadId of threadIds) unmirroredThreadIds.add(threadId);
 }
 
 export function forgetMainCreatedThread(threadId: string): void {

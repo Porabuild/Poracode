@@ -73,8 +73,21 @@ describe("appStore runtime config sync", () => {
   });
 
   it("repairs persisted duplicate projects and rehomes their threads", () => {
-    const first = useAppStore.getState().addProject({ kind: "posix", path: "/repo" });
-    const duplicate = { ...first, id: "duplicate", name: "Duplicate" };
+    const first = {
+      ...useAppStore.getState().addProject({ kind: "posix", path: "/repo" }),
+      createdAt: "2024-01-01T00:00:00.000Z",
+      scripts: {
+        setupScript: "custom setup",
+        actions: [{ id: "test", name: "Test", command: "test" }],
+      },
+    };
+    const duplicate = {
+      ...first,
+      id: "duplicate",
+      name: "Duplicate",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      scripts: { setupScript: "auto-detected setup", actions: [] },
+    };
     const thread = useAppStore.getState().createThread({
       projectId: first.id,
       agentKind: "codex",
@@ -84,7 +97,7 @@ describe("appStore runtime config sync", () => {
     const merge = useAppStore.persist.getOptions().merge!;
     const hydrated = merge(
       {
-        projects: [first, duplicate],
+        projects: [duplicate, first],
         threads: [{ ...thread, projectId: duplicate.id }],
         view: { kind: "draft", projectId: duplicate.id },
       },
@@ -92,6 +105,7 @@ describe("appStore runtime config sync", () => {
     ) as AppStoreState;
 
     expect(hydrated.projects.map((project) => project.id)).toEqual([first.id]);
+    expect(hydrated.projects[0]?.scripts).toEqual(first.scripts);
     expect(hydrated.threads[0]?.projectId).toBe(first.id);
     expect(hydrated.view).toEqual({ kind: "draft", projectId: first.id });
   });

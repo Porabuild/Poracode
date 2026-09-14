@@ -147,6 +147,66 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     ]);
   });
 
+  it("recovers an omitted original's settings and unseen transcript, then allows settings to be cleared", () => {
+    const original = {
+      ...project,
+      scripts: {
+        setupScript: "custom setup",
+        actions: [{ id: "test", name: "Test", command: "test" }],
+      },
+      searchSettings: { useIgnoreFiles: false },
+    };
+    const duplicate: Project = {
+      ...project,
+      id: "newest",
+      createdAt: "2027-01-01T00:00:00.000Z",
+      scripts: { setupScript: "auto-detected setup", actions: [] },
+    };
+    dbUpsertProject(original, 1);
+    dbUpsertProject(duplicate, 0);
+    const originalThread = remoteStartedThread();
+    dbUpsertThread(originalThread, 0);
+    persistLaunchUserMessage(originalThread.id);
+    // An older renderer already dropped the original row from its snapshot.
+    dbSyncAll([duplicate], [], JSON.stringify({ kind: "draft", projectId: duplicate.id }));
+    expect(dbGetProjects()).toEqual([original]);
+    expect(dbGetThreadRuntimeItems(originalThread.id)).toHaveLength(1);
+    expect(JSON.parse(dbGetState("view")!)).toEqual({ kind: "draft", projectId: original.id });
+
+    const cleared = { ...project, createdAt: original.createdAt };
+    dbSyncAll([cleared], [originalThread], JSON.stringify({ kind: "home" }));
+    expect(dbGetProjects()).toEqual([cleared]);
+    // Once repaired, ordinary renderer deletions are still authoritative.
+    dbSyncAll([], [], JSON.stringify({ kind: "home" }));
+    expect(dbGetProjects()).toEqual([]);
+    expect(dbGetThreadRuntimeItems(originalThread.id)).toEqual([]);
+  });
+
+  it.each([false, true])(
+    "merges settings before dropping incoming or persisted duplicates (incoming=%s)",
+    (incoming) => {
+      const duplicate: Project = {
+        ...project,
+        id: "newest",
+        createdAt: "2026-02-01T00:00:00.000Z",
+        scripts: {
+          cleanupScript: "cleanup",
+          actions: [{ id: "test", name: "Test", command: "test" }],
+        },
+        searchSettings: { useIgnoreFiles: false },
+      };
+      dbUpsertProject(duplicate, 0);
+      dbSyncAll(incoming ? [duplicate, project] : [project], [], JSON.stringify({ kind: "home" }));
+      expect(dbGetProjects()).toEqual([
+        {
+          ...project,
+          scripts: duplicate.scripts,
+          searchSettings: duplicate.searchSettings,
+        },
+      ]);
+    },
+  );
+
   it("recreates a missing canonical row before rehoming and preserves an unseen thread once", () => {
     dbDeleteProject(project.id);
     const duplicate: Project = {
@@ -196,7 +256,11 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
   });
 
   it("keeps both documents and to-do lists when duplicate projects have populated notes", () => {
-    const duplicate = { ...project, id: "duplicate-with-notes" };
+    const duplicate = {
+      ...project,
+      id: "duplicate-with-notes",
+      createdAt: "2027-01-01T00:00:00.000Z",
+    };
     dbUpsertProject(duplicate, 1);
     const paragraph = (text: string) => ({ type: "paragraph", content: [{ type: "text", text }] });
     const todo = (text: string) => ({
@@ -256,7 +320,11 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     "reconciles colliding PR watches while preserving their fix threads: $preferred/$paused",
     (scenario) => {
       const { canonicalActive, duplicateActive, preferred, paused } = scenario;
-      const duplicate = { ...project, id: "duplicate-with-watch" };
+      const duplicate = {
+        ...project,
+        id: "duplicate-with-watch",
+        createdAt: "2027-01-01T00:00:00.000Z",
+      };
       dbUpsertProject(duplicate, 1);
       const threads = [
         { ...remoteStartedThread(), id: "watch-canonical", projectId: project.id },
