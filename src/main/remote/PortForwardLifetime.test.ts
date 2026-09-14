@@ -55,10 +55,10 @@ interface LifetimeBox {
  * each scenario fills with a real one (or a pre-aborted signal). */
 async function startProxyEdge(box: LifetimeBox) {
   const server = createServer((req, res) => {
-    proxyForwardedHttpRequest(req, res, box.lifetime!);
+    void proxyForwardedHttpRequest(req, res, box.lifetime!);
   });
   server.on("upgrade", (req, socket, head) => {
-    proxyForwardedWebSocketUpgrade(req, socket, head, box.lifetime!);
+    void proxyForwardedWebSocketUpgrade(req, socket, head, box.lifetime!);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   cleanup.push(async () => {

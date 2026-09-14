@@ -21,7 +21,7 @@ import {
 
 const execute = promisify(execFile);
 
-test("the frozen renderer serves pinned assets without checkout tooling or dependencies", async () => {
+void test("the frozen renderer serves pinned assets without checkout tooling or dependencies", async () => {
   const root = await mkdtemp(join(tmpdir(), "poracode-frozen-renderer-"));
   let child;
   try {
@@ -58,7 +58,7 @@ test("the frozen renderer serves pinned assets without checkout tooling or depen
   }
 });
 
-test("a lazy supervisor restart keeps session A's compiled revision after checkout rebuild and session B teardown", async () => {
+void test("a lazy supervisor restart keeps session A's compiled revision after checkout rebuild and session B teardown", async () => {
   const temporary = await mkdtemp(join(tmpdir(), "poracode-runtime-isolation-"));
   const repoRoot = join(temporary, "checkout");
   const rootA = join(temporary, "session-a");
@@ -133,7 +133,7 @@ test("a lazy supervisor restart keeps session A's compiled revision after checko
   }
 });
 
-test(
+void test(
   "repairs a missing Electron binary inside the copied graph and strips external runtime overrides",
   { skip: process.platform === "win32" },
   async () => {
@@ -201,7 +201,7 @@ test(
   },
 );
 
-test("copies dependency versions and native files so a checkout dependency update cannot alter lazy loads", async () => {
+void test("copies dependency versions and native files so a checkout dependency update cannot alter lazy loads", async () => {
   const { copyRuntimeDependencies } = await import("./smoke-runtime-files.mjs");
   const temporary = await mkdtemp(join(tmpdir(), "poracode-native-isolation-"));
   const repoRoot = join(temporary, "checkout");
@@ -242,7 +242,7 @@ test("copies dependency versions and native files so a checkout dependency updat
   }
 });
 
-test("legacy sessions remain readable for explicit teardown and cannot claim isolated runtime verification", async () => {
+void test("legacy sessions remain readable for explicit teardown and cannot claim isolated runtime verification", async () => {
   const { readDebugSession } = await import("./poracode-debug-session.mjs");
   const root = await mkdtemp(join(tmpdir(), "poracode-legacy-session-"));
   try {

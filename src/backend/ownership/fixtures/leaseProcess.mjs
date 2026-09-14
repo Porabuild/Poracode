@@ -9,7 +9,11 @@ try {
   process.send({ status: "refused", code: error.code, message: error.message });
 }
 
-process.on("message", async (message) => {
+process.on("message", (message) => {
+  void handleMessage(message);
+});
+
+async function handleMessage(message) {
   if (message === "abandon") {
     lease = undefined;
     for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -21,7 +25,7 @@ process.on("message", async (message) => {
   }
   lease?.release();
   process.exit(0);
-});
+}
 process.on("disconnect", () => {
   lease?.release();
   process.exit(0);

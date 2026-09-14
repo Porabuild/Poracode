@@ -363,9 +363,13 @@ export class SupervisorClient {
     for (const threadId of this.threadMutationTails.keys()) {
       this.cancelQueuedThreadMutations(threadId);
     }
-    this.disposePromise = this.stop(new Error("Supervisor exited")).finally(() =>
-      this.drainThreadMutations(),
-    );
+    this.disposePromise = (async () => {
+      try {
+        await this.stop(new Error("Supervisor exited"));
+      } finally {
+        await this.drainThreadMutations();
+      }
+    })();
     return this.disposePromise;
   }
 

@@ -115,7 +115,7 @@ function createDurable(
 }
 
 describe("headless routing durability", () => {
-  it("still confirms a persistence failure if diagnostic reporting itself throws", () => {
+  it("still confirms a persistence failure if diagnostic reporting itself throws", async () => {
     const error = new Error("Fixture persistence failed");
     const confirm = vi.fn<() => Promise<null>>(async () => null);
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -143,7 +143,7 @@ describe("headless routing durability", () => {
         error: error.message,
       });
     } finally {
-      durable.dispose();
+      await durable.dispose();
       warning.mockRestore();
     }
   });
@@ -184,7 +184,7 @@ describe("headless routing durability", () => {
       expect(reportError).toHaveBeenCalledExactlyOnceWith(error);
     } finally {
       persistence.dispose();
-      durable.dispose();
+      await durable.dispose();
     }
   });
 
@@ -210,7 +210,7 @@ describe("headless routing durability", () => {
       ).toBe(true);
       await vi.waitFor(() => expect(reportError).toHaveBeenCalledExactlyOnceWith(error));
     } finally {
-      durable.dispose();
+      await durable.dispose();
     }
   });
 
@@ -255,7 +255,7 @@ describe("headless routing durability", () => {
       expect(confirm).toHaveBeenCalledTimes(2);
     } finally {
       persistence.dispose();
-      durable.dispose();
+      await durable.dispose();
       rmSync(root, { recursive: true, force: true });
     }
   });

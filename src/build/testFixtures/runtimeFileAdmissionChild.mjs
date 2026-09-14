@@ -1,7 +1,11 @@
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-process.once("message", async (spec) => {
+process.once("message", (spec) => {
+  void handleMessage(spec);
+});
+
+async function handleMessage(spec) {
   try {
     const module = spec.kind.startsWith("archive")
       ? // eslint-disable-next-line import/no-dynamic-require -- parent names the actual fixture-compiled helper
@@ -27,4 +31,4 @@ process.once("message", async (spec) => {
   } catch (error) {
     process.send({ kind: "bootstrap-error", error: String(error) }, () => process.disconnect());
   }
-});
+}

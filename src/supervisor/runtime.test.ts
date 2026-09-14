@@ -64,6 +64,7 @@ import { SupervisorRuntime } from "./supervisorRuntime";
 
 const tempDirs: string[] = [];
 const runtimesToDispose: SupervisorRuntime[] = [];
+const ptyExitCleanups: Array<() => void> = [];
 const poracodeDataDirBeforeTests = process.env.PORACODE_DATA_DIR;
 
 function makeTempDir(): string {
@@ -78,36 +79,25 @@ function makeRuntime(emit: ConstructorParameters<typeof SupervisorRuntime>[0]): 
   return runtime;
 }
 
-afterEach(() => {
-  // Dispose any runtimes the test created so their owned services (LSP
-  // manager, project watcher, session manager, hook coordinator) stop
-  // scheduling async work. Without this, lingering operations can log to
-  // console after the test file completes — vitest's worker IPC then
-  // rejects the queued `onUserConsoleLog` forward as it tears down,
-  // surfacing as an unhandled rejection that fails the CI run.
-  for (const runtime of runtimesToDispose.splice(0)) {
-    try {
-      runtime.dispose();
-    } catch {
-      // best-effort cleanup
+afterEach(async () => {
+  // Fake PTYs have no native process to report exit during shutdown.
+  for (const emitExit of ptyExitCleanups.splice(0)) emitExit();
+  try {
+    // Join owned services before restoring mocks or removing their files.
+    for (const runtime of runtimesToDispose.splice(0)) await runtime.disposeAsync();
+  } finally {
+    // Node coerces an assigned undefined env value into the string "undefined".
+    if (poracodeDataDirBeforeTests === undefined) {
+      delete process.env.PORACODE_DATA_DIR;
+    } else {
+      process.env.PORACODE_DATA_DIR = poracodeDataDirBeforeTests;
     }
-  }
-  // Restoring an env var to `undefined` coerces it to the literal string
-  // "undefined" (Node stringifies anything assigned to `process.env.X`).
-  // That bug used to cause the supervisor to resolve its baseDir as the
-  // string "undefined" and create `./undefined/settings.json` in cwd on
-  // the next `SupervisorRuntime` construction. Use `delete` when the
-  // original value was absent; assign otherwise.
-  if (poracodeDataDirBeforeTests === undefined) {
-    delete process.env.PORACODE_DATA_DIR;
-  } else {
-    process.env.PORACODE_DATA_DIR = poracodeDataDirBeforeTests;
-  }
-  taskkillSpawnSyncMock.mockReset();
-  ptySpawnMock.mockReset();
-  appendFileMock.mockReset();
-  for (const dir of tempDirs.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
+    taskkillSpawnSyncMock.mockReset();
+    ptySpawnMock.mockReset();
+    appendFileMock.mockReset();
+    for (const dir of tempDirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
   }
 });
 
@@ -115,7 +105,7 @@ function createMockPty() {
   let onDataHandler: ((data: string) => void) | undefined;
   let onExitHandler: ((event: { exitCode: number | null }) => void) | undefined;
 
-  return {
+  const pty = {
     pid: 4242,
     write: vi.fn<(data: string) => void>(),
     resize: vi.fn<(cols: number, rows: number) => void>(),
@@ -130,9 +120,13 @@ function createMockPty() {
       onDataHandler?.(data);
     },
     emitExit(exitCode: number | null) {
-      onExitHandler?.({ exitCode });
+      const handler = onExitHandler;
+      onExitHandler = undefined;
+      handler?.({ exitCode });
     },
   };
+  ptyExitCleanups.push(() => pty.emitExit(0));
+  return pty;
 }
 
 function decodeSpawnCommand(spawnArgs: string[]): string {

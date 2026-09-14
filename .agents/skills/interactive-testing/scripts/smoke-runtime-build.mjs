@@ -79,10 +79,10 @@ async function prepareResources(repoRoot, appRoot) {
   await mkdir(join(appRoot, "resources"), { recursive: true });
   const nativeBuildDir = join(appRoot, ".native-build");
   try {
-    for (const [script, args] of [
-      ["prepare-wsl-helpers.mjs", []],
-      ["prepare-agent-plugins.mjs", []],
-      ["prepare-computer-use-helper.mjs", ["--host-only", "--dev", "--force"]],
+    for (const { script, args } of [
+      { script: "prepare-wsl-helpers.mjs", args: [] },
+      { script: "prepare-agent-plugins.mjs", args: [] },
+      { script: "prepare-computer-use-helper.mjs", args: ["--host-only", "--dev", "--force"] },
     ]) {
       const result = await execute(process.execPath, [join(appRoot, "scripts", script), ...args], {
         cwd: appRoot,
