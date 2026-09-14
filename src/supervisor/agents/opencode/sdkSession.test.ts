@@ -837,8 +837,9 @@ describe("OpencodeSdkSession", () => {
     await session.dispose();
   });
 
-  it("forwards retry session status to listener and emits error runtime event", async () => {
+  it("forwards retry session status to listener and emits only a warning runtime event", async () => {
     const runtimeEvents: RuntimeEvent[] = [];
+    const onError = vi.fn<(message: string) => void>();
     const updates: Array<{ status?: string; attention?: string; errorMessage?: string }> = [];
     const wrappedEvents = [
       { payload: serverConnectedEvent() },
@@ -890,7 +891,7 @@ describe("OpencodeSdkSession", () => {
     });
     session.setListener({
       onClose: () => {},
-      onError: () => {},
+      onError,
       onUpdate: (upd) => updates.push(upd),
       onRuntimeEvent: (event) => runtimeEvents.push(event),
     });
@@ -900,7 +901,7 @@ describe("OpencodeSdkSession", () => {
 
     await vi.waitFor(() => {
       // Retry is a transient working state — the detail lives in the
-      // transcript error row, never as a sticky thread errorMessage.
+      // warning event, never as an error row or sticky thread errorMessage.
       expect(updates).toContainEqual(
         expect.objectContaining({
           status: "working",
@@ -908,11 +909,15 @@ describe("OpencodeSdkSession", () => {
         }),
       );
       expect(runtimeEvents).toContainEqual({
-        type: "error",
+        type: "warning",
         threadId: "thread-opencode",
         message: "Rate limit exceeded. Please try again later.",
       });
     });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(runtimeEvents.some((event) => event.type === "error")).toBe(false);
+    expect(updates.some((update) => update.status === "error" || update.errorMessage)).toBe(false);
 
     await session.dispose();
   });
