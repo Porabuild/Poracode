@@ -173,6 +173,8 @@ jobs:
     needs: android
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      ANDROID_AVD_HOME: ${{ runner.temp }}/poracode-api37-avd
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -214,6 +216,7 @@ jobs:
         # the first profile the installed image actually ships. The boot helper
         # reuses this AVD without recreating it.
         run: |
+          mkdir -p "$ANDROID_AVD_HOME"
           sdkmanager "system-images;android-37.0;google_apis;x86_64" > /dev/null
           avdmanager list device | sed -n 's/^id: \([0-9]*\) or "\(.*\)"$/\2/p' | grep -i '^pixel' | head -20 || true
           for device in pixel_9 pixel_9_pro pixel_9_pro_xl pixel_8 pixel_7 pixel_6 pixel; do
@@ -221,6 +224,8 @@ jobs:
               -n poracode-pixel9-api37 \
               -k "system-images;android-37.0;google_apis;x86_64" \
               --device "$device"; then
+              test -f "$ANDROID_AVD_HOME/poracode-pixel9-api37.ini"
+              "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx poracode-pixel9-api37
               echo "Created poracode-pixel9-api37 with device profile: $device"
               exit 0
             fi
