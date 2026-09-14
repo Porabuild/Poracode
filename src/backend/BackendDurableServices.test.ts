@@ -143,8 +143,11 @@ describe("headless routing durability", () => {
         error: error.message,
       });
     } finally {
-      await durable.dispose();
-      warning.mockRestore();
+      try {
+        await durable.dispose();
+      } finally {
+        warning.mockRestore();
+      }
     }
   });
 

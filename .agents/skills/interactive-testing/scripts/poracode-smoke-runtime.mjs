@@ -198,6 +198,7 @@ export function smokeRuntimeEnvironment(env) {
   const cleanEnv = { ...env };
   delete cleanEnv.ELECTRON_RUN_AS_NODE;
   delete cleanEnv.ELECTRON_OVERRIDE_DIST_PATH;
+  delete cleanEnv.ELECTRON_SKIP_BINARY_DOWNLOAD;
   delete cleanEnv.NODE_PATH;
   delete cleanEnv.NODE_OPTIONS;
   delete cleanEnv.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;

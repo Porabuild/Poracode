@@ -1,4 +1,4 @@
-import type { ProjectLocation, RuntimeEvent } from "@/shared/contracts";
+import type { ProjectLocation, RuntimeEvent, SessionRef } from "@/shared/contracts";
 import {
   resolveAgentProjectLocation,
   type StructuredSessionHandle,
@@ -19,6 +19,10 @@ export interface AttemptExecutionState {
   turnDispatched: boolean;
   /** The initial turn has been acknowledged, so native steering cannot launch a second one. */
   steerReady: boolean;
+  /** Captured provider identity survives process disposal for a completed follow-up. */
+  sessionRef?: SessionRef;
+  /** Reopen exactly this session; never silently replace it with a fresh conversation. */
+  resumeSessionRef?: SessionRef;
 }
 
 interface AttemptCallbacks {
@@ -134,6 +138,7 @@ export class SubagentAttemptRunner {
             projectLocation,
             config,
             presentationMode: "gui",
+            ...(state.resumeSessionRef ? { sessionRef: state.resumeSessionRef } : {}),
             // Same contract as SpawnPipeline.createStructuredSession: the shared
             // runtime — not the provider — supplies `baseSpawnEnv`, so a structured
             // subagent child spawns with the provider's updater/telemetry opt-outs.
@@ -164,18 +169,39 @@ export class SubagentAttemptRunner {
           callbacks.onSettle("failed", "Subagent session closed before the turn completed"),
         onError: (message) => callbacks.onSettle("failed", message),
         onUpdate: (update) => {
+          if (callbacks.isActive() && update.sessionRef) state.sessionRef = update.sessionRef;
           if (callbacks.isActive() && update.status === "working") callbacks.onWorking();
           if (callbacks.isActive() && state.turnStarted && update.status === "idle") {
             callbacks.onSettle("completed");
           }
         },
-        onRuntimeEvent: callbacks.onRuntimeEvent,
+        // Opening a resumed session can replay history. Only the new turn belongs
+        // to this run's result, cursor and synthetic tile.
+        onRuntimeEvent: (event) => {
+          if (state.turnDispatched) callbacks.onRuntimeEvent(event);
+        },
       });
 
       if (!callbacks.isActive() || state.cancelRequested) return;
       if (handle.activate) await this.runStartup(state, () => handle.activate!());
       if (!callbacks.isActive() || state.cancelRequested) return;
-      if (handle.openThread) await this.runStartup(state, () => handle.openThread!(config));
+      if (state.resumeSessionRef && !handle.openThread) {
+        throw new Error("This subagent cannot reopen its completed session");
+      }
+      if (handle.openThread) {
+        await this.runStartup(state, async () => {
+          const sessionId = await handle.openThread!(config, state.resumeSessionRef);
+          if (state.resumeSessionRef && sessionId !== state.resumeSessionRef.providerSessionId) {
+            throw new Error("Subagent resumed a different session; follow-up was not sent");
+          }
+          if (sessionId) {
+            state.sessionRef = {
+              providerSessionId: sessionId,
+              discoveredAt: new Date().toISOString(),
+            };
+          }
+        });
+      }
       if (!callbacks.isActive() || state.cancelRequested) return;
       if (!handle.startTurn) {
         callbacks.onSettle("failed", "Subagent session cannot start a turn");

@@ -204,33 +204,22 @@ jobs:
           cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Install Android 17 SDK
-        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0" "emulator"
+        run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
 
-      - name: Pin the emulator to 36.6.11
-        # The 37.x emulator's gfxstream backend advertises the
-        # ReadColorBufferDMA capability to the guest, while this image's
-        # surfaceflinger asserts it must be absent
-        # ("!rcEnc->featureInfo()->hasReadColorBufferDma") and crashes in a
-        # loop. The repository only serves the latest emulator, so fetch the
-        # last stable build directly. Un-pin once the image or emulator fix
-        # ships.
-        run: |
-          curl -fsSLo "$RUNNER_TEMP/emulator-36.6.11.zip" \
-            https://dl.google.com/android/repository/emulator-linux_x64-15507667.zip
-          rm -rf "$ANDROID_HOME/emulator"
-          unzip -q "$RUNNER_TEMP/emulator-36.6.11.zip" -d "$ANDROID_HOME"
-          "$ANDROID_HOME/emulator/emulator" -version | head -1
+      - name: Build Android runtime APKs before boot
+        working-directory: android
+        run: ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon --stacktrace
 
       - name: Pre-create the API 37 AVD with a fallback device profile
         # The runner's system-image package occasionally drops device profiles
         # (seen persistently with pixel_9 since 2026-09-12): avdmanager then
         # fails with "No device found matching --device pixel_9" and the boot
         # dies on "5554: Connection refused". Create the AVD ourselves against
-        # the first profile the installed image actually ships. The boot helper
-        # reuses this AVD without recreating it.
+        # the first profile the installed image actually ships; the emulator
+        # runner below reuses it (force-avd-creation: false).
         run: |
-          export ANDROID_AVD_HOME="$RUNNER_TEMP/poracode-api37-avd"
-          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          # Match the emulator action's SDK installer, which resets this path.
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
           mkdir -p "$ANDROID_AVD_HOME"
           sdkmanager "system-images;android-37.0;google_apis;x86_64" > /dev/null
           avdmanager list device | sed -n 's/^id: \([0-9]*\) or "\(.*\)"$/\2/p' | grep -i '^pixel' | head -20 || true
@@ -239,8 +228,6 @@ jobs:
               -n poracode-pixel9-api37 \
               -k "system-images;android-37.0;google_apis;x86_64" \
               --device "$device"; then
-              test -f "$ANDROID_AVD_HOME/poracode-pixel9-api37.ini"
-              "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx poracode-pixel9-api37
               echo "Created poracode-pixel9-api37 with device profile: $device"
               exit 0
             fi
@@ -256,7 +243,25 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       - name: Boot Android 17, install, launch, and run required instrumentation
-        run: node scripts/ci-android-emulator.mjs poracode-pixel9-api37 bash scripts/ci-android-api37.sh
+        uses: ReactiveCircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
+        with:
+          api-level: "37.0"
+          target: google_apis
+          arch: x86_64
+          avd-name: poracode-pixel9-api37
+          force-avd-creation: false
+          cores: 2
+          ram-size: 4096M
+          heap-size: 512M
+          # Leave room for the APK, test APK, and API 37 package-install staging.
+          disk-size: 6G
+          # API 37's mapper requires read-color-buffer DMA. The host advertises
+          # it only with both direct memory and the shared-slot allocator enabled.
+          emulator-options: -no-window -gpu software -feature GLDirectMem,HasSharedSlotsHostMemoryAllocator -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          working-directory: android
+          # The action runs every script line in a separate shell.
+          script: bash ../scripts/ci-android-api37.sh
 
       - name: Upload Android 17 runtime evidence
         if: ${{ always() }}
@@ -265,9 +270,7 @@ jobs:
           name: android-api37-runtime-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/android-api37-launch.txt
-            ${{ runner.temp }}/android-emulator-logcat.txt
             ${{ runner.temp }}/android-api37-logcat.txt
-            ${{ runner.temp }}/android-api37-logcat-before-clear.txt
             ${{ runner.temp }}/android-wire-lab.stderr
             android/app/build/outputs/androidTest-results/**
             android/app/build/reports/androidTests/**

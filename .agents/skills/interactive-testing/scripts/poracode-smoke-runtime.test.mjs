@@ -179,6 +179,7 @@ void test(
         PORACODE_BETTER_SQLITE3_NATIVE_BINDING: "/outside/sqlite.node",
         PORACODE_EXAMPLE_PLUGIN_SOURCE: "/outside/plugin",
         ELECTRON_OVERRIDE_DIST_PATH: "/outside/electron",
+        ELECTRON_SKIP_BINARY_DOWNLOAD: "1",
         ELECTRON_RUN_AS_NODE: "1",
         NODE_PATH: "/outside/modules",
         NODE_OPTIONS: "--require=/outside/hook.cjs",

@@ -906,9 +906,8 @@ export class OpenCode2Session implements StructuredSessionHandle {
         return;
       }
       case "session.status": {
-        // `retry` carries `{ attempt, message, action }` detail that thread
-        // updates have no clearable field for; the transcript's error rows
-        // (from `session.retry.scheduled`) carry it instead.
+        // Retrying keeps the turn working; session.retry.scheduled emits a
+        // non-fatal warning, while step/execution failures own error rows.
         const next: { status: ThreadStatus; attention: ThreadAttention } =
           event.data.status.type === "idle"
             ? { status: "idle", attention: "none" }

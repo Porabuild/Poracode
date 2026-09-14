@@ -54,16 +54,18 @@ interface LifetimeBox {
  * every request/upgrade is handed to the proxy with the boxed lifetime, which
  * each scenario fills with a real one (or a pre-aborted signal). */
 async function startProxyEdge(box: LifetimeBox) {
+  const pending: Promise<void>[] = [];
   const server = createServer((req, res) => {
-    void proxyForwardedHttpRequest(req, res, box.lifetime!);
+    pending.push(proxyForwardedHttpRequest(req, res, box.lifetime!));
   });
   server.on("upgrade", (req, socket, head) => {
-    void proxyForwardedWebSocketUpgrade(req, socket, head, box.lifetime!);
+    pending.push(proxyForwardedWebSocketUpgrade(req, socket, head, box.lifetime!));
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   cleanup.push(async () => {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
+    await Promise.all(pending);
   });
   const port = (server.address() as AddressInfo).port;
   return {

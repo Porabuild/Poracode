@@ -635,7 +635,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       }
     }
     if (sessionRef) {
-      void this.syncRemoteThreadState(threadId, toSessionRef(threadId));
+      // Finish the resume snapshot before admitting a new turn. A late idle
+      // snapshot would otherwise clear that turn's active state and stop it.
+      await this.syncRemoteThreadState(threadId, toSessionRef(threadId));
     }
 
     return threadId;

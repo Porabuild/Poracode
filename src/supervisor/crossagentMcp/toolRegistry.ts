@@ -37,6 +37,7 @@ import {
 import { parseRunIds, parseSpawnRequests } from "./toolRequests";
 import { resolveSelectionArgs, spawnAgent } from "./toolSpawn";
 import { dispatchWorkflow } from "./toolWorkflow";
+import { steerAgent } from "./toolSteer";
 import { rankingCandidateOf, resolveSubagentExecution } from "./types";
 import type {
   McpToolResult,
@@ -74,19 +75,12 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
 
 const CROSSAGENTS_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("crossagents");
 
-/** Base routing guidance always included in the MCP `initialize` instructions. */
+/** Keep bootstrap small: some clients repeat initialize instructions in every tool description. */
 export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
-  `Before the first delegation, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} for workflow and verification guidance.`,
-  "Delegate only after an explicit user ask in this thread; it authorizes the rest of the thread. Before that, never spawn subagents on your own initiative.",
-  "Resolve tool names against this server (e.g. crossagents__list_agents), never the same bare name under another server.",
-  "Pass 1-5 task tags to list_agents and spawn_agent. Omit unspecified provider/model/reasoning/fast to use configured and learned routing; explicit selections win. get_agent supplies model and reasoning values. Change persistent routing preferences only on clear user intent.",
-  "Always set name on each task to describe its work; omit selection details because Crossagents appends those automatically. Give self-contained context, exact file/resource ownership, acceptance checks and a concise evidence-backed outcome. Children do not share your conversation. No overlapping writes; validate their work.",
-  `spawn_agent waits by default; tasks launches up to ${MAX_CONCURRENT_CHILDREN_PER_PARENT} independent agents together, also the running limit per parent. background=true returns immediately and never injects a new message into the parent. Runs survive parent-turn interruption but stop when its thread closes.`,
-  "At synchronization, batch required run_ids in wait_for_agent. Do not end your turn or promise a later report while required runs are still running; background completion never wakes you. Waits default to 240 seconds, also the transport-safety cap; keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because a wait timed out. Cancel only at user request or when work is no longer needed for reasons unrelated to elapsed time.",
-  "Wait/status/spawn reads default to output_mode=quiet, suppressing running narration without consuming unread evidence; errors and pending request counts remain visible. Settled output is unchanged. This reduces payload, not parent wakeups. Progress remains in the UI/logs. Pass total_output_chars back as after_output_chars (or after_output_chars_by_run for batches); full_output=true retrieves complete output. Legacy progress output clips running/settled tails at 1000/16000 characters.",
-  "Prefer result_mode=compact on spawn_agent: the worker authors its final report; default reads return it without consuming transcript evidence. Invalid reports surface result_error. full_output retrieves retained evidence; output_mode=progress restores narration. For known dependencies, run_workflow validates and schedules stages, forwards compact reports and returns sink/blocking reports. Use its action wait/status/cancel/list with workflow_id. Foreground start waits; background=true is for useful independent work. Workflows are memory-only and never resume the parent automatically.",
-  "list_runs include_capacity=true reports available_slots, not a reservation. wait_mode=any returns when one run settles; next wait includes only remaining running IDs. steer_agent is for new evidence, constraints or conflicts, not repeated status requests.",
-  "Fallback retries default to startup-only. retry_on=any-failure may repeat side effects and needs explicit justification and authority. Child permissions must stay within the user's authorized scope.",
+  "Delegate only after the user's explicit request in this thread; authorization persists.",
+  `Before first delegation, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} once using its known path or ID.`,
+  "Resolve crossagents-qualified tool names and only needed schemas together. Reuse loaded instructions and batch independent setup.",
+  "Known selections can spawn directly; use get_agent for missing model details and list_agents only when the provider is unknown.",
 ].join(" ");
 
 export function buildSubagentInstructions(routingGuide?: string): string {
@@ -252,7 +246,7 @@ const RAW_TOOLS: ToolSpec[] = [
         timeout_s: {
           type: "number",
           description:
-            "Max seconds for this call (default and cap 240). Timeout leaves stages running; continue with run_workflow action=wait and workflow_id when results remain required.",
+            "Max seconds for this call (default and cap 480). Returns when the workflow finishes or needs attention. Timeout leaves stages running; continue with run_workflow action=wait and workflow_id when results remain required.",
         },
       },
     },
@@ -260,7 +254,7 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "list_agents",
     description:
-      "List currently spawnable providers in resolved routing order, including task-tag affinity, rank, ranking source, usage count, learned tags, preferred selection, execution lane, default model, and model count. Pass the task's tags here and again to spawn_agent.",
+      "Choose an unknown provider from the ranked roster. Skip when the provider is already known: get_agent supplies its options, or spawn directly with known selection values.",
     inputSchema: {
       type: "object",
       properties: { tags: TASK_TAGS_PROPERTY },
@@ -269,12 +263,16 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "get_agent",
     description:
-      "Get one currently spawnable provider by id, including its task-tag affinity, learned tags, preference and rank, models, model-specific reasoning values, Fast availability, permissions, and execution lane.",
+      "Get one provider's models, reasoning, Fast and permission options directly by ID; no list_agents prerequisite. Supply model to return only that exact model. Skip this call when the required selection values are already known.",
     inputSchema: {
       type: "object",
       required: ["id"],
       properties: {
-        id: { type: "string", description: "Provider id from list_agents." },
+        id: { type: "string", description: "Known provider ID, or one chosen from list_agents." },
+        model: {
+          type: "string",
+          description: "Optional exact model value to limit returned model details.",
+        },
         tags: TASK_TAGS_PROPERTY,
       },
     },
@@ -415,11 +413,23 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "steer_agent",
     description:
-      "Send a follow-up message to a running child owned by this parent, like sending a message to a chat. The child keeps its session and context and continues with your message. Returns once the message is delivered; keep waiting for the child's result.",
+      "Send a follow-up after the complete result, or rarely correct active work. A completed structured worker resumes the same provider session ID and conversation; returns a new run_id with continued_from. Use the new ID for waiting/cancel/steering; old reports and workflows stay unchanged. Only the latest completed run of a resumable worker can continue. Coordinate its write ownership first. Active steering is only for a material requirement, verified invalid assumption or ownership conflict that cannot wait; never for status or reminders. It may interrupt/restart a turn. Waits for the result by default; background=true returns after acceptance. If still running, wait_for_agent on the returned run_id; do not resend.",
     inputSchema: {
       type: "object",
       required: ["run_id", "prompt"],
-      properties: { run_id: { type: "string" }, prompt: { type: "string", minLength: 1 } },
+      properties: {
+        run_id: { type: "string" },
+        prompt: { type: "string", minLength: 1 },
+        background: {
+          type: "boolean",
+          description:
+            "Return accepted when useful independent work remains. Default false waits for the worker result. Accepted does not mean the message has been processed; wait_for_agent on the returned run_id. A completed follow-up starts in the background only when true.",
+        },
+        timeout_s: { type: "number", description: TIMEOUT_S_DESCRIPTION },
+        full_output: FULL_OUTPUT_PROPERTY,
+        output_mode: OUTPUT_MODE_PROPERTY,
+        after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
+      },
     },
   },
   {
@@ -724,10 +734,18 @@ export async function dispatchTool(
       case "get_agent": {
         const id = typeof args.id === "string" ? args.id : "";
         if (!id) return errorResult("id is required");
+        if (args.model !== undefined && (typeof args.model !== "string" || !args.model.trim())) {
+          return errorResult("model must be a non-empty model value");
+        }
         const agent = (await ctx.listSpawnableAgents(normalizeCrossagentTags(args.tags))).find(
           (candidate) => candidate.provider.value === id,
         );
-        return agent ? jsonResult(agent) : errorResult(`Unknown provider id: ${id}`);
+        if (!agent) return errorResult(`Unknown provider id: ${id}`);
+        if (args.model === undefined) return jsonResult(agent);
+        const model = agent.models.find((candidate) => candidate.value === args.model);
+        return model
+          ? jsonResult({ ...agent, models: [model] })
+          : errorResult(`Unknown model value for ${id}: ${args.model}`);
       }
       case "list_routing_preferences":
         return ctx.listRoutingOverrides
@@ -819,14 +837,8 @@ export async function dispatchTool(
         await ctx.runManager.cancel(runId, ctx.parentThreadId);
         return jsonResult({ ok: true });
       }
-      case "steer_agent": {
-        const runId = typeof args.run_id === "string" ? args.run_id : "";
-        const prompt = typeof args.prompt === "string" ? args.prompt : "";
-        if (!runId) return errorResult("run_id is required");
-        if (!prompt.trim()) return errorResult("prompt must not be empty");
-        await ctx.runManager.steer(runId, prompt, ctx.parentThreadId);
-        return jsonResult({ run_id: runId, status: "accepted" });
-      }
+      case "steer_agent":
+        return await steerAgent(args, ctx);
       default:
         return errorResult(`Unknown tool: ${name}`);
     }

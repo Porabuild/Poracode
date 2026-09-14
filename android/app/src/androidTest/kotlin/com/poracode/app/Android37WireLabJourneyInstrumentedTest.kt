@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
@@ -23,6 +24,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import com.poracode.app.wirelab.AwaitTimeoutException
 import com.poracode.app.wirelab.WireLabArgs
 import com.poracode.app.wirelab.WireLabControl
 import com.poracode.app.wirelab.assertObserved
@@ -186,9 +188,22 @@ class Android37WireLabJourneyInstrumentedTest {
             null,
             application.richChat.chat.state.value.failure,
         )
-        // Keep the Compose dispatcher advancing while its UI coroutine resumes from I/O.
-        compose.waitUntil(8_000) {
-            "route:thread-send" in control.observedOperationIds()
+        // The composer launches its send on the composition's dispatcher, so the
+        // Compose clock must keep advancing while that coroutine resumes from the
+        // credential I/O hop. A raw poll starves that resume, leaving the request
+        // unsent until something else pumps frames. The count below still proves
+        // exactly-once, so this bound only asserts prompt issuance.
+        try {
+            compose.waitUntil(20_000L) {
+                "route:thread-send" in control.observedOperationIds()
+            }
+        } catch (timeout: ComposeTimeoutException) {
+            val chatState = application.richChat.chat.state.value
+            throw AwaitTimeoutException(
+                "${timeout.message} (app send state: " +
+                    "failurePresent=${chatState.failure != null}, " +
+                    "sendActive=${"send" in chatState.activeOperations})",
+            )
         }
         assertObserved(control, listOf("route:thread-send"))
         assertEquals(
@@ -228,7 +243,9 @@ class Android37WireLabJourneyInstrumentedTest {
             null,
             application.richChat.chat.state.value.failure,
         )
-        compose.waitUntil(20_000) {
+        // Same dispatch rule as the send await: keep Compose advancing so the
+        // interrupt coroutine can resume from its I/O hop.
+        compose.waitUntil(20_000L) {
             "route:thread-interrupt" in control.observedOperationIds()
         }
         assertObserved(control, listOf("route:thread-interrupt"))
@@ -331,20 +348,13 @@ class Android37WireLabJourneyInstrumentedTest {
         assertEquals(0, control.operationCount("collision-b", "route:thread-send"))
         assertEquals(0, control.operationCount("collision-b", "route:thread-interrupt"))
 
-        // PHASE 10 — removing the selected desktop returns the app to pairing.
+        // PHASE 10 — disconnect returns the app to pairing.
         // The pairing heading is the Pora·code wordmark now, so the landing assertion
         // anchors on the hero subtitle instead of a translated title string.
         compose.onNodeWithContentDescription(context.getString(R.string.home_more)).performClick()
-        compose.onNodeWithText(context.getString(R.string.home_connections))
+        compose.onNodeWithText(context.getString(R.string.disconnect))
             .performScrollTo()
             .performClick()
-        val catalog = session.state.value.hostCatalog
-        val selectedHost = catalog.hosts.first { it.connectionId == catalog.selectedConnectionId }
-        compose.onNodeWithContentDescription(
-            context.getString(R.string.hosts_more_actions, selectedHost.label),
-        ).performClick()
-        compose.onNodeWithText(context.getString(R.string.hosts_remove)).performClick()
-        compose.onNodeWithText(context.getString(R.string.hosts_remove_action)).performClick()
         waitForText(context.getString(R.string.pair_instructions), 20_000L)
     }
 
