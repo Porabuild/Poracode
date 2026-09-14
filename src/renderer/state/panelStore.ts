@@ -46,6 +46,8 @@ export interface SubAgentPanelContext {
   threadId: string;
   parentItemId: string;
   projectLocation?: ProjectLocation;
+  /** This temporary page was opened from the selected Thread Info panel. */
+  returnToThreadInfo?: true;
 }
 
 export type RightPanelTab =
@@ -152,6 +154,8 @@ interface PanelState {
    * open it in either mode. Closing it leaves the placement mode alone.
    */
   threadDocksPanelOpen: boolean;
+  /** Keep a returned Thread Info page available if its last task has finished. */
+  threadDocksReturnThreadId: string | null;
   /** Dock section the Docks tab should scroll to on its next open; consumed once. */
   threadDocksFocus: ThreadDockFocus | null;
   browserOverlayOpen: boolean;
@@ -193,6 +197,7 @@ interface PanelState {
   openUsagePanel: () => void;
   setThreadDocksPanelOpen: (v: boolean) => void;
   openThreadDocksPanel: (focus?: ThreadDockFocus) => void;
+  returnToThreadDocksPanel: (threadId: string) => void;
   setNotesPanelOpen: (v: boolean) => void;
   openNotesPanel: () => void;
   setPortsPanelOpen: (v: boolean) => void;
@@ -340,6 +345,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   notesPanelOpen: false,
   portsPanelOpen: false,
   threadDocksPanelOpen: false,
+  threadDocksReturnThreadId: null,
   threadDocksFocus: null,
   browserOverlayOpen: false,
   browserOverlayMaximized: false,
@@ -443,6 +449,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
           ctx !== null &&
           prev.threadId === ctx.threadId &&
           prev.parentItemId === ctx.parentItemId &&
+          prev.returnToThreadInfo === ctx.returnToThreadInfo &&
           projectLocationsEqual(prev.projectLocation, ctx.projectLocation))
       ) {
         return ctx && !state.subAgentPanelOpen ? { subAgentPanelOpen: true } : {};
@@ -574,7 +581,10 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) =>
       state.threadDocksPanelOpen === v
         ? {}
-        : { threadDocksPanelOpen: v, ...(v ? {} : { threadDocksFocus: null }) },
+        : {
+            threadDocksPanelOpen: v,
+            ...(v ? {} : { threadDocksFocus: null, threadDocksReturnThreadId: null }),
+          },
     ),
   openThreadDocksPanel: (focus) =>
     set((state) => ({
@@ -582,6 +592,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
       rightPanelTab: "docks" as const,
       threadDocksFocus: focus ?? state.threadDocksFocus,
     })),
+  returnToThreadDocksPanel: (threadId) =>
+    set({
+      subAgentPanelContext: null,
+      subAgentPanelOpen: false,
+      threadDocksPanelOpen: true,
+      threadDocksReturnThreadId: threadId,
+      rightPanelTab: "docks",
+    }),
   setNotesPanelOpen: (v) =>
     set((state) =>
       state.notesPanelOpen === v
@@ -697,6 +715,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
         portsPanelOpen: false,
         subAgentPanelOpen: false,
         threadDocksPanelOpen: false,
+        threadDocksReturnThreadId: null,
         threadDocksFocus: null,
         rightPanelSplit: null,
       };

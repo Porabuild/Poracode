@@ -7,6 +7,7 @@ import {
   openGitReview,
   openUsagePanel,
   showGitReviewPage,
+  showSubAgentPanel,
   toggleThreadDocksPanel,
   undockPanelTab,
 } from "./panelActions";
@@ -137,6 +138,44 @@ describe("dockPanelTab", () => {
     dockPanelTab("docks", { zone: "right-panel", placement: "bottom" });
 
     expect(usePanelStore.getState().rightPanelSplit).toBeNull();
+  });
+});
+
+describe("showSubAgentPanel", () => {
+  beforeEach(() => {
+    resetDockState();
+    usePanelStore.setState({ subAgentPanelContext: null, threadDocksPanelOpen: true });
+  });
+
+  it("remembers Thread Info only for opens from its selected panel", () => {
+    usePanelStore.getState().openThreadDocksPanel("agents");
+    showSubAgentPanel("thread-1", "agent-1", undefined, "thread-info");
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "subagent",
+      threadDocksPanelOpen: true,
+      threadDocksFocus: "agents",
+      subAgentPanelContext: { returnToThreadInfo: true },
+    });
+
+    // Reopening the same target from chat must replace its navigation origin.
+    usePanelStore.getState().openThreadDocksPanel();
+    showSubAgentPanel("thread-1", "agent-1");
+    expect(usePanelStore.getState().subAgentPanelContext).toEqual({
+      threadId: "thread-1",
+      parentItemId: "agent-1",
+    });
+  });
+
+  it("recognizes Thread Info shown as the fallback after switching threads", () => {
+    usePanelStore.setState({ rightPanelTab: "subagent", threadDocksPanelOpen: true });
+    showSubAgentPanel("thread-2", "agent-2", undefined, "thread-info");
+    expect(usePanelStore.getState().subAgentPanelContext?.returnToThreadInfo).toBe(true);
+  });
+
+  it("does not return to a hidden Thread Info panel", () => {
+    usePanelStore.setState({ rightPanelTab: "docks", threadDocksPanelOpen: false });
+    showSubAgentPanel("thread-1", "agent-1", undefined, "thread-info");
+    expect(usePanelStore.getState().subAgentPanelContext?.returnToThreadInfo).toBeUndefined();
   });
 });
 

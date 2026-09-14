@@ -55,6 +55,11 @@ describe("managed CDP scripts", () => {
         {
           cwd: repoRoot,
           timeout: 10_000,
+          env: {
+            ...process.env,
+            ELECTRON_SKIP_BINARY_DOWNLOAD: "1",
+            ELECTRON_OVERRIDE_DIST_PATH: "node_modules/electron/dist",
+          },
         },
       ),
     ).resolves.toMatchObject({ stderr: "" });

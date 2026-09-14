@@ -624,6 +624,10 @@ msgstr "{serverName} · WSL {0}"
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{providerLabel} 的 {serverName}：{disabledLabel}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+msgid "{stepCount, plural, one {# step} other {# steps}}"
+msgstr "{stepCount, plural, other {# 步}}"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used} 令牌"
@@ -1861,6 +1865,10 @@ msgstr "返回"
 msgid "Back to plugins"
 msgstr "返回插件"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Back to Thread Info"
+msgstr "返回线程信息"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
 msgstr "后台进程意外退出"
@@ -2274,7 +2282,7 @@ msgstr "取消工作流"
 msgid "cancelled"
 msgstr "已取消"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -3177,7 +3185,7 @@ msgstr "完成此终端中的提示。完成后关闭。"
 msgid "completed"
 msgstr "已完成"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Completed"
 msgstr "已完成"
@@ -5348,7 +5356,7 @@ msgid "failed"
 msgstr "失败了"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -6998,6 +7006,7 @@ msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "实时语音需要登录此提供商的订阅账户。"
 
 #: src/renderer/components/common/PixelLoader.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -8220,6 +8229,10 @@ msgstr "没有活动的浏览器选项卡"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "No active session"
 #~ msgstr "没有活动会话"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "No active tasks."
+msgstr "没有正在进行的任务。"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
@@ -11296,7 +11309,7 @@ msgstr "运行"
 
 #. placeholder {0}: props.workflow.name
 #. placeholder {0}: workflow.runId
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Run {0}"
 msgstr "运行{0}"
@@ -15266,11 +15279,11 @@ msgstr "已请求取消工作流。"
 msgid "Workflow dispatch requested."
 msgstr "已请求运行工作流。"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Workflow finished. Child agents ran in a separate process and aren’t streamed here yet."
 msgstr "工作流程完成。子代理在单独的进程中运行，尚未在此处进行流式传输。"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Workflow is running in the background. Child agents run in a separate process and aren’t streamed here yet."
 msgstr "工作流正在后台运行。子代理在单独的进程中运行，尚未在此处进行流式传输。"
 
@@ -15329,7 +15342,7 @@ msgstr "已工作 {elapsed}"
 msgid "Working tree clean"
 msgstr "工作树干净"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Working…"
 msgstr "工作…"
 

@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { DeferredItemMarkdownInner } from "@/renderer/deferredFeatures";
+import { PanelContentDeferredContext } from "@/renderer/components/layout/panelMotion";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { ChatTimelineEntry } from "../../chatPaneSelectors";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
@@ -124,7 +126,7 @@ describe("SubAgentContent", () => {
       name: "Agent (rubber-duck): Critiquing opencode fix",
     });
     expect(dialog).toHaveClass("poracode-subagent-surface", "bg-[var(--content-background)]");
-    expect(within(dialog).getByText("Working…")).toBeInTheDocument();
+    expect(await within(dialog).findByText("Working…")).toBeInTheDocument();
 
     const heading = within(dialog).getByRole("heading", {
       name: "Agent (rubber-duck): Critiquing opencode fix",
@@ -263,7 +265,7 @@ describe("SubAgentContent", () => {
       name: "Agent (rubber-duck): Critiquing opencode fix",
     });
     expect(within(region).queryByRole("heading")).not.toBeInTheDocument();
-    expect(within(region).getByText("Working…")).toBeInTheDocument();
+    expect(await within(region).findByText("Working…")).toBeInTheDocument();
   });
 
   it("renders a clean composer row with a loader and no duplicate agent description", () => {
@@ -435,9 +437,107 @@ describe("SubAgentContent", () => {
     render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} />);
 
     expect(screen.queryByText("Child message 19")).not.toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Loading" })).toBeInTheDocument();
+    expect(document.querySelector(".poracode-subagent-skeleton")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
     expect(await screen.findByText("Child message 18")).toBeInTheDocument();
     expect(screen.getByText("Child message 19")).toBeInTheDocument();
+    expect(screen.getByText("Child message 0")).toBeInTheDocument();
+    const scroller = document.querySelector("[data-poracode-chat-scroller]");
+    expect(scroller).toHaveClass("opacity-0");
+    expect(document.querySelector(".poracode-subagent-skeleton")).toHaveClass("opacity-100");
+    await waitFor(() => expect(scroller).toHaveClass("opacity-100"));
+    expect(document.querySelector(".poracode-subagent-skeleton")).toHaveClass(
+      "invisible",
+      "opacity-0",
+    );
+  });
+
+  it("waits for history replay and Markdown before mounting the transcript", async () => {
+    const threadId = "thread-1";
+    const parentItem = makeSubAgentItem("parent-1");
+    const child = makeChildItem("assistant-1", parentItem.id, "assistant_message", undefined, {
+      assistant_text: "Prepared message",
+    });
+    const history = Promise.withResolvers<{ history: [] }>();
+    const markdown = Promise.withResolvers<void>();
+    mockBridge.subagentSubscribe.mockReturnValue(history.promise);
+    const preload = vi
+      .spyOn(DeferredItemMarkdownInner, "preload")
+      .mockReturnValue(markdown.promise);
+    let idle: IdleRequestCallback | undefined;
+    vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => {
+      idle = callback;
+      return 1;
+    });
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parentItem.id, child.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem, [child.id]: child } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+    const { unmount } = render(
+      <SubAgentContent threadId={threadId} parentItemId={parentItem.id} />,
+    );
+    try {
+      await act(async () => idle?.({ didTimeout: false, timeRemaining: () => 50 }));
+      expect(screen.queryByText("Prepared message")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Loading");
+      await act(async () => history.resolve({ history: [] }));
+      expect(screen.queryByText("Prepared message")).not.toBeInTheDocument();
+      await waitFor(() => expect(idle).toBeTypeOf("function"));
+      await act(async () => idle?.({ didTimeout: false, timeRemaining: () => 50 }));
+      await act(async () => markdown.resolve());
+      expect(await screen.findByText("Prepared message")).toBeInTheDocument();
+    } finally {
+      unmount();
+      preload.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("waits for the panel to settle and does not mount late history during exit", async () => {
+    const threadId = "thread-1";
+    const parentItem = makeSubAgentItem("parent-1");
+    const child = makeChildItem("assistant-1", parentItem.id, "assistant_message", undefined, {
+      assistant_text: "Deferred transcript",
+    });
+    const history = Promise.withResolvers<{ history: [] }>();
+    mockBridge.subagentSubscribe.mockReturnValue(history.promise);
+    const idleCallbacks: IdleRequestCallback[] = [];
+    vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => {
+      idleCallbacks.push(callback);
+      return idleCallbacks.length;
+    });
+    vi.stubGlobal("cancelIdleCallback", vi.fn());
+    useAppStore.setState({
+      runtimeItemIdsByThread: { [threadId]: [parentItem.id, child.id] },
+      runtimeItemsByIdByThread: { [threadId]: { [parentItem.id]: parentItem, [child.id]: child } },
+      runtimeStructuralVersionByThread: { [threadId]: 1 },
+    });
+    const content = <SubAgentContent threadId={threadId} parentItemId={parentItem.id} />;
+    const { rerender, unmount } = render(
+      <PanelContentDeferredContext value>{content}</PanelContentDeferredContext>,
+    );
+    try {
+      // A pending opening and an interrupted close both defer the first mount.
+      await act(async () => history.resolve({ history: [] }));
+      expect(idleCallbacks).toHaveLength(0);
+      expect(screen.queryByText("Deferred transcript")).not.toBeInTheDocument();
+      rerender(<PanelContentDeferredContext value={false}>{content}</PanelContentDeferredContext>);
+      await waitFor(() => expect(idleCallbacks).toHaveLength(1));
+      await act(async () =>
+        idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 }),
+      );
+      expect(await screen.findByText("Deferred transcript")).toBeInTheDocument();
+      // Once mounted, keep the current transcript through the exit fade.
+      rerender(<PanelContentDeferredContext value>{content}</PanelContentDeferredContext>);
+      expect(screen.getByText("Deferred transcript")).toBeInTheDocument();
+    } finally {
+      unmount();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("keeps the pending idle reveal while child entries continue arriving", async () => {
@@ -488,7 +588,9 @@ describe("SubAgentContent", () => {
       await act(async () => {
         idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
       });
-      expect(screen.getByText("Child message 7")).toBeInTheDocument();
+      for (let index = 0; index < children.length; index += 1) {
+        expect(screen.getByText(`Child message ${index}`)).toBeInTheDocument();
+      }
     } finally {
       vi.unstubAllGlobals();
     }
@@ -515,6 +617,7 @@ describe("SubAgentContent", () => {
       });
       render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} />);
 
+      await act(async () => Promise.resolve());
       await act(async () => vi.advanceTimersByTime(10));
       act(() => {
         useAppStore.setState({
@@ -532,14 +635,16 @@ describe("SubAgentContent", () => {
       });
       await act(async () => vi.advanceTimersByTime(6));
 
-      expect(screen.getByText("Child message 7")).toBeInTheDocument();
+      for (let index = 0; index < children.length; index += 1) {
+        expect(screen.getByText(`Child message ${index}`)).toBeInTheDocument();
+      }
     } finally {
       vi.useRealTimers();
       vi.unstubAllGlobals();
     }
   });
 
-  it("reveals a 250-call tool group in bounded idle batches", async () => {
+  it("mounts the complete tool-group count in one idle pass", async () => {
     const threadId = "thread-1";
     const runningParent = makeSubAgentItem("parent-1");
     const parentItem: RuntimeChatItem = {
@@ -575,25 +680,19 @@ describe("SubAgentContent", () => {
 
       render(<SubAgentContent threadId={threadId} parentItemId={parentItem.id} />);
 
-      expect(screen.getByRole("img", { name: "Loading" })).toBeInTheDocument();
+      expect(document.querySelector(".poracode-subagent-skeleton")).toHaveClass("opacity-100");
+      await waitFor(() => expect(idleCallbacks).toHaveLength(1));
       await act(async () => {
         idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
       });
-      expect(screen.getByText(byTextContent("40 commands"))).toBeInTheDocument();
-
-      for (let index = 0; index < 6; index += 1) {
-        await waitFor(() => expect(idleCallbacks.length).toBeGreaterThan(0));
-        await act(async () => {
-          idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
-        });
-      }
       expect(await screen.findByText(byTextContent("250 commands"))).toBeInTheDocument();
+      expect(idleCallbacks).toHaveLength(0);
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
-  it("bounds a large append after a tool group was fully revealed", async () => {
+  it("applies complete tool-group appends and truncations without restarting the reveal", async () => {
     const threadId = "thread-1";
     const parentItem = makeSubAgentItem("parent-1");
     const commands = Array.from({ length: 201 }, (_entry, index) =>
@@ -644,21 +743,8 @@ describe("SubAgentContent", () => {
           runtimeStructuralVersionByThread: { [threadId]: 2 },
         });
       });
-      expect(screen.getByText(byTextContent("2 commands"))).toBeInTheDocument();
-
-      await waitFor(() => expect(idleCallbacks.length).toBeGreaterThan(0));
-      await act(async () => {
-        idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
-      });
-      expect(screen.getByText(byTextContent("42 commands"))).toBeInTheDocument();
-
-      for (let index = 0; index < 4; index += 1) {
-        await waitFor(() => expect(idleCallbacks.length).toBeGreaterThan(0));
-        await act(async () => {
-          idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
-        });
-      }
       expect(screen.getByText(byTextContent("201 commands"))).toBeInTheDocument();
+      expect(idleCallbacks).toHaveLength(0);
 
       act(() => {
         useAppStore.setState({
@@ -691,13 +777,8 @@ describe("SubAgentContent", () => {
           runtimeStructuralVersionByThread: { [threadId]: 4 },
         });
       });
-      expect(screen.getByText(byTextContent("2 commands"))).toBeInTheDocument();
-
-      await waitFor(() => expect(idleCallbacks.length).toBeGreaterThan(0));
-      await act(async () => {
-        idleCallbacks.shift()?.({ didTimeout: false, timeRemaining: () => 50 });
-      });
-      expect(screen.getByText(byTextContent("42 commands"))).toBeInTheDocument();
+      expect(screen.getByText(byTextContent("201 commands"))).toBeInTheDocument();
+      expect(idleCallbacks).toHaveLength(0);
     } finally {
       vi.unstubAllGlobals();
     }

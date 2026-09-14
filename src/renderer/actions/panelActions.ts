@@ -258,12 +258,18 @@ export function showSubAgentPanel(
   threadId: string,
   parentItemId: string,
   projectLocation?: ProjectLocation,
+  source: "chat" | "thread-info" = "chat",
 ): void {
   const panelStore = usePanelStore.getState();
   panelStore.setSubAgentPanelContext({
     threadId,
     parentItemId,
     ...(projectLocation ? { projectLocation } : {}),
+    // The row identifies the visible page; the requested tab can be stale
+    // when Thread Info is the fallback after switching parent threads.
+    ...(source === "thread-info" && panelStore.threadDocksPanelOpen
+      ? { returnToThreadInfo: true as const }
+      : {}),
   });
   panelStore.setRightPanelTab("subagent");
 }
