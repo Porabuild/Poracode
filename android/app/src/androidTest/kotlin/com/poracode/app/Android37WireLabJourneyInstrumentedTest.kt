@@ -23,6 +23,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import com.poracode.app.wirelab.AwaitTimeoutException
 import com.poracode.app.wirelab.WireLabArgs
 import com.poracode.app.wirelab.WireLabControl
 import com.poracode.app.wirelab.assertObserved
@@ -186,7 +187,19 @@ class Android37WireLabJourneyInstrumentedTest {
             null,
             application.richChat.chat.state.value.failure,
         )
-        control.waitUntilObserved(listOf("route:thread-send"), 8_000L)
+        // CI emulators occasionally stall several seconds (host graphics hiccups);
+        // this bound only asserts prompt issuance — the count below still proves
+        // exactly-once, so it gets the same tolerance as the interrupt await.
+        try {
+            control.waitUntilObserved(listOf("route:thread-send"), 20_000L)
+        } catch (timeout: AwaitTimeoutException) {
+            val chatState = application.richChat.chat.state.value
+            throw AwaitTimeoutException(
+                "${timeout.message} (app send state: " +
+                    "failurePresent=${chatState.failure != null}, " +
+                    "sendActive=${"send" in chatState.activeOperations})",
+            )
+        }
         assertObserved(control, listOf("route:thread-send"))
         assertEquals(
             "one raw send request; production mutations are never retried",
