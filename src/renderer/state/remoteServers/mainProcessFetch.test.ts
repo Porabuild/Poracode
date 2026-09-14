@@ -1,23 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PoracodeBridge } from "@/shared/ipc";
-import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
-import {
-  installBrowserClientRuntime,
-  installElectronClientRuntime,
-  resetClientRuntimeForTest,
-} from "@/renderer/clientRuntime";
+import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import { mainProcessFetch } from "./mainProcessFetch";
+
+const remoteHttpBridgeFetch = vi.hoisted(() =>
+  vi.fn<(url: string, init?: unknown) => Promise<Response>>(),
+);
+vi.mock("./remoteHttpBridgeClient", () => ({
+  remoteHttpBridgeFetch: (url: string, init?: unknown) => remoteHttpBridgeFetch(url, init),
+}));
+
+const runtimeState = vi.hoisted(() => ({ host: "electron" as "electron" | "browser" }));
+vi.mock("@/renderer/clientRuntime", () => ({
+  readClientRuntime: () => ({ host: runtimeState.host }),
+}));
 
 describe("remote server fetch transport", () => {
   beforeEach(() => {
-    resetClientRuntimeForTest();
+    runtimeState.host = "electron";
+    remoteHttpBridgeFetch.mockReset();
+    window.poracode = undefined as unknown as typeof window.poracode;
+    delete window.poracodeHost;
     vi.restoreAllMocks();
   });
 
   it("uses native fetch in the browser host", async () => {
-    const browserBridge = { arch: "web" } as unknown as PoracodeBridge;
-    window.poracode = browserBridge;
-    installBrowserClientRuntime(browserBridge);
+    runtimeState.host = "browser";
+    window.poracode = {} as PoracodeBridge;
     const fetch = vi.spyOn(window, "fetch").mockResolvedValue(new Response("ok", { status: 200 }));
 
     await expect(
@@ -33,79 +42,49 @@ describe("remote server fetch transport", () => {
       method: "POST",
       headers: { authorization: "Bearer token" },
     });
+    expect(remoteHttpBridgeFetch).not.toHaveBeenCalled();
   });
 
-  it("keeps Electron requests on the main-process transport", async () => {
-    const remoteHttpRequest = vi.fn<
-      (input: unknown) => Promise<{ status: number; headers: Record<string, string>; body: string }>
-    >(async () => ({
-      status: 200,
-      headers: { "content-type": "text/plain" },
-      body: "ok",
-    }));
-    const electronBridge = {
-      arch: "x64",
-      remoteHttpRequest,
-    } as unknown as PoracodeBridge;
-    const host = {
-      clientRuntimeVersion: PORACODE_CLIENT_RUNTIME_VERSION,
-      ...electronBridge,
-      onSupervisorEvent: () => () => {},
-      onSupervisorEventGap: () => () => {},
-      onRendererStreamRecovery: () => () => {},
-      onBackendRendererStreamChanged: () => () => {},
-      getBackendRendererStreamInfo: async () => null,
-      invokeProcedure: async (name: keyof PoracodeBridge, args: unknown[]) => {
-        const method = electronBridge[name] as unknown as (...input: unknown[]) => unknown;
-        return method(...args);
-      },
-    } as unknown as ElectronHostBridge;
-    installElectronClientRuntime(host);
+  it("keeps Electron requests on the off-main bridge", async () => {
+    window.poracodeHost = {} as ElectronHostBridge;
+    remoteHttpBridgeFetch.mockResolvedValue(new Response("ok", { status: 200 }));
     const fetch = vi.spyOn(window, "fetch");
 
     const response = await mainProcessFetch("https://host.example/api");
 
     expect(await response.text()).toBe("ok");
-    expect(remoteHttpRequest).toHaveBeenCalledWith({
-      url: "https://host.example/api",
-      requestId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
-    });
+    expect(remoteHttpBridgeFetch).toHaveBeenCalledWith("https://host.example/api", undefined);
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("propagates renderer aborts to the main-process request", async () => {
-    const deferred = Promise.withResolvers<never>();
-    const remoteHttpRequestCancel = vi.fn<() => Promise<void>>(async () => {
-      deferred.reject(new Error("cancelled"));
-    });
-    const electronBridge = {
-      arch: "x64",
-      remoteHttpRequest: vi.fn<() => Promise<never>>(async () => deferred.promise),
-      remoteHttpRequestCancel,
-    } as unknown as PoracodeBridge;
-    const host = {
-      clientRuntimeVersion: PORACODE_CLIENT_RUNTIME_VERSION,
-      ...electronBridge,
-      onSupervisorEvent: () => () => {},
-      onSupervisorEventGap: () => () => {},
-      onRendererStreamRecovery: () => () => {},
-      onBackendRendererStreamChanged: () => () => {},
-      getBackendRendererStreamInfo: async () => null,
-      invokeProcedure: async (name: keyof PoracodeBridge, args: unknown[]) => {
-        const method = electronBridge[name] as unknown as (...input: unknown[]) => unknown;
-        return method(...args);
-      },
-    } as unknown as ElectronHostBridge;
-    installElectronClientRuntime(host);
+  it("propagates renderer aborts as AbortError without a main fallback", async () => {
+    window.poracodeHost = {} as ElectronHostBridge;
     const controller = new AbortController();
-    const pending = mainProcessFetch("https://host.example/api", { signal: controller.signal });
-    await vi.waitFor(() => expect(electronBridge.remoteHttpRequest).toHaveBeenCalledOnce());
+    remoteHttpBridgeFetch.mockImplementation(
+      async (_url, init) =>
+        await new Promise<Response>((_resolve, reject) => {
+          (init as { signal?: AbortSignal } | undefined)?.signal?.addEventListener(
+            "abort",
+            () => reject(new Error("bridge interaction aborted")),
+            { once: true },
+          );
+        }),
+    );
 
+    const pending = mainProcessFetch("https://host.example/api", { signal: controller.signal });
+    await vi.waitFor(() => expect(remoteHttpBridgeFetch).toHaveBeenCalledOnce());
     controller.abort();
 
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
-    expect(remoteHttpRequestCancel).toHaveBeenCalledWith({
-      requestId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
+  });
+
+  it("normalizes bridge failures to the status-zero transport error", async () => {
+    window.poracodeHost = {} as ElectronHostBridge;
+    remoteHttpBridgeFetch.mockRejectedValue(new Error("bridge utility gone"));
+
+    await expect(mainProcessFetch("https://host.example/api")).rejects.toMatchObject({
+      status: 0,
+      code: "network",
     });
   });
 });

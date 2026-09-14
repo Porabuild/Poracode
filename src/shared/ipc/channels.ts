@@ -30,6 +30,12 @@ export const IPC_WINDOW_CHANNELS = {
   backendRendererStreamInfo: createChannel("backendRendererStreamInfo"),
   /** Per-window direct-stream ownership grant; main mints it for event.sender only. */
   rendererStreamOwnershipGrant: createChannel("rendererStreamOwnershipGrant"),
+  /** Off-main remote HTTP bridge admission (window-scoped native channel). */
+  remoteHttpBridgeOpen: createChannel("remoteHttpBridgeOpen"),
+  /** Main-side cancel fallback before a renderer's request port attaches. */
+  remoteHttpBridgeCancel: createChannel("remoteHttpBridgeCancel"),
+  /** Per-request port delivery; only `WebContents.postMessage` can transfer it. */
+  remoteHttpBridgePort: createChannel("remoteHttpBridgePort"),
   quickComposerSubmit: createChannel("quickComposerWindowSubmit"),
   quickComposerDismiss: createChannel("quickComposerWindowDismiss"),
   quickComposerPickFiles: createChannel("quickComposerWindowPickFiles"),

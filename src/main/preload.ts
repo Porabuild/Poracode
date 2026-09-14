@@ -15,6 +15,10 @@ import {
 } from "@/shared/backendHostProtocol";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import {
+  REMOTE_HTTP_BRIDGE_VERSION,
+  isRemoteHttpBridgePortEnvelope,
+} from "@/shared/remote/httpBridgeProtocol";
+import {
   IPC_EVENT_CHANNELS,
   IPC_WINDOW_CHANNELS,
   PORACODE_WINDOW_KINDS,
@@ -139,6 +143,15 @@ const bridge: ElectronHostBridge = {
   },
   invokeProcedure(name, args) {
     return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.clientProcedureInvoke, { name, args });
+  },
+  remoteHttpBridgeVersion: REMOTE_HTTP_BRIDGE_VERSION,
+  openRemoteHttpBridge(request) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.remoteHttpBridgeOpen, request) as Promise<
+      Awaited<ReturnType<NonNullable<ElectronHostBridge["openRemoteHttpBridge"]>>>
+    >;
+  },
+  cancelRemoteHttpBridge(request) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.remoteHttpBridgeCancel, request) as Promise<void>;
   },
   async getBackendRendererStreamInfo() {
     const info: unknown = await ipcRenderer.invoke(IPC_WINDOW_CHANNELS.backendRendererStreamInfo);
@@ -330,6 +343,26 @@ const bridge: ElectronHostBridge = {
 };
 
 contextBridge.exposeInMainWorld("poracodeHost", bridge);
+// Facade 11: forward each per-request bridge port into the main world via the
+// documented preload -> main-world port pattern. The isolated world never sees
+// body bytes; only the port handle crosses. Unknown/malformed envelopes are
+// dropped and their ports closed.
+const windowLoaded = new Promise<void>((resolve) => {
+  if (document.readyState === "complete") {
+    resolve();
+    return;
+  }
+  window.addEventListener("load", () => resolve(), { once: true });
+});
+ipcRenderer.on(IPC_WINDOW_CHANNELS.remoteHttpBridgePort, (event, payload: unknown) => {
+  if (event.ports.length !== 1 || !isRemoteHttpBridgePortEnvelope(payload)) {
+    for (const port of event.ports) port.close();
+    return;
+  }
+  void windowLoaded.then(() => {
+    window.postMessage(payload, "*", event.ports);
+  });
+});
 installSmokeNativePreload({
   contextBridge,
   ipcRenderer,

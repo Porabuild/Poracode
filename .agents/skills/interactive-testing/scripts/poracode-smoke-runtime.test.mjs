@@ -133,6 +133,42 @@ void test("a lazy supervisor restart keeps session A's compiled revision after c
   }
 });
 
+void test("launch adds an explicit loopback main inspector only when requested", async () => {
+  const appRoot = await mkdtemp(join(tmpdir(), "poracode-launch-inspect-"));
+  try {
+    await writeFile(join(appRoot, "package.json"), '{"type":"module"}');
+    const electronRoot = join(appRoot, "node_modules", "electron");
+    await mkdir(join(electronRoot, "dist"), { recursive: true });
+    await writeFile(join(electronRoot, "package.json"), '{"name":"electron","version":"1.0.0"}');
+    await writeFile(join(electronRoot, "path.txt"), "electron");
+    await writeFile(join(electronRoot, "dist", "electron"), "#!/bin/sh\n");
+    const userDataDir = join(appRoot, "profile");
+    const plain = smokeElectronLaunch({ appRoot }, userDataDir, { PATH: process.env.PATH });
+    assert.deepEqual(plain.args, [`--user-data-dir=${userDataDir}`, appRoot]);
+    const inspected = smokeElectronLaunch({ appRoot }, userDataDir, {
+      PATH: process.env.PATH,
+      PORACODE_SMOKE_MAIN_INSPECT_PORT: "54123",
+    });
+    assert.deepEqual(inspected.args, [
+      `--user-data-dir=${userDataDir}`,
+      "--inspect=127.0.0.1:54123",
+      appRoot,
+    ]);
+    // The opt-in variable is harness-only; it must not reach the app environment.
+    assert.equal(inspected.options.env.PORACODE_SMOKE_MAIN_INSPECT_PORT, undefined);
+    assert.throws(
+      () =>
+        smokeElectronLaunch({ appRoot }, userDataDir, {
+          PATH: process.env.PATH,
+          PORACODE_SMOKE_MAIN_INSPECT_PORT: "not-a-port",
+        }),
+      /must be a TCP port/,
+    );
+  } finally {
+    await rm(appRoot, { recursive: true, force: true });
+  }
+});
+
 void test(
   "repairs a missing Electron binary inside the copied graph and strips external runtime overrides",
   { skip: process.platform === "win32" },

@@ -187,9 +187,86 @@ additionally requires the generation-fenced recovery-barrier listener
 (`getRendererStreamOwnershipGrant`). An older preload cannot honor recovery
 barriers, so a version-8/9 preload paired with a version-10 renderer would
 silently trust a cursor advanced past missing bulk after socket loss — the
-version gate rejects that pairing loudly instead. Browser runtimes use the same
-local facade version; this desktop window boundary does not change the remote
-wire, backend-host protocol, or persisted state.
+version gate rejects that pairing loudly instead. Version 11 is the off-main
+remote HTTP bridge boundary (V4 F8): the preload must expose
+`remoteHttpBridgeVersion` plus `openRemoteHttpBridge`/`cancelRemoteHttpBridge`
+and forward each request's `MessagePort` into the main world. A version-10
+preload cannot deliver those ports, and the renderer no longer has a
+full-body main-process HTTP path, so the facade gate must reject the pairing
+loudly rather than fall back to buffering every remote response through main.
+Browser runtimes use the same local facade version; this desktop boundary does
+not change the remote wire, backend-host protocol, or persisted state.
+
+## Off-main remote HTTP bridge contract (facade 11 / bridge frame set 2)
+
+`src/shared/remote/httpBridgeProtocol.ts` owns the versioned frame set for the
+utility-process HTTP bridge introduced by V4 F8; main-side admission schemas
+live in `src/shared/remote/httpBridgeValidation.ts`.
+
+- `REMOTE_HTTP_BRIDGE_VERSION = 2` gates two surfaces: main → utility control
+  messages (`open` with the admission descriptor, `cancel`, `abort-window`,
+  `abort-all`, `stats-query`) and the per-request renderer ⇄ utility port
+  frames (`upload-chunk`, `upload-end`, `credit`, `cancel` upstream;
+  `upload-grant`, `head`, `chunk`, `end`, `error` downstream). Worker → main
+  `settled` and `stats-reply` messages close the control loop.
+- Version 2 is an intentional bump with real compatibility meaning: v2 adds
+  the downstream `upload-grant` acknowledgement that makes uploads
+  admission-gated and credit-bounded, and it gives responses a metadata budget
+  separate from the stricter request budget (a v1 renderer would post a whole
+  body before utility admission and reject legal response header shapes). The
+  version is mirrored by the preload's advertised `remoteHttpBridgeVersion`
+  marker and the renderer client's `resolveDefaultTransport` gate, so a
+  mismatched pairing is rejected loudly even at the same facade 11.
+- The renderer facade version `PORACODE_CLIENT_RUNTIME_VERSION` moved 10 → 11
+  for this milestone (see above) and stays 11 for both corrections: the
+  required preload API shape (`remoteHttpBridgeVersion`, open/cancel, port
+  forwarding) is unchanged, and the bridge frame-set gate rejects a mixed
+  frame set on its own. Facade 9 stays RESERVED.
+- Correction 2 keeps frame set 2: admission is reserved synchronously before
+  the shared utility start yields (caps include pending starts, and pre-port
+  cancels/window lifecycle events retire the reservation), the post-await
+  revalidation plus expected-record-identity releases fence a stale
+  continuation or settlement from a reused id, the utility emits its existing
+  `settled` control frame for valid rejected opens so main releases the slot
+  immediately (duplicate and malformed descriptors emit nothing), upload chunks
+  are posted as exact-length copies instead of subarray views of the caller's
+  backing store, and the utility clamps accumulated response credit to the
+  advertised 1 MiB ceiling. None of these changes a frame shape, so no version
+  bump; the peer inventory (preload marker, renderer gate, utility entry,
+  preload port forwarding, packaging `asarUnpack`) is unchanged.
+- Compatibility: a generation mismatch closes the request and settles it; no
+  frame may revive a retired request or consume another request's credit. Any
+  descriptor/frame shape change requires auditing the utility entry
+  (`dist/main/remoteHttpBridge.cjs`), the preload port forwarding, the
+  supervisor admission path, the renderer bridge client, and the direct-mock
+  suites together.
+- No persisted state participates: the bridge is process-lifetime only, so
+  there is no migration. The packaging boundary is audited by the
+  `dist/main/remoteHttpBridge.cjs` entry in `tsdown.config.ts` plus its
+  `asarUnpack` entry in `scripts/build-desktop-artifact.mjs` (a packaged
+  utility child must start from a real file path).
+- Bounds pinned by tests: 64 MiB response body, 64 MiB request body, 96 MiB
+  aggregate upload account (declared reservation + retained bytes; committed
+  utility memory, not total RSS), 1 MiB response credit enforced on both the
+  client grant and the utility accumulator, 1 MiB upload credit window,
+  64/128 active requests per window/global including pending cold-start
+  reservations, request metadata 64 headers/8 KiB value/32 KiB total, response
+  metadata 4096 headers/16 KiB value/64 KiB total, and a 60 s whole-request
+  deadline with the pre-F8 error message. The remote wire protocol (12), relay,
+  and native clients are untouched by this local boundary.
+- Diagnostic seam (unchanged by the correction): `PORACODE_REMOTE_HTTP_BRIDGE_DEBUG=1`
+  enables utility settle logging and main lifecycle lines, but desktop builds
+  minify with `dropConsole`, so those logs exist only in development builds.
+  `PORACODE_REMOTE_HTTP_BRIDGE_INSPECT_PORT` forks the utility with
+  `--inspect=127.0.0.1:<port>` only when `!app.isPackaged`; packaged
+  verification must rely on the packaged main-process inspector and the
+  payload-free stats/memory probes instead.
+
+  Qualification note (F8 publication, 2026-09-14): this boundary is qualified
+  on the frozen candidate (source SHA `74dcf4e0…c983`, bridge 2 / facade 11)
+  by the independent source + real-transport and full-mock + packaged-UI
+  evidence recorded in `docs/V4_EXECUTION_LOG.md`. Publication commits the
+  candidate as-is with no version change.
 
 ## Local delivery-ownership wire boundary (backend-host 13 / renderer stream 5)
 

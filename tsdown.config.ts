@@ -113,6 +113,13 @@ export default defineConfig([
     ...shared,
   },
   {
+    // Off-main remote HTTP bridge (V4 F8): a lazily forked utilityProcess
+    // entry that owns client outbound HTTP; main never sees body bytes.
+    entry: { remoteHttpBridge: "src/main/remoteHttp/remoteHttpBridgeHost.ts" },
+    clean: false,
+    ...shared,
+  },
+  {
     entry: { legacyMigrationWorker: "src/backend/legacyMigrationWorker.ts" },
     clean: false,
     ...shared,

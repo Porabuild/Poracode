@@ -18,6 +18,8 @@ import type { Project, Thread } from "@/shared/contracts";
 import { cleanupOrphanedAttachments, preparePoracodeDataRoot } from "./poracodeData";
 import { createLocalIpcHandlers, showAddFilesDialog } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
+import { RemoteHttpBridgeSupervisor } from "./remoteHttp/RemoteHttpBridgeSupervisor";
+import { registerRemoteHttpBridgeIpc } from "./remoteHttp/registerRemoteHttpBridgeIpc";
 import { createSleepInhibitor } from "./sleepInhibitor";
 import { shouldPreventSystemSleep } from "./sleepPolicy";
 import {
@@ -1134,6 +1136,19 @@ if (!hasSingleInstanceLock) {
       } catch (error) {
         console.warn("[poracode] failed to register the quick composer shortcut", error);
       }
+
+      // Off-main remote HTTP bridge (V4 F8): one lazily forked utility process
+      // performs client outbound HTTP. Main owns admission, window/frame
+      // identity, lifecycle, and the per-request port handoff, so response
+      // bodies never cross main.
+      const remoteHttpBridgeSupervisor = new RemoteHttpBridgeSupervisor({
+        utilityPath: join(__dirname, "remoteHttpBridge.cjs"),
+        isPackaged: app.isPackaged,
+        ...(process.env.PORACODE_REMOTE_HTTP_BRIDGE_DEBUG === "1"
+          ? { log: (message: string) => console.log(message) }
+          : {}),
+      });
+      registerRemoteHttpBridgeIpc({ supervisor: remoteHttpBridgeSupervisor });
 
       registerIpcHandlers({
         localHandlers: createLocalIpcHandlers({

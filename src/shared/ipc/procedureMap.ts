@@ -90,8 +90,6 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "copyImageToClipboard",
   "readLocalImageFile",
   "createProjectDirectory",
-  "remoteHttpRequest",
-  "remoteHttpRequestCancel",
   "openExternal",
   "openExternalNative",
   "openMicrophoneSettings",
