@@ -1,6 +1,7 @@
 import { type CSSProperties, type ReactNode, useRef } from "react";
-import { Dropdown, Label } from "@heroui/react";
+import { Button, Dropdown, Label } from "@heroui/react";
 import {
+  ArrowLeft,
   Ellipsis,
   Lock,
   LockOpen,
@@ -63,6 +64,7 @@ export function UnifiedRightPanel(props: {
   showSubagentTab?: boolean;
   showBrowserTab?: boolean;
   onCloseSubagent?: () => void;
+  onBackSubagent?: () => void;
   projectName: string | undefined;
   onExpandGitToOverlay?: () => void;
   onExpandFilesToOverlay?: () => void;
@@ -114,6 +116,7 @@ export function UnifiedRightPanel(props: {
     showSubagentTab = false,
     showBrowserTab = true,
     onCloseSubagent,
+    onBackSubagent,
     projectName,
     onExpandGitToOverlay,
     onExpandFilesToOverlay,
@@ -463,8 +466,20 @@ export function UnifiedRightPanel(props: {
       </div>
       {hasSubagentTitle ? (
         <div className="poracode-right-panel-subagent-meta flex h-6 shrink-0 items-center gap-2 border-b border-[color:var(--border)] px-3">
+          {onBackSubagent ? (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className={`${dragCtl} ${panelHeaderIconButtonClass} size-5 min-h-0 min-w-0`}
+              aria-label={t`Back to Thread Info`}
+              onPress={onBackSubagent}
+            >
+              <ArrowLeft className="size-3.5" />
+            </Button>
+          ) : null}
           <div className="min-w-0 flex-1">{subagentTitle}</div>
-          {onCloseSubagent ? (
+          {!onBackSubagent && onCloseSubagent ? (
             <button
               type="button"
               className={`${dragCtl} ${panelHeaderIconButtonClass}`}

@@ -624,6 +624,10 @@ msgstr "{serverName} · WSL {0}"
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{serverName} з {providerLabel}: {disabledLabel}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+msgid "{stepCount, plural, one {# step} other {# steps}}"
+msgstr "{stepCount, plural, one {# крок} few {# кроки} many {# кроків} other {# кроку}}"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used} токенів"
@@ -1861,6 +1865,10 @@ msgstr "Назад"
 msgid "Back to plugins"
 msgstr "Назад до плагінів"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Back to Thread Info"
+msgstr "Назад до інформації про потік"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
 msgstr "Фоновий процес несподівано завершився"
@@ -2274,7 +2282,7 @@ msgstr "Скасувати робочий процес"
 msgid "cancelled"
 msgstr "скасовано"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -3177,7 +3185,7 @@ msgstr "Виконайте підказки в цьому терміналі. В
 msgid "completed"
 msgstr "завершено"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Completed"
 msgstr "Завершено"
@@ -5348,7 +5356,7 @@ msgid "failed"
 msgstr "не вдалося"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -6998,6 +7006,7 @@ msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "Для голосового чату потрібно увійти в обліковий запис із підпискою цього провайдера."
 
 #: src/renderer/components/common/PixelLoader.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -8221,6 +8230,10 @@ msgstr "Немає активної вкладки браузера"
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "No active session"
 #~ msgstr "Немає активної сесії"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "No active tasks."
+msgstr "Немає активних завдань."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
@@ -11297,7 +11310,7 @@ msgstr "Запустити"
 
 #. placeholder {0}: props.workflow.name
 #. placeholder {0}: workflow.runId
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Run {0}"
 msgstr "Запустити {0}"
@@ -15267,11 +15280,11 @@ msgstr "Запит на скасування робочого процесу н�
 msgid "Workflow dispatch requested."
 msgstr "Запуск робочого процесу запитано."
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Workflow finished. Child agents ran in a separate process and aren’t streamed here yet."
 msgstr "Робочий процес завершено. Дочірні агенти виконувалися в окремому процесі й поки не транслюються тут."
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Workflow is running in the background. Child agents run in a separate process and aren’t streamed here yet."
 msgstr "Робочий процес виконується у фоні. Дочірні агенти виконуються в окремому процесі й поки не транслюються тут."
 
@@ -15330,7 +15343,7 @@ msgstr "Працює {elapsed}"
 msgid "Working tree clean"
 msgstr "Робоче дерево чисте"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Working…"
 msgstr "Виконується…"
 

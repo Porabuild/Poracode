@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLingui } from "@lingui/react/macro";
+import { PanelExitContent } from "@/renderer/components/layout/panelMotion";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { resolveProjectLocation } from "@/shared/worktree";
 import {
@@ -30,7 +31,7 @@ import { ThreadDocksPanel } from "@/renderer/components/thread/ThreadDocksPanel"
 import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
 import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
-import { useDocksPanelHasContent } from "@/renderer/components/thread/useThreadDocksSummary";
+import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
@@ -139,7 +140,7 @@ export function ProjectAuxiliaryPanel(props: {
     currentThread && currentThreadProject
       ? resolveProjectLocation(currentThreadProject.location, currentThread.worktreePath)
       : undefined;
-  const docksInCurrentThread = useDocksPanelHasContent();
+  const docksInCurrentThread = useThreadDocksPanelAvailable();
   // Image-only threads offer the Docks tab without making image presence itself
   // an open flag. The explicit threadDocksPanelOpen state still owns dismissal.
   const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
@@ -369,6 +370,13 @@ export function ProjectAuxiliaryPanel(props: {
     handleClose();
   }
 
+  function handleBackFromSubAgent() {
+    const panel = usePanelStore.getState();
+    if (panel.subAgentPanelContext) {
+      panel.returnToThreadDocksPanel(panel.subAgentPanelContext.threadId);
+    }
+  }
+
   // A bottom-docked tab renders in the bottom row; keep it out of this panel so
   // singleton surfaces (the browser webview) are never mounted twice.
   const renderTerminalContent = props.includeTerminal && terminalOpen;
@@ -383,7 +391,7 @@ export function ProjectAuxiliaryPanel(props: {
   const renderDocksContent = docksTabAvailable;
   const renderSubAgentContent = subAgentInCurrentThread;
 
-  return (
+  const panelContent = (
     <UnifiedRightPanel
       activeTab={activeTab}
       onTabChange={(tab) => {
@@ -457,6 +465,7 @@ export function ProjectAuxiliaryPanel(props: {
             threadId={subAgentPanelContext.threadId}
             parentItemId={subAgentPanelContext.parentItemId}
             hideHeader
+            initialScrollRevealDelayMs={0}
             {...(subAgentPanelContext.projectLocation
               ? { projectLocation: subAgentPanelContext.projectLocation }
               : {})}
@@ -501,6 +510,9 @@ export function ProjectAuxiliaryPanel(props: {
               />
             ),
             onCloseSubagent: handleCloseSubAgent,
+            ...(subAgentPanelContext.returnToThreadInfo
+              ? { onBackSubagent: handleBackFromSubAgent }
+              : {}),
           }
         : {})}
       projectName={projectName}
@@ -555,4 +567,5 @@ export function ProjectAuxiliaryPanel(props: {
       onClose={handleClose}
     />
   );
+  return <PanelExitContent visible={props.visible}>{panelContent}</PanelExitContent>;
 }

@@ -3,7 +3,7 @@ import { useBottomDockedTabs } from "@/renderer/state/panelDockSelectors";
 import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useDocksPanelHasContent } from "@/renderer/components/thread/useThreadDocksSummary";
+import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
 import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
@@ -61,7 +61,7 @@ export function usePanelVisibility() {
   const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
   const currentThreadId = useFocusedThreadId();
   const bottomTerminalOpen = useBottomTerminalVisible();
-  const informationalDocksPanelOpen = useDocksPanelHasContent();
+  const informationalDocksPanelOpen = useThreadDocksPanelAvailable();
   const threadDocksPanelOpen = usePanelStore((s) => s.threadDocksPanelOpen);
   const gallery = useThreadGalleryImages(currentThreadId ?? undefined);
   const docksPanelOpen =
