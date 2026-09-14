@@ -662,7 +662,15 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     expect(store.getState().runtimeRequestsByThread["t1"]).toHaveLength(0);
   });
 
-  it("synthesises an inline error item on error events", () => {
+  it("keeps warnings out of the transcript while preserving the final error", () => {
+    apply("t1", { type: "turn.started", threadId: "t1", turnId: "turn-1" });
+    applyBatch("t1", [
+      { type: "warning", threadId: "t1", message: "boom" },
+      { type: "warning", threadId: "t1", message: "boom" },
+    ]);
+    expect(store.getState().runtimeItemIdsByThread["t1"] ?? []).toEqual([]);
+    expect(store.getState().runtimeOpenTurnByThread["t1"]).toBe(true);
+
     apply("t1", { type: "error", threadId: "t1", message: "boom" });
     const state = store.getState();
     expect(state.runtimeItemIdsByThread["t1"]).toHaveLength(1);

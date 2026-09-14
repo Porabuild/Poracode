@@ -144,10 +144,8 @@ function mapStatusUpdate(properties: { sessionID: string; status: { type: string
   switch (properties.status.type) {
     case "busy":
     case "retry":
-      // Note: the `retry` status carries `{ attempt, message, action }`, but
-      // thread updates have no clearable field for it — retry detail stays in
-      // the transcript's error rows (canonical mapper) so a stale message can
-      // never persist on the thread after recovery.
+      // Automatic retries keep the turn working. The canonical mapper emits
+      // their detail as warnings; final session/message errors remain visible.
       return { status: "working", attention: "working" };
     case "idle":
       return { status: "idle", attention: "none" };
