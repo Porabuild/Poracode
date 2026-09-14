@@ -3,6 +3,7 @@ import type {
   AgentCapability,
   ProjectLocation,
   RuntimeEvent,
+  SessionRef,
   ThreadConfig,
 } from "@/shared/contracts";
 import type {
@@ -40,6 +41,7 @@ export const PROJECT: ProjectLocation = { kind: "posix", path: "/tmp/project" };
 export const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 export class FakeHandle implements StructuredSessionHandle {
+  openThread?: NonNullable<StructuredSessionHandle["openThread"]>;
   steerTurn?: NonNullable<StructuredSessionHandle["steerTurn"]>;
   launchOptions = {};
   listener: StructuredSessionListener | undefined;
@@ -110,6 +112,10 @@ export function makeHarness(options?: {
   projectLocation?: ProjectLocation;
   executionEnvironment?: ThreadConfig["executionEnvironment"];
   windowsProjectExecution?: AgentAdapter["windowsProjectExecution"];
+  resume?: {
+    sessionId: string;
+    open?: (handle: FakeHandle, sessionRef: SessionRef | undefined) => Promise<string>;
+  };
 }): Harness {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
@@ -130,6 +136,7 @@ export function makeHarness(options?: {
       : {}),
     ...(options?.baseSpawnEnv ? { baseSpawnEnv: options.baseSpawnEnv } : {}),
     capabilities: {
+      supportsResume: !!options?.resume,
       models: options?.models ?? [{ id: "gpt-5.5", label: "GPT-5.5" }],
       ...(options?.subProviders ? { subProviders: options.subProviders } : {}),
       ...(options?.modelSubProvider ? { modelSubProvider: options.modelSubProvider } : {}),
@@ -155,6 +162,11 @@ export function makeHarness(options?: {
         throw new Error("session launch failed");
       }
       const handle = new FakeHandle(options?.interruptError);
+      if (options?.resume) {
+        const resume = options.resume;
+        handle.openThread = (_config, sessionRef) =>
+          resume.open?.(handle, sessionRef) ?? Promise.resolve(resume.sessionId);
+      }
       handles.push(handle);
       return handle;
     },
