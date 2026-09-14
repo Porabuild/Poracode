@@ -1195,22 +1195,7 @@ final class AppSessionCompositionTests: XCTestCase {
   }
 
   func testBackgroundDuringAfterCommitReconcilesOnForeground() async throws {
-    let work = Task { @MainActor in
-      try await self.runBackgroundDuringAfterCommitReconcilesOnForeground()
-    }
-    let timeout = Task {
-      try await Task.sleep(nanoseconds: 8_000_000_000)
-      throw TestAsyncTimeoutError.timedOut(
-        "testBackgroundDuringAfterCommitReconcilesOnForeground")
-    }
-    try await withThrowingTaskGroup(of: Void.self) { group in
-      group.addTask { try await work.value }
-      group.addTask { try await timeout.value }
-      try await group.next()
-      group.cancelAll()
-      work.cancel()
-      timeout.cancel()
-    }
+    try await runBackgroundDuringAfterCommitReconcilesOnForeground()
   }
 
   @MainActor

@@ -9,7 +9,7 @@ import { parse } from "yaml";
 const load = async (name) =>
   parse(await readFile(new URL(`../.github/workflows/${name}.yml`, import.meta.url), "utf8"));
 
-test("both qualification workflows run on the actual V2 and integration heads", async () => {
+void test("both qualification workflows run on the actual V2 and integration heads", async () => {
   for (const name of ["ci", "native-ci"]) {
     const workflow = await load(name);
     for (const branch of ["master", "poracode/v2", "poracode/v4-integration"]) {
@@ -20,7 +20,7 @@ test("both qualification workflows run on the actual V2 and integration heads", 
   }
 });
 
-test("core qualification has an unconditional gate covering every CI job", async () => {
+void test("core qualification has an unconditional gate covering every CI job", async () => {
   const { jobs } = await load("ci");
   assert.ok(jobs.ci_gate, "A workflow conclusion alone must not hide skipped required jobs");
   assert.equal(jobs.ci_gate.name, "CI required gate");
@@ -47,7 +47,7 @@ test("core qualification has an unconditional gate covering every CI job", async
   }
 });
 
-test("nightly publication is triggered by qualification, with one serialized alias owner", async () => {
+void test("nightly publication is triggered by qualification, with one serialized alias owner", async () => {
   const workflow = await load("deploy-nightly-pwa");
   assert.equal(workflow.on.push, undefined, "A master push must not deploy independently of CI");
   assert.deepEqual([...workflow.on.workflow_run.workflows].sort(), ["CI", "Native clients"]);
@@ -87,7 +87,7 @@ test("nightly publication is triggered by qualification, with one serialized ali
   );
 });
 
-test("native qualification preserves every existing contract, build, and foundation prerequisite", async () => {
+void test("native qualification preserves every existing contract, build, and foundation prerequisite", async () => {
   const { jobs } = await load("native-ci");
   assert.equal(jobs.native_gate.name, "Native required gate");
   assert.equal(jobs.native_gate.if, "${{ always() }}");
@@ -107,7 +107,7 @@ test("native qualification preserves every existing contract, build, and foundat
     );
 });
 
-test("each portable Swift contract suite is required, isolated, and cannot hide failure behind tee", async () => {
+void test("each portable Swift contract suite is required, isolated, and cannot hide failure behind tee", async () => {
   const { jobs } = await load("native-ci");
   const step = jobs.ios.steps.find((item) => item.name === "Run portable Swift contract suites");
   assert.ok(step);

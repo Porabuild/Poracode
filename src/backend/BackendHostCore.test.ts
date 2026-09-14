@@ -90,8 +90,8 @@ describe("BackendHostCore", () => {
       onReset: vi.fn<() => void>(),
     });
 
-    host.startSupervisor();
-    host.restartSupervisor();
+    await host.startSupervisor();
+    await host.restartSupervisor();
     await host.dispose();
     host.closeDatabase();
 

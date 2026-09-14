@@ -67,7 +67,7 @@ function fixture() {
   return state;
 }
 
-test("qualifies both required gates on the tested SHA, never workflow_run's default-branch SHA", async () => {
+void test("qualifies both required gates on the tested SHA, never workflow_run's default-branch SHA", async () => {
   const state = fixture();
   const result = await qualifyNightlyPwa(state.context, state.request);
   assert.equal(result.qualified, true);
@@ -79,7 +79,7 @@ test("qualifies both required gates on the tested SHA, never workflow_run's defa
   );
 });
 
-test("manual dispatch passes the same checks and cannot override the qualified checkout", async () => {
+void test("manual dispatch passes the same checks and cannot override the qualified checkout", async () => {
   const state = fixture();
   state.context.eventName = "workflow_dispatch";
   state.context.sha = sha;
@@ -89,7 +89,7 @@ test("manual dispatch passes the same checks and cannot override the qualified c
   assert.equal((await qualifyNightlyPwa(state.context, state.request, sha)).qualified, false);
 });
 
-test("rejects fork, non-master, untrusted, failed, and malformed trigger events before API access", async () => {
+void test("rejects fork, non-master, untrusted, failed, and malformed trigger events before API access", async () => {
   const mutations = [
     (s) => {
       s.context.repository = "someone/Poracode";
@@ -134,7 +134,7 @@ test("rejects fork, non-master, untrusted, failed, and malformed trigger events 
   }
 });
 
-test("rejects missing, failed, cancelled, pending, skipped, and wrong-SHA qualification runs", async () => {
+void test("rejects missing, failed, cancelled, pending, skipped, and wrong-SHA qualification runs", async () => {
   const mutations = [
     (s, i) => {
       s.runs[i] = [];
@@ -174,7 +174,7 @@ test("rejects missing, failed, cancelled, pending, skipped, and wrong-SHA qualif
   }
 });
 
-test("an old success cannot hide a newer failed run or pending retry", async () => {
+void test("an old success cannot hide a newer failed run or pending retry", async () => {
   for (const sameRun of [false, true]) {
     const state = fixture();
     const original = state.runs[0][0];
@@ -190,7 +190,7 @@ test("an old success cannot hide a newer failed run or pending retry", async () 
   }
 });
 
-test("workflow success requires its actual aggregate job to pass on the same SHA", async () => {
+void test("workflow success requires its actual aggregate job to pass on the same SHA", async () => {
   const mutations = [
     (s, i) => {
       s.jobs[i] = [];
@@ -220,7 +220,7 @@ test("workflow success requires its actual aggregate job to pass on the same SHA
   }
 });
 
-test("stale queued candidates and a head change during qualification cannot publish", async () => {
+void test("stale queued candidates and a head change during qualification cannot publish", async () => {
   const state = fixture();
   state.head = otherSha;
   assert.equal((await qualifyNightlyPwa(state.context, state.request)).qualified, false);
@@ -234,7 +234,7 @@ test("stale queued candidates and a head change during qualification cannot publ
   assert.equal(result.qualified, false);
 });
 
-test("API errors and incomplete response pages fail closed", async () => {
+void test("API errors and incomplete response pages fail closed", async () => {
   const state = fixture();
   await assert.rejects(
     qualifyNightlyPwa(state.context, async () => {
@@ -251,7 +251,7 @@ test("API errors and incomplete response pages fail closed", async () => {
   );
 });
 
-test("the publication CLI exits nonzero for an unqualified pinned candidate", async () => {
+void test("the publication CLI exits nonzero for an unqualified pinned candidate", async () => {
   const temporaryParent = new URL("../tmp/", import.meta.url);
   await mkdir(temporaryParent, { recursive: true });
   const temporary = await mkdtemp(join(fileURLToPath(temporaryParent), "nightly-cli-"));
