@@ -4,6 +4,19 @@ import XCTest
 
 @MainActor
 final class SettingsIntegrationsOAuthTests: XCTestCase {
+  func testTimeoutReleaseBeforeSleepStartsIsRetained() async throws {
+    let sleeper = SettingsIntegrationsSleepGate()
+    await sleeper.release()
+    let released = expectation(description: "Early timeout release is retained")
+    let sleeping = Task {
+      try await sleeper.sleep(.seconds(1))
+      released.fulfill()
+    }
+    await fulfillment(of: [released], timeout: 2)
+    sleeping.cancel()
+    try await sleeping.value
+  }
+
   func testOAuthTimeoutIsBoundedAndNeverReplaysBeginOrWait() async {
     let gateway = SettingsIntegrationsGatewayFake()
     await gateway.setBeginResult(
@@ -217,9 +230,15 @@ final class SettingsIntegrationsOAuthTests: XCTestCase {
 
 private actor SettingsIntegrationsSleepGate {
   private var continuation: CheckedContinuation<Void, any Error>?
+  private var released = false
 
   func sleep(_ duration: Duration) async throws {
     try await withTaskCancellationHandler {
+      try Task.checkCancellation()
+      if released {
+        released = false
+        return
+      }
       try await withCheckedThrowingContinuation { continuation = $0 }
     } onCancel: {
       Task { await self.cancel() }
@@ -227,8 +246,12 @@ private actor SettingsIntegrationsSleepGate {
   }
 
   func release() {
-    continuation?.resume(returning: ())
-    continuation = nil
+    if let continuation {
+      self.continuation = nil
+      continuation.resume(returning: ())
+    } else {
+      released = true
+    }
   }
 
   private func cancel() {

@@ -31,6 +31,8 @@ const unifiedRightPanelProps = vi.hoisted(() => ({
     activeTab: string;
     docksContent?: ReactElement;
     docksHeaderActions?: ReactElement;
+    onBackSubagent?: () => void;
+    onCloseSubagent?: () => void;
   } | null,
 }));
 
@@ -39,6 +41,8 @@ vi.mock("@/renderer/components/layout/UnifiedRightPanel", () => ({
     activeTab: string;
     docksContent?: ReactElement;
     docksHeaderActions?: ReactElement;
+    onBackSubagent?: () => void;
+    onCloseSubagent?: () => void;
   }) => {
     unifiedRightPanelProps.current = props;
     return null;
@@ -132,6 +136,7 @@ describe("ProjectAuxiliaryPanel", () => {
       usagePanelOpen: false,
       notesPanelOpen: false,
       threadDocksPanelOpen: false,
+      threadDocksReturnThreadId: null,
       subAgentPanelOpen: false,
       subAgentPanelContext: null,
       bottomPanelDocks: { left: null, right: null },
@@ -167,6 +172,67 @@ describe("ProjectAuxiliaryPanel", () => {
       });
     });
   });
+
+  it.each([false, true])(
+    "returns to Thread Info even if the last agent finished: %s",
+    (completed) => {
+      focusThread(threadA.id);
+      useSharedSettings.setState({ threadDocksPlacement: "right" });
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [threadA.id]: ["agent-1"] },
+        runtimeItemsByIdByThread: {
+          [threadA.id]: {
+            "agent-1": {
+              id: "agent-1",
+              type: "tool_call",
+              state: completed ? "completed" : "started",
+              payload: {
+                name: "spawnAgent",
+                status: completed ? "success" : "running",
+                isSubAgent: true,
+              },
+              streams: {},
+            },
+          },
+        },
+        runtimeStructuralVersionByThread: { [threadA.id]: 1 },
+      });
+      usePanelStore.setState({
+        rightPanelTab: "subagent",
+        gitReviewContext: null,
+        threadDocksPanelOpen: true,
+        threadDocksFocus: "agents",
+        subAgentPanelOpen: true,
+        subAgentPanelContext: {
+          threadId: threadA.id,
+          parentItemId: "agent-1",
+          returnToThreadInfo: true,
+        },
+      });
+      render(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal visible />
+        </I18nProvider>,
+      );
+
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("subagent");
+      expect(unifiedRightPanelProps.current?.onBackSubagent).toBeTypeOf("function");
+      act(() => unifiedRightPanelProps.current?.onBackSubagent?.());
+      expect(usePanelStore.getState()).toMatchObject({
+        rightPanelTab: "docks",
+        threadDocksPanelOpen: true,
+        threadDocksFocus: "agents",
+        subAgentPanelContext: null,
+        subAgentPanelOpen: false,
+      });
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("docks");
+      const visibility = renderHook(() => usePanelVisibility());
+      expect(visibility.result.current.sidePanelOpen).toBe(true);
+
+      act(() => focusThread(threadB.id));
+      expect(visibility.result.current.sidePanelOpen).toBe(false);
+    },
+  );
 
   it("passes the focused worktree location to right-panel docks", async () => {
     useAppStore.setState({

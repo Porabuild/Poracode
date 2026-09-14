@@ -624,6 +624,10 @@ msgstr "{serverName} · WSL {0}"
 msgid "{serverName} from {providerLabel}: {disabledLabel}"
 msgstr "{providerLabel}의 {serverName}: {disabledLabel}"
 
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
+msgid "{stepCount, plural, one {# step} other {# steps}}"
+msgstr "{stepCount, plural, other {# 단계}}"
+
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 msgid "{used} tokens"
 msgstr "{used} 토큰"
@@ -1861,6 +1865,10 @@ msgstr "뒤로"
 msgid "Back to plugins"
 msgstr "플러그인으로 돌아가기"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Back to Thread Info"
+msgstr "스레드 정보로 돌아가기"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
 msgstr "백그라운드 프로세스가 예기치 않게 종료되었습니다."
@@ -2274,7 +2282,7 @@ msgstr "워크플로 취소"
 msgid "cancelled"
 msgstr "취소됨"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -3177,7 +3185,7 @@ msgstr "이 터미널의 프롬프트를 완료하세요. 완료되면 닫힙니
 msgid "completed"
 msgstr "완료"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/utils/prStatus.ts
 msgid "Completed"
 msgstr "완료됨"
@@ -5348,7 +5356,7 @@ msgid "failed"
 msgstr "실패"
 
 #: src/renderer/components/providers/antigravity/taskNotificationMarkdown.ts
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/components/thread/ThreadGoalDock.tsx
 #: src/renderer/utils/prStatus.ts
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
@@ -6998,6 +7006,7 @@ msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "실시간 음성을 사용하려면 이 제공업체의 구독 계정으로 로그인해야 합니다."
 
 #: src/renderer/components/common/PixelLoader.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
@@ -8221,6 +8230,10 @@ msgstr "활성 브라우저 탭이 없습니다."
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "No active session"
 #~ msgstr "활성 세션 없음"
+
+#: src/renderer/components/thread/ThreadDocksPanel.tsx
+msgid "No active tasks."
+msgstr "진행 중인 작업이 없습니다."
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "No active workflows"
@@ -11297,7 +11310,7 @@ msgstr "실행"
 
 #. placeholder {0}: props.workflow.name
 #. placeholder {0}: workflow.runId
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Run {0}"
 msgstr "{0} 실행"
@@ -15267,11 +15280,11 @@ msgstr "워크플로 취소를 요청했습니다."
 msgid "Workflow dispatch requested."
 msgstr "워크플로 실행이 요청되었습니다."
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Workflow finished. Child agents ran in a separate process and aren’t streamed here yet."
 msgstr "워크플로가 완료되었습니다. 하위 에이전트는 별도의 프로세스에서 실행되었으며 아직 여기에서 스트리밍되지 않습니다."
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Workflow is running in the background. Child agents run in a separate process and aren’t streamed here yet."
 msgstr "워크플로가 백그라운드에서 실행 중입니다. 하위 에이전트는 별도의 프로세스에서 실행되며 아직 여기에서 스트리밍되지 않습니다."
 
@@ -15330,7 +15343,7 @@ msgstr "{elapsed} 동안 작업 중"
 msgid "Working tree clean"
 msgstr "작업 트리 깨끗함"
 
-#: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
+#: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 msgid "Working…"
 msgstr "작업 중…"
 

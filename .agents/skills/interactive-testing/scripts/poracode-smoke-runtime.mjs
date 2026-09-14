@@ -138,12 +138,15 @@ export async function verifyReusableSmokeRuntime(
 }
 
 export async function validateSmokeNativeDependencies(appRoot) {
+  const validationEnv = smokeRuntimeEnvironment(process.env);
+  // Unit-test installs can skip Electron; launching an isolated app requires it.
+  delete validationEnv.ELECTRON_SKIP_BINARY_DOWNLOAD;
   const result = await execute(
     process.execPath,
     [join(appRoot, "scripts", "ensure-native-deps.mjs"), "--electron-native"],
     {
       cwd: appRoot,
-      env: smokeRuntimeEnvironment(process.env),
+      env: validationEnv,
       maxBuffer: 8 * 1024 * 1024,
     },
   );
