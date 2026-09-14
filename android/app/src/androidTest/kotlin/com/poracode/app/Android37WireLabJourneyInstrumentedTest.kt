@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
@@ -187,12 +188,16 @@ class Android37WireLabJourneyInstrumentedTest {
             null,
             application.richChat.chat.state.value.failure,
         )
-        // CI emulators occasionally stall several seconds (host graphics hiccups);
-        // this bound only asserts prompt issuance — the count below still proves
-        // exactly-once, so it gets the same tolerance as the interrupt await.
+        // The composer launches its send on the composition's dispatcher, so the
+        // Compose clock must keep advancing while that coroutine resumes from the
+        // credential I/O hop. A raw poll starves that resume, leaving the request
+        // unsent until something else pumps frames. The count below still proves
+        // exactly-once, so this bound only asserts prompt issuance.
         try {
-            control.waitUntilObserved(listOf("route:thread-send"), 20_000L)
-        } catch (timeout: AwaitTimeoutException) {
+            compose.waitUntil(20_000L) {
+                "route:thread-send" in control.observedOperationIds()
+            }
+        } catch (timeout: ComposeTimeoutException) {
             val chatState = application.richChat.chat.state.value
             throw AwaitTimeoutException(
                 "${timeout.message} (app send state: " +
@@ -238,7 +243,11 @@ class Android37WireLabJourneyInstrumentedTest {
             null,
             application.richChat.chat.state.value.failure,
         )
-        control.waitUntilObserved(listOf("route:thread-interrupt"), 20_000L)
+        // Same dispatch rule as the send await: keep Compose advancing so the
+        // interrupt coroutine can resume from its I/O hop.
+        compose.waitUntil(20_000L) {
+            "route:thread-interrupt" in control.observedOperationIds()
+        }
         assertObserved(control, listOf("route:thread-interrupt"))
         assertEquals(
             "one raw interrupt request; production mutations are never retried",
