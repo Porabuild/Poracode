@@ -43,8 +43,7 @@ void test("API 37 workflow preserves shell state, joins its harness, and propaga
         join(bin, "adb"),
         `#!/bin/sh
 case "$*" in
-  'install --no-streaming -r '*) if [ "$FAILURE_STAGE" = install ]; then exit 6; fi;;
-  'install '*) exit 65;;
+  'install -r '*) if [ "$FAILURE_STAGE" = install ]; then exit 6; fi;;
   'logcat -d -t '*) if [ "$FAILURE_STAGE" = instrumentation-logcat ]; then echo fixture-logcat-error >&2; exit 8; fi; echo fixture-logcat;;
   'logcat -d '*) echo fixture-logcat;;
   'shell getprop sys.boot_completed') echo 1;;

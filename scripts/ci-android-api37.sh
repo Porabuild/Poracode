@@ -21,7 +21,7 @@ test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "37"
 test "$(adb shell getprop ro.build.version.codename | tr -d '\r')" = "REL"
 
 adb shell df -h /data
-adb install --no-streaming -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'minSdk=26'
 adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'targetSdk=37'
 adb logcat -c

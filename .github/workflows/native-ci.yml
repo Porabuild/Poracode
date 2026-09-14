@@ -255,7 +255,9 @@ jobs:
           heap-size: 512M
           # Leave room for the APK, test APK, and API 37 package-install staging.
           disk-size: 6G
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          # API 37's mapper requires read-color-buffer DMA. The host advertises
+          # it only with both direct memory and the shared-slot allocator enabled.
+          emulator-options: -no-window -gpu software -feature GLDirectMem,HasSharedSlotsHostMemoryAllocator -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           working-directory: android
           # The action runs every script line in a separate shell.
