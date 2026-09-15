@@ -150,8 +150,19 @@ function assertSafeCloneUrl(rawUrl: string): void {
   }
 }
 
-function makeProject(location: ProjectLocation, name: string, createdAt: string): Project {
-  return { id: randomUUID(), name, location, createdAt };
+function makeProject(
+  location: ProjectLocation,
+  name: string,
+  createdAt: string,
+  workspaceId?: string,
+): Project {
+  return {
+    id: randomUUID(),
+    name,
+    location,
+    createdAt,
+    ...(workspaceId ? { workspaceId } : {}),
+  };
 }
 
 /**
@@ -171,7 +182,7 @@ export async function applyRemoteProjectCommand(
       const name = command.name?.trim() || nameFromPath(command.path);
       assertValidName(name);
       const location = deriveLocationFromPath(command.path, deps.platform);
-      return register(deps, location, name);
+      return register(deps, location, name, command.workspaceId);
     }
     case "create": {
       assertValidProjectPath(command.parentPath, deps.platform);
@@ -286,8 +297,9 @@ function register(
   deps: RemoteProjectCommandDeps,
   location: ProjectLocation,
   name: string,
+  workspaceId?: string,
 ): RemoteProjectCommandResult {
-  const project = makeProject(location, name, deps.now());
+  const project = makeProject(location, name, deps.now(), workspaceId);
   // Descending timestamp → new projects sort to the top (sortOrder is ASC).
   deps.upsertProject(project, -Date.parse(project.createdAt));
   return { projects: deps.getProjects(), project };

@@ -104,7 +104,7 @@ export function buildSharedAppControlsIngressDeps(
       return parsed;
     },
     updateProject: (project) => {
-      dbUpsertProject(project, -Date.parse(project.createdAt));
+      dbUpdateProject(project);
       publishProjectsChanged();
     },
     createThread: (request) =>

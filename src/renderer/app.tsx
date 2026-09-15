@@ -35,6 +35,7 @@ import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
+import { applyRemoteSetGroupCommand } from "@/renderer/actions/remoteGroupCommandActions";
 import { applyRemoteThreadStartCommand } from "@/renderer/actions/remoteStartCommandActions";
 import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
@@ -398,15 +399,12 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             if ((thread.starred ?? false) !== command.starred) toggleStarThread(command.threadId);
             break;
           // Orchestrator grouping: pulls the parent thread into the sidebar
-          // group its children are created in.
+          // group its children are created in. Omitting groupId ungroups.
           case "set-group":
-            useAppStore.setState((state) => ({
-              threads: state.threads.map((t) =>
-                t.id === command.threadId
-                  ? { ...t, groupId: command.groupId, groupName: command.groupName }
-                  : t,
-              ),
-            }));
+            applyRemoteSetGroupCommand(command.threadId, command.groupId, command.groupName);
+            break;
+          case "set-workspace":
+            useAppStore.getState().setThreadWorkspace(command.threadId, command.workspaceId);
             break;
           case "set-worktree": {
             useAppStore
