@@ -8,7 +8,7 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 12
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 3
-  public static let sourceHash = "sha256:651087791c54c1b71d54e96dcf0e9c2bf0740778beb3754f7a060d346c55b21a"
+  public static let sourceHash = "sha256:b137c859d4115f7393d6524f471ef1d506726c43bf689076496ed5abcbfc7467"
   public static let manifestHash = "sha256:11a5c78613ef282507c0fec78d3c5315f42945ecca4efada25d09ddb8ec0d460"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
@@ -63,7 +63,7 @@ public enum RemoteContractMetadata {
     .init(id: "terminal-resize", method: "POST", path: "/api/threads/{threadId}/terminal/resize", auth: "bearer", scopes: ["terminal:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteterminalU2DResizeRequest_55ee222c09", responseType: "RouteportU2DUnforwardResponse_badd682f35", queryCodecs: []),
     .init(id: "terminal-start", method: "POST", path: "/api/terminal/start", auth: "bearer", scopes: ["terminal:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteterminalU2DStartRequest_b03238f553", responseType: "RouteportU2DUnforwardResponse_badd682f35", queryCodecs: []),
     .init(id: "terminal-write", method: "POST", path: "/api/threads/{threadId}/terminal/write", auth: "bearer", scopes: ["terminal:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteterminalU2DWriteRequest_6c6fca7050", responseType: "RouteportU2DUnforwardResponse_badd682f35", queryCodecs: []),
-    .init(id: "thread-checkpoint-revert", method: "POST", path: "/api/threads/{threadId}/checkpoint-revert", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutethreadU2DCheckpointU2DRevertRequest_9f990932c5", responseType: "RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21", queryCodecs: []),
+    .init(id: "thread-checkpoint-revert", method: "POST", path: "/api/threads/{threadId}/checkpoint-revert", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b", responseType: "RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21", queryCodecs: []),
     .init(id: "thread-close", method: "POST", path: "/api/threads/{threadId}/close", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutehostU2DUpdateU2DInstallResponse_81055c9199", responseType: "RouteportU2DUnforwardResponse_badd682f35", queryCodecs: []),
     .init(id: "thread-command", method: "POST", path: "/api/threads/{threadId}/command", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutethreadU2DCommandRequest_37bea14e33", responseType: "RouteportU2DUnforwardResponse_badd682f35", queryCodecs: []),
     .init(id: "thread-goal", method: "POST", path: "/api/threads/{threadId}/goal", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutethreadU2DGoalRequest_54c8350637", responseType: "RouteportU2DUnforwardResponse_badd682f35", queryCodecs: []),

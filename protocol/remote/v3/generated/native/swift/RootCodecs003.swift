@@ -149,7 +149,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DCheckpointU2DRevertU2ERequest: RemoteRootCodec<RoutethreadU2DCheckpointU2DRevertRequest_9f990932c5> = .init(id: "route.thread-checkpoint-revert.request", schema: RemoteSchemas.schema_9f990932c56d0034)
+  static let routeU2EThreadU2DCheckpointU2DRevertU2ERequest: RemoteRootCodec<RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b> = .init(id: "route.thread-checkpoint-revert.request", schema: RemoteSchemas.schema_40f9a6009bf15988)
 }
 
 public extension RemoteRootCodecs {

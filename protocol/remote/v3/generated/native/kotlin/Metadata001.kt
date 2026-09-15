@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 12
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:651087791c54c1b71d54e96dcf0e9c2bf0740778beb3754f7a060d346c55b21a"
+    const val sourceHash = "sha256:b137c859d4115f7393d6524f471ef1d506726c43bf689076496ed5abcbfc7467"
     const val manifestHash = "sha256:11a5c78613ef282507c0fec78d3c5315f42945ecca4efada25d09ddb8ec0d460"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -68,7 +68,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("terminal-resize", "POST", "/api/threads/{threadId}/terminal/resize", "bearer", listOf("terminal:operate"), "json", "json", 200, "RouteterminalU2DResizeRequest_55ee222c09", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("terminal-start", "POST", "/api/terminal/start", "bearer", listOf("terminal:operate"), "json", "json", 200, "RouteterminalU2DStartRequest_b03238f553", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("terminal-write", "POST", "/api/threads/{threadId}/terminal/write", "bearer", listOf("terminal:operate"), "json", "json", 200, "RouteterminalU2DWriteRequest_6c6fca7050", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
-        RemoteRouteDescriptor("thread-checkpoint-revert", "POST", "/api/threads/{threadId}/checkpoint-revert", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DCheckpointU2DRevertRequest_9f990932c5", "RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21", listOf()),
+        RemoteRouteDescriptor("thread-checkpoint-revert", "POST", "/api/threads/{threadId}/checkpoint-revert", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b", "RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21", listOf()),
         RemoteRouteDescriptor("thread-close", "POST", "/api/threads/{threadId}/close", "bearer", listOf("session:operate"), "json", "json", 200, "RoutehostU2DUpdateU2DInstallResponse_81055c9199", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-command", "POST", "/api/threads/{threadId}/command", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DCommandRequest_37bea14e33", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("thread-goal", "POST", "/api/threads/{threadId}/goal", "bearer", listOf("session:operate"), "json", "json", 200, "RoutethreadU2DGoalRequest_54c8350637", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
