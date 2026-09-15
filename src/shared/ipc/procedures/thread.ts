@@ -1,13 +1,18 @@
 import {
   authenticateAcpAgentPayloadSchema,
+  checkpointRevertPayloadSchema,
+  checkpointRevertResultSchema,
   clearPendingSteerPayloadSchema,
   controlThreadGoalPayloadSchema,
   closeThreadPayloadSchema,
+  createRevertAnchorPayloadSchema,
+  createRevertAnchorResultSchema,
   extractContextPayloadSchema,
   agentHookPluginPayloadSchema,
   getAgentHookPluginStatusesPayloadSchema,
   getAgentStatusesPayloadSchema,
   getThreadFollowUpQueuePayloadSchema,
+  threadFollowUpQueueStateSchema,
   installAcpRegistryAgentPayloadSchema,
   interruptThreadPayloadSchema,
   logoutAcpAgentPayloadSchema,
@@ -17,6 +22,7 @@ import {
   reorderQueuedThreadFollowUpPayloadSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
+  restoreToRevertAnchorPayloadSchema,
   rollbackThreadConversationPayloadSchema,
   sendThreadInputPayloadSchema,
   setAcpRegistryAgentAuthPayloadSchema,
@@ -44,7 +50,11 @@ import type {
   BackgroundTask,
   ClearPendingSteerPayload,
   ControlThreadGoalPayload,
+  CheckpointRevertPayload,
+  CheckpointRevertResult,
   CloseThreadPayload,
+  CreateRevertAnchorPayload,
+  CreateRevertAnchorResult,
   ExtractContextPayload,
   ExtractContextResult,
   GetAgentHookPluginStatusesPayload,
@@ -58,6 +68,7 @@ import type {
   RemoveQueuedThreadFollowUpPayload,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
+  RestoreToRevertAnchorPayload,
   RollbackThreadConversationPayload,
   SendThreadInputPayload,
   SetAcpRegistryAgentAuthPayload,
@@ -70,6 +81,7 @@ import type {
   StartThreadResult,
   TerminalSize,
   TerminalShellSnapshot,
+  TerminalSnapshot,
   ThreadRuntimeSnapshot,
   UpdateAcpRegistryAgentPayload,
   UpdateAgentBinaryPayload,
@@ -82,16 +94,24 @@ import type {
 } from "../../contracts";
 import type { CrossagentRoutingState } from "../../crossagentRanking";
 import type { AvailableWindowsShell } from "../../settings";
-import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
+import {
+  defineIpcProcedure,
+  defineNoArgProcedure,
+  definePayloadProcedure,
+  omittedResultSchema,
+} from "../core";
 import {
   readThreadPayloadSchema,
   subAgentSubscribePayloadSchema,
+  subAgentSubscribeResultSchema,
   type SubAgentSubscribePayload,
   type SubAgentSubscribeResult,
   workflowAgentChatPayloadSchema,
+  workflowAgentChatResultSchema,
   type WorkflowAgentChatPayload,
   type WorkflowAgentChatResult,
   workflowGetRunPayloadSchema,
+  workflowGetRunResultSchema,
   type WorkflowGetRunPayload,
   type WorkflowGetRunResult,
 } from "../schemas";
@@ -201,6 +221,12 @@ export const threadProcedures = {
     "supervisor",
     startThreadPayloadSchema,
   ),
+  /** Reopen a stored thread without replacing an already-live runtime. */
+  ensureThreadRunning: definePayloadProcedure<StartThreadPayload, StartThreadResult, "supervisor">(
+    "ensureThreadRunning",
+    "supervisor",
+    startThreadPayloadSchema,
+  ),
   sendThreadInput: definePayloadProcedure<SendThreadInputPayload, void, "supervisor">(
     "sendThreadInput",
     "supervisor",
@@ -220,7 +246,38 @@ export const threadProcedures = {
     RollbackThreadConversationPayload,
     void,
     "supervisor"
-  >("rollbackThreadConversation", "supervisor", rollbackThreadConversationPayloadSchema),
+  >(
+    "rollbackThreadConversation",
+    "supervisor",
+    rollbackThreadConversationPayloadSchema,
+    omittedResultSchema,
+  ),
+  createRevertAnchor: definePayloadProcedure<
+    CreateRevertAnchorPayload,
+    CreateRevertAnchorResult,
+    "supervisor"
+  >(
+    "createRevertAnchor",
+    "supervisor",
+    createRevertAnchorPayloadSchema,
+    createRevertAnchorResultSchema,
+  ),
+  restoreToRevertAnchor: definePayloadProcedure<RestoreToRevertAnchorPayload, void, "supervisor">(
+    "restoreToRevertAnchor",
+    "supervisor",
+    restoreToRevertAnchorPayloadSchema,
+    omittedResultSchema,
+  ),
+  /**
+   * WS2 stage 4: the backend-owned compound checkpoint revert. Renderers call
+   * this ONE procedure; the backend host executes provider rollback, file
+   * restore and transcript truncation as a single journaled operation.
+   */
+  revertCheckpoint: definePayloadProcedure<
+    CheckpointRevertPayload,
+    CheckpointRevertResult,
+    "main-local"
+  >("revertCheckpoint", "main-local", checkpointRevertPayloadSchema, checkpointRevertResultSchema),
   setPendingSteer: definePayloadProcedure<SetPendingSteerPayload, void, "supervisor">(
     "setPendingSteer",
     "supervisor",
@@ -235,42 +292,74 @@ export const threadProcedures = {
     "queueThreadFollowUp",
     "supervisor",
     setPendingSteerPayloadSchema,
+    omittedResultSchema,
   ),
   removeQueuedThreadFollowUp: definePayloadProcedure<
     RemoveQueuedThreadFollowUpPayload,
     void,
     "supervisor"
-  >("removeQueuedThreadFollowUp", "supervisor", removeQueuedThreadFollowUpPayloadSchema),
+  >(
+    "removeQueuedThreadFollowUp",
+    "supervisor",
+    removeQueuedThreadFollowUpPayloadSchema,
+    omittedResultSchema,
+  ),
   reorderQueuedThreadFollowUp: definePayloadProcedure<
     ReorderQueuedThreadFollowUpPayload,
     void,
     "supervisor"
-  >("reorderQueuedThreadFollowUp", "supervisor", reorderQueuedThreadFollowUpPayloadSchema),
+  >(
+    "reorderQueuedThreadFollowUp",
+    "supervisor",
+    reorderQueuedThreadFollowUpPayloadSchema,
+    omittedResultSchema,
+  ),
   editQueuedThreadFollowUp: definePayloadProcedure<
     EditQueuedThreadFollowUpPayload,
     void,
     "supervisor"
-  >("editQueuedThreadFollowUp", "supervisor", editQueuedThreadFollowUpPayloadSchema),
+  >(
+    "editQueuedThreadFollowUp",
+    "supervisor",
+    editQueuedThreadFollowUpPayloadSchema,
+    omittedResultSchema,
+  ),
   steerQueuedThreadFollowUp: definePayloadProcedure<
     RemoveQueuedThreadFollowUpPayload,
     void,
     "supervisor"
-  >("steerQueuedThreadFollowUp", "supervisor", removeQueuedThreadFollowUpPayloadSchema),
+  >(
+    "steerQueuedThreadFollowUp",
+    "supervisor",
+    removeQueuedThreadFollowUpPayloadSchema,
+    omittedResultSchema,
+  ),
   pauseThreadFollowUps: definePayloadProcedure<
     RemoveQueuedThreadFollowUpPayload,
     void,
     "supervisor"
-  >("pauseThreadFollowUps", "supervisor", removeQueuedThreadFollowUpPayloadSchema),
+  >(
+    "pauseThreadFollowUps",
+    "supervisor",
+    removeQueuedThreadFollowUpPayloadSchema,
+    omittedResultSchema,
+  ),
   resumeThreadFollowUps: definePayloadProcedure<ResumeThreadFollowUpsPayload, void, "supervisor">(
     "resumeThreadFollowUps",
     "supervisor",
     resumeThreadFollowUpsPayloadSchema,
+    omittedResultSchema,
   ),
   getThreadFollowUpQueue: definePayloadProcedure<
     GetThreadFollowUpQueuePayload,
     ThreadFollowUpQueueState | null,
     "supervisor"
-  >("getThreadFollowUpQueue", "supervisor", getThreadFollowUpQueuePayloadSchema),
+  >(
+    "getThreadFollowUpQueue",
+    "supervisor",
+    getThreadFollowUpQueuePayloadSchema,
+    threadFollowUpQueueStateSchema.nullable(),
+  ),
   writeTerminal: definePayloadProcedure<WriteTerminalPayload, void, "supervisor">(
     "writeTerminal",
     "supervisor",
@@ -280,6 +369,7 @@ export const threadProcedures = {
     "stageThreadInput",
     "supervisor",
     stageThreadInputPayloadSchema,
+    omittedResultSchema,
   ),
   resizeTerminal: definePayloadProcedure<ResizeTerminalPayload, void, "supervisor">(
     "resizeTerminal",
@@ -321,6 +411,15 @@ export const threadProcedures = {
     "supervisor",
     readThreadPayloadSchema,
   ),
+  /**
+   * Internal snapshot used by remote terminal cursor-sync watches. Not exposed
+   * as a remote HTTP procedure — remote server only.
+   */
+  readTerminalSnapshot: definePayloadProcedure<
+    { threadId: string },
+    TerminalSnapshot | null,
+    "supervisor"
+  >("readTerminalSnapshot", "supervisor", readThreadPayloadSchema),
   readThreadBackgroundTasks: definePayloadProcedure<
     { threadId: string },
     BackgroundTask[],
@@ -330,20 +429,32 @@ export const threadProcedures = {
     SubAgentSubscribePayload,
     SubAgentSubscribeResult,
     "supervisor"
-  >("subagentSubscribe", "supervisor", subAgentSubscribePayloadSchema),
+  >(
+    "subagentSubscribe",
+    "supervisor",
+    subAgentSubscribePayloadSchema,
+    subAgentSubscribeResultSchema,
+  ),
   subagentUnsubscribe: definePayloadProcedure<SubAgentSubscribePayload, void, "supervisor">(
     "subagentUnsubscribe",
     "supervisor",
     subAgentSubscribePayloadSchema,
+    omittedResultSchema,
   ),
   workflowGetRun: definePayloadProcedure<WorkflowGetRunPayload, WorkflowGetRunResult, "supervisor">(
     "workflowGetRun",
     "supervisor",
     workflowGetRunPayloadSchema,
+    workflowGetRunResultSchema,
   ),
   workflowAgentChat: definePayloadProcedure<
     WorkflowAgentChatPayload,
     WorkflowAgentChatResult,
     "supervisor"
-  >("workflowAgentChat", "supervisor", workflowAgentChatPayloadSchema),
+  >(
+    "workflowAgentChat",
+    "supervisor",
+    workflowAgentChatPayloadSchema,
+    workflowAgentChatResultSchema,
+  ),
 } as const;

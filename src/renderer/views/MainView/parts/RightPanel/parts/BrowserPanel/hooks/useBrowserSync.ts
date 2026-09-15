@@ -2,6 +2,10 @@ import { useEffect } from "react";
 import { readBridge } from "@/renderer/bridge";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { selectAnyObstructingOverlayOpen, usePanelStore } from "@/renderer/state/panelStore";
+import {
+  selectBrowserPanelAvailable,
+  useRemoteServersStore,
+} from "@/renderer/state/remoteServersStore";
 
 export function useBrowserSync(): void {
   const setState = useBrowserPanelStore((s) => s.setState);
@@ -13,8 +17,10 @@ export function useBrowserSync(): void {
   const clearUsageLoginConfirmation = useBrowserPanelStore((s) => s.clearUsageLoginConfirmation);
   const setUsageLoginDeviceCode = useBrowserPanelStore((s) => s.setUsageLoginDeviceCode);
   const clearUsageLoginDeviceCode = useBrowserPanelStore((s) => s.clearUsageLoginDeviceCode);
+  const browserPanelAvailable = useRemoteServersStore(selectBrowserPanelAvailable);
 
   useEffect(() => {
+    if (!browserPanelAvailable) return;
     let cancelled = false;
     const isMainWindow = readBridge().windowKind === "main";
     // Overlay/panel presentation side-effects belong to the main window alone,
@@ -91,5 +97,6 @@ export function useBrowserSync(): void {
     clearUsageLoginConfirmation,
     setUsageLoginDeviceCode,
     clearUsageLoginDeviceCode,
+    browserPanelAvailable,
   ]);
 }

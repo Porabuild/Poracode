@@ -11,7 +11,7 @@ import {
 import type { UsageLoginConfirmationAction, UsageLoginDeviceCode } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { BrowserLinkOpenTarget, BrowserLinkPresentationMode } from "@/shared/settings";
-import { dbGetState, dbSetState } from "../db";
+import type { ShellStateStore } from "../backend/BackendStateStore";
 import { readSharedSettingsFile } from "../sharedSettingsFile";
 import { saveClipboardImageFile } from "../attachments/localFiles";
 import { BrowserLoginCaptureCoordinator } from "./BrowserLoginCaptureCoordinator";
@@ -70,8 +70,8 @@ export class BrowserPanelManager {
   private pendingPicker: PendingPicker | null = null;
   private unsubscribePicker: (() => void) | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
-  private readonly history = new BrowserHistoryStore();
-  private readonly bookmarks = new BrowserBookmarkStore();
+  private readonly history: BrowserHistoryStore;
+  private readonly bookmarks: BrowserBookmarkStore;
   private restored = false;
   private automationActive = false;
   private readonly automationSessions = new Set<string>();
@@ -88,8 +88,11 @@ export class BrowserPanelManager {
   constructor(
     private readonly paths: PoracodePaths,
     private readonly browserUserAgent: string,
+    private readonly state: ShellStateStore,
     private readonly options: BrowserPanelManagerOptions = {},
   ) {
+    this.history = new BrowserHistoryStore(state);
+    this.bookmarks = new BrowserBookmarkStore(state);
     this.unsubscribePicker = onPickerCommit((commit) => {
       void this.onPickerCommit(commit);
     });
@@ -112,7 +115,7 @@ export class BrowserPanelManager {
             : null,
           ...(groups ? { groups } : {}),
         };
-        dbSetState(PERSIST_KEY, JSON.stringify(state));
+        this.state.set(PERSIST_KEY, JSON.stringify(state));
       } catch {}
     }, PERSIST_DEBOUNCE_MS);
   }
@@ -122,7 +125,7 @@ export class BrowserPanelManager {
     this.restored = true;
     let parsed: PersistedTabsState | null = null;
     try {
-      const raw = dbGetState(PERSIST_KEY);
+      const raw = this.state.get(PERSIST_KEY);
       if (!raw) return;
       const candidate = JSON.parse(raw) as PersistedTabsState;
       if (!candidate || !Array.isArray(candidate.tabs)) return;

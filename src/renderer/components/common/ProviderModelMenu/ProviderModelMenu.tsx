@@ -11,6 +11,7 @@ import {
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown, Search, Star, Zap } from "lucide-react";
 import { Tooltip } from "@heroui/react";
+import { formatProviderModelDescription } from "@/renderer/components/providers/modelDescription";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -31,7 +32,7 @@ import type { ProviderModelItem } from "./parts/types";
 export type { ProviderModelMenuProvider };
 
 const MODEL_MENU_ROW_HEIGHT = 28;
-/** Model rows grow to a finger-friendly target in the mobile PWA drawer; headers
+/** Model rows grow to a finger-friendly target in the compact drawer; headers
  * stay compact. Threaded through the virtualizer so the JS row math and the
  * rendered row height never disagree (a mismatch desyncs the scroll spacers). */
 const MODEL_MENU_ROW_HEIGHT_MOBILE = 44;
@@ -245,6 +246,18 @@ function browserToolbarScrollClearance(): number {
   probe.style.cssText =
     "position:fixed;visibility:hidden;pointer-events:none;width:0;" +
     "height:var(--m-browser-toolbar-safe-area,0px);";
+  document.body.append(probe);
+  const height = probe.getBoundingClientRect().height;
+  probe.remove();
+  return height;
+}
+
+function safeAreaBottomScrollClearance(): number {
+  if (typeof document === "undefined") return 0;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:fixed;visibility:hidden;pointer-events:none;width:0;" +
+    "height:env(safe-area-inset-bottom,0px);";
   document.body.append(probe);
   const height = probe.getBoundingClientRect().height;
   probe.remove();
@@ -568,6 +581,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
       placement="top start"
       contentClassName="w-96 p-0"
       dialogClassName="flex max-h-[28rem] flex-col overflow-hidden !p-0"
+      sheetClassName="m-sheet--model-picker"
     >
       {renderContent}
     </ResponsiveMenuSurface>
@@ -613,7 +627,7 @@ const WindowedProviderModelList = forwardRef<
     toggleFavorite,
     onSelect,
   } = props;
-  const { t } = useLingui();
+  const { t, i18n } = useLingui();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [visibleRow, setVisibleRow] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
@@ -625,6 +639,7 @@ const WindowedProviderModelList = forwardRef<
       initialMeta.firstModelId
     );
   });
+  const [showMobileKeyboardHighlight, setShowMobileKeyboardHighlight] = useState(false);
   const shouldAutoScrollRef = useRef(true);
   const shouldCenterActiveRef = useRef(true);
   const ignorePointerRef = useRef(true);
@@ -654,9 +669,11 @@ const WindowedProviderModelList = forwardRef<
   }, [activeIndex, activeRowId, onActiveChange]);
 
   const totalHeight = meta.totalHeight;
-  const [browserToolbarClearance] = useState(() => (mobile ? browserToolbarScrollClearance() : 0));
+  const [mobileBottomClearance] = useState(() =>
+    mobile ? browserToolbarScrollClearance() + safeAreaBottomScrollClearance() : 0,
+  );
   const scrollEndGapHeight = mobile
-    ? MODEL_MENU_MOBILE_SCROLL_END_GAP + browserToolbarClearance
+    ? MODEL_MENU_MOBILE_SCROLL_END_GAP + mobileBottomClearance
     : MODEL_MENU_LISTBOX_PADDING_BOTTOM;
   const totalScrollHeight = totalHeight + scrollEndGapHeight;
   const maxViewportHeight = mobileExpanded
@@ -760,6 +777,7 @@ const WindowedProviderModelList = forwardRef<
 
   function moveActive(delta: number) {
     if (modelRowIndices.length === 0) return;
+    if (mobile) setShowMobileKeyboardHighlight(true);
     shouldAutoScrollRef.current = true;
     const currentPosition = meta.modelPositionByIndex.get(activeIndex) ?? -1;
     const basePosition = currentPosition < 0 ? (delta > 0 ? -1 : 0) : currentPosition;
@@ -794,6 +812,7 @@ const WindowedProviderModelList = forwardRef<
       className={`poracode-model-menu-listbox no-scrollbar overflow-y-auto outline-none ${
         mobileExpanded ? "max-h-none" : "max-h-72"
       }`}
+      data-mobile={mobile ? "true" : undefined}
       style={{ height: viewportHeight }}
       tabIndex={0}
       onScroll={(event) => {
@@ -830,6 +849,7 @@ const WindowedProviderModelList = forwardRef<
         }
         if (event.key === "Home") {
           event.preventDefault();
+          if (mobile) setShowMobileKeyboardHighlight(true);
           shouldAutoScrollRef.current = true;
           const firstIndex = modelRowIndices[0];
           if (firstIndex !== undefined) {
@@ -839,6 +859,7 @@ const WindowedProviderModelList = forwardRef<
         }
         if (event.key === "End") {
           event.preventDefault();
+          if (mobile) setShowMobileKeyboardHighlight(true);
           shouldAutoScrollRef.current = true;
           const lastIndex = modelRowIndices[modelRowIndices.length - 1];
           if (lastIndex !== undefined) {
@@ -888,10 +909,11 @@ const WindowedProviderModelList = forwardRef<
             id={`${domIdPrefix}-${item.id}`}
             role="option"
             aria-selected={isSelected}
-            data-active={isActive ? "true" : undefined}
+            data-active={isActive && (!mobile || showMobileKeyboardHighlight) ? "true" : undefined}
             className="poracode-menu-item group mx-1.5 flex cursor-default items-center text-foreground"
             style={{ height: modelRowHeight }}
             onPointerMove={(event) => {
+              if (mobile) return;
               if (ignorePointerRef.current) return;
               if (event.movementX === 0 && event.movementY === 0) return;
               if (isActive) return;
@@ -916,7 +938,13 @@ const WindowedProviderModelList = forwardRef<
               // the label string itself (e.g. "GPT-5.5 · 272K · Medium").
               // Render the head as the model name and the tail as muted hint.
               const { name, hint } = splitModelLabel(item.label);
-              const mutedHint = [hint, item.contextDescription].filter(Boolean).join(" · ");
+              const description = formatProviderModelDescription(
+                item.providerKind,
+                item.tooltipDescription,
+              );
+              const mutedHint = [hint, item.contextDescription, description?.hint]
+                .filter(Boolean)
+                .join(" · ");
               const rowFastEnabled = modelFastEnabled(item.providerKind, item.modelId);
               const content = (
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -943,11 +971,14 @@ const WindowedProviderModelList = forwardRef<
               );
               return item.tooltipDescription ? (
                 <Tooltip delay={MODEL_DESCRIPTION_TOOLTIP_DELAY_MS}>
-                  {content}
+                  <Tooltip.Trigger className="min-w-0 flex-1" role="none" tabIndex={-1}>
+                    {content}
+                  </Tooltip.Trigger>
                   <Tooltip.Content
                     placement="right"
-                    className="max-w-72 whitespace-normal break-words text-xs"
+                    className="max-w-72 whitespace-pre-line break-words text-xs"
                   >
+                    {description ? `${i18n._(description.explanation)}\n\n` : null}
                     {item.tooltipDescription}
                   </Tooltip.Content>
                 </Tooltip>
@@ -1044,7 +1075,7 @@ function HeaderPlain(props: {
   return (
     <div
       role="presentation"
-      className={`${className} flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
+      className={`${className} poracode-model-menu-header poracode-model-menu-header--plain flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
     >
       {t(item.label)}
     </div>
@@ -1060,15 +1091,17 @@ function HeaderProvider(props: {
   return (
     <div
       role="presentation"
-      className={`${className} flex h-7 items-center gap-1.5 border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
+      className={`${className} poracode-model-menu-header poracode-model-menu-header--provider flex h-7 items-center gap-1.5 border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
     >
-      <ProviderIcon
-        kind={item.providerKind}
-        {...(item.providerIcon ? { icon: item.providerIcon } : {})}
-        fallbackLabel={item.label}
-        tone="active"
-        className="size-3"
-      />
+      <span className="poracode-model-menu-provider-mark contents">
+        <ProviderIcon
+          kind={item.providerKind}
+          {...(item.providerIcon ? { icon: item.providerIcon } : {})}
+          fallbackLabel={item.label}
+          tone="active"
+          className="size-3"
+        />
+      </span>
       <span className="min-w-0 truncate">{item.label}</span>
       {subProviderLabel ? (
         <>
@@ -1088,7 +1121,7 @@ function HeaderSub(props: {
   return (
     <div
       role="presentation"
-      className={`${className} flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
+      className={`${className} poracode-model-menu-header poracode-model-menu-header--sub flex h-7 items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80`}
     >
       {item.label}
     </div>

@@ -1,4 +1,4 @@
-import type { ProjectLocation, RuntimeEvent } from "@/shared/contracts";
+import type { ProjectLocation, RuntimeEvent, SessionRef } from "@/shared/contracts";
 import {
   resolveAgentProjectLocation,
   type StructuredSessionHandle,
@@ -19,6 +19,10 @@ export interface AttemptExecutionState {
   turnDispatched: boolean;
   /** The initial turn has been acknowledged, so native steering cannot launch a second one. */
   steerReady: boolean;
+  /** Captured provider identity survives process disposal for a completed follow-up. */
+  sessionRef?: SessionRef;
+  /** Reopen exactly this session; never silently replace it with a fresh conversation. */
+  resumeSessionRef?: SessionRef;
 }
 
 interface AttemptCallbacks {
@@ -30,6 +34,13 @@ interface AttemptCallbacks {
 
 /** Executes one resolved structured or one-shot attempt for a logical run. */
 export class SubagentAttemptRunner {
+  private readonly teardowns = new WeakMap<AttemptExecutionState, Promise<void>>();
+  private readonly creations = new WeakMap<
+    AttemptExecutionState,
+    Promise<StructuredSessionHandle | undefined>
+  >();
+  private readonly startups = new WeakMap<AttemptExecutionState, Promise<void>>();
+
   constructor(private readonly host: SubagentRunHost) {}
 
   run(
@@ -41,15 +52,41 @@ export class SubagentAttemptRunner {
     void this.runResolved(state, attemptIndex, attempt, callbacks);
   }
 
-  async teardown(state: AttemptExecutionState): Promise<void> {
-    if (state.oneShot) {
-      state.oneShot.cancel();
-      state.oneShot = undefined;
-    }
-    const handle = state.handle;
-    if (!handle) return;
-    state.handle = undefined;
-    await this.disposeHandle(handle);
+  hasLiveResources(state: AttemptExecutionState): boolean {
+    return Boolean(
+      state.handle ||
+      state.oneShot ||
+      this.creations.has(state) ||
+      this.startups.has(state) ||
+      this.teardowns.has(state),
+    );
+  }
+
+  teardown(state: AttemptExecutionState): Promise<void> {
+    const pending = this.teardowns.get(state);
+    if (pending) return pending;
+    // Publish the promise before callbacks from interrupt/cancel can re-enter teardown.
+    const teardown = Promise.resolve()
+      .then(async () => {
+        // Wait only for handle creation: waiting for runStructured would deadlock its teardown.
+        await this.creations.get(state)?.catch(() => undefined);
+        const oneShot = state.oneShot;
+        if (oneShot) {
+          oneShot.cancel();
+          await oneShot.closed;
+          if (state.oneShot === oneShot) state.oneShot = undefined;
+        }
+        const handle = state.handle;
+        if (handle) {
+          await this.disposeHandle(state, handle);
+          if (state.handle === handle) state.handle = undefined;
+        }
+      })
+      .finally(() => {
+        this.teardowns.delete(state);
+      });
+    this.teardowns.set(state, teardown);
+    return teardown;
   }
 
   private async runResolved(
@@ -92,45 +129,79 @@ export class SubagentAttemptRunner {
         adapter.kind,
         projectLocation,
       );
-      if (!callbacks.isActive()) return;
+      if (!callbacks.isActive() || state.cancelRequested) return;
 
-      const handle = await adapter.createStructuredSession?.({
-        threadId: state.childThreadId,
-        projectLocation,
-        config,
-        presentationMode: "gui",
-        // Same contract as SpawnPipeline.createStructuredSession: the shared
-        // runtime — not the provider — supplies `baseSpawnEnv`, so a structured
-        // subagent child spawns with the provider's updater/telemetry opt-outs.
-        ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),
-        ...(mcpAccess ?? {}),
-      });
+      const creation = Promise.resolve()
+        .then(() =>
+          adapter.createStructuredSession?.({
+            threadId: state.childThreadId,
+            projectLocation,
+            config,
+            presentationMode: "gui",
+            ...(state.resumeSessionRef ? { sessionRef: state.resumeSessionRef } : {}),
+            // Same contract as SpawnPipeline.createStructuredSession: the shared
+            // runtime — not the provider — supplies `baseSpawnEnv`, so a structured
+            // subagent child spawns with the provider's updater/telemetry opt-outs.
+            ...(adapter.baseSpawnEnv ? { baseSpawnEnv: adapter.baseSpawnEnv } : {}),
+            ...(mcpAccess ?? {}),
+          }),
+        )
+        .then((handle) => {
+          if (handle) state.handle = handle;
+          return handle;
+        })
+        .finally(() => {
+          this.creations.delete(state);
+        });
+      this.creations.set(state, creation);
+      const handle = await creation;
       if (!handle) {
         callbacks.onSettle("failed", "Failed to create subagent session");
         return;
       }
       if (!callbacks.isActive() || state.cancelRequested) {
-        await this.disposeHandle(handle);
+        await this.teardown(state);
         return;
       }
 
-      state.handle = handle;
       handle.setListener({
         onClose: () =>
           callbacks.onSettle("failed", "Subagent session closed before the turn completed"),
         onError: (message) => callbacks.onSettle("failed", message),
         onUpdate: (update) => {
+          if (callbacks.isActive() && update.sessionRef) state.sessionRef = update.sessionRef;
           if (callbacks.isActive() && update.status === "working") callbacks.onWorking();
           if (callbacks.isActive() && state.turnStarted && update.status === "idle") {
             callbacks.onSettle("completed");
           }
         },
-        onRuntimeEvent: callbacks.onRuntimeEvent,
+        // Opening a resumed session can replay history. Only the new turn belongs
+        // to this run's result, cursor and synthetic tile.
+        onRuntimeEvent: (event) => {
+          if (state.turnDispatched) callbacks.onRuntimeEvent(event);
+        },
       });
 
-      if (handle.activate) await handle.activate();
       if (!callbacks.isActive() || state.cancelRequested) return;
-      if (handle.openThread) await handle.openThread(config);
+      if (handle.activate) await this.runStartup(state, () => handle.activate!());
+      if (!callbacks.isActive() || state.cancelRequested) return;
+      if (state.resumeSessionRef && !handle.openThread) {
+        throw new Error("This subagent cannot reopen its completed session");
+      }
+      if (handle.openThread) {
+        await this.runStartup(state, async () => {
+          const sessionId = await handle.openThread!(config, state.resumeSessionRef);
+          if (state.resumeSessionRef && sessionId !== state.resumeSessionRef.providerSessionId) {
+            throw new Error("Subagent resumed a different session; follow-up was not sent");
+          }
+          if (sessionId) {
+            state.sessionRef = {
+              providerSessionId: sessionId,
+              discoveredAt: new Date().toISOString(),
+            };
+          }
+        });
+      }
       if (!callbacks.isActive() || state.cancelRequested) return;
       if (!handle.startTurn) {
         callbacks.onSettle("failed", "Subagent session cannot start a turn");
@@ -202,12 +273,31 @@ export class SubagentAttemptRunner {
     if (state.cancelRequested) handle.cancel();
   }
 
-  private async disposeHandle(handle: StructuredSessionHandle): Promise<void> {
+  private runStartup(
+    state: AttemptExecutionState,
+    operation: () => Promise<unknown>,
+  ): Promise<void> {
+    // Record startup before provider callbacks can synchronously request teardown.
+    const startup = Promise.resolve()
+      .then(operation)
+      .then(() => {})
+      .finally(() => {
+        this.startups.delete(state);
+      });
+    this.startups.set(state, startup);
+    return startup;
+  }
+
+  private async disposeHandle(
+    state: AttemptExecutionState,
+    handle: StructuredSessionHandle,
+  ): Promise<void> {
     try {
       if (handle.interruptTurn) await handle.interruptTurn();
     } catch {}
-    try {
-      await handle.dispose();
-    } catch {}
+    // Startup may still acquire a process or session; dispose only after it settles.
+    // startTurn is deliberately excluded: interruption/disposal ends that lifetime.
+    await this.startups.get(state)?.catch(() => undefined);
+    await handle.dispose();
   }
 }

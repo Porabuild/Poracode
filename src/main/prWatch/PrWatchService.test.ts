@@ -117,6 +117,175 @@ function setup(
 }
 
 describe("PrWatchService", () => {
+  it("does not resume database access or automatic merge after disposal while a PR read is pending", async () => {
+    const read = Promise.withResolvers<PrData>();
+    const entered = Promise.withResolvers<void>();
+    const { service, store, mergePr } = setup(watch({ watchEnabled: false, autoMerge: true }), {
+      getPrForBranch: () => {
+        entered.resolve();
+        return read.promise;
+      },
+    });
+    const pending = service.tick();
+    await entered.promise;
+    const disposal = service.dispose();
+    const get = vi.spyOn(store, "get");
+    const upsert = vi.spyOn(store, "upsert");
+    const remove = vi.spyOn(store, "delete");
+    read.resolve(pr);
+    await pending;
+    await disposal;
+    expect.soft(get).not.toHaveBeenCalled();
+    expect.soft(upsert).not.toHaveBeenCalled();
+    expect.soft(remove).not.toHaveBeenCalled();
+    expect.soft(mergePr).not.toHaveBeenCalled();
+  });
+
+  it("joins requestCheck work and drops queued rechecks when disposal begins", async () => {
+    const read = Promise.withResolvers<PrData>();
+    const entered = Promise.withResolvers<void>();
+    const getPrForBranch = vi.fn<PrWatchServiceOptions["getPrForBranch"]>(() => {
+      entered.resolve();
+      return read.promise;
+    });
+    const { service } = setup(watch(), { getPrForBranch });
+    service.requestCheck(project.id, pr.number);
+    await entered.promise;
+    service.requestCheck(project.id, pr.number);
+    let disposed = false;
+    const disposal = Promise.resolve(service.dispose()).then(() => {
+      disposed = true;
+    });
+    await Promise.resolve();
+    try {
+      expect(disposed).toBe(false);
+    } finally {
+      read.resolve(pr);
+      await disposal;
+    }
+    expect(getPrForBranch).toHaveBeenCalledOnce();
+    expect(() => service.get(project.id, pr.number)).toThrow("shutting down");
+    expect(() => service.upsert(watch())).toThrow("shutting down");
+    expect(() => service.delete(project.id, pr.number)).toThrow("shutting down");
+  });
+
+  it("joins an already admitted merge without publishing a late observation or database delete", async () => {
+    const merge = Promise.withResolvers<void>();
+    const entered = Promise.withResolvers<void>();
+    const onPrMerged = vi.fn<NonNullable<PrWatchServiceOptions["onPrMerged"]>>();
+    const { service, store, onPrObserved } = setup(
+      watch({ watchEnabled: false, autoMerge: true }),
+      {
+        mergePr: () => {
+          entered.resolve();
+          return merge.promise;
+        },
+        onPrMerged,
+      },
+    );
+    const pending = service.tick();
+    await entered.promise;
+    const remove = vi.spyOn(store, "delete");
+    onPrObserved.mockClear();
+    let disposed = false;
+    const disposal = Promise.resolve(service.dispose()).then(() => {
+      disposed = true;
+    });
+    await Promise.resolve();
+    try {
+      expect(disposed).toBe(false);
+    } finally {
+      merge.resolve();
+      await Promise.all([pending, disposal]);
+    }
+    expect(remove).not.toHaveBeenCalled();
+    expect(onPrObserved).not.toHaveBeenCalled();
+    expect(onPrMerged).not.toHaveBeenCalled();
+  });
+
+  it("does not persist a late failed read after disposal", async () => {
+    const read = Promise.withResolvers<PrDetails>();
+    const entered = Promise.withResolvers<void>();
+    const { service, store } = setup(watch(), {
+      getPrDetails: () => {
+        entered.resolve();
+        return read.promise;
+      },
+    });
+    const pending = service.tick();
+    await entered.promise;
+    const disposal = service.dispose();
+    const get = vi.spyOn(store, "get");
+    const upsert = vi.spyOn(store, "upsert");
+    read.reject(new Error("synthetic late read failure"));
+    await Promise.all([pending, disposal]);
+    expect(get).not.toHaveBeenCalled();
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("joins the other admitted read even when its parallel sibling fails", async () => {
+    const review =
+      Promise.withResolvers<Awaited<ReturnType<PrWatchServiceOptions["getPrReviewThreads"]>>>();
+    const entered = Promise.withResolvers<void>();
+    const { service } = setup(watch(), {
+      getPrDetails: async () => {
+        throw new Error("synthetic details failure");
+      },
+      getPrReviewThreads: () => {
+        entered.resolve();
+        return review.promise;
+      },
+    });
+    const checking = service.tick();
+    await entered.promise;
+    let disposed = false;
+    const disposal = service.dispose().then(() => {
+      disposed = true;
+    });
+    await Promise.resolve();
+    expect(disposed).toBe(false);
+    review.resolve([]);
+    await Promise.all([checking, disposal]);
+  });
+
+  it.each(["agent", "work context", "thread creation"])(
+    "joins held %s work and does not resume store access after disposal",
+    async (stage) => {
+      const held = Promise.withResolvers<void>();
+      const entered = Promise.withResolvers<void>();
+      const wait = async () => {
+        entered.resolve();
+        await held.promise;
+      };
+      const overrides: Partial<PrWatchServiceOptions> = { getPrForBranch: async () => behindPr };
+      if (stage === "agent")
+        overrides.resolveWatchAgent = async (entry) => {
+          await wait();
+          return { agentKind: entry.agentKind!, config: entry.config! };
+        };
+      if (stage === "work context")
+        overrides.ensureWorkContext = async () => {
+          await wait();
+          return { kind: "worktree", path: "/synthetic-worktree" };
+        };
+      if (stage === "thread creation")
+        overrides.createThread = async () => {
+          await wait();
+          return { threadId: "synthetic-thread", title: "Fixture", projectId: project.id };
+        };
+      const { service, store } = setup(watch(), overrides);
+      const checking = service.tick();
+      await entered.promise;
+      const disposal = service.dispose();
+      const get = vi.spyOn(store, "get");
+      const upsert = vi.spyOn(store, "upsert");
+      held.resolve();
+      await Promise.all([checking, disposal]);
+      expect(get).not.toHaveBeenCalled();
+      expect(upsert).not.toHaveBeenCalled();
+    },
+  );
+
   it("never treats ordinary PR comments as merge blockers", async () => {
     const comments = [
       {

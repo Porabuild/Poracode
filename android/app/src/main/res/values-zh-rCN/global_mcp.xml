@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_global_mcp_title">MCP 服务器</string>
+    <string name="settings_global_mcp_description">管理桌面端全局自定义 MCP 服务器。</string>
+    <string name="settings_manage_projects_denied">需要项目管理权限。</string>
+    <string name="settings_global_mcp_redaction_note">凭据保留在桌面端。现有密钥将以隐藏占位符显示。</string>
+    <string name="settings_global_mcp_add">添加</string>
+    <string name="settings_global_mcp_empty">尚未配置全局 MCP 服务器。</string>
+    <string name="settings_global_mcp_empty_description">添加一个服务器,或使用“发现”导入此桌面上已配置的服务器。</string>
+    <string name="settings_global_mcp_uncertain">结果不确定。已请求最新的服务器列表。</string>
+    <string name="settings_global_mcp_edit">编辑</string>
+    <string name="settings_global_mcp_delete">删除</string>
+    <string name="settings_global_mcp_move">移至项目</string>
+    <string name="settings_global_mcp_move_global">移至全局</string>
+    <string name="settings_global_mcp_duplicate_name">已存在同名的 MCP 服务器。</string>
+    <string name="settings_global_mcp_reserved_name">此名称由内置 MCP 服务器保留。</string>
+    <string name="settings_global_mcp_probe">测试连接</string>
+    <string name="settings_global_mcp_tools">工具</string>
+    <string name="settings_global_mcp_tools_title">%1$s 的工具</string>
+    <string name="settings_global_mcp_authorize">授权</string>
+    <string name="settings_global_mcp_clear_oauth">清除授权</string>
+    <string name="settings_global_mcp_probe_summary">%1$s · 工具：%2$d · %3$d 毫秒</string>
+    <string name="settings_global_mcp_open_browser">打开浏览器</string>
+    <string name="settings_global_mcp_delete_title">删除 MCP 服务器？</string>
+    <string name="settings_global_mcp_delete_message">删除 %1$s？此操作无法撤销。</string>
+    <string name="settings_global_mcp_cancel">取消</string>
+    <string name="settings_global_mcp_move_title">将 %1$s 移至项目</string>
+    <string name="settings_global_mcp_add_title">添加 MCP 服务器</string>
+    <string name="settings_global_mcp_edit_title">编辑 MCP 服务器</string>
+    <string name="settings_global_mcp_name">名称</string>
+    <string name="settings_global_mcp_server_description">说明</string>
+    <string name="settings_global_mcp_command">命令</string>
+    <string name="settings_global_mcp_url">URL</string>
+    <string name="settings_global_mcp_arguments">参数，每行一个</string>
+    <string name="settings_global_mcp_working_directory">工作目录（可选）</string>
+    <string name="settings_global_mcp_environment">环境变量，每行 KEY=VALUE</string>
+    <string name="settings_global_mcp_headers">请求头，每行 KEY=VALUE</string>
+    <string name="settings_global_mcp_timeout">超时时间（毫秒）</string>
+    <string name="settings_global_mcp_disabled_tools">已禁用工具，每行一个</string>
+    <string name="settings_global_mcp_pairs_help">每行输入一个 KEY=VALUE 对。</string>
+    <string name="settings_global_mcp_save">保存</string>
+    <string name="settings_global_mcp_oauth_idle">尚未检查 OAuth 状态。</string>
+    <string name="settings_global_mcp_oauth_checking">正在检查 OAuth 状态…</string>
+    <string name="settings_global_mcp_oauth_ready">OAuth 状态已是最新。</string>
+    <string name="settings_global_mcp_oauth_starting">正在开始授权…</string>
+    <string name="settings_global_mcp_oauth_open_browser">打开浏览器以继续授权。</string>
+    <string name="settings_global_mcp_oauth_waiting">正在等待授权…</string>
+    <string name="settings_global_mcp_oauth_authorized">授权已完成。</string>
+    <string name="settings_global_mcp_oauth_failed">授权失败。</string>
+    <string name="settings_global_mcp_oauth_paused">应用处于后台时授权会暂停。</string>
+</resources>

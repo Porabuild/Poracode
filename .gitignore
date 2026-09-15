@@ -3,11 +3,14 @@ dist/
 release/
 .vite/
 coverage/
+# SwiftPM output, including standalone test packages.
+.build/
 *.log
 logs/
 *.tsbuildinfo
 build/icon-trimmed.png
 build/icons/
+branding/assets/out/
 # heroui-agents-md
 .heroui-docs/
 .tmp/
@@ -37,6 +40,7 @@ resources/agent-plugins/
 resources/computer-use-helper/
 resources/computer-use-helper-dev/
 resources/mobile-ssh-runtime/
+resources/web-ssh-runtime/
 .envrc
 .envrc.local
 /Microsoft/Windows/PowerShell/ModuleAnalysisCache

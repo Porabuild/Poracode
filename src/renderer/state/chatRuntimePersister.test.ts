@@ -229,6 +229,28 @@ describe("paged runtime hydration", () => {
     expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledTimes(2);
   });
 
+  it("reports pending then failed hydration status, clearing on success", async () => {
+    let resolvePage: (page: { items: RuntimeChatItem[]; nextCursor: number | null }) => void = () =>
+      undefined;
+    bridge.dbGetThreadRuntimeItemsPage.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolvePage = resolve;
+      }),
+    );
+
+    const first = hydrateThreadRuntimeItems("status-thread");
+    expect(useAppStore.getState().runtimeHydrationStatus["status-thread"]).toBe("pending");
+
+    resolvePage({ items: [makeItem({ id: "i1", type: "assistant_message" })], nextCursor: null });
+    await first;
+    expect(useAppStore.getState().runtimeHydrationStatus["status-thread"]).toBeUndefined();
+
+    // A failed read marks the thread retryable while the transcript is empty.
+    bridge.dbGetThreadRuntimeItemsPage.mockRejectedValueOnce(new Error("db gone"));
+    await hydrateThreadRuntimeItems("status-thread-2");
+    expect(useAppStore.getState().runtimeHydrationStatus["status-thread-2"]).toBe("failed");
+  });
+
   it("keeps the remote snapshot cursor through ChatPane hydration", async () => {
     seedOlderThreadRuntimeItemsCursor("remote-paged-thread", 77);
     await hydrateThreadRuntimeItems("remote-paged-thread");

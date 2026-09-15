@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { ThreadDockKind } from "@/shared/settings";
 import type { ProjectLocation } from "@/shared/contracts";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
+import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import type {
   ThreadListLayout,
   ThreadSortMode,
@@ -45,6 +46,8 @@ export interface SubAgentPanelContext {
   threadId: string;
   parentItemId: string;
   projectLocation?: ProjectLocation;
+  /** This temporary page was opened from the selected Thread Info panel. */
+  returnToThreadInfo?: true;
 }
 
 export type RightPanelTab =
@@ -57,6 +60,22 @@ export type RightPanelTab =
   | "ports"
   | "docks"
   | "subagent";
+
+/** Compact-browser destinations that replace the home list as a full page. */
+export type MobileUtilityPage =
+  | "profile"
+  | "usage"
+  | "projects"
+  | "terminal"
+  | "browser"
+  | "ports"
+  | "notes"
+  | "workspace"
+  | "pullRequests"
+  | "schedules"
+  | "githubActions"
+  | "projectSettings"
+  | "settings";
 
 export type { ThreadDockKind } from "@/shared/settings";
 export type ThreadDockFocus = ThreadDockKind | "images";
@@ -127,6 +146,7 @@ interface PanelState {
   browserPanelOpen: boolean;
   usagePanelOpen: boolean;
   notesPanelOpen: boolean;
+  portsPanelOpen: boolean;
   /**
    * Session-scoped: whether the focused thread's Docks tab (goal, plan, agents,
    * background tasks, or images in the right panel) is showing. Informational
@@ -134,6 +154,8 @@ interface PanelState {
    * open it in either mode. Closing it leaves the placement mode alone.
    */
   threadDocksPanelOpen: boolean;
+  /** Keep a returned Thread Info page available if its last task has finished. */
+  threadDocksReturnThreadId: string | null;
   /** Dock section the Docks tab should scroll to on its next open; consumed once. */
   threadDocksFocus: ThreadDockFocus | null;
   browserOverlayOpen: boolean;
@@ -150,6 +172,8 @@ interface PanelState {
   createProjectModalOpen: boolean;
   /** Whether the "Clone a repository" modal is open. */
   cloneProjectModalOpen: boolean;
+  /** Session-only compact PWA page. Desktop panel state remains independent. */
+  mobileUtilityPage: MobileUtilityPage | null;
   setGitReviewContext: (ctx: GitReviewContext | null) => void;
   setThreadSortMode: (mode: ThreadSortMode) => void;
   setThreadListLayout: (layout: ThreadListLayout) => void;
@@ -173,8 +197,11 @@ interface PanelState {
   openUsagePanel: () => void;
   setThreadDocksPanelOpen: (v: boolean) => void;
   openThreadDocksPanel: (focus?: ThreadDockFocus) => void;
+  returnToThreadDocksPanel: (threadId: string) => void;
   setNotesPanelOpen: (v: boolean) => void;
   openNotesPanel: () => void;
+  setPortsPanelOpen: (v: boolean) => void;
+  openPortsPanel: () => void;
   setBrowserOverlayOpen: (v: boolean) => void;
   setBrowserOverlayMaximized: (v: boolean) => void;
   setBrowserOverlayDrawerWidth: (v: number) => void;
@@ -191,6 +218,8 @@ interface PanelState {
   closeCreateProjectModal: () => void;
   openCloneProjectModal: () => void;
   closeCloneProjectModal: () => void;
+  openMobileUtilityPage: (page: MobileUtilityPage) => void;
+  closeMobileUtilityPage: () => void;
   closeAllPanels: () => void;
 }
 
@@ -314,7 +343,9 @@ export const usePanelStore = create<PanelState>()((set) => ({
   browserPanelOpen: false,
   usagePanelOpen: false,
   notesPanelOpen: false,
+  portsPanelOpen: false,
   threadDocksPanelOpen: false,
+  threadDocksReturnThreadId: null,
   threadDocksFocus: null,
   browserOverlayOpen: false,
   browserOverlayMaximized: false,
@@ -329,6 +360,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   threadSearchOpen: false,
   createProjectModalOpen: false,
   cloneProjectModalOpen: false,
+  mobileUtilityPage: null,
 
   setGitReviewContext: (ctx) => {
     const prev = usePanelStore.getState().gitReviewContext;
@@ -380,7 +412,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
       ) {
         return {};
       }
-      return { githubActionsContext: ctx };
+      const compactLayout = isCompactLayoutViewport();
+      return {
+        githubActionsContext: ctx,
+        ...(compactLayout && ctx !== null ? { mobileUtilityPage: "githubActions" as const } : {}),
+        ...(compactLayout && ctx === null && state.mobileUtilityPage === "githubActions"
+          ? { mobileUtilityPage: null }
+          : {}),
+      };
     }),
   setFilesPanelContext: (ctx) =>
     set((state) => {
@@ -410,6 +449,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
           ctx !== null &&
           prev.threadId === ctx.threadId &&
           prev.parentItemId === ctx.parentItemId &&
+          prev.returnToThreadInfo === ctx.returnToThreadInfo &&
           projectLocationsEqual(prev.projectLocation, ctx.projectLocation))
       ) {
         return ctx && !state.subAgentPanelOpen ? { subAgentPanelOpen: true } : {};
@@ -541,7 +581,10 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) =>
       state.threadDocksPanelOpen === v
         ? {}
-        : { threadDocksPanelOpen: v, ...(v ? {} : { threadDocksFocus: null }) },
+        : {
+            threadDocksPanelOpen: v,
+            ...(v ? {} : { threadDocksFocus: null, threadDocksReturnThreadId: null }),
+          },
     ),
   openThreadDocksPanel: (focus) =>
     set((state) => ({
@@ -549,6 +592,14 @@ export const usePanelStore = create<PanelState>()((set) => ({
       rightPanelTab: "docks" as const,
       threadDocksFocus: focus ?? state.threadDocksFocus,
     })),
+  returnToThreadDocksPanel: (threadId) =>
+    set({
+      subAgentPanelContext: null,
+      subAgentPanelOpen: false,
+      threadDocksPanelOpen: true,
+      threadDocksReturnThreadId: threadId,
+      rightPanelTab: "docks",
+    }),
   setNotesPanelOpen: (v) =>
     set((state) =>
       state.notesPanelOpen === v
@@ -561,24 +612,60 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ? {}
         : { notesPanelOpen: true, rightPanelTab: "notes" as const },
     ),
+  setPortsPanelOpen: (v) =>
+    set((state) => (state.portsPanelOpen === v ? {} : { portsPanelOpen: v })),
+  openPortsPanel: () =>
+    set((state) =>
+      state.portsPanelOpen && state.rightPanelTab === "ports"
+        ? {}
+        : { portsPanelOpen: true, rightPanelTab: "ports" as const },
+    ),
   setThreadSortMode: (mode) =>
     set((state) => (state.threadSortMode === mode ? {} : { threadSortMode: mode })),
   setThreadListLayout: (layout) =>
     set((state) => (state.threadListLayout === layout ? {} : { threadListLayout: layout })),
   openSettings: () =>
     set((state) =>
-      state.settingsOpen && state.settingsSection === null
-        ? {}
-        : { settingsOpen: true, settingsSection: null },
+      isCompactLayoutViewport()
+        ? state.mobileUtilityPage === "settings" && state.settingsSection === null
+          ? {}
+          : { settingsOpen: false, settingsSection: null, mobileUtilityPage: "settings" as const }
+        : state.settingsOpen && state.settingsSection === null
+          ? {}
+          : { settingsOpen: true, settingsSection: null },
     ),
-  openSettingsSection: (section) => set({ settingsOpen: true, settingsSection: section }),
+  openSettingsSection: (section) =>
+    set(
+      isCompactLayoutViewport()
+        ? { settingsOpen: false, settingsSection: section, mobileUtilityPage: "settings" as const }
+        : { settingsOpen: true, settingsSection: section },
+    ),
   clearSettingsSection: () =>
     set((state) => (state.settingsSection === null ? {} : { settingsSection: null })),
-  closeSettings: () => set((state) => (state.settingsOpen ? { settingsOpen: false } : {})),
+  closeSettings: () =>
+    set((state) => ({
+      ...(state.settingsOpen ? { settingsOpen: false } : {}),
+      ...(state.mobileUtilityPage === "settings" ? { mobileUtilityPage: null } : {}),
+    })),
   openProjectSettings: (projectId) =>
-    set((state) => (state.projectSettingsId === projectId ? {} : { projectSettingsId: projectId })),
+    set((state) => {
+      const compactLayout = isCompactLayoutViewport();
+      if (
+        state.projectSettingsId === projectId &&
+        (!compactLayout || state.mobileUtilityPage === "projectSettings")
+      ) {
+        return {};
+      }
+      return {
+        projectSettingsId: projectId,
+        ...(compactLayout ? { mobileUtilityPage: "projectSettings" as const } : {}),
+      };
+    }),
   closeProjectSettings: () =>
-    set((state) => (state.projectSettingsId === null ? {} : { projectSettingsId: null })),
+    set((state) => ({
+      ...(state.projectSettingsId !== null ? { projectSettingsId: null } : {}),
+      ...(state.mobileUtilityPage === "projectSettings" ? { mobileUtilityPage: null } : {}),
+    })),
   openThreadSearch: () =>
     set((state) => (state.threadSearchOpen ? {} : { threadSearchOpen: true })),
   closeThreadSearch: () =>
@@ -591,6 +678,20 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => (state.cloneProjectModalOpen ? {} : { cloneProjectModalOpen: true })),
   closeCloneProjectModal: () =>
     set((state) => (state.cloneProjectModalOpen ? { cloneProjectModalOpen: false } : {})),
+  openMobileUtilityPage: (page) =>
+    set((state) => ({
+      ...(state.mobileUtilityPage === page ? {} : { mobileUtilityPage: page }),
+      ...(page !== "projectSettings" && state.projectSettingsId !== null
+        ? { projectSettingsId: null }
+        : {}),
+    })),
+  closeMobileUtilityPage: () =>
+    set((state) => ({
+      ...(state.mobileUtilityPage !== null ? { mobileUtilityPage: null } : {}),
+      ...(state.mobileUtilityPage === "projectSettings" && state.projectSettingsId !== null
+        ? { projectSettingsId: null }
+        : {}),
+    })),
   closeAllPanels: () => {
     set((state) => {
       // The floating browser overlay (drawer/fullscreen) is intentionally NOT
@@ -611,8 +712,10 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ...(isDocked("browser") ? {} : { browserPanelOpen: false }),
         ...(isDocked("usage") ? {} : { usagePanelOpen: false }),
         ...(isDocked("notes") ? {} : { notesPanelOpen: false }),
+        portsPanelOpen: false,
         subAgentPanelOpen: false,
         threadDocksPanelOpen: false,
+        threadDocksReturnThreadId: null,
         threadDocksFocus: null,
         rightPanelSplit: null,
       };
@@ -624,6 +727,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
         (next.browserPanelOpen === undefined || !state.browserPanelOpen) &&
         (next.usagePanelOpen === undefined || !state.usagePanelOpen) &&
         (next.notesPanelOpen === undefined || !state.notesPanelOpen) &&
+        !state.portsPanelOpen &&
         state.rightPanelSplit === null;
       return alreadyClosed ? {} : next;
     });

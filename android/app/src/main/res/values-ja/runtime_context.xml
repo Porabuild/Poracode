@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="runtime_context_label">コンテキスト</string>
+    <string name="runtime_context_usage">コンテキスト使用量</string>
+    <string name="runtime_context_show_details">コンテキスト使用量の詳細を表示</string>
+    <string name="runtime_context_hide_details">コンテキスト使用量の詳細を非表示</string>
+    <string name="runtime_context_percent_full">%1$d%% 使用</string>
+    <string name="runtime_context_percent">%1$d%%</string>
+    <string name="runtime_context_used_and_limit">%1$s / %2$s トークン</string>
+    <string name="runtime_context_used_value">使用済み %1$s</string>
+    <string name="runtime_context_limit_value">上限 %1$s</string>
+    <string name="runtime_context_used">使用済み</string>
+    <string name="runtime_context_unknown">不明</string>
+    <string name="runtime_context_provider_unreported">プロバイダーからトークン使用量が報告されていません。</string>
+    <string name="runtime_context_summary">%1$s：%2$s</string>
+    <string name="runtime_context_compact_thousands">%1$s千</string>
+    <string name="runtime_context_compact_millions">%1$s百万</string>
+</resources>

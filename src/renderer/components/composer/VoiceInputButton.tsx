@@ -31,6 +31,8 @@ interface AudioCapture {
 
 export interface VoiceInputButtonProps {
   isDisabled?: boolean;
+  /** Renders the button disabled with this reason as the tooltip label. */
+  unavailableHint?: string | undefined;
   onTranscript: (text: string) => void;
   onTranscriptPreview?: (text: string) => void;
   onTranscriptCancel?: () => void;
@@ -59,7 +61,13 @@ export interface VoiceInputHandle {
 export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonProps>(
   function VoiceInputButton(props, ref) {
     const { t } = useLingui();
-    const { isDisabled = false, onTranscript, onTranscriptPreview, onTranscriptCancel } = props;
+    const {
+      isDisabled = false,
+      unavailableHint,
+      onTranscript,
+      onTranscriptPreview,
+      onTranscriptCancel,
+    } = props;
     const [downloadProgress, setDownloadProgress] = useState<VoiceTranscriptionProgress | null>(
       null,
     );
@@ -246,8 +254,11 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
     const isTranscribing = state === "transcribing";
     // Mirror the Button's effective disabled state: a started/transcribing run is
     // busy, and an externally-disabled composer blocks starting (but never blocks
-    // stopping an in-progress recording).
-    const pressDisabled = (isDisabled && !isRecording) || isStarting || isTranscribing;
+    // stopping an in-progress recording) — an unavailable hint follows the same
+    // rule so it can never strand an in-flight recording.
+    const unavailable = unavailableHint !== undefined && !isRecording;
+    const pressDisabled =
+      unavailable || (isDisabled && !isRecording) || isStarting || isTranscribing;
 
     function togglePress(): boolean {
       if (pressDisabled) return false;
@@ -272,7 +283,7 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
           ? t`Downloading voice model ${Math.round(downloadProgress.progress)}%`
           : t`Downloading voice model...`
         : null;
-    const label =
+    const stateLabel =
       downloadLabel ??
       (isRecording
         ? t`Stop voice input`
@@ -281,6 +292,7 @@ export const VoiceInputButton = forwardRef<VoiceInputHandle, VoiceInputButtonPro
           : isTranscribing
             ? t`Transcribing voice`
             : t`Start voice input`);
+    const label = unavailable && unavailableHint !== undefined ? unavailableHint : stateLabel;
 
     return (
       <Tooltip delay={300}>

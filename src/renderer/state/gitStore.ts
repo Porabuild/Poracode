@@ -46,6 +46,8 @@ interface GitActions {
   setStatus: (projectId: string, status: GitStatusResult) => void;
   clearStatus: (projectId: string) => void;
   setWorktreeStatus: (worktreePath: string, status: GitStatusResult) => void;
+  /** Apply an aggregate published by a remote host without deriving totals from cached file rows. */
+  setRemoteWorktreeSummary: (worktreePath: string, status: GitStatusResult) => void;
   setWorktreeStatuses: (statuses: Record<string, GitStatusResult>) => void;
   clearWorktreeStatus: (worktreePath: string) => void;
   setWorktrees: (projectId: string, worktrees: GitWorktreeInfo[]) => void;
@@ -481,6 +483,13 @@ export const useGitStore = create<GitState & GitActions>()((set, get) => ({
     if (areGitStatusesEqual(get().worktreeStatuses[worktreePath], nextStatus)) return;
     set((state) => ({
       worktreeStatuses: { ...state.worktreeStatuses, [worktreePath]: nextStatus },
+    }));
+  },
+
+  setRemoteWorktreeSummary: (worktreePath, status) => {
+    if (areGitStatusesEqual(get().worktreeStatuses[worktreePath], status)) return;
+    set((state) => ({
+      worktreeStatuses: { ...state.worktreeStatuses, [worktreePath]: status },
     }));
   },
 

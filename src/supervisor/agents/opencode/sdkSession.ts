@@ -18,6 +18,7 @@ import type { Event, PermissionRule } from "./legacySdk";
 import type {
   AgentSlashCommand,
   PromptSegment,
+  ProviderRevertAnchor,
   ResolvedMcpServer,
   RuntimeEvent,
   SessionRef,
@@ -70,6 +71,9 @@ import {
   type OpenCodePromptPart,
 } from "./promptParts";
 
+const OPENCODE_DISPOSE_TIMEOUT_MS = 10_000;
+const OPENCODE_DISPOSE_POLL_MS = 100;
+
 interface PendingPermission {
   kind: "permission";
   requestID: string;
@@ -106,6 +110,21 @@ export interface OpenCodeQuestionAnswerContext {
   optionValues: Record<string, string>;
 }
 
+interface OpenCodeRevertAnchorData {
+  messageId?: string;
+}
+
+/** Validates the opaque anchor payload for this provider. */
+function parseOpenCodeRevertAnchor(anchor: ProviderRevertAnchor): OpenCodeRevertAnchorData {
+  const data = anchor.data as Partial<OpenCodeRevertAnchorData> | null | undefined;
+  if (anchor.version !== 1) {
+    throw new Error("OpenCode revert anchor payload is invalid or from an incompatible version.");
+  }
+  return {
+    ...(typeof data?.messageId === "string" ? { messageId: data.messageId } : {}),
+  };
+}
+
 function parseModelSlug(
   modelSlug: string | undefined,
 ): { providerID: string; modelID: string } | undefined {
@@ -125,10 +144,8 @@ function mapStatusUpdate(properties: { sessionID: string; status: { type: string
   switch (properties.status.type) {
     case "busy":
     case "retry":
-      // Note: the `retry` status carries `{ attempt, message, action }`, but
-      // thread updates have no clearable field for it — retry detail stays in
-      // the transcript's error rows (canonical mapper) so a stale message can
-      // never persist on the thread after recovery.
+      // Automatic retries keep the turn working. The canonical mapper emits
+      // their detail as warnings; final session/message errors remain visible.
       return { status: "working", attention: "working" };
     case "idle":
       return { status: "idle", attention: "none" };
@@ -157,6 +174,9 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
   private sessionHasPermissionOverride = false;
   private activated = false;
   private disposed = false;
+  private disposePromise: Promise<void> | undefined;
+  /** Unlike local force-completion, only provider idle confirms work has stopped. */
+  private turnRequiresShutdownConfirmation = false;
   private pendingRequests = new Map<ThreadServerRequestId, PendingRequest>();
   private currentSlashCommands: AgentSlashCommand[] | undefined;
   /** True between `startTurn`'s promptAsync and the next SSE idle signal. */
@@ -264,6 +284,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
       const id = existingData?.id;
       if (!id) throw new Error("opencode session.get returned no id");
       this.rememberSessionId(id);
+      this.turnRequiresShutdownConfirmation = this.isGui;
       this.sessionHasPermissionOverride = existingData.permission !== undefined;
       this.appliedPermissionSyncKey = undefined;
       if (this.mapperState) setOpenCodeMainSessionId(this.mapperState, id);
@@ -314,7 +335,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     segments?: PromptSegment[],
     options?: StartTurnOptions,
   ): Promise<void> {
-    const acquired = this.requireAcquired();
+    this.requireAcquired();
     const sessionID = this.requireSessionId();
     this.currentConfig = config;
 
@@ -350,6 +371,9 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     const variant = config.effort && config.effort.length > 0 ? config.effort : undefined;
 
     const sendParts = async (promptParts: OpenCodePromptPart[]): Promise<void> => {
+      // Permission synchronization or fallback preparation can outlive disposal.
+      const acquired = this.requireAcquired();
+      this.turnRequiresShutdownConfirmation = true;
       await acquired.client.session.promptAsync({
         directory: this.sdkDirectory,
         sessionID,
@@ -531,6 +555,38 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     if (!Number.isInteger(numTurns) || numTurns < 1) {
       throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
     }
+    const target = await this.planRevertTarget(numTurns);
+    await this.applyRevertTarget(target.messageId);
+    return this.readThread();
+  }
+
+  /**
+   * WS2 stage 3: freeze the absolute revert target (the assistant message id
+   * the session reverts to) without mutating anything. `session.messages` is a
+   * pure query, so re-creating a lost anchor is safe; the backend still
+   * journals the created anchor and restores from the stored copy.
+   */
+  async createRevertAnchor(numTurns: number): Promise<ProviderRevertAnchor> {
+    const target = await this.planRevertTarget(numTurns);
+    return { version: 1, data: target };
+  }
+
+  /**
+   * Reverts the session to the anchor's absolute message. Idempotent:
+   * OpenCode's revert is in-place to a position, so re-issuing an already
+   * applied anchor converges on the same conversation position.
+   */
+  async restoreToRevertAnchor(anchor: ProviderRevertAnchor): Promise<ThreadHistory> {
+    const target = parseOpenCodeRevertAnchor(anchor);
+    await this.applyRevertTarget(target.messageId);
+    return this.readThread();
+  }
+
+  /** Pure revert planning: resolves the absolute target message id. */
+  private async planRevertTarget(numTurns: number): Promise<{ messageId?: string }> {
+    if (!Number.isInteger(numTurns) || numTurns < 1) {
+      throw new Error(`rollbackThread: numTurns must be a positive integer (got ${numTurns}).`);
+    }
     const acquired = this.requireAcquired();
     const sessionID = this.requireSessionId();
 
@@ -551,14 +607,20 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     // want the assistant message N+1 from the end to become the new head.
     const targetIndex = assistantMessages.length - numTurns - 1;
     const target = targetIndex >= 0 ? assistantMessages[targetIndex] : undefined;
-    const targetMessageId =
-      target && typeof target.info?.id === "string" ? target.info.id : undefined;
+    const messageId = target && typeof target.info?.id === "string" ? target.info.id : undefined;
+    return {
+      ...(messageId !== undefined ? { messageId } : {}),
+    };
+  }
 
+  private async applyRevertTarget(messageId: string | undefined): Promise<void> {
+    const acquired = this.requireAcquired();
+    const sessionID = this.requireSessionId();
     try {
       await acquired.client.session.revert({
         directory: this.sdkDirectory,
         sessionID,
-        ...(targetMessageId ? { messageID: targetMessageId } : {}),
+        ...(messageId ? { messageID: messageId } : {}),
       });
     } catch (cause) {
       throw new Error(classifyOpenCodeError({ cause, operation: "session.revert" }), { cause });
@@ -577,13 +639,22 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
         this.bufferedRuntimeEvents.push(...closing);
       }
     }
-
-    return this.readThread();
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    this.disposePromise ??= this.disposeOnce().catch((error) => {
+      // Keep the lease and allow shutdown to be retried after a failed abort.
+      this.disposePromise = undefined;
+      throw error;
+    });
+    return this.disposePromise;
+  }
+
+  private async disposeOnce(): Promise<void> {
     this.disposed = true;
+    if (this.acquired && this.sessionId && this.turnRequiresShutdownConfirmation) {
+      await this.stopSessionForDisposal(this.acquired, this.sessionId);
+    }
 
     this.unsubscribeEvents?.();
     this.unsubscribeEvents = undefined;
@@ -596,14 +667,48 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
 
     if (this.acquired) {
-      try {
-        await this.acquired.dispose();
-      } finally {
-        this.acquired = undefined;
-      }
+      await this.acquired.dispose();
+      this.acquired = undefined;
     }
 
     this.listener?.onClose();
+  }
+
+  private async stopSessionForDisposal(
+    acquired: AcquiredOpenCodeServer,
+    sessionID: string,
+  ): Promise<void> {
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => {
+        const error = new Error("OpenCode session did not stop before the disposal deadline.");
+        controller.abort(error);
+        reject(error);
+      }, OPENCODE_DISPOSE_TIMEOUT_MS);
+    });
+    const stop = async (): Promise<void> => {
+      const options = { signal: controller.signal, throwOnError: true } as const;
+      await acquired.client.session.abort({ directory: this.sdkDirectory, sessionID }, options);
+      while (true) {
+        controller.signal.throwIfAborted();
+        const result = await acquired.client.session.status(
+          { directory: this.sdkDirectory },
+          options,
+        );
+        if (!result.data) throw new Error("OpenCode did not return session shutdown status.");
+        // OpenCode removes idle sessions from this sparse status map.
+        const status = result.data[sessionID];
+        if (!status || status.type === "idle") return;
+        await new Promise<void>((resolve) => setTimeout(resolve, OPENCODE_DISPOSE_POLL_MS));
+      }
+    };
+    try {
+      await Promise.race([stop(), deadline]);
+      this.turnRequiresShutdownConfirmation = false;
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
   }
 
   // ── Internal helpers ─────────────────────────────────────────────────
@@ -881,6 +986,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     }
 
     if (event.type === "session.status") {
+      this.turnRequiresShutdownConfirmation = event.properties.status.type !== "idle";
       const upd = mapStatusUpdate(event.properties);
       this.listener?.onUpdate({
         ...(this.pendingRequestStatus() ?? upd),
@@ -1005,6 +1111,7 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
    * `turn.completed` from their canonical mappers.
    */
   private emitTurnCompletedIfActive(): void {
+    this.turnRequiresShutdownConfirmation = false;
     if (!this.turnActive) return;
     this.turnActive = false;
     this.emitRuntimeEvents([

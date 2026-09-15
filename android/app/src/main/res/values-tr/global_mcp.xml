@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_global_mcp_title">MCP sunucuları</string>
+    <string name="settings_global_mcp_description">Masaüstü genelindeki özel MCP sunucularını yönetin.</string>
+    <string name="settings_manage_projects_denied">Proje yönetimi izni gereklidir.</string>
+    <string name="settings_global_mcp_redaction_note">Kimlik bilgileri masaüstünde kalır. Mevcut gizli bilgiler maskelenmiş olarak görünür.</string>
+    <string name="settings_global_mcp_add">Ekle</string>
+    <string name="settings_global_mcp_empty">Yapılandırılmış genel MCP sunucusu yok.</string>
+    <string name="settings_global_mcp_empty_description">Bir sunucu ekleyin veya bu masaüstünde zaten yapılandırılmış bir sunucuyu içe aktarmak için Keşfet\'i kullanın.</string>
+    <string name="settings_global_mcp_uncertain">Sonuç belirsiz. En güncel sunucu listesi istendi.</string>
+    <string name="settings_global_mcp_edit">Düzenle</string>
+    <string name="settings_global_mcp_delete">Sil</string>
+    <string name="settings_global_mcp_move">Projeye taşı</string>
+    <string name="settings_global_mcp_move_global">Genele taşı</string>
+    <string name="settings_global_mcp_duplicate_name">Bu ada sahip bir MCP sunucusu zaten var.</string>
+    <string name="settings_global_mcp_reserved_name">Bu ad, yerleşik bir MCP sunucusu için ayrılmıştır.</string>
+    <string name="settings_global_mcp_probe">Bağlantıyı test et</string>
+    <string name="settings_global_mcp_tools">Araçlar</string>
+    <string name="settings_global_mcp_tools_title">%1$s araçları</string>
+    <string name="settings_global_mcp_authorize">Yetkilendir</string>
+    <string name="settings_global_mcp_clear_oauth">Yetkilendirmeyi temizle</string>
+    <string name="settings_global_mcp_probe_summary">%1$s · Araçlar: %2$d · %3$d ms</string>
+    <string name="settings_global_mcp_open_browser">Tarayıcıyı aç</string>
+    <string name="settings_global_mcp_delete_title">MCP sunucusu silinsin mi?</string>
+    <string name="settings_global_mcp_delete_message">%1$s silinsin mi? Bu işlem geri alınamaz.</string>
+    <string name="settings_global_mcp_cancel">İptal</string>
+    <string name="settings_global_mcp_move_title">%1$s sunucusunu projeye taşı</string>
+    <string name="settings_global_mcp_add_title">MCP sunucusu ekle</string>
+    <string name="settings_global_mcp_edit_title">MCP sunucusunu düzenle</string>
+    <string name="settings_global_mcp_name">Ad</string>
+    <string name="settings_global_mcp_server_description">Açıklama</string>
+    <string name="settings_global_mcp_command">Komut</string>
+    <string name="settings_global_mcp_url">URL</string>
+    <string name="settings_global_mcp_arguments">Bağımsız değişkenler, her satıra bir tane</string>
+    <string name="settings_global_mcp_working_directory">Çalışma dizini (isteğe bağlı)</string>
+    <string name="settings_global_mcp_environment">Ortam, her satıra ANAHTAR=DEĞER</string>
+    <string name="settings_global_mcp_headers">Üstbilgiler, her satıra ANAHTAR=DEĞER</string>
+    <string name="settings_global_mcp_timeout">Milisaniye cinsinden zaman aşımı</string>
+    <string name="settings_global_mcp_disabled_tools">Devre dışı araçlar, her satıra bir tane</string>
+    <string name="settings_global_mcp_pairs_help">Her satıra bir ANAHTAR=DEĞER çifti girin.</string>
+    <string name="settings_global_mcp_save">Kaydet</string>
+    <string name="settings_global_mcp_oauth_idle">OAuth durumu henüz denetlenmedi.</string>
+    <string name="settings_global_mcp_oauth_checking">OAuth durumu denetleniyor…</string>
+    <string name="settings_global_mcp_oauth_ready">OAuth durumu güncel.</string>
+    <string name="settings_global_mcp_oauth_starting">Yetkilendirme başlatılıyor…</string>
+    <string name="settings_global_mcp_oauth_open_browser">Yetkilendirmeye devam etmek için tarayıcıyı açın.</string>
+    <string name="settings_global_mcp_oauth_waiting">Yetkilendirme bekleniyor…</string>
+    <string name="settings_global_mcp_oauth_authorized">Yetkilendirme tamamlandı.</string>
+    <string name="settings_global_mcp_oauth_failed">Yetkilendirme başarısız oldu.</string>
+    <string name="settings_global_mcp_oauth_paused">Uygulama arka plandayken yetkilendirme duraklatılır.</string>
+</resources>

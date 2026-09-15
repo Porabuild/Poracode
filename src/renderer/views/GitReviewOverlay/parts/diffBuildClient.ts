@@ -5,6 +5,7 @@ import type {
   DiffBuildResponse,
 } from "@/renderer/workers/diffBuildWorker";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { readClientRuntime } from "@/renderer/clientRuntime";
 
 export type { DiffBuildItem };
 export type DiffBuildResult = DiffBuildResponse["results"][number];
@@ -95,15 +96,12 @@ export function buildInWorker(
   theme?: "light" | "dark",
 ): Promise<DiffBuildResponse["results"]> {
   const resolvedTheme = theme ?? "dark";
-  // The remote PWA serves source through a mobile-specific Vite entry. Its
-  // module worker can fail before posting a response, which leaves every
-  // expanded Git card loading forever. Diffs are opened one at a time in this
-  // surface (and oversized diffs are already gated), so use the same tested
-  // synchronous builder there. Electron retains the worker path.
+  // Browser-hosted clients can fail to start a module worker before it posts a
+  // response. Diffs are opened one at a time there, so use the same tested
+  // synchronous builder. Electron retains the worker path.
   if (
     typeof Worker === "undefined" ||
-    import.meta.env.VITE_PORACODE_BUILD_TARGET === "mobile" ||
-    window.poracode?.appVersion === "remote"
+    ((window.poracodeHost || window.poracode) && readClientRuntime().host === "browser")
   ) {
     return Promise.resolve(buildOnMainThread(items, resolvedTheme));
   }

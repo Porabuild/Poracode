@@ -2,6 +2,7 @@ import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { createServer, type Server } from "node:http";
 import {
   chmodSync,
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -320,6 +321,51 @@ describeOnPosix("bridge.mjs fs endpoints", () => {
     expect(envelope.data.stats[0]?.isFile).toBe(true);
     expect(envelope.data.stats[1]?.exists).toBe(false);
     expect(envelope.data.stats[1]?.code).toBe("ENOENT");
+  });
+
+  it("moves without replacing an existing destination", async () => {
+    const source = join(projectRoot, "source.txt");
+    const destination = join(projectRoot, "destination.txt");
+    writeFileSync(source, "source");
+    writeFileSync(destination, "destination");
+
+    const collision = await post(`${bridge.baseUrl}/v1/fs/move-no-replace`, {
+      projectRoot,
+      from: source,
+      to: destination,
+    });
+    expect(collision.status).toBe(409);
+    expect(readFileSync(source, "utf8")).toBe("source");
+    expect(readFileSync(destination, "utf8")).toBe("destination");
+
+    rmSync(destination);
+    const moved = await post(`${bridge.baseUrl}/v1/fs/move-no-replace`, {
+      projectRoot,
+      from: source,
+      to: destination,
+    });
+    expect(moved.status).toBe(200);
+    expect(existsSync(source)).toBe(false);
+    expect(readFileSync(destination, "utf8")).toBe("source");
+  });
+
+  it("rejects mutations through a symbolic-link ancestor", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "poracode-bridge-outside-"));
+    try {
+      writeFileSync(join(outside, "keep.txt"), "keep");
+      symlinkSync(outside, join(projectRoot, "outside-link"));
+      const response = await post(`${bridge.baseUrl}/v1/fs/rm`, {
+        projectRoot,
+        path: join(projectRoot, "outside-link", "keep.txt"),
+        recursive: false,
+        force: false,
+      });
+
+      expect(response.status).toBe(400);
+      expect(readFileSync(join(outside, "keep.txt"), "utf8")).toBe("keep");
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
   });
 
   it("find walks the tree, skips ignored dirs, and caps at maxEntries", async () => {

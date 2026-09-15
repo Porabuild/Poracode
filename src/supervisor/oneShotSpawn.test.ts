@@ -186,3 +186,20 @@ describe("one-shot banner fencing", () => {
     ).resolves.toBe("Fix WSL cold-boot thread titles");
   });
 });
+
+describe("spawnAgent stdin teardown", () => {
+  it("treats EPIPE on stdin as a dead child instead of an unhandled error", async () => {
+    // The child exits without ever reading stdin; an input larger than the
+    // OS pipe buffer keeps writes queued when the read end closes, so stdin
+    // emits EPIPE. The one-shot's verdict must come from the exit path and
+    // the EPIPE must not escape as an unhandled error (this exact race
+    // failed hosted CI shards through the real-mode parity tests).
+    await expect(
+      spawnAgent(
+        { command: process.execPath, args: ["-e", "process.exit(3)"] },
+        "x".repeat(4 * 1024 * 1024),
+        30_000,
+      ),
+    ).rejects.toThrow("Agent exited with code 3");
+  });
+});

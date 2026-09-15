@@ -1,12 +1,15 @@
 import { act, render, renderHook, waitFor } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { I18nProvider } from "@lingui/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
+import type { PoracodeBridge } from "@/shared/ipc";
 import { i18n } from "@/renderer/i18n/i18n";
+import { installBrowserClientRuntime, resetClientRuntimeForTest } from "@/renderer/clientRuntime";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
 import { ProjectAuxiliaryPanel } from "./ProjectAuxiliaryPanel";
@@ -28,6 +31,8 @@ const unifiedRightPanelProps = vi.hoisted(() => ({
     activeTab: string;
     docksContent?: ReactElement;
     docksHeaderActions?: ReactElement;
+    onBackSubagent?: () => void;
+    onCloseSubagent?: () => void;
   } | null,
 }));
 
@@ -36,6 +41,8 @@ vi.mock("@/renderer/components/layout/UnifiedRightPanel", () => ({
     activeTab: string;
     docksContent?: ReactElement;
     docksHeaderActions?: ReactElement;
+    onBackSubagent?: () => void;
+    onCloseSubagent?: () => void;
   }) => {
     unifiedRightPanelProps.current = props;
     return null;
@@ -129,10 +136,16 @@ describe("ProjectAuxiliaryPanel", () => {
       usagePanelOpen: false,
       notesPanelOpen: false,
       threadDocksPanelOpen: false,
+      threadDocksReturnThreadId: null,
       subAgentPanelOpen: false,
       subAgentPanelContext: null,
       bottomPanelDocks: { left: null, right: null },
     });
+  });
+
+  afterEach(() => {
+    resetClientRuntimeForTest();
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
   });
 
   it("preserves a git badge target when the locked panel opens", async () => {
@@ -159,6 +172,67 @@ describe("ProjectAuxiliaryPanel", () => {
       });
     });
   });
+
+  it.each([false, true])(
+    "returns to Thread Info even if the last agent finished: %s",
+    (completed) => {
+      focusThread(threadA.id);
+      useSharedSettings.setState({ threadDocksPlacement: "right" });
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [threadA.id]: ["agent-1"] },
+        runtimeItemsByIdByThread: {
+          [threadA.id]: {
+            "agent-1": {
+              id: "agent-1",
+              type: "tool_call",
+              state: completed ? "completed" : "started",
+              payload: {
+                name: "spawnAgent",
+                status: completed ? "success" : "running",
+                isSubAgent: true,
+              },
+              streams: {},
+            },
+          },
+        },
+        runtimeStructuralVersionByThread: { [threadA.id]: 1 },
+      });
+      usePanelStore.setState({
+        rightPanelTab: "subagent",
+        gitReviewContext: null,
+        threadDocksPanelOpen: true,
+        threadDocksFocus: "agents",
+        subAgentPanelOpen: true,
+        subAgentPanelContext: {
+          threadId: threadA.id,
+          parentItemId: "agent-1",
+          returnToThreadInfo: true,
+        },
+      });
+      render(
+        <I18nProvider i18n={i18n}>
+          <ProjectAuxiliaryPanel includeTerminal visible />
+        </I18nProvider>,
+      );
+
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("subagent");
+      expect(unifiedRightPanelProps.current?.onBackSubagent).toBeTypeOf("function");
+      act(() => unifiedRightPanelProps.current?.onBackSubagent?.());
+      expect(usePanelStore.getState()).toMatchObject({
+        rightPanelTab: "docks",
+        threadDocksPanelOpen: true,
+        threadDocksFocus: "agents",
+        subAgentPanelContext: null,
+        subAgentPanelOpen: false,
+      });
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("docks");
+      const visibility = renderHook(() => usePanelVisibility());
+      expect(visibility.result.current.sidePanelOpen).toBe(true);
+
+      act(() => focusThread(threadB.id));
+      expect(visibility.result.current.sidePanelOpen).toBe(false);
+    },
+  );
 
   it("passes the focused worktree location to right-panel docks", async () => {
     useAppStore.setState({
@@ -273,6 +347,81 @@ describe("ProjectAuxiliaryPanel", () => {
 
     await waitFor(() => {
       expect(unifiedRightPanelProps.current?.activeTab).toBe("browser");
+    });
+  });
+
+  it("keeps the restored Ports tab active with the terminal docked at the bottom", async () => {
+    installBrowserClientRuntime({} as PoracodeBridge);
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Studio",
+          endpoint: "http://192.168.1.10:3200",
+          accessToken: "token",
+          scopes: ["ports:forward"],
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "online", projects: [], threads: [] },
+      },
+    });
+    usePanelStore.setState({ rightPanelTab: "ports", portsPanelOpen: true });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal={false} visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() => {
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("ports");
+    });
+  });
+
+  it("keeps the Ports tab active for an Electron-as-client connection", async () => {
+    // No browser runtime installed: the desktop client with a connected
+    // remote server must expose the same ports panel (WS8 parity — the
+    // routes are live and entry URLs open externally via the bridge).
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "desktop-1",
+          label: "Studio",
+          endpoint: "http://192.168.1.10:3200",
+          accessToken: "token",
+          scopes: ["ports:forward"],
+        },
+      ],
+      runtime: {
+        "desktop-1": { status: "online", projects: [], threads: [] },
+      },
+    });
+    usePanelStore.setState({ rightPanelTab: "ports", portsPanelOpen: true });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal={false} visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() => {
+      expect(unifiedRightPanelProps.current?.activeTab).toBe("ports");
+    });
+  });
+
+  it("hides the Ports tab when no remote server is connected", async () => {
+    useRemoteServersStore.setState({ servers: [], runtime: {} });
+    usePanelStore.setState({ rightPanelTab: "ports", portsPanelOpen: true });
+
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal={false} visible />
+      </I18nProvider>,
+    );
+
+    await waitFor(() => {
+      expect(unifiedRightPanelProps.current?.activeTab).not.toBe("ports");
     });
   });
 });

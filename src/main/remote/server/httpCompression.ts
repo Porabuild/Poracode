@@ -12,9 +12,10 @@ import { gzip } from "node:zlib";
  *
  * Two deliberate design points:
  *
- * - Compression is async (`zlib.gzip`, not `gzipSync`). This code runs on the
- *   Electron **main** process, where a synchronous multi-megabyte deflate would
- *   block the IPC/event loop that every window and the supervisor bridge share.
+ * - Compression is async (`zlib.gzip`, not `gzipSync`). This code runs in the
+ *   extracted backend-host process, where a synchronous multi-megabyte deflate
+ *   would block the event loop that the PWA remote server, the desktop renderer
+ *   stream, SQLite, and the supervisor bridge share.
  *
  * - The `ETag` is a content hash prefixed with a per-process boot id, never the
  *   snapshot's `snapshotSeq`. `snapshotSeq` is in-memory and restarts at 0 while
@@ -83,9 +84,8 @@ export async function writeNegotiatedJson(
   // blind: `no-cache` still permits the conditional request that yields the 304.
   res.setHeader("Cache-Control", "private, no-cache");
   res.setHeader("ETag", etag);
-  // Caches keyed only on URL would otherwise be able to hand a gzip body to a
-  // client that cannot decode it.
-  res.setHeader("Vary", "Accept-Encoding");
+  // Cached bodies belong to the negotiated encoding and bearer credential.
+  res.appendHeader("Vary", "Accept-Encoding, Authorization");
 
   if (status === 200 && etagMatches(req, etag)) {
     res.statusCode = 304;

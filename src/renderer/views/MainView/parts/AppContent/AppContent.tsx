@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { X } from "lucide-react";
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -14,6 +15,7 @@ import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { buildPaneLayoutFromLegacy, findPaneAlign, findPaneSlotId } from "@/shared/paneLayout";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { findExperimentByThreadId } from "@/renderer/state/experimentStore";
 import {
   useInitialProjectDraftConfig,
@@ -43,10 +45,34 @@ import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftCo
 import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import { HomeView } from "@/renderer/views/HomeView";
 import { ExperimentView } from "@/renderer/views/ExperimentView/ExperimentView";
-import { PullRequestsView } from "@/renderer/views/PullRequestsView/PullRequestsView";
-import { SchedulesView } from "@/renderer/views/SchedulesView/SchedulesView";
+import { BrowserRemoteConnectionGate } from "@/renderer/views/MainView/parts/BrowserRemoteConnectionGate";
+import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { ThreadPane } from "./parts/ThreadPane";
 import { DraftPane } from "./parts/DraftPane";
+import { resolveResponsivePaneLayout } from "./responsivePaneLayout";
+
+const DeferredMobileUtilityPage = lazy(() =>
+  import("../MobileUtilityPage").then((module) => ({ default: module.MobileUtilityPage })),
+);
+const DeferredPullRequestsView = lazy(() =>
+  import("@/renderer/views/PullRequestsView/PullRequestsView").then((module) => ({
+    default: module.PullRequestsView,
+  })),
+);
+const DeferredSchedulesView = lazy(() =>
+  import("@/renderer/views/SchedulesView/SchedulesView").then((module) => ({
+    default: module.SchedulesView,
+  })),
+);
+
+function DeferredPageLoader() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <PixelLoader size="lg" />
+    </div>
+  );
+}
 
 // Non-subscribing store read for the thread branch below. Aliased at module
 // scope (rather than `useAppStore.getState()` inline) so the render path never
@@ -63,6 +89,9 @@ export function AppContent() {
   const draftLastDraftConfig = useInitialProjectDraftConfig(draftProjectId);
   const createThread = useAppStore((state) => state.createThread);
   const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
+  const focusedPaneId = useAppStore((state) => state.focusedPaneId);
+  const compactLayout = useCompactLayout();
+  const mobileUtilityPage = usePanelStore((state) => state.mobileUtilityPage);
   const activeGroupName = useAppStore((s) => {
     const v = s.view;
     if (v.kind !== "thread" || !v.activeGroupId) return undefined;
@@ -229,6 +258,14 @@ export function AppContent() {
     );
   }
 
+  if (compactLayout && mobileUtilityPage) {
+    return (
+      <Suspense fallback={<DeferredPageLoader />}>
+        <DeferredMobileUtilityPage />
+      </Suspense>
+    );
+  }
+
   if (view.kind === "experiment") {
     return <ExperimentView experimentId={view.experimentId} />;
   }
@@ -236,7 +273,11 @@ export function AppContent() {
   if (view.kind === "schedules") {
     return (
       <div className="h-full overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
-        <SchedulesView />
+        <BrowserRemoteConnectionGate>
+          <Suspense fallback={<DeferredPageLoader />}>
+            <DeferredSchedulesView />
+          </Suspense>
+        </BrowserRemoteConnectionGate>
       </div>
     );
   }
@@ -244,7 +285,11 @@ export function AppContent() {
   if (view.kind === "pullRequests") {
     return (
       <div className="h-full overflow-y-auto px-6 pb-8 pt-4 [scrollbar-gutter:stable]">
-        <PullRequestsView />
+        <BrowserRemoteConnectionGate>
+          <Suspense fallback={<DeferredPageLoader />}>
+            <DeferredPullRequestsView />
+          </Suspense>
+        </BrowserRemoteConnectionGate>
       </div>
     );
   }
@@ -267,8 +312,15 @@ export function AppContent() {
 
   if (view.kind === "thread") {
     const closePane = getAppState().closePane;
-    const paneCount = view.panes.length;
-    const paneLayout = view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout);
+    const fullPaneLayout = view.paneLayout ?? buildPaneLayoutFromLegacy(view.panes, view.rowLayout);
+    const { paneLayout, visiblePaneIds, hiddenCurrentPaneIds } = resolveResponsivePaneLayout({
+      fullPaneLayout,
+      panes: view.panes,
+      focusedPaneId,
+      compactLayout,
+    });
+    const paneCount = visiblePaneIds.length;
+    const fullPaneCount = view.panes.length;
     // Non-subscribing read: threads / projects array identity isn't worth
     // a re-render here — pane deletion always updates view.panes atomically.
     const storeThreads = getAppState().threads;
@@ -290,12 +342,13 @@ export function AppContent() {
     function getPaneDomKey(paneId: string) {
       return resolvePaneDomKey({
         paneId,
-        paneSlotId: findPaneSlotId(paneLayout, paneId) ?? paneId,
+        paneSlotId: findPaneSlotId(fullPaneLayout, paneId) ?? paneId,
         presentationMode: storeThreads.find((thread) => thread.id === paneId)?.presentationMode,
       });
     }
 
-    function renderPane(paneId: string, rect: Rect) {
+    const hiddenPaneIds = hiddenCurrentPaneIds;
+    function renderPane(paneId: string, rect: Rect, hidden = false) {
       const paneDraftProjectId = parseDraftProjectId(paneId);
       const paneAlign = findPaneAlign(paneLayout, paneId);
       // Only the top-left pane's own header is the topmost row in the content
@@ -306,7 +359,7 @@ export function AppContent() {
         <DraftPane
           paneId={paneId}
           projectId={paneDraftProjectId}
-          paneCount={paneCount}
+          paneCount={hidden ? fullPaneCount : paneCount}
           paneAlign={paneAlign}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
           onClose={() => closePane(paneId)}
@@ -317,6 +370,7 @@ export function AppContent() {
       ) : (
         <ThreadPane
           threadId={paneId}
+          hidden={hidden}
           paneCount={paneCount}
           paneAlign={paneAlign}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
@@ -363,6 +417,7 @@ export function AppContent() {
             layout={paneLayout}
             renderPane={renderPane}
             getPaneDomKey={getPaneDomKey}
+            hiddenPaneIds={hiddenPaneIds}
           />
         </div>
       </div>

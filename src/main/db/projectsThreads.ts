@@ -95,14 +95,19 @@ export function dbUpdateProject(project: Project): void {
 
 export function dbUpsertThread(thread: Thread, sortOrder: number): void {
   const sqlite = getSqlite();
-  // A row main inserts on its own is invisible to the renderer's store until the
-  // forwarded command reaches it, so shield it from `dbSyncAll`'s delete pass
-  // (see mainCreatedThreads).
-  const isNewRow =
-    sqlite.prepare("SELECT 1 FROM threads WHERE id = ?").get(thread.id) === undefined;
-  const options = { writeThreadStatusSource: true } as const;
-  runThreadUpsert(prepareThreadUpsertStatement(sqlite, options), thread, sortOrder, options);
-  if (isNewRow) noteMainCreatedThread(thread.id);
+  sqlite
+    .transaction(() => {
+      // A row main inserts on its own is invisible to the renderer's store until the
+      // forwarded command reaches it, so shield it from `dbSyncAll`'s delete pass
+      // (see mainCreatedThreads). Keep the row and ownership marker atomic across
+      // the desktop/backend-host database connections.
+      const isNewRow =
+        sqlite.prepare("SELECT 1 FROM threads WHERE id = ?").get(thread.id) === undefined;
+      const options = { writeThreadStatusSource: true } as const;
+      runThreadUpsert(prepareThreadUpsertStatement(sqlite, options), thread, sortOrder, options);
+      if (isNewRow) noteMainCreatedThread(thread.id);
+    })
+    .immediate();
   notifyProjectThreadDataChanged();
 }
 

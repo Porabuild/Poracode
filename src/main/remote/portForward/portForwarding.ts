@@ -1,4 +1,5 @@
 import { PortProxy } from "./portProxy";
+import type { ForwardOriginIdentity } from "./forwardOriginIdentity";
 import { RemotePortForwardGateway } from "../RemotePortForwardGateway";
 
 export interface PortForwardingOptions {
@@ -7,6 +8,11 @@ export interface PortForwardingOptions {
   /** The remote-access server's own port, rejected as a self-referential
    * forward target (see {@link RemotePortForwardGateway}). */
   readonly remoteAccessPort: number;
+  /** Configured browser-forward child-origin identity. Absent = browser
+   * forwarding unavailable (raw TCP only). The same identity must be passed
+   * to `RemoteAccessServerOptions.forwardOrigin` — composition roots build it
+   * once via `createForwardOriginIdentity`. */
+  readonly forwardOrigin?: ForwardOriginIdentity;
 }
 
 /**
@@ -30,7 +36,10 @@ export function createPortForwarding(options: PortForwardingOptions): PortForwar
     bindHost: options.bindHost,
     remoteAccessPort: options.remoteAccessPort,
   });
-  const proxy = new PortProxy({ gateway });
+  const proxy = new PortProxy({
+    gateway,
+    ...(options.forwardOrigin ? { forwardOrigin: options.forwardOrigin } : {}),
+  });
   return {
     gateway,
     proxy,

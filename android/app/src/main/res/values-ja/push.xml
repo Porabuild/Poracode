@@ -1,0 +1,7 @@
+<resources>
+    <string name="push_channel_attention_name">要確認</string><string name="push_channel_attention_description">確認が必要な会話の更新</string><string name="push_channel_status_name">ステータス</string><string name="push_channel_status_description">会話の進行状況を静かに通知</string>
+    <string name="push_not_configured_title">通知を利用できません</string><string name="push_not_configured_message">このビルドには Firebase プッシュ通知が設定されていません。</string><string name="push_unavailable_title">プッシュ通知を利用できません</string><string name="push_unavailable_message">保存済みの通知データを安全に読み取れませんでした。データは変更されていません。</string>
+    <string name="push_permission_title">最新情報を受け取る</string><string name="push_permission_message">デスクトップの会話で確認が必要になったときや完了したときに通知を受け取ります。</string><string name="push_permission_enable">有効にする</string><string name="push_permission_denied_title">通知が拒否されました</string><string name="push_permission_denied_message">通知の権限がオフです。システム設定を開いて有効にしてください。</string><string name="push_permission_open_settings">設定を開く</string>
+    <string name="push_notification_title">Poracode</string><string name="push_notification_body">デスクトップの会話が更新されました。</string>
+    <string name="push_route_confirm_title">別のデスクトップで開きますか？</string><string name="push_route_confirm_message">この通知は %1$s のものです。そのデスクトップに切り替えて開きますか？</string><string name="push_route_confirm_switch">デスクトップを切り替える</string><string name="push_route_confirm_cancel">キャンセル</string><string name="push_route_confirm_description">デスクトップ %1$s に切り替えて通知を開く</string>
+</resources>

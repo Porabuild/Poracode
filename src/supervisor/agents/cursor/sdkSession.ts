@@ -40,7 +40,11 @@ import {
   type CursorSdkModelSelection,
 } from "./sdkModels";
 import { buildCursorSdkUserMessage } from "./sdkPrompt";
-import { CursorSdkWorkerRpcError, spawnCursorSdkWorker } from "./sdkWorkerClient";
+import {
+  CursorSdkWorkerRpcError,
+  CursorSdkWorkerStartupError,
+  spawnCursorSdkWorker,
+} from "./sdkWorkerClient";
 import type {
   CursorSdkWorkerAgentMessage,
   CursorSdkWorkerAgentOptions,
@@ -51,6 +55,8 @@ import type {
   CursorSdkWorkerStartInput,
   CursorSdkWorkerStartResult,
 } from "./sdkWorkerProtocol";
+import { readCursorSdkInstallPin } from "./sdkInstallPin";
+import type { CursorSdkPinHint } from "./sdkLoaderSupport";
 import { CURSOR_SDK_SESSION_PREFIX, cursorSdkSessionId } from "./structuredRuntime";
 
 interface CursorSdkWorkerHandle {
@@ -68,6 +74,7 @@ interface CursorSdkWorkerHandle {
 interface CursorSdkWorkerSpawnInput {
   projectLocation: ProjectLocation;
   configuredPath?: string;
+  pinnedRoot?: CursorSdkPinHint;
   env?: Record<string, string>;
 }
 
@@ -238,6 +245,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
   private activeTurn: ActiveTurn | undefined;
   private replacementOperation: CursorSdkReplacementOperation | undefined;
   private disposePromise: Promise<void> | undefined;
+  private readonly pendingWorkerCleanup = new Set<Pick<CursorSdkWorkerHandle, "dispose">>();
   private forceStaleRunOnNextSend = false;
   private pendingTransportError: string | undefined;
   private closeReported = false;
@@ -320,6 +328,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       this.workerListeners = listeners;
       listeners.active = true;
     } catch (error) {
+      if (error instanceof CursorSdkWorkerStartupError) this.pendingWorkerCleanup.add(error.worker);
       this.detachWorkerListeners(listeners);
       if (worker) await this.bestEffortDispose(worker);
       this.activated = false;
@@ -510,7 +519,10 @@ export class CursorSdkSession implements StructuredSessionHandle {
   }
 
   dispose(): Promise<void> {
-    this.disposePromise ??= this.disposeOnce();
+    this.disposePromise ??= this.disposeOnce().catch((error: unknown) => {
+      this.disposePromise = undefined;
+      throw error;
+    });
     return this.disposePromise;
   }
 
@@ -523,7 +535,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
     if (turn && !turn.settled) {
       turn.cancelRequested = true;
       if (turn.runId && turn.worker) {
-        await this.sendTurnCancel(turn);
+        void this.sendTurnCancel(turn);
       }
       this.completeTurnWithoutWorker(turn, "cancelled");
     } else {
@@ -531,14 +543,30 @@ export class CursorSdkSession implements StructuredSessionHandle {
     }
     this.detachWorkerListeners(this.workerListeners);
     this.workerListeners = undefined;
-    this.worker = undefined;
-    this.workerSafetyPosture = undefined;
     const [workerDisposal] = await Promise.allSettled([
       worker ? worker.dispose() : Promise.resolve(),
       replacementOperation ? replacementOperation.promise.catch(() => {}) : Promise.resolve(),
     ]);
+    if (workerDisposal.status === "fulfilled") {
+      this.worker = undefined;
+      this.workerSafetyPosture = undefined;
+    }
+    const retainedDisposals = await Promise.allSettled(
+      [...this.pendingWorkerCleanup].map(async (pendingWorker) => {
+        await pendingWorker.dispose();
+        this.pendingWorkerCleanup.delete(pendingWorker);
+      }),
+    );
+    const failures = [workerDisposal, ...retainedDisposals].filter(
+      (result) => result.status === "rejected",
+    );
+    if (failures.length) {
+      throw new AggregateError(
+        failures.map((result) => result.reason),
+        "Cursor SDK session shutdown failed.",
+      );
+    }
     this.reportClose();
-    if (workerDisposal.status === "rejected") throw workerDisposal.reason;
   }
 
   private buildAgentOptions(config: ThreadConfig): CursorSdkWorkerAgentOptions {
@@ -576,8 +604,13 @@ export class CursorSdkSession implements StructuredSessionHandle {
   }
 
   private workerSpawnInput(): CursorSdkWorkerSpawnInput {
+    // A session must drive the same installation detection advertised, so the
+    // recorded root travels with the spawn. Whether a record applies to this
+    // target is the worker client's single applicability gate.
+    const pinnedRoot = readCursorSdkInstallPin();
     return {
       projectLocation: this.input.projectLocation,
+      ...(pinnedRoot ? { pinnedRoot } : {}),
       ...(this.input.env ? { env: this.input.env } : {}),
     };
   }
@@ -668,6 +701,7 @@ export class CursorSdkSession implements StructuredSessionHandle {
       this.detachWorkerListeners(previousListeners);
       await this.bestEffortDispose(previousWorker);
     } catch (error) {
+      if (error instanceof CursorSdkWorkerStartupError) this.pendingWorkerCleanup.add(error.worker);
       if (!committed) {
         this.detachWorkerListeners(replacementListeners);
         if (replacementWorker) await this.bestEffortDispose(replacementWorker);
@@ -712,8 +746,10 @@ export class CursorSdkSession implements StructuredSessionHandle {
   private async bestEffortDispose(worker: CursorSdkWorkerHandle): Promise<void> {
     try {
       await worker.dispose();
+      this.pendingWorkerCleanup.delete(worker);
     } catch {
-      // A replacement is already authoritative, or the candidate never became authoritative.
+      // Keep ownership of retired/candidate workers until shutdown is confirmed.
+      this.pendingWorkerCleanup.add(worker);
     }
   }
 

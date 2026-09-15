@@ -58,8 +58,11 @@ interface FooterActionItem {
  * into a trailing kebab menu; Hide sidebar anchors the left edge and the
  * expand toggle the right.
  */
-export function SidebarFooterNav(props: { remoteAccessStatus: RemoteAccessSidebarStatus }) {
-  const { remoteAccessStatus } = props;
+export function SidebarFooterNav(props: {
+  remoteAccessStatus: RemoteAccessSidebarStatus;
+  showRemoteAccess?: boolean;
+}) {
+  const { remoteAccessStatus, showRemoteAccess = true } = props;
   const { t } = useLingui();
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
   const settingsSection = usePanelStore((s) => s.settingsSection);
@@ -181,15 +184,19 @@ export function SidebarFooterNav(props: { remoteAccessStatus: RemoteAccessSideba
         onPress: openSettings,
         onPreload: prewarmSettings,
       },
-      {
-        key: "remoteAccess",
-        icon: <RemoteAccessSidebarIcon status={remoteAccessStatus} />,
-        label: t`Remote Access`,
-        isActive: remoteAccessSettingsActive,
-        onPress: openRemoteAccessSettings,
-        onPreload: prewarmSettings,
-        tooltip: <RemoteAccessSidebarTooltip status={remoteAccessStatus} />,
-      },
+      ...(showRemoteAccess
+        ? [
+            {
+              key: "remoteAccess",
+              icon: <RemoteAccessSidebarIcon status={remoteAccessStatus} />,
+              label: t`Remote Access`,
+              isActive: remoteAccessSettingsActive,
+              onPress: openRemoteAccessSettings,
+              onPreload: prewarmSettings,
+              tooltip: <RemoteAccessSidebarTooltip status={remoteAccessStatus} />,
+            },
+          ]
+        : []),
     ];
 
     // Hide + expand are pinned, so they always claim two slots; the kebab
@@ -297,15 +304,17 @@ export function SidebarFooterNav(props: { remoteAccessStatus: RemoteAccessSideba
             onPress={openSettings}
           />
         </div>
-        <SidebarButton
-          iconOnly
-          icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}
-          label={t`Remote Access`}
-          tooltip={<RemoteAccessSidebarTooltip status={remoteAccessStatus} />}
-          isActive={remoteAccessSettingsActive}
-          onPreload={prewarmSettings}
-          onPress={openRemoteAccessSettings}
-        />
+        {showRemoteAccess ? (
+          <SidebarButton
+            iconOnly
+            icon={<RemoteAccessSidebarIcon status={remoteAccessStatus} />}
+            label={t`Remote Access`}
+            tooltip={<RemoteAccessSidebarTooltip status={remoteAccessStatus} />}
+            isActive={remoteAccessSettingsActive}
+            onPreload={prewarmSettings}
+            onPress={openRemoteAccessSettings}
+          />
+        ) : null}
       </div>
       <div className="flex items-center gap-1">
         <div className="min-w-0 flex-1">

@@ -3,15 +3,20 @@ import { readStoredBoolean } from "@/renderer/utils/localStorage";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
 
 /**
- * Legacy hand-rolled key, read once as the initial seed so existing installs
- * keep their collapsed state; the slice under PERSIST_KEY takes over on the
- * first write.
+ * Legacy hand-rolled key, retained for Electron where it represents an
+ * explicit desktop preference. Browser V1 state is invalidated below because
+ * it may contain responsive auto-collapse.
  */
 const LEGACY_COLLAPSED_KEY = "poracode-sidebar-collapsed";
 const PERSIST_KEY = "poracode-sidebar-overlay";
+// V1 also captured responsive auto-collapse. V2 stores only an explicit user preference.
+const PERSIST_VERSION = 2;
+const isElectronHost = typeof window !== "undefined" && Boolean(window.poracodeHost);
 
 interface SidebarOverlayState {
   isCollapsed: boolean;
+  userCollapsed: boolean;
+  isAutoCollapsed: boolean;
   isNarrow: boolean;
   closingOverlay: boolean;
   overlayReady: boolean;
@@ -26,6 +31,7 @@ interface SidebarOverlayState {
    */
   skipTransition: boolean;
   setCollapsed: (next: boolean) => void;
+  setAutoCollapsed: (next: boolean) => void;
   setNarrow: (next: boolean) => void;
   setClosingOverlay: (next: boolean) => void;
   setOverlayReady: (next: boolean) => void;
@@ -33,16 +39,47 @@ interface SidebarOverlayState {
   setSkipTransition: (next: boolean) => void;
 }
 
-const initialPersisted = readPersistedSlice<{ isCollapsed: boolean }>(PERSIST_KEY);
+const initialPersisted = readPersistedSlice<{ version: number; isCollapsed: boolean }>(PERSIST_KEY);
+const initialUserCollapsed =
+  initialPersisted?.version === PERSIST_VERSION
+    ? (initialPersisted.isCollapsed ?? false)
+    : isElectronHost
+      ? (initialPersisted?.isCollapsed ?? readStoredBoolean(LEGACY_COLLAPSED_KEY, false))
+      : false;
+
+if (initialPersisted && initialPersisted.version !== PERSIST_VERSION) {
+  try {
+    localStorage.setItem(
+      PERSIST_KEY,
+      JSON.stringify({ version: PERSIST_VERSION, isCollapsed: initialUserCollapsed }),
+    );
+  } catch {
+    // Persistence is best-effort; keep the in-memory migrated value.
+  }
+}
 
 export const useSidebarOverlayStore = create<SidebarOverlayState>()((set) => ({
-  isCollapsed: initialPersisted?.isCollapsed ?? readStoredBoolean(LEGACY_COLLAPSED_KEY, false),
+  isCollapsed: initialUserCollapsed,
+  userCollapsed: initialUserCollapsed,
+  isAutoCollapsed: false,
   isNarrow: false,
   closingOverlay: false,
   overlayReady: false,
   shellWidth: 0,
   skipTransition: false,
-  setCollapsed: (next) => set((s) => (s.isCollapsed === next ? s : { isCollapsed: next })),
+  setCollapsed: (next) =>
+    set((s) =>
+      s.isCollapsed === next && s.userCollapsed === next && !s.isAutoCollapsed
+        ? s
+        : { isCollapsed: next, userCollapsed: next, isAutoCollapsed: false },
+    ),
+  setAutoCollapsed: (next) =>
+    set((s) => {
+      if (next) {
+        return s.isCollapsed ? s : { isCollapsed: true, isAutoCollapsed: true };
+      }
+      return s.isAutoCollapsed ? { isCollapsed: s.userCollapsed, isAutoCollapsed: false } : s;
+    }),
   setNarrow: (next) => set((s) => (s.isNarrow === next ? s : { isNarrow: next })),
   setClosingOverlay: (next) =>
     set((s) => (s.closingOverlay === next ? s : { closingOverlay: next })),
@@ -59,7 +96,8 @@ export const useSidebarOverlayStore = create<SidebarOverlayState>()((set) => ({
 // off localStorage — they change the store many times per resize but never the
 // persisted value.
 persistStoreSlice(useSidebarOverlayStore, PERSIST_KEY, (state) => ({
-  isCollapsed: state.isCollapsed,
+  version: PERSIST_VERSION,
+  isCollapsed: state.userCollapsed,
 }));
 
 export function selectShouldOverlay(s: SidebarOverlayState): boolean {

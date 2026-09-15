@@ -94,9 +94,13 @@ const execFileAsync = promisify(execFile);
 // v29 advertises session-local MCP tools for Command Code.
 // v30 refreshes terminal MCP capabilities across supported CLIs.
 // v32 invalidates capabilities from the removed persistent MCP proxy prototype.
-// v33 discovers the OpenCode 2 provider and re-probes its per-provider
-// credential lists alongside auth state.
-export const STATUS_CACHE_VERSION = 33;
+// v33 combines V2 model family/pricing metadata with MCP and live-voice capabilities.
+// v34 re-probes the Cursor SDK once so its resolved installation gets recorded:
+// an SDK variant can now report `installed` from that record with an unknown
+// auth state instead of losing the install when a probe reaches no verdict.
+// v35 invalidates both pre-merge parents: V2 v34 lacks OpenCode 2 discovery,
+// while master v33 lacks V2's resolved SDK installation and capability metadata.
+export const STATUS_CACHE_VERSION = 35;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

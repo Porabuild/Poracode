@@ -1,48 +1,70 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAppStore } from "@/renderer/state/appStore";
-import { WELCOME_SEEN_STORAGE_KEY } from "@/renderer/state/welcomeGateStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { useWelcomeGateStore } from "@/renderer/state/welcomeGateStore";
+import { useAppStore } from "@/renderer/state/appStore";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { WelcomeOverlay } from "./WelcomeOverlay";
 
-vi.mock("@/renderer/bridge", () => ({
-  readBridge: () => ({
-    listWslDistros: vi.fn<() => Promise<never[]>>(() => Promise.resolve([])),
-    getHomeScopeLocation: vi.fn<() => Promise<{ kind: string; path: string }>>(() =>
-      Promise.resolve({ kind: "posix", path: "/tmp/home" }),
-    ),
-  }),
+const runtime = vi.hoisted(() => ({ browser: true, localBackend: false }));
+
+vi.mock("@/renderer/clientRuntime", () => ({
+  hasClientCapability: () => runtime.localBackend,
+  isBrowserClientRuntime: () => runtime.browser,
 }));
 
-function makeHomeProject() {
-  return {
-    id: "home-project",
-    name: "Home",
-    location: { kind: "posix", path: "/tmp/home" },
-  } as never;
-}
+vi.mock("@/renderer/actions/projectActions", () => ({
+  loadHomeScopeLocation: vi.fn<() => Promise<string>>(),
+}));
+
+vi.mock("@/renderer/views/MainView/parts/CreateProject/CreateProjectMenu", () => ({
+  CreateProjectMenu: ({ children }: { children: React.ReactNode }) => children,
+}));
 
 describe("WelcomeOverlay", () => {
   beforeEach(() => {
-    localStorage.removeItem(WELCOME_SEEN_STORAGE_KEY);
-    useAppStore.setState({
-      projects: [makeHomeProject()],
-      // `handleAskQuestion` opens a draft on the existing home project.
-      openDraft: () => {},
-    } as never);
+    localStorage.clear();
+    runtime.browser = true;
+    runtime.localBackend = false;
+    useWelcomeGateStore.setState({ backgroundWorkReleased: false });
   });
 
-  it("unmounts after the primary CTA dismisses the overlay", () => {
+  it("does not cover the browser connection welcome and releases startup work", async () => {
     render(<WelcomeOverlay />);
-    expect(document.querySelector(".poracode-welcome-page")).not.toBeNull();
+
+    expect(screen.queryByText("Where do you want to begin?")).not.toBeInTheDocument();
+    await waitFor(() => expect(useWelcomeGateStore.getState().backgroundWorkReleased).toBe(true));
+  });
+
+  it("keeps the onboarding overlay for the desktop host", () => {
+    runtime.browser = false;
+    render(<WelcomeOverlay />);
+
+    expect(screen.getByText("Where do you want to begin?")).toBeInTheDocument();
+  });
+
+  it("unmounts when the desktop primary action dismisses the overlay", () => {
+    runtime.browser = false;
+    runtime.localBackend = true;
+    const openDraft = vi.fn<() => void>();
+    useAppStore.setState({
+      projects: [
+        {
+          id: HOME_PROJECT_ID,
+          name: "Home",
+          location: { kind: "posix", path: "/tmp/home" },
+          createdAt: "2026-09-13T00:00:00.000Z",
+        },
+      ],
+      openDraft,
+    });
+    render(<WelcomeOverlay />);
 
     fireEvent.click(screen.getByText("Ask Question"));
-
-    // The exit fade is CSS-driven; jsdom never delivers transitionend on its
-    // own, so release the mount explicitly the way the browser would.
     const overlay = document.querySelector(".poracode-welcome-page");
     if (overlay) fireEvent.transitionEnd(overlay);
 
     expect(document.querySelector(".poracode-welcome-page")).toBeNull();
+    expect(openDraft).toHaveBeenCalledWith(HOME_PROJECT_ID);
   });
 });

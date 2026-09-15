@@ -14,11 +14,12 @@ import {
 } from "@/renderer/state/fileEditorSelectors";
 import type { ProjectLocation } from "@/shared/contracts";
 import { createLspFileUri } from "@/shared/lsp";
-import { getBasename } from "@/shared/pathUtils";
-import { getLanguageFromPath, isMarkdownFile } from "./parts/langMap";
+import { getBasename, isMarkdownFile } from "@/shared/pathUtils";
+import { getLanguageFromPath } from "./parts/langMap";
 import { defineAppThemes, useResolvedTheme } from "./parts/monacoThemes";
 import { SortableTab } from "./parts/SortableTab";
 import { EditorToolbar } from "./parts/EditorToolbar";
+import { MobileFileEditorActions } from "./parts/MobileFileEditorActions";
 import { useLspSync } from "./parts/useLspSync";
 import { useMergeConflictContribution } from "./parts/mergeConflict/useMergeConflictContribution";
 import { useGitDiffContribution } from "./parts/gitDiff/useGitDiffContribution";
@@ -55,6 +56,7 @@ export function FileEditorPane(props: {
   headerNeedsTrafficLightPad?: boolean;
   onOpenFullscreen?: () => void;
   onClose?: () => void;
+  mobileControls?: boolean;
 }) {
   const { t } = useLingui();
   const activePath = useFileEditorStore((state) => state.activePath);
@@ -67,22 +69,13 @@ export function FileEditorPane(props: {
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
   const theme = useResolvedTheme();
 
-  const [showPreview, setShowPreview] = useState(false);
-
   const isMarkdown = activePath ? isMarkdownFile(activePath) : false;
 
   const { notifyDidSave } = useLspSync({ monaco: monacoInstance, activePath, bufferStatus });
 
-  // The preview follows the active file and the store's preview target; the
-  // user can still toggle it per file via setShowPreview, which leaves this
-  // key untouched. Reset during render instead of an effect so switching files
-  // never paints one frame with the previous file's toggle.
-  const previewSyncKey = `${activePath ?? ""}\0${isMarkdown ? "1" : "0"}\0${markdownPreviewPath ?? ""}`;
-  const [prevPreviewSyncKey, setPrevPreviewSyncKey] = useState(previewSyncKey);
-  if (prevPreviewSyncKey !== previewSyncKey) {
-    setPrevPreviewSyncKey(previewSyncKey);
-    setShowPreview(!!activePath && isMarkdown && markdownPreviewPath === activePath);
-  }
+  // Derived from the store so the eye button, the shortcut, and fresh mounts
+  // always agree on the preview state.
+  const showPreview = Boolean(activePath && isMarkdown && markdownPreviewPath === activePath);
 
   async function handleSave(path: string) {
     try {
@@ -91,6 +84,10 @@ export function FileEditorPane(props: {
     } catch (error) {
       toast.danger(error instanceof Error ? error.message : String(error));
     }
+  }
+
+  function togglePreview() {
+    useFileEditorStore.getState().toggleMarkdownPreview();
   }
 
   function handleCloseTab(path: string) {
@@ -130,12 +127,22 @@ export function FileEditorPane(props: {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--content-background)]">
+      {props.mobileControls && activePath ? (
+        <MobileFileEditorActions
+          isDirty={isDirty}
+          isMarkdown={isMarkdown}
+          showPreview={showPreview}
+          onSave={() => void handleSave(activePath)}
+          onTogglePreview={togglePreview}
+        />
+      ) : null}
+
       {props.showTabs ? (
         <TabStripHeader
           isDirty={isDirty}
           isMarkdown={isMarkdown}
           showPreview={showPreview}
-          setShowPreview={setShowPreview}
+          onTogglePreview={togglePreview}
           activePath={activePath}
           headerNeedsTrafficLightPad={props.headerNeedsTrafficLightPad ?? false}
           onSave={(path) => void handleSave(path)}
@@ -147,7 +154,7 @@ export function FileEditorPane(props: {
 
       {activePath && bufferStatus ? (
         <>
-          {!props.showTabs ? (
+          {!props.showTabs && !props.mobileControls ? (
             <div
               className={`flex shrink-0 items-center gap-1.5 border-b border-[color:var(--border)] px-3 ${
                 props.headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""
@@ -162,7 +169,7 @@ export function FileEditorPane(props: {
               <EditorToolbar
                 isMarkdown={isMarkdown}
                 showPreview={showPreview}
-                setShowPreview={setShowPreview}
+                onTogglePreview={togglePreview}
                 isDirty={isDirty}
                 activePath={activePath}
                 onSave={() => void handleSave(activePath)}
@@ -196,7 +203,7 @@ function TabStripHeader(props: {
   isDirty: boolean;
   isMarkdown: boolean;
   showPreview: boolean;
-  setShowPreview: React.Dispatch<React.SetStateAction<boolean>>;
+  onTogglePreview: () => void;
   activePath: string | null;
   headerNeedsTrafficLightPad: boolean;
   onSave: (path: string) => void;
@@ -240,7 +247,7 @@ function TabStripHeader(props: {
         <EditorToolbar
           isMarkdown={props.isMarkdown}
           showPreview={props.showPreview}
-          setShowPreview={props.setShowPreview}
+          onTogglePreview={props.onTogglePreview}
           isDirty={props.isDirty}
           activePath={props.activePath}
           onSave={() => props.activePath && props.onSave(props.activePath)}
@@ -330,7 +337,11 @@ function EditorBody(props: {
 
   return (
     <div className="min-h-0 flex-1 overflow-hidden">
-      {isPdf ? (
+      {bufferStatus === "loading" ? (
+        <div className="flex h-full items-center justify-center text-sm text-muted">
+          <Trans>Loading editor…</Trans>
+        </div>
+      ) : isPdf ? (
         <PdfBrowserPlaceholder path={activePath} projectLocation={projectLocation} />
       ) : bufferStatus === "ready" && showPreview && isMarkdown ? (
         <MarkdownPreview content={content ?? ""} />

@@ -1,0 +1,2673 @@
+# V4 execution and evidence ledger
+
+The completion target is the five merge gates in
+[V4_MERGE_GATES.md](V4_MERGE_GATES.md) (user-approved 2026-09-14); the full
+[V4 merge-readiness plan](V4_MERGE_READINESS_PLAN.md) remains the broader
+roadmap, including every phase item, acceptance scenario, performance budget,
+and final qualification gate. A passing focused check does not complete its
+containing phase or gate. Work runs in larger batches with parallel lanes and
+separate file ownership, focused regressions only during authoring, one
+consolidated critic plus broad checks plus runtime/manual verification at each
+source freeze, and one milestone commit per verified batch. Native clients
+remain development clients with shared-contract/build obligations. No
+qualification gate has been waived.
+
+## Execution state
+
+| Phase                                | State       | Evidence / next action                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------ | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 — master integration and baselines | In progress | Combined integration is on V2 at `7c0daf676`; compatibility, broad correctness checks and isolated tooling are verified at their recorded revisions. Full smoke exposed F23/F24. Complete instrumentation, comparable master measurements, hosted CI and final manual baselines remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 1 — exclusive server ownership       | In progress | Shared desktop/headless lease and backend settings/routing slices are implemented. Attach, remaining host-settings writers, stale-snapshot conflicts, credential migration, and full startup acceptance remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 2 — operation safety and lifecycle   | In progress | Per-thread coordination, retryable checkpoint receipts, HTTP/push drains, and tracked PTY joins are implemented. Cross-transport response-loss/crash evidence, descendant lifetime, and complete shutdown qualification remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 3 — off-main bulk transport          | In progress | Request/reply admission and HTTP cancellation are implemented, and backend-enforced per-window direct delivery passed its local mock-host live acceptance on the final candidate (direct zero-bulk, targeted fallback, strict disjoint windows, stale-generation drop, terminal-open a11y). The F8 candidate implements items 4-5 (one utility-process remote HTTP bridge, per-request renderer ports, credit-bounded chunk streaming, admission-gated replayable uploads, facade 11 / bridge frame set 2) and received two consolidated correction batches after independent source reviews (the second: cold-start admission reservation with post-await revalidation, prompt utility-rejection settles, exact-length upload chunk copies, and the utility-enforced 1 MiB response-credit ceiling); F8 transport/UI qualification is now closed on the frozen candidate (independent source + real-transport + full-mock/packaged-UI evidence in the 2026-09-14 entry below). Hosted CI for the published F8 commit, the wider Phase 3 acceptance run, and the >1 MiB direct-stream reply budgeting item (F9 direction settled, execution NOT started) remain open. |
+| 4 — off-thread client engine         | In progress | Terminal/runtime queues and a cached remote membership index are implemented. Worker decode/reduction/persistence, bounded view patches, markdown/smoothing costs, and frame-budget evidence remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 5 — server/relay fairness            | In progress | Per-source ingress admission and relay congestion isolation are implemented. Weighted scheduling, local-renderer shedding isolation, reserved-control capacity qualification, and the full multi-client run remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 6 — bounded payloads                 | Pending     | All seven work items and acceptance scenarios remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 7 — browser/mobile-web lifecycle     | In progress | Service-worker activation safety and resume/reconnect slices are implemented. Real old/new-document, Safari/mobile-web, network-transition, and full lifecycle acceptance remain open.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 8 — artifact/upgrade/soak/merge      | Pending     | All seven work items and acceptance scenarios remain open; no final freeze, merge to master, or promotion authorized by evidence yet.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+
+## Rules for evidence and commits
+
+- Record before behavior, change, independent critic findings and dispositions,
+  after checks, manual evidence, and exact commit/artifact identity for each slice.
+- Develop fixes in reviewable increments and commit complete, verified milestones.
+  The user requested fewer commits; related implementation, tests, critic fixes,
+  and evidence updates belong in one milestone commit. A merge commit must
+  preserve both parent behaviors and intentional compatibility fences.
+- Keep measured runs separate from resource-heavy work, even in another worktree.
+  A launch duration or frame sample on a busy host is diagnostic, not a benchmark.
+- Do not overwrite historical evidence with a newer pass. Record which revision
+  and scenario supersedes a failure and retain the original failure evidence.
+- Add newly validated problems to the plan and this ledger and fix them. Record
+  speculative or unverified candidates distinctly; do not invent a causal link.
+- Only mark a phase verified when its complete acceptance scope is proven. The
+  active goal remains unfinished while any plan requirement or final gate is open.
+
+## Current coordination and direct-delivery milestone
+
+The user selected Claude Z.AI GLM 5.3 Flash with High reasoning for execution
+and Low reasoning for research. The coordinator owns architecture, file-scope
+assignments, integration, evidence validation, and milestone commits. One
+implementation lane owns the Electron/backend handoff; separate read-only lanes
+reconcile the remaining plan and prepare runtime verification. Independent
+review follows the frozen candidate before commit.
+
+At committed baseline `2d6a2692e`, bulk events still cross backend-to-main IPC.
+The initial uncommitted handoff draft records a renderer readiness boolean and
+drops bulk copies in main after receipt. Code inspection confirms that this
+cannot establish zero bulk bytes entering main: `src/backend/index.ts` still
+filters the union of renderer and remote interests, then
+`createSupervisorEventRelay` emits the IPC copy. This draft is being replaced by
+backend-enforced per-window delivery ownership. F7 remains open until binding,
+acknowledged handoff, socket-loss recovery, and multiple-window behavior are
+proved at the actual backend-to-main boundary.
+
+The interrupted smoke run under
+`/Users/svecherenko/.poracode-smoke/automated-1789335733792-14728/`
+did not produce app-verification evidence. No pass is inferred from its build
+output or from the earlier focused tests of the incomplete draft.
+
+## 2026-09-13 — F7 correction implemented (uncommitted; review and live evidence pending)
+
+The uncommitted draft was rejected by review with three confirmed blockers: (1)
+`needsDesktopIpcFallback()` was all-windows-or-none, so one fallback window
+forced unrelated direct-owned bulk through main, which only delivered ordinary
+fallback to the main window; (2) mixed runtime batches always relayed their
+bulk with controls; (3) a close-skew repro
+(`tmp/v4-f7-review/backend/close-skew-repro.ts`, output retained) lost a
+suppressed event permanently: the event was retained for replay, but the
+renderer's cursor advanced over it via a later IPC copy, so reconnect replay
+skipped it with no recovery signal. Its passing tests pinned these wrong
+semantics. Before-evidence for all three blockers was re-captured against the
+draft at a clean worktree: `tmp/v4-f7-correction/failing-before-blockers12.txt`
+and `failing-before-blocker3-rerun.txt`.
+
+Implemented correction (single execution writer; no subdelegation), all on top
+of `2d6a2692e` with the draft replaced:
+
+- Per-window delivery table (`RendererStreamOwnership.setWindows`): main pushes
+  each window's grant plus its own interests; malformed pushes reject loudly
+  (no silent consumer drop) and the legacy silent 64-window cap is removed.
+  Grant-less windows ship a `null`-grant sentinel and stay fallback consumers.
+- Backend-authoritative fallback planning (`src/backend/supervisorEventFallback.ts`):
+  each event splits into bulk and control halves by the shared
+  `isBulkRuntimeContentEvent` classifier; bulk crosses only as per-window
+  targeted copies (filtered by that window's interests, terminal-bootstrap
+  fail-open per thread) for windows without a live acked owner; the shell
+  remainder crosses untargeted and sequence-less so an IPC control can never
+  advance a cursor past missing bulk. Before main's first push the legacy
+  full-relay behavior is preserved exactly.
+- Close-skew recovery: the stream records each socket's acknowledged handoff
+  cursor (the queued interests-ack's `latestSeq`); on a failed, non-open, or
+  backpressured send, socket loss, or ownership reset it revokes synchronously
+  and enqueues one targeted, generation-fenced `renderer-stream-recovery`
+  barrier per window through the ordered IPC fallback before any later
+  fallback copy, covering `[acked+1, sequence]` with a replay-derived thread
+  scope (omitted, fail-open, above the hint bound). The renderer honors a
+  barrier before its local `onclose`: generation mismatches are ignored, a
+  barrier already covered by the current connection's acknowledged cursor is
+  skipped, the premise-checked loss window recovers by scoped authoritative
+  rebuild (or full rebuild when the cursor is below the barrier premise, e.g.
+  a queued ack never processed), and the live socket is fenced immediately.
+- Grant-sync races: the renderer re-presents its binding on a bounded 250 ms
+  cadence until the ack echo confirms, so one rejected frame cannot park a
+  window on permanent silent bulk fallback; retries are observable on the
+  transport and via the stream's `getDeliveryOwnershipSummary()`.
+- Mixed-batch shedding: targeted sequenced rebuildable copies remain
+  sheddable; recovery barriers are non-sheddable and are NOT recognized as the
+  shed policy's own gap markers, so overflow shedding can never replace or
+  merge into a targeted barrier. Shell remainders carry no sequence and are
+  non-sheddable as before.
+- Compatibility boundary (coordinator decision applied): backend-host 7 → 13,
+  renderer stream 3 → 5, client facade/preload 8 → 10. Reservations 8-12,
+  stream 4, and facade 9 were preserved, not consumed; remote protocol
+  versions are untouched. Old-artifact rejection is regression-covered at the
+  request gate, the outbound gate, stream-info parsing, interests frames
+  (v3/v4 closed 1008), and the facade version check. `.agents/docs/versioning.md`
+  documents the boundary and superseded reservations.
+- Consolidation: grant/claim validation now lives once in
+  `src/shared/backendHostProtocol.ts` (`isRendererStreamOwnershipGrant`,
+  `isRendererStreamOwnershipClaim`) and is reused by the protocol gate, the
+  backend registry, the stream, the preload, and the renderer transport. New
+  cohesive modules (`supervisorEventFallback.ts`,
+  `main/backend/rendererDeliveryTable.ts`) keep `main.ts` and the stream from
+  growing; `BackendRendererStream.needsDesktopIpcFallback()` was removed
+  entirely.
+
+Decisive regressions (all composed on production transport/relay paths; the
+blocker-3 suite uses the real stream, real relay planner, real ownership
+registry, and the real `ElectronBackendTransport` class over real WebSockets,
+simulating only `webContents.send`/the preload bridge): two-window
+disjoint/shared interests with exact targeting; mixed single/list/multi batch
+splitting; close-skew with onclose delayed and with client close first;
+backpressure/server-side send failure barrier emission and ordering; stale
+generation re-bind and old-generation barriers; grant re-mint invalidation and
+backend respawn re-sync; replay-overflow fail-open scope; delayed grant-sync
+recovery; legacy pre-push relay; bootstrap fail-open interest. After-evidence:
+`tmp/v4-f7-correction/passing-after-f7-suites.txt` (37 tests) and
+`passing-after-probe-tests.txt` (15 tests); the full focused run across
+touched areas is 520/520, `pnpm run typecheck` is clean, and touched-file
+ordinary plus type-aware lint pass (one pre-existing type-aware finding at
+`main.ts:681` predates this work and sits outside every touched hunk). The
+IPC probe now classifies targeted envelopes by content and counts recovery
+barriers separately, so renaming an envelope cannot hide bulk from the probe.
+
+Not done here, and still gating: independent review of this correction, and
+frozen live runtime verification through the real PTY producer path
+(`tmp/v4-f7-runtime-verification/producer-path.md`). F7 and Phase 3 remain
+open; no closure is claimed.
+
+## 2026-09-13 — final consolidated F7 corrections implemented (uncommitted; live evidence still pending)
+
+Both independent reviews of the F7 correction finished (backend R1–R4 and the
+client lane; artifacts `tmp/v4-f7-rereview/`), runtime recovery reproduced with
+a conclusively stopped fixture. The final corrections were implemented by a
+single execution writer over the same uncommitted candidate at `2d6a2692e`
+(working-tree diff identity captured before editing in
+`tmp/v4-f7-final-fixes/`):
+
+- Recovery-loss coverage (blocking, re-review F-A): `recoveryScope` now reuses
+  the proven `minUnrecoverableSeq` coverage guard from `gapLossScope` — when
+  the recorded losses do not reach back to the barrier's start, the surviving
+  512-entry hint map cannot prove coverage (its evicted records all sat at or
+  below the surviving minimum), so the barrier fails open to a full
+  authoritative rebuild instead of silently omitting losses dropped from the
+  map. The re-review repro (520 distinct oversized lost-thread events → 512
+  surviving hints → old code omitted lost-1..lost-8 while advancing the
+  cursor) was promoted into `BackendRendererStream.test.ts` with its
+  failing-before evidence re-captured fresh on this tree at 22:31
+  (`tmp/v4-f7-rereview/backend/recovery-scope-repro-output.txt` re-run), plus
+  a companion test proving a fully-covered small loss still ships a present,
+  bounded scope.
+- Bootstrap attribution (blocking spec issue; re-review F-C): the
+  terminal-bootstrap retention that fail-opens a starting shell's first
+  output is now request-attributed. `call-supervisor` carries an
+  authenticated `originWindowId` (main assigns it from the IPC
+  `event.sender.id`; a direct-stream request carries the origin of its
+  backend-validated bind). The planner widens only the originating window's
+  fallback copy, and the renderer stream applies retention only to clients
+  bound to that window (mid-window binds included). Originless/server/remote
+  starts widen no window; the legacy union-filter mainWindow parity is kept.
+  Failing-before evidence for both this and the control-duplication fix is in
+  `tmp/v4-f7-final-fixes/failing-before-corrections-2-3b.txt` (unrelated
+  fallback B received A's retained first output; the shell-recipient's copy
+  carried controls). The old oracle that all unsubscribed fallback windows
+  receive retained output was removed, replaced by initiating-window-only
+  attribution plus shared-interest delivery.
+- Delivery generation + control duplication: main now rejects targeted DATA
+  whose generation predates the window's minted grant (re-mint/reload), in
+  addition to the existing stale-barrier fence; only provably-stale frames
+  are dropped, so an unchanged client never gains a gap. The delivery table
+  declares the shell-remainder recipient; the planner plans that window's
+  fallback copy from the bulk half only, so its controls (and main's
+  native/sleep consumers) apply exactly once via the sequence-less shell
+  remainder, while other fallback windows keep controls in their copies.
+  Grant minting/release/sync moved out of `main.ts` into
+  `src/main/backend/rendererStreamGrantAuthority.ts` (one owner), which
+  allocates identity and generation before interests are published.
+- Bounded cleanup (R4): removed the unread `getDeliveryOwnershipSummary`/
+  `ownershipFellows` (stream), `getOwnershipRetryCount` (transport), and
+  `RendererEventInterestRegistry.entry`; delivery-entry shape validation is
+  consolidated into one shared `isRendererWindowDeliveryState` (protocol gate
+  - backend registry) keeping the grant-to-window binding; the grant-less
+    sentinel was removed — review confirmed no supported flow produces a
+    grant-less table entry (facade 10 already gates grant-incapable preloads,
+    and mint-before-publish closes the race), with explicit rejection tests;
+    targets/barriers now always fence to a real generation.
+- Verified check cleanup (pre-existing, not F7-introduced): the type-aware
+  `only-throw-error` finding at `main.ts:681` (HEAD line 669, byte-identical,
+  explicit `unknown` annotation per `tmp/v4-f7-rereview/client/EVIDENCE.md`)
+  is resolved by normalizing the caught owner-acquisition error through the
+  shared `toError` helper (identity-preserving; the rethrown value is always
+  an Error). No rule suppression, no lint weakening; owner-refusal behavior
+  unchanged.
+
+Boundary audit: versions stay at host 13 / stream 5 / facade 10 — the v13
+shape changes (sentinel removal, shell role, call origin) are documented in
+`.agents/docs/versioning.md` and pinned by tests at every mirror; reserved
+8-12/4/9 remain unconsumed; remote/native protocols untouched; no renderer UI
+strings added; no product debug APIs added for tests.
+
+Verification (this stage): `pnpm run typecheck` 0 errors; ordinary and
+type-aware `oxlint` clean on all touched files; `pnpm run fmt:check` clean;
+19 focused/composed suites covering every touched area pass 219/219 (real
+stream/relay/transport/registry paths, no app launch); the failing-before
+scratch and re-run repro outputs are retained under `tmp/v4-f7-final-fixes/`.
+Still gating, unchanged: the live multi-window runtime verification through
+the real PTY producer path (`tmp/v4-f7-runtime-verification/producer-path.md`,
+authorized for the next stage) — F7 and Phase 3 remain open; no closure is
+claimed.
+
+## 2026-09-13 — execution started
+
+Before: clean executable source at `832fc5467`; only the untracked V4 plan existed.
+Fetched refs again: master `9a4096ea8`, V2 `832fc5467`. Created isolated worktree
+`.tmp/v4-integration` on branch `poracode/v4-integration` from that baseline, then
+began a no-commit merge of current master. The 32 conflicts match the earlier
+merge-tree preview. The root executable source remains unchanged for live baseline
+testing; the master branch is untouched.
+
+Independent plan critic validated and corrected four execution gaps:
+
+1. A new common lock cannot exclude an already-running legacy Electron that does
+   not honor it. Added explicit legacy-owner detection/refusal or separate-root
+   import and both-startup-order upgrade tests.
+2. A copied DB may still run real schedules/PR automation against real project
+   paths. Added online backup, disposable project copies, scrubbed credentials,
+   and disabled real automation before any benchmark startup.
+3. Separate worktrees do not isolate performance resources. Added exclusive
+   measurement windows to Phase 0 as well as final qualification.
+4. Unattended credential access must be solved before declaring detached server
+   restart complete; retaining an already-unsealed key in memory is insufficient.
+
+These are now requirements in the plan. No implementation or acceptance result is
+being claimed by this initial documentation checkpoint.
+
+## Checkpoint transport admission — focused correction
+
+Before: a fresh managed real Qwen thread with two harmless marker turns reproduced
+the Revert failure. The client sent `operation: revert-checkpoint` on stream v2;
+the host closed with code 1008, reason `Invalid renderer transport message`, before
+creating any checkpoint journal entry. This isolates admission failure from the
+separate operation-journal/concurrency defects in Phase 2.
+
+Before evidence directory:
+`/Users/svecherenko/.poracode-smoke/v4-before-832fc5467-1789284600/artifacts/`.
+The report, client socket journal, empty operation journal, screenshot, and actual
+bundle hashes are retained there. The loaded backend SHA-256 was
+`a17f137d6a3c01524a0c2317e43b42e00d9d983909389d649eff9d17734b485f`.
+
+The focused real-WebSocket regression failed as expected with `{closed: 1008}`
+instead of a reply; see `tmp/v4-architecture-audit/revert-admission-before.log`.
+The fix derives the operation type and admission guard from one runtime vocabulary.
+This restores an operation already declared by host v5/stream v2, so no new wire
+version is needed for this correction.
+
+After source correction, four targeted suites passed (51 tests), covering renderer
+stream admission, protocol request construction, compound checkpoint behavior,
+and client transport. Independent critic requested a negative otherwise-valid
+unknown-operation request; it was added and closes 1008 without dispatch. Critic
+review of the final three-file delta is clean. Fresh manual AFTER remains pending
+until a rebuilt candidate repeats the journey; this does not close Phase 2.
+
+The same baseline exposed **F13**, a verified smoke-tooling isolation defect now
+added to the plan: the managed runner uses checkout `dist/main` instead of a
+session-local runtime. Fix and prove isolation before final qualification; the
+baseline was stopped cleanly and its bundles preserved before source changes.
+
+## Checkpoint transport admission — live AFTER at `d7595e93d`
+
+A fresh managed real session rebuilt the candidate and repeated two harmless
+Qwen3.8 Flash turns, the actual checkpoint dialog, and a subsequent provider turn.
+The renderer received the matching successful reply in 1.621 seconds; its socket
+stayed open, local history was truncated, the removed prompt returned to the
+composer, and the subsequent marker completed idle. Captured production file
+hashes and the complete production patch match committed `d7595e93d` exactly.
+The owned session was stopped through its managed owner after capture.
+
+After evidence:
+`/Users/svecherenko/.poracode-smoke/v4-after-revert-1789288800/artifacts/AFTER.md`.
+The report preserves screenshot paths, source and bundle hashes, request and
+operation journals, and the explicit scope limits. This verifies the focused
+transport admission correction in development builds; final production/browser
+qualification and the rest of Phase 2 remain pending.
+
+The journal reported `completed_local_only`, with provider rollback failed and
+no provider anchor. This is **not** successful provider rewind evidence. That
+result exposed F14: the renderer showed no partial-outcome warning.
+
+## F14 — disclose local-only checkpoint reverts (in progress)
+
+Before: the real AFTER screenshot above showed the trimmed transcript and
+restored draft without explaining that the provider could still use removed
+messages. A regression now exercises the real rendered warning in both the
+confirmation and skip-confirmation paths. Both cases fail on the prior behavior;
+see `tmp/v4-architecture-audit/f14-before-regression.log`.
+
+The focused correction uses the existing persistent HeroUI warning toast and
+localizes the existing failed/ambiguous messages. It describes local history and
+provider context without guessing whether files changed. Operation keys,
+journaling, and concurrency are unchanged. The focused ChatPane, MessageList, and
+toast-provider suites pass (118 tests); full typecheck and touched type-aware
+lint/format checks pass. All four messages are translated in all 12 non-English
+catalogs; a second extraction reports zero missing. Logs are under
+`tmp/v4-architecture-audit/f14-*`.
+
+Independent critic review and fresh manual AFTER disclosure evidence remain
+required before this slice is marked verified. Native counterpart disclosure
+remains development work; Phase 2 remains open.
+
+### Outcome-feedback critic — F15
+
+The primary critic accepted F14's outcome guard, wording, translations, and
+rendered-UI coverage. It identified a separate adjacent failure: opting out of
+confirmation also hides failed/ambiguous errors because the existing catch only
+logs them. Added F15 to the plan and first reproduced both missing visible errors
+in `tmp/v4-architecture-audit/f15-before-regression.log` (two failures).
+
+The focused follow-up adds the existing danger-toast pattern with `friendlyError`
+to that catch. Tests require visible feedback, retained history, no rescued draft
+on failure, and one request only. No automatic retry or journal change is added.
+The preliminary manual session was stopped before any provider prompt; final
+source checks, delta re-review, and fresh F14 disclosure evidence remain pending.
+
+### F14/F15 — verified focused feedback slice
+
+The final primary critic review accepted both corrections with no further
+production changes requested. The three focused ChatPane, MessageList, and
+toast-provider suites pass all 120 tests. The tests render the actual warning in
+both confirmation modes and the actual failed/ambiguous error toast when
+confirmation is disabled; they preserve history/draft behavior and assert one
+request. Full typecheck, touched type-aware lint, format, and diff checks pass.
+Extraction reports zero missing translations in all 12 non-English catalogs.
+Final logs are `tmp/v4-architecture-audit/f14-f15-*` and
+`tmp/v4-architecture-audit/f14-i18n-final.log`. F15's injected failure evidence is
+deterministic rendered-UI coverage, not a live provider failure reproduction.
+
+Fresh real Electron evidence is retained at
+`/Users/svecherenko/.poracode-smoke/v4-feedback-after-1789291800/artifacts/FEEDBACK.md`.
+This managed session rebuilt from `d7595e93d` plus the recorded feedback patch;
+the complete production diff and all changed source hashes were captured before
+interaction and matched again after teardown. The MessageList SHA-256 was
+`fe0c0ff6740e7b4ec6eb2efa03c8d1b3a83c99a17d50f663abddc80828ab7238`.
+
+Two harmless Qwen3.8 Flash turns followed by the actual Revert dialog produced
+`completed_local_only` with provider rollback failed and local phases completed.
+The exact warning appeared, the removed prompt returned to the composer, and
+the warning persisted beyond 39 seconds until dismissed through the actual Close
+control. A subsequent turn completed idle after answering a provider question
+caused by the test helper inserting text before the restored draft; that input
+mistake is recorded in the report. The session captured no window errors,
+unhandled rejections, console warnings, or socket closes during the interaction.
+The fixture project stayed clean, and managed reset/stop completed successfully.
+
+This proves the focused shared-renderer disclosure behavior in a development
+Electron build. It does not prove provider rewind, native disclosure, production
+artifact qualification, browser/mobile-web manual coverage, or any remaining
+Phase 2 identity, concurrency, recovery, and crash guarantees. Those gates remain
+open. The smoke-tooling artifact-isolation defect F13 also remains open.
+
+## Master integration — compatibility and critic evidence (in progress)
+
+The isolated `poracode/v4-integration` branch combines original V2 `832fc5467`
+with `origin/master` `9a4096ea8`. The 32 textual conflicts have been resolved in
+the worktree; the merge is not yet committed. Independent review accepted the
+pane/accessibility, welcome, provider settings, package, and database resolutions.
+It found F16: first PTY output arriving during scrollback hydration skipped the
+launch resize retry. The existing normal-output case passed and the new hydration
+case failed before the fix. Moving live-output detection before buffering passed
+both cases, and the critic closed the finding. The full XTerm suite also passed.
+
+Fresh compatibility generations are remote protocol 12, local host protocol 6,
+direct renderer stream 3, supervisor status cache 35, and renderer status cache 32. SSH runtime manifest 2 preserves master's dependency-aware format. Generated
+remote bindings and the native operation map are rebuilt. Actual old cache
+rehydration tests failed with the previous V2 cache constants and pass with the
+new constants; old local wire frames are rejected before dispatch. Current
+architecture docs now describe the backend child, headless composition, direct
+stream, and remaining main/UI-thread work.
+
+Both native reducer paths implement authoritative replacement streams. Shared
+fixtures cover append/replace/empty replacement, separate streams, payload and
+completion preservation, malformed flags, and stale replay after history load.
+The saved-pairing upgrade gate explicitly reviews disk versions 9, 10, and 11;
+an authenticated read of a current host is required before rebinding. Old live
+hosts remain incompatible. Native red/green evidence is under the integration
+worktree's `tmp/v4-native-replacement/`.
+
+The subsequent broad native run passed Android 1,170/1,170 JVM tests plus
+assembleDebug/lintDebug, iOS AppTests 1,269/1,269, and 73 shared contract tests.
+Neither native run skipped tests. Results, logs, and the iOS result bundle are
+under the integration worktree's `tmp/v4-native-broad/`; the owned simulator was
+shut down. Portable Swift package pin auditing remains in progress.
+
+The first full JavaScript run passed 12,979 tests and exposed the deliberately
+failing F16 regression, stale v11 parity-test pins, and F17's inherited Git
+identity. The parity pins and test isolation are corrected; the affected real
+checkpoint/ledger suites pass 9/9. A final full run is still required. F17 changes
+only fixture environment isolation. These checks are correctness evidence during
+concurrent build/test work; they are not latency, frame-rate, or resource metrics.
+
+All Phase 0 measurement, comparable master, artifact, deployment, and final
+manual gates remain open. The complete Phase 1–8 plan remains pending beyond the
+focused checkpoint admission and feedback fixes already recorded.
+
+Follow-up compatibility verification exposed F18: four portable Swift harnesses
+still pinned protocol 9. Their generated metadata gate failed real route
+canonicalization tests before the four pins were updated to 12. Full portable
+suites passed 173/173 afterward, and primary review accepted the four-line change.
+Aggregate evidence is `tmp/v4-native-broad/verification-summary.json` in the
+integration worktree. AppTests, Android, generated app bindings, and production
+native sources were unchanged during this portable verification.
+
+The second full JavaScript run passed 12,986 tests but failed the real settings
+watcher test on its first atomic replacement. That failure remains under
+investigation; no timeout increase or flaky-test dismissal is accepted as a fix.
+Full typecheck and type-aware lint pass. Production desktop and canonical web
+builds pass; the latter finalized the service worker and embedded SSH runtime.
+These artifact builds do not substitute for the required real-client journeys.
+
+## Phase 0 memory accounting — verified focused correction
+
+`ProcessMemorySampler` overwrote its single root-PID map entry on every probe;
+the summary therefore reported the last own-process RSS as the peak. The focused
+regression failed with 100 KB instead of the earlier 400 KB. A scalar maximum now
+retains that peak independently of the summed descendant peak. Three tests cover
+the two peaks, unrelated processes, process exit/probe failure, and unknown data.
+Reports carry `samplerVersion: 2` so unversioned old own-process peaks cannot be
+mistaken for corrected measurements. Focused tests and touched type-aware lint
+pass; independent critic review accepted the accounting, regressions, report
+version, and limits of the controlled-child evidence.
+
+A controlled child-process check ran old and new samplers against the same
+allocation/release sequence. Python mmap RSS fell from 113,232 KB to 14,928 KB;
+the old sampler reported 14,928 KB as its own peak and the corrected sampler
+retained 113,232 KB. The child was stopped and joined. Evidence and the exact
+driver are under `tmp/v4-architecture-audit/memory-peak-*`. An earlier Node Buffer
+attempt did not release resident memory, failed the driver's evidence assertion,
+and is retained as `memory-peak-real-node-no-release.json`; it is not a successful
+before/after result. This validates accounting only, not app memory budgets,
+process CPU, event-loop latency, or the remaining Phase 0 instrumentation.
+
+F19's settings registration gaps are also corrected in the integration worktree:
+three regressions failed before and 27 focused tests pass after. Two real-file gap
+probes now read the current value immediately, 200 atomic transitions pass, and
+a 10,000-read healthy-cache probe performs zero filesystem calls. Primary review
+accepted the change; full typecheck/lint/format pass. The original full-suite
+watcher failure is preserved with its cause explicitly unproven. The final full
+integration suite is running after this correction.
+
+The final integration run after F19 passed 12,990 tests across 1,143 suites;
+120 tests in five suites remain skipped by the existing configuration. Full
+typecheck, both lint modes, and full format check pass. The docs critic corrected
+claims about persistence-before-delivery, CLI-vs-desktop locking, SQLite required
+at startup, iOS startup compatibility checks, current N-API dependencies, and
+configured CI versus actual candidate evidence. No application performance
+qualification is implied by these correctness checks.
+
+## Integration commits and controlled CI (in progress)
+
+Master integration is committed as `42afd21c4` on `poracode/v4-integration`, with
+both original parents retained. Root V2 now contains the admission correction
+`d7595e93d`, feedback correction `7b5d3dbf8`, and corrected memory accounting
+`ea40ffb3b`. Combining those with integration required one semantic test conflict:
+keep both admitted request operations and current stream version 3 while retaining
+the old-version refusal cases. The seven affected backend/renderer suites pass
+174 tests, full typecheck passes, and extraction reports zero missing in all
+12 non-English catalogs. The remaining phases and manual qualification stay open.
+
+CI qualification is committed independently at `c760152bb`. Nightly publication
+requires the exact current trusted master SHA, successful latest core/native
+workflow attempts, and their successful aggregate jobs; manual dispatch uses the
+same gate. The workflow rechecks before upload and alias changes and preserves
+the existing `mobile-web` environment. Core/native checks now trigger for V2 and
+integration branches, and native CI includes the four portable Swift contract
+suites. Primary critic review and 14 local policy/workflow regressions pass,
+including executing the actual aggregate and portable-suite shell gates against
+failures. No workflow was dispatched or deployment performed. Source configuration
+is not current-head hosted evidence. Details are in
+`.tmp/v4-ci-gates/tmp/v4-ci-gates/EVIDENCE.md`.
+
+During those checks, F20's shared-dependency symlink error rewrote root package
+links. The confirmed symlink alone was removed, a frozen ignore-scripts install
+restored the root links, and package resolution/native loading checks passed.
+The package/lockfile diff remained empty; root metric tests also passed again
+after repair. Before/after evidence is retained in the CI worktree. The no-shared-
+`node_modules` rule is added to the plan and the isolated testing skill.
+
+## F13 — isolated runtime tooling integrated
+
+F13 is fixed in `410197bd9` and merged with the controlled CI change into the
+combined V2 source at `7c0daf676`. The runner snapshots main/backend/supervisor,
+preload/workers, frozen development renderer, resources and the complete declared
+production dependency closure. Native helpers use a private Cargo target and the
+copied native modules pass Electron validation before artifact hashing. The
+previous ABI-swap hypothesis was rejected: current native modules use N-API;
+missing preparation/validation was the actual omission.
+
+Two isolated live sessions retained their own runtime hashes through a checkout
+rebuild, a throwing checkout sentinel and an owned backend restart. Stopping one
+left the other ready. Forced build cancellation and normal teardown joined all
+verified owned groups and closed their ports. Both independent critics accepted
+the final source; 21 CDP-tool tests and eight isolation/process fixtures passed.
+CI's 14 policy tests and the three memory-peak tests also passed after combination.
+Details and cleanup evidence are retained in
+`.tmp/v4-smoke-isolation/tmp/f13-evidence/REPORT.md` and `cleanup.json`.
+
+This closes the reproduced macOS development-runtime isolation defect. It does
+not qualify a packaged artifact, Windows teardown, application performance, or
+every existing smoke scenario against the new frozen renderer. The observed
+window-bounds write failure on process-group teardown is retained separately;
+normal app-quit behavior must be tested independently.
+
+## Combined full smoke — `7c0daf676`, failed with two coverage gaps
+
+A fresh managed full mock run built clean `7c0daf676` into its own runtime. The
+source hash was `95076d3378c903c440e491eb77a4b660e3bd703e5954a11664b06725648aa8a1`
+and artifact hash `377b11c2020d1026481683d8d87dbf304a5fdd4af1dd0586ca3bafff3c70ca83`.
+The retained session and report are under
+`/Users/svecherenko/.poracode-smoke/v4-integration-7c0daf676-full-01/`.
+
+Welcome dismissal, baseline, all 23 Settings sections, control geometry,
+schedules, GitHub Actions, search and browser scenarios passed. Fifteen of the
+seventeen deterministic mock gates passed; their report explicitly records the
+limited mocked assertions. The primary visually inspected the baseline, About
+and browser fixture screenshots. The interaction captured zero renderer console
+errors or runtime exceptions. Mock gates are not proof of real providers,
+speech/microphone use, PTY operation, authentication or remote-client journeys.
+
+The full run failed F23's voice source-URL import and F24's absent Quick Composer
+mock check. Both are now mandatory tooling follow-ups in the plan. The session
+owner completed teardown and marked schema-2 session state `stopped`; its runtime
+was removed. The process-group teardown again logged the main window-bounds write
+warning after backend exit. It does not establish that normal `app.quit()` has
+the same race. The full smoke is not green and must be repeated after the fixes.
+
+## F21 — asynchronous resource probes, verified focused slice
+
+Both existing helpers synchronously executed `ps` on the Node test client's event
+loop. A controlled wrapper added a 150 ms delay before a real system process
+probe. The original memory and host-load helpers produced maximum heartbeat gaps
+of 547.2 ms and 278.8 ms. After asynchronous serialized probes and awaited stop,
+the same driver recorded 12.2 ms and 13.5 ms gaps; starting the samplers returned
+in under 0.05 ms. Raw intervals and source hashes are in
+`tmp/v4-architecture-audit/sampler-delay-{before,after}.json` with the driver.
+Concurrent machine load differed between runs, so these numbers demonstrate the
+blocking boundary only and are not a controlled performance comparison.
+
+Seventeen initial focused helper tests passed, including a held probe with progressing
+client work, no overlap, stop/join, restart, failure accounting and retained peak
+memory semantics. Memory report version 3 and host-load version 2 distinguish
+this observer from prior reports. All four profile callers await pending probes
+before serializing their final summaries. Process CPU and the rest of Phase 0
+instrumentation remain open.
+
+The independent critic found that per-scenario windows could still serialize
+before a pending probe finished. Both a failed external probe and a controlled
+successful delayed probe showed zero samples/zero contamination before joining,
+then one contaminated sample afterward. Those records are retained under the
+owner worktree's `.tmp/v4-owner/sampler-window-join*`. Windows and summaries now
+capture their endpoint first and await the pending probe; the critic's repeated
+real-helper check confirmed the sample is included without extending that end.
+Two tests cover delayed successful and failed probe serialization.
+
+The primary then verified that raw per-client metric arrays could change after
+aggregate capture. A regression failed before copying them. Metrics version 2
+now freezes those arrays, and profile metrics are captured before awaiting the
+resource observer. The asynchronous wait cannot expand their measurement window.
+All 26 tests in the four helper suites pass; full typecheck, touched type-aware
+lint, format and diff checks pass. The independent critic accepted the final
+snapshot and window ordering. Final logs are `async-sampling-*-final.log` under
+`tmp/v4-architecture-audit/`; all new red evidence is preserved alongside the
+original observer-stall result. No application performance budget is qualified.
+
+## Phase 1 and Phase 2 ownership work started
+
+Three isolated lanes at the combined integration base are implementing the
+common root lease/bootstrap, backend settings/routing ownership, and supervisor
+join/fencing. The root design separates the legacy import source from a canonical
+host-owned sibling, holds an external kernel lease before mutation, and stages
+verified imports without activating copied automation. Desktop crypto remains
+native while key-file I/O belongs to the leased backend. The unattended-key and
+complete activation/migration requirements remain open.
+
+The first settings slice moves persistence and routing acknowledgement into the
+backend for both Electron and headless composition. Review exposed F22's false
+failure after a notification exception; red tests and the correction are in the
+same lane. Complete settings authority must include the supervisor ACP registry
+and CLI-hook-support writers, and reject conflicting stale client snapshots.
+
+The shutdown slice joins supervisor process/channel closure and already-owned
+checkpoint continuations before closing SQLite, and fences replaced-child
+messages. Its real final-IPC test covers POSIX; Windows currently uses forced
+process-tree termination. Descendant joins, graceful Windows shutdown, backend
+parent timeout and the remaining request drains must still be completed. None of
+these first slices closes its phase or establishes final merge readiness.
+
+## Reviewed ownership slices integrated
+
+`1941434fa` moves Electron settings commands and common headless routing
+persistence into the backend and fixes F22. Its 133 focused tests, full typecheck,
+both lint modes and independent critic passed. In a frozen isolated Electron
+session, real Appearance controls changed the theme; real IPC created/updated a
+profile with synthetic secrets. Backend reads, disk inspection and renderer
+reload agreed, and no plaintext secret was persisted. Selected smoke scenarios
+passed before and after reload with zero renderer/runtime errors. The owned
+session was stopped. Evidence is
+`.tmp/v4-settings-owner/tmp/v4-settings-owner/EVIDENCE.md`.
+
+`07e0ccfdc` adds joined supervisor shutdown and stale-child fencing, including
+the owned checkpoint continuation barrier. Its 76 focused tests, full typecheck,
+lint and primary review passed. Real disposable POSIX children prove delayed
+final IPC reaches SQLite before closure and an unresponsive leader is escalated
+and joined. The real SIGTERM fixture explicitly skips Windows; descendant joins,
+Windows graceful shutdown, parent quit deadlines and full request drains remain
+open. Evidence is `.tmp/v4-shutdown/tmp/f11-evidence/REPORT.md`. The two slices
+were combined with sampler correction `952aa83e1`; root `0354a0c68` passed 153
+tests across 18 affected suites and full typecheck. Host protocol is now 7;
+renderer stream 3 and remote 12 are unchanged.
+
+Lease/path helper `86c4d50ef` and its F25 correction `2adbbe58e` were integrated
+together as `7ab21fa43`. They remain unwired. Nineteen tests passed on root,
+including concurrent desktop/headless acquisition, crash recovery, replacement
+of the owned data directory, symlink-alias refusal, future-format refusal and
+three repeated same-process attempts followed by actual child contenders. The
+initial helper's six alias/metadata failures and F25 lock-loss failure are
+retained in the owner worktree. These tests qualify the helper, not startup
+ownership or safe import/activation as a whole.
+
+## Process CPU instrumentation — verified counter-accounting slice
+
+The two existing load profiles now also sample cumulative CPU counters for the
+root and its observed descendants, without retaining command lines. Accounting
+uses matching PID/start identities and monotonic sample intervals, preserves
+counter precision, and records lost exit tails, missing/replaced roots, counter
+regressions and a 4,096 historical-metric limit. The latest tree is separately
+bounded by the 8 MiB probe-output cap. This is partial observation; quantization
+can overstate a short interval, so it is not a strict lower bound. Unsupported
+platforms cannot report a valid zero.
+
+A disposable Node parent/child fixture reported 599.581 ms and 799.948 ms of CPU
+work via `process.cpuUsage`. Eleven external probes recorded 600 ms and 800 ms,
+with zero probe failures; both children were joined and their PIDs no longer
+existed. Raw data, source hashes and exact drivers are under
+`tmp/v4-architecture-audit/process-cpu-real*` and `cpu-fixture.mjs`. This is a
+counter-accounting check, not application performance qualification. Short-lived
+processes, exit tails, same-second PID reuse and probe timing/quantization remain
+explicit limitations. The independent critic accepted the accounting/stop wiring
+and corrected the lower-bound/retention wording above. In-process CPU/event-loop/
+GC, command/event correlation, queue metrics, compositor/input traces and
+controlled master comparisons remain open. Fourteen targeted tests, full
+typecheck and touched type-aware lint/format pass; logs are `process-cpu-*-final`
+under the same evidence directory. The final source differs from the real probe's
+recorded sampler hash only by the critic's correction of its lower-bound comment;
+the executed accounting code is unchanged. Linux formatting has parser coverage
+and was checked against the upstream procps manual; actual child evidence here
+is macOS. No Linux or Windows runtime measurement is claimed.
+
+## Further smoke findings in progress
+
+The F23 frozen voice loader now executes through bundled DEV imports. One full
+run passed its voice checks; a later full run failed at draft-button state and
+is being investigated, so stable full-suite voice coverage is not yet claimed.
+The Quick Composer native query confirmed actual hide/show transitions while DOM
+visibility stayed `visible`. Without granted OS focus, the renderer remained in
+`closing`; this is F26, now added to the plan for a native-show-driven reset.
+The QA driver will not fabricate focus/visibility events or acknowledge the
+remaining real shortcut, dragging, visual motion and provider manual gates.
+
+## Offline import and credential foundations integrated
+
+Reviewed staging commit `f1ce72f8d` and credential commit `21943324f` are now
+integrated. Root passed 65 lease/import/manifest/physical-identity tests and 34
+credential tests plus full typecheck. Import operates only on an explicitly
+offline backup and produces an inactive staged root; activation, path/session
+conversion, automation fencing and legacy roots missing SQLite still need their
+required recovery paths. No live startup uses these helpers yet.
+
+Credential provenance version 1 distinguishes OS-sealed, headless file, injected
+environment and session-only modes. The reviewed helpers preserve corrupt,
+replaced or mismatched keys, reject late/missing native generations, and reject
+blank environment injection before coalescing. The persistence capability rejects
+new durable encrypted secrets under a session-only key. The tests establish the
+helper guard; enforcement by actual settings/usage writers remains part of wiring.
+Original red evidence and the old-helper/new-helper key-rotation experiment are
+retained under `.tmp/v4-owner/.tmp/v4-owner/`.
+
+Settings authority foundation `a5a57cfa6` is also integrated but inactive. The
+primary and independent critic reviewed subject revisions, canonical migration,
+unknown-field preservation, credential classification, and the lease/commit
+barrier. Review reproduced ordinary plaintext becoming newly sensitive, or newly
+designated as a driver's credential, bypassing the original equality exemption.
+The corrected exemption requires the previous slot to have been classified as
+secret. Existing explicit plaintext declassification and unchanged legacy values
+remain supported. The paired regressions and unknown-key sanitizer correction
+pass in the 65-test agent run. Evidence is
+`.tmp/v4-settings-owner/tmp/v4-settings-owner/AUTHORITY_FOUNDATION_EVIDENCE.md`.
+Queue admission bounds, ordered snapshots/results, all-writer conversion and
+protocol/native activation remain open; this does not close F2.
+
+## Audited master build identity recorded
+
+Detached, clean master `9a4096ea8` has its own frozen-lockfile dependency install
+and passed native preparation, Codex protocol generation, desktop build and its
+canonical `build:mobile`. The final mobile command rebuilt Electron; hashes were
+recorded afterward. Toolchain is Node 24.20.0, pnpm 12.3.4 and Electron package
+44.0.0 on macOS 26.6.2 / arm64 / Mac17,8, with 18 logical CPUs and 48 GiB RAM.
+Master's remote protocol is 10, read from its actual source; it predates V2's
+contract-manifest layout. An initial provenance-script path assumption failed
+before writing a record and was corrected without changing master source/builds.
+
+`tmp/v4-architecture-audit/master-baseline-provenance.json` records 3,239 `dist`
+files totaling 142,673,349 bytes and manifest hash
+`3189df5b0ed633f30dac746213cdb42930a3788d6f071784f12f1e4dfc5ec7ef`.
+Build logs and exact recorder are beside it. This is an observed checkout build,
+not a packaged/installed artifact or complete immutable runtime closure. No app
+launch, cold/warm comparison, frame/input timing or soak is claimed for it.
+
+## Additional native and instrumentation findings
+
+F27 and F28 are added to the plan. F27 is the no-project selector render loop
+found by the real-component regression; F28 was reproduced in a frozen native
+window with a local iframe and a held Quick Composer handoff. Their fixes and
+fresh full smoke are under review in the smoke-coverage lane.
+
+F29 was caught before the new diagnostics were enabled in a real app. The first
+owned Node fixture's 100 ms loop consumed approximately 102 ms CPU, yet its
+post-reset delay maximum was 1.28 ms. Node 24.20.0 source confirms histogram reset
+clears the prior timestamp used by `RecordDelta`. Raw before/after JSON and the
+initial failed test are `in-process-stall-{before,after}.json` and
+`in-process-initial-tests.log` under `tmp/v4-architecture-audit/`. The corrected
+sampler keeps a separate timestamp and records completed timer intervals plus
+the unfinished tail. These are interval-based observations, including the timer
+period; they are not interchangeable with Node's newer iteration-based mode.
+Installed Electron 44.0.0 embeds Node 24.18.1, which lacks that newer option;
+the actual built-in function was captured in `electron-perf-api.json`.
+
+F30 was then reproduced while wiring the actual owned headless factory: disposing
+PrWatch during an awaited lookup still permitted store reads/deletion and a
+mocked merge. The red test uses only synthetic service dependencies, with evidence
+in `.tmp/v4-owner/.tmp/v4-owner/durable-prwatch-close-before.log`. Owner-lane work
+now includes a coherent durable ingress/PR/schedule admission and join barrier;
+the wider F11 process/descendant/request work remains assigned separately.
+
+## Bounded in-process diagnostics — reviewed and exercised
+
+The opt-in format-1 recorder is wired to desktop main, backend, supervisor,
+standalone server and relay entrypoints. It retains four pending records at most,
+serializes file appends, caps output bytes, and adds at most 500 ms of diagnostic
+grace to normal shutdown. Disabled startup creates no observer or writer. The
+independent critic accepted observation scope, bounded output, privacy and
+shutdown behavior; its log is `node-diagnostics-independent-critic.log` under
+`tmp/v4-architecture-audit/`. Fifteen final focused tests, full typecheck, both
+touched lint modes, format and the smoke inventory audit pass. Initial test-only
+typing/lint failures and the F29 measurement failure remain in their first logs.
+
+The corrected CPU/stall/GC fixture also runs on Electron 44's actual embedded
+Node 24.18.1, with raw data in `electron-in-process-stall-after.json`. The final
+production-mode main-process build passed. Its compiled standalone server and
+relay each reached readiness on loopback with a disposable profile/home, recorded
+four samples with zero dropped records or output errors, and exited normally
+after a leader-only SIGTERM with complete end markers. Their entry hashes were
+unchanged during execution; `diagnostic-entrypoints.json` records the exact
+artifacts, fixture directories and output. The first successful callback-shape
+build remains separately recorded as `diagnostic-entrypoints-initial.json`.
+
+These are instrumentation and shutdown-output checks. The live Electron-main,
+backend and supervisor combination still needs the final integrated smoke; the
+embedded-Node fixture alone does not prove those hooks in a running GUI. Enabled
+versus disabled observer overhead, correlated commands/events, queue byte/age
+metrics, frame/input traces, controlled master comparisons and final production
+qualification remain open. No app latency, throughput, resource or 120 Hz gate is
+qualified by this slice.
+
+## Native smoke follow-up accepted in its own branch
+
+Product commit `3fc2c7ee5` fixes F26/F27/F28 and advertises actual preload peer 8.
+Tooling commit `194c7ea09` fixes F23/F24 and shares the CLI's validated pointer
+actions with Quick Composer. Primary source review and an independent F26 critic
+accepted the product changes. The pointer extraction adds 14 functional refusal/
+dispatch fixtures; 30 focused tooling checks passed.
+
+Frozen05 passed 9 automated scenarios and all 17 mock gates with zero captured
+runtime errors, source `aed79eb2e17d519c8eb2fe8d93af48ebf147eb922d5ae7e3a846faa4c64a97cf`
+and artifact `56e7742bd67ead573d60cbc5c2c5984168c263349cc33366f9485ecd4197b237`.
+The exact iframe before/after probe delivered the second submission without an
+injected ready acknowledgment. The actual no-project view/action also passed.
+Primary inspected ready-to-submit, main handoff, no-project and preserved voice-
+draft screenshots. Frozen06 then passed the Quick Composer gate with the final
+shared pointer helper, source
+`2422bacd23568a9d6459fddcc15398bcf3d0a6b66c8ec14c38a53e8aa3bded62` and artifact
+`ecfbdaf3524775b9fc1d764ecbaf7c399ec016a23a834bac20b5f7667366cd3c`.
+All six owned sessions were stopped and their runtime directories removed.
+
+Details are `.tmp/v4-smoke-coverage/tmp/f23-f24-evidence/REPORT.md`. The single
+dev02 voice draft timeout remains unexplained, despite passing repeats. Real
+shortcut/tray, dragging, motion, provider execution and the final combined build
+are not claimed by these mock results. The product source differs from frozen05
+by the documented stale-comment correction; frozen06 is a separate targeted
+tooling run, not another full-suite result.
+
+## Settings admission and publication ordering integrated
+
+Reviewed inactive slice `dc24042bf` is merged as `e99a8e67d`. It bounds active plus
+queued settings transactions to 128 requests / 4 MiB, with a 1 MiB individual
+request ceiling, and publishes authority/sequence and affected ancestor revisions.
+These limits have held-persistence regression coverage; they are not measured
+throughput or heap budgets. The primary review reproduced an older pending read
+being accepted after a known publication gap. The corrected connection-scoped
+guard retains the highest observed sequence and returns explicit resync/reconnect
+decisions. Older connections cannot restore prior authority state.
+
+The author reports 81 tests / nine suites and full checks. The primary verified
+all ten frozen file hashes and independently ran 52 tests / seven relevant suites;
+the root combination with diagnostics then passed 95 tests / 13 suites and full
+typecheck. Logs are `authority-admission-primary-tests.log` in the settings
+worktree and `integrated-settings-diagnostics-{tests,typecheck}.log` under
+`tmp/v4-architecture-audit/`. No client writer is activated by this slice.
+
+## Combined Electron diagnostics and mock coverage
+
+Clean `78b387fea` was frozen into session
+`/Users/svecherenko/.poracode-smoke/v4-integrated-diagnostics-NlbiOW/session.json`.
+Source hash is `27096a52961dd59f44d5eb9ecabc57edfbfbb49370bf7b2c28960d85503e0ac0`;
+artifact hash is `85e24754b44b84869c8ee79a017a184ed1be475103ae3b7ff8160d5929d82c9e`.
+The full mock run passed nine automated scenarios and all 17 mock gates with
+zero captured runtime errors. Primary inspected Quick Composer input/handoff and
+preserved voice-draft screenshots. Runtime verification passed before teardown;
+the managed owner reported stopped and removed its runtime directory.
+
+Opt-in diagnostics ran in the actual desktop main, backend and supervisor.
+The retained files contain respectively 974, 973 and 973 contiguous samples and
+complete end records, with zero dropped records or writer errors. Exact headers,
+hashes, permissions, counts and teardown state are in
+`tmp/v4-architecture-audit/integrated-diagnostics-recording.json`; the raw NDJSON
+and screenshots remain in the session directory. Concurrent development work and
+the frozen development build disqualify this run from performance acceptance.
+
+An attempted normal-close probe used HTML `window.close()`. It removed the main
+target but left the other window/processes alive. Electron 44's sandboxed renderer
+does not install the native-close override in
+[`window-setup.ts`](https://raw.githubusercontent.com/electron/electron/v44.0.0/lib/renderer/window-setup.ts);
+its native source routes WebContents destruction to immediate window destruction.
+Independent source review agrees this probe does not prove a native-close bug.
+The exact-app native automation request subsequently timed out. Final cleanup used
+the managed process-group stop, so those end records are not normal-quit evidence.
+
+QA bridge version 2 adds guarded calls to the actual `BrowserWindow.close()` and
+`app.quit()` methods. The two missing-action regressions are retained in
+`native-shutdown-controls-before.log`; the final 37 tests / four suites,
+typecheck, touched lint and inventory audit pass. An independent trust/lifecycle/
+R4 critic also passed 15 tests / three suites. This boundary remains development,
+unpackaged, mock-only and restricted to the current main window's top frame;
+version-1 peers are rejected. Fresh native shutdown evidence is still pending.
+
+## F32 — retained ownership and first-open liveness
+
+The owner lane reproduced a live process losing its kernel lease after its last
+JavaScript lease reference was abandoned and explicit GC ran. A real second child
+then acquired the same namespace. `HostOwnerLease` now retains successfully
+acquired leases until explicit release; failed acquisition is never retained.
+Normal release closes SQLite and removes the retained entry. The real child
+regression verifies continued exclusion after GC and successor acquisition after
+the actual holder exits.
+
+The broader lease run also caught simultaneous first-open attempts both refusing
+ownership. A thirty-pair real-process probe reproduced five such liveness failures
+and no dual-owner outcome. Enabling retained locking before the exclusive
+transaction can retain each connection's schema-read shared lock during upgrade.
+The transaction now acquires first and only then enables retention across commit.
+The same thirty-pair probe subsequently admitted one owner per pair. No random
+sleep, PID authority or raw read/open of an existing lease inode was added.
+
+Evidence is under `.tmp/v4-owner/.tmp/v4-owner/`: `owner-lease-gc-before.log`,
+`owner-lease-gc-after.log` (the first-open failure remains in that broader run),
+`lease-first-open-before.json`, `lease-first-open-reordered.json`, and
+`owner-lease-gc-and-first-open-after.log`. All twenty lease tests pass, as do full
+typecheck and touched lint/format. Independent and primary review each repeated
+the twenty-test lease suite successfully. The initial unsupported Vitest repeat
+flag and probe-loader path errors remain as failed tooling attempts, not runtime
+evidence.
+
+This bounded correction changes neither lease format 1 nor owner metadata format 1.
+Actual headless/bootstrap wiring is a separate uncommitted candidate and must wait
+for confirmed ingress/request drains before claiming safe lease release. All roots
+and processes here were disposable; Linux/Windows, installed upgrades, real profiles
+and full Phase 1 acceptance remain open.
+
+## Joined durable services and native credential codec integrated
+
+F30 commit `0fa3dfb93` closes PR-watch, schedule, Git-state and app-controls
+admission and joins admitted continuations. Headless composition begins HTTP,
+durable and supervisor shutdown together, rather than leaving automation active
+while waiting for HTTP close. A failed participant cannot skip other stops or
+reach SQLite close. Schedule launch/configuration continuations are joined
+separately from interrupted task-completion promises, avoiding a whole-turn wait.
+
+The primary review found and required the headless ordering and Git-state fixes;
+their real/synthetic held-work reds remain in the owner lane. The final author
+run passed 152 tests / 14 suites; the independent proof/compatibility/R4 critic
+passed 127 tests / 12 suites. Full typecheck and touched checks passed. Broader
+HTTP-handler, proxy, provider-descendant, Windows and outer-process shutdown still
+belong to F11. In particular, the existing five-second HTTP disposal timeout
+does not yet prove that its admitted handler work has completed.
+
+`db53f2a4c` adds the separately reviewed, inactive native key codec: current-owner
+generation, canonical bounded key bytes, OS-backed storage availability, and
+fixed error messages. It reads/writes no files. Primary and independent review
+accepted it; 46 credential tests / three suites passed independently. Root
+consolidation `ad7143d53` passed 476 tests / 49 suites and full typecheck before
+the following frozen app run. Main's actual custody conversion remains pending.
+
+The four-file inactive preference/credential adapter `77bad9b67` is separately
+merged as `caa76fa4d`. It rejects the reproduced profile-driver credential-guard
+bypass, scopes dedicated commands, checks persistent custody before sealing, and
+rechecks CAS inside the authority. Intentional deletion and explicit plaintext
+storage remain possible. The author passed 145 tests / 12 suites; primary passed
+30 policy/command tests and verified all four frozen hashes; the independent
+custody/R4 critic passed 52 tests / three suites. No legacy writer is removed or
+production authority activated by that commit.
+
+## Real native-close path on the combined development build
+
+Clean `ad7143d53` was frozen into
+`/Users/svecherenko/.poracode-smoke/v4-native-close-P8dcer/session.json`, source
+`60834c7eb18b3367895d56d0f96e290e303470facdefd01796d211c5ca50995b`, artifact
+`ebfa6c201d87ba1610352c83d6e05c740703a439c869233c9dfe0eca5e0b685d`.
+The full mock suite again passed nine automated scenarios and 17 mock gates with
+zero captured renderer/runtime errors. Primary inspected handoff/draft screenshots
+and verified the complete runtime hash before closing.
+
+The test confirmed native QA peer 2 and the persisted fixture close-to-tray value
+of false, then invoked the actual `BrowserWindow.close()` through the guarded
+bridge. The main, backend and supervisor processes exited; the managed owner
+completed teardown and removed its runtime. Their files contain respectively
+285, 284 and 284 contiguous samples with complete end markers, zero drops and
+zero writer errors. `native-close-combined-recording.json` and companion logs in
+`tmp/v4-architecture-audit/` pin raw-file identities, pre-close PIDs and subsequent
+absence. A redundant stop command after the owner had finished refused the
+already-inactive session; that log is retained and is not a teardown failure.
+
+Native stderr retains two Chromium WidgetHost rejection lines during the run and
+two macOS task-policy lines during close; their causes are not assigned by this
+test. The script's zero captured-error count is not a claim of empty stderr.
+This is an idle mock native-close check, not OS-menu/shortcut coverage, active
+provider/held-request shutdown, production performance, or completion of F11.
+
+The final root combination of F32 and the scoped settings adapter passed 507 tests
+/ 51 suites and full typecheck (`lease-command-final-combined-*` logs). The only
+merge conflict was concurrent execution-log additions; both records are retained.
+
+## Bounded IPC queue observations and recorder lifetime
+
+The opt-in Node evidence envelope is now format 2, declaring the unchanged
+process-sample format 1 and the new queue-sample format 1. It observes the main to
+backend, backend to main, and supervisor to host application waiting queues.
+Admission byte estimates, oldest age, high-water values, adapter attempts,
+in-flight count and shedding are separate measurements. Replacement senders have
+fresh random observation identities; absent/error/untimed observations cannot
+masquerade as measured zero. Registration and serialization use a closed schema
+without message content. Native IPC buffer bytes, terminal coalescer bytes/ages,
+other queues and peer processing acknowledgments are not covered.
+
+Initial sender-observation regressions failed three cases against the previous
+implementation (`ipc-queue-diagnostics-before.log`). During review, a new lifecycle
+flaw was also reproduced: stopping the recorder left per-message timestamp and
+counter work running. Its one failing real recorder-stop regression is retained
+as `ipc-queue-capture-lifetime-before.log`. The correction shares a recorder-owned
+capture lifetime with existing and replacement senders; every stop reason ends
+collection while application delivery continues. This was caught before this
+diagnostic slice was committed or used for a performance qualification.
+
+The final primary run passed 75 tests / seven suites, full typecheck, both touched
+lint modes, formatting and the production Electron/main build. The built
+`ipcQueuePressure.mjs` fixture then exercised actual child IPC on Node 24.20.0 and
+Electron 44 / embedded Node 24.18.1. Each controlled blocked receiver produced 122
+waiting messages / 4,007,114 estimated bytes and an observed oldest age above
+250 ms. Releasing the fixture gate delivered all 128 synthetic messages; waiting
+and in-flight counts reached zero and each owned child closed normally. Both
+format-2 recordings have complete end markers, zero writer drops/errors, and no
+synthetic payload marker. Raw final evidence is
+`tmp/v4-architecture-audit/ipc-queue-lifetime-real-{node,electron}.json` with its
+referenced NDJSON; earlier runs remain separately retained.
+
+The independent critic passed 66 tests / five suites after the lifetime fix and
+verified all 19 frozen source, compiled fixture and raw-evidence hashes with zero
+mismatches (`ipc-queue-independent-lifetime-rereview.log`). No Important finding
+remained in this bounded scope.
+
+These are measurement and output-lifetime checks. The new queue registrations in
+an actual GUI session, enabled/disabled observer overhead, complete transport
+coverage, correlated command/event latency, frame/input traces, controlled master
+comparisons and final load/soak qualification remain open. A blocked synthetic
+receiver is not an application performance benchmark.
+
+## F11 HTTP and shared MCP drain prerequisite
+
+The isolated `poracode/v4-request-drain` branch starts at reviewed consolidation
+`ad7143d53`. Four real loopback/SQLite regressions first proved premature database
+close after the HTTP deadline or client abort, duplicate startup pairing state,
+and a listener bound after disposal. Two real forwarded-stream fixtures also
+failed against the original proxy implementation, which returned while the
+streams were open. Three shared-MCP regressions proved early tool disposal,
+orphaned concurrent listeners and publication after an immediate stop.
+
+The candidate joins one listener lifecycle, closes admission synchronously and
+tracks actual HTTP/WS/tool continuations independently of sockets. The existing
+five-second HTTP grace now closes owned transports; it does not resolve the work
+barrier. Proxy requests and upgrades join their outgoing streams. Shared MCP
+uses the same work/socket helpers and AppControls awaits its disposal; remaining
+batch entries and a reentrant pre-call hook cannot start a tool after stop.
+No remote, renderer, backend-host, MCP or persisted shape changes; existing wire
+versions remain valid and shutdown uses the existing error response envelopes.
+
+The HTTP/controller group passed 156 tests across seven suites; the MCP/native
+facade group passed 41 tests across six separate suites. Full typecheck and both
+touched lint modes pass. The MCP test-only cleanup refactor was checked again
+with its five lifecycle cases. Details and exact commands are in
+`.tmp/v4-request-drain/tmp/f11-request-drain/REPORT.md`; all network peers and
+SQLite files in these checks are disposable fixtures. Self-review caught two
+introduced startup-cache regressions: retaining a failed listen and returning
+an obsolete pairing token after rotation. Both were corrected, with separate
+reds; the final ten HTTP lifecycle cases also validate a successful real token
+exchange after rotation. These are not attributed to the original defects.
+
+The independent ingress critic passed 24 tests across five suites plus the final
+real pairing-token exchange regression, with no remaining Important finding.
+The primary review also passed its 25 targeted cases and verified all 17 frozen
+file hashes. Both reviews accepted this prerequisite; integration remains pending.
+This is not complete F11
+qualification: private backend request draining, main/native facade joins, parent
+timeouts, provider/PTY descendants, Windows graceful stop and the native-e2e stop
+harness remain assigned. A handler which cannot be canceled keeps its join
+pending; the later process escalation must prove termination rather than release
+the owner lease while that handler can still run. No GUI/performance claim is
+made from these ingress fixtures.
+
+Root integrated `c0471f27a` with queue diagnostics `73792f1fb`. The combined remote,
+MCP, app-controls, backend-client and diagnostic checks passed 740 tests / 61
+suites plus full typecheck (`queue-f11-combined-*` logs under
+`tmp/v4-architecture-audit/`). Only concurrent documentation additions conflicted;
+both sides' findings and evidence are retained. A fresh isolated GUI recording is
+the next integration check, not implied by these tests.
+
+## F34 — visible Browser coverage repaired during the real queue recording
+
+Clean `d31c836bc` was frozen into
+`/Users/svecherenko/.poracode-smoke/v4-queue-f11-IGagAM/session.json`: source
+`c7d98bbe0636a03677af6f06d66388d4ba340827c00a1cc5a82ddec2fa01f548`, artifact
+`9a8c3b161d2533feaa4cc1279cc1cf4f3f4ab4b6f82578fe473b30439237fd45`.
+The first full mock report passed nine automated scenarios and 17 mock gates,
+with zero captured errors. Primary image inspection nevertheless found that its
+Browser navigation screenshot displayed GitHub Actions. That Browser PASS is
+not accepted as visible-surface evidence.
+
+The preceding scenario left a fullscreen overlay open. The Browser driver used
+synthetic DOM clicks behind it and accepted an existing, enabled URL input without
+checking occlusion. The added actual pointer assertion failed with `occluded`;
+the recorded live state had both GitHub Actions and Browser open with the input
+covered by the overlay header. The correction returns through the visible UI,
+uses the shared pointer guard for label actions, scopes Settings controls, and
+requires Settings and screenshot evidence. Optional means an absent control,
+never permission to ignore an occluded/disabled/ambiguous one. The driver also
+waits finite transitions and frames before capture, gives its synthetic page a
+legible foreground/background, and constructs its default output path portably.
+
+Stricter selection caught two local locator failures while refining the fix:
+three matching Browser roles, and two Open Browser buttons including Sidebar's
+invisible sizing copy. Both failed safely and remain in separate logs. The final
+selectors target the Settings overlay and exclude that precise sizing copy.
+Primary and independent critics inspected the final screenshots. Seventeen shared
+pointer/label tests pass independently; primary's helper/inventory group passes
+20 tests. Normal lint, syntax, formatting, diff checks and the 2,139-file coverage
+inventory audit pass. There is no product UI or wire/schema change in this fix.
+
+The final full replay passed nine automated scenarios and 17 mock gates with zero
+captured errors. Its separate report and visible Browser screenshots are under
+`artifacts/visibility-sidebar-fixed/` in that same frozen app session. The app
+artifact stayed unchanged; the harness script revision changed during these
+before/after checks. Logs under `tmp/v4-architecture-audit/` include
+`browser-visible-before*`, the failed `browser-visible-after.log` and
+`queue-gui-full-smoke-visibility-fixed.log`, and final
+`queue-gui-full-smoke-visibility-sidebar-fixed.log`. Earlier artifacts were not
+overwritten to conceal the false positive or the locator failures.
+
+The exact runtime was verified before native close. After resetting driven state,
+the test confirmed native QA peer 2 and persisted close-to-tray false, then invoked
+the actual native window close. Main, backend, supervisor and the managed owner
+exited; both assigned ports refused connections and the owner removed its runtime.
+No managed stop command caused that exit. Format-2 recording files contain 2,687
+main, 2,686 backend and 2,686 supervisor samples with contiguous sequences,
+complete end markers, zero drops and zero writer errors. All three actual queue
+hooks were observed; one main sample explicitly reports an unavailable sender.
+`queue-gui-recording.json` and `queue-gui-processes-after.json` retain the evidence.
+
+Native stderr also retains four macOS task-policy errors plus mock-provider
+refusals and ACP installation failures; their presence is distinct from the
+runner's zero captured renderer/runtime-error count. These results prove the
+development/mock queue hooks, the corrected visible Browser flow and this idle
+native-close path. Real providers/devices, active request/process shutdown,
+observer overhead, controlled master comparisons, latency/rendering budgets and
+full load/soak qualification remain open.
+
+## F11 private backend and direct-renderer work join
+
+The follow-up starts from clean consolidation `d31c836bc`. Four entrypoint tests
+first failed with synthetic runtime dependencies: database-close ownership ended
+while an IPC service, direct-renderer service, initializer or reverse-native
+continuation was still pending. Five real loopback stream tests separately
+reproduced premature handler disposal, concurrent-start refusal, an unjoined
+partial upgrade socket and a pre-listen shutdown hang. Logs and exact evidence
+limits are in `.tmp/v4-request-drain/tmp/f11-backend-drain/REPORT.md`.
+
+Normal backend admission now closes before the work barrier. Startup is joined
+before runtime handles are collected; producer cancellation starts before waiting
+for calls that require it to settle. Service references and SQLite stay installed
+through the join, with the F30 failure guard preserved. Native replies bypass
+normal admission, and the extracted reverse-request owner drains cleanup work
+after all producers/calls settle. Signals cancel backend waits without claiming
+the native action itself has stopped. The direct renderer listener tracks actual
+handlers and uses the shared HTTP socket owner, including partial upgrades.
+Existing protocol and disk versions remain compatible.
+
+Self-review traced the actual parent and caught its disposed guard dropping
+required native replies. Three additional red regressions prove missing success
+and failure replies during disposal, and an old completion sent to a replacement
+child. The narrow parent fix preserves reverse replies to the originating child
+during drain and fences replaced generations. It does not join native execution
+or change the outer timeout/tree policy.
+
+The independent critic additionally reproduced a synchronous native callback
+exception escaping IPC without a failure reply, matching main's browser-watch
+startup path. Its retained actual-client probe and the added red regression led
+to a promise-contained invocation, with origin checks before deferred work and
+before reply. A late old-child result is tested after callback admission; a
+different case refuses deferred work if its child already exited.
+
+The final combined run passed 97 tests / nine suites, full typecheck and both touched
+lint modes. The independent critic verified all eight source hashes, passed 53
+tests across four suites, and reran its actual-client exception probe successfully.
+Its original red log remains; the generic JSON was overwritten by the rerun and
+is not cited as retained red evidence. No Important remains in the independent
+scope. The primary critic also verified all eight frozen hashes and independently
+passed 97 tests across nine suites, then approved the coherent ten-file slice.
+Tests use
+synthetic entrypoint dependencies and real disposable loopback
+peers, with no GUI or provider action. Full F11 is open: owner startup cancellation
+wiring, outer deadlines, main/native facade joins, descendants, Windows shutdown
+and the native-e2e process-stop harness remain required before final qualification.
+
+Root merged the separately reviewed startup-cancellation primitive `dde3951eb`
+as `bc57d3b62`, then joined the backend drain candidate `70457542b`. Cancelling
+startup closes admission and abandons native byte-transform waits while retaining
+the data-root lease and initialized credential capability. Only the caller's
+final close releases ownership after runtime work and SQLite have drained.
+The actual child-contender and held-backup tests cover that distinction; production
+owner activation remains a separate candidate. Root's combined ownership,
+backend/native request, stream, HTTP/work tracker and diagnostic checks passed
+119 tests across ten suites, plus full typecheck. The exact logs are
+`tmp/v4-architecture-audit/owner-backend-combined-tests.log` and
+`owner-backend-combined-typecheck.log`. Merge conflicts were concurrent evidence
+additions; the final documents retain F34 and both F11 records without duplicating
+the existing F32 section.
+
+## F42 — push gateway body ownership
+
+Root's actual loopback HTTP regressions reproduced three independent failures:
+the public-key request stayed pending after its timeout once headers had arrived,
+a 32 KiB JSON config was accepted, and a successful push response kept its unused
+body open. `tmp/v4-architecture-audit/push-gateway-body-before.log` retains all
+three failures. The peers, credentials and payloads were synthetic; no hosted
+gateway or external push was contacted.
+
+The corrected private transport keeps one deadline through response consumption
+and cancellation. Config parsing reuses the existing bounded body reader with a
+16 KiB ceiling, and delivery responses release unused bodies after status is
+read. The private fetch injection now uses actual `Response` objects, with the
+same `SendPush` signature and result shapes. Config failures still clear the
+cached promise; successful concurrent reads share it. Twelve tests across two
+suites pass, including real held-body timeout/retry, declared/chunked overflow,
+exact-limit success/cache reuse and unused-body close. Both touched lint modes
+pass. The retained final test log is `push-gateway-body-final-tests.log` in the
+same audit directory. The independent critic matched all three frozen source
+identities, repeated all twelve tests and found no Important issue. Root merged
+the separately reviewed shared push lifetime/token correction `cf89df25a` as
+`bcf4be8d7`; its combined push/Desktop candidate group passed 123 tests across
+thirteen suites and full typecheck. The Desktop composition still has its own
+review and real-app gate. These checks do not qualify the complete process
+shutdown or performance gates.
+
+## F37/F39 — shared push lifetime and Desktop retirement
+
+The shared push correction `cf89df25a`, merged as `bcf4be8d7`, retains active
+delivery continuations and clears both platform debounce timers when admission
+closes. Disposal returns the same join promise, including when a gateway callback
+re-enters disposal; parallel delivery branches are all joined after a sibling
+fails. Exact registration identity and the token or web subscription actually
+sent now guard pruning after an unregistered response. The independent critic
+matched all seven frozen source files and passed 56 tests across five suites.
+The actual headless stale-token probe preserved its replacement registration
+after the fix. Push registration format 2 and gateway wire/result shapes remain
+compatible; these changes do not cancel a delivery already accepted remotely.
+
+Root's Desktop composition then reproduced four premature-settlement cases with
+the actual coordinator and disposable registration files: final stop, disable
+followed by final stop, restart, and HTTP failure while push remained pending.
+The gateway, database reads and HTTP server were synthetic. Typed before evidence
+is retained in `tmp/v4-architecture-audit/desktop-push-before-typed.log`.
+
+Desktop now stops coordinators before dropping their references, retains all
+retiring generations and their failures, waits for retirement before opening a
+replacement, and joins startup plus current and previously disabled HTTP/push
+work on final disposal. A single lazy registration store serves the controller's
+generations. The extracted lifecycle module owns the retirement barrier and
+preserves the existing server-start cleanup. Tailscale teardown remains joined
+on ordinary disable/restart; final application shutdown preserves its historical
+Serve configuration behavior.
+
+The final focused group passes 27 tests across two suites, including held HTTP
+work from a disabled generation and a failed retirement whose promise had already
+settled. Root's broader combined push group passes 123 tests across thirteen
+suites, full typecheck and both touched lint modes. The independent critic
+matched all four frozen Desktop hashes before and after its own 27-test run and
+found no Important or material simplification issue. Its evidence is
+`desktop-push-independent-critic.log` beside the frozen manifest and tracked diff.
+No wire, settings or registration format changes were needed. This qualifies the
+controller and shared push scope only: real Electron integration, headless
+activation, main/native execution, outer deadlines and the complete shutdown and
+performance gates remain open.
+
+## Headless ownership and authenticated local control candidate
+
+The owner lane now builds on `dde3951eb`, whose separately reviewed two-file
+controller change adds `cancelStartup()` without releasing a live lease. Primary,
+independent and author checks each passed its 12 controller cases. The two retained
+pre-split failures showed that using final close merely to cancel native startup
+invalidated the generation before a runtime shutdown barrier. Held native and real
+SQLite backup cases now retain exclusion until final close.
+
+The next uncommitted candidate wires only the standalone entry. It maps a profile
+namespace once, initializes credentials under the lease and composes required
+private runtime state before database/services. Startup and partial-construction
+cleanup are joined; disposal closes ingress/producer admission together and waits
+for concurrent start and actual work before SQLite/controller close. Four initial
+ownership regressions, two partial-construction regressions, a held-start regression
+and two outer-CLI unconfirmed-cleanup regressions are retained. Application DB and
+supervisor adapters are mocked in the factory suite; the lease and loopback remote
+server are real. The initial CLI tests intercept exit; the F40 correction below
+also runs actual owned Node children with synthetic application services.
+
+Local control/discovery format 1 supports only describe and explicit issue-pairing.
+It retains a private MAC key, uses fresh request nonces and authenticates exact
+request/response bytes and status before parsing replies. F33's real wrong-listener
+regression failed against the bearer draft before activation. Request/body/header
+limits, absolute input deadlines, connection/admission bounds, bounded mutation
+receipts, lost replies, expired retries and held callbacks have real loopback tests.
+The existing pair --json result shape is preserved; ordinary serve and relay logs
+carry no automatic pairing URL, and the old PID/SIGUSR2 request path is removed.
+F36's real two-client exchange caught use of the displayed-QR rotation method:
+the first of two successful control replies carried an already revoked credential
+and OAuth returned 401. Owner control now issues independent one-time credentials;
+the first receipt replays the same still-usable URL, both credentials exchange,
+and existing desktop QR rotation and consumed-token replay refusal remain covered.
+
+F35's real child reproduced pending disposal plus an unhandled EACCES after a
+read-only directory blocked discovery removal. The same child now resolves with
+no unhandled error; its private record remains. A realfs test proves the stopped
+port refuses calls and stopped/successor generations refuse that stale record.
+Only post-join metadata cleanup is best effort; listener/work failures are not.
+
+Compatibility review found the native-e2e harness still seeded the namespace
+itself. Its real SQLite regression failed with `load-fixture` and `state.sqlite`
+in the legacy namespace. Fixture setup now acquires a temporary owner, initializes
+a fixed synthetic key, seeds the mapped root and closes SQLite before release.
+The server receives that synthetic key rather than an inherited operator key.
+The unchanged load fixture remains 60 threads, with ten 40-item histories; this
+root correction does not improve or qualify its performance workload. Existing
+consumer `baseDir` remains the actual data root, while pairing/restart use the
+separate namespace and cleanup tracks the sibling paths. The old F11 harness
+stop/deadline logic is deliberately still assigned to the lifecycle lane.
+
+Evidence is retained under `.tmp/v4-owner/.tmp/v4-owner/`:
+`headless-ownership-consolidated-before.log`, `headless-construction-before.log`,
+`headless-start-join-before.log`, `headless-cli-startup-close-before.log`,
+`host-control-peer-proof-before.log`, `host-control-cleanup-{before,after}.json`,
+`owner-control-concurrent-pair-before.log`, and `headless-load-root-before.log`.
+The original frozen production/ownership/SSH/control
+check passed 388 tests across 25 suites; fixture preparation and the harness
+line count gate passed four tests across two suites. Full typecheck and both touched
+lint modes pass. Early stale-option typecheck failures, missing mock types, and
+a cleanup-test error-message expectation mismatch remain in their original logs;
+they are not attributed to production defects.
+
+This candidate awaits primary/independent review and a fresh built-CLI smoke.
+SSH manifest 3 rejects cold predecessor 1/2 artifacts; the settings lane's warm
+cache/source-declaration work and final combined manifest 5 remain required before
+deployment. No remote/native/renderer wire changes are made here. Existing-profile
+activation, settings/key-without-DB recovery, desktop discover/attach and custody,
+provider/PTY descendants, Windows/Linux packaged shutdown and performance/120 Hz
+qualification remain open. No real user profile was imported or initialized.
+
+## Headless push and early-signal review corrections
+
+Independent review of the original 48-file headless candidate established three
+additional lifecycle defects before activation. F37's actual factory/lease/store
+probe allowed successor acquisition before an old push returned 410 and overwrote
+the successor's registrations. F39's same-owner probe showed that a refreshed
+credential was also removed by the old request. F40 found no signal handlers
+while factory/listener startup was pending; actual Node SIGINT/SIGTERM fixtures
+then reproduced process exit before startup cancellation.
+
+The shared push correction is separately reviewed and committed as `cf89df25a`.
+Primary and independent checks each passed 56 tests across five suites, and the
+independent original F39 probe is green. It provides one permanent coordinator
+stop/join, cancels both platform timer sets and joins held siblings after delivery
+failure. Exact sent-token/subscription and registration comparison preserves
+refreshes without changing the file or remote protocol format. Its seven-file
+manifest/diff and `SHARED_PUSH_EVIDENCE.md` remain under the owner scratch directory.
+The original factory F37 probe alone was not qualified by this helper commit.
+
+The headless correction now includes that actual push barrier before SQLite and
+lease release. The early CLI signal handler cancels factory admission and starts
+available host disposal while joining actual startup. Confirmed stop alone exits
+successfully; failed joins keep signal handling and the owner alive. Three actual
+factory regressions (pre-cancelled roots, held port resolution and held push) failed
+before the wiring. Two signal-registration cases and five real-child cases also
+failed before the correction. The child fixture bundles the actual CLI/signal
+helper and uses a real disposable kernel lease, with only application services
+and diagnostics replaced. It does not launch a provider or qualify descendants.
+
+Retained evidence: `headless-push-cancellation-before.log`,
+`cli-startup-signals-before.log`, `cli-os-signals-before.log`, and
+`headless-push-cancellation-first-after.log` (42 tests/four suites passed).
+The initial esbuild fixture regex failure is separately retained in
+`cli-os-signals-fixture-build-failure.log` and is not counted as a product failure.
+The corrected combined run passed 398 tests across 26 suites, and the real-host
+fixture/line-count checks passed four tests across two suites. Full typecheck and
+both touched lint modes passed. Rereview and fresh built-CLI evidence are still
+required before committing the remaining headless/control candidate. Root owns
+separate Electron push integration and F42
+gateway body-lifetime correction; neither is claimed complete by this owner slice.
+
+## F38/F44 — captured runtime admission and staging alias correction
+
+The inactive runtime-capture candidate is now merged as `edd3f6e25`, on top of
+the separately reviewed exclusive atomic writer `cdc5ca1f0`. It declares the
+Node input closure, embeds the source identity with equal-width output-time
+replacement before code hashing, validates code/resource manifests, captures
+regular files through bounded descriptors, and keeps startup behind a private
+activation protocol. SSH manifest generation 4 is reserved for this candidate;
+the eventual owner-control/settings combination uses fresh generation 5.
+`SupervisorClient` remains on settings service 0 and no existing writer was
+activated. The captured runtime was exercised with current Node, minimum Node,
+Electron and a first-party ASAR fixture; package/archive checks and 74 focused
+tests passed, with full typecheck and touched lint/format checks. This is an
+inactive admission prerequisite, not a production settings or immutable-runtime
+claim.
+
+The F38 caller review then found F44. A real disposable symlink-parent probe
+showed lexical source/output checks could resolve to one physical directory and
+prune the source marker, plugin and shared runtime. `prepare-agent-plugins.mjs`
+now resolves the nearest existing physical ancestor while retaining an uncreated
+suffix and rejects overlap before any staging read/write/prune. The same-root and
+uncreated-child regressions pass, and all source bytes remain unchanged. The
+focused post-fix run passed 10 files / 77 tests; touched normal and type-aware
+lint and formatting passed. The F44 red probe remains under the owner scratch
+directory, and capture source identities were refreshed after this correction.
+
+The candidate still does not activate the settings authority, reverse supervisor
+service, or any renderer/main writer migration. It does not qualify provider
+descendants, server concurrency, memory, latency, or 120 Hz rendering.
+
+## F43 — sealed Electron shutdown ordering evidence
+
+The managed Electron smoke ran from clean revision `28f402099` with a frozen
+development artifact and no provider credentials. The full mock suite passed with
+zero captured renderer/runtime errors; Browser page and Browser settings
+screenshots were visibly inspected. Remote Access was enabled through the real
+settings control, a loopback peer completed OAuth with status 200, and a synthetic
+gateway held the push-config response body after headers.
+
+The native close request was recorded at `1789316468954`. Main's last diagnostic
+sample was about 1.1 seconds later; backend's last sample was about 8.8 seconds
+later. The client socket closed about 5.1 seconds after the quit request, and all
+three diagnostic writers eventually emitted complete zero-drop end records. This
+is a real application ordering failure: the app shutdown deadline released main
+before backend/held transport work finished. The managed runner also stopped
+after the Electron leader exited and skipped later owned siblings; exact-PID
+cleanup confirmed the static renderer was still owned and then stopped it, while
+an unrelated `rapportd` listener on port 49152 was left untouched.
+
+The smoke harness now attempts each owned child even after a sibling stop reports
+an ownership failure, then throws an aggregate error and retains the runtime for
+inspection. Four node:test cases pass, including a dead-leader refusal that still
+stops a separate owned renderer. This fixes evidence collection and cleanup only;
+it does not hide the application failure or weaken process-group ownership.
+
+## F11 follow-up — remote push transport cancellation at application shutdown
+
+The next shutdown slice keeps the application alive for the bounded remote
+transport drain, joins main ingress disposal and backend disposal through one
+shutdown barrier, and passes the same outer deadline to the backend-host client.
+Remote push gateway transports now retain their admitted `AbortController`s;
+desktop and headless remote servers dispose the public-key resolver before
+waiting for HTTP work, so a held `/api/push/config` body is cancellable during
+host shutdown. A focused regression covers resolver disposal against a real
+held loopback response.
+
+The focused run passed 80 tests across six suites, with full typecheck, touched
+type-aware lint, and formatting checks passing. The changed-surface managed
+Electron smoke passed with zero renderer/runtime errors. In the real held-body
+scenario, the gateway response closed during native quit (8.8 seconds after its
+headers, compared with 9.9 seconds in the sealed F43 run) and the client
+received a bounded 500 response. This improves transport ownership but does not
+close F11: the app still uses the outer bounded escalation path, provider/PTY
+descendants and Windows shutdown are unqualified, and no 120 Hz or multi-client
+performance claim follows from this slice.
+
+Delivery-side push work now uses the same lifetime boundary. `createPushGateway`
+exposes transport disposal, and `PushWorkScope` aborts admitted delivery calls
+before joining timers and continuations. The delivery regression holds a real
+loopback response body and verifies that disposal closes it. The combined push,
+remote-server, desktop-controller, and headless suites passed 125 tests, with
+typecheck, touched typed lint, and formatting green.
+
+## Phase 1 owner discovery — authenticated status inspection
+
+The standalone CLI now has `status --json`, backed by the existing authenticated
+loopback host-control protocol. It reads the owner generation, lifecycle state,
+mode, protocol version, and endpoint without minting or rotating a pairing
+credential. The control fixture verifies the status path against a live loopback
+listener and confirms that the pairing callback is untouched; CLI parsing and
+runtime tests pass 15 tests across three suites. This is an operational attach
+prerequisite, not Electron attach behavior: Electron still needs to consume the
+description and choose attach, managed-local start, or a clear incompatible-owner
+result before Phase 1 can exit.
+
+The desktop bootstrap now acquires the shared profile kernel lease before legacy
+migration, directory preparation, key setup, or backend startup. Its owner record
+uses `kind: "desktop"` and the legacy profile as `dataRoot`, while headless hosts
+continue using the versioned `.host-v1` data sibling; both contend for the same
+lease inode. A real Electron smoke produced the desktop owner record, completed
+the changed-surface suite with zero renderer/runtime errors, and left the record
+at `phase: "stopped"` after verified teardown. Ownership fixtures pass the
+desktop-first/headless-contender refusal. This closes duplicate-owner admission,
+but Electron attach and managed-local/server lifecycle selection remain open.
+
+## Phase 3 reply-budget correction
+
+The backend renderer stream had a bounded per-client byte budget for live events
+but sent request replies directly through `socket.send()`. Replies now use the
+same adaptive budget and slow-client close path, including oversized-response
+errors. A real WebSocket regression forces a 2 MiB buffered amount and observes
+the 1013 backpressure close; the complete renderer-stream suite passes 20 tests.
+This bounds the local fallback path, while moving bulk traffic off Electron main
+and proving steady-state zero bulk bytes still remain Phase 3 work.
+
+The remote server now also caps admitted HTTP/WebSocket continuations with a
+configurable global in-flight limit (128 by default). Excess work receives an
+explicit `host_busy` 503 instead of entering an unbounded drain set. A held
+HTTP continuation with a limit of one verifies the busy response and then
+confirms the original request still completes after release. The shutdown suite
+passes 11 tests with this admission gate.
+
+The remaining F11 work must wire main/native admission and actual execution joins,
+reconcile the parent one-second and app two-second deadlines, join backend and
+provider/PTY descendants, and qualify Windows shutdown. The sealed red evidence is
+retained under `/Users/svecherenko/.poracode-smoke/v4-push-drain-ctPW9q/evidence/`.
+
+## Phase 3 renderer request admission
+
+The local renderer WebSocket now caps each connection at 64 active request
+continuations. Duplicate request IDs close the connection as a protocol error;
+additional requests receive a bounded error without entering backend work. The
+renderer transport applies the same 64-entry pending limit and routes excess
+calls through the existing main-process fallback, so a stalled direct stream
+cannot grow its promise map without bound. A focused run passed 37 tests across
+the backend stream and renderer transport suites, with typecheck, touched
+oxlint, and formatting green.
+
+This is admission control, not cooperative cancellation: an operation already
+accepted by the backend remains tracked until it settles or shutdown drains it.
+The direct stream still needs a measured off-main bulk-transfer path and an
+explicit cancellation protocol before Phase 3 can close.
+
+The Electron remote HTTP fallback now includes a per-request UUID and a
+`remoteHttpRequestCancel` main-local procedure. Renderer abort signals cancel
+the corresponding main-process `fetch`, and completed or cancelled requests
+remove their controller from the bounded active map. The focused IPC/transport
+run passed 19 tests, with typecheck, touched oxlint, and formatting green. This
+releases cancelled network work; bulk response bytes still cross IPC and remain
+part of the off-main transport work.
+
+## Phase 5 terminal-interest cardinality guard
+
+Review of the remote WebSocket path found that terminal watch IDs were stored in
+an unbounded per-connection set. A client can now hold at most 256 terminal
+interests. Legacy watches beyond the cap are ignored; cursor-synchronized
+watches receive a retryable `unavailable` result with reason
+`client-watch-capacity`, so a real client can unwatch and retry. The focused
+cursor-sync suite passed 20 tests, with typecheck, touched oxlint, and
+formatting green. This bounds interest bookkeeping but does not yet provide
+per-client outbound fairness or a shared relay scheduler.
+
+## Phase 7 service-worker activation safety
+
+The canonical hosted worker and the Electron-served pairing worker no longer
+call `skipWaiting()` during install. A new worker still pre-caches its shell,
+but it waits until the previous worker's documents close or reload before
+activation can remove the previous hashed-asset cache. Canonical source and
+desktop-served output assertions cover this same lifecycle rule. The focused
+PWA and remote-server checks pass; this protects old-document/new-worker
+coexistence but does not substitute for an installed upgrade and offline
+recovery run on every supported browser.
+
+The browser renderer now installs one lifecycle coordinator for `pageshow`,
+`online`, and visible `visibilitychange`. Signals in the same turn coalesce into
+one reconnect pass, hidden documents do not initiate network work, and cleanup
+removes all listeners. The first review found that a same-key existing socket
+made the pass a snapshot-only operation: a stale socket stayed online and the
+first health ping still waited 25 seconds. Resume now calls `connectAll` with an
+explicit transport-replacement option, closes each existing event socket before
+the snapshot pass, and restores histories for the open thread and additive
+interests immediately after the replacement stream is installed. Matching live
+frames are held behind a bounded per-pass event/byte budget, each thread's
+history sequence is installed before replay, and the replay uses the same
+truncation-reload path as live delivery. Forced calls that arrive while a forced
+pass is active share that pass; a force request that arrives during an ordinary
+pass schedules one coalesced follow-up. An incomplete or overflowing baseline
+leaves the runtime offline for a retry. The focused backend, reducer, lifecycle,
+and remote-store suites pass 173 tests, with typecheck, touched oxlint, and
+formatting green.
+Endpoint replacement, Safari suspension, and installed-PWA evidence still
+require device runs.
+
+## Phase 3/7 admission and resume review correction
+
+The first request-admission implementation bounded the direct renderer stream
+and then routed overflow through IPC. A held-response probe showed 64 direct
+requests plus 192 unresolved IPC fallbacks, so the main-process pending map was
+still unbounded. `BackendHostClient` now rejects new work after 128 shared
+pending requests, preserving the renderer compatibility path without moving
+overload into an unbounded queue. Its regression holds all 128 slots and proves
+the next request is rejected; the focused backend, transport, and renderer
+admission suites pass.
+
+## F41 — native helper and computer-use lifetimes
+
+The isolated native lifetime slice is merged as `1d3196fe1` from the reviewed
+31-file candidate. Browser, Chrome and computer-use ingress disposal now returns
+joinable promises. Persistent JSON-line hosts keep retiring children and their
+pipe closure observable; short-lived native commands retain callback completion
+until the owned child closes. Permanent driver close is separate from reusable
+action interruption, and Chrome's HTTP, keep-alive and upgraded sockets are
+joined through the shared connection tracker. Every helper and platform driver
+uses the same permanent close contract.
+
+The source manifest has 31 matching hashes (`4203f1c2…6f4cd`). The final focused
+run passed 107 tests across 16 suites, full typecheck, both touched lint modes,
+formatting and diff checks. Actual disposable fixtures cover held loopback HTTP,
+pre-hello sockets, retiring helper generations, native callbacks, pipe closure
+and invalid-PID safety. They do not launch providers, drive real computer input,
+terminate arbitrary descendants or wire the main process's outer quit path.
+The one-second parent and two-second app deadlines, process trees, Windows
+packaging and OS-level action completion therefore remain open; F43's sealed GUI
+run is the current evidence for that gap.
+
+## Phase 2 thread-mutation coordination
+
+Before: checkpoint reverts had a backend-local `revertLocks` map, but ordinary
+supervisor calls entered the same thread independently. A start, input, provider
+switch, or queued follow-up could therefore interleave between the provider and
+transcript phases of a revert, and the remote/headless composition had no shared
+lock boundary.
+
+After: `SupervisorClient` now owns a per-thread mutation coordinator shared by
+desktop, headless, and remote callers. Start/resume, input, follow-up queue,
+provider rollback/restore, terminal staging, and related mutations serialize for
+one thread; interrupt, close, and server-request responses bypass the queue so a
+long mutation remains stoppable. The compound checkpoint path holds the same
+lock across every phase and explicitly skips nested acquisition. Separate threads
+still dispatch concurrently.
+
+The focused supervisor, core, and checkpoint suites pass 51 tests, with full
+typecheck and touched type-aware lint passing. This closes the specific
+interleaving gap at the supervisor boundary, while delete/transcript replacement,
+durable operation reconciliation, generation fencing, crash recovery, and the
+full local/HTTP race matrix remain open Phase 2 work.
+
+The exact-tree managed Electron smoke also passed its welcome, baseline,
+mock-integration, and database/settings IPC gates with zero renderer/runtime
+errors. Evidence is retained at
+`/Users/svecherenko/.poracode-smoke/automated-1789327558663-66220/artifacts/smoke-report.json`.
+The known teardown warning about persisting shell bounds after backend shutdown
+remains a harness shutdown race and did not produce a runtime error.
+
+The independent review then found two ordering defects in the first coordinator
+implementation: a same-turn interrupt could overtake a not-yet-admitted start,
+and a queued compound revert was absent from the shutdown join snapshot. The
+coordinator now admits the first mutation synchronously, cancels queued work when
+interrupt/close control arrives while server-request replies only bypass the lock,
+and drains all thread tails during supervisor disposal. `BackendHostCore` registers
+accepted reverts before enqueue and cancels them cleanly when shutdown begins. The
+corrected focused run passes 51 tests;
+the managed Electron smoke above remains valid for the unchanged UI surface.
+
+After the final control-cancellation split, a fresh exact-tree managed Electron
+smoke passed welcome-dismissal and baseline with zero renderer/runtime errors.
+The changed-surface run had no additional mock IPC gates because the remaining
+production delta was supervisor-only. Evidence is retained at
+`/Users/svecherenko/.poracode-smoke/automated-1789328214218-72517/artifacts/smoke-report.json`.
+
+## Phase 2 retryable checkpoint receipt
+
+Before: an HTTP checkpoint revert that returned the journal's retryable
+`outcome: "failed"` was stored as a permanently failed generic command receipt.
+An explicit retry with the same command ID then returned `command_failed`, even
+though the checkpoint journal had an idempotent file phase that could resume.
+
+After: idempotent remote mutations can classify a result as retryable. The
+checkpoint route keeps terminal and ambiguous results replayable, but transitions
+a retryable receipt to a retained `retryable` state. The next explicit retry
+atomically reclaims it only for the same route, preserving command-ID route
+ownership and allowing the journal to resume. The database receipt suite and
+remote server/shutdown suites pass 117 tests, with full typecheck and touched
+type-aware lint green.
+
+The claim path also recognizes the prior version's completed receipt containing
+the same retryable checkpoint outcome and reclaims it through the route-bound
+predicate. Terminal and ambiguous completed receipts still replay unchanged.
+This is the retryable receipt correction only. Full operation identity across
+desktop and HTTP, response-loss reconciliation, and crash-boundary evidence
+remain open Phase 2 work.
+
+The post-correction full suite passes: 1,211 test files passed and 5 skipped;
+13,619 tests passed and 119 skipped. The known synthetic listener and canvas
+warnings were emitted, but the run exited successfully.
+
+## Phase 5 per-source ingress fairness
+
+Before: the remote host had one global in-flight admission limit, so a single
+slow HTTP/WebSocket source could consume the shared budget and return `host_busy`
+to every other client.
+
+After: HTTP sockets and WebSocket sessions now have their own bounded admission
+counter (32 by default) in addition to the global cap. Saturating one source
+returns the same explicit 503 `host_busy` result while another source can still
+enter available global capacity; all admitted work remains in the existing
+shutdown tracker. The regression and remote server suites pass 127 tests, with
+full typecheck and touched type-aware lint green.
+
+This isolates host admission by source. Relay-wide scheduling, weighted
+fairness, outbound byte budgets, and cross-host queue isolation remain Phase 5
+work.
+
+## Phase 4 bounded terminal hydration
+
+Before: `XTermSurface` appended every live PTY chunk to one string while xterm
+parsed historical scrollback. A slow parser could therefore retain an
+unbounded suffix and then flush an incomplete cursor range into the visible
+terminal.
+
+After: renderer-side hydration keeps at most one million UTF-16 units. When a
+chunk would cross that bound, the incomplete suffix is discarded and the
+surface requests an authoritative local scrollback read or a fresh remote
+cursor baseline. Three consecutive overflow recoveries are the limit; after
+that the surface reports terminal output unavailable instead of retrying
+forever. The regression suite covers feed resubscription, authoritative
+replacement, live-only blocking, empty authoritative replacement, and the
+absence of an oversized xterm write. The focused XTerm suite passed 46 tests,
+with typecheck, touched type-aware lint, and formatting green. Worker-side
+reduction, frame-budgeted presentation, and broader client queue accounting
+remain Phase 4 work.
+
+The exact-tree full suite then passed: 1,211 test files passed and 5 skipped;
+13,624 tests passed and 119 skipped. The known synthetic listener and canvas
+warnings were emitted, but the run exited successfully.
+
+## Phase 4 bounded runtime presentation queue
+
+Before: desktop and remote renderers coalesced runtime events per animation
+frame, but each pending thread still used an unbounded array. A stalled window
+or background tab could therefore retain an arbitrary number of deltas before
+the next frame or background timer ran.
+
+After: both delivery paths use one bounded, byte-accounted runtime queue: 4,096
+events and 8 MiB per client, with a 2 MiB per-thread limit. An overflow drops
+the incomplete batch, clears that thread's partial projection, and keeps a
+bounded post-baseline tail while an authoritative recovery runs. Local
+recovery repeats the read when that thread's sequenced stream advances and
+discards only tail entries covered by the stable observed sequence. Remote
+recovery resumes before its ordered replay buffer is delivered. A second
+overflow or failed recovery keeps the thread blocked with a retryable hydration
+state; a reset cannot unblock it ahead of the recovery generation. The queue,
+transport, synchronization, and Electron renderer suites pass 76 tests;
+typecheck, touched type-aware lint, and formatting are green.
+
+This closes the final-consumer memory admission gap. Worker-side decode and
+reduction, incremental markdown work, and measured frame-budget qualification
+remain open Phase 4 work.
+
+The exact-tree changed-surface Electron smoke then passed from the frozen
+renderer, including the new IPC-contract and shared-runtime selections:
+`/Users/svecherenko/.poracode-smoke/automated-1789333381594-81453/artifacts/smoke-report.json`.
+All automated scenarios and mock gates passed with zero captured
+renderer/runtime errors; the existing teardown-time shell-state warning was
+the only emitted app error.
+
+The widened repository run at this candidate reached 1,210 passing test files
+and 13,630 passing tests (5 files and 119 tests skipped). Two unrelated real
+mode-parity provider fixture tests (`src/supervisor/agents/codex/probe.test.ts`
+and `src/supervisor/agents/copilot/detection.mockGuard.test.ts`) failed because
+their sentinel subprocess did not start; the renderer/transport suites and
+smoke remain green.
+
+## Phase 8 bounded PTY shutdown join
+
+The supervisor runtime already tracked PTY exit callbacks, but manager shutdown
+killed active agent and shell PTYs without joining those callbacks. Shutdown now
+waits for every tracked PTY after issuing kills, with the existing two-second
+per-process bound. The join now returns explicit confirmation; an unconfirmed
+PTY makes supervisor disposal fail and exit non-zero instead of claiming a
+clean shutdown. The focused lifecycle, restart-terminal, and supervisor-runtime
+suites pass 62 tests (one platform-skipped), with typecheck, touched type-aware
+lint, and formatting green. Provider descendants, Windows process-tree proof,
+and the outer Electron quit barrier remain open F11 work.
+
+The exact-tree full suite then passed: 1,211 test files passed and 5 skipped;
+13,626 tests passed and 119 skipped. The known synthetic listener and canvas
+warnings were emitted, but the run exited successfully.
+
+## Phase 4 remote thread-membership index
+
+Before: every remote event rebuilt a `Set` from all runtime threads and then
+added the open thread, provisioning thread, and background interests. The cost
+was proportional to the whole thread list even when a token update touched one
+row.
+
+After: the runtime thread array feeds an identity-keyed membership index that is
+reused until its source array changes. The event path adds only the small set of
+open, provisioning, and background-interest ids and passes a structural `has()`
+matcher to the existing filter, preserving the same event selection and
+ordering. A focused remote-store and event-routing run passes 123 tests, with
+typecheck, touched-file lint, formatting, and diff checks green.
+
+This removes a code-confirmed per-event allocation pattern; its latency and allocation savings have not been measured. JSON decoding,
+validation, reconciliation, persistence, and UI reduction still run on the
+client thread; the worker engine, incremental reducers, and frame-budgeted view
+patches remain open F9 work.
+
+## Phase 5 relay control-link congestion isolation
+
+Before: a relay host's bounded outbound admission used the same overflow action
+for registration, HTTP responses, and WebSocket channel traffic. A slow visitor
+or a full host-to-relay control buffer could therefore close the shared control
+socket and take healthy channels and requests with it. The relay server had the
+same failure mode when writing visitor requests or forwarded channel frames to a
+congested host control socket.
+
+After: host control-link bulk sends now report per-request failure without
+closing the shared socket; a failed streaming response removes and aborts only
+that local request. Local WebSocket data congestion closes only its channel and
+uses a bounded reserved control budget for the `ws-close` notice so the relay
+can evict the matching visitor. The relay server keeps host control sockets open
+when a request or channel frame cannot be admitted, while visitor sockets still
+close independently on their own outbound overflow. Close and cancel notices
+use the same bounded per-host reserve; exhausting that reserve tears down the
+affected host so a stale channel or request cannot remain registered forever. A
+congested registration acknowledgement removes the unacknowledged host entry
+and closes that registration attempt so the host can retry cleanly. Buffered
+HTTP fallback and older negotiated peers remain intact.
+
+The focused relay host/server, HTTP streaming, and binary-fidelity suites pass
+100 tests, with typecheck, touched-file lint, formatting, and diff checks green.
+Registration-ack, local-close, visitor-close, HTTP request, and sibling-channel
+congestion regressions are covered in the same run. Local renderer global
+shedding, weighted relay scheduling, reserved control capacity qualification,
+and the full multi-client capacity run remain Phase 5 work.
+
+## F7 integration checkpoint and v2/master replay
+
+The F7 correction batch (26 modified + 11 new files, all under the recorded
+checkpoint allowlist) is preserved as one local checkpoint commit before the
+branch replays the five incoming `origin/poracode/v2` commits and merges
+`origin/master` (#765, JSONC runtime dependency). Integration order: checkpoint
+-> rebase onto freshly fetched origin/poracode/v2 -> `merge --no-commit`
+origin/master -> semantic ci.yml resolution (v2 `web_build`/`ci_gate` plus
+master's `runtime_deps`) -> correction fixes A-D -> local full checks. No push,
+no final integration commit, and no application launch in this stage; hosted CI
+and a fresh integrated live F7 run remain explicit gates.
+
+Recovered pre-integration mock evidence (`tmp/v4-f7-final-live/RECOVERY.md`):
+the interrupted mock-mode inventory is substantiated — automated 9/9 PASS with
+0 console/runtime errors over the frozen build; this is mock-mode evidence, not
+real-provider or live qualification. F7 live qualification, Phase 3, and full
+V4 acceptance remain OPEN.
+
+Open findings carried into integration (from the independent final review):
+A. per-window interest/identity changes whose merged union is unchanged do not
+republish the delivery table; B. native/sleep handling still applies to every
+targeted copy before staleness branching; C. `RendererStreamGrantAuthority`
+`onError` is unused and destroy/release syncs can reject unhandled; D. duplicated
+hand-built `call-supervisor` envelopes in the main client and backend.
+
+## F7 integration replay, v2/master merge, and correction delta
+
+Checkpoint `2f25fb923` preserved the 37-file F7 batch exactly (allowlist
+`tmp/v4-orchestration/f7-checkpoint-allowlist.txt`; the foreign `.poracode/`
+worktree and tmp scratch excluded), with backup ref
+`v4-backup/f7-checkpoint-2d6a2692-20260914`. The checkpoint rebased cleanly
+onto freshly fetched `origin/poracode/v2` `9ddcbb4d` (five commits; only
+`src/main/main.ts` conflicted — resolved to keep v2's `Error | null` typing and
+the F7 `toError` normalization; `versioning.md` and `BackendHostCore.test.ts`
+auto-merged both sides) -> `3c4cd1107`. `git merge --no-commit origin/master`
+`0c99e7e13` resolved the single `.github/workflows/ci.yml` conflict by keeping
+v2's job set plus master's `runtime_deps` job, with `ci_gate` now depending on
+it; `scripts/build-desktop-artifact.mjs` kept master's JSONC staging line.
+
+Correction delta on the combined source (findings A-D from
+`tmp/v4-f7-final-review/REVIEW.md`):
+
+- A: new `RendererEventInterestsWiring` owns publication and republishes the
+  per-window delivery table for every per-window interest/identity change,
+  including a union-unchanged change; `main.ts` now uses it.
+- B: new `createRendererEventDispatcher` applies native/sleep state exactly
+  once on the shell/legacy path, never on targeted or stale copies, and skips
+  the quick-composer agent-status forward only when the same envelope already
+  reached that window as a targeted copy.
+- C: `RendererStreamGrantAuthority.sync()` reports through `onError` and never
+  rejects; destroy/release paths cannot produce unhandled rejections, and
+  retries stay intact through the host client's dedupe-key reset.
+- D: `createBackendSupervisorRequest` restored as one origin-aware builder used
+  by the main client and the backend forwarder.
+- Follow-on integration fixes: `mainProcessFetch.test.ts` host mocks gained the
+  missing `onRendererStreamRecovery`; `sharp` was added to `RUNTIME_DEPS` after
+  the newly merged runtime_deps check exposed it as a v2-only backend-host
+  runtime external.
+
+Local verification (exact tree, after all edits): `pnpm run typecheck` exit 0;
+`pnpm run lint` exit 0; `pnpm run fmt:check` exit 0; full `pnpm run test`
+13,796 passed / 119 skipped / 0 failed (1,227 files); `node --test
+scripts/*.test.mjs` 29/29; probe `node --test .../poracode-ipc-probe.test.mjs`
+14/14; `codex-protocol:gen` produced no generated drift; `build:web` produced
+every CI-verified output; `build:electron` plus `--check-runtime-deps`
+validated 17 emitted runtime dependencies. The integration remains
+uncommitted; the index holds the resolved merge plus the correction files, and
+the final integration commit is the coordinator's.
+
+Still OPEN: hosted CI for this integrated candidate (full CI matrix including
+`rust_helper` and sharded tests; Native clients including the known Android 17
+emulator gate), a fresh integrated live F7 two-window acceptance run, and the
+remaining Phase 3/full-V4 items. No push, no PR action, and no application
+launch in this stage.
+
+## 2026-09-14 — F7 delivery single-path boundary correction (integrated candidate)
+
+Independent integrated review (`tmp/v4-integrated-review/REVIEW.md`) confirmed one
+Important defect, two Nits, and re-confirmed findings A–D on frozen candidate
+HEAD `3c4cd1107` + MERGE_HEAD `0c99e7e13` (19 staged files, 0 unstaged). The
+correction below is main-local dispatch semantics plus evidence/documentation
+hygiene; no wire shape, operation, or version identifier changed. F7, Phase 3,
+and full V4 remain **OPEN**.
+
+**Finding 1 (Important, proven across IPC).** The quick-composer duplicate
+suppression keyed on `WeakSet<SupervisorEvent>` object identity. That holds only
+in-process: the backend planner hands the same object to the targeted copy and
+the shell remainder, but each `process.send` crosses as its own deserialized
+object, so main delivered the copy and then also forwarded the shell remainder
+to the visible overlay. The review's real forked-child reproduction is promoted
+into production coverage: `rendererEventDispatch.ipc.test.ts` composes the real
+relay, real planner, real `RendererStreamOwnership` table, real
+`BackendHostClient` over a forked backend-host IPC channel, the real grant
+authority, and the real dispatcher. **Decision: single delivery path.** The
+quick-composer overlay's agent statuses are delivered only by the shell forward;
+the dispatcher never sends the structurally redundant targeted copy to the
+overlay window. The choice is robust where correlation is not: the overlay is a
+fallback recipient while its direct stream is unacked, the two envelopes cannot
+be correlated in main after serialization, and the forward is never suppressed
+by a copy, so a dropped or stale copy cannot lose a status and nothing is
+deduped (identical-payload distinct events each deliver). Direct-owned overlays
+keep their direct stream — the renderer transport ignores IPC envelopes while
+connected (`electronBackendTransport.test.ts` "keeps accepting the IPC fallback
+until the direct stream acknowledges interests"), so the direct path does not
+duplicate either. Hidden overlays refetch on show, exactly as the forward's own
+visibility gate already documents. The `WeakSet` is removed.
+
+Regression coverage: serialization identity loss, consecutive identical
+statuses, stale-generation copies, destroyed/unresolvable targets, window
+reload/grant re-mint, legacy pre-table relay, direct-owned overlay, non-agent
+status copies unchanged, and native/control state exactly once on the shell
+path. Failing-before (final test code, staged pre-fix dispatcher):
+`tmp/v4-final-boundary-correction/failing-before-final.log` — 4 failed / 9
+passed, including the forked-IPC duplicate; passing-after
+`passing-after-final.log` — 13/13. The review's own repro remains at
+`tmp/v4-integrated-review/repro-ipc.test.ts` (2/2).
+
+**Finding 2 (Nit).** Restored the `onError` terminator and moved the
+`shellRemainderWindowId` contract above its member in
+`rendererStreamGrantAuthority.ts`; `oxfmt --check` is clean.
+
+**Finding 3 (evidence hygiene).** `tmp/v4-integration-execution/runtime-deps-check.log`
+is preserved as the pre-`sharp` failure and is no longer cited as passing. The
+truthful passing run is captured explicitly at
+`tmp/v4-final-boundary-correction/runtime-deps-check-current.log` (exit 0,
+"validated 17 emitted runtime dependencies"), independently matching the
+critic's `tmp/v4-integrated-review/evidence/runtime-deps-check-current.log`; the
+integration report's issue text and verification table now point at it.
+
+**Finding 4 (real accessibility defect exposed live).** The live inventory's
+first run failed `visual-a11y` with 2 unlabeled controls while real dev
+terminals were open: the desktop terminal-tab close buttons in
+`BottomTerminalLayout.tsx` and `RightTerminalLayout.tsx` carried only a
+`Trash2` icon. The upstream markup was preserved (native button, hover reveal,
+`tabIndex={-1}`) and both now carry `aria-label={t`Close tab`}` — the existing
+`Close tab` message already translated in all 12 non-English catalogs (Lingui
+extract updated references only; 0 missing everywhere). The mobile terminal
+layout already carried its own label and is unchanged, so no native/shared
+parity work was required. A clean rerun with tabs closed does not close this
+finding; the live visual-a11y gate must run with terminals OPEN.
+
+**Compatibility decision.** No envelope, operation, payload field, ordering
+rule, or version changed: host 13 / stream 5 / facade 10 stay exact, reserved
+host 8–12/stream 4/facade 9 remain unconsumed, and remote/native protocols are
+untouched. Because no boundary moved, no migration or new pre-upgrade fixture is
+required; the existing mixed-pairing rejection gates still pin the boundary.
+Recorded in `.agents/docs/versioning.md`, the `BACKEND_HOST_PROTOCOL_VERSION`
+comment, and `.agents/docs/architecture.md`.
+
+**Verification (final tree).** `pnpm run typecheck` exit 0; `pnpm run lint`
+both modes exit 0; `pnpm run fmt:check` exit 0 (3,983 files); full
+`pnpm run test` 13,805 passed / 119 skipped / 0 failed (1,228 file suites passed, 5 skipped); focused
+backend suites 111/111 and dispatcher suites 13/13; `i18n:extract` 0 missing in
+all 12 non-English catalogs; `node --test scripts/*.test.mjs` 29/29; IPC probe
+`node --test .../poracode-ipc-probe.test.mjs` 14/14; `codex-protocol:gen` no
+generated drift; `protocol:remote:v3:check` up to date; `build:renderer` and
+`build:web` (which rebuilds Electron) exit 0; `--skip-build
+--check-runtime-deps` 17 externals exit 0. Logs are under
+`tmp/v4-final-boundary-correction/`.
+
+**Live evidence status (corrected wording).** The previous live run already
+proved active direct ownership at zero backend bulk crossings (31 markers),
+positive targeted fallback during a partition (22 bulk envelopes / 6,424
+estimated bytes, 61 ordered markers, no duplicates), and shared-interest
+recovery; it did **not** explicitly exercise strictly disjoint window sets
+A`[T1]`/B`[T2]` or stale-generation barrier injection, and its P3 pair was the
+shared/role-overlap case A`[T1]`,B`[T1,T2]`,C`[]` — useful partial evidence, not
+a substitute for the strict disjoint case. Its generic "real-provider/live F7
+NOT RUN" wording was overbroad (plain-shell mock-host F7 was live; real
+providers, remote, native, and 120 fps remain unqualified) and is corrected in
+`tmp/v4-integrated-live/REPORT.md`. Next final live verification must replay the
+valid P1/P2/P3/P5 phases plus the strict disjoint case, a stale-generation
+injection, and visual-a11y with terminals OPEN, on the final candidate.
+F7/Phase 3/full V4 stay OPEN pending final critic, live, and hosted-CI gates.
+
+## 2026-09-14 — F7 final critic, live acceptance, and publication
+
+The 35-path frozen candidate (`3c4cd1107` + `MERGE_HEAD 0c99e7e13`) passed the
+independent final critic: the single-path dispatcher fix is structurally
+correct on the real forked backend-IPC path (pre-fix 4 failed / 9 passed,
+post-fix 13/13, with the relay, planner, ownership table, grant authority, and
+`BackendHostClient` all real), A/C/D and the ci.yml merge survive, the version
+stays host 13 / stream 5 / facade 10, and the localized terminal-tab labels are
+present in all 12 non-English catalogs (no added empty `msgstr`). The critic's
+two findings were evidence-hygiene nits only: a stale scratch
+`staged-hashes.txt` entry for this log, and lint/fmt/full-test logs that
+predated the last test-helper simplification. Both are resolved in this
+publication stage: the manifest is regenerated at
+`tmp/v4-f7-publication/staged-hashes.txt` after the final tracked bytes settle,
+and fresh exact-byte `typecheck`/`lint`/`fmt:check`/full-test runs are recorded
+in `tmp/v4-f7-publication/REPORT.md`. No product source changed here.
+
+The final LIVE mock-host run passed all six required cases on source
+`6515ed5d…` / artifact `594459c0…`: active direct ownership with zero backend
+bulk (30 markers, 3 control envelopes); partition fallback (38 targeted bulk /
+12,993 estimated JSON bytes) with ordered reconnect; strict disjoint
+main-DIRECT `[T1]` vs quick-composer FALLBACK `[T2]` (T1-only zero main bulk,
+T2-only 23 targeted / 8,110 B, concurrency preserved); a real window
+generation re-mint to gen 3 that rejected the injected old-gen-1 data envelope
+while an identical-shape gen-3 control was accepted and 23 markers continued;
+20 agent statuses applied 20 times (the producer's identical empty-WSL pair is
+not a transport duplicate); and full mock inventory 9/9 automated + 17/17
+mocked with 0 errors, both terminal layouts labeled with two OPEN tabs. This
+closes the local F7 implementation and live acceptance finding; F7's remaining
+qualification is hosted CI plus real-provider, remote, native, packaged-release,
+and 120 fps evidence, and Phase 3/full V4 remain OPEN.
+
+Publication: after the exact-byte local checks above pass, the pending merge of
+`origin/master` `0c99e7e13` into `poracode/v2` is committed as one milestone
+commit (parents `3c4cd1107` and `0c99e7e13`) and pushed normally to
+`origin/poracode/v2`; the F7 batch, the ci.yml merge, and these docs are one
+commit. Hosted CI and Native clients for the pushed commit are tracked by PR
+#725 checks (dynamic; no future result is preclaimed here). Remaining work
+follows the plan: Phase 3 off-main remote HTTP/binary transport and the wider
+accepted-workload run, then the off-thread client engine, fairness, payload,
+web lifecycle, and artifact/soak phases. Exact check logs, commit/push
+identity, and CI results are recorded in `tmp/v4-f7-publication/REPORT.md`.
+
+## 2026-09-14 — F8 off-main remote HTTP bridge implementation (candidate)
+
+Status: implementation ready for independent qualification. F8 and Phase 3 stay
+OPEN; nothing here is published, and no live/managed AFTER acceptance has run.
+
+**What changed.** Desktop remote HTTP no longer crosses Electron main with a
+full body. A lazily forked utility process (`src/main/remoteHttp/`) owns client
+outbound `fetch`; main authenticates the invoking window + main frame, admits
+bounded metadata (http(s) only, UUID identity, header/URL/body budgets,
+global/per-window request caps), and hands one half of a per-request
+`MessageChannelMain` to the utility and the other to that exact renderer via
+`webContents.postMessage`. The renderer builds a real `Response` from a
+credit-gated `ReadableStream`; upload bytes stream to the utility as bounded
+chunks and stay retained there until the request settles so 307/308 redirects
+can replay them, with a documented aggregate retention budget and immediate
+release on every settle path. Main receives no body bytes and never auto-retries
+or falls back to a main fetch: a failed bridge request rejects, a later call
+opens a fresh generation.
+
+**Boundaries.** `REMOTE_HTTP_BRIDGE_VERSION = 1` in
+`src/shared/remote/httpBridgeProtocol.ts`; `PORACODE_CLIENT_RUNTIME_VERSION`
+10 → 11 in `src/shared/clientRuntime.ts`; backend host 13 / renderer stream 5
+are unchanged, remote wire 12 and native clients are untouched, and no state is
+persisted (no migration). The old `remoteHttpRequest`/`remoteHttpRequestCancel`
+main-local procedures and their full-body/base64 handler were removed; remote
+image reads now use the same bridge. Preserved limits: 64 MiB response, 60 s
+whole-request, 20 MiB server attachment cap; Node `fetch` redirect/auth
+semantics (cross-origin 307/308 authorization stripping, no cookie jar, no
+`Origin` injection). Electron's `MessagePortMain` transfer list accepts ports
+only, so chunks cross the port as structured-clone copies bounded by credit;
+this milestone claims no zero-copy.
+
+**Verification performed (candidate worktree only).** `pnpm run typecheck`
+exit 0; focused suites green (`src/main/remoteHttp` 24 tests incl. a real
+disposable loopback server for 8 MiB byte identity/order, credit gating,
+mid-body cap, upload retention/aggregate budget, 307/308 cross-origin replay
+with authorization strip, timeout, null-body statuses, unknown frames;
+`src/renderer/state/remoteServers` client races and end-to-end bridge tests;
+`imageActions`, `clientRuntime`, `remoteServersStore` mocks updated);
+`pnpm run build:renderer`, `pnpm run build:web`, and `pnpm run build:electron`
+exit 0; `node scripts/build-desktop-artifact.mjs --skip-build
+--check-runtime-deps` validated 17 emitted runtime dependencies (unchanged);
+touched-file `oxlint`/`oxfmt --check` pass. A focused app-level live probe was
+not run by the implementer.
+
+**Open / not yet claimed.** Independent source review and the managed live
+AFTER fixture (identity-gated main byte counters at zero, server-observed abort,
+packaged `remoteHttpBridge.cjs` utility startup from `app.asar.unpacked`) belong
+to the verifier; hosted CI has not run on this candidate; the wider Phase 3
+accepted-workload run (eight producers, large history/attachment traffic,
+continuous input/resize/menu) remains open; and the separate finding that
+`BackendRendererStream.sendReply` permits 64 MiB while `send()` closes the
+socket at a 1 MiB budget is the next Phase 3 item 6 task, deliberately not
+implemented here. Exact files, commands, bounds, and risks are in
+`tmp/v4-f8-implementation/REPORT.md`.
+
+## 2026-09-14 — F8 post-review correction batch (candidate, uncommitted)
+
+Status: one consolidated correction ready for fresh independent verification.
+F8 and Phase 3 stay OPEN; no live/managed/package smoke ran in this lane.
+
+**Inputs.** `tmp/v4-f8-review/REVIEW.md` confirmed F8-R1: the utility emitted
+response `head` frames its own downstream validator rejects when a legal
+response had more than 64 headers, a name/value beyond 256/8192 chars, or more
+than 32 KiB of metadata; the renderer silently dropped the frame and the
+request failed only at the 60 s deadline. Its nonblocking notes covered missing
+upload admission/credit, a forked-utility leak on spawn timeout, dead
+`frameRoutingId` storage, a stale removed-path mock, and report claims that
+were not true of production builds.
+
+**What changed.** Response metadata now has its own budget — 4096 header pairs,
+1024-char names, 16 KiB values, 64 KiB total, 1024-char status text — enforced
+by the utility before posting `head`; a frame that would fail validation is
+replaced with an explicit bounded `too-large` error and the socket is released.
+The renderer now fails an invalid frame on the active request promptly (still
+fencing valid frames with a different request id/generation). Uploads are
+admission-gated: the declared length is reserved against the 96 MiB aggregate
+account at open, the utility posts an initial `upload-grant` of at most 1 MiB
+only after that reservation, grants accepted bytes back, and the renderer
+posts only within the granted window in bounded quanta — a paused utility
+cannot enqueue a full 64 MiB body and a stalled upload cannot block a sibling.
+The body is retained in one declared-length replay buffer (also the fetch body)
+instead of a chunk list plus a concatenated copy; release on every settle path
+returns reservation and retention to zero. Fork lifecycle cleanup: every
+attempt consumes a generation before forking, spawn timeout/early exit kills
+the owned child with its listeners and timer detached, shutdown during start
+kills the child and refuses to publish it, a natural exit avoids a redundant
+kill, and a retry starts the next generation. `frameRoutingId` and its frame
+parameter were removed (main-frame admission already happens in the IPC
+registration), the stale `remoteHttpRequest` mock was deleted, and the
+utility's global `unhandledRejection` suppression was removed so a stray
+rejection follows Node's default termination path while main fences the
+generation and renderer ports close.
+
+**Boundaries.** `REMOTE_HTTP_BRIDGE_VERSION` 1 → 2 in
+`src/shared/remote/httpBridgeProtocol.ts` (new `upload-grant` frame plus the
+response metadata budget); facade `PORACODE_CLIENT_RUNTIME_VERSION` stays 11
+because the required preload API shape is unchanged and the bridge frame gate
+rejects a mixed pairing loudly. Preload/utility/client mirrors, the version
+inventory (`.agents/docs/versioning.md`), and the packaging `asarUnpack` entry
+were re-audited. F7 host 13 / stream 5, remote wire 12 / relay 3, and
+browser/mobile fetch semantics are untouched. No automatic retry or main-body
+fallback.
+
+**Verification performed (candidate worktree only).** `pnpm run typecheck`
+exit 0; `pnpm run lint` (both modes) and `pnpm run fmt:check` exit 0;
+`pnpm run test` = 1232 file suites passed / 5 skipped, 13,859 tests passed /
+119 skipped / 0 failed; focused node + renderer bridge suites green including
+real-loopback 65-header and 9000-character responses, response-metadata
+overflow, queued/cloning upload-credit with a paused utility and a healthy
+sibling, reservation admission/release, malformed-head prompt failure, and
+supervisor timeout/late-spawn/early-exit/concurrent-start/shutdown-during-start
+lifecycle tests; `pnpm run build:renderer`, `pnpm run build:web`, and
+`pnpm run build:electron` exit 0 (`dist/main/remoteHttpBridge.cjs` is
+require-free and console-free under production minify); `pnpm run
+protocol:remote:v3:check` up to date; `node scripts/build-desktop-artifact.mjs
+--skip-build --check-runtime-deps` validated 17 emitted runtime dependencies;
+the smoke-runtime and IPC-probe node tests pass 6/6 and 14/14.
+
+**Open / not claimed.** Fresh independent source verification of this
+correction, the managed live AFTER fixture (identity-gated main byte counters
+at zero, server-observed abort, packaged utility startup), and hosted CI have
+not run. Log/report claims were corrected instead of worked around: utility
+settle logging exists only in non-minified builds (`dropConsole`), and the
+utility `--inspect` flag is ignored when packaged. The separate
+`BackendRendererStream.sendReply` 64 MiB vs `send()` 1 MiB reply-budgeting
+finding remains the next Phase 3 item. Exact changes, bounds, commands, and
+residual risks are in `tmp/v4-f8-correction/REPORT.md`.
+
+## 2026-09-14 — F8 admission/clone/credit boundary correction (candidate, uncommitted)
+
+Status: second consolidated correction ready for fresh independent verification.
+F8 and Phase 3 stay OPEN; no live/managed/package smoke ran in this lane.
+
+**Inputs.** `tmp/v4-f8-final-review/REVIEW.md` confirmed the R1 closure, the
+upload-grant/credit core, redirect identity, and the startup lifecycle, and
+confirmed three remaining defects with scratch repros. F8-R2: an open admitted
+before `ensureStarted()` yielded kept no record until after the await, so a
+pre-port abort or window navigation/close during a cold start was lost and the
+request was still dispatched and its port handed to whatever document now owned
+the window. F8-R3: admission caps were checked against `records` before the
+await and records inserted after it, so concurrent cold-start opens passed the
+64/128 caps (192 admitted in the repro); a utility-side rejection posted only a
+port error, leaving the main record to the 90 s safety timer, and duplicate
+ids overwrote the count. F8-R4: `pumpUpload` posted `body.subarray(...)`, and V8
+structured clone preserves the whole viewed backing store, so every 1 MiB chunk
+frame cloned the full body and the advertised 1 MiB in-transit bound was false.
+
+**What changed.** Main now reserves the admission record (id, sender, per-window
+and global counts) synchronously before awaiting the shared start, and after the
+await re-validates the record identity, cancellation, published child/generation,
+shutdown epoch, and target destruction before any channel, descriptor, or port
+envelope exists; `cancel`/`abortWindow` retire a starting reservation, and every
+release is fenced by expected-record identity so a stale continuation, safety
+timer, or settlement cannot release a newer record that reused an id. The
+utility emits its existing `settled` control frame for valid descriptors that
+fail admission (overloaded/too-large/retention budget), so main frees the slot
+immediately instead of after the safety timer; duplicate-id and malformed
+descriptors never notify, because they cannot be attributed to a distinct
+main-side reservation without risking the accepted request of the same UUID.
+Upload chunks are posted as exact-length owned copies (`slice` of the logical
+range), so one structured clone carries exactly one chunk and zero bytes from
+the caller's backing store. The utility clamps accumulated response credit to
+the documented 1 MiB ceiling (`REMOTE_HTTP_RESPONSE_CREDIT_BYTES`) and the
+shared upstream validator bounds a single credit frame the same way, so
+ordinary refills, a grant burst, or a duplicate grant cannot authorize a
+full-body response burst. No frame shape changed.
+
+**Boundaries.** `REMOTE_HTTP_BRIDGE_VERSION` stays 2 and
+`PORACODE_CLIENT_RUNTIME_VERSION` stays 11: this is compatible enforcement/bug
+fixing (no new frame or field; the rejection settle reuses the existing
+`settled` control frame, and both credit bounds now match the advertised
+1 MiB contract), so no peer is minted and the packaged utility entry,
+`asarUnpack` entry, preload marker, and renderer gate are unchanged. The 96 MiB
+aggregate upload account is restated as committed utility-side bytes
+(reservation + retention), not total RSS; in-transit clone bytes are separately
+bounded by the 1 MiB upload window per request, and response/consumer copies are
+documented as outside that account. F7 host 13 / stream 5, remote wire 12 /
+relay 3, and browser/mobile fetch semantics are untouched. No automatic retry or
+main-body fallback.
+
+**Verification performed (candidate worktree only).** `pnpm run typecheck`
+exit 0; `pnpm run lint` (both modes) exit 0; `pnpm run fmt:check` all 3,995
+files formatted; `pnpm run test` = 1232 file suites passed / 5 skipped, 13,874
+tests passed / 119 skipped / 0 failed. Focused: node bridge suites (3 files,
+53 tests) and renderer bridge client/e2e suites (2 files, 24 tests) green,
+including the promoted repros (192 open / 72 one-window burst held to 128/64,
+duplicate id during cold start, pre-port cancel, main-frame navigation during
+start, stale settle after restart, utility rejection releasing main immediately,
+64 MiB backing store / 20 MiB attachment with exact 1 MiB cloned chunks,
+response-credit burst clamp) plus the preserved R1, upload-grant,
+redirect-identity, and spawn-lifecycle tests. `pnpm run build:renderer`,
+`pnpm run build:web`, and `pnpm run build:electron` exit 0;
+`dist/main/remoteHttpBridge.cjs` is require-free and console-free under
+production minify; built `dist/main/preload.cjs` advertises
+`remoteHttpBridgeVersion:2`; `pnpm run protocol:remote:v3:check` up to date;
+`node scripts/build-desktop-artifact.mjs --skip-build --check-runtime-deps`
+validated 17 emitted runtime dependencies; the smoke-runtime node test passes
+6/6.
+
+**Open / not claimed.** Fresh independent source verification of this second
+correction, the managed live AFTER fixture (identity-gated main byte counters at
+zero, server-observed abort through the real Electron transport, packaged
+utility startup, real `MessagePort` clone memory), and hosted CI have not run.
+The same-generation reuse boundary is documented: a stale settle is fenced by
+the child/message generation and starting reservations are never dispatched, so
+only a deliberate UUID collision plus a main-side early release could alias one
+id inside one generation. Exact changes, invariants, corrected memory bounds,
+commands, and residual risks are in
+`tmp/v4-f8-admission-correction/REPORT.md`.
+
+## 2026-09-14 — F8 transport/UI qualification and publication
+
+Status: F8 QUALIFIED (transport + UI) and published as one substantial commit
+on `poracode/v2`. No new product edits in this lane: docs-only updates here;
+all F8 source changes are committed as-is. Phase 3 and full V4 stay OPEN.
+
+**Candidate identity.** Base `49f46104078ae8c7d91f708b3d93dfed78be9dd2` plus
+the frozen uncommitted F8 batch; source SHA
+`74dcf4e091d9a63a70bb2fc61a3360e618a1c972ac86d4c08e1a1e45c3acc983`
+(`dirty:true` is the candidate itself). Bridge frame set 2 / facade 11; host
+13 / stream 5, remote 12 / relay 3 unchanged. Product bytes frozen across
+verification: pre-edit hashes of all 19 modified + 13 new product files
+re-verified identical after the doc edits, and the source SHA recomputed equal
+with the repo's own `hashTree` over `SOURCE_PATHS` (docs are outside it).
+
+**Accepted evidence.**
+
+- Source/full checks (`tmp/v4-f8-admission-correction/REPORT.md`):
+  `typecheck` exit 0; `lint` both modes exit 0; `fmt:check` 3,995 files;
+  `pnpm run test` 1232 suites passed / 5 skipped, 13,874 passed / 119 skipped /
+  0 failed; focused node bridge 3 files / 53 pass + renderer bridge 2 files /
+  24 pass closing R1/R2/R3/R4/credit/lifecycle; renderer/electron/web builds
+  exit 0; `protocol:remote:v3:check` up to date; 17 runtime deps;
+  smoke-runtime 6/6.
+- Independent source + real transport (`tmp/v4-f8-qualification/REPORT.md`,
+  `90-summary.json`): main HTTP body bytes 8 MiB before to 0 after on every
+  metered leg; real 8 MiB text/binary/image/upload and 32 MiB response hashes
+  (text8 `bc063c2a…`, binary8 `49df924e…`, text32 `e8b5bb38…`); slow-consumer
+  sibling isolation; all abort paths; utility kill with exactly one POST
+  arrival (no replay) and next-generation health; two real windows at 2x8 MiB
+  main-zero with server concurrency 2; navigation abort server-observed with
+  slot cleanup; packaged `file://` utility request/upload main-zero.
+- Full mock + packaged UI (`tmp/v4-f8-ui-qualification/REPORT.md`): full
+  `--mode mock` smoke 9/9 automated and 17/17 mock gates with 0 errors on the
+  exact source hash; packaged Settings opened via a real control with 0
+  console errors; dist utility/preload rehashed equal to evidence. Full smoke
+  report:
+  `/Users/svecherenko/.poracode-smoke/automated-1789418462202-20574/artifacts/smoke-report.json`.
+- F7 hosted CI confirmed at the base SHA `49f4610`: CI run 34830207321 and
+  Native clients run 34830207274, both success (PR duplicates 34830213345 /
+  34830213360 also success):
+  `https://github.com/Porabuild/Poracode/actions/runs/34830207321` and
+  `https://github.com/Porabuild/Poracode/actions/runs/34830207274`.
+  PR #725 remains OPEN/DRAFT.
+
+**Carried honestly (nonblocking, no product-regression conclusion).**
+Second-window-destruction-mid-transfer and packaged Settings-close legs unrun;
+intermittent packaged CDP-bind flake beside the running foreign Nightly with
+causality NOT proven; the packaged Settings update-error toast and earlier
+worker labels kept as unexplained observations for the wider packaged
+startup/update release-qualification plan. No proven environment/no-network
+cause is asserted.
+
+**OPEN.** Hosted CI for the new F8 commit; real paired headless-client journey;
+eight-producer full acceptance; 120 fps; Phase 4 off-thread client; Phase 5
+fairness; full V4. F9 direction (bounded direct-stream replies, stream 6) is
+settled in `tmp/v4-orchestration/f9-execution-decisions.md` — a coordinator
+artifact, execution NOT started, Phase 3 item 6 not closed by this milestone.
+
+**Publication.** One substantial F8 commit pushed normally with
+`git push origin HEAD:poracode/v2` (fast-forward, no force, no amend of the
+F7 history). No master push, no PR merge/draft change, no external messages.
+Commit SHA, push confirmation, exact-SHA CI/Native run IDs, PR state, and final
+`git status` are recorded in `tmp/v4-f8-publication/REPORT.md` and
+`publication.json`.
+
+## 2026-09-14 — Android CI setup repair (workflow-only, committed)
+
+**Blocker.** At F8 SHA `787872f`, Native push run `34897440725` and PR run
+`34897443088` failed identically in step `Setup Android SDK`
+(`android-actions/setup-android@9fc6c4e…`, v3, no `with:` override): the
+action default `packages: tools platform-tools` runs
+`sdkmanager tools`, which exits 1 with `Warning: Failed to find package
+'tools'` before any Gradle/compilation step (evidence:
+`tmp/v4-f8-ci/REPORT.md`, `results.json`).
+
+**Fix.** All 4 `Setup Android SDK` sites (native-ci.yml ×3, release-mobile.yml
+×1) now pass `packages: ''`, per the action's documented input (empty string
+skips default installs; required `platforms;android-37.0` /
+`build-tools;37.0.0` remain explicit `sdkmanager` steps). Pins, API 37
+compile/target, minSdk 26, Gradle/tests/lint/emulator jobs, and required gates
+unchanged; no checks skipped or marked continue-on-error. Primary source:
+`action.yml` at pinned commit `9fc6c4e` (`packages` default
+`tools platform-tools`, `cmdline-tools-version` default `12266719`) and
+`https://github.com/android-actions/setup-android` ("Additional packages").
+
+**Validation.** Edited YAML parses (`yaml.safe_load`); all 4 sites carry
+`packages: ''` with the pin intact; all 4 explicit `sdkmanager` install steps
+present; `git diff --check` clean. Product bytes untouched (workflow + log
+only), so F8 product checks are reused, not rerun.
+
+**Publication.** One focused commit pushed normally with
+`git push origin HEAD:poracode/v2` (no amend/force/master push, no PR
+merge/draft change). Commit SHA, push confirmation, new-SHA CI/Native run IDs,
+PR state, and final `git status` are recorded in
+`tmp/v4-android-ci-repair/REPORT.md` and `publication.json`. CI stays
+**pending** until the new SHA passes; green is claimed only from run results.
+
+## 2026-09-14 — Phase 3 item 6 bounded large-reply transfer (uncommitted candidate, no commit/push)
+
+**Scope.** Implements the settled F9 execution direction
+(`tmp/v4-orchestration/f9-execution-decisions.md`) for the Phase 3 item-6
+finding: valid admitted replies in the (1 MiB, 64 MiB] range closed healthy
+sockets with 1013 (live BEFORE preserved in `tmp/v4-f9-before/REPORT.md`:
+3,313,927 B declared, 0 B delivered). Generic bounded framed transfer, no
+procedure whitelist, no post-admission replay/fallback. Stream 5 → 6; host 13,
+facade 11, bridge 2, remote 12, relay 3 unchanged. Resumes the
+`89fc5c59b7ae` lane state (implementation + tests + design checkpoint in the
+working tree, no prior completion report); preserves all inherited work.
+
+**Files (lane-owned).** New: `src/shared/rendererStreamChunks.ts` (+ test),
+`src/backend/rendererStreamChunkSender.ts`,
+`src/backend/rendererStreamRequestAdmission.ts`,
+`src/backend/rendererStreamLargeReply.test.ts`,
+`src/backend/rendererStreamLargeReplyAdmission.test.ts`,
+`src/backend/rendererStreamSmoke.test.ts`,
+`src/renderer/rendererStreamReassembly.ts` (+ test),
+`src/renderer/electronBackendTransport.largeReply.test.ts`,
+`src/main/backend/rendererStreamVersionGate.test.ts`. Wired (no God-file
+growth): `src/backend/BackendRendererStream.ts`,
+`src/renderer/electronBackendTransport.ts`,
+`src/shared/backendHostProtocol.ts` (version const + comment only).
+Compatibility surface with the active congestion-isolation lane
+(`src/backend/index.ts`, `rendererEventPublication.ts`) intentionally
+untouched; no shared API break reported.
+
+**Correctness fix during completion.** Focused verification exposed a fatal
+drain-phase defect in the inherited sender: the end-of-transfer ACK drain
+awaited the credit gate, which resolves immediately when unacked sits below
+the 2-chunk/128 KiB limits — an infinite microtask loop (100% CPU, starved
+timers/I/O/test timeouts, transfer never completes). Fixed with a dedicated
+pend-for-next-ACK waiter (`waitForAckOrTimeout`) used only by the drain loop;
+the send loop keeps the credit gate (only awaited when actually full). Also
+removed the lane's temporary `PORACODE_CHUNK_TRACE`/`writeSync` probes from
+the sender and rewrote the noisy scratch smoke test as a clean hash-equality
+regression. Former-lane probe logs (`probe-*.log`, abrupt mid-transfer end)
+are consistent with this defect, not with a protocol flaw.
+
+**Focused evidence (no broad runs in this lane).** One combined vitest run:
+11 files / 99 tests pass — lane suites 34 (framing 5, reassembly 8,
+transport wiring 6, delivery incl. 2 MiB hash equality / Unicode-escaping /
+64 MiB exact / 64 MiB+1 bounded / credit pause-duplicate-future / credit-stall
+abort / sibling isolation / large-mutation-once 7, admission incl. per-client
+overload / delivery-cancel slot hold / 128-orphan global / mutation-no-replay
+/ stale-frame + v5/v6 gates 6, smoke hash 1) plus adjacent pre-existing
+stream/transport suites 65. `tsc --noEmit` exit 0; `oxlint` plain and
+type-aware clean on all touched files; `oxfmt` applied. Exact file hashes and
+the defect analysis are recorded in
+`tmp/v4-reply-delivery-implementation/REPORT.md` (diagnostic bundles removed,
+run logs kept).
+
+**Not claimed.** No live app/CI verification, no full-repo build/test, no
+120 fps / client-engine / zero-copy claim, no Gate 1 completion. Frozen files
+(ChatScrollControls, iOS composition tests, `docs/V4_MERGE_GATES.md`) and the
+active lane's files were not touched. Broad checks, live AFTER on the actual
+client transport, and the single milestone commit stay with the root batch.
+
+## 2026-09-14 — combined foundation freeze: standalone-attach + checkpoint-identity integrated (uncommitted, no commit/push)
+
+**Identities.** Root HEAD and `origin/poracode/v2` are
+`ffe4f0f898cd705761c67ead9d444313f7dc0d10` (master `0c99e7e136` ancestor);
+both worktrees were at base `76d6e2ea3` on branches
+`poracode/v4-standalone-attach-batch` and
+`poracode/v4-checkpoint-integrity-batch`, no author commits. Upstream merges
+`7e6cd5d06a` (#772) and `ffe4f0f898c` (#773) preserved, not claimed as this
+batch. Pre-integration snapshot confirmed a clean index, the 10-file root
+dirty set plus 15-file root untracked set intact (hashes match the lane
+REPORTs), and foreign `.poracode/` untouched. Critic `c32` ended empty — no
+completed review exists.
+
+**Integrated (22 files, byte-exact).** All 14 tracked paths were blob-identical
+between base `76` and HEAD `ffe4` (upstream delta touches only
+GroupSummarySection/ToolCallGroup, locales, Antigravity), and all 8 new paths
+were absent in root, so direct application neither overwrote newer root
+content nor downgraded stream 6 (worktree diffs contain no version-constant
+changes; `backendHostProtocol.ts` stream-6 hash unchanged). Attach (15):
+`src/main/main.ts`, `src/main/preload.ts`, `src/renderer/bootstrap.ts`,
+`src/renderer/clientRuntime.ts`,
+`src/renderer/state/remoteServers/types.ts`,
+`src/renderer/state/remoteServersStore.ts`, `src/shared/clientRuntime.ts`,
+`src/shared/ipc/channels.ts`, plus new `src/shared/standaloneAttach.ts`,
+`src/main/backend/standaloneAttach{,Bootstrap}.ts` (+ tests),
+`src/renderer/clientRuntime.standaloneAttach.test.ts`,
+`src/renderer/state/remoteServersStore.standaloneAttach.test.ts`.
+Checkpoint (7): `src/backend/BackendHostCore.ts`,
+`src/backend/revertCheckpoint.test.ts`,
+`src/main/db/checkpointRevertOperations.ts`,
+`src/main/remote/server/httpRouter.ts`,
+`src/renderer/components/thread/ChatPane/ChatPane.test.tsx`,
+`src/renderer/components/thread/ChatPane/parts/MessageList.tsx`, plus new
+`src/main/db/checkpointRevertHttpCoherence.test.ts`. No dependencies or build
+output copied; worktree originals intact as evidence; index left clean (no
+staging). Post-copy sha256 of all 22 matches the worktree originals, no
+conflict markers, `oxfmt --check` clean on all 22.
+
+**Verified defects now in the freeze (candidate fixes, review pending).**
+(1) Reply drain ACK-spin (`tmp/v4-reply-delivery-implementation/REPORT.md`
+§2): every large transfer hung at 100% CPU; fixed with `waitForAckOrTimeout`.
+(2) Checkpoint destructive same-ID supersede
+(`tmp/v4-checkpoint-integrity-batch/REPORT.md`): same-ID retry after another
+client's turn ran a second destructive revert on local-direct while HTTP
+replayed a stale outer receipt; fixed with fresh user-intent IDs, pending
+same-ID retries, exact settled replay, explicit-location validation, and
+outer/inner receipt coherence.
+
+**Compatibility notes for the consolidated critic.** New attach
+preload/channel/runtime plumbing (`getStandaloneAttachInfo`,
+`standaloneAttachInfo` channel, attached-runtime selection) is
+additive/process-lifetime with no version bump — confirm old-preload/old-
+renderer interop and that attach startup cannot leak into managed authority.
+Checkpoint slice changes settled-replay semantics with no migration and keeps
+legacy `#N` rows readable — confirm cross-version replay behavior and the
+outer-receipt 409-vs-replay boundary. Full manifest, hashes, identities, and
+the pending-gate list are in `tmp/v4-combined-foundation-batch/REPORT.md`.
+
+**Not claimed.** No critic review, no broad checks/builds, no runtime/manual
+verification, no CI run at this SHA in this task; published-`ffe4` push
+Native still fails on Android 17 (read-only diagnosis active,
+`tmp/v4-current-batch-ci/STATUS.md`). Gate-plan reconciliation is part of this
+freeze: five gates authoritative, 63-step plan as roadmap, agent
+assignment/ownership boilerplate removed from `docs/V4_MERGE_GATES.md`,
+tracked-roadmap links restored, native UI disclosure kept as development work
+(shared-contract/build/tests still required), candidate statuses recorded
+without whole-gate passes.
+
+## 2026-09-15 — foundation qualification + review reconciliation status (uncommitted, no commit/push)
+
+**Identities.** Root HEAD and `origin/poracode/v2` are
+`ffe4f0f898cd705761c67ead9d444313f7dc0d10` (master `0c99e7e136` ancestor);
+47 candidate paths (25 tracked-modified + 22 untracked-new) + foreign
+`.poracode/` excluded; index clean. Freeze
+`tmp/v4-foundation-qualification/FREEZE.json`
+(`candidate_sha256 b12666aeb52b162d34931761e35f8e9bf32dcd6e1a9195d9e4ba687af765ad18`).
+No source/test/docs edits by the qualifier or the critic outside their scratch
+dirs; no staging/commits/pushes/stash/reset; Nightly, user data, and processes
+preserved. The candidate is uncommitted, so no CI SHA exists for it.
+
+**Broad checks (ONE run each at the frozen SHA,
+`tmp/v4-foundation-qualification/REPORT.md` + `logs/`).** `lint` (plain +
+type-aware, `--deny-warnings`) PASS; `protocol:remote:v3:check` PASS; `build`,
+`build:web` (chunk-size warnings only), `prepare:server-native` PASS.
+`typecheck` FAIL — 13 errors: attach lane 9 (`standaloneAttach.test.ts` 2,
+`main.ts` 5 `baseDir`-on-`no-probe`, `clientRuntime.standaloneAttach.test.ts`
+1 literal-12, `remoteServersStore.standaloneAttach.test.ts` 1 unexported
+`RemoteSocketLike`) + checkpoint lane 4 (`ChatPane.test.tsx`
+`{threadId}`-to-`{operationKey}` casts, corrected in this batch — other-lane
+errors remain in their lane, so no full-repo `typecheck` rerun is claimed
+here). `test` FAIL — 3 tests in `src/backend/supervisorEventRelay.test.ts`
+(composed-with-real-ownership trio, stream-message timeouts; possible
+isolation + stream-6 interaction; owner diagnosis required, not a limit
+change; 13,962 passed). `fmt:check` FAIL — 3 files
+(`.agents/docs/versioning.md`, `docs/V4_MERGE_GATES.md`,
+`docs/V4_MERGE_READINESS_PLAN.md`; formatted in this batch, content
+unchanged). `native:e2e` FAIL — 2 tests (`cursorSyncV2` +
+`sharedHostLoadProfile` warmup markers; PTY env contamination suspected but
+not proven; 176 passed).
+
+**Runtime (owned sessions, frozen SHA).** Mock baseline PASS: 5 automated +
+5 mock smoke gates, 0 console/runtime errors. Large-reply AFTER PASS on the
+production `ElectronBackendTransport`: same-case 32 items, 3,313,837 B,
+`sha256 2dc684a2…` byte-identical to the BEFORE identity, plus 32 MiB-class
+29,495,405 B hash-verified. Focused reruns PASS at the frozen SHA:
+checkpoint 20, attach 27, large-reply 34, renderer (`ChatPane` 86 +
+`ChatScrollControls` 19) 105. NOT proven: second real window with
+failed-direct + barriers, cancel/navigation/close cleanup,
+no-replay/no-fallback-after-admission, frame/credit bounds, zero
+steady-state bulk main IPC with instrumentation; full baseline, real attach,
+checkpoint dialogs, and mobile web outstanding. iOS frozen blob equals the
+correction blob (`bd17e3a8`); original 20.5 s CI cause stays UNKNOWN.
+Android author-compile passed; published push-Native Android-17 emulator
+runtime cause stays UNKNOWN.
+
+**Review + reconciliation.** Independent findings-only critic
+(`tmp/v4-foundation-review/REPORT.md`): F1 milestone-blocking
+(unreachable-owner refuse blocks post-crash launch; stale readable discovery
+
+- dead owner never reach the lease arbiter; phantom opt-in-flag comments).
+  Coordinator reconciliation
+  (`tmp/v4-orchestration/FOUNDATION_REVIEW_RECONCILIATION.md`) accepts F1
+  within bounds — stale-discovery + dead owner must take the existing
+  acquire-before-mutations path, never infer authority from connection
+  failure; a live lock-holder still blocks; incompatible/non-ready/
+  invalid-auth/stale-generation/mismatched-root stay refusals; lease-free
+  crash test + real kill/relaunch proof required — and overrides the
+  unsupported reasoning: crash-recovery/dataRoot continuity stays under
+  investigation (no blind managed-takeover claim); F2 bearer-rejection
+  rationale is invalidated by token persistence (persistent auth store
+  restores unexpired sessions; same bearer authenticates in a new store), so
+  only the pairing-time/describe generation bound is currently proved and the
+  ongoing generation contract remains Gate 2 lifecycle work. F3 (wire or
+  delete unused attach DB guards), F4 (invalid attach info must not fall back
+  to the managed renderer runtime; keep older managed-preload compat; no
+  unlocalized strings), F5 (doc-format leftovers, fixed in this batch) ride
+  the single correction batch.
+
+**This batch.** Checkpoint-test type corrections: the two narrow
+`{threadId}` mocks now declare the production payload
+(`CheckpointRevertActions`: `threadId` + `checkpointItemId` +
+`operationKey`); the four `as { operationKey }` casts are removed with all
+fresh-intent/retry-identity assertions preserved verbatim; no
+`any`/`unknown` casts, no production checkpoint/UI edits. Focused
+`ChatPane.test.tsx` 86 pass; touched `oxlint` (plain + type-aware) clean.
+Doc-format pass on the 3 failing files; versions unchanged (stream 6 /
+host 13 / facade 11 / bridge 2 / remote 12 / relay 3); no compatibility
+done declared.
+
+**Not claimed.** No entire Gate 1/2/3/4/5 pass; no current-candidate CI
+green. Milestone-commit preconditions: the collected corrections (attach
+crash-recovery + guard/bootstrap disclosure, remaining type errors,
+stream-trio diagnosis, native-e2e env isolation) plus the unmet live
+harnesses above. Soak/observation, full provider families, installed
+artifacts, upgrade/recovery, and device-matrix work remain Gate 5 items.
+
+## 2026-09-15 — corrected verification + test-correction status (uncommitted, no commit/push)
+
+**Identities.** Root HEAD and `origin/poracode/v2` are
+`ffe4f0f898cd705761c67ead9d444313f7dc0d10` (master `0c99e7e136` last-known
+ancestor — publication rechecks, never current-latest); index clean; foreign
+`.poracode/` excluded. Corrected freeze
+`tmp/v4-foundation-corrected-verification/FREEZE.json`
+(`candidate_sha256 1da58db485696e3db371405fb429342e8f5b29cff999cea4bd802a0defab7754`):
+50 paths = prior 47 + exactly 18 correction paths (15 changed + 3 new:
+`src/backend/supervisorEventRelay.test.ts`,
+`src/renderer/electronBootstrap.standaloneAttach.test.ts`,
+`tests/native-e2e/harness/realHostProcess.ts`). The 32 unchanged paths reuse
+prior qualification/review evidence without reopening — the corrected report
+reviewed only the 18 correction paths, not a second full architecture review.
+No source/test/docs edits by the verifier outside its scratch dir; Nightly,
+user data, and processes preserved. The candidate is uncommitted, so no
+candidate exact-SHA CI exists. The preceding 2026-09-15 entry is the
+superseded 47-path cycle, kept as history; current truth is this entry
+(current table also in `docs/V4_MERGE_GATES.md` §1d).
+
+**Broad checks (ONE run each at the corrected freeze,
+`tmp/v4-foundation-corrected-verification/REPORT.md` + `logs/`).**
+`typecheck` PASS (prior 13 gone); `lint` (plain + type-aware,
+`--deny-warnings`) PASS; `fmt:check` PASS (prior 3 files fixed); `build`,
+`build:web`, `prepare:server-native` PASS (sequenced);
+`protocol:remote:v3:check` PASS reused (zero modified files under
+`src/shared/remote/`, contract inputs unchanged). `test`: 2 failed / 13,973
+passed / 119 skipped — the prior stream trio is FIXED (stale v5 literals now
+send canonical version 6; stale-version rejections elsewhere untouched) and
+absent from the failures; the 2 failures (`PortsPanel.test.tsx` +
+`PrWatchControls.test.tsx`) are outside freeze/correction scope. `native:e2e`
+PASS: 54 files / 178 tests, 1 skipped (prior 2 warmup failures fixed).
+
+**Corrections folded in (no scope expansion).** Stream-test canonical version;
+native harness child-local `SHELL=/bin/bash`→`/bin/sh` + first-available UTF-8
+locale with PTY/assertions/timeouts/workload bounds unchanged
+(`tmp/v4-foundation-test-correction/REPORT.md`); accurately typed checkpoint
+mocks + formatting (`tmp/v4-foundation-cleanup/REPORT.md`); strict owner
+bootstrap, types, cleanup (`tmp/v4-attach-correction/REPORT.md`). Stream 5 →
+6; host 13 / facade 11 / bridge 2 / remote 12 / relay 3 unchanged; no
+protocol/persistence shape change. Bounded slices only: reply framing/admission plus the ACK-drain
+fix (`tmp/v4-reply-delivery-implementation/REPORT.md`); congestion
+isolation (`tmp/v4-renderer-isolation-batch/REPORT.md`); fresh deliberate
+operation UUIDs vs retained retry identity/journal replay
+(`tmp/v4-checkpoint-integrity-batch/REPORT.md`). No universal at-most-once; no
+full Gate 3.
+
+**UI test races — patch prepared, NOT integrated.**
+`tmp/v4-ui-test-correction/REPORT.md` + `ui-test-correction.patch` (two lines,
+test-only): `getByRole` → `await findByRole` on the two documented async
+boundaries (PrWatch post-`setWatch` transition; PortsPanel 200 ms
+BottomSheet/overlay cleanup tick). Isolated focused 25/25 pass (3× repeat),
+`oxlint`/`oxfmt` clean, deterministic PrWatch repro (delay + original FAIL /
+fixed PASS). No full suite with the patch yet; root NOT patched. Mark the
+candidate pending integration + final full test — never full-suite green.
+
+**Attachment reconciliation SETTLED**
+(`tmp/v4-orchestration/FOUNDATION_REVIEW_RECONCILIATION.md`,
+`tmp/v4-attach-recovery-decision/REPORT.md`). Headless `.host-v1` data and
+canonical desktop data are DIFFERENT mappings despite the shared owner lease:
+after a headless crash the lease may be free while managed startup would open
+the wrong data root/keys — never fall back merely because the lease is free.
+Headless stale/unreachable fails closed; only connection-level unreachable
+DESKTOP-mapping evidence may defer to the managed path, with lease admission
+before writes; a held lock still blocks loudly. Automatic same-root headless
+recovery remains Gate 2 lifecycle work. The critic's blanket fallback remedy
+and the bearer-invalidation continuity claim are rejected by verified source
+evidence (unexpired persisted remote auth sessions survive owner restart); the
+current guarantee is describe/pairing generation checks, with continuous
+dataplane pinning as Gate 2 remainder. Optional standalone getter: missing
+getter or explicit null permits managed; `undefined`/malformed/rejection from a
+PRESENT getter fails closed. Phantom fallback comments and unused guard helpers
+removed.
+
+**iOS / Android diagnostics (not fixes).** iOS
+(`tmp/v4-ios-ci-experiment/correction/00-correction.md`): final snapshot now
+captured BEFORE cleanup; current final blob carries only targeted + 50-suite
+evidence — the earlier full 1270 AppTests + 173 contracts applied to a prior
+blob; original CI timing cause remains unknown. Android
+(`tmp/v4-android17-timeout-diagnostic/REPORT.md`,
+`tmp/v4-current-batch-ci/android17/REPORT.md`): only phase-5 local state
+capture on the existing 2 s interrupt-wait timeout; assertions and 9-test count
+preserved; JDK 21 AndroidTest Kotlin compile PASS. Diagnosis only.
+
+**Published-`ffe4` CI, NOT candidate CI (`tmp/v4-current-batch-ci/STATUS.md`).**
+Push core `34905657229` PASS; PR core `34905662070` PASS; PR native
+`34905662046` PASS; push native `34905657228` FAIL (Android 17 phase-5 timeout,
+8/9 pass; aggregate follows). New candidate exact-SHA CI does not exist. Never
+declare CI green based on local checks.
+
+**Payload evidence stays bounded.** The actual-Electron evidence remains the
+same 3,313,837-byte data hash and 29,495,405-byte (~28.1 MiB) data hash
+delivered via actual `window.poracode`/`ElectronBackendTransport` — payload
+identity only, NOT 120 fps or whole-envelope proof.
+
+**Live qualification: COMPLETED 2026-09-15.** Final report
+`tmp/v4-native-final-live-qualification/REPORT.md` (§§1–6) against the final
+66-path candidate (`tmp/v4-attached-native-freeze/FREEZE-66.json`,
+`54168a10bf7bfaec…`): stream 17/17 PASS (real socket-close disconnect
+rejection, zero fallback dispatches with positive observer, exactly-once,
+destroy/capacity-recovery); standalone attached 8/8 PASS (attach generation
+pinning, commands, settings persist/restore, native quick-composer,
+checkpoint-retry semantics, attached dialog full journey, quit + crash
+drill); desktop-web Chrome and real-iOS-Safari journeys PASS; bounded real
+BigPickle chat PASS via the symlink-free control path. The qualification
+found and fixed two checkpoint-revert product defects (projected-id
+command-id overflow at the router gate — one defect failing all three remote
+surfaces; revert anchor mismatched capture identity) with focused 115/115 and
+three-surface live re-proof, and root-caused the BigPickle GUI-thread stall
+to a pre-existing, out-of-candidate SSE event-hub directory-routing defect
+(symlinked project paths silently drop every opencode V1 event; HEAD-clean
+reproduction + candidate-build control evidence; follow-up fix recorded).
+Full per-case ledger and environment-incident record: §1e of
+`docs/V4_MERGE_GATES.md`.
+
+**Not claimed.** No entire Gate 1/2/3/4/5 pass; no current-candidate CI green
+yet (published-SHA push + PR CI executing with the milestone commit); no
+full-suite run of the final 66-path candidate (broad suite green at the
+59-path freeze with unchanged inputs reused; the 2-race UI-test patch awaits
+the next full-suite cycle); no 24 h controlled soak + 72 h observation; five
+gates authoritative with the 63-step roadmap as reference/post-merge breadth;
+original core server/Electron/web/mobile-web stability + performance
+requirements unreduced; native iOS/Android UI stays development while shared
+contracts/build/tests remain gates.

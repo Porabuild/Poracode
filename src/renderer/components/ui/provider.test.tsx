@@ -6,22 +6,32 @@ import type { ThemeMode } from "@/shared/contracts";
 const settingsState: {
   themeMode: ThemeMode;
   themePreset: string;
+  sidebarTranslucency: boolean;
   sidebarGlassTint: { light: number | null; dark: number | null };
 } = {
   themeMode: "system",
   themePreset: "default",
+  sidebarTranslucency: false,
   sidebarGlassTint: { light: null, dark: null },
 };
+
+const runtime = vi.hoisted(() => ({ browser: false, remote: false }));
 
 vi.mock("../../state/sharedSettingsStore", () => ({
   useSharedSettings: (selector: (s: typeof settingsState) => unknown) => selector(settingsState),
 }));
 
 vi.mock("@/renderer/bridge", () => ({
-  isRemoteSession: () => false,
+  isMac: () => false,
+  isRemoteSession: () => runtime.remote,
+  isWindows: () => false,
   readBridge: () => ({
     setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   }),
+}));
+
+vi.mock("@/renderer/clientRuntime", () => ({
+  isBrowserClientRuntime: () => runtime.browser,
 }));
 
 import { AppProvider } from "./provider";
@@ -46,7 +56,12 @@ function setMatchMedia(prefersDark: boolean) {
 beforeEach(() => {
   settingsState.themeMode = "system";
   settingsState.themePreset = "default";
+  settingsState.sidebarTranslucency = false;
+  runtime.browser = false;
+  runtime.remote = false;
   document.documentElement.classList.remove("light", "dark");
+  delete document.documentElement.dataset.sidebarGlass;
+  delete document.documentElement.dataset.nativeMaterial;
   delete document.documentElement.dataset.theme;
   delete document.documentElement.dataset.themePreset;
   setMatchMedia(true);
@@ -66,6 +81,22 @@ describe("AppProvider", () => {
       </AppProvider>,
     );
     expect(screen.getByText("provider works")).toBeInTheDocument();
+  });
+
+  it("uses faux sidebar glass by default in the browser", async () => {
+    runtime.browser = true;
+    runtime.remote = true;
+
+    render(
+      <AppProvider contentReady>
+        <span />
+      </AppProvider>,
+    );
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.sidebarGlass).toBe("on");
+      expect(document.documentElement.dataset.nativeMaterial).toBe("off");
+    });
   });
 
   it("uses a bounded responsive toast width", async () => {

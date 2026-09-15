@@ -1,14 +1,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Toast, toast as heroToast } from "@heroui/react";
-import { I18nProvider } from "@lingui/react";
 import { Copy } from "lucide-react";
 import { resolveThemeMode } from "@/shared/themeMode";
 import { applyAppTheme, persistThemeBoot, systemPrefersDark } from "@/renderer/theme/applyAppTheme";
 import { applySidebarGlassTint } from "@/renderer/theme/sidebarGlass";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { i18n, dynamicActivate } from "@/renderer/i18n/i18n";
+import { dynamicActivate } from "@/renderer/i18n/i18n";
+import { AppLocaleProvider } from "@/renderer/i18n/AppLocaleProvider";
 import { detectOSLocale, resolveLocale } from "@/renderer/i18n/locales";
 import { getToastActionLabel, normalizeToastContent } from "./toastContent";
 import { SwipeDismissToast } from "./SwipeDismissToast";
@@ -125,10 +126,13 @@ export function AppProvider(props: {
   }, []);
 
   const appearance = resolveThemeMode(themeMode, prefersDark);
-  // The opt-in translucent sidebar, suppressed when the OS asks for reduced
-  // transparency or when viewing over a remote session.
+  // Browser/PWA always uses the inexpensive in-app faux-glass sidebar so the
+  // chrome remains visually distinct from the content pane. Native apps keep
+  // the opt-in setting; every host respects reduced-transparency.
   const remoteSession = isRemoteSession();
-  const effectiveGlassEnabled = !remoteSession && sidebarTranslucency && !reducedTransparency;
+  const browserSession = isBrowserClientRuntime();
+  const effectiveGlassEnabled =
+    !reducedTransparency && (browserSession || (!remoteSession && sidebarTranslucency));
 
   useEffect(() => {
     const root = document.documentElement;
@@ -193,7 +197,7 @@ export function AppProvider(props: {
   }, [appearance, effectiveGlassEnabled, contentReady, sidebarGlassTint]);
 
   return (
-    <I18nProvider i18n={i18n}>
+    <AppLocaleProvider>
       <AppearanceContext.Provider value={appearance}>
         <Toast.Provider
           className="lc-toast-region"
@@ -291,6 +295,6 @@ export function AppProvider(props: {
         </Toast.Provider>
         {children}
       </AppearanceContext.Provider>
-    </I18nProvider>
+    </AppLocaleProvider>
   );
 }

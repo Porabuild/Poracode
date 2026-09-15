@@ -25,6 +25,13 @@ import {
   dbFailRemoteCommand,
 } from "./remoteCommandReceipts";
 import { dbPersistExperimentState, dbSyncAll } from "./sync";
+import {
+  dbAppendThreadTerminalOutput,
+  dbClearThreadTerminalScrollback,
+  dbGetThreadTerminalScrollback,
+  dbGetThreadTerminalScrollbackRecord,
+  MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS,
+} from "./terminalScrollback";
 
 // node_modules/better-sqlite3 may be compiled for Electron's ABI. Fall back to
 // the Node-ABI binding used by the headless server, preparing it on demand so
@@ -112,6 +119,70 @@ describe("projectsThreads (real sqlite round-trip)", () => {
 
     dbUpsertThread(testThread(), 0);
     expect(dbGetThread("thread-1")?.threadStatusSource).toBeUndefined();
+  });
+
+  it("persists bounded terminal scrollback across output batches", () => {
+    dbUpsertThread(testThread({ presentationMode: "terminal" }), 0);
+    dbAppendThreadTerminalOutput("thread-1", "hello", 5);
+    dbAppendThreadTerminalOutput("thread-1", " world", 11);
+    expect(dbGetThreadTerminalScrollback("thread-1")).toBe("hello world");
+
+    const replacement = "x".repeat(MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS + 10);
+    dbAppendThreadTerminalOutput("thread-1", replacement, 10);
+    expect(dbGetThreadTerminalScrollback("thread-1")).toHaveLength(
+      MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS,
+    );
+
+    dbClearThreadTerminalScrollback("thread-1");
+    expect(dbGetThreadTerminalScrollback("thread-1")).toBe("");
+  });
+
+  it("replaces terminal scrollback when an absolute cursor restarts", () => {
+    dbUpsertThread(testThread({ presentationMode: "terminal" }), 0);
+    dbAppendThreadTerminalOutput("thread-1", "gen-A-full", 10);
+    expect(dbGetThreadTerminalScrollbackRecord("thread-1")).toEqual({
+      transcript: "gen-A-full",
+      outputLength: 10,
+    });
+
+    dbAppendThreadTerminalOutput("thread-1", "Bok", 3);
+    expect(dbGetThreadTerminalScrollbackRecord("thread-1")).toEqual({
+      transcript: "Bok",
+      outputLength: 3,
+    });
+    dbAppendThreadTerminalOutput("thread-1", "!", 4);
+    expect(dbGetThreadTerminalScrollbackRecord("thread-1")).toEqual({
+      transcript: "Bok!",
+      outputLength: 4,
+    });
+  });
+
+  it("repairs databases created by the divergent schema 32/33 lineage", () => {
+    dbUpsertThread(testThread({ presentationMode: "terminal" }), 0);
+    closeDatabase();
+    const databasePath = join(dir, "state.sqlite");
+    const legacy = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    legacy.exec(`
+      ALTER TABLE projects DROP COLUMN gh_account;
+      ALTER TABLE pr_watches DROP COLUMN blocked_reason;
+      UPDATE app_state SET value = '33' WHERE key = 'schema_version';
+    `);
+    legacy.close();
+
+    initDatabase(databasePath);
+
+    const projectColumns = getSqlite().prepare("PRAGMA table_info(projects)").all() as Array<{
+      name: string;
+    }>;
+    const watchColumns = getSqlite().prepare("PRAGMA table_info(pr_watches)").all() as Array<{
+      name: string;
+    }>;
+    expect(projectColumns.map((column) => column.name)).toContain("gh_account");
+    expect(watchColumns.map((column) => column.name)).toContain("blocked_reason");
+    expect(dbGetThread("thread-1")?.title).toBe("Test thread");
+    expect(dbGetState("schema_version")).toBe("46");
   });
 
   it("round-trips and clears the thread archive timestamp", () => {

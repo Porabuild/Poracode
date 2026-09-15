@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Tooltip } from "@heroui/react";
-import { CircleCheckBig, CircleStop, CircleX, Target } from "lucide-react";
 import { msg } from "@lingui/core/macro";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import type { ThreadGoalDockState } from "./threadGoalState";
@@ -10,6 +9,7 @@ import { formatElapsed } from "@/renderer/utils/formatTime";
 import { ThreadDocksPlacementToggle } from "./ThreadDocksPlacementToggle";
 import { ThreadDockSection } from "./ThreadDockUI";
 import { ThreadGoalControls } from "./ThreadGoalControls";
+import { ThreadGoalStatusIcon } from "./ThreadGoalStatusIcon";
 import { formatTokenCount } from "./formatTokenCount";
 import { useGoalElapsedSeconds } from "./threadGoalTiming";
 
@@ -30,29 +30,11 @@ export function ThreadGoalDock({
   onDismiss,
 }: ThreadGoalDockProps) {
   const { t } = useLingui();
-  const isActive = state.status === "active";
-  const isComplete = state.status === "complete";
-  const isFailed = state.status === "failed";
-  const isCancelled = state.status === "cancelled";
   const elapsedSeconds = useGoalElapsedSeconds(state);
   const meta = goalMeta(state, t);
   const elapsedLabel = elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : null;
   const evaluationChecks = state.iterations !== undefined && state.iterations > 0;
   const hasMeta = meta.length > 0;
-  const StatusIcon = isComplete
-    ? CircleCheckBig
-    : isFailed
-      ? CircleX
-      : isCancelled
-        ? CircleStop
-        : Target;
-  const statusIconClass = isComplete
-    ? "text-success"
-    : isFailed
-      ? "text-danger"
-      : isActive
-        ? "text-white"
-        : "text-foreground-muted";
   const placementToggle = showPlacementToggle ? (
     <ThreadDocksPlacementToggle placement="composer" />
   ) : null;
@@ -64,14 +46,7 @@ export function ThreadGoalDock({
       <div
         className={`flex min-w-0 items-center gap-x-2 leading-5 ${placement === "right" ? "flex-wrap gap-y-0.5" : ""}`}
       >
-        {isActive ? (
-          <span className="poracode-goal-active-icon shrink-0" aria-hidden="true">
-            <span className="poracode-goal-active-icon__ring" />
-            <StatusIcon className={`size-3.5 ${statusIconClass}`} />
-          </span>
-        ) : (
-          <StatusIcon className={`size-3.5 shrink-0 ${statusIconClass}`} />
-        )}
+        <ThreadGoalStatusIcon status={state.status} />
         <span className="shrink-0 font-semibold text-foreground">
           <Trans>Goal</Trans>
         </span>

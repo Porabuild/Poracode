@@ -20,9 +20,9 @@ describe("TerminalPane", () => {
 
   // ── Initial state ─────────────────────────────────────────────
 
-  it("enables the surface immediately for a non-inactive thread", () => {
+  it("enables the surface immediately for a non-inactive thread", async () => {
     render(<TerminalPane threadId="t-1" status="idle" />);
-    expect(screen.getByTestId("xterm-surface")).toHaveAttribute("data-enabled", "true");
+    expect(await screen.findByTestId("xterm-surface")).toHaveAttribute("data-enabled", "true");
   });
 
   it("starts visible (opacity-100) for a non-inactive thread", () => {

@@ -2,9 +2,13 @@ name: CI
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, poracode/v2, poracode/v4-integration]
   push:
-    branches: [master]
+    branches: [master, poracode/v2, poracode/v4-integration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -66,6 +70,9 @@ jobs:
       - name: Release version regression tests
         run: node --test scripts/resolve-release-version.test.mjs
 
+      - name: Nightly qualification regression tests
+        run: node --test scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs scripts/native-ci-workflows.test.mjs
+
   fmt:
     name: Format
     runs-on: ubuntu-latest
@@ -87,6 +94,39 @@ jobs:
 
       - name: Format check
         run: pnpm run fmt:check
+
+  web_build:
+    name: Canonical web build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Generate Codex protocol types
+        run: pnpm run codex-protocol:gen
+
+      - name: Build canonical web client
+        run: pnpm run build:web
+
+      - name: Verify finalized web outputs
+        run: |
+          test -f dist/web/index.html
+          test -f dist/web/manifest.webmanifest
+          test -f dist/web/service-worker.js
+          test -f dist/web/poracode-ssh-runtime/manifest.json
+          test -f dist/web/poracode-ssh-runtime/runtime.bin
 
   runtime_deps:
     name: Runtime dependencies
@@ -235,3 +275,15 @@ jobs:
     steps:
       - name: Verify test shards
         run: test "${{ needs.test_shard.result }}" = "success"
+
+  ci_gate:
+    name: CI required gate
+    if: ${{ always() }}
+    needs: [typecheck, lint, fmt, web_build, runtime_deps, rust_helper, test_shard, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require all core checks
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: node -e 'if (Object.values(JSON.parse(process.env.JOB_RESULTS)).some(job => job.result !== "success")) process.exit(1)'

@@ -28,7 +28,7 @@ export async function mockDraftVoicePermissionGate({
     s.draftOriginal = app.getState().draftContents[${projectId}];
     s.createThread = app.getState().createThread;
     s.draftLaunches = 0;
-    s.attachInbox = (await import('/src/renderer/state/browserAttachInbox.ts')).useBrowserAttachInbox;
+    s.attachInbox = (await window.__poracodeDev.loadBrowserAttachInbox()).useBrowserAttachInbox;
     app.setState({ createThread: () => {
       s.draftLaunches++;
       throw new Error('Unexpected thread launch during pending-permission regression');

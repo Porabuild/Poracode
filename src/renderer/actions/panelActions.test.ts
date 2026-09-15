@@ -6,6 +6,8 @@ import {
   dockPanelTab,
   openGitReview,
   openUsagePanel,
+  showGitReviewPage,
+  showSubAgentPanel,
   toggleThreadDocksPanel,
   undockPanelTab,
 } from "./panelActions";
@@ -139,6 +141,44 @@ describe("dockPanelTab", () => {
   });
 });
 
+describe("showSubAgentPanel", () => {
+  beforeEach(() => {
+    resetDockState();
+    usePanelStore.setState({ subAgentPanelContext: null, threadDocksPanelOpen: true });
+  });
+
+  it("remembers Thread Info only for opens from its selected panel", () => {
+    usePanelStore.getState().openThreadDocksPanel("agents");
+    showSubAgentPanel("thread-1", "agent-1", undefined, "thread-info");
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "subagent",
+      threadDocksPanelOpen: true,
+      threadDocksFocus: "agents",
+      subAgentPanelContext: { returnToThreadInfo: true },
+    });
+
+    // Reopening the same target from chat must replace its navigation origin.
+    usePanelStore.getState().openThreadDocksPanel();
+    showSubAgentPanel("thread-1", "agent-1");
+    expect(usePanelStore.getState().subAgentPanelContext).toEqual({
+      threadId: "thread-1",
+      parentItemId: "agent-1",
+    });
+  });
+
+  it("recognizes Thread Info shown as the fallback after switching threads", () => {
+    usePanelStore.setState({ rightPanelTab: "subagent", threadDocksPanelOpen: true });
+    showSubAgentPanel("thread-2", "agent-2", undefined, "thread-info");
+    expect(usePanelStore.getState().subAgentPanelContext?.returnToThreadInfo).toBe(true);
+  });
+
+  it("does not return to a hidden Thread Info panel", () => {
+    usePanelStore.setState({ rightPanelTab: "docks", threadDocksPanelOpen: false });
+    showSubAgentPanel("thread-1", "agent-1", undefined, "thread-info");
+    expect(usePanelStore.getState().subAgentPanelContext?.returnToThreadInfo).toBeUndefined();
+  });
+});
+
 // The toggle entry points close the right panel when their tab is already
 // active. A bottom-docked tab is not what the right panel is showing, so that
 // close is invisible — the toggle has to pull the panel back instead.
@@ -202,6 +242,21 @@ describe("undockPanelTab", () => {
     undockPanelTab("notes");
 
     expect(usePanelStore.getState().bottomPanelDocks).toEqual({ left: "usage", right: null });
+  });
+});
+
+describe("showGitReviewPage", () => {
+  beforeEach(resetDockState);
+  afterEach(resetDockState);
+
+  it("opens a full-page review even when the saved desktop preference is panel", () => {
+    showGitReviewPage("p1", "/repo/worktree");
+
+    expect(usePanelStore.getState()).toMatchObject({
+      gitReviewContext: { projectId: "p1", worktreePath: "/repo/worktree" },
+      gitReviewAsPanel: false,
+      gitOverlayOpen: true,
+    });
   });
 });
 

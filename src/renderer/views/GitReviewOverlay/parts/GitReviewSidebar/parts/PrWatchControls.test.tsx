@@ -437,7 +437,7 @@ describe("PrWatchControls", () => {
     render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
     await waitFor(() => expect(bridge.getPrWatch).toHaveBeenCalledOnce());
 
-    fireEvent.click(screen.getByRole("button", { name: "PR automation: Auto Fix" }));
+    fireEvent.click(await screen.findByRole("button", { name: "PR automation: Auto Fix" }));
     const slider = screen.getByRole("slider", { name: "PR automation" });
     fireEvent.keyDown(slider, { key: "End" });
     fireEvent.keyUp(slider, { key: "End" });

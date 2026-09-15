@@ -1,7 +1,10 @@
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import type { Project } from "@/shared/contracts";
+import { i18n } from "@/renderer/i18n/i18n";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
+import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import { updateProjectScripts } from "@/renderer/actions/projectActions";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -93,7 +96,6 @@ export async function openFileInEditor(
   path: string,
   options?: OpenFileInEditorOptions,
 ): Promise<void> {
-  if (project.remoteServerId && (path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path))) return;
   const fileEditor = useFileEditorStore.getState();
   const targetContext = buildFileEditorContext(project, worktreePath, worktreeBranch);
   const currentRoot = fileEditor.rootContext;
@@ -125,10 +127,11 @@ export async function openFileInEditor(
     ...(gitDiff ? { gitDiff } : {}),
   };
   try {
-    await fileEditor.openFile(path, "modal", false, editorOptions);
+    const mode = isCompactLayoutViewport() ? "fullscreen" : "modal";
+    await fileEditor.openFile(path, mode, false, editorOptions);
   } catch (error) {
     captureRendererException(error, { featureArea: "file-editor" });
-    toast.danger(error instanceof Error ? error.message : String(error));
+    toast.danger(i18n._(msg`Unable to open the file in the editor`));
   }
 }
 

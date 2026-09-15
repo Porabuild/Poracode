@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Agent, type AgentOptions } from "node:http";
 import { createServer, type AddressInfo, type Server, type Socket } from "node:net";
 import type { ActivePortForward, DetectedPort } from "@/shared/remote";
 import { RemoteHttpError } from "./auth";
@@ -10,6 +11,19 @@ import {
 } from "./portForward/portScanner";
 
 const DEFAULT_MAX_FORWARDS = 10;
+
+/** Pool policy for the per-forward keep-alive agents ({@link
+ * ForwardLifetime.agent}): the same idle policy the shared `http.globalAgent`
+ * pool applied before each forward owned its own, so only ownership changed —
+ * idle sockets retire ~5s after their last response instead of lingering for
+ * the forward's whole life. `timeout` never deadlines an in-flight response:
+ * the agent's timeout handling destroys a socket only once it is back in the
+ * free pool (Node `_http_agent`'s `onTimeout`). */
+const FORWARD_AGENT_OPTIONS: AgentOptions = {
+  keepAlive: true,
+  scheduling: "lifo",
+  timeout: 5000,
+};
 
 export interface RemotePortForwardGatewayOptions {
   /** Host the forward's TCP listener binds to. Reuses the same resolved bind
@@ -29,6 +43,26 @@ export interface RemotePortForwardGatewayOptions {
   readonly probeTimeoutMs?: number;
 }
 
+/** A live handle on one forward's lifetime, handed out by
+ * {@link RemotePortForwardGateway.acquireForwardLifetime} to the HTTP/WS
+ * reverse-proxy session layer (`portForward/portProxy.ts`). Deliberately the
+ * exact forward *instance* — id plus target port plus revocation signal —
+ * never a bare target port, which a different forward can later reuse.
+ * `signal` aborts synchronously the moment this forward is stopped or the
+ * gateway disposed; consumers register per operation and must remove that
+ * registration when the operation ends. */
+export interface ForwardLifetime {
+  readonly forwardId: string;
+  readonly targetPort: number;
+  readonly signal: AbortSignal;
+  /** This forward instance's private keep-alive agent — the only agent the
+   * plain-HTTP reverse-proxy path (`proxyForwardedHttpRequest`) dials this
+   * target through. Its idle sockets are destroyed with the forward
+   * ({@link stopForward}); the shared global agent would instead leave them
+   * open and hand them to a later forward that reuses the same target port. */
+  readonly agent: Agent;
+}
+
 interface ForwardEntry {
   readonly id: string;
   readonly targetPort: number;
@@ -36,6 +70,14 @@ interface ForwardEntry {
   readonly createdAt: number;
   readonly server: Server;
   readonly sockets: Set<Socket>;
+  /** Backs this forward's {@link ForwardLifetime} — aborted by
+   * {@link stopForward}. Kept on the entry so no side map mirrors `forwards`. */
+  readonly lifetime: AbortController;
+  /** The forward's private keep-alive agent, handed out via
+   * {@link acquireForwardLifetime} and destroyed by {@link stopForward}
+   * (see {@link ForwardLifetime.agent}). Kept on the entry, like `lifetime`,
+   * so no side map mirrors `forwards`. */
+  readonly agent: Agent;
 }
 
 function toPublic(entry: ForwardEntry): ActivePortForward {
@@ -143,6 +185,7 @@ export class RemotePortForwardGateway {
   private async openForward(targetPort: number): Promise<ActivePortForward> {
     const id = randomUUID();
     const sockets = new Set<Socket>();
+    const lifetime = new AbortController();
     const bindHost = this.options.bindHost;
     // If the mirrored bind below succeeds, this listener occupies
     // `bindHost:targetPort`, which may shadow one of the loopback families
@@ -180,6 +223,9 @@ export class RemotePortForwardGateway {
     }
 
     const address = server.address() as AddressInfo;
+    // Created only past the `disposed` gate above, so an entry that is never
+    // registered never owns an agent that would need destroying.
+    const agent = new Agent(FORWARD_AGENT_OPTIONS);
     const entry: ForwardEntry = {
       id,
       targetPort,
@@ -187,6 +233,8 @@ export class RemotePortForwardGateway {
       createdAt: Date.now(),
       server,
       sockets,
+      lifetime,
+      agent,
     };
     this.forwards.set(id, entry);
     return toPublic(entry);
@@ -233,12 +281,18 @@ export class RemotePortForwardGateway {
     });
   }
 
-  /** Closes the forward's listener and destroys every live socket it owns
-   * (both accepted inbound sockets and their piped outbound counterparts). */
+  /** Closes the forward's listener and destroys every socket it owns: the
+   * accepted inbound sockets and their piped outbound counterparts, plus the
+   * idle upstream connections pooled in the forward's private keep-alive
+   * agent (see {@link ForwardLifetime.agent}). Aborts the forward's
+   * {@link ForwardLifetime} synchronously first, so every proxy operation
+   * riding it revokes before any async teardown runs. */
   async stopForward(id: string): Promise<boolean> {
     const entry = this.forwards.get(id);
     if (!entry) return false;
     this.forwards.delete(id);
+    entry.lifetime.abort();
+    entry.agent.destroy();
     for (const socket of entry.sockets) {
       socket.destroy();
     }
@@ -252,18 +306,37 @@ export class RemotePortForwardGateway {
   }
 
   /** O(1) lookup of a single open forward by id (the map's own key), or `null`
-   * if none is open — the hot-path check behind the HTTP/WS proxy session
-   * resolution and the `/api/ports/enter` existence guard, both of which only
-   * need one forward, not the whole `listForwards()` snapshot. */
+   * if none is open — the hot-path check behind the `/api/ports/enter`
+   * existence guard and `PortProxy.consumeEnterToken`, both of which only need
+   * one forward, not the whole `listForwards()` snapshot. */
   getForward(id: string): ActivePortForward | null {
     const entry = this.forwards.get(id);
     return entry ? toPublic(entry) : null;
   }
 
+  /** The hot path behind proxy session resolution (`PortProxy.resolveSession`):
+   * resolves to the exact open forward instance — revocation signal and
+   * private agent — or `null` once stopped/disposed: a stopped forward's port
+   * can be re-forwarded, and its stale sessions must never reach the new
+   * occupant. Allocates only the handle; the controller and agent live on the
+   * entry. */
+  acquireForwardLifetime(forwardId: string): ForwardLifetime | null {
+    const entry = this.forwards.get(forwardId);
+    if (!entry) return null;
+    return {
+      forwardId: entry.id,
+      targetPort: entry.targetPort,
+      signal: entry.lifetime.signal,
+      agent: entry.agent,
+    };
+  }
+
   /** Closes every open forward; safe to call multiple times. Also flips the
    * `disposed` flag first (synchronously, before touching `forwards`) so any
    * `startForward` whose `listen()` resolves after this point self-closes
-   * instead of registering — see {@link openForward}. */
+   * instead of registering — see {@link openForward}. `stopForward`'s body
+   * runs synchronously up to its first `await`, so every lifetime is already
+   * revoked when this returns. */
   dispose(): void {
     this.disposed = true;
     for (const id of [...this.forwards.keys()]) {

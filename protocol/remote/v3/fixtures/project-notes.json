@@ -1,0 +1,120 @@
+{
+  "readCases": [
+    {
+      "id": "null",
+      "response": { "notes": null }
+    },
+    {
+      "id": "value",
+      "response": {
+        "notes": {
+          "projectId": "project-notes",
+          "doc": {
+            "type": "doc",
+            "content": [
+              {
+                "type": "heading",
+                "attrs": { "level": 2 },
+                "content": [{ "type": "text", "text": "Release 東京" }]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  { "type": "text", "text": "Keep " },
+                  {
+                    "type": "text",
+                    "text": "ordering",
+                    "marks": [{ "type": "bold" }, { "type": "code" }]
+                  },
+                  { "type": "text", "text": " lossless." }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [{ "type": "text", "text": "Ship fixtures ✅" }]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "todos": [
+            {
+              "id": "todo-first",
+              "text": "Verify Windows paths",
+              "done": true,
+              "createdAt": "2026-08-12T09:00:00.000Z"
+            },
+            {
+              "id": "todo-second",
+              "text": "Verify WSL paths",
+              "done": false,
+              "createdAt": "2026-08-12T09:01:00.000Z"
+            }
+          ],
+          "updatedAt": "2026-08-12T09:02:00.000Z"
+        }
+      }
+    }
+  ],
+  "writeCases": [
+    {
+      "id": "lossless-doc-and-ordered-todos",
+      "body": {
+        "doc": {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                { "type": "text", "text": "A " },
+                {
+                  "type": "text",
+                  "text": "linked note",
+                  "marks": [
+                    {
+                      "type": "link",
+                      "attrs": {
+                        "href": "https://example.test/design?lang=日本語",
+                        "target": "_blank",
+                        "rel": "noopener noreferrer"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "todos": [
+          {
+            "id": "todo-a",
+            "text": "First",
+            "done": false,
+            "createdAt": "2026-08-12T10:00:00.000Z"
+          },
+          {
+            "id": "todo-b",
+            "text": "Second",
+            "done": true,
+            "createdAt": "2026-08-12T10:01:00.000Z"
+          },
+          {
+            "id": "todo-c",
+            "text": "Third",
+            "done": false,
+            "createdAt": "2026-08-12T10:02:00.000Z"
+          }
+        ],
+        "updatedAt": "2026-08-12T10:03:00.000Z"
+      }
+    }
+  ]
+}

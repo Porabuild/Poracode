@@ -35,6 +35,7 @@ const SCROLLBACK_WAIT_TIMEOUT_MS = 120_000;
 // model. None of these defaults are guaranteed to exist on every host — the
 // test will surface a clear error if the chosen model is rejected by the CLI.
 const PREFERRED_MODEL: Record<string, string> = {
+  devin: "swe-1-6-fast",
   claude: "haiku",
   cursor: "auto",
   antigravity: "auto",

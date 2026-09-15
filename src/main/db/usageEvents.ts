@@ -37,21 +37,23 @@ export function dbAppendUsageEvents(events: readonly UsageEventInput[]): void {
   const stmt = sqlite.prepare(
     "INSERT INTO usage_events (ts, kind, provider, model, mode, fast, effort, name, value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
   );
-  sqlite.transaction((rows: readonly UsageEventInput[]) => {
-    for (const e of rows) {
-      stmt.run(
-        e.ts,
-        e.kind,
-        e.provider ?? null,
-        e.model ?? null,
-        e.mode ?? null,
-        e.fast ? 1 : 0,
-        e.effort ?? null,
-        e.name ?? null,
-        e.value ?? 1,
-      );
-    }
-  })(events);
+  sqlite
+    .transaction((rows: readonly UsageEventInput[]) => {
+      for (const e of rows) {
+        stmt.run(
+          e.ts,
+          e.kind,
+          e.provider ?? null,
+          e.model ?? null,
+          e.mode ?? null,
+          e.fast ? 1 : 0,
+          e.effort ?? null,
+          e.name ?? null,
+          e.value ?? 1,
+        );
+      }
+    })
+    .immediate(events);
   bumpProfileDataGeneration();
 }
 

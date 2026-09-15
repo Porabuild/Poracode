@@ -40,10 +40,16 @@ jobs:
         shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
+          PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
         run: |
-          for name in VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+          for name in \
+            VERCEL_ORG_ID \
+            VERCEL_PROJECT_ID \
+            PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS \
+            PORACODE_MOBILE_APPLE_TEAM_ID; do
             if [ -z "${!name}" ]; then
-              echo "Missing mobile-web variable: $name" >&2
+              echo "Missing required landing-site configuration: $name" >&2
               exit 1
             fi
           done
@@ -59,9 +65,58 @@ jobs:
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
       - name: Build
         env:
+          PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS: ${{ secrets.PORACODE_MOBILE_ANDROID_SHA256_CERT_FINGERPRINTS }}
+          PORACODE_MOBILE_APPLE_TEAM_ID: ${{ secrets.PORACODE_MOBILE_APPLE_TEAM_ID || secrets.APPLE_TEAM_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: vercel build --prod --token="$VERCEL_TOKEN"
       - name: Deploy
+        id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        run: |
+          deployment_url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+      - name: Verify native app-link association documents
+        shell: bash
+        env:
+          CANONICAL_ORIGIN: https://poracode.com
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          set -euo pipefail
+          verify_documents() {
+            local origin="$1"
+            local suffix="$2"
+            local label="$3"
+            local assetlinks="$RUNNER_TEMP/assetlinks-$label.json"
+            local association="$RUNNER_TEMP/apple-app-site-association-$label.json"
+
+            curl --fail-with-body --silent --show-error \
+              "$origin/.well-known/assetlinks.json$suffix" \
+              --output "$assetlinks"
+            curl --fail-with-body --silent --show-error \
+              "$origin/.well-known/apple-app-site-association$suffix" \
+              --output "$association"
+
+            jq -e '
+              length > 0 and
+              (.[0].relation | index("delegate_permission/common.handle_all_urls") != null) and
+              .[0].target.namespace == "android_app" and
+              .[0].target.package_name == "com.lightcodeapp.mobile" and
+              (.[0].target.sha256_cert_fingerprints | length) > 0 and
+              all(.[0].target.sha256_cert_fingerprints[];
+                test("^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$"))
+            ' "$assetlinks" >/dev/null
+            jq -e '
+              (.applinks.details | length) > 0 and
+              all(.applinks.details[].appIDs[]; endswith(".com.lightcodeapp.mobile")) and
+              any(.applinks.details[].components[]; .["/"] == "/") and
+              any(.applinks.details[].components[]; .["/"] == "/pair*") and
+              any(.applinks.details[].components[]; .["/"] == "/app*")
+            ' "$association" >/dev/null
+          }
+
+          verify_documents "$DEPLOYMENT_URL" "" deployment
+          # The immutable deployment URL alone does not prove that the canonical
+          # App Links origin moved to this release. A query bypasses the previous
+          # five-minute edge object while exercising the production alias.
+          verify_documents "$CANONICAL_ORIGIN" "?release=$GITHUB_SHA" canonical

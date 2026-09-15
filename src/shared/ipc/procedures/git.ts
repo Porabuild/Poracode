@@ -42,6 +42,30 @@ import {
   listFileCheckpointsPayloadSchema,
   relocateProjectPayloadSchema,
   restoreFileCheckpointPayloadSchema,
+  createFileCheckpointResultSchema,
+  finalizeFileCheckpointResultSchema,
+  generateCommitMessageResultSchema,
+  generatePrSummaryResultSchema,
+  generateTitleResultSchema,
+  gitAbortMergeResultSchema,
+  gitAddWorktreeResultSchema,
+  gitBranchListResultSchema,
+  gitCommitResultSchema,
+  gitDiffBatchResultSchema,
+  gitDiffResultSchema,
+  gitFileContentResultSchema,
+  gitFinishMergeResultSchema,
+  gitGetWorktreeOwnerResultSchema,
+  gitGetWorktreeSourceBranchResultSchema,
+  gitMergeToSourceResultSchema,
+  gitProjectSnapshotResultSchema,
+  gitPullFromSourceResultSchema,
+  gitStatusResultSchema,
+  gitSwitchBranchResultSchema,
+  gitSyncResultSchema,
+  gitWorktreeListResultSchema,
+  gitWorktreeStatusBatchResultSchema,
+  listFileCheckpointsResultSchema,
 } from "../../contracts";
 import type {
   CreateFileCheckpointPayload,
@@ -113,213 +137,290 @@ import type {
   RelocateProjectResult,
   RestoreFileCheckpointPayload,
 } from "../../contracts";
-import { definePayloadProcedure } from "../core";
+import { definePayloadProcedure, omittedResultSchema } from "../core";
 
 export const gitProcedures = {
   createFileCheckpoint: definePayloadProcedure<
     CreateFileCheckpointPayload,
     CreateFileCheckpointResult,
     "supervisor"
-  >("createFileCheckpoint", "supervisor", createFileCheckpointPayloadSchema),
+  >(
+    "createFileCheckpoint",
+    "supervisor",
+    createFileCheckpointPayloadSchema,
+    createFileCheckpointResultSchema,
+  ),
   finalizeFileCheckpoint: definePayloadProcedure<
     FinalizeFileCheckpointPayload,
     FinalizeFileCheckpointResult,
     "supervisor"
-  >("finalizeFileCheckpoint", "supervisor", finalizeFileCheckpointPayloadSchema),
+  >(
+    "finalizeFileCheckpoint",
+    "supervisor",
+    finalizeFileCheckpointPayloadSchema,
+    finalizeFileCheckpointResultSchema,
+  ),
   listFileCheckpoints: definePayloadProcedure<
     ListFileCheckpointsPayload,
     ListFileCheckpointsResult,
     "supervisor"
-  >("listFileCheckpoints", "supervisor", listFileCheckpointsPayloadSchema),
+  >(
+    "listFileCheckpoints",
+    "supervisor",
+    listFileCheckpointsPayloadSchema,
+    listFileCheckpointsResultSchema,
+  ),
   restoreFileCheckpoint: definePayloadProcedure<RestoreFileCheckpointPayload, void, "supervisor">(
     "restoreFileCheckpoint",
     "supervisor",
     restoreFileCheckpointPayloadSchema,
+    omittedResultSchema,
   ),
   getGitStatus: definePayloadProcedure<GetGitStatusPayload, GitStatusResult, "supervisor">(
     "getGitStatus",
     "supervisor",
     getGitStatusPayloadSchema,
+    gitStatusResultSchema,
   ),
   getGitDiff: definePayloadProcedure<GetGitDiffPayload, GitDiffResult, "supervisor">(
     "getGitDiff",
     "supervisor",
     getGitDiffPayloadSchema,
+    gitDiffResultSchema,
   ),
   getGitDiffBatch: definePayloadProcedure<GetGitDiffBatchPayload, GitDiffBatchResult, "supervisor">(
     "getGitDiffBatch",
     "supervisor",
     getGitDiffBatchPayloadSchema,
+    gitDiffBatchResultSchema,
   ),
   getGitFileContent: definePayloadProcedure<
     GetGitFileContentPayload,
     GitFileContentResult,
     "supervisor"
-  >("getGitFileContent", "supervisor", getGitFileContentPayloadSchema),
+  >("getGitFileContent", "supervisor", getGitFileContentPayloadSchema, gitFileContentResultSchema),
   gitStage: definePayloadProcedure<GitStagePayload, void, "supervisor">(
     "gitStage",
     "supervisor",
     gitStagePayloadSchema,
+    omittedResultSchema,
   ),
   gitUnstage: definePayloadProcedure<GitUnstagePayload, void, "supervisor">(
     "gitUnstage",
     "supervisor",
     gitUnstagePayloadSchema,
+    omittedResultSchema,
   ),
   gitRevert: definePayloadProcedure<GitRevertPayload, void, "supervisor">(
     "gitRevert",
     "supervisor",
     gitRevertPayloadSchema,
+    omittedResultSchema,
   ),
   gitStageAll: definePayloadProcedure<GitStageAllPayload, void, "supervisor">(
     "gitStageAll",
     "supervisor",
     gitStageAllPayloadSchema,
+    omittedResultSchema,
   ),
   gitUnstageAll: definePayloadProcedure<GitUnstageAllPayload, void, "supervisor">(
     "gitUnstageAll",
     "supervisor",
     gitUnstageAllPayloadSchema,
+    omittedResultSchema,
   ),
   gitRevertAll: definePayloadProcedure<GitRevertAllPayload, void, "supervisor">(
     "gitRevertAll",
     "supervisor",
     gitRevertAllPayloadSchema,
+    omittedResultSchema,
   ),
   gitCommit: definePayloadProcedure<GitCommitPayload, GitCommitResult, "supervisor">(
     "gitCommit",
     "supervisor",
     gitCommitPayloadSchema,
+    gitCommitResultSchema,
   ),
   gitInit: definePayloadProcedure<GitInitPayload, void, "supervisor">(
     "gitInit",
     "supervisor",
     gitInitPayloadSchema,
+    omittedResultSchema,
   ),
   gitAddRemote: definePayloadProcedure<GitAddRemotePayload, void, "supervisor">(
     "gitAddRemote",
     "supervisor",
     gitAddRemotePayloadSchema,
+    omittedResultSchema,
   ),
   generateCommitMessage: definePayloadProcedure<
     GenerateCommitMessagePayload,
     GenerateCommitMessageResult,
     "supervisor"
-  >("generateCommitMessage", "supervisor", generateCommitMessagePayloadSchema),
+  >(
+    "generateCommitMessage",
+    "supervisor",
+    generateCommitMessagePayloadSchema,
+    generateCommitMessageResultSchema,
+  ),
   generateTitle: definePayloadProcedure<GenerateTitlePayload, GenerateTitleResult, "supervisor">(
     "generateTitle",
     "supervisor",
     generateTitlePayloadSchema,
+    generateTitleResultSchema,
   ),
   generatePrSummary: definePayloadProcedure<
     GeneratePrSummaryPayload,
     GeneratePrSummaryResult,
     "supervisor"
-  >("generatePrSummary", "supervisor", generatePrSummaryPayloadSchema),
+  >(
+    "generatePrSummary",
+    "supervisor",
+    generatePrSummaryPayloadSchema,
+    generatePrSummaryResultSchema,
+  ),
   gitListBranches: definePayloadProcedure<GetGitBranchesPayload, GitBranchListResult, "supervisor">(
     "gitListBranches",
     "supervisor",
     getGitBranchesPayloadSchema,
+    gitBranchListResultSchema,
   ),
   gitFetch: definePayloadProcedure<GitFetchPayload, void, "supervisor">(
     "gitFetch",
     "supervisor",
     gitFetchPayloadSchema,
+    omittedResultSchema,
   ),
   gitListWorktrees: definePayloadProcedure<
     GitListWorktreesPayload,
     GitWorktreeListResult,
     "supervisor"
-  >("gitListWorktrees", "supervisor", gitListWorktreesPayloadSchema),
+  >("gitListWorktrees", "supervisor", gitListWorktreesPayloadSchema, gitWorktreeListResultSchema),
   gitAddWorktree: definePayloadProcedure<GitAddWorktreePayload, GitAddWorktreeResult, "supervisor">(
     "gitAddWorktree",
     "supervisor",
     gitAddWorktreePayloadSchema,
+    gitAddWorktreeResultSchema,
   ),
   gitRemoveWorktree: definePayloadProcedure<GitRemoveWorktreePayload, void, "supervisor">(
     "gitRemoveWorktree",
     "supervisor",
     gitRemoveWorktreePayloadSchema,
+    omittedResultSchema,
   ),
   gitPruneWorktrees: definePayloadProcedure<GitPruneWorktreesPayload, void, "supervisor">(
     "gitPruneWorktrees",
     "supervisor",
     gitPruneWorktreesPayloadSchema,
+    omittedResultSchema,
   ),
   gitDeleteBranch: definePayloadProcedure<GitDeleteBranchPayload, void, "supervisor">(
     "gitDeleteBranch",
     "supervisor",
     gitDeleteBranchPayloadSchema,
+    omittedResultSchema,
   ),
   gitSwitchBranch: definePayloadProcedure<
     GitSwitchBranchPayload,
     GitSwitchBranchResult,
     "supervisor"
-  >("gitSwitchBranch", "supervisor", gitSwitchBranchPayloadSchema),
+  >("gitSwitchBranch", "supervisor", gitSwitchBranchPayloadSchema, gitSwitchBranchResultSchema),
   gitPull: definePayloadProcedure<GitPullPayload, void, "supervisor">(
     "gitPull",
     "supervisor",
     gitPullPayloadSchema,
+    omittedResultSchema,
   ),
   gitPullRebase: definePayloadProcedure<GitPullPayload, void, "supervisor">(
     "gitPullRebase",
     "supervisor",
     gitPullPayloadSchema,
+    omittedResultSchema,
   ),
   gitPush: definePayloadProcedure<GitPushPayload, void, "supervisor">(
     "gitPush",
     "supervisor",
     gitPushPayloadSchema,
+    omittedResultSchema,
   ),
   gitSync: definePayloadProcedure<GitSyncPayload, GitSyncResult, "supervisor">(
     "gitSync",
     "supervisor",
     gitSyncPayloadSchema,
+    gitSyncResultSchema,
   ),
   gitSyncRebase: definePayloadProcedure<GitSyncPayload, GitSyncResult, "supervisor">(
     "gitSyncRebase",
     "supervisor",
     gitSyncPayloadSchema,
+    gitSyncResultSchema,
   ),
   gitProjectSnapshot: definePayloadProcedure<
     GitProjectSnapshotPayload,
     GitProjectSnapshotResult,
     "supervisor"
-  >("gitProjectSnapshot", "supervisor", gitProjectSnapshotPayloadSchema),
+  >(
+    "gitProjectSnapshot",
+    "supervisor",
+    gitProjectSnapshotPayloadSchema,
+    gitProjectSnapshotResultSchema,
+  ),
   gitWorktreeStatusBatch: definePayloadProcedure<
     GitWorktreeStatusBatchPayload,
     GitWorktreeStatusBatchResult,
     "supervisor"
-  >("gitWorktreeStatusBatch", "supervisor", gitWorktreeStatusBatchPayloadSchema),
+  >(
+    "gitWorktreeStatusBatch",
+    "supervisor",
+    gitWorktreeStatusBatchPayloadSchema,
+    gitWorktreeStatusBatchResultSchema,
+  ),
   gitGetWorktreeSourceBranch: definePayloadProcedure<
     GitGetWorktreeSourceBranchPayload,
     GitGetWorktreeSourceBranchResult,
     "supervisor"
-  >("gitGetWorktreeSourceBranch", "supervisor", gitGetWorktreeSourceBranchPayloadSchema),
+  >(
+    "gitGetWorktreeSourceBranch",
+    "supervisor",
+    gitGetWorktreeSourceBranchPayloadSchema,
+    gitGetWorktreeSourceBranchResultSchema,
+  ),
   gitGetWorktreeOwner: definePayloadProcedure<
     GitGetWorktreeOwnerPayload,
     GitGetWorktreeOwnerResult,
     "supervisor"
-  >("gitGetWorktreeOwner", "supervisor", gitGetWorktreeOwnerPayloadSchema),
+  >(
+    "gitGetWorktreeOwner",
+    "supervisor",
+    gitGetWorktreeOwnerPayloadSchema,
+    gitGetWorktreeOwnerResultSchema,
+  ),
   gitMergeToSource: definePayloadProcedure<
     GitMergeToSourcePayload,
     GitMergeToSourceResult,
     "supervisor"
-  >("gitMergeToSource", "supervisor", gitMergeToSourcePayloadSchema),
+  >("gitMergeToSource", "supervisor", gitMergeToSourcePayloadSchema, gitMergeToSourceResultSchema),
   gitPullFromSource: definePayloadProcedure<
     GitPullFromSourcePayload,
     GitPullFromSourceResult,
     "supervisor"
-  >("gitPullFromSource", "supervisor", gitPullFromSourcePayloadSchema),
+  >(
+    "gitPullFromSource",
+    "supervisor",
+    gitPullFromSourcePayloadSchema,
+    gitPullFromSourceResultSchema,
+  ),
   gitAbortMerge: definePayloadProcedure<GitAbortMergePayload, GitAbortMergeResult, "supervisor">(
     "gitAbortMerge",
     "supervisor",
     gitAbortMergePayloadSchema,
+    gitAbortMergeResultSchema,
   ),
   gitFinishMerge: definePayloadProcedure<GitFinishMergePayload, GitFinishMergeResult, "supervisor">(
     "gitFinishMerge",
     "supervisor",
     gitFinishMergePayloadSchema,
+    gitFinishMergeResultSchema,
   ),
   gitWatchProject: definePayloadProcedure<GitWatchProjectPayload, void, "supervisor">(
     "gitWatchProject",

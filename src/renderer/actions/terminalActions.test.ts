@@ -7,6 +7,7 @@ const bridge = vi.hoisted(() => ({
   startShell: vi.fn<(payload: unknown) => Promise<void>>(),
   writeTerminal: vi.fn<(payload: { threadId: string; data: string }) => Promise<void>>(),
   closeThread: vi.fn<(payload: { threadId: string }) => Promise<void>>(),
+  setRendererEventInterests: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 const supervisorHandlers: Array<(event: SupervisorEvent) => void> = [];
@@ -95,7 +96,13 @@ describe("runProjectAction", () => {
     const tab = useDevTerminalStore.getState().tabs[0]!;
 
     supervisorHandlers.forEach((handler) =>
-      handler({ type: "thread-output", threadId: tab.id, data: "PS> ", outputLength: 4 }),
+      handler({
+        type: "thread-output",
+        threadId: tab.id,
+        data: "PS> ",
+        outputLength: 4,
+        terminalInstanceId: "gen-test",
+      }),
     );
     const command = bridge.writeTerminal.mock.calls[0]?.[0].data ?? "";
     const token = /poracode-shell-complete=([^:]+):/u.exec(command)?.[1];
@@ -106,6 +113,7 @@ describe("runProjectAction", () => {
         threadId: tab.id,
         data: command,
         outputLength: command.length,
+        terminalInstanceId: "gen-test",
       }),
     );
     supervisorHandlers.forEach((handler) =>
@@ -114,6 +122,7 @@ describe("runProjectAction", () => {
         threadId: tab.id,
         data: "command failed\r\n",
         outputLength: command.length + 16,
+        terminalInstanceId: "gen-test",
       }),
     );
     const marker = `\u001B]777;poracode-shell-complete=${token}:1\u0007`;
@@ -123,6 +132,7 @@ describe("runProjectAction", () => {
         threadId: tab.id,
         data: marker,
         outputLength: marker.length,
+        terminalInstanceId: "gen-test",
       }),
     );
 

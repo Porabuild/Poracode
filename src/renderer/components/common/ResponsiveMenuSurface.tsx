@@ -1,46 +1,27 @@
-import {
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
-import { createPortal } from "react-dom";
+import type { ComponentProps, ReactNode } from "react";
 import { Popover, useMediaQuery } from "@heroui/react";
-import { useLingui } from "@lingui/react/macro";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isRemoteSession } from "@/renderer/bridge";
-import { SheetGrabber, useSheetGrabber } from "@/renderer/components/common/useSheetGrabber";
-import { lockMobileSheetViewport } from "./mobileSheetViewportLock";
+import { BottomSheet } from "./BottomSheet";
 
 /** The placement union HeroUI's popover accepts, derived from the component. */
 type Placement = ComponentProps<typeof Popover.Content>["placement"];
 
-/**
- * How long the drawer's slide-out runs before it unmounts. Must match the
- * `m-sheet-out` / `m-sheet-backdrop-out` animation duration in
- * `src/mobile/styles.css` (and mirrors `SHEET_EXIT_MS` in the mobile shell's
- * own `useSheet`). The timer — not `animationend` — drives the unmount so it
- * still fires under reduced motion, where the animation is disabled.
- */
-const SHEET_EXIT_MS = 200;
 const DESKTOP_POINTER_QUERY = "(min-width: 768px) and (hover: hover) and (pointer: fine)";
 
-function useMobileMenuSurface(): boolean {
+function useCompactMenuSurface(): boolean {
+  const compact = useCompactLayout();
   const desktopPointer = useMediaQuery(DESKTOP_POINTER_QUERY);
-  return isRemoteSession() && !desktopPointer;
+  return compact || (isRemoteSession() && !desktopPointer);
 }
 
 /**
- * A composer/menu popover on desktop that becomes a bottom drawer in the mobile
- * PWA. Popovers anchored to a tiny toolbar trigger are cramped and fiddly to tap
+ * A composer/menu popover with a bottom-drawer presentation for coarse input.
+ * Popovers anchored to a tiny toolbar trigger are cramped and fiddly to tap
  * on a phone; a full-width bottom sheet gives roomy targets and matches the rest
  * of the mobile shell.
  *
- * The sheet reuses the shell's `.m-sheet*` styles from `src/mobile/styles.css`.
- * Those only ship in the PWA bundle, but this branch only renders when
- * {@link isRemoteSession} is true (i.e. the PWA), so the classes are always
- * present where they're used.
+ * The sheet reuses the canonical renderer's `.m-sheet*` styles.
  *
  * The menu owns its own open state (so it keeps working identically on desktop);
  * it must wire its trigger button to call `onOpenChange(true)` on press when
@@ -62,98 +43,14 @@ export function ResponsiveMenuSurface(props: {
   readonly contentClassName?: string;
   /** Desktop `Popover.Dialog` className. */
   readonly dialogClassName?: string;
+  /** Additional class for the compact bottom sheet. */
+  readonly sheetClassName?: string;
   /** Applied to `Popover.Trigger` (desktop) / the trigger wrapper (mobile). */
   readonly triggerClassName?: string;
 }) {
-  const { t } = useLingui();
-  const mobile = useMobileMenuSurface();
-
-  // Keep the drawer mounted through its slide-out. `rendered` stays true for
-  // SHEET_EXIT_MS after `isOpen` goes false; `closing` toggles `data-closing`
-  // so the CSS exit keyframes run before React unmounts the portal (without
-  // this, closing the drawer unmounts it synchronously and no animation plays).
-  // Transitions are tracked during render; only the exit timer lives in the
-  // effect below (its callback is async, so no sync setState-in-effect).
-  const [rendered, setRendered] = useState(props.isOpen);
-  const [closing, setClosing] = useState(false);
-  const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [prevSheetOpen, setPrevSheetOpen] = useState({ mobile, open: props.isOpen });
-  if (prevSheetOpen.mobile !== mobile || prevSheetOpen.open !== props.isOpen) {
-    setPrevSheetOpen({ mobile, open: props.isOpen });
-    if (mobile && props.isOpen) {
-      setClosing(false);
-      setRendered(true);
-    } else if (mobile && !props.isOpen && rendered) {
-      setClosing(true);
-    }
-  }
-  const { sheetRef, expanded, dragging, grabberHandlers } = useSheetGrabber({
-    expandable: true,
-    closing,
-    onClose: () => props.onOpenChange(false),
-    resetOnOpen: mobile && props.isOpen,
-  });
-  const body =
-    typeof props.children === "function"
-      ? props.children({ expanded: mobile ? expanded : false })
-      : props.children;
-  const mobilePortalTarget = mobile
-    ? (document.querySelector<HTMLElement>(".m-shell") ?? document.body)
-    : null;
-
-  // Unmount SHEET_EXIT_MS after the slide-out starts; reopening first cancels
-  // the pending unmount. Runs only while the drawer path is active.
-  useEffect(() => {
-    if (!mobile || props.isOpen || !closing) {
-      if (exitTimer.current) {
-        clearTimeout(exitTimer.current);
-        exitTimer.current = null;
-      }
-      return;
-    }
-    if (exitTimer.current) return;
-    exitTimer.current = setTimeout(() => {
-      exitTimer.current = null;
-      setClosing(false);
-      setRendered(false);
-    }, SHEET_EXIT_MS);
-    return () => {
-      if (exitTimer.current) {
-        clearTimeout(exitTimer.current);
-        exitTimer.current = null;
-      }
-    };
-  }, [mobile, props.isOpen, closing]);
-
-  // Close the drawer on Escape (mobile path only; HeroUI handles it on desktop).
-  // The close callback rides an effect event so the subscription only
-  // re-registers when the drawer path or open state changes.
-  const closeDrawer = useEffectEvent(() => {
-    props.onOpenChange(false);
-  });
-  useEffect(() => {
-    if (!mobile || !props.isOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeDrawer();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [mobile, props.isOpen]);
-
-  // iOS can pan the layout document when an input inside a fixed sheet gains
-  // focus. Blur before the sheet disappears, then keep restoring the opening
-  // offset while the keyboard's delayed dismissal geometry settles.
-  useEffect(() => {
-    if (!mobile || !props.isOpen) return;
-    const unlockViewport = lockMobileSheetViewport();
-    return () => {
-      const activeElement = document.activeElement;
-      if (activeElement instanceof HTMLElement && activeElement.closest(".m-sheet-backdrop")) {
-        activeElement.blur();
-      }
-      unlockViewport();
-    };
-  }, [mobile, props.isOpen]);
+  const mobile = useCompactMenuSurface();
+  const desktopBody =
+    typeof props.children === "function" ? props.children({ expanded: false }) : props.children;
 
   if (!mobile) {
     return (
@@ -169,7 +66,7 @@ export function ResponsiveMenuSurface(props: {
             <Popover.Dialog
               {...(props.dialogClassName ? { className: props.dialogClassName } : {})}
             >
-              {body}
+              {desktopBody}
             </Popover.Dialog>
           </Popover.Content>
         ) : null}
@@ -184,42 +81,28 @@ export function ResponsiveMenuSurface(props: {
       ) : (
         props.trigger
       )}
-      {rendered && mobilePortalTarget
-        ? // Portal to the top-level mobile shell, outside the transformed
-          // composer. Keeping the sheet in the page compositor preserves
-          // Safari's transparent floating toolbar; tests/non-shell consumers
-          // fall back to <body> above.
-          createPortal(
-            <div className="m-sheet-backdrop" data-closing={closing || undefined}>
-              <button
-                type="button"
-                className="m-sheet-scrim"
-                aria-label={t`Close`}
-                onClick={() => props.onOpenChange(false)}
-              />
-              <div
-                ref={sheetRef}
-                className="m-sheet"
-                data-expanded={expanded || undefined}
-                data-dragging={dragging || undefined}
-                role="dialog"
-                aria-label={props.label}
-              >
-                <SheetGrabber handlers={grabberHandlers} />
-                <div className="m-sheet-head">
-                  <span className="truncate">{props.label}</span>
-                </div>
-                <div className="flex min-h-0 flex-1 flex-col">{body}</div>
-              </div>
-            </div>,
-            mobilePortalTarget,
-          )
-        : null}
+      <BottomSheet
+        isOpen={props.isOpen}
+        label={props.label}
+        {...(props.sheetClassName ? { sheetClassName: props.sheetClassName } : {})}
+        onClose={() => props.onOpenChange(false)}
+      >
+        {({ expanded }) => (
+          <>
+            <div className="m-sheet-head">
+              <span className="truncate">{props.label}</span>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              {typeof props.children === "function" ? props.children({ expanded }) : props.children}
+            </div>
+          </>
+        )}
+      </BottomSheet>
     </>
   );
 }
 
-/** Whether composer menus should render as a mobile drawer instead of a popover. */
+/** Whether composer menus should render as a compact drawer instead of a popover. */
 export function useResponsiveMenu(): { readonly mobile: boolean } {
-  return { mobile: useMobileMenuSurface() };
+  return { mobile: useCompactMenuSurface() };
 }

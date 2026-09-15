@@ -81,7 +81,7 @@ describe("threadGalleryImages", () => {
         [
           {
             kind: "image",
-            dataUrl: "data:image/png;base64,AAA",
+            dataUrl: "data:image/png;base64,AAAA",
             mimeType: "image/png",
             name: "gen.png",
           },
@@ -93,7 +93,7 @@ describe("threadGalleryImages", () => {
     expect(gallery.length).toBe(2);
     // Newest display position first: structured blocks paint after inline
     // markdown, so the block leads when iterating newest-first.
-    expect(gallery[0]!.src).toBe("data:image/png;base64,AAA");
+    expect(gallery[0]!.src).toBe("data:image/png;base64,AAAA");
     expect(gallery[0]).toMatchObject({ fileName: "gen-png.png", mime: "image/png" });
     expect(gallery[1]!.src).toBe("https://example.test/x.png");
   });
@@ -106,13 +106,13 @@ describe("threadGalleryImages", () => {
       payload: {
         name: "imageGeneration",
         status: "success",
-        result: { image: "data:image/png;base64,BBB" },
+        result: { image: "data:image/png;base64,BBBB" },
       },
       streams: {},
     };
     const gallery = collectThreadGalleryImages([tool], {});
     expect(gallery.length).toBe(1);
-    expect(gallery[0]!.src).toBe("data:image/png;base64,BBB");
+    expect(gallery[0]!.src).toBe("data:image/png;base64,BBBB");
   });
 
   it("skips errored image_view rows like the transcript does", () => {

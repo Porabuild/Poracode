@@ -29,6 +29,7 @@ import type {
 } from "@/shared/contracts";
 import { sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import {
   findThoughtLevelConfigOption,
   isToggleOnlyThoughtLevelConfig,
@@ -489,6 +490,10 @@ export async function probeAcpCapabilities(
       latestSlashCommands = commands;
     };
 
+    // Mock-QA enforcement: the capability probe executes the real provider CLI
+    // (initialize + authenticate handshake), so mock sessions refuse it; the
+    // probe fails like any other spawn error.
+    assertAgentLaunchAllowed("session-probe");
     child = spawn(command, args, {
       cwd: options?.processCwd,
       stdio: ["pipe", "pipe", "pipe"],
@@ -886,6 +891,9 @@ export async function authenticateAcpAgent(
   let child: ChildProcessWithoutNullStreams | undefined;
 
   try {
+    // Mock-QA enforcement: sign-in executes the real provider CLI's auth flow
+    // and mutates real credentials — mock sessions refuse it outright.
+    assertAgentLaunchAllowed("session-auth");
     child = spawn(command, args, {
       ...(options?.processCwd ? { cwd: options.processCwd } : {}),
       stdio: ["pipe", "pipe", "pipe"],
@@ -963,6 +971,9 @@ export async function logoutAcpAgent(
   let child: ChildProcessWithoutNullStreams | undefined;
 
   try {
+    // Mock-QA enforcement: logout destroys real provider credentials — mock
+    // sessions refuse it so QA cannot tear down the user's real sign-ins.
+    assertAgentLaunchAllowed("session-auth");
     child = spawn(command, args, {
       ...(options?.processCwd ? { cwd: options.processCwd } : {}),
       stdio: ["pipe", "pipe", "pipe"],

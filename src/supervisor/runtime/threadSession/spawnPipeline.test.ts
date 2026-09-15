@@ -293,6 +293,6 @@ describe("composeResolvedMcpServers", () => {
     );
 
     expect(servers.map((server) => server.name)).toEqual(["custom", "browser", "crossagents"]);
-    expect(servers[2]).toMatchObject({ timeoutMs: 300_000, approvalMode: "approve" });
+    expect(servers[2]).toMatchObject({ timeoutMs: 600_000, approvalMode: "approve" });
   });
 });

@@ -105,7 +105,7 @@ export interface OpenCodeMapperState {
   /** Assistant message ids whose `info.error` was already surfaced (exact-once). */
   errorEmittedMessages: Set<string>;
   /**
-   * Retry status key (`${attempt}:${message}`) last emitted as an error row.
+   * Retry status key (`${attempt}:${message}`) last emitted as a warning.
    * Cleared when the session transitions back to busy or idle.
    */
   lastEmittedRetryKey: string | undefined;

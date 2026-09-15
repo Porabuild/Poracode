@@ -12,6 +12,7 @@ import {
   DEFAULT_TERMINAL_SIZE,
   emptyMcpLaunchSnapshot,
   type Project,
+  type ProjectLocation,
   type RemoteThreadCommand,
   type StartThreadPayload,
   type StartThreadResult,
@@ -21,12 +22,14 @@ import {
   type ThreadStatusSource,
 } from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
-import { ipcProcedureMap } from "@/shared/ipc";
+import { ipcProcedureMap, parseRemoteProcedureResultValue } from "@/shared/ipc";
+import { FILE_SAVE_CONFLICT_MESSAGE } from "@/shared/fileSaveErrors";
 import { msg } from "@/shared/messages";
 import {
   dbDeleteProject,
   dbDeleteThread,
   dbGetProjects,
+  dbGetThread,
   dbGetThreads,
   dbUpdateProject,
   dbUpsertProject,
@@ -41,6 +44,7 @@ import {
 } from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
 import type { RemoteServerContext } from "./context";
+import { prepareHostWorktree, removeHostWorktree } from "./hostWorktreeLifecycle";
 import { readJsonBody } from "./requestBody";
 import { sortOrderForThread } from "./snapshots";
 
@@ -97,8 +101,126 @@ export async function runRemoteProcedure(
   const parsedPayload = ipcProcedureMap[name].payloadSchema.parse(payload) as IpcProcedurePayload<
     typeof name
   >;
+  assertRegisteredProjectEntryLocation(procedure, parsedPayload);
   assertRemoteGitMutationExperimentSafe(procedure, parsedPayload);
-  return ctx.options.callSupervisor(name, parsedPayload);
+  const resultSchema = ipcProcedureMap[name].resultSchema;
+  if (!resultSchema) {
+    throw new RemoteHttpError(
+      "git_procedure_result_schema_missing",
+      `Procedure "${procedure}" is missing an authoritative result schema.`,
+      500,
+    );
+  }
+  let raw: unknown;
+  try {
+    raw = await ctx.options.callSupervisor(name, parsedPayload);
+  } catch (error) {
+    throw mapSupervisorProcedureError(name, error);
+  }
+  try {
+    return parseRemoteProcedureResultValue(resultSchema, raw);
+  } catch {
+    throw new RemoteHttpError(
+      "invalid_procedure_result",
+      `Procedure "${procedure}" returned a result that does not match its contract.`,
+      500,
+    );
+  }
+}
+
+/** The only procedures whose known domain error is mapped for remote clients. */
+const FILE_SAVE_PROCEDURES = new Set<string>(["writeProjectFile", "writeExternalFile"]);
+
+/**
+ * Supervisor IPC deliberately serializes failures as plain `error.message`
+ * strings (see `handleSupervisorIpcFailure`), so this passthrough receives no
+ * typed errors. For the editor-save procedures only, the save-conflict domain
+ * message is recognized by exact equality with the canonical constant and
+ * re-emitted as an actionable `409 file_save_conflict`. Every other failure —
+ * any other procedure, near-miss messages included — is returned untouched so
+ * `writeError` keeps redacting it as a generic 500; supervisor internals must
+ * never leak through this boundary.
+ */
+function mapSupervisorProcedureError(procedure: string, error: unknown): unknown {
+  if (
+    FILE_SAVE_PROCEDURES.has(procedure) &&
+    error instanceof Error &&
+    error.message === FILE_SAVE_CONFLICT_MESSAGE
+  ) {
+    return new RemoteHttpError("file_save_conflict", FILE_SAVE_CONFLICT_MESSAGE, 409);
+  }
+  return error;
+}
+
+const PROJECT_ENTRY_PROCEDURES = new Set([
+  "createProjectEntry",
+  "renameProjectEntry",
+  "moveProjectEntry",
+  "deleteProjectEntry",
+]);
+
+function assertRegisteredProjectEntryLocation(procedure: string, payload: unknown): void {
+  if (!PROJECT_ENTRY_PROCEDURES.has(procedure)) return;
+  const location = (payload as { projectLocation?: ProjectLocation }).projectLocation;
+  if (!location) {
+    throw new RemoteHttpError(
+      "project_location_not_registered",
+      "Project location is missing.",
+      403,
+    );
+  }
+  let projects: Project[];
+  let threads: Thread[];
+  try {
+    projects = dbGetProjects();
+    threads = dbGetThreads();
+  } catch {
+    throw new RemoteHttpError(
+      "project_registry_unavailable",
+      "Project ownership could not be verified.",
+      503,
+    );
+  }
+  const projectById = new Map(projects.map((project) => [project.id, project]));
+  const registered = projects.some((project) => sameProjectLocation(project.location, location));
+  const ownedWorktree = threads.some((thread) => {
+    const project = projectById.get(thread.projectId);
+    return Boolean(
+      project &&
+      thread.worktreePath &&
+      sameProjectLocation(buildWorktreeLocation(project.location, thread.worktreePath), location),
+    );
+  });
+  if (!registered && !ownedWorktree) {
+    throw new RemoteHttpError(
+      "project_location_not_registered",
+      "Project location is not registered on this desktop.",
+      403,
+    );
+  }
+}
+
+function sameProjectLocation(left: ProjectLocation, right: ProjectLocation): boolean {
+  if (left.kind !== right.kind || left.remoteServerId !== right.remoteServerId) return false;
+  if (left.kind === "wsl" && right.kind === "wsl") {
+    return (
+      left.distro.toLowerCase() === right.distro.toLowerCase() &&
+      normalizeOwnedPath(left.linuxPath, false) === normalizeOwnedPath(right.linuxPath, false)
+    );
+  }
+  if (left.kind === "windows" && right.kind === "windows") {
+    return normalizeOwnedPath(left.path, true) === normalizeOwnedPath(right.path, true);
+  }
+  return (
+    left.kind === "posix" &&
+    right.kind === "posix" &&
+    normalizeOwnedPath(left.path, false) === normalizeOwnedPath(right.path, false)
+  );
+}
+
+function normalizeOwnedPath(path: string, caseInsensitive: boolean): string {
+  const normalized = path.replace(/\\/gu, "/").replace(/\/+$/u, "") || "/";
+  return caseInsensitive ? normalized.toLowerCase() : normalized;
 }
 
 /**
@@ -147,8 +269,8 @@ export function runProjectCommand(
 
 /**
  * Applies thread commands to the durable DB path used by remote snapshots.
- * Returns true for commands whose behavior still requires renderer-owned side
- * effects beyond simple thread metadata persistence.
+ * Returns true only for commands that still have renderer-owned side effects
+ * after the host has applied the durable work.
  */
 export async function applyRemoteThreadCommand(
   ctx: RemoteServerContext,
@@ -156,7 +278,11 @@ export async function applyRemoteThreadCommand(
 ): Promise<boolean> {
   switch (command.kind) {
     case "prepare-worktree":
-      return true;
+      await prepareHostWorktree(ctx, {
+        projectId: command.projectId,
+        worktreePath: command.worktreePath,
+      });
+      return false;
     case "start":
       await startRemoteThread(ctx, command);
       return false;
@@ -195,14 +321,22 @@ export async function applyRemoteThreadCommand(
         starred: command.starred,
       }));
       return false;
-    case "set-worktree":
+    case "set-worktree": {
+      const previous = dbGetThreads().find((thread) => thread.id === command.threadId);
       updateRemoteThread(command.threadId, (thread) => ({
         ...thread,
         worktreePath: command.worktreePath,
         ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
         updatedAt: new Date().toISOString(),
       }));
+      if (command.isNewWorktree && previous) {
+        await prepareHostWorktree(ctx, {
+          projectId: previous.projectId,
+          worktreePath: command.worktreePath,
+        });
+      }
       return false;
+    }
     case "set-group":
       updateRemoteThread(command.threadId, (thread) => ({
         ...thread,
@@ -210,6 +344,15 @@ export async function applyRemoteThreadCommand(
         groupName: command.groupName,
       }));
       return false;
+    case "clear-group": {
+      const groupId = dbGetThreads().find((thread) => thread.id === command.threadId)?.groupId;
+      updateRemoteThread(command.threadId, withoutThreadGroup);
+      if (groupId) {
+        const remainder = dbGetThreads().filter((thread) => thread.groupId === groupId);
+        if (remainder.length === 1) updateRemoteThread(remainder[0]!.id, withoutThreadGroup);
+      }
+      return false;
+    }
     case "archive":
       await closeThreadBestEffort(ctx, command.threadId);
       {
@@ -234,11 +377,47 @@ export async function applyRemoteThreadCommand(
       await closeThreadBestEffort(ctx, command.threadId);
       dbDeleteThread(command.threadId);
       return false;
-    case "delete-worktree-group":
+    case "delete-worktree-group": {
+      const groupThreads = dbGetThreads().filter((thread) => command.threadIds.includes(thread.id));
+      const worktreeBranch = groupThreads.find((thread) => thread.worktreeBranch)?.worktreeBranch;
       await Promise.all(command.threadIds.map((threadId) => closeThreadBestEffort(ctx, threadId)));
       for (const threadId of command.threadIds) dbDeleteThread(threadId);
-      return true;
+      await removeHostWorktree(ctx, {
+        projectId: command.projectId,
+        worktreePath: command.worktreePath,
+        ...(worktreeBranch ? { worktreeBranch } : {}),
+      });
+      return false;
+    }
   }
+}
+
+/** Empty-prompt reopen takes launch state from the host, never a stale client. */
+export async function ensureRemoteThreadRunning(
+  ctx: RemoteServerContext,
+  threadId: string,
+  initialSize: StartThreadPayload["initialSize"],
+): Promise<StartThreadResult> {
+  const thread = dbGetThread(threadId);
+  if (!thread) throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+  const project = dbGetProjects().find((entry) => entry.id === thread.projectId);
+  if (!project) throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+  const mcpSnapshot =
+    ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
+  return ctx.options.callSupervisor("ensureThreadRunning", {
+    threadId,
+    projectLocation: thread.worktreePath
+      ? buildWorktreeLocation(project.location, thread.worktreePath)
+      : project.location,
+    agentKind: thread.agentKind,
+    ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
+    config: thread.config,
+    prompt: "",
+    initialSize,
+    ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
+    ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
+    ...mcpSnapshot,
+  });
 }
 
 async function startRemoteThread(
@@ -347,7 +526,7 @@ export async function applyRemoteThreadSwitch(
       supervisorPayload.threadId,
       supervisorPayload,
     );
-    ctx.options.dispatchThreadCommand?.(
+    await ctx.options.dispatchThreadCommand?.(
       switchRetargetCommand(supervisorPayload, previous.projectId),
     );
     try {
@@ -373,7 +552,7 @@ export async function applyRemoteThreadSwitch(
         done: false,
       };
       dbUpsertThread(restored, sortOrderForThread(dbGetThreads(), restored.id));
-      ctx.options.dispatchThreadCommand?.({
+      await ctx.options.dispatchThreadCommand?.({
         kind: "start",
         threadId: restored.id,
         projectId: restored.projectId,
@@ -468,6 +647,11 @@ function updateRemoteThread(threadId: string, update: (thread: Thread) => Thread
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
   dbUpsertThread(update(thread), sortOrderForThread(threads, threadId));
+}
+
+function withoutThreadGroup(thread: Thread): Thread {
+  const { groupId: _groupId, groupName: _groupName, ...ungrouped } = thread;
+  return ungrouped;
 }
 
 async function closeThreadBestEffort(ctx: RemoteServerContext, threadId: string): Promise<void> {

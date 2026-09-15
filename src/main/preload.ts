@@ -1,17 +1,33 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
+import { installSmokeNativePreload } from "./testing/smokeNativeControls";
 import { type PoracodeChannel, normalizeChannel } from "@/shared/channel";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { RemoteAccessPairingInfo } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
 import type { GitStatePatch } from "@/shared/gitState";
+import type { UserNotification } from "@/shared/threadNotification";
 import {
-  createInvokeBridge,
+  BACKEND_RENDERER_STREAM_VERSION,
+  isRendererStreamOwnershipGrant,
+  isRendererStreamRecoveryBarrier,
+  isSupervisorEventGap,
+  type BackendRendererStreamInfo,
+} from "@/shared/backendHostProtocol";
+import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
+import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
+import { standaloneAttachInfoSchema } from "@/shared/standaloneAttach";
+import {
+  REMOTE_HTTP_BRIDGE_VERSION,
+  isRemoteHttpBridgePortEnvelope,
+} from "@/shared/remote/httpBridgeProtocol";
+import {
   IPC_EVENT_CHANNELS,
   IPC_WINDOW_CHANNELS,
   PORACODE_WINDOW_KINDS,
-  type BrowserEvent,
-  type PoracodeBridge,
   type PoracodeWindowKind,
+} from "@/shared/ipc/channels";
+import {
+  type BrowserEvent,
   type PrWatchMergedEvent,
   type PrWatchStatusEvent,
   type ProjectStateChangedEvent,
@@ -23,8 +39,7 @@ import {
 
 /**
  * Host home dir without `node:os` — sandboxed preload must not import Node
- * built-ins that can fail and drop `window.poracode` (index.html then redirects
- * to mobile.html).
+ * built-ins that can fail and drop the native host bridge during index.html boot.
  */
 function resolveHomeDir(): string | undefined {
   const env = process.env;
@@ -108,8 +123,8 @@ function resolveArgBoolean(prefix: string): boolean {
 }
 
 const homeDir = resolveHomeDir();
-
-const bridge: PoracodeBridge = {
+const bridge: ElectronHostBridge = {
+  clientRuntimeVersion: PORACODE_CLIENT_RUNTIME_VERSION,
   platform: process.platform,
   appVersion: resolveAppVersion(),
   arch: process.arch,
@@ -128,10 +143,76 @@ const bridge: PoracodeBridge = {
   getDroppedFilePaths(files) {
     return files.map((file) => webUtils.getPathForFile(file)).filter((path) => path.length > 0);
   },
-  ...createInvokeBridge((channel, ...args) => ipcRenderer.invoke(channel, ...args)),
+  invokeProcedure(name, args) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.clientProcedureInvoke, { name, args });
+  },
+  remoteHttpBridgeVersion: REMOTE_HTTP_BRIDGE_VERSION,
+  openRemoteHttpBridge(request) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.remoteHttpBridgeOpen, request) as Promise<
+      Awaited<ReturnType<NonNullable<ElectronHostBridge["openRemoteHttpBridge"]>>>
+    >;
+  },
+  cancelRemoteHttpBridge(request) {
+    return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.remoteHttpBridgeCancel, request) as Promise<void>;
+  },
+  async getStandaloneAttachInfo() {
+    const info: unknown = await ipcRenderer.invoke(IPC_WINDOW_CHANNELS.standaloneAttachInfo);
+    // Fail closed: only an explicit null selects managed-local. A present
+    // getter that resolves to undefined or a schema-invalid payload must
+    // reject so the renderer refuses instead of installing managed. Thrown
+    // IPC rejections propagate unchanged. (An absent optional method on older
+    // managed preloads is handled renderer-side as managed.)
+    if (info === null) return null;
+    const parsed = standaloneAttachInfoSchema.safeParse(info);
+    if (!parsed.success) {
+      throw new Error("Invalid standalone attach configuration.");
+    }
+    return parsed.data as StandaloneAttachInfo;
+  },
+  async getBackendRendererStreamInfo() {
+    const info: unknown = await ipcRenderer.invoke(IPC_WINDOW_CHANNELS.backendRendererStreamInfo);
+    return isBackendRendererStreamInfo(info) ? info : null;
+  },
+  async getRendererStreamOwnershipGrant() {
+    const grant: unknown = await ipcRenderer.invoke(
+      IPC_WINDOW_CHANNELS.rendererStreamOwnershipGrant,
+    );
+    return isRendererStreamOwnershipGrant(grant) ? grant : null;
+  },
+  onBackendRendererStreamChanged(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, info: unknown) => {
+      if (isBackendRendererStreamInfo(info)) listener(info);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.backendRendererStreamChanged, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendRendererStreamChanged, handler);
+    };
+  },
+  onSupervisorEventGap(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, gap: unknown) => {
+      if (isSupervisorEventGap(gap)) listener(gap);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.backendSupervisorEventGap, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendSupervisorEventGap, handler);
+    };
+  },
+  onRendererStreamRecovery(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, barrier: unknown) => {
+      if (isRendererStreamRecoveryBarrier(barrier)) listener(barrier);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.rendererStreamRecovery, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.rendererStreamRecovery, handler);
+    };
+  },
   onSupervisorEvent(listener) {
-    const handler = (_event: Electron.IpcRendererEvent, payload: SupervisorEvent) => {
-      listener(payload);
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: SupervisorEvent,
+      rendererSequence?: number,
+    ) => {
+      listener(payload, rendererSequence);
     };
     ipcRenderer.on(IPC_EVENT_CHANNELS.supervisorEvent, handler);
     return () => {
@@ -201,6 +282,15 @@ const bridge: PoracodeBridge = {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.gitStateChanged, handler);
     };
   },
+  onUserNotification(listener) {
+    const handler = (_event: Electron.IpcRendererEvent, notification: UserNotification) => {
+      listener(notification);
+    };
+    ipcRenderer.on(IPC_EVENT_CHANNELS.userNotification, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.userNotification, handler);
+    };
+  },
   onPrWatchMerged(listener) {
     const handler = (_event: Electron.IpcRendererEvent, payload: PrWatchMergedEvent) => {
       listener(payload);
@@ -259,6 +349,49 @@ const bridge: PoracodeBridge = {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.quickComposerDismissRequested, handler);
     };
   },
+  onQuickComposerShown(listener) {
+    const handler = () => listener();
+    ipcRenderer.on(IPC_EVENT_CHANNELS.quickComposerShown, handler);
+    return () => {
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.quickComposerShown, handler);
+    };
+  },
 };
 
-contextBridge.exposeInMainWorld("poracode", bridge);
+contextBridge.exposeInMainWorld("poracodeHost", bridge);
+// Facade 11: forward each per-request bridge port into the main world via the
+// documented preload -> main-world port pattern. The isolated world never sees
+// body bytes; only the port handle crosses. Unknown/malformed envelopes are
+// dropped and their ports closed.
+const windowLoaded = new Promise<void>((resolve) => {
+  if (document.readyState === "complete") {
+    resolve();
+    return;
+  }
+  window.addEventListener("load", () => resolve(), { once: true });
+});
+ipcRenderer.on(IPC_WINDOW_CHANNELS.remoteHttpBridgePort, (event, payload: unknown) => {
+  if (event.ports.length !== 1 || !isRemoteHttpBridgePortEnvelope(payload)) {
+    for (const port of event.ports) port.close();
+    return;
+  }
+  void windowLoaded.then(() => {
+    window.postMessage(payload, "*", event.ports);
+  });
+});
+installSmokeNativePreload({
+  contextBridge,
+  ipcRenderer,
+  isDev: bridge.isDev,
+  mockAgents: process.env.PORACODE_MOCK_AGENTS === "1",
+});
+
+function isBackendRendererStreamInfo(value: unknown): value is BackendRendererStreamInfo {
+  if (typeof value !== "object" || value === null) return false;
+  const info = value as Record<string, unknown>;
+  return (
+    info.version === BACKEND_RENDERER_STREAM_VERSION &&
+    typeof info.url === "string" &&
+    typeof info.token === "string"
+  );
+}

@@ -1,6 +1,6 @@
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
-import type { Thread, ThreadAttention, ThreadStatus } from "@/shared/contracts";
+import type { ThreadStatus } from "@/shared/contracts";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -11,31 +11,14 @@ import {
   requestBrowserNotificationPermission,
 } from "@/renderer/browserNotificationPermission";
 import { i18n } from "@/renderer/i18n/i18n";
+import type { UserNotification, UserNotificationCategory } from "@/shared/threadNotification";
 
-type NotificationCategory = "done" | "needsAttention" | "error";
+type NotificationCategory = UserNotificationCategory;
 
 const TOAST_VARIANT_BY_CATEGORY: Record<NotificationCategory, "success" | "warning" | "danger"> = {
   done: "success",
   needsAttention: "warning",
   error: "danger",
-};
-
-const ACTIVE_STATUSES: ReadonlySet<ThreadStatus> = new Set([
-  "working",
-  "needs_approval",
-  "needs_reply",
-  "launching",
-]);
-
-type SupervisorThreadStateEvent = {
-  type: "thread-state";
-  threadId: string;
-  status: ThreadStatus;
-  attention: ThreadAttention;
-  /** The turn settled because the user stopped it or an interrupt-backed steer
-   * replaced it. That is an acknowledgement of the user's own action, not a
-   * completion that should alert another device. */
-  forceCloseActiveTurn?: boolean;
 };
 
 const NOTIFICATION_SOUND_URL = "./notification.mp3";
@@ -48,29 +31,6 @@ function getNotificationAudio(): HTMLAudioElement {
     audio.volume = 0.4;
   }
   return audio;
-}
-
-function classifyTransition(
-  oldStatus: ThreadStatus,
-  newStatus: ThreadStatus,
-  newAttention: ThreadAttention,
-): NotificationCategory | null {
-  if (newStatus === "error") return "error";
-
-  if (
-    newStatus === "needs_approval" ||
-    newStatus === "needs_reply" ||
-    newAttention === "needs_approval" ||
-    newAttention === "needs_reply"
-  ) {
-    return "needsAttention";
-  }
-
-  if (ACTIVE_STATUSES.has(oldStatus) && (newStatus === "idle" || newStatus === "finished")) {
-    return "done";
-  }
-
-  return null;
 }
 
 function isThreadInActivePanes(threadId: string): boolean {
@@ -88,11 +48,6 @@ function isThreadInActivePanes(threadId: string): boolean {
 
 function openNotificationThread(threadId: string): void {
   openThread(threadId, { focusComposer: true, switchWorkspace: true });
-}
-
-function getProjectName(projectId: string): string {
-  const project = useAppStore.getState().projects.find((p) => p.id === projectId);
-  return project?.name ?? i18n._(msg`Unknown project`);
 }
 
 function getStatusDetail(category: NotificationCategory, status: ThreadStatus): string {
@@ -248,59 +203,29 @@ function showNativeNotification(
   showElectronNotification(threadId, projectName, threadTitle, category, status);
 }
 
-export function handleThreadStateNotification(
-  event: SupervisorThreadStateEvent,
-  oldThread: Thread | undefined,
-  newThread?: Pick<Thread, "status" | "attention">,
-): void {
-  if (event.forceCloseActiveTurn) return;
-
+/** Display a host-owned notification. Does not re-classify thread state. */
+export function showUserNotification(notification: UserNotification): void {
   const settings = useSharedSettings.getState();
 
-  if (!settings.notificationsEnabled) return;
-  if (!oldThread) return;
-
-  const newStatus = newThread?.status ?? event.status;
-  const newAttention = newThread?.attention ?? event.attention;
-
-  if (oldThread.status === newStatus) return;
-
-  const category = classifyTransition(oldThread.status, newStatus, newAttention);
-  if (!category) return;
-
-  if (!settings.notificationStatuses[category]) return;
-
-  if (!settings.notifyL2Cli && oldThread.threadStatusSource === "terminal_parse") return;
-
-  const projectName = getProjectName(oldThread.projectId);
-  const threadId = oldThread.id;
-  const threadTitle = oldThread.title;
-
   if (!document.hasFocus()) {
-    showNativeNotification(threadId, projectName, threadTitle, category, newStatus);
+    showNativeNotification(
+      notification.threadId,
+      notification.projectName,
+      notification.threadTitle,
+      notification.category,
+      notification.status,
+    );
     return;
   }
 
   if (settings.notificationFilter === "all") {
-    if (isThreadInActivePanes(threadId)) return;
-    showToastNotification(threadId, projectName, threadTitle, category, newStatus);
+    if (isThreadInActivePanes(notification.threadId)) return;
+    showToastNotification(
+      notification.threadId,
+      notification.projectName,
+      notification.threadTitle,
+      notification.category,
+      notification.status,
+    );
   }
-}
-
-export function shouldInspectThreadStateForNotification(): boolean {
-  const settings = useSharedSettings.getState();
-
-  if (!settings.notificationsEnabled) return false;
-  if (
-    !settings.notificationStatuses.done &&
-    !settings.notificationStatuses.needsAttention &&
-    !settings.notificationStatuses.error
-  ) {
-    return false;
-  }
-
-  const focused = typeof document !== "undefined" && document.hasFocus();
-  if (focused && settings.notificationFilter !== "all") return false;
-
-  return true;
 }

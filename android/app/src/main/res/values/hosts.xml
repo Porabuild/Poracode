@@ -1,0 +1,9 @@
+<resources>
+    <string name="hosts_connected">Connected</string>
+    <string name="hosts_more_actions">More actions for %1$s</string>
+    <string name="hosts_rename">Rename</string>
+    <string name="hosts_rename_title">Rename desktop</string>
+    <string name="hosts_name_label">Name</string>
+    <string name="hosts_rename_action">Save</string>
+    <string name="hosts_desktop_settings">Desktop settings</string>
+</resources>

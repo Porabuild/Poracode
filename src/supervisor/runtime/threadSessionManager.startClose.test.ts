@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentKind } from "@/shared/contracts";
+import type { AgentKind, ProviderRevertAnchor } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter, StructuredSessionHandle } from "../agents/base";
 import type { WindowsShellPreference } from "../shellPreference";
@@ -166,7 +166,7 @@ function createInactiveRuntime(
     config: { model: `${agentKind}/model` },
     terminalSize: { cols: 80, rows: 24 },
     launchPrompt: "",
-    sessionRef: { providerSessionId: "ses_existing" },
+    sessionRef: { providerSessionId: "ses_existing", discoveredAt: "2026-09-08T00:00:00.000Z" },
     status: "inactive",
     attention: "none",
     canResumeWithConfig: true,
@@ -210,6 +210,68 @@ describe("ThreadSessionManager provider-session routing", () => {
 
     delete adapter.capabilities.crossagentMcpRouting;
     expect(manager.getThreadIdByProviderSessionId("ses_existing")).toBeUndefined();
+  });
+});
+
+describe("ThreadSessionManager revert anchors (WS2 stage 3)", () => {
+  function installRuntime(overrides: { status?: string } = {}): {
+    manager: ThreadSessionManager;
+    runtime: SessionRuntime;
+    structuredSession: StructuredSessionHandle;
+  } {
+    const structuredSession = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structuredSession);
+    const manager = createManager("codex", adapter);
+    const runtime = createInactiveRuntime("codex", adapter, structuredSession);
+    if (overrides.status) runtime.status = overrides.status as SessionRuntime["status"];
+    manager.sessions.set(runtime.threadId, runtime);
+    return { manager, runtime, structuredSession };
+  }
+
+  it("createRevertAnchor rejects when the structured provider lacks the hook", async () => {
+    const { manager } = installRuntime();
+    await expect(
+      manager.createRevertAnchor({ threadId: "thread-codex", numTurns: 1 }),
+    ).rejects.toThrow(/does not support revert anchors/);
+  });
+
+  it("refuses anchors while the thread is working", async () => {
+    const { manager } = installRuntime({ status: "working" });
+    await expect(
+      manager.createRevertAnchor({ threadId: "thread-codex", numTurns: 1 }),
+    ).rejects.toThrow(/Cannot roll back a thread while the agent is working/);
+    await expect(
+      manager.restoreToRevertAnchor({
+        threadId: "thread-codex",
+        anchor: { version: 1, data: {} },
+      }),
+    ).rejects.toThrow(/Cannot roll back a thread while the agent is working/);
+  });
+
+  it("createRevertAnchor returns the provider anchor; restoreToRevertAnchor adopts a forked session ref", async () => {
+    const { manager, runtime, structuredSession } = installRuntime();
+    const anchor: ProviderRevertAnchor = {
+      version: 1,
+      data: { variant: "fork", sourceThreadId: "ses_existing", lastTurnId: "turn-2", numTurns: 2 },
+    };
+    structuredSession.createRevertAnchor = vi
+      .fn<NonNullable<StructuredSessionHandle["createRevertAnchor"]>>()
+      .mockResolvedValue(anchor);
+    structuredSession.restoreToRevertAnchor = vi
+      .fn<NonNullable<StructuredSessionHandle["restoreToRevertAnchor"]>>()
+      .mockResolvedValue({ providerSessionId: "ses_forked", messages: [] });
+
+    await expect(
+      manager.createRevertAnchor({ threadId: runtime.threadId, numTurns: 2 }),
+    ).resolves.toEqual({
+      anchor,
+    });
+    expect(structuredSession.createRevertAnchor).toHaveBeenCalledWith(2);
+
+    await manager.restoreToRevertAnchor({ threadId: runtime.threadId, anchor });
+    expect(structuredSession.restoreToRevertAnchor).toHaveBeenCalledWith(anchor);
+    expect(runtime.sessionRef?.providerSessionId).toBe("ses_forked");
+    expect(runtime.canResumeWithConfig).toBe(true);
   });
 });
 
@@ -272,6 +334,93 @@ describe("ThreadSessionManager Windows shells", () => {
       ["-NoLogo"],
       expect.objectContaining({ cwd: process.cwd() }),
     );
+  });
+});
+
+describe("ThreadSessionManager reopen", () => {
+  it("keeps another client's live runtime even when the caller has stale config", async () => {
+    const structured = createStructuredSession(Promise.resolve());
+    const adapter = createAdapter("codex", structured);
+    const manager = createManager("codex", adapter);
+    const live = createInactiveRuntime("codex", adapter, structured);
+    live.status = "working";
+    manager.sessions.set(live.threadId, live);
+    await expect(
+      manager.ensureThreadRunning({
+        threadId: live.threadId,
+        projectLocation: live.projectLocation,
+        agentKind: live.agentKind,
+        config: { model: "stale-model" },
+        prompt: "",
+        initialSize: live.terminalSize,
+      }),
+    ).resolves.toEqual({ threadId: live.threadId });
+    expect(manager.sessions.get(live.threadId)).toBe(live);
+    expect(live.status).toBe("working");
+    expect(structured.dispose).not.toHaveBeenCalled();
+    expect(adapter.createStructuredSession).not.toHaveBeenCalled();
+  });
+
+  it("joins concurrent reopens and permits a later reopen after unload", async () => {
+    const activation = deferred();
+    const structured = createStructuredSession(activation.promise);
+    const adapter = createAdapter("codex", structured);
+    const manager = createManager("codex", adapter);
+    const payload = {
+      threadId: "reopen-race",
+      projectLocation: { kind: "posix" as const, path: process.cwd() },
+      agentKind: "codex" as const,
+      config: { model: "test" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      sessionRef: { providerSessionId: "ses_existing", discoveredAt: "2026-09-08T00:00:00.000Z" },
+      presentationMode: "gui" as const,
+    };
+    const first = manager.ensureThreadRunning(payload);
+    const second = manager.ensureThreadRunning(payload);
+    let secondSettled = false;
+    void second.then(() => {
+      secondSettled = true;
+    });
+    await vi.waitFor(() => expect(structured.activate).toHaveBeenCalledOnce());
+    expect(secondSettled).toBe(false);
+    activation.resolve();
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { threadId: payload.threadId },
+      { threadId: payload.threadId },
+    ]);
+    expect(adapter.createStructuredSession).toHaveBeenCalledOnce();
+    const live = manager.sessions.get(payload.threadId);
+    await manager.ensureThreadRunning(payload);
+    expect(manager.sessions.get(payload.threadId)).toBe(live);
+    expect(structured.dispose).not.toHaveBeenCalled();
+    await manager.closeThread({ threadId: payload.threadId });
+    await manager.ensureThreadRunning(payload);
+    expect(adapter.createStructuredSession).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not turn a pending launch failure into another launch or success", async () => {
+    const activation = deferred();
+    const structured = createStructuredSession(activation.promise);
+    const adapter = createAdapter("codex", structured);
+    const manager = createManager("codex", adapter);
+    const payload = {
+      threadId: "failed-reopen",
+      projectLocation: { kind: "posix" as const, path: process.cwd() },
+      agentKind: "codex" as const,
+      config: { model: "test" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui" as const,
+    };
+    const results = Promise.allSettled([
+      manager.ensureThreadRunning(payload),
+      manager.ensureThreadRunning(payload),
+    ]);
+    await vi.waitFor(() => expect(structured.activate).toHaveBeenCalledOnce());
+    activation.reject(new Error("activation failed"));
+    expect((await results).map((result) => result.status)).toEqual(["rejected", "rejected"]);
+    expect(adapter.createStructuredSession).toHaveBeenCalledOnce();
   });
 });
 
@@ -868,4 +1017,30 @@ describe("ThreadSessionManager fork mention handoff", () => {
       "Thread mentions require the Poracode read_thread tool",
     );
   });
+});
+
+it("releases launch reservations when config rewriting fails, permitting a retry", async () => {
+  const structured = createStructuredSession(Promise.resolve());
+  const adapter = createAdapter("fixture", structured);
+  adapter.createStructuredSession = async () => undefined;
+  const cleanup = vi.fn<() => void>();
+  adapter.buildLaunchArgv = () => ({ binary: "fixture", args: [], cleanup });
+  adapter.rewriteLaunchArgsForConfig = vi
+    .fn<NonNullable<AgentAdapter["rewriteLaunchArgsForConfig"]>>()
+    .mockRejectedValueOnce(new Error("catalog unavailable"))
+    .mockImplementation(async (args: string[]) => args);
+  const manager = createManager("fixture", adapter);
+  const payload = {
+    threadId: "rewrite-retry",
+    agentKind: "fixture",
+    projectLocation: { kind: "posix" as const, path: process.cwd() },
+    config: { model: "model" },
+    prompt: "hello",
+    initialSize: { cols: 80, rows: 24 },
+    presentationMode: "terminal" as const,
+  };
+  await expect(manager.startThread(payload)).rejects.toThrow("catalog unavailable");
+  expect(cleanup).toHaveBeenCalledOnce();
+  await expect(manager.startThread(payload)).resolves.toEqual({ threadId: payload.threadId });
+  expect(spawnPty).toHaveBeenCalled();
 });

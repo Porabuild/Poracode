@@ -14,6 +14,7 @@ import type {
   CrossagentRankSource,
 } from "@/shared/crossagentRanking";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import type { CompactResult } from "./compactResult";
 import type { CrossagentRoutingOverride } from "@/shared/settings";
 
 /** Terminal states a subagent run can settle into. */
@@ -76,8 +77,9 @@ export function resolveSubagentExecution(adapter: {
  * advertised policy, falling back to its declared bypass posture when the
  * probe exposes no choices. Subagents must not inherit a potentially
  * incompatible or supervised parent policy. Browser, Computer Use, and Chrome
- * MCP choices are inherited; Crossagents MCP is deliberately excluded so a child
- * cannot spawn grandchildren. One-shot-only providers already enforce the
+ * MCP choices are inherited; Crossagents MCP is deliberately excluded to prevent
+ * recursive Crossagents runs. Native delegation tools may still be available.
+ * One-shot-only providers already enforce the
  * permission rule in `buildSubagentOneShotCommand`.
  */
 export function buildUnrestrictedChildConfig(
@@ -181,6 +183,8 @@ export interface ExplicitSpawnAgentSelection {
 /** Arguments accepted by `spawn_agent` / `run_agent`. */
 export interface SpawnAgentRequest extends SpawnAgentSelection {
   prompt: string;
+  /** Ask the worker to prepare a structured final report; reads omit narration by default. */
+  resultMode?: "compact";
   name?: string;
   /**
    * Run without blocking the parent agent. Background runs remain tied to the
@@ -210,6 +214,8 @@ export interface SubagentAttemptResult {
 
 /** Options accepted by the wait/status read paths. */
 export interface SubagentWaitOptions {
+  /** Suppress running narration without consuming its cursor; fullOutput wins. */
+  outputMode?: "quiet" | "progress";
   /** Return the entire accumulated transcript instead of the incremental tail. */
   fullOutput?: boolean;
   /** Return output produced after this caller-owned character offset. */
@@ -221,13 +227,19 @@ export interface SubagentWaitOptions {
 /** Result of `wait_for_agent` / `run_agent`. */
 export interface SubagentWaitResult {
   status: SubagentRunStatus;
+  /** Worker-authored claims, validated structurally but not independently verified. */
+  result?: CompactResult;
+  /** Missing/invalid reports remain explicit; callers can retrieve the transcript. */
+  result_error?: string;
   /**
    * Assistant text after `afterOutputChars`, tail-clipped (tight while running,
    * generous once settled). `fullOutput` returns the entire accumulated
    * transcript instead.
    */
   output: string;
-  /** Full run transcript length and cursor for the next incremental read. */
+  /** Pending requests remain visible when running narration is suppressed. */
+  pending_requests?: number;
+  /** Next read cursor; quiet running reads preserve the requested offset. */
   total_output_chars?: number;
   error?: {
     message: string;
@@ -246,6 +258,8 @@ export interface SubagentRunSummary {
   attempt: number;
   attempt_count: number;
   can_steer: boolean;
+  /** Next turn receipt when a completed worker has already been resumed. */
+  continued_by?: string;
 }
 
 /**
