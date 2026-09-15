@@ -204,11 +204,35 @@ export async function applyRemoteThreadCommand(
       }));
       return false;
     case "set-group":
-      updateRemoteThread(command.threadId, (thread) => ({
-        ...thread,
-        groupId: command.groupId,
-        groupName: command.groupName,
-      }));
+      if (command.groupId) {
+        const groupId = command.groupId;
+        const groupName = command.groupName ?? groupId;
+        updateRemoteThread(command.threadId, (thread) => ({
+          ...thread,
+          groupId,
+          groupName,
+        }));
+        return false;
+      }
+      {
+        const current = dbGetThreads().find((thread) => thread.id === command.threadId);
+        updateRemoteThread(command.threadId, withoutRemoteThreadGroup);
+        const previousGroupId = current?.groupId;
+        if (previousGroupId) {
+          const leftover = dbGetThreads().filter((thread) => thread.groupId === previousGroupId);
+          if (leftover.length === 1) {
+            updateRemoteThread(leftover[0]!.id, withoutRemoteThreadGroup);
+          }
+        }
+      }
+      return false;
+    case "set-workspace":
+      updateRemoteThread(command.threadId, (thread) => {
+        const { workspaceId: _dropped, ...rest } = thread;
+        return command.workspaceId
+          ? { ...rest, workspaceId: command.workspaceId, updatedAt: new Date().toISOString() }
+          : { ...rest, updatedAt: new Date().toISOString() };
+      });
       return false;
     case "archive":
       await closeThreadBestEffort(ctx, command.threadId);
@@ -275,6 +299,7 @@ async function startRemoteThread(
     ...(presentationMode !== "terminal" ? { threadStatusSource: "server" } : {}),
     ...(command.groupId ? { groupId: command.groupId } : {}),
     ...(command.groupName ? { groupName: command.groupName } : {}),
+    ...(command.workspaceId ? { workspaceId: command.workspaceId } : {}),
     ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
     ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
     createdAt: now,
@@ -459,6 +484,11 @@ export function retargetRemoteThreadForSwitch(
   };
   dbUpsertThread(switched, sortOrderForThread(threads, threadId));
   return { previous, switched };
+}
+
+function withoutRemoteThreadGroup(thread: Thread): Thread {
+  const { groupId: _groupId, groupName: _groupName, ...rest } = thread;
+  return rest;
 }
 
 function updateRemoteThread(threadId: string, update: (thread: Thread) => Thread): void {

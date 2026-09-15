@@ -16,6 +16,7 @@ import {
   messageItemPayloadSchema,
   resolveMcpLaunchSnapshot,
 } from "@/shared/contracts";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { formatDiffCommentPrompt, threadMentionLabel } from "@/shared/promptContent";
 import { isUnknownThreadSessionError } from "@/shared/threadRelaunch";
 import { buildWorktreeLocation, normalizeWorktreePathForComparison } from "@/shared/worktree";
@@ -28,6 +29,7 @@ import {
   type AppControlsToolContext,
   type ToolDomain,
 } from "./types";
+import { inheritCallerWorkspaceId, requireWorkspace } from "./workspaceLookup";
 
 /** Statuses `wait_for_thread` treats as settled (turn finished or needs the caller). */
 const SETTLED_STATUSES: ReadonlySet<ThreadStatus> = new Set<ThreadStatus>([
@@ -77,6 +79,7 @@ const createArgsSchema = z.object({
   worktree: z
     .object({ enabled: z.boolean(), branch: z.string().trim().min(1).max(255).optional() })
     .optional(),
+  workspaceId: z.string().trim().min(1).optional(),
 });
 const sendArgsSchema = z.object({
   threadId: z.string().min(1),
@@ -104,6 +107,9 @@ const updateArgsSchema = z.object({
   threadId: z.string().min(1),
   rename: z.string().trim().min(1).max(200).optional(),
   group: z.string().trim().min(1).max(200).optional(),
+  ungroup: z.boolean().optional(),
+  ungroupAll: z.boolean().optional(),
+  workspaceId: z.union([z.string().trim().min(1), z.null()]).optional(),
   done: z.boolean().optional(),
   starred: z.boolean().optional(),
   archived: z.boolean().optional(),
@@ -161,7 +167,7 @@ export const threadTools: ToolDomain = {
     {
       name: "create_thread",
       description:
-        "Create and launch a new app thread in a project (visible in the user's sidebar). The calling thread's agent and model are used unless overridden. Optionally run it in a fresh git worktree.",
+        "Create and launch a new app thread in a project (visible in the user's sidebar). The calling thread's agent and model are used unless overridden. Optionally run it in a fresh git worktree. For Home threads, workspaceId files the new conversation into a workspace (id or unique name from list_workspaces); omitted Home threads inherit the calling thread's workspace when possible. Project threads follow their project's workspace — use update_project to file a project.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -173,6 +179,7 @@ export const threadTools: ToolDomain = {
           model: { type: "string", minLength: 1 },
           effort: { type: "string", minLength: 1 },
           title: { type: "string", minLength: 1, maxLength: 200 },
+          workspaceId: { type: "string", minLength: 1 },
           worktree: {
             type: "object",
             additionalProperties: false,
@@ -229,7 +236,7 @@ export const threadTools: ToolDomain = {
     {
       name: "update_thread",
       description:
-        "Update a thread's metadata: rename, assign a sidebar group, mark done/not-done, star/unstar, archive/unarchive, or acknowledge a finished thread.",
+        "Update a thread's metadata: rename, assign or remove a sidebar group, file a Home thread into a workspace, mark done/not-done, star/unstar, archive/unarchive, or acknowledge a finished thread. group assigns a sidebar group (clicking a group opens every member). ungroup removes this thread from its group (a leftover pair dissolves). ungroupAll dissolves the whole group. workspaceId files a Home thread (id or unique name from list_workspaces); null unfiles it so it is visible in every workspace. Project threads follow their project's workspace — use update_project for those.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -238,6 +245,9 @@ export const threadTools: ToolDomain = {
           threadId: threadIdProp,
           rename: { type: "string", minLength: 1, maxLength: 200 },
           group: { type: "string", minLength: 1, maxLength: 200 },
+          ungroup: { type: "boolean" },
+          ungroupAll: { type: "boolean" },
+          workspaceId: { type: ["string", "null"], minLength: 1 },
           done: { type: "boolean" },
           starred: { type: "boolean" },
           archived: { type: "boolean" },
@@ -401,6 +411,17 @@ export const threadTools: ToolDomain = {
         );
       }
       const effort = parsed.effort ?? sourceThread?.config.effort;
+      const homeThread = isHomeProjectId(parsed.projectId);
+      if (parsed.workspaceId && !homeThread) {
+        throw new Error(
+          "workspaceId on create_thread only applies to Home threads. File a project with update_project instead.",
+        );
+      }
+      const workspaceId = homeThread
+        ? parsed.workspaceId
+          ? requireWorkspace(ctx, parsed.workspaceId).id
+          : inheritCallerWorkspaceId(ctx)
+        : undefined;
       return ctx.createThread({
         projectId: parsed.projectId,
         prompt: parsed.prompt,
@@ -409,6 +430,7 @@ export const threadTools: ToolDomain = {
         ...(effort ? { effort } : {}),
         ...(sourceThread?.config.fast !== undefined ? { fast: sourceThread.config.fast } : {}),
         ...(parsed.title ? { title: parsed.title } : {}),
+        ...(workspaceId ? { workspaceId } : {}),
         ...(parsed.worktree?.enabled
           ? { worktree: parsed.worktree.branch ? { branch: parsed.worktree.branch } : {} }
           : {}),
@@ -471,7 +493,43 @@ export const threadTools: ToolDomain = {
     },
     update_thread: (args, ctx) => {
       const parsed = updateArgsSchema.parse(args);
-      requireThread(ctx, parsed.threadId);
+      const current = requireThread(ctx, parsed.threadId);
+      if (
+        parsed.rename === undefined &&
+        parsed.group === undefined &&
+        !parsed.ungroup &&
+        !parsed.ungroupAll &&
+        parsed.workspaceId === undefined &&
+        parsed.done === undefined &&
+        parsed.starred === undefined &&
+        parsed.archived === undefined &&
+        !parsed.acknowledge
+      ) {
+        throw new Error("Provide at least one field to update.");
+      }
+      if (parsed.group !== undefined && (parsed.ungroup || parsed.ungroupAll)) {
+        throw new Error(
+          "Pass group to assign a sidebar group, or ungroup/ungroupAll to remove one — not both.",
+        );
+      }
+      if (parsed.ungroup && parsed.ungroupAll) {
+        throw new Error(
+          "Pass ungroup to remove this thread from its group, or ungroupAll to dissolve the whole group — not both.",
+        );
+      }
+      if ((parsed.ungroup || parsed.ungroupAll) && !current.groupId) {
+        throw new Error(`Thread ${parsed.threadId} is not in a sidebar group.`);
+      }
+      let nextWorkspaceId: string | undefined;
+      if (parsed.workspaceId !== undefined) {
+        if (!isHomeProjectId(current.projectId)) {
+          throw new Error(
+            "workspaceId on update_thread only applies to Home threads. File a project with update_project instead.",
+          );
+        }
+        nextWorkspaceId =
+          parsed.workspaceId === null ? undefined : requireWorkspace(ctx, parsed.workspaceId).id;
+      }
       const applied: string[] = [];
       // Persist every mutation before mirroring it to the renderer. The
       // renderer periodically writes a complete dbSyncAll snapshot, so a stale
@@ -493,8 +551,15 @@ export const threadTools: ToolDomain = {
         rowMutations.push(mutate);
         applied.push(label);
       };
+      const clearGroupOn = (targetId: string): void => {
+        if (!ctx.emitRemoteThreadCommand({ kind: "set-group", threadId: targetId })) {
+          deliveredToRenderer = false;
+        }
+        ctx.updateThreadRow(targetId, withoutThreadGroup);
+      };
 
-      // Ordered so `applied` preserves rename→group→done→starred→archived.
+      // `applied` follows handler order: rename, group/ungroup, workspace, then
+      // done/starred/archived/acknowledge.
       applyField(parsed.rename, "rename", (title) => ({
         command: { kind: "rename", threadId, title },
         mutate: (thread) => ({ ...thread, title }),
@@ -503,6 +568,48 @@ export const threadTools: ToolDomain = {
         command: { kind: "set-group", threadId, groupId: group, groupName: group },
         mutate: (thread) => ({ ...thread, groupId: group, groupName: group }),
       }));
+      if (parsed.ungroup || parsed.ungroupAll) {
+        const groupId = current.groupId!;
+        if (parsed.ungroupAll) {
+          for (const member of ctx.getThreads()) {
+            if (member.groupId !== groupId) continue;
+            if (member.id === threadId) {
+              rowMutations.push(withoutThreadGroup);
+              if (!ctx.emitRemoteThreadCommand({ kind: "set-group", threadId })) {
+                deliveredToRenderer = false;
+              }
+              continue;
+            }
+            clearGroupOn(member.id);
+          }
+          applied.push("ungroupAll");
+        } else {
+          rowMutations.push(withoutThreadGroup);
+          if (!ctx.emitRemoteThreadCommand({ kind: "set-group", threadId })) {
+            deliveredToRenderer = false;
+          }
+          const leftover = ctx
+            .getThreads()
+            .filter((thread) => thread.groupId === groupId && thread.id !== threadId);
+          if (leftover.length === 1) clearGroupOn(leftover[0]!.id);
+          applied.push("ungroup");
+        }
+      }
+      if (parsed.workspaceId !== undefined) {
+        applyField(parsed.workspaceId, "workspace", () => ({
+          command: {
+            kind: "set-workspace",
+            threadId,
+            ...(nextWorkspaceId ? { workspaceId: nextWorkspaceId } : {}),
+          },
+          mutate: (thread) => {
+            const cleared = withoutThreadWorkspace(thread);
+            return nextWorkspaceId
+              ? { ...cleared, workspaceId: nextWorkspaceId, updatedAt: stamp() }
+              : { ...cleared, updatedAt: stamp() };
+          },
+        }));
+      }
       applyField(parsed.done, "done", (done) => ({
         command: { kind: "set-done", threadId, done },
         mutate: (thread) =>
@@ -535,9 +642,6 @@ export const threadTools: ToolDomain = {
           thread.status === "finished" ? { ...thread, status: "idle" } : thread,
         );
         applied.push("acknowledge");
-      }
-      if (applied.length === 0) {
-        throw new Error("Provide at least one field to update.");
       }
       ctx.updateThreadRow(parsed.threadId, (thread) =>
         rowMutations.reduce((next, mutate) => mutate(next), thread),
@@ -702,6 +806,7 @@ function threadView(
     done: thread.done,
     starred: thread.starred,
     ...(thread.groupName ? { group: thread.groupName } : {}),
+    ...(thread.workspaceId ? { workspaceId: thread.workspaceId } : {}),
     ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
     ...(thread.worktreeBranch ? { worktreeBranch: thread.worktreeBranch } : {}),
     ...((snapshot?.errorMessage ?? thread.errorMessage)
@@ -788,6 +893,16 @@ function threadIdJsonSchema(): Record<string, unknown> {
     required: ["threadId"],
     properties: { threadId: threadIdProp },
   };
+}
+
+function withoutThreadGroup(thread: Thread): Thread {
+  const { groupId: _groupId, groupName: _groupName, ...rest } = thread;
+  return rest;
+}
+
+function withoutThreadWorkspace(thread: Thread): Thread {
+  const { workspaceId: _workspaceId, ...rest } = thread;
+  return rest;
 }
 
 function sameWorktreePath(

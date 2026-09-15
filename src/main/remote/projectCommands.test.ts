@@ -63,6 +63,15 @@ describe("applyRemoteProjectCommand", () => {
     expect(result.project?.name).toBe("Custom");
   });
 
+  it("files a newly registered project into a workspace", async () => {
+    const { deps } = makeDeps();
+    const result = await applyRemoteProjectCommand(
+      { kind: "add-existing", path: "/work/my-app", workspaceId: "ws-work" },
+      deps,
+    );
+    expect(result.project?.workspaceId).toBe("ws-work");
+  });
+
   it("sorts new projects to the top via a descending-timestamp sortOrder", async () => {
     const { deps, upsertProject } = makeDeps();
     await applyRemoteProjectCommand({ kind: "add-existing", path: "/work/app" }, deps);

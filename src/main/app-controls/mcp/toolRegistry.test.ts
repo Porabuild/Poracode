@@ -32,6 +32,7 @@ import type {
   Thread,
   ThreadRuntimeSnapshot,
 } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import type { RemoteProjectCommand, RemoteProjectCommandResult } from "@/shared/remote";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 import type { ScheduleService } from "../../schedules/ScheduleService";
@@ -342,8 +343,10 @@ function context(
     (command: RemoteProjectCommand) => Promise<RemoteProjectCommandResult>
   >(async () => ({ projects: options.projects ?? [] }));
   const updateProject = vi.fn<(project: Project) => void>();
-  const settingsWrite = vi.fn<(next: SharedSettings) => void>();
-  const settingsValue = options.settings ?? defaultSharedSettings;
+  let settingsValue = options.settings ?? defaultSharedSettings;
+  const settingsWrite = vi.fn<(next: SharedSettings) => void>((next) => {
+    settingsValue = next;
+  });
   const ctx: AppControlsToolContext = {
     identity: { threadId: thread.id, title: "Schedule this" },
     scheduleService: service,
@@ -725,6 +728,213 @@ describe("Poracode app control tools — threads", () => {
     });
   });
 
+  it("update_thread ungroups a thread and dissolves a leftover pair", async () => {
+    const threads = [
+      makeThread({ id: "a", groupId: "g1", groupName: "Research" }),
+      makeThread({ id: "b", groupId: "g1", groupName: "Research" }),
+    ];
+    const { ctx, emitRemoteThreadCommand, updateThreadRow, updatedRows } = context({ threads });
+    const result = (await dispatchTool("update_thread", { threadId: "a", ungroup: true }, ctx)) as {
+      applied: string[];
+    };
+    expect(result.applied).toEqual(["ungroup"]);
+    expect(emitRemoteThreadCommand).toHaveBeenCalledWith({ kind: "set-group", threadId: "a" });
+    expect(emitRemoteThreadCommand).toHaveBeenCalledWith({ kind: "set-group", threadId: "b" });
+    expect(updateThreadRow).toHaveBeenCalledWith("b", expect.any(Function));
+    expect(updatedRows.some((row) => row.id === "a" && row.groupId === undefined)).toBe(true);
+    expect(updatedRows.some((row) => row.id === "b" && row.groupId === undefined)).toBe(true);
+  });
+
+  it("update_thread ungroupAll clears every member of the sidebar group", async () => {
+    const threads = [
+      makeThread({ id: "a", groupId: "g1", groupName: "Research" }),
+      makeThread({ id: "b", groupId: "g1", groupName: "Research" }),
+      makeThread({ id: "c", groupId: "g1", groupName: "Research" }),
+    ];
+    const { ctx, emitRemoteThreadCommand, updateThreadRow, updatedRows } = context({ threads });
+    const result = (await dispatchTool(
+      "update_thread",
+      { threadId: "a", ungroupAll: true },
+      ctx,
+    )) as { applied: string[] };
+    expect(result.applied).toEqual(["ungroupAll"]);
+    expect(emitRemoteThreadCommand).toHaveBeenCalledWith({ kind: "set-group", threadId: "a" });
+    expect(emitRemoteThreadCommand).toHaveBeenCalledWith({ kind: "set-group", threadId: "b" });
+    expect(emitRemoteThreadCommand).toHaveBeenCalledWith({ kind: "set-group", threadId: "c" });
+    expect(updateThreadRow).toHaveBeenCalledWith("b", expect.any(Function));
+    expect(updateThreadRow).toHaveBeenCalledWith("c", expect.any(Function));
+    expect(
+      updatedRows
+        .filter((row) => row.groupId === undefined)
+        .map((row) => row.id)
+        .sort(),
+    ).toEqual(["a", "b", "c"]);
+  });
+
+  it("update_thread ungroup of one member in a larger group leaves siblings grouped", async () => {
+    const threads = [
+      makeThread({ id: "a", groupId: "g1", groupName: "Research" }),
+      makeThread({ id: "b", groupId: "g1", groupName: "Research" }),
+      makeThread({ id: "c", groupId: "g1", groupName: "Research" }),
+    ];
+    const { ctx, emitRemoteThreadCommand, updateThreadRow } = context({ threads });
+    await dispatchTool("update_thread", { threadId: "a", ungroup: true }, ctx);
+    expect(emitRemoteThreadCommand).toHaveBeenCalledWith({ kind: "set-group", threadId: "a" });
+    expect(emitRemoteThreadCommand).not.toHaveBeenCalledWith({ kind: "set-group", threadId: "b" });
+    expect(emitRemoteThreadCommand).not.toHaveBeenCalledWith({ kind: "set-group", threadId: "c" });
+    expect(updateThreadRow).toHaveBeenCalledWith("a", expect.any(Function));
+    expect(updateThreadRow).not.toHaveBeenCalledWith("b", expect.any(Function));
+  });
+
+  it("update_thread validates workspace and group state before emitting commands", async () => {
+    const threads = [
+      makeThread({ id: "a", projectId: HOME_PROJECT_ID, groupId: "g1", groupName: "Research" }),
+      makeThread({ id: "b", projectId: HOME_PROJECT_ID, groupId: "g1", groupName: "Research" }),
+    ];
+    const { ctx, emitRemoteThreadCommand, updateThreadRow } = context({ threads });
+    await expect(
+      dispatchTool("update_thread", { threadId: "a", ungroup: true, workspaceId: "missing" }, ctx),
+    ).rejects.toThrow(/Workspace not found/);
+    expect(emitRemoteThreadCommand).not.toHaveBeenCalled();
+    expect(updateThreadRow).not.toHaveBeenCalled();
+  });
+
+  it("update_thread refuses to ungroup a thread that is not grouped", async () => {
+    const threads = [makeThread({ id: "a" })];
+    const { ctx } = context({ threads });
+    await expect(
+      dispatchTool("update_thread", { threadId: "a", ungroup: true }, ctx),
+    ).rejects.toThrow(/not in a sidebar group/);
+  });
+
+  it("update_thread files a Home thread into a workspace", async () => {
+    const threads = [makeThread({ id: "a", projectId: HOME_PROJECT_ID })];
+    const { ctx, emitRemoteThreadCommand, updatedRows } = context({
+      threads,
+      settings: {
+        ...defaultSharedSettings,
+        workspaces: [
+          {
+            id: "ws-work",
+            name: "Work",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            icon: "briefcase",
+          },
+        ],
+      },
+    });
+    const result = (await dispatchTool(
+      "update_thread",
+      { threadId: "a", workspaceId: "Work" },
+      ctx,
+    )) as { applied: string[] };
+    expect(result.applied).toEqual(["workspace"]);
+    expect(emitRemoteThreadCommand).toHaveBeenCalledWith({
+      kind: "set-workspace",
+      threadId: "a",
+      workspaceId: "ws-work",
+    });
+    expect(updatedRows.at(-1)).toMatchObject({ workspaceId: "ws-work" });
+  });
+
+  it("update_thread rejects combining group with ungroup", async () => {
+    const threads = [makeThread({ id: "a", groupId: "g1", groupName: "Research" })];
+    const { ctx } = context({ threads });
+    await expect(
+      dispatchTool("update_thread", { threadId: "a", group: "Other", ungroup: true }, ctx),
+    ).rejects.toThrow(/not both/);
+  });
+
+  it("update_thread unfiles a Home thread when workspaceId is null", async () => {
+    const threads = [makeThread({ id: "a", projectId: HOME_PROJECT_ID, workspaceId: "ws-work" })];
+    const { ctx, emitRemoteThreadCommand, updatedRows } = context({ threads });
+    const result = (await dispatchTool(
+      "update_thread",
+      { threadId: "a", workspaceId: null },
+      ctx,
+    )) as { applied: string[] };
+    expect(result.applied).toEqual(["workspace"]);
+    expect(emitRemoteThreadCommand).toHaveBeenCalledWith({
+      kind: "set-workspace",
+      threadId: "a",
+    });
+    expect(updatedRows.at(-1)?.workspaceId).toBeUndefined();
+  });
+
+  it("update_thread refuses to file a project thread into a workspace", async () => {
+    const threads = [makeThread({ id: "a", projectId: "project-1" })];
+    const { ctx } = context({
+      threads,
+      settings: {
+        ...defaultSharedSettings,
+        workspaces: [
+          {
+            id: "ws-work",
+            name: "Work",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            icon: "briefcase",
+          },
+        ],
+      },
+    });
+    await expect(
+      dispatchTool("update_thread", { threadId: "a", workspaceId: "ws-work" }, ctx),
+    ).rejects.toThrow(/update_project/);
+  });
+
+  it("create_thread stamps a Home workspace and rejects workspaceId on real projects", async () => {
+    const home = makeThread({
+      id: thread.id,
+      projectId: HOME_PROJECT_ID,
+      workspaceId: "ws-work",
+    });
+    const { ctx, createThread } = context({
+      threads: [home],
+      settings: {
+        ...defaultSharedSettings,
+        workspaces: [
+          {
+            id: "ws-work",
+            name: "Work",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            icon: "briefcase",
+          },
+        ],
+      },
+    });
+    await dispatchTool(
+      "create_thread",
+      { projectId: HOME_PROJECT_ID, prompt: "Do the thing" },
+      ctx,
+    );
+    expect(createThread).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: HOME_PROJECT_ID,
+        workspaceId: "ws-work",
+      }),
+    );
+    await expect(
+      dispatchTool(
+        "create_thread",
+        { projectId: "project-9", prompt: "x", workspaceId: "ws-work" },
+        ctx,
+      ),
+    ).rejects.toThrow(/Home threads/);
+
+    const created = await dispatchTool(
+      "create_thread",
+      { projectId: "project-9", prompt: "other" },
+      ctx,
+    );
+    expect(created).toEqual(expect.objectContaining({ threadId: "new-thread" }));
+    expect(createThread).toHaveBeenLastCalledWith(
+      expect.not.objectContaining({ workspaceId: expect.anything() }),
+    );
+    expect(createThread).toHaveBeenLastCalledWith(
+      expect.objectContaining({ projectId: "project-9", prompt: "other" }),
+    );
+  });
+
   it("open_thread notes when no UI is connected instead of reporting success", async () => {
     const threads = [makeThread({ id: "a" })];
     const { ctx } = context({ threads, uiConnected: false });
@@ -835,6 +1045,151 @@ describe("Poracode app control tools — projects", () => {
     expect(updateProject).toHaveBeenCalledWith(
       expect.objectContaining({ id: "p1", name: "Renamed" }),
     );
+  });
+
+  it("update_project files a project into a workspace and can unfile it", async () => {
+    const filedProjects = [
+      {
+        id: "p1",
+        name: "Alpha",
+        location: { kind: "posix", path: "/work/alpha" },
+        workspaceId: "ws-work",
+      } as Project,
+    ];
+    const { ctx, updateProject } = context({
+      projects: filedProjects,
+      settings: {
+        ...defaultSharedSettings,
+        workspaces: [
+          {
+            id: "ws-work",
+            name: "Work",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            icon: "briefcase",
+          },
+        ],
+      },
+    });
+    await dispatchTool("update_project", { projectId: "p1", workspaceId: null }, ctx);
+    const unfiled = updateProject.mock.calls.at(-1)?.[0] as Project;
+    expect(unfiled.id).toBe("p1");
+    expect(unfiled.workspaceId).toBeUndefined();
+  });
+
+  it("update_project refuses to file the Home project", async () => {
+    const homeProjects = [{ id: HOME_PROJECT_ID, name: "Home" } as Project];
+    const { ctx } = context({
+      projects: homeProjects,
+      settings: {
+        ...defaultSharedSettings,
+        workspaces: [
+          {
+            id: "ws-work",
+            name: "Work",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            icon: "briefcase",
+          },
+        ],
+      },
+    });
+    await expect(
+      dispatchTool("update_project", { projectId: HOME_PROJECT_ID, workspaceId: "ws-work" }, ctx),
+    ).rejects.toThrow(/Home project/);
+  });
+
+  it("create_project files the new project into a workspace", async () => {
+    const created = { id: "p3", name: "Gamma" } as Project;
+    const { ctx, applyProjectCommand, updateProject } = context({
+      projects,
+      directoryExists: () => true,
+      settings: {
+        ...defaultSharedSettings,
+        workspaces: [
+          {
+            id: "ws-work",
+            name: "Work",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            icon: "briefcase",
+          },
+        ],
+      },
+    });
+    applyProjectCommand.mockResolvedValueOnce({
+      projects,
+      project: { ...created, workspaceId: "ws-work" },
+    });
+    const result = (await dispatchTool(
+      "create_project",
+      { path: "/work/gamma", name: "Gamma", workspaceId: "Work" },
+      ctx,
+    )) as { created: boolean; project: Project | null };
+    expect(applyProjectCommand).toHaveBeenCalledWith({
+      kind: "add-existing",
+      path: "/work/gamma",
+      name: "Gamma",
+      workspaceId: "ws-work",
+    });
+    expect(updateProject).not.toHaveBeenCalled();
+    expect(result.project?.workspaceId).toBe("ws-work");
+  });
+});
+
+describe("Poracode app control tools — workspaces", () => {
+  const workSettings: SharedSettings = {
+    ...defaultSharedSettings,
+    workspaces: [
+      {
+        id: "ws-work",
+        name: "Work",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        icon: "briefcase",
+      },
+    ],
+  };
+
+  it("lists workspaces with project and Home-thread counts", async () => {
+    const projects = [
+      { id: "p1", name: "Alpha", workspaceId: "ws-work" } as Project,
+      { id: HOME_PROJECT_ID, name: "Home" } as Project,
+    ];
+    const threads = [
+      makeThread({ id: "home-1", projectId: HOME_PROJECT_ID, workspaceId: "ws-work" }),
+      makeThread({ id: "proj-1", projectId: "p1" }),
+    ];
+    const { ctx } = context({ settings: workSettings, projects, threads });
+    const result = (await dispatchTool("list_workspaces", {}, ctx)) as {
+      count: number;
+      workspaces: Array<{ id: string; projectCount: number; homeThreadCount: number }>;
+    };
+    expect(result.count).toBe(1);
+    expect(result.workspaces[0]).toMatchObject({
+      id: "ws-work",
+      projectCount: 1,
+      homeThreadCount: 1,
+    });
+  });
+
+  it("creates and renames a workspace", async () => {
+    const { ctx, settingsWrite } = context({ settings: workSettings });
+    const created = (await dispatchTool("create_workspace", { name: "Research" }, ctx)) as {
+      created: boolean;
+      workspace: { id: string; name: string };
+    };
+    expect(created.created).toBe(true);
+    expect(created.workspace.name).toBe("Research");
+    const written = settingsWrite.mock.calls[0]![0];
+    expect(written.workspaces.map((workspace) => workspace.name).sort()).toEqual([
+      "Research",
+      "Work",
+    ]);
+    const listed = (await dispatchTool("list_workspaces", {}, ctx)) as { count: number };
+    expect(listed.count).toBe(2);
+    const renamed = (await dispatchTool(
+      "update_workspace",
+      { workspaceId: created.workspace.id, name: "Lab" },
+      ctx,
+    )) as { updated: boolean; workspace: { name: string } };
+    expect(renamed.workspace.name).toBe("Lab");
   });
 });
 
@@ -1190,6 +1545,19 @@ describe("Poracode app control tools — terminal / steer / rollback", () => {
 
     expect(TOOLS.find((tool) => tool.name === "git_sync")?.description).toContain(
       "that request is authorization; call push after the normal checks without asking for another confirmation",
+    );
+  });
+
+  it("advertises workspace and ungroup tools", () => {
+    expect(APP_CONTROLS_MCP_INSTRUCTIONS).toContain("workspaces (list/create/update)");
+    expect(TOOLS.find((tool) => tool.name === "list_workspaces")?.description).toContain(
+      "Distinct from git worktrees",
+    );
+    expect(TOOLS.find((tool) => tool.name === "update_thread")?.description).toContain(
+      "ungroupAll",
+    );
+    expect(TOOLS.find((tool) => tool.name === "update_project")?.description).toContain(
+      "file it into a workspace",
     );
   });
 
