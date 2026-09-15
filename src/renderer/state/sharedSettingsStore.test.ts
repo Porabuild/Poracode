@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
-import { useSharedSettings, waitForPendingSharedSettings } from "./sharedSettingsStore";
+import {
+  applyExternalSharedSettings,
+  useSharedSettings,
+  waitForPendingSharedSettings,
+  whenSharedSettingsHydrated,
+} from "./sharedSettingsStore";
 
 const originalPoracodeBridge = window.poracode;
 
@@ -98,6 +103,21 @@ describe("sharedSettingsStore", () => {
   it("updates the stale thread unload timing", () => {
     useSharedSettings.getState().setStaleThreadUnloadMinutes(30);
     expect(useSharedSettings.getState().staleThreadUnloadMinutes).toBe(30);
+  });
+
+  it("marks owner-pushed settings hydrated without echo", async () => {
+    useSharedSettings.setState({ sharedSettingsHydrated: false });
+    let done = false;
+    const waiter = whenSharedSettingsHydrated().then(() => {
+      done = true;
+    });
+    applyExternalSharedSettings({ themeMode: "light" });
+    await waiter;
+    expect(done).toBe(true);
+    expect(useSharedSettings.getState()).toMatchObject({
+      themeMode: "light",
+      sharedSettingsHydrated: true,
+    });
   });
 
   it("updates and persists follow-up behavior", () => {

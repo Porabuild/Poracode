@@ -52,6 +52,16 @@ export interface ClaimCheckpointRevertOperationInput {
   checkpointItemId: string;
   projectLocationJson: string | null;
   configJson: string | null;
+  /**
+   * Caller-supplied project location, when the caller explicitly provided one.
+   * `undefined` means the caller omitted it and `projectLocationJson` was
+   * resolved server-side from durable state. Only an explicit caller payload
+   * participates in same-ID conflict detection: server-derived context may
+   * legitimately change between a settled operation and its replay, and a
+   * replay must retain the frozen result rather than misclassify derived
+   * drift as a new client payload.
+   */
+  explicitProjectLocationJson?: string | null;
 }
 
 const PROVIDER_PHASES: readonly CheckpointRevertProviderPhase[] = [
@@ -186,8 +196,19 @@ export function dbHasThreadRuntimeItem(threadId: string, itemId: string): boolea
  * Claims the compound revert for `operationKey` inside one immediate
  * transaction. A fresh claim freezes the server-derived turn count; a row
  * whose phases are mid-flight is resumed exactly as recorded; a settled row
- * replays its stored outcome. Reusing a key for a different checkpoint is a
- * hard conflict — the stored plan would not describe the requested revert.
+ * (`completed`/`completed_local_only`/`ambiguous`) always replays its stored
+ * outcome verbatim — even when later turns arrived past the checkpoint. A
+ * deliberate new action must mint a fresh ID; reusing a settled ID never
+ * starts a new destructive revert. Reusing a key for a different checkpoint
+ * (or a different explicit project location) is a hard conflict — the stored
+ * plan would not describe the requested revert.
+ *
+ * Compatibility: no storage change. Legacy `key#N` supersession rows created
+ * by the retired heuristic remain readable via exact lookup but are never
+ * created or consulted by family scan: a base-key retry replays the base row,
+ * never the latest `#N`. Retention purge and migrations v45/v46 are
+ * unchanged, so no version bump is required (see REPORT compatibility
+ * inventory).
  */
 export function dbClaimCheckpointRevertOperation(
   input: ClaimCheckpointRevertOperationInput,
@@ -195,66 +216,37 @@ export function dbClaimCheckpointRevertOperation(
   const sqlite = getSqlite();
   const now = Date.now();
   const claim = sqlite.transaction((): CheckpointRevertClaim => {
-    // The key family is `key` (attempt 1) plus `key#N` supersessions. `_` in
-    // the charset is a LIKE wildcard, so the family scan uses GLOB; the
-    // charset excludes `#`, `*`, `?`, `[` and `]`, so the pattern is exact.
-    const latest = sqlite
-      .prepare(
-        `SELECT * FROM checkpoint_revert_operations
-         WHERE operation_key = ? OR operation_key GLOB ?
-         ORDER BY rowid DESC LIMIT 1`,
-      )
-      .get(input.operationKey, `${input.operationKey}#*`) as Record<string, unknown> | undefined;
-    if (latest) {
-      const row = rowToOperation(latest as Parameters<typeof rowToOperation>[0]);
+    // Exact-key lookup only. The retired `#N` supersession family is not
+    // scanned: `#` never appears in client-minted keys (operationKey charset
+    // is `[A-Za-z0-9._:-]`), so an exact match is unambiguous and a base-key
+    // retry can never be reinterpreted as a versioned mutation.
+    const existing = sqlite
+      .prepare(`SELECT * FROM checkpoint_revert_operations WHERE operation_key = ?`)
+      .get(input.operationKey) as Record<string, unknown> | undefined;
+    if (existing) {
+      const row = rowToOperation(existing as Parameters<typeof rowToOperation>[0]);
       if (row.threadId !== input.threadId || row.checkpointItemId !== input.checkpointItemId) {
         throw new Error(
           `Checkpoint revert operation key "${input.operationKey}" was already used for a different target.`,
         );
       }
-      // Settled outcomes replay verbatim — UNLESS the transcript moved on
-      // after the operation settled (new turns appended past the checkpoint).
-      // Then the same key describes a genuinely NEW revert, and a verbatim
-      // replay would strand those turns behind a stale "completed" receipt.
-      // The replay is superseded by a fresh attempt whose turn count is
-      // recomputed from durable state. Ambiguous rows are exempt: their
-      // provider call may still be executing, so a re-issue could double-roll.
-      // `running` (crash mid-operation) and `failed` (a retryable phase)
-      // resume from the recorded phases; the destructive provider phase is
-      // never re-run regardless, because it is no longer `pending`.
-      const settled = row.outcome === "completed" || row.outcome === "completed_local_only";
-      const turnsAfterCheckpoint = dbCountRollbackTurnsAfterCheckpoint(
-        input.threadId,
-        input.checkpointItemId,
-      );
-      if (settled && turnsAfterCheckpoint > 0) {
-        const attemptSuffix = row.operationKey.slice(input.operationKey.length);
-        const attempt = attemptSuffix === "" ? 1 : Number(attemptSuffix.slice(1));
-        const versionedKey = `${input.operationKey}#${attempt + 1}`;
-        sqlite
-          .prepare(
-            `INSERT INTO checkpoint_revert_operations
-               (operation_key, thread_id, checkpoint_item_id, num_turns,
-                project_location_json, config_json, provider_phase, files_phase,
-                truncate_phase, removed_anchors_json, outcome, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, 'pending', 'pending', 'pending', NULL, 'running', ?, ?)`,
-          )
-          .run(
-            versionedKey,
-            input.threadId,
-            input.checkpointItemId,
-            turnsAfterCheckpoint,
-            input.projectLocationJson,
-            input.configJson,
-            now,
-            now,
-          );
-        const versionedRow = dbGetCheckpointRevertOperation(versionedKey);
-        if (!versionedRow) {
-          throw new Error("Failed to read back the claimed checkpoint revert operation.");
-        }
-        return { kind: "claimed", row: versionedRow };
+      // Only caller-controlled inputs conflict. An explicitly supplied project
+      // location that differs from the frozen plan is a retarget attempt and
+      // must fail before any side effect. An omitted location means the frozen
+      // plan was server-resolved: derived drift never conflicts, and resume
+      // paths keep using the frozen copy rather than silently retargeting.
+      if (
+        input.explicitProjectLocationJson !== undefined &&
+        input.explicitProjectLocationJson !== row.projectLocationJson
+      ) {
+        throw new Error(
+          `Checkpoint revert operation key "${input.operationKey}" was already used with a different project location.`,
+        );
       }
+      // Settled outcomes replay verbatim. `running` (crash mid-operation) and
+      // `failed` (a retryable phase) resume from the recorded phases; the
+      // destructive provider phase is never re-run regardless, because it is
+      // no longer `pending`.
       if (
         row.outcome === "completed" ||
         row.outcome === "completed_local_only" ||

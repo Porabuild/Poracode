@@ -36,6 +36,12 @@ export const IPC_WINDOW_CHANNELS = {
   remoteHttpBridgeCancel: createChannel("remoteHttpBridgeCancel"),
   /** Per-request port delivery; only `WebContents.postMessage` can transfer it. */
   remoteHttpBridgePort: createChannel("remoteHttpBridgePort"),
+  /**
+   * Standalone-attach bootstrap (additive, process-lifetime): main resolves
+   * to the authenticated owner endpoint + fresh pairing URL, or null on the
+   * managed-local path. Same-build only; never persisted.
+   */
+  standaloneAttachInfo: createChannel("standaloneAttachInfo"),
   quickComposerSubmit: createChannel("quickComposerWindowSubmit"),
   quickComposerDismiss: createChannel("quickComposerWindowDismiss"),
   quickComposerPickFiles: createChannel("quickComposerWindowPickFiles"),

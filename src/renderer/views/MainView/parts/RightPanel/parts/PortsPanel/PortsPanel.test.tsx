@@ -146,7 +146,7 @@ describe("PortsPanel", () => {
       expect(screen.queryByRole("dialog", { name: "Port 3000" })).not.toBeInTheDocument(),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Port 3000/u }));
+    fireEvent.click(await screen.findByRole("button", { name: /Port 3000/u }));
     await waitFor(() => expect(enterPortForward).toHaveBeenCalledWith("forward-1"));
     expect(window.poracode.openExternal).toHaveBeenCalledWith(
       "http://192.168.1.10:3200/forward/forward-1/enter?fwt=fresh",

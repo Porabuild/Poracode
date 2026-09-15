@@ -2234,7 +2234,7 @@ describe("ChatPane", () => {
       expect(revertCheckpoint).toHaveBeenCalledWith({
         threadId: thread.id,
         checkpointItemId: "assistant-1",
-        operationKey: `checkpoint-revert.${thread.id}.assistant-1`,
+        operationKey: expect.stringMatching(/^ckpt-revert\.[0-9a-fA-F-]{36}$/),
       }),
     );
     await waitFor(() => expect(screen.queryByText("Follow-up prompt")).not.toBeInTheDocument());
@@ -2245,6 +2245,50 @@ describe("ChatPane", () => {
       { kind: "text", text: "Follow-up prompt" },
     ]);
     expect(useAppStore.getState().pendingComposerFocusThreadId).toBe(thread.id);
+  });
+
+  it("reuses the same key after a lost-response rejection, then mints fresh after settle", async () => {
+    localStorage.setItem("poracode-chat-checkpoint-revert-skip-confirm", "1");
+    const thread = { ...makeThread(), status: "idle" as const };
+    const revertCheckpoint = vi
+      .fn<
+        (input: {
+          threadId: string;
+          checkpointItemId: string;
+          operationKey: string;
+        }) => Promise<{ outcome: string }>
+      >()
+      .mockRejectedValueOnce(new Error("Backend request revertCheckpoint timed out."))
+      .mockResolvedValue({ outcome: "completed" });
+    Object.assign(window, {
+      poracode: {
+        revertCheckpoint,
+        dbSyncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setWindowChrome: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      },
+    });
+    seedUserMessage(thread.id, "Initial prompt", "user-1");
+    seedAssistantMessage(thread.id, "First answer", "assistant-1");
+    seedUserMessage(thread.id, "Follow-up prompt", "user-2");
+    seedAssistantMessage(thread.id, "Second answer", "assistant-2");
+    renderChatPane(thread);
+    await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+
+    // First attempt: transport rejects (lost response is not authoritative).
+    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+    await waitFor(() => expect(revertCheckpoint).toHaveBeenCalledTimes(1));
+    const lostKey = revertCheckpoint.mock.calls[0]![0].operationKey;
+    expect(lostKey).toMatch(/^ckpt-revert\.[0-9a-fA-F-]{36}$/);
+
+    // Second click retries the SAME action: the retained key reconciles.
+    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+    await waitFor(() => expect(revertCheckpoint).toHaveBeenCalledTimes(2));
+    expect(revertCheckpoint.mock.calls[1]![0].operationKey).toBe(lostKey);
+
+    // Third click after an explicit settle is a deliberate new action.
+    fireEvent.click(screen.getByRole("button", { name: "Revert to this checkpoint" }));
+    await waitFor(() => expect(revertCheckpoint).toHaveBeenCalledTimes(3));
+    expect(revertCheckpoint.mock.calls[2]![0].operationKey).not.toBe(lostKey);
   });
 
   it("restores only the clicked prompt, not later turns or nested sub-agent prompts", async () => {
@@ -2343,7 +2387,13 @@ describe("ChatPane", () => {
   it("shows the failure and lets confirmation retry after a failed compound", async () => {
     const thread = { ...makeThread(), status: "idle" as const };
     const revertCheckpoint = vi
-      .fn<(input: { threadId: string }) => Promise<{ outcome: string }>>()
+      .fn<
+        (input: {
+          threadId: string;
+          checkpointItemId: string;
+          operationKey: string;
+        }) => Promise<{ outcome: string }>
+      >()
       .mockRejectedValueOnce(new Error("The checkpoint could not be restored."))
       .mockResolvedValue({ outcome: "completed" });
     Object.assign(window, {
@@ -2385,6 +2435,14 @@ describe("ChatPane", () => {
       expect(screen.queryByRole("button", { name: "Revert" })).not.toBeInTheDocument(),
     );
     expect(revertCheckpoint).toHaveBeenCalledTimes(2);
+    // A confirmation retry reuses the same deliberate action's key so the
+    // lost-response retry reconciles instead of starting a new action.
+    const firstKey = revertCheckpoint.mock.calls[0]![0].operationKey;
+    expect(revertCheckpoint.mock.calls[0]![0]).toMatchObject({ threadId: thread.id });
+    expect(revertCheckpoint.mock.calls[1]![0]).toMatchObject({
+      threadId: thread.id,
+      operationKey: firstKey,
+    });
     expect(useRevertedPromptStore.getState().byThread[thread.id]).toEqual([
       { kind: "text", text: "Follow-up prompt" },
     ]);

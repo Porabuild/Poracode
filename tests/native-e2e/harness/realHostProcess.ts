@@ -1,4 +1,5 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { existsSync } from "node:fs";
 import { LOOPBACK_HOST, STARTUP_TIMEOUT_MS } from "./constants.ts";
 import { loadProtocolManifest } from "./manifest.ts";
 import { detectServerNativeBinding } from "./paths.ts";
@@ -24,6 +25,29 @@ export function supportsProcessGroups(): boolean {
   return process.platform === "darwin" || process.platform === "linux";
 }
 
+/** First UTF-8 locale the host provides, cached per worker. Empty when the
+ * `locale` probe is unavailable, in which case the inherited locale stands. */
+const HERMETIC_UTF8_LOCALES = ["C.UTF-8", "C.utf8", "en_US.UTF-8", "en_US.utf8"] as const;
+
+let cachedUtf8Locale: string | null | undefined;
+
+function detectUtf8Locale(): string | null {
+  if (cachedUtf8Locale !== undefined) return cachedUtf8Locale;
+  try {
+    const result = spawnSync("locale", ["-a"], { encoding: "utf8" });
+    const available = new Set(
+      `${result.stdout ?? ""}`
+        .split(/\s+/)
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0),
+    );
+    cachedUtf8Locale = HERMETIC_UTF8_LOCALES.find((candidate) => available.has(candidate)) ?? null;
+  } catch {
+    cachedUtf8Locale = null;
+  }
+  return cachedUtf8Locale;
+}
+
 export async function launchHeadlessServer(input: {
   readonly host: string;
   readonly port: number;
@@ -45,6 +69,24 @@ export async function launchHeadlessServer(input: {
     PORACODE_HEADLESS_SERVER: "1",
     PORACODE_IS_DEV: "0",
   };
+  // The server spawns each PTY via `$SHELL -l`, so an interactive fish
+  // inherits this env. Fish (4.x) probes terminal capabilities on startup
+  // and blocks until they are answered; the test recorder never answers, so
+  // warmup writes are accepted but never executed. A fish rc would also load
+  // the repo `.envrc` through the fixture cwd. Pin a POSIX shell that starts
+  // without queries or rc hooks, plus a UTF-8 locale (bash readline mangles
+  // multibyte marker bytes under a C locale); the PTY stays real, as do the
+  // host, cursor assertions, and timeouts.
+  if (existsSync("/bin/bash")) {
+    env.SHELL = "/bin/bash";
+  } else if (existsSync("/bin/sh")) {
+    env.SHELL = "/bin/sh";
+  }
+  const utf8Locale = detectUtf8Locale();
+  if (utf8Locale) {
+    env.LC_ALL = utf8Locale;
+    env.LANG = utf8Locale;
+  }
   if (nativeBinding) env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBinding;
 
   const child = spawn(process.execPath, [input.entrypoint], {

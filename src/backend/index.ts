@@ -21,6 +21,7 @@ import { BackendDesktopServices } from "./BackendDesktopServices";
 import { BackendRendererStream } from "./BackendRendererStream";
 import { RendererStreamOwnership } from "./RendererStreamOwnership";
 import { BackendNativeRequests } from "./BackendNativeRequests";
+import { createRendererEventPublication } from "./rendererEventPublication";
 import { createBackendHostShedPolicy, createSupervisorEventRelay } from "./supervisorEventRelay";
 import { planDesktopRelay } from "./supervisorEventFallback";
 import { shutdownBackendHost } from "./shutdown";
@@ -192,22 +193,17 @@ function replyFailure(replyTo: string, error: unknown): void {
   send(reply);
 }
 
-// WS5 P1-2: renderer-stream pressure (a slow renderer window) flows to the
-// supervisor as flow control, which sheds rebuildable terminal output at the
-// source instead of letting the queue grow until overflow shedding kicks in.
-let supervisorBackpressured = false;
+// Gate 4 §5.4 (F10): per-renderer congestion isolation. A slow renderer
+// exhausts ONLY its bounded delivery/recovery budget in the renderer stream
+// (per-client budget doubling to 1 MiB, then a 1013 close with a
+// generation-fenced recovery barrier through the ordered desktop-IPC
+// fallback). Renderer congestion is never forwarded upstream as
+// supervisor-wide output backpressure: that signal would shed rebuildable
+// terminal output at the source for healthy clients too.
 const relaySupervisorEvent = createSupervisorEventRelay({
-  publishToRendererStream: (event) => {
-    const result = rendererStream?.publish(event);
-    if (rendererStream) {
-      const pressured = rendererStream.isBackpressured();
-      if (pressured !== supervisorBackpressured) {
-        supervisorBackpressured = pressured;
-        backendHost?.setSupervisorOutputBackpressured(pressured);
-      }
-    }
-    return result;
-  },
+  publishToRendererStream: createRendererEventPublication({
+    getStream: () => rendererStream,
+  }),
   observeEvent: (event) => desktopServices?.observeSupervisorEvent(event),
   // The backend is the authoritative direct/fallback selector: it plans
   // per-window targeted copies for windows that need the desktop-IPC

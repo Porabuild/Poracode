@@ -351,11 +351,17 @@ export class BackendHostCore {
    * journaled operation instead of a client-orchestrated sequence.
    *
    * Invariants:
-   * - The destructive relative provider rollback runs at most once per
-   *   `operationKey`, with a turn count derived server-side from durable
-   *   state and frozen at claim time. Retries and crash resumes replay the
-   *   stored count instead of recounting a transcript the first attempt may
-   *   already have mutated (the over-rollback window).
+   * - The destructive provider restore runs at most once per `operationKey`,
+   *   with a turn count derived server-side from durable state and frozen at
+   *   claim time. Retries and crash resumes replay the stored count instead
+   *   of recounting a transcript the first attempt may already have mutated
+   *   (the over-rollback window).
+   * - Settled (`completed`/`completed_local_only`/`ambiguous`) IDs always
+   *   replay verbatim, even after later work arrived: a deliberate new action
+   *   must mint a fresh ID to target current work. No `#N` supersession is
+   *   created.
+   * - Same-ID reuse for a different target (or a different explicit project
+   *   location) conflicts before any side effect.
    * - Every phase write precedes its side effect, so the journal always
    *   describes what a resumed attempt must not redo.
    * - The whole operation is serialized per thread; a concurrent second
@@ -418,7 +424,9 @@ export class BackendHostCore {
     const thread = dbGetThread(input.threadId);
     // The project location is resolved SERVER-SIDE from durable state when the
     // caller omits it (the compound wire route never trusts a client-supplied
-    // path) and frozen into the journal at claim time either way.
+    // path) and frozen into the journal at claim time either way. Only an
+    // explicitly supplied location participates in same-ID conflict detection;
+    // server-resolved drift never invalidates a legitimate replay.
     const resolvedLocation =
       input.projectLocation ?? (thread ? dbGetProject(thread.projectId)?.location : undefined);
     const claim = dbClaimCheckpointRevertOperation({
@@ -427,10 +435,14 @@ export class BackendHostCore {
       checkpointItemId: input.checkpointItemId,
       projectLocationJson: resolvedLocation ? JSON.stringify(resolvedLocation) : null,
       configJson: thread?.config ? JSON.stringify(thread.config) : null,
+      ...(input.projectLocation !== undefined
+        ? { explicitProjectLocationJson: JSON.stringify(input.projectLocation) }
+        : {}),
     });
     let row: CheckpointRevertOperationRow = claim.row;
-    // Phase updates target the claimed row's key: a superseded stale replay
-    // runs under a versioned `key#N` journal row (WS8 replay-key fix).
+    // Phase updates target the claimed row's exact key: settled rows replay,
+    // running/failed rows resume, and no versioned `key#N` row is ever
+    // created.
     const journalKey = claim.row.operationKey;
     const replayed = claim.kind === "replay";
     if (replayed) {

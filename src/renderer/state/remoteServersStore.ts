@@ -1,7 +1,10 @@
 import {
+  PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_BROWSER_FORWARD_VERSION,
   TERMINAL_CURSOR_SYNC_V2_VERSION,
 } from "@/shared/remote/protocol";
+import { parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { msg } from "@lingui/core/macro";
@@ -176,6 +179,31 @@ import { createSecureRemoteServersStorage } from "@/renderer/state/remoteServers
 const rowFingerprints = new WeakMap<object, string>();
 
 /**
+ * Standalone-attach session memo (in-memory only, never persisted): the
+ * authenticated owner generation from main's HMAC-verified describe plus the
+ * pairing-time check, and the desktopId paired from it. Genuine only at
+ * describe+pairing: persisted bearers survive a same-root restart (the auth
+ * store restores unexpired token hashes), so authentication alone never
+ * proves continuous generation pin. No production reader enforces this memo
+ * after pairing — continuous owner/epoch enforcement is a Gate 2 remainder.
+ */
+let standaloneOwnerGeneration: string | null = null;
+let standaloneOwnerDesktopId: string | null = null;
+
+export function getStandaloneOwnerGeneration(): string | null {
+  return standaloneOwnerGeneration;
+}
+
+export function getStandaloneOwnerDesktopId(): string | null {
+  return standaloneOwnerDesktopId;
+}
+
+export function __resetStandaloneOwnerForTest(): void {
+  standaloneOwnerGeneration = null;
+  standaloneOwnerDesktopId = null;
+}
+
+/**
  * The event socket receives one frame per provider update, while the runtime
  * thread list changes much less often. Cache its membership index by array
  * identity so a hot stream does not rebuild O(thread-count) Sets for every
@@ -320,7 +348,10 @@ export function selectBrowserPanelAvailable(state: RemoteServersState): boolean 
 function syncDesktopBrowserBridgeClient(state: RemoteServersState): void {
   if (typeof window === "undefined" || (!window.poracodeHost && !window.poracode)) return;
   const runtime = readClientRuntime();
-  if (runtime.host !== "browser") return;
+  // Browser PWA and attached Electron both run the remote-http-websocket
+  // transport against a paired owner; managed Electron (electron-backend-host)
+  // owns its settings locally and must not enter this path.
+  if (runtime.transport !== "remote-http-websocket") return;
 
   const server = selectBrowserBridgeClientServer(state);
   const socket = server
@@ -1810,6 +1841,22 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         pairServer: ({ endpoint, token }) =>
           pairAtEndpoint({ endpoint, token, transport: { kind: "direct" } }),
 
+        ensureStandaloneOwner: async (attach: StandaloneAttachInfo) => {
+          if (attach.remoteProtocolVersion !== PORACODE_REMOTE_PROTOCOL_VERSION) {
+            throw new Error("Invalid standalone attach configuration.");
+          }
+          const parts = parsePairingUrlParts(attach.pairingUrl);
+          if (!parts) throw new Error("Invalid standalone attach configuration.");
+          const record = await pairAtEndpoint({
+            endpoint: attach.endpoint,
+            token: parts.token,
+            transport: { kind: "direct" },
+          });
+          standaloneOwnerGeneration = attach.ownerGeneration;
+          standaloneOwnerDesktopId = record.desktopId;
+          return record;
+        },
+
         pairSshServer: async (connection) => {
           const launched = await readBridge().sshConnect({
             connection,
@@ -2275,6 +2322,7 @@ registerRemoteProcedureHost({
  */
 export function __resetRemoteServersStoreForTest(): void {
   closeAllRemoteServerEventSockets();
+  __resetStandaloneOwnerForTest();
   for (const desktopId of [...remoteServerRefreshTimers.keys()]) {
     clearRemoteServerRefreshTimer(desktopId);
   }

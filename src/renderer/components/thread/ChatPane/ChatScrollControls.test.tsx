@@ -975,4 +975,72 @@ describe("ChatScrollControls", () => {
     expect(virtualScrollToBottom).toHaveBeenCalled();
     expect(scrollTop).toBe(700);
   });
+
+  it("cancels pending pins and the delayed reveal on unmount", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let now = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const animationFrames = new Map<number, FrameRequestCallback>();
+    let nextAnimationFrameHandle = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      nextAnimationFrameHandle += 1;
+      animationFrames.set(nextAnimationFrameHandle, callback);
+      return nextAnimationFrameHandle;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (handle: number) => {
+      animationFrames.delete(handle);
+    });
+    let scrollTop = 800;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+      },
+    });
+    const onInitialScrollSettled = vi.fn<() => void>();
+
+    const view = renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={createRef<ChatScrollControlsHandle>()}
+        virtualScrollToBottom={() => undefined}
+        initialScrollSettled={false}
+        initialScrollRevealDelayMs={50}
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+
+    // Unmount before the pending pin frame fires. Every scheduled frame and
+    // timer must be gone so no post-teardown settle can be rescheduled.
+    view.unmount();
+    expect(animationFrames.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+
+    // Flush the way a live rAF loop would: a surviving pin frame would call
+    // scheduleInitialScrollSettle and arm fresh frames plus a reveal timeout.
+    let steps = 0;
+    while (animationFrames.size > 0 && steps < 10) {
+      const callbacks = [...animationFrames.values()];
+      animationFrames.clear();
+      steps += 1;
+      act(() => callbacks.forEach((callback) => callback(0)));
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      now += 500;
+    }
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    expect(animationFrames.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });

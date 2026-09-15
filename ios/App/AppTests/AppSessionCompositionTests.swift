@@ -436,6 +436,37 @@ private func makeTestHostCatalog(
 
 // MARK: - Composition tests
 
+/// Test-lifetime monotonic probe for checkpoint-gated composition tests.
+/// Lock-guarded so the mutation checkpoint closure (which runs off the
+/// MainActor) can record arrival while the @MainActor test reads it.
+/// Records flags only — never credential payloads.
+private final class MutationCheckpointProbe: @unchecked Sendable {
+  private let lock = NSLock()
+  private var arrived = false
+  private var pairFinished = false
+
+  func markArrived() {
+    lock.withLock { arrived = true }
+  }
+
+  func markPairFinished() {
+    lock.withLock { pairFinished = true }
+  }
+
+  /// Single lock-consistent read for the timeout diagnostic.
+  func snapshotAtTimeout() -> (arrived: Bool, pairFinished: Bool) {
+    lock.withLock { (arrived, pairFinished) }
+  }
+
+  var didArrive: Bool {
+    lock.withLock { arrived }
+  }
+
+  var didPairFinish: Bool {
+    lock.withLock { pairFinished }
+  }
+}
+
 @MainActor
 final class AppSessionCompositionTests: XCTestCase {
   func testRootPresentationKeepsStoredSessionOnHomeWhileConnecting() {
@@ -1236,14 +1267,49 @@ final class AppSessionCompositionTests: XCTestCase {
       )
     )
     await session.bootstrap()
-    await session.deps.hostCatalog.setMutationCheckpoint { await gate.wait() }
-    async let pairA1: Void = session.pair(
-      with: .init(manualBaseURL: "https://a1.test", manualToken: "pair-a1")
-    )
-    try await gate.waitUntilWaiting()
+    // Probe records checkpoint arrival and pair completion for the timeout diagnostic.
+    let probe = MutationCheckpointProbe()
+    let pairStartNs = DispatchTime.now().uptimeNanoseconds
+    await session.deps.hostCatalog.setMutationCheckpoint {
+      probe.markArrived()
+      await gate.wait()
+    }
+    // Owned task so a timeout can release the gate and join promptly.
+    // The 2s bound, background race, and end assertions are unchanged.
+    let pairTask = Task { @MainActor in
+      await session.pair(
+        with: .init(manualBaseURL: "https://a1.test", manualToken: "pair-a1")
+      )
+      probe.markPairFinished()
+    }
+    do {
+      try await gate.waitUntilWaiting(timeoutNanoseconds: 2_000_000_000)
+    } catch {
+      let waitElapsedMs =
+        Double(DispatchTime.now().uptimeNanoseconds - pairStartNs) / 1_000_000
+      // State at timeout, before cleanup can change it.
+      let timeoutSnapshot = probe.snapshotAtTimeout()
+      let phaseAtTimeout = session.phase
+      let profileAtTimeout = session.profile?.desktopId ?? "nil"
+      await gate.resume()
+      pairTask.cancel()
+      await pairTask.value
+      let totalElapsedMs =
+        Double(DispatchTime.now().uptimeNanoseconds - pairStartNs) / 1_000_000
+      XCTFail(
+        "pairing did not reach the mutation checkpoint within 2s "
+          + "(waitElapsedMs=\(waitElapsedMs), "
+          + "cleanupElapsedMs=\(totalElapsedMs - waitElapsedMs), "
+          + "checkpointArrivedAtTimeout=\(timeoutSnapshot.arrived), "
+          + "pairFinishedAtTimeout=\(timeoutSnapshot.pairFinished), "
+          + "phaseAtTimeout=\(phaseAtTimeout), "
+          + "profileAtTimeout=\(profileAtTimeout))"
+      )
+      throw error
+    }
     session.handleScenePhase(.background)
     await gate.resume()
-    await pairA1
+    await pairTask.value
     session.handleScenePhase(.active)
     try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
       session.profile?.desktopId == "desk-a1" && session.state.accessToken == "token-a1"

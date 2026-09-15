@@ -51,6 +51,10 @@ import {
   writeTimelineMeasurements,
 } from "./timelineMeasurementCache";
 import { syncFollowingVirtualRowPositions } from "./virtualRowLayout";
+import {
+  findCheckpointBeforeUserMessage,
+  mintCheckpointOperationKey,
+} from "./checkpointRevertIdentity";
 
 export interface CheckpointRevertActions {
   revertCheckpoint(input: {
@@ -160,12 +164,19 @@ export function MessageList({
   const totalSizeUnsubscribeRef = useRef<(() => void) | null>(null);
   const measurementSignatureRef = useRef<string | null>(null);
   const restoredMeasurementSignatureRef = useRef<string | null>(null);
-  const [pendingRevert, setPendingRevert] = useState<{ itemId: string; userItemId: string } | null>(
-    null,
-  );
+  const [pendingRevert, setPendingRevert] = useState<{
+    itemId: string;
+    userItemId: string;
+    operationKey: string;
+  } | null>(null);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [revertError, setRevertError] = useState<string | null>(null);
   const [revertInFlight, setRevertInFlight] = useState(false);
+  // Keys for attempts whose transport promise rejected without an explicit
+  // server outcome. Retained across dialog close/skip-confirm clicks so a
+  // lost-response retry reconciles the same operation; cleared once an
+  // explicit outcome (completed/local_only/failed/ambiguous/noop) is observed.
+  const unsettledKeysRef = useRef(new Map<string, string>());
 
   const snapshotMeasurements = useCallback(
     (instance: LegendListRef, scrollElement: HTMLDivElement) => {
@@ -324,7 +335,7 @@ export function MessageList({
   );
 
   const performRevert = useCallback(
-    async (itemId: string, userItemId: string) => {
+    async (itemId: string, userItemId: string, operationKey: string) => {
       // Snapshot before any await: the compound runs server-side, and the
       // composer should get back the prompt we are reverting even when a late
       // runtime event has already refreshed the transcript.
@@ -337,15 +348,26 @@ export function MessageList({
               (block) => ({ ...block }),
             )
           : undefined;
-      // Deterministic per checkpoint: a retry of an interrupted attempt resumes
-      // the same journalled operation instead of starting a second one.
-      const operationKey = `checkpoint-revert.${threadId}.${itemId}`;
       const revert = checkpointActions ?? readBridge();
-      const result = await revert.revertCheckpoint({
-        threadId,
-        checkpointItemId: itemId,
-        operationKey,
-      });
+      let result: Awaited<ReturnType<typeof revert.revertCheckpoint>>;
+      try {
+        result = await revert.revertCheckpoint({
+          threadId,
+          checkpointItemId: itemId,
+          operationKey,
+        });
+      } catch (error) {
+        // A transport promise rejection carries no authoritative operation
+        // outcome (the mutation may have been accepted with a lost reply).
+        // Retain the key so the next attempt reconciles the same operation
+        // instead of minting a new action.
+        unsettledKeysRef.current.set(itemId, operationKey);
+        throw error;
+      }
+      // An explicit outcome settled this action: lost-response retention no
+      // longer applies. Retries within the same dialog reuse `pendingRevert`'s
+      // key (resume/replay); a later deliberate action after close mints fresh.
+      unsettledKeysRef.current.delete(itemId);
       if (result.outcome === "failed" || result.outcome === "ambiguous") {
         throw new Error(
           result.outcome === "ambiguous"
@@ -380,8 +402,13 @@ export function MessageList({
 
   const requestRevert = useCallback(
     (itemId: string, userItemId: string) => {
+      // A retained unsettled key means the previous attempt's transport
+      // rejected without an outcome: reuse it so the retry reconciles the
+      // same operation. Otherwise this deliberate action mints fresh.
+      const retained = unsettledKeysRef.current.get(itemId);
+      const operationKey = retained ?? mintCheckpointOperationKey();
       if (localStorage.getItem(SKIP_REVERT_CONFIRM_PREF_KEY) === "1") {
-        void performRevert(itemId, userItemId).catch((error) => {
+        void performRevert(itemId, userItemId, operationKey).catch((error) => {
           console.warn("[checkpoint] failed to revert checkpoint", error);
           toast.danger(friendlyError(error));
         });
@@ -389,7 +416,7 @@ export function MessageList({
       }
       setDontAskAgain(false);
       setRevertError(null);
-      setPendingRevert({ itemId, userItemId });
+      setPendingRevert({ itemId, userItemId, operationKey });
     },
     [performRevert],
   );
@@ -404,7 +431,7 @@ export function MessageList({
     if (!pendingRevert) return;
     setRevertError(null);
     setRevertInFlight(true);
-    void performRevert(pendingRevert.itemId, pendingRevert.userItemId)
+    void performRevert(pendingRevert.itemId, pendingRevert.userItemId, pendingRevert.operationKey)
       .then((performed) => {
         if (!performed) return;
         if (dontAskAgain) {
@@ -843,20 +870,4 @@ function isRemountStableSnapshotItem(item: RuntimeChatItem | undefined): boolean
       // the collapsible accordion and remounts collapsed.
       return isToolLikeItem(item) && imageViewRendersInline(item.payload);
   }
-}
-
-function findCheckpointBeforeUserMessage(
-  itemIds: readonly string[],
-  itemsById: ReturnType<typeof useAppStore.getState>["runtimeItemsByIdByThread"][string],
-  userItemId: string,
-): string | null {
-  const userIndex = itemIds.indexOf(userItemId);
-  if (userIndex <= 0) return null;
-
-  for (let idx = userIndex - 1; idx >= 0; idx -= 1) {
-    const itemId = itemIds[idx]!;
-    if (itemsById[itemId]?.type === "assistant_message") return itemId;
-  }
-
-  return null;
 }

@@ -1,3 +1,4 @@
+import type { StandaloneAttachInfo } from "./standaloneAttach";
 import type {
   BackendRendererStreamInfo,
   RendererStreamOwnershipGrant,
@@ -90,4 +91,12 @@ export type ElectronHostBridge = PoracodeNativeBridge & {
   openRemoteHttpBridge(request: RemoteHttpBridgeOpenRequest): Promise<RemoteHttpBridgeOpenResult>;
   /** Cancel fallback for a request whose per-request port has not attached yet. */
   cancelRemoteHttpBridge(request: RemoteHttpBridgeCancelRequest): Promise<void>;
+  /**
+   * Standalone-attach bootstrap (additive, facade stays 11): present only in
+   * Electron builds that can be a client of an already-running headless
+   * owner. Resolves to the authenticated owner endpoint + fresh pairing URL,
+   * or null when this launch follows the managed-local path. Absence on an
+   * older preload means managed-local. Process-lifetime only, never persisted.
+   */
+  getStandaloneAttachInfo?(): Promise<StandaloneAttachInfo | null>;
 };

@@ -130,6 +130,20 @@ export interface RemoteServersState {
   closeRemoteThread(): void;
   sendThreadCommand(desktopId: string, command: RemoteThreadCommand): Promise<void>;
   pairServer(input: { endpoint: string; token: string }): Promise<RemoteServerRecord>;
+  /**
+   * Standalone-attach pairing: Electron as a client of the already-running
+   * headless owner described by main's authenticated attach info. Reuses the
+   * existing pairing parser, OAuth exchange, credential vault, and
+   * RemoteDesktopClient; pins the owner generation in memory (never
+   * persisted) and fails closed on version mismatch. Existing local startup
+   * and other remote-host selection stay unchanged.
+   */
+  ensureStandaloneOwner(input: {
+    endpoint: string;
+    pairingUrl: string;
+    ownerGeneration: string;
+    remoteProtocolVersion: number;
+  }): Promise<RemoteServerRecord>;
   pairSshServer(connection: SshConnectionConfig): Promise<RemoteServerRecord>;
   renameServer(desktopId: string, label: string): void;
   removeServer(desktopId: string): void;

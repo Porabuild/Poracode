@@ -14,8 +14,19 @@ import {
   type RendererStreamOwnershipGrant,
   type RendererWindowDeliveryState,
 } from "@/shared/backendHostProtocol";
+import {
+  LARGE_REPLY_MAX_BYTES_PER_CLIENT,
+  LARGE_REPLY_MAX_ENCODED_FRAME_BYTES,
+  LARGE_REPLY_MAX_LOGICAL_BYTES,
+  LARGE_REPLY_MAX_PER_CLIENT,
+  isReplyAckFrame,
+  isRequestCancelFrame,
+  utf8ByteLength,
+} from "@/shared/rendererStreamChunks";
 import { BackendEventRouter } from "./BackendHostCore";
 import { RendererStreamOwnership } from "./RendererStreamOwnership";
+import { RendererStreamRequestAdmission } from "./rendererStreamRequestAdmission";
+import { RendererStreamChunkSender } from "./rendererStreamChunkSender";
 import { capBroadcastEvent, maxBroadcastEventBytes } from "@/main/remote/server/eventSizeGuard";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import { HttpServerConnections } from "@/shared/httpServerConnections";
@@ -60,6 +71,12 @@ interface ClientState {
   bufferedBudgetBytes: number;
   healthySends: number;
   inFlightRequestIds: Set<string>;
+  /** Delivery-cancelled ids whose handler slot stays held until real settlement. */
+  cancelledRequestIds: Set<string>;
+  /** Active large-reply deliveries: id -> sender (retained serialized counted). */
+  largeTransfers: Map<string, RendererStreamChunkSender>;
+  /** Stable per-connection number so orphaned handlers stay globally counted. */
+  connectionId: number;
   /** Window grants this connection owns; revoked synchronously on close. */
   readonly ownedWindowIds: Set<number>;
   /**
@@ -165,6 +182,8 @@ export class BackendRendererStream {
   private readonly connections: HttpServerConnections;
   private readonly server: WebSocketServer;
   private readonly requests = new AsyncWorkTracker();
+  private readonly admission = new RendererStreamRequestAdmission();
+  private nextConnectionId = 1;
   private starting: Promise<BackendRendererStreamInfo> | undefined;
   private disposal: Promise<void> | undefined;
   private stopping = false;
@@ -465,6 +484,12 @@ export class BackendRendererStream {
     void (async () => {
       await this.starting?.catch(() => {});
       for (const [socket, client] of this.clients) {
+        for (const [id, sender] of client.largeTransfers) {
+          sender.cancel();
+          this.releaseLargeTransfer(client, socket, id);
+        }
+        client.largeTransfers.clear();
+        client.cancelledRequestIds.clear();
         client.router.dispose();
         socket.close(1001, "Backend host shutting down");
       }
@@ -495,6 +520,9 @@ export class BackendRendererStream {
       bufferedBudgetBytes: MIN_CLIENT_BUFFERED_BYTES,
       healthySends: 0,
       inFlightRequestIds: new Set(),
+      cancelledRequestIds: new Set(),
+      largeTransfers: new Map(),
+      connectionId: this.nextConnectionId++,
       ownedWindowIds: new Set(),
       ackedSequence: null,
     };
@@ -509,6 +537,16 @@ export class BackendRendererStream {
       // receiver acknowledgement), so the very next publish sees it as a
       // targeted fallback consumer again and the barrier — enqueued ahead of
       // those copies — tells it what to rebuild.
+      // Large deliveries release promptly; handler slots stay globally counted
+      // until their real settlement (orphan work cannot bypass the bound).
+      for (const [, sender] of state.largeTransfers) {
+        sender.socketLost();
+        sender.cancel();
+      }
+      for (const id of [...state.largeTransfers.keys()]) {
+        this.releaseLargeTransfer(state, socket, id);
+      }
+      state.largeTransfers.clear();
       this.failOverClient(state);
       state.router.dispose();
       this.clients.delete(socket);
@@ -540,7 +578,7 @@ export class BackendRendererStream {
         return;
       }
       if (state.inFlightRequestIds.size >= MAX_CLIENT_IN_FLIGHT_REQUESTS) {
-        this.sendReply(socket, state, {
+        void this.sendReply(socket, state, {
           version: BACKEND_RENDERER_STREAM_VERSION,
           type: "reply",
           id: message.id,
@@ -549,13 +587,29 @@ export class BackendRendererStream {
         });
         return;
       }
+      const executionKey = `h:${state.connectionId}:${message.id}`;
+      if (!this.admission.tryReserveExecution(executionKey)) {
+        void this.sendReply(socket, state, {
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "reply",
+          id: message.id,
+          ok: false,
+          error: "Renderer request overload: too many outstanding handlers.",
+        });
+        return;
+      }
       state.inFlightRequestIds.add(message.id);
       void this.requests
         .run(() => this.handleRequest(socket, state, message))
         .catch(() => socket.terminate())
-        .finally(() => state.inFlightRequestIds.delete(message.id));
+        .finally(() => {
+          state.inFlightRequestIds.delete(message.id);
+          state.cancelledRequestIds.delete(message.id);
+          this.admission.releaseExecution(executionKey);
+        });
       return;
     }
+    if (this.handleLargeReplyControl(socket, state, message)) return;
     if (!isInterestMessage(message)) {
       socket.close(1008, "Invalid renderer transport message");
       return;
@@ -613,6 +667,61 @@ export class BackendRendererStream {
     }
   }
 
+  /**
+   * v6 large-reply control frames. Version/type violations close 1008 like any
+   * other malformed frame; valid-shape but stale/duplicate/overcredit frames
+   * are safely ignored (socket alive, no credit, no revive).
+   */
+  private handleLargeReplyControl(
+    socket: WebSocket,
+    state: ClientState,
+    message: unknown,
+  ): boolean {
+    if (typeof message !== "object" || message === null) return false;
+    const input = message as Record<string, unknown>;
+    if (input.type !== "reply-ack" && input.type !== "request-cancel") return false;
+    if (input.version !== BACKEND_RENDERER_STREAM_VERSION) {
+      socket.close(1008, "Invalid renderer transport message");
+      return true;
+    }
+    if (input.type === "reply-ack") {
+      if (!isReplyAckFrame(message)) {
+        socket.close(1008, "Invalid renderer transport message");
+        return true;
+      }
+      // Stale/duplicate/future acks grant nothing and keep the socket alive.
+      state.largeTransfers.get(message.id)?.onAck(message);
+      return true;
+    }
+    if (!isRequestCancelFrame(message)) {
+      socket.close(1008, "Invalid renderer transport message");
+      return true;
+    }
+    // Delivery-cancel only: hold the execution slot until real settlement;
+    // late handler completion cannot publish. Unknown ids are safely ignored.
+    if (state.inFlightRequestIds.has(message.id)) {
+      state.cancelledRequestIds.add(message.id);
+    }
+    state.largeTransfers.get(message.id)?.cancel();
+    return true;
+  }
+
+  private largeDeliveryKey(state: ClientState, id: string): string {
+    return `large:${state.connectionId}:${id}`;
+  }
+
+  private largeRetainedBytes(state: ClientState): number {
+    let total = 0;
+    for (const sender of state.largeTransfers.values()) total += sender.logicalBytes;
+    return total;
+  }
+
+  private releaseLargeTransfer(state: ClientState, _socket: WebSocket, id: string): void {
+    if (!state.largeTransfers.has(id)) return;
+    state.largeTransfers.delete(id);
+    this.admission.releaseDelivery(this.largeDeliveryKey(state, id));
+  }
+
   private async handleRequest(
     socket: WebSocket,
     state: ClientState,
@@ -620,7 +729,7 @@ export class BackendRendererStream {
   ): Promise<void> {
     const handler = this.options.onRequest;
     if (!handler) {
-      this.sendReply(socket, state, {
+      await this.sendReply(socket, state, {
         version: BACKEND_RENDERER_STREAM_VERSION,
         type: "reply",
         id: request.id,
@@ -636,7 +745,9 @@ export class BackendRendererStream {
       state.ownedWindowIds.size === 1 ? { windowId: [...state.ownedWindowIds][0]! } : undefined;
     try {
       const data = await handler(request, origin);
-      this.sendReply(socket, state, {
+      if (state.cancelledRequestIds.has(request.id)) return;
+      if (!this.clients.has(socket)) return;
+      await this.sendReply(socket, state, {
         version: BACKEND_RENDERER_STREAM_VERSION,
         type: "reply",
         id: request.id,
@@ -644,7 +755,9 @@ export class BackendRendererStream {
         data,
       });
     } catch (error) {
-      this.sendReply(socket, state, {
+      if (state.cancelledRequestIds.has(request.id)) return;
+      if (!this.clients.has(socket)) return;
+      await this.sendReply(socket, state, {
         version: BACKEND_RENDERER_STREAM_VERSION,
         type: "reply",
         id: request.id,
@@ -654,8 +767,13 @@ export class BackendRendererStream {
     }
   }
 
-  private sendReply(socket: WebSocket, state: ClientState, reply: BackendRendererReply): void {
+  private async sendReply(
+    socket: WebSocket,
+    state: ClientState,
+    reply: BackendRendererReply,
+  ): Promise<void> {
     if (socket.readyState !== WebSocket.OPEN) return;
+    if (!this.clients.has(socket)) return;
     const payload = JSON.stringify(reply);
     if (Buffer.byteLength(payload) > MAX_REQUEST_BYTES) {
       this.send(
@@ -671,7 +789,134 @@ export class BackendRendererStream {
       );
       return;
     }
-    this.send(socket, state, payload);
+    // Ordinary path: the complete encoded reply fits the 64KiB data-frame
+    // bound, preserving existing small-reply behavior byte-for-byte.
+    if (Buffer.byteLength(payload) <= LARGE_REPLY_MAX_ENCODED_FRAME_BYTES) {
+      this.send(socket, state, payload);
+      return;
+    }
+    // Only ok:true data replies fragment; bounded errors stay ordinary.
+    // No procedure whitelist: any valid admitted reply may chunk, including
+    // mutation results — fragmentation never re-executes the handler, and no
+    // post-admission failure replays over main IPC.
+    if (!reply.ok) {
+      this.send(socket, state, payload);
+      return;
+    }
+    let serialized: string;
+    try {
+      const text = JSON.stringify(reply.data);
+      if (typeof text !== "string") {
+        this.send(socket, state, payload);
+        return;
+      }
+      serialized = text;
+    } catch {
+      this.send(
+        socket,
+        state,
+        JSON.stringify({
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "reply",
+          id: reply.id,
+          ok: false,
+          error: "Backend response could not be serialized.",
+        } satisfies BackendRendererReply),
+      );
+      return;
+    }
+    const logicalBytes = utf8ByteLength(serialized);
+    if (logicalBytes > LARGE_REPLY_MAX_LOGICAL_BYTES) {
+      this.send(
+        socket,
+        state,
+        JSON.stringify({
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "reply",
+          id: reply.id,
+          ok: false,
+          error: "Backend response exceeded the renderer transport limit.",
+        } satisfies BackendRendererReply),
+      );
+      return;
+    }
+    if (state.cancelledRequestIds.has(reply.id)) return;
+    if (state.largeTransfers.has(reply.id)) return;
+    if (state.largeTransfers.size >= LARGE_REPLY_MAX_PER_CLIENT) {
+      this.send(
+        socket,
+        state,
+        JSON.stringify({
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "reply",
+          id: reply.id,
+          ok: false,
+          error: "Renderer large-reply concurrency limit reached.",
+        } satisfies BackendRendererReply),
+      );
+      return;
+    }
+    if (this.largeRetainedBytes(state) + logicalBytes > LARGE_REPLY_MAX_BYTES_PER_CLIENT) {
+      this.send(
+        socket,
+        state,
+        JSON.stringify({
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "reply",
+          id: reply.id,
+          ok: false,
+          error: "Renderer large-reply byte limit reached.",
+        } satisfies BackendRendererReply),
+      );
+      return;
+    }
+    const deliveryKey = this.largeDeliveryKey(state, reply.id);
+    if (!this.admission.tryReserveDelivery(deliveryKey, logicalBytes)) {
+      this.send(
+        socket,
+        state,
+        JSON.stringify({
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "reply",
+          id: reply.id,
+          ok: false,
+          error: "Renderer large-reply overload: too many concurrent transfers.",
+        } satisfies BackendRendererReply),
+      );
+      return;
+    }
+    let sender: RendererStreamChunkSender;
+    try {
+      sender = new RendererStreamChunkSender(reply.id, reply.data, {
+        sendFrame: (frame) => this.send(socket, state, frame),
+        isOpen: () => socket.readyState === WebSocket.OPEN && this.clients.has(socket),
+      });
+    } catch {
+      this.admission.releaseDelivery(deliveryKey);
+      this.send(
+        socket,
+        state,
+        JSON.stringify({
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "reply",
+          id: reply.id,
+          ok: false,
+          error: "Backend response could not be serialized.",
+        } satisfies BackendRendererReply),
+      );
+      return;
+    }
+    state.largeTransfers.set(reply.id, sender);
+    try {
+      const outcome = await sender.run();
+      if (outcome === "cancelled") return;
+      if (outcome === "transport-lost") return;
+      // completed/aborted both end here: completed delivered end, aborted sent
+      // a bounded reply-abort with the socket alive. Neither revokes window
+      // ownership for a mere missing ACK and neither replays over main IPC.
+    } finally {
+      this.releaseLargeTransfer(state, socket, reply.id);
+    }
   }
 
   private replayFrom(socket: WebSocket, state: ClientState, lastSeq: number): void {
