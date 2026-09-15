@@ -345,6 +345,44 @@ existing mixed-pairing gates (protocol request/outbound gates, stream-info
 version check, interests-frame version close, facade version check) still
 reject older peers.
 
+## Bounded large-reply transfer candidate (renderer stream 5 → 6, uncommitted)
+
+Phase 3 item-6 candidate (working tree only, not published): the direct
+renderer stream moves 5 → 6 for bounded large-reply transfer while host 13,
+facade 11, HTTP bridge frame set 2, remote wire 12, and relay 3 stay unchanged.
+
+- `BACKEND_RENDERER_STREAM_VERSION` 5 → 6 in
+  `src/shared/backendHostProtocol.ts` — backend → renderer adds
+  `reply-start`/`reply-chunk`/`reply-end`/`reply-abort` and renderer → backend
+  adds `reply-ack`/`request-cancel`, all version-gated. A v5 peer fails the
+  same loud gates as before (1008 on frames, IPC fallback on stream info) and
+  never receives chunked frames. No new host IPC shape, no preload/facade
+  change, no F8 bridge/remote/relay frame change.
+- Budgets (all regression-pinned): logical serialized reply ≤ 64 MiB UTF-8;
+  complete encoded data frame ≤ 64 KiB; receiver credit ≤ 2 chunks / 128 KiB
+  unacked per transfer (ACK only after validation/acceptance; 30 s credit stall
+  aborts that transfer with a bounded error, socket alive, ownership kept);
+  delivery ≤ 2 large/client with 64 MiB retained serialized bytes/client and
+  ≤ 4 large / 128 MiB global (exactly-once reserve/release); execution 64 /
+  client (cancelled-but-unsettled counts) plus a new 128 outstanding
+  direct-handler global that survives disconnect/reconnect orphans. Delivery
+  cancellation frees delivery buffers promptly while the handler slot is held
+  until real settlement; late completion never publishes, never replays, never
+  reroutes over main IPC. Fragmentation applies to any valid `ok:true` reply
+  (no procedure whitelist — chunking never re-executes the handler).
+- Compatibility mirrors: old-stream v5 info rejected / v6 accepted at the
+  main/host-client gate, preload info gate, transport v5-1008 / v6-ok in both
+  directions, and stale-host fixtures (`src/main/backend/
+rendererStreamVersionGate.test.ts`, renderer transport + backend suites).
+- Qualification status (candidate, 2026-09-14): focused suites only —
+  framing/slicing (5), reassembly (8), transport wiring (6), backend delivery
+  incl. 2 MiB hash equality / Unicode-escaping / 64 MiB and +1 / credit /
+  sibling / mutation-once (7), admission/cancel/orphan/version (6), smoke hash
+  (1); adjacent pre-existing stream/transport suites (65); `tsc`, `oxlint`
+  (plain + type-aware on touched files), `oxfmt` green. No full-repo
+  build/test, no live app/CI verification in this lane — those run once on the
+  frozen milestone candidate with the renderer/iOS lanes.
+
 ## Native mock controls
 
 `src/main/testing/smokeNativeControls.ts` owns the separate version-2 QA bridge

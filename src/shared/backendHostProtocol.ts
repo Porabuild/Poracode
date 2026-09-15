@@ -77,7 +77,14 @@ export const BACKEND_HOST_PROTOCOL_VERSION = 13 as const;
 // cursor semantics assume a v5 peer). An older renderer presenting a v3/v4 frame is
 // closed with 1008 instead of being half-owned, and a v5 renderer against an old
 // backend fails the stream-info version check and keeps the IPC fallback.
-export const BACKEND_RENDERER_STREAM_VERSION = 5 as const;
+// Version 6 is the bounded large-reply transfer boundary (Phase 3 item 6):
+// `reply-start`/`reply-chunk`/`reply-end`/`reply-abort` plus `reply-ack`/
+// `request-cancel` carry any valid reply whose complete encoded frame would
+// exceed 64 KiB, with receiver credit (<=2 chunks/128KiB unacked), exact total
+// validation, and delivery-cancel semantics. A v5 peer fails the same loud
+// gates as before (1008 on frames, IPC fallback on stream info) and never
+// receives chunked frames.
+export const BACKEND_RENDERER_STREAM_VERSION = 6 as const;
 
 /**
  * Per-window delivery-ownership grant for the direct renderer stream. Main —

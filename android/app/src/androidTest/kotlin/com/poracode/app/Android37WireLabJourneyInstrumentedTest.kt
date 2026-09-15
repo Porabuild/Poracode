@@ -24,6 +24,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import com.poracode.app.session.richchat.RichChatOperationFailure
 import com.poracode.app.wirelab.AwaitTimeoutException
 import com.poracode.app.wirelab.WireLabArgs
 import com.poracode.app.wirelab.WireLabControl
@@ -233,10 +234,40 @@ class Android37WireLabJourneyInstrumentedTest {
             .assertIsDisplayed()
             .assertIsEnabled()
             .performClick()
-        compose.waitUntil(2_000) {
-            application.richChat.chat.state.value.failure != null ||
-                "interrupt" in application.richChat.chat.state.value.activeOperations ||
-                "route:thread-interrupt" in control.observedOperationIds()
+        try {
+            compose.waitUntil(2_000) {
+                application.richChat.chat.state.value.failure != null ||
+                    "interrupt" in application.richChat.chat.state.value.activeOperations ||
+                    "route:thread-interrupt" in control.observedOperationIds()
+            }
+        } catch (e: ComposeTimeoutException) {
+            // Diagnostic-only: secret-free local snapshot at the actual timeout,
+            // captured before cleanup. No control HTTP request and no runOnIdle
+            // here by intent; the original timeout is rethrown unchanged.
+            val chatState = application.richChat.chat.state.value
+            val sessionState = session.state.value
+            val failureCategory = when (val f = chatState.failure) {
+                null -> "none"
+                is RichChatOperationFailure.Remote ->
+                    "Remote(status=${f.statusCode}, code=${f.code}, " +
+                        "committed=${f.requestMayHaveCommitted})"
+                is RichChatOperationFailure.AuthorizationDenied ->
+                    "AuthorizationDenied(scope=${f.requiredScope}, missing=${f.missingScope})"
+                else -> f.javaClass.simpleName
+            }
+            val diagnostic = "WireLabJourney interrupt-issuance timeout diagnostic " +
+                "(diagnosis only, not a fix): " +
+                "failure=$failureCategory, " +
+                "activeOperations=${chatState.activeOperations}, " +
+                "foreground=${session.isForegroundForTests()}, " +
+                "canSessionOperate=${sessionState.canSessionOperate}, " +
+                "selectionThreadId=${chatState.selection?.threadId}, " +
+                "openThreadId=${sessionState.openThreadId}, " +
+                "openTurn=${chatState.transcript?.openTurn}, " +
+                "interruptBefore=$interruptBefore"
+            android.util.Log.e("WireLabJourney", diagnostic)
+            println(diagnostic)
+            throw e
         }
         assertEquals(
             "rich-chat interrupt was accepted by the controller",

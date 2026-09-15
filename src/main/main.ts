@@ -1,5 +1,4 @@
 import { watch } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import {
@@ -53,12 +52,16 @@ import {
   createQuickComposerWindow,
   showQuickComposerWindow,
 } from "./window/createQuickComposerWindow";
+import {
+  QuickComposerLifecycle,
+  type QuickComposerLifecycleHost,
+} from "./window/quickComposerLifecycle";
 import { showAndFocusWindow } from "./window/showAndFocusWindow";
 import { createTray, type TrayHandle } from "./tray";
 import { readKeybindingsFile } from "./keybindingsFile";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import { shouldStartMinimized, syncWindowsStartupRegistration } from "./startupSettings";
-import { type PoracodePaths, resolvePoracodeBaseDir } from "@/shared/poracodePaths";
+import { type PoracodePaths } from "@/shared/poracodePaths";
 import { getAppName } from "@/shared/appName";
 import { productNameFor, resolvePoracodeChannel } from "@/shared/channel";
 import {
@@ -66,7 +69,6 @@ import {
   IPC_WINDOW_CHANNELS,
   isAgentStatusSupervisorEvent,
   quickComposerSubmissionSchema,
-  type QuickComposerSubmission,
   type SupervisorEvent,
 } from "@/shared/ipc";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
@@ -90,7 +92,7 @@ import { repairLegacyMacAppPath } from "./macAppPathMigration";
 import { shouldUseMockKeychain } from "./mockKeychain";
 import { APP_QUIT_CLEANUP_TIMEOUT_MS, raceWithTimeout } from "./appQuitCleanup";
 import { BackendHostClient } from "./backend/BackendHostClient";
-import { BackendStateStore } from "./backend/BackendStateStore";
+import { BackendStateStore, type ShellStateStore } from "./backend/BackendStateStore";
 import { RendererEventInterestsWiring } from "./backend/rendererEventInterestsWiring";
 import { createRendererEventDispatcher } from "./backend/rendererEventDispatch";
 import { resolveDeliveryTargetWindow } from "./backend/rendererDeliveryTable";
@@ -102,6 +104,17 @@ import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
 import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
 import { resolveDesktopHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
+import {
+  buildStandaloneAttachInfoForRenderer,
+  createEphemeralShellState,
+  decideDeferredStandaloneAttach,
+  describeAttachRefusal,
+  resolveDesktopBaseDir,
+  shouldDeferLeaseForAttachProbe,
+  type DeferredAttachProbe,
+} from "./backend/standaloneAttachBootstrap";
+import { registerStandaloneAttachIpc } from "./backend/standaloneAttachIpc";
 
 // Electron can remain alive after its launching terminal or dev runner exits.
 // Install this before any startup logging so a detached diagnostic pipe cannot
@@ -162,39 +175,63 @@ if (baseDirOverride) {
 const hasSingleInstanceLock = isDev || app.requestSingleInstanceLock();
 let poracodePaths: PoracodePaths | null = null;
 let desktopOwnerLease: HostOwnerLease | null = null;
+// Standalone attach (Gate 2 connected slice): when owner discovery is visible
+// at module load, the lease acquisition is deferred to `whenReady` so the
+// authenticated describe decision runs BEFORE lease/acquire, backend fork,
+// legacy migration, and desktop secret-key init. Null means the synchronous
+// managed path below already ran.
+let deferredStandaloneProbe: DeferredAttachProbe | null = null;
+// Authenticated attach payload for the renderer bootstrap (endpoint + fresh
+// pairing URL + pinned generation). Present only in attach mode; served over
+// IPC, never logged or persisted.
+let standaloneAttachInfo: StandaloneAttachInfo | null = null;
+// Ephemeral window state for attach mode (no owned-root writes; window bounds
+// do not persist across restarts in this candidate — device-only persistence
+// stays future work).
+let standaloneAttachShellState: ShellStateStore | null = null;
 // Always a real Error: the caught acquisition failure is normalized at
 // capture time so the readiness rethrow keeps its identity under the
 // only-throw-error rule.
 let desktopOwnerAcquisitionError: Error | null = null;
 if (hasSingleInstanceLock) {
   const electronUserDataDir = app.getPath("userData");
-  const baseDir =
-    baseDirOverride ?? (isDev ? join(homedir(), ".poracode-dev") : resolvePoracodeBaseDir(channel));
-  try {
-    desktopOwnerLease = HostOwnerLease.acquire(resolveDesktopHostRootPaths(baseDir), "desktop");
-  } catch (error) {
-    // Normalized so the rethrow at readiness is always an Error with its
-    // identity intact (pre-existing type-aware lint finding at the rethrow).
-    desktopOwnerAcquisitionError = toError(error);
-    console.error("[poracode] failed to acquire the desktop host owner:", error);
-  }
-  if (!desktopOwnerAcquisitionError) {
+  const baseDir = resolveDesktopBaseDir({
+    ...(baseDirOverride ? { baseDirOverride } : {}),
+    isDev,
+    channel,
+  });
+  // Decision-before-authority: when an existing owner may hold this profile,
+  // defer the lease so the authenticated describe runs first. Otherwise keep
+  // the existing synchronous managed path untouched.
+  if (shouldDeferLeaseForAttachProbe(baseDir)) {
+    deferredStandaloneProbe = { baseDir };
+  } else {
     try {
-      const result = migrateLegacyDataOutOfProcess({
-        baseDir,
-        channel,
-        electronUserDataDir,
-        legacyElectronUserDataDir,
-        ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
-        allowCustomDataRoot: app.isPackaged,
-      });
-      if (result.status === "migrated") {
-        console.info(`[migrate] imported all available Lightcode data into ${baseDir}`);
-      }
+      desktopOwnerLease = HostOwnerLease.acquire(resolveDesktopHostRootPaths(baseDir), "desktop");
     } catch (error) {
-      console.warn(`[migrate] failed to import Lightcode data into ${baseDir}:`, error);
+      // Normalized so the rethrow at readiness is always an Error with its
+      // identity intact (pre-existing type-aware lint finding at the rethrow).
+      desktopOwnerAcquisitionError = toError(error);
+      console.error("[poracode] failed to acquire the desktop host owner:", error);
     }
-    poracodePaths = preparePoracodeDataRoot(baseDir);
+    if (!desktopOwnerAcquisitionError) {
+      try {
+        const result = migrateLegacyDataOutOfProcess({
+          baseDir,
+          channel,
+          electronUserDataDir,
+          legacyElectronUserDataDir,
+          ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
+          allowCustomDataRoot: app.isPackaged,
+        });
+        if (result.status === "migrated") {
+          console.info(`[migrate] imported all available Lightcode data into ${baseDir}`);
+        }
+      } catch (error) {
+        console.warn(`[migrate] failed to import Lightcode data into ${baseDir}:`, error);
+      }
+      poracodePaths = preparePoracodeDataRoot(baseDir);
+    }
   }
 }
 
@@ -222,11 +259,10 @@ const WINDOW_CHROME_HEIGHT = 32;
 
 let mainWindow: BrowserWindow | null = null;
 let quickComposerWindow: BrowserWindow | null = null;
-let quickComposerDialogOpen = false;
-let quickComposerDismissTimer: ReturnType<typeof setTimeout> | null = null;
-let revealMainAfterQuickComposerDismiss = false;
-let mainRendererReady = false;
-const pendingQuickComposerSubmissions: QuickComposerSubmission[] = [];
+// The active mode's quick-composer device lifecycle (managed or standalone
+// attach). Module window functions below delegate to it; each startup assigns
+// its own host (attach binds the ephemeral shell state for main recreation).
+let quickComposerLifecycle: QuickComposerLifecycle | null = null;
 let pendingTrayThreadId: string | null = null;
 let windowsJobObjectManager: WindowsJobObjectManager | null = null;
 let browserPanelManager: BrowserPanelManager | null = null;
@@ -354,24 +390,23 @@ function quickComposerWindowFor(event: Electron.IpcMainInvokeEvent): BrowserWind
   return window && window === quickComposerWindow && !window.isDestroyed() ? window : null;
 }
 
-function flushQuickComposerSubmissions(): void {
-  if (!mainRendererReady || !mainWindow || mainWindow.isDestroyed()) return;
-  for (const submission of pendingQuickComposerSubmissions.splice(0)) {
-    mainWindow.webContents.send(IPC_EVENT_CHANNELS.quickComposerSubmit, submission);
-  }
-}
-
 function flushTrayThreadOpen(): void {
-  if (!mainRendererReady || !mainWindow || mainWindow.isDestroyed() || !pendingTrayThreadId) return;
+  if (
+    !(quickComposerLifecycle?.isMainReady() ?? false) ||
+    !mainWindow ||
+    mainWindow.isDestroyed() ||
+    !pendingTrayThreadId
+  )
+    return;
   const threadId = pendingTrayThreadId;
   pendingTrayThreadId = null;
   mainWindow.webContents.send(IPC_EVENT_CHANNELS.threadOpenRequested, { threadId });
 }
 
-function ensureMainWindow(showOnReady = true): BrowserWindow {
+function ensureMainWindow(showOnReady = true, stateOverride?: ShellStateStore): BrowserWindow {
   if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
-  mainRendererReady = false;
-  mainWindow = createMainAppWindow(showOnReady);
+  quickComposerLifecycle?.markMainNotReady();
+  mainWindow = createMainAppWindow(showOnReady, stateOverride);
   browserPanelManager?.bindHost(mainWindow);
   return mainWindow;
 }
@@ -383,26 +418,11 @@ function openThreadFromTray(threadId: string): void {
 }
 
 function finishQuickComposerDismiss(window: BrowserWindow): void {
-  if (quickComposerDismissTimer) {
-    clearTimeout(quickComposerDismissTimer);
-    quickComposerDismissTimer = null;
-  }
-  if (!window.isDestroyed()) window.hide();
-  if (!revealMainAfterQuickComposerDismiss) return;
-  revealMainAfterQuickComposerDismiss = false;
-  const target = ensureMainWindow();
-  if (target.webContents.isLoading()) {
-    target.once("ready-to-show", () => showAndFocusWindow(target));
-  } else {
-    showAndFocusWindow(target);
-  }
+  quickComposerLifecycle?.finishDismiss(window);
 }
 
 function requestQuickComposerDismiss(window: BrowserWindow): void {
-  if (window.isDestroyed()) return;
-  window.webContents.send(IPC_EVENT_CHANNELS.quickComposerDismissRequested);
-  if (quickComposerDismissTimer) clearTimeout(quickComposerDismissTimer);
-  quickComposerDismissTimer = setTimeout(() => finishQuickComposerDismiss(window), 240);
+  quickComposerLifecycle?.requestDismiss(window);
 }
 
 // Window options shared by every app-renderer window (main + quick composer);
@@ -439,7 +459,7 @@ function createQuickComposerAppWindow(): BrowserWindow {
   window.on("blur", () => {
     setTimeout(() => {
       if (
-        !quickComposerDialogOpen &&
+        !(quickComposerLifecycle?.isDialogOpen() ?? false) &&
         !window.isDestroyed() &&
         window.isVisible() &&
         !window.isFocused()
@@ -457,15 +477,41 @@ function createQuickComposerAppWindow(): BrowserWindow {
 }
 
 function toggleQuickComposerWindow(): void {
-  if (quickComposerWindow && !quickComposerWindow.isDestroyed()) {
-    if (quickComposerWindow.isVisible()) {
-      requestQuickComposerDismiss(quickComposerWindow);
-    } else {
-      showQuickComposerWindow(quickComposerWindow);
-    }
-    return;
-  }
-  quickComposerWindow = createQuickComposerAppWindow();
+  quickComposerLifecycle?.toggle();
+}
+
+// One device lifecycle host for both modes: window factories, delivery, and
+// dismissal effects are identical. Only main-window recreation differs —
+// managed uses the backend shell store, attach binds its ephemeral shell
+// state — so it is the single injected callback.
+function createQuickComposerLifecycleHost(
+  ensureMainWindowForComposer: (showOnReady: boolean) => BrowserWindow,
+): QuickComposerLifecycleHost {
+  return {
+    getMainWindow: () => mainWindow,
+    getOverlay: () => quickComposerWindow,
+    setOverlay: (window) => {
+      quickComposerWindow = window;
+    },
+    createOverlay: () => createQuickComposerAppWindow(),
+    ensureMainWindow: ensureMainWindowForComposer,
+    showOverlay: (window) => showQuickComposerWindow(window),
+    revealMainWindow: (window) => {
+      if (window.webContents.isLoading()) {
+        window.once("ready-to-show", () => showAndFocusWindow(window));
+      } else {
+        showAndFocusWindow(window);
+      }
+    },
+    deliverSubmission: (window, submission) => {
+      window.webContents.send(IPC_EVENT_CHANNELS.quickComposerSubmit, submission);
+    },
+    requestOverlayDismiss: (window) => {
+      window.webContents.send(IPC_EVENT_CHANNELS.quickComposerDismissRequested);
+    },
+    hideOverlay: (window) => window.hide(),
+    pickFiles: (owner) => showAddFilesDialog(owner),
+  };
 }
 
 function forwardAgentStatusEventToQuickComposer(event: SupervisorEvent): void {
@@ -481,7 +527,7 @@ function forwardAgentStatusEventToQuickComposer(event: SupervisorEvent): void {
   }
 }
 
-function createMainAppWindow(showOnReady = true): BrowserWindow {
+function createMainAppWindow(showOnReady = true, stateOverride?: ShellStateStore): BrowserWindow {
   const windowChrome = resolveWindowChromeOptions();
   let window: BrowserWindow;
   // Captured before any close path can destroy the webContents the id reads from.
@@ -497,7 +543,7 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
   });
   window = createMainWindow({
     ...commonAppWindowOptions(),
-    state: requireBackendStateStore(),
+    state: stateOverride ?? requireBackendStateStore(),
     windowChromeHeight: WINDOW_CHROME_HEIGHT,
     appearance: windowChrome.appearance,
     sidebarTranslucency: windowChrome.sidebarTranslucency,
@@ -507,7 +553,7 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
       if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
       if (wasMainWindow) {
         mainWindow = null;
-        mainRendererReady = false;
+        quickComposerLifecycle?.markMainNotReady();
         closeLifecycle.handleClosed();
       }
     },
@@ -520,7 +566,7 @@ function createMainAppWindow(showOnReady = true): BrowserWindow {
   installMainRendererInvalidation(window.webContents, {
     isCurrent: () => mainWindow === window,
     invalidate: () => {
-      mainRendererReady = false;
+      quickComposerLifecycle?.markMainNotReady();
       if (windowSenderId !== undefined) clearRendererEventInterests?.(windowSenderId);
     },
   });
@@ -652,6 +698,162 @@ function handleSupervisorEventForSleep(event: SupervisorEvent): void {
   }
 }
 
+/**
+ * Minimal Electron startup as a client of the already-running headless owner.
+ * Skips owner lease, backend fork, legacy migration, and desktop secret-key
+ * init by construction (none are called here). Real state/command routing
+ * comes from the renderer bootstrap (RemoteDesktopClient over the bridge-2
+ * utility process). Quit is client cleanup only: no owner-stop credential and
+ * no process-kill path exist in attach mode.
+ *
+ * Remaining limits of this candidate (later verification owns them): window
+ * bounds are ephemeral, browser/ingress/tray-DB services are unavailable, and
+ * server-owned database/supervisor/settings procedures fail closed. Device-only
+ * locals (renderer interests, keybindings, window focus, update status and
+ * actions, shortcut suspension) are served by real implementations; the real
+ * quick-composer device lifecycle (tray, shortcut, pending submit flush,
+ * graceful dismiss, picker focus) and renderer-reload window channels are
+ * registered so those surfaces work instead of crash-looping.
+ * No new user-facing strings; no visual changes.
+ */
+async function startStandaloneAttachMode(): Promise<void> {
+  repairLegacyMacAppPath(channel, { isPackaged: app.isPackaged });
+  refreshMacDockIcon();
+  Menu.setApplicationMenu(null);
+
+  installLocalFileProtocolHandler();
+  installPickerProtocolHandler();
+
+  const shellState = createEphemeralShellState();
+  standaloneAttachShellState = shellState;
+
+  const remoteHttpBridgeSupervisor = new RemoteHttpBridgeSupervisor({
+    utilityPath: join(__dirname, "remoteHttpBridge.cjs"),
+    isPackaged: app.isPackaged,
+    ...(process.env.PORACODE_REMOTE_HTTP_BRIDGE_DEBUG === "1"
+      ? { log: (message: string) => console.log(message) }
+      : {}),
+  });
+  registerRemoteHttpBridgeIpc({ supervisor: remoteHttpBridgeSupervisor });
+
+  ipcMain.handle(IPC_WINDOW_CHANNELS.standaloneAttachInfo, () => standaloneAttachInfo);
+  ipcMain.handle(IPC_WINDOW_CHANNELS.backendRendererStreamInfo, () => null);
+  ipcMain.handle(IPC_WINDOW_CHANNELS.rendererStreamOwnershipGrant, () => null);
+
+  // Device-owned locals with real implementations; everything server-owned
+  // loud-rejects (no local backend exists to serve it). Must run before the
+  // main window is created so boot-time procedures resolve.
+  if (!standaloneAttachInfo) {
+    throw new Error("Standalone attach started without owner information.");
+  }
+  // The real quick-composer device lifecycle on the ephemeral shell state:
+  // submit queues while main is loading/closed and flushes on ready, dismiss
+  // is graceful with main reveal, and recreation never touches managed
+  // backend/shell paths.
+  quickComposerLifecycle = new QuickComposerLifecycle(
+    createQuickComposerLifecycleHost((showOnReady) => ensureMainWindow(showOnReady, shellState)),
+  );
+  const attachQuickComposer = quickComposerLifecycle;
+  registerStandaloneAttachIpc({
+    getMainWindow: () => mainWindow,
+    getQuickComposerWindow: () => quickComposerWindow,
+    profileNamespace: standaloneAttachInfo.profileNamespace,
+    channel,
+    isDev,
+    reportError: (error, tags) => captureMainException(error, tags),
+    markQuitting: () => {
+      isQuitting = true;
+    },
+    quickComposer: attachQuickComposer,
+    onKeybindingsChanged: (file) => quickComposerShortcutManager?.apply(file),
+    setShortcutsSuspended: (suspended) => globalShortcut.setSuspended(suspended),
+  });
+
+  // Device shortcut registration from the attach keybindings file, re-applied
+  // on every attach keybinding save (managed parity).
+  quickComposerShortcutManager = new QuickComposerShortcutManager(
+    globalShortcut,
+    process.platform,
+    toggleQuickComposerWindow,
+    (accelerator) => {
+      tray?.setQuickComposerShortcut(accelerator);
+    },
+  );
+  try {
+    quickComposerShortcutManager.apply(
+      readKeybindingsFile(join(standaloneAttachInfo.profileNamespace, "keybindings.json")).file,
+    );
+  } catch (error) {
+    console.warn("[poracode] failed to register the quick composer shortcut", error);
+  }
+
+  ensureMainWindow(true, shellState);
+
+  registerSmokeNativeControls({
+    ipcMain,
+    isDev,
+    isPackaged: app.isPackaged,
+    mockAgents: process.env.PORACODE_MOCK_AGENTS === "1",
+    getMainWebContents: () => mainWindow?.webContents ?? null,
+    toggleQuickComposer: toggleQuickComposerWindow,
+    closeMainWindow: () => mainWindow?.close(),
+    quitApp: () => app.quit(),
+    inspectQuickComposer: () =>
+      quickComposerWindow && !quickComposerWindow.isDestroyed()
+        ? { visible: quickComposerWindow.isVisible(), focused: quickComposerWindow.isFocused() }
+        : null,
+  });
+
+  tray = createTray({
+    channel,
+    appName: getAppName(channel, isDev),
+    getProjects: () => [],
+    getThreads: () => [],
+    onOpenThread: () => {},
+    onShow: () => showAndFocusWindow(ensureMainWindow(true, shellState)),
+    onQuickComposer: toggleQuickComposerWindow,
+    onQuit: () => {
+      isQuitting = true;
+      app.quit();
+    },
+  });
+  tray.setQuickComposerShortcut(quickComposerShortcutManager.active[0] ?? null);
+
+  app.on("activate", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      showAndFocusWindow(mainWindow);
+      return;
+    }
+    ensureMainWindow(true, shellState);
+  });
+
+  let quitCleanupStarted = false;
+  app.on("before-quit", (event) => {
+    isQuitting = true;
+    if (quitCleanupStarted) return;
+    quitCleanupStarted = true;
+    event.preventDefault();
+    // Client cleanup only: the external owner keeps its lease, SQLite, and
+    // supervisor. No owner-stop credential is held and no child is killed
+    // here (no BackendHostClient was ever forked in attach mode).
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      saveWindowBounds(mainWindow, shellState, "window-bounds");
+    }
+    quickComposerShortcutManager?.dispose();
+    quickComposerShortcutManager = null;
+    quickComposerLifecycle?.dispose();
+    quickComposerWindow?.close();
+    quickComposerWindow = null;
+    sleepInhibitor.dispose();
+    tray?.destroy();
+    tray = null;
+    void shellState.close().then(
+      () => app.quit(),
+      () => app.quit(),
+    );
+  });
+}
+
 registerLocalFileProtocolScheme();
 registerPickerProtocolScheme();
 
@@ -670,12 +872,73 @@ if (!hasSingleInstanceLock) {
     ) {
       return;
     }
+    if (standaloneAttachShellState) {
+      showAndFocusWindow(ensureMainWindow(true, standaloneAttachShellState));
+      return;
+    }
     showAndFocusWindow(ensureMainWindow());
   });
 
   void app
     .whenReady()
     .then(async () => {
+      if (deferredStandaloneProbe) {
+        const outcome = await decideDeferredStandaloneAttach(deferredStandaloneProbe);
+        if (outcome.kind === "refuse") throw new Error(describeAttachRefusal(outcome));
+        if (outcome.kind === "attach") {
+          standaloneAttachInfo = await buildStandaloneAttachInfoForRenderer({
+            endpoint: outcome.endpoint,
+            ownerGeneration: outcome.ownerGeneration,
+            profileNamespace: outcome.profileNamespace,
+            dataRoot: outcome.dataRoot,
+            controlPaths: outcome.controlPaths,
+          });
+          await startStandaloneAttachMode();
+          return;
+        }
+        // Deferred managed: discovery vanished between module load and ready
+        // (owner stopped), or the desktop mapping held stale discovery its
+        // control could not be reached on. Follow the existing managed
+        // startup verbatim, still acquiring the lease before mutations
+        // (held lock refuses loudly; only a free lease recovers the same
+        // desktop root). Headless-mapping evidence never reaches here.
+        if (outcome.kind === "no-probe") {
+          throw new Error("Standalone attach probe did not run.");
+        }
+        const electronUserDataDir = app.getPath("userData");
+        try {
+          desktopOwnerLease = HostOwnerLease.acquire(
+            resolveDesktopHostRootPaths(outcome.baseDir),
+            "desktop",
+          );
+        } catch (error) {
+          desktopOwnerAcquisitionError = toError(error);
+          console.error("[poracode] failed to acquire the desktop host owner:", error);
+        }
+        if (!desktopOwnerAcquisitionError) {
+          try {
+            const result = migrateLegacyDataOutOfProcess({
+              baseDir: outcome.baseDir,
+              channel,
+              electronUserDataDir,
+              legacyElectronUserDataDir,
+              ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
+              allowCustomDataRoot: app.isPackaged,
+            });
+            if (result.status === "migrated") {
+              console.info(
+                `[migrate] imported all available Lightcode data into ${outcome.baseDir}`,
+              );
+            }
+          } catch (error) {
+            console.warn(
+              `[migrate] failed to import Lightcode data into ${outcome.baseDir}:`,
+              error,
+            );
+          }
+          poracodePaths = preparePoracodeDataRoot(outcome.baseDir);
+        }
+      }
       if (desktopOwnerAcquisitionError) throw desktopOwnerAcquisitionError;
       if (preserveLegacySafeStorageIdentity) app.setName(productNameFor(channel));
       repairLegacyMacAppPath(channel, { isPackaged: app.isPackaged });
@@ -1014,6 +1277,9 @@ if (!hasSingleInstanceLock) {
         IPC_WINDOW_CHANNELS.backendRendererStreamInfo,
         () => backendRendererStreamInfo,
       );
+      // Managed-local path holds no external owner: the renderer bootstrap
+      // treats absence (or a rejected invoke on older builds) as managed.
+      ipcMain.handle(IPC_WINDOW_CHANNELS.standaloneAttachInfo, () => null);
       ipcMain.handle(IPC_WINDOW_CHANNELS.rendererStreamOwnershipGrant, (event) => {
         // The window identity comes from the IPC event, never from the
         // renderer: a caller can only ever receive the binding minted for its
@@ -1150,6 +1416,10 @@ if (!hasSingleInstanceLock) {
       });
       registerRemoteHttpBridgeIpc({ supervisor: remoteHttpBridgeSupervisor });
 
+      quickComposerLifecycle = new QuickComposerLifecycle(
+        createQuickComposerLifecycleHost((showOnReady) => ensureMainWindow(showOnReady)),
+      );
+
       registerIpcHandlers({
         localHandlers: createLocalIpcHandlers({
           getMainWindow: () => mainWindow,
@@ -1193,13 +1463,7 @@ if (!hasSingleInstanceLock) {
       ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {
         const overlay = quickComposerWindowFor(event);
         if (!overlay) return;
-        const submission = quickComposerSubmissionSchema.parse(payload);
-        pendingQuickComposerSubmissions.push(submission);
-        revealMainAfterQuickComposerDismiss = true;
-        ensureMainWindow(false);
-        flushQuickComposerSubmissions();
-        if (quickComposerDismissTimer) clearTimeout(quickComposerDismissTimer);
-        quickComposerDismissTimer = setTimeout(() => finishQuickComposerDismiss(overlay), 800);
+        quickComposerLifecycle?.handleSubmit(overlay, quickComposerSubmissionSchema.parse(payload));
       });
       ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerDismiss, (event) => {
         const overlay = quickComposerWindowFor(event);
@@ -1207,21 +1471,13 @@ if (!hasSingleInstanceLock) {
       });
       ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerPickFiles, async (event) => {
         const overlay = quickComposerWindowFor(event);
-        if (!overlay) return null;
-        quickComposerDialogOpen = true;
-        const wasVisible = overlay.isVisible();
-        try {
-          return await showAddFilesDialog(overlay);
-        } finally {
-          quickComposerDialogOpen = false;
-          if (wasVisible && !overlay.isDestroyed()) showQuickComposerWindow(overlay);
-        }
+        if (!overlay || !quickComposerLifecycle) return null;
+        return quickComposerLifecycle.handlePickFiles(overlay);
       });
       ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerMainReady, (event) => {
         const window = BrowserWindow.fromWebContents(event.sender);
         if (!window || window !== mainWindow || window.isDestroyed()) return;
-        mainRendererReady = true;
-        flushQuickComposerSubmissions();
+        quickComposerLifecycle?.handleMainReady();
         flushTrayThreadOpen();
       });
       ipcMain.handle(IPC_WINDOW_CHANNELS.rendererReload, (event) => {
@@ -1338,9 +1594,7 @@ if (!hasSingleInstanceLock) {
         }
         quickComposerShortcutManager?.dispose();
         quickComposerShortcutManager = null;
-        if (quickComposerDismissTimer) clearTimeout(quickComposerDismissTimer);
-        quickComposerDismissTimer = null;
-        pendingQuickComposerSubmissions.length = 0;
+        quickComposerLifecycle?.dispose();
         const browserMcpToClose = browserMcpIngress;
         browserMcpIngress = null;
         const computerUseToClose = computerUseMcpIngress;

@@ -14,6 +14,8 @@ import {
   type BackendRendererStreamInfo,
 } from "@/shared/backendHostProtocol";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
+import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
+import { standaloneAttachInfoSchema } from "@/shared/standaloneAttach";
 import {
   REMOTE_HTTP_BRIDGE_VERSION,
   isRemoteHttpBridgePortEnvelope,
@@ -152,6 +154,20 @@ const bridge: ElectronHostBridge = {
   },
   cancelRemoteHttpBridge(request) {
     return ipcRenderer.invoke(IPC_WINDOW_CHANNELS.remoteHttpBridgeCancel, request) as Promise<void>;
+  },
+  async getStandaloneAttachInfo() {
+    const info: unknown = await ipcRenderer.invoke(IPC_WINDOW_CHANNELS.standaloneAttachInfo);
+    // Fail closed: only an explicit null selects managed-local. A present
+    // getter that resolves to undefined or a schema-invalid payload must
+    // reject so the renderer refuses instead of installing managed. Thrown
+    // IPC rejections propagate unchanged. (An absent optional method on older
+    // managed preloads is handled renderer-side as managed.)
+    if (info === null) return null;
+    const parsed = standaloneAttachInfoSchema.safeParse(info);
+    if (!parsed.success) {
+      throw new Error("Invalid standalone attach configuration.");
+    }
+    return parsed.data as StandaloneAttachInfo;
   },
   async getBackendRendererStreamInfo() {
     const info: unknown = await ipcRenderer.invoke(IPC_WINDOW_CHANNELS.backendRendererStreamInfo);

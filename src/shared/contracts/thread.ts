@@ -372,6 +372,19 @@ export const checkpointRevertOutcomeSchema = z.enum([
   "noop",
 ]);
 
+/** Command-id prefix the remote transport prepends to the compound revert
+ * operation key (see `RemoteClient.checkpointRevert`). */
+export const CHECKPOINT_REVERT_COMMAND_ID_PREFIX = "checkpoint-revert:";
+/**
+ * The remote router (`remoteCommandId` in src/main/remote/server/httpRouter.ts)
+ * admits at most 128 characters for the whole command-id header, and the
+ * compound revert travels as `<prefix><operationKey>`. Budgeting the key as
+ * gate minus prefix keeps this schema and the router gate from ever
+ * disagreeing: a key that passes here can never be rejected for header length.
+ */
+export const CHECKPOINT_REVERT_OPERATION_KEY_MAX_LENGTH =
+  128 - CHECKPOINT_REVERT_COMMAND_ID_PREFIX.length;
+
 export const checkpointRevertPayloadSchema = z.object({
   threadId: z.string().min(1),
   checkpointItemId: z.string().min(1),
@@ -380,7 +393,7 @@ export const checkpointRevertPayloadSchema = z.object({
   operationKey: z
     .string()
     .min(8)
-    .max(128)
+    .max(CHECKPOINT_REVERT_OPERATION_KEY_MAX_LENGTH)
     .regex(/^[A-Za-z0-9._:-]+$/u),
 });
 export type CheckpointRevertPayload = z.infer<typeof checkpointRevertPayloadSchema>;

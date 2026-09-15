@@ -100,6 +100,11 @@ export function setRemoteBridgeClient(
   setRemoteImageRefResolver(client ? (ref) => client.imageRefUrl(ref) : null);
 }
 
+/** Active paired-desktop client, if any (attached Electron owner sync uses this). */
+export function getRemoteBridgeClient(): RemoteDesktopClient | null {
+  return activeClient;
+}
+
 /**
  * Maps a poracode-local image URL to the desktop's authenticated image
  * endpoint. The PWA has no `process.platform`, so the path decode keys off the

@@ -12,6 +12,8 @@ import {
 } from "@/shared/backendHostProtocol";
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import { ipcProcedureMap, type IpcProcedureName, type SupervisorEvent } from "@/shared/ipc";
+import { utf8ByteLength } from "@/shared/rendererStreamChunks";
+import { RendererStreamReassembly } from "./rendererStreamReassembly";
 
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 const RECONNECT_DELAY_MS = 1_000;
@@ -54,6 +56,7 @@ export class ElectronBackendTransport {
   >();
   private readonly generationListeners = new Set<() => void>();
   private readonly pending = new Map<string, PendingRequest>();
+  private readonly largeReassembly = new RendererStreamReassembly();
   private interests: RendererInterests = { terminalThreadIds: [], runtimeThreadIds: [] };
   /**
    * The ownership grant this window pulled from main for the current
@@ -145,7 +148,14 @@ export class ElectronBackendTransport {
     const id = crypto.randomUUID();
     return new Promise<unknown>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        if (this.pending.delete(id)) reject(new Error(`Backend request ${name} timed out.`));
+        if (this.pending.delete(id)) {
+          // Delivery-cancel on timeout: frees backend payload state; the
+          // handler slot stays held there until real settlement and late
+          // completion cannot publish. No AbortSignal/user-cancel claim.
+          this.sendRequestCancel(id);
+          this.largeReassembly.drop(id);
+          reject(new Error(`Backend request ${name} timed out.`));
+        }
       }, REQUEST_TIMEOUT_MS);
       this.pending.set(id, { resolve, reject, timeout });
       try {
@@ -220,6 +230,58 @@ export class ElectronBackendTransport {
     return this.connectPromise;
   }
 
+  private reassemblyEvents() {
+    return {
+      sendAck: (id: string, seq: number): void => {
+        if (this.socket?.readyState !== WebSocket.OPEN) return;
+        try {
+          this.socket.send(
+            JSON.stringify({
+              version: BACKEND_RENDERER_STREAM_VERSION,
+              type: "reply-ack",
+              id,
+              seq,
+            }),
+          );
+        } catch {
+          // A failed ACK send leaves the backend to credit-timeout the
+          // transfer with a bounded error; never tear the socket down here.
+        }
+      },
+      sendCancel: (id: string): void => this.sendRequestCancel(id),
+      resolveReply: (id: string, data: unknown): void => {
+        const pending = this.pending.get(id);
+        if (!pending) return;
+        this.pending.delete(id);
+        clearTimeout(pending.timeout);
+        pending.resolve(data);
+      },
+      rejectReply: (id: string, error: Error): void => {
+        const pending = this.pending.get(id);
+        if (!pending) return;
+        this.pending.delete(id);
+        clearTimeout(pending.timeout);
+        pending.reject(error);
+      },
+    };
+  }
+
+  private sendRequestCancel(id: string): void {
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    try {
+      this.socket.send(
+        JSON.stringify({
+          version: BACKEND_RENDERER_STREAM_VERSION,
+          type: "request-cancel",
+          id,
+        }),
+      );
+    } catch {
+      // Best-effort delivery-cancel only; the pending timeout/close path
+      // already rejects the caller.
+    }
+  }
+
   private handleMessage(socket: WebSocket, raw: string): void {
     if (this.socket !== socket) return;
     let message: unknown;
@@ -227,6 +289,19 @@ export class ElectronBackendTransport {
       message = JSON.parse(raw);
     } catch {
       socket.close(1008, "Invalid backend renderer message");
+      return;
+    }
+    // Bounded large-reply frames first: stale/duplicate/out-of-order safely
+    // drop inside reassembly (socket alive); version mismatches fall through
+    // to the loud 1008 gate below.
+    if (
+      this.largeReassembly.handleBackendFrame(
+        message,
+        utf8ByteLength(raw),
+        this.reassemblyEvents(),
+        (id) => this.pending.has(id),
+      )
+    ) {
       return;
     }
     if (!isBackendRendererMessage(message)) {
@@ -318,8 +393,12 @@ export class ElectronBackendTransport {
       // schedule the reconnect, whose interests frame presents the repaired
       // cursor. Not disconnect(): that clears this.socket first and the
       // close handler would then swallow the reconnect.
+      // Event-only barriers that do not fence the socket must NOT drop
+      // large-reply partials; this fence invalidates the request transport
+      // generation, so partials drop here (close will drop again, idempotent).
       this.directEventsConnected = false;
       this.ackedSequence = null;
+      this.largeReassembly.dropAll();
       this.rejectPending(new Error("Backend renderer transport revoked."));
       this.socket.close();
     }
@@ -350,6 +429,7 @@ export class ElectronBackendTransport {
     this.directEventsConnected = false;
     this.ackedSequence = null;
     this.resetOwnershipForConnection();
+    this.largeReassembly.dropAll();
     this.rejectPending(new Error("Backend renderer transport disconnected."));
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
@@ -368,6 +448,7 @@ export class ElectronBackendTransport {
     this.directEventsConnected = false;
     this.ackedSequence = null;
     this.resetOwnershipForConnection();
+    this.largeReassembly.dropAll();
     socket?.close();
     this.rejectPending(error);
   }

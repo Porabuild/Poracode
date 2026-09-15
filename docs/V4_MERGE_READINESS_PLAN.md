@@ -4,6 +4,16 @@ Date: 2026-09-13. Status: implementation in progress. Execution and evidence are
 tracked in [V4_EXECUTION_LOG.md](V4_EXECUTION_LOG.md); no phase is complete until
 its specified acceptance evidence is recorded.
 
+**Completion authority (2026-09-14).** The user approved the five merge gates
+in [V4_MERGE_GATES.md](V4_MERGE_GATES.md) as the V2→master completion target;
+the gates are authoritative and this 63-step document is the broader roadmap.
+No phase or gate is complete until its specified acceptance evidence is
+recorded; a passing focused check never completes its containing phase or
+gate. **Batching rules.** Larger batches with parallel lanes and separate file
+ownership; only focused regressions during authoring; one consolidated
+independent critic, broad checks, and runtime/manual verification at each
+source freeze; one milestone commit per verified batch.
+
 Audited V2: `832fc5467f508a9b227978a0b5ae46b4ce6cbd9c`.
 Fetched master: `9a4096ea8a448150402f2ccfa4f48ab5ca604efc`.
 Both remote refs were fetched during the original read-only audit. Implementation
@@ -876,6 +886,55 @@ ownership contract is fixed.
    and measure total bytes in flight across the handoff. The separate finding that
    `sendReply` permits 64 MiB while `send()` closes the socket at a 1 MiB budget
    is the next Phase 3 item-6 task; the F8 candidate does not implement it.
+
+   Candidate status (uncommitted working tree, 2026-09-14, not a merge
+   claim): Phase 3 item 6 is implemented as bounded large-reply transfer on
+   renderer stream 6 (host 13 / facade 11 / bridge 2 / remote 12 / relay 3
+   unchanged) with 64 MiB logical / 64 KiB encoded-frame / receiver-credit /
+   per-client 2+64 MiB / global 4+128 MiB / execution 64-per-client +
+   128-global budgets, delivery-only cancellation, and no post-admission
+   replay. Focused regressions (framing, reassembly, transport wiring,
+   delivery, admission, smoke) plus adjacent pre-existing stream/transport
+   suites, typecheck, and touched-file lint/format are green; evidence is
+   recorded in `docs/V4_EXECUTION_LOG.md` and
+   `tmp/v4-reply-delivery-implementation/REPORT.md`. Full frozen-candidate
+   verification (broad checks, live app/CI, milestone commit) stays with the
+   root batch.
+
+   Consolidated status (2026-09-15, uncommitted): the ONE broad-check +
+   runtime cycle, the independent critic, and the coordinator reconciliation
+   are recorded in `docs/V4_MERGE_GATES.md` §1c and `docs/V4_EXECUTION_LOG.md`
+   (2026-09-15 entry). Outcome: builds/lint/protocol pass; 13 type errors
+   (4 checkpoint-test casts corrected in this batch, attach-lane errors
+   remain in their lane); 3 stream-test + 2 native-e2e failures open with
+   causes unproven; 3 doc-format files fixed in this batch; large-reply
+   AFTER hash-verified on the production client transport with the wider
+   live harnesses still outstanding. No whole-gate pass, no candidate CI
+   green. Versions unchanged: stream 6 / host 13 / facade 11 / bridge 2 /
+   remote 12 / relay 3.
+
+   Corrected status (2026-09-15, uncommitted; the preceding paragraph is the superseded 47-path
+   cycle, kept as history — current truth is this paragraph, full table in `docs/V4_MERGE_GATES.md`
+   §1d): corrected 50-path freeze `tmp/v4-foundation-corrected-verification/FREEZE.json`
+   (`candidate_sha256 1da58db4…7754`; 18 correction paths, 32 unchanged reusing prior evidence).
+   `typecheck`/both lint modes/`fmt:check` PASS; desktop + web builds and server-native prep PASS;
+   `protocol:remote:v3:check` reused PASS (no files under `src/shared/remote/` changed); full test 2
+   failed / 13,973 passed / 119 skipped — the stream trio is fixed (canonical version 6) and the 2
+   failures are out-of-scope UI test sync races with a two-line TEST-ONLY patch prepared but NOT
+   integrated (`tmp/v4-ui-test-correction/REPORT.md`; isolated 25/25 pass; no full suite with the
+   patch yet — pending integration + final full test, never full-suite green); `native:e2e` 178
+   passed / 54 files / 1 skipped (child-local shell/locale harness, no relaxed assertions).
+   Attachment reconciliation settled (headless `.host-v1` vs desktop canonical are different data
+   mappings; headless fails closed; same-root headless recovery is Gate 2 work). Stream stays 5 → 6;
+   host 13 / facade 11 / bridge 2 / remote 12 / relay 3 unchanged. Published-`ffe4` CI
+   (`tmp/v4-current-batch-ci/STATUS.md`) is NOT candidate CI (push/PR core + PR native PASS, push
+   native FAILs on the Android 17 phase-5 timeout, 8/9); no candidate exact-SHA CI exists. Live
+   qualification COMPLETED 2026-09-15 on the final 66-path candidate — full per-case ledger in
+   `docs/V4_MERGE_GATES.md` §1e (`tmp/v4-native-final-live-qualification/REPORT.md`): stream 17/17,
+   standalone attached 8/8, desktop-web + iOS Safari journeys, BigPickle control-path PASS; two
+   checkpoint-revert defects found+fixed+re-proven; BigPickle stall root-caused pre-existing
+   (symlinked-path SSE routing, follow-up recorded). No gate/milestone/goal marked complete without
+   evidence; five gates stay authoritative, the 63 steps stay reference/post-merge breadth.
 
 Acceptance: two or more windows with one direct socket down, eight producers,
 large history/attachment traffic, continuous typing/resizing/native-menu use.

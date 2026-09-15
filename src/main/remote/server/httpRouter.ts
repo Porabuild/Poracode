@@ -58,6 +58,7 @@ import {
   dbCompleteRemoteCommand,
   dbFailRemoteCommand,
   dbResetRemoteCommand,
+  dbGetCheckpointRevertOperation,
   dbGetProject,
   dbGetProjectNotes,
   dbGetThread,
@@ -239,7 +240,16 @@ async function runIdempotentRemoteMutation<T>(
   req: IncomingMessage,
   route: string,
   operation: () => Promise<T>,
-  options: { readonly isRetryableResult?: (response: T) => boolean } = {},
+  options: {
+    readonly isRetryableResult?: (response: T) => boolean;
+    /**
+     * Validates (and may adjust) a completed outer receipt before it is
+     * replayed. Throw to conflict instead of replaying a stale receipt for a
+     * different explicit request. Used by checkpoint-revert so an outer cache
+     * hit can never bypass the canonical target check.
+     */
+    readonly mapCompletedResponse?: (cached: T) => T;
+  } = {},
 ): Promise<T> {
   const commandId = remoteCommandId(req);
   if (!commandId) return operation();
@@ -249,7 +259,10 @@ async function runIdempotentRemoteMutation<T>(
       ? { isCompletedResponseRetryable: (response) => options.isRetryableResult!(response as T) }
       : {}),
   });
-  if (claim.state === "completed") return claim.response as T;
+  if (claim.state === "completed") {
+    const cached = claim.response as T;
+    return options.mapCompletedResponse ? options.mapCompletedResponse(cached) : cached;
+  }
   if (claim.state === "conflict") {
     throw new RemoteHttpError(
       "command_id_conflict",
@@ -282,6 +295,40 @@ async function runIdempotentRemoteMutation<T>(
     dbFailRemoteCommand(commandId);
     throw error;
   }
+}
+
+/**
+ * Canonical target validation for a checkpoint-revert outer-receipt hit.
+ * The outer `remote_command_receipts` row is keyed by
+ * `checkpoint-revert:${operationKey}` and routed by thread path; it does not
+ * store the checkpoint item. Before replaying it, bind to the inner journal's
+ * frozen target: a same-ID request for a different checkpoint (or thread)
+ * conflicts exactly like the journal's hard conflict, with zero side effects.
+ * A missing inner row (retention-aged or pre-journal legacy receipt) replays
+ * the outer frozen result rather than starting a new mutation. The replay
+ * marks `replayed:true` so HTTP agrees with local-direct replay semantics.
+ */
+export function mapCheckpointRevertCompletedResponse<T>(
+  payload: { threadId: string; checkpointItemId: string; operationKey: string },
+  cached: T,
+): T {
+  const inner = dbGetCheckpointRevertOperation(payload.operationKey);
+  if (inner) {
+    if (
+      inner.threadId !== payload.threadId ||
+      inner.checkpointItemId !== payload.checkpointItemId
+    ) {
+      throw new RemoteHttpError(
+        "command_id_conflict",
+        "Remote command id was already used for another operation.",
+        409,
+      );
+    }
+  }
+  if (cached !== null && typeof cached === "object" && "replayed" in cached) {
+    return { ...(cached as Record<string, unknown>), replayed: true } as T;
+  }
+  return cached;
 }
 
 export async function handleHttp(
@@ -1083,6 +1130,9 @@ export async function handleHttp(
           isRetryableResult: (value) =>
             Boolean(value && typeof value === "object" && "outcome" in value) &&
             (value as { outcome?: unknown }).outcome === "failed",
+          // The outer receipt must not bypass canonical validation: a cache
+          // hit still binds to the inner journal's frozen target.
+          mapCompletedResponse: (cached) => mapCheckpointRevertCompletedResponse(payload, cached),
         },
       );
       ctx.publishThreadsChanged([payload.threadId]);

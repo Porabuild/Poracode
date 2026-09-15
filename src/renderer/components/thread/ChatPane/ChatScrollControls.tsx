@@ -131,6 +131,13 @@ export const ChatScrollControls = forwardRef<
     initialRevealLayoutChangeUntilRef.current = 0;
   }
 
+  function cancelScheduledPin() {
+    if (pinRafRef.current !== null) {
+      cancelAnimationFrame(pinRafRef.current);
+      pinRafRef.current = null;
+    }
+  }
+
   function markVirtualizerLayoutChange(extendInitialReveal: boolean) {
     // LegendList applies measured sizes and visible-content compensation over
     // multiple animation frames. A short deadline is more robust than counting
@@ -166,10 +173,7 @@ export const ChatScrollControls = forwardRef<
     cancelScheduledExplicitPin();
     cancelScheduledLayoutSync();
     pinHoldoffUntilRef.current = 0;
-    if (pinRafRef.current !== null) {
-      cancelAnimationFrame(pinRafRef.current);
-      pinRafRef.current = null;
-    }
+    cancelScheduledPin();
     // End the open-storm coalesce immediately so a first scroll-away is not
     // still treated as a measurement settle that wants to re-pin / coalesce.
     threadOpenCoalesceUntilRef.current = 0;
@@ -722,9 +726,7 @@ export const ChatScrollControls = forwardRef<
   }, [scrollRef, contentRef, threadId, initialScrollSettled]);
 
   const syncPinnedContentChange = useEffectEvent(() => {
-    if (pinRafRef.current !== null) {
-      cancelAnimationFrame(pinRafRef.current);
-    }
+    cancelScheduledPin();
     if (stickToBottomRef.current) {
       scrollToBottom({ reconcileVirtualizer: true });
       if (!initialScrollSettled) {
@@ -739,12 +741,6 @@ export const ChatScrollControls = forwardRef<
         scheduleInitialScrollSettle();
       }
     });
-    return () => {
-      if (pinRafRef.current !== null) {
-        cancelAnimationFrame(pinRafRef.current);
-        pinRafRef.current = null;
-      }
-    };
   });
 
   useLayoutEffect(() => {
@@ -780,6 +776,7 @@ export const ChatScrollControls = forwardRef<
   useEffect(() => cancelScheduledLayoutSync, []);
   useEffect(() => cancelScheduledInitialSettle, []);
   useEffect(() => cancelScheduledExplicitPin, []);
+  useEffect(() => cancelScheduledPin, []);
 
   function handleScrollButtonPress() {
     // The button is an explicit request to resume following the tail. Do not

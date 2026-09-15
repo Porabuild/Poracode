@@ -1,4 +1,9 @@
-import { installBrowserClientRuntime, installElectronClientRuntime } from "./clientRuntime";
+import {
+  installAttachedElectronClientRuntime,
+  installBrowserClientRuntime,
+  installElectronClientRuntime,
+  resolveElectronAttachBootstrap,
+} from "./clientRuntime";
 import { msg } from "@lingui/core/macro";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import { friendlyError } from "@/shared/messages";
@@ -61,7 +66,43 @@ async function showBrowserPairing(href: string, cleanCurrentUrl = false): Promis
 }
 
 if (window.poracodeHost) {
-  installElectronClientRuntime(window.poracodeHost);
+  // Malformed attach info (present getter that threw/rejected or returned an
+  // invalid payload) throws out of the selection: fail closed with the
+  // existing boot-failure path, never the managed runtime. Absence or
+  // explicit null selects managed and preserves older preload compatibility.
+  let selection: Awaited<ReturnType<typeof resolveElectronAttachBootstrap>>;
+  try {
+    selection = await resolveElectronAttachBootstrap(window.poracodeHost);
+  } catch (error) {
+    console.error("[renderer-bootstrap] standalone owner attach failed:", error);
+    throw error;
+  }
+  if (selection.kind === "attached") {
+    const standaloneAttach = selection.attach;
+    // Electron as a client of the already-running headless owner: boot the
+    // existing remote stack (RemoteDesktopClient over the bridge-2 utility
+    // process) against the authenticated endpoint, then pair via the existing
+    // owner control + OAuth. No local backend fork, lease, or key init comes
+    // from this path. Failures here stay local to bootstrap (console) and
+    // never start another authority; without attach info the managed path
+    // below is unchanged.
+    installAttachedElectronClientRuntime(window.poracodeHost, standaloneAttach);
+    try {
+      const [{ useRemoteServersStore }, { useAppStore }] = await Promise.all([
+        import("./state/remoteServersStore"),
+        import("./state/appStore"),
+      ]);
+      await Promise.all([
+        useRemoteServersStore.persist.rehydrate(),
+        useAppStore.persist.rehydrate(),
+      ]);
+      await useRemoteServersStore.getState().ensureStandaloneOwner(standaloneAttach);
+    } catch (error) {
+      console.error("[renderer-bootstrap] standalone owner attach failed:", error);
+    }
+  } else {
+    installElectronClientRuntime(window.poracodeHost);
+  }
   const { readBridge } = await import("./bridge");
   window.poracode = readBridge();
 } else {

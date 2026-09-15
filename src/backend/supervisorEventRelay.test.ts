@@ -1,5 +1,6 @@
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
+  BACKEND_RENDERER_STREAM_VERSION,
   type BackendHostOutboundMessage,
 } from "@/shared/backendHostProtocol";
 import type { SupervisorEvent, SupervisorReply } from "@/shared/ipc";
@@ -121,10 +122,14 @@ async function connectBoundClient(
   socket.on("message", (data) => {
     messages.push(JSON.parse(data.toString()) as Record<string, unknown>);
   });
-  // A window watching a thread subscribes both content kinds.
+  // A window watching a thread subscribes both content kinds. The frame
+  // version must track the production stream contract: a stale version is
+  // loudly rejected with 1008 (see rendererStreamLargeReplyAdmission's
+  // explicit v5-rejection case), so valid peers always present the current
+  // version.
   socket.send(
     JSON.stringify({
-      version: 5,
+      version: BACKEND_RENDERER_STREAM_VERSION,
       type: "interests",
       terminalThreadIds: threadIds,
       runtimeThreadIds: threadIds,

@@ -395,7 +395,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     expect(events.length).toBe(eventsAfterFirst);
   });
 
-  it("replays a settled revert with no new turns, and supersedes it once turns arrived", async () => {
+  it("replays a settled revert even after new turns arrived, preserving the new work", async () => {
     seedThread({ status: "idle" });
     seedTranscript(1);
     const first = await host!.revertCheckpoint(revertInput("op-restart-replay"));
@@ -413,10 +413,10 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
       expect(supervisorHarness.calls).toHaveLength(callsAfterFirst);
       expect(truncateEvents()).toHaveLength(1);
 
-      // New turns appended past the checkpoint make the same key a genuinely
-      // NEW revert (the blind-spot fix): a verbatim replay would strand them
-      // behind a stale "completed" receipt. The fresh attempt recomputes the
-      // count and removes exactly the appended turns.
+      // New turns appended past the checkpoint do NOT turn the same ID into a
+      // new destructive revert. The retry replays the frozen original plan,
+      // leaves the other client's work untouched, and performs no extra
+      // provider/file/truncate work.
       dbApplyThreadRuntimeEvents(
         "thread-1",
         ["late-1", "late-2"].map((itemId) => ({
@@ -432,23 +432,113 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
         anchorItemId: "late-2",
       });
 
+      const callsBeforeRetry = supervisorHarness.calls.length;
+      const eventsBeforeRetry = events.length;
       const second = await restarted.revertCheckpoint(revertInput("op-restart-replay"));
-      expect(second.replayed).toBe(false);
+      expect(second.replayed).toBe(true);
       expect(second.outcome).toBe("completed");
-      expect(second.numTurns).toBe(1);
+      expect(second.numTurns).toBe(first.numTurns);
+      expect(supervisorHarness.calls).toHaveLength(callsBeforeRetry);
+      expect(events.length).toBe(eventsBeforeRetry);
+      expect(truncateEvents()).toHaveLength(1);
       const itemIds = dbGetThreadRuntimeItems("thread-1").map((item) => item.id);
-      expect(itemIds).not.toContain("late-1");
-      expect(itemIds).not.toContain("late-2");
+      expect(itemIds).toContain("late-1");
+      expect(itemIds).toContain("late-2");
+
+      // A deliberate NEW ID intentionally targets current work: exactly one
+      // new provider restore with the new count, removing only the new turn.
+      const deliberate = await restarted.revertCheckpoint(revertInput("op-restart-replay-new"));
+      expect(deliberate.replayed).toBe(false);
+      expect(deliberate.outcome).toBe("completed");
+      expect(deliberate.numTurns).toBe(1);
+      const afterIds = dbGetThreadRuntimeItems("thread-1").map((item) => item.id);
+      expect(afterIds).not.toContain("late-1");
+      expect(afterIds).not.toContain("late-2");
       expect(truncateEvents()).toHaveLength(2);
     } finally {
       await restarted.dispose();
     }
   });
 
+  it("conflicts on same-ID reuse with a different explicit project location and performs no side effects", async () => {
+    seedThread({ status: "idle" });
+    seedTranscript(1);
+    const first = await host!.revertCheckpoint(revertInput("op-location"));
+    expect(first.outcome).toBe("completed");
+    const callsAfterFirst = supervisorHarness.calls.length;
+    const eventsAfterFirst = events.length;
+
+    await expect(
+      host!.revertCheckpoint({
+        threadId: "thread-1",
+        checkpointItemId: "checkpoint",
+        operationKey: "op-location",
+        projectLocation: { kind: "posix", path: "/tmp/revert-project-moved" },
+      }),
+    ).rejects.toThrow(/different project location/);
+    expect(supervisorHarness.calls).toHaveLength(callsAfterFirst);
+    expect(events.length).toBe(eventsAfterFirst);
+    expect(truncateEvents()).toHaveLength(1);
+  });
+
+  it("replays a settled base key verbatim when legacy '#N' supersession rows exist", async () => {
+    seedThread({ status: "idle" });
+    seedTranscript(1);
+    const first = await host!.revertCheckpoint(revertInput("legacy-base"));
+    expect(first.outcome).toBe("completed");
+
+    // Simulate a pre-upgrade DB that already holds a retired `#N` supersession
+    // row for the same base key (created by the removed heuristic).
+    const sqlite = (await import("@/main/db/connection")).getSqlite();
+    const now = Date.now();
+    sqlite
+      .prepare(
+        `INSERT INTO checkpoint_revert_operations
+           (operation_key, thread_id, checkpoint_item_id, num_turns,
+            project_location_json, config_json, provider_phase, files_phase,
+            truncate_phase, removed_anchors_json, outcome, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'completed', 'completed', 'completed', NULL, 'completed', ?, ?)`,
+      )
+      .run("legacy-base#2", "thread-1", "checkpoint", 99, null, null, now, now);
+
+    dbApplyThreadRuntimeEvents(
+      "thread-1",
+      ["late-1", "late-2"].map((itemId) => ({
+        type: "item.started" as const,
+        threadId: "thread-1",
+        itemId,
+        itemType: "assistant_message" as const,
+      })),
+    );
+    dbAppendThreadCompletedTurn("thread-1", {
+      startedAt: "2026-01-01T00:02:00.000Z",
+      endedAt: "2026-01-01T00:02:00.500Z",
+      anchorItemId: "late-2",
+    });
+
+    const callsBefore = supervisorHarness.calls.length;
+    const replay = await host!.revertCheckpoint(revertInput("legacy-base"));
+    expect(replay.replayed).toBe(true);
+    expect(replay.outcome).toBe("completed");
+    // The base frozen plan replays — never the `#N` row's inflated count, and
+    // no new `#N` row is created.
+    expect(replay.numTurns).toBe(first.numTurns);
+    expect(supervisorHarness.calls).toHaveLength(callsBefore);
+    const itemIds = dbGetThreadRuntimeItems("thread-1").map((item) => item.id);
+    expect(itemIds).toContain("late-1");
+    expect(itemIds).toContain("late-2");
+    const keys = sqlite
+      .prepare(`SELECT operation_key AS k FROM checkpoint_revert_operations`)
+      .all() as Array<{ k: string }>;
+    expect(keys.map((r) => r.k)).not.toContain("legacy-base#3");
+  });
+
   it("rejects reusing an operation key for a different checkpoint", async () => {
     seedThread({ status: "idle" });
     seedTranscript(1);
     await host!.revertCheckpoint(revertInput("op-key"));
+    const callsAfterFirst = supervisorHarness.calls.length;
+    const eventsAfterFirst = events.length;
     await expect(
       host!.revertCheckpoint({
         threadId: "thread-1",
@@ -457,6 +547,8 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
         projectLocation: location,
       }),
     ).rejects.toThrow(/already used/);
+    expect(supervisorHarness.calls).toHaveLength(callsAfterFirst);
+    expect(events.length).toBe(eventsAfterFirst);
   });
 
   it("serializes two concurrent reverts of the same thread: the second converges without a second provider restore", async () => {

@@ -1,10 +1,16 @@
 # V4 execution and evidence ledger
 
-The objective is the full [V4 merge-readiness plan](V4_MERGE_READINESS_PLAN.md),
-including every phase item, acceptance scenario, performance budget, and final
-qualification gate. A passing focused check does not complete its containing
-phase. Native clients remain development clients with shared-contract/build
-obligations. No qualification gate has been waived.
+The completion target is the five merge gates in
+[V4_MERGE_GATES.md](V4_MERGE_GATES.md) (user-approved 2026-09-14); the full
+[V4 merge-readiness plan](V4_MERGE_READINESS_PLAN.md) remains the broader
+roadmap, including every phase item, acceptance scenario, performance budget,
+and final qualification gate. A passing focused check does not complete its
+containing phase or gate. Work runs in larger batches with parallel lanes and
+separate file ownership, focused regressions only during authoring, one
+consolidated critic plus broad checks plus runtime/manual verification at each
+source freeze, and one milestone commit per verified batch. Native clients
+remain development clients with shared-contract/build obligations. No
+qualification gate has been waived.
 
 ## Execution state
 
@@ -2325,3 +2331,343 @@ merge/draft change). Commit SHA, push confirmation, new-SHA CI/Native run IDs,
 PR state, and final `git status` are recorded in
 `tmp/v4-android-ci-repair/REPORT.md` and `publication.json`. CI stays
 **pending** until the new SHA passes; green is claimed only from run results.
+
+## 2026-09-14 — Phase 3 item 6 bounded large-reply transfer (uncommitted candidate, no commit/push)
+
+**Scope.** Implements the settled F9 execution direction
+(`tmp/v4-orchestration/f9-execution-decisions.md`) for the Phase 3 item-6
+finding: valid admitted replies in the (1 MiB, 64 MiB] range closed healthy
+sockets with 1013 (live BEFORE preserved in `tmp/v4-f9-before/REPORT.md`:
+3,313,927 B declared, 0 B delivered). Generic bounded framed transfer, no
+procedure whitelist, no post-admission replay/fallback. Stream 5 → 6; host 13,
+facade 11, bridge 2, remote 12, relay 3 unchanged. Resumes the
+`89fc5c59b7ae` lane state (implementation + tests + design checkpoint in the
+working tree, no prior completion report); preserves all inherited work.
+
+**Files (lane-owned).** New: `src/shared/rendererStreamChunks.ts` (+ test),
+`src/backend/rendererStreamChunkSender.ts`,
+`src/backend/rendererStreamRequestAdmission.ts`,
+`src/backend/rendererStreamLargeReply.test.ts`,
+`src/backend/rendererStreamLargeReplyAdmission.test.ts`,
+`src/backend/rendererStreamSmoke.test.ts`,
+`src/renderer/rendererStreamReassembly.ts` (+ test),
+`src/renderer/electronBackendTransport.largeReply.test.ts`,
+`src/main/backend/rendererStreamVersionGate.test.ts`. Wired (no God-file
+growth): `src/backend/BackendRendererStream.ts`,
+`src/renderer/electronBackendTransport.ts`,
+`src/shared/backendHostProtocol.ts` (version const + comment only).
+Compatibility surface with the active congestion-isolation lane
+(`src/backend/index.ts`, `rendererEventPublication.ts`) intentionally
+untouched; no shared API break reported.
+
+**Correctness fix during completion.** Focused verification exposed a fatal
+drain-phase defect in the inherited sender: the end-of-transfer ACK drain
+awaited the credit gate, which resolves immediately when unacked sits below
+the 2-chunk/128 KiB limits — an infinite microtask loop (100% CPU, starved
+timers/I/O/test timeouts, transfer never completes). Fixed with a dedicated
+pend-for-next-ACK waiter (`waitForAckOrTimeout`) used only by the drain loop;
+the send loop keeps the credit gate (only awaited when actually full). Also
+removed the lane's temporary `PORACODE_CHUNK_TRACE`/`writeSync` probes from
+the sender and rewrote the noisy scratch smoke test as a clean hash-equality
+regression. Former-lane probe logs (`probe-*.log`, abrupt mid-transfer end)
+are consistent with this defect, not with a protocol flaw.
+
+**Focused evidence (no broad runs in this lane).** One combined vitest run:
+11 files / 99 tests pass — lane suites 34 (framing 5, reassembly 8,
+transport wiring 6, delivery incl. 2 MiB hash equality / Unicode-escaping /
+64 MiB exact / 64 MiB+1 bounded / credit pause-duplicate-future / credit-stall
+abort / sibling isolation / large-mutation-once 7, admission incl. per-client
+overload / delivery-cancel slot hold / 128-orphan global / mutation-no-replay
+/ stale-frame + v5/v6 gates 6, smoke hash 1) plus adjacent pre-existing
+stream/transport suites 65. `tsc --noEmit` exit 0; `oxlint` plain and
+type-aware clean on all touched files; `oxfmt` applied. Exact file hashes and
+the defect analysis are recorded in
+`tmp/v4-reply-delivery-implementation/REPORT.md` (diagnostic bundles removed,
+run logs kept).
+
+**Not claimed.** No live app/CI verification, no full-repo build/test, no
+120 fps / client-engine / zero-copy claim, no Gate 1 completion. Frozen files
+(ChatScrollControls, iOS composition tests, `docs/V4_MERGE_GATES.md`) and the
+active lane's files were not touched. Broad checks, live AFTER on the actual
+client transport, and the single milestone commit stay with the root batch.
+
+## 2026-09-14 — combined foundation freeze: standalone-attach + checkpoint-identity integrated (uncommitted, no commit/push)
+
+**Identities.** Root HEAD and `origin/poracode/v2` are
+`ffe4f0f898cd705761c67ead9d444313f7dc0d10` (master `0c99e7e136` ancestor);
+both worktrees were at base `76d6e2ea3` on branches
+`poracode/v4-standalone-attach-batch` and
+`poracode/v4-checkpoint-integrity-batch`, no author commits. Upstream merges
+`7e6cd5d06a` (#772) and `ffe4f0f898c` (#773) preserved, not claimed as this
+batch. Pre-integration snapshot confirmed a clean index, the 10-file root
+dirty set plus 15-file root untracked set intact (hashes match the lane
+REPORTs), and foreign `.poracode/` untouched. Critic `c32` ended empty — no
+completed review exists.
+
+**Integrated (22 files, byte-exact).** All 14 tracked paths were blob-identical
+between base `76` and HEAD `ffe4` (upstream delta touches only
+GroupSummarySection/ToolCallGroup, locales, Antigravity), and all 8 new paths
+were absent in root, so direct application neither overwrote newer root
+content nor downgraded stream 6 (worktree diffs contain no version-constant
+changes; `backendHostProtocol.ts` stream-6 hash unchanged). Attach (15):
+`src/main/main.ts`, `src/main/preload.ts`, `src/renderer/bootstrap.ts`,
+`src/renderer/clientRuntime.ts`,
+`src/renderer/state/remoteServers/types.ts`,
+`src/renderer/state/remoteServersStore.ts`, `src/shared/clientRuntime.ts`,
+`src/shared/ipc/channels.ts`, plus new `src/shared/standaloneAttach.ts`,
+`src/main/backend/standaloneAttach{,Bootstrap}.ts` (+ tests),
+`src/renderer/clientRuntime.standaloneAttach.test.ts`,
+`src/renderer/state/remoteServersStore.standaloneAttach.test.ts`.
+Checkpoint (7): `src/backend/BackendHostCore.ts`,
+`src/backend/revertCheckpoint.test.ts`,
+`src/main/db/checkpointRevertOperations.ts`,
+`src/main/remote/server/httpRouter.ts`,
+`src/renderer/components/thread/ChatPane/ChatPane.test.tsx`,
+`src/renderer/components/thread/ChatPane/parts/MessageList.tsx`, plus new
+`src/main/db/checkpointRevertHttpCoherence.test.ts`. No dependencies or build
+output copied; worktree originals intact as evidence; index left clean (no
+staging). Post-copy sha256 of all 22 matches the worktree originals, no
+conflict markers, `oxfmt --check` clean on all 22.
+
+**Verified defects now in the freeze (candidate fixes, review pending).**
+(1) Reply drain ACK-spin (`tmp/v4-reply-delivery-implementation/REPORT.md`
+§2): every large transfer hung at 100% CPU; fixed with `waitForAckOrTimeout`.
+(2) Checkpoint destructive same-ID supersede
+(`tmp/v4-checkpoint-integrity-batch/REPORT.md`): same-ID retry after another
+client's turn ran a second destructive revert on local-direct while HTTP
+replayed a stale outer receipt; fixed with fresh user-intent IDs, pending
+same-ID retries, exact settled replay, explicit-location validation, and
+outer/inner receipt coherence.
+
+**Compatibility notes for the consolidated critic.** New attach
+preload/channel/runtime plumbing (`getStandaloneAttachInfo`,
+`standaloneAttachInfo` channel, attached-runtime selection) is
+additive/process-lifetime with no version bump — confirm old-preload/old-
+renderer interop and that attach startup cannot leak into managed authority.
+Checkpoint slice changes settled-replay semantics with no migration and keeps
+legacy `#N` rows readable — confirm cross-version replay behavior and the
+outer-receipt 409-vs-replay boundary. Full manifest, hashes, identities, and
+the pending-gate list are in `tmp/v4-combined-foundation-batch/REPORT.md`.
+
+**Not claimed.** No critic review, no broad checks/builds, no runtime/manual
+verification, no CI run at this SHA in this task; published-`ffe4` push
+Native still fails on Android 17 (read-only diagnosis active,
+`tmp/v4-current-batch-ci/STATUS.md`). Gate-plan reconciliation is part of this
+freeze: five gates authoritative, 63-step plan as roadmap, agent
+assignment/ownership boilerplate removed from `docs/V4_MERGE_GATES.md`,
+tracked-roadmap links restored, native UI disclosure kept as development work
+(shared-contract/build/tests still required), candidate statuses recorded
+without whole-gate passes.
+
+## 2026-09-15 — foundation qualification + review reconciliation status (uncommitted, no commit/push)
+
+**Identities.** Root HEAD and `origin/poracode/v2` are
+`ffe4f0f898cd705761c67ead9d444313f7dc0d10` (master `0c99e7e136` ancestor);
+47 candidate paths (25 tracked-modified + 22 untracked-new) + foreign
+`.poracode/` excluded; index clean. Freeze
+`tmp/v4-foundation-qualification/FREEZE.json`
+(`candidate_sha256 b12666aeb52b162d34931761e35f8e9bf32dcd6e1a9195d9e4ba687af765ad18`).
+No source/test/docs edits by the qualifier or the critic outside their scratch
+dirs; no staging/commits/pushes/stash/reset; Nightly, user data, and processes
+preserved. The candidate is uncommitted, so no CI SHA exists for it.
+
+**Broad checks (ONE run each at the frozen SHA,
+`tmp/v4-foundation-qualification/REPORT.md` + `logs/`).** `lint` (plain +
+type-aware, `--deny-warnings`) PASS; `protocol:remote:v3:check` PASS; `build`,
+`build:web` (chunk-size warnings only), `prepare:server-native` PASS.
+`typecheck` FAIL — 13 errors: attach lane 9 (`standaloneAttach.test.ts` 2,
+`main.ts` 5 `baseDir`-on-`no-probe`, `clientRuntime.standaloneAttach.test.ts`
+1 literal-12, `remoteServersStore.standaloneAttach.test.ts` 1 unexported
+`RemoteSocketLike`) + checkpoint lane 4 (`ChatPane.test.tsx`
+`{threadId}`-to-`{operationKey}` casts, corrected in this batch — other-lane
+errors remain in their lane, so no full-repo `typecheck` rerun is claimed
+here). `test` FAIL — 3 tests in `src/backend/supervisorEventRelay.test.ts`
+(composed-with-real-ownership trio, stream-message timeouts; possible
+isolation + stream-6 interaction; owner diagnosis required, not a limit
+change; 13,962 passed). `fmt:check` FAIL — 3 files
+(`.agents/docs/versioning.md`, `docs/V4_MERGE_GATES.md`,
+`docs/V4_MERGE_READINESS_PLAN.md`; formatted in this batch, content
+unchanged). `native:e2e` FAIL — 2 tests (`cursorSyncV2` +
+`sharedHostLoadProfile` warmup markers; PTY env contamination suspected but
+not proven; 176 passed).
+
+**Runtime (owned sessions, frozen SHA).** Mock baseline PASS: 5 automated +
+5 mock smoke gates, 0 console/runtime errors. Large-reply AFTER PASS on the
+production `ElectronBackendTransport`: same-case 32 items, 3,313,837 B,
+`sha256 2dc684a2…` byte-identical to the BEFORE identity, plus 32 MiB-class
+29,495,405 B hash-verified. Focused reruns PASS at the frozen SHA:
+checkpoint 20, attach 27, large-reply 34, renderer (`ChatPane` 86 +
+`ChatScrollControls` 19) 105. NOT proven: second real window with
+failed-direct + barriers, cancel/navigation/close cleanup,
+no-replay/no-fallback-after-admission, frame/credit bounds, zero
+steady-state bulk main IPC with instrumentation; full baseline, real attach,
+checkpoint dialogs, and mobile web outstanding. iOS frozen blob equals the
+correction blob (`bd17e3a8`); original 20.5 s CI cause stays UNKNOWN.
+Android author-compile passed; published push-Native Android-17 emulator
+runtime cause stays UNKNOWN.
+
+**Review + reconciliation.** Independent findings-only critic
+(`tmp/v4-foundation-review/REPORT.md`): F1 milestone-blocking
+(unreachable-owner refuse blocks post-crash launch; stale readable discovery
+
+- dead owner never reach the lease arbiter; phantom opt-in-flag comments).
+  Coordinator reconciliation
+  (`tmp/v4-orchestration/FOUNDATION_REVIEW_RECONCILIATION.md`) accepts F1
+  within bounds — stale-discovery + dead owner must take the existing
+  acquire-before-mutations path, never infer authority from connection
+  failure; a live lock-holder still blocks; incompatible/non-ready/
+  invalid-auth/stale-generation/mismatched-root stay refusals; lease-free
+  crash test + real kill/relaunch proof required — and overrides the
+  unsupported reasoning: crash-recovery/dataRoot continuity stays under
+  investigation (no blind managed-takeover claim); F2 bearer-rejection
+  rationale is invalidated by token persistence (persistent auth store
+  restores unexpired sessions; same bearer authenticates in a new store), so
+  only the pairing-time/describe generation bound is currently proved and the
+  ongoing generation contract remains Gate 2 lifecycle work. F3 (wire or
+  delete unused attach DB guards), F4 (invalid attach info must not fall back
+  to the managed renderer runtime; keep older managed-preload compat; no
+  unlocalized strings), F5 (doc-format leftovers, fixed in this batch) ride
+  the single correction batch.
+
+**This batch.** Checkpoint-test type corrections: the two narrow
+`{threadId}` mocks now declare the production payload
+(`CheckpointRevertActions`: `threadId` + `checkpointItemId` +
+`operationKey`); the four `as { operationKey }` casts are removed with all
+fresh-intent/retry-identity assertions preserved verbatim; no
+`any`/`unknown` casts, no production checkpoint/UI edits. Focused
+`ChatPane.test.tsx` 86 pass; touched `oxlint` (plain + type-aware) clean.
+Doc-format pass on the 3 failing files; versions unchanged (stream 6 /
+host 13 / facade 11 / bridge 2 / remote 12 / relay 3); no compatibility
+done declared.
+
+**Not claimed.** No entire Gate 1/2/3/4/5 pass; no current-candidate CI
+green. Milestone-commit preconditions: the collected corrections (attach
+crash-recovery + guard/bootstrap disclosure, remaining type errors,
+stream-trio diagnosis, native-e2e env isolation) plus the unmet live
+harnesses above. Soak/observation, full provider families, installed
+artifacts, upgrade/recovery, and device-matrix work remain Gate 5 items.
+
+## 2026-09-15 — corrected verification + test-correction status (uncommitted, no commit/push)
+
+**Identities.** Root HEAD and `origin/poracode/v2` are
+`ffe4f0f898cd705761c67ead9d444313f7dc0d10` (master `0c99e7e136` last-known
+ancestor — publication rechecks, never current-latest); index clean; foreign
+`.poracode/` excluded. Corrected freeze
+`tmp/v4-foundation-corrected-verification/FREEZE.json`
+(`candidate_sha256 1da58db485696e3db371405fb429342e8f5b29cff999cea4bd802a0defab7754`):
+50 paths = prior 47 + exactly 18 correction paths (15 changed + 3 new:
+`src/backend/supervisorEventRelay.test.ts`,
+`src/renderer/electronBootstrap.standaloneAttach.test.ts`,
+`tests/native-e2e/harness/realHostProcess.ts`). The 32 unchanged paths reuse
+prior qualification/review evidence without reopening — the corrected report
+reviewed only the 18 correction paths, not a second full architecture review.
+No source/test/docs edits by the verifier outside its scratch dir; Nightly,
+user data, and processes preserved. The candidate is uncommitted, so no
+candidate exact-SHA CI exists. The preceding 2026-09-15 entry is the
+superseded 47-path cycle, kept as history; current truth is this entry
+(current table also in `docs/V4_MERGE_GATES.md` §1d).
+
+**Broad checks (ONE run each at the corrected freeze,
+`tmp/v4-foundation-corrected-verification/REPORT.md` + `logs/`).**
+`typecheck` PASS (prior 13 gone); `lint` (plain + type-aware,
+`--deny-warnings`) PASS; `fmt:check` PASS (prior 3 files fixed); `build`,
+`build:web`, `prepare:server-native` PASS (sequenced);
+`protocol:remote:v3:check` PASS reused (zero modified files under
+`src/shared/remote/`, contract inputs unchanged). `test`: 2 failed / 13,973
+passed / 119 skipped — the prior stream trio is FIXED (stale v5 literals now
+send canonical version 6; stale-version rejections elsewhere untouched) and
+absent from the failures; the 2 failures (`PortsPanel.test.tsx` +
+`PrWatchControls.test.tsx`) are outside freeze/correction scope. `native:e2e`
+PASS: 54 files / 178 tests, 1 skipped (prior 2 warmup failures fixed).
+
+**Corrections folded in (no scope expansion).** Stream-test canonical version;
+native harness child-local `SHELL=/bin/bash`→`/bin/sh` + first-available UTF-8
+locale with PTY/assertions/timeouts/workload bounds unchanged
+(`tmp/v4-foundation-test-correction/REPORT.md`); accurately typed checkpoint
+mocks + formatting (`tmp/v4-foundation-cleanup/REPORT.md`); strict owner
+bootstrap, types, cleanup (`tmp/v4-attach-correction/REPORT.md`). Stream 5 →
+6; host 13 / facade 11 / bridge 2 / remote 12 / relay 3 unchanged; no
+protocol/persistence shape change. Bounded slices only: reply framing/admission plus the ACK-drain
+fix (`tmp/v4-reply-delivery-implementation/REPORT.md`); congestion
+isolation (`tmp/v4-renderer-isolation-batch/REPORT.md`); fresh deliberate
+operation UUIDs vs retained retry identity/journal replay
+(`tmp/v4-checkpoint-integrity-batch/REPORT.md`). No universal at-most-once; no
+full Gate 3.
+
+**UI test races — patch prepared, NOT integrated.**
+`tmp/v4-ui-test-correction/REPORT.md` + `ui-test-correction.patch` (two lines,
+test-only): `getByRole` → `await findByRole` on the two documented async
+boundaries (PrWatch post-`setWatch` transition; PortsPanel 200 ms
+BottomSheet/overlay cleanup tick). Isolated focused 25/25 pass (3× repeat),
+`oxlint`/`oxfmt` clean, deterministic PrWatch repro (delay + original FAIL /
+fixed PASS). No full suite with the patch yet; root NOT patched. Mark the
+candidate pending integration + final full test — never full-suite green.
+
+**Attachment reconciliation SETTLED**
+(`tmp/v4-orchestration/FOUNDATION_REVIEW_RECONCILIATION.md`,
+`tmp/v4-attach-recovery-decision/REPORT.md`). Headless `.host-v1` data and
+canonical desktop data are DIFFERENT mappings despite the shared owner lease:
+after a headless crash the lease may be free while managed startup would open
+the wrong data root/keys — never fall back merely because the lease is free.
+Headless stale/unreachable fails closed; only connection-level unreachable
+DESKTOP-mapping evidence may defer to the managed path, with lease admission
+before writes; a held lock still blocks loudly. Automatic same-root headless
+recovery remains Gate 2 lifecycle work. The critic's blanket fallback remedy
+and the bearer-invalidation continuity claim are rejected by verified source
+evidence (unexpired persisted remote auth sessions survive owner restart); the
+current guarantee is describe/pairing generation checks, with continuous
+dataplane pinning as Gate 2 remainder. Optional standalone getter: missing
+getter or explicit null permits managed; `undefined`/malformed/rejection from a
+PRESENT getter fails closed. Phantom fallback comments and unused guard helpers
+removed.
+
+**iOS / Android diagnostics (not fixes).** iOS
+(`tmp/v4-ios-ci-experiment/correction/00-correction.md`): final snapshot now
+captured BEFORE cleanup; current final blob carries only targeted + 50-suite
+evidence — the earlier full 1270 AppTests + 173 contracts applied to a prior
+blob; original CI timing cause remains unknown. Android
+(`tmp/v4-android17-timeout-diagnostic/REPORT.md`,
+`tmp/v4-current-batch-ci/android17/REPORT.md`): only phase-5 local state
+capture on the existing 2 s interrupt-wait timeout; assertions and 9-test count
+preserved; JDK 21 AndroidTest Kotlin compile PASS. Diagnosis only.
+
+**Published-`ffe4` CI, NOT candidate CI (`tmp/v4-current-batch-ci/STATUS.md`).**
+Push core `34905657229` PASS; PR core `34905662070` PASS; PR native
+`34905662046` PASS; push native `34905657228` FAIL (Android 17 phase-5 timeout,
+8/9 pass; aggregate follows). New candidate exact-SHA CI does not exist. Never
+declare CI green based on local checks.
+
+**Payload evidence stays bounded.** The actual-Electron evidence remains the
+same 3,313,837-byte data hash and 29,495,405-byte (~28.1 MiB) data hash
+delivered via actual `window.poracode`/`ElectronBackendTransport` — payload
+identity only, NOT 120 fps or whole-envelope proof.
+
+**Live qualification: COMPLETED 2026-09-15.** Final report
+`tmp/v4-native-final-live-qualification/REPORT.md` (§§1–6) against the final
+66-path candidate (`tmp/v4-attached-native-freeze/FREEZE-66.json`,
+`54168a10bf7bfaec…`): stream 17/17 PASS (real socket-close disconnect
+rejection, zero fallback dispatches with positive observer, exactly-once,
+destroy/capacity-recovery); standalone attached 8/8 PASS (attach generation
+pinning, commands, settings persist/restore, native quick-composer,
+checkpoint-retry semantics, attached dialog full journey, quit + crash
+drill); desktop-web Chrome and real-iOS-Safari journeys PASS; bounded real
+BigPickle chat PASS via the symlink-free control path. The qualification
+found and fixed two checkpoint-revert product defects (projected-id
+command-id overflow at the router gate — one defect failing all three remote
+surfaces; revert anchor mismatched capture identity) with focused 115/115 and
+three-surface live re-proof, and root-caused the BigPickle GUI-thread stall
+to a pre-existing, out-of-candidate SSE event-hub directory-routing defect
+(symlinked project paths silently drop every opencode V1 event; HEAD-clean
+reproduction + candidate-build control evidence; follow-up fix recorded).
+Full per-case ledger and environment-incident record: §1e of
+`docs/V4_MERGE_GATES.md`.
+
+**Not claimed.** No entire Gate 1/2/3/4/5 pass; no current-candidate CI green
+yet (published-SHA push + PR CI executing with the milestone commit); no
+full-suite run of the final 66-path candidate (broad suite green at the
+59-path freeze with unchanged inputs reused; the 2-race UI-test patch awaits
+the next full-suite cycle); no 24 h controlled soak + 72 h observation; five
+gates authoritative with the 63-step roadmap as reference/post-merge breadth;
+original core server/Electron/web/mobile-web stability + performance
+requirements unreduced; native iOS/Android UI stays development while shared
+contracts/build/tests remain gates.

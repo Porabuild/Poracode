@@ -61,6 +61,7 @@ import {
 } from "@/shared/remote";
 import {
   DEFAULT_TERMINAL_SIZE,
+  CHECKPOINT_REVERT_COMMAND_ID_PREFIX,
   checkpointRevertPayloadSchema,
   checkpointRevertResultSchema,
   controlThreadGoalPayloadSchema,
@@ -811,7 +812,9 @@ export class RemoteDesktopClient {
         `/api/threads/${encodeURIComponent(parsed.threadId)}/checkpoint-revert`,
         {
           method: "POST",
-          headers: { [REMOTE_COMMAND_ID_HEADER]: `checkpoint-revert:${parsed.operationKey}` },
+          headers: {
+            [REMOTE_COMMAND_ID_HEADER]: `${CHECKPOINT_REVERT_COMMAND_ID_PREFIX}${parsed.operationKey}`,
+          },
           body: {
             checkpointItemId: parsed.checkpointItemId,
             operationKey: parsed.operationKey,
