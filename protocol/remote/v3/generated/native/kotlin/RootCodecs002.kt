@@ -344,8 +344,8 @@ val RemoteRootCodecs.routeU2ETerminalU2DWriteU2EResponse: RemoteRootCodec<Routep
 val RemoteRootCodecs.routeU2EThreadU2DCheckpointU2DRevertU2EPath: RemoteRootCodec<ProceduregetThreadFollowUpQueueRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-checkpoint-revert.path", serializer<ProceduregetThreadFollowUpQueueRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
-val RemoteRootCodecs.routeU2EThreadU2DCheckpointU2DRevertU2ERequest: RemoteRootCodec<RoutethreadU2DCheckpointU2DRevertRequest_9f990932c5>
-    get() = RemoteRootCodec("route.thread-checkpoint-revert.request", serializer<RoutethreadU2DCheckpointU2DRevertRequest_9f990932c5>(), schema_9f990932c56d0034)
+val RemoteRootCodecs.routeU2EThreadU2DCheckpointU2DRevertU2ERequest: RemoteRootCodec<RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b>
+    get() = RemoteRootCodec("route.thread-checkpoint-revert.request", serializer<RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b>(), schema_40f9a6009bf15988)
 
 val RemoteRootCodecs.routeU2EThreadU2DCheckpointU2DRevertU2EResponse: RemoteRootCodec<RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21>
     get() = RemoteRootCodec("route.thread-checkpoint-revert.response", serializer<RoutethreadU2DCheckpointU2DRevertResponse_8dfc34ff21>(), schema_8dfc34ff217d09b7)

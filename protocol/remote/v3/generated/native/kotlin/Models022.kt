@@ -155,14 +155,14 @@ data class RouteterminalU2DWriteRequest_6c6fca7050(
 }
 
 @Serializable
-data class RoutethreadU2DCheckpointU2DRevertRequest_9f990932c5(
+data class RoutethreadU2DCheckpointU2DRevertRequest_40f9a6009b(
     @SerialName("checkpointItemId") val checkpointItemId: String,
     @SerialName("operationKey") val operationKey: String,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("checkpointItemId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("operationKey", "String", true, false, null, null, 8, 128, null, null, "^[A-Za-z0-9._:-]+$", null, listOf()),
+            RemoteFieldDescriptor("operationKey", "String", true, false, null, null, 8, 110, null, null, "^[A-Za-z0-9._:-]+$", null, listOf()),
         ), listOf())
     }
 }
