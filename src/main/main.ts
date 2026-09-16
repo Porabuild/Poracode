@@ -155,11 +155,13 @@ if (process.env.PORACODE_CDP_PORT) {
   app.commandLine.appendSwitch("remote-debugging-port", process.env.PORACODE_CDP_PORT);
 }
 
-// Isolated smoke runs replace HOME so they cannot read developer credentials.
-// On macOS that also hides the login keychain from Chromium, which otherwise
-// opens a blocking "Keychain Not Found" dialog while safeStorage initializes.
-// Chromium's mock keychain is intended for automated tests and must never be
-// enabled for packaged or ordinary dev launches.
+// Isolated smoke runs replace HOME so they cannot read developer credentials;
+// on macOS that hides the login keychain from Chromium. Dev-identity Electron
+// binaries on macOS can also fail keychain resolution outright (blocking
+// "Keychain Not Found" dialog each launch), so darwin DEV launches default to
+// Chromium's mock keychain — dev profiles are disposable. Packaged launches
+// always keep the real OS keychain; PORACODE_USE_REAL_KEYCHAIN=1 opts a dev
+// launch back in.
 if (shouldUseMockKeychain({ isDev })) {
   app.commandLine.appendSwitch("use-mock-keychain");
 }
