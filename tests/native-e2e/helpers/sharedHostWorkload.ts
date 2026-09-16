@@ -211,12 +211,22 @@ export async function runConcurrentBurst(
       );
 
       const unique = { [`${label}-${Date.now()}`]: true };
-      issuedSettingsValues.add(JSON.stringify(unique));
       const settings = await client.fetchJson("settings-write", "/api/settings", {
         method: "POST",
         body: { searchExclude: unique },
       });
-      expectOk(settings.status, "burst settings write", settings.body);
+      if (settings.status === 409 || settings.status === 429) {
+        // An explicit authority conflict/overload is a valid NON-COMMITTING
+        // outcome: the refused value never entered shared state, so it is not
+        // an issued candidate for the final-value assertion below.
+        assert(
+          typeof (settings.body as { error?: { code?: unknown } }).error?.code === "string",
+          `burst settings write refused without a remote error payload: ${JSON.stringify(settings.body)}`,
+        );
+      } else {
+        expectOk(settings.status, "burst settings write", settings.body);
+        issuedSettingsValues.add(JSON.stringify(unique));
+      }
       const snapshot = await client.fetchJson("snapshot-read", "/api/snapshot");
       expectOk(snapshot.status, "burst snapshot read", snapshot.body);
     }),
@@ -231,7 +241,8 @@ export async function runConcurrentBurst(
     ?.searchExclude;
   assert(
     issuedSettingsValues.has(JSON.stringify(finalValue)),
-    "post-burst settings must hold exactly one issued value",
+    "post-burst settings must hold exactly one issued value: " +
+      `issued=${JSON.stringify([...issuedSettingsValues])} final=${JSON.stringify(finalValue)}`,
   );
 }
 

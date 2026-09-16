@@ -16,6 +16,7 @@ import {
   PROCESS_PERFORMANCE_FORMAT_VERSION,
   ProcessPerformanceSampler,
 } from "./processPerformanceSampler";
+import type { AppMetricsSample } from "./appMetricsSample";
 
 type ProcessRole = "desktop-main" | "backend" | "supervisor" | "server" | "relay";
 const DEFAULT_INTERVAL_MS = 1_000;
@@ -27,6 +28,17 @@ export interface NodePerformanceDiagnostics {
   readonly queueCapture: IpcQueueCapture;
   observeIpcQueue(name: IpcQueueName, reader: () => IpcQueueSample | undefined): void;
   stop(): Promise<void>;
+}
+
+export interface NodePerformanceDiagnosticsOptions {
+  /**
+   * Opt-in additive sampler (desktop-main passes Electron `app.getAppMetrics()`).
+   * A non-null result appends one `appMetrics` field to that `sample` line and
+   * nothing else: format 2 stays byte-compatible for existing fields, and
+   * consumers that ignore unknown JSON fields are unaffected. Null or a thrown
+   * probe simply omits the field.
+   */
+  sampleAppMetrics?(): AppMetricsSample | null;
 }
 
 function optionalInteger(
@@ -46,6 +58,7 @@ function optionalInteger(
 export function startNodePerformanceDiagnostics(
   role: ProcessRole,
   environment: NodeJS.ProcessEnv = process.env,
+  options: NodePerformanceDiagnosticsOptions = {},
 ): NodePerformanceDiagnostics | undefined {
   const directory = environment.PORACODE_PERF_OUTPUT_DIR;
   if (!directory) return undefined;
@@ -117,6 +130,14 @@ export function startNodePerformanceDiagnostics(
 
   function appendSample(): void {
     const { formatVersion: processSampleFormatVersion, ...sample } = sampler.sample();
+    let appMetrics: AppMetricsSample | null = null;
+    if (options.sampleAppMetrics) {
+      try {
+        appMetrics = options.sampleAppMetrics();
+      } catch {
+        appMetrics = null;
+      }
+    }
     writer.append({
       kind: "sample",
       formatVersion: NODE_PERFORMANCE_EVIDENCE_FORMAT_VERSION,
@@ -125,6 +146,9 @@ export function startNodePerformanceDiagnostics(
       writer: writer.stats(),
       ...sample,
       ipcQueues: queues.sample(),
+      // Format-v2-additive: a new OPTIONAL field on sample lines only; the
+      // start line and every existing field are unchanged, so no version bump.
+      ...(appMetrics ? { appMetrics } : {}),
     });
   }
 

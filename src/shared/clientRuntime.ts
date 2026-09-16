@@ -30,7 +30,14 @@ import { REMOTE_HTTP_BRIDGE_VERSION } from "./remote/httpBridgeProtocol";
 // per-request `MessagePort` into the main world. A version-10 preload cannot
 // deliver request ports, so the renderer's remote HTTP transport has no
 // fallback and the version gate rejects the pairing loudly.
-export const PORACODE_CLIENT_RUNTIME_VERSION = 11 as const;
+// Version 12 is the settings-authority activation boundary (Gates 2-3 batch 1):
+// the renderer procedure map gains the settings-transaction procedures
+// (`settingsTransactionMutate`/`settingsTransactionSnapshot`). The preload
+// invoke surface is generic and needs no new API, but renderer bundles and
+// preloads must move in lockstep with the procedure map, so the gate rejects a
+// version-11 preload instead of letting its older bundle disagree about the
+// available settings procedures. See .agents/docs/versioning.md.
+export const PORACODE_CLIENT_RUNTIME_VERSION = 12 as const;
 
 export type ClientHost = "electron" | "browser";
 export type ClientSurface = "adaptive";

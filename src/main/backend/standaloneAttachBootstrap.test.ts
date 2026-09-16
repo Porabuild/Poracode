@@ -1,18 +1,76 @@
 // Focused regression for the extracted Electron bootstrap helpers: namespace
 // mapping, sync peek side-effect-freedom, deferred outcomes, refusal text,
-// ephemeral shell state isolation, and attach-mode database guards.
+// ephemeral shell state isolation, attach-mode database guards, and the S1.4
+// attach-session generation re-verification.
 
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { HostControlServer } from "@/backend/ownership/HostControlServer";
+import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
+import { resolveDesktopHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import {
   createEphemeralShellState,
+  createStandaloneAttachSession,
   decideDeferredStandaloneAttach,
   describeAttachRefusal,
   resolveDesktopBaseDir,
   shouldDeferLeaseForAttachProbe,
 } from "./standaloneAttachBootstrap";
+
+const cleanups: Array<() => Promise<void>> = [];
+
+/** Real fixture owner on the desktop mapping: lease + published control. */
+async function startFixtureOwner(): Promise<{
+  profileNamespace: string;
+  controlPaths: ReturnType<typeof resolveDesktopHostRootPaths>;
+  lease: HostOwnerLease;
+  control: HostControlServer;
+}> {
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-attach-session-")));
+  const profileNamespace = join(root, "profile");
+  const controlPaths = resolveDesktopHostRootPaths(profileNamespace);
+  const lease = HostOwnerLease.acquire(controlPaths, "desktop");
+  const control = new HostControlServer({
+    lease,
+    describe: () => ({
+      state: "ready",
+      remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
+      endpoint: null,
+    }),
+    issuePairing: () => Promise.reject(new Error("Fixture owner mints no pairings.")),
+  });
+  await control.start();
+  cleanups.push(async () => {
+    await control.dispose();
+    lease.release();
+    rmSync(root, { recursive: true, force: true });
+  });
+  return { profileNamespace, controlPaths, lease, control };
+}
+
+function sessionInput(
+  owner: Awaited<ReturnType<typeof startFixtureOwner>>,
+): Parameters<typeof createStandaloneAttachSession>[0] {
+  return {
+    controlPaths: owner.controlPaths,
+    mode: owner.lease.kind,
+    info: {
+      profileNamespace: owner.profileNamespace,
+      dataRoot: owner.profileNamespace,
+      endpoint: "http://127.0.0.1:9/owner/",
+      ownerGeneration: owner.lease.generation,
+      remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
+      pairingUrl: "https://fixture.test/pair#token=fixture-pairing-credential",
+    },
+  };
+}
+
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0)) await cleanup();
+});
 
 describe("standalone attach bootstrap", () => {
   it("maps the desktop base dir like managed startup", () => {
@@ -92,5 +150,47 @@ describe("standalone attach bootstrap", () => {
     ]) {
       expect(source).not.toContain(forbidden);
     }
+  });
+});
+
+describe("standalone attach session re-verification (S1.4)", () => {
+  it("re-verifies the pinned generation through an authenticated describe", async () => {
+    const owner = await startFixtureOwner();
+    const session = createStandaloneAttachSession(sessionInput(owner));
+    await expect(session.reverify()).resolves.toBeUndefined();
+  });
+
+  it("refuses loudly when the owner generation changed (restarted under the profile)", async () => {
+    const owner = await startFixtureOwner();
+    const session = createStandaloneAttachSession(sessionInput(owner));
+    // Simulate the owner restarting under the same root: old control down,
+    // fresh lease generation, fresh control surface at the same paths.
+    await owner.control.dispose();
+    owner.lease.release();
+    const successor = HostOwnerLease.acquire(owner.controlPaths, "desktop");
+    const control = new HostControlServer({
+      lease: successor,
+      describe: () => ({
+        state: "ready",
+        remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
+        endpoint: null,
+      }),
+      issuePairing: () => Promise.reject(new Error("Fixture owner mints no pairings.")),
+    });
+    await control.start();
+    try {
+      await expect(session.reverify()).rejects.toThrow(/generation changed/u);
+    } finally {
+      await control.dispose();
+      successor.release();
+    }
+  });
+
+  it("refuses when the owner can no longer be re-verified (unreachable)", async () => {
+    const owner = await startFixtureOwner();
+    const session = createStandaloneAttachSession(sessionInput(owner));
+    await owner.control.dispose();
+    owner.lease.release();
+    await expect(session.reverify()).rejects.toThrow(/could not be re-verified/u);
   });
 });

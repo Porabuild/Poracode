@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
 import type { BrowserPanelManager } from "../browser";
 import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "../db";
-import { patchSharedSettingsFile, readSharedSettingsFile } from "../sharedSettingsFile";
+import { readSharedSettingsFile } from "../sharedSettingsFile";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import type {
   RemoteAccessTailscaleStatus,
@@ -19,6 +19,7 @@ import {
   type RemoteGitSummaries,
 } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
+import type { SettingsMutationResult } from "@/shared/settingsTransactions";
 import type { UserNotification } from "@/shared/threadNotification";
 import type { Project } from "@/shared/contracts";
 import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
@@ -91,7 +92,22 @@ export interface DesktopRemoteAccessControllerOptions {
   readonly dispatchThreadCommand: NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>;
   readonly getBrowserPanelManager?: () => BrowserPanelManager | null;
   readonly browser?: RemoteBrowserGatewayLike;
-  readonly notifySharedSettingsChanged: (settings: SharedSettings) => void;
+  /**
+   * The composition's settings authority writes. Every patch the controller
+   * persists commits through it as scoped compare-and-swap edits; a conflict
+   * that survives the bounded rebase rejects loudly instead of silently
+   * clobbering the concurrent writer. The committed broadcast happens in the
+   * authority's `onCommitted` hook, so there is no separate notify here.
+   */
+  readonly settingsWrites: {
+    commitCompatPatch(patch: {
+      [K in keyof SharedSettings]?: SharedSettings[K] | undefined;
+    }): Promise<SharedSettings>;
+    editSettingsField<F extends keyof SharedSettings>(
+      field: F,
+      compute: (current: SharedSettings) => SharedSettings[F] | undefined,
+    ): Promise<SettingsMutationResult>;
+  };
   readonly notifyRemoteAccessPairingChanged: (info: RemoteAccessPairingInfo) => void;
   readonly notifyProjectStateChanged: (projects: readonly Project[]) => void;
   readonly notifyUserNotification?: (notification: UserNotification) => void;
@@ -216,21 +232,58 @@ export function createDesktopRemoteAccessController(
     void options.gitStateService.refreshInterests(interests, { fetchRemote: true });
   };
 
-  const writeSharedSettingsPatch = (patch: {
-    [K in keyof SharedSettings]?: SharedSettings[K];
-  }) => {
-    const next = patchSharedSettingsFile(options.paths.settingsPath, patch);
-    options.notifySharedSettingsChanged(next);
-    return next;
+  /** Compat partial patch through the composition's settings authority. The
+   * committed broadcast happens in the authority's `onCommitted` hook. */
+  const commitSettingsPatch = (patch: {
+    [K in keyof SharedSettings]?: SharedSettings[K] | undefined;
+  }): Promise<SharedSettings> => options.settingsWrites.commitCompatPatch(patch);
+
+  /**
+   * CAS-guarded revert of this controller's own committed write: the field is
+   * moved back only while the authority still holds the value we wrote, so a
+   * concurrent flip of the same field wins instead of being clobbered by the
+   * stale previous value. A revert that cannot commit is reported, but never
+   * masks the original failure.
+   */
+  const revertCommittedSetting = async <
+    F extends "remoteAccessTailscaleHttps" | "remoteAccessAdvertisedUrl",
+  >(
+    field: F,
+    written: SharedSettings[F],
+    previous: SharedSettings[F],
+  ): Promise<void> => {
+    const result = await options.settingsWrites.editSettingsField(field, (current) =>
+      current[field] === written ? previous : current[field],
+    );
+    if (result.status !== "committed") {
+      options.reportError(new Error(`The ${field} revert did not commit (${result.status}).`), {
+        "poracode.feature_area": "remote-access",
+      });
+    }
   };
 
-  const writeRemoteAccessEnabledSetting = (enabled: boolean) =>
-    writeSharedSettingsPatch({ remoteAccessEnabled: enabled });
+  const writeRemoteAccessEnabledSetting = (enabled: boolean): Promise<SharedSettings> =>
+    commitSettingsPatch({ remoteAccessEnabled: enabled });
 
   const mcpSettings = createRemoteMcpSettingsGateway({
     readSettings: () => readSharedSettingsFile(options.paths.settingsPath),
+    // Scoped CAS edit of the whole `mcpServers` field, derived from the
+    // freshest committed state; a surviving conflict is reported, never
+    // written over the concurrent writer (mirrors the headless composition).
     writeGlobalServers: (mcpServers) => {
-      writeSharedSettingsPatch({ mcpServers });
+      void options.settingsWrites
+        .editSettingsField("mcpServers", () => mcpServers)
+        .then((result) => {
+          if (result.status !== "committed") {
+            options.reportError(
+              new Error(`MCP server settings were not committed (${result.status}).`),
+              { "poracode.feature_area": "remote-access" },
+            );
+          }
+        })
+        .catch((error: unknown) =>
+          options.reportError(error, { "poracode.feature_area": "remote-access" }),
+        );
     },
     readProject: dbGetProject,
     writeProject: dbUpdateProject,
@@ -426,11 +479,10 @@ export function createDesktopRemoteAccessController(
         gitState: options.gitStateService,
         settings: {
           read: () => pickRemoteSettings(readSharedSettingsFile(options.paths.settingsPath)),
-          update: (patch) => {
-            const next = patchSharedSettingsFile(options.paths.settingsPath, patch);
-            options.notifySharedSettingsChanged(next);
-            return pickRemoteSettings(next);
-          },
+          // Remote `POST /api/settings` as scoped CAS edits; a surviving
+          // conflict rejects the route instead of last-writer-wins (mirrors
+          // the headless composition).
+          update: async (patch) => pickRemoteSettings(await commitSettingsPatch(patch)),
           readMcpServers: () => mcpSettings.read(),
           commandMcpServers: (command) => mcpSettings.command(command),
           resolveScope: (scope) => mcpSettings.resolveScope(scope),
@@ -656,11 +708,11 @@ export function createDesktopRemoteAccessController(
 
   const setTailscaleHttps = async (enabled: boolean): Promise<RemoteAccessPairingInfo> => {
     const previous = readSharedSettingsFile(options.paths.settingsPath).remoteAccessTailscaleHttps;
-    writeSharedSettingsPatch({ remoteAccessTailscaleHttps: enabled });
+    await commitSettingsPatch({ remoteAccessTailscaleHttps: enabled });
     try {
       await restartRemoteAccessServer();
     } catch (error) {
-      writeSharedSettingsPatch({ remoteAccessTailscaleHttps: previous });
+      await revertCommittedSetting("remoteAccessTailscaleHttps", enabled, previous);
       throw error;
     }
     return getRemoteAccessPairingInfo(remoteAccessServer);
@@ -690,11 +742,11 @@ export function createDesktopRemoteAccessController(
       normalized = url.origin;
     }
     const previous = readSharedSettingsFile(options.paths.settingsPath).remoteAccessAdvertisedUrl;
-    writeSharedSettingsPatch({ remoteAccessAdvertisedUrl: normalized });
+    await commitSettingsPatch({ remoteAccessAdvertisedUrl: normalized });
     try {
       await restartRemoteAccessServer();
     } catch (error) {
-      writeSharedSettingsPatch({ remoteAccessAdvertisedUrl: previous });
+      await revertCommittedSetting("remoteAccessAdvertisedUrl", normalized, previous);
       throw error;
     }
     return getRemoteAccessPairingInfo(remoteAccessServer);
@@ -702,12 +754,14 @@ export function createDesktopRemoteAccessController(
 
   const setEnabled = async (enabled: boolean): Promise<RemoteAccessPairingInfo> => {
     if (!enabled) {
+      // Persist the disable before stopping: a settings conflict rejects the
+      // call with the server (and the enabled flag) untouched.
+      await writeRemoteAccessEnabledSetting(false);
       stopRemoteAccessServer();
-      writeRemoteAccessEnabledSetting(false);
       return getRemoteAccessPairingInfo(remoteAccessServer);
     }
 
-    writeRemoteAccessEnabledSetting(true);
+    await writeRemoteAccessEnabledSetting(true);
     try {
       await startRemoteAccessServer();
     } catch (error) {

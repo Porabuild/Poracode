@@ -6,6 +6,7 @@ import { readSharedSettingsFile, writeSharedSettingsFile } from "@/main/sharedSe
 import { RoutingOverridePersistence } from "@/supervisor/crossagentMcp/RoutingOverridePersistence";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { defaultSharedSettings } from "@/shared/settings";
+import type { SettingsMutationResult } from "@/shared/settingsTransactions";
 import { BackendDurableServices } from "./BackendDurableServices";
 import type { BackendDurableServicesOptions } from "./BackendDurableServices";
 import { dbUpsertThread } from "@/main/db";
@@ -92,6 +93,25 @@ vi.mock("@/main/schedules", async (importOriginal) => {
   };
 });
 
+const committedEdit: SettingsMutationResult = {
+  status: "committed",
+  authorityId: "fixture-authority",
+  sequence: 0,
+  changes: [],
+  revisions: {},
+};
+
+function fileBackedEditSettingsField(
+  settingsPath: string,
+): BackendDurableServicesOptions["editSettingsField"] {
+  return async (field, compute) => {
+    const current = readSharedSettingsFile(settingsPath);
+    const value = compute(current);
+    writeSharedSettingsFile(settingsPath, { ...current, [field]: value } as never);
+    return committedEdit;
+  };
+}
+
 function createDurable(
   overrides: Partial<BackendDurableServicesOptions> = {},
 ): BackendDurableServices {
@@ -103,6 +123,7 @@ function createDurable(
     },
     getSharedSettings: () => ({}),
     writeSharedSettings: () => {},
+    editSettingsField: async () => committedEdit,
     sendThreadCommand: () => true,
     publishProjectsChanged: () => {},
     hasRendererWindow: true,
@@ -121,9 +142,7 @@ describe("headless routing durability", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     const durable = createDurable({
       getSharedSettings: () => defaultSharedSettings,
-      writeSharedSettings: () => {
-        throw error;
-      },
+      editSettingsField: () => Promise.reject(error),
       supervisor: { call: confirm } as unknown as BackendDurableServicesOptions["supervisor"],
       reportError: () => {
         throw new Error("Fixture diagnostics failed");
@@ -137,11 +156,15 @@ describe("headless routing durability", () => {
           change: { action: "remove", tags: ["review"] },
         }),
       ).not.toThrow();
-      expect(confirm).toHaveBeenCalledExactlyOnceWith("confirmCrossagentRoutingOverride", {
-        requestId: "fixture-failure",
-        ok: false,
-        error: error.message,
-      });
+      // The edit commits on the authority queue, so the acknowledgement
+      // follows its settlement asynchronously.
+      await vi.waitFor(() =>
+        expect(confirm).toHaveBeenCalledExactlyOnceWith("confirmCrossagentRoutingOverride", {
+          requestId: "fixture-failure",
+          ok: false,
+          error: error.message,
+        }),
+      );
     } finally {
       try {
         await durable.dispose();
@@ -170,9 +193,7 @@ describe("headless routing durability", () => {
       hasRendererWindow: false,
       supervisor: { call: confirm } as unknown as BackendDurableServicesOptions["supervisor"],
       getSharedSettings: () => defaultSharedSettings,
-      writeSharedSettings: () => {
-        throw error;
-      },
+      editSettingsField: () => Promise.reject(error),
       reportError,
     });
     try {
@@ -246,7 +267,7 @@ describe("headless routing durability", () => {
       hasRendererWindow: false,
       supervisor: { call: confirm } as unknown as BackendDurableServicesOptions["supervisor"],
       getSharedSettings: () => readSharedSettingsFile(settingsPath),
-      writeSharedSettings: (settings) => writeSharedSettingsFile(settingsPath, settings),
+      editSettingsField: fileBackedEditSettingsField(settingsPath),
     });
     try {
       await expect(persistence.persist({ action: "set", override })).resolves.toBeUndefined();

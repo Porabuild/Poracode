@@ -17,6 +17,7 @@ import type { PoracodeChannel } from "@/shared/channel";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import { standaloneAttachInfoSchema, type StandaloneAttachInfo } from "@/shared/standaloneAttach";
+import { callHostControl } from "@/backend/ownership/hostControlClient";
 import type { HostRootPaths } from "@/backend/ownership/hostRootPaths";
 import type { HostDescription } from "@/shared/hostControlProtocol";
 import type { ShellStateStore } from "./BackendStateStore";
@@ -139,6 +140,64 @@ export async function buildStandaloneAttachInfoForRenderer(input: {
     remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
     pairingUrl: pairing.pairingUrl,
   });
+}
+
+export interface StandaloneAttachSession {
+  readonly info: StandaloneAttachInfo;
+  /**
+   * Re-run the authenticated `describe` with a generation check. Called on
+   * every attach transport (re)establishment — concretely, every renderer
+   * (re)bootstrap that re-reads the attach payload, including crash-screen
+   * reloads. A stale generation (the owner restarted under the same profile;
+   * persisted bearers would still authenticate against the NEW owner) throws:
+   * the renderer boot fails closed, and relaunching re-runs the full decision
+   * and re-pairs. There is deliberately NO per-request generation pinning:
+   * persisted bearer tokens survive a same-root owner restart by design, and
+   * pinning every request would break that proven restart continuity — the
+   * (re)establishment boundary is the closure point.
+   */
+  reverify(): Promise<void>;
+}
+
+export function createStandaloneAttachSession(input: {
+  controlPaths: HostRootPaths;
+  /** Owner kind pinned by the admitting decision (attach re-verifies it). */
+  mode: HostDescription["mode"];
+  info: StandaloneAttachInfo;
+}): StandaloneAttachSession {
+  const reverify = async (): Promise<void> => {
+    let reply: { ownerGeneration: string; result: HostDescription };
+    try {
+      reply = await callHostControl(input.controlPaths, "describe");
+    } catch (error) {
+      throw new Error(
+        `The standalone owner could not be re-verified for this attach session: ` +
+          `${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
+      );
+    }
+    if (reply.ownerGeneration !== input.info.ownerGeneration) {
+      throw new Error(
+        "The standalone owner generation changed (the owner restarted under this profile). " +
+          "Restart Poracode to re-decide and re-pair; refusing to continue against a " +
+          "different owner.",
+      );
+    }
+    const description = reply.result;
+    if (
+      description.profileNamespace !== input.info.profileNamespace ||
+      description.dataRoot !== input.info.dataRoot
+    ) {
+      throw new Error("The standalone owner no longer matches the attached profile.");
+    }
+    if (description.mode !== input.mode) {
+      throw new Error(`The standalone owner mode changed to ${description.mode}.`);
+    }
+    if (description.state !== "ready") {
+      throw new Error(`The standalone owner state is ${description.state}; attach requires ready.`);
+    }
+  };
+  return { info: input.info, reverify };
 }
 
 /**

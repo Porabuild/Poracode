@@ -35,6 +35,7 @@ import { isThreadTurnActive } from "@/shared/contracts";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { SharedSettings } from "@/shared/settings";
+import type { SettingsMutationResult } from "@/shared/settingsTransactions";
 import { observeRoutingSettingsEvent } from "./BackendRoutingSettings";
 
 export interface BackendDurableServicesOptions {
@@ -42,7 +43,17 @@ export interface BackendDurableServicesOptions {
   hostId: string;
   supervisor: SupervisorClient;
   getSharedSettings(): SharedSettings;
+  /** Compat whole-snapshot write (app-controls `update_settings`). Routed
+   * through the composition's settings authority as scoped CAS edits; a
+   * rejection is reported instead of thrown, so fire-and-forget callers cannot
+   * turn a durable event into an unhandled rejection. */
   writeSharedSettings(settings: SharedSettings): void;
+  /** Trusted single-field CAS edit for owner-managed records (learned routing
+   * usage, overrides). Backed by the composition's settings authority. */
+  editSettingsField<F extends keyof SharedSettings>(
+    field: F,
+    compute: (current: SharedSettings) => SharedSettings[F] | undefined,
+  ): Promise<SettingsMutationResult>;
   sendThreadCommand(command: RemoteThreadCommand): boolean;
   emitRemoteThreadCommand?(command: RemoteThreadCommand): boolean | Promise<boolean>;
   publishProjectsChanged(): void;

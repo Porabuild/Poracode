@@ -7,6 +7,11 @@ import {
 import { agentProfileDriver, isAgentProfileDriver } from "@/shared/contracts/agentProfiles";
 import { isSensitiveAgentSetting } from "@/shared/agentSecrets";
 import type { AgentInstanceEnvVar } from "@/shared/contracts";
+import {
+  removeCrossagentRoutingOverride,
+  removeCrossagentSelectionUsageEntry,
+  retagCrossagentSelectionUsageEntry,
+} from "@/shared/crossagentRanking";
 import { settingsProcedures } from "@/shared/ipc/procedures/settings";
 import { isEncryptedSecret } from "@/shared/secretFormat";
 import type { SharedSettings } from "@/shared/settings";
@@ -106,6 +111,52 @@ export class SettingsCommandService {
       this.assertCanSealEnvironment(payload.driver, payload.environment ?? {});
       return applyCreateProfile(settings, payload, "").instance;
     });
+  }
+
+  /** Owner-managed learned-routing records. Ordinary preference intent cannot
+   * write these fields (`authorizeSettingsPreferences` refuses them), so the
+   * explicit commands are the only renderer path and are authorized by subject. */
+  async removeCrossagentRoutingOverride(
+    input: unknown,
+    expectation: SettingsCommandExpectation,
+  ): Promise<SettingsMutationResult> {
+    const payload = settingsProcedures.removeCrossagentRoutingOverride.payloadSchema.parse(input);
+    return this.commit(
+      { kind: "field", field: "crossagentRoutingOverrides" },
+      expectation,
+      (settings) =>
+        removeCrossagentRoutingOverride(settings.crossagentRoutingOverrides, payload.tags),
+    );
+  }
+
+  async removeCrossagentMemoryEntry(
+    input: unknown,
+    expectation: SettingsCommandExpectation,
+  ): Promise<SettingsMutationResult> {
+    const payload = settingsProcedures.removeCrossagentMemoryEntry.payloadSchema.parse(input);
+    return this.commit(
+      { kind: "field", field: "crossagentSelectionUsage" },
+      expectation,
+      (settings) =>
+        removeCrossagentSelectionUsageEntry(settings.crossagentSelectionUsage, payload.entry),
+    );
+  }
+
+  async updateCrossagentMemoryEntryTags(
+    input: unknown,
+    expectation: SettingsCommandExpectation,
+  ): Promise<SettingsMutationResult> {
+    const payload = settingsProcedures.updateCrossagentMemoryEntryTags.payloadSchema.parse(input);
+    return this.commit(
+      { kind: "field", field: "crossagentSelectionUsage" },
+      expectation,
+      (settings) =>
+        retagCrossagentSelectionUsageEntry(
+          settings.crossagentSelectionUsage,
+          payload.entry,
+          payload.tags,
+        ),
+    );
   }
 
   private assertCanSealEnvironment(

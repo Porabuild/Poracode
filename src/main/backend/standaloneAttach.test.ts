@@ -232,7 +232,23 @@ describe("standalone attach decision", () => {
     const decision = await decideStandaloneAttach(owner.profileNamespace);
     expect(decision.kind).toBe("refuse");
     if (decision.kind !== "refuse") throw new Error("Expected refuse.");
-    expect(decision.reason).toBe("non-headless-owner");
+    // The gate is owner-kind-aware: a desktop owner refuses on the explicit
+    // integration constant, not the generic headless-only rule.
+    expect(decision.reason).toBe("desktop-owner-admission-disabled");
+    expect(owner.issuePairing).not.toHaveBeenCalled();
+  });
+
+  it("sees a published desktop owner (kind desktop) and refuses it authenticated", async () => {
+    // S1.1 attach parity: the desktop mapping now publishes host-control
+    // discovery, so a second launch finds and authenticates the running
+    // desktop owner instead of fighting an invisible lease.
+    const owner = await startDesktopOwner();
+    const decision = await decideStandaloneAttach(owner.profileNamespace);
+    expect(decision.kind).toBe("refuse");
+    if (decision.kind !== "refuse") throw new Error("Expected refuse.");
+    expect(decision.reason).toBe("desktop-owner-admission-disabled");
+    if (!decision.controlPaths) throw new Error("Expected desktop control paths.");
+    expect(decision.controlPaths.dataRoot).toBe(owner.profileNamespace);
     expect(owner.issuePairing).not.toHaveBeenCalled();
   });
 

@@ -15,6 +15,11 @@ export interface HostRootPaths {
   /** Stable lease identity outside every directory an import may replace. */
   readonly leasePath: string;
   readonly ownerRecordPath: string;
+  /**
+   * Data-custody fence held by the backend that writes the owned database
+   * (`hostDataFence.ts`). Shared by both root mappings, like the lease.
+   */
+  readonly dataFencePath: string;
 }
 
 /** A mapped sibling must not redirect writes behind a different root's lease. */
@@ -78,6 +83,7 @@ export function resolveHostRootPaths(profileNamespace: string): HostRootPaths {
     electronUserDataRoot: `${canonical}.client-v1`,
     leasePath: `${canonical}.host-owner.sqlite`,
     ownerRecordPath: `${canonical}.host-owner.json`,
+    dataFencePath: `${canonical}.host-data.sqlite`,
   };
   assertHostRootDirectories(paths);
   return paths;
@@ -108,6 +114,7 @@ export function resolveDesktopHostRootPaths(profileNamespace: string): HostRootP
     electronUserDataRoot: `${canonical}.client-v1`,
     leasePath: `${canonical}.host-owner.sqlite`,
     ownerRecordPath: `${canonical}.host-owner.json`,
+    dataFencePath: `${canonical}.host-data.sqlite`,
   };
   assertHostRootDirectories(paths);
   return paths;

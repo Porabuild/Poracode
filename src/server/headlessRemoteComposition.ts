@@ -11,11 +11,7 @@ import {
 import { BackendHostCore, RevertCheckpointRefusedError } from "@/backend/BackendHostCore";
 import { BackendDurableServices } from "@/backend/BackendDurableServices";
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
-import {
-  patchSharedSettingsFile,
-  readSharedSettingsFile,
-  writeSharedSettingsFile,
-} from "@/main/sharedSettingsFile";
+import { readSharedSettingsFile } from "@/main/sharedSettingsFile";
 import { createPersistentRemoteAuthStore, RemoteHttpError } from "@/main/remote/auth";
 import { readOrCreateRemoteAccessIdentity } from "@/main/remote/identity";
 import {
@@ -31,7 +27,6 @@ import {
   PushRegistrationStore,
 } from "@/main/remote/push";
 import { RemoteAccessServer, type RemoteAccessServerInfo } from "@/main/remote/RemoteAccessServer";
-import { createRemoteMcpSettingsGateway } from "@/main/remote/RemoteMcpSettingsGateway";
 import { ThreadNotificationPublisher } from "@/main/remote/ThreadNotificationPublisher";
 import {
   remoteAccessAdvertisedHost,
@@ -43,7 +38,6 @@ import {
 import { isThreadTurnActive, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
-  pickRemoteSettings,
   remoteProjectCommandResultSchema,
 } from "@/shared/remote";
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
@@ -53,6 +47,11 @@ import type { HeadlessRemoteHost, HeadlessRemoteHostOptions } from "./createHead
 import { resolveLocalProxyBase } from "./headlessProxyBase";
 import { readOwnedHeadlessRelaySecret } from "./headlessRelaySecret";
 import { HostControlServer } from "@/backend/ownership/HostControlServer";
+import {
+  composeHeadlessSettingsAuthority,
+  type HeadlessSettingsComposition,
+} from "./headlessSettingsAuthority";
+import { createHeadlessPrMergeEffect } from "./headlessPrWatchMerge";
 
 export type HeadlessRemoteComposition = Pick<
   HeadlessRemoteHost,
@@ -96,6 +95,7 @@ export async function composeHeadlessRemoteHost(
   let threadNotifications: ThreadNotificationPublisher | null = null;
 
   let backendHostRef: BackendHostCore | null = null;
+  let settingsAuthority: HeadlessSettingsComposition | null = null;
   let control: HostControlServer | null = null;
   let portForwardingRef: ReturnType<typeof createPortForwarding> | null = null;
   let relayHandle: RelayHostHandle | null = null;
@@ -123,6 +123,8 @@ export async function composeHeadlessRemoteHost(
       () => control?.dispose(),
       () => pushCoordinator?.dispose(),
       () => durableServices?.dispose(),
+      // Drains queued authority commits before the lease is released.
+      () => settingsAuthority?.dispose(),
       () => backendHostRef?.disposeSupervisor(),
       // Starting admission was closed above. A failed/cancelled start still has
       // to finish before its resources or the owning controller can be released.
@@ -223,6 +225,24 @@ export async function composeHeadlessRemoteHost(
     backendHostRef = backendHost;
     const supervisorClient = backendHost.supervisorClient;
 
+    const publishHeadlessProjectsChanged = (): void => {
+      serverRef?.publishSupervisorEvent({
+        type: "remote-projects-changed",
+        projects: remoteProjectCommandResultSchema.parse({ projects: dbGetProjects() }).projects,
+      });
+    };
+    // One settings authority for the owned root: every settings writer commits through it.
+    options.signal?.throwIfAborted();
+    runtime.lease.assertActive();
+    settingsAuthority = await composeHeadlessSettingsAuthority(runtime, {
+      readSettings: getSharedSettings,
+      readProject: dbGetProject,
+      writeProject: dbUpdateProject,
+      projectsChanged: publishHeadlessProjectsChanged,
+      ...(options.reportError ? { reportError: options.reportError } : {}),
+    });
+    const settings = settingsAuthority;
+
     const identity = readOrCreateRemoteAccessIdentity(paths.baseDir);
     const authStore = createPersistentRemoteAuthStore(paths.baseDir);
     const pushStore = new PushRegistrationStore(paths.baseDir);
@@ -235,26 +255,13 @@ export async function composeHeadlessRemoteHost(
       sendPush: createPushGateway(pushGatewayOptions),
       getThreads: () => dbGetThreads(),
       getProjects: () => dbGetProjects(),
-      getSettings: () => {
-        const settings = readSharedSettingsFile(paths.settingsPath);
-        return {
-          enabled: settings.remotePushEnabled,
-          redactContent: settings.remotePushRedactContent,
-        };
-      },
+      getSettings: () => settings.pushSettings(),
       getAttributes: () => ({ desktopId: identity.desktopId, desktopName: identity.label }),
     });
     threadNotifications = new ThreadNotificationPublisher({
       getThread: dbGetThread,
       getProjectName: (projectId) => dbGetProject(projectId)?.name ?? "Project",
-      getSettings: () => {
-        const settings = readSharedSettingsFile(paths.settingsPath);
-        return {
-          notificationsEnabled: settings.notificationsEnabled,
-          notificationStatuses: settings.notificationStatuses,
-          notifyL2Cli: settings.notifyL2Cli,
-        };
-      },
+      getSettings: () => settings.threadNotificationSettings(),
       publish: (notification) => {
         serverRef?.publishSupervisorEvent({
           type: "remote-user-notification",
@@ -263,19 +270,22 @@ export async function composeHeadlessRemoteHost(
       },
     });
 
-    const publishHeadlessProjectsChanged = (): void => {
-      serverRef?.publishSupervisorEvent({
-        type: "remote-projects-changed",
-        projects: remoteProjectCommandResultSchema.parse({ projects: dbGetProjects() }).projects,
-      });
-    };
     durableServices = new BackendDurableServices({
       appVersion: options.appVersion,
       hostId: identity.desktopId,
       supervisor: supervisorClient,
       getSharedSettings,
       ...(options.reportError ? { reportError: options.reportError } : {}),
-      writeSharedSettings: (next) => writeSharedSettingsFile(paths.settingsPath, next),
+      writeSharedSettings: (next) => settings.writeSharedSettings(next),
+      editSettingsField: (field, compute) => settings.editSettingsField(field, compute),
+      // Durable auto-done effect the desktop renderer performs from `pr-watch-merged`.
+      onPrMerged: createHeadlessPrMergeEffect({
+        getSharedSettings,
+        publishThreadsChanged: (threadIds) => {
+          serverRef?.publishSupervisorEvent({ type: "remote-threads-changed", threadIds });
+        },
+        ...(options.reportError ? { reportError: options.reportError } : {}),
+      }),
       sendThreadCommand: () => false,
       publishProjectsChanged: publishHeadlessProjectsChanged,
       hasRendererWindow: false,
@@ -328,15 +338,6 @@ export async function composeHeadlessRemoteHost(
       ...(forwardOrigin ? { forwardOrigin } : {}),
     });
     portForwardingRef = portForwarding;
-    const mcpSettings = createRemoteMcpSettingsGateway({
-      readSettings: () => readSharedSettingsFile(paths.settingsPath),
-      writeGlobalServers: (mcpServers) => {
-        patchSharedSettingsFile(paths.settingsPath, { mcpServers });
-      },
-      readProject: dbGetProject,
-      writeProject: dbUpdateProject,
-      projectsChanged: publishHeadlessProjectsChanged,
-    });
 
     const server = new RemoteAccessServer({
       appVersion: options.appVersion,
@@ -370,14 +371,7 @@ export async function composeHeadlessRemoteHost(
       },
       resolveMcpLaunchSnapshot: (projectId) =>
         resolveMcpLaunchSnapshot(getSharedSettings(), dbGetProject(projectId)?.mcpServers ?? []),
-      settings: {
-        read: () => pickRemoteSettings(readSharedSettingsFile(paths.settingsPath)),
-        update: (patch) => pickRemoteSettings(patchSharedSettingsFile(paths.settingsPath, patch)),
-        readMcpServers: () => mcpSettings.read(),
-        commandMcpServers: (command) => mcpSettings.command(command),
-        resolveScope: (scope) => mcpSettings.resolveScope(scope),
-        resolveServer: (scope, serverId) => mcpSettings.resolveServer(scope, serverId),
-      },
+      settings: settings.remoteSettingsGateway(settings.mcpSettings),
       attachments: {
         save: (input) => saveUploadedAttachmentFile(paths, input),
       },

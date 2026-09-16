@@ -29,6 +29,17 @@ export interface SettingsDocument {
   settings: SharedSettings;
 }
 
+/**
+ * Delta-map fields hold user-chosen keys, not structural shape: a stored record
+ * round-trips exactly as written and the field default applies only when the
+ * whole field is absent. Key-filling their defaults here would corrupt
+ * whole-field replacements on the settings CAS (a written `{pattern: true}`
+ * must read back as itself, not as the default map plus the write). Structural
+ * object fields (browser, audio, usage) keep key-level fill in
+ * `fillMissing` so newly added sub-keys default in old documents.
+ */
+const SETTINGS_DELTA_MAP_FIELDS: readonly (keyof SharedSettings)[] = ["searchExclude"];
+
 /** Defaults fill absence only. An invalid existing value must not be silently repaired by a write. */
 function fillMissing(value: unknown, defaults: unknown): unknown {
   if (value === undefined) return structuredClone(defaults);
@@ -37,6 +48,13 @@ function fillMissing(value: unknown, defaults: unknown): unknown {
   for (const [key, fallback] of Object.entries(defaults))
     result[key] = fillMissing(result[key], fallback);
   return result;
+}
+
+function fillFieldDefault(field: keyof SharedSettings, value: unknown): unknown {
+  const defaults = defaultSharedSettings[field];
+  if ((SETTINGS_DELTA_MAP_FIELDS as readonly string[]).includes(field))
+    return value === undefined ? structuredClone(defaults) : value;
+  return fillMissing(value, defaults);
 }
 
 export function decodeSettingsDocument(raw: unknown): SettingsDocument {
@@ -53,9 +71,7 @@ export function decodeSettingsDocument(raw: unknown): SettingsDocument {
   const source = sanitizeLegacyMcpServerUrls(raw) as Record<string, unknown>;
   const known: Record<string, unknown> = {};
   for (const [field, schema] of Object.entries(sharedSettingsSchema.shape)) {
-    const result = schema.safeParse(
-      fillMissing(source[field], defaultSharedSettings[field as keyof SharedSettings]),
-    );
+    const result = schema.safeParse(fillFieldDefault(field as keyof SharedSettings, source[field]));
     if (!result.success)
       throw new SettingsDocumentError(
         "corrupt",

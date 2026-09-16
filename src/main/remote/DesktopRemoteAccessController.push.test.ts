@@ -117,7 +117,28 @@ async function fixture() {
     callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(),
     truncateThreadRuntime: vi.fn<NonNullable<RemoteAccessServerOptions["truncateThreadRuntime"]>>(),
     dispatchThreadCommand: () => false,
-    notifySharedSettingsChanged() {},
+    settingsWrites: {
+      commitCompatPatch: async (patch) => {
+        const merged = { ...h.settings } as Record<string, unknown>;
+        for (const [key, value] of Object.entries(patch)) {
+          if (value !== undefined) merged[key] = value;
+        }
+        h.settings = merged as SharedSettings;
+        return h.settings;
+      },
+      editSettingsField: async (field, compute) => {
+        const next = compute(h.settings);
+        if (next === undefined) delete (h.settings as Record<string, unknown>)[field];
+        else (h.settings as Record<string, unknown>)[field] = next;
+        return {
+          status: "committed",
+          authorityId: "00000000-0000-4000-8000-000000000000",
+          sequence: 0,
+          changes: [],
+          revisions: {},
+        };
+      },
+    },
     notifyRemoteAccessPairingChanged() {},
     notifyProjectStateChanged() {},
     notifyEventInterestsChanged() {},

@@ -13,7 +13,7 @@ import {
 } from "electron";
 import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
 import { resolveThemeMode } from "@/shared/themeMode";
-import type { Project, Thread } from "@/shared/contracts";
+import type { Project, RemoteThreadCommand, Thread } from "@/shared/contracts";
 import { cleanupOrphanedAttachments, preparePoracodeDataRoot } from "./poracodeData";
 import { createLocalIpcHandlers, showAddFilesDialog } from "./ipc/localHandlers";
 import { registerIpcHandlers } from "./ipc/registerHandlers";
@@ -43,7 +43,8 @@ import {
   resolveComputerUseHelperBinaryPath,
 } from "./computer-use";
 import { createAutoUpdaterController } from "./updates/autoUpdater";
-import { showOsNotification } from "./osNotifications";
+import { showOsNotification, showUserNotificationFallback } from "./osNotifications";
+import { sampleElectronAppMetrics } from "./diagnostics/appMetricsSample";
 import { createMainWindow, saveWindowBounds } from "./window/createMainWindow";
 import { createMainWindowCloseLifecycle } from "./window/mainWindowClose";
 import { installMainRendererInvalidation } from "./window/mainRendererInvalidation";
@@ -92,6 +93,7 @@ import { repairLegacyMacAppPath } from "./macAppPathMigration";
 import { shouldUseMockKeychain } from "./mockKeychain";
 import { APP_QUIT_CLEANUP_TIMEOUT_MS, raceWithTimeout } from "./appQuitCleanup";
 import { BackendHostClient } from "./backend/BackendHostClient";
+import { buildDesktopBackendInitialize } from "./backend/desktopBackendInitialize";
 import { BackendStateStore, type ShellStateStore } from "./backend/BackendStateStore";
 import { RendererEventInterestsWiring } from "./backend/rendererEventInterestsWiring";
 import { createRendererEventDispatcher } from "./backend/rendererEventDispatch";
@@ -102,19 +104,28 @@ import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
 import { installProcessStdioErrorHandlers } from "./processStdio";
 import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
-import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
+import { HostDataFence, HostDataFenceInUseError } from "@/backend/ownership/hostDataFence";
+import { HostOwnerLease, HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
 import { resolveDesktopHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import type { HostControlServer } from "@/backend/ownership/HostControlServer";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import {
   buildStandaloneAttachInfoForRenderer,
   createEphemeralShellState,
+  createStandaloneAttachSession,
   decideDeferredStandaloneAttach,
   describeAttachRefusal,
   resolveDesktopBaseDir,
   shouldDeferLeaseForAttachProbe,
   type DeferredAttachProbe,
+  type StandaloneAttachSession,
 } from "./backend/standaloneAttachBootstrap";
 import { registerStandaloneAttachIpc } from "./backend/standaloneAttachIpc";
+import {
+  admitDesktopManagedOwner,
+  probeLegacyOwnerConflict,
+} from "./backend/desktopOwnerAdmission";
+import { startDesktopHostControl } from "./backend/desktopHostControl";
 
 // Electron can remain alive after its launching terminal or dev runner exits.
 // Install this before any startup logging so a detached diagnostic pipe cannot
@@ -193,6 +204,17 @@ let standaloneAttachShellState: ShellStateStore | null = null;
 // capture time so the readiness rethrow keeps its identity under the
 // only-throw-error rule.
 let desktopOwnerAcquisitionError: Error | null = null;
+// Desktop-owner publication of the shared authenticated control surface
+// (discovery + describe). Null in attach mode and before readiness.
+let desktopHostControlServer: HostControlServer | null = null;
+// Attach-session anchor for generation re-verification; null outside attach.
+let standaloneAttachSession: StandaloneAttachSession | null = null;
+// Zero-window (tray/hidden) remote thread commands. The backend mirrors these
+// to the renderer store; with no mounted window they used to be dropped
+// silently while the backend still reported hasRendererWindow:true. Ordered,
+// bounded, flushed in arrival order when a main window next becomes ready.
+const PENDING_THREAD_COMMAND_LIMIT = 64;
+let pendingThreadCommands: RemoteThreadCommand[] = [];
 if (hasSingleInstanceLock) {
   const electronUserDataDir = app.getPath("userData");
   const baseDir = resolveDesktopBaseDir({
@@ -207,14 +229,40 @@ if (hasSingleInstanceLock) {
     deferredStandaloneProbe = { baseDir };
   } else {
     try {
+      // Legacy-owner refusal: a live legacy server with a still-pending data
+      // import refuses BEFORE any acquire — never acquire-and-fight the
+      // importer on the desktop mapping.
+      probeLegacyOwnerConflict({
+        baseDir,
+        channel,
+        electronUserDataDir,
+        ...(legacyElectronUserDataDir ? { legacyElectronUserDataDir } : {}),
+        ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
+        allowCustomDataRoot: app.isPackaged,
+      });
       desktopOwnerLease = HostOwnerLease.acquire(resolveDesktopHostRootPaths(baseDir), "desktop");
+      // Data-custody fence, fast-path single shot: an orphaned backend of a
+      // killed owner still holds it. The bounded wait lives on the deferred
+      // readiness path; a busy fence defers there instead of failing.
+      const fence = HostDataFence.acquire(resolveDesktopHostRootPaths(baseDir).dataFencePath);
+      fence.release();
     } catch (error) {
-      // Normalized so the rethrow at readiness is always an Error with its
-      // identity intact (pre-existing type-aware lint finding at the rethrow).
-      desktopOwnerAcquisitionError = toError(error);
-      console.error("[poracode] failed to acquire the desktop host owner:", error);
+      desktopOwnerLease?.release();
+      desktopOwnerLease = null;
+      if (error instanceof HostRootInUseError || error instanceof HostDataFenceInUseError) {
+        // Another owner may still be quitting or draining: defer to the
+        // readiness path, which re-probes with a bounded wait before the
+        // loud refusal (concurrent-launch UX).
+        console.warn("[poracode] desktop owner is busy; re-probing at startup:", error);
+        deferredStandaloneProbe = { baseDir };
+      } else {
+        // Normalized so the rethrow at readiness is always an Error with its
+        // identity intact (pre-existing type-aware lint finding at the rethrow).
+        desktopOwnerAcquisitionError = toError(error);
+        console.error("[poracode] failed to acquire the desktop host owner:", error);
+      }
     }
-    if (!desktopOwnerAcquisitionError) {
+    if (!desktopOwnerAcquisitionError && !deferredStandaloneProbe) {
       try {
         const result = migrateLegacyDataOutOfProcess({
           baseDir,
@@ -281,7 +329,12 @@ let tray: TrayHandle | null = null;
 let quickComposerShortcutManager: QuickComposerShortcutManager | null = null;
 let isQuitting = false;
 
-const performanceDiagnostics = startNodePerformanceDiagnostics("desktop-main");
+// Rider (Gate 4 plan, folded into this lane): opt-in Electron per-process
+// CPU/memory samples appended to each NDJSON sample line. Purely additive to
+// format v2 (optional new field, sample lines only).
+const performanceDiagnostics = startNodePerformanceDiagnostics("desktop-main", process.env, {
+  sampleAppMetrics: sampleElectronAppMetrics,
+});
 
 function requireBackendStateStore(): BackendStateStore {
   if (!backendStateStore) throw new Error("Backend state projection is not initialized.");
@@ -401,6 +454,25 @@ function flushTrayThreadOpen(): void {
   const threadId = pendingTrayThreadId;
   pendingTrayThreadId = null;
   mainWindow.webContents.send(IPC_EVENT_CHANNELS.threadOpenRequested, { threadId });
+}
+
+/**
+ * Flush remote thread commands that arrived while no renderer window was
+ * mounted. The renderer store applies (and persists) them exactly like live
+ * mirrors; arrival order is preserved. TODO(Lane 1B, BackendDesktopServices):
+ * once the backend applies thread commands DB-direct when it has no renderer
+ * window (its `hasRendererWindow` is currently hardcoded `true`), commands
+ * stop arriving here while zero-window and this queue stays permanently
+ * empty — remove it then.
+ */
+function flushPendingThreadCommands(): void {
+  const window = mainWindow;
+  if (!window || window.isDestroyed() || pendingThreadCommands.length === 0) return;
+  const commands = pendingThreadCommands;
+  pendingThreadCommands = [];
+  for (const command of commands) {
+    window.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, command);
+  }
 }
 
 function ensureMainWindow(showOnReady = true, stateOverride?: ShellStateStore): BrowserWindow {
@@ -736,7 +808,19 @@ async function startStandaloneAttachMode(): Promise<void> {
   });
   registerRemoteHttpBridgeIpc({ supervisor: remoteHttpBridgeSupervisor });
 
-  ipcMain.handle(IPC_WINDOW_CHANNELS.standaloneAttachInfo, () => standaloneAttachInfo);
+  // S1.4: every attach transport (re)establishment — each renderer
+  // (re)bootstrap re-reads this payload — re-runs the authenticated describe
+  // with a generation check before the payload is served again. A stale
+  // generation throws so the renderer boot fails closed (never a local
+  // authority); relaunching re-runs the decision and re-pairs. There is
+  // deliberately no per-request generation pinning: persisted bearers survive
+  // a same-root owner restart by design, and per-request pinning would break
+  // that proven restart continuity.
+  ipcMain.handle(IPC_WINDOW_CHANNELS.standaloneAttachInfo, async () => {
+    if (!standaloneAttachSession) throw new Error("Standalone attach session is not anchored.");
+    await standaloneAttachSession.reverify();
+    return standaloneAttachInfo;
+  });
   ipcMain.handle(IPC_WINDOW_CHANNELS.backendRendererStreamInfo, () => null);
   ipcMain.handle(IPC_WINDOW_CHANNELS.rendererStreamOwnershipGrant, () => null);
 
@@ -893,6 +977,14 @@ if (!hasSingleInstanceLock) {
             dataRoot: outcome.dataRoot,
             controlPaths: outcome.controlPaths,
           });
+          // Re-verification anchor for the whole attach session: every
+          // renderer (re)bootstrap re-runs the authenticated describe with a
+          // generation check before the payload is served again.
+          standaloneAttachSession = createStandaloneAttachSession({
+            controlPaths: outcome.controlPaths,
+            mode: outcome.description.mode,
+            info: standaloneAttachInfo,
+          });
           await startStandaloneAttachMode();
           return;
         }
@@ -907,10 +999,17 @@ if (!hasSingleInstanceLock) {
         }
         const electronUserDataDir = app.getPath("userData");
         try {
-          desktopOwnerLease = HostOwnerLease.acquire(
-            resolveDesktopHostRootPaths(outcome.baseDir),
-            "desktop",
-          );
+          // Full managed admission: legacy-owner refusal, lease with bounded
+          // wait-and-reprobe, then the data-custody fence probe. A genuinely
+          // held root still fails loudly; a concurrently quitting owner wins.
+          desktopOwnerLease = await admitDesktopManagedOwner({
+            baseDir: outcome.baseDir,
+            channel,
+            electronUserDataDir,
+            ...(legacyElectronUserDataDir ? { legacyElectronUserDataDir } : {}),
+            ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
+            allowCustomDataRoot: app.isPackaged,
+          });
         } catch (error) {
           desktopOwnerAcquisitionError = toError(error);
           console.error("[poracode] failed to acquire the desktop host owner:", error);
@@ -1072,16 +1171,12 @@ if (!hasSingleInstanceLock) {
         ...(performanceDiagnostics
           ? { queueDiagnostics: performanceDiagnostics.queueCapture }
           : {}),
-        initialize: {
+        initialize: buildDesktopBackendInitialize({
           baseDir: paths.baseDir,
           dbPath: paths.dbPath,
-          desktop: {
-            channel,
-            settingsPath: paths.settingsPath,
-            ...(process.env.VITE_DEV_SERVER_URL
-              ? { devServerUrl: process.env.VITE_DEV_SERVER_URL }
-              : {}),
-          },
+          channel,
+          settingsPath: paths.settingsPath,
+          devServerUrl: process.env.VITE_DEV_SERVER_URL,
           supervisor: {
             appVersion: app.getVersion(),
             isDev,
@@ -1092,7 +1187,7 @@ if (!hasSingleInstanceLock) {
             secretStorageKey,
             preferUiResponsiveness: true,
           },
-        },
+        }),
         resolveExtraEnv: () => {
           const env: Record<string, string> = {};
           const browserInfo = browserMcpIngress?.getInfo();
@@ -1142,10 +1237,31 @@ if (!hasSingleInstanceLock) {
         onReset: handleBackendReset,
         handleNativeRequest: (request) => {
           switch (request.operation) {
-            case "dispatch-thread-command":
-              if (!mainWindow) return false;
-              mainWindow.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, request.payload);
+            case "dispatch-thread-command": {
+              const window = mainWindow;
+              if (!window || window.isDestroyed() || pendingThreadCommands.length > 0) {
+                // Zero-window (tray/hidden): queue instead of dropping. The
+                // backend currently reports hasRendererWindow:true even with
+                // no window (BackendDesktopServices hardcodes it; Lane 1B
+                // owns that file), so its callers believe delivery happened —
+                // the queue makes that true by flushing on the next ready
+                // window (see flushPendingThreadCommands). Also queue while a
+                // flush is still pending: a command arriving between
+                // window-created and renderer-main-ready must not overtake an
+                // already-queued earlier command.
+                if (pendingThreadCommands.length >= PENDING_THREAD_COMMAND_LIMIT) {
+                  pendingThreadCommands.shift();
+                  captureMainException(
+                    new Error("Overflowed the zero-window remote thread command queue."),
+                    { "poracode.feature_area": "remote-access" },
+                  );
+                }
+                pendingThreadCommands.push(request.payload);
+                return true;
+              }
+              window.webContents.send(IPC_EVENT_CHANNELS.remoteThreadCommand, request.payload);
               return true;
+            }
             case "open-thread":
               openThreadFromTray(request.payload.threadId);
               return true;
@@ -1233,8 +1349,18 @@ if (!hasSingleInstanceLock) {
             case "git-state-changed":
               mainWindow?.webContents.send(IPC_EVENT_CHANNELS.gitStateChanged, event.patch);
               return;
-            case "user-notification":
-              mainWindow?.webContents.send(IPC_EVENT_CHANNELS.userNotification, event.notification);
+            case "user-notification": {
+              const window = mainWindow;
+              if (window && !window.isDestroyed()) {
+                // Renderer surface (localized Web Notification + toast + sound).
+                window.webContents.send(IPC_EVENT_CHANNELS.userNotification, event.notification);
+                return;
+              }
+              // Zero-window desktop fallback: nothing else would show, so main
+              // raises the OS notification itself (click reopens the thread).
+              showUserNotificationFallback(event.notification, () => mainWindow);
+              return;
+            }
           }
         },
         onRendererStreamInfo: (info) => {
@@ -1479,6 +1605,7 @@ if (!hasSingleInstanceLock) {
         if (!window || window !== mainWindow || window.isDestroyed()) return;
         quickComposerLifecycle?.handleMainReady();
         flushTrayThreadOpen();
+        flushPendingThreadCommands();
       });
       ipcMain.handle(IPC_WINDOW_CHANNELS.rendererReload, (event) => {
         const window = BrowserWindow.fromWebContents(event.sender);
@@ -1535,6 +1662,17 @@ if (!hasSingleInstanceLock) {
       await Promise.all([mcpInfoReady, chromeMcpReady, computerUseMcpInfoReady]);
       await backendHost.startSupervisor();
       desktopOwnerLease?.setPhase("ready");
+      if (desktopOwnerLease) {
+        // Desktop-owner publication (S1.1): discovery + authenticated
+        // describe for the shared control surface, leased as kind "desktop".
+        // Disposed in before-quit below; HostControlServer.dispose removes
+        // discovery only after connections and admitted work have joined.
+        desktopHostControlServer = startDesktopHostControl({
+          lease: desktopOwnerLease,
+          reportError: (error) =>
+            captureMainException(error, { "poracode.feature_area": "host-control" }),
+        });
+      }
 
       updatePowerSaveBlocker();
 
@@ -1628,6 +1766,11 @@ if (!hasSingleInstanceLock) {
         sleepInhibitor.dispose();
         tray?.destroy();
         tray = null;
+        // Capture before the join list runs: dispose joins control connections
+        // and admitted work, removes discovery (join-before-remove), and must
+        // complete before will-quit releases the owner lease.
+        const controlToDispose = desktopHostControlServer;
+        desktopHostControlServer = null;
         const finishQuit = async () => {
           windowsJobObjectManager?.dispose();
           windowsJobObjectManager = null;
@@ -1637,6 +1780,7 @@ if (!hasSingleInstanceLock) {
         const cleanup = joinRuntimeShutdown(
           [
             () => ingressDispose,
+            () => controlToDispose?.dispose(),
             () =>
               sshConnectionManager.dispose().catch((error) => {
                 captureMainException(error, { "poracode.feature_area": "ssh" });

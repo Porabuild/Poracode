@@ -44,6 +44,7 @@ import {
   writeTerminalPayloadSchema,
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
+import { SettingsWriteRefusedError } from "@/backend/settings/settingsCompatWrites";
 import { dbTruncateRuntimeItemsPayloadSchema } from "@/shared/ipc/schemas";
 import {
   projectNotesWriteBodySchema,
@@ -697,7 +698,19 @@ export async function handleHttp(
     if (req.method === "POST" && url.pathname === "/api/settings") {
       ctx.security.requireBearer(req, ["session:operate"]);
       const patch = remoteSettingsPatchSchema.parse(await readJsonBody(req));
-      writeJson(res, 200, { settings: ctx.requireSettingsGateway().update(patch) });
+      try {
+        writeJson(res, 200, { settings: await ctx.requireSettingsGateway().update(patch) });
+      } catch (error) {
+        // Authority conflict/overload is conflict-explicit on the wire, never a
+        // 500: the write did not commit and the client may retry it as-is.
+        if (error instanceof SettingsWriteRefusedError) {
+          if (error.kind === "conflict") {
+            throw new RemoteHttpError("settings_conflict", error.message, 409);
+          }
+          throw new RemoteHttpError("settings_overloaded", error.message, 429);
+        }
+        throw error;
+      }
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/settings/mcp-servers") {

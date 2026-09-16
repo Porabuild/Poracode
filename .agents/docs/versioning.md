@@ -57,6 +57,44 @@ file. Existing migrations run over validated values while retaining unknown
 fields and ciphertext on disk. The first authority commit persists that
 canonical document and adds the marker. Public snapshots omit unknown fields.
 
+**Activation status (Gates 2–3 batch 1, lane 1B):** one `SettingsAuthority` per
+composition is now the only settings writer for its process. The desktop
+backend (`BackendSettingsService.createBackendSettingsAccess`) and the headless
+composition (`src/server/headlessSettingsAuthority.ts`) both open the authority
+against the leased root; `setSharedSettings`, the app-controls settings write,
+the remote `POST /api/settings` patch, and the durable routing edits commit
+through it as scoped compare-and-swap edits. Whole-snapshot compat writes are
+diffed against the committed state with `mergeManagedSharedSettings` pinning,
+so an old renderer or tool payload can no longer clobber another writer's
+fields; a same-subject race loses after the bounded rebase
+(`SETTINGS_WRITE_REBASE_ATTEMPTS`) instead of overwriting whole-document.
+Desktop lease custody is a process-lifetime adapter until the
+HostOwnerController unification (Gate 2.5); its credential-persistence guard is
+therefore an explicit always-persistent assertion, while the headless
+composition passes the real `assertCanPersistSecrets` capability, completing
+the settings half of the HOST_OWNERSHIP.md writer obligation.
+
+**Frozen-out writer, integrated at the correction pass:** the desktop remote
+access controller was still patching `settings.json` directly
+(`DesktopRemoteAccessController.ts` `writeSharedSettingsPatch` /
+`writeRemoteAccessEnabledSetting`) when the batch freeze landed mid-batch, so
+an authority commit and a remote-access toggle were last-writer-wins between
+two writers instead of one custody chain. That interim state is closed: the
+controller's remote `POST /api/settings` patch and the remote-access toggles
+(`remoteAccessEnabled`, `remoteAccessTailscaleHttps`,
+`remoteAccessAdvertisedUrl`) now commit through the composition's
+`settingsWrites.commitCompatPatch` / `editSettingsField` scoped compare-and-swap
+edits, so every desktop writer shares one authority chain.
+
+**Device-local (client-only) preferences are declared out of the shared
+authority on purpose:** keybindings (`src/shared/keybindings.ts` /
+`src/main/keybindingsFile.ts`), login-item and OS-global-shortcut state
+(Electron main, per device), and the reserved `R.client-v1` Electron device
+root are per-device files that never ride `settings.json` or the settings
+transaction protocol. They have no revisions, no authority, and no remote
+sync contract; moving any of them into shared settings would be a new
+versioned feature, not a default.
+
 `src/shared/settingsTransactions.ts` defines transaction vocabulary version 1
 and subject content revisions prefixed `s1:`. Revisions express content equality,
 not event ordering; an authority UUID invalidates revisions across owner
@@ -74,17 +112,24 @@ The inactive authority has explicit initial ceilings of 128 pending transactions
 request. These are admission bounds, not measured throughput budgets. Oversized
 or full-queue requests return an overload outcome; they do not join the queue or
 implicitly repeat. Parse failures and every settlement path release capacity.
+With activation these ceilings now bound the live desktop and headless write
+paths, including compat translations of whole-snapshot writes.
 
 Serialized commits sync a unique temporary file before rename, then
 attempt directory sync. A directory-sync error reports separately from the
 already committed result. Process-crash tests do not establish power-loss
 durability or exactly-once request receipts.
 
-This foundation is not connected to the live writers yet. Activation must remove
-every old settings writer, finish leased-root import/key preparation first, and
-coordinate the backend-host, renderer-stream, remote/native and supervisor
-reverse-service fences. Current live wire versions remain unchanged until that
-composition is complete; native release and full F2/Phase 1 gates remain open.
+The transaction vocabulary is served by two additive main-local procedures,
+`settingsTransactionMutate` and `settingsTransactionSnapshot`
+(`src/shared/ipc/procedures/settings.ts`), dispatched through the backend
+service-call boundary to the composition's `SettingsCommandService` in both
+compositions. They are additive within the current wire generations: an older
+renderer never calls them and an older backend loud-rejects the unknown
+procedure name. Remaining activation work keeps its recorded coordination
+requirements: usage-secret custody (Gate 2.5) and the native release gates
+remain open; the desktop remote-access writer above was the last settings
+writer outside the authority and is integrated as of the correction pass.
 
 ## Wire protocols and deployed artifacts
 
@@ -157,15 +202,16 @@ wiring remains pending. [Host ownership](../../docs/HOST_OWNERSHIP.md) describes
 the active headless mapping, credential/import refusals and shutdown obligations.
 Audit these separate identities together before changing their meaning:
 
-| Boundary                   | Current version/source                                                                     | Compatibility requirement                                                                                                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Owned root layout          | `HOST_ROOT_LAYOUT_VERSION = 1`, `hostRootPaths.ts` / `hostRootManifest.ts`                 | Map the original namespace once to its sibling; reject unknown layouts and staged activation.                                                                              |
-| Permanent lease / metadata | SQLite `user_version = 1` / owner format 1, `hostOwnerLease.ts`                            | Never replace an unknown lease; PID metadata is informational. Keep strong lease retention and the unmanaged-descriptor prohibition.                                       |
-| Credential provenance      | `HOST_CREDENTIAL_STATE_VERSION = 1`, `hostCredentialState.ts`                              | Root, mode and fingerprint must match; malformed or cross-mode state never rotates silently.                                                                               |
-| Offline import receipt     | `HOST_IMPORT_RECEIPT_VERSION = 1`, `stageHostImport.ts`                                    | Imported state requires activation and later inventory revalidation; ephemeral control discovery is excluded.                                                              |
-| Local management wire      | `HOST_CONTROL_PROTOCOL_VERSION = 1`, `hostControlProtocol.ts`                              | Closed operations, generation-bound HMAC request/response proofs; no bearer or PID-signal fallback.                                                                        |
-| Private control discovery  | `HOST_CONTROL_DISCOVERY_VERSION = 1`, `hostControlProtocol.ts` / `hostControlDiscovery.ts` | Bounded private file, exact namespace/root/generation, authenticated running peer.                                                                                         |
-| SSH deployment manifest    | `SSH_RUNTIME_MANIFEST_VERSION = 3`, `sshRuntimeManifest.ts`                                | Refuse predecessor manifests 1/2 for the changed owner/pair command. Settings preflight reserves 4; the combined deployment must use fresh 5 and validate warm caches too. |
+| Boundary                   | Current version/source                                                                                                | Compatibility requirement                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Owned root layout          | `HOST_ROOT_LAYOUT_VERSION = 1`, `hostRootPaths.ts` / `hostRootManifest.ts`                                            | Map the original namespace once to its sibling; reject unknown layouts and staged activation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Permanent lease / metadata | SQLite `user_version = 1` / owner format 1, `hostOwnerLease.ts`                                                       | Never replace an unknown lease; PID metadata is informational. Keep strong lease retention and the unmanaged-descriptor prohibition.                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Data-custody fence         | SQLite `user_version = 1` / fence format 1, `hostDataFence.ts` (`<namespace>.host-data.sqlite`, lease-family sibling) | New in Gates 2-3 Batch 1: the forked desktop backend child holds it for its lifetime (acquired before SQLite opens, released after it closes); owner admission probes it with a bounded wait. Old binaries never acquire it — an orphan from a pre-upgrade owner is undetectable by the fence and remains the documented legacy-contention case. No migration: an absent file is created fresh; an unknown future `user_version` is refused, never replaced. Desktop-only wiring today; the headless composition owns its database in-process and omits the fence. |
+| Credential provenance      | `HOST_CREDENTIAL_STATE_VERSION = 1`, `hostCredentialState.ts`                                                         | Root, mode and fingerprint must match; malformed or cross-mode state never rotates silently.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Offline import receipt     | `HOST_IMPORT_RECEIPT_VERSION = 1`, `stageHostImport.ts`                                                               | Imported state requires activation and later inventory revalidation; ephemeral control discovery is excluded.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Local management wire      | `HOST_CONTROL_PROTOCOL_VERSION = 1`, `hostControlProtocol.ts`                                                         | Closed operations, generation-bound HMAC request/response proofs; no bearer or PID-signal fallback.                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Private control discovery  | `HOST_CONTROL_DISCOVERY_VERSION = 1`, `hostControlProtocol.ts` / `hostControlDiscovery.ts`                            | Bounded private file, exact namespace/root/generation, authenticated running peer.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| SSH deployment manifest    | `SSH_RUNTIME_MANIFEST_VERSION = 3`, `sshRuntimeManifest.ts`                                                           | Refuse predecessor manifests 1/2 for the changed owner/pair command. Settings preflight reserves 4; the combined deployment must use fresh 5 and validate warm caches too.                                                                                                                                                                                                                                                                                                                                                                                         |
 
 Only the kernel lease grants ownership. Never open an existing leased SQLite
 inode through an unmanaged descriptor in its owning process: closing it can
@@ -196,6 +242,18 @@ full-body main-process HTTP path, so the facade gate must reject the pairing
 loudly rather than fall back to buffering every remote response through main.
 Browser runtimes use the same local facade version; this desktop boundary does
 not change the remote wire, backend-host protocol, or persisted state.
+
+Facade 12 is the settings-authority procedure boundary (Gates 2–3 batch 1): the
+renderer procedure map gains the additive main-local procedures
+`settingsTransactionMutate` and `settingsTransactionSnapshot`. The preload
+invoke surface is generic (`invokeProcedure`) and exposes no new API, but the
+renderer bundle, the main handler map, and the preload must agree on the
+procedure map in lockstep, so the facade gate rejects a version-11 preload
+instead of letting an older bundle disagree about which settings procedures
+exist (the pre-upgrade rejection is regression-covered in
+`src/renderer/clientRuntime.test.ts`, old-version list including 11). No
+persisted state, remote wire, or backend-host version changes for this bump;
+the new procedures are additive names inside the existing envelopes.
 
 ## Off-main remote HTTP bridge contract (facade 11 / bridge frame set 2)
 

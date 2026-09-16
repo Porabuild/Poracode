@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { RemoteGitSummaries } from "@/shared/remote";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
+import type { SettingsMutationResult } from "@/shared/settingsTransactions";
 import type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "./RemoteAccessServer";
 import type { TailscaleStatus } from "./tailscale";
 
@@ -42,9 +43,29 @@ interface FakePushCoordinator {
 
 const h = vi.hoisted(() => ({
   settings: null as unknown as SharedSettings,
-  settingsPatches: [] as Array<Partial<SharedSettings>>,
+  settingsPatches: [] as Array<{
+    [K in keyof SharedSettings]?: SharedSettings[K] | undefined;
+  }>,
   readSettings: vi.fn<(path: string) => SharedSettings>(),
-  patchSettings: vi.fn<(path: string, patch: Partial<SharedSettings>) => SharedSettings>(),
+  patchSettings:
+    vi.fn<
+      (
+        path: string,
+        patch: { [K in keyof SharedSettings]?: SharedSettings[K] | undefined },
+      ) => SharedSettings
+    >(),
+  commitCompatPatch: vi.fn<
+    (patch: {
+      [K in keyof SharedSettings]?: SharedSettings[K] | undefined;
+    }) => Promise<SharedSettings>
+  >(),
+  editSettingsField:
+    vi.fn<
+      <F extends keyof SharedSettings>(
+        field: F,
+        compute: (current: SharedSettings) => SharedSettings[F] | undefined,
+      ) => Promise<SettingsMutationResult>
+    >(),
   getProjects: vi.fn<() => unknown[]>(() => []),
   updateProject: vi.fn<(project: unknown) => void>(),
   getThreads: vi.fn<() => unknown[]>(() => []),
@@ -195,6 +216,27 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve, reject };
 }
 
+function committedResult(): SettingsMutationResult {
+  return {
+    status: "committed",
+    authorityId: "00000000-0000-4000-8000-000000000000",
+    sequence: 0,
+    changes: [],
+    revisions: {},
+  };
+}
+
+function conflictResult(): SettingsMutationResult {
+  return {
+    status: "conflict",
+    authorityId: "00000000-0000-4000-8000-000000000000",
+    sequence: 0,
+    reason: "revision-changed",
+    current: [],
+    revisions: {},
+  };
+}
+
 function waitForNextServerCreated(): Promise<FakeServer> {
   return new Promise((resolve) => h.serverCreatedWaiters.push(resolve));
 }
@@ -241,8 +283,10 @@ function createController(
       () => true,
     ),
     getBrowserPanelManager: () => null,
-    notifySharedSettingsChanged:
-      vi.fn<DesktopRemoteAccessControllerOptions["notifySharedSettingsChanged"]>(),
+    settingsWrites: {
+      commitCompatPatch: (patch) => h.commitCompatPatch(patch),
+      editSettingsField: (field, compute) => h.editSettingsField(field, compute),
+    },
     notifyRemoteAccessPairingChanged:
       notifyRemoteAccessPairingChanged ??
       vi.fn<DesktopRemoteAccessControllerOptions["notifyRemoteAccessPairingChanged"]>(),
@@ -292,8 +336,25 @@ describe("DesktopRemoteAccessController", () => {
     h.readSettings.mockImplementation(() => h.settings);
     h.patchSettings.mockImplementation((_path, patch) => {
       h.settingsPatches.push(patch);
-      h.settings = { ...h.settings, ...patch };
+      const merged = { ...h.settings } as Record<string, unknown>;
+      for (const [key, value] of Object.entries(patch)) {
+        if (value !== undefined) merged[key] = value;
+      }
+      h.settings = merged as SharedSettings;
       return h.settings;
+    });
+    // The compat-write seam defaults to the same in-memory merge the former
+    // patchSharedSettingsFile mock provided, so existing patch assertions keep
+    // observing every committed patch.
+    h.commitCompatPatch.mockImplementation(async (patch) =>
+      h.patchSettings("/tmp/poracode-controller-test/settings.json", patch),
+    );
+    h.editSettingsField.mockImplementation(async (field, compute) => {
+      const next = compute(h.settings);
+      const record = h.settings as Record<string, unknown>;
+      if (next === undefined) delete record[field];
+      else record[field] = next;
+      return committedResult();
     });
     h.probeTailscaleStatus.mockResolvedValue({ state: "not-running" });
     h.enableTailscaleServe.mockResolvedValue({ ok: true });
@@ -580,6 +641,8 @@ describe("DesktopRemoteAccessController", () => {
     await controller.setEnabled(true);
 
     const changing = controller.setAdvertisedUrl(" https://code.example.com/ ");
+    // The compat patch commits asynchronously before the restart begins.
+    await new Promise((resolve) => setImmediate(resolve));
     expect(h.servers[0]?.dispose).toHaveBeenCalledTimes(1);
     expect(h.servers).toHaveLength(1);
     expect(h.forwardings).toHaveLength(1);
@@ -606,12 +669,153 @@ describe("DesktopRemoteAccessController", () => {
 
     await expect(changing).rejects.toThrow("replacement failed");
     expect(h.settings.remoteAccessAdvertisedUrl).toBe("https://old.example.com");
+    // Only the forward set flows through the patch seam; the rollback is a
+    // scoped CAS field edit (see the concurrency tests below).
     expect(
       h.settingsPatches
         .map((patch) => patch.remoteAccessAdvertisedUrl)
         .filter((value) => value !== undefined),
-    ).toEqual(["https://new.example.com", "https://old.example.com"]);
+    ).toEqual(["https://new.example.com"]);
     expect(h.forwardings[0]?.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails a remote-access enable explicitly when the settings authority conflicts", async () => {
+    const controller = createController();
+    h.commitCompatPatch.mockRejectedValueOnce(
+      new Error(
+        "settings patch conflicted with concurrent changes (revision-changed) and was not applied.",
+      ),
+    );
+
+    await expect(controller.setEnabled(true)).rejects.toThrow("conflicted with concurrent changes");
+    expect(h.servers).toHaveLength(0);
+    expect(h.settingsPatches).toEqual([]);
+    expect(h.settings.remoteAccessEnabled).toBe(false);
+  });
+
+  it("fails a remote-access disable explicitly instead of clobbering the flag", async () => {
+    const controller = createController();
+    await controller.setEnabled(true);
+    h.commitCompatPatch.mockRejectedValueOnce(
+      new Error(
+        "settings patch conflicted with concurrent changes (revision-changed) and was not applied.",
+      ),
+    );
+
+    await expect(controller.setEnabled(false)).rejects.toThrow(
+      "conflicted with concurrent changes",
+    );
+    // The persisted flag is untouched, so a later boot still restores access.
+    expect(h.settings.remoteAccessEnabled).toBe(true);
+    expect(controller.getServer()).not.toBeNull();
+  });
+
+  it("surfaces a settings conflict from setTailscaleHttps without restarting the server", async () => {
+    const controller = createController();
+    await controller.setEnabled(true);
+    h.commitCompatPatch.mockRejectedValueOnce(
+      new Error(
+        "settings patch conflicted with concurrent changes (revision-changed) and was not applied.",
+      ),
+    );
+
+    await expect(controller.setTailscaleHttps(true)).rejects.toThrow(
+      "conflicted with concurrent changes",
+    );
+    expect(h.servers).toHaveLength(1);
+    expect(h.settings.remoteAccessTailscaleHttps).toBe(false);
+  });
+
+  it("rolls back tailscale HTTPS through a CAS edit when the replacement server fails", async () => {
+    h.settings.remoteAccessTailscaleHttps = true;
+    const replacementStart = deferred<RemoteAccessServerInfo>();
+    h.serverPlans.push({}, { startPromise: replacementStart.promise });
+    const controller = createController();
+    await controller.setEnabled(true);
+
+    const replacementCreated = waitForNextServerCreated();
+    const changing = controller.setTailscaleHttps(false);
+    await replacementCreated;
+    replacementStart.reject(new Error("replacement failed"));
+
+    await expect(changing).rejects.toThrow("replacement failed");
+    expect(h.editSettingsField).toHaveBeenCalledWith(
+      "remoteAccessTailscaleHttps",
+      expect.any(Function),
+    );
+    expect(h.settings.remoteAccessTailscaleHttps).toBe(true);
+  });
+
+  it("keeps a concurrent advertised-URL writer that a stale revert would clobber", async () => {
+    h.settings.remoteAccessAdvertisedUrl = "https://old.example.com";
+    const replacementStart = deferred<RemoteAccessServerInfo>();
+    h.serverPlans.push({}, { startPromise: replacementStart.promise });
+    const controller = createController();
+    await controller.setEnabled(true);
+
+    const replacementCreated = waitForNextServerCreated();
+    const changing = controller.setAdvertisedUrl("https://new.example.com");
+    await replacementCreated;
+    replacementStart.reject(new Error("replacement failed"));
+    // The revert's CAS sees a third value committed by a concurrent writer:
+    // neither ours (`new`) nor the stale `previous` may overwrite it.
+    h.editSettingsField.mockImplementationOnce(async (field, compute) => {
+      h.settings.remoteAccessAdvertisedUrl = "https://someone-else.example.com";
+      const next = compute(h.settings);
+      (h.settings as Record<string, unknown>)[field] = next;
+      return committedResult();
+    });
+
+    await expect(changing).rejects.toThrow("replacement failed");
+    expect(h.settings.remoteAccessAdvertisedUrl).toBe("https://someone-else.example.com");
+  });
+
+  it("rejects a remote settings patch that loses the authority race", async () => {
+    const controller = createController();
+    await controller.setEnabled(true);
+    h.commitCompatPatch.mockRejectedValueOnce(
+      new Error(
+        "settings patch conflicted with concurrent changes (revision-changed) and was not applied.",
+      ),
+    );
+
+    const update = h.servers[0]!.options.settings!.update;
+    await expect(update({ searchUseIgnoreFiles: true })).rejects.toThrow(
+      "conflicted with concurrent changes",
+    );
+  });
+
+  it("reports a surviving global MCP server conflict instead of writing over it", async () => {
+    const reportError = vi.fn<DesktopRemoteAccessControllerOptions["reportError"]>();
+    const controller = createController(undefined, "stable", undefined, reportError);
+    await controller.setEnabled(true);
+    h.editSettingsField.mockResolvedValueOnce(conflictResult());
+
+    const result = h.servers[0]!.options.settings!.commandMcpServers({
+      kind: "upsert",
+      scope: { kind: "global" },
+      server: {
+        id: "global-1",
+        name: "private_api",
+        description: "Private API",
+        enabled: true,
+        timeoutMs: 30_000,
+        transport: {
+          type: "http",
+          url: "https://example.test/mcp",
+          headers: { Authorization: "Bearer header-secret" },
+        },
+      },
+    });
+
+    expect(h.editSettingsField).toHaveBeenCalledWith("mcpServers", expect.any(Function));
+    expect(result.servers).toEqual([]);
+    // The conflict report is fire-and-forget.
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("not committed") }),
+      { "poracode.feature_area": "remote-access" },
+    );
   });
 
   it("fans supervisor events to the current server and push coordinator", async () => {

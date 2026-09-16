@@ -13,6 +13,14 @@ import {
   type SharedSettings,
   type SharedSettingsInput,
 } from "../../settings";
+import {
+  settingsMutationResultSchema,
+  settingsMutationSchema,
+  settingsSnapshotSchema,
+  type SettingsMutation,
+  type SettingsMutationResult,
+  type SettingsSnapshot,
+} from "../../settingsTransactions";
 import { defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
   windowChromePayloadSchema,
@@ -29,6 +37,28 @@ export const settingsProcedures = {
     "setSharedSettings",
     "main-local",
     z.custom<SharedSettingsInput>(),
+  ),
+  // Authority-native transaction surface. `settingsTransactionMutate` applies
+  // revision-checked scoped edits (stale revisions return an explicit conflict,
+  // never a silent last-writer-wins overwrite); `settingsTransactionSnapshot`
+  // returns the committed document with per-subject revisions. Both are served
+  // by the composition's `SettingsCommandService` in desktop and headless
+  // hosts. `setSharedSettings` remains as the compat adapter for clients that
+  // still speak whole snapshots.
+  settingsTransactionMutate: definePayloadProcedure<
+    SettingsMutation,
+    SettingsMutationResult,
+    "main-local"
+  >(
+    "settingsTransactionMutate",
+    "main-local",
+    settingsMutationSchema,
+    settingsMutationResultSchema,
+  ),
+  settingsTransactionSnapshot: defineNoArgProcedure<SettingsSnapshot, "main-local">(
+    "settingsTransactionSnapshot",
+    "main-local",
+    settingsSnapshotSchema,
   ),
   setAgentSecretSetting: definePayloadProcedure<
     { agentKind: string; key: string; value: string },

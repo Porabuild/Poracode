@@ -37,7 +37,7 @@ describe("client runtime", () => {
     Reflect.deleteProperty(window, "poracodeHost");
   });
 
-  it.each([undefined, 6, 7, 8, 9, 10])(
+  it.each([undefined, 6, 7, 8, 9, 10, 11])(
     "refuses an old preload host version %s before creating its transport",
     (version) => {
       const host = {

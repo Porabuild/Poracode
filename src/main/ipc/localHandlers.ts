@@ -278,6 +278,8 @@ export function createLocalIpcHandlers(
     },
     getSharedSettings: () => callService("getSharedSettings", {}),
     setSharedSettings: (settings) => callService("setSharedSettings", settings),
+    settingsTransactionMutate: (payload) => callService("settingsTransactionMutate", payload),
+    settingsTransactionSnapshot: () => callService("settingsTransactionSnapshot", {}),
     setAgentSecretSetting: (payload) => callService("setAgentSecretSetting", payload),
     removeCrossagentRoutingOverride: (payload) =>
       callService("removeCrossagentRoutingOverride", payload),

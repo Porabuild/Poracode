@@ -28,6 +28,18 @@ export interface HostOwnerRecord {
 
 /** Discovery metadata is informational. Only acquiring the kernel lease proves ownership. */
 export function readHostOwnerRecord(paths: HostRootPaths): HostOwnerRecord | null {
+  return parseOwnerRecord(paths, true);
+}
+
+/**
+ * Both root mappings share one owner-record file, so a refusal raised from the
+ * other mapping's paths must still find the holder's kind for guidance. Only
+ * the `dataRoot` match is relaxed; every other validation is identical.
+ */
+function parseOwnerRecord(
+  paths: HostRootPaths,
+  requireMatchingDataRoot: boolean,
+): HostOwnerRecord | null {
   try {
     const metadata = lstatSync(paths.ownerRecordPath);
     if (!metadata.isFile() || metadata.size > MAX_OWNER_RECORD_BYTES) return null;
@@ -37,7 +49,7 @@ export function readHostOwnerRecord(paths: HostRootPaths): HostOwnerRecord | nul
     if (
       record.formatVersion !== HOST_OWNER_RECORD_VERSION ||
       record.profileNamespace !== paths.profileNamespace ||
-      record.dataRoot !== paths.dataRoot ||
+      (requireMatchingDataRoot && record.dataRoot !== paths.dataRoot) ||
       typeof record.generation !== "string" ||
       !record.generation ||
       !Number.isSafeInteger(record.pid) ||
@@ -60,9 +72,20 @@ export class HostRootInUseError extends Error {
     readonly paths: HostRootPaths,
     readonly owner: HostOwnerRecord | null,
   ) {
+    // Guidance matches the holder's kind: a headless owner is something a
+    // client attaches to, a desktop owner is another app window the user
+    // quits. The record is read mapping-tolerantly because the refusing
+    // mapping may be the opposite one.
+    const kind = owner?.kind ?? parseOwnerRecord(paths, false)?.kind ?? null;
+    const guidance =
+      kind === "desktop"
+        ? "Quit the running Poracode app that owns this profile before starting another owner"
+        : kind === "headless"
+          ? "Connect to the running Poracode host, or stop it, before starting another owner"
+          : "Stop the running owner before starting another owner";
     super(
-      `Poracode already owns ${paths.dataRoot}. Connect to the running host or stop it before ` +
-        "starting another owner; use a different PORACODE_BASE_DIR for a separate profile.",
+      `Poracode already owns ${paths.dataRoot}. ${guidance}; ` +
+        "use a different PORACODE_BASE_DIR for a separate profile.",
     );
     this.name = "HostRootInUseError";
   }

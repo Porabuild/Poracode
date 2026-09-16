@@ -108,6 +108,10 @@ describe("host profile namespace", () => {
     expect(desktop.dataRoot).toBe(profile);
     expect(desktop.leasePath).toBe(headless.leasePath);
     expect(desktop.ownerRecordPath).toBe(headless.ownerRecordPath);
+    // The data-custody fence is lease-family: one file excludes writers of
+    // both mappings on the same namespace.
+    expect(desktop.dataFencePath).toBe(headless.dataFencePath);
+    expect(desktop.dataFencePath).toBe(`${profile}.host-data.sqlite`);
   });
 
   it("rejects relative namespaces, filesystem roots and accidental owned-root nesting", () => {
@@ -264,6 +268,24 @@ describe("host owner kernel lease", () => {
     expect(() => second.assertActive(first.generation)).toThrow(/no longer active/u);
     expect(readHostOwnerRecord(second.paths)?.generation).toBe(second.generation);
     expect(() => own(profile)).toThrow(HostRootInUseError);
+  });
+
+  it("guides the user by owner kind when the root is in use", () => {
+    const profile = namespace();
+    ownDesktopProfile(profile);
+    // Desktop owner: another app window to quit, not a host to attach to.
+    expect(() => own(profile, "headless")).toThrow(/Quit the running Poracode app/u);
+    for (const lease of leases.splice(0)) lease.release();
+    own(profile, "headless");
+    // Headless owner: point the user at connecting to or stopping the host.
+    let error: unknown = null;
+    try {
+      ownDesktopProfile(profile);
+    } catch (caught) {
+      error = caught;
+    }
+    expect(error).toBeInstanceOf(HostRootInUseError);
+    expect((error as HostRootInUseError).message).toMatch(/Connect to the running Poracode host/u);
   });
 
   it("keeps its kernel lock after a duplicate acquisition in the same process", async () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defaultSharedSettings } from "@/shared/settings";
 import { decodeSettingsDocument } from "./settingsDocument";
 
 describe("settings document migration", () => {
@@ -63,5 +64,19 @@ describe("settings document migration", () => {
       '"__proto__":{"futureTransport":true}',
     );
     expect(JSON.stringify(document.settings)).not.toContain("future");
+  });
+
+  it("round-trips a written delta-map record instead of merging the default keys into it", () => {
+    // A whole-field replacement (a remote `POST /api/settings` burst write) must
+    // read back as the issued value: decode must not key-fill the default
+    // exclusions into a stored record, or the settings CAS persists a chimera.
+    const written = { "n2-burst-c01-1789545605159": true };
+    const document = decodeSettingsDocument({ searchExclude: written });
+    expect(document.settings.searchExclude).toEqual(written);
+    expect(document.raw.searchExclude).toEqual(written);
+
+    // Absence still fills the whole default map.
+    const absent = decodeSettingsDocument({});
+    expect(absent.settings.searchExclude).toEqual(defaultSharedSettings.searchExclude);
   });
 });

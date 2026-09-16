@@ -17,7 +17,7 @@ import {
   getProfileTokenStats,
   setProfileIdentityResponse,
 } from "@/main/profile";
-import { readSharedSettingsFile, writeSharedSettingsFile } from "@/main/sharedSettingsFile";
+import { readSharedSettingsFile } from "@/main/sharedSettingsFile";
 import { readOrCreateRemoteAccessIdentity } from "@/main/remote/identity";
 import { requestLegacyDataMigration } from "@/main/legacyDataMigration";
 import { isThreadTurnActive, type RemoteThreadCommand } from "@/shared/contracts";
@@ -38,11 +38,8 @@ import { BackendDurableServices } from "./BackendDurableServices";
 import { BackendRemoteBrowserProxy } from "./BackendRemoteBrowserProxy";
 import { generateBackendImagePreview } from "./BackendImagePreview";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
-import { createBackendSettingsHandlers } from "./BackendSettingsService";
-import {
-  notifySettingsChanged,
-  type BackendSettingsNotifications,
-} from "./BackendSettingsNotifications";
+import { createBackendSettingsAccess, type BackendSettingsAccess } from "./BackendSettingsService";
+import { type BackendSettingsNotifications } from "./BackendSettingsNotifications";
 
 export interface BackendDesktopServicesOptions {
   initialize: BackendHostInitializePayload;
@@ -83,7 +80,7 @@ export class BackendDesktopServices {
   private readonly remote: DesktopRemoteAccessController | null;
   private readonly browser: BackendRemoteBrowserProxy;
   private readonly stopProjectionWatch: () => void;
-  private readonly settings: ReturnType<typeof createBackendSettingsHandlers>;
+  private readonly settings: BackendSettingsAccess;
   private updateStatus: RemoteHostUpdateStatus | null = null;
 
   constructor(private readonly options: BackendDesktopServicesOptions) {
@@ -95,7 +92,7 @@ export class BackendDesktopServices {
         options.emitNativeEvent({ type: "shared-settings-changed", settings }),
       reportError: options.reportError,
     };
-    this.settings = createBackendSettingsHandlers({
+    this.settings = createBackendSettingsAccess({
       settingsPath: () => {
         if (!desktop) throw new Error("Desktop services are not configured.");
         return desktop.settingsPath;
@@ -137,9 +134,18 @@ export class BackendDesktopServices {
       publishProjectsChanged,
       writeSharedSettings: (next) => {
         if (!desktop) return;
-        writeSharedSettingsFile(desktop.settingsPath, next);
-        notifySettingsChanged(next, settingsNotifications);
+        // Routed through the settings authority as scoped CAS edits; the
+        // committed broadcast happens from the authority's onCommitted hook.
+        this.settings.writeSharedSettingsCompat(next);
       },
+      editSettingsField: (field, compute) => this.settings.editSettingsField(field, compute),
+      // TODO(Gates 2-3 Batch 1, Lane 1B — S2.1): this is hardcoded `true`, so
+      // app-controls reports a renderer window even in tray/hidden mode and
+      // callers believe zero-window thread-command mirrors were delivered.
+      // Main now queues those commands until a window is ready
+      // (flushPendingThreadCommands) as the interim fix; when this becomes a
+      // real window signal (and/or the backend applies commands DB-direct
+      // zero-window), main's queue can be removed.
       hasRendererWindow: true,
       openThreadInUi: (threadId) => {
         // Fire-and-forget: the durable side only needs the acknowledgment.
@@ -228,8 +234,13 @@ export class BackendDesktopServices {
           },
           dispatchThreadCommand,
           browser: this.browser,
-          notifySharedSettingsChanged: (settings) =>
-            options.emitNativeEvent({ type: "shared-settings-changed", settings }),
+          // The controller's settings patches commit through the same authority
+          // as every other writer; the committed broadcast happens in the
+          // authority's onCommitted hook.
+          settingsWrites: {
+            commitCompatPatch: (patch) => this.settings.commitCompatPatch(patch),
+            editSettingsField: (field, compute) => this.settings.editSettingsField(field, compute),
+          },
           notifyRemoteAccessPairingChanged: (info) =>
             options.emitNativeEvent({ type: "remote-access-pairing-changed", info }),
           notifyProjectStateChanged: (projects) =>
@@ -368,15 +379,18 @@ export class BackendDesktopServices {
     switch (name) {
       case "getSharedSettings":
       case "setSharedSettings":
+      case "settingsTransactionMutate":
+      case "settingsTransactionSnapshot":
       case "setAgentSecretSetting":
       case "removeCrossagentRoutingOverride":
       case "removeCrossagentMemoryEntry":
       case "updateCrossagentMemoryEntryTags":
       case "setProfileEnvironment":
       case "createProfile":
-        return this.settings[name as BackendSettingsProcedureName](
+        return this.settings.call(
+          name as BackendSettingsProcedureName,
           payload as never,
-        ) as BackendServiceResult<Name>;
+        ) as unknown as BackendServiceResult<Name>;
       case "getRemoteAccessPairing":
         return getRemoteAccessPairingInfo(
           this.remote?.getServer() ?? null,
@@ -480,6 +494,8 @@ export class BackendDesktopServices {
         () => this.durable.dispose(),
         () => this.browser.dispose(),
         () => this.remote?.dispose(),
+        // Drains any queued authority commit before the process closes the file.
+        () => this.settings.dispose(),
       ],
       "Backend desktop services did not shut down cleanly.",
     ).then(barrier.resolve, barrier.reject);
