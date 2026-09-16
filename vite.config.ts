@@ -10,13 +10,13 @@ const compilerPreset = reactCompilerPreset();
 const linguiPreset = linguiTransformerBabelPreset();
 const CLIENT_SOURCE_RE = /[\\/]src[\\/]renderer[\\/].*\.[tj]sx?(?:$|\?)/;
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
-const MATERIAL_ICON_DIR = resolve(__dirname, "node_modules/material-icon-theme/icons");
+const MATERIAL_ICON_DIR = resolve(import.meta.dirname, "node_modules/material-icon-theme/icons");
 const MATERIAL_ICON_ASSET_PREFIX = "/assets/material-icons/";
-const MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(__dirname, ".poracode/worktrees"))}/**`;
-const LEGACY_MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(__dirname, ".lightcode/worktrees"))}/**`;
-const ELECTRON_OUTPUT_GLOB = `${normalizePath(resolve(__dirname, "dist/main"))}/**`;
+const MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(import.meta.dirname, ".poracode/worktrees"))}/**`;
+const LEGACY_MANAGED_WORKTREES_GLOB = `${normalizePath(resolve(import.meta.dirname, ".lightcode/worktrees"))}/**`;
+const ELECTRON_OUTPUT_GLOB = `${normalizePath(resolve(import.meta.dirname, "dist/main"))}/**`;
 const TEMP_OUTPUT_GLOBS = ["tmp", ".tmp"].map(
-  (directory) => `${normalizePath(resolve(__dirname, directory))}/**`,
+  (directory) => `${normalizePath(resolve(import.meta.dirname, directory))}/**`,
 );
 const CLIENT_OPTIMIZED_DEPS = [
   "@chenglou/pretext",
@@ -394,7 +394,7 @@ export default defineConfig(({ mode }) => ({
         deps.filter((dep) => !/(?:^|\/)(shiki-|git-diff-|xterm-|vendor-)/.test(dep)),
     },
     rolldownOptions: {
-      input: { index: resolve(__dirname, "index.html") },
+      input: { index: resolve(import.meta.dirname, "index.html") },
       output: {
         minify: {
           compress: {
