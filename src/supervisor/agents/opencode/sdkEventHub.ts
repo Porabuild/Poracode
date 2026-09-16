@@ -2,6 +2,13 @@ import type { Event, LegacyOpenCodeClient } from "./legacySdk";
 
 interface OpenCodeEventSubscriber {
   directory: string;
+  /**
+   * Session-identity fallback for directory misses: returns true when the
+   * event belongs to one of the subscriber's sessions. Consulted only when
+   * the event's directory matches no subscriber, so a lexical-vs-realpath
+   * key mismatch can never strand a session.
+   */
+  claimsEvent?(event: Event): boolean;
   onEvent(event: Event): void;
 }
 
@@ -98,8 +105,12 @@ function unwrapGlobalOpenCodeEvent(raw: unknown): QueuedOpenCodeEvent | undefine
 }
 
 class OpenCodeEventHub {
+  /** Cap on distinct unmatched-directory warnings so a noisy stream stays bounded. */
+  private static readonly MAX_UNMATCHED_DIRECTORY_WARNS = 32;
   private readonly eventClient: LegacyOpenCodeClient;
   private readonly subscribersByDirectory = new Map<string, Set<OpenCodeEventSubscriber>>();
+  private readonly unmatchedDirectoriesWarned = new Set<string>();
+  private unmatchedDirectoryEventCount = 0;
   private queue: QueuedOpenCodeEvent[] = [];
   private flushTimer: NodeJS.Timeout | undefined;
   private streamAbort: AbortController | undefined;
@@ -223,15 +234,58 @@ class OpenCodeEventHub {
     this.lastFlushAt = Date.now();
     for (const event of events) {
       const subscribers = this.subscribersByDirectory.get(event.directory);
-      if (!subscribers) continue;
-      for (const subscriber of subscribers) {
-        try {
-          subscriber.onEvent(event.payload);
-        } catch (error) {
-          console.error("[opencode] event subscriber failed:", error);
-        }
+      if (subscribers) {
+        this.deliver(subscribers, event.payload);
+        continue;
+      }
+      // Hardening: OpenCode realpaths the request directory before stamping
+      // envelopes, so a lexical key can miss. Route by session identity where
+      // the payload carries one, and warn once per directory so a mismatch
+      // can never fail silently again.
+      const claimed = this.subscribersBySession(event.payload);
+      if (claimed) this.deliver(claimed, event.payload);
+      this.warnUnmatchedDirectory(event.directory, claimed !== undefined);
+    }
+  }
+
+  private deliver(subscribers: Set<OpenCodeEventSubscriber>, payload: Event): void {
+    for (const subscriber of subscribers) {
+      try {
+        subscriber.onEvent(payload);
+      } catch (error) {
+        console.error("[opencode] event subscriber failed:", error);
       }
     }
+  }
+
+  private subscribersBySession(payload: Event): Set<OpenCodeEventSubscriber> | undefined {
+    const sessionID = (payload.properties as { sessionID?: string } | undefined)?.sessionID;
+    if (!sessionID) return undefined;
+    let matched: Set<OpenCodeEventSubscriber> | undefined;
+    for (const subscribers of this.subscribersByDirectory.values()) {
+      for (const subscriber of subscribers) {
+        if (subscriber.claimsEvent?.(payload) !== true) continue;
+        matched ??= new Set();
+        matched.add(subscriber);
+      }
+    }
+    return matched;
+  }
+
+  private warnUnmatchedDirectory(directory: string, rescuedBySessionID: boolean): void {
+    this.unmatchedDirectoryEventCount += 1;
+    if (
+      this.unmatchedDirectoriesWarned.has(directory) ||
+      this.unmatchedDirectoriesWarned.size >= OpenCodeEventHub.MAX_UNMATCHED_DIRECTORY_WARNS
+    ) {
+      return;
+    }
+    this.unmatchedDirectoriesWarned.add(directory);
+    console.warn(
+      `[opencode] SSE event directory matched no subscriber ` +
+        `(sessionID routing rescued: ${rescuedBySessionID}, ` +
+        `unmatched total ${this.unmatchedDirectoryEventCount}): ${directory}`,
+    );
   }
 }
 
@@ -243,5 +297,9 @@ export function subscribeOpenCodeServerEvents(
     hub = new OpenCodeEventHub(input.eventClient);
     hubs.set(input.eventClient, hub);
   }
-  return hub.subscribe({ directory: input.directory, onEvent: input.onEvent });
+  return hub.subscribe({
+    directory: input.directory,
+    onEvent: input.onEvent,
+    ...(input.claimsEvent !== undefined ? { claimsEvent: input.claimsEvent } : {}),
+  });
 }

@@ -665,6 +665,17 @@ describe("OpencodeSdkSession", () => {
       {
         directory: "/other-repo",
         payload: {
+          id: "evt-wrong-directory-unrelated",
+          type: "session.status",
+          properties: { sessionID: "ses_other", status: { type: "busy" } },
+        },
+      },
+      {
+        directory: "/other-repo",
+        payload: {
+          // Directory key misses, but the sessionID claim rescues this event:
+          // OpenCode realpaths the request directory, so a lexical-vs-realpath
+          // mismatch must never strand this session's events.
           id: "evt-wrong-directory",
           type: "session.status",
           properties: { sessionID: "ses_test", status: { type: "busy" } },
@@ -831,7 +842,10 @@ describe("OpencodeSdkSession", () => {
           event.delta === "Hi",
       ),
     ).toBeDefined();
-    expect(updates.filter((update) => update.status === "working")).toHaveLength(1);
+    // One working update from the correct-directory event plus one rescued
+    // from the mismatched-directory stamp via sessionID routing. Unrelated
+    // sessions stay dropped regardless of directory.
+    expect(updates.filter((update) => update.status === "working")).toHaveLength(2);
     expect(updates.some((update) => update.status === "idle")).toBe(true);
 
     await session.dispose();

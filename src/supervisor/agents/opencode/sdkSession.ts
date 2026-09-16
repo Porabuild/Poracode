@@ -869,10 +869,25 @@ export class OpencodeSdkSession implements StructuredSessionHandle {
     this.unsubscribeEvents = subscribeOpenCodeServerEvents({
       eventClient: acquired.eventClient,
       directory: this.sdkDirectory,
+      claimsEvent: (event) => this.claimsEventSession(event),
       onEvent: (event) => {
         if (!this.disposed) this.handleSseEvent(event);
       },
     });
+  }
+
+  /**
+   * Session-identity fallback for hub events whose directory matched no
+   * subscriber (e.g. a lexical-vs-realpath key mismatch). Mirrors the
+   * acceptance rules in {@link handleSseEvent}, which re-validates every
+   * delivered event by sessionID, so over-claiming is harmless.
+   */
+  private claimsEventSession(event: Event): boolean {
+    const sessionID = (event.properties as { sessionID?: string } | undefined)?.sessionID;
+    if (!sessionID) return false;
+    if (sessionID === this.sessionId) return true;
+    if (this.mapperState && isOpenCodeChildSession(this.mapperState, sessionID)) return true;
+    return event.type === "session.created" && event.properties.info.parentID === this.sessionId;
   }
 
   private startServerExitRecovery(): void {
