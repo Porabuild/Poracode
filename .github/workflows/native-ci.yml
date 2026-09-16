@@ -407,8 +407,13 @@ jobs:
           pnpm run codex-protocol:gen
           pnpm run build:electron
           pnpm run prepare:server-native
+          # The server resolves its checkout-shape layout strictly
+          # (docs/STANDALONE_SERVER.md §1/§2.1): resources/ must be prepared,
+          # or startup refuses with ServerLayoutError instead of guessing.
+          pnpm run prepare:package-assets
           test -f dist/main/server.cjs
           test -f dist/server-native/better_sqlite3.node
+          test -d resources/wsl-helpers
 
       - name: Run native foundation and production-host smoke
         env:
