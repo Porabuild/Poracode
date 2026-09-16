@@ -53,3 +53,6 @@ website/out/
 
 .vercel
 .env*
+
+# Local Poracode runtime dir (state db, worktrees) — never repo material.
+.poracode/
