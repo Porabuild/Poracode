@@ -16,8 +16,22 @@ describe("shouldUseMockKeychain", () => {
     expect(shouldUseMockKeychain({ isDev: true, platform: "darwin", requested: "1" })).toBe(false);
   });
 
-  it("lets a production-mode macOS launch opt in via PORACODE_USE_MOCK_KEYCHAIN=1", () => {
+  it("lets an unpackaged production-mode macOS launch opt in via PORACODE_USE_MOCK_KEYCHAIN=1", () => {
     expect(shouldUseMockKeychain({ isDev: false, platform: "darwin", forced: "1" })).toBe(true);
+  });
+
+  it("never downgrades a packaged launch to the mock keychain via env", () => {
+    expect(
+      shouldUseMockKeychain({ isDev: false, isPackaged: true, platform: "darwin", forced: "1" }),
+    ).toBe(false);
+    expect(
+      shouldUseMockKeychain({
+        isDev: true,
+        isPackaged: true,
+        platform: "darwin",
+        forced: "1",
+      }),
+    ).toBe(false);
   });
 
   it("real-keychain opt-out wins over a mock opt-in", () => {

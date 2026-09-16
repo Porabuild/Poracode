@@ -164,8 +164,9 @@ if (process.env.PORACODE_CDP_PORT) {
 // Chromium's mock keychain — dev profiles are disposable. Packaged launches
 // always keep the real OS keychain; PORACODE_USE_REAL_KEYCHAIN=1 opts a dev
 // launch back in, and PORACODE_USE_MOCK_KEYCHAIN=1 lets a harness-driven
-// production-mode launch (built bundle, legacy identity) opt into the mock.
-if (shouldUseMockKeychain({ isDev })) {
+// unpackaged launch (built bundle on the node_modules electron binary) opt
+// into the mock — never a packaged app.
+if (shouldUseMockKeychain({ isDev, isPackaged: app.isPackaged })) {
   app.commandLine.appendSwitch("use-mock-keychain");
 }
 
