@@ -549,3 +549,75 @@ describe("acquireOpenCodeServer", () => {
     expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("resolveOpenCodeSessionDirectory", () => {
+  // OpenCode realpaths the request directory before stamping SSE envelopes, so
+  // the resolved directory must survive a symlinked path segment (macOS
+  // /var/folders tmpdirs, /tmp, symlinked project folders) or every event for
+  // the session is dropped by the hub's exact-match directory routing.
+  it("resolves a symlinked posix project path to its real path", async () => {
+    const { mkdtempSync, realpathSync, rmSync, symlinkSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const realDir = mkdtempSync(join(tmpdir(), "poracode-opencode-real-"));
+    const linkParent = mkdtempSync(join(tmpdir(), "poracode-opencode-link-"));
+    const linkPath = join(linkParent, "project-link");
+    let linked = false;
+    try {
+      try {
+        symlinkSync(realDir, linkPath, "dir");
+        linked = true;
+      } catch {
+        // Platform cannot create directory symlinks (Windows without
+        // privileges): nothing to pin, and the lexical fallback still applies.
+      }
+      if (!linked) return;
+
+      const { resolveOpenCodeSessionDirectory } = await import("./sdkClient");
+      const resolved = resolveOpenCodeSessionDirectory({ kind: "posix", path: linkPath });
+      expect(resolved).toBe(realpathSync(realDir));
+      expect(resolved).not.toBe(linkPath);
+    } finally {
+      rmSync(linkPath, { force: true });
+      rmSync(linkParent, { recursive: true, force: true });
+      rmSync(realDir, { recursive: true, force: true });
+    }
+  });
+
+  it("keeps the lexical resolve for paths the host cannot canonicalize", async () => {
+    const { resolveOpenCodeSessionDirectory } = await import("./sdkClient");
+    const missing = "/poracode-definitely-missing/project";
+    expect(resolveOpenCodeSessionDirectory({ kind: "posix", path: missing })).toBe(missing);
+    expect(resolveOpenCodeSessionDirectory({ kind: "windows", path: "C:\\poracode-missing" })).toBe(
+      "C:\\poracode-missing",
+    );
+  });
+
+  it("leaves WSL paths lexical because they live in the distro filesystem", async () => {
+    const { resolveOpenCodeSessionDirectory } = await import("./sdkClient");
+    expect(
+      resolveOpenCodeSessionDirectory({
+        kind: "wsl",
+        distro: "Ubuntu",
+        linuxPath: "/home/dev/project",
+        uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\dev\\project",
+      }),
+    ).toBe("/home/dev/project");
+  });
+
+  it("falls back to the lexical resolve for a dangling symlink", async () => {
+    const { mkdtempSync, rmSync, symlinkSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const linkParent = mkdtempSync(join(tmpdir(), "poracode-opencode-dangling-"));
+    const linkPath = join(linkParent, "dangling");
+    try {
+      symlinkSync(join(linkParent, "never-created"), linkPath, "dir");
+
+      const { resolveOpenCodeSessionDirectory } = await import("./sdkClient");
+      expect(resolveOpenCodeSessionDirectory({ kind: "posix", path: linkPath })).toBe(linkPath);
+    } finally {
+      rmSync(linkParent, { recursive: true, force: true });
+    }
+  });
+});

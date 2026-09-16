@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { realpathSync } from "node:fs";
 import { resolve as resolvePosixPath } from "node:path/posix";
 import { resolve as resolveWindowsPath } from "node:path/win32";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
@@ -15,15 +16,36 @@ import {
   type OpenCodeServerHandle,
 } from "./sdkServer";
 
-/** Agent-side cwd that the SDK passes through to the server's session config. */
+/**
+ * Agent-side cwd that the SDK passes through to the server's session config.
+ *
+ * OpenCode realpaths the request directory before stamping global SSE event
+ * envelopes, so a lexical path through a symlinked segment (macOS
+ * `/var/folders` tmpdirs, `/tmp`, symlinked project folders) would key both
+ * the SDK request directory and the event-hub subscription with a directory
+ * the server never emits — silently dropping every event for the session.
+ * Canonicalize through the host filesystem so both sides match what the
+ * server stamps. Host paths that do not exist yet (or cannot be resolved)
+ * keep the lexical resolve.
+ */
 export function resolveOpenCodeSessionDirectory(location: ProjectLocation): string {
   switch (location.kind) {
     case "windows":
-      return resolveWindowsPath(location.path);
+      return canonicalizeOpenCodePath(resolveWindowsPath(location.path));
     case "wsl":
+      // Lives in the distro filesystem; the host must not guess. The
+      // distro-side server realpaths it consistently for requests and events.
       return resolvePosixPath(location.linuxPath);
     case "posix":
-      return resolvePosixPath(location.path);
+      return canonicalizeOpenCodePath(resolvePosixPath(location.path));
+  }
+}
+
+function canonicalizeOpenCodePath(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return path;
   }
 }
 
