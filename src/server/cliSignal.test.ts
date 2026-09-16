@@ -83,6 +83,12 @@ function runChild(profile: string, stage: string, outcome = "joined", execPath =
     // A test-owned temp dir satisfies the exists-requirement without depending
     // on prepared checkout resources (CI test shards stage none).
     PORACODE_WSL_HELPERS_DIR: ensureDeclaredAssetsDir(),
+    // The esbuild bundle keeps runtime packages external (`packages:
+    // "external"`), and its bare temp directory has no node_modules ancestor —
+    // ambient resolution differs between dev machines and CI test shards, so
+    // the repo's node_modules is declared explicitly. NODE_PATH applies to the
+    // child's CommonJS requires; the fixture's own imports resolve from source.
+    NODE_PATH: fileURLToPath(new URL("../../node_modules/", import.meta.url)),
   };
   delete environment.NODE_OPTIONS;
   const child = fork(
