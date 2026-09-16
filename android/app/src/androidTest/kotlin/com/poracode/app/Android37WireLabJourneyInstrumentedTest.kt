@@ -286,6 +286,19 @@ class Android37WireLabJourneyInstrumentedTest {
             control.operationCount("primary", "route:thread-interrupt"),
         )
         val historyBeforeConfirmation = control.operationCount("primary", "route:thread-history")
+        // Quiescence gate: the refresh control stays disabled while the
+        // interrupt op is still settling app-side (and refreshSelectedThread
+        // no-ops while a history op is active), so a click swallowed by the
+        // disabled state can never be waited out downstream — the observed
+        // flake signature was route:thread-history minimum=4 actual=3 with the
+        // app silent for the full window.
+        compose.waitUntil(15_000) {
+            runCatching {
+                compose.onNodeWithContentDescription(
+                    context.getString(R.string.rich_chat_refresh_transcript),
+                ).assertIsEnabled()
+            }.isSuccess
+        }
         compose.onNodeWithContentDescription(
             context.getString(R.string.rich_chat_refresh_transcript),
         ).performClick()
