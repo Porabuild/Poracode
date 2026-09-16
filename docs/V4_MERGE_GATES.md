@@ -209,6 +209,57 @@ Keychain incident (user-facing; machine-level cause OPEN — see the split plan 
 
 Merge-critical item 2 delivered: 12/12 ABAB sessions from clean detached worktrees, identical production-build recipe, both arms under the same `--use-mock-keychain` condition (0 dialog episodes post-switch; 3 pre-switch episodes preserved as excluded reps). Full evidence mirrored to `.tmp/v4-g4-batch2-mirror/` (5.2 GB — survives a tmp/ wipe); report `tmp/v4-g4-batch2/SESSIONS.md` (pre-wipe sections marked SUPERSEDED). Verdicts: payload budgets (shell60, hist40, tail independence) **PASS byte-identical**; cold-readiness **confound resolved — WITHIN-ALLOWANCE** (v2 +245 ms p50 vs master, under the 500 ms floor; the earlier FLAG was external-load contamination); tree memory/CPU **WITHIN-ALLOWANCE, v2 lower** (3.66 vs 5.33 GB peak). Standing items: deficit C-G4 #1 (oversized item inside the visible tail pulled whole — 8.4 MB, byte-identical on both arms) remains inherited-from-master and a recorded non-blocker; **deficit C-G4 #2 is a measured Gate-4 failure and an explicit Gate-4 Batch 3 deliverable with acceptance measurements** — supervisor host-loop p99 112.4 ms and desktop-main steady windows 26–31 ms both against the 25 ms budget (desktop-main's seconds-scale startup stalls ARE gone, 4378.9 → 68.4 ms worst window); acceptance = p99 < 25 ms for both roles on the same s1s2 fixture at the batch boundary; **scaling hazard #3 is likewise a Batch 3 deliverable** — full host thread-list transfer 380 596 B at the 1069-thread fixture on every rep (`dbGetThreads` has no project filter); acceptance = the full-list response at that fixture is ≤ 64 KiB, or the surface is paginated/project-scoped with the bound asserted per rep. Measured at the Batch-2 milestone SHA; intervening commits through the current HEAD (`39ea0d888` main.ts keychain gating boolean, `cda9ca4ff` workflow preparation step) cause no measured-surface behavior change.
 
+## 1h. Production-readiness revision (2026-09-16, coordinator review at ac637a8e3)
+
+Two independent code surveys plus tree verification. Cycle 5 all-green and the §1g corrections acknowledged. Key file references spot-verified against the tree (pairing-token console print at `DesktopRemoteAccessController.ts:518`, `DEFAULT_REMOTE_ACCESS_HOST = "0.0.0.0"` at `src/main/remote/config.ts:6`, the `lc_forward` mechanism in `headlessRemoteComposition.ts`/`relayHost.ts`/`RemoteAccessServer.ts`, `PORT_FORWARD_ORIGIN_ISOLATION.md` findings).
+
+### A. Goal correction
+
+The plan's goal has been "merge v2 into master"; the user's goal is **full production readiness for web, mobile web, desktop, and server**. The differences are now explicit:
+
+1. Merge readiness (the five gates) remains the first milestone.
+2. Standalone-server production readiness is **not covered by the gates as written** — artifact build/release, security defaults, observability, corruption recovery, upgrade/rollback are post-merge-optional (§4 phase) or absent. They become **Gate 6 "Server production release"**: required before any public server release, not before the master merge.
+3. Native iOS/Android: the plan treats them as development clients, yet `release-mobile.yml` ships to TestFlight and the Play internal track. Honest boundary: **native clients ship on their own program; the merge guarantees shared-contract compatibility and green native CI at the RC SHA, nothing more.**
+
+### B. New merge-critical items (confirmed failures the gates reference but never tracked)
+
+1. **Port-forward origin isolation.** `PORT_FORWARD_ORIGIN_ISOLATION.md` records a confirmed real-Safari cross-host bleed (shared `lc_forward`/`lc_relay` cookies switch every tab's target; forwarded JS reaches host-origin storage). Mechanism still present in `src/server/headlessRemoteComposition.ts`, `src/server/relay/relayHost.ts`, `src/main/remote/RemoteAccessServer.ts`. Gate 5 lists "no cross-host mixing" as a stop condition with no implementing row. **Gate 5 mandatory implementation item**: per-host origin or equivalent; acceptance = the real-Safari two-host probe. Batch 3 lane 4.
+2. **Production PWA publish gate.** `release-pwa.yml` has no qualification step — a manual dispatch can publish an unqualified SHA; `deploy-nightly-pwa.yml` already has the right pattern (qualify job requiring CI + Native CI at the exact SHA). Mirror it. Closes roadmap 0.6 for the production channel. Batch 3 lane 5.
+3. **Remote-path control priority.** Gate 4 condition 4 requires reserved Stop/approval capacity under saturation; the tested admission system is desktop-path only. The remote path (web + PWA) has one flat semaphore (`RemoteAccessServer.ts` ~538-563) where Stop gets the same 503 as bulk, and no isolation test comparable to `rendererCongestionIsolation.test.ts`. Gate 4 Batch 3 fairness work points at the **remote path first**, with its own isolation test. Batch 3 lane 3.
+4. **Desktop attach + existing-profile upgrade.** `standaloneAttach.ts` refuses every desktop owner; the existing-profile upgrade is pending — Gate 2 item 1.2 is not deliverable while this holds. The dedicated attach drill stays in Batch 3 (lane 1) with added acceptance: **an existing desktop profile migrates into the standalone authority**.
+5. **Small security fixes (Batch 3 lane 5):** (a) `DesktopRemoteAccessController.ts:518` prints the pairing URL **with its live token** to the console on every start — the headless CLI deliberately never does; (b) `GET /api/files/image` (`httpRouter.ts` ~586) serves any absolute path under a session-level scope and accepts `access_token` as a query parameter — bearer tokens land in proxy/relay access logs; verify the scope against the sibling `readAbsoluteFile` that was moved to `projects:manage`.
+
+### C. Gate 6 — "Server production release" (after merge; before any public server release)
+
+1. **Network defaults — DECISION PENDING** (recommended default: bind loopback; explicit LAN opt-in with a visible warning; TLS via the deployed relay or a documented reverse-proxy contract; today `0.0.0.0` over plain `node:http`, no TLS anywhere in listener or relay, runbooks silent on TLS). Record the decision and rationale when made.
+2. **Artifact CI-built and tested**: workflow assembles the tarball; install script and launchd/systemd units exist as real files (today: fenced blocks in `STANDALONE_SERVER.md`); out-of-checkout qualification runs in CI, not only locally.
+3. **Persistence integrity**: `quick_check`/`integrity_check` at startup with quarantine-and-restore-from-backup (today the only check is `hostImportDatabase.ts:54`, on import). Document the 250 ms unflushed-write window (`runtimeWriteQueue.ts:23`) as the accepted loss budget under Gate 3 item 2.8 — or shrink it.
+4. **Lifecycle**: SIGTERM drain gets a deadline that releases the lease (`cliRuntime.ts:36-39` never force-exits); the supervisor orphan watchdog (dev-only, `supervisor/index.ts:154-159`) ships for the packaged supervisor; server CLI installs `uncaughtException`/`unhandledRejection` handlers.
+5. **Observability**: structured leveled logs with rotation, optional error reporting, health endpoint verified by qualification — `console.error` must not remain the whole sink (`src/server/cli.ts:113`).
+6. **Upgrade and rollback**: the remote client rejects any protocol skew (`shared/remote/client.ts:363`) while the PWA deploys from app.poracode.com on its own cadence and migrated data cannot roll back. Define the supported deploy order, documented rollback via backup, and either a one-generation compatibility window or a tested "update both" UX.
+7. **Relay secret at rest** (`headlessRelaySecret.ts:40`) and key rotation get a documented posture.
+
+### D. Evidence durability rule
+
+Eight tracked docs — including this plan and `V4_MERGE_READINESS_PLAN.md` — cite evidence under `tmp/` that no longer exists after the user's cleanup (gone: `tmp/v2-production-review`, `tmp/v4-plan-status`, and the batch-evidence trees named in §1b-§1f). From now on, **every claim in a tracked doc must cite a commit, a CI run URL, or a compact text summary committed under `docs/evidence/`** (no binaries). Dead references above are recorded here rather than silently left.
+
+### E. Batch 3 composition (disjoint lane ownership; one consolidated critic at the freeze boundary, its brief including a security pass over B5 and any new route or default)
+
+1. **Gates 2-3 operation integrity + attach drill** — acceptance adds: existing desktop profile migrates into the standalone authority.
+2. **Gate 4 off-thread client engine** — acceptance: host-loop p99 < 25 ms (supervisor + desktop-main) on the s1s2 fixture; thread-list hazard #3 bounded (≤ 64 KiB at the 1069-thread fixture, or paginated with the bound asserted).
+3. **Remote-path fairness and control priority** — reserved Stop/approval capacity under saturation + the remote-path isolation test.
+4. **Port-forward origin isolation** — per-host origin or equivalent; real-Safari two-host probe acceptance.
+5. **Small fixes**: P2 (never-silent single-instance refusal); P3 (once-per-launch keychain latch — pending user approval; default yes); B5 security fixes; production PWA qualification gate; simulator/emulator reuse (native-e2e ios-ui fixed-device + handlers + pruning).
+
+### F. Decisions pending (proceeding on recommended defaults until the user says otherwise)
+
+| Decision                         | Recommended default                                                                   | Status  |
+| -------------------------------- | ------------------------------------------------------------------------------------- | ------- |
+| P3 promotion to merge-critical   | **Yes** (coordinator + root concur)                                                   | PENDING |
+| Network default (Gate 6 C1)      | Loopback bind; LAN opt-in with warning; TLS via relay or documented reverse proxy     | PENDING |
+| Gate 6 before/after master merge | **After merge**, before any public server-release announcement                        | PENDING |
+| Native release boundary          | Own program; merge guarantees contract compatibility + green native CI at RC SHA only | PENDING |
+
 ## 2. The five gates
 
 Numeric targets below are **targets, not measured passes** (source: readiness plan §7). The master comparison allows **no more than 10% deterioration in p95 latency or peak resources**, with an absolute noise allowance fixed from repeated baselines; V2-only journeys must pass absolute gates.
