@@ -1,5 +1,6 @@
 import { safeStorage } from "electron";
 import type { NativeCredentialMode, NativeSecretValue } from "@/shared/hostCredentialProtocol";
+import type { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
 
 /** Called after ownership bootstrap; availability does not authorize key-file access. */
 export function resolveNativeCredentialMode(
@@ -71,4 +72,30 @@ export function transformNativeCredentialKey(
     throw new Error("Invalid OS-backed credential key result.");
   }
   return { ownerGeneration: expectedGeneration, value };
+}
+
+/**
+ * Production engine for the one-time desktop key-adoption protocol
+ * (`HostCredentialAdoptionService` in `src/backend/ownership/nativeSecretKey.ts`).
+ * Unseals a staged OS-sealed key blob through {@link transformNativeCredentialKey},
+ * fenced to the mounting desktop owner's lease generation, so the staged key
+ * material can be adopted headlessly without the raw safeStorage surface or any
+ * key-file path crossing the adoption boundary.
+ */
+export function createNativeCredentialUnsealer(
+  lease: HostOwnerLease,
+  platform: NodeJS.Platform = process.platform,
+): (sealedKey: string, ownerGeneration: string) => Promise<string> {
+  const generation = lease.generation;
+  return async (sealedKey, ownerGeneration) => {
+    lease.assertActive(generation);
+    const reply = transformNativeCredentialKey(
+      "unseal",
+      { ownerGeneration, value: sealedKey },
+      generation,
+      platform,
+    );
+    lease.assertActive(generation);
+    return reply.value;
+  };
 }

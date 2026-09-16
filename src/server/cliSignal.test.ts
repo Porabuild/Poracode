@@ -73,7 +73,16 @@ async function withinDeadline<T>(work: Promise<T>, description: string): Promise
 }
 
 function runChild(profile: string, stage: string, outcome = "joined", execPath = process.execPath) {
-  const environment: NodeJS.ProcessEnv = { ...process.env, PORACODE_BASE_DIR: profile };
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    PORACODE_BASE_DIR: profile,
+    // The synthetic child bundle lives in a bare temp directory, outside both
+    // published install shapes; serve() resolves the layout contract first, so
+    // the required asset is declared explicitly (the documented escape hatch).
+    PORACODE_WSL_HELPERS_DIR: fileURLToPath(
+      new URL("../../resources/wsl-helpers", import.meta.url),
+    ),
+  };
   delete environment.NODE_OPTIONS;
   const child = fork(
     fileURLToPath(new URL("./fixtures/cliStartupSignal.mjs", import.meta.url)),

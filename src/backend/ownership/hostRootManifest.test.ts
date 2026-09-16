@@ -18,6 +18,8 @@ import {
   HostImportRequiredError,
   prepareOwnedHostRoot,
   readHostRootManifest,
+  writeHostRootManifest,
+  type HostRootManifest,
 } from "./hostRootManifest";
 
 const roots: string[] = [];
@@ -117,5 +119,77 @@ describe("owned host-root activation boundary", () => {
     lease.release();
     expect(() => prepareOwnedHostRoot(lease)).toThrow(/no longer active/u);
     expect(existsSync(lease.paths.dataRoot)).toBe(false);
+  });
+
+  describe("activated offline-backup manifest form (Gate 2.5 S5.1)", () => {
+    const activatedSource = () => ({
+      kind: "offline-backup" as const,
+      activation: "ready" as const,
+      receiptSha256: "b".repeat(64),
+      activationVersion: 1 as const,
+      activatedAt: new Date().toISOString(),
+    });
+
+    function stagedRoot(lease: ReturnType<typeof owner>) {
+      mkdirSync(lease.paths.dataRoot, { recursive: true });
+      const staged = createHostRootManifest(lease.paths, {
+        kind: "offline-backup",
+        activation: "required",
+        receiptSha256: "b".repeat(64),
+      });
+      writeFileSync(
+        join(lease.paths.dataRoot, HOST_ROOT_MANIFEST_FILE),
+        `${JSON.stringify(staged)}\n`,
+      );
+      return staged;
+    }
+
+    it("persists a validated activated manifest that normal startup accepts", () => {
+      const lease = owner();
+      const staged = stagedRoot(lease);
+      expect(() => prepareOwnedHostRoot(lease)).toThrow(HostActivationRequiredError);
+      const activated = { ...staged, source: activatedSource() };
+      writeHostRootManifest(lease, activated);
+      expect(readHostRootManifest(lease.paths)).toEqual(activated);
+      // An activated root is ready: services may start after activation.
+      expect(prepareOwnedHostRoot(lease)).toEqual(activated);
+    });
+
+    it("refuses a writer manifest bound to another profile or with an unsupported state", () => {
+      const lease = owner();
+      const activated = createHostRootManifest(lease.paths, activatedSource());
+      expect(() =>
+        writeHostRootManifest(lease, { ...activated, profileNamespace: "/some-other-profile" }),
+      ).toThrow(/does not match this owned profile/u);
+      expect(() =>
+        writeHostRootManifest(lease, {
+          ...activated,
+          source: { kind: "offline-backup", activation: "ready" } as HostRootManifest["source"],
+        }),
+      ).toThrow(/activation state/u);
+      expect(existsSync(join(lease.paths.dataRoot, HOST_ROOT_MANIFEST_FILE))).toBe(false);
+    });
+
+    it("pre-upgrade: the previous reader rules refuse an activated root loudly", () => {
+      // Mirrors the pre-activation source discriminator in hostRootManifest.ts
+      // (layout 1 before Gate 2.5 Batch 2): only empty/ready and staged
+      // offline-backup/required were readable; every other offline-backup
+      // state threw "Unsupported Poracode host-root activation state." — an
+      // old binary therefore fails loudly on an activated root and can never
+      // misread it as staged, empty, or startable-in-place.
+      const lease = owner();
+      const source = activatedSource();
+      const activated = { ...stagedRoot(lease), source };
+      const legacyReaderAccepts = (candidate: { kind: unknown; activation: unknown }): boolean =>
+        (candidate.kind === "empty" && candidate.activation === "ready") ||
+        (candidate.kind === "offline-backup" && candidate.activation === "required");
+      expect(legacyReaderAccepts(activated.source)).toBe(false);
+      // The current reader accepts the activated form and reports it as ready.
+      writeFileSync(
+        join(lease.paths.dataRoot, HOST_ROOT_MANIFEST_FILE),
+        `${JSON.stringify(activated)}\n`,
+      );
+      expect(readHostRootManifest(lease.paths)?.source).toEqual(source);
+    });
   });
 });

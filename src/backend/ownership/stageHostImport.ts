@@ -3,7 +3,7 @@ import { existsSync, lstatSync, mkdtempSync, readFileSync, renameSync, rmSync } 
 import { isAbsolute, join, relative } from "node:path";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import type { HostOwnerLease } from "./hostOwnerLease";
-import { canonicalHostPath, HOST_ROOT_MANIFEST_FILE } from "./hostRootPaths";
+import { canonicalHostPath, HOST_ROOT_MANIFEST_FILE, type HostRootPaths } from "./hostRootPaths";
 import {
   createHostRootManifest,
   HOST_IMPORT_RECEIPT_FILE,
@@ -174,7 +174,15 @@ export async function stageHostImport(
 /** Only inspect a staged receipt; this never activates its copied state. */
 export function readHostImportReceipt(lease: HostOwnerLease): HostImportReceipt {
   lease.assertActive();
-  const path = join(lease.paths.dataRoot, HOST_IMPORT_RECEIPT_FILE);
+  return readHostImportReceiptFromPaths(lease.paths);
+}
+
+/**
+ * Lease-free inspection for the activation entry's fail-fast pre-checks; the
+ * authoritative re-read happens again under the activation lease.
+ */
+export function readHostImportReceiptFromPaths(paths: HostRootPaths): HostImportReceipt {
+  const path = join(paths.dataRoot, HOST_IMPORT_RECEIPT_FILE);
   const metadata = lstatSync(path);
   if (!metadata.isFile() || metadata.size > 16_384)
     throw new Error("Invalid host import receipt file.");
@@ -185,10 +193,7 @@ export function readHostImportReceipt(lease: HostOwnerLease): HostImportReceipt 
   if (receipt.formatVersion !== HOST_IMPORT_RECEIPT_VERSION || receipt.activation !== "required") {
     throw new Error("Unsupported host import receipt version or activation state.");
   }
-  if (
-    receipt.profileNamespace !== lease.paths.profileNamespace ||
-    receipt.dataRoot !== lease.paths.dataRoot
-  ) {
+  if (receipt.profileNamespace !== paths.profileNamespace || receipt.dataRoot !== paths.dataRoot) {
     throw new Error("Host import receipt does not match this profile namespace.");
   }
   if (
@@ -212,7 +217,7 @@ export function readHostImportReceipt(lease: HostOwnerLease): HostImportReceipt 
     )
   )
     throw new Error("Invalid host import receipt evidence.");
-  const manifest = readHostRootManifest(lease.paths);
+  const manifest = readHostRootManifest(paths);
   if (
     manifest?.source.kind !== "offline-backup" ||
     manifest.source.receiptSha256 !== createHash("sha256").update(serialized).digest("hex")

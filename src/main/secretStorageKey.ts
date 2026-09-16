@@ -21,12 +21,40 @@ function hasErrorCode(error: unknown, code: string): boolean {
   );
 }
 
-function reportKeyRecovery(reason: "decrypt_failed" | "invalid_key"): void {
-  console.warn(`[credential-storage] stored key recovery (${reason}); rotating encrypted key.`);
-}
-
 function throwSecretStorageError(message: string): never {
   throw new Error(message);
+}
+
+/**
+ * Loud refusal instead of silent rotation (Gate 2.5 S5.2). The stored key
+ * could not be decrypted with this machine's current OS secret storage, so
+ * every credential sealed with it is currently ununlockable. Rotating here
+ * would invalidate ALL sealed credentials as a silent side effect of a
+ * failed read; instead the preserved key file keeps every sealed value
+ * recoverable and startup fails with the disclosure and the explicit
+ * remedies. The file name is disclosed, never its contents.
+ */
+export class SafeStorageKeyUnavailableError extends Error {
+  readonly code = "SAFE_STORAGE_KEY_UNAVAILABLE";
+
+  constructor(
+    readonly reason: "decrypt_failed" | "invalid_key",
+    keyFileName: string,
+  ) {
+    super(
+      `The stored Poracode credential key (${keyFileName}) could not be decrypted with this ` +
+        `machine's OS secret storage (${reason === "invalid_key" ? "decrypted to invalid key material" : "decryption failed"}). ` +
+        "Nothing was rotated, deleted or replaced. Stored provider sign-ins and other sealed " +
+        "secrets encrypted with the previous key can no longer be unlocked by this " +
+        "installation until the original OS keychain entry is restored. To recover: restore " +
+        "the original OS keychain entry (keychain migration, reset or profile recreation " +
+        "causes this) and start Poracode again. To start over deliberately: quit Poracode, " +
+        `remove the preserved ${keyFileName} file from this profile's data directory, then ` +
+        "start Poracode and sign in again — sealed values from the previous key must be " +
+        "re-entered on each surface.",
+    );
+    this.name = "SafeStorageKeyUnavailableError";
+  }
 }
 
 function createPersistentKey(path: string): string {
@@ -83,13 +111,14 @@ export function readOrCreateSafeStorageSecretKey(
     const encrypted = Buffer.from(serialized, "base64");
     const key = safeStorage.decryptString(encrypted);
     if (isValidKey(key)) return key;
-    reportKeyRecovery("invalid_key");
-  } catch {
-    // Credential resets and OS keychain changes make the old key unrecoverable.
-    // Report the typed recovery without including the key file path or contents,
-    // then rotate to a fresh OS-encrypted key so the app remains usable.
-    reportKeyRecovery("decrypt_failed");
+    throw new SafeStorageKeyUnavailableError("invalid_key", SAFE_STORAGE_KEY_FILE);
+  } catch (error) {
+    // Credential resets and OS keychain changes make the old key undecryptable.
+    // Refuse loudly instead of silently rotating: the preserved key file keeps
+    // every sealed credential recoverable, and the typed error discloses what
+    // is lost and the explicit remedies (restore the keychain entry, or make
+    // the deliberate manual decision to start over).
+    if (error instanceof SafeStorageKeyUnavailableError) throw error;
+    throw new SafeStorageKeyUnavailableError("decrypt_failed", SAFE_STORAGE_KEY_FILE);
   }
-
-  return createPersistentKey(path);
 }
