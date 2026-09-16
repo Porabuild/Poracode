@@ -8,6 +8,7 @@ import {
   ipcMain,
   Menu,
   nativeTheme,
+  safeStorage,
   session as electronSession,
   type RenderProcessGoneDetails,
 } from "electron";
@@ -106,6 +107,7 @@ import { registerSmokeNativeControls } from "./testing/smokeNativeControls";
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
 import { HostDataFence, HostDataFenceInUseError } from "@/backend/ownership/hostDataFence";
 import { HostOwnerLease, HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
+import { HostCredentialAdoptionService } from "@/backend/ownership/nativeSecretKey";
 import { resolveDesktopHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import type { HostControlServer } from "@/backend/ownership/HostControlServer";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
@@ -209,6 +211,11 @@ let desktopOwnerAcquisitionError: Error | null = null;
 // Desktop-owner publication of the shared authenticated control surface
 // (discovery + describe). Null in attach mode and before readiness.
 let desktopHostControlServer: HostControlServer | null = null;
+// Desktop half of staged-import activation (Gate 2.5 S5.1): while this
+// desktop owns the profile it publishes the one-time key-adoption offer and
+// answers a single authenticated unseal for a `poracode-server activate` run
+// against this profile. Additive — ordinary operation never contacts it.
+let hostCredentialAdoption: HostCredentialAdoptionService | null = null;
 // Attach-session anchor for generation re-verification; null outside attach.
 let standaloneAttachSession: StandaloneAttachSession | null = null;
 // Zero-window (tray/hidden) remote thread commands. The backend mirrors these
@@ -1674,6 +1681,19 @@ if (!hasSingleInstanceLock) {
           reportError: (error) =>
             captureMainException(error, { "poracode.feature_area": "host-control" }),
         });
+        // Same lease, same lifetime as the control surface above: the offer
+        // file lives in the owned profile root and is retired on dispose.
+        hostCredentialAdoption = new HostCredentialAdoptionService({
+          lease: desktopOwnerLease,
+          unseal: async (sealedKey) => safeStorage.decryptString(Buffer.from(sealedKey, "base64")),
+          reportError: (error) =>
+            captureMainException(error, { "poracode.feature_area": "key-adoption" }),
+        });
+        void hostCredentialAdoption.start().catch((error) => {
+          captureMainException(error, { "poracode.feature_area": "key-adoption" });
+          void hostCredentialAdoption?.dispose().catch(() => undefined);
+          hostCredentialAdoption = null;
+        });
       }
 
       updatePowerSaveBlocker();
@@ -1770,9 +1790,12 @@ if (!hasSingleInstanceLock) {
         tray = null;
         // Capture before the join list runs: dispose joins control connections
         // and admitted work, removes discovery (join-before-remove), and must
-        // complete before will-quit releases the owner lease.
+        // complete before will-quit releases the owner lease. The adoption
+        // service joins its loopback listener and removes its offer file.
         const controlToDispose = desktopHostControlServer;
         desktopHostControlServer = null;
+        const adoptionToDispose = hostCredentialAdoption;
+        hostCredentialAdoption = null;
         const finishQuit = async () => {
           windowsJobObjectManager?.dispose();
           windowsJobObjectManager = null;
@@ -1783,6 +1806,7 @@ if (!hasSingleInstanceLock) {
           [
             () => ingressDispose,
             () => controlToDispose?.dispose(),
+            () => adoptionToDispose?.dispose(),
             () =>
               sshConnectionManager.dispose().catch((error) => {
                 captureMainException(error, { "poracode.feature_area": "ssh" });

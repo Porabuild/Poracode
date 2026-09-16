@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fileURLToPath } from "node:url";
 import { HeadlessCompositionShutdownError } from "./headlessRemoteComposition";
 import { runCli } from "./cli";
 import type { HeadlessRemoteHost, HeadlessRemoteHostOptions } from "./createHeadlessRemoteHost";
@@ -25,6 +26,14 @@ beforeEach(() => {
   process.argv = ["synthetic-node", "synthetic-server"];
   process.exitCode = undefined;
   vi.stubEnv("PORACODE_HEADLESS_SERVER", "0");
+  // The test process runs cli.ts from src/server, outside both published
+  // install shapes; serve() resolves the layout contract first, so the
+  // required asset is declared explicitly (the documented escape hatch). The
+  // synthetic host never consumes it.
+  vi.stubEnv(
+    "PORACODE_WSL_HELPERS_DIR",
+    fileURLToPath(new URL("../../resources/wsl-helpers", import.meta.url)),
+  );
   fixture.createHost.mockReset();
   fixture.stopDiagnostics.mockClear();
   signals.clear();
