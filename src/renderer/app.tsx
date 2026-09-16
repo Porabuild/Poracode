@@ -42,6 +42,7 @@ import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
 import {
+  boundVisibleThreadRuntimeWindows,
   evictOversizedInactiveThreadRuntimeItems,
   rehydrateThreadRuntimeItemsAfterReset,
 } from "./state/chatRuntimePersister";
@@ -149,6 +150,10 @@ function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): 
       applySpan.end({ threads: drainedThreads, events: drainedEvents });
     }
     evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
+    // Bounded visible window (Gate 4 Batch 1): inactive oversized threads are
+    // evicted wholesale above; LIVE (retained) threads are bytes-bounded here
+    // so an open thread streaming for hours cannot grow memory without bound.
+    boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
     for (const { threadId, events } of batches) {
       // Durable usage capture at the canonical layer (all providers normalized).
       // Thread metadata is resolved lazily inside, so pure-delta frames are free.

@@ -167,8 +167,17 @@ export interface RuntimeEventSlice {
   hydrateThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
   /** Prepend an older persisted page while preserving newer live items. */
   prependThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
+  /**
+   * Remove `count` items of a thread starting at `startIndex` (indices into the
+   * current id list). Used by the bounded visible window (chatRuntimePersister)
+   * to trim history that the DB still holds; the pane reloads trimmed ranges
+   * lazily through the existing older-page cursor.
+   */
+  trimThreadRuntimeItems(threadId: string, startIndex: number, count: number): void;
   /** Drop an inactive transcript projection without deleting its SQLite rows. */
   evictThreadRuntimeItems(threadId: string): void;
+  /** Replace the completed-turn list wholesale (bounded-window cap/drop). */
+  replaceThreadCompletedTurns(threadId: string, turns: ReadonlyArray<CompletedTurnRecord>): void;
   /** Replace the persisted completed-turn list (used during DB hydration). */
   hydrateThreadCompletedTurns(threadId: string, turns: ReadonlyArray<CompletedTurnRecord>): void;
   /**
@@ -404,6 +413,44 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
         runtimeStructuralVersionByThread,
         runtimeCompletedTurnsByThread,
         runtimeOpenTurnByThread,
+      };
+    }),
+
+  trimThreadRuntimeItems: (threadId, startIndex, count) =>
+    set((state) => {
+      const itemIds = state.runtimeItemIdsByThread[threadId];
+      if (!itemIds || count <= 0 || startIndex < 0 || startIndex >= itemIds.length) return {};
+      const endIndex = Math.min(startIndex + count, itemIds.length);
+      const removedIds = itemIds.slice(startIndex, endIndex);
+      if (removedIds.length === 0) return {};
+      const itemsById = state.runtimeItemsByIdByThread[threadId] ?? {};
+      const nextItemsById = { ...itemsById };
+      for (const id of removedIds) delete nextItemsById[id];
+      clearRuntimeStructuralChangeHint(threadId);
+      return {
+        runtimeItemIdsByThread: {
+          ...state.runtimeItemIdsByThread,
+          [threadId]: [...itemIds.slice(0, startIndex), ...itemIds.slice(endIndex)],
+        },
+        runtimeItemsByIdByThread: {
+          ...state.runtimeItemsByIdByThread,
+          [threadId]: nextItemsById,
+        },
+        runtimeStructuralVersionByThread: {
+          ...state.runtimeStructuralVersionByThread,
+          [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        },
+      };
+    }),
+
+  replaceThreadCompletedTurns: (threadId, turns) =>
+    set((state) => {
+      if (state.runtimeCompletedTurnsByThread[threadId] === turns) return {};
+      return {
+        runtimeCompletedTurnsByThread: {
+          ...state.runtimeCompletedTurnsByThread,
+          [threadId]: turns,
+        },
       };
     }),
 
