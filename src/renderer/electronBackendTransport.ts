@@ -13,6 +13,10 @@ import {
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import { ipcProcedureMap, type IpcProcedureName, type SupervisorEvent } from "@/shared/ipc";
 import { utf8ByteLength } from "@/shared/rendererStreamChunks";
+import {
+  beginRendererPerfSpan,
+  noteRendererPerfEvent,
+} from "./diagnostics/rendererPerfDiagnostics";
 import { RendererStreamReassembly } from "./rendererStreamReassembly";
 
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
@@ -254,6 +258,9 @@ export class ElectronBackendTransport {
         if (!pending) return;
         this.pending.delete(id);
         clearTimeout(pending.timeout);
+        // Perf-diag point event: a bounded large-reply finished reassembling
+        // and its caller promise resolved (no-op when the monitor is inert).
+        noteRendererPerfEvent("large-reply-complete", { id });
         pending.resolve(data);
       },
       rejectReply: (id: string, error: Error): void => {
@@ -283,61 +290,78 @@ export class ElectronBackendTransport {
   }
 
   private handleMessage(socket: WebSocket, raw: string): void {
-    if (this.socket !== socket) return;
-    let message: unknown;
+    // Perf-diag span around one transport frame (parse + reassembly + dispatch);
+    // a no-op handle when the diagnostics were not requested at launch.
+    const frameSpan = beginRendererPerfSpan("transport-frame");
+    let frameType: string | undefined;
     try {
-      message = JSON.parse(raw);
-    } catch {
-      socket.close(1008, "Invalid backend renderer message");
-      return;
-    }
-    // Bounded large-reply frames first: stale/duplicate/out-of-order safely
-    // drop inside reassembly (socket alive); version mismatches fall through
-    // to the loud 1008 gate below.
-    if (
-      this.largeReassembly.handleBackendFrame(
-        message,
-        utf8ByteLength(raw),
-        this.reassemblyEvents(),
-        (id) => this.pending.has(id),
-      )
-    ) {
-      return;
-    }
-    if (!isBackendRendererMessage(message)) {
-      socket.close(1008, "Invalid backend renderer message");
-      return;
-    }
-    if (message.type === "reply") {
-      const pending = this.pending.get(message.id);
-      if (!pending) return;
-      this.pending.delete(message.id);
-      clearTimeout(pending.timeout);
-      if (message.ok) pending.resolve(message.data);
-      else pending.reject(new Error(message.error));
-      return;
-    }
-    if (message.type === "interests-ack") {
-      this.lastSequence = Math.max(this.lastSequence, message.latestSeq);
-      // The acknowledged handoff cursor for THIS connection: the backend may
-      // anchor a recovery barrier's loss window at it, and this window may
-      // treat a barrier as stale when this cursor already covers the loss.
-      this.ackedSequence = message.latestSeq;
-      this.directEventsConnected = true;
-      this.handleOwnershipAck(message.ownership);
-      return;
-    }
-    if (message.type === "event") {
-      if (message.seq <= this.lastSequence) return;
-      this.lastSequence = message.seq;
-      this.dispatch(message.event, message.seq);
-      return;
-    }
-    if (message.type === "resync-required") {
-      this.lastSequence = message.latestSeq;
-      this.dispatchRebuildForInterests(
-        message.threadIds && message.threadIds.length > 0 ? new Set(message.threadIds) : undefined,
-      );
+      if (this.socket !== socket) return;
+      let message: unknown;
+      try {
+        message = JSON.parse(raw);
+      } catch {
+        socket.close(1008, "Invalid backend renderer message");
+        return;
+      }
+      if (
+        typeof message === "object" &&
+        message !== null &&
+        typeof (message as { type?: unknown }).type === "string"
+      ) {
+        frameType = (message as { type: string }).type;
+      }
+      // Bounded large-reply frames first: stale/duplicate/out-of-order safely
+      // drop inside reassembly (socket alive); version mismatches fall through
+      // to the loud 1008 gate below.
+      if (
+        this.largeReassembly.handleBackendFrame(
+          message,
+          utf8ByteLength(raw),
+          this.reassemblyEvents(),
+          (id) => this.pending.has(id),
+        )
+      ) {
+        return;
+      }
+      if (!isBackendRendererMessage(message)) {
+        socket.close(1008, "Invalid backend renderer message");
+        return;
+      }
+      if (message.type === "reply") {
+        const pending = this.pending.get(message.id);
+        if (!pending) return;
+        this.pending.delete(message.id);
+        clearTimeout(pending.timeout);
+        if (message.ok) pending.resolve(message.data);
+        else pending.reject(new Error(message.error));
+        return;
+      }
+      if (message.type === "interests-ack") {
+        this.lastSequence = Math.max(this.lastSequence, message.latestSeq);
+        // The acknowledged handoff cursor for THIS connection: the backend may
+        // anchor a recovery barrier's loss window at it, and this window may
+        // treat a barrier as stale when this cursor already covers the loss.
+        this.ackedSequence = message.latestSeq;
+        this.directEventsConnected = true;
+        this.handleOwnershipAck(message.ownership);
+        return;
+      }
+      if (message.type === "event") {
+        if (message.seq <= this.lastSequence) return;
+        this.lastSequence = message.seq;
+        this.dispatch(message.event, message.seq);
+        return;
+      }
+      if (message.type === "resync-required") {
+        this.lastSequence = message.latestSeq;
+        this.dispatchRebuildForInterests(
+          message.threadIds && message.threadIds.length > 0
+            ? new Set(message.threadIds)
+            : undefined,
+        );
+      }
+    } finally {
+      frameSpan.end({ bytes: raw.length, ...(frameType ? { type: frameType } : {}) });
     }
   }
 

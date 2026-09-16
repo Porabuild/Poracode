@@ -46,6 +46,10 @@ import {
   rehydrateThreadRuntimeItemsAfterReset,
 } from "./state/chatRuntimePersister";
 import { RuntimeEventQueue } from "./state/runtimeEventQueue";
+import {
+  beginRendererPerfSpan,
+  startRendererPerfDiagnostics,
+} from "./diagnostics/rendererPerfDiagnostics";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { usePrWatchAgentSync } from "@/renderer/hooks/usePrWatchAgentSync";
@@ -106,6 +110,9 @@ const isMainWindow = windowKind === "main";
 // preserved without forcing every background thread through the reducer.
 const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
 const pendingRuntimeEvents = new RuntimeEventQueue();
+// Gate 4 renderer perf diagnostics: inert unless the window was launched with
+// ?poracodePerfDiag=1 (or the localStorage flag), so production is untouched.
+startRendererPerfDiagnostics();
 const runtimeRecoveryInFlight = new Set<string>();
 const runtimeRecoveryInvalidated = new Set<string>();
 const latestRendererSequenceByThread = new Map<string, number>();
@@ -120,19 +127,35 @@ function isForegroundRuntimeThread(threadId: string): boolean {
 }
 
 function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): void {
-  const store = useAppStore.getState();
-  const threads = store.threads;
-  const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
-  batches.push(...pendingRuntimeEvents.drain(shouldFlush));
-  if (batches.length === 0) return;
-  // One Zustand set for all concurrent streams — avoids N selector passes when
-  // several chats are working in the background / being switched between.
-  store.applyRuntimeEventBatches(batches);
-  evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
-  for (const { threadId, events } of batches) {
-    // Durable usage capture at the canonical layer (all providers normalized).
-    // Thread metadata is resolved lazily inside, so pure-delta frames are free.
-    recordRuntimeUsage(threadId, events, threads);
+  // Perf-diag spans around the final-consumer drain (no-op when the monitor
+  // was not requested at launch).
+  const drainSpan = beginRendererPerfSpan("runtime-drain");
+  let drainedThreads = 0;
+  let drainedEvents = 0;
+  try {
+    const store = useAppStore.getState();
+    const threads = store.threads;
+    const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
+    batches.push(...pendingRuntimeEvents.drain(shouldFlush));
+    drainedThreads = batches.length;
+    drainedEvents = batches.reduce((total, batch) => total + batch.events.length, 0);
+    if (batches.length === 0) return;
+    // One Zustand set for all concurrent streams — avoids N selector passes when
+    // several chats are working in the background / being switched between.
+    const applySpan = beginRendererPerfSpan("apply-runtime-batches");
+    try {
+      store.applyRuntimeEventBatches(batches);
+    } finally {
+      applySpan.end({ threads: drainedThreads, events: drainedEvents });
+    }
+    evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
+    for (const { threadId, events } of batches) {
+      // Durable usage capture at the canonical layer (all providers normalized).
+      // Thread metadata is resolved lazily inside, so pure-delta frames are free.
+      recordRuntimeUsage(threadId, events, threads);
+    }
+  } finally {
+    drainSpan.end({ threads: drainedThreads, events: drainedEvents });
   }
 }
 

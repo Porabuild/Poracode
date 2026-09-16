@@ -392,6 +392,109 @@ describe("createDbStorage", () => {
   });
 });
 
+describe("app-store write queue caps (Gate 4 Batch 1)", () => {
+  beforeEach(() => {
+    bridge.windowKind = "main";
+    bridge.dbGetProjects.mockReset().mockResolvedValue([]);
+    bridge.dbGetThreads.mockReset().mockResolvedValue([]);
+    bridge.dbGetState.mockReset().mockResolvedValue(null);
+    bridge.dbSetState.mockReset().mockResolvedValue(undefined);
+    bridge.dbSyncAll.mockReset().mockResolvedValue(undefined);
+    bridge.dbSyncChanges.mockReset().mockResolvedValue(undefined);
+    window.poracode = {} as typeof window.poracode;
+  });
+
+  const snapshotWithThread = (id: string) =>
+    ({
+      state: { projects: [], threads: [{ id }], view: { kind: "home" }, groupLayouts: {} },
+      version: 4,
+    }) as never;
+
+  it("bounds content writes during a remove/write storm on a stalled IPC write", async () => {
+    let releaseFirstWrite: (() => void) | undefined;
+    bridge.dbSyncAll.mockImplementation((projects: unknown[], threads: unknown[]) => {
+      if (threads.length > 0 && !releaseFirstWrite) {
+        return new Promise<void>((resolve) => {
+          releaseFirstWrite = resolve;
+        });
+      }
+      // Removal clears arrive as empty threads; the stalled write is the only
+      // non-empty threads list.
+      void projects;
+      return Promise.resolve();
+    });
+    const storage = createDbStorage();
+    storage.setItem("poracode-app-v2", snapshotWithThread("stalled"));
+    await flushMicrotasks();
+
+    // Alternate remove/write bursts: without caps this grows the queue by one
+    // remove per cycle for as long as the first write is stalled. The queue
+    // adapter's PersistStorage return type is `unknown`, so the operations are
+    // collected untyped and awaited together below.
+    const operations: unknown[] = [];
+    for (let index = 0; index < 40; index += 1) {
+      operations.push(storage.removeItem("poracode-app-v2"));
+      operations.push(storage.setItem("poracode-app-v2", snapshotWithThread(`burst-${index}`)));
+    }
+    await flushMicrotasks();
+
+    // While the first write is stalled, backpressure holds: exactly ONE SQLite
+    // call has happened (the stalled write) and every burst caller is waiting
+    // instead of piling snapshots into the queue.
+    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(1);
+
+    releaseFirstWrite?.();
+    await Promise.all(operations);
+
+    // After release everything drains: all 40 removals ran (none dropped) and
+    // every burst waiter resolved.
+    const clears = bridge.dbSyncAll.mock.calls.filter(
+      ([, threads]) => (threads as unknown[]).length === 0,
+    );
+    expect(clears).toHaveLength(40);
+    expect(bridge.dbSyncChanges).not.toHaveBeenCalled();
+  });
+
+  it("supersedes a queued write behind a removal without persisting stale snapshots", async () => {
+    let releaseFirstWrite: (() => void) | undefined;
+    bridge.dbSyncAll.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFirstWrite = resolve;
+        }),
+    );
+    const storage = createDbStorage();
+    const first = storage.setItem("poracode-app-v2", snapshotWithThread("in-flight"));
+    await flushMicrotasks();
+
+    const superseded = storage.setItem("poracode-app-v2", snapshotWithThread("stale"));
+    const removal = storage.removeItem("poracode-app-v2");
+    const latest = storage.setItem("poracode-app-v2", snapshotWithThread("latest"));
+    releaseFirstWrite?.();
+    await Promise.all([first, superseded, removal, latest]);
+
+    // in-flight (full) -> removal clear -> latest (full; diffs against nothing).
+    const threadsWritten = bridge.dbSyncAll.mock.calls.map(([, threads]) =>
+      (threads as Array<{ id: string }>).map((thread) => thread.id),
+    );
+    expect(threadsWritten).toEqual([["in-flight"], [], ["latest"]]);
+    expect(bridge.dbSyncChanges).not.toHaveBeenCalled();
+  });
+
+  it("backpressures more pending removals than the cap and resolves every waiter", async () => {
+    bridge.dbSyncAll.mockResolvedValue(undefined);
+    const storage = createDbStorage();
+    const removals = Array.from({ length: 24 }, () => storage.removeItem("poracode-app-v2"));
+    await Promise.all(removals);
+    // Every removal ran (none dropped): 24 clears.
+    expect(bridge.dbSyncAll).toHaveBeenCalledTimes(24);
+    bridge.dbSyncAll.mock.calls.forEach(([, threads, viewJson]) => {
+      expect(threads).toEqual([]);
+      expect(viewJson).toBe('{"kind":"home"}');
+    });
+  });
+});
+
 describe("dbStorage persistence error reporting", () => {
   beforeEach(() => {
     bridge.windowKind = "main";

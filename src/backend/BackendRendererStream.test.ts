@@ -286,6 +286,29 @@ describe("BackendRendererStream", () => {
     client.socket.close();
   });
 
+  it("caps terminal-bootstrap retention with drop-oldest eviction", async () => {
+    const stream = new BackendRendererStream();
+    streams.push(stream);
+    await stream.start();
+    // MAX_TERMINAL_BOOTSTRAP_RETENTIONS in BackendRendererStream.ts: a start
+    // storm cannot pile retention entries past this ceiling.
+    const ceiling = 256;
+    for (let index = 0; index < ceiling + 10; index += 1) {
+      stream.retainTerminalBootstrap(`thread-${index}`);
+    }
+
+    expect(stream.terminalBootstrapRetentionCount()).toBe(ceiling);
+    expect(stream.getDiagnostics().terminalBootstrapCeilingEvictions).toBe(10);
+    expect(stream.getDiagnostics().terminalBootstrapRetained).toBe(ceiling);
+
+    // Re-retaining the fully-evicted oldest thread works and re-bounds.
+    stream.retainTerminalBootstrap("thread-0");
+    expect(stream.terminalBootstrapRetentionCount()).toBe(ceiling);
+
+    stream.clearTerminalBootstrap(`thread-${ceiling + 9}`);
+    expect(stream.terminalBootstrapRetentionCount()).toBe(ceiling - 1);
+  });
+
   it("applies a mid-window bind to the initiating window's retained bootstrap thread", async () => {
     const ownership = new RendererStreamOwnership();
     const stream = new BackendRendererStream({ ownership });
