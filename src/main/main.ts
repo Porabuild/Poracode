@@ -163,7 +163,8 @@ if (process.env.PORACODE_CDP_PORT) {
 // "Keychain Not Found" dialog each launch), so darwin DEV launches default to
 // Chromium's mock keychain — dev profiles are disposable. Packaged launches
 // always keep the real OS keychain; PORACODE_USE_REAL_KEYCHAIN=1 opts a dev
-// launch back in.
+// launch back in, and PORACODE_USE_MOCK_KEYCHAIN=1 lets a harness-driven
+// production-mode launch (built bundle, legacy identity) opt into the mock.
 if (shouldUseMockKeychain({ isDev })) {
   app.commandLine.appendSwitch("use-mock-keychain");
 }
