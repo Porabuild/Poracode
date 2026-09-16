@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fileURLToPath } from "node:url";
 import { HeadlessCompositionShutdownError } from "./headlessRemoteComposition";
 import { runCli } from "./cli";
+import { ensureDeclaredAssetsDir } from "./testDeclaredAssets";
 import type { HeadlessRemoteHost, HeadlessRemoteHostOptions } from "./createHeadlessRemoteHost";
 
 const fixture = vi.hoisted(() => ({
@@ -29,11 +29,10 @@ beforeEach(() => {
   // The test process runs cli.ts from src/server, outside both published
   // install shapes; serve() resolves the layout contract first, so the
   // required asset is declared explicitly (the documented escape hatch). The
-  // synthetic host never consumes it.
-  vi.stubEnv(
-    "PORACODE_WSL_HELPERS_DIR",
-    fileURLToPath(new URL("../../resources/wsl-helpers", import.meta.url)),
-  );
+  // declaration only requires an existing directory and the synthetic host
+  // never consumes its contents — a test-owned temp dir keeps the harness
+  // independent of prepared checkout resources (CI test shards stage none).
+  vi.stubEnv("PORACODE_WSL_HELPERS_DIR", ensureDeclaredAssetsDir());
   fixture.createHost.mockReset();
   fixture.stopDiagnostics.mockClear();
   signals.clear();

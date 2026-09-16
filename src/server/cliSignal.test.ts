@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { HostOwnerLease, HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import { ensureDeclaredAssetsDir } from "./testDeclaredAssets";
 
 let directory: string;
 let entry: string;
@@ -79,9 +80,9 @@ function runChild(profile: string, stage: string, outcome = "joined", execPath =
     // The synthetic child bundle lives in a bare temp directory, outside both
     // published install shapes; serve() resolves the layout contract first, so
     // the required asset is declared explicitly (the documented escape hatch).
-    PORACODE_WSL_HELPERS_DIR: fileURLToPath(
-      new URL("../../resources/wsl-helpers", import.meta.url),
-    ),
+    // A test-owned temp dir satisfies the exists-requirement without depending
+    // on prepared checkout resources (CI test shards stage none).
+    PORACODE_WSL_HELPERS_DIR: ensureDeclaredAssetsDir(),
   };
   delete environment.NODE_OPTIONS;
   const child = fork(
