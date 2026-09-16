@@ -23,6 +23,7 @@ export {
   dbUpdateProject,
   dbUpsertThread,
   dbSetThreadGroup,
+  dbSetThreadsDone,
   dbMarkLiveThreadsInactive,
   dbDeleteThread,
   dbDeleteProject,

@@ -112,6 +112,24 @@ export function dbUpsertThread(thread: Thread, sortOrder: number): void {
 }
 
 /**
+ * Host-side durable PR-merge settle: mark threads done without touching their
+ * sidebar sort order, live status, or ownership markers (unlike
+ * `dbUpsertThread`, which rewrites the whole row). Only rows not already done
+ * flip, so an explicit un-done by the user is never reversed by a late event.
+ */
+export function dbSetThreadsDone(threadIds: readonly string[], doneAt: string): void {
+  if (threadIds.length === 0) return;
+  getSqlite()
+    .prepare(
+      `UPDATE threads
+       SET done = 1, done_at = ?, updated_at = ?
+       WHERE done = 0 AND id IN (${threadIds.map(() => "?").join(", ")})`,
+    )
+    .run(doneAt, doneAt, ...threadIds);
+  notifyProjectThreadDataChanged();
+}
+
+/**
  * Assign a thread to a sidebar group without touching its sort order (unlike
  * `dbUpsertThread`, which requires one). Fallback for orchestrator grouping
  * when no renderer window is up to own the metadata write.

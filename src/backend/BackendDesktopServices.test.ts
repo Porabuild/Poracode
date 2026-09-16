@@ -6,6 +6,14 @@ const mocks = vi.hoisted(() => ({
   durableInstances: [] as Array<{
     startIngress: ReturnType<typeof vi.fn<() => Promise<void>>>;
   }>,
+  settingsAccessOptions: [] as Array<Record<string, unknown>>,
+  settingsAccesses: [] as Array<{
+    call: ReturnType<typeof vi.fn>;
+    editSettingsField: ReturnType<typeof vi.fn>;
+    commitCompatPatch: ReturnType<typeof vi.fn>;
+    writeSharedSettingsCompat: ReturnType<typeof vi.fn<(next: never) => void>>;
+    dispose: ReturnType<typeof vi.fn<() => Promise<void>>>;
+  }>,
   createDesktopRemoteAccessController: vi.fn<
     (options: unknown) => {
       getServer: () => null;
@@ -81,6 +89,21 @@ vi.mock("./BackendDurableServices", () => ({
   },
 }));
 
+vi.mock("./BackendSettingsService", () => ({
+  createBackendSettingsAccess: (accessOptions: Record<string, unknown>) => {
+    mocks.settingsAccessOptions.push(accessOptions);
+    const access = {
+      call: vi.fn<() => Promise<null>>(async () => null),
+      editSettingsField: vi.fn<() => Promise<null>>(async () => null),
+      commitCompatPatch: vi.fn<() => Promise<null>>(async () => null),
+      writeSharedSettingsCompat: vi.fn<() => void>(() => {}),
+      dispose: vi.fn<() => Promise<void>>(async () => {}),
+    };
+    mocks.settingsAccesses.push(access);
+    return access;
+  },
+}));
+
 vi.mock("./BackendRemoteBrowserProxy", () => ({
   BackendRemoteBrowserProxy: class {
     publish = () => {};
@@ -142,7 +165,7 @@ describe("BackendDesktopServices projection invalidation", () => {
 });
 
 describe("BackendDesktopServices settings notifications", () => {
-  it("keeps a committed routing write successful when notifying main fails", () => {
+  it("keeps a committed routing write successful when notifying main fails", async () => {
     const serviceOptions = options(true);
     const error = new Error("Fixture main disconnected");
     serviceOptions.emitNativeEvent.mockImplementationOnce(() => {
@@ -152,12 +175,29 @@ describe("BackendDesktopServices settings notifications", () => {
     const durable = mocks.durableOptions.at(-1) as unknown as {
       writeSharedSettings(settings: SharedSettings): void;
     };
+    const access = mocks.settingsAccesses.at(-1)!;
+    const accessOptions = mocks.settingsAccessOptions.at(-1)!;
+    // Mirror the real access contract: the committed broadcast is
+    // fire-and-forget and reports failures instead of throwing into the
+    // durable event path.
+    access.writeSharedSettingsCompat.mockImplementation((next) => {
+      const { onChanged, reportError } = accessOptions as {
+        onChanged: (settings: SharedSettings) => void;
+        reportError?: (error: unknown) => void;
+      };
+      void Promise.resolve()
+        .then(() => onChanged(next))
+        .catch((notifyError: unknown) => reportError?.(notifyError));
+    });
 
     expect(() => durable.writeSharedSettings(defaultSharedSettings)).not.toThrow();
-    expect(writeSharedSettingsFile).toHaveBeenCalledExactlyOnceWith(
-      "/data/settings.json",
-      defaultSharedSettings,
-    );
+    // The settings authority owns the document; no direct file patch remains.
+    expect(writeSharedSettingsFile).not.toHaveBeenCalled();
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(serviceOptions.emitNativeEvent).toHaveBeenCalledExactlyOnceWith({
+      type: "shared-settings-changed",
+      settings: defaultSharedSettings,
+    });
     expect(serviceOptions.reportError).toHaveBeenCalledExactlyOnceWith(error);
   });
 });

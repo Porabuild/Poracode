@@ -290,6 +290,15 @@ export interface BackendHostInitializePayload {
     channel: "stable" | "nightly";
     settingsPath: string;
     devServerUrl?: string;
+    /**
+     * Data-custody fence path (`<ns>.host-data.sqlite`, `hostDataFence.ts`).
+     * Desktop main resolves it from the same canonical root mapping as the
+     * owner lease, so the forked backend child takes the fence before opening
+     * SQLite. Absent in compositions that do not fork a backend process
+     * (headless owns its database in-process). Additive same-build field:
+     * main and the backend child ship in one bundle, so no protocol bump.
+     */
+    dataFencePath?: string;
   };
 }
 
@@ -298,6 +307,8 @@ export type BackendEventInterests = LiveEventInterests;
 export const BACKEND_SETTINGS_PROCEDURE_NAMES = [
   "getSharedSettings",
   "setSharedSettings",
+  "settingsTransactionMutate",
+  "settingsTransactionSnapshot",
   "setAgentSecretSetting",
   "removeCrossagentRoutingOverride",
   "removeCrossagentMemoryEntry",

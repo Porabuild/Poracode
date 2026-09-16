@@ -120,6 +120,47 @@ function hasLiveServerLock(dataDir: string): boolean {
   }
 }
 
+export interface LegacyOwnershipProbe {
+  /** True when a launch would still attempt the legacy import. */
+  readonly pendingImport: boolean;
+  /** True when a live process holds a legacy (or importing-target) server.lock. */
+  readonly liveServerLock: boolean;
+  readonly legacyDataDir: string;
+}
+
+/**
+ * Side-effect-free ownership probe for desktop startup admission: mirrors the
+ * early-return predicates of `migrateLegacyDataOnLaunch` so a caller can
+ * refuse BEFORE acquiring the owner lease when a live legacy server would
+ * turn the import into a two-writer fight. An already-migrated profile
+ * (migration marker present, nothing left to import) reports no pending
+ * import even while the legacy app keeps running.
+ */
+export function probeLegacyOwnership(options: LegacyDataMigrationOptions): LegacyOwnershipProbe {
+  const channel = options.channel ?? resolvePoracodeChannel();
+  const migrationApplicable =
+    options.allowCustomDataRoot === true || isDefaultDataRoot(options.baseDir, channel);
+  const requested = existsSync(requestPath(options.baseDir));
+  const alreadyComplete = !requested && existsSync(markerPath(options.baseDir));
+  const sourceDataDir = legacyDataDir(channel, options.legacyBaseDir);
+  const importDataRoot =
+    isDirectory(sourceDataDir) && normalizedPath(sourceDataDir) !== normalizedPath(options.baseDir);
+  const importElectronUserData =
+    isDirectory(options.legacyElectronUserDataDir) &&
+    options.electronUserDataDir !== undefined &&
+    normalizedPath(options.legacyElectronUserDataDir) !==
+      normalizedPath(options.electronUserDataDir);
+  return {
+    pendingImport:
+      migrationApplicable && !alreadyComplete && (importDataRoot || importElectronUserData),
+    liveServerLock: importDataRoot
+      ? hasLiveServerLock(sourceDataDir) ||
+        (isDirectory(options.baseDir) && hasLiveServerLock(options.baseDir))
+      : false,
+    legacyDataDir: sourceDataDir,
+  };
+}
+
 function assertDataRootAvailable(dataDir: string): void {
   if (hasLiveServerLock(dataDir)) {
     throw new Error(`Cannot migrate data while a server is using ${dataDir}.`);

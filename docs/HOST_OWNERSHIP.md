@@ -3,9 +3,15 @@
 The standalone server enters through `createHeadlessRemoteHost`. It acquires a
 `HostOwnerController` before root preparation, credential initialization, SQLite
 open or service construction. `headlessRemoteComposition` receives the resulting
-private runtime capability. Electron startup has not yet adopted this boundary;
-desktop attach, existing-profile activation and the complete settings/usage custody
-migration remain required V4 work.
+private runtime capability and backs the host's single settings authority with
+its lease and credential capabilities. Electron startup now adopts the same boundary for
+its managed mode: the desktop owner leases the shared kernel lock and, at
+ready, publishes the shared authenticated control surface (kind `desktop`,
+`describe` only — desktop attach admission is refused at the compat gate until
+the coordinated flip). Desktop attach, existing-profile activation and the
+usage custody migration remain required V4 work; the settings custody
+migration is now wired through the per-composition settings authority
+(desktop process-lifetime lease adapter until the desktop unification).
 
 ## Profile namespace and actual data root
 
@@ -13,13 +19,14 @@ migration remain required V4 work.
 that the new server writes. This applies to the default profile and an explicitly
 configured absolute path. For a namespace `R`, the version-1 layout is:
 
-| Path                  | Purpose                                                                       |
-| --------------------- | ----------------------------------------------------------------------------- |
-| `R`                   | Original namespace/legacy state; never opened as the new application database |
-| `R.host-v1`           | Actual owned server data, including SQLite, settings and credential files     |
-| `R.client-v1`         | Reserved separate Electron device-state root; desktop wiring remains pending  |
-| `R.host-owner.sqlite` | Permanent kernel lease outside replaceable data directories                   |
-| `R.host-owner.json`   | Informational owner generation/phase metadata                                 |
+| Path                  | Purpose                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| `R`                   | Original namespace/legacy state; never opened as the new application database         |
+| `R.host-v1`           | Actual owned server data, including SQLite, settings and credential files             |
+| `R.client-v1`         | Reserved separate Electron device-state root; desktop wiring remains pending          |
+| `R.host-owner.sqlite` | Permanent kernel lease outside replaceable data directories                           |
+| `R.host-owner.json`   | Informational owner generation/phase metadata                                         |
+| `R.host-data.sqlite`  | Data-custody fence held by the writing backend for its lifetime (desktop child today) |
 
 Startup prints both the canonical namespace and actual server root. Existing
 namespace symlink spellings resolve to one identity; a mapped owned/client root
@@ -41,6 +48,17 @@ proof. Never read, hash, copy or open the leased SQLite inode with an unmanaged
 file descriptor in its owning process: closing such a descriptor can release
 POSIX locks belonging to the SQLite connection.
 
+The data-custody fence (`hostDataFence.ts`) closes the fork handoff gap: the
+lease proves the owner process, the fence proves the writer. A forked desktop
+backend child takes `<namespace>.host-data.sqlite` before its SQLite opens and
+releases it only after the database closes, so an owner killed while its child
+still drains cannot be succeeded by a second writer. Owner admission acquires
+the lease, probes the fence with a bounded wait, then releases it before the
+fork; the lease closes that handoff gap. The fence follows the lease file
+idioms exactly (never unlinked, exclusive from first open, unknown future
+`user_version` refused). A process that predates the fence holds no fence; the
+legacy-contention refusals cover that case.
+
 ## Preparation and credentials
 
 An empty namespace can initialize a fresh owned root. A nonempty legacy namespace
@@ -60,8 +78,12 @@ runtime composition, outside control replies and remote snapshots.
 
 The shared credential helper also models OS-sealed and session-only modes for
 future desktop composition. A session-only capability refuses new durable secret
-ciphertext. The forthcoming settings and usage adapters must enforce that guard
-at every real writer; having the helper alone does not finish their activation.
+ciphertext. The settings adapters now enforce that guard at every real writer:
+the headless composition passes the live `assertCanPersistSecrets` capability
+into its settings authority, and the desktop composition asserts the
+always-persistent desktop key until the HostOwnerController unification. The
+usage adapters must enforce the same guard when they activate; having the helper
+alone does not finish their activation.
 Native callbacks may seal or unseal bytes for a captured owner generation. They
 receive no key-file path and perform no owner-root filesystem operation.
 

@@ -36,6 +36,7 @@ import {
 import { defaultSharedSettings } from "@/shared/settings";
 import { emptyGitStateSnapshot } from "@/shared/gitState";
 import type { BrowserPanelManager } from "../browser";
+import { SettingsWriteRefusedError } from "@/backend/settings/settingsCompatWrites";
 import {
   dbAppendThreadCompletedTurn,
   dbApplyThreadRuntimeEvents,
@@ -5757,6 +5758,115 @@ describe("RemoteAccessServer", () => {
     });
     expect(stored.titleGenProvider).toBe("claude");
     expect(stored.enabledMcpServers).toEqual({ browser: true, crossagents: true });
+  });
+
+  it("maps settings authority conflict and overload refusals to explicit 409/429", async () => {
+    const stored: RemoteSettings = pickRemoteSettings({ ...defaultSharedSettings });
+    const refusals: SettingsWriteRefusedError[] = [
+      new SettingsWriteRefusedError("conflict", "settings patch conflicted and was not applied."),
+      new SettingsWriteRefusedError(
+        "overloaded",
+        "refused by the settings authority; retry later.",
+      ),
+    ];
+    let refusalIndex = 0;
+    const update = vi.fn<(patch: Partial<RemoteSettings>) => Promise<RemoteSettings>>(() =>
+      Promise.reject(refusals[refusalIndex++]!),
+    );
+    const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      settings: {
+        read: () => stored,
+        update,
+        readMcpServers: () => ({ servers: [] }),
+        commandMcpServers: () => ({ servers: [] }),
+        resolveScope: () => ({ servers: [] }),
+        resolveServer: () => {
+          throw new Error("not used");
+        },
+      },
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    const pairing = new URL(info.pairingUrl);
+    const credential = new URLSearchParams(pairing.hash.slice(1)).get("token");
+    const tokenResponse = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ grantType: "pairing-token", credential }),
+    });
+    const token = (await tokenResponse.json()) as { accessToken: string };
+    const auth = { authorization: `Bearer ${token.accessToken}` };
+
+    // Conflict: conflict-explicit status and payload, never a generic 500.
+    const conflictResponse = await fetch(new URL("/api/settings", info.httpBaseUrl), {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ titleGenProvider: "claude" }),
+    });
+    expect(conflictResponse.status).toBe(409);
+    await expect(conflictResponse.json()).resolves.toMatchObject({
+      error: { code: "settings_conflict" },
+    });
+
+    // Overload: retry-later semantics on the wire (429), non-committing.
+    const overloadResponse = await fetch(new URL("/api/settings", info.httpBaseUrl), {
+      method: "POST",
+      headers: { ...auth, "content-type": "application/json" },
+      body: JSON.stringify({ titleGenProvider: "claude" }),
+    });
+    expect(overloadResponse.status).toBe(429);
+    await expect(overloadResponse.json()).resolves.toMatchObject({
+      error: { code: "settings_overloaded" },
+    });
+
+    // An unrelated gateway failure is still an internal error, not a conflict.
+    const broken = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      settings: {
+        read: () => stored,
+        update: () => Promise.reject(new Error("disk on fire")),
+        readMcpServers: () => ({ servers: [] }),
+        commandMcpServers: () => ({ servers: [] }),
+        resolveScope: () => ({ servers: [] }),
+        resolveServer: () => {
+          throw new Error("not used");
+        },
+      },
+    });
+    servers.push(broken);
+    const brokenInfo = await broken.start();
+    const brokenPairing = new URL(brokenInfo.pairingUrl);
+    const brokenCredential = new URLSearchParams(brokenPairing.hash.slice(1)).get("token");
+    const brokenTokenResponse = await fetch(new URL("/oauth/token", brokenInfo.httpBaseUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ grantType: "pairing-token", credential: brokenCredential }),
+    });
+    const brokenToken = (await brokenTokenResponse.json()) as { accessToken: string };
+    const internalResponse = await fetch(new URL("/api/settings", brokenInfo.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${brokenToken.accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ titleGenProvider: "claude" }),
+    });
+    expect(internalResponse.status).toBe(500);
+    await expect(internalResponse.json()).resolves.toMatchObject({
+      error: { code: "internal_error" },
+    });
   });
 
   it("keeps MCP operation credentials on the host and requires project management", async () => {

@@ -324,4 +324,69 @@ describe("settings command service", () => {
       test.service.setProfileEnvironment({ instanceId: "work", environment: {} }, expectation),
     ).rejects.toThrow("closing");
   });
+
+  it("commits owner-managed routing fields only through the explicit subject commands", async () => {
+    const test = await fixture();
+    const overrides = [
+      { tags: ["review"], agentKind: "fixture-agent", modelId: "small", updatedAt: 1 },
+    ];
+    await test.authority.mutate(
+      test.mutation({ kind: "field", field: "crossagentRoutingOverrides" }, overrides),
+      // The seed mimics the trusted internal writer that owns these records.
+      () => true,
+    );
+    // Ordinary preference intent cannot claim these fields.
+    await expect(
+      test.service.mutateSettings(
+        test.mutation({ kind: "field", field: "crossagentSelectionUsage" }, []),
+      ),
+    ).rejects.toThrow("not authorized");
+
+    const overridesSubject = { kind: "field", field: "crossagentRoutingOverrides" } as const;
+    const stale = test.expected(overridesSubject);
+    await expect(
+      test.service.removeCrossagentRoutingOverride({ tags: ["review"] }, stale),
+    ).resolves.toMatchObject({ status: "committed", changes: [{ value: [] }] });
+    expect(test.authority.readSettings().crossagentRoutingOverrides).toEqual([]);
+
+    // A stale command against the owner-managed field conflicts explicitly.
+    // Revisions hash content, so the reseeded record must differ to be a
+    // genuine successor state.
+    await test.authority.mutate(
+      test.mutation(overridesSubject, [{ ...overrides[0]!, updatedAt: 2 }]),
+      () => true,
+    );
+    await expect(
+      test.service.removeCrossagentRoutingOverride({ tags: ["review"] }, stale),
+    ).resolves.toMatchObject({ status: "conflict", reason: "revision-changed" });
+
+    const usageSubject = { kind: "field", field: "crossagentSelectionUsage" } as const;
+    await expect(
+      test.service.removeCrossagentMemoryEntry(
+        {
+          entry: {
+            agentKind: "fixture-agent",
+            modelId: "small",
+            fast: false,
+            tags: ["review"],
+          },
+        },
+        test.expected(usageSubject),
+      ),
+    ).resolves.toMatchObject({ status: "committed" });
+    await expect(
+      test.service.updateCrossagentMemoryEntryTags(
+        {
+          entry: {
+            agentKind: "fixture-agent",
+            modelId: "small",
+            fast: false,
+            tags: ["review"],
+          },
+          tags: ["ship"],
+        },
+        test.expected(usageSubject),
+      ),
+    ).resolves.toMatchObject({ status: "committed" });
+  });
 });

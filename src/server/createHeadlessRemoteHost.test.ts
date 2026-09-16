@@ -514,13 +514,17 @@ describe("createHeadlessRemoteHost", () => {
         requestId: "fixture-set",
         change: { action: "set", override },
       });
-      expect(
-        JSON.parse(readFileSync(join(host.dataRoot, "settings.json"), "utf8"))
-          .crossagentRoutingOverrides,
-      ).toEqual([override]);
-      expect(h.supervisorCall).toHaveBeenCalledExactlyOnceWith("confirmCrossagentRoutingOverride", {
-        requestId: "fixture-set",
-        ok: true,
+      // The routing edit commits on the settings authority's queue; both the
+      // persisted document and the confirmation follow that settlement.
+      await vi.waitFor(() => {
+        expect(
+          JSON.parse(readFileSync(join(host.dataRoot, "settings.json"), "utf8"))
+            .crossagentRoutingOverrides,
+        ).toEqual([override]);
+        expect(h.supervisorCall).toHaveBeenCalledExactlyOnceWith(
+          "confirmCrossagentRoutingOverride",
+          { requestId: "fixture-set", ok: true },
+        );
       });
       expect(observed).not.toHaveBeenCalled();
     } finally {

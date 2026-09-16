@@ -234,6 +234,12 @@ async function initialize(
     dbPath,
     databaseSchemaMode: "migrate",
     markLiveThreadsInactiveOnOpen: true,
+    // Desktop main resolves the fence from the same canonical root mapping as
+    // the owner lease; the child holds it for its lifetime so an orphaned
+    // backend (killed main) keeps excluding a successor owner from the data.
+    ...(request.payload.desktop?.dataFencePath
+      ? { dataFencePath: request.payload.desktop.dataFencePath }
+      : {}),
     supervisor: {
       ...supervisor,
       resolveExtraEnv: () => ({

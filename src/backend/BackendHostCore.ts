@@ -15,6 +15,7 @@ import {
   type CheckpointRevertTruncatePhase,
 } from "@/main/db";
 import { SupervisorClient, type SupervisorClientOptions } from "@/main/supervisor/SupervisorClient";
+import { HostDataFence } from "@/backend/ownership/hostDataFence";
 import { persistSupervisorEvent } from "@/main/remote/server/runtimePersistence";
 import { TerminalScrollbackPersistence } from "@/main/remote/server/terminalScrollbackPersistence";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -84,6 +85,15 @@ export interface BackendHostCoreOptions {
   dbPath: string;
   databaseSchemaMode?: "migrate" | "validate";
   markLiveThreadsInactiveOnOpen?: boolean;
+  /**
+   * Data-custody fence path (`hostDataFence.ts`). Compositions that fork this
+   * core into a backend child pass the fence resolved by their owner: the
+   * child takes it before opening SQLite and releases it only after the
+   * database closes, so a killed owner cannot leave its orphaned child writing
+   * a root a successor owner already leases. In-process compositions (headless)
+   * omit it: the owner process holds the lease directly.
+   */
+  dataFencePath?: string;
   supervisor: Omit<SupervisorClientOptions, "baseDir" | "onEvent" | "onReset" | "onOutputShed">;
   onEvent(event: SupervisorEvent): void;
   onReset(): void;
@@ -243,8 +253,14 @@ export class BackendHostCore {
    * thread run one after the other, and the second recount happens only after
    * the first compound fully settles. */
   private readonly revertLocks = new Map<string, Promise<unknown>>();
+  private dataFence: HostDataFence | null = null;
 
   constructor(private readonly options: BackendHostCoreOptions) {
+    // Custody order: the fence is taken before SQLite opens and released only
+    // after it closes, so the database is never writable without the fence.
+    if (options.dataFencePath) {
+      this.dataFence = HostDataFence.acquire(options.dataFencePath);
+    }
     this.databaseOpen = true;
     try {
       if (options.databaseSchemaMode) {
@@ -268,6 +284,8 @@ export class BackendHostCore {
     } catch (error) {
       closeDatabase();
       this.databaseOpen = false;
+      this.dataFence?.release();
+      this.dataFence = null;
       throw error;
     }
   }
@@ -681,6 +699,10 @@ export class BackendHostCore {
     this.terminalScrollbackPersistence.flush();
     this.databaseOpen = false;
     closeDatabase();
+    // The fence outlives the database handle on purpose: custody ends only
+    // when nothing can write anymore. Process death also releases it.
+    this.dataFence?.release();
+    this.dataFence = null;
   }
 
   dispose(): Promise<void> {

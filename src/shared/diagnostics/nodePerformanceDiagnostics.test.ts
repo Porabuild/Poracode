@@ -29,6 +29,55 @@ describe("opt-in Node performance recording", () => {
     expect(interval).not.toHaveBeenCalled();
   });
 
+  it("appends Electron app metrics to sample lines format-v2-additively", async () => {
+    const root = await outputDirectory();
+    let samples = 0;
+    const recorder = startNodePerformanceDiagnostics(
+      "desktop-main",
+      {
+        PORACODE_PERF_OUTPUT_DIR: root,
+        PORACODE_PERF_INTERVAL_MS: "100",
+      },
+      {
+        sampleAppMetrics: () =>
+          samples++ === 0
+            ? null
+            : {
+                sampledMonotonicMs: 12_345,
+                processes: [
+                  {
+                    pid: process.pid,
+                    type: "Browser",
+                    cpuPercent: 1.5,
+                    cpuCumulativeSeconds: 0.25,
+                    workingSetKiB: 65_536,
+                  },
+                ],
+              },
+      },
+    )!;
+    try {
+      await delay(130);
+    } finally {
+      await recorder.stop();
+    }
+    const files = await readdir(root);
+    expect(files).toHaveLength(1);
+    const records = (await readFile(join(root, files[0]!), "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    // The start line carries no appMetrics and keeps its v2 shape.
+    expect(records[0]).toMatchObject({ kind: "start", formatVersion: 2 });
+    expect(records[0].appMetrics).toBeUndefined();
+    const withMetrics = records.filter((record: Record<string, unknown>) => record.appMetrics);
+    expect(withMetrics.length).toBeGreaterThanOrEqual(1);
+    expect(withMetrics[0].appMetrics).toMatchObject({
+      sampledMonotonicMs: 12_345,
+      processes: [{ pid: process.pid, type: "Browser", cpuPercent: 1.5 }],
+    });
+  });
+
   it.each([
     { PORACODE_PERF_OUTPUT_DIR: "relative" },
     { PORACODE_PERF_INTERVAL_MS: "0" },

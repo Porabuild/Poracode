@@ -117,6 +117,8 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "revealProjectEntry",
   "getSharedSettings",
   "setSharedSettings",
+  "settingsTransactionMutate",
+  "settingsTransactionSnapshot",
   "setAgentSecretSetting",
   "removeCrossagentRoutingOverride",
   "removeCrossagentMemoryEntry",

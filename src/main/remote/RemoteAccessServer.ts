@@ -259,7 +259,9 @@ export interface RemoteAccessServerOptions {
    */
   readonly settings?: {
     read(): RemoteSettings;
-    update(patch: RemoteSettingsPatch): RemoteSettings;
+    /** Update implementations may commit asynchronously (the settings
+     * authority persists on its own queue); the route awaits the result. */
+    update(patch: RemoteSettingsPatch): RemoteSettings | Promise<RemoteSettings>;
     readMcpServers(): { servers: McpServer[] };
     commandMcpServers(command: RemoteMcpSettingsCommand): { servers: McpServer[] };
     resolveScope(scope: RemoteMcpSettingsScope): {

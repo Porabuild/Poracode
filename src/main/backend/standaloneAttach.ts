@@ -59,9 +59,22 @@ export type StandaloneAttachRefuseReason =
   | "incompatible-owner"
   | "non-ready-owner"
   | "non-headless-owner"
+  | "desktop-owner-admission-disabled"
   | "stale-generation"
   | "mismatched-root"
   | "unreachable-owner";
+
+/**
+ * Integration switch for admitting DESKTOP owners as attach targets. The gate
+ * below is owner-kind-aware, but desktop owners do not yet expose the
+ * backend-owned client endpoint or the settings authority an attach client
+ * requires (the settings authority lands with Lane 1B of this batch), so
+ * admission stays explicitly refused. Flip to `"admit"` ONLY at the
+ * coordinated freeze boundary (Gates 2-3 Batch 1 plan, slice S1.1); the rest
+ * of the gate already handles an admitted desktop owner (state/protocol/
+ * endpoint checks apply unchanged).
+ */
+const DESKTOP_OWNER_ATTACH_ADMISSION = "refuse" as const;
 
 export type StandaloneAttachDecision =
   | {
@@ -160,6 +173,15 @@ function checkDescriptionCompat(
     return refuse(
       "mismatched-root",
       "Host description did not match the requested profile.",
+      paths,
+    );
+  }
+  if (description.mode === "desktop" && DESKTOP_OWNER_ATTACH_ADMISSION === "refuse") {
+    return refuse(
+      "desktop-owner-admission-disabled",
+      "Existing owner is the desktop app already running this profile; quit it (or use its " +
+        "window) instead of starting another authority. Desktop owners do not admit attach " +
+        "clients in this build.",
       paths,
     );
   }
