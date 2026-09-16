@@ -124,9 +124,34 @@ interface PendingAppStoreRemoval {
 
 type AppStoreOperation = PendingAppStoreWrite | PendingAppStoreRemoval;
 
+/**
+ * Bounds for the pending app-store operation queue (Gate 4 Batch 1). The
+ * queue only grows while a SQLite IPC write is stalled, and each queued
+ * snapshot holds the FULL app state, so the stall path is capped three ways:
+ *
+ * - Count: at most {@link MAX_PENDING_APP_STORE_OPERATIONS} pending
+ *   operations; further callers block (backpressure) until space frees
+ *   instead of growing the queue.
+ * - Bytes: writes coalesce eagerly — a queued write is superseded by any
+ *   strictly later write (the later snapshot overwrites every row, so
+ *   dropping the older one cannot change the final persisted state; its
+ *   waiters transfer to the newer write). At most ONE queued write snapshot
+ *   plus the in-flight one is therefore ever retained, which bounds queued
+ *   snapshot memory without paying a whole-state JSON.stringify on the hot
+ *   per-change path.
+ * - Age: superseded writes never outlive the arrival of their successor
+ *   (eager reap, strictly stronger than an age-based reaper). Removals are
+ *   never dropped or reordered: a removal that silently vanished could
+ *   resurrect cleared rows after a crash, so excess removals are what
+ *   backpressure waits on. No time-based reaper exists because nothing in
+ *   the queue is both droppable and older than its successor.
+ */
+const MAX_PENDING_APP_STORE_OPERATIONS = 8;
+
 class AppStoreWriteQueue {
   private lastPersisted: StorageValue<unknown> | undefined;
   private readonly operations: AppStoreOperation[] = [];
+  private readonly spaceWaiters: Array<() => void> = [];
   private draining = false;
 
   isDuplicate(value: StorageValue<unknown>): boolean {
@@ -163,6 +188,20 @@ class AppStoreWriteQueue {
   }
 
   private enqueue(operation: AppStoreOperation): Promise<void> {
+    if (operation.kind === "write") {
+      // Eager supersession: the incoming snapshot overwrites every row, so
+      // any queued write is already obsolete. Transfer its waiters so they
+      // resolve when the newer content is durable.
+      for (let index = this.operations.length - 1; index >= 0; index -= 1) {
+        const queued = this.operations[index]!;
+        if (queued.kind !== "write") continue;
+        this.operations.splice(index, 1);
+        operation.waiters.push(...queued.waiters);
+      }
+    }
+    if (this.operations.length >= MAX_PENDING_APP_STORE_OPERATIONS) {
+      return this.enqueueWhenSpaceAllows(operation);
+    }
     const result = new Promise<void>((resolve) => {
       operation.waiters.push(resolve);
       this.operations.push(operation);
@@ -172,6 +211,26 @@ class AppStoreWriteQueue {
       queueMicrotask(() => void this.drain());
     }
     return result;
+  }
+
+  /**
+   * Admission backpressure for a queue full of non-droppable operations
+   * (removals): the caller waits for the drain to make room instead of
+   * growing the queue or silently skipping durable work.
+   */
+  private enqueueWhenSpaceAllows(operation: AppStoreOperation): Promise<void> {
+    return new Promise<void>((release) => {
+      this.spaceWaiters.push(release);
+    }).then(() => this.enqueue(operation));
+  }
+
+  private releaseWaitingEnqueues(): void {
+    while (
+      this.spaceWaiters.length > 0 &&
+      this.operations.length < MAX_PENDING_APP_STORE_OPERATIONS
+    ) {
+      this.spaceWaiters.shift()!();
+    }
   }
 
   private async drain(): Promise<void> {
@@ -197,8 +256,10 @@ class AppStoreWriteQueue {
         }
       }
       for (const resolve of operation.waiters) resolve();
+      this.releaseWaitingEnqueues();
     }
     this.draining = false;
+    this.releaseWaitingEnqueues();
   }
 }
 

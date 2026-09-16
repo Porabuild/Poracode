@@ -56,6 +56,16 @@ const MAX_REQUEST_BYTES = 64 * 1024 * 1024;
  * disconnected or stalled window cannot retain an unbounded set of promises. */
 const MAX_CLIENT_IN_FLIGHT_REQUESTS = 64;
 const SHUTDOWN_SOCKET_GRACE_MS = 500;
+/**
+ * Count ceiling for the terminal-bootstrap retention map. The 10 s timer
+ * already bounds each entry's age, but a storm of thread starts (a batch
+ * launcher opening 1000 threads) would pile entries faster than they age out.
+ * Dropping the OLDEST retention only gives up the first-terminal-output grace
+ * for the least recent start; that content self-heals from the local DB on
+ * the window's next hydration, so the degradation is a late-binding window
+ * missing the very first lines, never stale or duplicated output.
+ */
+const MAX_TERMINAL_BOOTSTRAP_RETENTIONS = 256;
 
 interface ReplayEntry {
   seq: number;
@@ -108,6 +118,10 @@ export interface BackendRendererStreamDiagnostics {
   budgetIncreases: number;
   budgetDecreases: number;
   peakBufferedBytes: number;
+  /** Live terminal-bootstrap retention entries (post-ceiling). */
+  terminalBootstrapRetained: number;
+  /** Retentions evicted by the count ceiling before their 10 s timer fired. */
+  terminalBootstrapCeilingEvictions: number;
 }
 
 export interface BackendRendererStreamOptions {
@@ -187,7 +201,10 @@ export class BackendRendererStream {
   private starting: Promise<BackendRendererStreamInfo> | undefined;
   private disposal: Promise<void> | undefined;
   private stopping = false;
-  private readonly diagnostics: Omit<BackendRendererStreamDiagnostics, "connectedClients"> = {
+  private readonly diagnostics: Omit<
+    BackendRendererStreamDiagnostics,
+    "connectedClients" | "terminalBootstrapRetained"
+  > = {
     deliveredEvents: 0,
     replayedEvents: 0,
     replayEvictions: 0,
@@ -196,6 +213,7 @@ export class BackendRendererStream {
     budgetIncreases: 0,
     budgetDecreases: 0,
     peakBufferedBytes: 0,
+    terminalBootstrapCeilingEvictions: 0,
   };
 
   constructor(private readonly options: BackendRendererStreamOptions = {}) {
@@ -376,6 +394,15 @@ export class BackendRendererStream {
    */
   retainTerminalBootstrap(threadId: string, originWindowId?: number): void {
     this.clearTerminalBootstrap(threadId);
+    // Count ceiling on top of the 10 s age bound: a start storm cannot pile
+    // entries. The OLDEST retention gives way (insertion order); see
+    // MAX_TERMINAL_BOOTSTRAP_RETENTIONS for the safe-degradation contract.
+    while (this.terminalBootstrapTimers.size >= MAX_TERMINAL_BOOTSTRAP_RETENTIONS) {
+      const oldest = this.terminalBootstrapTimers.keys().next().value;
+      if (oldest === undefined) break;
+      this.clearTerminalBootstrap(oldest);
+      this.diagnostics.terminalBootstrapCeilingEvictions += 1;
+    }
     const entry = {
       timer: setTimeout(() => this.terminalBootstrapTimers.delete(threadId), 10_000),
       ...(originWindowId !== undefined ? { originWindowId } : {}),
@@ -390,6 +417,11 @@ export class BackendRendererStream {
     if (entry) clearTimeout(entry.timer);
     this.terminalBootstrapTimers.delete(threadId);
     for (const client of this.clients.values()) client.router.clearTerminalBootstrap(threadId);
+  }
+
+  /** Live number of retained terminal-bootstrap entries (diagnostics/testing seam). */
+  terminalBootstrapRetentionCount(): number {
+    return this.terminalBootstrapTimers.size;
   }
 
   /** Applies one retained thread to every client currently bound to its origin window. */
@@ -471,7 +503,11 @@ export class BackendRendererStream {
   }
 
   getDiagnostics(): BackendRendererStreamDiagnostics {
-    return { connectedClients: this.clients.size, ...this.diagnostics };
+    return {
+      connectedClients: this.clients.size,
+      ...this.diagnostics,
+      terminalBootstrapRetained: this.terminalBootstrapTimers.size,
+    };
   }
 
   dispose(): Promise<void> {

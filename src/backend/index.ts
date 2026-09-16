@@ -129,6 +129,45 @@ const sender = new SupervisorIpcSender<BackendHostOutboundMessage>({
 });
 performanceDiagnostics?.observeIpcQueue("backend-to-main", () => sender.getQueueDiagnostics());
 
+// ── Diagnostics exposure (Gate 4 Batch 1, G1) ────────────────────
+// Read-only, opt-in describe handle for the renderer-stream health counters
+// (BackendRendererStream.getDiagnostics: connected clients, slow-client
+// disconnects, peak buffered bytes, replay/budget counters). The harness
+// reads it two ways, both dev/opt-in only:
+//   1. CDP on the backend inspector: globalThis.__poracodeBackendDiagnostics
+//   2. a `{ kind: "backend-diagnostics-describe", id }` dev IPC message,
+//      intercepted BEFORE the strict backend-host protocol gate below.
+// With PORACODE_BACKEND_DIAGNOSTICS unset (every production and normal dev
+// run) neither surface exists and the message path is byte-identical to
+// before. The payload is counters and process identity only — never tokens,
+// URLs, message content, or paths.
+const diagnosticsDescribeEnabled = process.env.PORACODE_BACKEND_DIAGNOSTICS === "1";
+
+function describeBackendDiagnostics(): Record<string, unknown> {
+  return {
+    role: "backend",
+    pid: process.pid,
+    rendererStream: rendererStream?.getDiagnostics() ?? null,
+    perfRecorderActive: performanceDiagnostics !== undefined,
+  };
+}
+
+if (diagnosticsDescribeEnabled) {
+  (globalThis as Record<string, unknown>).__poracodeBackendDiagnostics = {
+    describe: describeBackendDiagnostics,
+  };
+}
+
+function isBackendDiagnosticsDescribe(message: unknown): message is { id: string } {
+  if (typeof message !== "object" || message === null) return false;
+  const input = message as Record<string, unknown>;
+  return (
+    input.kind === "backend-diagnostics-describe" &&
+    input.version === BACKEND_HOST_PROTOCOL_VERSION &&
+    typeof input.id === "string"
+  );
+}
+
 function send(message: BackendHostOutboundMessage): void {
   sender.sendMessage(message);
 }
@@ -510,6 +549,11 @@ async function executeRequest(
 }
 
 process.on("message", (message: unknown) => {
+  // Opt-in dev describe handle (see the diagnostics exposure region above).
+  if (diagnosticsDescribeEnabled && isBackendDiagnosticsDescribe(message)) {
+    replySuccess(message.id, describeBackendDiagnostics());
+    return;
+  }
   if (!isBackendHostRequest(message)) {
     send({
       version: BACKEND_HOST_PROTOCOL_VERSION,
