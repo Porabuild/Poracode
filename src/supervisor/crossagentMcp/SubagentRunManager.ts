@@ -207,12 +207,7 @@ export class SubagentRunManager {
       if (
         process.platform === "win32" ||
         plan.projectLocation.kind === "wsl" ||
-        plan.attempts.some(
-          (attempt) =>
-            attempt.config.executionEnvironment?.kind === "wsl" ||
-            (plan.projectLocation.kind === "windows" &&
-              attempt.adapter.windowsProjectExecution === "wsl"),
-        )
+        plan.attempts.some((attempt) => attempt.config.executionEnvironment?.kind === "wsl")
       ) {
         throw new SubagentSpawnError(
           "run_workflow currently requires native macOS or Linux execution. Windows and WSL worker shutdown cannot yet guarantee write ownership release; use standalone compact spawn_agent runs instead.",

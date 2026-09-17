@@ -74,14 +74,10 @@ export class InvalidSessionRecoveryCoordinator {
       return;
     }
 
-    // Re-resolve the execution location (WSL fallback pin / distro moves)
+    // Re-resolve the execution location (persisted WSL pin / distro moves)
     // instead of reusing a potentially stale cached project location.
     if (session.logicalProjectLocation) {
-      const resolved = await resolveThreadExecution(
-        session.adapter,
-        session.logicalProjectLocation,
-        session.config,
-      );
+      const resolved = await resolveThreadExecution(session.logicalProjectLocation, session.config);
       session.projectLocation = resolved.location;
       session.config = resolved.config;
     }

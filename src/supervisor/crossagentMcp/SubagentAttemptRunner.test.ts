@@ -5,7 +5,7 @@ import type { ResolvedSpawnAttempt } from "./spawnPlan";
 
 vi.mock("@/supervisor/agents/base", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/supervisor/agents/base")>()),
-  resolveAgentProjectLocation: async (_adapter: unknown, location: unknown) => location,
+  resolveAgentProjectLocation: async (location: unknown) => location,
 }));
 
 function setup() {

@@ -109,7 +109,7 @@ export async function generateTitle(
   // Structured one-shots may reuse a server and bypass the CLI spawn funnel.
   assertAgentLaunchAllowed("one-shot");
   const signal = timeoutSignal(TITLE_GEN_TIMEOUT_MS);
-  const executionLocation = await resolveAgentProjectLocation(adapter, location, undefined, signal);
+  const executionLocation = await resolveAgentProjectLocation(location, undefined, signal);
   const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
     return new Error(`No default one-shot model configured for ${adapter.label}`);
   });

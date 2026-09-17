@@ -20,11 +20,9 @@ import { effectiveAgentSettings } from "@/shared/machineSettings";
 import { localMachineKey, type AgentEnv } from "@/shared/machines";
 import { normalizeSharedSettings } from "@/shared/settings";
 import {
-  buildWindowsWslLoginCommand,
   getWindowsSystemCommand,
   invalidateExecutablePathCache,
   primeExecutablePathCache,
-  resolveAgentEnvContext,
   type AgentAdapter,
   type AgentEnvContext,
 } from "../agents/base";
@@ -100,7 +98,10 @@ const execFileAsync = promisify(execFile);
 // auth state instead of losing the install when a probe reaches no verdict.
 // v35 invalidates both pre-merge parents: V2 v34 lacks OpenCode 2 discovery,
 // while master v33 lacks V2's resolved SDK installation and capability metadata.
-export const STATUS_CACHE_VERSION = 35;
+// v36 re-probes Muse on Windows natively: cached statuses that reported
+// `installed: false` because detection routed through WSL must be re-probed
+// against the Windows host now that Muse ships a native Windows build.
+export const STATUS_CACHE_VERSION = 36;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 
@@ -124,31 +125,6 @@ function machineAgentSettingsFor(
 ): Record<string, boolean | string> | undefined {
   const merged = effectiveAgentSettings(settings, localMachineKey(env), agentKind);
   return Object.keys(merged).length > 0 ? merged : undefined;
-}
-
-async function detectAdapterInstall(
-  adapter: AgentAdapter,
-  context: AgentEnvContext,
-): Promise<AgentStatus> {
-  const executionContext = await resolveAgentEnvContext(adapter, context);
-  const status = await adapter.detectInstall(executionContext);
-  if (
-    context.envKind !== "windows" ||
-    executionContext.envKind !== "wsl" ||
-    !executionContext.wslDistro ||
-    !status.loginCommand
-  ) {
-    return status;
-  }
-  return {
-    ...status,
-    loginCommandDisplay: status.loginCommand,
-    loginCommand: buildWindowsWslLoginCommand(
-      adapter,
-      executionContext.wslDistro,
-      status.loginCommand,
-    ),
-  };
 }
 
 function migrateSettingDef(definition: Record<string, unknown>): Record<string, unknown> {
@@ -584,7 +560,7 @@ export class AgentStatusService {
           ...(agentSettings ? { agentSettings } : {}),
         };
     try {
-      const detected = await detectAdapterInstall(adapter, ctx);
+      const detected = await adapter.detectInstall(ctx);
       return {
         ...detected,
         envKind,
@@ -769,7 +745,7 @@ export class AgentStatusService {
               { kind: "native" },
               adapter.kind,
             );
-            const detected = await detectAdapterInstall(adapter, {
+            const detected = await adapter.detectInstall({
               envKind: nativeEnvKind,
               ...(agentSettings ? { agentSettings } : {}),
             });

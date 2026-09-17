@@ -302,28 +302,11 @@ export interface SpawnPipelineContext {
 }
 
 export async function resolveThreadExecution(
-  adapter: AgentAdapter,
   projectLocation: ProjectLocation,
   config: ThreadConfig,
 ): Promise<{ location: ProjectLocation; config: ThreadConfig }> {
-  const { executionEnvironment, ...baseConfig } = config;
-  const location = await resolveAgentProjectLocation(
-    adapter,
-    projectLocation,
-    executionEnvironment,
-  );
-  return {
-    location,
-    config:
-      adapter.windowsProjectExecution === "wsl" &&
-      projectLocation.kind === "windows" &&
-      location.kind === "wsl"
-        ? {
-            ...baseConfig,
-            executionEnvironment: { kind: "wsl", distro: location.distro },
-          }
-        : baseConfig,
-  };
+  const location = await resolveAgentProjectLocation(projectLocation, config.executionEnvironment);
+  return { location, config };
 }
 
 /**
@@ -356,7 +339,6 @@ export class SpawnPipeline {
 
     const adapter = this.requireAdapter(payload.agentKind);
     const { location: executionLocation, config: runtimeConfig } = await resolveThreadExecution(
-      adapter,
       payload.projectLocation,
       payload.config,
     );
@@ -877,11 +859,11 @@ export class SpawnPipeline {
     if (!session.sessionRef) {
       throw new Error("Session cannot be restarted without a known session reference.");
     }
-    // Re-resolve the execution location so restarts honor a changed default
-    // distro or an updated executionEnvironment instead of reusing a stale
-    // cached UNC from the previous session.
+    // Re-resolve the execution location so restarts honor an updated
+    // executionEnvironment instead of reusing a stale cached UNC from the
+    // previous session.
     const { location: executionLocation, config } = session.logicalProjectLocation
-      ? await resolveThreadExecution(session.adapter, session.logicalProjectLocation, turnConfig)
+      ? await resolveThreadExecution(session.logicalProjectLocation, turnConfig)
       : { location: session.projectLocation, config: turnConfig };
     session.projectLocation = executionLocation;
     session.config = config;

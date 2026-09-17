@@ -17,17 +17,10 @@ import type { SubagentRunHost } from "./types";
 const resolveAgentProjectLocation = vi.hoisted(() =>
   vi.fn<
     (
-      adapter: AgentAdapter,
       location: ProjectLocation,
       executionEnvironment?: ThreadConfig["executionEnvironment"],
     ) => Promise<ProjectLocation>
-  >(
-    async (
-      _adapter: AgentAdapter,
-      location: ProjectLocation,
-      _executionEnvironment?: ThreadConfig["executionEnvironment"],
-    ) => location,
-  ),
+  >(async (location: ProjectLocation) => location),
 );
 
 vi.mock("@/supervisor/agents/base", async (importOriginal) => ({
@@ -111,7 +104,6 @@ export function makeHarness(options?: {
   baseSpawnEnv?: Record<string, string>;
   projectLocation?: ProjectLocation;
   executionEnvironment?: ThreadConfig["executionEnvironment"];
-  windowsProjectExecution?: AgentAdapter["windowsProjectExecution"];
   resume?: {
     sessionId: string;
     open?: (handle: FakeHandle, sessionRef: SessionRef | undefined) => Promise<string>;
@@ -131,9 +123,6 @@ export function makeHarness(options?: {
   const adapter = {
     kind: "codex",
     label: options?.providerLabel ?? "Codex",
-    ...(options?.windowsProjectExecution
-      ? { windowsProjectExecution: options.windowsProjectExecution }
-      : {}),
     ...(options?.baseSpawnEnv ? { baseSpawnEnv: options.baseSpawnEnv } : {}),
     capabilities: {
       supportsResume: !!options?.resume,
@@ -221,7 +210,7 @@ export function makeHarness(options?: {
 }
 
 beforeEach(() => {
-  resolveAgentProjectLocation.mockImplementation(async (_adapter, location) => location);
+  resolveAgentProjectLocation.mockImplementation(async (location) => location);
 });
 
 export { resolveAgentProjectLocation };

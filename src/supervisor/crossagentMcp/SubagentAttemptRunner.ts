@@ -97,7 +97,6 @@ export class SubagentAttemptRunner {
   ): Promise<void> {
     try {
       const projectLocation = await resolveAgentProjectLocation(
-        attempt.adapter,
         state.plan.projectLocation,
         attempt.config.executionEnvironment,
       );

@@ -46,10 +46,10 @@ export interface SpawnMuseServeHostOptions {
 
 /**
  * Spawn a `muse serve` session host with piped stdio, mirroring the Codex
- * app-server probe spawn (WSL login-shell routing via `buildAgentCommand`,
+ * app-server probe spawn (WSL project login-shell routing via `buildAgentCommand`,
  * own process group off Windows). Rejects when the process fails to spawn
  * or exits immediately; callers own teardown via `terminateChildProcessTree`
- * plus `hostCookie` (a WSL launch can outlive its Windows wrapper — the
+ * plus `hostCookie` (a WSL project launch can outlive its Windows wrapper — the
  * cookie finds the surviving Linux process by environ for a bridge kill).
  */
 export async function spawnMuseServeHost(

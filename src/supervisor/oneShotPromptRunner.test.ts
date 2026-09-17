@@ -16,7 +16,6 @@ const buildAgentCommandMock = vi.hoisted(() =>
 const resolveAgentProjectLocationMock = vi.hoisted(() =>
   vi.fn<
     (
-      _adapter: AgentAdapter,
       location: ProjectLocation,
       _environment?: unknown,
       signal?: AbortSignal,
@@ -82,7 +81,7 @@ function argvProneAdapter(): AgentAdapter {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  resolveAgentProjectLocationMock.mockImplementation(async (_adapter, location) => location);
+  resolveAgentProjectLocationMock.mockImplementation(async (location) => location);
   buildAgentCommandMock.mockImplementation(
     (location: ProjectLocation, command: string, args: string[]) =>
       location.kind === "wsl" ? { command, args } : { command, args, cwd: location.path },
@@ -148,12 +147,7 @@ describe("runOneShotPromptWithFallback", () => {
       signal,
     });
 
-    expect(resolveAgentProjectLocationMock).toHaveBeenCalledWith(
-      adapter,
-      windowsProject,
-      undefined,
-      signal,
-    );
+    expect(resolveAgentProjectLocationMock).toHaveBeenCalledWith(windowsProject, undefined, signal);
     expect(runOneShot).toHaveBeenCalledWith(expect.objectContaining({ location: wslProject }));
   });
 
