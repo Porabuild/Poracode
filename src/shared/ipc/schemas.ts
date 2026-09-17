@@ -197,6 +197,26 @@ export const dbPersistExperimentStatePayloadSchema = z.object({
 });
 export type DbPersistExperimentStatePayload = z.infer<typeof dbPersistExperimentStatePayloadSchema>;
 
+/**
+ * Bounded thread-list read (Gate 4 hazard #3): `dbGetThreads` returns every row
+ * and every client attach transferred the whole list, so page the list instead.
+ * The ceiling keeps one page's serialized reply under the 64 KiB response bound
+ * at realistic thread sizes (see the snapshots pagination acceptance test).
+ */
+export const dbGetThreadsPagePayloadSchema = z.object({
+  limit: z.number().int().min(1).max(200),
+  /** Opaque cursor from a previous page's `nextCursor` (`tp1.`-prefixed). */
+  cursor: z.string().min(1).max(256).optional(),
+  /** Project-scoped read; absent means every project. */
+  projectId: z.string().min(1).optional(),
+});
+export const persistedThreadPageSchema = z.object({
+  threads: z.array(persistedThreadSchema),
+  /** Present when older (higher sort_order) threads remain; absent/null = end. */
+  nextCursor: z.string().nullable(),
+});
+export type PersistedThreadPage = z.infer<typeof persistedThreadPageSchema>;
+
 export const persistedRuntimeItemSchema = z.object({
   id: z.string().min(1),
   type: z.string().min(1),

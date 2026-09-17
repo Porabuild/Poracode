@@ -100,13 +100,20 @@ scheme and an iOS 26.5 simulator, then Run. The command-line test gate is:
 xcodebuild -version                         # Xcode 26.6
 xcrun --sdk iphonesimulator --show-sdk-version  # 26.5
 
-cd ios/App
 xcodebuild test \
-  -project App.xcodeproj \
+  -project ios/App/App.xcodeproj \
   -scheme App \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+  -derivedDataPath .tmp/ios-app-derived-data \
+  -resultBundlePath .tmp/ios-app-tests.xcresult \
   -parallel-testing-enabled NO
 ```
+
+The `-derivedDataPath`/`-resultBundlePath` flags keep builds and result bundles
+inside the gitignored `.tmp/` directory instead of scattering them under
+`~/Library/Developer/Xcode/DerivedData` and the working directory. Delete
+`.tmp/ios-app-tests.xcresult` between runs — `xcodebuild` refuses an existing
+result bundle path.
 
 The app uses native SwiftUI lifecycle, navigation, Observation state, URLSession,
 WebSocket transport, Keychain storage, and ActivityKit surfaces. Xcode owns app

@@ -54,6 +54,7 @@ import {
   remoteSettingsPatchSchema,
   remoteSettingsSchema,
   remoteShellSnapshotSchema,
+  remoteThreadListPageSchema,
   remoteThreadSnapshotSchema,
   remoteTokenExchangePayloadSchema,
   remoteAccessTokenResultSchema,
@@ -78,6 +79,18 @@ export const forwardEnterQuerySchema = decodedForwardEnterQuerySchema;
 export const localImageQuerySchema = decodedLocalImageQuerySchema;
 export const runtimeImageQuerySchema = decodedRuntimeImageQuerySchema;
 export const attachmentUploadQuerySchema = decodedAttachmentUploadQuerySchema;
+
+/** Body of `POST /api/files/image-ticket` (B5b ticket flow). */
+export const imageTicketRequestBodySchema = z.object({
+  path: z.string().min(1).max(4096),
+});
+
+/** Response of `POST /api/files/image-ticket`: the one-time path-bound ticket. */
+export const imageTicketResponseSchema = z.object({
+  ticket: z.string().min(1),
+  /** ISO expiry so the client knows when to re-mint. */
+  expires: z.string().min(1),
+});
 
 export const attachmentUploadResultSchema = z.object({
   path: z.string().min(1),
@@ -179,6 +192,8 @@ export const browserStateResultSchema = z.object({
 
 export const threadHistoryQuerySchema = decodedThreadHistoryQuerySchema;
 export { decodedAgentStatusesQuerySchema as agentStatusesQuerySchema } from "./queryCodecs";
+export { decodedShellSnapshotQuerySchema as shellSnapshotQuerySchema } from "./queryCodecs";
+export { decodedThreadListQuerySchema as threadListQuerySchema } from "./queryCodecs";
 export { remoteAgentSlashCommandsSchema } from "../protocol";
 export const threadHistoryItemsQuerySchema = decodedThreadHistoryItemsQuerySchema;
 
@@ -308,6 +323,7 @@ export {
   remoteSettingsPatchSchema,
   remoteShellSnapshotSchema,
   remoteThreadCommandSchema,
+  remoteThreadListPageSchema,
   remoteThreadSnapshotSchema,
   remoteTokenExchangePayloadSchema,
   remoteWebPushConfigResultSchema,

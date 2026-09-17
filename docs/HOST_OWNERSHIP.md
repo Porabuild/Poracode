@@ -100,6 +100,21 @@ automation. Recovery for legacy settings/key state without `state.sqlite` also
 remains open. A staged root stays refused by normal startup until that work exists;
 manual marker edits or moving the old directory are not a supported activation.
 
+Activation journals its mutation window (Gates 2-3 Batch 3). A running
+`host-operations.json` record with the frozen custody plan (credential outcome,
+archived key names, adopted-key fingerprint — never key material) is claimed
+before the first custody side effect and settled after the activation record is
+written. A crashed attempt therefore leaves explicit evidence instead of a
+silent half-state: a root whose custody verifiably applied resumes to its
+activation record under a fresh lease, a root untouched by the interrupted
+attempt is superseded and re-activated fresh, and any other mid-custody state
+(adopted key with a foreign fingerprint, lost key material, changed staged
+receipt or database) refuses with the typed
+`HOST_ACTIVATION_INTERRUPTED` disclosure naming the recovery, instead of the
+generic inventory mismatch. The journal is bounded (32 records, terminal
+records expire after 60 seconds, capacity is refused rather than evicting) and
+is excluded from import inventory like the other owned markers.
+
 ## Authenticated owner control
 
 The live owner publishes `host-control.json` only after one IPv4 loopback listener

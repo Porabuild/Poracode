@@ -37,7 +37,16 @@ import { REMOTE_HTTP_BRIDGE_VERSION } from "./remote/httpBridgeProtocol";
 // preloads must move in lockstep with the procedure map, so the gate rejects a
 // version-11 preload instead of letting its older bundle disagree about the
 // available settings procedures. See .agents/docs/versioning.md.
-export const PORACODE_CLIENT_RUNTIME_VERSION = 12 as const;
+// Version 13 is the bounded thread-list hydration boundary (Gate 4 hazard #3):
+// the renderer procedure map gains the additive main-local procedure
+// `dbGetThreadsPage` (cursor-paginated, project-scoped counterpart of
+// `dbGetThreads`). The preload invoke surface stays generic, but renderer
+// bundles and preloads must move in lockstep with the procedure map, so the
+// gate rejects a version-12 preload instead of letting an older bundle
+// disagree about which db procedures exist. No persisted state, remote wire,
+// or backend-host version change; the new procedure is an additive name inside
+// the existing envelopes.
+export const PORACODE_CLIENT_RUNTIME_VERSION = 13 as const;
 
 export type ClientHost = "electron" | "browser";
 export type ClientSurface = "adaptive";

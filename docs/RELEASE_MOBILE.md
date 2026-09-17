@@ -114,11 +114,13 @@ Useful local equivalents are:
 cd android
 ./gradlew clean testDebugUnitTest assembleDebug lintDebug --no-daemon --stacktrace
 
-cd ../ios/App
+cd ..
 xcodebuild test \
-  -project App.xcodeproj \
+  -project ios/App/App.xcodeproj \
   -scheme App \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+  -derivedDataPath .tmp/ios-app-derived-data \
+  -resultBundlePath .tmp/ios-app-tests.xcresult \
   -parallel-testing-enabled NO
 ```
 
@@ -154,14 +156,14 @@ reproduction commands are:
 pnpm run native:e2e
 node scripts/native-e2e.mjs ios-ui
 
-cd ios/App
 xcodebuild build \
-  -project App.xcodeproj \
+  -project ios/App/App.xcodeproj \
   -scheme App \
   -destination 'generic/platform=iOS' \
+  -derivedDataPath .tmp/ios-generic-derived-data \
   CODE_SIGNING_ALLOWED=NO
 
-cd ../../android
+cd android
 ./gradlew connectedDebugAndroidTest --no-daemon --stacktrace
 ```
 

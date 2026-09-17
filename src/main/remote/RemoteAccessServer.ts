@@ -1,4 +1,4 @@
-import { createServer, type Server } from "node:http";
+import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 import { WebSocket, WebSocketServer } from "ws";
@@ -56,10 +56,13 @@ import {
   type ForwardOriginAvailability,
   type ForwardOriginIdentity,
 } from "./portForward/forwardOriginIdentity";
+import { ForwardOriginPolicy, isForwardOriginAuthority } from "./portForward/forwardOrigin";
 import type { PortProxy } from "./portForward/portProxy";
 import type { RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
 import type { RemotePortForwardGateway } from "./RemotePortForwardGateway";
 import {
+  FORWARD_DISPATCH_ID_HEADER,
+  FORWARD_DISPATCH_ORIGIN_HEADER,
   handleRemoteAccessHttpRequest,
   handleRemoteAccessUpgrade,
 } from "./server/forwardOriginDispatch";
@@ -101,6 +104,81 @@ const DEFAULT_LISTEN_RETRY_ATTEMPTS = 5;
 const DEFAULT_LISTEN_RETRY_DELAY_MS = 500;
 const DEFAULT_MAX_CONCURRENT_INGRESS_WORK = 128;
 const DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_SOURCE = 32;
+/**
+ * Reserved control-priority capacity (Gate 4 fairness): slots of the ingress
+ * semaphore bulk traffic can never occupy, so Stop/approval-class requests
+ * stay admissible under bulk saturation. Mirrors the desktop path's tested
+ * admission classes — `SupervisorClient` admits `interruptThread` /
+ * `resolveThreadServerRequest` / `closeThread` ahead of serialized thread
+ * mutations "so a long-running mutation can still be interrupted". The
+ * reservation bounds total capacity; it never reorders already-admitted work.
+ */
+const DEFAULT_RESERVED_INGRESS_CONTROL_CAPACITY = 16;
+const DEFAULT_RESERVED_INGRESS_CONTROL_CAPACITY_PER_SOURCE = 4;
+
+/**
+ * HTTP classes for {@link RemoteAccessServer.runIngressWork}. `control` is the
+ * narrow stop/answer-an-active-session surface: POSTs to `/api/threads/<id>`
+ * routes dispatching to the same supervisor procedures the desktop path
+ * treats as control (`interruptThread`, `closeThread` — including the
+ * shell-aware `/terminal/close` — and `resolveThreadServerRequest`, the
+ * approval surface). Everything else, WebSocket upgrades included, is bulk
+ * and is shed with 503 under saturation exactly as before; control keeps the
+ * reserved slots and shares the same absolute maxima, so a control flood
+ * cannot grow admission past the old bounds.
+ */
+type IngressWorkClass = "control" | "bulk";
+
+const INGRESS_CONTROL_ROUTE_SUFFIXES: ReadonlySet<string> = new Set([
+  "/interrupt",
+  "/close",
+  "/terminal/close",
+  "/requests/resolve",
+]);
+
+/** Route suffix of a POST to `/api/threads/<single-segment-id>/...` when it is
+ * one of the stop/answer control routes; `null` for everything else. Shape
+ * mirrors `threadIdFromPath` in `httpRouter.ts` (raw id, no decoded `/`). */
+function ingressControlRouteSuffix(pathname: string): string | null {
+  if (!pathname.startsWith("/api/threads/")) return null;
+  const rest = pathname.slice("/api/threads/".length);
+  const cut = rest.lastIndexOf("/");
+  if (cut <= 0) return null;
+  const id = rest.slice(0, cut);
+  if (!id || id.includes("/")) return null;
+  const suffix = rest.slice(cut);
+  return INGRESS_CONTROL_ROUTE_SUFFIXES.has(suffix) ? suffix : null;
+}
+
+function firstHostHeaderValue(value: string | string[] | undefined): string | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : null;
+}
+
+/**
+ * Resolves the effective control reservation for one semaphore. An explicit
+ * reservation must be a non-negative safe integer below `max` (a value that
+ * would consume the whole budget is a loud configuration error — bulk would
+ * never be admitted). The default reservation scales with the budget — one
+ * eighth, capped at the default slice — so production keeps the documented
+ * reserved capacity while small explicit budgets (tests) resolve to zero
+ * reserve and keep exactly the pre-reservation admission behavior.
+ */
+function resolveControlReserve(
+  field: string,
+  explicit: number | undefined,
+  fallback: number,
+  max: number,
+): number {
+  if (explicit !== undefined) {
+    if (!Number.isSafeInteger(explicit) || explicit < 0 || explicit >= max) {
+      throw new Error(`${field} must be a non-negative safe integer below ${max}.`);
+    }
+    return explicit;
+  }
+  return Math.min(fallback, Math.floor(max / 8));
+}
 
 export interface RemoteAccessServerInfo {
   readonly httpBaseUrl: string;
@@ -170,6 +248,22 @@ export interface RemoteAccessServerOptions {
   readonly maxConcurrentIngressWork?: number;
   /** Maximum admitted continuations from one HTTP socket or WebSocket client. */
   readonly maxConcurrentIngressWorkPerSource?: number;
+  /**
+   * Ingress slots reserved for control-class work (Stop/approval POSTs — see
+   * {@link IngressWorkClass}) that bulk traffic can never occupy, so control
+   * stays admissible under bulk saturation. An explicit value must be a
+   * non-negative safe integer below `maxConcurrentIngressWork` (bulk always
+   * retains capacity); when unset, the default reservation scales with the
+   * budget — one eighth, capped at the default slice — so small explicit
+   * budgets resolve to zero reserve and unchanged admission behavior.
+   */
+  readonly reservedIngressControlCapacity?: number;
+  /**
+   * Per-source counterpart of `reservedIngressControlCapacity`: the reserved
+   * slice of one source's allowance that bulk requests from that source can
+   * never occupy, with the same scaling and validation rules.
+   */
+  readonly reservedIngressControlCapacityPerSource?: number;
   /** Grace before closing active transports; admitted handlers are still joined. */
   readonly shutdownConnectionGraceMs?: number;
   readonly authStore?: RemoteAuthStore;
@@ -411,7 +505,11 @@ export class RemoteAccessServer {
   private readonly context: RemoteServerContext;
   private readonly maxConcurrentIngressWork: number;
   private readonly maxConcurrentIngressWorkPerSource: number;
+  private readonly reservedIngressControlCapacity: number;
+  private readonly reservedIngressControlCapacityPerSource: number;
   private readonly ingressWorkBySource = new WeakMap<object, number>();
+  /** Parsed forward-origin policies for child-authority classification. */
+  private readonly ingressPolicyCache = new WeakMap<ForwardOriginIdentity, ForwardOriginPolicy>();
   private ingressWorkCount = 0;
   private seq = 0;
   private info: RemoteAccessServerInfo | null = null;
@@ -438,6 +536,24 @@ export class RemoteAccessServer {
     ) {
       throw new Error("maxConcurrentIngressWorkPerSource must be a positive safe integer.");
     }
+    // An explicit reservation that would consume a whole budget is a
+    // configuration error and fails loudly. The DEFAULTS only reserve a slice
+    // of the production-sized budgets, so when a host runs with a tiny
+    // explicit budget (tests), the default reservation clamps to
+    // `max - 1`: bulk always keeps at least one slot, and the admission
+    // behavior for those budgets is exactly the pre-reservation behavior.
+    this.reservedIngressControlCapacity = resolveControlReserve(
+      "reservedIngressControlCapacity",
+      options.reservedIngressControlCapacity,
+      DEFAULT_RESERVED_INGRESS_CONTROL_CAPACITY,
+      this.maxConcurrentIngressWork,
+    );
+    this.reservedIngressControlCapacityPerSource = resolveControlReserve(
+      "reservedIngressControlCapacityPerSource",
+      options.reservedIngressControlCapacityPerSource,
+      DEFAULT_RESERVED_INGRESS_CONTROL_CAPACITY_PER_SOURCE,
+      this.maxConcurrentIngressWorkPerSource,
+    );
     this.auth = options.authStore ?? new RemoteAuthStore();
     this.security = new RemoteServerSecurity({
       getHttpBaseUrl: () => this.info?.httpBaseUrl,
@@ -472,6 +588,7 @@ export class RemoteAccessServer {
       void this.runIngressWork(
         () => handleRemoteAccessHttpRequest(this.context, req, res),
         req.socket,
+        this.classifyIngressRequest(req),
       ).catch((error: unknown) => {
         if (!res.destroyed && !res.writableEnded) {
           if (res.headersSent) res.destroy();
@@ -485,6 +602,9 @@ export class RemoteAccessServer {
         rejectUpgrade(socket, 503, "Service Unavailable");
         return;
       }
+      // Upgrades stay bulk: the control class is the stop/approval POST
+      // routes, which need only HTTP. The upgrade handshake is cheap and the
+      // established socket never holds an ingress slot.
       void this.runIngressWork(
         () => handleRemoteAccessUpgrade(this.context, req, socket, head),
         socket,
@@ -535,11 +655,22 @@ export class RemoteAccessServer {
     };
   }
 
-  private runIngressWork<T>(operation: () => T | PromiseLike<T>, source?: object): Promise<T> {
+  private runIngressWork<T>(
+    operation: () => T | PromiseLike<T>,
+    source?: object,
+    workClass: IngressWorkClass = "bulk",
+  ): Promise<T> {
     if (this.stopping) {
       return Promise.reject(new RemoteHttpError("host_stopping", "The host is stopping.", 503));
     }
-    if (this.ingressWorkCount >= this.maxConcurrentIngressWork) {
+    // Reserved control capacity, not reordering: bulk fills only the
+    // non-reserved portion of the same semaphore, so under bulk saturation a
+    // Stop/approval request still finds free slots, while already-admitted
+    // work keeps its continuation order and every absolute maximum still
+    // bounds both classes (a control flood hits the same global ceiling).
+    const globalCeiling =
+      workClass === "control" ? this.maxConcurrentIngressWork : this.bulkIngressCeiling();
+    if (this.ingressWorkCount >= globalCeiling) {
       return Promise.reject(
         new RemoteHttpError(
           "host_busy",
@@ -549,7 +680,11 @@ export class RemoteAccessServer {
       );
     }
     const sourceCount = source === undefined ? 0 : (this.ingressWorkBySource.get(source) ?? 0);
-    if (source !== undefined && sourceCount >= this.maxConcurrentIngressWorkPerSource) {
+    const sourceCeiling =
+      workClass === "control"
+        ? this.maxConcurrentIngressWorkPerSource
+        : this.bulkIngressPerSourceCeiling();
+    if (source !== undefined && sourceCount >= sourceCeiling) {
       return Promise.reject(
         new RemoteHttpError(
           "host_busy",
@@ -568,6 +703,70 @@ export class RemoteAccessServer {
         else this.ingressWorkBySource.delete(source);
       }
     });
+  }
+
+  /** The ingress capacity bulk work may consume: everything except the
+   * reserved control slice of the semaphore. */
+  private bulkIngressCeiling(): number {
+    return this.maxConcurrentIngressWork - this.reservedIngressControlCapacity;
+  }
+
+  /** The per-source capacity bulk work may consume. */
+  private bulkIngressPerSourceCeiling(): number {
+    return this.maxConcurrentIngressWorkPerSource - this.reservedIngressControlCapacityPerSource;
+  }
+
+  /**
+   * Classifies one inbound HTTP request for admission. Control is the narrow
+   * stop/answer surface (`POST /api/threads/<id>/{interrupt,close,
+   * terminal/close,requests/resolve}`); forwarded-application traffic is
+   * always bulk even on a control-shaped path — on a child origin every path,
+   * `/api/*` included, belongs to the forwarded application. Child
+   * authorities are recognized from configured ingress identities (direct +
+   * registered relay) plus previously minted labels that stayed reserved
+   * after a configuration change; relayed child dispatch is recognized by the
+   * reserved `x-poracode-forward-{id,origin}` headers the local adapter sets
+   * (relay *API* dispatch carries neither and stays classifiable).
+   * Classification is fail-closed toward bulk: anything unrecognized keeps
+   * exactly the pre-reservation admission behavior.
+   */
+  private classifyIngressRequest(req: IncomingMessage): IngressWorkClass {
+    if (req.method !== "POST") return "bulk";
+    const host = firstHostHeaderValue(req.headers.host);
+    if (host && this.isForwardChildAuthority(host)) return "bulk";
+    if (
+      req.headers[FORWARD_DISPATCH_ID_HEADER] !== undefined ||
+      req.headers[FORWARD_DISPATCH_ORIGIN_HEADER] !== undefined
+    ) {
+      return "bulk";
+    }
+    try {
+      const { pathname } = new URL(req.url ?? "/", "http://poracode.invalid");
+      return ingressControlRouteSuffix(pathname) === null ? "bulk" : "control";
+    } catch {
+      return "bulk";
+    }
+  }
+
+  private isForwardChildAuthority(authority: string): boolean {
+    // A minted child label stays reserved even once its ingress configuration
+    // is gone, so it must keep classifying as forwarded traffic.
+    if (isForwardOriginAuthority(authority)) return true;
+    for (const identity of this.activeForwardOriginIdentities()) {
+      let policy = this.ingressPolicyCache.get(identity);
+      if (!policy) {
+        policy = new ForwardOriginPolicy(identity.baseUrl);
+        this.ingressPolicyCache.set(identity, policy);
+      }
+      if (policy.containsHostname(authority)) return true;
+    }
+    return false;
+  }
+
+  private activeForwardOriginIdentities(): ForwardOriginIdentity[] {
+    const direct = this.options.forwardOrigin;
+    const relay = this.options.getRelayForwardOrigin?.();
+    return [...(direct ? [direct] : []), ...(relay ? [relay] : [])];
   }
 
   private waitForSupervisorEvent(

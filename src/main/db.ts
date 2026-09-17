@@ -16,6 +16,7 @@ export {
   dbGetProjects,
   dbGetProject,
   dbGetThreads,
+  dbGetThreadsPage,
   dbGetThread,
   dbGetState,
   dbSetState,
@@ -72,11 +73,14 @@ export {
 } from "./db/remoteCommandReceipts";
 
 export {
+  dbAssertNoRunningCheckpointRevert,
   dbClaimCheckpointRevertOperation,
   dbCountRollbackTurnsAfterCheckpoint,
+  dbFindRunningCheckpointRevertForThreads,
   dbGetCheckpointRevertOperation,
   dbHasThreadRuntimeItem,
   dbUpdateCheckpointRevertPhases,
+  ThreadCheckpointRevertActiveError,
   type CheckpointRevertClaim,
   type CheckpointRevertFilesPhase,
   type CheckpointRevertOperationRow,

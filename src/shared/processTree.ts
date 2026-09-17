@@ -1,5 +1,13 @@
 import { spawnSync, type ChildProcess } from "node:child_process";
 
+/**
+ * spawnSync blocks the calling loop (desktop main, supervisor host loop) until
+ * the child exits, so the tree-kill tool itself must be bounded: a wedged
+ * taskkill otherwise hangs shutdown forever. On timeout or failure the caller
+ * falls through to the direct process kill below instead.
+ */
+const TASKKILL_TIMEOUT_MS = 5_000;
+
 function isRunnablePid(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -29,6 +37,8 @@ export function terminateProcessTree(pid: number, options?: TerminateProcessTree
     const result = spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], {
       stdio: "ignore",
       windowsHide: true,
+      timeout: TASKKILL_TIMEOUT_MS,
+      maxBuffer: 0,
     });
     if (!result.error && result.status === 0) {
       return;

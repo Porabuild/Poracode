@@ -132,6 +132,18 @@ public struct RoutesettingsU2DWriteRequest_f310784fe2: Codable, Sendable, Remote
   }
 }
 
+public struct RouteshellU2DSnapshotQuery_a6cf931df3: Codable, Sendable, RemoteModelMetadata {
+  public var threadLimit: RemoteField<Int64> = .missing
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "threadLimit", typeName: "Int64", required: false, nullable: false, minimum: 1, maximum: 200, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case threadLimit = "threadLimit"
+  }
+}
+
 public struct RouteshellU2DSnapshotResponseU2DGitStateU2DProjectPullRequestListsU2DValueU2DProject_83470ce639: Codable, Sendable, RemoteModelMetadata {
   public var hostId: String
   public var projectId: String
@@ -435,14 +447,4 @@ public struct RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValue_5
     case latestItemState = "latestItemState"
     case latestItemType = "latestItemType"
   }
-}
-
-public typealias RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26 = [String: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValue_5d401c152e]
-
-public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAttention_58edfaf9f7: String, Codable, Sendable {
-  case none = "none"
-  case working = "working"
-  case needsU5FApproval = "needs_approval"
-  case needsU5FReply = "needs_reply"
-  case error = "error"
 }

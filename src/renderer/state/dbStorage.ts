@@ -263,14 +263,39 @@ class AppStoreWriteQueue {
   }
 }
 
+/**
+ * Hydration page size for the bounded thread-list read (Gate 4 hazard #3).
+ * `dbGetThreads` returns every row, so each window load transferred the whole
+ * host list in one IPC reply; pages of 100 keep a single reply inside the
+ * 64 KiB response bound at realistic thread sizes (asserted by the snapshots
+ * pagination acceptance test) while the host loop never serializes more than
+ * one page per reply.
+ */
+const APP_STORE_HYDRATION_THREAD_PAGE_SIZE = 100;
+
 /** Load projects + threads + view from SQLite and assemble into Zustand persist format. */
 async function loadAppStore(): Promise<StorageValue<unknown> | null> {
   const startedAt = performance.now();
-  const [projects, threads, viewJson] = await Promise.all([
+  const threads: Thread[] = [];
+  let threadPageCursor: string | undefined;
+  // The project/view reads are independent of the paged thread list, so the
+  // first thread page and the unrelated reads start together.
+  const [projects, firstThreadPage, viewJson] = await Promise.all([
     readBridge().dbGetProjects(),
-    readBridge().dbGetThreads(),
+    readBridge().dbGetThreadsPage({ limit: APP_STORE_HYDRATION_THREAD_PAGE_SIZE }),
     readBridge().dbGetState("view"),
   ]);
+  threads.push(...firstThreadPage.threads);
+  threadPageCursor = firstThreadPage.nextCursor ?? undefined;
+  while (threadPageCursor !== undefined) {
+    const cursor = threadPageCursor;
+    const page = await readBridge().dbGetThreadsPage({
+      limit: APP_STORE_HYDRATION_THREAD_PAGE_SIZE,
+      cursor,
+    });
+    threads.push(...page.threads);
+    threadPageCursor = page.nextCursor ?? undefined;
+  }
 
   if (projects.length === 0 && threads.length === 0 && !viewJson) {
     return null;

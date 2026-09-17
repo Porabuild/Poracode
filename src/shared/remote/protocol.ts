@@ -881,6 +881,14 @@ export const remoteShellSnapshotSchema = z.object({
   snapshotSeq: z.number().int().nonnegative(),
   projects: z.array(remoteProjectSchema),
   threads: z.array(threadSchema),
+  /**
+   * Gate 4 hazard #3 pagination: present only when this request bounded the
+   * thread list (`threadLimit` query) and higher sort_order threads remain;
+   * page the remainder from the thread-list route until null. Absent means the
+   * thread list is complete (legacy hosts, unbounded requests, exhausted
+   * list), so clients that never opt in never see this field.
+   */
+  threadsNextCursor: z.string().nullable().optional(),
   runtimeSummariesByThread: z.record(z.string(), remoteRuntimeSummarySchema),
   /** Absent on desktops that predate git summaries. */
   gitSummariesByThread: remoteGitSummariesSchema.optional(),
@@ -889,6 +897,22 @@ export const remoteShellSnapshotSchema = z.object({
   updatedAt: z.string().min(1),
 });
 export type RemoteShellSnapshot = z.infer<typeof remoteShellSnapshotSchema>;
+
+/**
+ * One page of the bounded shell thread list (Gate 4 hazard #3). Serves the
+ * continuation of a `threadLimit`-bounded shell snapshot: the thread rows plus
+ * the per-thread summary slices for exactly this page's threads, so no
+ * thread-keyed map grows with the whole host.
+ */
+export const remoteThreadListPageSchema = z.object({
+  threads: z.array(threadSchema),
+  runtimeSummariesByThread: z.record(z.string(), remoteRuntimeSummarySchema),
+  /** Absent on desktops that predate git summaries (mirrors the shell snapshot). */
+  gitSummariesByThread: remoteGitSummariesSchema.optional(),
+  /** Cursor for the next page; null after the final page. */
+  nextCursor: z.string().nullable(),
+});
+export type RemoteThreadListPage = z.infer<typeof remoteThreadListPageSchema>;
 
 export const remoteAgentStatusesSchema = z.object({
   windows: z.array(agentStatusSchema),

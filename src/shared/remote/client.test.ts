@@ -1135,3 +1135,278 @@ describe("RemoteDesktopClient ETag revalidation cache", () => {
     await expect(client.snapshot()).rejects.toMatchObject({ code: "not_modified" });
   });
 });
+
+describe("RemoteDesktopClient bounded snapshot thread list", () => {
+  const endpoint = "http://127.0.0.1:38987/";
+  const PAGE_LIMIT = 2;
+
+  function threadRow(id: string) {
+    return {
+      id,
+      projectId: "project-1",
+      title: `Thread ${id}`,
+      agentKind: "claude",
+      config: { model: "sonnet" },
+      status: "idle",
+      attention: "none",
+      archived: false,
+      done: false,
+      starred: false,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+  }
+
+  function jsonResponse(status: number, body: unknown) {
+    return new Response(JSON.stringify(body), { status });
+  }
+
+  /** Fake host: bounds /api/snapshot and serves /api/threads continuations. */
+  function pagingHostFetch(allThreadIds: string[]) {
+    const calls: string[] = [];
+    const fetch = vi.fn<RemoteFetch>((url) => {
+      const request = new URL(String(url));
+      calls.push(`${request.pathname}${request.search}`);
+      if (request.pathname === "/api/snapshot") {
+        const raw = request.searchParams.get("threadLimit");
+        const limit = raw === null ? allThreadIds.length : Number(raw);
+        const page = allThreadIds.slice(0, limit);
+        return Promise.resolve(
+          jsonResponse(200, {
+            snapshotSeq: 7,
+            projects: [],
+            threads: page.map(threadRow),
+            ...(page.length < allThreadIds.length
+              ? { threadsNextCursor: `cursor:${page.length}` }
+              : {}),
+            runtimeSummariesByThread: Object.fromEntries(page.map((id) => [id, { itemCount: 2 }])),
+            gitSummariesByThread: Object.fromEntries(
+              page.map((id) => [
+                id,
+                {
+                  isRepo: true,
+                  branch: "main",
+                  totalInsertions: 0,
+                  totalDeletions: 0,
+                  ahead: 0,
+                  behind: 0,
+                  pr: null,
+                },
+              ]),
+            ),
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          }),
+        );
+      }
+      if (request.pathname === "/api/threads") {
+        const start = Number(request.searchParams.get("cursor")!.split(":")[1]);
+        const limit = Number(request.searchParams.get("limit"));
+        const page = allThreadIds.slice(start, start + limit);
+        return Promise.resolve(
+          jsonResponse(200, {
+            threads: page.map(threadRow),
+            runtimeSummariesByThread: Object.fromEntries(page.map((id) => [id, { itemCount: 2 }])),
+            gitSummariesByThread: Object.fromEntries(
+              page.map((id) => [
+                id,
+                {
+                  isRepo: true,
+                  branch: "main",
+                  totalInsertions: 0,
+                  totalDeletions: 0,
+                  ahead: 0,
+                  behind: 0,
+                  pr: null,
+                },
+              ]),
+            ),
+            nextCursor: start + limit < allThreadIds.length ? `cursor:${start + limit}` : null,
+          }),
+        );
+      }
+      return Promise.resolve(jsonResponse(404, {}));
+    });
+    return { fetch, calls };
+  }
+
+  it("assembles a complete snapshot from the bounded head plus continuation pages", async () => {
+    const ids = Array.from({ length: 5 }, (_, index) => `thread-${index}`);
+    const { fetch, calls } = pagingHostFetch(ids);
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+    const snapshot = await client.snapshot({ threadListPageLimit: PAGE_LIMIT });
+    expect(snapshot.threads.map((thread) => thread.id)).toEqual(ids);
+    // The assembled snapshot is complete: no dangling cursor for callers.
+    expect(snapshot.threadsNextCursor).toBeNull();
+    expect(Object.keys(snapshot.runtimeSummariesByThread).sort()).toEqual(ids);
+    expect(Object.keys(snapshot.gitSummariesByThread ?? {}).sort()).toEqual(ids);
+    expect(calls[0]).toBe("/api/snapshot?threadLimit=2");
+    expect(calls.slice(1)).toEqual([
+      "/api/threads?limit=2&cursor=cursor%3A2",
+      "/api/threads?limit=2&cursor=cursor%3A4",
+    ]);
+  });
+
+  it("accepts a legacy host that ignores the limit and returns the full list", async () => {
+    const ids = ["thread-0", "thread-1"];
+    const { fetch, calls } = pagingHostFetch(ids);
+    // A legacy host never sends threadsNextCursor even when threadLimit is set.
+    const originalFetch = fetch;
+    // (pagingHostFetch only adds a cursor when the list is longer than the page,
+    // so a fitting list already behaves like a legacy host.)
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", originalFetch);
+    const snapshot = await client.snapshot({ threadListPageLimit: 10 });
+    expect(snapshot.threads.map((thread) => thread.id)).toEqual(ids);
+    // A legacy host sends no cursor field at all; absent means complete.
+    expect(snapshot.threadsNextCursor ?? null).toBeNull();
+    expect(calls).toEqual(["/api/snapshot?threadLimit=10"]);
+  });
+
+  it("keeps the unbounded request path untouched without options", async () => {
+    const ids = ["thread-0"];
+    const { fetch, calls } = pagingHostFetch(ids);
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    const snapshot = await client.snapshot();
+    expect(snapshot.threads).toHaveLength(1);
+    expect(calls).toEqual(["/api/snapshot"]);
+  });
+
+  it("refuses a host that repeats a cursor instead of looping forever", async () => {
+    const fetch = vi.fn<RemoteFetch>((url) => {
+      const request = new URL(String(url));
+      if (request.pathname === "/api/snapshot") {
+        return Promise.resolve(
+          jsonResponse(200, {
+            snapshotSeq: 7,
+            projects: [],
+            threads: [threadRow("thread-0")],
+            threadsNextCursor: "cursor:1",
+            runtimeSummariesByThread: {},
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          }),
+        );
+      }
+      return Promise.resolve(
+        jsonResponse(200, {
+          threads: [threadRow("thread-1")],
+          runtimeSummariesByThread: {},
+          nextCursor: "cursor:1",
+        }),
+      );
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    await expect(client.snapshot({ threadListPageLimit: 1 })).rejects.toMatchObject({
+      code: "thread_list_cursor_loop",
+    });
+  });
+});
+
+describe("RemoteDesktopClient image ticket flow", () => {
+  const endpoint = "http://127.0.0.1:38987/";
+  const PATH = "/Users/host/pictures/cat.png";
+  const TICKET = "lc_img_testticket";
+
+  function jsonResponse(status: number, body: unknown) {
+    return new Response(JSON.stringify(body), { status });
+  }
+
+  function flushMint(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  function searchParamsOf(url: string): URLSearchParams {
+    return new URL(url).searchParams;
+  }
+
+  it("mints a ticket and serves subsequent image URLs from it without the bearer token", async () => {
+    const mints: string[] = [];
+    const fetch = vi.fn<RemoteFetch>((url, init) => {
+      const request = new URL(String(url));
+      if (request.pathname === "/api/files/image-ticket" && init?.method === "POST") {
+        mints.push(String(url));
+        return Promise.resolve(
+          jsonResponse(200, { ticket: TICKET, expiresAt: "2026-01-01T00:00:30.000Z" }),
+        );
+      }
+      return Promise.resolve(jsonResponse(404, {}));
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+    // First resolution happens while the mint is in flight: legacy URL.
+    const first = client.localImageUrl(PATH);
+    expect(searchParamsOf(first).get("access_token")).toBe("lc_access_test");
+    expect(searchParamsOf(first).get("ticket")).toBeNull();
+    await flushMint();
+    const minted = vi.mocked(fetch).mock.calls[0];
+    expect(String(minted?.[0])).toContain("/api/files/image-ticket");
+    const mintInit = minted?.[1];
+    const headers = (mintInit?.headers ?? {}) as Record<string, string>;
+    expect(headers.authorization).toContain("Bearer lc_access_test");
+
+    // Subsequent resolutions carry the one-time ticket, never the bearer token.
+    const second = client.localImageUrl(PATH);
+    expect(searchParamsOf(second).get("ticket")).toBe(TICKET);
+    expect(searchParamsOf(second).get("access_token")).toBeNull();
+    expect(mints).toHaveLength(1);
+  });
+
+  it("latches off tickets when an older host has no mint route and keeps the legacy URL", async () => {
+    let mintCalls = 0;
+    const fetch = vi.fn<RemoteFetch>((url) => {
+      if (new URL(String(url)).pathname === "/api/files/image-ticket") {
+        mintCalls += 1;
+        return Promise.resolve(jsonResponse(404, {}));
+      }
+      return Promise.resolve(jsonResponse(404, {}));
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+    expect(client.localImageUrl(PATH).includes("access_token=")).toBe(true);
+    await flushMint();
+    expect(mintCalls).toBe(1);
+
+    // The 404 latch means no further mint attempts, legacy URL every time.
+    for (let index = 0; index < 3; index += 1) {
+      const url = client.localImageUrl(PATH);
+      expect(url.includes("access_token=")).toBe(true);
+      expect(url.includes("ticket=")).toBe(false);
+    }
+    await flushMint();
+    expect(mintCalls).toBe(1);
+  });
+
+  it("re-mints after the ticket window has passed", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    try {
+      let mints = 0;
+      const fetch = vi.fn<RemoteFetch>((url, init) => {
+        if (
+          new URL(String(url)).pathname === "/api/files/image-ticket" &&
+          init?.method === "POST"
+        ) {
+          mints += 1;
+          return Promise.resolve(
+            jsonResponse(200, { ticket: TICKET, expiresAt: "2026-01-01T00:00:30.000Z" }),
+          );
+        }
+        return Promise.resolve(jsonResponse(404, {}));
+      });
+      const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+
+      expect(client.localImageUrl(PATH).includes("access_token=")).toBe(true);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(client.localImageUrl(PATH).includes("ticket=")).toBe(true);
+
+      // Past the mint window: the cached ticket is no longer reused.
+      vi.advanceTimersByTime(31_000);
+      const expired = client.localImageUrl(PATH);
+      expect(expired.includes("access_token=")).toBe(true);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mints).toBe(2);
+      expect(client.localImageUrl(PATH).includes("ticket=")).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

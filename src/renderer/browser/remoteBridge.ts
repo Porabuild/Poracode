@@ -370,6 +370,7 @@ const remoteBridgeOverrides = {
   // remains authoritative and refreshes these cached rows after reconnect.
   dbGetProjects: () => Promise.resolve([]),
   dbGetThreads: () => Promise.resolve([]),
+  dbGetThreadsPage: () => Promise.resolve({ threads: [], nextCursor: null }),
   dbGetState: () => Promise.resolve(null),
   dbSetState: () => Promise.resolve(),
   dbSyncAll: () => Promise.resolve(),

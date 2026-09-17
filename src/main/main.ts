@@ -4,6 +4,7 @@ import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerfor
 import {
   app,
   BrowserWindow,
+  dialog,
   globalShortcut,
   ipcMain,
   Menu,
@@ -63,6 +64,8 @@ import { createTray, type TrayHandle } from "./tray";
 import { readKeybindingsFile } from "./keybindingsFile";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import { shouldStartMinimized, syncWindowsStartupRegistration } from "./startupSettings";
+import { reportSingleInstanceRefusal } from "./singleInstanceRefusal";
+import { safeStorageHealth } from "./safeStorageHealth";
 import { type PoracodePaths } from "@/shared/poracodePaths";
 import { getAppName } from "@/shared/appName";
 import { productNameFor, resolvePoracodeChannel } from "@/shared/channel";
@@ -953,6 +956,11 @@ registerLocalFileProtocolScheme();
 registerPickerProtocolScheme();
 
 if (!hasSingleInstanceLock) {
+  // Never-silent refusal (P2): disclose who holds the profile before quitting.
+  // A modal error box (not just the console) because Finder-launched copies
+  // have no terminal to read — the user would otherwise see nothing at all.
+  const refusal = reportSingleInstanceRefusal(app.getPath("userData"));
+  dialog.showErrorBox("Poracode is already running", refusal);
   app.quit();
 } else {
   app.on("second-instance", (_event, commandLine) => {
@@ -1687,7 +1695,16 @@ if (!hasSingleInstanceLock) {
         // file lives in the owned profile root and is retired on dispose.
         hostCredentialAdoption = new HostCredentialAdoptionService({
           lease: desktopOwnerLease,
-          unseal: async (sealedKey) => safeStorage.decryptString(Buffer.from(sealedKey, "base64")),
+          unseal: async (sealedKey) => {
+            // P3: refuse on the latched once-per-launch verdict instead of
+            // attempting a decrypt the latched-off OS store cannot serve.
+            if (safeStorageHealth().kind !== "healthy") {
+              throw new Error(
+                "OS-backed secret storage is unavailable this launch; credential adoption needs a relaunch.",
+              );
+            }
+            return safeStorage.decryptString(Buffer.from(sealedKey, "base64"));
+          },
           reportError: (error) =>
             captureMainException(error, { "poracode.feature_area": "key-adoption" }),
         });

@@ -13,6 +13,14 @@ import {
   writeHostRootManifest,
 } from "./hostRootManifest";
 import { secretKeyFingerprint, writeHostCredentialState } from "./hostCredentialState";
+import {
+  beginHostOperation,
+  HOST_OPERATION_JOURNAL_FILE,
+  markHostOperationPhase,
+  readRunningHostOperation,
+  type HostOperationPlanEvidence,
+  type HostOperationRecord,
+} from "./hostOperationJournal";
 
 /**
  * Deliberate activation of a staged offline import (Gate 2.5 S5.1). Normal
@@ -66,6 +74,12 @@ export interface HostActivationRecord {
   readonly credentialOutcome: HostActivationCredentialOutcome;
   readonly archivedKeyFiles: readonly string[];
   readonly keyFingerprint: string;
+  /**
+   * Present only when this record completes an activation whose earlier attempt
+   * was interrupted mid-custody and resumed from the operation journal. A
+   * fresh activation never writes it; older readers ignore it.
+   */
+  readonly resumedAt?: string;
 }
 
 export interface HostActivationResult {
@@ -124,6 +138,25 @@ export class HostActivationCooperationRequiredError extends Error {
   }
 }
 
+/**
+ * A previously interrupted activation left the root mid-custody in a state the
+ * operation journal cannot safely complete (foreign key material, lost key
+ * material, or a superseded staged receipt). The typed disclosure names the
+ * exact recovery instead of the generic inventory mismatch.
+ */
+export class HostActivationInterruptedError extends Error {
+  readonly code = "HOST_ACTIVATION_INTERRUPTED";
+
+  constructor(detail: string) {
+    super(
+      "An earlier activation attempt for this staged import was interrupted mid-custody and " +
+        `cannot be completed safely: ${detail} Re-stage the offline backup and activate again; ` +
+        "the staged evidence was not silently reinterpreted.",
+    );
+    this.name = "HostActivationInterruptedError";
+  }
+}
+
 const KEY_FILES = ["secret-key.safe", "secret-key.headless"] as const;
 /**
  * The cooperating desktop owner holds the shared profile lease while it runs,
@@ -138,17 +171,31 @@ const ACTIVATION_LEASE_POLL_MS = 1_000;
  * Activate a staged offline import in three phases:
  *
  * 1. Lease-free fail-fast validation of the staged evidence (a live desktop
- *    owner holds the shared lease, so pre-checks cannot require it).
+ *    owner holds the shared lease, so pre-checks cannot require it). A running
+ *    operation-journal record from an interrupted attempt is classified first:
+ *    a pre-custody root is superseded and re-activated fresh, an applied
+ *    custody is resumed to its activation record, anything else is a typed
+ *    refusal.
  * 2. One-time Electron cooperation for an OS-sealed staged key (no lease).
  * 3. The exclusive-lease mutation window: authoritative revalidation, the
- *    single custody mutation, and the versioned activation record. The
- *    cooperating desktop must be quit during the bounded wait; the staged
- *    root is re-checked under the lease so nothing changed across phases.
+ *    single custody mutation, and the versioned activation record — all inside
+ *    a claimed operation-journal record. The cooperating desktop must be quit
+ *    during the bounded wait; the staged root is re-checked under the lease so
+ *    nothing changed across phases.
  */
 export async function activateStagedHostRoot(
   options: HostActivationOptions,
 ): Promise<HostActivationResult> {
   const paths = resolveHostRootPaths(options.profileNamespace);
+  const interrupted = readRunningHostOperation(paths, "activation");
+  let staleOperationId: string | undefined;
+  if (interrupted) {
+    staleOperationId = classifyInterruptedActivation(paths, interrupted);
+    if (staleOperationId === undefined) {
+      // Classification resumed the interrupted custody to completion.
+      return completeInterruptedActivation(paths, interrupted, options);
+    }
+  }
   const receipt = readPendingReceiptFromPaths(paths);
   revalidateStagedEvidence(paths, receipt);
   const stagedKey = readStagedKeyFile(paths, receipt);
@@ -175,38 +222,239 @@ export async function activateStagedHostRoot(
           "Re-stage the backup.",
       );
     }
-    applyActivatedCustody(lease, plan.key, plan.archived);
-    const record: HostActivationRecord = {
-      formatVersion: HOST_ACTIVATION_RECORD_VERSION,
-      profileNamespace: lease.paths.profileNamespace,
-      dataRoot: lease.paths.dataRoot,
-      activatedAt: new Date().toISOString(),
-      ownerGeneration: lease.generation,
-      stagedAt: authoritative.createdAt,
-      sourceBackupPath: authoritative.sourceBackupPath,
-      databaseSchemaVersion: authoritative.databaseSchemaVersion,
-      verified: {
-        databaseSha256: authoritative.databaseSha256,
-        fileInventorySha256: authoritative.fileInventorySha256,
-        files: authoritative.files,
-        fileBytes: authoritative.fileBytes,
-      },
-      stagedCredentialMode: authoritative.credentialMode,
+    if (staleOperationId !== undefined) {
+      // Supersede the interrupted attempt before claiming the window anew.
+      markHostOperationPhase(lease, {
+        operation: "activation",
+        operationId: staleOperationId,
+        phase: "failed",
+        note: "interrupted before custody; superseded by a fresh activation attempt",
+      });
+    }
+    const planEvidence: HostOperationPlanEvidence = {
       credentialOutcome: plan.credentialOutcome,
-      archivedKeyFiles: plan.archived,
+      archivedKeyFiles: [...plan.archived],
       keyFingerprint: secretKeyFingerprint(plan.key),
     };
-    writeActivationMarker(lease, record);
-    return {
-      profileNamespace: lease.paths.profileNamespace,
-      dataRoot: lease.paths.dataRoot,
-      credentialOutcome: plan.credentialOutcome,
-      keyFingerprint: record.keyFingerprint,
-      record,
-    };
+    beginHostOperation(lease, {
+      operation: "activation",
+      operationId: authoritative.createdAt,
+      plan: planEvidence,
+    });
+    try {
+      applyActivatedCustody(lease, plan.key, plan.archived);
+      const record: HostActivationRecord = {
+        formatVersion: HOST_ACTIVATION_RECORD_VERSION,
+        profileNamespace: lease.paths.profileNamespace,
+        dataRoot: lease.paths.dataRoot,
+        activatedAt: new Date().toISOString(),
+        ownerGeneration: lease.generation,
+        stagedAt: authoritative.createdAt,
+        sourceBackupPath: authoritative.sourceBackupPath,
+        databaseSchemaVersion: authoritative.databaseSchemaVersion,
+        verified: {
+          databaseSha256: authoritative.databaseSha256,
+          fileInventorySha256: authoritative.fileInventorySha256,
+          files: authoritative.files,
+          fileBytes: authoritative.fileBytes,
+        },
+        stagedCredentialMode: authoritative.credentialMode,
+        credentialOutcome: plan.credentialOutcome,
+        archivedKeyFiles: plan.archived,
+        keyFingerprint: planEvidence.keyFingerprint,
+      };
+      writeActivationMarker(lease, record);
+      markHostOperationPhase(lease, {
+        operation: "activation",
+        operationId: authoritative.createdAt,
+        phase: "completed",
+      });
+      return {
+        profileNamespace: lease.paths.profileNamespace,
+        dataRoot: lease.paths.dataRoot,
+        credentialOutcome: plan.credentialOutcome,
+        keyFingerprint: record.keyFingerprint,
+        record,
+      };
+    } catch (error) {
+      failJournaledActivation(lease, authoritative.createdAt, error);
+      throw error;
+    }
   } finally {
     lease.release();
   }
+}
+
+/** Best-effort terminal journal write; the original failure still propagates. */
+function failJournaledActivation(lease: HostOwnerLease, operationId: string, error: unknown): void {
+  try {
+    markHostOperationPhase(lease, {
+      operation: "activation",
+      operationId,
+      phase: "failed",
+      note: error instanceof Error ? error.message.slice(0, 512) : "activation failed",
+    });
+  } catch {
+    // The journal must never mask the activation failure it is describing.
+  }
+}
+
+/**
+ * Lease-free classification of the root left behind by an interrupted
+ * activation, guided by its journal record:
+ * - returns a stale operation ID when the root is pre-custody (every planned
+ *   archive still at the root, no adopted key file): the fresh activation
+ *   supersedes the record inside its lease window;
+ * - returns undefined after resuming the decision to
+ *   `completeInterruptedActivation` when the custody is verifiably applied;
+ * - throws the typed refusal for anything else, naming the recovery.
+ */
+function classifyInterruptedActivation(
+  paths: HostRootPaths,
+  interrupted: HostOperationRecord,
+): string | undefined {
+  if (!interrupted.plan) {
+    throw new HostActivationInterruptedError(
+      "the journal record carries no plan evidence to verify applied custody against.",
+    );
+  }
+  const adoptedKeyAtRoot = existsSync(join(paths.dataRoot, "secret-key.headless"));
+  const archivedAtRoot = interrupted.plan.archivedKeyFiles.filter((name) =>
+    existsSync(join(paths.dataRoot, name)),
+  );
+  if (adoptedKeyAtRoot) {
+    if (archivedAtRoot.length > 0) {
+      throw new HostActivationInterruptedError(
+        `the adopted key file exists while the planned archive of ` +
+          `${archivedAtRoot.join(", ")} is still at the root.`,
+      );
+    }
+    return undefined;
+  }
+  if (archivedAtRoot.length !== interrupted.plan.archivedKeyFiles.length) {
+    throw new HostActivationInterruptedError(
+      "the planned archive left the root but the adopted key file was never written; " +
+        "the recorded key material is gone.",
+    );
+  }
+  return interrupted.operationId;
+}
+
+/**
+ * Resume the custody completion for an interrupted activation whose adopted
+ * key file is on disk, under the lease. The staged receipt is still pending in
+ * this state (the manifest flip archives it only after custody), so every
+ * frozen evidence stays verifiable before the idempotent completion runs.
+ */
+async function completeInterruptedActivation(
+  paths: HostRootPaths,
+  interrupted: HostOperationRecord,
+  options: HostActivationOptions,
+): Promise<HostActivationResult> {
+  if (!interrupted.plan) {
+    throw new HostActivationInterruptedError("the journal record carries no plan evidence.");
+  }
+  const lease = await acquireActivationLease(paths, options);
+  try {
+    const running = readRunningHostOperation(lease.paths, "activation");
+    if (!running || running.operationId !== interrupted.operationId) {
+      throw new HostActivationInterruptedError(
+        "the journal record changed while the resume was starting.",
+      );
+    }
+    const receipt = readPendingReceipt(lease);
+    if (receipt.createdAt !== interrupted.operationId) {
+      throw new HostActivationInterruptedError(
+        "the staged receipt no longer matches the interrupted attempt.",
+      );
+    }
+    if (hashImportFile(join(lease.paths.dataRoot, "state.sqlite")) !== receipt.databaseSha256) {
+      throw new HostActivationInterruptedError(
+        "the staged database no longer matches its verified hash.",
+      );
+    }
+    const key = readActivatedHeadlessKey(lease.paths);
+    if (secretKeyFingerprint(key) !== interrupted.plan.keyFingerprint) {
+      throw new HostActivationInterruptedError(
+        "the adopted key file does not match the fingerprint frozen in the journal record.",
+      );
+    }
+    try {
+      // Idempotent completion: the adopted key file already exists; the
+      // remaining custody steps re-derive their content from verified state.
+      writeHostCredentialState(lease, "headless-file", key);
+      const manifest = readHostRootManifest(lease.paths);
+      if (!manifest || manifest.source.kind !== "offline-backup") {
+        throw new Error("The staged host-root manifest changed during activation.");
+      }
+      if (manifest.source.activation !== "required") {
+        throw new Error("The staged host-root manifest was already activated.");
+      }
+      writeHostRootManifest(lease, {
+        ...manifest,
+        source: {
+          kind: "offline-backup",
+          activation: "ready",
+          receiptSha256: manifest.source.receiptSha256,
+          activationVersion: HOST_ACTIVATION_MANIFEST_VERSION,
+          activatedAt: new Date().toISOString(),
+        },
+      });
+      const record: HostActivationRecord = {
+        formatVersion: HOST_ACTIVATION_RECORD_VERSION,
+        profileNamespace: lease.paths.profileNamespace,
+        dataRoot: lease.paths.dataRoot,
+        activatedAt: new Date().toISOString(),
+        ownerGeneration: lease.generation,
+        stagedAt: receipt.createdAt,
+        sourceBackupPath: receipt.sourceBackupPath,
+        databaseSchemaVersion: receipt.databaseSchemaVersion,
+        verified: {
+          databaseSha256: receipt.databaseSha256,
+          fileInventorySha256: receipt.fileInventorySha256,
+          files: receipt.files,
+          fileBytes: receipt.fileBytes,
+        },
+        stagedCredentialMode: receipt.credentialMode,
+        credentialOutcome: interrupted.plan.credentialOutcome,
+        archivedKeyFiles: [...interrupted.plan.archivedKeyFiles],
+        keyFingerprint: interrupted.plan.keyFingerprint,
+        resumedAt: new Date().toISOString(),
+      };
+      writeActivationMarker(lease, record);
+      markHostOperationPhase(lease, {
+        operation: "activation",
+        operationId: interrupted.operationId,
+        phase: "completed",
+      });
+      return {
+        profileNamespace: lease.paths.profileNamespace,
+        dataRoot: lease.paths.dataRoot,
+        credentialOutcome: record.credentialOutcome,
+        keyFingerprint: record.keyFingerprint,
+        record,
+      };
+    } catch (error) {
+      failJournaledActivation(lease, interrupted.operationId, error);
+      throw error;
+    }
+  } finally {
+    lease.release();
+  }
+}
+
+/** Bounded, mode-validated read of an already-written adopted headless key. */
+function readActivatedHeadlessKey(paths: HostRootPaths): string {
+  const path = join(paths.dataRoot, "secret-key.headless");
+  const metadata = lstatSync(path);
+  if (!metadata.isFile() || metadata.nlink !== 1 || metadata.size > 16_384) {
+    throw new Error("Invalid adopted credential key file; activation could not resume.");
+  }
+  const value = readFileSync(path, "utf8").trim();
+  if (!value || Buffer.from(value, "base64").toString("base64") !== value) {
+    throw new Error("Invalid adopted credential key content; activation could not resume.");
+  }
+  return value;
 }
 
 interface CredentialPlan {
@@ -287,7 +535,10 @@ function readPendingReceiptFromPaths(paths: HostRootPaths): HostImportReceipt {
 function revalidateStagedEvidence(paths: HostRootPaths, receipt: HostImportReceipt): void {
   const inventory = inventoryImportFiles(paths.dataRoot);
   const stagedEntries = inventory.entries.filter(
-    (entry) => entry.path !== HOST_IMPORT_RECEIPT_FILE && entry.path !== HOST_ROOT_MANIFEST_FILE,
+    (entry) =>
+      entry.path !== HOST_IMPORT_RECEIPT_FILE &&
+      entry.path !== HOST_ROOT_MANIFEST_FILE &&
+      entry.path !== HOST_OPERATION_JOURNAL_FILE,
   );
   // Mirrors the composite inventory digest derivation in hostImportFiles.ts
   // (that helper is not exported; keep the two derivations in lockstep).
@@ -494,6 +745,12 @@ export function readHostActivationRecord(lease: HostOwnerLease): HostActivationR
     !/^[a-f0-9]{64}$/u.test(record.keyFingerprint)
   ) {
     throw new Error("Unsupported host activation record.");
+  }
+  if (
+    record.resumedAt !== undefined &&
+    (typeof record.resumedAt !== "string" || !Number.isFinite(Date.parse(record.resumedAt)))
+  ) {
+    throw new Error("Invalid host activation record resume evidence.");
   }
   const verified = record.verified as Record<string, unknown>;
   if (

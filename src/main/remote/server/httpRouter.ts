@@ -102,6 +102,11 @@ import {
   writeText,
 } from "./httpResponses";
 import { writeLocalImageFile } from "./localImageFile";
+import {
+  IMAGE_TICKET_QUERY_PARAM,
+  imageTicketRequestBodySchema,
+  imageTickets,
+} from "./imageTickets";
 import { parseImageRefPath, resolveImageRef } from "./imageRefProjection";
 import { readAttachmentBody, readJsonBody } from "./requestBody";
 import { DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT } from "./security";
@@ -109,6 +114,7 @@ import {
   buildAgentStatuses,
   buildAgentSlashCommands,
   buildShellSnapshot,
+  buildThreadListPage,
   buildThreadSnapshot,
   buildThreadRuntimeItemsPage,
   descriptor,
@@ -475,7 +481,52 @@ export async function handleHttp(
     }
     if (req.method === "GET" && url.pathname === "/api/snapshot") {
       ctx.security.requireBearer(req, ["session:read"]);
-      await writeNegotiatedJsonResponse(req, res, 200, buildShellSnapshot(ctx));
+      // Gate 4 hazard #3: `threadLimit` opts the client into a bounded thread
+      // list (head page + threadsNextCursor); absent keeps the full list for
+      // clients that have not opted in.
+      const threadLimitRaw = url.searchParams.get("threadLimit");
+      let threadListLimit: number | undefined;
+      if (threadLimitRaw !== null) {
+        threadListLimit = Number(threadLimitRaw);
+        if (
+          threadLimitRaw === "" ||
+          !Number.isSafeInteger(threadListLimit) ||
+          threadListLimit < 1 ||
+          threadListLimit > 200
+        ) {
+          throw new RemoteHttpError(
+            "invalid_thread_limit",
+            "threadLimit must be an integer between 1 and 200.",
+            400,
+          );
+        }
+      }
+      await writeNegotiatedJsonResponse(
+        req,
+        res,
+        200,
+        buildShellSnapshot(ctx, threadListLimit !== undefined ? { threadListLimit } : {}),
+      );
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/api/threads") {
+      ctx.security.requireBearer(req, ["session:read"]);
+      const limitRaw = url.searchParams.get("limit");
+      const limit = Number(limitRaw);
+      if (limitRaw === null || !Number.isSafeInteger(limit) || limit < 1 || limit > 200) {
+        throw new RemoteHttpError(
+          "invalid_thread_limit",
+          "limit must be an integer between 1 and 200.",
+          400,
+        );
+      }
+      const cursor = url.searchParams.get("cursor");
+      await writeNegotiatedJsonResponse(
+        req,
+        res,
+        200,
+        buildThreadListPage(ctx, { limit, ...(cursor !== null ? { cursor } : {}) }),
+      );
       return;
     }
     if (req.method === "GET" && url.pathname === "/api/agent-statuses") {
@@ -578,20 +629,51 @@ export async function handleHttp(
       writeJson(res, 200, {});
       return;
     }
+    // Mints a short-lived, one-time, path-scoped ticket for
+    // `GET /api/files/image` (B5b): <img> consumers cannot send an
+    // Authorization header, and a long-lived bearer token in the query string
+    // leaks into proxy/relay access logs — the ticket expires in 30 seconds,
+    // works for exactly one request, and serves exactly the minted path.
+    if (req.method === "POST" && url.pathname === "/api/files/image-ticket") {
+      ctx.security.requireBearer(req, ["session:read"]);
+      const body = imageTicketRequestBodySchema.parse(await readJsonBody(req));
+      writeJson(res, 200, imageTickets.issue(body.path));
+      return;
+    }
     // Serves local images (chat attachments, markdown images) to paired
     // devices, standing in for the desktop-only `poracode-local` protocol.
-    // <img> tags can't send Authorization headers, so this endpoint uniquely
-    // also accepts the access token as an `access_token` query param; the
-    // serving helper restricts reads to image file extensions.
+    //
+    // Path scope (B5b decision — justified, not aligned with
+    // `readAbsoluteFile`'s projects:manage): this route is the paired-device
+    // stand-in for the desktop `poracode-local` handler, and chat content
+    // legitimately references images anywhere on the host (workspace-external
+    // markdown included), so a projects:manage gate would break rendering of
+    // content a session:read client is already allowed to display. The
+    // absolute-path power stays bounded by the image-extension allowlist and
+    // the 20 MiB cap in `writeLocalImageFile`, and standard pairing grants all
+    // scopes anyway — while a deliberately scoped-down read-only device would
+    // lose chat images under the stronger scope.
+    //
+    // Transport: the Authorization header is primary. <img> tags use the
+    // one-time `ticket` query param minted above. The raw `access_token`
+    // query param is DEPRECATED — it is kept only until the hosted PWA client
+    // migrates to tickets and must never be copied into new clients.
     if (req.method === "GET" && url.pathname === "/api/files/image") {
       const header = Array.isArray(req.headers.authorization)
         ? req.headers.authorization[0]
         : req.headers.authorization;
-      const token = parseBearerAuthorizationHeader(header) ?? url.searchParams.get("access_token");
-      if (!token) {
+      const bearerToken = parseBearerAuthorizationHeader(header);
+      const imageTicket = url.searchParams.get(IMAGE_TICKET_QUERY_PARAM);
+      const legacyQueryParamToken = url.searchParams.get("access_token");
+      if (bearerToken) {
+        ctx.auth.authenticateBearerToken(bearerToken, ["session:read"]);
+      } else if (imageTicket) {
+        imageTickets.consume(imageTicket, url.searchParams.get("path") ?? "");
+      } else if (legacyQueryParamToken) {
+        ctx.auth.authenticateBearerToken(legacyQueryParamToken, ["session:read"]);
+      } else {
         throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
       }
-      ctx.auth.authenticateBearerToken(token, ["session:read"]);
       await writeLocalImageFile(res, url.searchParams.get("path"));
       return;
     }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NativeSecretValue } from "@/shared/hostCredentialProtocol";
+import { resetSafeStorageHealthForTests } from "../safeStorageHealth";
 import { resolveNativeCredentialMode, transformNativeCredentialKey } from "./nativeCredentialCodec";
 
 const native = vi.hoisted(() => ({
@@ -22,6 +23,9 @@ const sealed = Buffer.from("synthetic-sealed-key");
 const generation = "synthetic-owner-generation";
 
 beforeEach(() => {
+  // The availability verdict is latched once per process (P3); every test
+  // starts from an unprobed latch so mock changes are observed.
+  resetSafeStorageHealthForTests();
   native.available.mockReset().mockReturnValue(true);
   native.backend.mockReset().mockReturnValue("gnome_libsecret");
   native.seal.mockReset().mockReturnValue(sealed);
@@ -96,6 +100,9 @@ describe("native credential byte codec", () => {
   it("reports unavailable storage as session-only, and inspection failure as an error", () => {
     native.available.mockReturnValue(false);
     expect(resolveNativeCredentialMode()).toBe("session-only");
+    // The latch holds the verdict for the whole launch, so a changed backend
+    // is only observed after an explicit reset (as at process start).
+    resetSafeStorageHealthForTests();
     native.available.mockImplementation(() => {
       throw new Error("synthetic keychain error");
     });

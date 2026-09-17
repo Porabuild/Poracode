@@ -291,6 +291,59 @@ export function dbGetCheckpointRevertOperation(
   return row ? rowToOperation(row as Parameters<typeof rowToOperation>[0]) : null;
 }
 
+/**
+ * A thread (or project) must not be deleted while a compound checkpoint revert
+ * is mid-flight: the journal row is claimed before the revert's first side
+ * effect and settled only after its last one, so a `running` row is exactly
+ * the durable claim the per-thread revert lock is held under. A crash leaves
+ * the row running on purpose — the next revert attempt resumes and settles it
+ * (a resumed attempt whose checkpoint is already gone settles as a completed
+ * noop), so the operator remedy is one retry of the revert, never manual
+ * journal edits.
+ */
+export class ThreadCheckpointRevertActiveError extends Error {
+  readonly code = "CHECKPOINT_REVERT_ACTIVE";
+
+  constructor(
+    readonly threadIds: readonly string[],
+    readonly operationKeys: readonly string[],
+  ) {
+    super(
+      `Thread deletion refused: a checkpoint revert is still running for ` +
+        `${threadIds.join(", ")} (${operationKeys.join(", ")}). Re-run the checkpoint revert ` +
+        "once so it resumes and settles, then delete; the journal is never edited behind " +
+        "the operation.",
+    );
+    this.name = "ThreadCheckpointRevertActiveError";
+  }
+}
+
+/** The delete-blocking running rows for the given threads, if any. */
+export function dbFindRunningCheckpointRevertForThreads(threadIds: readonly string[]): {
+  threadIds: string[];
+  operationKeys: string[];
+} {
+  if (threadIds.length === 0) return { threadIds: [], operationKeys: [] };
+  const rows = getSqlite()
+    .prepare(
+      `SELECT operation_key, thread_id FROM checkpoint_revert_operations
+       WHERE outcome = 'running' AND thread_id IN (${threadIds.map(() => "?").join(", ")})`,
+    )
+    .all(...threadIds) as { operation_key: string; thread_id: string }[];
+  return {
+    threadIds: [...new Set(rows.map((row) => row.thread_id))],
+    operationKeys: rows.map((row) => row.operation_key),
+  };
+}
+
+/** Refuses the delete while any of the threads has a running compound revert. */
+export function dbAssertNoRunningCheckpointRevert(threadIds: readonly string[]): void {
+  const blocked = dbFindRunningCheckpointRevertForThreads(threadIds);
+  if (blocked.threadIds.length > 0) {
+    throw new ThreadCheckpointRevertActiveError(blocked.threadIds, blocked.operationKeys);
+  }
+}
+
 export interface CheckpointRevertPhaseUpdate {
   providerPhase?: CheckpointRevertProviderPhase;
   /** Persists the frozen provider anchor (before the restore side effect). */

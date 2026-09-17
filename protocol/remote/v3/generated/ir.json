@@ -14,14 +14,14 @@
     "jsonProcedureResults": 65,
     "procedures": 108,
     "replayableEventTypes": 16,
-    "routes": 63,
+    "routes": 65,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 43,
     "webSocketClientMessages": 9,
     "webSocketServerMessages": 10
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:11a5c78613ef282507c0fec78d3c5315f42945ecca4efada25d09ddb8ec0d460",
+  "manifestHash": "sha256:5ceec5d01a6e45ddc682718bd36c7d2e462e431c4ad24fe0a9b93d7ce0a2bc31",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -21006,6 +21006,59 @@
     },
     {
       "auth": "bearer",
+      "id": "local-image-ticket",
+      "method": "POST",
+      "path": "/api/files/image-ticket",
+      "queryParameters": [],
+      "request": {
+        "bodyKind": "json",
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "path": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "expires": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "ticket": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "ticket",
+            "expires"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "mcp-settings-command",
       "method": "POST",
       "path": "/api/settings/mcp-servers/command",
@@ -28291,8 +28344,32 @@
       "id": "shell-snapshot",
       "method": "GET",
       "path": "/api/snapshot",
+      "queryCodecs": [
+        {
+          "kind": "int",
+          "name": "threadLimit",
+          "optional": true,
+          "repeated": false
+        }
+      ],
+      "queryParameters": [
+        "threadLimit"
+      ],
       "request": {
-        "bodyKind": "empty"
+        "bodyKind": "empty",
+        "querySchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "threadLimit": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
       },
       "response": {
         "jsonSchema": {
@@ -30020,6 +30097,16 @@
                 "x-poracode-unknownFields": "strip"
               },
               "type": "array"
+            },
+            "threadsNextCursor": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "updatedAt": {
               "minLength": 1,
@@ -32452,6 +32539,588 @@
     },
     {
       "auth": "bearer",
+      "id": "thread-list",
+      "method": "GET",
+      "path": "/api/threads",
+      "queryCodecs": [
+        {
+          "kind": "string",
+          "name": "cursor",
+          "optional": true,
+          "repeated": false
+        },
+        {
+          "kind": "int",
+          "name": "limit",
+          "optional": true,
+          "repeated": false
+        }
+      ],
+      "queryParameters": [
+        "cursor",
+        "limit"
+      ],
+      "request": {
+        "bodyKind": "empty",
+        "querySchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "cursor": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "limit": {
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "limit"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "response": {
+        "jsonSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "additionalProperties": true,
+          "properties": {
+            "gitSummariesByThread": {
+              "additionalProperties": {
+                "additionalProperties": true,
+                "properties": {
+                  "ahead": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "behind": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "branch": {
+                    "type": "string"
+                  },
+                  "isRepo": {
+                    "type": "boolean"
+                  },
+                  "pr": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": true,
+                        "properties": {
+                          "checksStatus": {
+                            "type": "string"
+                          },
+                          "isDraft": {
+                            "type": "boolean"
+                          },
+                          "number": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "state": {
+                            "enum": [
+                              "open",
+                              "draft",
+                              "merged",
+                              "closed"
+                            ],
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "number",
+                          "state",
+                          "title",
+                          "url",
+                          "isDraft"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "totalDeletions": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "totalInsertions": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "isRepo",
+                  "branch",
+                  "totalInsertions",
+                  "totalDeletions",
+                  "ahead",
+                  "behind",
+                  "pr"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "nextCursor": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "runtimeSummariesByThread": {
+              "additionalProperties": {
+                "additionalProperties": true,
+                "properties": {
+                  "contextUsage": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": true,
+                        "properties": {
+                          "breakdown": {
+                            "items": {
+                              "additionalProperties": true,
+                              "properties": {
+                                "id": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "label": {
+                                  "minLength": 1,
+                                  "type": "string"
+                                },
+                                "tokens": {
+                                  "maximum": 9007199254740991,
+                                  "minimum": 0,
+                                  "type": "integer"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "label",
+                                "tokens"
+                              ],
+                              "type": "object",
+                              "x-poracode-unknownFields": "strip"
+                            },
+                            "type": "array"
+                          },
+                          "maxTokens": {
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991,
+                            "type": "integer"
+                          },
+                          "usedTokens": {
+                            "maximum": 9007199254740991,
+                            "minimum": 0,
+                            "type": "integer"
+                          }
+                        },
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "itemCount": {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "latestItemId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "latestItemState": {
+                    "enum": [
+                      "started",
+                      "updated",
+                      "completed"
+                    ],
+                    "type": "string"
+                  },
+                  "latestItemType": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "itemCount"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "propertyNames": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "threads": {
+              "items": {
+                "additionalProperties": true,
+                "properties": {
+                  "activeTurnStartedAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "agentInstanceId": {
+                    "maxLength": 120,
+                    "minLength": 1,
+                    "pattern": "^[a-z0-9][a-z0-9_\\-:.]*$",
+                    "type": "string"
+                  },
+                  "agentKind": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "archived": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "archivedAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "attention": {
+                    "enum": [
+                      "none",
+                      "working",
+                      "needs_approval",
+                      "needs_reply",
+                      "error"
+                    ],
+                    "type": "string"
+                  },
+                  "canResumeWithConfig": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "config": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "approvalPolicy": {
+                        "type": "string"
+                      },
+                      "approvalsReviewer": {
+                        "type": "string"
+                      },
+                      "browserMcp": {
+                        "type": "boolean"
+                      },
+                      "chromeMcp": {
+                        "type": "boolean"
+                      },
+                      "computerUse": {
+                        "type": "boolean"
+                      },
+                      "contextSize": {
+                        "type": "string"
+                      },
+                      "crossagentMcp": {
+                        "type": "boolean"
+                      },
+                      "effort": {
+                        "type": "string"
+                      },
+                      "executionEnvironment": {
+                        "additionalProperties": true,
+                        "properties": {
+                          "distro": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "kind": {
+                            "const": "wsl",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "distro"
+                        ],
+                        "type": "object",
+                        "x-poracode-unknownFields": "strip"
+                      },
+                      "fast": {
+                        "type": "boolean"
+                      },
+                      "mode": {
+                        "enum": [
+                          "agent",
+                          "plan",
+                          "autopilot"
+                        ],
+                        "type": "string"
+                      },
+                      "model": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "sandboxMode": {
+                        "type": "string"
+                      },
+                      "thinking": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "model"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "createdAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "done": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "doneAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "errorMessage": {
+                    "type": "string"
+                  },
+                  "groupId": {
+                    "type": "string"
+                  },
+                  "groupName": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "lastTurnEndedAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "lastTurnStartedAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "parentThreadId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "prNumber": {
+                    "type": "number"
+                  },
+                  "presentationMode": {
+                    "enum": [
+                      "terminal",
+                      "gui"
+                    ],
+                    "type": "string"
+                  },
+                  "projectId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "remoteServerId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "sessionRef": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "discoveredAt": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "providerSessionId": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "providerSessionId",
+                      "discoveredAt"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "slashCommands": {
+                    "items": {
+                      "additionalProperties": true,
+                      "properties": {
+                        "argumentHint": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "id": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "label": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "pluginId": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "pluginName": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "section": {
+                          "enum": [
+                            "skills"
+                          ],
+                          "type": "string"
+                        },
+                        "skillInvocation": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "skillName": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "skillPath": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "skillProvider": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "skillScope": {
+                          "enum": [
+                            "global",
+                            "project"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "label"
+                      ],
+                      "type": "object",
+                      "x-poracode-unknownFields": "strip"
+                    },
+                    "type": "array"
+                  },
+                  "starred": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "status": {
+                    "enum": [
+                      "inactive",
+                      "launching",
+                      "working",
+                      "idle",
+                      "finished",
+                      "needs_approval",
+                      "needs_reply",
+                      "error"
+                    ],
+                    "type": "string"
+                  },
+                  "threadStatusSource": {
+                    "enum": [
+                      "cli_hook",
+                      "terminal_parse",
+                      "server"
+                    ],
+                    "type": "string"
+                  },
+                  "title": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "updatedAt": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "workspaceId": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "worktreeBranch": {
+                    "type": "string"
+                  },
+                  "worktreePath": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "id",
+                  "projectId",
+                  "title",
+                  "agentKind",
+                  "config",
+                  "status",
+                  "attention",
+                  "canResumeWithConfig",
+                  "archived",
+                  "done",
+                  "starred",
+                  "createdAt",
+                  "updatedAt"
+                ],
+                "type": "object",
+                "x-poracode-unknownFields": "strip"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "threads",
+            "runtimeSummariesByThread",
+            "nextCursor"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "status": 200,
+        "wireKind": "json"
+      },
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "thread-runtime-truncate",
       "method": "POST",
       "path": "/api/threads/{threadId}/runtime/truncate",
@@ -34174,7 +34843,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:b137c859d4115f7393d6524f471ef1d506726c43bf689076496ed5abcbfc7467",
+  "sourceHash": "sha256:8016c2161eafce8e63a31f4fb01551975a6f76d3142c619e0edc98a62006e6ca",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

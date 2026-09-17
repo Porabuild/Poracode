@@ -263,6 +263,18 @@
         }
       },
       {
+        "id": "local-image-ticket",
+        "batch": "attachments",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
+        }
+      },
+      {
         "id": "runtime-image",
         "batch": "attachments",
         "ios": {
@@ -870,6 +882,18 @@
             "android/app/src/main/kotlin/com/poracode/app/push/PushHostClient.kt",
             "android/app/src/main/kotlin/com/poracode/app/push/PushRegistrationCoordinator.kt"
           ]
+        }
+      },
+      {
+        "id": "thread-list",
+        "batch": "thread-lifecycle",
+        "ios": {
+          "disposition": "planned",
+          "evidence": []
+        },
+        "android": {
+          "disposition": "planned",
+          "evidence": []
         }
       },
       {

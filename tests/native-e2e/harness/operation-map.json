@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 12,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:0e705ad7cf0e66d923921f633f009ac5d8b87767cb932a1aebf488812461692e",
-  "keyCount": 222,
+  "manifestHash": "sha256:7872551415a82d445dad232e00c491fadfb1acfed4b9fbe8046e9f6b7ce34a2d",
+  "keyCount": 224,
   "counts": {
-    "route": 63,
+    "route": 65,
     "procedure": 108,
     "ws-client": 9,
     "ws-server": 10,
@@ -558,6 +558,10 @@
       "kind": "route",
       "id": "local-image"
     },
+    "route:local-image-ticket": {
+      "kind": "route",
+      "id": "local-image-ticket"
+    },
     "route:mcp-settings-command": {
       "kind": "route",
       "id": "mcp-settings-command"
@@ -733,6 +737,10 @@
     "route:thread-interrupt": {
       "kind": "route",
       "id": "thread-interrupt"
+    },
+    "route:thread-list": {
+      "kind": "route",
+      "id": "thread-list"
     },
     "route:thread-runtime-truncate": {
       "kind": "route",

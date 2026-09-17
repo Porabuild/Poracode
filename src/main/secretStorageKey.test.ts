@@ -12,6 +12,7 @@ const safeStorageMock = vi.hoisted(() => ({
 
 vi.mock("electron", () => ({ safeStorage: safeStorageMock }));
 
+import { SAFE_STORAGE_LATCH_WARNING, resetSafeStorageHealthForTests } from "./safeStorageHealth";
 import {
   SafeStorageKeyUnavailableError,
   readOrCreateSafeStorageSecretKey,
@@ -22,6 +23,9 @@ describe("readOrCreateSafeStorageSecretKey", () => {
   let consoleWarn: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    // Availability is the once-per-launch latch (P3); every test starts from
+    // an unprobed latch so mock changes are observed.
+    resetSafeStorageHealthForTests();
     dir = mkdtempSync(join(tmpdir(), "poracode-safe-storage-"));
     consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
     safeStorageMock.decryptString.mockReset();
@@ -53,9 +57,9 @@ describe("readOrCreateSafeStorageSecretKey", () => {
       expect(safeStorageMock.encryptString).not.toHaveBeenCalled();
       expect(safeStorageMock.decryptString).not.toHaveBeenCalled();
       expect(() => readFileSync(join(dir, "secret-key.safe"))).toThrow(/ENOENT|no such file/i);
-      expect(consoleWarn).toHaveBeenCalledWith(
-        "[credential-storage] secure OS encryption is unavailable; credentials are session-only.",
-      );
+      // The latch warning (P3) names the session-only consequence exactly once.
+      expect(consoleWarn).toHaveBeenCalledTimes(1);
+      expect(consoleWarn).toHaveBeenCalledWith(SAFE_STORAGE_LATCH_WARNING);
     },
   );
 
