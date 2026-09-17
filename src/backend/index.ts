@@ -31,6 +31,15 @@ import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import { ipcProcedureMap, type IpcProcedureName, type SupervisorProcedureName } from "@/shared/ipc";
 
+/** Bare wholesale-replace RPCs refused at the mutation owner (see the
+ * `call-database` case); the host-internal DB functions stay available to the
+ * compositions that own their database in-process. */
+const WHOLESALE_RUNTIME_REPLACE_RPC: ReadonlySet<string> = new Set([
+  "dbReplaceThreadRuntimeItems",
+  "dbReplaceThreadCompletedTurns",
+  "dbReplaceThreadRuntimeSnapshot",
+]);
+
 const performanceDiagnostics = startNodePerformanceDiagnostics("backend");
 let backendHost: BackendHostCore | null = null;
 let desktopServices: BackendDesktopServices | null = null;
@@ -516,6 +525,22 @@ async function executeRequest(
           request.payload.payload.itemId,
         );
         return null;
+      }
+      // Wholesale runtime replacement is likewise intercepted at the request
+      // owner — and refused, because unlike a truncate it has no truthful
+      // broadcast: a replace can rewrite arbitrary positions, and the runtime
+      // event contract has no `replaced` variant (fabricating item events or a
+      // lying `runtime.truncated` would desync every other window and remote
+      // client). Nothing in the product calls these RPCs (the remote path
+      // serves its runtime mirror locally; the compound checkpoint revert owns
+      // rollbacks), so the bare call loud-rejects instead of bypassing the
+      // per-thread mutation owner and resurrecting a truncated tail mid-revert.
+      if (WHOLESALE_RUNTIME_REPLACE_RPC.has(request.payload.name)) {
+        throw new Error(
+          `Database RPC '${request.payload.name}' is not served: the backend host owns ` +
+            "thread runtime mutations. Roll back through the checkpoint revert operation; " +
+            "runtime state arrives through runtime events, not wholesale client replaces.",
+        );
       }
       const result = callDatabaseRpc(request.payload);
       desktopServices?.databaseChanged(request.payload);

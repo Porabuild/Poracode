@@ -11,6 +11,7 @@ import {
   dbGetRuntimeItemsPayloadSchema,
   dbGetRuntimeItemsPagePayloadSchema,
   dbGetThreadContextUsagePayloadSchema,
+  dbGetThreadsPagePayloadSchema,
   dbTruncateRuntimeItemsPayloadSchema,
   dbReplaceCompletedTurnsPayloadSchema,
   dbReplaceRuntimeItemsPayloadSchema,
@@ -25,6 +26,7 @@ import {
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
   type PersistedRuntimePage,
+  type PersistedThreadPage,
 } from "../schemas";
 
 export const dbProcedures = {
@@ -101,6 +103,11 @@ export const dbProcedures = {
     PersistedRuntimePage,
     "main-local"
   >("dbGetThreadRuntimeItemsPage", "main-local", dbGetRuntimeItemsPagePayloadSchema),
+  dbGetThreadsPage: definePayloadProcedure<
+    z.infer<typeof dbGetThreadsPagePayloadSchema>,
+    PersistedThreadPage,
+    "main-local"
+  >("dbGetThreadsPage", "main-local", dbGetThreadsPagePayloadSchema),
   dbGetLatestThreadGoalItem: definePayloadProcedure<
     z.infer<typeof dbGetRuntimeItemsPayloadSchema>,
     PersistedRuntimeItem | null,

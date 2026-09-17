@@ -18,6 +18,7 @@ import {
   type RemoteAccessPairingInfo,
   type RemoteGitSummaries,
 } from "@/shared/remote";
+import { parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import type { SharedSettings } from "@/shared/settings";
 import type { SettingsMutationResult } from "@/shared/settingsTransactions";
 import type { UserNotification } from "@/shared/threadNotification";
@@ -143,6 +144,22 @@ class RemoteAccessStartSupersededError extends Error {
     super("Remote access startup was superseded.");
     this.name = "RemoteAccessStartSupersededError";
   }
+}
+
+const CREDENTIAL_TOKEN_PREFIXES = ["lc_pair_", "lc_access_", "lc_ws_"] as const;
+
+/**
+ * Elides the live credential from a pairing URL so the URL is safe for the
+ * console log (the headless CLI never prints raw tokens either). Recognized
+ * `lc_*_` prefixes are kept so the redacted value still reads as a credential;
+ * anything else (or an unparseable URL) is redacted whole.
+ */
+export function redactPairingUrlForLog(pairingUrl: string): string {
+  const parts = parsePairingUrlParts(pairingUrl);
+  if (!parts) return "<pairing URL redacted>";
+  const prefix = CREDENTIAL_TOKEN_PREFIXES.find((candidate) => parts.token.startsWith(candidate));
+  parts.url.hash = `#token=${prefix ?? ""}[redacted]`;
+  return parts.url.toString();
 }
 
 function remoteAccessStartupDiagnostic(
@@ -515,7 +532,9 @@ export function createDesktopRemoteAccessController(
       const info = await serverStartPromise;
       if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
       console.log("[poracode] remote access enabled at %s", info.httpBaseUrl);
-      console.log("[poracode] remote pairing URL: %s", info.pairingUrl);
+      // The pairing URL carries its live one-time credential in the fragment;
+      // the headless CLI never prints raw tokens, and neither does the desktop.
+      console.log("[poracode] remote pairing URL: %s", redactPairingUrlForLog(info.pairingUrl));
       return info;
     } catch (error) {
       let shutdownFailure: unknown;

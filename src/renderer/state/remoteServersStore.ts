@@ -470,6 +470,15 @@ function closeAllRemoteServerEventSockets(): void {
 // the PWA's 600ms) so a burst yields a single GET, and tag each in-flight refresh
 // with a monotonic request id so a stale response never overwrites a newer one.
 const REMOTE_SERVER_REFRESH_DEBOUNCE_MS = 600;
+/**
+ * Bounded shell-snapshot thread list (Gate 4 hazard #3): the client opts into
+ * a first page plus cursor-paged continuations instead of transferring the
+ * whole host list on every pair/refresh. 100 rows keeps each page response
+ * inside the 64 KiB bound at realistic thread sizes (asserted by the
+ * snapshots pagination acceptance test). Hosts without the capability ignore
+ * the parameter and answer with the full list, which the client accepts.
+ */
+const REMOTE_SHELL_THREAD_PAGE_LIMIT = 100;
 const MAX_RECOVERY_QUEUED_EVENTS = 512;
 const MAX_RECOVERY_QUEUED_BYTES = 2 * 1024 * 1024;
 const recoveryTextEncoder = new TextEncoder();
@@ -1517,7 +1526,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         const client = factory(normalized, tokenResult.accessToken);
         const [environment, snapshot, agentStatuses] = await Promise.all([
           client.environment(),
-          client.snapshot(),
+          client.snapshot({ threadListPageLimit: REMOTE_SHELL_THREAD_PAGE_LIMIT }),
           client
             .agentStatuses({ omitSlashCommands: true })
             .then((statuses) => applyCachedSlashCommandCatalogs(normalized, statuses)),
@@ -1961,7 +1970,9 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           }
           try {
             const client = get().clientFactory(server.endpoint, server.accessToken);
-            const snapshotPromise = client.snapshot();
+            const snapshotPromise = client.snapshot({
+              threadListPageLimit: REMOTE_SHELL_THREAD_PAGE_LIMIT,
+            });
             const [snapshot, agentStatuses] =
               options.includeAgentStatuses === false
                 ? [await snapshotPromise, cached()?.agentStatuses]

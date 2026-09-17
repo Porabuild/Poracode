@@ -14,16 +14,35 @@ import {
 } from "../routeBodies";
 import {
   remoteRuntimeItemsPageSchema,
+  remoteThreadListPageSchema,
   remoteThreadSnapshotSchema,
   startShellPayloadSchema,
   startThreadResultSchema,
   threadHistoryItemsQuerySchema,
   threadHistoryQuerySchema,
+  threadListQuerySchema,
 } from "../routeSchemas";
 import { checkpointRevertResultSchema } from "../../../contracts";
 import type { RemoteHttpRouteContract } from "../types";
 
 export const threadRoutes: readonly RemoteHttpRouteContract[] = [
+  defineRoute({
+    id: "thread-list",
+    method: "GET",
+    path: "/api/threads",
+    auth: "bearer",
+    scopes: ["session:read"],
+    // Gate 4 hazard #3: continuation pages for a threadLimit-bounded shell
+    // snapshot. Clients only reach this route after the snapshot returned a
+    // threadsNextCursor, so hosts without it are never called.
+    queryParameters: ["cursor", "limit"],
+    request: { bodyKind: "empty", querySchema: threadListQuerySchema },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: remoteThreadListPageSchema,
+    },
+  }),
   defineRoute({
     id: "thread-history-items",
     method: "GET",

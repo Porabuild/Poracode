@@ -1,19 +1,21 @@
 import { safeStorage } from "electron";
 import type { NativeCredentialMode, NativeSecretValue } from "@/shared/hostCredentialProtocol";
 import type { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
+import { safeStorageHealth } from "../safeStorageHealth";
 
-/** Called after ownership bootstrap; availability does not authorize key-file access. */
+/**
+ * Called after ownership bootstrap; availability does not authorize key-file
+ * access. The availability verdict is the once-per-launch latch (P3), shared
+ * with the desktop secret-key init and the adoption unseal.
+ */
 export function resolveNativeCredentialMode(
   platform: NodeJS.Platform = process.platform,
 ): NativeCredentialMode {
-  try {
-    return safeStorage.isEncryptionAvailable() &&
-      !(platform === "linux" && safeStorage.getSelectedStorageBackend() === "basic_text")
-      ? "os-sealed"
-      : "session-only";
-  } catch {
+  const health = safeStorageHealth(platform);
+  if (health.kind === "inspection-failed") {
     throw new Error("Unable to inspect OS-backed secret storage.");
   }
+  return health.kind === "healthy" ? "os-sealed" : "session-only";
 }
 
 function validBase64(value: string): boolean {

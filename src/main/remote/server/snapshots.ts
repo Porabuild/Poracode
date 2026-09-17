@@ -7,6 +7,7 @@ import {
   remoteEnvironmentDescriptorSchema,
   remoteRuntimeItemsPageSchema,
   remoteShellSnapshotSchema,
+  remoteThreadListPageSchema,
   remoteThreadSnapshotSchema,
   remoteAgentSlashCommandsSchema,
   type RemoteAgentSlashCommands,
@@ -15,6 +16,7 @@ import {
   type RemoteRuntimeItemsPage,
   type RemoteRuntimeItemsPageRequest,
   type RemoteShellSnapshot,
+  type RemoteThreadListPage,
   type RemoteThreadSnapshot,
 } from "@/shared/remote";
 import { TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS } from "./terminalCursorSync";
@@ -34,6 +36,7 @@ import {
   dbGetThreadRuntimeSummaries,
   dbGetThreadTerminalScrollback,
   dbGetThreads,
+  dbGetThreadsPage,
 } from "../../db";
 import { RemoteHttpError } from "../auth";
 import type { RemoteServerContext } from "./context";
@@ -46,6 +49,44 @@ import { projectGitStateSnapshotForRemote } from "./gitStateProjection";
 export function sortOrderForThread(threads: readonly Thread[], threadId: string): number {
   const index = threads.findIndex((thread) => thread.id === threadId);
   return index === -1 ? -Date.now() : index;
+}
+
+/**
+ * Per-thread runtime summaries for a thread slice, in the shell snapshot's
+ * shape. Shared by the shell snapshot and the bounded thread-list pages so
+ * their summary semantics cannot drift.
+ */
+function runtimeSummariesFor(
+  threads: readonly Thread[],
+): RemoteShellSnapshot["runtimeSummariesByThread"] {
+  const visibleThreads = threads.filter((thread) => !thread.archived);
+  const runtimeSummaries = dbGetThreadRuntimeSummaries(visibleThreads.map((thread) => thread.id));
+  const summariesByThread: RemoteShellSnapshot["runtimeSummariesByThread"] = {};
+  for (const thread of visibleThreads) {
+    const summary = runtimeSummaries[thread.id] ?? { itemCount: 0 };
+    summariesByThread[thread.id] = {
+      itemCount: summary.itemCount,
+      ...(summary.latestItemId ? { latestItemId: summary.latestItemId } : {}),
+      ...(summary.latestItemType ? { latestItemType: summary.latestItemType } : {}),
+      ...(summary.latestItemState ? { latestItemState: summary.latestItemState } : {}),
+      ...(summary.contextUsage ? { contextUsage: summary.contextUsage } : {}),
+    };
+  }
+  return summariesByThread;
+}
+
+/** Slice the thread-keyed git summaries down to one page's thread ids. */
+function gitSummariesFor(
+  ctx: RemoteServerContext,
+  threads: readonly Thread[],
+): RemoteShellSnapshot["gitSummariesByThread"] {
+  const all = ctx.options.gitSummaries?.() ?? {};
+  const ids = new Set(threads.map((thread) => thread.id));
+  const sliced: NonNullable<RemoteShellSnapshot["gitSummariesByThread"]> = {};
+  for (const [threadId, summary] of Object.entries(all)) {
+    if (ids.has(threadId)) sliced[threadId] = summary;
+  }
+  return sliced;
 }
 
 export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescriptor {
@@ -85,33 +126,76 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
   });
 }
 
-export function buildShellSnapshot(ctx: RemoteServerContext): RemoteShellSnapshot {
-  const threads = dbGetThreads();
-  const runtimeSummariesByThread: RemoteShellSnapshot["runtimeSummariesByThread"] = {};
-  const visibleThreads = threads.filter((thread) => !thread.archived);
-  const runtimeSummaries = dbGetThreadRuntimeSummaries(visibleThreads.map((thread) => thread.id));
-  for (const thread of visibleThreads) {
-    const summary = runtimeSummaries[thread.id] ?? { itemCount: 0 };
-    runtimeSummariesByThread[thread.id] = {
-      itemCount: summary.itemCount,
-      ...(summary.latestItemId ? { latestItemId: summary.latestItemId } : {}),
-      ...(summary.latestItemType ? { latestItemType: summary.latestItemType } : {}),
-      ...(summary.latestItemState ? { latestItemState: summary.latestItemState } : {}),
-      ...(summary.contextUsage ? { contextUsage: summary.contextUsage } : {}),
-    };
+/**
+ * Builds the shell snapshot. Without `threadListLimit` the historical full
+ * thread list is served (legacy clients depend on it). With it (Gate 4
+ * hazard #3) the list is bounded to its first `limit` rows plus a
+ * `threadsNextCursor` that pages the remainder from {@link buildThreadListPage};
+ * the thread-keyed summary maps are sliced to the returned rows so no
+ * response grows with the whole host.
+ */
+export function buildShellSnapshot(
+  ctx: RemoteServerContext,
+  options: { threadListLimit?: number } = {},
+): RemoteShellSnapshot {
+  let threads: Thread[];
+  let threadsNextCursor: string | null | undefined;
+  let summariesByThread: RemoteShellSnapshot["runtimeSummariesByThread"];
+  let gitSummariesByThread: RemoteShellSnapshot["gitSummariesByThread"];
+  if (options.threadListLimit === undefined) {
+    threads = dbGetThreads();
+    summariesByThread = runtimeSummariesFor(threads);
+    gitSummariesByThread = ctx.options.gitSummaries?.() ?? {};
+  } else {
+    const page = dbGetThreadsPage({ limit: options.threadListLimit });
+    threads = page.threads;
+    summariesByThread = runtimeSummariesFor(threads);
+    gitSummariesByThread = gitSummariesFor(ctx, threads);
+    threadsNextCursor = page.nextCursor;
   }
   return remoteShellSnapshotSchema.parse(
     withStableUpdatedAt("shell", {
       snapshotSeq: ctx.seq,
       projects: dbGetProjects(),
       threads,
-      runtimeSummariesByThread,
-      gitSummariesByThread: ctx.options.gitSummaries?.() ?? {},
+      ...(threadsNextCursor ? { threadsNextCursor } : {}),
+      runtimeSummariesByThread: summariesByThread,
+      gitSummariesByThread,
       ...(ctx.options.gitState
         ? { gitState: projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot()) }
         : {}),
     }),
   );
+}
+
+/**
+ * One continuation page for a threadLimit-bounded shell snapshot. Clients
+ * reach this route only after a snapshot returned `threadsNextCursor`, so a
+ * host cursor reply always matches a page-producing host.
+ */
+export function buildThreadListPage(
+  ctx: RemoteServerContext,
+  input: { cursor?: string; limit: number },
+): RemoteThreadListPage {
+  let page: ReturnType<typeof dbGetThreadsPage>;
+  try {
+    page = dbGetThreadsPage({
+      limit: input.limit,
+      ...(input.cursor !== undefined ? { cursor: input.cursor } : {}),
+    });
+  } catch {
+    throw new RemoteHttpError(
+      "invalid_thread_cursor",
+      "The thread list cursor is not recognized by this host.",
+      400,
+    );
+  }
+  return remoteThreadListPageSchema.parse({
+    threads: page.threads,
+    runtimeSummariesByThread: runtimeSummariesFor(page.threads),
+    gitSummariesByThread: gitSummariesFor(ctx, page.threads),
+    nextCursor: page.nextCursor,
+  });
 }
 
 export async function buildAgentStatuses(

@@ -234,6 +234,7 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbPersistExperimentState",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
+  "dbGetThreadsPage",
   "dbGetLatestThreadGoalItem",
   "dbTruncateThreadRuntimeAfter",
   "dbReplaceThreadRuntimeItems",

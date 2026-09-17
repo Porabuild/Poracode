@@ -1,5 +1,15 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public typealias RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26 = [String: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThreadU2DValue_5d401c152e]
+
+public enum RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DAttention_58edfaf9f7: String, Codable, Sendable {
+  case none = "none"
+  case working = "working"
+  case needsU5FApproval = "needs_approval"
+  case needsU5FReply = "needs_reply"
+  case error = "error"
+}
+
 public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItemU2DSessionRef_3b70e9f118: Codable, Sendable, RemoteModelMetadata {
   public var discoveredAt: String
   public var providerSessionId: String
@@ -140,13 +150,14 @@ public struct RouteshellU2DSnapshotResponseU2DThreadsU2DItem_9f0c1cf2ff: Codable
   }
 }
 
-public struct RouteshellU2DSnapshotResponse_63de465359: Codable, Sendable, RemoteModelMetadata {
+public struct RouteshellU2DSnapshotResponse_0d17f34d06: Codable, Sendable, RemoteModelMetadata {
   public var gitState: RemoteField<RouteshellU2DSnapshotResponseU2DGitState_4331716fe2> = .missing
   public var gitSummariesByThread: RemoteField<RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78> = .missing
   public var projects: [RouteprojectU2DCommandResponseU2DProject_e21c843ae3]
   public var runtimeSummariesByThread: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26
   public var snapshotSeq: Int64
   public var threads: [RouteshellU2DSnapshotResponseU2DThreadsU2DItem_9f0c1cf2ff]
+  public var threadsNextCursor: RemoteField<String> = .missing
   public var updatedAt: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
@@ -156,6 +167,7 @@ public struct RouteshellU2DSnapshotResponse_63de465359: Codable, Sendable, Remot
     .init(wireName: "runtimeSummariesByThread", typeName: "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "snapshotSeq", typeName: "Int64", required: true, nullable: false, minimum: 0, maximum: 9007199254740991, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "threads", typeName: "[RouteshellU2DSnapshotResponseU2DThreadsU2DItem_9f0c1cf2ff]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "threadsNextCursor", typeName: "String", required: false, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "updatedAt", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
@@ -166,6 +178,7 @@ public struct RouteshellU2DSnapshotResponse_63de465359: Codable, Sendable, Remot
     case runtimeSummariesByThread = "runtimeSummariesByThread"
     case snapshotSeq = "snapshotSeq"
     case threads = "threads"
+    case threadsNextCursor = "threadsNextCursor"
     case updatedAt = "updatedAt"
   }
 }

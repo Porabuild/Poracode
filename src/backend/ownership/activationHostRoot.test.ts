@@ -19,11 +19,17 @@ import {
   HOST_ACTIVATION_ARCHIVE_DIR,
   HOST_ACTIVATION_RECORD_FILE,
   HostActivationCooperationRequiredError,
+  HostActivationInterruptedError,
   HostStagedImportMissingError,
   activateStagedHostRoot,
   readHostActivationRecord,
 } from "./activationHostRoot";
 import { HOST_CREDENTIAL_STATE_FILE, secretKeyFingerprint } from "./hostCredentialState";
+import {
+  beginHostOperation,
+  HOST_OPERATION_JOURNAL_FILE,
+  type HostOperationPlanEvidence,
+} from "./hostOperationJournal";
 import { readHostRootManifest } from "./hostRootManifest";
 import { resolveDesktopHostRootPaths, resolveHostRootPaths } from "./hostRootPaths";
 import { stageHostImport } from "./stageHostImport";
@@ -68,6 +74,28 @@ async function stageBackup(namespace: string, source: string): Promise<void> {
 
 function headlessKey(byte: number): string {
   return Buffer.alloc(32, byte).toString("base64");
+}
+
+/** Seed a running activation journal record the way a crashed attempt left it. */
+function seedInterruptedActivation(
+  namespace: string,
+  operationId: string,
+  plan: HostOperationPlanEvidence,
+): void {
+  const lease = HostOwnerLease.acquire(resolveHostRootPaths(namespace), "headless");
+  try {
+    beginHostOperation(lease, { operation: "activation", operationId, plan });
+  } finally {
+    lease.release();
+  }
+}
+
+function stagedReceiptCreatedAt(namespace: string): string {
+  const paths = resolveHostRootPaths(namespace);
+  const receipt = JSON.parse(readFileSync(join(paths.dataRoot, "host-import.json"), "utf8")) as {
+    createdAt: string;
+  };
+  return receipt.createdAt;
 }
 
 describe("staged host activation (Gate 2.5 S5.1)", () => {
@@ -322,5 +350,182 @@ describe("staged host activation (Gate 2.5 S5.1)", () => {
     await expect(activateStagedHostRoot({ profileNamespace: namespace })).rejects.toThrow(
       HostStagedImportMissingError,
     );
+  });
+
+  describe("interrupted-activation journal recovery (Gates 2-3 Batch 3)", () => {
+    it("resumes a crashed activation whose custody already adopted the staged key", async () => {
+      const root = scratch();
+      const namespace = join(realpathSync.native(root), "profile");
+      const key = headlessKey(23);
+      await stageBackup(
+        namespace,
+        buildOfflineBackup(root, { name: "secret-key.headless", value: key }),
+      );
+      const paths = resolveHostRootPaths(namespace);
+      seedInterruptedActivation(namespace, stagedReceiptCreatedAt(namespace), {
+        credentialOutcome: "adopted-existing-key",
+        archivedKeyFiles: [],
+        keyFingerprint: secretKeyFingerprint(key),
+      });
+
+      const result = await activateStagedHostRoot({ profileNamespace: namespace });
+
+      expect(result.credentialOutcome).toBe("adopted-existing-key");
+      expect(result.record.resumedAt).toBeDefined();
+      expect(readHostRootManifest(paths)?.source.activation).toBe("ready");
+      expect(readFileSync(join(paths.dataRoot, "secret-key.headless"), "utf8").trim()).toBe(key);
+      expect(
+        existsSync(join(paths.dataRoot, HOST_ACTIVATION_ARCHIVE_DIR, "host-import.staged.json")),
+      ).toBe(true);
+      const recordLease = HostOwnerLease.acquire(paths, "headless");
+      expect(readHostActivationRecord(recordLease).keyFingerprint).toBe(secretKeyFingerprint(key));
+      recordLease.release();
+    });
+
+    it("resumes a crashed OS-sealed activation after the archive and key write landed", async () => {
+      const root = scratch();
+      const namespace = join(realpathSync.native(root), "profile");
+      const adopted = headlessKey(29);
+      const sealed = Buffer.from(`sealed:${adopted}`).toString("base64");
+      await stageBackup(
+        namespace,
+        buildOfflineBackup(root, { name: "secret-key.safe", value: sealed }),
+      );
+      const paths = resolveHostRootPaths(namespace);
+      // Crash point: archive rename and key write landed, credential state,
+      // manifest flip, receipt supersession and the record never ran.
+      mkdirSync(join(paths.dataRoot, HOST_ACTIVATION_ARCHIVE_DIR), {
+        recursive: true,
+        mode: 0o700,
+      });
+      renameSync(
+        join(paths.dataRoot, "secret-key.safe"),
+        join(paths.dataRoot, HOST_ACTIVATION_ARCHIVE_DIR, "secret-key.safe"),
+      );
+      writeFileSync(join(paths.dataRoot, "secret-key.headless"), `${adopted}\n`, {
+        encoding: "utf8",
+        mode: 0o600,
+      });
+      seedInterruptedActivation(namespace, stagedReceiptCreatedAt(namespace), {
+        credentialOutcome: "adopted-os-sealed-key",
+        archivedKeyFiles: ["secret-key.safe"],
+        keyFingerprint: secretKeyFingerprint(adopted),
+      });
+
+      const result = await activateStagedHostRoot({ profileNamespace: namespace });
+
+      expect(result.credentialOutcome).toBe("adopted-os-sealed-key");
+      expect(result.record.resumedAt).toBeDefined();
+      expect(existsSync(join(paths.dataRoot, "secret-key.safe"))).toBe(false);
+      const controller = HostOwnerController.acquire(namespace, "headless");
+      expect((await controller.initialize({ mode: "headless" })).secretStorageKey).toBe(adopted);
+      await controller.close();
+    });
+
+    it("supersedes a stale journal record and re-activates fresh before any custody", async () => {
+      const root = scratch();
+      const namespace = join(realpathSync.native(root), "profile");
+      const sealed = Buffer.from(`sealed:${headlessKey(31)}`).toString("base64");
+      await stageBackup(
+        namespace,
+        buildOfflineBackup(root, { name: "secret-key.safe", value: sealed }),
+      );
+      const staleId = "2000-01-01T00:00:00.000Z";
+      seedInterruptedActivation(namespace, staleId, {
+        credentialOutcome: "fresh-key-sign-in-again",
+        archivedKeyFiles: ["secret-key.safe"],
+        keyFingerprint: "c".repeat(64),
+      });
+
+      const result = await activateStagedHostRoot({
+        profileNamespace: namespace,
+        fallback: "sign-in-again",
+      });
+
+      expect(result.credentialOutcome).toBe("fresh-key-sign-in-again");
+      expect(result.record.resumedAt).toBeUndefined();
+      const paths = resolveHostRootPaths(namespace);
+      const journal = JSON.parse(
+        readFileSync(join(paths.dataRoot, HOST_OPERATION_JOURNAL_FILE), "utf8"),
+      ) as { operations: { operationId: string; phase: string; note?: string }[] };
+      const stale = journal.operations.find((record) => record.operationId === staleId);
+      expect(stale?.phase).toBe("failed");
+      expect(stale?.note).toMatch(/superseded by a fresh activation attempt/u);
+      expect(
+        journal.operations.find((record) => record.operationId === result.record.stagedAt)?.phase,
+      ).toBe("completed");
+    });
+
+    it("refuses a resume whose adopted key does not match the frozen plan fingerprint", async () => {
+      const root = scratch();
+      const namespace = join(realpathSync.native(root), "profile");
+      await stageBackup(
+        namespace,
+        buildOfflineBackup(root, { name: "secret-key.headless", value: headlessKey(37) }),
+      );
+      seedInterruptedActivation(namespace, stagedReceiptCreatedAt(namespace), {
+        credentialOutcome: "adopted-existing-key",
+        archivedKeyFiles: [],
+        keyFingerprint: secretKeyFingerprint(headlessKey(38)),
+      });
+
+      await expect(activateStagedHostRoot({ profileNamespace: namespace })).rejects.toThrow(
+        HostActivationInterruptedError,
+      );
+      expect(readHostRootManifest(resolveHostRootPaths(namespace))?.source.activation).toBe(
+        "required",
+      );
+    });
+
+    it("refuses when the planned archive left the root but the key was never written", async () => {
+      const root = scratch();
+      const namespace = join(realpathSync.native(root), "profile");
+      const sealed = Buffer.from(`sealed:${headlessKey(39)}`).toString("base64");
+      await stageBackup(
+        namespace,
+        buildOfflineBackup(root, { name: "secret-key.safe", value: sealed }),
+      );
+      const paths = resolveHostRootPaths(namespace);
+      mkdirSync(join(paths.dataRoot, HOST_ACTIVATION_ARCHIVE_DIR), {
+        recursive: true,
+        mode: 0o700,
+      });
+      renameSync(
+        join(paths.dataRoot, "secret-key.safe"),
+        join(paths.dataRoot, HOST_ACTIVATION_ARCHIVE_DIR, "secret-key.safe"),
+      );
+      seedInterruptedActivation(namespace, stagedReceiptCreatedAt(namespace), {
+        credentialOutcome: "adopted-os-sealed-key",
+        archivedKeyFiles: ["secret-key.safe"],
+        keyFingerprint: "d".repeat(64),
+      });
+
+      await expect(activateStagedHostRoot({ profileNamespace: namespace })).rejects.toThrow(
+        /key material is gone/u,
+      );
+      expect(existsSync(join(paths.dataRoot, HOST_ACTIVATION_RECORD_FILE))).toBe(false);
+    });
+
+    it("refuses a resume whose staged database no longer matches its verified hash", async () => {
+      const root = scratch();
+      const namespace = join(realpathSync.native(root), "profile");
+      const key = headlessKey(41);
+      await stageBackup(
+        namespace,
+        buildOfflineBackup(root, { name: "secret-key.headless", value: key }),
+      );
+      const paths = resolveHostRootPaths(namespace);
+      appendFileSync(join(paths.dataRoot, "state.sqlite"), "tampered");
+      seedInterruptedActivation(namespace, stagedReceiptCreatedAt(namespace), {
+        credentialOutcome: "adopted-existing-key",
+        archivedKeyFiles: [],
+        keyFingerprint: secretKeyFingerprint(key),
+      });
+
+      await expect(activateStagedHostRoot({ profileNamespace: namespace })).rejects.toThrow(
+        /no longer matches its verified hash/u,
+      );
+      expect(readHostRootManifest(paths)?.source.activation).toBe("required");
+    });
   });
 });

@@ -139,6 +139,8 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
     param("targetTimelineEntryCount", "int", true),
   ],
   "agent-statuses": [param("slashCommands", "0-or-1", true)],
+  "shell-snapshot": [param("threadLimit", "int", true)],
+  "thread-list": [param("cursor", "string", true), param("limit", "int", true)],
 };
 
 /** WebSocket handshake query codecs from the protocol manifest. */
@@ -202,4 +204,19 @@ export const decodedThreadHistoryItemsQuerySchema = z.object({
 
 export const decodedAgentStatusesQuerySchema = z.object({
   slashCommands: z.boolean().optional(),
+});
+
+/**
+ * Gate 4 hazard #3: opting in bounds the shell snapshot's thread list to the
+ * first `threadLimit` rows and returns `threadsNextCursor` for the remainder.
+ * Clients that omit the parameter get the historical full list and no cursor.
+ */
+export const decodedShellSnapshotQuerySchema = z.object({
+  threadLimit: z.number().int().min(1).max(200).optional(),
+});
+
+export const decodedThreadListQuerySchema = z.object({
+  /** Continuation cursor from the previous page's `nextCursor`. */
+  cursor: z.string().min(1).optional(),
+  limit: z.number().int().min(1).max(200),
 });

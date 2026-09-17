@@ -309,6 +309,36 @@ data class RoutethreadU2DHistoryU2DItemsResponse_57033b19c3(
 }
 
 @Serializable
+data class RoutethreadU2DListQuery_6e7f58a6ce(
+    @SerialName("cursor") val cursor: RemoteField<String> = RemoteField.Missing,
+    @SerialName("limit") val limit: Long,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("cursor", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("limit", "Long", true, false, 1.0, 200.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RoutethreadU2DListResponse_9976947f7b(
+    @SerialName("gitSummariesByThread") val gitSummariesByThread: RemoteField<RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78> = RemoteField.Missing,
+    @SerialName("nextCursor") val nextCursor: RemoteField<String>,
+    @SerialName("runtimeSummariesByThread") val runtimeSummariesByThread: RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26,
+    @SerialName("threads") val threads: List<RouteshellU2DSnapshotResponseU2DThreadsU2DItem_9f0c1cf2ff>,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("gitSummariesByThread", "RouteshellU2DSnapshotResponseU2DGitSummariesByThread_aca97eda78", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("nextCursor", "String", true, true, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("runtimeSummariesByThread", "RouteshellU2DSnapshotResponseU2DRuntimeSummariesByThread_fc9d6f4c26", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("threads", "List<RouteshellU2DSnapshotResponseU2DThreadsU2DItem_9f0c1cf2ff>", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class RoutethreadU2DRuntimeU2DTruncateRequest_228757711c(
     @SerialName("itemId") val itemId: String,
 ) {
@@ -405,35 +435,4 @@ enum class RoutetokenU2DExchangeRequestU2DClientU2DDeviceType_28ab534145 {
     @SerialName("tablet") TABLET,
     @SerialName("browser") BROWSER,
     @SerialName("unknown") UNKNOWN,
-}
-
-@Serializable
-data class RoutetokenU2DExchangeRequestU2DClient_6969170275(
-    @SerialName("deviceType") val deviceType: RemoteField<RoutetokenU2DExchangeRequestU2DClientU2DDeviceType_28ab534145> = RemoteField.Missing,
-    @SerialName("label") val label: RemoteField<String> = RemoteField.Missing,
-    @SerialName("os") val os: RemoteField<String> = RemoteField.Missing,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("deviceType", "RoutetokenU2DExchangeRequestU2DClientU2DDeviceType_28ab534145", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("label", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("os", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RoutetokenU2DExchangeRequestU2DGrantType_962b214fbc {
-    @SerialName("pairing-token") PAIRINGU2DTOKEN,
-}
-
-@Serializable
-enum class RoutetokenU2DExchangeRequestU2DScopesU2DItem_8f483f0889 {
-    @SerialName("session:read") SESSIONU3AREAD,
-    @SerialName("session:operate") SESSIONU3AOPERATE,
-    @SerialName("terminal:read") TERMINALU3AREAD,
-    @SerialName("terminal:operate") TERMINALU3AOPERATE,
-    @SerialName("requests:resolve") REQUESTSU3ARESOLVE,
-    @SerialName("projects:manage") PROJECTSU3AMANAGE,
-    @SerialName("ports:forward") PORTSU3AFORWARD,
 }

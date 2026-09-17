@@ -27,7 +27,7 @@ const BATCHES = [
 const DISPOSITIONS = ["implemented", "planned", "desktop-only", "unsupported-by-wire"] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 63,
+  httpRoutes: 65,
   procedures: 108,
   webSocketClientMessages: 9,
   webSocketServerMessages: 10,
@@ -104,7 +104,24 @@ type Ledger = z.infer<typeof ledgerSchema>;
 const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
-> = {};
+> = {
+  // Gate 4 hazard #3 bounded thread-list pages: contracted for web clients,
+  // not yet implemented natively. The tokens are the generated binding type
+  // names, so a native implementation trips the absence check until the
+  // disposition is flipped with production evidence.
+  "thread-list": [
+    { platform: "ios", token: "RemoteThreadListPage" },
+    { platform: "android", token: "RemoteThreadListPage" },
+  ],
+  // B5b one-time image tickets: contracted for the web client's <img> flow,
+  // not yet implemented natively (natives still use the legacy query-token
+  // GET, which remains on the wire). The tokens are the generated binding
+  // type names for the ticket route.
+  "local-image-ticket": [
+    { platform: "ios", token: "LocalImageTicket" },
+    { platform: "android", token: "LocalImageTicket" },
+  ],
+};
 type LedgerEntry = z.infer<typeof entrySchema>;
 type Platform = "ios" | "android";
 type Category = keyof Ledger["entries"];

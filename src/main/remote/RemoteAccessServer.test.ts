@@ -402,6 +402,31 @@ async function issueAccessToken(
   return token.accessToken;
 }
 
+/** Exchanges an independent pairing grant — the start pairing credential is
+ * single-use, so a second token for the same server needs a fresh mint. */
+async function issueIndependentAccessToken(
+  server: RemoteAccessServer,
+  info: RemoteAccessServerInfo,
+  scopes: readonly string[],
+): Promise<string> {
+  const pairing = new URL(server.issueIndependentPairingUrl("Test extra token"));
+  const credential = new URLSearchParams(pairing.hash.slice(1)).get("token");
+  expect(credential).toBeTruthy();
+  const response = await fetch(new URL("/oauth/token", info.httpBaseUrl), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      grantType: "pairing-token",
+      credential,
+      scopes,
+      client: { label: "Test mobile", deviceType: "mobile" },
+    }),
+  });
+  expect(response.status).toBe(200);
+  const token = (await response.json()) as { accessToken: string };
+  return token.accessToken;
+}
+
 async function issueWebSocketTicket(
   info: RemoteAccessServerInfo,
   accessToken: string,
@@ -1668,6 +1693,93 @@ describe("RemoteAccessServer", () => {
     expect((await fetchImage(join(dir, "missing.png"))).status).toBe(404);
     expect((await fetchImage(textPath)).status).toBe(415);
     expect((await fetchImage("images/pixel.png")).status).toBe(400);
+  });
+
+  it("serves <img> consumers through one-time path-scoped image tickets", async () => {
+    const dir = createTempDir();
+    const pngBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x08]);
+    const imagePath = join(dir, "pixel.png");
+    writeFileSync(imagePath, pngBytes);
+    const otherPath = join(dir, "other.png");
+    writeFileSync(otherPath, pngBytes);
+    const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+    const token = await issueAccessToken(info, ["session:read"]);
+
+    // Minting requires the Authorization header — the whole point is to keep
+    // credentials out of the query strings that land in proxy/relay logs.
+    const mintUrl = new URL("/api/files/image-ticket", info.httpBaseUrl);
+    expect(
+      (
+        await fetch(mintUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ path: imagePath }),
+        })
+      ).status,
+    ).toBe(401);
+
+    const minted = await fetch(mintUrl, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ path: imagePath }),
+    });
+    expect(minted.status).toBe(200);
+    const { ticket, expiresAt } = (await minted.json()) as { ticket: string; expiresAt: string };
+    expect(ticket).toMatch(/^lc_img_/);
+    expect(Number.isNaN(Date.parse(expiresAt))).toBe(false);
+
+    // The ticket renders the minted path exactly once.
+    const ticketUrl = new URL("/api/files/image", info.httpBaseUrl);
+    ticketUrl.searchParams.set("path", imagePath);
+    ticketUrl.searchParams.set("ticket", ticket);
+    const served = await fetch(ticketUrl);
+    expect(served.status).toBe(200);
+    expect(Buffer.from(await served.arrayBuffer())).toEqual(pngBytes);
+
+    // Replay, and reuse against a different path, both fail.
+    expect((await fetch(ticketUrl)).status).toBe(401);
+    const otherUrl = new URL("/api/files/image", info.httpBaseUrl);
+    otherUrl.searchParams.set("path", otherPath);
+    otherUrl.searchParams.set("ticket", ticket);
+    expect((await fetch(otherUrl)).status).toBe(401);
+  });
+
+  it("keeps the Authorization header as the primary image transport and enforces session:read", async () => {
+    const dir = createTempDir();
+    const imagePath = join(dir, "pixel.png");
+    writeFileSync(imagePath, Buffer.from("png"));
+    const server = new RemoteAccessServer({
+      truncateThreadRuntime: () => {},
+      appVersion: "1.0.0",
+      identity: { desktopId: "desktop-test", label: "Test Desktop" },
+      host: "127.0.0.1",
+      port: 0,
+      callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    });
+    servers.push(server);
+    const info = await server.start();
+
+    // Session:read is the deliberate scope (B5b): the route stands in for the
+    // desktop poracode-local handler, and its absolute-path power is bounded
+    // by the image-extension allowlist and size cap, not by a write scope.
+    const reader = await issueAccessToken(info, ["session:read"]);
+    const url = new URL("/api/files/image", info.httpBaseUrl);
+    url.searchParams.set("path", imagePath);
+    expect((await fetch(url, { headers: { authorization: `Bearer ${reader}` } })).status).toBe(200);
+
+    const operator = await issueIndependentAccessToken(server, info, ["session:operate"]);
+    expect((await fetch(url, { headers: { authorization: `Bearer ${operator}` } })).status).toBe(
+      403,
+    );
   });
 
   it("accepts authenticated remote attachment uploads", async () => {

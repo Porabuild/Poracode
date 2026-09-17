@@ -7,6 +7,10 @@ import {
 import type { DbPersistExperimentStatePayload } from "@/shared/ipc";
 import { getSqlite } from "./connection";
 import {
+  dbFindRunningCheckpointRevertForThreads,
+  dbUpdateCheckpointRevertPhases,
+} from "./checkpointRevertOperations";
+import {
   acknowledgeMirroredThreadIds,
   forgetMainCreatedThread,
   isMainCreatedThreadUnmirrored,
@@ -57,6 +61,19 @@ export function dbSyncChanges(payload: {
       for (const threadId of payload.deletedThreadIds) {
         deleteThread.run(threadId);
         forgetMainCreatedThread(threadId);
+      }
+      // The authority deleted these threads; a locally running compound
+      // checkpoint revert against one of them can never run again. Settle its
+      // journal row inside the same mirror transaction so a stale `running`
+      // row cannot refuse later project/thread deletes (the operator remedy
+      // for a live local revert — retry it — is meaningless once the thread
+      // is gone from the authoritative mirror).
+      const runningReverts = dbFindRunningCheckpointRevertForThreads(payload.deletedThreadIds);
+      for (const operationKey of runningReverts.operationKeys) {
+        // `ambiguous`, not a completed-family outcome: phases may have partly
+        // applied before the authority deleted the thread, and the row must
+        // not claim success — it only records that the claim is released.
+        dbUpdateCheckpointRevertPhases(operationKey, { outcome: "ambiguous" });
       }
       const upsertThread = prepareThreadUpsertStatement(sqlite, THREAD_SYNC_OPTIONS);
       for (const { thread, sortOrder } of payload.threads) {
@@ -148,6 +165,13 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
       }
       for (let i = 0; i < threadsData.length; i++) {
         runThreadUpsert(upsertThread, threadsData[i]!, i, THREAD_SYNC_OPTIONS);
+      }
+      // Same authority-mirror semantics as [dbSyncChanges]: a locally running
+      // compound revert for a thread this full snapshot deletes can never run
+      // again, so settle its claim instead of leaving a stale `running` row.
+      const settledReverts = dbFindRunningCheckpointRevertForThreads([...deletedThreadIds]);
+      for (const operationKey of settledReverts.operationKeys) {
+        dbUpdateCheckpointRevertPhases(operationKey, { outcome: "ambiguous" });
       }
       // Anything in this snapshot is renderer-owned from here on, so a later
       // snapshot that drops it is a real deletion.

@@ -93,6 +93,9 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   dbSyncChanges: "remote-mirrors-not-persisted",
   dbGetThreadRuntimeItems: "remote-runtime-mirror-local",
   dbGetLatestThreadGoalItem: "remote-runtime-snapshot-provided",
+  // Paginated local hydration (facade 13); remote clients page via the HTTP
+  // snapshot/thread-list surfaces, never this procedure.
+  dbGetThreadsPage: "local-paginated-hydration",
   dbReplaceThreadRuntimeItems: "remote-runtime-mirror-local",
   dbGetThreadCompletedTurns: "remote-runtime-mirror-local",
   dbReplaceThreadCompletedTurns: "remote-runtime-mirror-local",

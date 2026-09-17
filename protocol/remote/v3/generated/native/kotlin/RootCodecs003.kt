@@ -5,6 +5,21 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EThreadU2DSteerU2DClearU2EResponse: RemoteRootCodec<RouteportU2DUnforwardResponse_badd682f35>
+    get() = RemoteRootCodec("route.thread-steer-clear.response", serializer<RouteportU2DUnforwardResponse_badd682f35>(), schema_badd682f3501e022)
+
+val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2EPath: RemoteRootCodec<ProceduregetThreadFollowUpQueueRequest_09b78d9c1d>
+    get() = RemoteRootCodec("route.thread-steer-set.path", serializer<ProceduregetThreadFollowUpQueueRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
+
+val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2ERequest: RemoteRootCodec<RoutethreadU2DSteerU2DSetRequest_7b88ef93ea>
+    get() = RemoteRootCodec("route.thread-steer-set.request", serializer<RoutethreadU2DSteerU2DSetRequest_7b88ef93ea>(), schema_7b88ef93ea82dd5b)
+
+val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2EResponse: RemoteRootCodec<RouteportU2DUnforwardResponse_badd682f35>
+    get() = RemoteRootCodec("route.thread-steer-set.response", serializer<RouteportU2DUnforwardResponse_badd682f35>(), schema_badd682f3501e022)
+
+val RemoteRootCodecs.routeU2ETokenU2DExchangeU2ERequest: RemoteRootCodec<RoutetokenU2DExchangeRequest_8dfe4ead4e>
+    get() = RemoteRootCodec("route.token-exchange.request", serializer<RoutetokenU2DExchangeRequest_8dfe4ead4e>(), schema_8dfe4ead4e3bdcdd)
+
 val RemoteRootCodecs.routeU2ETokenU2DExchangeU2EResponse: RemoteRootCodec<RoutetokenU2DExchangeResponse_d15a69227c>
     get() = RemoteRootCodec("route.token-exchange.response", serializer<RoutetokenU2DExchangeResponse_d15a69227c>(), schema_d15a69227c93754c)
 

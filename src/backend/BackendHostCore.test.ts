@@ -14,14 +14,16 @@ const mocks = vi.hoisted(() => ({
       removedCompletedTurnAnchors: string[];
     }
   >(),
-  dbGetThread: vi.fn<(threadId: string) => null>(),
+  dbGetThread: vi.fn<(threadId: string) => unknown>(),
+  dbGetProject: vi.fn<(projectId: string) => unknown>(),
   dbHasThreadRuntimeItem: vi.fn<(threadId: string, itemId: string) => boolean>(),
-  dbClaimCheckpointRevertOperation: vi.fn<() => never>(),
+  dbClaimCheckpointRevertOperation: vi.fn<(input: unknown) => unknown>(),
   dbUpdateCheckpointRevertPhases: vi.fn<() => void>(),
   persistSupervisorEvent: vi.fn<(event: SupervisorEvent) => void>(),
   start: vi.fn<() => void>(),
   restart: vi.fn<() => void>(),
   dispose: vi.fn<() => void>(),
+  supervisorCall: vi.fn<(type: string, payload: unknown, options?: unknown) => Promise<unknown>>(),
   supervisorOptions: null as null | {
     onEvent(event: SupervisorEvent): void;
     onReset(): void;
@@ -35,6 +37,7 @@ vi.mock("@/main/db", () => ({
   dbMarkLiveThreadsInactive: mocks.dbMarkLiveThreadsInactive,
   dbTruncateThreadRuntimeAfter: mocks.dbTruncateThreadRuntimeAfter,
   dbGetThread: mocks.dbGetThread,
+  dbGetProject: mocks.dbGetProject,
   dbHasThreadRuntimeItem: mocks.dbHasThreadRuntimeItem,
   dbClaimCheckpointRevertOperation: mocks.dbClaimCheckpointRevertOperation,
   dbUpdateCheckpointRevertPhases: mocks.dbUpdateCheckpointRevertPhases,
@@ -51,6 +54,7 @@ vi.mock("@/main/supervisor/SupervisorClient", () => ({
     start = mocks.start;
     restart = mocks.restart;
     dispose = mocks.dispose;
+    call = mocks.supervisorCall;
 
     constructor(options: { onEvent(event: SupervisorEvent): void; onReset(): void }) {
       if (mocks.supervisorConstructorError) throw mocks.supervisorConstructorError;
@@ -520,6 +524,145 @@ describe("BackendHostCore", () => {
 
       expect(() => host.truncateThreadRuntime("thread-1", "item-b")).toThrow("transaction failed");
       expect(onEvent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("compound revert delete-mid-revert revalidation", () => {
+    function createRevertHost(): BackendHostCore {
+      return new BackendHostCore({
+        baseDir: "/data",
+        dbPath: "/data/state.sqlite",
+        supervisor: {
+          appVersion: "test",
+          isDev: false,
+          supervisorPath: "/supervisor.cjs",
+          wslHelpersDir: "/wsl",
+          secretStorageKey: "secret",
+        },
+        onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+        onReset: vi.fn<() => void>(),
+      });
+    }
+
+    function claimRow(operationKey: string, projectLocation: unknown) {
+      return {
+        operationKey,
+        threadId: "thread-1",
+        checkpointItemId: "checkpoint-1",
+        numTurns: 0,
+        projectLocationJson: JSON.stringify(projectLocation),
+        configJson: null,
+        providerAnchorJson: null,
+        providerPhase: "pending" as const,
+        filesPhase: "pending" as const,
+        truncatePhase: "pending" as const,
+        removedAnchors: [],
+        outcome: "running" as const,
+        createdAt: 1,
+        updatedAt: 1,
+      };
+    }
+
+    beforeEach(() => {
+      mocks.dbGetThread.mockReturnValue({
+        id: "thread-1",
+        projectId: "project-1",
+        status: "inactive",
+      });
+      mocks.dbHasThreadRuntimeItem.mockReturnValue(true);
+      mocks.dbTruncateThreadRuntimeAfter.mockReturnValue({
+        truncated: false,
+        removedCompletedTurnAnchors: [],
+      });
+      mocks.supervisorCall.mockResolvedValue(undefined);
+    });
+
+    it("skips the file restore when the project was deleted mid-revert", async () => {
+      const host = createRevertHost();
+      const frozenLocation = { kind: "local", linuxPath: "/repo" };
+      mocks.dbClaimCheckpointRevertOperation.mockReturnValue({
+        kind: "claimed",
+        row: claimRow("op-1", frozenLocation),
+      });
+      // The delete won between the claim and the file-restore phase.
+      mocks.dbGetProject.mockReturnValue(null);
+
+      const result = await host.revertCheckpoint({
+        threadId: "thread-1",
+        checkpointItemId: "checkpoint-1",
+        operationKey: "op-1",
+      });
+
+      expect(result.outcome).toBe("completed");
+      expect(result.filesPhase).toBe("skipped_no_location");
+      const restored = mocks.supervisorCall.mock.calls.filter(
+        ([type]) => type === "restoreFileCheckpoint",
+      );
+      expect(restored).toEqual([]);
+    });
+
+    it("skips the file restore when the project moved off the frozen location", async () => {
+      const host = createRevertHost();
+      mocks.dbClaimCheckpointRevertOperation.mockReturnValue({
+        kind: "claimed",
+        row: claimRow("op-1", { kind: "local", linuxPath: "/repo" }),
+      });
+      mocks.dbGetProject.mockReturnValue({
+        id: "project-1",
+        location: { kind: "local", linuxPath: "/moved-elsewhere" },
+      });
+
+      const result = await host.revertCheckpoint({
+        threadId: "thread-1",
+        checkpointItemId: "checkpoint-1",
+        operationKey: "op-1",
+      });
+
+      expect(result.filesPhase).toBe("skipped_no_location");
+      expect(
+        mocks.supervisorCall.mock.calls.filter(([type]) => type === "restoreFileCheckpoint"),
+      ).toEqual([]);
+    });
+
+    it("still restores when the thread and project match the frozen plan", async () => {
+      const host = createRevertHost();
+      const frozenLocation = { kind: "local", linuxPath: "/repo" };
+      mocks.dbClaimCheckpointRevertOperation.mockReturnValue({
+        kind: "claimed",
+        row: claimRow("op-1", frozenLocation),
+      });
+      mocks.dbGetProject.mockReturnValue({ id: "project-1", location: frozenLocation });
+
+      const result = await host.revertCheckpoint({
+        threadId: "thread-1",
+        checkpointItemId: "checkpoint-1",
+        operationKey: "op-1",
+      });
+
+      expect(result.filesPhase).toBe("completed");
+      expect(
+        mocks.supervisorCall.mock.calls.some(([type]) => type === "restoreFileCheckpoint"),
+      ).toBe(true);
+    });
+
+    it("settles a crash-orphaned running row when nothing is left to revert", async () => {
+      const host = createRevertHost();
+      // The checkpoint is gone: a previous attempt already truncated the tail
+      // and crashed before settling its journal row.
+      mocks.dbHasThreadRuntimeItem.mockReturnValue(false);
+
+      const result = await host.revertCheckpoint({
+        threadId: "thread-1",
+        checkpointItemId: "checkpoint-1",
+        operationKey: "op-1",
+      });
+
+      expect(result.outcome).toBe("noop");
+      expect(mocks.dbUpdateCheckpointRevertPhases).toHaveBeenCalledWith("op-1", {
+        outcome: "completed",
+        truncatePhase: "noop",
+        removedAnchors: [],
+      });
     });
   });
 });

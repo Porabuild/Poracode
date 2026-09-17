@@ -126,6 +126,17 @@ data class RoutesettingsU2DWriteRequest_f310784fe2(
 }
 
 @Serializable
+data class RouteshellU2DSnapshotQuery_a6cf931df3(
+    @SerialName("threadLimit") val threadLimit: RemoteField<Long> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("threadLimit", "Long", false, false, 1.0, 200.0, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class RouteshellU2DSnapshotResponseU2DGitStateU2DProjectPullRequestListsU2DValueU2DProject_83470ce639(
     @SerialName("hostId") val hostId: String,
     @SerialName("projectId") val projectId: String,

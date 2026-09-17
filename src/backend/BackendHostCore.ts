@@ -338,6 +338,23 @@ export class BackendHostCore {
     }
   }
 
+  /**
+   * Between-phase revalidation for the compound revert's file restore: the
+   * thread and its project must still exist and the project must still live
+   * at the journal's frozen location. A delete racing the revert (a client
+   * removing the thread or its project mid-compound) therefore skips the
+   * destructive git restore instead of rewriting a directory the user already
+   * removed; the frozen plan is compared through the same serialization the
+   * claim froze, so any drift refuses the restore.
+   */
+  private isRevertFileTargetIntact(threadId: string, frozenLocation: ProjectLocation): boolean {
+    const thread = dbGetThread(threadId);
+    if (!thread) return false;
+    const project = dbGetProject(thread.projectId);
+    if (!project?.location) return false;
+    return JSON.stringify(project.location) === JSON.stringify(frozenLocation);
+  }
+
   /** Single DB mutation + canonical event; callers own the entry guards. */
   private truncateThreadRuntimeOwned(
     threadId: string,
@@ -427,7 +444,14 @@ export class BackendHostCore {
     if (!dbHasThreadRuntimeItem(input.threadId, input.checkpointItemId)) {
       // Nothing addressable to revert: no journal row, no side effects, and a
       // concurrent second client converges on this noop after the first
-      // operation truncated the tail.
+      // operation truncated the tail. A journal row left `running` by a crash
+      // after its truncate landed settles here, so the operation never blocks
+      // a later thread deletion while nothing is left to do.
+      dbUpdateCheckpointRevertPhases(input.operationKey, {
+        outcome: "completed",
+        truncatePhase: "noop",
+        removedAnchors: [],
+      });
       return {
         outcome: "noop",
         replayed: false,
@@ -562,12 +586,16 @@ export class BackendHostCore {
 
     // File restore phase — idempotent (git reset to a fixed checkpoint ref),
     // so unlike the provider phase a `failed` attempt is re-attempted on an
-    // explicit retry.
+    // explicit retry. The target is re-validated between phases: a thread or
+    // project deleted while this compound was in flight must not receive a
+    // git restore into a path the user already removed, and a project whose
+    // location no longer matches the frozen plan must not be restored from a
+    // stale anchor.
     if (row.filesPhase === "pending" || row.filesPhase === "failed") {
       const projectLocation = row.projectLocationJson
         ? (JSON.parse(row.projectLocationJson) as ProjectLocation)
         : null;
-      if (!projectLocation) {
+      if (!projectLocation || !this.isRevertFileTargetIntact(input.threadId, projectLocation)) {
         row = this.bumpPhase(journalKey, row, { filesPhase: "skipped_no_location" });
       } else {
         try {

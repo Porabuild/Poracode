@@ -318,6 +318,7 @@ export function createLocalIpcHandlers(
     },
     dbGetProjects: (payload) => callDatabase("dbGetProjects", payload),
     dbGetThreads: (payload) => callDatabase("dbGetThreads", payload),
+    dbGetThreadsPage: (payload) => callDatabase("dbGetThreadsPage", payload),
     dbGetState: (payload) => callDatabase("dbGetState", payload),
     dbSetState: (payload) => callDatabase("dbSetState", payload),
     dbUpsertProject: async (project) => {

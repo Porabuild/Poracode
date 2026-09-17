@@ -11,6 +11,7 @@ import {
   dbGetThreadRuntimeItemsPage,
   dbGetLatestThreadGoalItem,
   dbGetThreads,
+  dbGetThreadsPage,
   dbListScheduleRuns,
   dbPersistExperimentState,
   dbReplaceThreadCompletedTurns,
@@ -60,6 +61,14 @@ export function callDatabaseRpc(call: BackendDatabaseCall): unknown {
         call.payload.limit,
         call.payload.targetTimelineEntryCount,
       );
+    case "dbGetThreadsPage": {
+      const { limit, cursor, projectId } = call.payload;
+      return dbGetThreadsPage({
+        limit,
+        ...(cursor !== undefined ? { cursor } : {}),
+        ...(projectId !== undefined ? { projectId } : {}),
+      });
+    }
     case "dbGetLatestThreadGoalItem":
       return dbGetLatestThreadGoalItem(call.payload.threadId);
     case "dbTruncateThreadRuntimeAfter":

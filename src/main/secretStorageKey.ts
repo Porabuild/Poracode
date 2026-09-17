@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { safeStorage } from "electron";
 import { writeFileAtomic } from "@/shared/atomicFile";
+import { safeStorageHealth } from "./safeStorageHealth";
 
 const SAFE_STORAGE_KEY_FILE = "secret-key.safe";
 let sessionOnlyKey: string | undefined;
@@ -77,23 +78,13 @@ export function readOrCreateSafeStorageSecretKey(
   baseDir: string,
   platform: NodeJS.Platform = process.platform,
 ): string {
-  let encryptionAvailable: boolean;
-  try {
-    encryptionAvailable = safeStorage.isEncryptionAvailable();
-    if (
-      encryptionAvailable &&
-      platform === "linux" &&
-      safeStorage.getSelectedStorageBackend() === "basic_text"
-    ) {
-      encryptionAvailable = false;
-    }
-  } catch {
+  // Availability is the once-per-launch latch (P3): the module logs the
+  // session-only consequence exactly once when the latch is set.
+  const health = safeStorageHealth(platform);
+  if (health.kind === "inspection-failed") {
     throw new Error("Unable to inspect OS-backed secret storage.");
   }
-  if (!encryptionAvailable) {
-    console.warn(
-      "[credential-storage] secure OS encryption is unavailable; credentials are session-only.",
-    );
+  if (health.kind === "unavailable") {
     sessionOnlyKey ??= randomBytes(32).toString("base64");
     return sessionOnlyKey;
   }

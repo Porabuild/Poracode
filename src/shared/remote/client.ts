@@ -28,6 +28,7 @@ import {
   remoteProjectSettingsSchema,
   remoteRuntimeItemsPageSchema,
   remoteShellSnapshotSchema,
+  remoteThreadListPageSchema,
   remoteThreadSnapshotSchema,
   remoteWebSocketServerMessageSchema,
   remoteWebSocketTicketResultSchema,
@@ -56,6 +57,7 @@ import {
   type RemoteSettingsPatch,
   type RemoteScheduleCommand,
   type RemoteShellSnapshot,
+  type RemoteThreadListPage,
   type RemoteThreadSnapshot,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
@@ -293,6 +295,17 @@ const DEFAULT_REMOTE_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
 const ETAG_CACHE_MAX_ENTRIES = 32;
 
 /**
+ * Image-ticket cache for {@link RemoteDesktopClient.localImageUrl}. The TTL
+ * mirrors the host's mint window (`ImageTicketStore`, 30 s); a cached URL is
+ * reused only while more than the reuse margin remains so an `<img>` load
+ * starts with real validity left. The bound mirrors the host's live-ticket
+ * cap in spirit; eviction is oldest-first.
+ */
+const LOCAL_IMAGE_TICKET_TTL_MS = 30_000;
+const LOCAL_IMAGE_TICKET_REUSE_MARGIN_MS = 5_000;
+const LOCAL_IMAGE_TICKET_CACHE_MAX_ENTRIES = 64;
+
+/**
  * Long-running server operations (clone, push, PR creation, commit, sync,
  * merge) routinely exceed the 60s default while succeeding server-side; a
  * short deadline reports a false failure while the op keeps running. These get
@@ -303,6 +316,11 @@ const LONG_REMOTE_REQUEST_TIMEOUT_MS = 5 * 60_000;
 const settingsResponseSchema = z.object({ settings: remoteSettingsSchema });
 const browserStateResponseSchema = z.object({ state: remoteBrowserStateSchema });
 const attachmentUploadResponseSchema = z.object({ path: z.string().min(1) });
+/** Mint result of `POST /api/files/image-ticket` (B5b ticket flow). */
+const remoteImageTicketResultSchema = z.object({
+  ticket: z.string().min(1),
+  expiresAt: z.string().min(1),
+});
 const projectNotesResponseSchema = z.object({ notes: projectNotesSchema.nullable() });
 const prWatchResponseSchema = z.object({ watch: prWatchSchema.nullable() });
 
@@ -347,6 +365,16 @@ export class RemoteDesktopClient {
     string,
     { readonly etag: string; readonly parsed: unknown }
   >();
+
+  /** Minted one-time image tickets per absolute path, newest reuse first. */
+  private readonly localImageTickets = new Map<
+    string,
+    { readonly ticket: string; readonly expiresAtMs: number }
+  >();
+  /** In-flight mints, so concurrent render passes share one request per path. */
+  private readonly localImageTicketMints = new Map<string, Promise<void>>();
+  /** Latched when the host answers the mint route with 404 (older deploy). */
+  private localImageTicketsUnsupported = false;
 
   async environment(): Promise<RemoteEnvironmentDescriptor> {
     let raw: unknown;
@@ -408,12 +436,63 @@ export class RemoteDesktopClient {
     return { ...result, scopes: filterKnownRemoteAccessScopes(result.scopes) };
   }
 
-  async snapshot(): Promise<RemoteShellSnapshot> {
-    return parseResponse(
+  /**
+   * Shell snapshot. Without options the historical full thread list is
+   * fetched. With `threadListPageLimit` (Gate 4 hazard #3) the request bounds
+   * the thread list and this method transparently pages the remainder from
+   * the thread-list route until the host reports the end, resolving with the
+   * complete assembled snapshot so callers keep a single unchanged contract.
+   * A host that predates the pagination ignores the query parameter and
+   * returns no `threadsNextCursor`, which ends the loop after one response.
+   */
+  async snapshot(options: { threadListPageLimit?: number } = {}): Promise<RemoteShellSnapshot> {
+    const limit = options.threadListPageLimit;
+    let snapshot = parseResponse(
       remoteShellSnapshotSchema,
-      await this.requestJson("/api/snapshot"),
+      await this.requestJson(
+        limit === undefined ? "/api/snapshot" : `/api/snapshot?threadLimit=${limit}`,
+      ),
       "snapshot",
     );
+    let cursor: string | null = snapshot.threadsNextCursor ?? null;
+    if (cursor === null) return snapshot;
+    const threads = [...snapshot.threads];
+    const runtimeSummariesByThread = { ...snapshot.runtimeSummariesByThread };
+    let gitSummariesByThread = snapshot.gitSummariesByThread;
+    // The host advances the cursor strictly past returned rows, so a repeated
+    // cursor can only mean a misbehaving peer; refuse it instead of looping.
+    const seenCursors = new Set<string>();
+    while (cursor !== null) {
+      if (seenCursors.has(cursor)) {
+        throw new RemoteClientError(
+          "The server repeated a thread-list cursor; the thread list may be incomplete.",
+          502,
+          "thread_list_cursor_loop",
+        );
+      }
+      seenCursors.add(cursor);
+      const nextCursor: string = cursor;
+      const page: RemoteThreadListPage = parseResponse(
+        remoteThreadListPageSchema,
+        await this.requestJson(
+          `/api/threads?limit=${limit}&cursor=${encodeURIComponent(nextCursor)}`,
+        ),
+        "thread list page",
+      );
+      threads.push(...page.threads);
+      Object.assign(runtimeSummariesByThread, page.runtimeSummariesByThread);
+      if (page.gitSummariesByThread) {
+        gitSummariesByThread = { ...(gitSummariesByThread ?? {}), ...page.gitSummariesByThread };
+      }
+      cursor = page.nextCursor ?? null;
+    }
+    return {
+      ...snapshot,
+      threads,
+      runtimeSummariesByThread,
+      ...(gitSummariesByThread !== undefined ? { gitSummariesByThread } : {}),
+      threadsNextCursor: null,
+    };
   }
 
   async agentStatuses(options: { omitSlashCommands?: boolean } = {}): Promise<RemoteAgentStatuses> {
@@ -1086,16 +1165,69 @@ export class RemoteDesktopClient {
 
   /**
    * Absolute URL of the authenticated image endpoint used for poracode-local
-   * sources. The access token rides in the query string because <img> tags
-   * can't send Authorization headers. Returns "" without a token — callers
-   * fall back to the original (unrenderable in a browser) URL then.
+   * sources. <img> tags can't send Authorization headers, so the URL carries
+   * the one-time `lc_img_` ticket minted from `POST /api/files/image-ticket`
+   * when the host supports it (Bearer-in-query leaks into proxy/relay access
+   * logs). Minting is asynchronous while every render-path consumer of this
+   * method is synchronous, so the FIRST resolution of a path still carries the
+   * legacy `access_token` query parameter while a mint is in flight; the
+   * ticketed URL is served from cache afterwards. A 404 from the mint (older
+   * host without the route) latches off ticket use for this client instance
+   * and keeps the legacy URL — the same 404-fallback shape as the environment
+   * discovery. Returns "" without a token — callers fall back to the original
+   * (unrenderable in a browser) URL then.
    */
   localImageUrl(absolutePath: string): string {
     if (!this.accessToken) return "";
     const url = endpointUrl(this.endpoint, "/api/files/image");
     url.searchParams.set("path", absolutePath);
+    const cached = this.localImageTickets.get(absolutePath);
+    if (cached && cached.expiresAtMs > Date.now() + LOCAL_IMAGE_TICKET_REUSE_MARGIN_MS) {
+      url.searchParams.set("ticket", cached.ticket);
+      return url.toString();
+    }
+    if (!this.localImageTicketsUnsupported) {
+      // Deduped per path: markdown and gallery rendering can resolve the same
+      // image several times while one mint is in flight.
+      let mint = this.localImageTicketMints.get(absolutePath);
+      if (!mint) {
+        mint = this.mintLocalImageTicket(absolutePath);
+        this.localImageTicketMints.set(absolutePath, mint);
+        void mint.finally(() => {
+          this.localImageTicketMints.delete(absolutePath);
+        });
+      }
+    }
     url.searchParams.set("access_token", this.accessToken);
     return url.toString();
+  }
+
+  private async mintLocalImageTicket(absolutePath: string): Promise<void> {
+    try {
+      const result = parseResponse(
+        remoteImageTicketResultSchema,
+        await this.requestJson("/api/files/image-ticket", {
+          method: "POST",
+          body: { path: absolutePath },
+        }),
+        "image ticket",
+      );
+      while (this.localImageTickets.size >= LOCAL_IMAGE_TICKET_CACHE_MAX_ENTRIES) {
+        const oldest = this.localImageTickets.keys().next().value;
+        if (oldest === undefined) break;
+        this.localImageTickets.delete(oldest);
+      }
+      this.localImageTickets.set(absolutePath, {
+        ticket: result.ticket,
+        expiresAtMs: Date.now() + LOCAL_IMAGE_TICKET_TTL_MS,
+      });
+    } catch (error) {
+      if (error instanceof RemoteClientError && error.status === 404) {
+        // Older host without the ticket route: keep the legacy query-token URL
+        // for this client's lifetime instead of re-requesting the route.
+        this.localImageTicketsUnsupported = true;
+      }
+    }
   }
 
   /**

@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { HOST_CONTROL_DISCOVERY_FILE } from "@/shared/hostControlProtocol";
+import { HOST_OPERATION_JOURNAL_FILE } from "./hostOperationJournal";
 
 const EXCLUDED_ROOT_ENTRIES = new Set([
   "state.sqlite",
@@ -18,6 +19,9 @@ const EXCLUDED_ROOT_ENTRIES = new Set([
   "state.sqlite-wal",
   "state.sqlite-journal",
   HOST_CONTROL_DISCOVERY_FILE,
+  // Private owned-root operation evidence, like the other markers below; a
+  // backup inventory describes migrated data, never local mutation bookkeeping.
+  HOST_OPERATION_JOURNAL_FILE,
 ]);
 
 interface ImportEntry {

@@ -112,7 +112,8 @@
       "method": "GET",
       "path": "/api/snapshot",
       "auth": "bearer",
-      "scopes": ["session:read"]
+      "scopes": ["session:read"],
+      "queryParameters": ["threadLimit"]
     },
     {
       "id": "agent-statuses",
@@ -176,6 +177,14 @@
       "method": "GET",
       "path": "/api/files/image",
       "auth": "bearer-or-query",
+      "scopes": ["session:read"],
+      "queryParameters": ["path", "access_token"]
+    },
+    {
+      "id": "local-image-ticket",
+      "method": "POST",
+      "path": "/api/files/image-ticket",
+      "auth": "bearer",
       "scopes": ["session:read"],
       "queryParameters": ["path", "access_token"]
     },
@@ -400,6 +409,14 @@
       "path": "/api/push/unregister",
       "auth": "bearer",
       "scopes": ["session:operate"]
+    },
+    {
+      "id": "thread-list",
+      "method": "GET",
+      "path": "/api/threads",
+      "auth": "bearer",
+      "scopes": ["session:read"],
+      "queryParameters": ["cursor", "limit"]
     },
     {
       "id": "thread-history-items",

@@ -28,6 +28,7 @@ import {
   remoteTokenExchangePayloadSchema,
   remoteWebSocketTicketResultSchema,
   forwardEnterQuerySchema,
+  shellSnapshotQuerySchema,
 } from "../routeSchemas";
 import type { RemoteHttpRouteContract } from "../types";
 
@@ -106,7 +107,11 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/snapshot",
     auth: "bearer",
     scopes: ["session:read"],
-    request: { bodyKind: "empty" },
+    // Gate 4 hazard #3 payload split: `threadLimit` bounds the thread list to
+    // its first rows plus `threadsNextCursor`; clients that omit it keep the
+    // historical full list and never see the cursor field.
+    queryParameters: ["threadLimit"],
+    request: { bodyKind: "empty", querySchema: shellSnapshotQuerySchema },
     response: {
       wireKind: "json",
       status: 200,

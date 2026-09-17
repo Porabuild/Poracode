@@ -5,6 +5,13 @@ const bridge = vi.hoisted(() => ({
   windowKind: "main" as "main" | "quickComposer",
   dbGetProjects: vi.fn<() => Promise<[]>>(),
   dbGetThreads: vi.fn<() => Promise<[]>>(),
+  dbGetThreadsPage:
+    vi.fn<
+      (query: {
+        limit: number;
+        cursor?: string;
+      }) => Promise<{ threads: unknown[]; nextCursor: string | null }>
+    >(),
   dbGetState: vi.fn<(key: string) => Promise<string | null>>(),
   dbSetState: vi.fn<(key: string, value: string) => Promise<void>>(),
   dbSyncAll: vi.fn<(projects: unknown[], threads: unknown[], viewJson: string) => Promise<void>>(),
@@ -37,6 +44,7 @@ describe("createDbStorage", () => {
     bridge.windowKind = "main";
     bridge.dbGetProjects.mockReset().mockResolvedValue([]);
     bridge.dbGetThreads.mockReset().mockResolvedValue([]);
+    bridge.dbGetThreadsPage.mockReset().mockResolvedValue({ threads: [], nextCursor: null });
     bridge.dbGetState.mockReset().mockResolvedValue(null);
     bridge.dbSetState.mockReset().mockResolvedValue(undefined);
     bridge.dbSyncAll.mockReset().mockResolvedValue(undefined);
@@ -160,7 +168,7 @@ describe("createDbStorage", () => {
 
   it("does not echo the hydrated app snapshot back to SQLite", async () => {
     bridge.dbGetProjects.mockResolvedValue([]);
-    bridge.dbGetThreads.mockResolvedValue([]);
+    bridge.dbGetThreadsPage.mockResolvedValue({ threads: [], nextCursor: null });
     bridge.dbGetState.mockImplementation(async (key) =>
       key === "view" ? '{"kind":"home"}' : null,
     );
@@ -170,6 +178,30 @@ describe("createDbStorage", () => {
     await storage.setItem("poracode-app-v2", hydrated as never);
 
     expect(bridge.dbSyncAll).not.toHaveBeenCalled();
+  });
+
+  it("hydrates the thread list through bounded cursor pages, not one full-list read", async () => {
+    bridge.dbGetProjects.mockResolvedValue([]);
+    const pageOne = [{ id: "thread-0" }, { id: "thread-1" }];
+    const pageTwo = [{ id: "thread-2" }];
+    bridge.dbGetThreadsPage
+      .mockResolvedValueOnce({ threads: pageOne, nextCursor: "tp1.abc" })
+      .mockResolvedValueOnce({ threads: pageTwo, nextCursor: null });
+    bridge.dbGetState.mockImplementation(async (key) =>
+      key === "view" ? '{"kind":"home"}' : null,
+    );
+    const storage = createDbStorage();
+    const hydrated = (await storage.getItem("poracode-app-v2")) as {
+      state: { threads: unknown[] };
+    } | null;
+
+    expect(bridge.dbGetThreadsPage).toHaveBeenCalledTimes(2);
+    expect(bridge.dbGetThreadsPage).toHaveBeenNthCalledWith(1, { limit: 100 });
+    expect(bridge.dbGetThreadsPage).toHaveBeenNthCalledWith(2, {
+      limit: 100,
+      cursor: "tp1.abc",
+    });
+    expect(hydrated?.state.threads).toEqual([...pageOne, ...pageTwo]);
   });
 
   it("coalesces a synchronous app-state burst to the latest snapshot", async () => {
@@ -397,6 +429,7 @@ describe("app-store write queue caps (Gate 4 Batch 1)", () => {
     bridge.windowKind = "main";
     bridge.dbGetProjects.mockReset().mockResolvedValue([]);
     bridge.dbGetThreads.mockReset().mockResolvedValue([]);
+    bridge.dbGetThreadsPage.mockReset().mockResolvedValue({ threads: [], nextCursor: null });
     bridge.dbGetState.mockReset().mockResolvedValue(null);
     bridge.dbSetState.mockReset().mockResolvedValue(undefined);
     bridge.dbSyncAll.mockReset().mockResolvedValue(undefined);
