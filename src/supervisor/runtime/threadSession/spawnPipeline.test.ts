@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
-import type { AgentAdapter } from "../../agents/base";
 
 const resolveAgentProjectLocation = vi.hoisted(() =>
   vi.fn<
     (
-      adapter: AgentAdapter,
       location: ProjectLocation,
       environment?: ThreadConfig["executionEnvironment"],
     ) => Promise<ProjectLocation>
@@ -27,7 +25,7 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  resolveAgentProjectLocation.mockImplementation(async (_adapter, location) => location);
+  resolveAgentProjectLocation.mockImplementation(async (location) => location);
 });
 
 const baseConfig: ThreadConfig = {
@@ -46,17 +44,16 @@ describe("resolveThreadExecution", () => {
     linuxPath: "/mnt/c/repo",
     uncPath: "\\\\wsl.localhost\\Ubuntu\\mnt\\c\\repo",
   };
-  const wslAdapter = { windowsProjectExecution: "wsl" } as AgentAdapter;
-
-  it("persists the selected distro for a Windows project", async () => {
+  it("passes a persisted WSL pin through unchanged", async () => {
+    const config = {
+      ...baseConfig,
+      executionEnvironment: { kind: "wsl" as const, distro: "Ubuntu" },
+    };
     resolveAgentProjectLocation.mockResolvedValue(wslProject);
 
-    await expect(resolveThreadExecution(wslAdapter, windowsProject, baseConfig)).resolves.toEqual({
+    await expect(resolveThreadExecution(windowsProject, config)).resolves.toEqual({
       location: wslProject,
-      config: {
-        ...baseConfig,
-        executionEnvironment: { kind: "wsl", distro: "Ubuntu" },
-      },
+      config,
     });
   });
 
@@ -67,24 +64,20 @@ describe("resolveThreadExecution", () => {
     };
     resolveAgentProjectLocation.mockResolvedValue({ ...wslProject, distro: "Debian" });
 
-    await resolveThreadExecution(wslAdapter, windowsProject, config);
+    await resolveThreadExecution(windowsProject, config);
 
     expect(resolveAgentProjectLocation).toHaveBeenCalledWith(
-      wslAdapter,
       windowsProject,
       config.executionEnvironment,
     );
   });
 
-  it("keeps non-opted-in providers on the native Windows location", async () => {
-    const nativeAdapter = {} as AgentAdapter;
-
-    await expect(
-      resolveThreadExecution(nativeAdapter, windowsProject, {
-        ...baseConfig,
-        executionEnvironment: { kind: "wsl", distro: "Ubuntu" },
-      }),
-    ).resolves.toEqual({ location: windowsProject, config: baseConfig });
+  it("keeps unpinned Windows projects on the native location", async () => {
+    await expect(resolveThreadExecution(windowsProject, baseConfig)).resolves.toEqual({
+      location: windowsProject,
+      config: baseConfig,
+    });
+    expect(resolveAgentProjectLocation).toHaveBeenCalledWith(windowsProject, undefined);
   });
 });
 

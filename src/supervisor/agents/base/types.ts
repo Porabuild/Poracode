@@ -810,8 +810,6 @@ export interface AgentAdapter
     input: Omit<ManageAgentCredentialsPayload, "agentKind">,
   ): Promise<ManageAgentCredentialsResult>;
 
-  /** Run this provider inside WSL when its project lives on native Windows. */
-  readonly windowsProjectExecution?: "wsl";
   readonly skillSupport?: AgentSkillSupport;
   /** Release provider-owned shared processes after all thread sessions have closed. */
   shutdown?(): void | Promise<void>;

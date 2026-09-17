@@ -33,12 +33,7 @@ import {
 } from "./shellBasics";
 import { detectPowerShell, type DetectedPowerShell } from "../../shellPreference";
 import { mergeSpawnEnv, withBaseSpawnEnv } from "./spawnEnv";
-export {
-  buildWindowsWslLoginCommand,
-  resolveAgentEnvContext,
-  resolveAgentProjectLocation,
-  WSL_HOST_BROWSER_ENV,
-} from "./executionEnvironment";
+export { resolveAgentProjectLocation, WSL_HOST_BROWSER_ENV } from "./executionEnvironment";
 import type {
   AgentArgvSpec,
   AgentEnvContext,

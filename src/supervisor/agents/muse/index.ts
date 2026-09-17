@@ -21,6 +21,7 @@ import { detectMuseTerminalStatus, isMuseReadyForInitialPrompt } from "./termina
 // Muse Code provider — Meta's terminal coding agent CLI.
 // Docs: https://dev.meta.ai/docs/muse-code
 // Install: curl -fsSL https://dev.meta.ai/install.sh | bash
+// Windows: irm https://dev.meta.ai/install.ps1 | iex
 //
 // Terminal uses the interactive TUI via PTY; GUI uses Muse Session Protocol
 // (`muse serve` over stdio) through the provider-local structured session.
@@ -29,6 +30,9 @@ export function createMuseAdapter(): AgentAdapter {
   let capabilities: AgentCapability = museDefaultCapabilities;
 
   return {
+    // POSIX-only until the Windows spike confirms the settings.json location
+    // (MUSE_WINDOWS_NATIVE_PLAN Phase 0 item 3): enabling Windows here would
+    // write native MCP config to an unconfirmed path.
     nativeMcpConfig: (ctx) => (ctx.envKind === "posix" ? museNativeMcpConfig() : undefined),
     kind: museDetectionSpec.kind,
     label: museDetectionSpec.label,
@@ -57,7 +61,6 @@ export function createMuseAdapter(): AgentAdapter {
       invocation: "prompt",
       precedence: { global: ["muse", "agents", "codex"], project: ["agents"] },
     },
-    windowsProjectExecution: "wsl",
     // Surface the update spec on the adapter so the shared updater and the
     // Settings registry card can read `adapter.update` (not just status).
     ...(museDetectionSpec.update ? { update: museDetectionSpec.update } : {}),

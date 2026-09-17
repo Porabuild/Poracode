@@ -144,12 +144,13 @@ describe("museDetectionSpec", () => {
       args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
     });
     expect(museDetectionSpec.update?.installer?.windows).toEqual({
-      binary: "wsl.exe",
+      binary: "powershell.exe",
       args: [
-        "--exec",
-        "bash",
-        "-lc",
-        "if command -v curl >/dev/null 2>&1; then set -o pipefail; curl -fsSL https://dev.meta.ai/install.sh | bash; else exit 127; fi",
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        "irm https://dev.meta.ai/install.ps1 | iex",
       ],
     });
   });

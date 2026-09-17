@@ -127,15 +127,6 @@ Every supported agent implements the `AgentAdapter` interface (`src/supervisor/a
 - `buildLaunchArgv()` / `buildResumeArgv()` — Return an `AgentArgvSpec` (`{ binary, args, env?, sessionRef? }`). The runtime wraps it through `resolveLaunchSpec` which owns WSL login-shell, Windows PowerShell encoding, and env injection. **Adapters must never call `buildAgentCommand` on the main launch path** — the contract is structurally argv-only.
 - `createInitialSessionRef()` — Generate a session ID on first launch (or `undefined` if the CLI generates its own).
 
-### Optional — Execution Environment
-
-- `windowsProjectExecution?: "wsl"` — Run this provider in the default WSL
-  distro when the project is native Windows. Detection, terminal launch/resume,
-  auth/logout, one-shot generation, attachments, skills, MCPs, and provider
-  session discovery all use the resolved WSL environment; the project itself
-  remains a native Windows project. Use only when the provider has no native
-  Windows runtime.
-
 ### Optional — Terminal Heuristics
 
 - `isReadyForInitialPrompt?(text)` — True when the TUI is ready to receive the first user prompt.

@@ -316,14 +316,13 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
     id: "muse",
     description: msg`First-class Muse Code integration using Poracode's native terminal and GUI runtimes.`,
     docsUrl: "https://dev.meta.ai/docs/muse-code",
-    // Muse Code has no native Windows build. On Windows, install it in the
-    // default WSL distro; launches use the adapter's matching WSL fallback.
+    // Muse Code ships a native Windows build via the official PowerShell installer.
     installCommand: (project) =>
       posixOrWindows(
         project,
         "if command -v curl >/dev/null 2>&1; then curl -fsSL https://dev.meta.ai/install.sh | bash; " +
           "else printf 'curl is required to install Muse Code. Install curl, then refresh detected agents.\\n'; fi",
-        'wsl.exe --exec bash -lc "if command -v curl >/dev/null 2>&1; then set -o pipefail; curl -fsSL https://dev.meta.ai/install.sh | bash; else exit 127; fi"',
+        "if (Get-Command irm -ErrorAction SilentlyContinue) { irm https://dev.meta.ai/install.ps1 | iex } else { Write-Host 'No supported installer found. Install PowerShell Invoke-RestMethod first, then refresh detected agents.' }",
       ),
   },
   {

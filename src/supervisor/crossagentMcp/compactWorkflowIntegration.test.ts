@@ -201,7 +201,10 @@ describe("workflow MCP integration", () => {
       },
     },
     { executionEnvironment: { kind: "wsl", distro: "Ubuntu" } },
-    { projectLocation: { kind: "windows", path: "C:\\work" }, windowsProjectExecution: "wsl" },
+    {
+      projectLocation: { kind: "windows", path: "C:\\work" },
+      executionEnvironment: { kind: "wsl", distro: "Ubuntu" },
+    },
   ] satisfies NonNullable<Parameters<typeof makeHarness>[0]>[])(
     "rejects a workflow's WSL execution before side effects but supports standalone compact runs %#",
     async (options) => {
@@ -265,7 +268,7 @@ describe("workflow MCP integration", () => {
     }
   });
 
-  it("rejects a later stage's WSL fallback before launching earlier native stages", async () => {
+  it("rejects a WSL-pinned workflow with fallbacks before launching any stage", async () => {
     const create = vi.fn<NonNullable<AgentAdapter["createStructuredSession"]>>(async () => {
       throw new Error("unexpected launch");
     });
@@ -280,7 +283,7 @@ describe("workflow MCP integration", () => {
         sandboxModes: [],
       },
     } as unknown as AgentAdapter;
-    const fallback = { ...native, kind: "claude", windowsProjectExecution: "wsl" } as AgentAdapter;
+    const fallback = { ...native, kind: "claude" } as AgentAdapter;
     const append = vi.fn<SubagentRunHost["appendRuntimeEvent"]>();
     const manager = new SubagentRunManager({
       adapters: new Map([
@@ -290,7 +293,10 @@ describe("workflow MCP integration", () => {
       host: {
         getParentContext: () => ({
           projectLocation: { kind: "windows", path: "C:\\work" },
-          config: { model: "parent" },
+          config: {
+            model: "parent",
+            executionEnvironment: { kind: "wsl", distro: "Ubuntu" },
+          },
         }),
         appendRuntimeEvent: append,
       },

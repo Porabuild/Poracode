@@ -246,7 +246,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(35);
+    expect(STATUS_CACHE_VERSION).toBe(36);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -290,7 +290,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(35);
+    expect(STATUS_CACHE_VERSION).toBe(36);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -367,7 +367,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(35);
+    expect(STATUS_CACHE_VERSION).toBe(36);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -414,7 +414,58 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(35);
+    expect(STATUS_CACHE_VERSION).toBe(36);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v35 Muse statuses cached under WSL-routed Windows detection", () => {
+    // Pre-v36 detection routed native Windows projects into WSL for Muse, so
+    // the Windows status always reported `installed: false`. v36 probes the
+    // Windows host natively; the stale negative must be re-probed.
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 35,
+        windows: [
+          {
+            kind: "muse",
+            label: "Muse Code",
+            installed: false,
+            authState: "missing",
+            capabilities: { presentationModes: ["terminal", "gui"] },
+            envKind: "windows",
+          },
+        ],
+        wsl: [
+          {
+            kind: "muse",
+            label: "Muse Code",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { presentationModes: ["terminal", "gui"] },
+            envKind: "wsl",
+            wslDistro: "Ubuntu",
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses(["Ubuntu"]);
+
+    expect(STATUS_CACHE_VERSION).toBe(36);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -443,7 +494,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(35);
+    expect(STATUS_CACHE_VERSION).toBe(36);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -476,7 +527,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(35);
+    expect(STATUS_CACHE_VERSION).toBe(36);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -516,7 +567,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses([]);
-    expect(STATUS_CACHE_VERSION).toBe(35);
+    expect(STATUS_CACHE_VERSION).toBe(36);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

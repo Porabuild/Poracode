@@ -272,9 +272,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 32,
-      // v32 mirrors supervisor STATUS_CACHE_VERSION=35. Both previous parents
-      // must re-probe the combined provider inventory and resolved installations.
+      version: 33,
+      // v33 mirrors supervisor STATUS_CACHE_VERSION=36. Cached Muse statuses
+      // that reported not-installed on Windows (WSL-routed detection) must be
+      // re-probed natively.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

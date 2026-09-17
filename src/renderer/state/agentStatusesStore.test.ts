@@ -45,7 +45,7 @@ function reset() {
 beforeEach(reset);
 
 describe("persisted agent status cache", () => {
-  it.each([30, 31])(
+  it.each([30, 31, 32])(
     "invalidates stored v%i provider inventories during rehydration",
     async (version) => {
       const staleStatus = makeStatus({ kind: "example", label: "Example" });
@@ -109,7 +109,7 @@ describe("persisted agent status cache", () => {
       },
       30,
     );
-    expect(options.version).toBe(32);
+    expect(options.version).toBe(33);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -130,7 +130,7 @@ describe("persisted agent status cache", () => {
       },
       29,
     );
-    expect(options.version).toBe(32);
+    expect(options.version).toBe(33);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -155,7 +155,7 @@ describe("persisted agent status cache", () => {
       },
       21,
     );
-    expect(options.version).toBe(32);
+    expect(options.version).toBe(33);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -199,7 +199,47 @@ describe("persisted agent status cache", () => {
       19,
     );
 
-    expect(options.version).toBe(32);
+    expect(options.version).toBe(33);
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v32 Muse statuses cached under WSL-routed Windows detection", async () => {
+    // Mirrors supervisor STATUS_CACHE_VERSION 36: a v32 Windows status could
+    // report `installed: false` for a natively installed Muse because
+    // detection routed through WSL. Re-probing lets the host install surface.
+    const options = useAgentStatusesStore.persist.getOptions();
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [
+          makeStatus({
+            kind: "muse",
+            label: "Muse Code",
+            installed: false,
+            authState: "missing",
+            envKind: "windows",
+          }),
+        ],
+        wslAgentStatuses: [
+          makeStatus({
+            kind: "muse",
+            label: "Muse Code",
+            installed: true,
+            envKind: "wsl",
+            envDistro: "Ubuntu",
+          }),
+        ],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      32,
+    );
+
+    expect(options.version).toBe(33);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -229,7 +269,7 @@ describe("persisted agent status cache", () => {
       17,
     );
 
-    expect(options.version).toBe(32);
+    expect(options.version).toBe(33);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -240,7 +280,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v15 statuses cached before Command Code's live-only model discovery", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(32);
+    expect(options.version).toBe(33);
     const staleCommandCode = makeStatus({
       kind: "commandcode",
       label: "Command Code",
@@ -272,7 +312,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v10 statuses whose terminal auth methods lack baseSpawnEnv-derived env", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(32);
+    expect(options.version).toBe(33);
     const staleLogin = makeStatus({
       kind: "antigravity",
       label: "Antigravity",
@@ -299,7 +339,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v14 statuses that grouped Cursor Grok under Other models", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(32);
+    expect(options.version).toBe(33);
     const staleCursor = makeStatus({
       kind: "cursor",
       label: "Cursor",
@@ -332,7 +372,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v8 statuses cached before successful ACP sessions established auth", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(32);
+    expect(options.version).toBe(33);
     const staleAcp = makeStatus({
       kind: "acp-generic:example",
       label: "Example ACP",
@@ -359,7 +399,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(32);
+    expect(options.version).toBe(33);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({
@@ -404,7 +444,7 @@ it("invalidates v20 ACP labels in both persisted environments", async () => {
     },
     20,
   );
-  expect(options.version).toBe(32);
+  expect(options.version).toBe(33);
   expect(migrated).toMatchObject({
     agentStatuses: [],
     wslAgentStatuses: [],
@@ -919,7 +959,7 @@ it("invalidates v25 model catalogs in both persisted environments", async () => 
     },
     25,
   );
-  expect(options.version).toBe(32);
+  expect(options.version).toBe(33);
   expect(migrated).toMatchObject({
     agentStatuses: [],
     wslAgentStatuses: [],

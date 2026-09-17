@@ -52,7 +52,6 @@ import { pruneAcpRegistryPendingDeletes } from "../agents/acpRegistryInstallDir"
 import {
   detectProbeLocation,
   readDetectedVersion,
-  resolveAgentEnvContext,
   type AgentAdapter,
   type AgentEnvContext,
 } from "../agents/base";
@@ -512,7 +511,6 @@ export class AgentRegistryService {
       ...(payload.wslDistro ? { wslDistro: payload.wslDistro } : {}),
       baseDir: this.deps.baseDir,
     };
-    const executionContext = await resolveAgentEnvContext(adapter, envContext);
 
     const wslDistros = payload.envKind === "wsl" && payload.wslDistro ? [payload.wslDistro] : [];
     const statuses = await this.agentStatusService.refreshAgentStatuses({
@@ -543,17 +541,17 @@ export class AgentRegistryService {
       ?.verifyBuiltInVersionChange;
     const result =
       verifyBuiltInVersionChange && status.version
-        ? await runUpdateCommandWithFallback(adapter, status, executionContext, {
+        ? await runUpdateCommandWithFallback(adapter, status, envContext, {
             verifyBuiltInSuccess: async () => {
               const refreshedVersion = await readDetectedVersion(
-                detectProbeLocation(executionContext),
+                detectProbeLocation(envContext),
                 status.executablePath,
                 ["--version"],
               );
               return refreshedVersion !== undefined && refreshedVersion !== status.version;
             },
           })
-        : await runUpdateCommandWithFallback(adapter, status, executionContext);
+        : await runUpdateCommandWithFallback(adapter, status, envContext);
     if (result.ok) {
       // Drop the cached executable path so the next detection probe runs a
       // fresh `command -v` / `where.exe`. Without this we keep returning the

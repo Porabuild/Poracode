@@ -1397,17 +1397,15 @@ describe("SubagentRunManager", () => {
     const h = makeHarness({
       projectLocation: windowsProject,
       executionEnvironment: { kind: "wsl", distro: "Ubuntu-24.04" },
-      windowsProjectExecution: "wsl",
     });
 
     h.manager.spawn(PARENT, { agent: "codex", prompt: "go" });
     await flush();
 
-    expect(resolveAgentProjectLocation).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: "codex" }),
-      windowsProject,
-      { kind: "wsl", distro: "Ubuntu-24.04" },
-    );
+    expect(resolveAgentProjectLocation).toHaveBeenCalledWith(windowsProject, {
+      kind: "wsl",
+      distro: "Ubuntu-24.04",
+    });
     expect(h.inputs[0]!.projectLocation).toEqual(wslProject);
     expect(h.mcpLocations).toEqual([wslProject]);
   });
