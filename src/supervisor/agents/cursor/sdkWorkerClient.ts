@@ -34,6 +34,14 @@ import type { CursorSdkPinHint } from "./sdkLoaderSupport";
 
 const DEFAULT_BOOT_TIMEOUT_MS = 15_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
+/**
+ * Run creation (`start`) waits on Cursor's backend to provision and
+ * acknowledge the run. That leg has been observed to take ~50s on some
+ * accounts while others answer in ~5s, so it gets a floor well above the
+ * generic RPC budget: a slow-but-healthy ack must not become a fatal teardown
+ * that orphans a server-side run.
+ */
+const START_REQUEST_TIMEOUT_MS = 180_000;
 const MAX_LINE_BYTES = 16 * 1024 * 1024;
 const FATAL_REQUEST_TIMEOUT_METHODS = new Set(["initialize", "start", "cancel", "reload"]);
 
@@ -61,6 +69,12 @@ export interface CursorSdkWorkerSpawnOptions {
   helpersDir?: string;
   bootTimeoutMs?: number;
   requestTimeoutMs?: number;
+  /**
+   * Budget for `start` (run creation) only. Defaults to at least
+   * START_REQUEST_TIMEOUT_MS regardless of `requestTimeoutMs`, which keeps
+   * covering the other worker methods.
+   */
+  startTimeoutMs?: number;
 }
 
 export type CursorSdkWorkerSpawnProcess = (
@@ -119,17 +133,33 @@ interface SpawnedWorker {
   useProcessGroup: boolean;
 }
 
+function formatTimeoutBudget(timeoutMs: number): string {
+  return timeoutMs >= 1000 && timeoutMs % 1000 === 0 ? `${timeoutMs / 1000}s` : `${timeoutMs}ms`;
+}
+
+function cursorSdkWorkerTimeoutMessage(method: string, timeoutMs: number): string {
+  const base = `Cursor SDK worker request ${method} timed out after ${formatTimeoutBudget(timeoutMs)}.`;
+  // A timed-out `start` may still materialize server-side after the host has
+  // torn the worker down, leaving a run the user can neither see nor stop
+  // from Poracode. Say so: the next step is the dashboard, not a blind retry.
+  return method === "start"
+    ? `${base} The run may still start server-side and consume quota; check the Cursor dashboard before retrying in a new thread.`
+    : base;
+}
+
 export async function spawnCursorSdkWorker(
   options: CursorSdkWorkerSpawnOptions,
   dependencies: CursorSdkWorkerClientDependencies = {},
 ): Promise<CursorSdkWorkerClient> {
   const spawned = await spawnWorkerProcess(options, dependencies);
+  const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   const client = new CursorSdkWorkerClient(
     spawned.child,
     spawned.discovery,
     spawned.projectCwd,
-    options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    requestTimeoutMs,
     spawned.useProcessGroup,
+    options.startTimeoutMs ?? Math.max(requestTimeoutMs, START_REQUEST_TIMEOUT_MS),
   );
   try {
     await client.waitUntilReady(options.bootTimeoutMs ?? DEFAULT_BOOT_TIMEOUT_MS);
@@ -153,6 +183,7 @@ export class CursorSdkWorkerClient {
   private resolveReady: (() => void) | undefined;
   private rejectReady: ((error: Error) => void) | undefined;
   private stdoutBuffer = "";
+  private readonly startTimeoutMs: number;
   private readyReceived = false;
   private terminated = false;
   private transportError: Error | undefined;
@@ -164,7 +195,10 @@ export class CursorSdkWorkerClient {
     private readonly projectCwd: string,
     private readonly requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
     private readonly useProcessGroup = false,
+    startTimeoutMs?: number,
   ) {
+    this.startTimeoutMs =
+      startTimeoutMs ?? Math.max(this.requestTimeoutMs, START_REQUEST_TIMEOUT_MS);
     this.ready = new Promise<void>((resolve, reject) => {
       this.resolveReady = resolve;
       this.rejectReady = reject;
@@ -182,7 +216,7 @@ export class CursorSdkWorkerClient {
   }
 
   async start(input: CursorSdkWorkerStartInput): Promise<CursorSdkWorkerStartResult> {
-    return this.request<CursorSdkWorkerStartResult>("start", input);
+    return this.request<CursorSdkWorkerStartResult>("start", input, this.startTimeoutMs);
   }
 
   async cancel(runId?: string): Promise<{ cancelled: boolean }> {
@@ -314,7 +348,7 @@ export class CursorSdkWorkerClient {
     const id = randomUUID();
     return new Promise<Result>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        const error = new Error(`Cursor SDK worker request ${method} timed out.`);
+        const error = new Error(cursorSdkWorkerTimeoutMessage(method, timeoutMs));
         if (FATAL_REQUEST_TIMEOUT_METHODS.has(method)) {
           // Mutating SDK calls may still resolve after the caller's deadline.
           // A fatal teardown prevents a late invisible agent/run or concurrent

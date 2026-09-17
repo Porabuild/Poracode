@@ -334,6 +334,7 @@ describe("spawnCursorSdkWorker", () => {
       projectLocation: nativeProjectLocation(fixture.directory),
       workerPath: fixture.path,
       requestTimeoutMs: 40,
+      startTimeoutMs: 40,
     });
     const transportErrors: Error[] = [];
     client.onTransportError((error) => transportErrors.push(error));
@@ -345,14 +346,53 @@ describe("spawnCursorSdkWorker", () => {
     });
 
     await expect(client.start({ message: "delayed" })).rejects.toThrow(
-      "Cursor SDK worker request start timed out.",
+      "Cursor SDK worker request start timed out after 40ms. The run may still start server-side",
     );
     expect(transportErrors).toHaveLength(1);
-    expect(transportErrors[0]?.message).toContain("start timed out");
+    expect(transportErrors[0]?.message).toContain("start timed out after 40ms");
     await expect(client.start({ message: "second" })).rejects.toThrow(
       "Cursor SDK worker is not running.",
     );
     await client.dispose();
+  });
+
+  it("gives start a longer budget than other requests by default", async () => {
+    // Run creation waits on backend provisioning, which is far more variable
+    // than the other worker RPCs: a 250ms ack must succeed for `start` while
+    // the same delay still times out `reload` under a 40ms override.
+    const slowStart = makeDelayedMethodFixture("start", 250);
+    const starter = await spawnCursorSdkWorker({
+      projectLocation: nativeProjectLocation(slowStart.directory),
+      workerPath: slowStart.path,
+      requestTimeoutMs: 40,
+    });
+    await starter.initialize({
+      createOptions: {
+        model: { id: "fixture" },
+        local: { cwd: slowStart.directory },
+      },
+    });
+    await expect(starter.start({ message: "slow but healthy" })).resolves.toEqual({
+      runId: "late-run",
+    });
+    await starter.dispose();
+
+    const slowReload = makeDelayedMethodFixture("reload", 250);
+    const reloader = await spawnCursorSdkWorker({
+      projectLocation: nativeProjectLocation(slowReload.directory),
+      workerPath: slowReload.path,
+      requestTimeoutMs: 40,
+    });
+    await reloader.initialize({
+      createOptions: {
+        model: { id: "fixture" },
+        local: { cwd: slowReload.directory },
+      },
+    });
+    await expect(reloader.reload()).rejects.toThrow(
+      "Cursor SDK worker request reload timed out after 40ms.",
+    );
+    await reloader.dispose();
   });
 
   it("makes an initialize timeout fatal so a late create cannot orphan an agent", async () => {
@@ -372,7 +412,7 @@ describe("spawnCursorSdkWorker", () => {
           local: { cwd: fixture.directory },
         },
       }),
-    ).rejects.toThrow("Cursor SDK worker request initialize timed out.");
+    ).rejects.toThrow("Cursor SDK worker request initialize timed out after 40ms.");
     expect(transportErrors).toHaveLength(1);
     await expect(client.listModels()).rejects.toThrow("Cursor SDK worker is not running.");
     await client.dispose();
@@ -394,7 +434,9 @@ describe("spawnCursorSdkWorker", () => {
       },
     });
 
-    await expect(client.reload()).rejects.toThrow("Cursor SDK worker request reload timed out.");
+    await expect(client.reload()).rejects.toThrow(
+      "Cursor SDK worker request reload timed out after 40ms.",
+    );
     expect(transportErrors).toHaveLength(1);
     await expect(client.start({ message: "second" })).rejects.toThrow(
       "Cursor SDK worker is not running.",
