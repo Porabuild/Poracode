@@ -471,9 +471,9 @@ describe("ClaudeProfileProviderSettings", () => {
     expect(config?.models?.map((model) => model.id)).toEqual([
       "qwen3.8-max",
       "qwen3.8-flash",
-      "glm-5.2",
+      "glm-5.3",
       "deepseek-v4-pro-0813",
-      "deepseek-v4-flash-0731",
+      "deepseek-v4.1-flash",
     ]);
     expect(config).toMatchObject({
       configDir: "~/.poracode/claude-profiles/glm",
@@ -482,9 +482,9 @@ describe("ClaudeProfileProviderSettings", () => {
       modelEfforts: {
         "qwen3.8-max": ["low", "medium", "xHigh"],
         "qwen3.8-flash": ["low", "medium", "xHigh"],
-        "glm-5.2": ["high", "max"],
+        "glm-5.3": ["high", "max"],
         "deepseek-v4-pro-0813": ["high", "max"],
-        "deepseek-v4-flash-0731": ["low", "high", "max"],
+        "deepseek-v4.1-flash": ["low", "high", "max"],
       },
     });
   });

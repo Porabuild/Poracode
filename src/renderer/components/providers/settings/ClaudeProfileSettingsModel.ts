@@ -98,16 +98,16 @@ const QWEN_TOKEN_PLAN_EFFORTS = ["low", "medium", "high", "xHigh", "max"] as con
 const QWEN_TOKEN_PLAN_MODELS = [
   { id: QWEN_TOKEN_MODEL_ID, label: "Qwen3.8 Max" },
   { id: "qwen3.8-flash", label: "Qwen3.8 Flash" },
-  { id: "glm-5.2", label: "GLM-5.2" },
+  { id: "glm-5.3", label: "GLM 5.3" },
   { id: "deepseek-v4-pro-0813", label: "DeepSeek V4 Pro 0813" },
-  { id: "deepseek-v4-flash-0731", label: "DeepSeek V4 Flash 0731" },
+  { id: "deepseek-v4.1-flash", label: "DeepSeek V4.1 Flash" },
 ] as const;
 const QWEN_TOKEN_PLAN_MODEL_EFFORTS = {
   [QWEN_TOKEN_MODEL_ID]: QWEN_38_EFFORTS,
   "qwen3.8-flash": QWEN_38_EFFORTS,
-  "glm-5.2": ["high", "max"],
+  "glm-5.3": ["high", "max"],
   "deepseek-v4-pro-0813": ["high", "max"],
-  "deepseek-v4-flash-0731": ["low", "high", "max"],
+  "deepseek-v4.1-flash": ["low", "high", "max"],
 } as const;
 
 export const QWEN_TOKEN_PLAN_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
@@ -118,9 +118,9 @@ export const QWEN_TOKEN_PLAN_PRESET_ROWS: ReadonlyArray<PresetEnvRow> = [
   },
   { key: "ANTHROPIC_AUTH_TOKEN", value: "", sensitive: true },
   { key: "ANTHROPIC_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "qwen3.8-flash", sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
-  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: QWEN_TOKEN_MODEL_ID, sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_HAIKU_MODEL", value: "deepseek-v4.1-flash", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_SONNET_MODEL", value: "deepseek-v4.1-flash", sensitive: false },
+  { key: "ANTHROPIC_DEFAULT_OPUS_MODEL", value: "qwen3.8-flash", sensitive: false },
   { key: "CLAUDE_CODE_SUBAGENT_MODEL", value: "qwen3.8-flash", sensitive: false },
   { key: "CLAUDE_CODE_MAX_CONTEXT_TOKENS", value: "983616", sensitive: false },
 ];
