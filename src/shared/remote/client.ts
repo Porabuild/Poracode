@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { remoteImageRefPath, type RemoteImageRefValue } from "./imageRef";
+import { tryParseSocketMessage as tryParseRemoteSocketMessage } from "./parseSocketMessage";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_COMMAND_ID_HEADER,
@@ -1246,6 +1247,10 @@ export class RemoteDesktopClient {
 
   parseSocketMessage(value: string): RemoteWebSocketServerMessage {
     return remoteWebSocketServerMessageSchema.parse(JSON.parse(value) as unknown);
+  }
+
+  tryParseSocketMessage(value: string): RemoteWebSocketServerMessage | null {
+    return tryParseRemoteSocketMessage(value);
   }
 
   private async requestJson(

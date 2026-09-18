@@ -1,4 +1,5 @@
 export * from "./protocol";
+export * from "./parseSocketMessage";
 export * from "./capabilities";
 export * from "./procedures";
 export * from "./omittedPayload";
