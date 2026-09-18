@@ -9757,9 +9757,25 @@ msgstr "Poracode 和代理在远程计算机上运行。SSH 仅用于启动远�
 msgid "Poracode could not create this plugin's data folder."
 msgstr "Poracode 无法创建此插件的数据文件夹。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode could not start"
+msgstr "Poracode 无法启动"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode 不会以明文形式在设置中存储市场凭据。打开目录即可浏览经过安全扫描的技能。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode failed to start:\n"
+"\n"
+"{detail}\n"
+"\n"
+"Retry (for example, once the other owner has finished starting) or quit."
+msgstr "Poracode 启动失败：\n"
+"\n"
+"{detail}\n"
+"\n"
+"请重试（例如，等另一个所有者完成启动后）或退出。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine."
@@ -10369,6 +10385,10 @@ msgstr "排队的后续消息仅支持聊天线程。"
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Queued for v{0}"
 msgstr "已排队等待更新到 v{0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Quit"
+msgstr "退出"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
@@ -11129,6 +11149,7 @@ msgstr "恢复排队的后续消息"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx

@@ -9758,9 +9758,25 @@ msgstr "Poracode y tus agentes se ejecutan en la máquina remota. SSH solo se us
 msgid "Poracode could not create this plugin's data folder."
 msgstr "Poracode no pudo crear la carpeta de datos de este plugin."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode could not start"
+msgstr "Poracode no pudo iniciarse"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode no guarda las credenciales del marketplace como texto sin cifrar en los ajustes. Abre el catálogo para explorar sus skills analizadas por seguridad."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode failed to start:\n"
+"\n"
+"{detail}\n"
+"\n"
+"Retry (for example, once the other owner has finished starting) or quit."
+msgstr "Poracode no se pudo iniciar:\n"
+"\n"
+"{detail}\n"
+"\n"
+"Reintenta (por ejemplo, cuando el otro propietario termine de iniciarse) o sal."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine."
@@ -10370,6 +10386,10 @@ msgstr "Los seguimientos en cola solo son compatibles con hilos de chat."
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Queued for v{0}"
 msgstr "En cola para v{0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Quit"
+msgstr "Salir"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
@@ -11130,6 +11150,7 @@ msgstr "Reanudar seguimientos en cola"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx

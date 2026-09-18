@@ -9758,9 +9758,25 @@ msgstr "Poracode와 에이전트는 원격 머신에서 실행됩니다. SSH는 
 msgid "Poracode could not create this plugin's data folder."
 msgstr "Poracode가 이 플러그인의 데이터 폴더를 만들지 못했습니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode could not start"
+msgstr "Poracode를 시작할 수 없습니다"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode는 마켓플레이스 자격 증명을 설정에 일반 텍스트로 저장하지 않습니다. 카탈로그를 열어 보안 검사를 마친 스킬을 살펴보세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode failed to start:\n"
+"\n"
+"{detail}\n"
+"\n"
+"Retry (for example, once the other owner has finished starting) or quit."
+msgstr "Poracode를 시작하지 못했습니다:\n"
+"\n"
+"{detail}\n"
+"\n"
+"다시 시도하거나(예: 다른 소유자의 시작이 완료된 후) 종료하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine."
@@ -10370,6 +10386,10 @@ msgstr "대기 중인 후속 메시지는 채팅 스레드에서만 지원됩니
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Queued for v{0}"
 msgstr "v{0} 업데이트 대기 중"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Quit"
+msgstr "종료"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
@@ -11130,6 +11150,7 @@ msgstr "대기 중인 후속 메시지 재개"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx

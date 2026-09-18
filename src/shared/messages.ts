@@ -15,6 +15,12 @@ const messages = {
   "voice.connectionFailed": "The voice connection failed. Try again.",
   "voice.cancelled": "The voice connection was cancelled.",
   "supervisor.sendTerminalInput": "Send terminal input",
+  // ── App startup ───────────────────────────────────────────
+  "startup.failure.title": "Poracode could not start",
+  "startup.failure.body":
+    "Poracode failed to start:\n\n{detail}\n\nRetry (for example, once the other owner has finished starting) or quit.",
+  "startup.failure.retry": "Retry",
+  "startup.failure.quit": "Quit",
   // ── Git: general ──────────────────────────────────────────
   "git.commandFailed": "Git {command} failed: {detail}",
   "github.accountUnavailable":

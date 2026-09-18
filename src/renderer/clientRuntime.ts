@@ -35,20 +35,26 @@ const BROWSER_CAPABILITIES: ClientCapabilities = {
 };
 
 /**
- * Attached Electron: still Electron (native shell/updates/ssh/browser stay
- * on), but durable work belongs to the external headless owner, so there is
- * no local backend. Transport reuses the existing remote-http-websocket
- * stack (RemoteDesktopClient over the bridge-2 utility process); no new
- * transport, codec, or client engine. Existing `localBackend === false` and
+ * Attached Electron: still Electron (native shell/updates stay on), but
+ * durable work belongs to the external headless owner, so there is no local
+ * backend. Transport reuses the existing remote-http-websocket stack
+ * (RemoteDesktopClient over the bridge-2 utility process); no new transport,
+ * codec, or client engine. Existing `localBackend === false` and
  * `isRemoteSession()` guards route data through the remote stores.
+ *
+ * SSH environments and browser webContents are desktop-managed-host
+ * facilities: attach mode constructs neither manager and the attach
+ * allowlist serves neither, so both capabilities must stay false — the SSH
+ * settings and Browser panel then render their existing host-unavailable
+ * states instead of invoking handlers that do not exist in this mode.
  */
 const ATTACHED_ELECTRON_CAPABILITIES: ClientCapabilities = {
   localBackend: false,
   manageRemoteEnvironments: true,
   nativeAppUpdates: true,
-  nativeBrowserWebContents: true,
+  nativeBrowserWebContents: false,
   nativeShell: true,
-  nativeSsh: true,
+  nativeSsh: false,
 };
 
 export function installClientRuntime(runtime: ClientRuntime): void {

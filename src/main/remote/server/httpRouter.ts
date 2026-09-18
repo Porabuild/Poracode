@@ -66,6 +66,7 @@ import {
   dbGetThreads,
   dbSetProjectNotes,
 } from "../../db";
+import { redactMcpServer } from "../../app-controls/mcp/tools/settings";
 import {
   getProfileCoreStats,
   getProfileDevicesResponse,
@@ -1033,11 +1034,14 @@ export async function handleHttp(
       if (!project) {
         throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
       }
+      // Same credential custody as the global MCP read route: stdio env and
+      // HTTP header values are masked on the wire (editors restore via the
+      // MCP settings command's marker round-trip). Never raw values.
       writeJson(
         res,
         200,
         remoteProjectSettingsSchema.parse({
-          ...(project.mcpServers ? { mcpServers: project.mcpServers } : {}),
+          ...(project.mcpServers ? { mcpServers: project.mcpServers.map(redactMcpServer) } : {}),
         }),
       );
       return;
