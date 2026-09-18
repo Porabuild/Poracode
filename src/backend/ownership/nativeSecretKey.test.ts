@@ -267,6 +267,100 @@ describe("one-time native key-adoption protocol", () => {
     }
   });
 
+  function postAdoption(
+    offer: ReturnType<typeof readHostKeyAdoptionOffer>,
+    body: Buffer,
+  ): Promise<{ status: number; reply: string }> {
+    const authority = `127.0.0.1:${offer.transport.port}`;
+    return new Promise((resolve, reject) => {
+      const outgoing = request(
+        {
+          hostname: "127.0.0.1",
+          family: 4,
+          port: offer.transport.port,
+          method: "POST",
+          path: "/adopt-native-key",
+          agent: false,
+          headers: {
+            host: authority,
+            authorization: createHostControlRequestProof(offer.token, {
+              method: "POST",
+              path: "/adopt-native-key",
+              authority,
+              body,
+            }),
+            "content-type": "application/json",
+            "content-length": Buffer.byteLength(body),
+            connection: "close",
+          },
+        },
+        (incoming) => {
+          const chunks: Buffer[] = [];
+          incoming.on("data", (chunk: Buffer) => chunks.push(chunk));
+          incoming.on("end", () =>
+            resolve({
+              status: incoming.statusCode ?? 0,
+              reply: Buffer.concat(chunks).toString("utf8"),
+            }),
+          );
+          incoming.on("error", reject);
+        },
+      );
+      outgoing.once("error", reject);
+      outgoing.end(body);
+    });
+  }
+
+  it("answers exactly one of two overlapping adoption requests", async () => {
+    const value = desktopFixture();
+    const key = Buffer.alloc(32, 11).toString("base64");
+    const sealed = Buffer.from(`sealed:${key}`).toString("base64");
+    const pending = Promise.withResolvers<string>();
+    const unseal = vi.fn<(sealedKey: string, generation: string) => Promise<string>>(
+      () => pending.promise,
+    );
+    const service = await startedService(value, unseal);
+    try {
+      const first = requestNativeKeyAdoption(value.paths, sealed);
+      const second = requestNativeKeyAdoption(value.paths, sealed);
+      const settledPromise = Promise.allSettled([first, second]);
+      await vi.waitFor(() => expect(unseal).toHaveBeenCalledTimes(1));
+      pending.resolve(key);
+      const settled = await settledPromise;
+      const wins = settled.filter(
+        (result): result is PromiseFulfilledResult<string> => result.status === "fulfilled",
+      );
+      const losses = settled.filter(
+        (result): result is PromiseRejectedResult => result.status === "rejected",
+      );
+      expect(wins).toHaveLength(1);
+      expect(wins[0]?.value).toBe(key);
+      expect(losses).toHaveLength(1);
+      const reason = losses[0]?.reason;
+      expect(reason).toBeInstanceOf(HostKeyAdoptionRefusedError);
+      expect(reason).toMatchObject({ code: "already-served" });
+      expect(unseal).toHaveBeenCalledTimes(1);
+      expect(existsSync(join(value.paths.dataRoot, HOST_KEY_ADOPTION_OFFER_FILE))).toBe(false);
+    } finally {
+      await service.dispose();
+    }
+  });
+
+  it("returns a typed invalid-request body for authenticated malformed JSON", async () => {
+    const value = desktopFixture();
+    const service = await startedService(value);
+    try {
+      const offer = readHostKeyAdoptionOffer(value.paths);
+      const body = Buffer.from("{");
+      const result = await postAdoption(offer, body);
+      expect(result.status).toBe(200);
+      expect(JSON.parse(result.reply)).toMatchObject({ ok: false, code: "invalid-request" });
+      expect(readHostKeyAdoptionOffer(value.paths).nonce).toBe(offer.nonce);
+    } finally {
+      await service.dispose();
+    }
+  });
+
   it("does not consume the offer when the native unseal fails", async () => {
     const value = desktopFixture();
     const key = Buffer.alloc(32, 13).toString("base64");

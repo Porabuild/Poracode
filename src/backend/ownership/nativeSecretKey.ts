@@ -305,7 +305,6 @@ export class HostCredentialAdoptionService {
     const peer = request.socket.remoteAddress;
     if (
       this.stopping ||
-      this.served ||
       (peer !== "127.0.0.1" && peer !== "::ffff:127.0.0.1") ||
       request.method !== "POST" ||
       request.url !== "/adopt-native-key" ||
@@ -373,7 +372,13 @@ export class HostCredentialAdoptionService {
   }
 
   private async admit(body: Buffer): Promise<AdoptionResult> {
-    const parsed = adoptionRequestSchema.safeParse(JSON.parse(body.toString("utf8")));
+    let payload: unknown;
+    try {
+      payload = JSON.parse(body.toString("utf8"));
+    } catch {
+      return { requestId: randomUUID(), outcome: { ok: false, code: "invalid-request" } };
+    }
+    const parsed = adoptionRequestSchema.safeParse(payload);
     if (!parsed.success)
       return { requestId: randomUUID(), outcome: { ok: false, code: "invalid-request" } };
     const input: AdoptionRequest = parsed.data;
@@ -390,17 +395,26 @@ export class HostCredentialAdoptionService {
     )
       return refuse("profile-mismatch");
     this.options.lease.assertActive(this.generation);
+    // Claim the one-shot BEFORE awaiting the unseal: `maxConnections: 2`
+    // admits a second authenticated request inside the unseal window, and the
+    // previous check-then-await-then-claim sequence let both pass `served`
+    // and receive key material. A failure below resets the claim so a failed
+    // unseal still does not consume the offer.
+    this.served = true;
     let key: string;
     try {
       key = await this.options.unseal(input.sealedKey, this.generation);
+      this.options.lease.assertActive(this.generation);
     } catch (error) {
+      this.served = false;
       this.options.reportError?.(error);
-      // A failed native unseal does not consume the one-shot offer.
+      // A failed native unseal or a lost lease does not consume the one-shot offer.
       return refuse("unavailable");
     }
-    this.options.lease.assertActive(this.generation);
-    if (!isValidKeyMaterial(key)) return refuse("unavailable");
-    this.served = true;
+    if (!isValidKeyMaterial(key)) {
+      this.served = false;
+      return refuse("unavailable");
+    }
     // Retire the offer before the answer leaves: a crashed requester cannot
     // leave a live offer behind, and no second unseal can ever be minted.
     removeOfferFile(this.options.lease.paths, this.generation);

@@ -6,6 +6,7 @@ import {
   dbTruncateThreadRuntimeAfter,
   initDatabase,
   dbClaimCheckpointRevertOperation,
+  dbGetCheckpointRevertOperation,
   dbHasThreadRuntimeItem,
   dbUpdateCheckpointRevertPhases,
   type CheckpointRevertFilesPhase,
@@ -444,9 +445,37 @@ export class BackendHostCore {
     if (!dbHasThreadRuntimeItem(input.threadId, input.checkpointItemId)) {
       // Nothing addressable to revert: no journal row, no side effects, and a
       // concurrent second client converges on this noop after the first
-      // operation truncated the tail. A journal row left `running` by a crash
-      // after its truncate landed settles here, so the operation never blocks
-      // a later thread deletion while nothing is left to do.
+      // operation truncated the tail. A journal row left `running`/`failed` by
+      // a crash after its truncate landed settles here, so the operation never
+      // blocks a later thread deletion while nothing is left to do. Settled
+      // rows replay their stored outcome; a missing row is a true noop.
+      const existing = dbGetCheckpointRevertOperation(input.operationKey);
+      if (!existing) {
+        return {
+          outcome: "noop",
+          replayed: false,
+          numTurns: 0,
+          providerPhase: "skipped_missing_checkpoint",
+          filesPhase: "skipped_missing_checkpoint",
+          truncatePhase: "noop",
+          removedCompletedTurnAnchors: [],
+        };
+      }
+      if (
+        existing.outcome === "completed" ||
+        existing.outcome === "completed_local_only" ||
+        existing.outcome === "ambiguous"
+      ) {
+        return {
+          outcome: existing.outcome,
+          replayed: true,
+          numTurns: existing.numTurns,
+          providerPhase: existing.providerPhase,
+          filesPhase: existing.filesPhase,
+          truncatePhase: existing.truncatePhase,
+          removedCompletedTurnAnchors: existing.removedAnchors,
+        };
+      }
       dbUpdateCheckpointRevertPhases(input.operationKey, {
         outcome: "completed",
         truncatePhase: "noop",

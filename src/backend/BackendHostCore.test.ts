@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   dbGetProject: vi.fn<(projectId: string) => unknown>(),
   dbHasThreadRuntimeItem: vi.fn<(threadId: string, itemId: string) => boolean>(),
   dbClaimCheckpointRevertOperation: vi.fn<(input: unknown) => unknown>(),
+  dbGetCheckpointRevertOperation: vi.fn<(operationKey: string) => unknown>(),
   dbUpdateCheckpointRevertPhases: vi.fn<() => void>(),
   persistSupervisorEvent: vi.fn<(event: SupervisorEvent) => void>(),
   start: vi.fn<() => void>(),
@@ -40,6 +41,7 @@ vi.mock("@/main/db", () => ({
   dbGetProject: mocks.dbGetProject,
   dbHasThreadRuntimeItem: mocks.dbHasThreadRuntimeItem,
   dbClaimCheckpointRevertOperation: mocks.dbClaimCheckpointRevertOperation,
+  dbGetCheckpointRevertOperation: mocks.dbGetCheckpointRevertOperation,
   dbUpdateCheckpointRevertPhases: mocks.dbUpdateCheckpointRevertPhases,
   dbAppendThreadTerminalOutput: vi.fn<() => void>(),
   dbClearThreadTerminalScrollback: vi.fn<() => void>(),
@@ -650,6 +652,7 @@ describe("BackendHostCore", () => {
       // The checkpoint is gone: a previous attempt already truncated the tail
       // and crashed before settling its journal row.
       mocks.dbHasThreadRuntimeItem.mockReturnValue(false);
+      mocks.dbGetCheckpointRevertOperation.mockReturnValue(claimRow("op-1", { kind: "local" }));
 
       const result = await host.revertCheckpoint({
         threadId: "thread-1",
@@ -658,11 +661,66 @@ describe("BackendHostCore", () => {
       });
 
       expect(result.outcome).toBe("noop");
+      expect(result.replayed).toBe(false);
       expect(mocks.dbUpdateCheckpointRevertPhases).toHaveBeenCalledWith("op-1", {
         outcome: "completed",
         truncatePhase: "noop",
         removedAnchors: [],
       });
+    });
+
+    it("replays a settled ambiguous row when the checkpoint is already gone", async () => {
+      const host = createRevertHost();
+      mocks.dbHasThreadRuntimeItem.mockReturnValue(false);
+      mocks.dbGetCheckpointRevertOperation.mockReturnValue({
+        ...claimRow("op-1", { kind: "local" }),
+        numTurns: 2,
+        outcome: "ambiguous" as const,
+        providerPhase: "ambiguous" as const,
+        filesPhase: "completed" as const,
+        truncatePhase: "completed" as const,
+        removedAnchors: ["turn-a"],
+      });
+
+      const result = await host.revertCheckpoint({
+        threadId: "thread-1",
+        checkpointItemId: "checkpoint-1",
+        operationKey: "op-1",
+      });
+
+      expect(result).toEqual({
+        outcome: "ambiguous",
+        replayed: true,
+        numTurns: 2,
+        providerPhase: "ambiguous",
+        filesPhase: "completed",
+        truncatePhase: "completed",
+        removedCompletedTurnAnchors: ["turn-a"],
+      });
+      expect(mocks.dbUpdateCheckpointRevertPhases).not.toHaveBeenCalled();
+    });
+
+    it("returns a missing-checkpoint noop when no journal row exists", async () => {
+      const host = createRevertHost();
+      mocks.dbHasThreadRuntimeItem.mockReturnValue(false);
+      mocks.dbGetCheckpointRevertOperation.mockReturnValue(null);
+
+      const result = await host.revertCheckpoint({
+        threadId: "thread-1",
+        checkpointItemId: "checkpoint-1",
+        operationKey: "op-1",
+      });
+
+      expect(result).toEqual({
+        outcome: "noop",
+        replayed: false,
+        numTurns: 0,
+        providerPhase: "skipped_missing_checkpoint",
+        filesPhase: "skipped_missing_checkpoint",
+        truncatePhase: "noop",
+        removedCompletedTurnAnchors: [],
+      });
+      expect(mocks.dbUpdateCheckpointRevertPhases).not.toHaveBeenCalled();
     });
   });
 });

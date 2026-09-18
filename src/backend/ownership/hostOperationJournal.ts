@@ -193,8 +193,9 @@ function pruneExpired(
  * Claim the mutation window: record the operation as running (with its frozen
  * plan evidence) before any side effect. Refuses when another operation of the
  * same kind is still running, when the exact operation ID already has a
- * non-terminal record, or when pruning cannot make room — capacity pressure is
- * an error, never an eviction of a retained record.
+ * retained completion, or when pruning cannot make room — capacity pressure is
+ * an error, never an eviction of a retained record. A retained failed row with
+ * the same ID is replaced in place (same-ID retry after mark-to-failed).
  */
 export function beginHostOperation(
   lease: HostOwnerLease,
@@ -219,7 +220,7 @@ export function beginHostOperation(
         "is already claimed, or a retained completion has not expired yet.",
     );
   }
-  operations.push({
+  const claim: HostOperationRecord = {
     formatVersion: HOST_OPERATION_JOURNAL_VERSION,
     operation: input.operation,
     operationId: input.operationId,
@@ -228,7 +229,15 @@ export function beginHostOperation(
     startedAt: now.toISOString(),
     updatedAt: now.toISOString(),
     ...(input.plan !== undefined ? { plan: input.plan } : {}),
-  });
+  };
+  const failedIndex = operations.findIndex(
+    (record) =>
+      record.operation === input.operation &&
+      record.operationId === input.operationId &&
+      record.phase === "failed",
+  );
+  if (failedIndex >= 0) operations[failedIndex] = claim;
+  else operations.push(claim);
   writeJournal(lease, operations);
 }
 
@@ -247,16 +256,25 @@ export function markHostOperationPhase(
   },
 ): void {
   const now = new Date().toISOString();
-  const operations = readJournalUnderLease(lease).map((record) =>
-    record.operation === input.operation && record.operationId === input.operationId
-      ? {
-          ...record,
-          phase: input.phase,
-          updatedAt: now,
-          ...(input.note !== undefined ? { note: input.note } : {}),
-        }
-      : record,
+  const operations = readJournalUnderLease(lease);
+  const index = operations.findIndex(
+    (record) =>
+      record.operation === input.operation &&
+      record.operationId === input.operationId &&
+      record.phase === "running",
   );
+  if (index < 0) {
+    throw new Error(
+      `The ${input.operation} operation "${input.operationId}" is not running and cannot change phase.`,
+    );
+  }
+  const current = operations[index]!;
+  operations[index] = {
+    ...current,
+    phase: input.phase,
+    updatedAt: now,
+    ...(input.note !== undefined ? { note: input.note } : {}),
+  };
   writeJournal(lease, operations);
 }
 

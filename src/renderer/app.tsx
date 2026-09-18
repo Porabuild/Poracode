@@ -211,12 +211,14 @@ function appendRuntimeEvents(
     // the UI surface the retryable hydration failure.
     runtimeRecoveryInvalidated.add(threadId);
     useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+    useAppStore.getState().clearAllPendingSteer(threadId);
   } else if (result.overflowed) {
     runtimeRecoveryInFlight.add(threadId);
     // The backend persists runtime events before broadcasting them. Once a
     // final-consumer queue overflows, clear the partial projection and reread
     // the authoritative local history before accepting new deltas.
     useAppStore.getState().clearThreadRuntimeEvents(threadId);
+    useAppStore.getState().clearAllPendingSteer(threadId);
     clearRuntimeItemStoreSelectorCacheForThread(threadId);
     void recoverRuntimeThread(threadId)
       .then((recovered) => {

@@ -388,7 +388,15 @@ export function dbUpdateCheckpointRevertPhases(
     values.push(update.outcome);
   }
   values.push(operationKey);
-  getSqlite()
-    .prepare(`UPDATE checkpoint_revert_operations SET ${sets.join(", ")} WHERE operation_key = ?`)
+  const result = getSqlite()
+    .prepare(
+      `UPDATE checkpoint_revert_operations SET ${sets.join(", ")}
+       WHERE operation_key = ? AND outcome IN ('running', 'failed')`,
+    )
     .run(...values);
+  if (result.changes === 0) {
+    throw new Error(
+      `Cannot update checkpoint revert operation "${operationKey}": missing or already settled.`,
+    );
+  }
 }

@@ -100,6 +100,43 @@ describe("host operation journal (Gates 2-3 Batch 3)", () => {
     ).toThrow(/retained completion/u);
   });
 
+  it.each(["completed", "failed"] as const)(
+    "refuses to rewrite a retained %s operation",
+    (phase) => {
+      const lease = owner();
+      beginHostOperation(lease, { operation: "activation", operationId: "op-1", plan: plan() });
+      markHostOperationPhase(lease, {
+        operation: "activation",
+        operationId: "op-1",
+        phase,
+      });
+      const before = readFileSync(journalPath(lease), "utf8");
+      expect(() =>
+        markHostOperationPhase(lease, {
+          operation: "activation",
+          operationId: "op-1",
+          phase: phase === "completed" ? "failed" : "completed",
+        }),
+      ).toThrow(/not running/u);
+      expect(readFileSync(journalPath(lease), "utf8")).toBe(before);
+    },
+  );
+
+  it("replaces a retained failed same-ID claim in place", () => {
+    const lease = owner();
+    beginHostOperation(lease, { operation: "activation", operationId: "op-1", plan: plan() });
+    markHostOperationPhase(lease, {
+      operation: "activation",
+      operationId: "op-1",
+      phase: "failed",
+    });
+    beginHostOperation(lease, { operation: "activation", operationId: "op-1", plan: plan() });
+    const journal = readHostOperationJournal(lease.paths);
+    expect(journal?.operations).toHaveLength(1);
+    expect(journal?.operations[0]?.operationId).toBe("op-1");
+    expect(journal?.operations[0]?.phase).toBe("running");
+  });
+
   it("refuses at capacity instead of evicting retained records", () => {
     const lease = owner();
     const records: HostOperationRecord[] = [];

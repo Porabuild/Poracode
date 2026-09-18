@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { readBoundedNodeRequestBody } from "@/shared/http";
 import { MAX_JSON_BODY_BYTES } from "./constants.ts";
 import { LabHttpError } from "./labAuth.ts";
 
@@ -61,6 +62,21 @@ export function rejectChunkedRequest(req: IncomingMessage): void {
   }
 }
 
+export async function readBoundedRawBody(
+  req: IncomingMessage,
+  maxBytes = MAX_JSON_BODY_BYTES,
+): Promise<Buffer> {
+  const declared = Number(req.headers["content-length"] ?? 0);
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    throw new LabHttpError("body_too_large", "Request body is too large.", 413);
+  }
+  return await readBoundedNodeRequestBody(
+    req,
+    maxBytes,
+    () => new LabHttpError("body_too_large", "Request body is too large.", 413),
+  );
+}
+
 export async function readBoundedJsonBody(
   req: IncomingMessage,
   maxBytes = MAX_JSON_BODY_BYTES,
@@ -72,41 +88,9 @@ export async function readBoundedJsonBody(
       throw new LabHttpError("body_too_large", "Request body is too large.", 413);
     }
   }
-
-  const chunks: Buffer[] = [];
-  let total = 0;
-  for await (const chunk of req) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    total += buffer.length;
-    if (total > maxBytes) {
-      throw new LabHttpError("body_too_large", "Request body is too large.", 413);
-    }
-    chunks.push(buffer);
-  }
-  const raw = Buffer.concat(chunks).toString("utf8");
+  const raw = (await readBoundedRawBody(req, maxBytes)).toString("utf8");
   if (!raw.trim()) return {};
   return JSON.parse(raw) as unknown;
-}
-
-export async function readBoundedRawBody(
-  req: IncomingMessage,
-  maxBytes = MAX_JSON_BODY_BYTES,
-): Promise<Buffer> {
-  const declared = Number(req.headers["content-length"] ?? 0);
-  if (Number.isFinite(declared) && declared > maxBytes) {
-    throw new LabHttpError("body_too_large", "Request body is too large.", 413);
-  }
-  const chunks: Buffer[] = [];
-  let total = 0;
-  for await (const chunk of req) {
-    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    total += buffer.length;
-    if (total > maxBytes) {
-      throw new LabHttpError("body_too_large", "Request body is too large.", 413);
-    }
-    chunks.push(buffer);
-  }
-  return Buffer.concat(chunks);
 }
 
 export function headerValue(req: IncomingMessage, name: string): string | undefined {

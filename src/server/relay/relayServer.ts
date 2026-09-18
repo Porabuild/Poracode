@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
@@ -201,6 +201,13 @@ function normalizePublicBaseUrl(raw: string): string {
   url.search = "";
   url.pathname = url.pathname.replace(/\/+$/, "");
   return url.toString().replace(/\/+$/, "");
+}
+
+/** Length-independent compare: digest both, then timingSafeEqual, then lengths. */
+function secretsMatch(left: string, right: string): boolean {
+  const leftDigest = createHash("sha256").update(left).digest();
+  const rightDigest = createHash("sha256").update(right).digest();
+  return timingSafeEqual(leftDigest, rightDigest) && left.length === right.length;
 }
 
 export class RelayServer {
@@ -848,7 +855,7 @@ export class RelayServer {
   private claimSecretBinding(serverId: string, secret: string): boolean {
     const now = this.now();
     const existing = this.secretBindings.get(serverId);
-    if (existing && existing.secret !== secret) {
+    if (existing && !secretsMatch(existing.secret, secret)) {
       const ttlMs = this.options.secretBindingTtlMs ?? DEFAULT_SECRET_BINDING_TTL_MS;
       const live = this.hosts.get(serverId)?.control.readyState === WebSocket.OPEN;
       // A live host with the wrong secret, or an idle-but-unexpired binding,

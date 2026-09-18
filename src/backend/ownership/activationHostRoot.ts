@@ -342,9 +342,9 @@ function classifyInterruptedActivation(
 
 /**
  * Resume the custody completion for an interrupted activation whose adopted
- * key file is on disk, under the lease. The staged receipt is still pending in
- * this state (the manifest flip archives it only after custody), so every
- * frozen evidence stays verifiable before the idempotent completion runs.
+ * key file is on disk, under the lease. The staged receipt file is still
+ * present until `writeActivationMarker` archives it, so frozen evidence stays
+ * verifiable even if the manifest already flipped to `ready`.
  */
 async function completeInterruptedActivation(
   paths: HostRootPaths,
@@ -362,7 +362,7 @@ async function completeInterruptedActivation(
         "the journal record changed while the resume was starting.",
       );
     }
-    const receipt = readPendingReceipt(lease);
+    const receipt = readHostImportReceiptFromPaths(lease.paths);
     if (receipt.createdAt !== interrupted.operationId) {
       throw new HostActivationInterruptedError(
         "the staged receipt no longer matches the interrupted attempt.",
@@ -387,19 +387,20 @@ async function completeInterruptedActivation(
       if (!manifest || manifest.source.kind !== "offline-backup") {
         throw new Error("The staged host-root manifest changed during activation.");
       }
-      if (manifest.source.activation !== "required") {
+      if (manifest.source.activation === "required") {
+        writeHostRootManifest(lease, {
+          ...manifest,
+          source: {
+            kind: "offline-backup",
+            activation: "ready",
+            receiptSha256: manifest.source.receiptSha256,
+            activationVersion: HOST_ACTIVATION_MANIFEST_VERSION,
+            activatedAt: new Date().toISOString(),
+          },
+        });
+      } else if (manifest.source.activation !== "ready") {
         throw new Error("The staged host-root manifest was already activated.");
       }
-      writeHostRootManifest(lease, {
-        ...manifest,
-        source: {
-          kind: "offline-backup",
-          activation: "ready",
-          receiptSha256: manifest.source.receiptSha256,
-          activationVersion: HOST_ACTIVATION_MANIFEST_VERSION,
-          activatedAt: new Date().toISOString(),
-        },
-      });
       const record: HostActivationRecord = {
         formatVersion: HOST_ACTIVATION_RECORD_VERSION,
         profileNamespace: lease.paths.profileNamespace,

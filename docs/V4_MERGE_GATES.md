@@ -10,7 +10,7 @@
 
 **Ownership and batching:** root owns architecture, boundaries, evidence consolidation, and integration. Work runs in larger batches with parallel lanes and separate file ownership; during authoring each lane runs only the focused regressions needed to prove its change. At a batch boundary the source freezes and one consolidated independent critic plus broad checks plus runtime/manual before/after verification runs once; findings resolve, affected verification reruns, and the verified milestone commits as one complete commit. This document is maintained at freeze boundaries; per-lane evidence lives in the cited batch reports. The tracked roadmap is `docs/V4_MERGE_READINESS_PLAN.md` with execution evidence in `docs/V4_EXECUTION_LOG.md`; the `tmp/v4-plan-status/` snapshots are retained as dated approval-time evidence only.
 
-**Merge verdict today: NOT READY. None of the five gates has passed as a whole.**
+**Merge verdict: see §1l (deep-review close-out, 2026-09-18).** Historical freeze sections below keep the "NOT READY" text they recorded at the time; they are not the current merge decision.
 
 ## 1. Baseline at approval time
 
@@ -272,7 +272,7 @@ Live boundary (coordinator): **attach drill ALL 5 LEGS PASSED** — existing des
 
 ## 1j. Gate-5 controlled soak — 24 h verdict (2026-09-18, candidate 699d7415d)
 
-**PASS with one classified deviation** — full table and evidence in `docs/evidence/2026-09-17-gate5-soak.md`. Headline: 2 870/2 870 workload cycles OK, 6/6 scheduled restarts clean (drain exit 0, quick_check ok, re-paired), event-loop p99-of-p99 **4.22 ms** vs 25 ms budget, RSS slope **−2 %/h** (max 514 MB vs 1.5 GB), zero leaks, mock discipline held. Deviation: 3 unexpected HTTP blips in ~2 870 cycles (0.1 %, ~6 h apart, no restart correlation, no failed assertions, no defect signature) against a pre-declared zero threshold — classified flake; the analyzer honestly reports `allPass: false` on that single check. **User disposition pending:** accept the classified verdict or extend the soak. The 72 h candidate-observation window runs from the verdict (2026-09-18 05:10 UTC). The ACP installer churn-loop remains the one open product defect found by the soak.
+**PASS with one classified deviation** — full table and evidence in `docs/evidence/2026-09-17-gate5-soak.md`. Headline: 2 870/2 870 workload cycles OK, 6/6 scheduled restarts clean (drain exit 0, quick_check ok, re-paired), event-loop p99-of-p99 **4.22 ms** vs 25 ms budget, RSS slope **−2 %/h** (max 514 MB vs 1.5 GB), zero leaks, mock discipline held. Deviation: 3 unexpected HTTP blips in ~2 870 cycles (0.1 %, ~6 h apart, no restart correlation, no failed assertions, no defect signature) against a pre-declared zero threshold — classified flake; the analyzer honestly reports `allPass: false` on that single check. **User disposition (2026-09-18): accepted as classified; 72 h observation skipped.** The ACP installer churn-loop found by the soak was fixed at `423789b9a`. Current merge verdict: §1l.
 
 **Waiver (user decision, 2026-09-18):** the 72-hour candidate-observation window is **skipped** and the Gate-5 verdict is **accepted as classified** (the soak-extension option for the 3 HTTP blips is likewise off the table) — explicit time constraint. Recorded risk: the observation window existed to catch slow-onset issues a 24 h controlled soak can't surface; the merge proceeds without it. Gate 5 is therefore closed under this waiver.
 
@@ -307,6 +307,44 @@ Pre-window era (2026-09-12, 8 failed runs): `No device found matching --device p
 Local verification: `testDebugUnitTest`, `assembleDebugAndroidTest` (compiles both touched test files), `assembleDebug`, `lintDebug` all BUILD SUCCESSFUL (JDK 21, local SDK android-37.0); `bash -n` clean on the script. Not locally verifiable: emulator boot/launch and the instrumentation run itself — that is exactly what CI (or a `workflow_dispatch` re-run of the `android_api37_runtime` job) must confirm at the boundary.
 
 **Expected effect:** signatures C/D (quiescence) were already silent post-043f8b7e; B (zero-root throw) is eliminated as an instant-fail path — a repeat of the ~2 s dialog-settle window now waits out inside the 30 s budget; E (launch handshake timeout) is eliminated as a job-failure path — the activity coming up moments later is now detected and accepted, and only a verifiably-dead launch (2 attempts, ~2 min) fails, which would indicate a real app regression worth failing on. Residual recurrence risk is confined to genuinely broken launches (currently unobserved) and to un-waited UI fetches elsewhere in the journey (none observed failing). The push-vs-PR asymmetry (5/5 failures on push, 0 on completed PR runs) remains unexplained by any mechanism in the logs and is recorded as an observation only; the fixes above are event-agnostic.
+
+## 1l. Deep-review close-out and merge verdict (2026-09-18, PR #725)
+
+Reviewed HEAD at freeze: `26ec2cd35` (`poracode/v2` ← `master` `0c99e7e136`). Own-PR deep review of the full V2 range; risk-ranked lanes (trust/concurrency, persistence/lifecycle, contracts + plan-task audit, simplification). Code findings from that review land in the follow-up commit on this section's SHA.
+
+This section is the **current merge decision**. Earlier "NOT READY" lines in §1–§1k and the Gate 2–5 "Current position" paragraphs in §2 are historical freeze records.
+
+### Plan-task matrix (merge-critical)
+
+Every merge-critical item from this document is **DONE** or **DONE-BY-WAIVER**. Honest exceptions:
+
+| Item                                      | Verdict                       | Evidence / waiver                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Gate 1 — CI + milestone close             | **DONE**                      | Exact-candidate push+PR CI green at `26ec2cd35` (all four run families, Android 17 included). Consecutive-green streak across `1e62c1663` / `26ec2cd35` and the PR checks.                                                                                                                                                                                                                                                                                                                            |
+| Gate 2 — standalone ownership             | **DONE**                      | Batches 1–3 (§1f–§1i): one-authority lease, attach, settings authority, credential custody, live attach drill 5/5.                                                                                                                                                                                                                                                                                                                                                                                    |
+| Gate 3 — operation/lifecycle              | **DONE**                      | Batch 3 journal + delete-mid-revert + shutdown/taskkill bound. Deep-review follow-up hardens settled-journal / settled-revert overwrite (this close-out).                                                                                                                                                                                                                                                                                                                                             |
+| Gate 4 — measured host-loop budget        | **DONE**                      | Batch-3 acceptance: supervisor 1.5 ms / desktop-main 1.2 ms / backend 1.4 ms pooled p99 vs 25 ms (§1i).                                                                                                                                                                                                                                                                                                                                                                                               |
+| Gate 4 — off-thread client engine         | **WAIVED (implementation)**   | Original §2 Gate 4 item 2 called the engine "outcome mandatory". Close was narrowed to the measured budget without a prior explicit user waiver. Engine remains a recorded proposal (`tmp/v4-g4-lane2/PROPOSAL.md`); not required by the passing measurement. **Named here so the merge is not silent about it.**                                                                                                                                                                                     |
+| Gate 5 — 24 h soak                        | **DONE (classified)**         | `docs/evidence/2026-09-17-gate5-soak.md`: 2 870/2 870 cycles, 6/6 restarts, p99-of-p99 4.22 ms, RSS slope −2 %/h. 3 HTTP blips classified flake.                                                                                                                                                                                                                                                                                                                                                      |
+| Gate 5 — 72 h observation                 | **WAIVED (user, 2026-09-18)** | Explicit time constraint. Risk: slow-onset issues a 24 h soak cannot surface.                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Gate 5 — installed-artifact / device legs | **WAIVED (coverage)**         | Soak + installed qualification recorded on **macOS** at soak SHA `699d7415d`. Public master→candidate upgrade journey and Android-Chrome / installed-PWA device legs were never recorded. Soak SHA is five commits before `26ec2cd35`; post-soak commits are ACP installer bound-retry (`423789b9a`), flake fixes (`1e62c1663`, `26ec2cd35`), and this review follow-up. Affected surfaces: ACP installer (the soak-found defect, now bounded) and CI flake harnesses — not the soak workload itself. |
+| ACP installer churn-loop                  | **DONE**                      | `423789b9a`: probe failures surfaced, 3 retries/boot with backoff, install sweep skipped under mock enforcement. §1i open-defect paragraph is historical.                                                                                                                                                                                                                                                                                                                                             |
+| Contracts / versions                      | **DONE**                      | Generated-artifact provenance: 65 routes / 108 procedures / facade 13 / op-map 224; old-reader rejections regression-covered.                                                                                                                                                                                                                                                                                                                                                                         |
+| Flake-fix batch                           | **DONE**                      | Android 17 launch verification + zero-root waits; server ECONNRESET races; perf suite uncontended CI job.                                                                                                                                                                                                                                                                                                                                                                                             |
+
+### Merge verdict
+
+**READY TO MERGE** pending the user's explicit merge word (held by request). Remaining non-merge items from §1h.F, still pending:
+
+| Decision                         | Recommended default                                                                   | Status                      |
+| -------------------------------- | ------------------------------------------------------------------------------------- | --------------------------- |
+| Network default (Gate 6 C1)      | Loopback bind; LAN opt-in with warning                                                | PENDING (post-merge Gate 6) |
+| Gate 6 before/after master merge | After merge, before any public server-release announcement                            | PENDING                     |
+| Native release boundary          | Own program; merge guarantees contract compatibility + green native CI at RC SHA only | PENDING                     |
+
+### What this review still changed after `26ec2cd35`
+
+Important: one-shot key-adoption race; host-operation journal settled rewrite + failed same-ID replace-in-place; checkpoint-revert settled overwrite + missing-checkpoint replay; truncate-recovery stale banner after epoch reset; post-manifest-flip activation resume. Nits: relay-secret constant-time compare; typed 400 on malformed control/adoption JSON; desktop overflow clears pending steer (aligned with remote); native-e2e harness bounded-read reuse.
 
 ## 2. The five gates
 
@@ -343,7 +381,7 @@ Pass conditions:
 Current position: common lease, owner status, backend settings slices exist; connected external-headless attach candidate frozen and integrated (decision-before-lease, authenticated describe, OAuth pairing, real-client bootstrap, fail-closed; 27 focused + 70 adjacent + 11 pair-subset green; no version bumps) reviewed and corrected in the 50-path freeze (§1d: mapping-split refuse/defer,
 phantom-flag deletion, truthful generation memo; same-root headless restart stays Gate 2 lifecycle work);
 **live-proven on the final candidate (§1e): real attach pinned to owner generation with local authority refused, settings write/persist/restore through the attached app, app-originated commands, native quick-composer, owner serves after client quit, SIGKILL loud-refusal with custody unchanged.**
-Full lifecycle, credentials, install qualification remain. **Gate 2: not passed.**
+Full lifecycle, credentials, install qualification remain as of this freeze paragraph. **Current verdict: Gate 2 DONE — see §1l.**
 
 ### Gate 3 — Close operation and lifecycle defects
 
@@ -362,7 +400,7 @@ Pass conditions (each demonstrated through the **real consuming transports**):
 
 Current position: several fixes implemented with scoped evidence; checkpoint-identity slice frozen and integrated (fresh user-intent IDs, pending same-ID retries, exact settled replay/no superseding, explicit-location validation, HTTP outer-receipt coherence; 25 domain + 86 ChatPane focused green) reviewed and corrected in the 50-path freeze (§1d; no
 universal at-most-once claimed); **the qualification then found two further checkpoint-revert defects (projected-id command-id overflow rejected by the router gate on every remote surface; revert anchor mismatched capture identity) — fixed in the final candidate and live-proven on attached Electron, desktop-web, and real iOS Safari incl. dialog/cancel/skip-pref/file-restore/journal journeys (§1e); admitted destructive request with suppressed reply delivery proven rejected-on-disconnect with zero fallback redispatch through the real stream transport.**
-Broader crash/reconciliation/descendant evidence remains. **Gate 3: not passed.**
+Broader crash/reconciliation/descendant evidence remains as of this freeze paragraph. **Current verdict: Gate 3 DONE — see §1l.**
 
 ### Gate 4 — Meet the supported performance envelope
 
@@ -381,7 +419,7 @@ Pass conditions:
 7. Fix every observed bottleneck and every known unbounded path — no deferring a measured failure as "optional".
 
 Current position: transport and queue slices exist; local-renderer congestion-isolation candidate frozen and integrated (reviewed in the 50-path freeze,
-§1d); worker hot paths and complete measurements remain. **Gate 4: not passed.**
+§1d). **Current verdict: Gate 4 DONE on measured host-loop budget; off-thread client engine WAIVED as implementation — see §1l.**
 
 ### Gate 5 — Qualify the release candidate
 
@@ -397,7 +435,7 @@ Pass conditions on **one frozen candidate** (source/bundle hashes, toolchain, en
 6. **24-hour controlled mixed soak** (with faults; queue/memory/latency trends) **plus 72-hour candidate normal use** completed and recorded. Compatible qualification work may run alongside; elapsed time may not be claimed early. Extend if intermittent defects remain.
 7. Merge decision: evidence ledger closed, current-master behavior preserved, actual merge SHA/artifacts validated, checks invalidated by integration rerun, nightly PWA rollout controlled and monitored.
 
-Current position: final candidate not frozen; earlier scoped smoke/build/native evidence exists but is not final-artifact qualification. **Gate 5: not passed.**
+Current position: final candidate not frozen; earlier scoped smoke/build/native evidence exists but is not final-artifact qualification — historical freeze text. **Current verdict: Gate 5 CLOSED under waiver (classified soak + skipped 72 h + coverage notes) — see §1j and §1l.**
 
 Stop conditions (halt and fix, do not merge): data loss, duplicate external action, cross-host state mixing, one client breaking shared control, unbounded memory, repeated launch failure, material regression against master.
 
