@@ -227,7 +227,15 @@ export class HostControlServer {
         response.end();
         return;
       }
-      const parsed = hostControlRequestSchema.safeParse(JSON.parse(body.toString("utf8")));
+      let payload: unknown;
+      try {
+        payload = JSON.parse(body.toString("utf8"));
+      } catch {
+        response.writeHead(400, { connection: "close" });
+        response.end();
+        return;
+      }
+      const parsed = hostControlRequestSchema.safeParse(payload);
       if (!parsed.success) {
         response.writeHead(400, { connection: "close" });
         response.end();

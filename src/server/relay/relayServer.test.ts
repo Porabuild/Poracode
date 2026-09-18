@@ -1188,6 +1188,10 @@ describe("relay end-to-end", () => {
     expect(attacker.outcome).toBe("closed");
     expect(attacker.reason).toBe("serverId already registered");
 
+    const differentLength = await tryRegister("srv-victim", "legit-secret!");
+    expect(differentLength.outcome).toBe("closed");
+    expect(differentLength.reason).toBe("serverId already registered");
+
     // The legitimate host can still reconnect with its correct secret.
     const reconnect = await tryRegister("srv-victim", "legit-secret");
     expect(reconnect.outcome).toBe("registered");

@@ -119,6 +119,18 @@ describe("truncateRecovery reload gate", () => {
     expect(lease).toBeNull();
   });
 
+  it("clears the exhaustion banner on a full epoch reset", () => {
+    const key = `d1\u0000rt-1`;
+    noteTruncateNeeded("d1", "rt-1", 30);
+    for (let i = 0; i < 3; i += 1) {
+      const lease = tryBeginTruncateReload("d1", "rt-1");
+      finishTruncateReload(lease!, null);
+    }
+    expect(useAppStore.getState().truncateReloadExhausted[key]).toBe(true);
+    resetTruncateRecoveryEpoch("d1");
+    expect(useAppStore.getState().truncateReloadExhausted[key]).toBeUndefined();
+  });
+
   it("tracks reloads per thread independently", () => {
     noteTruncateNeeded("d1", "rt-1", 10);
     noteTruncateNeeded("d1", "rt-2", 10);

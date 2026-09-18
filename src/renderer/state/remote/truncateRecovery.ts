@@ -220,18 +220,23 @@ export function isTruncateReloadInFlight(desktopId: string, remoteThreadId: stri
 export function resetTruncateRecoveryEpoch(desktopId: string): void {
   truncateReloadEpochByDesktopId.set(desktopId, currentTruncateEpoch(desktopId) + 1);
   authoritativeSeqByDesktopId.delete(desktopId);
+  const prefix = `${desktopId}\0`;
   for (const key of [...truncateReloadOwnerByKey.keys()]) {
-    if (key.startsWith(`${desktopId}\0`)) truncateReloadOwnerByKey.delete(key);
+    if (key.startsWith(prefix)) truncateReloadOwnerByKey.delete(key);
   }
+  const affected = new Set<string>();
   for (const key of [...truncateReloadAttemptsByKey.keys()]) {
-    if (key.startsWith(`${desktopId}\0`)) truncateReloadAttemptsByKey.delete(key);
+    if (!key.startsWith(prefix)) continue;
+    truncateReloadAttemptsByKey.delete(key);
+    affected.add(key);
   }
   for (const key of [...truncateReloadPendingSeqByKey.keys()]) {
-    if (key.startsWith(`${desktopId}\0`)) truncateReloadPendingSeqByKey.delete(key);
+    if (!key.startsWith(prefix)) continue;
+    truncateReloadPendingSeqByKey.delete(key);
+    affected.add(key);
   }
-  for (const key of [...truncateReloadAttemptsByKey.keys()]) {
-    if (!key.startsWith(`${desktopId}\0`)) continue;
-    syncTruncateReloadExhausted(desktopId, key.slice(desktopId.length + 1));
+  for (const key of affected) {
+    syncTruncateReloadExhausted(desktopId, key.slice(prefix.length));
   }
 }
 

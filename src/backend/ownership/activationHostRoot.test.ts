@@ -30,7 +30,11 @@ import {
   HOST_OPERATION_JOURNAL_FILE,
   type HostOperationPlanEvidence,
 } from "./hostOperationJournal";
-import { readHostRootManifest } from "./hostRootManifest";
+import {
+  HOST_ACTIVATION_MANIFEST_VERSION,
+  readHostRootManifest,
+  writeHostRootManifest,
+} from "./hostRootManifest";
 import { resolveDesktopHostRootPaths, resolveHostRootPaths } from "./hostRootPaths";
 import { stageHostImport } from "./stageHostImport";
 import {
@@ -420,6 +424,64 @@ describe("staged host activation (Gate 2.5 S5.1)", () => {
       const controller = HostOwnerController.acquire(namespace, "headless");
       expect((await controller.initialize({ mode: "headless" })).secretStorageKey).toBe(adopted);
       await controller.close();
+    });
+
+    it("resumes after a crash that flipped the manifest to ready but missed the activation marker", async () => {
+      const root = scratch();
+      const namespace = join(realpathSync.native(root), "profile");
+      const adopted = headlessKey(37);
+      const sealed = Buffer.from(`sealed:${adopted}`).toString("base64");
+      await stageBackup(
+        namespace,
+        buildOfflineBackup(root, { name: "secret-key.safe", value: sealed }),
+      );
+      const paths = resolveHostRootPaths(namespace);
+      mkdirSync(join(paths.dataRoot, HOST_ACTIVATION_ARCHIVE_DIR), {
+        recursive: true,
+        mode: 0o700,
+      });
+      renameSync(
+        join(paths.dataRoot, "secret-key.safe"),
+        join(paths.dataRoot, HOST_ACTIVATION_ARCHIVE_DIR, "secret-key.safe"),
+      );
+      writeFileSync(join(paths.dataRoot, "secret-key.headless"), `${adopted}\n`, {
+        encoding: "utf8",
+        mode: 0o600,
+      });
+      const flipLease = HostOwnerLease.acquire(paths, "headless");
+      const manifest = readHostRootManifest(paths);
+      expect(manifest?.source.kind).toBe("offline-backup");
+      if (manifest?.source.kind !== "offline-backup") {
+        flipLease.release();
+        throw new Error("expected staged offline-backup manifest");
+      }
+      writeHostRootManifest(flipLease, {
+        ...manifest,
+        source: {
+          kind: "offline-backup",
+          activation: "ready",
+          receiptSha256: manifest.source.receiptSha256,
+          activationVersion: HOST_ACTIVATION_MANIFEST_VERSION,
+          activatedAt: "2020-01-01T00:00:00.000Z",
+        },
+      });
+      flipLease.release();
+      seedInterruptedActivation(namespace, stagedReceiptCreatedAt(namespace), {
+        credentialOutcome: "adopted-os-sealed-key",
+        archivedKeyFiles: ["secret-key.safe"],
+        keyFingerprint: secretKeyFingerprint(adopted),
+      });
+
+      const result = await activateStagedHostRoot({ profileNamespace: namespace });
+
+      expect(result.credentialOutcome).toBe("adopted-os-sealed-key");
+      expect(result.record.resumedAt).toBeDefined();
+      const source = readHostRootManifest(paths)?.source;
+      expect(source).toMatchObject({
+        kind: "offline-backup",
+        activation: "ready",
+        activatedAt: "2020-01-01T00:00:00.000Z",
+      });
     });
 
     it("supersedes a stale journal record and re-activates fresh before any custody", async () => {

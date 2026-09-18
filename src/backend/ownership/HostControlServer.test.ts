@@ -71,6 +71,7 @@ async function rawCall(
     host?: string;
     headers?: Record<string, string>;
     payload?: Record<string, unknown>;
+    rawBody?: Buffer;
     issuedAt?: number;
   } = {},
 ) {
@@ -78,16 +79,18 @@ async function rawCall(
   const method = changed.method ?? "POST";
   const path = changed.path ?? "/control";
   const authority = changed.host ?? `127.0.0.1:${discovery.transport.port}`;
-  const body = Buffer.from(
-    JSON.stringify({
-      version: 1,
-      requestId: randomUUID(),
-      ownerGeneration: test.lease.generation,
-      operation: "issue-pairing",
-      payload: {},
-      ...changed.payload,
-    }),
-  );
+  const body =
+    changed.rawBody ??
+    Buffer.from(
+      JSON.stringify({
+        version: 1,
+        requestId: randomUUID(),
+        ownerGeneration: test.lease.generation,
+        operation: "issue-pairing",
+        payload: {},
+        ...changed.payload,
+      }),
+    );
   return new Promise<number>((resolve, reject) => {
     const outgoing = request(
       {
@@ -230,6 +233,15 @@ describe("live owner control", () => {
     const test = await fixture();
     expect(await rawCall(test, { payload: { ownerGeneration: randomUUID() } })).toBe(200);
     expect(test.issuePairing).not.toHaveBeenCalled();
+  });
+
+  it("returns HTTP 400 for authenticated malformed JSON and stays usable", async () => {
+    const test = await fixture();
+    expect(await rawCall(test, { rawBody: Buffer.from("{") })).toBe(400);
+    expect(test.issuePairing).not.toHaveBeenCalled();
+    await expect(callHostControl(test.paths, "describe")).resolves.toMatchObject({
+      result: { profileNamespace: test.paths.profileNamespace },
+    });
   });
 
   it("deduplicates concurrent mutation calls and refuses operation reuse within the receipt window", async () => {
