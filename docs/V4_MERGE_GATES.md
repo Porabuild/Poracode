@@ -274,6 +274,8 @@ Live boundary (coordinator): **attach drill ALL 5 LEGS PASSED** — existing des
 
 **PASS with one classified deviation** — full table and evidence in `docs/evidence/2026-09-17-gate5-soak.md`. Headline: 2 870/2 870 workload cycles OK, 6/6 scheduled restarts clean (drain exit 0, quick_check ok, re-paired), event-loop p99-of-p99 **4.22 ms** vs 25 ms budget, RSS slope **−2 %/h** (max 514 MB vs 1.5 GB), zero leaks, mock discipline held. Deviation: 3 unexpected HTTP blips in ~2 870 cycles (0.1 %, ~6 h apart, no restart correlation, no failed assertions, no defect signature) against a pre-declared zero threshold — classified flake; the analyzer honestly reports `allPass: false` on that single check. **User disposition pending:** accept the classified verdict or extend the soak. The 72 h candidate-observation window runs from the verdict (2026-09-18 05:10 UTC). The ACP installer churn-loop remains the one open product defect found by the soak.
 
+**Waiver (user decision, 2026-09-18):** the 72-hour candidate-observation window is **skipped** and the Gate-5 verdict is **accepted as classified** (the soak-extension option for the 3 HTTP blips is likewise off the table) — explicit time constraint. Recorded risk: the observation window existed to catch slow-onset issues a 24 h controlled soak can't surface; the merge proceeds without it. Gate 5 is therefore closed under this waiver.
+
 ## 2. The five gates
 
 Numeric targets below are **targets, not measured passes** (source: readiness plan §7). The master comparison allows **no more than 10% deterioration in p95 latency or peak resources**, with an absolute noise allowance fixed from repeated baselines; V2-only journeys must pass absolute gates.
