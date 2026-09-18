@@ -79,7 +79,7 @@ describe("standalone attach client runtime", () => {
     ).toThrow(/Invalid standalone attach/);
   });
 
-  it("boots Electron on the remote stack with native capabilities and no local backend", () => {
+  it("boots Electron on the remote stack without desktop-managed-host-only capabilities", () => {
     installAttachedElectronClientRuntime(electronHost(), attachInfo());
     expect(readClientRuntime()).toMatchObject({
       version: PORACODE_CLIENT_RUNTIME_VERSION,
@@ -89,9 +89,12 @@ describe("standalone attach client runtime", () => {
         localBackend: false,
         manageRemoteEnvironments: true,
         nativeAppUpdates: true,
-        nativeBrowserWebContents: true,
         nativeShell: true,
-        nativeSsh: true,
+        // Attach mode constructs neither the SSH manager nor browser
+        // webContents, so advertising either would render surfaces that
+        // throw when invoked (V5 plan H2 / batch 0.1).
+        nativeBrowserWebContents: false,
+        nativeSsh: false,
       },
     });
     expect(isStandaloneAttachRuntime()).toBe(true);

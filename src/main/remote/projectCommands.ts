@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { basename, posix, win32 } from "node:path";
-import type { CloneRepoSource, Project, ProjectLocation } from "@/shared/contracts";
+import type { CloneRepoSource, McpServer, Project, ProjectLocation } from "@/shared/contracts";
 import {
   buildScratchTargetPath,
   deriveLocationFromPath,
@@ -10,6 +10,7 @@ import type { RemoteProjectCommand, RemoteProjectCommandResult } from "@/shared/
 import { msg } from "@/shared/messages";
 import { parseProjectIcon } from "@/shared/projectIcon";
 import { parseWslUncPath } from "@/shared/wsl";
+import { REDACTED_VALUE, restoreRedactedTransport } from "../app-controls/mcp/tools/settings";
 import { RemoteHttpError } from "./auth";
 
 /**
@@ -45,6 +46,28 @@ export interface RemoteProjectCommandDeps {
 function nameFromPath(path: string): string {
   const trimmed = path.replace(/[\\/]+$/, "");
   return basename(trimmed) || trimmed;
+}
+
+/**
+ * Restore redaction markers in an incoming project MCP list from the stored
+ * list (matched by server id). Throws when a marker survives without a stored
+ * source — the same contract the MCP settings gateway enforces on upsert.
+ */
+function restoreProjectMcpServers(incoming: McpServer[], stored: McpServer[]): McpServer[] {
+  const restored = incoming.map((server) => {
+    const existing = stored.find((candidate) => candidate.id === server.id);
+    return existing
+      ? { ...server, transport: restoreRedactedTransport(server.transport, existing.transport) }
+      : server;
+  });
+  if (JSON.stringify(restored).includes(REDACTED_VALUE)) {
+    throw new RemoteHttpError(
+      "mcp_redaction_without_existing_secret",
+      "The MCP server change is invalid.",
+      400,
+    );
+  }
+  return restored;
 }
 
 function assertValidName(name: string): void {
@@ -224,6 +247,17 @@ export async function applyRemoteProjectCommand(
         ...project,
         ...Object.fromEntries(Object.entries(command.patch).filter(([, value]) => value !== null)),
       };
+      // `GET /api/projects/{id}/settings` masks MCP credential values, so a
+      // client echoing that read back inside a whole-list patch carries the
+      // «redacted» markers. Restore each marker from the stored server (same
+      // round-trip as the MCP settings gateway) and refuse markers that have
+      // no stored source — a new server cannot be defined by a masked value.
+      if (Array.isArray(command.patch.mcpServers)) {
+        updated = {
+          ...updated,
+          mcpServers: restoreProjectMcpServers(command.patch.mcpServers, project.mcpServers ?? []),
+        };
+      }
       for (const key of [
         "icon",
         "scripts",

@@ -4912,7 +4912,12 @@ describe("RemoteAccessServer", () => {
           description: "Memory tools",
           enabled: true,
           timeoutMs: 30_000,
-          transport: { type: "stdio", command: "node", args: ["server.js"], env: {} },
+          transport: {
+            type: "stdio",
+            command: "node",
+            args: ["server.js"],
+            env: { API_KEY: "route-secret-value" },
+          },
         },
       ],
     };
@@ -4961,9 +4966,18 @@ describe("RemoteAccessServer", () => {
       headers: { authorization: `Bearer ${manageToken}` },
     });
     expect(settingsResponse.status).toBe(200);
-    await expect(settingsResponse.json()).resolves.toMatchObject({
-      mcpServers: [{ id: "memory-id", name: "memory" }],
+    const settingsBody = (await settingsResponse.json()) as { mcpServers?: Project["mcpServers"] };
+    expect(settingsBody).toMatchObject({
+      mcpServers: [
+        {
+          id: "memory-id",
+          name: "memory",
+          transport: { type: "stdio", env: { API_KEY: "«redacted»" } },
+        },
+      ],
     });
+    // The masked read must never leak the stored secret anywhere in the body.
+    expect(JSON.stringify(settingsBody)).not.toContain("route-secret-value");
     ws.close();
   });
 

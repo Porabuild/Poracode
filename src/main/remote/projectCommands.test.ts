@@ -295,6 +295,103 @@ describe("applyRemoteProjectCommand", () => {
     );
   });
 
+  it("restores redacted MCP values echoed from the settings read, and refuses markers without a stored source", async () => {
+    const { deps, projects, updateProject } = makeDeps();
+    projects.push({
+      id: "p1",
+      name: "App",
+      location: { kind: "posix", path: "/work/app" },
+      mcpServers: [
+        {
+          id: "memory-id",
+          name: "memory-server",
+          description: "Memory tools",
+          enabled: true,
+          timeoutMs: 30_000,
+          transport: {
+            type: "stdio",
+            command: "node",
+            args: ["--api-key=real-secret"],
+            env: { API_KEY: "real-secret" },
+          },
+        },
+      ],
+      createdAt: NOW,
+    });
+    // A client echoing the redacted `GET /api/projects/{id}/settings` read
+    // back inside a whole-list patch: marker values for the stored server,
+    // plus an unrelated real edit (a new server) in the same list.
+    const command = remoteProjectCommandSchema.parse({
+      kind: "update",
+      projectId: "p1",
+      patch: {
+        mcpServers: [
+          {
+            id: "memory-id",
+            name: "memory-server",
+            description: "Memory tools",
+            enabled: true,
+            timeoutMs: 30_000,
+            transport: {
+              type: "stdio",
+              command: "node",
+              args: ["--api-key=«redacted»"],
+              env: { API_KEY: "«redacted»" },
+            },
+          },
+          {
+            id: "fresh-id",
+            name: "fresh-server",
+            enabled: true,
+            timeoutMs: 30_000,
+            transport: { type: "stdio", command: "node", args: [], env: {} },
+          },
+        ],
+      },
+    });
+    if (command.kind !== "update") throw new Error("Expected an update command.");
+
+    await applyRemoteProjectCommand(command, deps);
+
+    expect(updateProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mcpServers: [
+          expect.objectContaining({
+            id: "memory-id",
+            transport: {
+              type: "stdio",
+              command: "node",
+              args: ["--api-key=real-secret"],
+              env: { API_KEY: "real-secret" },
+            },
+          }),
+          expect.objectContaining({ id: "fresh-id" }),
+        ],
+      }),
+    );
+
+    // A marker with no stored source cannot define a new server's secret.
+    const orphan = remoteProjectCommandSchema.parse({
+      kind: "update",
+      projectId: "p1",
+      patch: {
+        mcpServers: [
+          {
+            id: "unknown-id",
+            name: "unknown-server",
+            enabled: true,
+            timeoutMs: 30_000,
+            transport: { type: "stdio", command: "node", args: [], env: { TOKEN: "«redacted»" } },
+          },
+        ],
+      },
+    });
+    if (orphan.kind !== "update") throw new Error("Expected an update command.");
+    await expect(applyRemoteProjectCommand(orphan, deps)).rejects.toMatchObject({
+      code: "mcp_redaction_without_existing_secret",
+    });
+  });
+
   it("relocates an idle project and rejects relocation while a thread is running", async () => {
     const baseProject: Project = {
       id: "p1",

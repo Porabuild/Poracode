@@ -20,6 +20,13 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "voice.connectionFailed": msg({ message: "The voice connection failed. Try again." }),
   "voice.cancelled": msg({ message: "The voice connection was cancelled." }),
   "supervisor.sendTerminalInput": msg({ message: "Send terminal input" }),
+  "startup.failure.title": msg({ message: "Poracode could not start" }),
+  "startup.failure.body": msg({
+    message:
+      "Poracode failed to start:\n\n{detail}\n\nRetry (for example, once the other owner has finished starting) or quit.",
+  }),
+  "startup.failure.retry": msg({ message: "Retry" }),
+  "startup.failure.quit": msg({ message: "Quit" }),
   "supervisor.followUpQueue.guiOnly": msg({
     message: "Queued follow-ups are only supported for chat threads.",
   }),

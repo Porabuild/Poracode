@@ -9758,9 +9758,25 @@ msgstr "Poracode і ваші агенти працюють на віддален
 msgid "Poracode could not create this plugin's data folder."
 msgstr "Poracode не зміг створити теку даних цього плагіна."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode could not start"
+msgstr "Не вдалося запустити Poracode"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Poracode does not store marketplace credentials in plain settings. Open the catalog to browse its security-scanned skills."
 #~ msgstr "Poracode не зберігає облікові дані маркетплейсу в налаштуваннях відкритим текстом. Відкрийте каталог, щоб переглянути навички, перевірені на безпеку."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Poracode failed to start:\n"
+"\n"
+"{detail}\n"
+"\n"
+"Retry (for example, once the other owner has finished starting) or quit."
+msgstr "Poracode не вдалося запустити:\n"
+"\n"
+"{detail}\n"
+"\n"
+"Повторіть спробу (наприклад, коли інший власник завершить запуск) або вийдіть."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine."
@@ -10370,6 +10386,10 @@ msgstr "Повідомлення в черзі підтримуються лиш
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 msgid "Queued for v{0}"
 msgstr "У черзі на оновлення до v{0}"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Quit"
+msgstr "Вийти"
 
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 #: src/renderer/components/providers/usageFormat.ts
@@ -11130,6 +11150,7 @@ msgstr "Відновити повідомлення з черги"
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
+#: src/renderer/i18n/sharedMessages.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
