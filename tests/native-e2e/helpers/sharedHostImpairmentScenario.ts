@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { RealHostHandle } from "../harness/realHost.ts";
 import type { HostLoadSampler } from "./hostLoadSampler.ts";
 import { ProfileClient } from "./concurrencyProfileClient.ts";
+import { BOUND_CURSOR_SYNC_RESENDS } from "./terminalWatchRecorder.ts";
 import { acquireDeviceCredential, closeProfileClients } from "./profileClientFactory.ts";
 import {
   expectOk,
@@ -167,8 +168,28 @@ export async function runImpairmentScenario(
       }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
-    assert.strictEqual(healthyState?.contiguityViolations, 0, "healthy cursor-sync contiguity");
-    assert.strictEqual(slowState?.contiguityViolations, 0, "slow cursor-sync contiguity");
+    // Contiguity, with the v2 semantics the recorder documents: a duplicate/
+    // overlap re-delivery around the pause boundary is legal (the real client
+    // dedupes; bounded like sharedHostLoadProfile's re-delivery bound), but
+    // output LOSS is not — a non-chaining range that starts PAST the expected
+    // cursor is a gap and must fail the run.
+    for (const [label, state] of [
+      ["healthy", healthyState],
+      ["slow", slowState],
+    ] as const) {
+      const lostOutput =
+        state?.violations.filter(
+          (violation) =>
+            violation.expectedFromCursor !== null &&
+            violation.fromCursor > violation.expectedFromCursor,
+        ).length ?? 0;
+      assert.strictEqual(lostOutput, 0, `${label} cursor-sync lost output (cursor-sync gap)`);
+      assert(
+        (state?.contiguityViolations ?? 0) <= BOUND_CURSOR_SYNC_RESENDS,
+        `${label} cursor-sync: ${String(state?.contiguityViolations)} non-chaining ranges ` +
+          `exceed the v2 re-delivery bound ${String(BOUND_CURSOR_SYNC_RESENDS)}`,
+      );
+    }
     assert.strictEqual(slowState?.assembledText, healthyState?.assembledText);
     assert(
       healthyState?.assembledText.includes(marker),

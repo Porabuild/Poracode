@@ -8,7 +8,7 @@ import {
   readBoundedJsonBody,
   rejectChunkedRequest,
   stripBasePath,
-  writeError,
+  writeErrorAndDrain,
   writeJson,
 } from "./httpIo.ts";
 import { LabHttpError, parseBearerAuthorizationHeader } from "./labAuth.ts";
@@ -33,12 +33,12 @@ export async function handleLabHttp(
     const url = new URL(req.url ?? "/", runtime.httpBaseUrl);
     const pathname = stripBasePath(url.pathname, runtime.basePath);
     if (pathname === null) {
-      writeError(res, new LabHttpError("not_found", "Not found.", 404));
+      writeErrorAndDrain(req, res, new LabHttpError("not_found", "Not found.", 404));
       return;
     }
     const matched = matchHttpRoute(req.method ?? "GET", pathname, runtime.manifest);
     if (!matched) {
-      writeError(res, new LabHttpError("not_found", "Not found.", 404));
+      writeErrorAndDrain(req, res, new LabHttpError("not_found", "Not found.", 404));
       return;
     }
     runtime.observationLedger.recordOperation(`route:${matched.route.id}`, {
@@ -96,8 +96,7 @@ export async function handleLabHttp(
       }
     }
   } catch (error) {
-    if (!res.headersSent) writeError(res, error);
-    else req.socket.destroy();
+    writeErrorAndDrain(req, res, error);
   }
 }
 

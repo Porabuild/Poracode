@@ -18,7 +18,11 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html"],
     },
-    exclude: ["dist", "node_modules"],
+    // Perf suites assert absolute latency budgets, so they never run inside
+    // the sharded unit suite — sibling shard workers contend for the same
+    // cores and flip the budgets. They are collected by vitest.perf.config.ts
+    // and run via the `test:perf:*` scripts / the dedicated CI perf job.
+    exclude: ["dist", "node_modules", "**/*.perf.test.ts"],
     projects: [
       {
         extends: true,
@@ -53,7 +57,9 @@ export default defineConfig({
           // environment and `@` alias as src. Folded into this project so
           // `pnpm run test --shard=N/4` never shards a one-file project.
           include: ["src/**/*.test.{ts,tsx}", "protocol/**/*.test.ts"],
-          exclude: ["src/renderer/**/*.test.{ts,tsx}"],
+          // Project-level exclude replaces the inherited root exclude, so the
+          // perf-suite pattern is restated here.
+          exclude: ["src/renderer/**/*.test.{ts,tsx}", "**/*.perf.test.ts"],
           environment: "node",
         },
       },

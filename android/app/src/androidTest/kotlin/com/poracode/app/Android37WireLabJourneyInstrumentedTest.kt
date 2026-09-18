@@ -434,8 +434,21 @@ class Android37WireLabJourneyInstrumentedTest {
     }
 
     private fun waitForText(text: String, timeoutMs: Long = 30_000) {
-        compose.waitUntil(timeoutMs) {
-            compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
-        }
+        compose.waitUntil(timeoutMs) { hasText(text) }
     }
+
+    /**
+     * Zero-root-tolerant text probe. On the API 37 emulator, dismissing the
+     * system [ACCESS_LOCAL_NETWORK][android.Manifest.permission] dialog can
+     * transiently detach every Compose window of the app for a few seconds
+     * (observed: the launcher reached the foreground ~2 s after the deny click
+     * before the task was restored). `fetchSemanticsNodes` throws
+     * `IllegalStateException: No compose hierarchies found in the app` on that
+     * state instead of reporting an empty match, which would abort `waitUntil`
+     * on its first poll — so treat it as "not yet" and let the timeout wait the
+     * transition out.
+     */
+    private fun hasText(text: String): Boolean = runCatching {
+        compose.onAllNodesWithText(text).fetchSemanticsNodes()
+    }.getOrDefault(emptyList()).isNotEmpty()
 }

@@ -4,7 +4,7 @@ import {
   headerValue,
   readBoundedJsonBody,
   rejectChunkedRequest,
-  writeError,
+  writeErrorAndDrain,
   writeJson,
 } from "./httpIo.ts";
 import { LabHttpError } from "./labAuth.ts";
@@ -233,11 +233,9 @@ export class ControlServer {
       }
       throw new LabHttpError("not_found", "Not found.", 404);
     } catch (error) {
-      if (!res.headersSent) {
-        if (error instanceof LabHttpError)
-          assertSecretFree({ error: { code: error.code } }, "control-error");
-        writeError(res, error);
-      } else req.socket.destroy();
+      if (error instanceof LabHttpError && !res.headersSent)
+        assertSecretFree({ error: { code: error.code } }, "control-error");
+      writeErrorAndDrain(req, res, error);
     }
   }
 

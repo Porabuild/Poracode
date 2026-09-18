@@ -29,6 +29,27 @@ export function writeError(res: ServerResponse, error: unknown): void {
   });
 }
 
+/**
+ * Funnel for request-handler errors whose body may never have been read
+ * (header-time rejections: chunked encoding, auth, unknown route). After the
+ * response, drain whatever body bytes remain so the socket closes with FIN —
+ * closing with unread request bytes sends RST, which the client sees as
+ * ECONNRESET instead of the error response. Same drain-then-reject contract
+ * as HookIngress and `readBoundedNodeRequestBody`.
+ */
+export function writeErrorAndDrain(
+  req: IncomingMessage,
+  res: ServerResponse,
+  error: unknown,
+): void {
+  if (res.headersSent) {
+    req.socket.destroy();
+    return;
+  }
+  writeError(res, error);
+  req.resume();
+}
+
 export function rejectChunkedRequest(req: IncomingMessage): void {
   const encoding = String(req.headers["transfer-encoding"] ?? "").toLowerCase();
   if (encoding.includes("chunked")) {

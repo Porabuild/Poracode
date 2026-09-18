@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createEmptyComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.core.content.ContextCompat
@@ -51,6 +52,23 @@ class Android37MultihostInstrumentedTest {
             instrumentation.runOnMainSync { activity.finish() }
         }
         launchedActivity = null
+    }
+
+    /**
+     * Zero-root-tolerant text wait. Dismissing the system local-network dialog
+     * can transiently detach every Compose window of the app for a few seconds
+     * (observed on the API 37 emulator: the launcher reached the foreground ~2 s
+     * after the deny click before the task was restored), and
+     * `fetchSemanticsNodes` throws "No compose hierarchies found in the app" on
+     * that state instead of reporting an empty match — so the poll must treat
+     * the throw as "not yet" and let the timeout absorb the transition.
+     */
+    private fun waitForText(text: String, timeoutMs: Long = 30_000) {
+        compose.waitUntil(timeoutMs) {
+            runCatching {
+                compose.onAllNodesWithText(text).fetchSemanticsNodes()
+            }.getOrDefault(emptyList()).isNotEmpty()
+        }
     }
 
     @Test
@@ -101,6 +119,7 @@ class Android37MultihostInstrumentedTest {
         assertNotNull("System local-network deny action was not shown", deny)
         deny.click()
 
+        waitForText("Local network access denied")
         compose.onNodeWithText("Local network access denied").assertIsDisplayed()
         assertEquals(
             PackageManager.PERMISSION_DENIED,
