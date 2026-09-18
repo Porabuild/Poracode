@@ -33,6 +33,7 @@ import {
   isUnsupportedAcpLogoutError,
 } from "../agents/acp";
 import { buildAgentRegistryEntries } from "../agents/registry";
+import { isMockAgentLaunchEnforced } from "../agentLaunchGuard";
 import {
   autoUpdateAcpRegistryAgents,
   backfillAcpRegistryAgentIcons,
@@ -65,15 +66,25 @@ import { acpAutoInstallKey, collectFirstClassAcpAutoInstalls } from "./firstClas
 import type { AgentStatusService } from "./agentStatusService";
 import type { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
 
-const FIRST_CLASS_ACP_AUTO_INSTALL_ATTEMPTS = 2;
-const FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_DELAY_MS = 10_000;
 /**
- * How long a failed sweep is left alone before a later status query may try
- * again. Long enough that polling cannot hammer a download, short enough that a
- * machine which was offline (or whose CDN fetch blipped) at launch reconciles
+ * Auto-install attempts per supervisor process lifetime. Each attempt of a
+ * binary-backed registry agent downloads the provider's full archive, so a
+ * deterministic failure must not loop: after this many failures the agent is
+ * abandoned (in-memory) until the next app start, and the settings page's
+ * manual install remains available throughout.
+ */
+const FIRST_CLASS_ACP_AUTO_INSTALL_MAX_ATTEMPTS = 3;
+/**
+ * Delay before the next attempt after failure N: base * 2^(N-1) — 15 min, then
+ * 30 min. Long enough that polling cannot hammer a download, short enough that
+ * a machine which was offline (or whose CDN fetch blipped) at launch reconciles
  * without restarting the app.
  */
-const FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_COOLDOWN_MS = 15 * 60_000;
+const FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_DELAY_MS = 15 * 60_000;
+
+function firstClassAutoInstallRetryDelayMs(failures: number): number {
+  return FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_DELAY_MS * 2 ** (Math.max(failures, 1) - 1);
+}
 
 export interface AgentRegistryServiceDeps {
   adapters: Map<AgentKind, AgentAdapter>;
@@ -104,13 +115,22 @@ export class AgentRegistryService {
   >();
 
   /**
-   * Auto-install sweeps run so far this session, keyed by agent id +
-   * environment. Recorded before the attempt so a status-query burst cannot
-   * start several downloads of the same artifact, and kept unresolved on
-   * failure so the next sweep past the cooldown can retry — a transient failure
-   * used to disable chat for the rest of the session.
+   * Auto-install bookkeeping for this supervisor process, keyed by agent id +
+   * environment. In-memory only — every boot starts clean. Recorded before the
+   * attempt so a status-query burst cannot start several downloads of the same
+   * artifact. A failure schedules the next attempt exponentially later (see
+   * {@link firstClassAutoInstallRetryDelayMs}); once
+   * {@link FIRST_CLASS_ACP_AUTO_INSTALL_MAX_ATTEMPTS} attempts have failed the
+   * entry is abandoned and never retried this process — a deterministic
+   * post-extract failure used to re-download a provider's full archive every
+   * cooldown forever.
    */
-  private readonly acpAutoInstallSweeps = new Map<string, { at: number; installed: boolean }>();
+  private readonly acpAutoInstallSweeps = new Map<
+    string,
+    { at: number; installed: boolean; failures: number; abandoned: boolean }
+  >();
+  /** One skip note per process for the enforced-mock case (in-memory). */
+  private mockAutoInstallSkipWarned = false;
   /** Settings files confirmed free of legacy Antigravity ACP state on disk. */
   private readonly aliasPersistCheckedPaths = new Set<string>();
   /**
@@ -178,6 +198,22 @@ export class AgentRegistryService {
    * removed (`acpRegistryAutoInstallOptOuts`).
    */
   private async autoInstallFirstClassAcpRuntimes(response: AgentStatusesResponse): Promise<void> {
+    // The sweep verifies each installed artifact with an ACP capability probe —
+    // a `session-probe` lane launch. Under an enforced mock session that lane is
+    // refused unconditionally, so the probe can never succeed and every attempt
+    // would download the provider's full archive, extract it, refuse the probe,
+    // and cleanse — forever (the 24 h soak's churn-loop). Skip the whole sweep
+    // there; the settings page's manual install still surfaces the refusal.
+    if (isMockAgentLaunchEnforced()) {
+      if (!this.mockAutoInstallSkipWarned) {
+        this.mockAutoInstallSkipWarned = true;
+        console.warn(
+          "[supervisor] mock agents enforced: skipping first-class ACP auto-install — " +
+            "the artifact probe would be refused, so the download could never complete",
+        );
+      }
+      return;
+    }
     const now = Date.now();
     const candidates = collectFirstClassAcpAutoInstalls({
       statuses: [...response.windows, ...response.wsl],
@@ -185,7 +221,8 @@ export class AgentRegistryService {
     }).filter((task) => {
       const sweep = this.acpAutoInstallSweeps.get(acpAutoInstallKey(task));
       if (!sweep) return true;
-      return !sweep.installed && now - sweep.at >= FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_COOLDOWN_MS;
+      if (sweep.installed || sweep.abandoned) return false;
+      return now - sweep.at >= firstClassAutoInstallRetryDelayMs(sweep.failures);
     });
     if (candidates.length === 0) return;
 
@@ -195,51 +232,49 @@ export class AgentRegistryService {
     const installedKinds = new Set<AgentKind>();
     for (const task of candidates) {
       const sweepKey = acpAutoInstallKey(task);
-      this.acpAutoInstallSweeps.set(sweepKey, { at: Date.now(), installed: false });
+      const sweep = {
+        at: Date.now(),
+        installed: false,
+        failures: this.acpAutoInstallSweeps.get(sweepKey)?.failures ?? 0,
+        abandoned: false,
+      };
+      this.acpAutoInstallSweeps.set(sweepKey, sweep);
       // An opt-out is the user's decision, not a failure: settle it so the
-      // cooldown never reopens the question.
+      // backoff never reopens the question.
       if (optedOut.has(task.agentId)) {
-        this.acpAutoInstallSweeps.set(sweepKey, { at: Date.now(), installed: true });
+        sweep.installed = true;
         continue;
       }
-      for (let attempt = 1; attempt <= FIRST_CLASS_ACP_AUTO_INSTALL_ATTEMPTS; attempt += 1) {
-        try {
-          await installAcpRegistryAgentFromRegistry({
-            agentId: task.agentId,
-            baseDir: this.deps.baseDir,
-            settingsPath: this.deps.settingsPath,
-            iconsDir: this.deps.acpIconsDir,
-            target: task.target,
-            adapterKind: task.agentKind,
-            installKind: "first-class",
-            respectAutoInstallOptOut: true,
-          });
-          installedKinds.add(task.agentKind);
-          this.acpAutoInstallSweeps.set(sweepKey, { at: Date.now(), installed: true });
-          break;
-        } catch (error) {
+      try {
+        await installAcpRegistryAgentFromRegistry({
+          agentId: task.agentId,
+          baseDir: this.deps.baseDir,
+          settingsPath: this.deps.settingsPath,
+          iconsDir: this.deps.acpIconsDir,
+          target: task.target,
+          adapterKind: task.agentKind,
+          installKind: "first-class",
+          respectAutoInstallOptOut: true,
+        });
+        installedKinds.add(task.agentKind);
+        sweep.installed = true;
+      } catch (error) {
+        sweep.failures += 1;
+        const message = error instanceof Error ? error.message : String(error);
+        if (sweep.failures >= FIRST_CLASS_ACP_AUTO_INSTALL_MAX_ATTEMPTS) {
+          sweep.abandoned = true;
           console.warn(
-            `[supervisor] auto-install of ${task.agentId} for ${task.agentKind} failed (attempt ${attempt}/${FIRST_CLASS_ACP_AUTO_INSTALL_ATTEMPTS}):`,
-            error instanceof Error ? error.message : String(error),
+            `[supervisor] auto-install of ${task.agentId} for ${task.agentKind} failed ` +
+              `${sweep.failures} times; giving up until the next app start. ` +
+              `Last error: ${message}. Its agent settings page offers a manual install.`,
           );
-          if (attempt < FIRST_CLASS_ACP_AUTO_INSTALL_ATTEMPTS) {
-            if (
-              readAcpRegistrySettings(
-                this.deps.settingsPath,
-              ).acpRegistryAutoInstallOptOuts.includes(task.agentId)
-            ) {
-              break;
-            }
-            await new Promise((resolve) =>
-              setTimeout(resolve, FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_DELAY_MS),
-            );
-          } else {
-            console.warn(
-              `[supervisor] ${task.agentId} stays uninstalled for ${task.agentKind}; retrying no sooner than ${Math.round(
-                FIRST_CLASS_ACP_AUTO_INSTALL_RETRY_COOLDOWN_MS / 60_000,
-              )} minutes from now. Its agent settings page offers a manual install.`,
-            );
-          }
+        } else {
+          const retryDelayMs = firstClassAutoInstallRetryDelayMs(sweep.failures);
+          console.warn(
+            `[supervisor] auto-install of ${task.agentId} for ${task.agentKind} failed ` +
+              `(attempt ${sweep.failures}/${FIRST_CLASS_ACP_AUTO_INSTALL_MAX_ATTEMPTS}): ${message}; ` +
+              `retrying in ~${Math.round(retryDelayMs / 60_000)} minutes`,
+          );
         }
       }
     }

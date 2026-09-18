@@ -405,6 +405,9 @@ describe("ACP registry installs", () => {
       vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 })),
     );
     probeAcpGenericInstanceMock.mockResolvedValueOnce(undefined);
+    // A refused/failed probe used to fail the install silently — the 24 h soak
+    // churn-loop stayed invisible because no log named the failing stage.
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       await expect(
         installAcpRegistryAgent({
@@ -419,7 +422,14 @@ describe("ACP registry installs", () => {
       ).rejects.toThrow("ACP server did not complete initialization");
       expect(readAcpRegistrySettings(settingsPath).acpRegistryInstalledAgents).toEqual({});
       expect(readAcpRegistrySettings(settingsPath).agentInstances).toEqual({});
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("install probe for antigravity-acp"),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("returned no capability result"),
+      );
     } finally {
+      warnSpy.mockRestore();
       vi.unstubAllGlobals();
     }
   });
@@ -715,7 +725,10 @@ describe("ACP registry installs", () => {
       expect(probeAcpGenericInstanceMock).toHaveBeenCalledWith(
         expect.objectContaining({ id: "codex-acp", driver: "acp-generic" }),
         undefined,
-        { timeoutMs: REGISTRY_INSTALL_PROBE_TIMEOUT_MS },
+        {
+          timeoutMs: REGISTRY_INSTALL_PROBE_TIMEOUT_MS,
+          onFailureDetail: expect.any(Function),
+        },
       );
       expect(execFileMock).toHaveBeenCalledOnce();
       const [command, args, options] = execFileMock.mock.calls[0] ?? [];

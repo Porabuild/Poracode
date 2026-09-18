@@ -466,6 +466,14 @@ export async function probeAcpCapabilities(
      * that trigger browser OAuth.
      */
     authenticateMethodIds?: readonly string[];
+    /**
+     * Receives why the probe produced no usable result (spawn failure,
+     * timeout, protocol error, agent exit). Diagnostics only: a probe with a
+     * partial result still returns that result and never fires this. Lets
+     * callers that must explain an install failure surface the cause without
+     * making routine detection probes noisy.
+     */
+    onFailureDetail?: (reason: string) => void;
   },
 ): Promise<AcpProbeResult | undefined> {
   const timeoutMs = options?.timeoutMs ?? 15_000;
@@ -574,6 +582,7 @@ export async function probeAcpCapabilities(
     });
     if (spawnError) {
       console.log("%s failed to spawn: %s", tag, spawnError.message);
+      options?.onFailureDetail?.(`failed to spawn: ${spawnError.message}`);
       return undefined;
     }
 
@@ -820,10 +829,11 @@ export async function probeAcpCapabilities(
     }
 
     return probeResult;
-  } catch {
+  } catch (error) {
     if (Object.keys(probeResult).length > 0) {
       return probeResult;
     }
+    options?.onFailureDetail?.(error instanceof Error ? error.message : String(error));
     return undefined;
   } finally {
     if (abortProbe) options?.signal?.removeEventListener("abort", abortProbe);
