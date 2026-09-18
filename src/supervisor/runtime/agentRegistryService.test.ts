@@ -677,7 +677,7 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
     );
   });
 
-  it("waits before retrying a transient first-class install failure", async () => {
+  it("retries a failed auto-install after the base backoff, one attempt per sweep", async () => {
     vi.useFakeTimers();
     try {
       const { getAgentStatuses, refreshAgentStatuses, service } = createService();
@@ -691,11 +691,24 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
         .mockResolvedValueOnce([]);
 
       await service.getAgentStatuses({ wslDistros: [] });
-      await vi.advanceTimersByTimeAsync(9_999);
+      await vi.waitFor(() =>
+        expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(1),
+      );
+
+      // One download per sweep: status-query bursts inside the backoff window
+      // must not start another install cycle.
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.advanceTimersByTimeAsync(14 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
       expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(1);
 
-      await vi.advanceTimersByTimeAsync(1);
-      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2);
+      // Past the base backoff the sweep retries — and a success clears chat's
+      // blocker without waiting for another sweep.
+      await vi.advanceTimersByTimeAsync(2 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.waitFor(() =>
+        expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2),
+      );
       await vi.waitFor(() =>
         expect(refreshAgentStatuses).toHaveBeenCalledWith({
           wslDistros: [],
@@ -707,8 +720,9 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
     }
   });
 
-  it("retries a sweep that exhausted its attempts once the cooldown elapses", async () => {
+  it("backs off exponentially and abandons a persistently failing auto-install", async () => {
     vi.useFakeTimers();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const { getAgentStatuses, service } = createService();
       getAgentStatuses.mockResolvedValue({
@@ -716,28 +730,53 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
         wsl: [],
         fromCache: false,
       });
-      acpRegistryMocks.installAcpRegistryAgent
-        .mockRejectedValueOnce(new Error("offline"))
-        .mockRejectedValueOnce(new Error("offline"))
-        .mockResolvedValue([]);
-
-      await service.getAgentStatuses({ wslDistros: [] });
-      await vi.runAllTimersAsync();
-      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2);
-
-      // Both attempts spent: a further status query inside the cooldown must
-      // not re-download, but the machine coming back online later must not stay
-      // without chat until the app restarts.
-      await service.getAgentStatuses({ wslDistros: [] });
-      await vi.runAllTimersAsync();
-      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2);
-
-      await vi.advanceTimersByTimeAsync(15 * 60_000);
-      await service.getAgentStatuses({ wslDistros: [] });
-      await vi.waitFor(() =>
-        expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(3),
+      acpRegistryMocks.installAcpRegistryAgent.mockRejectedValue(
+        new Error("ACP server did not complete initialization"),
       );
+
+      const expectAttempts = async (count: number) =>
+        vi.waitFor(() =>
+          expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(count),
+        );
+
+      // Attempt 1 fails → retry decision must name the agent and the error.
+      await service.getAgentStatuses({ wslDistros: [] });
+      await expectAttempts(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("auto-install of antigravity-acp for antigravity failed"),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("(attempt 1/3)"));
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("ACP server did not complete initialization"),
+      );
+
+      // Attempt 2 only after the 15-minute base backoff.
+      await vi.advanceTimersByTimeAsync(14 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(2 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
+      await expectAttempts(2);
+
+      // Attempt 3 only after the doubled 30-minute backoff.
+      await vi.advanceTimersByTimeAsync(29 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(2 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
+      await expectAttempts(3);
+
+      // Budget spent: the failure is terminal for this process — no further
+      // status query may re-download, even hours later.
+      await vi.advanceTimersByTimeAsync(10 * 60 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
+      expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(3);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("giving up until the next app start"),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Last error:"));
     } finally {
+      warnSpy.mockRestore();
       vi.useRealTimers();
     }
   });
@@ -767,10 +806,55 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
       await vi.waitFor(() =>
         expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(1),
       );
-      await vi.runAllTimersAsync();
+
+      // The next sweep — backoff long since elapsed — re-reads the opt-out and
+      // settles it instead of downloading again.
+      await vi.advanceTimersByTimeAsync(15 * 60_000 + 1);
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
 
       expect(acpRegistryMocks.installAcpRegistryAgent).toHaveBeenCalledTimes(1);
     } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("skips the auto-install sweep entirely while mock agents are enforced", async () => {
+    vi.useFakeTimers();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const originalMock = process.env.PORACODE_MOCK_AGENTS;
+    const originalDev = process.env.PORACODE_IS_DEV;
+    process.env.PORACODE_MOCK_AGENTS = "1";
+    process.env.PORACODE_IS_DEV = "1";
+    try {
+      const { getAgentStatuses, service } = createService();
+      getAgentStatuses.mockResolvedValue({
+        windows: [antigravityStatus({ cli: true, acp: false })],
+        wsl: [],
+        fromCache: false,
+      });
+
+      // The artifact probe is a session-probe lane launch, refused in an
+      // enforced mock session — downloading would churn forever. No attempt,
+      // and the skip is surfaced once.
+      await service.getAgentStatuses({ wslDistros: [] });
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.advanceTimersByTimeAsync(60 * 60_000);
+      await service.getAgentStatuses({ wslDistros: [] });
+      await vi.waitFor(() => expect(warnSpy).toHaveBeenCalled());
+
+      expect(acpRegistryMocks.installAcpRegistryAgent).not.toHaveBeenCalled();
+      const skipNotes = warnSpy.mock.calls.filter((call) =>
+        String(call[0]).includes("skipping first-class ACP auto-install"),
+      );
+      expect(skipNotes).toHaveLength(1);
+    } finally {
+      if (originalMock === undefined) delete process.env.PORACODE_MOCK_AGENTS;
+      else process.env.PORACODE_MOCK_AGENTS = originalMock;
+      if (originalDev === undefined) delete process.env.PORACODE_IS_DEV;
+      else process.env.PORACODE_IS_DEV = originalDev;
+      warnSpy.mockRestore();
       vi.useRealTimers();
     }
   });

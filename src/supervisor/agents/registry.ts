@@ -1,3 +1,4 @@
+import { createDevinAdapter } from "./devin";
 /**
  * Provider manifest (supervisor).
  * To add a built-in provider: import its factory, add to the array.
@@ -92,6 +93,7 @@ export function buildAgentRegistryEntries(
     builtIn(createOpenCode2Adapter()),
     builtIn(createPiAdapter()),
     builtIn(createFactoryAdapter()),
+    builtIn(createDevinAdapter()),
   ];
   const firstClassRegistryIds = new Set(
     builtIns.flatMap(({ adapter }) =>

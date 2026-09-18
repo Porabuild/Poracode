@@ -1,4 +1,14 @@
-import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode, RefObject } from "react";
+import {
+  useEffect,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+  type TransitionEvent,
+} from "react";
+import { PanelContentDeferredContext } from "@/renderer/components/layout/panelMotion";
 
 export type AsideOrientation = "vertical" | "horizontal";
 
@@ -111,6 +121,25 @@ export function AsideSlot(props: {
   // a plain opacity transition is reliable there — and unlike the keyframe it
   // fades cleanly on close from its current value instead of snapping to 0.
   const contentVisible = overlay ? overlayReady : isOpen;
+  const [openingSettled, setOpeningSettled] = useState(false);
+  if (!contentVisible && openingSettled) setOpeningSettled(false);
+  const opening = contentVisible && !openingSettled;
+  useEffect(() => {
+    if (!opening) return;
+    // A panel can mount at its final size or stop receiving transition events
+    // when occluded. Keep its body reachable in those cases too.
+    const timeout = window.setTimeout(() => setOpeningSettled(true), overlay ? 350 : 200);
+    return () => window.clearTimeout(timeout);
+  }, [opening, overlay]);
+
+  function onSizeTransitionEnd(event: TransitionEvent<HTMLElement>) {
+    if (event.target !== event.currentTarget) return;
+    const isSizeTransition = overlay
+      ? event.propertyName === "translate" || event.propertyName === "transform"
+      : event.propertyName === (isHorizontal ? "height" : "width");
+    if (!isSizeTransition) return;
+    if (contentVisible) setOpeningSettled(true);
+  }
   const contentFadeDuration = overlay ? "300ms" : dockedFadeDuration;
   const contentFadeEase = contentVisible ? "ease-out" : "ease-in";
   const innerStyle: CSSProperties = {
@@ -141,7 +170,14 @@ export function AsideSlot(props: {
           aria-label={ariaLabel}
         />
       )}
-      <aside key={asideKey} ref={panelRef} className={asideClassName} style={asideStyle}>
+      <aside
+        key={asideKey}
+        ref={panelRef}
+        className={asideClassName}
+        style={asideStyle}
+        onTransitionEnd={onSizeTransitionEnd}
+        inert={!isOpen}
+      >
         {showOverlayHandle && (
           <div
             key="overlay-handle"
@@ -156,7 +192,9 @@ export function AsideSlot(props: {
           />
         )}
         <div ref={panelInnerRef} className="h-full w-full" style={innerStyle}>
-          {children}
+          <PanelContentDeferredContext value={!isOpen || opening || !contentVisible}>
+            {children}
+          </PanelContentDeferredContext>
         </div>
       </aside>
     </>

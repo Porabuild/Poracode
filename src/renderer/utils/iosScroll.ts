@@ -9,9 +9,8 @@ let cachedIsIosTouchScroll: boolean | undefined;
  * Detection mirrors @tanstack/virtual-core's own iOS check: the
  * iPhone/iPod/iPad UA string, plus iPadOS which masquerades as desktop Safari
  * ("MacIntel") but exposes touch points. Memoised because the form factor
- * never changes at runtime. Deliberately NOT placed in `src/mobile/pwaInstall`
- * — that module registers `beforeinstallprompt`/`appinstalled` listeners at
- * import time, which the shared renderer/desktop bundle must not pull in.
+ * never changes at runtime. Kept separate from PWA installation lifecycle code
+ * so scroll behavior can be reused without registering install listeners.
  */
 export function isIosTouchScroll(): boolean {
   if (cachedIsIosTouchScroll !== undefined) return cachedIsIosTouchScroll;

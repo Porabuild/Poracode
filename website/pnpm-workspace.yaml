@@ -1,6 +1,9 @@
 packages:
   - "."
 
+# Share the virtual store across worktrees/checkouts (see pnpm.io/git-worktrees).
+enableGlobalVirtualStore: true
+
 allowBuilds:
   sharp: true
 minimumReleaseAgeExclude:

@@ -56,6 +56,16 @@ describe("SidebarFooterNav", () => {
     expect(screen.queryByRole("button", { name: "Expand footer" })).not.toBeInTheDocument();
   });
 
+  it("hides Remote Access when the current host cannot serve incoming connections", () => {
+    render(<SidebarFooterNav remoteAccessStatus="off" showRemoteAccess={false} />);
+
+    expect(screen.getByText("Settings")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remote Access" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse footer" }));
+    expect(screen.queryByRole("button", { name: "Remote Access" })).not.toBeInTheDocument();
+  });
+
   it("collapses to an icon row and back via the toggle", () => {
     render(<SidebarFooterNav remoteAccessStatus="off" />);
 

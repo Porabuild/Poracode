@@ -16,6 +16,25 @@ const RUNTIME_PAGE_SCAN_SIZE = 500;
 const RUNTIME_TIMELINE_PAGE_SIZE = 40;
 const MAX_CACHED_THREAD_TRANSCRIPTS = 10;
 const MAX_CACHED_THREAD_RUNTIME_ITEMS = 5_000;
+/**
+ * BEHAVIOR CHANGE (Gate 4 Batch 1, bounded visible window): a LIVE thread
+ * (retained by an open ChatPane) previously grew its in-memory transcript
+ * without bound — `MAX_CACHED_THREAD_RUNTIME_ITEMS` only evicts INACTIVE
+ * threads, so an open thread streaming for hours accumulated every item. The
+ * visible window below bounds that live growth by estimated bytes while the
+ * DB (and the existing older-page cursor) remains the durable source.
+ */
+/** Byte budget for the most recent history kept visible of a live thread. */
+const VISIBLE_WINDOW_TAIL_BYTES = 6 * 1024 * 1024;
+/** Byte budget of explicitly user-paged history kept pinned at the front. */
+const VISIBLE_WINDOW_PAGED_PROTECTED_BYTES = 2 * 1024 * 1024;
+/** Minimum new items between window passes; bounds the pass frequency. */
+const WINDOW_BOUND_MIN_GROWTH_ITEMS = 400;
+/** A full re-measure + trim pass runs at most this often per thread. */
+const WINDOW_BOUND_PASS_INTERVAL_MS = 5_000;
+/** Hard cap on retained completed-turn records (anchor metadata is small but unbounded). */
+const MAX_CACHED_COMPLETED_TURN_RECORDS = 500;
+
 const hydratedThreadRuntimeIds = new Set<string>();
 const pendingThreadRuntimeHydrations = new Map<string, Promise<boolean>>();
 const olderRuntimePageCursorByThread = new Map<string, number | null>();
@@ -25,6 +44,209 @@ const pendingOlderRuntimePages = new Map<
 >();
 const retainedThreadRuntimeCounts = new Map<string, number>();
 const inactiveThreadRuntimeLru = new Set<string>();
+
+/**
+ * Per-thread byte ledger for the bounded visible window. Sizes are UTF-16
+ * length estimates (JSON payload + stream buckets), not exact UTF-8 bytes —
+ * they bound memory, they do not bill bytes. All state is session-local and
+ * never persisted, so no storage version participates.
+ */
+interface ThreadWindowLedger {
+  bytesByItemId: Map<string, number>;
+  measuredBytes: number;
+  measuredCount: number;
+  pagedProtectedIds: Set<string>;
+  pagedProtectedOrder: string[];
+  pagedProtectedBytes: number;
+  lastPassAtMs: number;
+}
+
+const threadWindowLedgers = new Map<string, ThreadWindowLedger>();
+
+function estimateRuntimeItemBytes(item: RuntimeChatItem | undefined): number {
+  if (!item) return 0;
+  // id/type/state fields plus per-item object overhead approximation.
+  let bytes = 96;
+  if (item.payload !== undefined) {
+    try {
+      bytes += JSON.stringify(item.payload)?.length ?? 0;
+    } catch {
+      // A non-serializable payload still occupies memory; charge a page.
+      bytes += 1024;
+    }
+  }
+  for (const value of Object.values(item.streams)) bytes += value.length;
+  return bytes;
+}
+
+function getThreadWindowLedger(threadId: string): ThreadWindowLedger {
+  let ledger = threadWindowLedgers.get(threadId);
+  if (!ledger) {
+    ledger = {
+      bytesByItemId: new Map(),
+      measuredBytes: 0,
+      measuredCount: 0,
+      pagedProtectedIds: new Set(),
+      pagedProtectedOrder: [],
+      pagedProtectedBytes: 0,
+      lastPassAtMs: 0,
+    };
+    threadWindowLedgers.set(threadId, ledger);
+  }
+  return ledger;
+}
+
+function forgetThreadWindowLedger(threadId: string): void {
+  threadWindowLedgers.delete(threadId);
+}
+
+/**
+ * Registers explicitly user-paged items (an `loadOlderThreadRuntimeItems`
+ * prepend) as protected window history so the bound cannot discard the page
+ * the user just scrolled to. Protection is FIFO-capped at
+ * {@link VISIBLE_WINDOW_PAGED_PROTECTED_BYTES}: the OLDEST paged history
+ * loses protection first, so a reader who pages deep keeps their recent
+ * pages and the total stays bounded.
+ */
+function markRuntimeItemsPaged(threadId: string, items: readonly RuntimeChatItem[]): void {
+  if (items.length === 0) return;
+  const ledger = getThreadWindowLedger(threadId);
+  for (const item of items) {
+    if (ledger.pagedProtectedIds.has(item.id)) continue;
+    ledger.pagedProtectedIds.add(item.id);
+    ledger.pagedProtectedOrder.push(item.id);
+    ledger.pagedProtectedBytes += estimateRuntimeItemBytes(item);
+  }
+  while (
+    ledger.pagedProtectedBytes > VISIBLE_WINDOW_PAGED_PROTECTED_BYTES &&
+    ledger.pagedProtectedOrder.length > 0
+  ) {
+    const oldest = ledger.pagedProtectedOrder.shift()!;
+    const bytes = ledger.bytesByItemId.get(oldest) ?? 0;
+    if (ledger.pagedProtectedIds.delete(oldest)) ledger.pagedProtectedBytes -= bytes;
+  }
+}
+
+/**
+ * Bounds the visible window of LIVE (retained) threads to
+ * {@link VISIBLE_WINDOW_TAIL_BYTES} of recent history plus the protected
+ * paged prefix. Trimming removes a middle range — everything between the
+ * protected prefix and the recent tail — and drops completed-turn records
+ * anchored in the trimmed range. The DB keeps every row and remains
+ * authoritative, but NOTE: the trimmed middle is NOT lazily restorable in
+ * this session — the older-page cursor only pages strictly older than the
+ * last page boundary, while the trimmed middle sits at newer DB positions,
+ * and hydration early-returns while the thread stays cached. The gap is
+ * closed on the next real rehydration (thread leaves the 10-thread LRU or
+ * the app restarts).
+ *
+ * Passes are gated (≥ 400 new items or ≥ 5 s since the last pass) so the
+ * re-measure walk stays amortized; between passes at most the gated growth
+ * is unbounded, which is itself bounded by the drain cadence.
+ */
+export function boundVisibleThreadRuntimeWindows(threadIds: readonly string[]): void {
+  for (const threadId of threadIds) {
+    const state = useAppStore.getState();
+    const itemIds = state.runtimeItemIdsByThread[threadId];
+    if (!itemIds) {
+      forgetThreadWindowLedger(threadId);
+      continue;
+    }
+    const ledger = getThreadWindowLedger(threadId);
+    const nowMs = Date.now();
+    if (
+      nowMs - ledger.lastPassAtMs < WINDOW_BOUND_PASS_INTERVAL_MS &&
+      itemIds.length - ledger.measuredCount < WINDOW_BOUND_MIN_GROWTH_ITEMS
+    ) {
+      continue;
+    }
+    ledger.lastPassAtMs = nowMs;
+
+    // Full re-measure: streaming deltas mutate EXISTING items, so byte sizes
+    // go stale without a fresh walk. Cost is proportional to the visible
+    // window (a few MB stringify), amortized by the pass gate.
+    const itemsById = state.runtimeItemsByIdByThread[threadId] ?? {};
+    const bytesByItemId = new Map<string, number>();
+    let measuredBytes = 0;
+    for (const id of itemIds) {
+      const bytes = estimateRuntimeItemBytes(itemsById[id]);
+      bytesByItemId.set(id, bytes);
+      measuredBytes += bytes;
+    }
+    ledger.bytesByItemId = bytesByItemId;
+    ledger.measuredBytes = measuredBytes;
+    ledger.measuredCount = itemIds.length;
+
+    // Protected contiguous prefix: explicitly paged history (byte-capped at
+    // registration) plus pinned goal rows, which must stay visible because
+    // the composer dock reads them.
+    let protectedEnd = 0;
+    while (protectedEnd < itemIds.length) {
+      const id = itemIds[protectedEnd]!;
+      if (!ledger.pagedProtectedIds.has(id) && itemsById[id]?.type !== "goal") break;
+      protectedEnd += 1;
+    }
+
+    // Recent tail: walk backwards until the byte budget is spent. The newest
+    // item is always kept even when it alone exceeds the budget. Goal rows
+    // and live non-completed rows are unbreakable: the composer dock reads
+    // in-memory goals wherever they sit (a mid-session goal drifts backward
+    // as newer payload arrives), and trimming a still-streaming row would
+    // silently drop its remaining events for the whole session (the reducer
+    // no-ops updates for absent ids).
+    let tailStart = itemIds.length;
+    let tailBytes = 0;
+    for (let index = itemIds.length - 1; index >= protectedEnd; index -= 1) {
+      const id = itemIds[index]!;
+      const item = itemsById[id];
+      const unbreakable = item?.type === "goal" || (item != null && item.state !== "completed");
+      const bytes = bytesByItemId.get(id) ?? 0;
+      if (
+        index < itemIds.length - 1 &&
+        !unbreakable &&
+        tailBytes + bytes > VISIBLE_WINDOW_TAIL_BYTES
+      )
+        break;
+      tailBytes += bytes;
+      tailStart = index;
+    }
+
+    const trimCount = tailStart - protectedEnd;
+    if (measuredBytes > VISIBLE_WINDOW_TAIL_BYTES + ledger.pagedProtectedBytes && trimCount > 0) {
+      const removedIds = itemIds.slice(protectedEnd, tailStart);
+      useAppStore.getState().trimThreadRuntimeItems(threadId, protectedEnd, trimCount);
+      for (const id of removedIds) {
+        const removedBytes = bytesByItemId.get(id) ?? 0;
+        ledger.measuredBytes -= removedBytes;
+        bytesByItemId.delete(id);
+        if (ledger.pagedProtectedIds.has(id)) {
+          // Defensive: a trimmed paged row must not keep its protection charge.
+          ledger.pagedProtectedIds.delete(id);
+          ledger.pagedProtectedBytes = Math.max(0, ledger.pagedProtectedBytes - removedBytes);
+        }
+      }
+      ledger.measuredCount = itemIds.length - trimCount;
+      // Trimmed rows void the selector memo caches the same way evictions do.
+      clearRuntimeItemStoreSelectorCacheForThread(threadId);
+      boundThreadCompletedTurns(threadId, new Set(removedIds));
+    } else {
+      boundThreadCompletedTurns(threadId, null);
+    }
+  }
+}
+
+/** Drops turn records anchored in trimmed ranges and enforces the record cap. */
+function boundThreadCompletedTurns(threadId: string, removedIds: ReadonlySet<string> | null): void {
+  const turns = useAppStore.getState().runtimeCompletedTurnsByThread[threadId];
+  if (!turns || turns.length === 0) return;
+  let kept = removedIds
+    ? turns.filter((turn) => !turn.anchorItemId || !removedIds.has(turn.anchorItemId))
+    : turns;
+  if (kept.length > MAX_CACHED_COMPLETED_TURN_RECORDS) {
+    kept = kept.slice(-MAX_CACHED_COMPLETED_TURN_RECORDS);
+  }
+  if (kept !== turns) useAppStore.getState().replaceThreadCompletedTurns(threadId, kept);
+}
 
 /**
  * Seed the older-page cursor when a remote thread snapshot supplies its tail.
@@ -109,6 +331,11 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
     const items = compactRuntimeItemsForHydration(page.items.map(toRuntimeChatItem));
     useAppStore.getState().prependThreadRuntimeItems(threadId, items);
     useAppStore.getState().reconcileStaleSubAgents(threadId, { preserveObservedLive: true });
+    // The user explicitly loaded this page: protect it from the window bound
+    // (byte-capped) and re-bound the window since the tail may have grown
+    // while the read was in flight.
+    markRuntimeItemsPaged(threadId, items);
+    boundVisibleThreadRuntimeWindows([threadId]);
     evictOversizedInactiveThreadRuntimeItems([threadId]);
     evictInactiveThreadRuntimeItems();
     return true;
@@ -141,14 +368,23 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
     return;
   }
 
+  // Surface loading/error for the pane's first read so an opening thread does
+  // not flash a false "No messages yet" (WS6). Only meaningful while the
+  // transcript is still empty; a re-hydration of a retained thread is silent.
+  const isEmptyBefore =
+    (useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0) === 0;
+  if (isEmptyBefore) useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
   const hydration = hydrateThreadRuntimeItemsFromDb(threadId);
   pendingThreadRuntimeHydrations.set(threadId, hydration);
   try {
     const completed = await hydration;
     if (completed) {
       hydratedThreadRuntimeIds.add(threadId);
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
       evictOversizedInactiveThreadRuntimeItems([threadId]);
       evictInactiveThreadRuntimeItems();
+    } else if (isEmptyBefore) {
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
     }
   } finally {
     pendingThreadRuntimeHydrations.delete(threadId);
@@ -223,7 +459,11 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
       if (!Number.isFinite(startedAt) || !Number.isFinite(endedAt)) return [];
       return [{ startedAt, endedAt, anchorItemId: row.anchorItemId }];
     });
-    useAppStore.getState().hydrateThreadCompletedTurns(threadId, records);
+    // Bounded visible window: keep only the most recent records so a
+    // thousands-of-turns thread cannot accumulate anchor metadata forever.
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(threadId, records.slice(-MAX_CACHED_COMPLETED_TURN_RECORDS));
   } else if (turnsResult.status === "rejected") {
     console.warn(
       "[chat] failed to hydrate completed turns for thread %s",
@@ -281,8 +521,26 @@ function evictThreadRuntimeItems(threadId: string): void {
   hydratedThreadRuntimeIds.delete(threadId);
   olderRuntimePageCursorByThread.delete(threadId);
   cancelPendingOlderRuntimePage(threadId);
+  forgetThreadWindowLedger(threadId);
   clearRuntimeItemStoreSelectorCacheForThread(threadId);
   useAppStore.getState().evictThreadRuntimeItems(threadId);
+}
+
+/**
+ * WS6 P1-10: a `thread-reset` (loss-range rebuild) wipes the in-memory
+ * transcript. Without clearing the hydration marker, the next ChatPane mount
+ * early-returns "already hydrated" and the transcript would stay empty.
+ * Re-seeds the thread from the local DB, which still holds the events the
+ * live stream lost (the backend persists them before broadcast).
+ */
+export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): Promise<boolean> {
+  hydratedThreadRuntimeIds.delete(threadId);
+  olderRuntimePageCursorByThread.delete(threadId);
+  // An in-flight older page from before the reset must not prepend across the
+  // reset boundary or write back its stale cursor after the fresh read.
+  cancelPendingOlderRuntimePage(threadId);
+  await hydrateThreadRuntimeItems(threadId);
+  return useAppStore.getState().runtimeHydrationStatus[threadId] !== "failed";
 }
 
 function cancelPendingOlderRuntimePage(threadId: string): void {

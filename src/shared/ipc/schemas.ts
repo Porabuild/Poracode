@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { RuntimeEvent, WorkflowRun } from "../contracts";
 import {
   agentKindSchema,
   experimentSchema,
@@ -7,10 +6,14 @@ import {
   projectLocationSchema,
   projectNotesSchema,
   projectSchema,
+  runtimeEventSchema,
   threadConfigSchema,
   threadContextUsageSchema,
   threadPresentationModeSchema,
   threadSchema,
+  workflowRunSchema,
+  type RuntimeEvent,
+  type WorkflowRun,
 } from "../contracts";
 
 export const pickFilesOptionsSchema = z
@@ -101,6 +104,10 @@ export interface SubAgentSubscribeResult {
   history: RuntimeEvent[];
 }
 
+export const subAgentSubscribeResultSchema: z.ZodType<SubAgentSubscribeResult> = z.object({
+  history: z.array(runtimeEventSchema),
+});
+
 export const workflowGetRunPayloadSchema = z.object({
   manifestPath: z.string().min(1),
   /** Used to scan for in-flight `agent-*.meta.json` files before the manifest exists. */
@@ -115,6 +122,11 @@ export interface WorkflowGetRunResult {
   mtimeMs?: number;
 }
 
+export const workflowGetRunResultSchema = z.object({
+  run: workflowRunSchema.nullable(),
+  mtimeMs: z.number().finite().nonnegative().optional(),
+});
+
 export const workflowAgentChatPayloadSchema = z.object({
   /** Synthetic renderer-side thread id the returned events are keyed under. */
   threadId: z.string().min(1),
@@ -128,6 +140,10 @@ export type WorkflowAgentChatPayload = z.infer<typeof workflowAgentChatPayloadSc
 export interface WorkflowAgentChatResult {
   events: RuntimeEvent[];
 }
+
+export const workflowAgentChatResultSchema: z.ZodType<WorkflowAgentChatResult> = z.object({
+  events: z.array(runtimeEventSchema),
+});
 
 export const dbStateKeySchema = z.string().min(1);
 export const dbStatePayloadSchema = z.object({
@@ -151,6 +167,24 @@ export const dbSyncAllPayloadSchema = z.object({
   threads: z.array(persistedThreadSchema),
   viewJson: z.string(),
 });
+export const dbSyncChangesPayloadSchema = z.object({
+  /** Only the rows whose content changed since the last persisted snapshot,
+   * each carrying its index in the renderer's full list — sort_order is a
+   * property of the array, invisible to per-row diffing. */
+  projects: z.array(
+    z.object({ project: projectSchema, sortOrder: z.number().int().nonnegative() }),
+  ),
+  threads: z.array(
+    z.object({ thread: persistedThreadSchema, sortOrder: z.number().int().nonnegative() }),
+  ),
+  deletedProjectIds: z.array(z.string().min(1)),
+  deletedThreadIds: z.array(z.string().min(1)),
+  /** Shipped when the id sequence changed (reorder, insert, remove): the full
+   * ordered id lists so main reindexes every row's sort_order. */
+  projectOrder: z.array(z.string().min(1)).optional(),
+  threadOrder: z.array(z.string().min(1)).optional(),
+  viewJson: z.string(),
+});
 export const dbPersistExperimentStatePayloadSchema = z.object({
   upsertThreads: z.array(
     z.object({
@@ -162,6 +196,26 @@ export const dbPersistExperimentStatePayloadSchema = z.object({
   experiments: z.record(z.string(), experimentSchema),
 });
 export type DbPersistExperimentStatePayload = z.infer<typeof dbPersistExperimentStatePayloadSchema>;
+
+/**
+ * Bounded thread-list read (Gate 4 hazard #3): `dbGetThreads` returns every row
+ * and every client attach transferred the whole list, so page the list instead.
+ * The ceiling keeps one page's serialized reply under the 64 KiB response bound
+ * at realistic thread sizes (see the snapshots pagination acceptance test).
+ */
+export const dbGetThreadsPagePayloadSchema = z.object({
+  limit: z.number().int().min(1).max(200),
+  /** Opaque cursor from a previous page's `nextCursor` (`tp1.`-prefixed). */
+  cursor: z.string().min(1).max(256).optional(),
+  /** Project-scoped read; absent means every project. */
+  projectId: z.string().min(1).optional(),
+});
+export const persistedThreadPageSchema = z.object({
+  threads: z.array(persistedThreadSchema),
+  /** Present when older (higher sort_order) threads remain; absent/null = end. */
+  nextCursor: z.string().nullable(),
+});
+export type PersistedThreadPage = z.infer<typeof persistedThreadPageSchema>;
 
 export const persistedRuntimeItemSchema = z.object({
   id: z.string().min(1),

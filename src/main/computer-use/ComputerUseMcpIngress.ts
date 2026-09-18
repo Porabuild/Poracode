@@ -1,4 +1,6 @@
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
+import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
+import { joinRuntimeShutdown } from "@/shared/joinRuntimeShutdown";
 import { createComputerUseDriver, type CreateComputerUseDriverOptions } from "./drivers";
 import type { ComputerUseDriver } from "./mcp/types";
 import {
@@ -67,6 +69,10 @@ export class ComputerUseMcpIngress {
   private readonly exitedThreads = new Set<string>();
   private readonly driver: ComputerUseDriver;
   private readonly ingress: StreamableHttpMcpIngress<ToolContext>;
+  private readonly prewarm = new AsyncWorkTracker();
+  private starting: Promise<ComputerUseMcpIngressInfo> | undefined;
+  private closing: Promise<void> | undefined;
+  private stopping = false;
 
   constructor(private readonly options: ComputerUseMcpIngressOptions = {}) {
     const configuredWarn = options.driverOptions?.warn;
@@ -95,10 +101,24 @@ export class ComputerUseMcpIngress {
     });
   }
 
-  async start(): Promise<ComputerUseMcpIngressInfo> {
-    const info = await this.ingress.start();
-    void this.driver.describeStatus().catch(() => {});
-    return info;
+  start(): Promise<ComputerUseMcpIngressInfo> {
+    if (this.stopping) return Promise.reject(new Error("Computer-use ingress is stopping."));
+    if (this.starting) return this.starting;
+    const barrier = Promise.withResolvers<ComputerUseMcpIngressInfo>();
+    this.starting = barrier.promise;
+    void this.ingress
+      .start()
+      .then((info) => {
+        if (this.stopping) throw new Error("Computer-use ingress is stopping.");
+        void this.prewarm.run(() => this.driver.describeStatus()).catch(() => {});
+        if (this.stopping) throw new Error("Computer-use ingress is stopping.");
+        return info;
+      })
+      .then(barrier.resolve, (error: unknown) => {
+        if (!this.stopping) this.starting = undefined;
+        barrier.reject(error);
+      });
+    return barrier.promise;
   }
 
   getInfo(): ComputerUseMcpIngressInfo | null {
@@ -106,17 +126,34 @@ export class ComputerUseMcpIngress {
   }
 
   interruptActiveActions(threadIds: readonly string[] = []): void {
+    if (this.stopping) return;
     this.generation += 1;
     for (const threadId of threadIds) this.exitedThreads.add(threadId);
     this.driver.dispose();
   }
 
-  dispose(): void {
+  dispose(): Promise<void> {
+    if (this.closing) return this.closing;
+    this.stopping = true;
     this.generation += 1;
-    this.ingress.dispose();
-    // Release the driver's long-lived resources (e.g. the Windows persistent
-    // PowerShell host) so the child process doesn't leak on app teardown.
-    this.driver.dispose();
+    const barrier = Promise.withResolvers<void>();
+    this.closing = barrier.promise;
+    // Close external admission and cancel native work before waiting for tool
+    // callbacks: those callbacks may need native cancellation to settle.
+    void joinRuntimeShutdown(
+      [
+        () => this.ingress.dispose(),
+        () => this.driver.close(),
+        () =>
+          this.starting?.then(
+            () => undefined,
+            () => undefined,
+          ),
+        () => this.prewarm.drain(),
+      ],
+      "Computer-use shutdown is unconfirmed.",
+    ).then(barrier.resolve, barrier.reject);
+    return barrier.promise;
   }
 
   private buildContext(identity: McpThreadIdentity): ToolContext {

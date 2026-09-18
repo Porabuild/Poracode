@@ -130,7 +130,6 @@ async function runOneShotPromptWithFallbackImpl(
 
   const useSdkPath = typeof runOneShot === "function";
   const executionLocation = await resolveAgentProjectLocation(
-    options.adapter,
     options.location,
     undefined,
     options.signal,

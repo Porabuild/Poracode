@@ -1,6 +1,11 @@
+import { CROSSAGENT_MCP_TIMEOUT_MS } from "@/supervisor/crossagentMcp/waitTiming";
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
+import {
+  MockAgentLaunchBlockedError,
+  assertAgentLaunchAllowed,
+} from "@/supervisor/agentLaunchGuard";
 import {
   applyHomeScopePermissions,
   type UnrestrictedPermissionCapabilities,
@@ -247,7 +252,7 @@ export function composeResolvedMcpServers(
   return [
     ...snapshot.mcpServers,
     http("browser", browserMcp),
-    http("crossagents", crossagentMcp, 300_000, "approve"),
+    http("crossagents", crossagentMcp, CROSSAGENT_MCP_TIMEOUT_MS, "approve"),
     http("computer-use", computerUseMcp),
     http("chrome", chromeMcp),
     http("app-controls", appControlsMcp),
@@ -297,28 +302,11 @@ export interface SpawnPipelineContext {
 }
 
 export async function resolveThreadExecution(
-  adapter: AgentAdapter,
   projectLocation: ProjectLocation,
   config: ThreadConfig,
 ): Promise<{ location: ProjectLocation; config: ThreadConfig }> {
-  const { executionEnvironment, ...baseConfig } = config;
-  const location = await resolveAgentProjectLocation(
-    adapter,
-    projectLocation,
-    executionEnvironment,
-  );
-  return {
-    location,
-    config:
-      adapter.windowsProjectExecution === "wsl" &&
-      projectLocation.kind === "windows" &&
-      location.kind === "wsl"
-        ? {
-            ...baseConfig,
-            executionEnvironment: { kind: "wsl", distro: location.distro },
-          }
-        : baseConfig,
-  };
+  const location = await resolveAgentProjectLocation(projectLocation, config.executionEnvironment);
+  return { location, config };
 }
 
 /**
@@ -351,7 +339,6 @@ export class SpawnPipeline {
 
     const adapter = this.requireAdapter(payload.agentKind);
     const { location: executionLocation, config: runtimeConfig } = await resolveThreadExecution(
-      adapter,
       payload.projectLocation,
       payload.config,
     );
@@ -796,12 +783,18 @@ export class SpawnPipeline {
         payload.sessionRef,
       );
     }
-    argv.args = await applyLaunchArgsConfigRewrite(
-      adapter,
-      argv.args,
-      runtimeConfig,
-      executionLocation,
-    );
+    try {
+      argv.args = await applyLaunchArgsConfigRewrite(
+        adapter,
+        argv.args,
+        runtimeConfig,
+        executionLocation,
+      );
+    } catch (error) {
+      argv.cleanup?.();
+      await structuredSession?.dispose();
+      throw error;
+    }
     if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
       await primeProjectShellEnv(executionLocation.path);
     }
@@ -866,11 +859,11 @@ export class SpawnPipeline {
     if (!session.sessionRef) {
       throw new Error("Session cannot be restarted without a known session reference.");
     }
-    // Re-resolve the execution location so restarts honor a changed default
-    // distro or an updated executionEnvironment instead of reusing a stale
-    // cached UNC from the previous session.
+    // Re-resolve the execution location so restarts honor an updated
+    // executionEnvironment instead of reusing a stale cached UNC from the
+    // previous session.
     const { location: executionLocation, config } = session.logicalProjectLocation
-      ? await resolveThreadExecution(session.adapter, session.logicalProjectLocation, turnConfig)
+      ? await resolveThreadExecution(session.logicalProjectLocation, turnConfig)
       : { location: session.projectLocation, config: turnConfig };
     session.projectLocation = executionLocation;
     session.config = config;
@@ -1064,12 +1057,18 @@ export class SpawnPipeline {
         session.sessionRef,
       );
     }
-    argv.args = await applyLaunchArgsConfigRewrite(
-      session.adapter,
-      argv.args,
-      config,
-      session.projectLocation,
-    );
+    try {
+      argv.args = await applyLaunchArgsConfigRewrite(
+        session.adapter,
+        argv.args,
+        config,
+        session.projectLocation,
+      );
+    } catch (error) {
+      argv.cleanup?.();
+      await structuredSession?.dispose();
+      throw error;
+    }
     if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
       await primeProjectShellEnv(session.projectLocation.path);
     }
@@ -1160,6 +1159,10 @@ export class SpawnPipeline {
       : undefined;
     let pty;
     if (command) {
+      // Mock-QA enforcement: mock sessions must never execute a real provider
+      // CLI — their sandboxed HOME/mock keychain do not extend to spawned
+      // processes. See `agentLaunchGuard`.
+      assertAgentLaunchAllowed("thread-pty");
       ensureNodePtySpawnHelperExecutable();
       const ptyEnv = {
         ...sanitizedProcessEnv,
@@ -1512,6 +1515,9 @@ export class SpawnPipeline {
     if (!adapter.createStructuredSession) {
       return undefined;
     }
+    // Mock-QA enforcement: refuse every structured provider session (ACP,
+    // vendor SDKs, app-servers alike) before the adapter can spawn its process.
+    assertAgentLaunchAllowed("thread-structured");
     try {
       return await adapter.createStructuredSession({
         threadId,
@@ -1528,6 +1534,12 @@ export class SpawnPipeline {
       });
     } catch (error) {
       console.error("[supervisor] structured session creation failed:", error);
+      // A mock-mode refusal is itself the actionable message (it names the
+      // guard and the escape hatch) — surface it verbatim instead of the
+      // generic structured-runtime diagnostic.
+      if (error instanceof MockAgentLaunchBlockedError) {
+        throw error;
+      }
       const diagnosticError = new StructuredRuntimeDiagnosticError("session-creation", agentKind);
       if (presentationMode === "gui") {
         // The startThread IPC boundary owns GUI startup failures. Throw one

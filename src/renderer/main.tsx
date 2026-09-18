@@ -45,6 +45,7 @@ initializeRendererSentry();
 
 document.documentElement.dataset.platform =
   typeof window !== "undefined" && "poracode" in window ? readBridge().platform : "unknown";
+document.documentElement.dataset.clientHost = window.poracodeHost ? "electron" : "browser";
 document.documentElement.dataset.windowKind = readBridge().windowKind;
 
 // The translucent ("liquid glass") sidebar is applied by provider.tsx only once

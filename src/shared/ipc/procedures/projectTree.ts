@@ -14,6 +14,16 @@ import {
   searchProjectTreePayloadSchema,
   writeExternalFilePayloadSchema,
   writeProjectFilePayloadSchema,
+  browseHostDirectoryResultSchema,
+  detectSetupScriptResultSchema,
+  listProjectTreeResultSchema,
+  readAbsoluteFileResultSchema,
+  readExternalFileResultSchema,
+  readProjectFileResultSchema,
+  searchProjectFilesResultSchema,
+  searchProjectTreeResultSchema,
+  writeExternalFileResultSchema,
+  writeProjectFileResultSchema,
 } from "../../contracts";
 import type {
   BrowseHostDirectoryPayload,
@@ -42,73 +52,97 @@ import type {
   WriteProjectFilePayload,
   WriteProjectFileResult,
 } from "../../contracts";
-import { definePayloadProcedure } from "../core";
+import { definePayloadProcedure, omittedResultSchema } from "../core";
 
 export const projectTreeProcedures = {
   searchProjectFiles: definePayloadProcedure<
     SearchProjectFilesPayload,
     SearchProjectFilesResult,
     "supervisor"
-  >("searchProjectFiles", "supervisor", searchProjectFilesPayloadSchema),
+  >(
+    "searchProjectFiles",
+    "supervisor",
+    searchProjectFilesPayloadSchema,
+    searchProjectFilesResultSchema,
+  ),
   listProjectTree: definePayloadProcedure<
     ListProjectTreePayload,
     ListProjectTreeResult,
     "supervisor"
-  >("listProjectTree", "supervisor", listProjectTreePayloadSchema),
+  >("listProjectTree", "supervisor", listProjectTreePayloadSchema, listProjectTreeResultSchema),
   browseHostDirectory: definePayloadProcedure<
     BrowseHostDirectoryPayload,
     BrowseHostDirectoryResult,
     "supervisor"
-  >("browseHostDirectory", "supervisor", browseHostDirectoryPayloadSchema),
+  >(
+    "browseHostDirectory",
+    "supervisor",
+    browseHostDirectoryPayloadSchema,
+    browseHostDirectoryResultSchema,
+  ),
   searchProjectTree: definePayloadProcedure<
     SearchProjectTreePayload,
     SearchProjectTreeResult,
     "supervisor"
-  >("searchProjectTree", "supervisor", searchProjectTreePayloadSchema),
+  >(
+    "searchProjectTree",
+    "supervisor",
+    searchProjectTreePayloadSchema,
+    searchProjectTreeResultSchema,
+  ),
   readProjectFile: definePayloadProcedure<
     ReadProjectFilePayload,
     ReadProjectFileResult,
     "supervisor"
-  >("readProjectFile", "supervisor", readProjectFilePayloadSchema),
+  >("readProjectFile", "supervisor", readProjectFilePayloadSchema, readProjectFileResultSchema),
   readAbsoluteFile: definePayloadProcedure<
     ReadAbsoluteFilePayload,
     ReadAbsoluteFileResult,
     "supervisor"
-  >("readAbsoluteFile", "supervisor", readAbsoluteFilePayloadSchema),
+  >("readAbsoluteFile", "supervisor", readAbsoluteFilePayloadSchema, readAbsoluteFileResultSchema),
   readExternalFile: definePayloadProcedure<
     ReadExternalFilePayload,
     ReadExternalFileResult,
     "supervisor"
-  >("readExternalFile", "supervisor", readExternalFilePayloadSchema),
+  >("readExternalFile", "supervisor", readExternalFilePayloadSchema, readExternalFileResultSchema),
   writeProjectFile: definePayloadProcedure<
     WriteProjectFilePayload,
     WriteProjectFileResult,
     "supervisor"
-  >("writeProjectFile", "supervisor", writeProjectFilePayloadSchema),
+  >("writeProjectFile", "supervisor", writeProjectFilePayloadSchema, writeProjectFileResultSchema),
   writeExternalFile: definePayloadProcedure<
     WriteExternalFilePayload,
     WriteExternalFileResult,
     "supervisor"
-  >("writeExternalFile", "supervisor", writeExternalFilePayloadSchema),
+  >(
+    "writeExternalFile",
+    "supervisor",
+    writeExternalFilePayloadSchema,
+    writeExternalFileResultSchema,
+  ),
   createProjectEntry: definePayloadProcedure<CreateProjectEntryPayload, void, "supervisor">(
     "createProjectEntry",
     "supervisor",
     createProjectEntryPayloadSchema,
+    omittedResultSchema,
   ),
   renameProjectEntry: definePayloadProcedure<RenameProjectEntryPayload, void, "supervisor">(
     "renameProjectEntry",
     "supervisor",
     renameProjectEntryPayloadSchema,
+    omittedResultSchema,
   ),
   moveProjectEntry: definePayloadProcedure<MoveProjectEntryPayload, void, "supervisor">(
     "moveProjectEntry",
     "supervisor",
     moveProjectEntryPayloadSchema,
+    omittedResultSchema,
   ),
   deleteProjectEntry: definePayloadProcedure<DeleteProjectEntryPayload, void, "supervisor">(
     "deleteProjectEntry",
     "supervisor",
     deleteProjectEntryPayloadSchema,
+    omittedResultSchema,
   ),
   revealProjectEntry: definePayloadProcedure<RevealProjectEntryPayload, void, "main-local">(
     "revealProjectEntry",
@@ -119,5 +153,10 @@ export const projectTreeProcedures = {
     DetectSetupScriptPayload,
     DetectSetupScriptResult,
     "supervisor"
-  >("detectSetupScript", "supervisor", detectSetupScriptPayloadSchema),
+  >(
+    "detectSetupScript",
+    "supervisor",
+    detectSetupScriptPayloadSchema,
+    detectSetupScriptResultSchema,
+  ),
 } as const;

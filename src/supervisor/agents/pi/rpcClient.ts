@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { terminateChildProcessTree } from "@/shared/processTree";
+import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 
 export interface PiRpcResponse {
   success: boolean;
@@ -40,6 +40,7 @@ export class PiRpcClient {
   private buffer = "";
   private sequence = 0;
   private closed = false;
+  private closePromise: Promise<void> | undefined;
 
   private constructor(child: ChildProcess) {
     this.child = child;
@@ -67,6 +68,7 @@ export class PiRpcClient {
       env: { ...process.env, TERM: "xterm-256color", ...(spec.env ?? {}) },
       shell: false,
       windowsHide: true,
+      detached: process.platform !== "win32",
     });
     return new PiRpcClient(child);
   }
@@ -87,7 +89,7 @@ export class PiRpcClient {
   }
 
   onExit(handler: () => void): () => void {
-    if (this.closed) {
+    if (this.child.exitCode !== null || this.child.signalCode !== null) {
       handler();
       return () => undefined;
     }
@@ -101,6 +103,7 @@ export class PiRpcClient {
   async request(command: string, params: Record<string, unknown> = {}): Promise<PiRpcResponse> {
     if (this.closed) throw new Error("Pi RPC session is closed.");
     await this.spawnReady;
+    if (this.closed) throw new Error("Pi RPC session is closed.");
     const id = `pi-rpc-${++this.sequence}`;
     return new Promise<PiRpcResponse>((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
@@ -114,11 +117,15 @@ export class PiRpcClient {
     this.write(message);
   }
 
-  async close(): Promise<void> {
-    if (this.closed) return;
+  close(): Promise<void> {
     this.closed = true;
-    terminateChildProcessTree(this.child);
-    await Promise.race([this.exitPromise, new Promise((resolve) => setTimeout(resolve, 2_000))]);
+    this.closePromise ??= awaitProcessTermination(this.child, {
+      ownedProcessGroup: process.platform !== "win32",
+    }).catch((error: unknown) => {
+      this.closePromise = undefined;
+      throw error;
+    });
+    return this.closePromise;
   }
 
   private write(message: Record<string, unknown>): void {

@@ -13,6 +13,14 @@ import {
   type SharedSettings,
   type SharedSettingsInput,
 } from "../../settings";
+import {
+  settingsMutationResultSchema,
+  settingsMutationSchema,
+  settingsSnapshotSchema,
+  type SettingsMutation,
+  type SettingsMutationResult,
+  type SettingsSnapshot,
+} from "../../settingsTransactions";
 import { defineNoArgProcedure, definePayloadProcedure } from "../core";
 import {
   windowChromePayloadSchema,
@@ -29,6 +37,28 @@ export const settingsProcedures = {
     "setSharedSettings",
     "main-local",
     z.custom<SharedSettingsInput>(),
+  ),
+  // Authority-native transaction surface. `settingsTransactionMutate` applies
+  // revision-checked scoped edits (stale revisions return an explicit conflict,
+  // never a silent last-writer-wins overwrite); `settingsTransactionSnapshot`
+  // returns the committed document with per-subject revisions. Both are served
+  // by the composition's `SettingsCommandService` in desktop and headless
+  // hosts. `setSharedSettings` remains as the compat adapter for clients that
+  // still speak whole snapshots.
+  settingsTransactionMutate: definePayloadProcedure<
+    SettingsMutation,
+    SettingsMutationResult,
+    "main-local"
+  >(
+    "settingsTransactionMutate",
+    "main-local",
+    settingsMutationSchema,
+    settingsMutationResultSchema,
+  ),
+  settingsTransactionSnapshot: defineNoArgProcedure<SettingsSnapshot, "main-local">(
+    "settingsTransactionSnapshot",
+    "main-local",
+    settingsSnapshotSchema,
   ),
   setAgentSecretSetting: definePayloadProcedure<
     { agentKind: string; key: string; value: string },
@@ -56,7 +86,7 @@ export const settingsProcedures = {
   ),
   // Learned-memory edits from the Crossagents settings UI. `crossagentSelectionUsage`
   // is supervisor-managed (renderer persists can't write it), so removals and tag
-  // edits round-trip through main like `removeCrossagentRoutingOverride`.
+  // edits round-trip to the backend like `removeCrossagentRoutingOverride`.
   removeCrossagentMemoryEntry: definePayloadProcedure<
     { entry: CrossagentSelectionUsageEntryKey },
     CrossagentSelectionUsageEntry[],
@@ -78,7 +108,7 @@ export const settingsProcedures = {
       tags: z.array(z.string().min(1).max(32)).max(5),
     }),
   ),
-  // Seals sensitive vars in main before writing settings.json, so a profile's
+  // Seals sensitive vars in the backend before writing settings.json, so a profile's
   // ANTHROPIC_AUTH_TOKEN never lands in plaintext via the renderer persist
   // cycle. Returns the updated instance (env sealed) for the store to adopt.
   // One encrypting write path for every multi-profile provider; the driver

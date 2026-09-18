@@ -4,6 +4,7 @@ import { spawn as spawnPty } from "node-pty";
 import { stripAnsiPreservingLayout } from "@/shared/ansi";
 import type { ProjectLocation } from "@/shared/contracts";
 import { terminateProcessTree } from "@/shared/processTree";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { buildAgentCommand, type CommandSpec } from "./agents/base";
 import { ensureNodePtySpawnHelperExecutable } from "./nodePty";
 import { markOneShotOutput, stripOneShotBanner } from "./oneShotOutputMarker";
@@ -91,6 +92,11 @@ export function spawnAgent(
       return;
     }
 
+    // Mock-QA enforcement: one-shot prompt runs execute a real provider CLI
+    // with real credentials, so mock sessions refuse them like thread launches
+    // (a throw here rejects the promise).
+    assertAgentLaunchAllowed("one-shot");
+
     const child = spawnChild(spec.command, spec.args, {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
@@ -117,6 +123,11 @@ export function spawnAgent(
     child.on("error", (err) => {
       signal?.removeEventListener("abort", onAbort);
       reject(err);
+    });
+    child.stdin.on?.("error", (err) => {
+      // A child that dies before stdin flushes surfaces here as EPIPE; the
+      // close handler below is the authoritative outcome for the one-shot.
+      if ((err as NodeJS.ErrnoException).code !== "EPIPE") reject(err);
     });
     child.on("close", (code) => {
       signal?.removeEventListener("abort", onAbort);
@@ -147,6 +158,9 @@ export function spawnAgentPty(
       reject(new Error("Aborted"));
       return;
     }
+
+    // Mock-QA enforcement: see the child_process lane above.
+    assertAgentLaunchAllowed("one-shot");
 
     ensureNodePtySpawnHelperExecutable();
 

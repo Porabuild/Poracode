@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowserTabGroupInfo } from "@/shared/ipc";
 
 const resolveWebContentsById = vi.hoisted(() => vi.fn<(id: number) => unknown>());
+const stateStore = { get: () => null, set: () => {} };
 
 vi.mock("electron", () => ({
   BrowserWindow: class BrowserWindow {},
@@ -108,6 +109,7 @@ describe("BrowserPanelManager", () => {
     const manager = new BrowserPanelManager(
       { settingsPath: "settings.json" } as never,
       "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+      stateStore,
     );
     const { tab, host } = createManagerWithTab();
 
@@ -124,6 +126,7 @@ describe("BrowserPanelManager", () => {
     const manager = new BrowserPanelManager(
       { settingsPath: "settings.json" } as never,
       "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+      stateStore,
     );
     const { tab, host } = createManagerWithTab();
     const guestWebContents = { id: 99 };
@@ -142,6 +145,7 @@ describe("BrowserPanelManager", () => {
     const manager = new BrowserPanelManager(
       { settingsPath: "settings.json" } as never,
       "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+      stateStore,
     );
     const activity: boolean[] = [];
     manager.addEventListener((event) => {
@@ -162,6 +166,7 @@ describe("BrowserPanelManager", () => {
     const manager = new BrowserPanelManager(
       { settingsPath: "settings.json" } as never,
       "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+      stateStore,
     );
     const group = {
       id: "group-agent",
@@ -192,6 +197,7 @@ describe("BrowserPanelManager", () => {
     const manager = new BrowserPanelManager(
       { settingsPath: "settings.json" } as never,
       "Mozilla/5.0 Chrome/141.0.0.0 Safari/537.36",
+      stateStore,
     );
     const group = {
       id: "group-agent",

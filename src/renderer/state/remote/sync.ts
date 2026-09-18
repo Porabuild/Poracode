@@ -2,7 +2,11 @@ import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/con
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
-import { remoteGitStateEventSchema, remoteGitSummariesEventSchema } from "@/shared/remote";
+import {
+  remoteGitStateEventSchema,
+  remoteGitSummariesEventSchema,
+  remoteUserNotificationEventSchema,
+} from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
   isThreadFollowUpQueueSnapshotCurrent,
@@ -11,7 +15,7 @@ import {
 } from "@/renderer/state/threadFollowUpQueueStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { handleThreadStateNotification } from "@/renderer/notifications";
+import { showUserNotification } from "@/renderer/notifications";
 import {
   toRuntimeChatItem,
   type CompletedTurnRecord,
@@ -23,16 +27,20 @@ import {
   requestsFromRuntimeItems,
 } from "./runtimeRequests";
 import { shouldReplaceRuntimeItemsFromSnapshot } from "./guards";
+import { snapshotOlderThanAppliedSeq } from "./snapshotSeqArbitration";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCache";
 import { evictOversizedInactiveThreadRuntimeItems } from "../chatRuntimePersister";
+import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
+import { RuntimeEventQueue } from "../runtimeEventQueue";
 
 /**
  * Feeds remote snapshots and live WebSocket events into the same Zustand
  * stores the desktop renderer uses, so reused components (ChatPane,
  * ThreadComposerSection, ThreadDraftView, sidebar selectors) work unchanged.
- * This module is the shared core of the mobile PWA's store sync
- * (`src/mobile/storeSync.ts`) and the desktop-as-client remote-servers store
- * (`src/renderer/state/remoteServersStore.ts`); both hydrate the shared,
- * threadId-keyed runtime store from remote snapshots and live event streams.
+ * This module is the canonical remote-store sync used by the browser bridge
+ * and Electron's remote-servers store. Both hydrate the shared, threadId-keyed
+ * runtime store from remote snapshots and live event streams.
  *
  * Mobile-only side effects (Live Activity push, terminal feed fan-out, mobile
  * git-summaries store) are NOT triggered here — callers attach them via the
@@ -62,30 +70,47 @@ function toCompletedTurnRecords(
 }
 
 /**
- * Reads the highest WS event seq the client has already applied on that host,
- * passed by callers that track it (the desktop-as-client store). A history
- * snapshot built before one of those events must not overwrite the event's
- * fresher runtime state. Callers without an active socket omit the option.
+ * True when `snapshot` was built before a live event this client already
+ * applied for the same thread — passed by callers that track it per thread
+ * (the desktop-as-client store). Such a snapshot must not overwrite the
+ * event's fresher thread row, pending requests, turn boundary, or
+ * background-task level. Callers without a live seq (one-shot fetches with
+ * no event stream to order against) simply omit the option and accept the
+ * race; their next event-driven refresh overwrites the row either way.
  */
-function snapshotRuntimeStateIsStale(
+function snapshotIsStaleForThread(
   snapshot: RemoteThreadSnapshot,
   lastSeenEventSeq: number | undefined,
 ): boolean {
-  if (lastSeenEventSeq === undefined) return false;
-  return snapshot.snapshotSeq < lastSeenEventSeq;
+  const remoteServerId = snapshot.thread.remoteServerId;
+  if (remoteServerId === undefined || lastSeenEventSeq === undefined) return false;
+  return snapshotOlderThanAppliedSeq(snapshot.snapshotSeq, lastSeenEventSeq);
+}
+
+export interface ApplyThreadSnapshotResult {
+  /** True only when the snapshot authoritatively replaced the transcript.
+   * Stale snapshots and additive missing-older-history splices return false
+   * so callers never record a truncation-suppression baseline from them. */
+  readonly installedAuthoritativeHistory: boolean;
 }
 
 export function applyThreadSnapshot(
   snapshot: RemoteThreadSnapshot,
   options: {
     readonly fromServer: boolean;
-    readonly lastSeenEventSeq?: number;
+    readonly lastSeenEventSeq?: number | undefined;
     /** Guard captured immediately before this thread's history request. */
     readonly followUpQueueSnapshotGuard?: ThreadFollowUpQueueSnapshotGuard;
   } = {
     fromServer: true,
   },
-): void {
+): ApplyThreadSnapshotResult {
+  // Arbitrate once, before any write: a snapshot built before live events the
+  // client already applied must not replace the transcript, regress cached
+  // context usage, or poison the offline cache with its older tail. Only the
+  // missing-older-history splice remains additive for stale server snapshots.
+  const snapshotStale = snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq);
+  if (isBrowserClientRuntime() && !snapshotStale) void cacheBrowserThreadSnapshot(snapshot);
   const threadId = snapshot.thread.id;
   // A delta can already be in the JS event queue when the foreground recovery
   // snapshot resolves. Apply it before comparing/replacing the transcript so
@@ -106,18 +131,22 @@ export function applyThreadSnapshot(
     (itemId) => existingItems?.[itemId]?.observedLive === true,
   );
   const snapshotItems = snapshot.runtimeItems.map(toRuntimeChatItem);
+  // threadActive reads the snapshot's own status, so a stale inactive-looking
+  // snapshot must never reach the replacement guards (they would treat its
+  // shorter history as an authoritative truncate over the live tail).
   const threadActive = isThreadTurnActive(snapshot.thread.status);
   const shouldReplaceItems =
-    (threadActive &&
+    !snapshotStale &&
+    ((threadActive &&
       options.fromServer &&
       snapshotMonotonicallyCoversExistingTail(existingIds, existingItems, snapshotItems)) ||
-    shouldReplaceRuntimeItemsFromSnapshot({
-      existingCount: existingIds.length,
-      existingHasObservedLiveItems,
-      snapshotItemCount: snapshot.runtimeItems.length,
-      threadActive,
-      fromServer: options.fromServer,
-    });
+      shouldReplaceRuntimeItemsFromSnapshot({
+        existingCount: existingIds.length,
+        existingHasObservedLiveItems,
+        snapshotItemCount: snapshot.runtimeItems.length,
+        threadActive,
+        fromServer: options.fromServer,
+      }));
   if (shouldReplaceItems) {
     const firstSnapshotItemId = snapshotItems[0]?.id;
     const overlapIndex = firstSnapshotItemId ? existingIds.indexOf(firstSnapshotItemId) : -1;
@@ -159,7 +188,33 @@ export function applyThreadSnapshot(
   }
 
   const turns = toCompletedTurnRecords(snapshot.completedTurns);
-  if (turns.length > 0) {
+  if (options.fromServer && !snapshotStale) {
+    // The server returns the full turn list even when runtime items are paged.
+    // Replace the level so reconnect can remove reverted turns; filtering by
+    // loaded item anchors would also discard valid turns outside the page.
+    useAppStore.setState((current) => {
+      const existing = current.runtimeCompletedTurnsByThread[threadId] ?? [];
+      if (
+        existing.length === turns.length &&
+        existing.every((turn, index) => {
+          const incoming = turns[index];
+          return (
+            incoming !== undefined &&
+            turn.startedAt === incoming.startedAt &&
+            turn.endedAt === incoming.endedAt &&
+            turn.anchorItemId === incoming.anchorItemId
+          );
+        })
+      )
+        return {};
+      return {
+        runtimeCompletedTurnsByThread: {
+          ...current.runtimeCompletedTurnsByThread,
+          [threadId]: turns,
+        },
+      };
+    });
+  } else if (!options.fromServer && turns.length > 0) {
     state.hydrateThreadCompletedTurns(threadId, turns);
   }
   syncRuntimeTurnBoundaryFromSnapshot(snapshot, options);
@@ -171,19 +226,20 @@ export function applyThreadSnapshot(
     // fallback so an old snapshot still cannot undo a live cancellation.
     const queueSnapshotIsStale = options.followUpQueueSnapshotGuard
       ? !isThreadFollowUpQueueSnapshotCurrent(threadId, options.followUpQueueSnapshotGuard)
-      : snapshotRuntimeStateIsStale(snapshot, options.lastSeenEventSeq);
+      : snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq);
     if (snapshot.followUpQueue !== undefined && !queueSnapshotIsStale) {
       useThreadFollowUpQueueStore.getState().setQueue(threadId, snapshot.followUpQueue);
     }
   }
-  if (snapshot.contextUsage) {
+  if (snapshot.contextUsage && !snapshotStale) {
     const contextUsage = snapshot.contextUsage;
     useAppStore.setState((current) => ({
       runtimeContextByThread: { ...current.runtimeContextByThread, [threadId]: contextUsage },
     }));
   }
 
-  syncRuntimeRequestsFromSnapshot(snapshot);
+  syncRuntimeRequestsFromSnapshot(snapshot, options.lastSeenEventSeq);
+  return { installedAuthoritativeHistory: shouldReplaceItems };
 }
 
 /**
@@ -198,7 +254,7 @@ function applyBackgroundTasksFromSnapshot(
   snapshot: RemoteThreadSnapshot,
   lastSeenEventSeq: number | undefined,
 ): void {
-  if (snapshotRuntimeStateIsStale(snapshot, lastSeenEventSeq)) return;
+  if (snapshotIsStaleForThread(snapshot, lastSeenEventSeq)) return;
   const threadId = snapshot.thread.id;
   const tasks = snapshot.backgroundTasks ?? [];
   useAppStore.setState((current) => {
@@ -334,9 +390,12 @@ function snapshotValueMonotonicallyCovers(existing: unknown, incoming: unknown):
 
 function syncThreadMetadataFromSnapshot(
   snapshot: RemoteThreadSnapshot,
-  options: { readonly fromServer: boolean },
+  options: { readonly fromServer: boolean; readonly lastSeenEventSeq?: number | undefined },
 ): void {
   if (!options.fromServer) return;
+  // A snapshot built before a live `thread-state` the client already applied
+  // must not replace the mirrored row with its older status.
+  if (snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq)) return;
   useAppStore.setState((current) => {
     const isVisible = isThreadVisible(current.view, snapshot.thread.id);
     let changed = false;
@@ -357,10 +416,12 @@ function syncThreadMetadataFromSnapshot(
 
 function syncRuntimeTurnBoundaryFromSnapshot(
   snapshot: RemoteThreadSnapshot,
-  options: { readonly fromServer: boolean },
+  options: { readonly fromServer: boolean; readonly lastSeenEventSeq?: number | undefined },
 ): void {
   if (!options.fromServer) return;
   if (snapshot.thread.presentationMode !== "gui") return;
+  // A stale snapshot must not close a turn that live events still have open.
+  if (snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq)) return;
   if (isThreadTurnActive(snapshot.thread.status)) return;
   const threadId = snapshot.thread.id;
   useAppStore.setState((current) => {
@@ -378,9 +439,16 @@ function syncRuntimeTurnBoundaryFromSnapshot(
  * Live requests are ephemeral renderer state, so after a reload rebuild them
  * from their still-open persisted `*_request` runtime items. Seed the store
  * only while the thread is blocked on the user, and clear stale requests once
- * the thread moves on.
+ * the thread moves on. A snapshot built before a live `request.opened` /
+ * `request.resolved` the client already applied must do neither — clearing
+ * would drop a prompt the agent is blocked on, and re-seeding would resurrect
+ * a resolved one — so both halves are skipped for a stale snapshot.
  */
-function syncRuntimeRequestsFromSnapshot(snapshot: RemoteThreadSnapshot): void {
+function syncRuntimeRequestsFromSnapshot(
+  snapshot: RemoteThreadSnapshot,
+  lastSeenEventSeq: number | undefined,
+): void {
+  if (snapshotIsStaleForThread(snapshot, lastSeenEventSeq)) return;
   const threadId = snapshot.thread.id;
   const awaitingUser =
     snapshot.thread.status === "needs_approval" || snapshot.thread.status === "needs_reply";
@@ -416,7 +484,9 @@ function syncRuntimeRequestsFromSnapshot(snapshot: RemoteThreadSnapshot): void {
 // four times per second so several concurrent streams do not saturate the UI.
 
 const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
-const pendingRuntimeEvents = new Map<string, RuntimeEvent[]>();
+const pendingRuntimeEvents = new RuntimeEventQueue();
+const runtimeRecoveryInFlight = new Set<string>();
+const runtimeRecoveryInvalidated = new Set<string>();
 let runtimeFlushHandle: number | null = null;
 let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
 let removeRuntimeSchedulingListeners: (() => void) | null = null;
@@ -429,11 +499,7 @@ function isForegroundRuntimeThread(threadId: string): boolean {
 function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): void {
   const store = useAppStore.getState();
   const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
-  for (const [threadId, events] of pendingRuntimeEvents) {
-    if (!shouldFlush(threadId)) continue;
-    batches.push({ threadId, events });
-    pendingRuntimeEvents.delete(threadId);
-  }
+  batches.push(...pendingRuntimeEvents.drain(shouldFlush));
   if (batches.length === 0) return;
   store.applyRuntimeEventBatches(batches);
   evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
@@ -442,7 +508,7 @@ function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): 
 function schedulePendingRuntimeEvents(): void {
   let hasForeground = false;
   let hasBackground = false;
-  for (const threadId of pendingRuntimeEvents.keys()) {
+  for (const threadId of pendingRuntimeEvents.threadIds()) {
     if (isForegroundRuntimeThread(threadId)) hasForeground = true;
     else hasBackground = true;
     if (hasForeground && hasBackground) break;
@@ -481,26 +547,14 @@ function installRuntimeSchedulingListeners(): void {
   };
 }
 
-function enqueueRuntimeEvents(threadId: string, events: readonly RuntimeEvent[]): void {
-  if (events.length === 0) return;
-  const existing = pendingRuntimeEvents.get(threadId);
-  if (existing) {
-    existing.push(...events);
-  } else {
-    pendingRuntimeEvents.set(threadId, [...events]);
-  }
-  installRuntimeSchedulingListeners();
-  schedulePendingRuntimeEvents();
-}
-
 function flushPendingRuntimeEventsSync(threadId: string): void {
   flushPendingRuntimeEvents((pendingThreadId) => pendingThreadId === threadId);
   schedulePendingRuntimeEvents();
 }
 
-/** Drop every queued runtime delta and cancel the pending flush, if any. Exposed
- * so the mobile PWA's `resetRemoteStores` (which wipes session state on
- * desktop switch/unpair) can clear the same coalescing buffer the core owns. */
+/** Drop every queued runtime delta and cancel the pending flush, if any. Used
+ * when switching or removing a remote host so stale batches cannot cross the
+ * session boundary. */
 export function clearPendingRuntimeEvents(): void {
   if (runtimeFlushHandle !== null) {
     cancelAnimationFrame(runtimeFlushHandle);
@@ -513,6 +567,8 @@ export function clearPendingRuntimeEvents(): void {
   removeRuntimeSchedulingListeners?.();
   removeRuntimeSchedulingListeners = null;
   pendingRuntimeEvents.clear();
+  runtimeRecoveryInFlight.clear();
+  runtimeRecoveryInvalidated.clear();
 }
 
 function asSupervisorEvent(value: unknown): SupervisorEvent | null {
@@ -528,6 +584,17 @@ function asSupervisorEvent(value: unknown): SupervisorEvent | null {
  * terminal feed listeners) or were filtered out before dispatch.
  */
 export interface RemoteDispatchHooks {
+  /**
+   * Called when the final-consumer runtime queue drops a thread's incomplete
+   * delta batch. The host should install an authoritative snapshot before the
+   * queue is resumed; until then subsequent live deltas stay blocked.
+   */
+  readonly onRuntimeQueueOverflow?: (
+    threadIds: readonly string[],
+    resume: () => void,
+  ) => void | Promise<boolean | void>;
+  /** Recovery replay is already ordered behind an authoritative snapshot. */
+  readonly deliverRuntimeEventsImmediately?: boolean;
   /**
    * Fired after a `thread-state` event's core mutation. Mobile uses this to
    * drive the foreground Live Activity notification. Resolves the thread/project
@@ -565,9 +632,77 @@ export interface RemoteDispatchHooks {
 export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDispatchHooks): void {
   const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
   if (runtimeBatches.length > 0) {
-    for (const batch of runtimeBatches) {
-      enqueueRuntimeEvents(batch.threadId, batch.events);
+    if (hooks?.deliverRuntimeEventsImmediately) {
+      useAppStore
+        .getState()
+        .applyRuntimeEventBatches(
+          runtimeBatches.map((batch) => ({ threadId: batch.threadId, events: [...batch.events] })),
+        );
+      evictOversizedInactiveThreadRuntimeItems(runtimeBatches.map((batch) => batch.threadId));
+      return;
     }
+    const overflowedThreadIds = new Set<string>();
+    for (const batch of runtimeBatches) {
+      const result = pendingRuntimeEvents.enqueue(batch.threadId, batch.events);
+      if (result.overflowed) {
+        if (runtimeRecoveryInFlight.has(batch.threadId)) {
+          runtimeRecoveryInvalidated.add(batch.threadId);
+          useAppStore.getState().setRuntimeHydrationStatus(batch.threadId, "failed");
+        } else {
+          overflowedThreadIds.add(batch.threadId);
+        }
+        useAppStore.getState().clearThreadRuntimeEvents(batch.threadId);
+        useAppStore.getState().clearAllPendingSteer(batch.threadId);
+        clearRuntimeItemStoreSelectorCacheForThread(batch.threadId);
+      }
+    }
+    if (overflowedThreadIds.size > 0) {
+      const threadIds = [...overflowedThreadIds];
+      for (const threadId of threadIds) runtimeRecoveryInFlight.add(threadId);
+      const resume = (): void => {
+        if (threadIds.some((threadId) => runtimeRecoveryInvalidated.has(threadId))) {
+          return;
+        }
+        for (const threadId of threadIds) {
+          pendingRuntimeEvents.resume(threadId);
+        }
+        schedulePendingRuntimeEvents();
+      };
+      const recovery = hooks?.onRuntimeQueueOverflow?.(threadIds, resume);
+      if (recovery) {
+        void Promise.resolve(recovery).then(
+          (recovered) => {
+            if (
+              recovered !== false &&
+              !threadIds.some((threadId) => runtimeRecoveryInvalidated.has(threadId))
+            ) {
+              resume();
+              for (const threadId of threadIds) {
+                runtimeRecoveryInFlight.delete(threadId);
+                runtimeRecoveryInvalidated.delete(threadId);
+              }
+            } else {
+              for (const threadId of threadIds) {
+                runtimeRecoveryInFlight.delete(threadId);
+                runtimeRecoveryInvalidated.delete(threadId);
+                useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+              }
+            }
+          },
+          () => {
+            for (const threadId of threadIds) {
+              runtimeRecoveryInFlight.delete(threadId);
+              runtimeRecoveryInvalidated.delete(threadId);
+              useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
+            }
+          },
+        );
+      } else {
+        resume();
+      }
+    }
+    installRuntimeSchedulingListeners();
+    schedulePendingRuntimeEvents();
     return;
   }
 
@@ -583,6 +718,12 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
   const gitState = remoteGitStateEventSchema.safeParse(value);
   if (gitState.success) {
     hooks?.onGitState?.(gitState.data.patch);
+    return;
+  }
+  const userNotification = remoteUserNotificationEventSchema.safeParse(value);
+  if (userNotification.success) {
+    const { type: _type, ...notification } = userNotification.data;
+    showUserNotification(notification);
     return;
   }
 
@@ -603,7 +744,6 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
       if (event.status === "inactive" || event.status === "error") {
         useAppStore.getState().reconcileStaleSubAgents(event.threadId);
       }
-      handleThreadStateNotification(event, oldThread);
       hooks?.onThreadState?.({
         threadId: event.threadId,
         status: event.status,
@@ -620,7 +760,12 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
       return;
     }
     case "thread-reset": {
-      pendingRuntimeEvents.delete(event.threadId);
+      pendingRuntimeEvents.discard(event.threadId);
+      if (!runtimeRecoveryInFlight.has(event.threadId)) {
+        // A reset is the authoritative generation boundary when this caller
+        // has no separate snapshot-recovery promise to await.
+        pendingRuntimeEvents.resume(event.threadId);
+      }
       useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
       useAppStore.getState().clearAllPendingSteer(event.threadId);
       // The id may be a dev shell (no thread); a live terminal surface watching

@@ -178,3 +178,15 @@ export function remoteAccessAdvertisedHost(input?: {
 export function remoteAccessPairingAppUrl(): string | undefined {
   return readTrimmedEnv("PORACODE_REMOTE_ACCESS_PAIRING_APP_URL");
 }
+
+/**
+ * Configured HTTPS root for isolated browser-forward child origins (direct
+ * ingress). DNS/TLS must cover its generated one-label children; the value is
+ * validated by `ForwardOriginPolicy` and never inferred from visitor headers.
+ * Absent = browser-origin forwarding unavailable (raw TCP forwarding keeps
+ * working); malformed explicit values fail remote-access startup loudly rather
+ * than silently downgrading.
+ */
+export function remoteForwardBaseUrl(): string | undefined {
+  return readTrimmedEnv("PORACODE_REMOTE_FORWARD_BASE_URL");
+}

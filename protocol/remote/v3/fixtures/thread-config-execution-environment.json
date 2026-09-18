@@ -1,0 +1,8 @@
+{
+  "model": "fixture-model",
+  "effort": "medium",
+  "executionEnvironment": {
+    "kind": "wsl",
+    "distro": "Ubuntu-22.04"
+  }
+}

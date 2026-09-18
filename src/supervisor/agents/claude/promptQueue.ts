@@ -21,9 +21,14 @@ export class AsyncPromptQueue implements AsyncIterable<SDKUserMessage> {
     this.items.push(message);
   }
 
+  clear(): void {
+    this.items = [];
+  }
+
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    this.clear();
     for (const waiter of this.waiters.splice(0)) {
       waiter({ done: true, value: undefined });
     }

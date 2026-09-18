@@ -7,9 +7,11 @@ import {
   discoverExternalMcpServersPayloadSchema,
   isReservedMcpServerName,
   isValidMcpServerName,
+  isValidMcpServerUrl,
   mcpExternalServerCandidateSchema,
   mcpServerSchema,
   mergeMcpServers,
+  normalizeBuiltInMcpDisabledTools,
   resolveEnabledMcpServers,
   type McpServer,
 } from "./mcpServer";
@@ -31,13 +33,27 @@ function server(id: string, name: string, enabled = true): McpServer {
 }
 
 describe("mcpServerSchema", () => {
-  it("preserves disabled tools from the previous Chrome catalogue", () => {
+  it("keeps the disabled-tools schema transform-free for the remote-v3 wire", () => {
+    // Legacy normalization lives at the settings load boundary
+    // (normalizeBuiltInMcpDisabledTools); parsing itself must not transform.
     expect(
       builtInMcpDisabledToolsSchema.parse({
+        chrome: ["chrome_click", "click"],
+        browser: ["fill"],
+      }),
+    ).toEqual({ chrome: ["chrome_click", "click"], browser: ["fill"] });
+  });
+  it("normalizes disabled tools from the previous Chrome catalogue at the load boundary", () => {
+    expect(
+      normalizeBuiltInMcpDisabledTools({
         chrome: ["chrome_click", "click", "chrome_eval", "disable"],
         browser: ["fill"],
       }),
     ).toEqual({ chrome: ["click", "eval", "disable"], browser: ["fill"] });
+    expect(normalizeBuiltInMcpDisabledTools({ browser: ["fill"] })).toEqual({
+      browser: ["fill"],
+    });
+    expect(normalizeBuiltInMcpDisabledTools({})).toEqual({});
   });
   it("normalizes defaults for a canonical stdio server", () => {
     expect(
@@ -68,6 +84,12 @@ describe("mcpServerSchema", () => {
         transport: { type: "http", url: "https://example.test/mcp" },
       }).success,
     ).toBe(false);
+  });
+
+  it("rejects URL credentials and fragments at the MCP transport boundary", () => {
+    expect(isValidMcpServerUrl("https://example.test/mcp?version=1")).toBe(true);
+    expect(isValidMcpServerUrl("https://user:password@example.test/mcp")).toBe(false);
+    expect(isValidMcpServerUrl("https://example.test/mcp#token=secret")).toBe(false);
   });
 
   it("accepts a sparse built-in disable map", () => {

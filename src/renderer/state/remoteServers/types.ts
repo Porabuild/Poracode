@@ -30,8 +30,16 @@ export interface RemoteServerRecord {
   readonly scopes: RemoteAccessScope[];
   /** Last version reported by the host environment descriptor. */
   readonly appVersion?: string;
+  /** Host OS advertised by protocol-v1 servers; absent for older records. */
+  readonly platform?: "win32" | "darwin" | "linux";
   /** Absent on records paired before standalone helpers advertised their host mode. */
   readonly hostMode?: RemoteHostMode;
+  /**
+   * Browser-origin port entry support from the last environment descriptor.
+   * `false` is authoritative once a descriptor loaded; absent means unknown
+   * and never implies anything about raw TCP forwarding.
+   */
+  readonly browserForwardAvailable?: boolean;
   /** Absent on records persisted before transport metadata existed. */
   readonly transport?:
     | { readonly kind: "direct" }
@@ -104,11 +112,38 @@ export interface RemoteServersState {
    * server is missing/unreachable or a newer open superseded this one, so
    * callers can gate follow-up work (e.g. relaunching an inactive thread) on
    * the open having taken effect.
+   *
+   * `focus: false` keeps the live attach (history, `thread-item-interests`,
+   * event stream, open-thread slice) but skips the app-view navigation. The
+   * startup restore uses it to reattach an already-visible thread without
+   * stealing the view when the user navigates away mid-attach.
+   *
+   * `quiet: true` also skips the failure toast: background reattaches retry
+   * with backoff and would otherwise toast per attempt; the server's runtime
+   * status already surfaces an unreachable host in the sidebar.
    */
-  openRemoteThread(desktopId: string, threadId: string): Promise<boolean>;
+  openRemoteThread(
+    desktopId: string,
+    threadId: string,
+    options?: { readonly focus?: boolean; readonly quiet?: boolean },
+  ): Promise<boolean>;
   closeRemoteThread(): void;
   sendThreadCommand(desktopId: string, command: RemoteThreadCommand): Promise<void>;
   pairServer(input: { endpoint: string; token: string }): Promise<RemoteServerRecord>;
+  /**
+   * Standalone-attach pairing: Electron as a client of the already-running
+   * headless owner described by main's authenticated attach info. Reuses the
+   * existing pairing parser, OAuth exchange, credential vault, and
+   * RemoteDesktopClient; pins the owner generation in memory (never
+   * persisted) and fails closed on version mismatch. Existing local startup
+   * and other remote-host selection stay unchanged.
+   */
+  ensureStandaloneOwner(input: {
+    endpoint: string;
+    pairingUrl: string;
+    ownerGeneration: string;
+    remoteProtocolVersion: number;
+  }): Promise<RemoteServerRecord>;
   pairSshServer(connection: SshConnectionConfig): Promise<RemoteServerRecord>;
   renameServer(desktopId: string, label: string): void;
   removeServer(desktopId: string): void;
@@ -120,7 +155,7 @@ export interface RemoteServersState {
     desktopId: string,
     options?: { readonly includeAgentStatuses?: boolean },
   ): void;
-  connectAll(): Promise<void>;
+  connectAll(options?: { readonly forceTransportReconnect?: boolean }): Promise<void>;
   reconnectServer(desktopId: string): Promise<void>;
   getHostUpdateState(desktopId: string): ReturnType<RemoteDesktopClient["hostUpdateState"]>;
   checkHostUpdate(desktopId: string): ReturnType<RemoteDesktopClient["checkHostUpdate"]>;

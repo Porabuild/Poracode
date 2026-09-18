@@ -263,7 +263,7 @@ function detectProbeLocation(ctx: AgentEnvContext | undefined): ProjectLocation 
 export async function probeAcpGenericInstance(
   instance: AgentInstanceConfig,
   ctx?: AgentEnvContext,
-  options?: { timeoutMs?: number },
+  options?: { timeoutMs?: number; onFailureDetail?: (reason: string) => void },
 ): Promise<AcpProbeResult | undefined> {
   const cfg = parseAcpGenericInstanceConfig(instance.config);
   return probeGenericCapabilities(
@@ -272,6 +272,7 @@ export async function probeAcpGenericInstance(
     instance,
     instance.displayName ?? cfg.binary,
     options?.timeoutMs,
+    options?.onFailureDetail,
   );
 }
 
@@ -281,6 +282,7 @@ async function probeGenericCapabilities(
   instance: AgentInstanceConfig,
   label: string,
   timeoutMs?: number,
+  onFailureDetail?: (reason: string) => void,
 ): Promise<AcpProbeResult | undefined> {
   const location = detectProbeLocation(ctx);
   const command = buildGenericCommand(location, cfg, instance);
@@ -298,6 +300,7 @@ async function probeGenericCapabilities(
     ...(command.env ? { env: command.env } : {}),
     label,
     ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+    ...(onFailureDetail ? { onFailureDetail } : {}),
     ...(ctx?.signal ? { signal: ctx.signal } : {}),
   });
 }

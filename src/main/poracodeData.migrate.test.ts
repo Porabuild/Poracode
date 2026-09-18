@@ -97,10 +97,15 @@ describe("complete Lightcode data migration", () => {
     };
   }
 
+  function prepareWithMigration(): void {
+    migrateLegacyDataOnLaunch({ baseDir: newDir(), ...migrationOptions() });
+    preparePoracodeDataRoot(newDir());
+  }
+
   it("copies every user-data subtree plus Electron storage and keeps the Lightcode source", () => {
     seedLegacyData();
 
-    preparePoracodeDataRoot(undefined, migrationOptions());
+    prepareWithMigration();
 
     expect(readFileSync(join(newDir(), "settings.json"), "utf8")).toBe('{"theme":"dark"}');
     expect(readFileSync(join(newDir(), "state.sqlite"), "utf8")).toBe("db-bytes");
@@ -138,10 +143,10 @@ describe("complete Lightcode data migration", () => {
 
   it("runs automatically only once", () => {
     seedLegacyData();
-    preparePoracodeDataRoot(undefined, migrationOptions());
+    prepareWithMigration();
     writeFileSync(join(legacyDir(), "settings.json"), '{"theme":"light"}');
 
-    preparePoracodeDataRoot(undefined, migrationOptions());
+    prepareWithMigration();
 
     expect(readFileSync(join(newDir(), "settings.json"), "utf8")).toBe('{"theme":"dark"}');
   });
@@ -161,7 +166,7 @@ describe("complete Lightcode data migration", () => {
 
   it("lets Settings request a complete import again and backs up current Poracode data", () => {
     seedLegacyData();
-    preparePoracodeDataRoot(undefined, migrationOptions());
+    prepareWithMigration();
     writeFileSync(join(newDir(), "poracode-only.txt"), "new-data");
     writeFileSync(join(newElectronDir(), "poracode-only.txt"), "new-browser-data");
     writeFileSync(join(legacyDir(), "settings.json"), '{"theme":"light"}');
@@ -186,7 +191,7 @@ describe("complete Lightcode data migration", () => {
   });
 
   it("records a completed no-data check and reports no source for a manual request", () => {
-    preparePoracodeDataRoot(undefined, migrationOptions());
+    prepareWithMigration();
 
     expect(readLegacyDataMigrationMarker(newDir())).toMatchObject({
       importedDataRoot: false,
@@ -265,7 +270,7 @@ describe("complete Lightcode data migration", () => {
     mkdirSync(stagingDir, { recursive: true });
     writeFileSync(join(stagingDir, "partial-junk"), "junk");
 
-    preparePoracodeDataRoot(undefined, migrationOptions());
+    prepareWithMigration();
 
     expect(existsSync(join(newDir(), "partial-junk"))).toBe(false);
     expect(existsSync(stagingDir)).toBe(false);

@@ -9,7 +9,7 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useCommandPaletteStore } from "./commandPaletteStore";
 import { useKeybindingStore } from "./keybindingStore";
-import { bindingForPlatform, formatKeybinding } from "./keybindingMatcher";
+import { formatCommandShortcut } from "./keybindingMatcher";
 import {
   buildCommandRegistry,
   buildWhenContext,
@@ -119,7 +119,11 @@ export function CommandPalette() {
             {filteredCommands.length > 0 ? (
               <div role="listbox" aria-label={t`Commands`} className="space-y-1">
                 {filteredCommands.map((command, index) => {
-                  const shortcut = shortcutForCommand(command.id, keybindings);
+                  const shortcut = formatCommandShortcut(
+                    command.id,
+                    keybindings,
+                    readBridge().platform,
+                  );
                   return (
                     <button
                       key={command.id}
@@ -180,14 +184,4 @@ function filterCommands(
       .toLowerCase();
     return terms.every((term) => haystack.includes(term));
   });
-}
-
-function shortcutForCommand(
-  commandId: string,
-  keybindings: readonly { command: string }[],
-): string {
-  const platform = readBridge().platform;
-  const binding = keybindings.find((item) => item.command === commandId);
-  if (!binding) return "";
-  return formatKeybinding(bindingForPlatform(binding, platform), platform);
 }

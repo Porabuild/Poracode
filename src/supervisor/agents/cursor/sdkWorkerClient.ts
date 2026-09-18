@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ProjectLocation } from "@/shared/contracts";
+import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { buildAgentCommand } from "../base";
 import {
@@ -29,9 +30,18 @@ import {
   type CursorSdkWorkerStartResult,
   type CursorSdkWorkerWireMessage,
 } from "./sdkWorkerProtocol";
+import type { CursorSdkPinHint } from "./sdkLoaderSupport";
 
 const DEFAULT_BOOT_TIMEOUT_MS = 15_000;
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
+/**
+ * Run creation (`start`) waits on Cursor's backend to provision and
+ * acknowledge the run. That leg has been observed to take ~50s on some
+ * accounts while others answer in ~5s, so it gets a floor well above the
+ * generic RPC budget: a slow-but-healthy ack must not become a fatal teardown
+ * that orphans a server-side run.
+ */
+const START_REQUEST_TIMEOUT_MS = 180_000;
 const MAX_LINE_BYTES = 16 * 1024 * 1024;
 const FATAL_REQUEST_TIMEOUT_METHODS = new Set(["initialize", "start", "cancel", "reload"]);
 
@@ -45,6 +55,12 @@ export interface CursorSdkWorkerSpawnOptions {
   sdkEntryPath?: string;
   /** Required with sdkEntryPath when containment should be enforced. */
   sdkPackageRoot?: string;
+  /**
+   * An installation the host resolved and recorded earlier, tried before the
+   * worker probes for one. Ignored when any explicit path above is set, or when
+   * the target environment is not the one the root was recorded in.
+   */
+  pinnedRoot?: CursorSdkPinHint;
   /** Non-secret process environment overrides. */
   env?: Record<string, string>;
   /** Override the native helper path, or the host source staged into WSL. */
@@ -53,6 +69,12 @@ export interface CursorSdkWorkerSpawnOptions {
   helpersDir?: string;
   bootTimeoutMs?: number;
   requestTimeoutMs?: number;
+  /**
+   * Budget for `start` (run creation) only. Defaults to at least
+   * START_REQUEST_TIMEOUT_MS regardless of `requestTimeoutMs`, which keeps
+   * covering the other worker methods.
+   */
+  startTimeoutMs?: number;
 }
 
 export type CursorSdkWorkerSpawnProcess = (
@@ -84,6 +106,20 @@ export class CursorSdkWorkerRpcError extends Error {
   }
 }
 
+/** A failed boot still owns its worker when process shutdown could not be confirmed. */
+export class CursorSdkWorkerStartupError extends Error {
+  constructor(
+    startupError: unknown,
+    cleanupError: unknown,
+    readonly worker: Pick<CursorSdkWorkerClient, "dispose">,
+  ) {
+    super(startupError instanceof Error ? startupError.message : String(startupError), {
+      cause: new AggregateError([startupError, cleanupError], "Cursor SDK worker startup failed."),
+    });
+    this.name = "CursorSdkWorkerStartupError";
+  }
+}
+
 interface PendingRequest {
   resolve(value: unknown): void;
   reject(error: Error): void;
@@ -97,23 +133,44 @@ interface SpawnedWorker {
   useProcessGroup: boolean;
 }
 
+function formatTimeoutBudget(timeoutMs: number): string {
+  return timeoutMs >= 1000 && timeoutMs % 1000 === 0 ? `${timeoutMs / 1000}s` : `${timeoutMs}ms`;
+}
+
+function cursorSdkWorkerTimeoutMessage(method: string, timeoutMs: number): string {
+  const base = `Cursor SDK worker request ${method} timed out after ${formatTimeoutBudget(timeoutMs)}.`;
+  // A timed-out `start` may still materialize server-side after the host has
+  // torn the worker down, leaving a run the user can neither see nor stop
+  // from Poracode. Say so: the next step is the dashboard, not a blind retry.
+  return method === "start"
+    ? `${base} The run may still start server-side and consume quota; check the Cursor dashboard before retrying in a new thread.`
+    : base;
+}
+
 export async function spawnCursorSdkWorker(
   options: CursorSdkWorkerSpawnOptions,
   dependencies: CursorSdkWorkerClientDependencies = {},
 ): Promise<CursorSdkWorkerClient> {
   const spawned = await spawnWorkerProcess(options, dependencies);
+  const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   const client = new CursorSdkWorkerClient(
     spawned.child,
     spawned.discovery,
     spawned.projectCwd,
-    options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    requestTimeoutMs,
     spawned.useProcessGroup,
+    options.startTimeoutMs ?? Math.max(requestTimeoutMs, START_REQUEST_TIMEOUT_MS),
   );
   try {
     await client.waitUntilReady(options.bootTimeoutMs ?? DEFAULT_BOOT_TIMEOUT_MS);
     return client;
   } catch (error) {
     client.terminate();
+    try {
+      await client.dispose();
+    } catch (cleanupError) {
+      throw new CursorSdkWorkerStartupError(error, cleanupError, client);
+    }
     throw error;
   }
 }
@@ -126,6 +183,7 @@ export class CursorSdkWorkerClient {
   private resolveReady: (() => void) | undefined;
   private rejectReady: ((error: Error) => void) | undefined;
   private stdoutBuffer = "";
+  private readonly startTimeoutMs: number;
   private readyReceived = false;
   private terminated = false;
   private transportError: Error | undefined;
@@ -137,7 +195,10 @@ export class CursorSdkWorkerClient {
     private readonly projectCwd: string,
     private readonly requestTimeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
     private readonly useProcessGroup = false,
+    startTimeoutMs?: number,
   ) {
+    this.startTimeoutMs =
+      startTimeoutMs ?? Math.max(this.requestTimeoutMs, START_REQUEST_TIMEOUT_MS);
     this.ready = new Promise<void>((resolve, reject) => {
       this.resolveReady = resolve;
       this.rejectReady = reject;
@@ -155,7 +216,7 @@ export class CursorSdkWorkerClient {
   }
 
   async start(input: CursorSdkWorkerStartInput): Promise<CursorSdkWorkerStartResult> {
-    return this.request<CursorSdkWorkerStartResult>("start", input);
+    return this.request<CursorSdkWorkerStartResult>("start", input, this.startTimeoutMs);
   }
 
   async cancel(runId?: string): Promise<{ cancelled: boolean }> {
@@ -223,7 +284,10 @@ export class CursorSdkWorkerClient {
   }
 
   dispose(): Promise<void> {
-    this.disposePromise ??= this.disposeOnce();
+    this.disposePromise ??= this.disposeOnce().catch((error: unknown) => {
+      this.disposePromise = undefined;
+      throw error;
+    });
     return this.disposePromise;
   }
 
@@ -257,17 +321,24 @@ export class CursorSdkWorkerClient {
   }
 
   private async disposeOnce(): Promise<void> {
-    if (this.terminated) return;
-    try {
-      await this.request("dispose", {});
-    } catch {
-      // A dead worker is already disposed from the host's perspective.
+    if (!this.terminated) {
+      try {
+        await this.request("dispose", {}, Math.min(this.requestTimeoutMs, 3_000));
+      } catch {
+        // A stalled RPC still requires confirmed process termination below.
+      }
     }
+    this.terminated = true;
+    this.rejectAll(new Error("Cursor SDK worker terminated."));
     this.child.stdin?.end();
-    this.terminate();
+    await awaitProcessTermination(this.child, { ownedProcessGroup: this.useProcessGroup });
   }
 
-  private request<Result>(method: string, params: unknown): Promise<Result> {
+  private request<Result>(
+    method: string,
+    params: unknown,
+    timeoutMs = this.requestTimeoutMs,
+  ): Promise<Result> {
     if (this.terminated) {
       return Promise.reject(new Error("Cursor SDK worker is not running."));
     }
@@ -277,7 +348,7 @@ export class CursorSdkWorkerClient {
     const id = randomUUID();
     return new Promise<Result>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        const error = new Error(`Cursor SDK worker request ${method} timed out.`);
+        const error = new Error(cursorSdkWorkerTimeoutMessage(method, timeoutMs));
         if (FATAL_REQUEST_TIMEOUT_METHODS.has(method)) {
           // Mutating SDK calls may still resolve after the caller's deadline.
           // A fatal teardown prevents a late invisible agent/run or concurrent
@@ -287,7 +358,7 @@ export class CursorSdkWorkerClient {
         }
         this.pending.delete(id);
         reject(error);
-      }, this.requestTimeoutMs);
+      }, timeoutMs);
       timeout.unref?.();
       this.pending.set(id, {
         resolve: (value) => resolve(value as Result),
@@ -402,12 +473,12 @@ export class CursorSdkWorkerClient {
   private fail(error: Error): void {
     if (this.terminated) return;
     this.terminated = true;
-    this.transportError = error;
+    if (!this.disposePromise) this.transportError = error;
     this.rejectReady?.(error);
     this.resolveReady = undefined;
     this.rejectReady = undefined;
     this.rejectAll(error);
-    for (const listener of this.transportErrorListeners) {
+    for (const listener of this.disposePromise ? [] : this.transportErrorListeners) {
       try {
         listener(error);
       } catch {
@@ -430,14 +501,31 @@ export class CursorSdkWorkerClient {
   }
 }
 
+/**
+ * The recorded installation to hand the worker, when one applies.
+ *
+ * Dropped whenever the caller named a location itself — explicit configuration
+ * is authoritative and must not be second-guessed by a stale record — and for
+ * WSL targets, because a root recorded in one environment is not a path that
+ * exists in the other.
+ */
+function applicablePinnedRoot(options: CursorSdkWorkerSpawnOptions): CursorSdkPinHint | undefined {
+  if (!options.pinnedRoot) return undefined;
+  if (options.configuredPath || options.sdkEntryPath || options.sdkPackageRoot) return undefined;
+  if (options.projectLocation.kind === "wsl") return undefined;
+  return options.pinnedRoot;
+}
+
 async function spawnWorkerProcess(
   options: CursorSdkWorkerSpawnOptions,
   dependencies: CursorSdkWorkerClientDependencies,
 ): Promise<SpawnedWorker> {
+  const pinnedRoot = applicablePinnedRoot(options);
   const discovery: CursorSdkWorkerDiscovery = {
     ...(options.configuredPath ? { configuredPath: options.configuredPath } : {}),
     ...(options.sdkEntryPath ? { entryPath: options.sdkEntryPath } : {}),
     ...(options.sdkPackageRoot ? { packageRoot: options.sdkPackageRoot } : {}),
+    ...(pinnedRoot ? { pinnedRoot } : {}),
   };
   const spawnProcess =
     dependencies.spawnProcess ??

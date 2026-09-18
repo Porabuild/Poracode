@@ -207,4 +207,15 @@ describe("submitThreadInput resume wiring", () => {
     });
     expect(rollbackCalls()).toEqual([]);
   });
+
+  it("does not relaunch a thread that disappeared between send and resume", async () => {
+    mocks.bridge.sendThreadInput.mockRejectedValueOnce(
+      new Error("Unknown thread session: thread-1"),
+    );
+    mocks.appState.threads = [];
+
+    await expect(submitThreadInput("thread-1", "hello", segments)).resolves.toBeUndefined();
+
+    expect(mocks.performInitialThreadLaunch).not.toHaveBeenCalled();
+  });
 });

@@ -1,25 +1,24 @@
-import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
-import { dirname, isAbsolute, join } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import packageJson from "../../../package.json" with { type: "json" };
-import { msg } from "@/shared/messages";
+import { SSH_RUNTIME_MANIFEST_VERSION } from "@/shared/sshRuntimeManifest";
+import { RUNTIME_BUILD_SOURCE_HASH } from "@/shared/runtimeBuildIdentity";
+import { verifyRuntimeResources } from "@/shared/runtimeResourceInventory";
+import { writeFileAtomic } from "@/shared/atomicFile";
+import { readBoundedRuntimeFileSync } from "@/shared/readBoundedRuntimeFile";
 import {
-  SSH_RUNTIME_ENTRY_NAMES,
-  SSH_RUNTIME_MANIFEST_VERSION,
-  sshRuntimeManifestFileName,
-  type SshRuntimeBuildManifest,
-} from "@/shared/sshRuntimeManifest";
+  RUNTIME_CODE_MAX_FILE_BYTES,
+  RUNTIME_MANIFEST_MAX_BYTES,
+} from "@/shared/runtimeCodeManifest";
+import {
+  hashRuntimeDirectory,
+  regularArchiveExists,
+  runtimeStatSignature,
+  stageRuntimeDirectory,
+  stageRuntimeFile,
+} from "./runtimeBundleFiles";
+import { readRuntimeBuildManifests, verifyRuntimeBuildCode } from "./runtimeBuildManifests";
 
 export interface SshRuntimeBundleOptions {
   readonly mainBundleDir: string;
@@ -37,50 +36,13 @@ export interface SshRuntimeBundle {
   readonly version: string;
 }
 
-function readRuntimeBuildManifest(mainBundleDir: string): SshRuntimeBuildManifest {
-  const files = new Set<string>();
-  const dependencies = new Set<string>();
-  for (const entry of SSH_RUNTIME_ENTRY_NAMES) {
-    const path = join(mainBundleDir, sshRuntimeManifestFileName(entry));
-    let value: Partial<SshRuntimeBuildManifest> | null;
-    try {
-      value = JSON.parse(readFileSync(path, "utf8")) as Partial<SshRuntimeBuildManifest> | null;
-    } catch (error) {
-      throw new Error(msg("ssh.runtimeManifest.invalid", { path }), {
-        cause: error,
-      });
-    }
-    if (
-      value?.version !== SSH_RUNTIME_MANIFEST_VERSION ||
-      !Array.isArray(value.files) ||
-      !value.files.every(
-        (file) =>
-          typeof file === "string" &&
-          file.length > 0 &&
-          !isAbsolute(file) &&
-          !file.split(/[\\/]/u).includes(".."),
-      ) ||
-      !Array.isArray(value.dependencies) ||
-      !value.dependencies.every((dependency) => typeof dependency === "string")
-    ) {
-      throw new Error(msg("ssh.runtimeManifest.invalid", { path }));
-    }
-    for (const file of value.files) files.add(file);
-    for (const dependency of value.dependencies) dependencies.add(dependency);
-  }
-  return {
-    version: SSH_RUNTIME_MANIFEST_VERSION,
-    files: [...files].sort(),
-    dependencies: [...dependencies].sort(),
-  };
-}
-
 function runtimePackageJson(dependencyNames: readonly string[]): string {
   const availableDependencies: Readonly<Record<string, string>> = packageJson.dependencies;
   const dependencies = Object.fromEntries(
     dependencyNames.map((name) => {
       const version = availableDependencies[name];
-      if (!version) throw new Error(`Missing remote runtime dependency ${name}.`);
+      if (!Object.hasOwn(availableDependencies, name) || typeof version !== "string" || !version)
+        throw new Error(`Missing remote runtime dependency ${name}.`);
       return [name, version];
     }),
   );
@@ -97,58 +59,6 @@ function runtimePackageJson(dependencyNames: readonly string[]): string {
   )}\n`;
 }
 
-function hashDirectory(root: string): string {
-  const hash = createHash("sha256");
-  const visit = (directory: string, relativeRoot: string): void => {
-    for (const entry of readdirSync(directory).sort()) {
-      const absolute = join(directory, entry);
-      const relative = join(relativeRoot, entry).replaceAll("\\", "/");
-      const stat = statSync(absolute);
-      if (stat.isDirectory()) {
-        visit(absolute, relative);
-      } else if (stat.isFile()) {
-        hash.update(relative);
-        hash.update("\0");
-        hash.update(readFileSync(absolute));
-        hash.update("\0");
-      }
-    }
-  };
-  visit(root, "");
-  return hash.digest("hex");
-}
-
-/**
- * Cheap content fingerprint used to decide whether the staged bundle could
- * have changed: relative paths + sizes + mtimes, no file reads. A stat walk is
- * orders of magnitude cheaper than the multi-MB copy + full-content hashing
- * the real bundle build performs on the blocking main-process event loop.
- */
-function statSignature(roots: readonly string[], extra: string): string {
-  const hash = createHash("sha256");
-  const visit = (directory: string, relativeRoot: string): void => {
-    for (const entry of readdirSync(directory).sort()) {
-      const absolute = join(directory, entry);
-      const relative = join(relativeRoot, entry).replaceAll("\\", "/");
-      const stat = statSync(absolute);
-      if (stat.isDirectory()) {
-        visit(absolute, relative);
-      } else if (stat.isFile()) {
-        hash.update(`${relative}\0${stat.size}\0${stat.mtimeMs}\0`);
-      }
-    }
-  };
-  for (const root of roots) {
-    hash.update(`${root}\0`);
-    if (!existsSync(root)) continue;
-    const stat = statSync(root);
-    if (stat.isDirectory()) visit(root, "");
-    else hash.update(`${stat.size}\0${stat.mtimeMs}\0`);
-  }
-  hash.update(extra);
-  return hash.digest("hex");
-}
-
 interface BundleManifest {
   readonly key: string;
   readonly signature: string;
@@ -162,9 +72,15 @@ function manifestPath(cacheDir: string): string {
 function readBundleManifest(cacheDir: string): BundleManifest | null {
   try {
     const value = JSON.parse(
-      readFileSync(manifestPath(cacheDir), "utf8"),
+      readBoundedRuntimeFileSync(manifestPath(cacheDir), RUNTIME_MANIFEST_MAX_BYTES).toString(
+        "utf8",
+      ),
     ) as Partial<BundleManifest> | null;
-    return value && typeof value.key === "string" && value.signature && value.hash
+    return value &&
+      typeof value.key === "string" &&
+      typeof value.signature === "string" &&
+      typeof value.hash === "string" &&
+      /^[a-f0-9]{64}$/u.test(value.hash)
       ? (value as BundleManifest)
       : null;
   } catch {
@@ -173,7 +89,7 @@ function readBundleManifest(cacheDir: string): BundleManifest | null {
 }
 
 function assertHeadlessServerBundle(path: string): void {
-  const source = readFileSync(path, "utf8");
+  const source = readBoundedRuntimeFileSync(path, RUNTIME_CODE_MAX_FILE_BYTES).toString("utf8");
   if (/\brequire\(["']electron["']\)|\bimport\(["']electron["']\)/.test(source)) {
     throw new Error(
       "Poracode Helper cannot include Electron. Check the standalone server import graph.",
@@ -194,7 +110,19 @@ let cachedBundle: {
 } | null = null;
 
 export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRuntimeBundle {
+  const buildManifest = readRuntimeBuildManifests(options.mainBundleDir);
+  if (buildManifest.resources.length > 0) {
+    if (!options.bundledPluginsDir)
+      throw new Error("Bundled runtime plugins are required by the build declaration.");
+    verifyRuntimeResources(buildManifest.resources, {
+      agentPlugins: { path: options.agentPluginsDir, layout: "staged" },
+      bundledPlugins: options.bundledPluginsDir,
+    });
+  }
   const cacheKey = JSON.stringify([
+    SSH_RUNTIME_MANIFEST_VERSION,
+    RUNTIME_BUILD_SOURCE_HASH,
+    buildManifest.digest,
     options.mainBundleDir,
     options.agentPluginsDir,
     options.wslHelpersDir,
@@ -205,19 +133,16 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
   ]);
   if (cachedBundle?.key === cacheKey) {
     const archivePath = join(options.cacheDir, `${cachedBundle.hash}.tar.gz`);
-    if (existsSync(archivePath)) {
+    if (regularArchiveExists(archivePath)) {
       return { archivePath, hash: cachedBundle.hash, version: cachedBundle.version };
     }
   }
 
-  const buildManifest = readRuntimeBuildManifest(options.mainBundleDir);
   const runtimePackage = runtimePackageJson(buildManifest.dependencies);
-  const signature = statSignature(
+  const signature = runtimeStatSignature(
     [
-      ...SSH_RUNTIME_ENTRY_NAMES.map((entry) =>
-        join(options.mainBundleDir, sshRuntimeManifestFileName(entry)),
-      ),
-      ...buildManifest.files.map((file) => join(options.mainBundleDir, file)),
+      ...buildManifest.manifestFiles.map((file) => join(options.mainBundleDir, file)),
+      ...buildManifest.files.map((file) => join(options.mainBundleDir, file.path)),
       options.agentPluginsDir,
       options.wslHelpersDir,
       ...(options.bundledSkillsDir ? [options.bundledSkillsDir] : []),
@@ -228,14 +153,14 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
   const manifest = readBundleManifest(options.cacheDir);
   if (manifest && manifest.key === cacheKey && manifest.signature === signature) {
     const archivePath = join(options.cacheDir, `${manifest.hash}.tar.gz`);
-    if (existsSync(archivePath)) {
+    if (regularArchiveExists(archivePath)) {
       cachedBundle = { key: cacheKey, hash: manifest.hash, version: packageJson.version };
       return { archivePath, hash: manifest.hash, version: packageJson.version };
     }
   }
 
   for (const file of buildManifest.files) {
-    const source = join(options.mainBundleDir, file);
+    const source = join(options.mainBundleDir, file.path);
     if (!existsSync(source)) {
       throw new Error(`Poracode SSH runtime asset is missing: ${source}`);
     }
@@ -244,36 +169,39 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
     throw new Error(`Poracode SSH agent plugins are missing: ${options.agentPluginsDir}`);
   }
   assertHeadlessServerBundle(join(options.mainBundleDir, "server.cjs"));
+  verifyRuntimeBuildCode(options.mainBundleDir, buildManifest.files);
 
   mkdirSync(options.cacheDir, { recursive: true });
   const stage = mkdtempSync(join(options.cacheDir, "stage-"));
   try {
-    for (const file of buildManifest.files) {
-      const destination = join(stage, file);
-      mkdirSync(dirname(destination), { recursive: true });
-      cpSync(join(options.mainBundleDir, file), destination);
-    }
-    cpSync(options.agentPluginsDir, join(stage, "agent-plugins"), { recursive: true });
-    if (existsSync(options.wslHelpersDir)) {
-      cpSync(options.wslHelpersDir, join(stage, "wsl-helpers"), { recursive: true });
-    } else {
-      mkdirSync(join(stage, "wsl-helpers"));
-    }
-    if (options.bundledSkillsDir && existsSync(options.bundledSkillsDir)) {
-      cpSync(options.bundledSkillsDir, join(stage, "skills"), { recursive: true });
-    } else {
-      mkdirSync(join(stage, "skills"));
-    }
-    if (options.bundledPluginsDir && existsSync(options.bundledPluginsDir)) {
-      cpSync(options.bundledPluginsDir, join(stage, "plugins"), { recursive: true });
-    } else {
-      mkdirSync(join(stage, "plugins"));
-    }
-    writeFileSync(join(stage, "package.json"), runtimePackage, "utf8");
+    for (const file of buildManifest.files)
+      stageRuntimeFile(join(options.mainBundleDir, file.path), join(stage, file.path), file.bytes);
+    for (const file of buildManifest.manifestFiles)
+      stageRuntimeFile(
+        join(options.mainBundleDir, file),
+        join(stage, file),
+        RUNTIME_MANIFEST_MAX_BYTES,
+      );
+    stageRuntimeDirectory(options.agentPluginsDir, join(stage, "agent-plugins"));
+    stageRuntimeDirectory(options.wslHelpersDir, join(stage, "wsl-helpers"));
+    stageRuntimeDirectory(options.bundledSkillsDir, join(stage, "skills"));
+    stageRuntimeDirectory(options.bundledPluginsDir, join(stage, "plugins"));
+    writeFileAtomic(join(stage, "package.json"), runtimePackage, { encoding: "utf8" });
 
-    const hash = hashDirectory(stage);
+    // Verify the captured stage as well as the mutable source. A replacement
+    // during copy cannot create an archive whose own manifest describes other bytes.
+    const stagedManifest = readRuntimeBuildManifests(stage);
+    if (stagedManifest.digest !== buildManifest.digest)
+      throw new Error("Runtime manifest changed during archive staging.");
+    verifyRuntimeBuildCode(stage, buildManifest.files);
+    verifyRuntimeResources(buildManifest.resources, {
+      agentPlugins: { path: join(stage, "agent-plugins"), layout: "staged" },
+      bundledPlugins: join(stage, "plugins"),
+    });
+
+    const hash = hashRuntimeDirectory(stage);
     const archivePath = join(options.cacheDir, `${hash}.tar.gz`);
-    if (!existsSync(archivePath)) {
+    if (!regularArchiveExists(archivePath)) {
       // Name the archive relative to cacheDir (the process cwd) so GNU tar on
       // Windows doesn't read the `C:\…` drive-letter path as an rsh `host:file`
       // spec ("Cannot connect to C:"). bsdtar treats the relative name the same,
@@ -286,10 +214,10 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
     }
     cachedBundle = { key: cacheKey, hash, version: packageJson.version };
     try {
-      writeFileSync(
+      writeFileAtomic(
         manifestPath(options.cacheDir),
         `${JSON.stringify({ key: cacheKey, signature, hash } satisfies BundleManifest)}\n`,
-        "utf8",
+        { encoding: "utf8" },
       );
     } catch {
       // Best-effort: without the manifest the next app start just rebuilds.

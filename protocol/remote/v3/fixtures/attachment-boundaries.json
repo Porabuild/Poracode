@@ -1,0 +1,51 @@
+{
+  "limits": { "maxBytes": 20971520, "maxNameCharacters": 255 },
+  "note": "Names and byte counts are metadata; no binary payload is committed.",
+  "cases": [
+    {
+      "id": "empty",
+      "bytes": 0,
+      "nameLength": 12,
+      "expected": {
+        "queryValid": true,
+        "bodyWithinLimit": true,
+        "accepted": false,
+        "error": "empty_attachment"
+      }
+    },
+    {
+      "id": "exact-20-mib",
+      "bytes": 20971520,
+      "nameLength": 12,
+      "expected": { "queryValid": true, "bodyWithinLimit": true, "accepted": true }
+    },
+    {
+      "id": "over-20-mib",
+      "bytes": 20971521,
+      "nameLength": 12,
+      "expected": {
+        "queryValid": true,
+        "bodyWithinLimit": false,
+        "accepted": false,
+        "error": "attachment_too_large"
+      }
+    },
+    {
+      "id": "name-255",
+      "bytes": 1,
+      "nameLength": 255,
+      "expected": { "queryValid": true, "bodyWithinLimit": true, "accepted": true }
+    },
+    {
+      "id": "name-256",
+      "bytes": 1,
+      "nameLength": 256,
+      "expected": {
+        "queryValid": false,
+        "bodyWithinLimit": true,
+        "accepted": false,
+        "error": "invalid_attachment"
+      }
+    }
+  ]
+}

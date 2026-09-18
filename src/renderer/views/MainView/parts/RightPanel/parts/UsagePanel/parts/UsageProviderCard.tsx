@@ -2,12 +2,12 @@ import { type FormEvent, useState } from "react";
 import { useSortable } from "@dnd-kit/react/sortable";
 import { ChevronDown, ChevronRight, GripVertical, LogOut, RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { usageWindowDisplayLabel } from "@poracode/agents-usage/formatters";
 import type { UsageSnapshot } from "@poracode/agents-usage/types";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
 import { UsageCostLine } from "@/renderer/components/providers/UsageCostLine";
 import {
+  usageWindowDisplayLabel,
   formatCreditBalance,
   formatWindowValue,
   hasDisplayableCredits,
@@ -71,23 +71,23 @@ export function UsageProviderCard(props: {
   id: string;
   label: string;
   index: number;
+  compact: boolean;
   collapsed: boolean;
+  draggable?: boolean | undefined;
   onToggleCollapse: (id: string) => void;
 }) {
-  const { id, label, index, collapsed, onToggleCollapse } = props;
+  const { id, label, index, compact, collapsed, draggable = true, onToggleCollapse } = props;
   const { t } = useLingui();
   const snapshot = useProviderUsage(id);
   const {
     canBrowserSignIn,
     canApiKeySignIn,
-    canCliSignIn,
     canSignOut,
     signingIn,
     signingOut,
     apiKey,
     setApiKey,
     handleSignIn,
-    handleCliSignIn,
     handleSubmitApiKey,
     handleSignOut,
   } = useUsageProviderLogin(id);
@@ -103,6 +103,7 @@ export function UsageProviderCard(props: {
     accept: ["usage-provider-order"],
     group: "usage-provider-order",
     data: { id },
+    disabled: !draggable,
   });
 
   const credits = hasDisplayableCredits(snapshot?.credits, snapshot?.windows ?? [])
@@ -126,15 +127,25 @@ export function UsageProviderCard(props: {
         isDragging ? "opacity-40" : ""
       }`}
     >
-      <div className="flex items-center gap-1.5 px-2.5 py-1.5">
-        <button
-          ref={handleRef}
-          type="button"
-          aria-label={t`Reorder ${label}`}
-          className="flex size-4 shrink-0 cursor-grab items-center justify-center text-muted/40 transition-colors hover:text-foreground active:cursor-grabbing"
-        >
-          <GripVertical className="size-3.5" />
-        </button>
+      <div
+        className={
+          compact
+            ? `flex min-h-[3.25rem] items-center gap-0 ${draggable ? "px-1" : "pl-3 pr-1"}`
+            : `flex items-center gap-1.5 ${draggable ? "px-2.5" : "pl-3 pr-2.5"} py-1.5`
+        }
+      >
+        {draggable ? (
+          <button
+            ref={handleRef}
+            type="button"
+            aria-label={t`Reorder ${label}`}
+            className={`flex shrink-0 cursor-grab items-center justify-center text-muted/40 transition-colors hover:text-foreground active:cursor-grabbing ${
+              compact ? "size-11 touch-none" : "size-4"
+            }`}
+          >
+            <GripVertical className={compact ? "size-4" : "size-3.5"} />
+          </button>
+        ) : null}
         <button
           type="button"
           aria-expanded={!collapsed}
@@ -174,7 +185,9 @@ export function UsageProviderCard(props: {
           title={t`Refresh ${label}`}
           onClick={() => void refresh()}
           disabled={refreshing}
-          className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground disabled:opacity-50"
+          className={`flex shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground disabled:opacity-50 ${
+            compact ? "size-11" : "size-5"
+          }`}
         >
           <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
         </button>
@@ -185,7 +198,9 @@ export function UsageProviderCard(props: {
             title={t`Sign out ${label}`}
             onClick={() => void handleSignOut()}
             disabled={signingOut}
-            className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground disabled:opacity-50"
+            className={`flex shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground disabled:opacity-50 ${
+              compact ? "size-11" : "size-5"
+            }`}
           >
             <LogOut className="size-3.5" />
           </button>
@@ -195,7 +210,9 @@ export function UsageProviderCard(props: {
           aria-expanded={!collapsed}
           aria-label={collapsed ? t`Expand ${label}` : t`Collapse ${label}`}
           onClick={() => onToggleCollapse(id)}
-          className="flex size-5 shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground"
+          className={`flex shrink-0 items-center justify-center rounded-md text-muted/60 transition-colors hover:bg-muted/10 hover:text-foreground ${
+            compact ? "size-11" : "size-5"
+          }`}
         >
           <Chevron className="size-4" />
         </button>
@@ -232,16 +249,6 @@ export function UsageProviderCard(props: {
                   className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
                 >
                   {signingIn ? <Trans>Signing in…</Trans> : <Trans>Browser sign-in</Trans>}
-                </button>
-              ) : null}
-              {canCliSignIn ? (
-                <button
-                  type="button"
-                  onClick={handleCliSignIn}
-                  disabled={signingIn}
-                  className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
-                >
-                  {signingIn ? <Trans>Signing in…</Trans> : <Trans>Sign in</Trans>}
                 </button>
               ) : null}
               {canApiKeySignIn ? (

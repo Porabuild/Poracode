@@ -45,7 +45,80 @@ function reset() {
 beforeEach(reset);
 
 describe("persisted agent status cache", () => {
-  it("invalidates v28 snapshots so MCP capabilities are re-probed", async () => {
+  it.each([30, 31, 32])(
+    "invalidates stored v%i provider inventories during rehydration",
+    async (version) => {
+      const staleStatus = makeStatus({ kind: "example", label: "Example" });
+      localStorage.setItem(
+        "poracode-agent-statuses-v1",
+        JSON.stringify({
+          version,
+          state: {
+            agentStatuses: [staleStatus],
+            wslAgentStatuses: [staleStatus],
+            windowsLoaded: true,
+            wslLoaded: true,
+          },
+        }),
+      );
+
+      await useAgentStatusesStore.persist.rehydrate();
+
+      expect(useAgentStatusesStore.getState()).toMatchObject({
+        agentStatuses: [],
+        wslAgentStatuses: [],
+        windowsLoaded: false,
+        wslLoaded: false,
+      });
+    },
+  );
+
+  it("invalidates v30 snapshots carrying a Cursor SDK install derived from PATH", async () => {
+    // Mirrors supervisor STATUS_CACHE_VERSION 34: a v30 SDK variant could report
+    // `installed: false` for a package that was intact on disk but unresolvable
+    // from the probing process. Re-probing lets the resolved root be recorded.
+    const options = useAgentStatusesStore.persist.getOptions();
+    const { capabilities } = makeStatus();
+    const staleCursor = makeStatus({
+      kind: "cursor",
+      label: "Cursor",
+      installed: true,
+      runtimeVariants: {
+        acp: {
+          presentationMode: "gui",
+          installed: true,
+          authState: "authenticated",
+          authUsesProviderLogin: true,
+          capabilities,
+        },
+        sdk: {
+          presentationMode: "gui",
+          installed: false,
+          authState: "unknown",
+          authUsesProviderLogin: false,
+          capabilities,
+        },
+      },
+    });
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [staleCursor],
+        wslAgentStatuses: [staleCursor],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      30,
+    );
+    expect(options.version).toBe(33);
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v29 snapshots so merged catalog and MCP capabilities are re-probed", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
     const stale = makeStatus({ kind: "example", label: "Example" });
     const migrated = await options.migrate!(
@@ -55,31 +128,9 @@ describe("persisted agent status cache", () => {
         windowsLoaded: true,
         wslLoaded: true,
       },
-      28,
-    );
-    expect(options.version).toBe(30);
-    expect(migrated).toMatchObject({
-      agentStatuses: [],
-      wslAgentStatuses: [],
-      windowsLoaded: false,
-      wslLoaded: false,
-    });
-  });
-  it("invalidates v29 snapshots so OpenCode 2 and per-provider credentials are re-probed", async () => {
-    const options = useAgentStatusesStore.persist.getOptions();
-    // Persisted before OpenCode 2 reported connected AI providers, so the
-    // settings panel would list none until the next probe landed.
-    const stale = makeStatus({ kind: "opencode2", label: "OpenCode 2" });
-    const migrated = await options.migrate!(
-      {
-        agentStatuses: [stale],
-        wslAgentStatuses: [stale],
-        windowsLoaded: true,
-        wslLoaded: true,
-      },
       29,
     );
-    expect(options.version).toBe(30);
+    expect(options.version).toBe(33);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -104,7 +155,7 @@ describe("persisted agent status cache", () => {
       },
       21,
     );
-    expect(options.version).toBe(30);
+    expect(options.version).toBe(33);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -148,7 +199,47 @@ describe("persisted agent status cache", () => {
       19,
     );
 
-    expect(options.version).toBe(30);
+    expect(options.version).toBe(33);
+    expect(migrated).toMatchObject({
+      agentStatuses: [],
+      wslAgentStatuses: [],
+      windowsLoaded: false,
+      wslLoaded: false,
+    });
+  });
+
+  it("invalidates v32 Muse statuses cached under WSL-routed Windows detection", async () => {
+    // Mirrors supervisor STATUS_CACHE_VERSION 36: a v32 Windows status could
+    // report `installed: false` for a natively installed Muse because
+    // detection routed through WSL. Re-probing lets the host install surface.
+    const options = useAgentStatusesStore.persist.getOptions();
+    const migrated = await options.migrate!(
+      {
+        agentStatuses: [
+          makeStatus({
+            kind: "muse",
+            label: "Muse Code",
+            installed: false,
+            authState: "missing",
+            envKind: "windows",
+          }),
+        ],
+        wslAgentStatuses: [
+          makeStatus({
+            kind: "muse",
+            label: "Muse Code",
+            installed: true,
+            envKind: "wsl",
+            envDistro: "Ubuntu",
+          }),
+        ],
+        windowsLoaded: true,
+        wslLoaded: true,
+      },
+      32,
+    );
+
+    expect(options.version).toBe(33);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -178,7 +269,7 @@ describe("persisted agent status cache", () => {
       17,
     );
 
-    expect(options.version).toBe(30);
+    expect(options.version).toBe(33);
     expect(migrated).toMatchObject({
       agentStatuses: [],
       wslAgentStatuses: [],
@@ -189,7 +280,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v15 statuses cached before Command Code's live-only model discovery", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(30);
+    expect(options.version).toBe(33);
     const staleCommandCode = makeStatus({
       kind: "commandcode",
       label: "Command Code",
@@ -221,7 +312,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v10 statuses whose terminal auth methods lack baseSpawnEnv-derived env", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(30);
+    expect(options.version).toBe(33);
     const staleLogin = makeStatus({
       kind: "antigravity",
       label: "Antigravity",
@@ -248,7 +339,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v14 statuses that grouped Cursor Grok under Other models", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(30);
+    expect(options.version).toBe(33);
     const staleCursor = makeStatus({
       kind: "cursor",
       label: "Cursor",
@@ -281,7 +372,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v8 statuses cached before successful ACP sessions established auth", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(30);
+    expect(options.version).toBe(33);
     const staleAcp = makeStatus({
       kind: "acp-generic:example",
       label: "Example ACP",
@@ -308,7 +399,7 @@ describe("persisted agent status cache", () => {
 
   it("invalidates v6 statuses produced without the Grok login-shell environment", async () => {
     const options = useAgentStatusesStore.persist.getOptions();
-    expect(options.version).toBe(30);
+    expect(options.version).toBe(33);
     expect(options.migrate).toBeTypeOf("function");
 
     const grok = makeStatus({
@@ -353,7 +444,7 @@ it("invalidates v20 ACP labels in both persisted environments", async () => {
     },
     20,
   );
-  expect(options.version).toBe(30);
+  expect(options.version).toBe(33);
   expect(migrated).toMatchObject({
     agentStatuses: [],
     wslAgentStatuses: [],
@@ -856,7 +947,7 @@ describe("isDiscoveryActiveForLocation", () => {
   });
 });
 
-it("invalidates v23 model catalogs in both persisted environments", async () => {
+it("invalidates v25 model catalogs in both persisted environments", async () => {
   const options = useAgentStatusesStore.persist.getOptions();
   const stale = makeStatus();
   const migrated = await options.migrate!(
@@ -866,13 +957,30 @@ it("invalidates v23 model catalogs in both persisted environments", async () => 
       windowsLoaded: true,
       wslLoaded: true,
     },
-    23,
+    25,
   );
-  expect(options.version).toBe(30);
+  expect(options.version).toBe(33);
   expect(migrated).toMatchObject({
     agentStatuses: [],
     wslAgentStatuses: [],
     windowsLoaded: false,
     wslLoaded: false,
   });
+});
+
+it("refreshes model pricing metadata when model IDs and provider version stay the same", () => {
+  const original = makeStatus();
+  original.capabilities.models = [{ id: "model", label: "Model", description: "old price" }];
+  useAgentStatusesStore.setState({ agentStatuses: [original] });
+  const fresh = {
+    ...original,
+    capabilities: {
+      ...original.capabilities,
+      models: [{ id: "model", label: "Model", description: "new price" }],
+    },
+  };
+  useAgentStatusesStore.getState().setAgentStatuses([fresh]);
+  expect(
+    useAgentStatusesStore.getState().agentStatuses[0]?.capabilities.models[0]?.description,
+  ).toBe("new price");
 });

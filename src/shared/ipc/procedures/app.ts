@@ -56,6 +56,11 @@ export const setGlobalShortcutsSuspendedPayloadSchema = z.object({
   suspended: z.boolean(),
 });
 
+export const setRendererEventInterestsPayloadSchema = z.object({
+  terminalThreadIds: z.array(z.string()),
+  runtimeThreadIds: z.array(z.string()),
+});
+
 /**
  * Live view of the local Tailscale daemon + our `tailscale serve` HTTPS mapping,
  * surfaced in desktop Settings → Remote Access.
@@ -88,34 +93,7 @@ export interface LegacyDataMigrationRequestResult {
   readonly status: "scheduled" | "no-legacy-data" | "unavailable";
 }
 
-/**
- * Desktop-as-client HTTP proxy. The renderer can't fetch a remote Poracode
- * server directly — the server's CORS allowlist doesn't include the desktop's
- * origin — so remote requests run in the main process, which isn't subject to
- * CORS. See docs/REMOTE_ARCHITECTURE.md, Phase 4.
- */
-export const remoteHttpRequestPayloadSchema = z.object({
-  url: z.string().url(),
-  method: z.enum(["GET", "POST", "DELETE"]).optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-  body: z.string().optional(),
-  bodyBase64: z.string().optional(),
-  /** Opt-in binary response; omitted by existing text/JSON callers. Local IPC only. */
-  responseEncoding: z.enum(["utf8", "base64"]).optional(),
-});
-export type RemoteHttpRequestPayload = z.infer<typeof remoteHttpRequestPayloadSchema>;
-export interface RemoteHttpRequestResult {
-  readonly status: number;
-  readonly headers: Record<string, string>;
-  readonly body: string;
-}
-
 export const appProcedures = {
-  remoteHttpRequest: definePayloadProcedure<
-    RemoteHttpRequestPayload,
-    RemoteHttpRequestResult,
-    "main-local"
-  >("remoteHttpRequest", "main-local", remoteHttpRequestPayloadSchema),
   pickFolder: defineIpcProcedure<[string?], string | undefined, string | null, "main-local">(
     "pickFolder",
     "main-local",
@@ -216,6 +194,11 @@ export const appProcedures = {
     void,
     "main-local"
   >("setGlobalShortcutsSuspended", "main-local", setGlobalShortcutsSuspendedPayloadSchema),
+  setRendererEventInterests: definePayloadProcedure<
+    z.infer<typeof setRendererEventInterestsPayloadSchema>,
+    void,
+    "main-local"
+  >("setRendererEventInterests", "main-local", setRendererEventInterestsPayloadSchema),
   getRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
     "getRemoteAccessPairing",
     "main-local",

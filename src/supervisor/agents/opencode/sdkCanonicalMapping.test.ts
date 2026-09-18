@@ -2199,7 +2199,7 @@ describe("sdkCanonicalMapping — native todos and assistant errors", () => {
     expect(events).toEqual([]);
   });
 
-  it("surfaces retry session status as an error event and deduplicates", () => {
+  it("surfaces retry session status as a warning event and deduplicates", () => {
     const state = createOpenCodeMapperState("thread-1");
     const retry1 = {
       id: "evt-retry-1",
@@ -2218,7 +2218,7 @@ describe("sdkCanonicalMapping — native todos and assistant errors", () => {
     const events1 = mapOpenCodeEvent(retry1, state);
     expect(events1).toEqual([
       {
-        type: "error",
+        type: "warning",
         threadId: "thread-1",
         message: "Rate limit exceeded. Please try again later.",
       },
@@ -2244,7 +2244,7 @@ describe("sdkCanonicalMapping — native todos and assistant errors", () => {
     const events2 = mapOpenCodeEvent(retry2, state);
     expect(events2).toEqual([
       {
-        type: "error",
+        type: "warning",
         threadId: "thread-1",
         message: "Rate limit exceeded. Please try again later.",
       },
@@ -2264,11 +2264,28 @@ describe("sdkCanonicalMapping — native todos and assistant errors", () => {
     const events3 = mapOpenCodeEvent(retry2, state);
     expect(events3).toEqual([
       {
-        type: "error",
+        type: "warning",
         threadId: "thread-1",
         message: "Rate limit exceeded. Please try again later.",
       },
     ]);
+
+    // A terminal failure remains visible even if the provider still labels
+    // the cause retryable after exhausting its automatic retry budget.
+    const error = {
+      name: "APIError" as const,
+      data: { message: "Rate limit exceeded. Please try again later.", isRetryable: true },
+    };
+    expect(
+      mapOpenCodeEvent(
+        {
+          id: "evt-final-error",
+          type: "session.error",
+          properties: { sessionID: "ses_test", error },
+        },
+        state,
+      ),
+    ).toEqual([{ type: "error", threadId: "thread-1", message: error.data.message }]);
   });
 
   it("surfaces retry session status with action message fallback", () => {
@@ -2295,7 +2312,7 @@ describe("sdkCanonicalMapping — native todos and assistant errors", () => {
     const events = mapOpenCodeEvent(retryAction, state);
     expect(events).toEqual([
       {
-        type: "error",
+        type: "warning",
         threadId: "thread-1",
         message: "Action rate limit fallback",
       },
@@ -2329,7 +2346,7 @@ describe("sdkCanonicalMapping — native todos and assistant errors", () => {
     );
     expect(events).toEqual([
       {
-        type: "error",
+        type: "warning",
         threadId: "thread-1",
         message: "Action rate limit fallback",
       },
@@ -2381,7 +2398,7 @@ describe("sdkCanonicalMapping — native todos and assistant errors", () => {
     );
     expect(parentEvents).toEqual([
       {
-        type: "error",
+        type: "warning",
         threadId: "thread-1",
         message: "Rate limit exceeded. Please try again later.",
       },

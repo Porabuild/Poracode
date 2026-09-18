@@ -84,4 +84,16 @@ describe("SshConnectionForm", () => {
       expect.objectContaining({ identityFile: "C:\\keys\\id_ed25519" }),
     );
   });
+
+  it("announces connection failures", async () => {
+    pairSshServer.mockRejectedValueOnce(new Error("SSH connection refused"));
+    render(<SshConnectionForm onConnected={() => {}} onCancel={() => {}} />);
+
+    fireEvent.change(screen.getByRole("combobox", { name: "SSH hostname" }), {
+      target: { value: "build-box" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("SSH connection refused");
+  });
 });

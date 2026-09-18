@@ -40,10 +40,14 @@ export interface AppControlsMcpIngressDeps {
   getAppInfo(): AppControlsAppInfo;
   supervisor: AppControlsSupervisorCaller;
   createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
-  emitRemoteThreadCommand(command: RemoteThreadCommand): boolean;
+  emitRemoteThreadCommand(command: RemoteThreadCommand): boolean | Promise<boolean>;
   updateThreadRow(threadId: string, mutate: (thread: Thread) => Thread): void;
   openThreadInUi(threadId: string): boolean;
-  notifyUser(input: { title: string; body: string; threadId: string }): AppControlsNotifyResult;
+  notifyUser(input: {
+    title: string;
+    body: string;
+    threadId: string;
+  }): AppControlsNotifyResult | Promise<AppControlsNotifyResult>;
   checkForUpdate(): Promise<AppControlsUpdateCheck>;
 }
 
@@ -51,6 +55,10 @@ export class AppControlsMcpIngress {
   private readonly ingress: StreamableHttpMcpIngress<AppControlsToolContext>;
   /** Persistent live-status cache + wait surface, fed by {@link observeSupervisorEvent}. */
   private readonly threadStates = new ThreadStateBroker();
+  private readonly calls = new Set<Promise<unknown>>();
+  private disposed = false;
+  private starting: Promise<AppControlsMcpIngressInfo> | null = null;
+  private disposal: Promise<void> | null = null;
 
   constructor(deps: AppControlsMcpIngressDeps) {
     this.ingress = new StreamableHttpMcpIngress<AppControlsToolContext>({
@@ -58,8 +66,9 @@ export class AppControlsMcpIngress {
       instructions: APP_CONTROLS_MCP_INSTRUCTIONS,
       tools: TOOLS,
       isKnownToolName,
-      buildContext: (identity) => ({ ...deps, identity, threadStates: this.threadStates }),
-      dispatchTool,
+      buildContext: (identity) =>
+        this.disposed ? null : { ...deps, identity, threadStates: this.threadStates },
+      dispatchTool: (name, args, context) => this.dispatch(() => dispatchTool(name, args, context)),
       formatToolResult,
     });
   }
@@ -70,14 +79,53 @@ export class AppControlsMcpIngress {
   }
 
   start(): Promise<AppControlsMcpIngressInfo> {
-    return this.ingress.start();
+    if (this.disposed) return Promise.reject(new Error("App-controls ingress is shutting down."));
+    this.starting ??= this.ingress
+      .start()
+      .then((info) => {
+        if (this.disposed) throw new Error("App-controls ingress is shutting down.");
+        return info;
+      })
+      .catch((error: unknown) => {
+        this.starting = null;
+        throw error;
+      });
+    return this.starting;
   }
 
   getInfo(): AppControlsMcpIngressInfo | null {
-    return this.ingress.getInfo();
+    return this.disposed ? null : this.ingress.getInfo();
   }
 
-  dispose(): void {
-    this.ingress.dispose();
+  dispose(): Promise<void> {
+    if (this.disposal) return this.disposal;
+    this.disposed = true;
+    this.threadStates.dispose();
+    const ingressStop = this.ingress.dispose();
+    this.disposal = Promise.allSettled([
+      ingressStop,
+      Promise.resolve(this.starting).catch(() => undefined),
+      Promise.allSettled([...this.calls]),
+    ]).then(([ingress]) => {
+      if (ingress.status === "rejected") throw ingress.reason;
+    });
+    return this.disposal;
+  }
+
+  private dispatch(operation: () => Promise<unknown>): Promise<unknown> {
+    if (this.disposed) return Promise.reject(new Error("App-controls ingress is shutting down."));
+    const result = Promise.withResolvers<unknown>();
+    this.calls.add(result.promise);
+    void result.promise.then(
+      () => this.calls.delete(result.promise),
+      () => this.calls.delete(result.promise),
+    );
+    void Promise.resolve()
+      .then(() => {
+        if (this.disposed) throw new Error("App-controls ingress is shutting down.");
+        return operation();
+      })
+      .then(result.resolve, result.reject);
+    return result.promise;
   }
 }

@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useLayoutEffect, useRef, useState, type DragEvent } from "react";
-import { ArrowUp, Square } from "lucide-react";
+import { ArrowUp, MoreHorizontal, Square } from "lucide-react";
 import { ToggleButton, Tooltip } from "@heroui/react";
 import type { MessageDescriptor } from "@lingui/core";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -7,6 +7,7 @@ import { Button } from "@/renderer/components/common/Button";
 import type { ButtonProps } from "@/renderer/components/common/Button";
 import { EffortContextMenu } from "@/renderer/components/common/EffortContextMenu/EffortContextMenu";
 import { OptionMenu } from "@/renderer/components/common/OptionMenu";
+import { ResponsiveMenuSurface } from "@/renderer/components/common/ResponsiveMenuSurface";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import {
   ProviderModelMenu,
@@ -15,7 +16,7 @@ import {
 import { TextArea } from "@/renderer/components/common/TextArea";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import { PermissionIcon } from "@/renderer/components/providers/PermissionIcon";
-import { isRemoteSession } from "@/renderer/bridge";
+import { isCompactClientSurface, readBridge } from "@/renderer/bridge";
 import type { LabeledOption, ThreadPresentationMode } from "@/shared/contracts";
 
 export type OptionMenuOption = string | { id: string; label: string; hint?: string };
@@ -170,6 +171,16 @@ function getControlCollapseTier(control: ComposerControl): number | undefined {
   return control.tier ?? DEFAULT_LABEL_COLLAPSE_LEVEL;
 }
 
+export function shouldMoveComposerControlToMobileOverflow(control: ComposerControl): boolean {
+  if (
+    (control.kind === undefined || control.kind === "toggle" || control.kind === "menu") &&
+    control.iconKind === "permission"
+  ) {
+    return true;
+  }
+  return control.kind === "toggle" && ["Plan", "Work"].includes(control.label);
+}
+
 function getOptionLabel(option: OptionMenuOption): string {
   return typeof option === "string" ? option : option.label;
 }
@@ -276,11 +287,18 @@ export function ThreadComposer(props: {
   const { t } = useLingui();
 
   const [isAttachmentDropActive, setIsAttachmentDropActive] = useState(false);
+  const [mobileOverflowOpen, setMobileOverflowOpen] = useState(false);
   const controlsRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const probeContainerRef = useRef<HTMLDivElement>(null);
   const editorHostRef = useRef<HTMLDivElement>(null);
   const attachmentDragDepthRef = useRef(0);
+  const mobileComposer = compact && isCompactClientSurface();
+  const mobileOverflowControls = mobileComposer
+    ? controls
+        .map((control, index) => ({ control, index }))
+        .filter(({ control }) => shouldMoveComposerControlToMobileOverflow(control))
+    : [];
   const probeContentCacheRef = useRef<{ key: string; content: ReactNode } | undefined>(undefined);
   const derivedToolbarLayoutKey = controls
     .map((control) => {
@@ -312,10 +330,10 @@ export function ThreadComposer(props: {
   }`;
 
   const returnFocusToInput = () => {
-    // On mobile (PWA) refocusing the composer after closing a menu/drawer would
+    // In compact layout refocusing the composer after closing a menu/drawer would
     // pop the on-screen keyboard back up over the chat — a jarring side effect
     // of tapping a toolbar control. Leave focus where the user left it there.
-    if (isRemoteSession()) return;
+    if (isCompactClientSurface()) return;
     const el = editorHostRef.current?.querySelector<HTMLElement>(
       'textarea, [contenteditable="true"], input:not([type="hidden"])',
     );
@@ -616,9 +634,16 @@ export function ThreadComposer(props: {
   };
 
   const renderControlsList = (targetWrapLevel: number, forceShowLabels = false) =>
-    controls.map((control, index) =>
-      renderControlItem(control, index, targetWrapLevel, forceShowLabels),
-    );
+    controls.map((control, index) => {
+      const rendered = renderControlItem(control, index, targetWrapLevel, forceShowLabels);
+      return mobileComposer && shouldMoveComposerControlToMobileOverflow(control) ? (
+        <div key={`mobile-overflow-source-${index}`} className="poracode-mobile-overflow-source">
+          {rendered}
+        </div>
+      ) : (
+        rendered
+      );
+    });
 
   const renderProbeControlItem = (
     control: ComposerControl,
@@ -655,10 +680,17 @@ export function ThreadComposer(props: {
     );
   };
 
-  const renderProbeControlsList = (targetWrapLevel: number, forceShowLabels = false) =>
-    controls.map((control, index) =>
-      renderProbeControlItem(control, index, targetWrapLevel, forceShowLabels),
+  const renderProbeControlsList = (targetWrapLevel: number, forceShowLabels = false) => {
+    const rendered = controls.flatMap((control, index) =>
+      mobileComposer && targetWrapLevel >= 3 && shouldMoveComposerControlToMobileOverflow(control)
+        ? []
+        : [renderProbeControlItem(control, index, targetWrapLevel, forceShowLabels)],
     );
+    if (mobileComposer && targetWrapLevel >= 3 && mobileOverflowControls.length > 0) {
+      rendered.push(<div key="probe-mobile-overflow" className="size-9 shrink-0" />);
+    }
+    return rendered;
+  };
 
   const probeContentCacheKey = `${effectiveToolbarLayoutKey}|compact=${compact}`;
   if (!probeContentCacheRef.current || probeContentCacheRef.current.key !== probeContentCacheKey) {
@@ -716,6 +748,36 @@ export function ThreadComposer(props: {
         style={{ height: "2.25rem" }}
       >
         {renderControlsList(0)}
+        {mobileOverflowControls.length > 0 ? (
+          <ResponsiveMenuSurface
+            isOpen={mobileOverflowOpen}
+            onOpenChange={setMobileOverflowOpen}
+            label={t`Composer controls`}
+            trigger={
+              <Button
+                isIconOnly
+                aria-label={t`Composer controls`}
+                size="sm"
+                variant="ghost"
+                className="poracode-mobile-overflow-trigger"
+                onPress={() => setMobileOverflowOpen(true)}
+              >
+                <MoreHorizontal className="size-4" />
+              </Button>
+            }
+          >
+            <div className="m-sheet-list m-composer-overflow-list">
+              {mobileOverflowControls.map(({ control, index }) => (
+                <div
+                  key={`mobile-overflow-control-${index}`}
+                  className="m-composer-overflow-control"
+                >
+                  {renderControlItem(control, index, 0, true)}
+                </div>
+              ))}
+            </div>
+          </ResponsiveMenuSurface>
+        ) : null}
       </div>
     </div>
   );
@@ -805,7 +867,7 @@ export function ThreadComposer(props: {
         return [];
       }
     }
-    return window.poracode.getDroppedFilePaths(Array.from(dataTransfer.files));
+    return readBridge().getDroppedFilePaths(Array.from(dataTransfer.files));
   };
 
   const handleAttachmentDragEnter = (event: DragEvent<HTMLDivElement>) => {

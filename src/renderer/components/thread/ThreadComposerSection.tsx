@@ -51,7 +51,7 @@ import {
   type SaveClipboardImage,
 } from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
-import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -96,6 +96,11 @@ import {
   useSkillSlashCommandState,
 } from "@/renderer/components/skills/useSkills";
 import { useDelayedPendingSteer } from "./useDelayedPendingSteer";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { FloatingComposerDock } from "@/renderer/components/mobileComposer/FloatingComposerDock";
+import { ComposerActionDocks } from "@/renderer/components/mobileComposer/ComposerActionDocks";
+import { ComposerCompactSummary } from "@/renderer/components/mobileComposer/ComposerCompactSummary";
+import { ComposerInfoChips } from "@/renderer/components/mobileComposer/ComposerInfoChips";
 import { revertedPromptToDraft, useRevertedPromptStore } from "./revertedPrompt";
 
 type ThreadComposerSectionProps = {
@@ -112,11 +117,7 @@ type ThreadComposerSectionProps = {
   errorDockStates: ThreadErrorDockState[];
   onGoalDockDismiss: () => void;
   onDismissError: (sourceItemId: string) => void;
-  /**
-   * Optional override for the thread-input submit. Desktop omits this so the
-   * composer calls `submitThreadInput` from the actions module directly. Mobile
-   * injects its own transport for the remote surface.
-   */
+  /** Optional override for the canonical thread-input submit action. */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   /** Called after a send is accepted, including queued and steered sends. */
   onSubmitSuccess?: (() => void) | undefined;
@@ -124,17 +125,20 @@ type ThreadComposerSectionProps = {
   saveClipboardImage?: SaveClipboardImage | undefined;
   /** Optional surface-specific placeholder for the active-thread input. */
   composerPlaceholder?: string | undefined;
-  /** Override whether unmodified Enter submits instead of inserting a newline. */
+  /**
+   * Override whether unmodified Enter submits instead of inserting a newline.
+   * Defaults to submit on desktop (Electron and desktop PWA) and newline on
+   * compact/mobile PWA.
+   */
   submitOnEnter?: boolean | undefined;
   /**
-   * Override mount autofocus for the composer. Electron omits this and always
-   * uses desktop behavior; the PWA supplies its desktop-pointer media-query
-   * result so phone layouts do not summon the software keyboard.
+   * Override mount autofocus for the composer. Compact layouts suppress the
+   * default so opening a thread does not summon the software keyboard.
    */
   autoFocusComposer?: boolean | undefined;
   /**
    * Suppress the informational docks (subagents/crossagents/workflows, context,
-   * goal, plan, errors) inside the composer. The mobile PWA sets this and surfaces
+   * goal, plan, errors) inside the composer. Compact hosts set this and surface
    * the same state as compact chips above the floating composer instead
    * (ComposerInfoChips). The action docks are gated separately — see
    * {@link ThreadComposerSectionProps.hideActionDocks}.
@@ -142,7 +146,7 @@ type ThreadComposerSectionProps = {
   hideInfoDocks?: boolean | undefined;
   /**
    * Suppress the action docks (auth required, pending steer, runtime requests)
-   * because the host renders them itself. The mobile PWA sets this: its compact
+   * because the host renders them itself. Compact layout sets this: its
    * composer clips to a single control line, so those docks are hoisted into the
    * floating dock above the bubble (ComposerActionDocks). The slash-command
    * panel stays inline — it only appears while the user is typing, i.e. with the
@@ -154,6 +158,45 @@ type ThreadComposerSectionProps = {
   onTodoDockCollapsedChange: (collapsed: boolean) => void;
   onTodoDockRetire?: () => void;
 };
+
+function AdaptiveThreadComposerDock(props: {
+  compact: boolean;
+  collapsed: boolean;
+  keyboardKey: string;
+  scrimLabel: string;
+  collapsedTapLabel: string;
+  children: ReactNode;
+  aboveBubble?: ReactNode;
+  summary?: ReactNode;
+  inputHasContent?: boolean;
+  expansionLocked?: boolean;
+  onDockHeightChange?: (height: number) => void;
+  onExpandedChange: (expanded: boolean) => void;
+}) {
+  if (!props.compact) return props.children;
+  return (
+    <FloatingComposerDock
+      dockClassName="m-thread-compose-dock"
+      keyboardKey={props.keyboardKey}
+      scrimLabel={props.scrimLabel}
+      collapsedTapLabel={props.collapsedTapLabel}
+      expanded={!props.collapsed}
+      focusOnExpand
+      // The thread pill's compact content swaps in early — inside the 25-45%
+      // transparent window of m-thread-compose-content-collapse — so the
+      // one-line placeholder and summary read around the tween's middle.
+      collapseContentSwapMs={60}
+      inputHasContent={props.inputHasContent}
+      aboveBubble={props.aboveBubble}
+      expansionLocked={props.expansionLocked}
+      onDockHeightChange={props.onDockHeightChange}
+      onExpandedChange={props.onExpandedChange}
+    >
+      {props.children}
+      {props.summary}
+    </FloatingComposerDock>
+  );
+}
 
 export function ThreadComposerSection(props: ThreadComposerSectionProps) {
   const thread = useThread(props.threadId) ?? props.fallbackThread;
@@ -194,13 +237,21 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const { t } = useLingui();
   const [prompt, setPrompt] = useState("");
   const [hasContent, setHasContent] = useState(false);
+  const compactLayout = useCompactLayout();
   const isRemoteSurface = isRemoteSession();
   // The remote/mobile surface has no right panel to host the docks.
   const docksPlacement = isRemoteSurface ? "composer" : requestedDocksPlacement;
   const docksInComposer = docksPlacement === "composer";
   const usesRemoteTransport = isRemoteSurface || thread.remoteServerId !== undefined;
-  const showVoiceInputButton =
-    useSharedSettings((s) => s.audio.showVoiceInputButton) && !isRemoteSurface;
+  const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
+  // Remote sessions have no local capture path: keep the button visible (when
+  // enabled) but disabled with the reason, instead of hiding it silently.
+  const showVoiceInputButton = voiceInputEnabled;
+  const voiceInputUnavailableHint = voiceInputEnabled
+    ? isRemoteSurface
+      ? t`Voice input is unavailable on remote sessions.`
+      : undefined
+    : undefined;
   const mentionRef = useRef<MentionInputHandle>(null);
   const voiceInputRef = useRef<VoiceInputHandle>(null);
   const liveVoiceActive = useLiveVoice((state) => state.phase !== "idle");
@@ -223,22 +274,20 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
   // Unsent composer content survives leaving this thread. The primary GUI pane
-  // keeps this section mounted across thread switches, so the thread-keyed
-  // layout effects below save and restore without exposing another thread's
-  // editor state for a paint.
+  // keeps this section mounted across thread switches; restore before paint
+  // without exposing another thread's editor state.
   const saveThreadDraftContent = useAppStore((s) => s.saveThreadDraftContent);
   const clearThreadDraftContent = useAppStore((s) => s.clearThreadDraftContent);
   // The MentionInput owns the live editor DOM; mirror its latest serialized
-  // segments here (updated on every text change) so the unmount cleanup can read
-  // them without touching a possibly-detached editor ref. Attachments are synced
-  // every render below.
+  // segments here for draft checkpoints without reading a detached editor.
+  // Attachments are synced every render below.
   const latestSegmentsRef = useRef<PromptSegment[]>([]);
   const attachmentsRef = useRef(attachments.attachments);
   attachmentsRef.current = attachments.attachments;
   // True only while a real submit is in flight. Terminal/CLI threads clear the
   // composer *after* the send resolves (the synchronous pre-send clear below is
-  // GUI-only), so without this guard, navigating away mid-send would unmount and
-  // re-save the just-sent text as a stale draft. Reset every time (success or
+  // GUI-only), so skip checkpoints while the old text awaits acknowledgement.
+  // Reset every time (success or
   // failure) because this composer is reused for the next message.
   const submittedRef = useRef(false);
   const composerSessionRef = useRef({ threadId: thread.id });
@@ -435,7 +484,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     isTerminalInput &&
     thread.status !== "inactive" &&
     thread.status !== "launching";
-  const hideInfoDocks = props.hideInfoDocks === true;
+  const hideInfoDocks = compactLayout || props.hideInfoDocks === true;
   const showTodoInComposer =
     !hideInfoDocks && canShowRuntimeChrome && docksInComposer && todoDockState !== null;
   const showGoalInComposer =
@@ -455,8 +504,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     docksInComposer &&
     docksSummary.backgroundTaskCount > 0;
   const collapseTerminalComposerSetting = useSharedSettings((s) => s.collapseTerminalComposer);
-  const [composerCollapsed, setComposerCollapsed] = useState(collapseTerminalComposerSetting);
-  const canCollapseComposer = showTerminalComposer && !isRemoteSurface;
+  const [composerCollapsed, setComposerCollapsed] = useState(
+    compactLayout || collapseTerminalComposerSetting,
+  );
+  const composerSectionRef = useRef<HTMLDivElement | null>(null);
+  const canCollapseComposer = compactLayout || (showTerminalComposer && !isRemoteSurface);
   const isComposerCollapsed = canCollapseComposer && composerCollapsed;
   const shouldAutoFocusComposer =
     paneCount === 1 && !isComposerCollapsed && (props.autoFocusComposer ?? !isRemoteSurface);
@@ -516,7 +568,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // Gate the inline docks only. `activeRuntimeRequest` still drives the
   // composer's deny-with-feedback submit path, and `authRequired` still disables
   // submit/voice, when a host renders these docks itself.
-  const hideActionDocks = props.hideActionDocks === true;
+  const hideActionDocks = compactLayout || props.hideActionDocks === true;
   const composerRuntimeRequest = hideActionDocks ? undefined : activeRuntimeRequest;
   const composerPendingSteer = hideActionDocks ? undefined : visiblePendingSteer;
   const composerFollowUpQueue = hideActionDocks ? undefined : followUpQueue;
@@ -529,11 +581,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     agentStatus: effectiveAgentStatus,
     reportedUsage: reportedContextUsage,
   });
-  const showContextIndicator =
-    !hideInfoDocks &&
+  const hasContextUsage =
     canShowRuntimeChrome &&
     hasReportedContextUsage(reportedContextUsage) &&
     contextSummary.maxTokens !== undefined;
+  const showContextIndicator = !hideInfoDocks && hasContextUsage;
   const showContextInComposer = showContextIndicator && contextDockOpen;
   const project = useAppStore((s) =>
     s.projects.find((candidate) => candidate.id === thread.projectId),
@@ -565,6 +617,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     return readBridge().writeTerminal({ threadId: thread.id, data });
   }
 
+  function restoreComposerFocus() {
+    setComposerCollapsed(false);
+    useAppStore.getState().requestComposerFocus(thread.id);
+  }
+
   function submitPrompt(segments: PromptSegment[], behavior: FollowUpBehavior = followUpBehavior) {
     const composerSession = composerSessionRef.current;
     submitComposerPrompt(segments, {
@@ -593,7 +650,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       requestOpenControl: (target) =>
         setControlOpenRequest((prev) => ({ target, nonce: (prev?.nonce ?? 0) + 1 })),
       onSubmitInput: props.onSubmitInput,
-      onSubmitSuccess: props.onSubmitSuccess,
+      onSubmitSuccess: () => {
+        props.onSubmitSuccess?.();
+        if (!compactLayout) return;
+        setComposerCollapsed(true);
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && active.closest(".m-thread-compose-dock")) {
+          active.blur();
+        }
+      },
     });
   }
 
@@ -615,8 +680,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
 
   // Restore an unsent draft saved the last time this thread's composer was
   // active. useLayoutEffect runs before paint so the previous thread's editor
-  // content is cleared before the new thread is visible. Consume the entry so
-  // a later real send doesn't resurrect it.
+  // content is cleared before the new thread is visible. The checkpoint stays
+  // available until the user clears or submits the draft.
   //
   // A terminal thread that is still `launching` hides the whole composer (so the
   // MentionInput — and `mentionRef` — does not exist yet). Restoring into a null
@@ -657,7 +722,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       setSlashActiveIndex(0);
       setControlOpenRequest(null);
       setContextDockOpen(false);
-      setComposerCollapsed(collapseTerminalComposerSetting);
+      setComposerCollapsed(compactLayout || collapseTerminalComposerSetting);
     }
     if (restoredThreadIdRef.current === thread.id || !editorMounted) return;
     restoredThreadIdRef.current = thread.id;
@@ -670,7 +735,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     if (saved.attachments.length > 0) {
       attachments.restore(saved.attachments);
     }
-    clearThreadDraftContent(thread.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset/restore is keyed to the active thread and editor mount; attachment/editor methods are read from this render
   }, [editorMounted, thread.id]);
 
@@ -711,31 +775,31 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   }, [editorMounted, isSubmitting, revertedContent, skillCommandsResolved]);
 
   useEffect(() => {
-    setComposerCollapsed(collapseTerminalComposerSetting);
-  }, [collapseTerminalComposerSetting]);
+    setComposerCollapsed(compactLayout || collapseTerminalComposerSetting);
+  }, [compactLayout, collapseTerminalComposerSetting]);
 
-  // Save whatever is left in the composer when this thread's section unmounts
-  // (navigating to another thread/pane). A cleared composer leaves both refs
-  // empty, so a just-sent message is not re-saved; an in-flight submit is
-  // skipped via submittedRef because its text has already been handed off.
-  useLayoutEffect(() => {
-    const tid = thread.id;
-    return () => {
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- reading the latest refs at unmount is the point: they mirror the live composer state
-      if (submittedRef.current) return;
-      // Stash path-only attachment copies: `previewUrl` object URLs belong to
-      // this composer's live session and are revoked when it clears/unmounts.
-      const content = {
-        segments: latestSegmentsRef.current,
-        attachments: attachmentsRef.current.map(storableAttachment),
-      };
-      if (isDraftContentNonEmpty(content)) {
-        saveThreadDraftContent(tid, content);
-      } else {
-        clearThreadDraftContent(tid);
-      }
+  function checkpointDraft() {
+    if (restoredThreadIdRef.current !== thread.id || submittedRef.current) return;
+    const content = {
+      segments: latestSegmentsRef.current,
+      attachments: attachmentsRef.current.map(storableAttachment),
     };
-  }, [thread.id, saveThreadDraftContent, clearThreadDraftContent]);
+    if (isDraftContentNonEmpty(content)) saveThreadDraftContent(thread.id, content);
+    else clearThreadDraftContent(thread.id);
+  }
+
+  useEffect(() => {
+    // A thread switch clears/restores attachments in a layout effect. Wait for
+    // that commit before reading their live refs; never checkpoint the old pane.
+    let active = true;
+    queueMicrotask(() => {
+      if (active && composerSessionRef.current.threadId === thread.id) checkpointDraft();
+    });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- checkpoint reads live refs for this composer session
+  }, [thread.id, attachments.attachments]);
 
   useEffect(() => {
     if (thread.status !== "working") setIsInterrupting(false);
@@ -767,7 +831,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
 
   const pendingComposerFocusThreadId = useAppStore((s) => s.pendingComposerFocusThreadId);
   useEffect(() => {
-    if (pendingComposerFocusThreadId !== thread.id || isComposerCollapsed) return;
+    if (pendingComposerFocusThreadId !== thread.id) return;
+    // Compact touch surfaces own composer focus through the guarded tap
+    // choreography (useComposerKeyboard): the dock mounts collapsed, so this
+    // desktop focus handoff would stay pending until the first expand and then
+    // land a raw focus() mid keyboard-rise — iOS pans the page to reveal the
+    // editable and the scroll lock snaps it back, a visible jump. Drop the
+    // request instead of deferring it.
+    if (isCompactClientSurface()) {
+      useAppStore.getState().clearComposerFocusRequest(thread.id);
+      return;
+    }
+    if (isComposerCollapsed) return;
     const raf = requestAnimationFrame(() => {
       mentionRef.current?.focus();
       useAppStore.getState().clearComposerFocusRequest(thread.id);
@@ -778,273 +853,367 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   return (
     <>
       {thread.status !== "launching" || !usesTerminalPresentation ? (
-        <div className="relative">
+        <div
+          ref={composerSectionRef}
+          className="poracode-thread-composer-section relative"
+          data-compact-collapsed={(compactLayout && isComposerCollapsed) || undefined}
+        >
           <LiveVoicePanel threadId={thread.id} />
-          {/* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
-              measures the real buttons without adding a line box above the composer. */}
-          <ComposerBubbleRow threadId={thread.id}>
-            {showDockBubbles ? (
-              <ThreadDockBubbles summary={docksSummary} threadId={thread.id} />
-            ) : null}
-            {!hideInfoDocks && canShowRuntimeChrome && docksInComposer ? (
-              <ThreadImagesBubble threadId={thread.id} />
-            ) : null}
-            {awaitingWorktree ? null : (
-              <ThreadChangesBubble
-                projectId={thread.projectId}
-                {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
-                {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
-              />
-            )}
-          </ComposerBubbleRow>
-          <div
-            className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
-            style={{ gridTemplateRows: isComposerCollapsed ? "0fr" : "1fr" }}
+          {!compactLayout ? (
+            /* Position an out-of-flow wrapper, not the tooltip triggers. HeroUI then
+               measures the real buttons without adding a line box above the composer. */
+            <ComposerBubbleRow threadId={thread.id}>
+              {showDockBubbles ? (
+                <ThreadDockBubbles summary={docksSummary} threadId={thread.id} />
+              ) : null}
+              {!hideInfoDocks && canShowRuntimeChrome && docksInComposer ? (
+                <ThreadImagesBubble threadId={thread.id} />
+              ) : null}
+              {awaitingWorktree ? null : (
+                <ThreadChangesBubble
+                  projectId={thread.projectId}
+                  {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+                  {...(thread.worktreePath && branchName ? { worktreeName: branchName } : {})}
+                />
+              )}
+            </ComposerBubbleRow>
+          ) : null}
+          <AdaptiveThreadComposerDock
+            compact={compactLayout}
+            collapsed={isComposerCollapsed}
+            keyboardKey={thread.id}
+            scrimLabel={t`Collapse composer`}
+            collapsedTapLabel={t`Send a message...`}
+            inputHasContent={hasContent}
+            expansionLocked={activeRuntimeRequest !== undefined}
+            onDockHeightChange={(height) => {
+              const pane = composerSectionRef.current?.closest("[data-poracode-thread-pane]");
+              if (pane instanceof HTMLElement) {
+                pane.style.setProperty("--m-thread-bubble-height", `${height}px`);
+              }
+            }}
+            aboveBubble={
+              compactLayout ? (
+                <>
+                  <ComposerActionDocks
+                    thread={thread}
+                    agentStatus={agentStatus}
+                    onRestoreComposerFocus={restoreComposerFocus}
+                    {...(props.onOpenProjectRelativePath
+                      ? {
+                          onOpenPlanFile: (path: string) => props.onOpenProjectRelativePath?.(path),
+                        }
+                      : {})}
+                  />
+                  <ComposerInfoChips
+                    threadId={thread.id}
+                    agentStatus={effectiveAgentStatus}
+                    project={project}
+                    projectLocation={projectLocation}
+                    contextSummary={hasContextUsage ? contextSummary : null}
+                    todoDockState={todoDockState}
+                    goalDockState={goalDockState}
+                    errorDockStates={errorDockStates}
+                    onGoalDockDismiss={props.onGoalDockDismiss}
+                    onDismissError={props.onDismissError}
+                    {...(props.onTodoDockRetire
+                      ? { onTodoDockRetire: props.onTodoDockRetire }
+                      : {})}
+                    hidden={false}
+                    leading={
+                      awaitingWorktree ? null : (
+                        <ThreadChangesBubble
+                          compact
+                          projectId={thread.projectId}
+                          {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+                          {...(branchName ? { worktreeName: branchName } : {})}
+                        />
+                      )
+                    }
+                    usageThread={thread}
+                  />
+                </>
+              ) : null
+            }
+            summary={
+              compactLayout ? (
+                <ComposerCompactSummary thread={thread} agentStatus={agentStatus} />
+              ) : null
+            }
+            onExpandedChange={(expanded) => setComposerCollapsed(!expanded)}
           >
-            {/* Bottom-anchor the shell inside the clip so collapsing slides it
+            <div
+              className={`grid transition-[grid-template-rows] ease-[cubic-bezier(0.16,1,0.3,1)] ${isComposerCollapsed ? "duration-300" : "duration-200"}`}
+              style={{
+                gridTemplateRows: !compactLayout && isComposerCollapsed ? "0fr" : "1fr",
+              }}
+            >
+              {/* Bottom-anchor the shell inside the clip so collapsing slides it
                 down like a drawer instead of chopping off its bottom border. */}
-            <div className="flex min-h-0 flex-col justify-end overflow-hidden">
-              <div
-                className={`relative ${isComposerCollapsed ? "pointer-events-none" : ""}`}
-                style={{
-                  opacity: isComposerCollapsed ? 0 : 1,
-                  // Fade over the same window as the height transition so the
-                  // collapse reads as one motion, not height-then-border steps.
-                  transition: isComposerCollapsed
-                    ? "opacity 300ms cubic-bezier(0.16,1,0.3,1)"
-                    : "opacity 200ms cubic-bezier(0.16,1,0.3,1)",
-                }}
-              >
-                <ThreadComposer
-                  autoFocus={shouldAutoFocusComposer} // eslint-disable-line jsx-a11y/no-autofocus -- Electron is always desktop; the PWA enables this only for desktop-like input
-                  compact
-                  toolbarLayoutKey={[
-                    isCliThread ? "cli" : "chat",
-                    showContextIndicator ? "ctx" : "no-ctx",
-                    authRequired ? "auth-required" : "auth-ready",
-                  ].join("|")}
-                  fixedContent={
-                    <ThreadComposerDocks
-                      hasActiveSubAgent={hasActiveSubAgent}
-                      hasBackgroundTasks={hasBackgroundTasks}
-                      showContextInComposer={showContextInComposer}
-                      showErrorInComposer={showErrorInComposer}
-                      showGoalInComposer={showGoalInComposer}
-                      showTodoInComposer={showTodoInComposer}
-                      authRequired={showAuthInComposer}
-                      showCommandPanel={showCommandPanel}
-                      threadId={thread.id}
-                      projectLocation={projectLocation}
-                      threadConfig={thread.config}
-                      worktreePath={thread.worktreePath}
-                      branchName={branchName}
-                      agentStatus={effectiveAgentStatus}
-                      project={project}
-                      contextSummary={contextSummary}
-                      errorDockStates={errorDockStates}
-                      goalDockState={goalDockState}
-                      todoDockState={todoDockState}
-                      todoDockCollapsed={todoDockCollapsed}
-                      pendingSteer={composerPendingSteer}
-                      followUpQueue={composerFollowUpQueue}
-                      onRestoreComposerFocus={() => mentionRef.current?.focus()}
-                      activeRuntimeRequest={composerRuntimeRequest}
-                      filteredCommands={filteredCommands}
-                      slashActiveIndex={slashActiveIndex}
-                      commandListId={commandListId}
-                      onCloseContextDock={() => setContextDockOpen(false)}
-                      onDismissError={props.onDismissError}
-                      onGoalDockDismiss={props.onGoalDockDismiss}
-                      onTodoDockCollapsedChange={props.onTodoDockCollapsedChange}
-                      {...(props.onTodoDockRetire
-                        ? { onTodoDockRetire: props.onTodoDockRetire }
-                        : {})}
-                      onCancelPendingSteer={() => clearThreadPendingSteer(thread.id)}
-                      {...(props.onOpenProjectRelativePath
-                        ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
-                        : {})}
-                      onSlashActiveIndexChange={setSlashActiveIndex}
-                      onSelectCommand={(cmd) => {
-                        mentionRef.current?.insertSlashCommand(cmd);
-                        setSlashQuery(null);
-                      }}
-                    />
-                  }
-                  attachmentBar={
-                    <AttachmentBar
-                      attachments={attachments.attachments}
-                      onRemove={attachments.removeAttachment}
-                      onPreviewImage={(att) => {
-                        const imageAttachments = attachments.attachments.filter((a) => a.isImage);
-                        const idx = imageAttachments.findIndex((a) => a.id === att.id);
-                        if (idx >= 0) {
-                          openAttachmentLightbox(imageAttachments, idx, attachmentImageUrlForPath);
-                        }
-                      }}
-                      onPreviewPdf={(att) => openPdfPreview(att.path)}
-                      {...(attachmentImageUrlForPath
-                        ? { imageUrlForPath: attachmentImageUrlForPath }
-                        : {})}
-                    />
-                  }
-                  inputContent={
-                    <MentionInput
-                      ref={mentionRef}
-                      autoFocus={shouldAutoFocusComposer} // eslint-disable-line jsx-a11y/no-autofocus -- Electron is always desktop; the PWA enables this only for desktop-like input
-                      compact
-                      disabled={!(showServerComposer || showTerminalComposer)}
-                      placeholder={
-                        approvalDenyOption
-                          ? t`Deny and tell the agent what to do differently…`
-                          : isServerControlled
-                            ? (props.composerPlaceholder ??
-                              t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
-                            : t`Send a message...`
-                      }
-                      projectLocation={projectLocation}
-                      submitOnEnter={props.submitOnEnter ?? !isRemoteSurface}
-                      {...(showCommandPanel
-                        ? {
-                            commandListId,
-                            commandActiveDescendant: `${commandListId}-option-${slashActiveIndex}`,
-                          }
-                        : {})}
-                      projectId={thread.projectId}
-                      mcpMentions={composerMcpMentions}
-                      pluginMentions={composerPluginMentions}
-                      threadMentions={threadMentions}
-                      onTextChange={(hasText) => {
-                        setHasContent(hasText);
-                        latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
-                      }}
-                      onSubmit={submitPrompt}
-                      onPasteImage={(file: File) => {
-                        void attachments
-                          .addClipboardImage(file, thread.id)
-                          .catch((error: unknown) => toast.danger(friendlyError(error)));
-                      }}
-                      onInterceptKey={(e) => {
-                        if (!usesTerminalPresentation && e.key === "Enter") {
-                          if (e.nativeEvent.isComposing || e.keyCode === 229) return true;
-                          if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
-                            e.preventDefault();
-                            submitPrompt(
-                              mentionRef.current?.serializeSegments() ?? [],
-                              followUpBehavior === "queue" ? "steer" : "queue",
+              <div className="flex min-h-0 flex-col justify-end overflow-hidden">
+                <div
+                  className={`relative ${!compactLayout && isComposerCollapsed ? "pointer-events-none" : ""}`}
+                  aria-hidden={(!compactLayout && isComposerCollapsed) || undefined}
+                  inert={!compactLayout && isComposerCollapsed ? true : undefined}
+                  style={{
+                    opacity: !compactLayout && isComposerCollapsed ? 0 : 1,
+                    // Fade over the same window as the height transition so the
+                    // collapse reads as one motion, not height-then-border steps.
+                    transition:
+                      !compactLayout && isComposerCollapsed
+                        ? "opacity 300ms cubic-bezier(0.16,1,0.3,1)"
+                        : "opacity 200ms cubic-bezier(0.16,1,0.3,1)",
+                  }}
+                >
+                  <ThreadComposer
+                    autoFocus={shouldAutoFocusComposer} // eslint-disable-line jsx-a11y/no-autofocus -- Electron is always desktop; the PWA enables this only for desktop-like input
+                    compact
+                    toolbarLayoutKey={[
+                      isCliThread ? "cli" : "chat",
+                      showContextIndicator ? "ctx" : "no-ctx",
+                      authRequired ? "auth-required" : "auth-ready",
+                    ].join("|")}
+                    fixedContent={
+                      hasActiveSubAgent ||
+                      hasBackgroundTasks ||
+                      showContextInComposer ||
+                      showErrorInComposer ||
+                      showGoalInComposer ||
+                      showTodoInComposer ||
+                      showAuthInComposer ||
+                      composerPendingSteer ||
+                      composerRuntimeRequest ||
+                      composerFollowUpQueue ||
+                      showCommandPanel ? (
+                        <ThreadComposerDocks
+                          hasActiveSubAgent={hasActiveSubAgent}
+                          hasBackgroundTasks={hasBackgroundTasks}
+                          showContextInComposer={showContextInComposer}
+                          showErrorInComposer={showErrorInComposer}
+                          showGoalInComposer={showGoalInComposer}
+                          showTodoInComposer={showTodoInComposer}
+                          authRequired={showAuthInComposer}
+                          showCommandPanel={showCommandPanel}
+                          threadId={thread.id}
+                          projectLocation={projectLocation}
+                          threadConfig={thread.config}
+                          worktreePath={thread.worktreePath}
+                          branchName={branchName}
+                          agentStatus={effectiveAgentStatus}
+                          project={project}
+                          contextSummary={contextSummary}
+                          errorDockStates={errorDockStates}
+                          goalDockState={goalDockState}
+                          todoDockState={todoDockState}
+                          todoDockCollapsed={todoDockCollapsed}
+                          followUpQueue={composerFollowUpQueue}
+                          onRestoreComposerFocus={restoreComposerFocus}
+                          pendingSteer={composerPendingSteer}
+                          activeRuntimeRequest={composerRuntimeRequest}
+                          filteredCommands={filteredCommands}
+                          slashActiveIndex={slashActiveIndex}
+                          commandListId={commandListId}
+                          onCloseContextDock={() => setContextDockOpen(false)}
+                          onDismissError={props.onDismissError}
+                          onGoalDockDismiss={props.onGoalDockDismiss}
+                          onTodoDockCollapsedChange={props.onTodoDockCollapsedChange}
+                          {...(props.onTodoDockRetire
+                            ? { onTodoDockRetire: props.onTodoDockRetire }
+                            : {})}
+                          onCancelPendingSteer={() => clearThreadPendingSteer(thread.id)}
+                          {...(props.onOpenProjectRelativePath
+                            ? { onOpenProjectRelativePath: props.onOpenProjectRelativePath }
+                            : {})}
+                          onSlashActiveIndexChange={setSlashActiveIndex}
+                          onSelectCommand={(cmd) => {
+                            mentionRef.current?.insertSlashCommand(cmd);
+                            setSlashQuery(null);
+                          }}
+                        />
+                      ) : null
+                    }
+                    attachmentBar={
+                      <AttachmentBar
+                        attachments={attachments.attachments}
+                        onRemove={attachments.removeAttachment}
+                        onPreviewImage={(att) => {
+                          const imageAttachments = attachments.attachments.filter((a) => a.isImage);
+                          const idx = imageAttachments.findIndex((a) => a.id === att.id);
+                          if (idx >= 0) {
+                            openAttachmentLightbox(
+                              imageAttachments,
+                              idx,
+                              attachmentImageUrlForPath,
                             );
-                            return true;
                           }
+                        }}
+                        onPreviewPdf={(att) => openPdfPreview(att.path)}
+                        {...(attachmentImageUrlForPath
+                          ? { imageUrlForPath: attachmentImageUrlForPath }
+                          : {})}
+                      />
+                    }
+                    inputContent={
+                      <MentionInput
+                        ref={mentionRef}
+                        autoFocus={shouldAutoFocusComposer} // eslint-disable-line jsx-a11y/no-autofocus -- Electron is always desktop; the PWA enables this only for desktop-like input
+                        compact
+                        disabled={!(showServerComposer || showTerminalComposer)}
+                        placeholder={
+                          approvalDenyOption
+                            ? t`Deny and tell the agent what to do differently…`
+                            : isServerControlled
+                              ? (props.composerPlaceholder ??
+                                t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
+                              : t`Send a message...`
                         }
-                        if (
-                          !usesTerminalPresentation &&
-                          handleComposerControlShortcut(e, {
-                            controls: controlsWithOpenSignal,
-                            keybindings: useKeybindingStore.getState().keybindings,
-                            platform: readBridge().platform,
-                            onOpenModelPicker: () => {
-                              setControlOpenRequest((prev) => ({
-                                target: "model",
-                                nonce: (prev?.nonce ?? 0) + 1,
-                              }));
-                            },
-                            onStartDictation: () => voiceInputRef.current?.toggle() ?? false,
-                          })
-                        ) {
-                          return true;
-                        }
-
-                        if (
-                          showCommandPanel &&
-                          handleSlashCommandPanelKeyDown(e, {
-                            slashQuery,
-                            filteredCommands,
-                            slashActiveIndex,
-                            setSlashActiveIndex,
-                            setSlashQuery,
-                            mentionRef,
-                          })
-                        ) {
-                          return true;
-                        }
-
-                        if (showTerminalComposer) {
-                          if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
-                            e.preventDefault();
-                            void writeTerminalInput("\x1b[Z").catch((error: unknown) => {
-                              toast.danger(friendlyError(error));
-                            });
-                            return true;
+                        projectLocation={projectLocation}
+                        submitOnEnter={props.submitOnEnter ?? !compactLayout}
+                        {...(showCommandPanel
+                          ? {
+                              commandListId,
+                              commandActiveDescendant: `${commandListId}-option-${slashActiveIndex}`,
+                            }
+                          : {})}
+                        projectId={thread.projectId}
+                        mcpMentions={composerMcpMentions}
+                        pluginMentions={composerPluginMentions}
+                        threadMentions={threadMentions}
+                        onTextChange={(hasText) => {
+                          setHasContent(hasText);
+                          latestSegmentsRef.current = mentionRef.current?.serializeSegments() ?? [];
+                          checkpointDraft();
+                        }}
+                        onSubmit={submitPrompt}
+                        onPasteImage={(file: File) => {
+                          void attachments
+                            .addClipboardImage(file, thread.id)
+                            .catch((error: unknown) => toast.danger(friendlyError(error)));
+                        }}
+                        onInterceptKey={(e) => {
+                          if (!usesTerminalPresentation && e.key === "Enter") {
+                            if (e.nativeEvent.isComposing || e.keyCode === 229) return true;
+                            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+                              e.preventDefault();
+                              submitPrompt(
+                                mentionRef.current?.serializeSegments() ?? [],
+                                followUpBehavior === "queue" ? "steer" : "queue",
+                              );
+                              return true;
+                            }
                           }
+
                           if (
-                            (e.ctrlKey || e.metaKey) &&
-                            !e.shiftKey &&
-                            !e.altKey &&
-                            e.key.toLowerCase() === "t"
+                            !usesTerminalPresentation &&
+                            handleComposerControlShortcut(e, {
+                              controls: controlsWithOpenSignal,
+                              keybindings: useKeybindingStore.getState().keybindings,
+                              platform: readBridge().platform,
+                              onOpenModelPicker: () => {
+                                setControlOpenRequest((prev) => ({
+                                  target: "model",
+                                  nonce: (prev?.nonce ?? 0) + 1,
+                                }));
+                              },
+                              onStartDictation: () => voiceInputRef.current?.toggle() ?? false,
+                            })
                           ) {
-                            e.preventDefault();
-                            void writeTerminalInput("\x14").catch((error: unknown) => {
-                              toast.danger(friendlyError(error));
-                            });
                             return true;
                           }
-                        }
-                        return false;
-                      }}
-                      onSlashCommandChange={setSlashQuery}
-                    />
-                  }
-                  controls={controlsWithOpenSignal}
-                  placeholder={t`Send a message...`}
-                  prompt={prompt}
-                  promptDisabled={!(showServerComposer || showTerminalComposer)}
-                  stopPending={isInterrupting}
-                  submitDisabled={!(hasContent || attachments.attachments.length > 0) || !canSubmit}
-                  submitLabel={
-                    usesPendingSteerPath ||
-                    (!usesTerminalPresentation && activeRuntimeRequest !== undefined)
-                      ? followUpBehavior === "queue"
-                        ? t`Queue message`
-                        : t`Steer current turn`
-                      : t`Send message`
-                  }
-                  hideSubmitButton={
-                    threadVoiceActive &&
+
+                          if (
+                            showCommandPanel &&
+                            handleSlashCommandPanelKeyDown(e, {
+                              slashQuery,
+                              filteredCommands,
+                              slashActiveIndex,
+                              setSlashActiveIndex,
+                              setSlashQuery,
+                              mentionRef,
+                            })
+                          ) {
+                            return true;
+                          }
+
+                          if (showTerminalComposer) {
+                            if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
+                              e.preventDefault();
+                              void writeTerminalInput("\x1b[Z").catch((error: unknown) => {
+                                toast.danger(friendlyError(error));
+                              });
+                              return true;
+                            }
+                            if (
+                              (e.ctrlKey || e.metaKey) &&
+                              !e.shiftKey &&
+                              !e.altKey &&
+                              e.key.toLowerCase() === "t"
+                            ) {
+                              e.preventDefault();
+                              void writeTerminalInput("\x14").catch((error: unknown) => {
+                                toast.danger(friendlyError(error));
+                              });
+                              return true;
+                            }
+                          }
+                          return false;
+                        }}
+                        onSlashCommandChange={setSlashQuery}
+                      />
+                    }
+                    controls={controlsWithOpenSignal}
+                    placeholder={t`Send a message...`}
+                    prompt={prompt}
+                    promptDisabled={!(showServerComposer || showTerminalComposer)}
+                    stopPending={isInterrupting}
+                    submitDisabled={
+                      !(hasContent || attachments.attachments.length > 0) || !canSubmit
+                    }
+                    submitLabel={
+                      usesPendingSteerPath ||
+                      (!usesTerminalPresentation && activeRuntimeRequest !== undefined)
+                        ? followUpBehavior === "queue"
+                          ? t`Queue message`
+                          : t`Steer current turn`
+                        : t`Send message`
+                    }
+                    hideSubmitButton={
+                      threadVoiceActive &&
+                      !hasContent &&
+                      attachments.attachments.length === 0 &&
+                      !canInterruptStructuredTurn
+                    }
+                    {...(!threadVoiceActive &&
                     !hasContent &&
                     attachments.attachments.length === 0 &&
-                    !canInterruptStructuredTurn
-                  }
-                  {...(!threadVoiceActive &&
-                  !hasContent &&
-                  attachments.attachments.length === 0 &&
-                  !usesRemoteTransport &&
-                  !usesTerminalPresentation &&
-                  showServerComposer &&
-                  effectiveAgentStatus?.capabilities.liveVoice
-                    ? {
-                        submitControl: (
-                          <LiveVoiceButton
-                            scopeId={thread.id}
-                            isDisabled={!canSubmit || thread.status !== "idle"}
-                            onStart={() => {
-                              const capability = effectiveAgentStatus.capabilities.liveVoice;
-                              if (capability)
-                                void liveVoice.start({ threadId: thread.id, capability });
-                            }}
-                          />
-                        ),
-                      }
-                    : {})}
-                  onStop={canInterruptStructuredTurn ? handleInterrupt : undefined}
-                  {...(() => {
-                    const renderExtras = () => (
-                      <>
-                        {showContextIndicator ? (
-                          <ThreadContextIndicator
-                            summary={contextSummary}
-                            isOpen={contextDockOpen}
-                            onToggle={() => setContextDockOpen((open) => !open)}
-                          />
-                        ) : null}
+                    !usesRemoteTransport &&
+                    !usesTerminalPresentation &&
+                    showServerComposer &&
+                    effectiveAgentStatus?.capabilities.liveVoice
+                      ? {
+                          submitControl: (
+                            <LiveVoiceButton
+                              scopeId={thread.id}
+                              isDisabled={!canSubmit || thread.status !== "idle"}
+                              onStart={() => {
+                                const capability = effectiveAgentStatus.capabilities.liveVoice;
+                                if (capability)
+                                  void liveVoice.start({ threadId: thread.id, capability });
+                              }}
+                            />
+                          ),
+                        }
+                      : {})}
+                    onStop={canInterruptStructuredTurn ? handleInterrupt : undefined}
+                    {...(() => {
+                      const contextIndicator = showContextIndicator ? (
+                        <ThreadContextIndicator
+                          summary={contextSummary}
+                          isOpen={contextDockOpen}
+                          onToggle={() => setContextDockOpen((open) => !open)}
+                        />
+                      ) : null;
+                      const addMenu = (
                         <ComposerAddMenu
                           mcpServers={mcpServers}
                           customMcpServers={customMcpServers}
@@ -1071,48 +1240,57 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                               .catch((error: unknown) => toast.danger(friendlyError(error)));
                           }}
                         />
-                      </>
-                    );
-                    const renderVoiceInput = () => (
-                      <ComposerVoiceInput
-                        key={thread.id}
-                        show={showVoiceInputButton && !liveVoiceActive}
-                        isDisabled={
-                          authRequired ||
-                          isSubmitting ||
-                          !(showServerComposer || showTerminalComposer)
-                        }
-                        mentionRef={mentionRef}
-                        voiceInputRef={voiceInputRef}
-                      />
-                    );
-                    return isCliThread
-                      ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
-                      : {
-                          afterControls: (
-                            <ComposerAfterControls
-                              renderExtras={renderExtras}
-                              renderVoiceInput={renderVoiceInput}
-                            />
-                          ),
-                        };
-                  })()}
-                  onPromptChange={setPrompt}
-                  {...(!usesRemoteTransport ? { onAttachFiles: attachments.addFiles } : {})}
-                  onSubmit={() => {
-                    const segments = mentionRef.current?.serializeSegments();
-                    submitPrompt(
-                      segments && segments.length > 0
-                        ? segments
-                        : [{ kind: "text", content: prompt.trim() }],
-                    );
-                  }}
-                />
+                      );
+                      const renderExtras = () => (
+                        <>
+                          {compactLayout ? addMenu : contextIndicator}
+                          {compactLayout ? contextIndicator : addMenu}
+                        </>
+                      );
+                      const renderVoiceInput = () => (
+                        <ComposerVoiceInput
+                          key={thread.id}
+                          show={showVoiceInputButton && !liveVoiceActive}
+                          isDisabled={
+                            authRequired ||
+                            isSubmitting ||
+                            !(showServerComposer || showTerminalComposer)
+                          }
+                          {...(voiceInputUnavailableHint !== undefined
+                            ? { unavailableHint: voiceInputUnavailableHint }
+                            : {})}
+                          mentionRef={mentionRef}
+                          voiceInputRef={voiceInputRef}
+                        />
+                      );
+                      return isCliThread || compactLayout
+                        ? { leadingControls: renderExtras, afterControls: renderVoiceInput }
+                        : {
+                            afterControls: (
+                              <ComposerAfterControls
+                                renderExtras={renderExtras}
+                                renderVoiceInput={renderVoiceInput}
+                              />
+                            ),
+                          };
+                    })()}
+                    onPromptChange={setPrompt}
+                    {...(!usesRemoteTransport ? { onAttachFiles: attachments.addFiles } : {})}
+                    onSubmit={() => {
+                      const segments = mentionRef.current?.serializeSegments();
+                      submitPrompt(
+                        segments && segments.length > 0
+                          ? segments
+                          : [{ kind: "text", content: prompt.trim() }],
+                      );
+                    }}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-          {canCollapseComposer ? (
-            <div className="relative z-10 flex h-0 justify-center">
+          </AdaptiveThreadComposerDock>
+          {canCollapseComposer && !compactLayout ? (
+            <div className="poracode-thread-composer-toggle-host relative z-10 flex h-0 justify-center">
               <button
                 type="button"
                 aria-label={isComposerCollapsed ? t`Show composer` : t`Collapse composer`}

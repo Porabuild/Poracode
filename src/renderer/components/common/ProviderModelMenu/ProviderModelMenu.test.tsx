@@ -3,8 +3,15 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/opencode";
 import "@/renderer/components/providers/cursor";
+import { registerModelDescriptionFormatter } from "@/renderer/components/providers/modelDescription";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ProviderModelMenu, type ProviderModelMenuProvider } from "./ProviderModelMenu";
+
+const layoutMock = vi.hoisted(() => ({ compact: false }));
+
+vi.mock("@/renderer/adaptiveLayout", () => ({
+  useCompactLayout: () => layoutMock.compact,
+}));
 
 function makeProvider(modelCount: number): ProviderModelMenuProvider {
   return makeNamedProvider("codex", "Codex", modelCount);
@@ -119,6 +126,7 @@ function hasComposedHeader(providerLabel: string, subProviderLabel: string): boo
 
 describe("ProviderModelMenu", () => {
   beforeEach(() => {
+    layoutMock.compact = false;
     useSharedSettings.setState({
       favoriteModels: [],
       recentModels: [],
@@ -126,6 +134,46 @@ describe("ProviderModelMenu", () => {
       providerConfigs: {},
       providerModelPreferences: {},
     });
+  });
+
+  it("uses divider headers without an initial hover highlight in the mobile drawer", async () => {
+    layoutMock.compact = true;
+    render(
+      <ProviderModelMenu
+        providers={[makeSubProviderBackedProvider(), makeNamedProvider("codex", "Codex", 2)]}
+        currentAgentKind="opencode"
+        currentModel="github-copilot/model-1"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    expect(listbox).toHaveAttribute("data-mobile", "true");
+    expect(listbox.querySelector('[role="option"][aria-selected="true"]')).not.toHaveAttribute(
+      "data-active",
+    );
+
+    const providerHeader = within(listbox)
+      .getAllByText("OpenCode")
+      .map((label) => label.closest('[role="presentation"]'))
+      .find(Boolean);
+    const subProviderHeader = within(listbox)
+      .getAllByText("Copilot")
+      .map((label) => label.closest('[role="presentation"]'))
+      .find(Boolean);
+    expect(providerHeader).toHaveClass(
+      "poracode-model-menu-header",
+      "poracode-model-menu-header--provider",
+    );
+    expect(subProviderHeader).toHaveClass(
+      "poracode-model-menu-header",
+      "poracode-model-menu-header--sub",
+    );
+
+    fireEvent.keyDown(listbox, { key: "ArrowDown" });
+    expect(listbox.querySelector('[data-active="true"]')).not.toBeNull();
   });
 
   it("uses a renamed Cursor profile label for the trigger badge", () => {
@@ -976,4 +1024,27 @@ describe("ProviderModelMenu", () => {
     expect(within(listbox).queryByText("Gpt 5.1 Codex Max Xhigh")).not.toBeInTheDocument();
     expect(within(listbox).queryByText("Codex 5.1 Extra High")).not.toBeInTheDocument();
   });
+});
+
+it("renders opted-in compact rates beside the model name without increasing row height", async () => {
+  registerModelDescriptionFormatter("pricing-fixture", () => ({
+    hint: "$1 / $2 · 1M",
+    explanation: { id: "fixture-pricing-units", message: "Input / output rates" },
+  }));
+  const provider = makeNamedProvider("pricing-fixture", "Fixture", 1);
+  provider.capabilities.models[0]!.description = "provider pricing data";
+  render(
+    <ProviderModelMenu
+      providers={[provider]}
+      currentAgentKind="pricing-fixture"
+      currentModel="model-1"
+      onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+  const row = await screen.findByRole("option", { name: /Model 1/ });
+  const hint = within(row).getByText("· $1 / $2 · 1M");
+  expect(hint).toHaveClass("text-muted/60");
+  expect(hint.parentElement).toBe(within(row).getByText("Model 1").parentElement);
+  expect(row).toHaveStyle({ height: "28px" });
 });

@@ -3,6 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { AlertTriangle, Download, RefreshCw, RotateCcw } from "lucide-react";
 import { readBridge } from "@/renderer/bridge";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
+import { updateDownloadDisplay } from "@/renderer/state/updateDownloadDisplay";
 import { useUpdateStore } from "@/renderer/state/updateStore";
 
 interface StartupRecoveryScreenProps {
@@ -18,8 +19,10 @@ export function StartupRecoveryScreen(props: StartupRecoveryScreenProps) {
   const phase = useUpdateStore((state) => state.phase);
   const version = useUpdateStore((state) => state.version);
   const downloadPercent = useUpdateStore((state) => state.downloadPercent);
+  const transferred = useUpdateStore((state) => state.downloadTransferred);
+  const total = useUpdateStore((state) => state.downloadTotal);
   const errorMessage = useUpdateStore((state) => state.errorMessage);
-  const percent = Math.min(100, Math.max(0, Math.round(downloadPercent)));
+  const { determinate, percent } = updateDownloadDisplay(downloadPercent, transferred, total);
 
   const checkForUpdates = () => {
     void readBridge()
@@ -58,21 +61,25 @@ export function StartupRecoveryScreen(props: StartupRecoveryScreenProps) {
             className="mt-5 rounded-lg border border-border bg-background p-3"
             role="progressbar"
             aria-label={t`Downloading update`}
-            aria-valuenow={percent}
             aria-valuemin={0}
             aria-valuemax={100}
+            {...(determinate ? { "aria-valuenow": percent } : {})}
           >
             <div className="flex items-center justify-between gap-3 text-xs">
               <span className="flex items-center gap-2 text-muted">
                 <Download className="size-3.5 animate-pulse" />
                 <Trans>Downloading update</Trans>
               </span>
-              <span className="tabular-nums text-foreground">{percent}%</span>
+              {determinate ? (
+                <span className="tabular-nums text-foreground">{percent}%</span>
+              ) : null}
             </div>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--row-active)]">
               <div
-                className="h-full rounded-full bg-foreground transition-[width] duration-300"
-                style={{ width: `${percent}%` }}
+                className={`h-full rounded-full bg-foreground ${
+                  determinate ? "transition-[width] duration-300" : "w-1/2 animate-pulse"
+                }`}
+                style={determinate ? { width: `${percent}%` } : undefined}
               />
             </div>
           </div>

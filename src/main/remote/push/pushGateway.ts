@@ -7,6 +7,8 @@
  */
 
 import type { RemoteWebPushSubscription } from "@/shared/remote";
+import { readBoundedResponseBody } from "@/shared/http";
+import { assertIOSPushPayload, type IOSPushPayload } from "./payloads";
 
 /** Production gateway origin (co-hosted with the marketing site / PWA). The
  * canonical domain is `website/src/lib/seo.ts` `SITE_URL`. */
@@ -18,25 +20,32 @@ export function resolvePushGatewayUrl(): string {
   return fromEnv && fromEnv.length > 0 ? fromEnv : DEFAULT_PUSH_GATEWAY_URL;
 }
 
-interface NativeSendPushInput {
+interface NativeSendPushInputBase {
   /** APNs token: device token (alert) or activity/push-to-start token (liveactivity). */
   readonly token: string;
   /**
    * Target platform. iOS payloads are raw APNs envelopes forwarded as-is;
-   * Android payloads are the `{ title, body, threadId, silent? }` status shape
-   * the gateway wraps into an FCM **notification** message. Sent explicitly on
-   * every call (gateway defaults to `"ios"` server-side).
+   * Android payloads are a status shape; routing-v1 registrations add
+   * `{ version, clientConnectionId, desktopId }`. The gateway wraps it into an
+   * FCM notification plus routing data. Sent explicitly on every call.
    */
-  readonly platform: "ios" | "android";
   readonly pushType: "liveactivity" | "alert";
-  /** JSON push payload: iOS `{ aps: { ... } }` or the Android status payload. */
-  readonly payload: unknown;
   /** APNs `apns-priority` (5 = throttled, 10 = immediate). */
   readonly priority?: number;
   /** APNs `apns-collapse-id`, for coalescing. */
   readonly collapseId?: string;
   /** APNs `apns-expiration` (epoch seconds). */
   readonly expiration?: number;
+}
+
+interface IOSSendPushInput extends NativeSendPushInputBase {
+  readonly platform: "ios";
+  readonly payload: IOSPushPayload;
+}
+
+interface AndroidSendPushInput extends NativeSendPushInputBase {
+  readonly platform: "android";
+  readonly payload: unknown;
 }
 
 interface WebSendPushInput {
@@ -50,7 +59,7 @@ interface WebSendPushInput {
   readonly expiration?: number;
 }
 
-export type SendPushInput = NativeSendPushInput | WebSendPushInput;
+export type SendPushInput = IOSSendPushInput | AndroidSendPushInput | WebSendPushInput;
 
 export interface SendPushResult {
   readonly ok: boolean;
@@ -61,7 +70,9 @@ export interface SendPushResult {
   readonly reason?: string;
 }
 
-export type SendPush = (input: SendPushInput) => Promise<SendPushResult>;
+export type SendPush = ((input: SendPushInput) => Promise<SendPushResult>) & {
+  dispose?: () => void;
+};
 
 type FetchLike = (
   url: string | URL,
@@ -71,7 +82,7 @@ type FetchLike = (
     body?: string;
     signal?: AbortSignal;
   },
-) => Promise<{ ok: boolean; status: number; json?: () => Promise<unknown> }>;
+) => Promise<Response>;
 
 export interface CreatePushGatewayOptions {
   /** Gateway origin; defaults to {@link resolvePushGatewayUrl}. */
@@ -92,6 +103,7 @@ export interface CreatePushGatewayOptions {
 }
 
 const DEFAULT_GATEWAY_TIMEOUT_MS = 10_000;
+const MAX_CONFIG_RESPONSE_BYTES = 16 * 1024;
 const DEFAULT_OPERATIONAL_REPORT_INTERVAL_MS = 15 * 60 * 1_000;
 const TRANSIENT_GATEWAY_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
@@ -150,14 +162,13 @@ function createOperationalReporter(options: CreatePushGatewayOptions) {
 }
 
 interface GatewayTransport {
-  /** Absolute `/api/push` URL on the resolved gateway origin. */
-  readonly endpoint: string;
-  /** Run one request against the gateway, aborting it after the timeout. */
-  request(init: {
-    method: string;
-    headers?: Record<string, string>;
-    body?: string;
-  }): Promise<{ ok: boolean; status: number; json?: () => Promise<unknown> }>;
+  /** Own the response through consumption and cancellation, under one deadline. */
+  request<T>(
+    init: { method: string; headers?: Record<string, string>; body?: string },
+    consume: (response: Response) => T | Promise<T>,
+  ): Promise<T>;
+  /** Abort requests that were admitted by a host which is shutting down. */
+  close(): void;
 }
 
 /**
@@ -172,16 +183,28 @@ function createGatewayTransport(options: CreatePushGatewayOptions): GatewayTrans
   const doFetch: FetchLike = options.fetchImpl ?? ((url, init) => fetch(url, init as RequestInit));
   const timeoutMs = options.timeoutMs ?? DEFAULT_GATEWAY_TIMEOUT_MS;
   const endpoint = new URL("/api/push", base).toString();
+  const controllers = new Set<AbortController>();
+  let closed = false;
   return {
-    endpoint,
-    async request(init) {
+    async request(init, consume) {
+      if (closed) throw new Error("Push gateway transport is closed.");
       const controller = new AbortController();
+      controllers.add(controller);
       const timer = setTimeout(() => controller.abort(), timeoutMs);
+      let response: Response | undefined;
       try {
-        return await doFetch(endpoint, { ...init, signal: controller.signal });
+        response = await doFetch(endpoint, { ...init, signal: controller.signal });
+        return await consume(response);
       } finally {
         clearTimeout(timer);
+        controller.abort();
+        controllers.delete(controller);
+        await response?.body?.cancel().catch(() => {});
       }
+    },
+    close() {
+      closed = true;
+      for (const controller of controllers) controller.abort();
     },
   };
 }
@@ -194,34 +217,50 @@ function createGatewayTransport(options: CreatePushGatewayOptions): GatewayTrans
 export function createPushGateway(options: CreatePushGatewayOptions = {}): SendPush {
   const transport = createGatewayTransport(options);
   const reportOperationalIssue = createOperationalReporter(options);
-  return async (input: SendPushInput): Promise<SendPushResult> => {
-    try {
-      const response = await transport.request({
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          ...(input.platform === "web"
-            ? { subscription: input.subscription }
-            : { token: input.token }),
-          platform: input.platform,
-          pushType: input.pushType,
-          payload: input.payload,
-          ...(input.priority !== undefined ? { priority: input.priority } : {}),
-          ...(input.collapseId ? { collapseId: input.collapseId } : {}),
-          ...(input.expiration !== undefined ? { expiration: input.expiration } : {}),
-        }),
-      });
-      if (TRANSIENT_GATEWAY_STATUSES.has(response.status)) {
-        reportOperationalIssue("send", "transient-response", input.platform, response.status);
-      } else if (!response.ok && response.status !== 404 && response.status !== 410) {
-        reportOperationalIssue("send", "invalid-response", input.platform, response.status);
+  const send: SendPush = async (input: SendPushInput): Promise<SendPushResult> => {
+    if (input.platform === "ios") {
+      try {
+        assertIOSPushPayload(input.payload, input.pushType);
+      } catch {
+        return {
+          ok: false,
+          status: 0,
+          unregistered: false,
+          reason: "Invalid iOS push payload.",
+        };
       }
-      return {
-        ok: response.ok,
-        status: response.status,
-        unregistered:
-          response.status === 410 || (input.platform === "web" && response.status === 404),
-      };
+    }
+    try {
+      return await transport.request(
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            ...(input.platform === "web"
+              ? { subscription: input.subscription }
+              : { token: input.token }),
+            platform: input.platform,
+            pushType: input.pushType,
+            payload: input.payload,
+            ...(input.priority !== undefined ? { priority: input.priority } : {}),
+            ...(input.collapseId ? { collapseId: input.collapseId } : {}),
+            ...(input.expiration !== undefined ? { expiration: input.expiration } : {}),
+          }),
+        },
+        (response) => {
+          if (TRANSIENT_GATEWAY_STATUSES.has(response.status)) {
+            reportOperationalIssue("send", "transient-response", input.platform, response.status);
+          } else if (!response.ok && response.status !== 404 && response.status !== 410) {
+            reportOperationalIssue("send", "invalid-response", input.platform, response.status);
+          }
+          return {
+            ok: response.ok,
+            status: response.status,
+            unregistered:
+              response.status === 410 || (input.platform === "web" && response.status === 404),
+          };
+        },
+      );
     } catch (error) {
       const outcome = classifyTransportOutcome(error);
       reportOperationalIssue("send", outcome, input.platform, 0);
@@ -233,14 +272,18 @@ export function createPushGateway(options: CreatePushGatewayOptions = {}): SendP
       };
     }
   };
+  send.dispose = () => transport.close();
+  return send;
 }
 
-export type ResolveWebPushPublicKey = () => Promise<string>;
+export type ResolveWebPushPublicKey = (() => Promise<string>) & {
+  dispose?: () => void;
+};
 
 /**
  * Resolves the public VAPID application-server key from the hosted gateway.
- * The desktop proxies this public value to authenticated mobile clients so
- * hosted, relayed, and local PWAs use one subscription key.
+ * The host proxies this public value to authenticated browser clients so
+ * hosted, relayed, and local installations use one subscription key.
  */
 export function createWebPushPublicKeyResolver(
   options: CreatePushGatewayOptions = {},
@@ -249,26 +292,45 @@ export function createWebPushPublicKeyResolver(
   const reportOperationalIssue = createOperationalReporter(options);
   const fetchPublicKey = async (): Promise<string> => {
     try {
-      const response = await transport.request({ method: "GET" });
-      if (!response.ok || !response.json) {
-        reportOperationalIssue(
-          "resolve-web-key",
-          TRANSIENT_GATEWAY_STATUSES.has(response.status)
-            ? "transient-response"
-            : "invalid-response",
-          "web",
-          response.status,
-        );
-        throw new Error(`Web Push config request failed with status ${response.status}.`);
-      }
-      const body = (await response.json()) as { publicKey?: unknown };
-      if (typeof body.publicKey !== "string" || body.publicKey.length === 0) {
-        reportOperationalIssue("resolve-web-key", "invalid-response", "web", response.status);
-        throw new Error("Web Push config response did not include a public key.");
-      }
-      return body.publicKey;
+      return await transport.request({ method: "GET" }, async (response) => {
+        if (!response.ok) {
+          reportOperationalIssue(
+            "resolve-web-key",
+            TRANSIENT_GATEWAY_STATUSES.has(response.status)
+              ? "transient-response"
+              : "invalid-response",
+            "web",
+            response.status,
+          );
+          throw new Error(`Web Push config request failed with status ${response.status}.`);
+        }
+        let body: unknown;
+        try {
+          const bytes = await readBoundedResponseBody(response, MAX_CONFIG_RESPONSE_BYTES);
+          body = JSON.parse(Buffer.from(bytes).toString("utf8"));
+        } catch (error) {
+          if (error instanceof Error && error.name === "AbortError") throw error;
+          throw new PushGatewayOperationalError(
+            "resolve-web-key",
+            "invalid-response",
+            "web",
+            response.status,
+          );
+        }
+        const publicKey =
+          typeof body === "object" && body !== null && "publicKey" in body
+            ? body.publicKey
+            : undefined;
+        if (typeof publicKey !== "string" || publicKey.length === 0) {
+          reportOperationalIssue("resolve-web-key", "invalid-response", "web", response.status);
+          throw new Error("Web Push config response did not include a public key.");
+        }
+        return publicKey;
+      });
     } catch (error) {
-      if (
+      if (error instanceof PushGatewayOperationalError) {
+        reportOperationalIssue("resolve-web-key", "invalid-response", "web", error.status);
+      } else if (
         !(error instanceof Error) ||
         (!error.message.startsWith("Web Push config request failed") &&
           error.message !== "Web Push config response did not include a public key.")
@@ -284,7 +346,7 @@ export function createWebPushPublicKeyResolver(
   // Cache the resolved (or in-flight) promise so those collapse into one fetch;
   // drop it on failure so a transient error still retries on the next call.
   let cached: Promise<string> | null = null;
-  return () => {
+  const resolve: ResolveWebPushPublicKey = () => {
     if (!cached) {
       cached = fetchPublicKey().catch((error) => {
         cached = null;
@@ -293,4 +355,6 @@ export function createWebPushPublicKeyResolver(
     }
     return cached;
   };
+  resolve.dispose = () => transport.close();
+  return resolve;
 }

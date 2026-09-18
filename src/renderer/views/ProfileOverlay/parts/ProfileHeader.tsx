@@ -35,11 +35,22 @@ export function ProfileHeader(props: {
   onSelect: (selection: ProfileSelection) => void;
   /** Rendered on the same row as the device picker, before the actions. */
   filter?: ReactNode;
+  /** Rendered beside the handle and plan metadata. */
+  identityAction?: ReactNode;
   /** Rendered on the same row as the device picker (Share / Edit). */
   actions?: ReactNode;
 }) {
   const { t } = useLingui();
-  const { identity, devices, currentDeviceId, selection, onSelect, filter, actions } = props;
+  const {
+    identity,
+    devices,
+    currentDeviceId,
+    selection,
+    onSelect,
+    filter,
+    identityAction,
+    actions,
+  } = props;
   const plan = identity.plan ?? t`Local`;
 
   const value =
@@ -72,11 +83,14 @@ export function ProfileHeader(props: {
       </div>
       <div className="flex flex-col items-center gap-1">
         <h1 className="text-2xl font-semibold text-foreground">{identity.name}</h1>
-        <p className="text-sm text-muted">
-          @{identity.handle}
-          <span className="px-1.5 text-muted/50">-</span>
-          <span className="text-muted">{plan}</span>
-        </p>
+        <div className="flex items-center justify-center gap-1">
+          <p className="text-sm text-muted">
+            @{identity.handle}
+            <span className="px-1.5 text-muted/50">-</span>
+            <span className="text-muted">{plan}</span>
+          </p>
+          {identityAction}
+        </div>
       </div>
 
       {/* Device selector + actions on one row. Device picker chooses a single

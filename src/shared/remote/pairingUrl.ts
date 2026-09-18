@@ -27,12 +27,21 @@ export function buildPairingUrl(input: {
   readonly credential: string;
   readonly pairingAppUrl?: string;
 }): string {
-  const pairingUrl = new URL("/pair", input.pairingAppUrl ?? input.httpBaseUrl);
+  const pairingUrl = new URL("/", input.pairingAppUrl ?? input.httpBaseUrl);
   if (input.pairingAppUrl) {
     pairingUrl.searchParams.set("host", input.httpBaseUrl);
   }
   pairingUrl.hash = new URLSearchParams([["token", input.credential]]).toString();
   return pairingUrl.toString();
+}
+
+export function buildDesktopPairingUrl(input: {
+  readonly httpBaseUrl: string;
+  readonly credential: string;
+}): string {
+  const url = new URL("/", input.httpBaseUrl);
+  url.hash = new URLSearchParams([["token", input.credential]]).toString();
+  return url.toString();
 }
 
 const VITE_DEV_SERVER_PORT = "3100";
@@ -44,7 +53,13 @@ function normalizeEndpoint(value: string): string {
   url.search = "";
   const parts = url.pathname.split("/").filter(Boolean);
   const last = parts.at(-1);
-  if (last === "pair" || last === "app" || last === "mobile.html") {
+  if (
+    last === "pair" ||
+    last === "app" ||
+    last === "desktop" ||
+    last === "mobile.html" ||
+    last === "index.html"
+  ) {
     parts.pop();
   }
   url.pathname = parts.length > 0 ? `/${parts.join("/")}/` : "/";

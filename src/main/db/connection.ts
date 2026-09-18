@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import Database from "better-sqlite3";
-import { resetMainCreatedThreads } from "./mainCreatedThreads";
 import {
   assertRequiredDatabaseSchema,
   repairSafeSchemaDrift,
@@ -52,7 +51,10 @@ function openDatabase(dbPath: string): InstanceType<typeof Database> {
   return new Database(dbPath, options);
 }
 
-export function initDatabase(dbPath: string) {
+export function initDatabase(
+  dbPath: string,
+  options: { schemaMode?: "migrate" | "validate" } = {},
+) {
   console.log(`[db] opening ${dbPath}`);
   const sqlite = openDatabase(dbPath);
   sqlite.pragma("journal_mode = WAL");
@@ -60,7 +62,16 @@ export function initDatabase(dbPath: string) {
   sqlite.pragma("foreign_keys = ON");
   sqlite.pragma("busy_timeout = 5000");
 
+  // Read-then-write transactions use BEGIN IMMEDIATE to reserve SQLite's
+  // single writer before taking a snapshot.
+
   _sqlite = sqlite;
+
+  if (options.schemaMode === "validate") {
+    assertRequiredDatabaseSchema(sqlite);
+    console.log("[db] validated");
+    return sqlite;
+  }
 
   // Create tables if they don't exist.
   sqlite.exec(`
@@ -122,6 +133,11 @@ export function initDatabase(dbPath: string) {
     );
     CREATE INDEX IF NOT EXISTS idx_runtime_items_thread_pos
       ON thread_runtime_items (thread_id, position);
+    CREATE TABLE IF NOT EXISTS thread_terminal_scrollback (
+      thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+      transcript TEXT NOT NULL,
+      output_length INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS thread_runtime_item_stream_chunks (
       thread_id TEXT NOT NULL,
       item_id TEXT NOT NULL,
@@ -155,6 +171,9 @@ export function initDatabase(dbPath: string) {
     CREATE TABLE IF NOT EXISTS thread_context_usage (
       thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
       usage TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS main_created_threads (
+      thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE
     );
     CREATE TABLE IF NOT EXISTS project_notes (
       project_id TEXT PRIMARY KEY,
@@ -271,6 +290,22 @@ export function initDatabase(dbPath: string) {
   const receiptCutoff = Date.now() - REMOTE_COMMAND_RECEIPTS_RETENTION_DAYS * 86_400_000;
   sqlite.prepare("DELETE FROM remote_command_receipts WHERE updated_at < ?").run(receiptCutoff);
 
+  // No command can still be executing across a process restart, so every
+  // receipt left `in_progress` on disk is stale; keeping it would 409 every
+  // deterministic client retry until the retention cutoff. `failed` rows
+  // survive so callers keep their typed failure until retention expires.
+  sqlite.prepare("DELETE FROM remote_command_receipts WHERE state = 'in_progress'").run();
+
+  // Bound the revert journal: settled operations are replay history and age
+  // out with the same retention window. `running` rows are kept regardless of
+  // age — they are the only durable record of an interrupted compound revert
+  // and the resume path needs their frozen plan.
+  sqlite
+    .prepare(
+      "DELETE FROM checkpoint_revert_operations WHERE outcome != 'running' AND updated_at < ?",
+    )
+    .run(receiptCutoff);
+
   console.log("[db] initialized");
   return sqlite;
 }
@@ -310,5 +345,4 @@ export function closeDatabase() {
     sqlite.close();
   }
   _sqlite = undefined;
-  resetMainCreatedThreads();
 }

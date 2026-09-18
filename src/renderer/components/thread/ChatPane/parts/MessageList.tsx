@@ -12,14 +12,10 @@ import {
   type WheelEventHandler,
 } from "react";
 import { LegendList, type LegendListRef, type LegendListState } from "@legendapp/list/react";
-import { Surface } from "@heroui/react";
-import { Trans } from "@lingui/react/macro";
-import type {
-  MessageItemPayload,
-  ProjectLocation,
-  ThreadConfig,
-  ToolCallPayload,
-} from "@/shared/contracts";
+import { Surface, toast } from "@heroui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
+import type { MessageItemPayload, ProjectLocation, ToolCallPayload } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { threadMentionLabel } from "@/shared/promptContent";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
@@ -55,23 +51,23 @@ import {
   writeTimelineMeasurements,
 } from "./timelineMeasurementCache";
 import { syncFollowingVirtualRowPositions } from "./virtualRowLayout";
+import {
+  findCheckpointBeforeUserMessage,
+  mintCheckpointOperationKey,
+} from "./checkpointRevertIdentity";
 
 export interface CheckpointRevertActions {
-  rollbackThreadConversation(input: {
-    threadId: string;
-    numTurns: number;
-    config?: ThreadConfig;
-  }): Promise<void>;
-  restoreFileCheckpoint(input: {
+  revertCheckpoint(input: {
     threadId: string;
     checkpointItemId: string;
-    projectLocation: ProjectLocation;
-  }): Promise<void>;
+    operationKey: string;
+  }): Promise<{
+    outcome: "completed" | "completed_local_only" | "ambiguous" | "failed" | "noop";
+  }>;
 }
 
 interface MessageListProps {
   threadId: string;
-  threadConfig?: ThreadConfig;
   entries: readonly ChatTimelineEntry[];
   isTurnActive?: boolean;
   markTailAsLive?: boolean;
@@ -128,7 +124,6 @@ const SKIP_REVERT_CONFIRM_PREF_KEY = "poracode-chat-checkpoint-revert-skip-confi
 // while moving the DOM, so the virtualizer must re-render to re-measure.
 export function MessageList({
   threadId,
-  threadConfig,
   entries,
   isTurnActive = false,
   markTailAsLive = true,
@@ -156,6 +151,7 @@ export function MessageList({
   suppressInlineTurnAnchorId = null,
   registerScrollToIndex,
 }: MessageListProps) {
+  const { t } = useLingui();
   const hasItems = entries.length > 0;
   const parentActions = useChatPaneActions();
   const listRef = useRef<LegendListRef | null>(null);
@@ -168,12 +164,19 @@ export function MessageList({
   const totalSizeUnsubscribeRef = useRef<(() => void) | null>(null);
   const measurementSignatureRef = useRef<string | null>(null);
   const restoredMeasurementSignatureRef = useRef<string | null>(null);
-  const [pendingRevert, setPendingRevert] = useState<{ itemId: string; userItemId: string } | null>(
-    null,
-  );
+  const [pendingRevert, setPendingRevert] = useState<{
+    itemId: string;
+    userItemId: string;
+    operationKey: string;
+  } | null>(null);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [revertError, setRevertError] = useState<string | null>(null);
-  const revertingRef = useRef(false);
+  const [revertInFlight, setRevertInFlight] = useState(false);
+  // Keys for attempts whose transport promise rejected without an explicit
+  // server outcome. Retained across dialog close/skip-confirm clicks so a
+  // lost-response retry reconciles the same operation; cleared once an
+  // explicit outcome (completed/local_only/failed/ambiguous/noop) is observed.
+  const unsettledKeysRef = useRef(new Map<string, string>());
 
   const snapshotMeasurements = useCallback(
     (instance: LegendListRef, scrollElement: HTMLDivElement) => {
@@ -332,86 +335,88 @@ export function MessageList({
   );
 
   const performRevert = useCallback(
-    async (itemId: string, userItemId: string) => {
-      if (revertingRef.current) return false;
-      revertingRef.current = true;
-      // Promise cleanup lets memoization analysis see this callback's dependencies.
-      return (async () => {
-        const state = useAppStore.getState();
-        const itemIds = state.runtimeItemIdsByThread[threadId];
-        const itemsById = state.runtimeItemsByIdByThread[threadId];
-        const completedTurns = state.runtimeCompletedTurnsByThread[threadId] ?? [];
-        const checkpoint = state.fileCheckpointsByThread[threadId]?.[itemId];
-        const rollbackTurns =
-          itemIds && itemsById
-            ? countRollbackTurnsAfterCheckpoint(itemIds, itemsById, completedTurns, itemId)
-            : 0;
-        // Snapshot before any await: provider rollback / file restore can take time,
-        // and a late runtime event must not drop the prompts we are about to restore.
-        const userItem = itemsById?.[userItemId];
-        const restoredContent =
-          userItem?.type === "user_message" && !userItem.parentItemId
-            ? getRuntimeItemPayload<MessageItemPayload>(userItem, "user_message")?.content.map(
-                (block) => ({ ...block }),
-              )
-            : undefined;
-        const revert = checkpointActions ?? readBridge();
-        let providerRollbackSucceeded = rollbackTurns === 0;
-        if (rollbackTurns > 0) {
-          try {
-            await revert.rollbackThreadConversation({
-              threadId,
-              numTurns: rollbackTurns,
-              ...(threadConfig ? { config: threadConfig } : {}),
-            });
-            providerRollbackSucceeded = true;
-          } catch (error) {
-            console.warn(
-              "[checkpoint] provider rollback failed; continuing with local revert",
-              error,
-            );
-          }
-        }
-        if (projectLocation && checkpoint) {
-          await revert.restoreFileCheckpoint({
-            threadId,
-            checkpointItemId: itemId,
-            projectLocation,
-          });
-        }
-        if (restoredContent?.length) {
-          useRevertedPromptStore.getState().restore(threadId, restoredContent);
-        }
-        state.truncateThreadRuntimeAfter(threadId, itemId);
-        await readBridge().dbTruncateThreadRuntimeAfter({ threadId, itemId });
-        const thread = state.threads.find((item) => item.id === threadId);
-        captureProductEvent("thread.checkpoint_reverted", {
-          ...(thread ? threadProductProperties(thread) : {}),
-          has_file_checkpoint: Boolean(projectLocation && checkpoint),
-          outcome: providerRollbackSucceeded ? "complete" : "local_only",
-          rollback_turn_count: rollbackTurns,
+    async (itemId: string, userItemId: string, operationKey: string) => {
+      // Snapshot before any await: the compound runs server-side, and the
+      // composer should get back the prompt we are reverting even when a late
+      // runtime event has already refreshed the transcript.
+      const state = useAppStore.getState();
+      const itemsById = state.runtimeItemsByIdByThread[threadId];
+      const userItem = itemsById?.[userItemId];
+      const restoredContent =
+        userItem?.type === "user_message" && !userItem.parentItemId
+          ? getRuntimeItemPayload<MessageItemPayload>(userItem, "user_message")?.content.map(
+              (block) => ({ ...block }),
+            )
+          : undefined;
+      const revert = checkpointActions ?? readBridge();
+      let result: Awaited<ReturnType<typeof revert.revertCheckpoint>>;
+      try {
+        result = await revert.revertCheckpoint({
+          threadId,
+          checkpointItemId: itemId,
+          operationKey,
         });
-        parentActions?.onContentHeightChange?.();
-        return true;
-      })().finally(() => {
-        revertingRef.current = false;
+      } catch (error) {
+        // A transport promise rejection carries no authoritative operation
+        // outcome (the mutation may have been accepted with a lost reply).
+        // Retain the key so the next attempt reconciles the same operation
+        // instead of minting a new action.
+        unsettledKeysRef.current.set(itemId, operationKey);
+        throw error;
+      }
+      // An explicit outcome settled this action: lost-response retention no
+      // longer applies. Retries within the same dialog reuse `pendingRevert`'s
+      // key (resume/replay); a later deliberate action after close mints fresh.
+      unsettledKeysRef.current.delete(itemId);
+      if (result.outcome === "failed" || result.outcome === "ambiguous") {
+        throw new Error(
+          result.outcome === "ambiguous"
+            ? t`Revert state is unknown; the provider did not confirm the rollback in time.`
+            : t`The checkpoint could not be restored.`,
+        );
+      }
+      if (result.outcome === "completed_local_only") {
+        toast.warning(t`Provider conversation was not restored`, {
+          description: t`Local chat history was reverted. The provider may still use the removed messages.`,
+          timeout: 0,
+        });
+      }
+      if (restoredContent?.length) {
+        useRevertedPromptStore.getState().restore(threadId, restoredContent);
+      }
+      const thread = state.threads.find((item) => item.id === threadId);
+      captureProductEvent("thread.checkpoint_reverted", {
+        ...(thread ? threadProductProperties(thread) : {}),
+        outcome:
+          result.outcome === "completed"
+            ? "complete"
+            : result.outcome === "completed_local_only"
+              ? "local_only"
+              : result.outcome,
       });
+      parentActions?.onContentHeightChange?.();
+      return true;
     },
-    [checkpointActions, parentActions, projectLocation, threadConfig, threadId],
+    [checkpointActions, parentActions, t, threadId],
   );
 
   const requestRevert = useCallback(
     (itemId: string, userItemId: string) => {
-      if (revertingRef.current) return;
+      // A retained unsettled key means the previous attempt's transport
+      // rejected without an outcome: reuse it so the retry reconciles the
+      // same operation. Otherwise this deliberate action mints fresh.
+      const retained = unsettledKeysRef.current.get(itemId);
+      const operationKey = retained ?? mintCheckpointOperationKey();
       if (localStorage.getItem(SKIP_REVERT_CONFIRM_PREF_KEY) === "1") {
-        void performRevert(itemId, userItemId).catch((error) => {
+        void performRevert(itemId, userItemId, operationKey).catch((error) => {
           console.warn("[checkpoint] failed to revert checkpoint", error);
+          toast.danger(friendlyError(error));
         });
         return;
       }
       setDontAskAgain(false);
       setRevertError(null);
-      setPendingRevert({ itemId, userItemId });
+      setPendingRevert({ itemId, userItemId, operationKey });
     },
     [performRevert],
   );
@@ -425,7 +430,8 @@ export function MessageList({
   const confirmRevert = useCallback(() => {
     if (!pendingRevert) return;
     setRevertError(null);
-    void performRevert(pendingRevert.itemId, pendingRevert.userItemId)
+    setRevertInFlight(true);
+    void performRevert(pendingRevert.itemId, pendingRevert.userItemId, pendingRevert.operationKey)
       .then((performed) => {
         if (!performed) return;
         if (dontAskAgain) {
@@ -438,6 +444,9 @@ export function MessageList({
       .catch((error) => {
         console.warn("[checkpoint] failed to revert checkpoint", error);
         setRevertError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        setRevertInFlight(false);
       });
   }, [dontAskAgain, pendingRevert, performRevert, threadId]);
 
@@ -517,6 +526,7 @@ export function MessageList({
       <RevertCheckpointDialog
         isOpen={pendingRevert !== null}
         dontAskAgain={dontAskAgain}
+        isInFlight={revertInFlight}
         checkpointGuard={checkpointGuard ?? DEFAULT_CHECKPOINT_GUARD}
         canRestoreFiles={projectLocation !== undefined && pendingCheckpoint !== undefined}
         errorMessage={revertError ?? undefined}
@@ -860,46 +870,4 @@ function isRemountStableSnapshotItem(item: RuntimeChatItem | undefined): boolean
       // the collapsible accordion and remounts collapsed.
       return isToolLikeItem(item) && imageViewRendersInline(item.payload);
   }
-}
-
-function findCheckpointBeforeUserMessage(
-  itemIds: readonly string[],
-  itemsById: ReturnType<typeof useAppStore.getState>["runtimeItemsByIdByThread"][string],
-  userItemId: string,
-): string | null {
-  const userIndex = itemIds.indexOf(userItemId);
-  if (userIndex <= 0) return null;
-
-  for (let idx = userIndex - 1; idx >= 0; idx -= 1) {
-    const itemId = itemIds[idx]!;
-    if (itemsById[itemId]?.type === "assistant_message") return itemId;
-  }
-
-  return null;
-}
-
-function countRollbackTurnsAfterCheckpoint(
-  itemIds: readonly string[],
-  itemsById: ReturnType<typeof useAppStore.getState>["runtimeItemsByIdByThread"][string],
-  completedTurns: ReadonlyArray<CompletedTurnRecord>,
-  checkpointItemId: string,
-): number {
-  const checkpointIndex = itemIds.indexOf(checkpointItemId);
-  if (checkpointIndex < 0) return 0;
-
-  if (completedTurns.length > 0) {
-    let count = 0;
-    for (const turn of completedTurns) {
-      if (!turn.anchorItemId) continue;
-      if (itemIds.indexOf(turn.anchorItemId) > checkpointIndex) count += 1;
-    }
-    return count;
-  }
-
-  let count = 0;
-  for (let idx = checkpointIndex + 1; idx < itemIds.length; idx += 1) {
-    const itemId = itemIds[idx]!;
-    if (itemsById[itemId]?.type === "assistant_message") count += 1;
-  }
-  return count;
 }
