@@ -3,6 +3,9 @@ import { isQuickComposerWindow, readBridge } from "../bridge";
 import { captureRendererException } from "../diagnostics/sentry";
 import { hasClientCapability } from "../clientRuntime";
 import type { Project, Thread, AppView } from "@/shared/contracts";
+import { getClientEngineHost } from "./remote/engine";
+
+const LARGE_STORAGE_JSON_CHARS = 32 * 1024;
 
 /**
  * Surface a persistence failure instead of silently dropping it. These writes
@@ -60,13 +63,15 @@ export function createDbStorage<S>(): PersistStorage<S> {
 
   return {
     async getItem(name: string): Promise<StorageValue<S> | null> {
-      if (!hasBridge()) return parseStorageValue(localStorage.getItem(name)) as StorageValue<S>;
+      if (!hasBridge()) {
+        return (await parseStorageValue(localStorage.getItem(name))) as StorageValue<S>;
+      }
       if (name === APP_STORE_NAME) {
         const value = await loadAppStore();
         if (value) appStoreWrites.remember(value);
         return value as StorageValue<S> | null;
       }
-      return parseStorageValue(await readPersistedState(name)) as StorageValue<S> | null;
+      return (await parseStorageValue(await readPersistedState(name))) as StorageValue<S> | null;
     },
 
     async setItem(name: string, value: StorageValue<S>): Promise<void> {
@@ -81,7 +86,7 @@ export function createDbStorage<S>(): PersistStorage<S> {
         return appStoreWrites.write(value);
       }
 
-      const json = shouldSkipWrite(name, value);
+      const json = await shouldSkipWrite(name, value);
       if (json === null) return;
       if (!hasBridge()) {
         localStorage.setItem(name, json);
@@ -478,17 +483,24 @@ async function removeAppStore(): Promise<void> {
   if (failure?.status === "rejected") throw failure.reason;
 }
 
-function parseStorageValue(raw: string | null): StorageValue<unknown> | null {
+async function parseStorageValue(raw: string | null): Promise<StorageValue<unknown> | null> {
   if (!raw) return null;
   try {
+    if (raw.length >= LARGE_STORAGE_JSON_CHARS) {
+      return (await getClientEngineHost().parseJson(raw)) as StorageValue<unknown>;
+    }
     return JSON.parse(raw) as StorageValue<unknown>;
   } catch {
     return null;
   }
 }
 
-function shouldSkipWrite(name: string, value: StorageValue<unknown>): string | null {
-  const json = JSON.stringify(value);
+async function shouldSkipWrite(name: string, value: StorageValue<unknown>): Promise<string | null> {
+  const previous = lastStorageJson.get(name);
+  const json =
+    previous !== undefined && previous.length >= LARGE_STORAGE_JSON_CHARS
+      ? await getClientEngineHost().stringifyJson(value)
+      : JSON.stringify(value);
   if (lastStorageJson.get(name) === json) return null;
   lastStorageJson.set(name, json);
   return json;

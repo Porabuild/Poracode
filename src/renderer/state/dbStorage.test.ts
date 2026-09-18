@@ -390,6 +390,21 @@ describe("createDbStorage", () => {
     expect(bridge.dbSetState).toHaveBeenCalledTimes(1);
   });
 
+  it("parses and deduplicates large generic persisted payloads", async () => {
+    const value = { state: { blob: "x".repeat(32 * 1024) }, version: 1 };
+    const raw = JSON.stringify(value);
+    expect(raw.length).toBeGreaterThanOrEqual(32 * 1024);
+    bridge.dbGetState.mockResolvedValue(raw);
+    const storage = createDbStorage<{ blob: string }>();
+
+    await expect(storage.getItem("poracode-large-state")).resolves.toEqual(value);
+
+    await storage.setItem("poracode-large-state", value);
+    await storage.setItem("poracode-large-state", value);
+    expect(bridge.dbSetState).toHaveBeenCalledTimes(1);
+    expect(bridge.dbSetState).toHaveBeenCalledWith("poracode-large-state", raw);
+  });
+
   it("migrates a pre-rebrand generic state key on first read", async () => {
     const legacy = JSON.stringify({ state: { collapsed: true }, version: 1 });
     bridge.dbGetState.mockImplementation(async (key) =>

@@ -3,7 +3,6 @@ import {
   RENDERER_STREAM_UNGRANTED_GENERATION,
   isDirectRendererDatabaseProcedure,
   isDirectRendererServiceProcedure,
-  type BackendRendererReply,
   type BackendRendererRequestOperation,
   type BackendRendererStreamInfo,
   type RendererStreamOwnershipClaim,
@@ -18,6 +17,14 @@ import {
   noteRendererPerfEvent,
 } from "./diagnostics/rendererPerfDiagnostics";
 import { RendererStreamReassembly } from "./rendererStreamReassembly";
+import {
+  decodeBackendSync,
+  getClientEngineHost,
+  isBackendRendererMessage,
+  isClientEngineWorkerActive,
+  type BackendRendererMessage,
+  type DecodeFrameResult,
+} from "./state/remote/engine";
 
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 const RECONNECT_DELAY_MS = 1_000;
@@ -71,6 +78,7 @@ export class ElectronBackendTransport {
   private ownership: RendererStreamOwnershipGrant | null = null;
   private ownershipRetryScheduled = false;
   private ownershipRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  private decodeQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly host: ElectronHostBridge) {
     host.onSupervisorEvent((event, rendererSequence) => {
@@ -89,6 +97,7 @@ export class ElectronBackendTransport {
     });
     host.onRendererStreamRecovery((barrier) => this.handleStreamRecovery(barrier));
     host.onBackendRendererStreamChanged((info) => this.replaceInfo(info));
+    getClientEngineHost().addOverflowListener(() => this.handleClientEngineOverflow());
     this.refreshInfo();
   }
 
@@ -293,75 +302,104 @@ export class ElectronBackendTransport {
     // Perf-diag span around one transport frame (parse + reassembly + dispatch);
     // a no-op handle when the diagnostics were not requested at launch.
     const frameSpan = beginRendererPerfSpan("transport-frame");
-    let frameType: string | undefined;
-    try {
-      if (this.socket !== socket) return;
-      let message: unknown;
+    if (this.socket !== socket) {
+      frameSpan.end({ bytes: raw.length });
+      return;
+    }
+    const apply = (decoded: DecodeFrameResult): void => {
+      let frameType: string | undefined;
       try {
-        message = JSON.parse(raw);
+        this.applyDecodedFrame(socket, raw, decoded, (type) => {
+          frameType = type;
+        });
+      } finally {
+        frameSpan.end({ bytes: raw.length, ...(frameType ? { type: frameType } : {}) });
+      }
+    };
+    if (!isClientEngineWorkerActive()) {
+      apply(decodeBackendSync(raw));
+      return;
+    }
+    const decoded = getClientEngineHost().decodeBackend(raw);
+    this.decodeQueue = this.decodeQueue.then(async () => {
+      try {
+        apply(await decoded);
       } catch {
-        socket.close(1008, "Invalid backend renderer message");
-        return;
+        frameSpan.end({ bytes: raw.length });
       }
-      if (
-        typeof message === "object" &&
-        message !== null &&
-        typeof (message as { type?: unknown }).type === "string"
-      ) {
-        frameType = (message as { type: string }).type;
-      }
-      // Bounded large-reply frames first: stale/duplicate/out-of-order safely
-      // drop inside reassembly (socket alive); version mismatches fall through
-      // to the loud 1008 gate below.
-      if (
-        this.largeReassembly.handleBackendFrame(
-          message,
-          utf8ByteLength(raw),
-          this.reassemblyEvents(),
-          (id) => this.pending.has(id),
-        )
-      ) {
-        return;
-      }
-      if (!isBackendRendererMessage(message)) {
-        socket.close(1008, "Invalid backend renderer message");
-        return;
-      }
-      if (message.type === "reply") {
-        const pending = this.pending.get(message.id);
-        if (!pending) return;
-        this.pending.delete(message.id);
-        clearTimeout(pending.timeout);
-        if (message.ok) pending.resolve(message.data);
-        else pending.reject(new Error(message.error));
-        return;
-      }
-      if (message.type === "interests-ack") {
-        this.lastSequence = Math.max(this.lastSequence, message.latestSeq);
-        // The acknowledged handoff cursor for THIS connection: the backend may
-        // anchor a recovery barrier's loss window at it, and this window may
-        // treat a barrier as stale when this cursor already covers the loss.
-        this.ackedSequence = message.latestSeq;
-        this.directEventsConnected = true;
-        this.handleOwnershipAck(message.ownership);
-        return;
-      }
-      if (message.type === "event") {
-        if (message.seq <= this.lastSequence) return;
-        this.lastSequence = message.seq;
-        this.dispatch(message.event, message.seq);
-        return;
-      }
-      if (message.type === "resync-required") {
-        this.lastSequence = message.latestSeq;
-        this.dispatchRebuildForInterests(
-          message.threadIds && message.threadIds.length > 0
-            ? new Set(message.threadIds)
-            : undefined,
-        );
-      }
-    } finally {
-      frameSpan.end({ bytes: raw.length, ...(frameType ? { type: frameType } : {}) });
+    });
+  }
+
+  private applyDecodedFrame(
+    socket: WebSocket,
+    raw: string,
+    decoded: DecodeFrameResult,
+    noteFrameType: (type: string) => void,
+  ): void {
+    if (this.socket !== socket) return;
+    if (!decoded.ok) {
+      socket.close(1008, "Invalid backend renderer message");
+      return;
+    }
+    const message = decoded.message;
+    if (
+      typeof message === "object" &&
+      message !== null &&
+      typeof (message as { type?: unknown }).type === "string"
+    ) {
+      noteFrameType((message as { type: string }).type);
+    }
+    // Bounded large-reply frames first: stale/duplicate/out-of-order safely
+    // drop inside reassembly (socket alive); version mismatches fall through
+    // to the loud 1008 gate below.
+    if (
+      this.largeReassembly.handleBackendFrame(
+        message,
+        utf8ByteLength(raw),
+        this.reassemblyEvents(),
+        (id) => this.pending.has(id),
+      )
+    ) {
+      return;
+    }
+    if (!isBackendRendererMessage(message)) {
+      socket.close(1008, "Invalid backend renderer message");
+      return;
+    }
+    this.dispatchBackendMessage(message);
+  }
+
+  private dispatchBackendMessage(message: BackendRendererMessage): void {
+    if (message.type === "reply") {
+      const pending = this.pending.get(message.id);
+      if (!pending) return;
+      this.pending.delete(message.id);
+      clearTimeout(pending.timeout);
+      if (message.ok) pending.resolve(message.data);
+      else pending.reject(new Error(message.error));
+      return;
+    }
+    if (message.type === "interests-ack") {
+      this.lastSequence = Math.max(this.lastSequence, message.latestSeq);
+      // The acknowledged handoff cursor for THIS connection: the backend may
+      // anchor a recovery barrier's loss window at it, and this window may
+      // treat a barrier as stale when this cursor already covers the loss.
+      this.ackedSequence = message.latestSeq;
+      this.directEventsConnected = true;
+      this.handleOwnershipAck(message.ownership);
+      return;
+    }
+    if (message.type === "event") {
+      if (message.seq <= this.lastSequence) return;
+      this.lastSequence = message.seq;
+      this.dispatch(message.event, message.seq);
+      return;
+    }
+    if (message.type === "resync-required") {
+      this.lastSequence = message.latestSeq;
+      this.dispatchRebuildForInterests(
+        message.threadIds && message.threadIds.length > 0 ? new Set(message.threadIds) : undefined,
+      );
     }
   }
 
@@ -454,6 +492,7 @@ export class ElectronBackendTransport {
     this.ackedSequence = null;
     this.resetOwnershipForConnection();
     this.largeReassembly.dropAll();
+    getClientEngineHost().reset();
     this.rejectPending(new Error("Backend renderer transport disconnected."));
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
@@ -473,8 +512,17 @@ export class ElectronBackendTransport {
     this.ackedSequence = null;
     this.resetOwnershipForConnection();
     this.largeReassembly.dropAll();
+    getClientEngineHost().reset();
     socket?.close();
     this.rejectPending(error);
+  }
+
+  private handleClientEngineOverflow(): void {
+    try {
+      this.socket?.close(1013, "Client engine overflow");
+    } catch {
+      this.disconnect(new Error("Client engine overflow"));
+    }
   }
 
   private resetOwnershipForConnection(): void {
@@ -558,90 +606,4 @@ export class ElectronBackendTransport {
   private dispatch(event: SupervisorEvent, rendererSequence?: number): void {
     for (const listener of this.listeners) listener(event, rendererSequence);
   }
-}
-
-type BackendRendererMessage =
-  | BackendRendererReply
-  | {
-      version: typeof BACKEND_RENDERER_STREAM_VERSION;
-      type: "hello";
-      latestSeq: number;
-    }
-  | {
-      version: typeof BACKEND_RENDERER_STREAM_VERSION;
-      type: "interests-ack";
-      latestSeq: number;
-      /** Present exactly when the backend activated the ownership handoff. */
-      ownership?: RendererStreamOwnershipClaim;
-    }
-  | {
-      version: typeof BACKEND_RENDERER_STREAM_VERSION;
-      type: "resync-required";
-      latestSeq: number;
-      /**
-       * Loss scope hint from the host (WS6 P1-10): threads whose events are
-       * unrecoverable by replay. Absent or empty keeps the legacy meaning —
-       * rebuild every subscribed thread; the host cannot always attribute a
-       * gap to specific threads. A present list narrows the rebuild to the
-       * intersection with this window's subscriptions only.
-       */
-      threadIds?: string[];
-    }
-  | {
-      version: typeof BACKEND_RENDERER_STREAM_VERSION;
-      type: "event";
-      seq: number;
-      event: SupervisorEvent;
-    };
-
-function isBackendRendererMessage(value: unknown): value is BackendRendererMessage {
-  if (typeof value !== "object" || value === null) return false;
-  const message = value as Record<string, unknown>;
-  if (message.version !== BACKEND_RENDERER_STREAM_VERSION || typeof message.type !== "string") {
-    return false;
-  }
-  if (message.type === "reply") {
-    return (
-      typeof message.id === "string" &&
-      typeof message.ok === "boolean" &&
-      (message.ok || typeof message.error === "string")
-    );
-  }
-  if (message.type === "event") {
-    return (
-      typeof message.seq === "number" &&
-      typeof message.event === "object" &&
-      message.event !== null &&
-      typeof (message.event as { type?: unknown }).type === "string"
-    );
-  }
-  if (message.type === "resync-required") {
-    if (typeof message.latestSeq !== "number") return false;
-    return (
-      message.threadIds === undefined ||
-      (Array.isArray(message.threadIds) &&
-        message.threadIds.every((threadId) => typeof threadId === "string"))
-    );
-  }
-  if (message.type === "hello") {
-    return typeof message.latestSeq === "number";
-  }
-  return (
-    message.type === "interests-ack" &&
-    typeof message.latestSeq === "number" &&
-    (message.ownership === undefined || isOwnershipClaim(message.ownership))
-  );
-}
-
-function isOwnershipClaim(value: unknown): value is RendererStreamOwnershipClaim {
-  if (typeof value !== "object" || value === null) return false;
-  const claim = value as Record<string, unknown>;
-  return (
-    typeof claim.windowId === "number" &&
-    Number.isSafeInteger(claim.windowId) &&
-    claim.windowId > 0 &&
-    typeof claim.generation === "number" &&
-    Number.isSafeInteger(claim.generation) &&
-    claim.generation > 0
-  );
 }
