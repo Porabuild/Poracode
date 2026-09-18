@@ -20,14 +20,55 @@ test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "17"
 test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "37"
 test "$(adb shell getprop ro.build.version.codename | tr -d '\r')" = "REL"
 
+# sys.boot_completed alone races the framework services: early `pm`/`am` calls
+# can still fail while boot flags are already set. Ping both services until they
+# answer before installing (bounded; the emulator-runner boot poll already
+# absorbs the transient `adb: device offline` seen on the first polls).
+for attempt in $(seq 1 60); do
+  if adb shell pm path android >/dev/null 2>&1 && adb shell am get-current-user >/dev/null 2>&1; then
+    break
+  fi
+  if [ "$attempt" -eq 60 ]; then
+    echo "::error::Package manager / activity manager did not become ready after boot." >&2
+    exit 1
+  fi
+  sleep 2
+done
+
 adb shell df -h /data
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'minSdk=26'
 adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'targetSdk=37'
 adb logcat -c
-adb shell am force-stop com.lightcodeapp.mobile
-adb shell am start -W -n com.lightcodeapp.mobile/com.poracode.app.MainActivity | tee "$RUNNER_TEMP/android-api37-launch.txt"
-grep -F 'Status: ok' "$RUNNER_TEMP/android-api37-launch.txt"
+# Cold-launch hardening. Measured cold launches on the API 37 emulator take
+# 6.5-11.4 s (first-run dexopt/profile install + software rendering), and the
+# `am start -W` completion handshake starves out at ~10.8-11.2 s ("Status:
+# timeout", LaunchState UNKNOWN) even though the activity comes up moments
+# later. Verify the activity by process + window focus instead of trusting the
+# single-shot status line, and force-stop + retry once if it truly never rose.
+launch_ok=0
+for launch_attempt in 1 2; do
+  adb shell am force-stop com.lightcodeapp.mobile
+  adb shell am start -W -n com.lightcodeapp.mobile/com.poracode.app.MainActivity \
+    | tee "$RUNNER_TEMP/android-api37-launch.txt"
+  for wait_attempt in $(seq 1 30); do
+    app_pid="$(adb shell pidof com.lightcodeapp.mobile | tr -d '\r')"
+    if [ -n "$app_pid" ] && adb shell dumpsys activity activities 2>/dev/null \
+        | grep -iF "resumedactivity" | grep -qF "com.poracode.app.MainActivity"; then
+      launch_ok=1
+      break
+    fi
+    sleep 2
+  done
+  if [ "$launch_ok" -eq 1 ]; then
+    break
+  fi
+  if [ "$launch_attempt" -eq 2 ]; then
+    echo "::error::MainActivity never reached the foreground (launch evidence in android-api37-launch.txt)." >&2
+    exit 1
+  fi
+  echo "::warning::Launch attempt 1 did not come up; retrying after a force-stop."
+done
 sleep 3
 test -n "$(adb shell pidof com.lightcodeapp.mobile | tr -d '\r')"
 adb logcat -d -v threadtime > "$RUNNER_TEMP/android-api37-logcat.txt"

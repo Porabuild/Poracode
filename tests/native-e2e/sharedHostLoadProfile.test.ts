@@ -23,6 +23,7 @@ import {
   type RealHostHandle,
 } from "./harness/realHost.ts";
 import { ProfileClient, type ReceivedEvent } from "./helpers/concurrencyProfileClient.ts";
+import { BOUND_CURSOR_SYNC_RESENDS } from "./helpers/terminalWatchRecorder.ts";
 import {
   acquireDeviceCredential,
   allocateLoopbackPort,
@@ -104,9 +105,6 @@ const BOUND_TERMINAL_CLOSE_MS = 5_000;
 /** Payload lines a healthy watcher may miss from the strict count because
  * steer-echo/control bytes split a line mid-stream (see the generator check). */
 const INTERLEAVE_TOLERANCE_LINES = 8;
-/** Legal cursor-sync v2 duplicate/overlap re-deliveries per watch (the real
- * client ignores duplicates); genuine gaps are asserted to be zero. */
-const BOUND_CURSOR_SYNC_RESENDS = 4;
 /** A connected stalled client held under this bound rules out the default 30s
  * heartbeat sweep as the reason for any drop; past it the documented outcome
  * is eviction + replay recovery. */

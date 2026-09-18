@@ -267,6 +267,56 @@ jobs:
       - name: Test shard
         run: pnpm run test --shard=${{ matrix.shard }}/8
 
+  test_perf:
+    name: Perf suites (uncontended)
+    runs-on: ubuntu-latest
+    # Absolute latency budgets are only meaningful on an unloaded runner, so
+    # the perf suites are excluded from the sharded unit run and executed
+    # here as their own invocation (vitest.perf.config.ts). The browser bench
+    # stays opt-in locally: CI deliberately skips the Chromium download.
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      ELECTRON_OVERRIDE_DIST_PATH: node_modules/electron/dist
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build test native dependencies
+        # The supervisor runtime chain pulls in node-pty, which ships no Linux
+        # prebuild. Retry the rebuild like the sharded suite: a flaky transfer
+        # crashes node-gyp's downloader instead of failing cleanly.
+        run: |
+          for attempt in 1 2 3; do
+            if pnpm rebuild node-pty; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::Native dependency rebuild failed after $attempt attempts."
+              exit 1
+            fi
+            echo "::warning::Native dependency rebuild attempt $attempt failed; retrying."
+            sleep $((attempt * 10))
+          done
+        shell: bash
+
+      - name: CLI hook perf suite
+        run: pnpm run test:perf:cli-hook
+
+      - name: Remote protocol perf suite
+        run: pnpm run test:perf:remote
+
   test:
     name: Test
     if: ${{ always() }}
@@ -279,7 +329,7 @@ jobs:
   ci_gate:
     name: CI required gate
     if: ${{ always() }}
-    needs: [typecheck, lint, fmt, web_build, runtime_deps, rust_helper, test_shard, test]
+    needs: [typecheck, lint, fmt, web_build, runtime_deps, rust_helper, test_shard, test_perf, test]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

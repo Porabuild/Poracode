@@ -20,6 +20,15 @@ export interface TerminalContiguityViolation {
   readonly expectedGeneration: string | null;
 }
 
+/**
+ * Non-chaining cursor-sync ranges tolerated per watch. Under cursor-sync v2 a
+ * duplicate/overlap re-delivery is legal (the real client dedupes), but output
+ * LOSS is not: callers must separately assert that no recorded violation has
+ * `fromCursor > expectedFromCursor` — that shape is a gap, not a re-delivery.
+ * (Shared by sharedHostLoadProfile and the impairment scenario.)
+ */
+export const BOUND_CURSOR_SYNC_RESENDS = 4;
+
 export interface TerminalWatchState {
   readonly watchId: string;
   readyResult: Record<string, unknown> | null;
