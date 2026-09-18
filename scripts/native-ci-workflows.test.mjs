@@ -50,9 +50,12 @@ case "$*" in
   'shell getprop ro.build.version.release') echo 17;;
   'shell getprop ro.build.version.sdk') echo 37;;
   'shell getprop ro.build.version.codename') echo REL;;
+  'shell pm path '*) echo 'package:/data/app/android.apk';;
+  'shell am get-current-user') echo 0;;
   'shell dumpsys package '*) echo 'minSdk=26 targetSdk=37';;
   'shell am start '*) echo 'Status: ok';;
   'shell pidof '*) echo 1234;;
+  'shell dumpsys activity activities'*) echo 'mResumedActivity=ComponentInfo{com.poracode.app.MainActivity}'};;
 esac
 `,
         { mode: 0o755 },
