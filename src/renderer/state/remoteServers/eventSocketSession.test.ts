@@ -166,11 +166,7 @@ class FakeEngineWorker {
   postMessage(data: ClientEngineRequest): void {
     this.posted.push(data);
     if (!this.autoRespond) return;
-    if (
-      data.type !== "parse-json" &&
-      data.type !== "decode-remote" &&
-      data.type !== "decode-backend"
-    ) {
+    if (data.type !== "parse-json" && data.type !== "decode-remote") {
       return;
     }
     const base = {

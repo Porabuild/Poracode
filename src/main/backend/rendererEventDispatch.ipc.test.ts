@@ -3,21 +3,12 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { filterSupervisorEventForInterests } from "@/backend/BackendHostCore";
-import { RendererStreamOwnership } from "@/backend/RendererStreamOwnership";
 import { createSupervisorEventRelay } from "@/backend/supervisorEventRelay";
-import { planDesktopRelay } from "@/backend/supervisorEventFallback";
-import type {
-  BackendHostOutboundMessage,
-  RendererWindowDeliveryState,
-} from "@/shared/backendHostProtocol";
+import type { BackendHostOutboundMessage } from "@/shared/backendHostProtocol";
 import { agentStatusSchema, type AgentStatus } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { BackendHostClient } from "./BackendHostClient";
-import {
-  createRendererEventDispatcher,
-  type RendererEventDispatchTarget,
-} from "./rendererEventDispatch";
+import { createRendererEventDispatcher } from "./rendererEventDispatch";
 import type { RendererEventSender } from "./rendererEventInterestRegistry";
 import { RendererEventInterestsWiring } from "./rendererEventInterestsWiring";
 
@@ -42,9 +33,8 @@ vi.mock("node:child_process", async (importOriginal) => {
 /**
  * Stand-in backend host: replies to every request envelope and echoes every
  * non-request envelope back through the real Node IPC channel. Echoing is the
- * production identity-loss boundary — the relay hands the same object to both
- * the targeted copy and the shell remainder, but each `process.send` crosses
- * as its own deserialized object, exactly as in `src/backend/index.ts`.
+ * production identity-loss boundary — each `process.send` crosses as its own
+ * deserialized object, exactly as in `src/backend/index.ts`.
  */
 const ECHO_BACKEND_HOST = `process.on("message", (message) => {
   if (message && typeof message === "object" && typeof message.operation === "string") {
@@ -54,9 +44,6 @@ const ECHO_BACKEND_HOST = `process.on("message", (message) => {
   process.send(message);
 });
 `;
-
-const MAIN_SHELL = 1;
-const QUICK_COMPOSER = 7;
 
 const STATUS_ENTRY: AgentStatus = agentStatusSchema.parse({
   kind: "claude",
@@ -80,27 +67,26 @@ function fakeSender(id: number): RendererEventSender {
 interface Harness {
   client: BackendHostClient;
   wiring: RendererEventInterestsWiring;
-  ownership: RendererStreamOwnership;
   rawEvents: SupervisorEvent[];
-  targeted: Array<{
-    windowId: number;
-    event: SupervisorEvent;
-    rendererSequence: number | undefined;
-  }>;
+  rawSequences: Array<number | undefined>;
   shell: Array<{ event: SupervisorEvent; rendererSequence: number | undefined }>;
   native: SupervisorEvent[];
   forwarded: SupervisorEvent[];
   errors: unknown[];
   reportError: ReturnType<typeof vi.fn>;
-  settledSyncs: { count: number };
-  relay(event: SupervisorEvent, rendererSequence?: number): BackendHostOutboundMessage[];
+  relay(event: SupervisorEvent): BackendHostOutboundMessage[];
   roundTrip(messages: BackendHostOutboundMessage[]): Promise<void>;
   dispose(): Promise<void>;
 }
 
 const cleanups: Array<() => Promise<void>> = [];
 
-async function startHarness(registerWindows: boolean): Promise<Harness> {
+/**
+ * Collapsed single-path harness (V5 plan 2.5): the real relay produces ONE
+ * sequenced envelope per event; the envelope crosses a real forked backend
+ * child and is dispatched by the slim dispatcher in main.
+ */
+async function startHarness(): Promise<Harness> {
   const root = await mkdtemp(join(tmpdir(), "poracode-dispatch-ipc-"));
   const backendHostPath = join(root, "echoBackendHost.mjs");
   await writeFile(backendHostPath, ECHO_BACKEND_HOST);
@@ -109,15 +95,12 @@ async function startHarness(registerWindows: boolean): Promise<Harness> {
   });
 
   const rawEvents: SupervisorEvent[] = [];
-  const targeted: Harness["targeted"] = [];
+  const rawSequences: Array<number | undefined> = [];
   const shell: Harness["shell"] = [];
   const native: SupervisorEvent[] = [];
   const forwarded: SupervisorEvent[] = [];
   const errors: unknown[] = [];
   const reportError = vi.fn<(error: unknown, tags?: unknown) => void>();
-  const pushed: RendererWindowDeliveryState[][] = [];
-  const settledSyncs = { count: 0 };
-  const ownership = new RendererStreamOwnership();
 
   let dispatch: ReturnType<typeof createRendererEventDispatcher> = () => {};
   const client = new BackendHostClient({
@@ -136,65 +119,35 @@ async function startHarness(registerWindows: boolean): Promise<Harness> {
     },
     resolveExtraEnv: () => ({}),
     reportError,
-    onEvent: (event, rendererSequence, target) => {
+    onEvent: (event, rendererSequence) => {
       rawEvents.push(event);
-      dispatch(event, rendererSequence, target);
+      rawSequences.push(rendererSequence);
+      dispatch(event, rendererSequence);
     },
     onReset: () => {},
   });
 
   const wiring = new RendererEventInterestsWiring({
     pushUnionInterests: async () => {},
-    pushDeliveryTable: async (windows) => {
-      ownership.setWindows(windows);
-      await client.setRendererStreamOwnership(windows);
-      pushed.push([...windows]);
-      settledSyncs.count += 1;
-    },
     onError: (error) => {
       errors.push(error);
     },
-    shellRemainderWindowId: () => MAIN_SHELL,
   });
 
   dispatch = createRendererEventDispatcher({
-    isStaleDeliveryTarget: (target) => wiring.isStaleDeliveryTarget(target),
-    resolveTargetWindow: (target): RendererEventDispatchTarget | null => {
-      if (target.windowId !== MAIN_SHELL && target.windowId !== QUICK_COMPOSER) return null;
-      return {
-        windowId: target.windowId,
-        send: (event, rendererSequence) =>
-          targeted.push({ windowId: target.windowId, event, rendererSequence }),
-      };
-    },
     sendToShell: (event, rendererSequence) => shell.push({ event, rendererSequence }),
     applyNativeState: (event) => native.push(event),
     forwardAgentStatus: (event) => forwarded.push(event),
-    quickComposerWindowId: () => QUICK_COMPOSER,
   });
 
-  const relay = (
-    event: SupervisorEvent,
-    rendererSequence?: number,
-  ): BackendHostOutboundMessage[] => {
+  let relaySequence = 0;
+  const relay = (event: SupervisorEvent): BackendHostOutboundMessage[] => {
     const messages: BackendHostOutboundMessage[] = [];
     const relayEvent = createSupervisorEventRelay({
-      publishToRendererStream: () =>
-        rendererSequence === undefined
-          ? undefined
-          : { delivered: true, sequence: rendererSequence },
+      nextSequence: () => ++relaySequence,
       observeEvent: () => false,
+      filterEventForRelay: (filtered) => filtered,
       sendToMain: (message) => messages.push(message),
-      planDesktopRelay: (planned) =>
-        planDesktopRelay({
-          event: planned,
-          ownershipArmed: ownership.isArmed(),
-          fallbackWindows: ownership.fallbackWindows(),
-          isTerminalBootstrapRetainedFor: () => false,
-          filterEventForInterests: (entry, interests) =>
-            filterSupervisorEventForInterests(entry, interests),
-          filterShellEvent: (entry) => entry,
-        }),
     });
     relayEvent(event);
     return messages;
@@ -215,15 +168,13 @@ async function startHarness(registerWindows: boolean): Promise<Harness> {
   const harness: Harness = {
     client,
     wiring,
-    ownership,
     rawEvents,
-    targeted,
+    rawSequences,
     shell,
     native,
     forwarded,
     errors,
     reportError,
-    settledSyncs,
     relay,
     roundTrip,
     dispose: async () => {
@@ -235,29 +186,16 @@ async function startHarness(registerWindows: boolean): Promise<Harness> {
   };
   cleanups.push(() => harness.dispose());
 
-  if (registerWindows) {
-    // Kept out of the helper's main flow so the expect below is unconditional
-    // (the lint rule forbids conditional expects).
-    await registerFallbackWindows(harness);
-  }
+  // One registered window publishes its interests over the same wiring main
+  // uses; the union push is the only backend consumer now.
+  const main = fakeSender(1);
+  wiring.setInterests(main, {
+    terminalThreadIds: [],
+    runtimeThreadIds: [],
+    allRuntimeEvents: false,
+  });
 
   return harness;
-}
-
-async function registerFallbackWindows(harness: Harness): Promise<void> {
-  const main = fakeSender(MAIN_SHELL);
-  const overlay = fakeSender(QUICK_COMPOSER);
-  harness.wiring.setInterests(main, {
-    terminalThreadIds: [],
-    runtimeThreadIds: [],
-    allRuntimeEvents: false,
-  });
-  harness.wiring.setInterests(overlay, {
-    terminalThreadIds: [],
-    runtimeThreadIds: [],
-    allRuntimeEvents: false,
-  });
-  await vi.waitFor(() => expect(harness.settledSyncs.count).toBeGreaterThanOrEqual(2));
 }
 
 beforeEach(() => {
@@ -271,83 +209,60 @@ afterEach(async () => {
   }
 });
 
-describe("renderer event dispatch across a real backend IPC round trip", () => {
-  it("delivers one quick-composer agent status exactly once through the shell forward", async () => {
-    const harness = await startHarness(true);
-    const messages = harness.relay(statusEvent(), 4);
-    expect(messages).toHaveLength(2);
+describe("renderer event dispatch across a real backend IPC round trip (collapsed single path)", () => {
+  it("delivers one sequenced envelope, one native application, one overlay forward", async () => {
+    const harness = await startHarness();
+    const event = statusEvent();
+    const messages = harness.relay(event);
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ kind: "supervisor-event", rendererSequence: 1 });
+    expect(messages[0]).not.toHaveProperty("target");
 
     await harness.roundTrip(messages);
 
-    // Serialization proof: the copy and the shell remainder are distinct
-    // objects in main even though the backend relay handed out one object.
-    expect(harness.rawEvents).toHaveLength(2);
-    expect(harness.rawEvents[0]).not.toBe(harness.rawEvents[1]);
-
-    // Exactly one overlay delivery: the shell forward. The planned fallback
-    // copy is structurally redundant for the overlay.
-    expect(harness.targeted.filter((entry) => entry.windowId === QUICK_COMPOSER)).toEqual([]);
-    expect(harness.forwarded).toHaveLength(1);
-    expect(harness.targeted.length + harness.forwarded.length).toBe(1);
-    // Native/control state and the shell envelope apply exactly once.
-    expect(harness.native).toHaveLength(1);
-    expect(harness.shell).toHaveLength(1);
+    // Serialization proof: the envelope main receives is its own object.
+    expect(harness.rawEvents).toEqual([event]);
+    expect(harness.rawSequences).toEqual([1]);
+    // Exactly one overlay delivery: the shell forward.
+    expect(harness.forwarded).toEqual([event]);
+    expect(harness.native).toEqual([event]);
+    expect(harness.shell).toEqual([{ event, rendererSequence: 1 }]);
     expect(harness.errors).toEqual([]);
     expect(harness.reportError).not.toHaveBeenCalled();
   });
 
-  it("delivers consecutive identical statuses independently across IPC", async () => {
-    const harness = await startHarness(true);
+  it("delivers consecutive identical statuses independently and sequences them monotonically", async () => {
+    const harness = await startHarness();
     const first = statusEvent();
     const second = statusEvent();
-    const messages = [...harness.relay(first, 4), ...harness.relay(second, 5)];
-    expect(messages).toHaveLength(4);
+    const messages = [...harness.relay(first), ...harness.relay(second)];
+    expect(messages).toHaveLength(2);
 
     await harness.roundTrip(messages);
 
-    expect(harness.rawEvents).toHaveLength(4);
-    expect(new Set(harness.rawEvents).size).toBe(4);
+    expect(harness.rawEvents).toEqual([first, second]);
+    expect(harness.rawSequences).toEqual([1, 2]);
     expect(harness.forwarded).toEqual([first, second]);
-    expect(harness.targeted.filter((entry) => entry.windowId === QUICK_COMPOSER)).toEqual([]);
     expect(harness.native).toHaveLength(2);
   });
 
-  it("delivers the forward when a window reload made the copy stale", async () => {
-    const harness = await startHarness(true);
-    const messages = harness.relay(statusEvent(), 3);
-    expect(messages).toHaveLength(2);
-
-    // Reload the overlay: release drops its grant, re-registration mints a
-    // newer generation, so the planned g1 copy is provably stale.
-    harness.wiring.release(QUICK_COMPOSER);
-    const reloaded = fakeSender(QUICK_COMPOSER);
-    harness.wiring.setInterests(reloaded, {
-      terminalThreadIds: [],
-      runtimeThreadIds: [],
-      allRuntimeEvents: false,
-    });
-    await vi.waitFor(() => expect(harness.settledSyncs.count).toBeGreaterThanOrEqual(3));
-
-    await harness.roundTrip(messages);
-
-    expect(harness.targeted).toEqual([]);
-    expect(harness.forwarded).toHaveLength(1);
-    expect(harness.native).toHaveLength(1);
-  });
-
-  it("preserves the legacy pre-table relay across the same IPC path", async () => {
-    const harness = await startHarness(false);
-    const messages = harness.relay(statusEvent(), 9);
+  it("crosses mixed bulk content untargeted so the window reducer gates it by sequence", async () => {
+    const harness = await startHarness();
+    const mixed: SupervisorEvent = {
+      type: "thread-runtime-events",
+      threadId: "t-1",
+      events: [
+        { type: "item.started", threadId: "t-1", itemId: "i-1", itemType: "assistant_message" },
+      ],
+    };
+    const messages = harness.relay(mixed);
     expect(messages).toHaveLength(1);
-    const [message] = messages;
-    expect(message?.kind).toBe("supervisor-event");
 
     await harness.roundTrip(messages);
 
-    expect(harness.rawEvents).toHaveLength(1);
-    expect(harness.targeted).toEqual([]);
-    expect(harness.shell).toEqual([{ event: harness.rawEvents[0], rendererSequence: 9 }]);
-    expect(harness.native).toHaveLength(1);
-    expect(harness.forwarded).toHaveLength(1);
+    expect(harness.rawEvents).toEqual([mixed]);
+    expect(harness.shell).toEqual([{ event: mixed, rendererSequence: 1 }]);
+    // No control-only remainder, no targeted copies: one envelope, one send.
+    expect(harness.native).toEqual([mixed]);
   });
 });

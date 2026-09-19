@@ -19,17 +19,17 @@ export const IPC_EVENT_CHANNELS = {
   quickComposerSubmit: createChannel("quickComposerSubmit"),
   quickComposerDismissRequested: createChannel("quickComposerDismissRequested"),
   quickComposerShown: createChannel("quickComposerShown"),
-  backendRendererStreamChanged: createChannel("backendRendererStreamChanged"),
   backendSupervisorEventGap: createChannel("backendSupervisorEventGap"),
-  /** Per-window generation-fenced direct-stream recovery barrier. */
-  rendererStreamRecovery: createChannel("rendererStreamRecovery"),
+  /**
+   * Backend reset (V5 2.5): the desktop-IPC relay sequence space restarts
+   * with a new backend child, so renderer windows drop their dedupe cursor
+   * and rebuild subscribed state.
+   */
+  backendSupervisorReset: createChannel("backendSupervisorReset"),
 } as const;
 
 export const IPC_WINDOW_CHANNELS = {
   clientProcedureInvoke: createChannel("clientProcedureInvoke"),
-  backendRendererStreamInfo: createChannel("backendRendererStreamInfo"),
-  /** Per-window direct-stream ownership grant; main mints it for event.sender only. */
-  rendererStreamOwnershipGrant: createChannel("rendererStreamOwnershipGrant"),
   /** Off-main remote HTTP bridge admission (window-scoped native channel). */
   remoteHttpBridgeOpen: createChannel("remoteHttpBridgeOpen"),
   /** Main-side cancel fallback before a renderer's request port attaches. */

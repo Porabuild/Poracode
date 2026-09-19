@@ -9,7 +9,12 @@ import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import { standaloneAttachInfoSchema } from "@/shared/standaloneAttach";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
-import { createProcedureBridge, parseIpcProcedureArgs, type PoracodeBridge } from "@/shared/ipc";
+import {
+  assertIpcProcedureMapVersion,
+  createProcedureBridge,
+  parseIpcProcedureArgs,
+  type PoracodeBridge,
+} from "@/shared/ipc";
 import { ElectronBackendTransport } from "./electronBackendTransport";
 import { isCompactLayoutViewport } from "./adaptiveLayout";
 import { isRemoteRoutableProcedure } from "./remoteProcedureRoutes";
@@ -90,19 +95,20 @@ function assertClientRuntimeVersion(version: unknown): void {
 
 export function installElectronClientRuntime(host: ElectronHostBridge): void {
   assertClientRuntimeVersion(host.clientRuntimeVersion);
+  assertIpcProcedureMapVersion(host.ipcProcedureMapVersion);
   const transport = new ElectronBackendTransport(host);
   const procedures = createProcedureBridge((name, args) => {
     if (name === "setRendererEventInterests") {
       return transport.setEventInterests(parseIpcProcedureArgs(name, args));
     }
-    const operation = transport.operationFor(name);
-    if (!operation) return host.invokeProcedure(name, args);
-    return transport.call(operation, name, parseIpcProcedureArgs(name, args), args);
+    // V5 plan 2.5: every procedure crosses the preload invoke boundary
+    // (main → backend-host call-* operations); the direct renderer stream
+    // that used to shortcut requests is deleted.
+    return host.invokeProcedure(name, args);
   });
   const native: PoracodeNativeBridge = {
     ...host,
     onSupervisorEvent: (listener) => transport.subscribe(listener),
-    onBackendRendererStreamGenerationChanged: (listener) => transport.onGenerationChanged(listener),
   };
   installClientRuntime({
     version: PORACODE_CLIENT_RUNTIME_VERSION,
@@ -215,6 +221,10 @@ export function installAttachedElectronClientRuntime(
   attach: StandaloneAttachInfo,
 ): void {
   assertClientRuntimeVersion(host.clientRuntimeVersion);
+  // V5 plan 2.6: the same typed handshake guards the attach bootstrap — the
+  // device-procedure surface the attached renderer falls back to must agree
+  // with this bundle's procedure map before anything installs.
+  assertIpcProcedureMapVersion(host.ipcProcedureMapVersion);
   const parsed = parseStandaloneAttachInfo(attach);
   if (!parsed) throw new Error("Invalid standalone attach configuration.");
   const hostCapabilities = parsed.capabilities ?? UNKNOWN_HOST_CAPABILITIES;
@@ -274,6 +284,17 @@ export function isStandaloneAttachRuntime(): boolean {
  */
 export function hasElectronHostBridge(): boolean {
   return typeof window !== "undefined" && Boolean(window.poracodeHost);
+}
+
+/**
+ * The Electron preload host bridge for Electron-only bootstrap wiring
+ * (`app.tsx` main-window event subscriptions), or null off the Electron
+ * surface. Sanctioned accessor like the raw-global readers it wraps: the raw
+ * `window.poracodeHost` global exists exactly once — in the installers and
+ * this accessor — and every other module reads the bridge through it.
+ */
+export function readElectronHostBridge(): ElectronHostBridge | null {
+  return typeof window !== "undefined" && window.poracodeHost ? window.poracodeHost : null;
 }
 
 /**

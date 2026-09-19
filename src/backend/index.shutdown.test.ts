@@ -2,11 +2,9 @@ import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
-  BACKEND_RENDERER_STREAM_VERSION,
   type BackendHostOutboundMessage,
   type BackendHostRequest,
   type BackendNativeRequest,
-  type BackendRendererRequest,
 } from "@/shared/backendHostProtocol";
 
 const state = vi.hoisted(() => ({
@@ -14,12 +12,10 @@ const state = vi.hoisted(() => ({
   order: [] as string[],
   sent: [] as BackendHostOutboundMessage[],
   requestNative: null as ((request: BackendNativeRequest) => Promise<unknown>) | null,
-  rendererRequest: null as ((request: BackendRendererRequest) => Promise<unknown>) | null,
   service: vi.fn<() => Promise<unknown>>(),
   supervisor: vi.fn<() => Promise<unknown>>(),
   stopSupervisor: vi.fn<() => Promise<void>>(),
   stopServices: vi.fn<() => Promise<void>>(),
-  startStream: vi.fn<() => Promise<unknown>>(),
 }));
 
 vi.mock("@/shared/diagnostics/nodePerformanceDiagnostics", () => ({
@@ -57,18 +53,6 @@ vi.mock("./BackendDesktopServices", () => ({
     async prepareSupervisor() {}
   },
 }));
-vi.mock("./BackendRendererStream", () => ({
-  BackendRendererStream: class {
-    constructor(options: { onRequest(request: BackendRendererRequest): Promise<unknown> }) {
-      state.rendererRequest = options.onRequest;
-    }
-    start = state.startStream;
-    async dispose() {
-      state.order.push("stream-close");
-    }
-  },
-}));
-
 const ownedEvents = ["message", "disconnect", "SIGINT", "SIGTERM"] as const;
 let previousListeners: Map<string, Set<ReturnType<typeof process.listeners>[number]>>;
 let sendDescriptor: PropertyDescriptor | undefined;
@@ -81,16 +65,10 @@ beforeEach(async () => {
   state.order = [];
   state.sent = [];
   state.requestNative = null;
-  state.rendererRequest = null;
   state.service.mockReset().mockResolvedValue(null);
   state.supervisor.mockReset().mockResolvedValue(null);
   state.stopSupervisor.mockReset().mockResolvedValue(undefined);
   state.stopServices.mockReset().mockResolvedValue(undefined);
-  state.startStream.mockReset().mockResolvedValue({
-    version: BACKEND_RENDERER_STREAM_VERSION,
-    url: "ws://127.0.0.1:1/fixture",
-    token: "synthetic-token",
-  });
   previousListeners = new Map(
     ownedEvents.map((event) => [event, new Set(process.listeners(event))]),
   );
@@ -169,80 +147,37 @@ function signal(event: "SIGINT" | "SIGTERM" | "disconnect"): void {
   listener!();
 }
 
-it.each(["ipc", "renderer"] as const)(
-  "retains SQLite until an admitted %s service continuation settles",
-  async (transport) => {
-    const admitted = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<void>();
-    state.service.mockImplementation(async () => {
-      admitted.resolve();
-      await release.promise;
-      if (state.closed) throw new Error("Synthetic write after database close");
-      state.order.push("write");
-      return "written";
-    });
-    initialize();
-    await reply("initialize");
-    let rendererReply: Promise<unknown> | undefined;
-    if (transport === "ipc") {
-      deliver({
-        version: BACKEND_HOST_PROTOCOL_VERSION,
-        id: "service",
-        operation: "call-service",
-        payload: { name: "getSharedSettings", payload: {} },
-      });
-    } else {
-      rendererReply = state.rendererRequest!({
-        version: BACKEND_RENDERER_STREAM_VERSION,
-        type: "request",
-        id: "service",
-        operation: "service",
-        name: "getSharedSettings",
-        payload: {},
-      });
-      void rendererReply.catch(() => {});
-    }
-    await admitted.promise;
-    dispose();
-    try {
-      await delay(20);
-      expect(state.closed).toBe(false);
-      expect(
-        state.sent.some((message) => message.kind === "reply" && message.replyTo === "dispose"),
-      ).toBe(false);
-    } finally {
-      release.resolve();
-      await Promise.allSettled([rendererReply]);
-      await reply("dispose");
-    }
-    expect(state.order.indexOf("write")).toBeLessThan(state.order.indexOf("database-close"));
-  },
-);
-
-it("joins pending initialization before closing its runtime and refuses publishing a stopped stream", async () => {
+it("retains SQLite until an admitted IPC service continuation settles", async () => {
+  const admitted = Promise.withResolvers<void>();
   const release = Promise.withResolvers<void>();
-  state.startStream.mockImplementation(async () => {
+  state.service.mockImplementation(async () => {
+    admitted.resolve();
     await release.promise;
-    return {
-      version: BACKEND_RENDERER_STREAM_VERSION,
-      url: "ws://fixture",
-      token: "synthetic-token",
-    };
+    if (state.closed) throw new Error("Synthetic write after database close");
+    state.order.push("write");
+    return "written";
   });
   initialize();
+  await reply("initialize");
+  deliver({
+    version: BACKEND_HOST_PROTOCOL_VERSION,
+    id: "service",
+    operation: "call-service",
+    payload: { name: "getSharedSettings", payload: {} },
+  });
+  await admitted.promise;
   dispose();
   try {
     await delay(20);
     expect(state.closed).toBe(false);
-    expect(state.stopSupervisor).not.toHaveBeenCalled();
+    expect(
+      state.sent.some((message) => message.kind === "reply" && message.replyTo === "dispose"),
+    ).toBe(false);
   } finally {
     release.resolve();
     await reply("dispose");
   }
-  expect(await reply("initialize")).toMatchObject({
-    ok: false,
-    error: expect.stringMatching(/shutting down/i),
-  });
+  expect(state.order.indexOf("write")).toBeLessThan(state.order.indexOf("database-close"));
 });
 
 it("starts supervisor cancellation before joining a request that needs that cancellation", async () => {
@@ -337,16 +272,6 @@ it("closes normal admission synchronously and joins duplicate disposal without c
       ok: false,
       error: expect.stringMatching(/shutting down/i),
     });
-    await expect(
-      state.rendererRequest!({
-        version: BACKEND_RENDERER_STREAM_VERSION,
-        type: "request",
-        id: "late-renderer",
-        operation: "service",
-        name: "getSharedSettings",
-        payload: {},
-      }),
-    ).rejects.toThrow(/shutting down/i);
     expect(state.service).toHaveBeenCalledOnce();
     expect(state.closed).toBe(false);
   } finally {

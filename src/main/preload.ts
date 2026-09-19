@@ -6,13 +6,7 @@ import type { RemoteAccessPairingInfo } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { UserNotification } from "@/shared/threadNotification";
-import {
-  BACKEND_RENDERER_STREAM_VERSION,
-  isRendererStreamOwnershipGrant,
-  isRendererStreamRecoveryBarrier,
-  isSupervisorEventGap,
-  type BackendRendererStreamInfo,
-} from "@/shared/backendHostProtocol";
+import { isSupervisorEventGap } from "@/shared/backendHostProtocol";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import { standaloneAttachInfoSchema } from "@/shared/standaloneAttach";
@@ -26,6 +20,7 @@ import {
   PORACODE_WINDOW_KINDS,
   type PoracodeWindowKind,
 } from "@/shared/ipc/channels";
+import { IPC_PROCEDURE_MAP_VERSION } from "@/shared/ipc/procedureMap";
 import {
   type BrowserEvent,
   type PrWatchMergedEvent,
@@ -169,25 +164,10 @@ const bridge: ElectronHostBridge = {
     }
     return parsed.data as StandaloneAttachInfo;
   },
-  async getBackendRendererStreamInfo() {
-    const info: unknown = await ipcRenderer.invoke(IPC_WINDOW_CHANNELS.backendRendererStreamInfo);
-    return isBackendRendererStreamInfo(info) ? info : null;
-  },
-  async getRendererStreamOwnershipGrant() {
-    const grant: unknown = await ipcRenderer.invoke(
-      IPC_WINDOW_CHANNELS.rendererStreamOwnershipGrant,
-    );
-    return isRendererStreamOwnershipGrant(grant) ? grant : null;
-  },
-  onBackendRendererStreamChanged(listener) {
-    const handler = (_event: Electron.IpcRendererEvent, info: unknown) => {
-      if (isBackendRendererStreamInfo(info)) listener(info);
-    };
-    ipcRenderer.on(IPC_EVENT_CHANNELS.backendRendererStreamChanged, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendRendererStreamChanged, handler);
-    };
-  },
+  // Procedure-map version handshake (V5 plan 2.6): the renderer asserts this
+  // against its own map before installing the runtime, so a mixed bundle or
+  // foreign preload pair rejects typed instead of guessing semantics.
+  ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
   onSupervisorEventGap(listener) {
     const handler = (_event: Electron.IpcRendererEvent, gap: unknown) => {
       if (isSupervisorEventGap(gap)) listener(gap);
@@ -197,13 +177,11 @@ const bridge: ElectronHostBridge = {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendSupervisorEventGap, handler);
     };
   },
-  onRendererStreamRecovery(listener) {
-    const handler = (_event: Electron.IpcRendererEvent, barrier: unknown) => {
-      if (isRendererStreamRecoveryBarrier(barrier)) listener(barrier);
-    };
-    ipcRenderer.on(IPC_EVENT_CHANNELS.rendererStreamRecovery, handler);
+  onBackendSupervisorReset(listener) {
+    const handler = () => listener();
+    ipcRenderer.on(IPC_EVENT_CHANNELS.backendSupervisorReset, handler);
     return () => {
-      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.rendererStreamRecovery, handler);
+      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendSupervisorReset, handler);
     };
   },
   onSupervisorEvent(listener) {
@@ -385,13 +363,3 @@ installSmokeNativePreload({
   isDev: bridge.isDev,
   mockAgents: process.env.PORACODE_MOCK_AGENTS === "1",
 });
-
-function isBackendRendererStreamInfo(value: unknown): value is BackendRendererStreamInfo {
-  if (typeof value !== "object" || value === null) return false;
-  const info = value as Record<string, unknown>;
-  return (
-    info.version === BACKEND_RENDERER_STREAM_VERSION &&
-    typeof info.url === "string" &&
-    typeof info.token === "string"
-  );
-}

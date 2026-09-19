@@ -3,33 +3,20 @@ import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerfor
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
-  createBackendSupervisorRequest,
-  isDirectRendererDatabaseProcedure,
-  isDirectRendererServiceProcedure,
   isBackendHostRequest,
-  type BackendRendererRequest,
   type BackendHostOutboundMessage,
   type BackendHostReply,
   type BackendHostRequest,
 } from "@/shared/backendHostProtocol";
-import {
-  BackendEventRouter,
-  BackendHostCore,
-  filterSupervisorEventForInterests,
-} from "./BackendHostCore";
+import { BackendEventRouter, BackendHostCore } from "./BackendHostCore";
 import { BackendDesktopServices } from "./BackendDesktopServices";
-import { BackendRendererStream } from "./BackendRendererStream";
-import { RendererStreamOwnership } from "./RendererStreamOwnership";
 import { BackendNativeRequests } from "./BackendNativeRequests";
-import { createRendererEventPublication } from "./rendererEventPublication";
 import { createBackendHostShedPolicy, createSupervisorEventRelay } from "./supervisorEventRelay";
-import { planDesktopRelay } from "./supervisorEventFallback";
 import { shutdownBackendHost } from "./shutdown";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { callDatabaseRpc } from "@/main/db/databaseRpc";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
-import { ipcProcedureMap, type IpcProcedureName, type SupervisorProcedureName } from "@/shared/ipc";
 
 /** Bare wholesale-replace RPCs refused at the mutation owner (see the
  * `call-database` case); the host-internal DB functions stay available to the
@@ -43,13 +30,8 @@ const WHOLESALE_RUNTIME_REPLACE_RPC: ReadonlySet<string> = new Set([
 const performanceDiagnostics = startNodePerformanceDiagnostics("backend");
 let backendHost: BackendHostCore | null = null;
 let desktopServices: BackendDesktopServices | null = null;
-let rendererStream: BackendRendererStream | null = null;
 let supervisorExtraEnv: Record<string, string> = {};
 const eventRouter = new BackendEventRouter();
-// Desktop-window delivery ownership for the direct renderer stream. Lives at
-// module scope like the IPC-copy event router so grants pushed by main apply
-// before, between, and after renderer-stream (re)construction.
-const rendererStreamOwnership = new RendererStreamOwnership();
 let rendererEventInterests: LiveEventInterests = {
   terminalThreadIds: [],
   runtimeThreadIds: [],
@@ -82,7 +64,6 @@ function stopRuntimeWork(): Promise<void> {
       await joinRuntimeShutdown([
         () => desktopServices?.dispose(),
         () => backendHost?.disposeSupervisor(),
-        () => rendererStream?.dispose(),
         () => requests.drain(),
       ]);
     } finally {
@@ -139,24 +120,22 @@ const sender = new SupervisorIpcSender<BackendHostOutboundMessage>({
 performanceDiagnostics?.observeIpcQueue("backend-to-main", () => sender.getQueueDiagnostics());
 
 // ── Diagnostics exposure (Gate 4 Batch 1, G1) ────────────────────
-// Read-only, opt-in describe handle for the renderer-stream health counters
-// (BackendRendererStream.getDiagnostics: connected clients, slow-client
-// disconnects, peak buffered bytes, replay/budget counters). The harness
-// reads it two ways, both dev/opt-in only:
+// Read-only, opt-in describe handle. The harness reads it two ways, both
+// dev/opt-in only:
 //   1. CDP on the backend inspector: globalThis.__poracodeBackendDiagnostics
 //   2. a `{ kind: "backend-diagnostics-describe", id }` dev IPC message,
 //      intercepted BEFORE the strict backend-host protocol gate below.
 // With PORACODE_BACKEND_DIAGNOSTICS unset (every production and normal dev
 // run) neither surface exists and the message path is byte-identical to
 // before. The payload is counters and process identity only — never tokens,
-// URLs, message content, or paths.
+// URLs, message content, or paths. (The renderer-stream health counters that
+// this handle originally exposed left with the deleted stream leg, V5 2.5.)
 const diagnosticsDescribeEnabled = process.env.PORACODE_BACKEND_DIAGNOSTICS === "1";
 
 function describeBackendDiagnostics(): Record<string, unknown> {
   return {
     role: "backend",
     pid: process.pid,
-    rendererStream: rendererStream?.getDiagnostics() ?? null,
     perfRecorderActive: performanceDiagnostics !== undefined,
   };
 }
@@ -241,33 +220,19 @@ function replyFailure(replyTo: string, error: unknown): void {
   send(reply);
 }
 
-// Gate 4 §5.4 (F10): per-renderer congestion isolation. A slow renderer
-// exhausts ONLY its bounded delivery/recovery budget in the renderer stream
-// (per-client budget doubling to 1 MiB, then a 1013 close with a
-// generation-fenced recovery barrier through the ordered desktop-IPC
-// fallback). Renderer congestion is never forwarded upstream as
-// supervisor-wide output backpressure: that signal would shed rebuildable
-// terminal output at the source for healthy clients too.
+// Single delivery path for supervisor events leaving the backend host (V5
+// 2.5): the legacy full relay across the desktop-IPC channel. Every event is
+// filtered by the union interests router and crosses ONCE, carrying its
+// host-lifetime monotonic relay sequence; desktop windows dedupe and gate
+// rebuilds by that sequence, and IPC shedding recovers through
+// `supervisor-event-gap` (see the shed policy in supervisorEventRelay.ts).
+// Renderer congestion is never forwarded upstream as supervisor-wide output
+// backpressure (Gate 4 §5.4 F10 semantics retained).
+let rendererEventSequence = 0;
 const relaySupervisorEvent = createSupervisorEventRelay({
-  publishToRendererStream: createRendererEventPublication({
-    getStream: () => rendererStream,
-  }),
+  nextSequence: () => ++rendererEventSequence,
   observeEvent: (event) => desktopServices?.observeSupervisorEvent(event),
-  // The backend is the authoritative direct/fallback selector: it plans
-  // per-window targeted copies for windows that need the desktop-IPC
-  // fallback and a sequence-less shell remainder for main's own consumers.
-  // Bulk content can cross only inside targeted copies.
-  planDesktopRelay: (event) =>
-    planDesktopRelay({
-      event,
-      ownershipArmed: rendererStreamOwnership.isArmed(),
-      fallbackWindows: rendererStreamOwnership.fallbackWindows(),
-      isTerminalBootstrapRetainedFor: (windowId, threadId) =>
-        eventRouter.isTerminalBootstrapRetainedFor(windowId, threadId),
-      filterEventForInterests: (filtered, interests) =>
-        filterSupervisorEventForInterests(filtered, interests),
-      filterShellEvent: (shell) => eventRouter.filter(shell),
-    }),
+  filterEventForRelay: (event) => eventRouter.filter(event),
   sendToMain: send,
 });
 
@@ -302,8 +267,15 @@ async function initialize(
     onSupervisorOutputShed: (threadIds) => {
       // The supervisor shed terminal-output batches in transit; the events
       // never persisted, so windows must rebuild those threads' output from
-      // the supervisor's authoritative scrollback via their gap recovery.
-      rendererStream?.broadcastResyncRequired(threadIds);
+      // the supervisor's authoritative scrollback. The unsequenced
+      // `thread-scrollback-resync` events dispatch ungated in every window.
+      for (const threadId of threadIds) {
+        send({
+          version: BACKEND_HOST_PROTOCOL_VERSION,
+          kind: "supervisor-event",
+          event: { type: "thread-scrollback-resync", threadId },
+        });
+      }
       reportError?.(
         new Error(
           `supervisor shed terminal output for ${threadIds.length} thread(s) under IPC backpressure`,
@@ -336,94 +308,14 @@ async function initialize(
       syncEventInterests();
     },
   });
-  rendererStream = new BackendRendererStream({
-    onSlowClient: ({ bufferedBytes, budgetBytes }) =>
-      reportError(
-        new Error(
-          `Renderer event stream exceeded its ${budgetBytes}-byte budget (${bufferedBytes} bytes buffered).`,
-        ),
-        { "poracode.feature_area": "renderer-event-stream" },
-      ),
-    onRequest: handleRendererRequest,
-    ownership: rendererStreamOwnership,
-    // Owner revocation recovery: generation-fenced barriers through the
-    // ordered desktop-IPC fallback, ahead of any later fallback copy.
-    onStreamRecovery: (revocations) => {
-      for (const revocation of revocations) {
-        send({
-          version: BACKEND_HOST_PROTOCOL_VERSION,
-          kind: "renderer-stream-recovery",
-          windowId: revocation.windowId,
-          generation: revocation.generation,
-          fromSequence: revocation.fromSequence,
-          toSequence: revocation.toSequence,
-          ...(revocation.threadIds ? { threadIds: revocation.threadIds } : {}),
-        });
-      }
-    },
-  });
-  const rendererStreamInfo = await rendererStream.start();
   if (!acceptingRequests) throw new Error("Backend host is shutting down.");
-  return { rendererStream: rendererStreamInfo };
+  return null;
 }
 
 /** Validated authenticated origin window of a call-supervisor request, or undefined. */
 function readCallOriginWindowId(request: { originWindowId?: unknown }): number | undefined {
   const value = request.originWindowId;
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : undefined;
-}
-
-async function handleRendererRequest(
-  request: BackendRendererRequest,
-  origin?: { windowId: number },
-): Promise<unknown> {
-  const procedure = ipcProcedureMap[request.name as IpcProcedureName];
-  if (!procedure) throw new Error(`Unknown renderer procedure: ${request.name}`);
-  const payload = procedure.payloadSchema.parse(request.payload);
-  if (request.operation === "supervisor") {
-    if (procedure.transport !== "supervisor") {
-      throw new Error(`Procedure ${request.name} is not owned by the supervisor.`);
-    }
-    return handleRequest(
-      createBackendSupervisorRequest(
-        request.id,
-        request.name as SupervisorProcedureName,
-        payload as never,
-        origin?.windowId,
-      ),
-    );
-  }
-  if (request.operation === "database") {
-    if (!isDirectRendererDatabaseProcedure(request.name)) {
-      throw new Error(`Procedure ${request.name} is not a direct renderer database operation.`);
-    }
-    return handleRequest({
-      version: BACKEND_HOST_PROTOCOL_VERSION,
-      id: request.id,
-      operation: "call-database",
-      payload: { name: request.name, payload } as never,
-    });
-  }
-  if (request.operation === "revert-checkpoint") {
-    if (request.name !== "revertCheckpoint") {
-      throw new Error(`Procedure ${request.name} is not the compound checkpoint revert.`);
-    }
-    return handleRequest({
-      version: BACKEND_HOST_PROTOCOL_VERSION,
-      id: request.id,
-      operation: "revert-checkpoint",
-      payload: { name: request.name, payload } as never,
-    });
-  }
-  if (!isDirectRendererServiceProcedure(request.name)) {
-    throw new Error(`Procedure ${request.name} is not a direct renderer service operation.`);
-  }
-  return handleRequest({
-    version: BACKEND_HOST_PROTOCOL_VERSION,
-    id: request.id,
-    operation: "call-service",
-    payload: { name: request.name, payload } as never,
-  });
 }
 
 function handleRequest(request: BackendHostRequest): Promise<unknown> {
@@ -445,7 +337,6 @@ function handleRequest(request: BackendHostRequest): Promise<unknown> {
 async function disposeRuntime(): Promise<null> {
   await stopRuntimeWork();
   desktopServices = null;
-  rendererStream = null;
   backendHost?.closeDatabase();
   backendHost = null;
   return null;
@@ -493,11 +384,9 @@ async function executeRequest(
       const originWindowId = readCallOriginWindowId(supervisorRequest);
       if (bootstrapThreadId) {
         eventRouter.retainTerminalBootstrap(bootstrapThreadId, originWindowId);
-        rendererStream?.retainTerminalBootstrap(bootstrapThreadId, originWindowId);
       }
       if (supervisorRequest.type === "closeThread" && payload.threadId) {
         eventRouter.clearTerminalBootstrap(payload.threadId);
-        rendererStream?.clearTerminalBootstrap(payload.threadId);
       }
       try {
         return await host.supervisorClient.call(
@@ -507,7 +396,6 @@ async function executeRequest(
       } catch (error) {
         if (bootstrapThreadId) {
           eventRouter.clearTerminalBootstrap(bootstrapThreadId);
-          rendererStream?.clearTerminalBootstrap(bootstrapThreadId);
         }
         throw error;
       }
@@ -559,14 +447,6 @@ async function executeRequest(
       rendererEventInterests = request.payload;
       syncEventInterests();
       return null;
-    case "set-renderer-stream-ownership":
-      // Main's authoritative per-window delivery table (grant + interests).
-      // Applies even while the stream is being (re)constructed: the registry
-      // is injected into every stream instance. A malformed entry throws so
-      // the push fails loudly instead of silently dropping a consumer; an
-      // entry without a live owner keeps the per-window IPC fallback.
-      rendererStreamOwnership.setWindows(request.payload.windows);
-      return null;
     case "browser-event":
       desktopServices?.publishBrowserEvent(request.payload);
       return null;
@@ -616,7 +496,6 @@ async function shutdown(exitCode: number, flush: boolean): Promise<void> {
       async () => {
         await stopRuntimeWork();
         desktopServices = null;
-        rendererStream = null;
       },
       async () => {
         if (flush && process.connected) await sender.flushAndWait(1_000);

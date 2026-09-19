@@ -7,7 +7,6 @@ import {
   type ClientEngineWorkRequest,
 } from "./protocol";
 import {
-  decodeBackendRendererFrame,
   decodeRemoteSocketFrame,
   parseJsonValue,
   stringifyJsonValue,
@@ -47,15 +46,8 @@ type PendingEntry = {
 // stream closing its socket) can no longer reject another consumer's in-flight
 // work (remote socket decodes, Zustand persist JSON). Never reintroduce a
 // shared singleton here — that is the T2 failure mode.
-let backendStreamEngine: ClientEngineHost | null = null;
 let remoteSocketEngine: ClientEngineHost | null = null;
 let persistJsonEngine: ClientEngineHost | null = null;
-
-/** Engine for the desktop renderer-stream transport (`electronBackendTransport`). */
-export function getBackendStreamEngine(): ClientEngineHost {
-  backendStreamEngine ??= new ClientEngineHost();
-  return backendStreamEngine;
-}
 
 /** Engine for remote event-socket frame decoding (`eventSocketSession`). */
 export function getRemoteSocketEngine(): ClientEngineHost {
@@ -69,13 +61,7 @@ export function getPersistJsonEngine(): ClientEngineHost {
   return persistJsonEngine;
 }
 
-export function decodeBackendSync(raw: string): DecodeFrameResult {
-  return decodeBackendRendererFrame(raw);
-}
-
 export function resetClientEngineHostForTests(): void {
-  backendStreamEngine?.dispose();
-  backendStreamEngine = null;
   remoteSocketEngine?.dispose();
   remoteSocketEngine = null;
   persistJsonEngine?.dispose();
@@ -116,10 +102,6 @@ export class ClientEngineHost {
     });
   }
 
-  decodeBackend(raw: string): Promise<DecodeFrameResult> {
-    return this.enqueue({ type: "decode-backend", raw }, () => decodeBackendRendererFrame(raw));
-  }
-
   decodeRemote(raw: string): Promise<DecodeFrameResult> {
     return this.enqueue({ type: "decode-remote", raw }, () => decodeRemoteSocketFrame(raw));
   }
@@ -148,7 +130,7 @@ export class ClientEngineHost {
 
   private enqueue<T extends DecodeFrameResult | JsonParseResult | JsonStringifyResult>(
     work:
-      | { type: "decode-backend" | "decode-remote" | "parse-json"; raw: string }
+      | { type: "decode-remote" | "parse-json"; raw: string }
       | {
           type: "stringify-json";
           value: unknown;
@@ -306,7 +288,7 @@ export class ClientEngineHost {
 function resultFromResponse(
   response: Exclude<ClientEngineResponse, { type: "overflow" | "protocol-mismatch" }>,
 ): DecodeFrameResult | JsonParseResult | JsonStringifyResult {
-  if (response.type === "decode-backend" || response.type === "decode-remote") {
+  if (response.type === "decode-remote") {
     return response.ok ? { ok: true, message: response.message } : { ok: false, error: "invalid" };
   }
   if (response.type === "parse-json") {

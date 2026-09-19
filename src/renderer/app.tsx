@@ -58,7 +58,7 @@ import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
 import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/deferredFeatures";
 import { UserMessageActionsSheet } from "@/renderer/components/thread/ChatPane/UserMessageActionsSheet";
-import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { isBrowserClientRuntime, readElectronHostBridge } from "@/renderer/clientRuntime";
 
 const browserClientRuntime = isBrowserClientRuntime();
 const BrowserRuntimeServices = browserClientRuntime
@@ -252,9 +252,13 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onSupervisorEvent((event, rendererSequence) =>
         supervisorReducer.dispatch(event, rendererSequence),
       ),
-      ...(readBridge().onBackendRendererStreamGenerationChanged
+      // Backend reset (V5 2.5): the relay sequence space restarts with a new
+      // backend child. The transport drops its dedupe cursor and rebuilds;
+      // here the in-flight recovery state is invalidated so no stale
+      // authoritative read from the previous child is trusted.
+      ...(readElectronHostBridge()
         ? [
-            readBridge().onBackendRendererStreamGenerationChanged!(() => {
+            readElectronHostBridge()!.onBackendSupervisorReset(() => {
               localSnapshotRecovery.onTransportGenerationChanged();
               supervisorReducer.invalidateInFlightRecoveries();
             }),

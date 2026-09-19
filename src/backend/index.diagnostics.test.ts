@@ -1,35 +1,20 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
-  BACKEND_RENDERER_STREAM_VERSION,
   type BackendHostOutboundMessage,
 } from "@/shared/backendHostProtocol";
-import type { BackendRendererStreamDiagnostics } from "./BackendRendererStream";
 
 /**
  * Gate 4 Batch 1 G1: the opt-in read-only diagnostics describe handle in the
  * backend entry. Both surfaces (globalThis.__poracodeBackendDiagnostics for
  * CDP evaluation and the dev IPC describe message) must be INERT unless
- * PORACODE_BACKEND_DIAGNOSTICS=1, and the payload must expose the renderer
- * stream counters without any auth material.
+ * PORACODE_BACKEND_DIAGNOSTICS=1, and the payload must stay counters and
+ * process identity only. (The renderer-stream counters this handle originally
+ * exposed left with the deleted stream leg, V5 plan 2.5.)
  */
 
 const state = vi.hoisted(() => ({
   sent: [] as BackendHostOutboundMessage[],
-  streamDiagnostics: {
-    connectedClients: 2,
-    deliveredEvents: 100,
-    replayedEvents: 3,
-    replayEvictions: 1,
-    resyncRequests: 2,
-    slowClientDisconnects: 1,
-    budgetIncreases: 4,
-    budgetDecreases: 2,
-    peakBufferedBytes: 65_536,
-    terminalBootstrapRetained: 1,
-    terminalBootstrapCeilingEvictions: 0,
-  } as BackendRendererStreamDiagnostics,
-  startStream: vi.fn<() => Promise<unknown>>(),
 }));
 
 vi.mock("@/shared/diagnostics/nodePerformanceDiagnostics", () => ({
@@ -58,13 +43,6 @@ vi.mock("./BackendDesktopServices", () => ({
     async prepareSupervisor() {}
   },
 }));
-vi.mock("./BackendRendererStream", () => ({
-  BackendRendererStream: class {
-    start = state.startStream;
-    getDiagnostics = () => state.streamDiagnostics;
-    async dispose() {}
-  },
-}));
 
 const ownedEvents = ["message", "disconnect", "SIGINT", "SIGTERM"] as const;
 let previousListeners: Map<string, Set<ReturnType<typeof process.listeners>[number]>>;
@@ -75,11 +53,6 @@ let deliver: (message: unknown) => void;
 beforeEach(async () => {
   vi.resetModules();
   state.sent = [];
-  state.startStream.mockReset().mockResolvedValue({
-    version: BACKEND_RENDERER_STREAM_VERSION,
-    url: "ws://127.0.0.1:1/fixture",
-    token: "synthetic-token",
-  });
   delete (globalThis as Record<string, unknown>).__poracodeBackendDiagnostics;
   previousListeners = new Map(
     ownedEvents.map((event) => [event, new Set(process.listeners(event))]),
@@ -176,22 +149,18 @@ it("exposes the read-only describe handle when PORACODE_BACKEND_DIAGNOSTICS=1", 
   });
   await reply("initialize");
 
-  const expected = state.streamDiagnostics;
-
   // IPC surface.
   deliver({
     version: BACKEND_HOST_PROTOCOL_VERSION,
     id: "describe-ipc",
     kind: "backend-diagnostics-describe",
   });
-  const data = (await reply("describe-ipc")) as {
-    role: string;
-    rendererStream: BackendRendererStreamDiagnostics;
-  };
+  const data = (await reply("describe-ipc")) as { role: string; rendererStream?: unknown };
   expect(data.role).toBe("backend");
-  expect(data.rendererStream).toEqual(expected);
+  // The deleted stream's diagnostics key is gone with it.
+  expect(data).not.toHaveProperty("rendererStream");
 
-  // CDP surface: plain counters only, no stream token/url in the payload.
+  // CDP surface: plain counters only, no auth material in the payload.
   const handle = (
     globalThis as {
       __poracodeBackendDiagnostics?: { describe(): Record<string, unknown> };
@@ -199,7 +168,7 @@ it("exposes the read-only describe handle when PORACODE_BACKEND_DIAGNOSTICS=1", 
   ).__poracodeBackendDiagnostics;
   expect(handle).toBeDefined();
   const described = handle!.describe();
-  expect(described.rendererStream).toEqual(expected);
-  expect(JSON.stringify(described)).not.toContain("synthetic-token");
+  expect(described.role).toBe("backend");
+  expect(described).not.toHaveProperty("rendererStream");
   expect(JSON.stringify(described)).not.toContain("ws://");
 });

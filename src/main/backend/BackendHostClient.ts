@@ -4,7 +4,6 @@ import { constants as osConstants, setPriority } from "node:os";
 import type { Readable } from "node:stream";
 import {
   BACKEND_HOST_PROTOCOL_VERSION,
-  BACKEND_RENDERER_STREAM_VERSION,
   createBackendDatabaseRequest,
   createBackendRevertCheckpointRequest,
   createBackendServiceRequest,
@@ -21,10 +20,6 @@ import {
   type BackendServicePayload,
   type BackendServiceProcedureName,
   type BackendServiceResult,
-  type BackendRendererStreamInfo,
-  type RendererStreamDeliveryTarget,
-  type RendererStreamRecoveryBarrier,
-  type RendererWindowDeliveryState,
   type SupervisorEventGap,
 } from "@/shared/backendHostProtocol";
 import type { CheckpointRevertResult } from "@/shared/contracts";
@@ -72,23 +67,13 @@ export interface BackendHostClientOptions {
   initWaitTimeoutMs?: number;
   /** Opt-in local evidence; no payloads or delivery acknowledgments are collected. */
   queueDiagnostics?: IpcQueueCapture;
-  onEvent(
-    event: SupervisorEvent,
-    rendererSequence?: number,
-    /** Present on per-window fallback copies: deliver to exactly this window. */
-    target?: RendererStreamDeliveryTarget,
-  ): void;
-  /** Renderer-stream sequences the desktop-IPC fallback lost to host shedding; windows must rebuild. */
+  /** Untargeted sequenced desktop event (the sole desktop event path, V5 2.5). */
+  onEvent(event: SupervisorEvent, rendererSequence?: number): void;
+  /** Relay sequences the desktop-IPC channel lost to host shedding; windows must rebuild. */
   onSupervisorEventGap?(gap: SupervisorEventGap): void;
-  /**
-   * Generation-fenced recovery barrier for one window's direct-stream loss.
-   * Must reach exactly that window, ahead of any later fallback copy.
-   */
-  onRendererStreamRecovery?(barrier: RendererStreamRecoveryBarrier): void;
   onReset(): void;
   handleNativeRequest?(request: BackendNativeRequest): Promise<unknown> | unknown;
   onNativeEvent?(event: BackendNativeEvent): void;
-  onRendererStreamInfo?(info: BackendRendererStreamInfo): void;
 }
 
 function pipeChildStreamsToParent(child: ChildProcess): void {
@@ -143,11 +128,7 @@ export class BackendHostClient {
     allRuntimeEvents: false,
   };
   private syncedEventInterestsKey: string | null = null;
-  /** Desired per-window delivery state (grants + interests); re-synced per child generation. */
-  private ownershipWindows: RendererWindowDeliveryState[] = [];
-  private syncedOwnershipKey: string | null = null;
   private disposed = false;
-  private rendererStreamInfo: BackendRendererStreamInfo | null = null;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly options: BackendHostClientOptions) {
@@ -182,7 +163,6 @@ export class BackendHostClient {
     }
     this.child = child;
     this.syncedEventInterestsKey = null;
-    this.syncedOwnershipKey = null;
     pipeChildStreamsToParent(child);
 
     let assignmentPromise = Promise.resolve();
@@ -271,14 +251,7 @@ export class BackendHostClient {
       // An expired attempt is dead even while this.child still points at the
       // terminated child during the respawn backoff.
       if (this.disposed || failureHandled || this.child !== child) return result;
-      this.rendererStreamInfo = parseRendererStreamInfo(result);
-      if (this.rendererStreamInfo) this.options.onRendererStreamInfo?.(this.rendererStreamInfo);
       await this.syncEventInterests(true);
-      // Ownership grants are not part of the deadline: a stale backend that
-      // rejects (or never replies to) the additive operation must not fail
-      // initialization — it just keeps the legacy always-relay behavior. An
-      // empty desired table is skipped here; the first registration syncs it.
-      void this.syncOwnershipGrants(true).catch((error: unknown) => this.reportProcessError(error));
       // The deadline can fire while the interests sync is in flight; a reply
       // that races the kill must not mark the failed attempt ready.
       if (this.disposed || failureHandled || this.child !== child) return result;
@@ -350,17 +323,10 @@ export class BackendHostClient {
         return;
       }
       case "supervisor-event":
-        if (message.rendererSequence === undefined) {
-          this.options.onEvent(message.event, undefined, message.target);
-        } else {
-          this.options.onEvent(message.event, message.rendererSequence, message.target);
-        }
+        this.options.onEvent(message.event, message.rendererSequence);
         return;
       case "supervisor-event-gap":
         this.options.onSupervisorEventGap?.(message);
-        return;
-      case "renderer-stream-recovery":
-        this.options.onRendererStreamRecovery?.(message);
         return;
       case "supervisor-reset":
         this.options.onReset();
@@ -597,46 +563,6 @@ export class BackendHostClient {
   }
 
   /**
-   * Replaces the desktop-window delivery table the backend enforces for the
-   * direct renderer stream: each window's minted grant plus its own
-   * interests. The full table travels on every change so window releases
-   * (destroy, navigate) revoke grants and stale interests without a separate
-   * operation.
-   */
-  async setRendererStreamOwnership(windows: readonly RendererWindowDeliveryState[]): Promise<void> {
-    this.ownershipWindows = windows.map((window) => ({
-      windowId: window.windowId,
-      grant: { ...window.grant },
-      interests: {
-        terminalThreadIds: [...window.interests.terminalThreadIds],
-        runtimeThreadIds: [...window.interests.runtimeThreadIds],
-        allRuntimeEvents: window.interests.allRuntimeEvents,
-      },
-      receivesShellRemainder: window.receivesShellRemainder,
-    }));
-    await this.waitUntilInitialized();
-    await this.syncOwnershipGrants();
-  }
-
-  private syncOwnershipGrants(skipEmpty = false): Promise<unknown> {
-    const key = JSON.stringify(this.ownershipWindows);
-    if (this.syncedOwnershipKey === key) return Promise.resolve(null);
-    if (skipEmpty && this.ownershipWindows.length === 0 && this.syncedOwnershipKey === null) {
-      return Promise.resolve(null);
-    }
-    this.syncedOwnershipKey = key;
-    return this.request({
-      version: BACKEND_HOST_PROTOCOL_VERSION,
-      id: randomUUID(),
-      operation: "set-renderer-stream-ownership",
-      payload: { windows: this.ownershipWindows },
-    }).catch((error: unknown) => {
-      if (this.syncedOwnershipKey === key) this.syncedOwnershipKey = null;
-      throw error;
-    });
-  }
-
-  /**
    * Sends `start-supervisor` at most once per child generation and shares the
    * flight with every requester for that child: the respawn hook and a
    * lifecycle caller parked across the recovery must not double-start the
@@ -730,14 +656,6 @@ export class BackendHostClient {
     });
   }
 
-  async getRendererStreamInfo(): Promise<BackendRendererStreamInfo> {
-    return this.withNormalRequest(async () => {
-      await this.waitUntilInitialized();
-      if (!this.rendererStreamInfo) throw new Error("Backend renderer stream is unavailable.");
-      return this.rendererStreamInfo;
-    });
-  }
-
   publishBrowserEvent(event: BackendBrowserEvent): void {
     this.sender?.sendMessage({
       version: BACKEND_HOST_PROTOCOL_VERSION,
@@ -787,16 +705,4 @@ export class BackendHostClient {
       }
     }
   }
-}
-
-function parseRendererStreamInfo(value: unknown): BackendRendererStreamInfo | null {
-  if (typeof value !== "object" || value === null) return null;
-  const stream = (value as { rendererStream?: unknown }).rendererStream;
-  if (typeof stream !== "object" || stream === null) return null;
-  const info = stream as Record<string, unknown>;
-  return info.version === BACKEND_RENDERER_STREAM_VERSION &&
-    typeof info.url === "string" &&
-    typeof info.token === "string"
-    ? { version: BACKEND_RENDERER_STREAM_VERSION, url: info.url, token: info.token }
-    : null;
 }
