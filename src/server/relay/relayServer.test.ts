@@ -201,14 +201,23 @@ describe("relay end-to-end", () => {
   async function registerHost(
     relayInfo: RelayServerInfo,
     serverId: string,
-    options: { readonly withPortForward?: boolean; readonly withForwardOrigin?: boolean } = {},
+    options: {
+      readonly withPortForward?: boolean;
+      readonly withForwardOrigin?: boolean;
+      /** The gateway's forward-creation allowlist: tests forward ephemeral
+       * upstream ports, which the curated dev-port default would refuse. */
+      readonly forwardablePorts?: readonly number[];
+    } = {},
   ) {
     const withForwardOrigin =
       options.withPortForward === true && options.withForwardOrigin !== false;
     const authStore = new RemoteAuthStore();
     const pairing = authStore.issuePairingCredential({});
     const portForward = options.withPortForward
-      ? new RemotePortForwardGateway({ bindHost: "127.0.0.1" })
+      ? new RemotePortForwardGateway({
+          bindHost: "127.0.0.1",
+          ...(options.forwardablePorts ? { forwardablePorts: options.forwardablePorts } : {}),
+        })
       : undefined;
     const forwardOriginSecret = withForwardOrigin ? randomOriginSecret() : undefined;
     const forwardDispatchKey = withForwardOrigin ? randomOriginSecret() : undefined;
@@ -1411,9 +1420,15 @@ describe("relay end-to-end", () => {
     /** A port-forward host with the full isolated-origin wiring (dedicated
      * origin secret + dispatch key, mirrored in relay registration) on a
      * fresh relay. */
-    async function registerHostRelayed(serverId: string): Promise<RegisteredRelayHost> {
+    async function registerHostRelayed(
+      serverId: string,
+      forwardablePorts?: readonly number[],
+    ): Promise<RegisteredRelayHost> {
       const relayInfo = await startRelay();
-      return await registerHost(relayInfo, serverId, { withPortForward: true });
+      return await registerHost(relayInfo, serverId, {
+        withPortForward: true,
+        ...(forwardablePorts ? { forwardablePorts } : {}),
+      });
     }
 
     /**
@@ -1445,9 +1460,9 @@ describe("relay end-to-end", () => {
     }
 
     it("sends the API-origin enter redirect to the exact isolated child exchange, minting no API-origin cookie", async () => {
-      const host = await registerHostRelayed("srv-fwd-a");
       const upstream = await startUpstreamHttpServer();
       cleanups.push(() => new Promise<void>((resolve) => upstream.server.close(() => resolve())));
+      const host = await registerHostRelayed("srv-fwd-a", [upstream.port]);
 
       const created = await createForward(host, upstream.port);
       expect(created.listenPort).toBeGreaterThan(0);
@@ -1480,9 +1495,9 @@ describe("relay end-to-end", () => {
     });
 
     it("exchanges the one-use child-origin capability for a __Host-poracode-forward session cookie", async () => {
-      const host = await registerHostRelayed("srv-fwd-exchange");
       const upstream = await startUpstreamHttpServer();
       cleanups.push(() => new Promise<void>((resolve) => upstream.server.close(() => resolve())));
+      const host = await registerHostRelayed("srv-fwd-exchange", [upstream.port]);
 
       const created = await createForward(host, upstream.port);
       const enter = await rawGet(new URL(`${host.base}${created.enterPath}`));
@@ -1525,7 +1540,6 @@ describe("relay end-to-end", () => {
     });
 
     it("routes child-origin HTTP (dev-server root, nested assets + query) by the origin-bound session cookie", async () => {
-      const host = await registerHostRelayed("srv-fwd-assets");
       // The upstream forges Poracode's reserved cookie names: they must be
       // filtered from the proxied response — upstream cookies are payload,
       // never dispatch instructions.
@@ -1538,6 +1552,7 @@ describe("relay end-to-end", () => {
         ],
       });
       cleanups.push(() => new Promise<void>((resolve) => upstream.server.close(() => resolve())));
+      const host = await registerHostRelayed("srv-fwd-assets", [upstream.port]);
 
       const session = await openChildSession(host, upstream.port);
 
@@ -1588,9 +1603,9 @@ describe("relay end-to-end", () => {
     });
 
     it("routes child-origin WebSocket upgrades (e.g. Vite HMR) by exact origin and session cookie", async () => {
-      const host = await registerHostRelayed("srv-fwd-ws");
       const upstream = await startUpstreamWsEchoServer();
       cleanups.push(() => new Promise<void>((resolve) => upstream.wss.close(() => resolve())));
+      const host = await registerHostRelayed("srv-fwd-ws", [upstream.port]);
       const session = await openChildSession(host, upstream.port);
       const authority = new URL(session.childOrigin).host;
       const wsUrl = `ws://127.0.0.1:${new URL(host.base).port}/anything`;
@@ -1649,12 +1664,12 @@ describe("relay end-to-end", () => {
     });
 
     it("keeps sibling hosts' child sessions independent and rejects misdirected, unknown, and legacy credentials", async () => {
-      const hostA = await registerHostRelayed("srv-tenant-a");
-      const hostB = await registerHostRelayed("srv-tenant-b");
       const upstreamA = await startUpstreamHttpServer();
       const upstreamB = await startUpstreamHttpServer();
       cleanups.push(() => new Promise<void>((resolve) => upstreamA.server.close(() => resolve())));
       cleanups.push(() => new Promise<void>((resolve) => upstreamB.server.close(() => resolve())));
+      const hostA = await registerHostRelayed("srv-tenant-a", [upstreamA.port]);
+      const hostB = await registerHostRelayed("srv-tenant-b", [upstreamB.port]);
       const baseHost = new URL(FORWARD_ORIGIN_BASE_URL).hostname;
 
       const sessionA = await openChildSession(hostA, upstreamA.port);
@@ -1774,7 +1789,6 @@ describe("relay end-to-end", () => {
     });
 
     it("binds each child session to its exact forward origin, so sibling forwards on one host cannot read each other", async () => {
-      const host = await registerHostRelayed("srv-fwd-swap");
       const upstreamOne = await startUpstreamHttpServer();
       const upstreamTwo = await startUpstreamHttpServer();
       cleanups.push(
@@ -1783,6 +1797,7 @@ describe("relay end-to-end", () => {
       cleanups.push(
         () => new Promise<void>((resolve) => upstreamTwo.server.close(() => resolve())),
       );
+      const host = await registerHostRelayed("srv-fwd-swap", [upstreamOne.port, upstreamTwo.port]);
 
       const sessionOne = await openChildSession(host, upstreamOne.port);
       const sessionTwo = await openChildSession(
@@ -1836,12 +1851,13 @@ describe("relay end-to-end", () => {
       // returns the raw forward but omits enterPath, and the browser entry
       // route fails with the explicit bounded error — never a shared-origin
       // fallback.
+      const upstream = await startUpstreamHttpServer();
+      cleanups.push(() => new Promise<void>((resolve) => upstream.server.close(() => resolve())));
       const bare = await registerHost(await startRelay(), "srv-fwd-bare", {
         withPortForward: true,
         withForwardOrigin: false,
+        forwardablePorts: [upstream.port],
       });
-      const upstream = await startUpstreamHttpServer();
-      cleanups.push(() => new Promise<void>((resolve) => upstream.server.close(() => resolve())));
       const bareToken = await issueAccessToken(bare.base, bare.pairing.credential, [
         "ports:forward",
       ]);

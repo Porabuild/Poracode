@@ -96,6 +96,9 @@ async function startProbeHost(input: {
   readonly serverId: string;
   /** Direct child-origin base (`PORACODE_REMOTE_FORWARD_BASE_URL` shape). */
   readonly directForwardBaseUrl?: string;
+  /** The gateway's forward-creation allowlist: this host's upstream app ports
+   * (the curated dev-port default would refuse ephemeral ports). */
+  readonly forwardablePorts?: readonly number[];
 }): Promise<ProbeHost> {
   const originSecret = randomBytes(32).toString("base64url");
   const dispatchKey = randomBytes(32).toString("base64url");
@@ -110,6 +113,7 @@ async function startProbeHost(input: {
     bindHost: "127.0.0.1",
     remoteAccessPort: 0,
     ...(directOrigin ? { forwardOrigin: directOrigin } : {}),
+    ...(input.forwardablePorts ? { forwardablePorts: input.forwardablePorts } : {}),
   });
   cleanup.push(async () => {
     portForwarding.gateway.dispose();
@@ -341,12 +345,13 @@ async function wsEcho(
 
 describe("two-host forward origin isolation probe (PORT_FORWARD_ORIGIN_ISOLATION)", () => {
   it("pins two applications on one host to their own origins across tabs, sockets, and a stop/recreate cycle", async () => {
+    const appA = await startUpstreamApp("app-a");
+    const appB = await startUpstreamApp("app-b");
     const host = await startProbeHost({
       serverId: "probe-host",
       directForwardBaseUrl: "https://apps.example.test",
+      forwardablePorts: [appA.port, appB.port],
     });
-    const appA = await startUpstreamApp("app-a");
-    const appB = await startUpstreamApp("app-b");
 
     const forwardA = await host.createForward(appA.port);
     const forwardB = await host.createForward(appB.port);
@@ -439,8 +444,16 @@ describe("two-host forward origin isolation probe (PORT_FORWARD_ORIGIN_ISOLATION
     const relayPort = relayInfo.port;
     const relayWsUrl = `${relayInfo.url.replace(/^http/, "ws")}/host`;
 
-    const hostA = await startProbeHost({ serverId: "probe-host-a" });
-    const hostB = await startProbeHost({ serverId: "probe-host-b" });
+    const appA = await startUpstreamApp("relay-app-a");
+    const appB = await startUpstreamApp("relay-app-b");
+    const hostA = await startProbeHost({
+      serverId: "probe-host-a",
+      forwardablePorts: [appA.port],
+    });
+    const hostB = await startProbeHost({
+      serverId: "probe-host-b",
+      forwardablePorts: [appB.port],
+    });
 
     // Real adapters: production startRelayHost dialing the real relay.
     const adapterA = startProbeRelayAdapter(hostA, relayWsUrl);
@@ -454,8 +467,6 @@ describe("two-host forward origin isolation probe (PORT_FORWARD_ORIGIN_ISOLATION
     expect(hostB.relayOrigin).not.toBeNull();
     expect(hostA.relayOrigin!.ownerId).not.toBe(hostB.relayOrigin!.ownerId);
 
-    const appA = await startUpstreamApp("relay-app-a");
-    const appB = await startUpstreamApp("relay-app-b");
     // Created THROUGH the relay: the relay-api dispatch context is what makes
     // the host mint entry tokens for its registered relay origin namespace.
     const forwardA = await hostA.createForward(appA.port, `${relayInfo.url}/s/${hostA.serverId}`);

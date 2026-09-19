@@ -29,6 +29,7 @@ describe("PortsPanel", () => {
     const startPortForward = vi.fn<RemoteDesktopClient["startPortForward"]>(async () => ({
       forward,
       enterPath: "/forward/forward-1/enter?fwt=token",
+      connectTicket: "fixture-connect-ticket",
     }));
     const client = { listPorts, startPortForward } as unknown as RemoteDesktopClient;
     const withClient: RemoteServersState["withClient"] = async (_desktopId, invoke) =>
@@ -207,7 +208,10 @@ describe("PortsPanel", () => {
           forwards: [],
         })
         .mockResolvedValue({ detected: [], forwards: [forward] }),
-      startPortForward: vi.fn<RemoteDesktopClient["startPortForward"]>(async () => ({ forward })),
+      startPortForward: vi.fn<RemoteDesktopClient["startPortForward"]>(async () => ({
+        forward,
+        connectTicket: "fixture-connect-ticket",
+      })),
     });
 
     render(<PortsPanel />);
@@ -233,7 +237,10 @@ describe("PortsPanel", () => {
           forwards: [],
         })
         .mockResolvedValue({ detected: [], forwards: [forward] }),
-      startPortForward: vi.fn<RemoteDesktopClient["startPortForward"]>(async () => ({ forward })),
+      startPortForward: vi.fn<RemoteDesktopClient["startPortForward"]>(async () => ({
+        forward,
+        connectTicket: "fixture-connect-ticket",
+      })),
     });
 
     render(<PortsPanel />);
@@ -264,6 +271,7 @@ describe("PortsPanel", () => {
       const startPortForward = vi.fn<RemoteDesktopClient["startPortForward"]>(async () => ({
         forward,
         enterPath: "/forward/forward-1/enter?fwt=legacy",
+        connectTicket: "fixture-connect-ticket",
       }));
       clientFor({
         listPorts: vi
@@ -327,6 +335,10 @@ describe("PortsPanel", () => {
         forwards: [forward],
       })),
       enterPortForward,
+      startPortForward: vi.fn<RemoteDesktopClient["startPortForward"]>(async () => ({
+        forward,
+        connectTicket: "fixture-connect-ticket",
+      })),
     });
 
     render(<PortsPanel />);
@@ -337,10 +349,13 @@ describe("PortsPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Copy raw address" }));
     await waitFor(() =>
       expect(success).toHaveBeenCalledWith(
-        "Copied raw TCP address (LAN only) — opens outside the isolated forward.",
+        "Copied raw TCP address + connect ticket (LAN only) — send the ticket as the first line.",
       ),
     );
-    expect(writeText).toHaveBeenCalledWith("http://192.168.1.10:4100/");
+    // Raw copy re-mints the connect ticket via the idempotent forward call
+    // (Gate 6: forwarded listeners are credential-gated) and copies it on a
+    // second line after the address.
+    expect(writeText).toHaveBeenCalledWith("http://192.168.1.10:4100/\nfixture-connect-ticket");
     expect(enterPortForward).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "Copy link" }));

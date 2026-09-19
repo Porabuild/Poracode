@@ -74,8 +74,8 @@ async function startProxyEdge(box: LifetimeBox) {
   };
 }
 
-function makeGateway(): RemotePortForwardGateway {
-  const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+function makeGateway(forwardablePorts: readonly number[] = []): RemotePortForwardGateway {
+  const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", forwardablePorts });
   cleanup.push(async () => gateway.dispose());
   return gateway;
 }
@@ -83,7 +83,7 @@ function makeGateway(): RemotePortForwardGateway {
 describe("RemotePortForwardGateway forward lifetimes", () => {
   it("exposes a live lifetime while open and aborts it synchronously on stopForward", async () => {
     const upstream = await startStreamUpstream(cleanup, "u");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstream.port]);
     const forward = await gateway.startForward(upstream.port);
 
     const lifetime = gateway.acquireForwardLifetime(forward.id);
@@ -101,7 +101,7 @@ describe("RemotePortForwardGateway forward lifetimes", () => {
   it("stopping one forward leaves another forward's lifetime untouched", async () => {
     const upstreamA = await startStreamUpstream(cleanup, "A");
     const upstreamB = await startStreamUpstream(cleanup, "B");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstreamB.port, upstreamA.port]);
     const forwardA = await gateway.startForward(upstreamA.port);
     const forwardB = await gateway.startForward(upstreamB.port);
     const lifetimeA = gateway.acquireForwardLifetime(forwardA.id)!;
@@ -117,7 +117,7 @@ describe("RemotePortForwardGateway forward lifetimes", () => {
 
   it("re-forwarding a stopped forward's port issues a fresh lifetime the old one can never reach", async () => {
     const upstream = await startStreamUpstream(cleanup, "u");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstream.port]);
     const first = await gateway.startForward(upstream.port);
     const firstLifetime = gateway.acquireForwardLifetime(first.id)!;
     await gateway.stopForward(first.id);
@@ -134,7 +134,7 @@ describe("RemotePortForwardGateway forward lifetimes", () => {
   it("dispose() aborts every forward's lifetime synchronously", async () => {
     const upstreamA = await startStreamUpstream(cleanup, "A");
     const upstreamB = await startStreamUpstream(cleanup, "B");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstreamB.port, upstreamA.port]);
     const forwardA = await gateway.startForward(upstreamA.port);
     const forwardB = await gateway.startForward(upstreamB.port);
     const lifetimeA = gateway.acquireForwardLifetime(forwardA.id)!;
@@ -185,7 +185,7 @@ describe("PortProxy session resolution", () => {
 
   it("resolves a minted session to the forward's exact lifetime signal", async () => {
     const upstream = await startStreamUpstream(cleanup, "u");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstream.port]);
     const portProxy = makeOriginPortProxy(gateway);
     const forward = await gateway.startForward(upstream.port);
 
@@ -199,7 +199,7 @@ describe("PortProxy session resolution", () => {
 
   it("a session dies with its forward and never attaches to a re-forwarded port", async () => {
     const upstream = await startStreamUpstream(cleanup, "u");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstream.port]);
     const portProxy = makeOriginPortProxy(gateway);
     const forward = await gateway.startForward(upstream.port);
     const { cookie, origin } = mintSessionCookie(portProxy, forward.id);
@@ -221,7 +221,7 @@ describe("PortProxy session resolution", () => {
 describe("proxied operation revocation", () => {
   it("stopForward revokes an in-flight proxied HTTP stream on both legs", async () => {
     const upstream = await startStreamUpstream(cleanup, "A");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstream.port]);
     const box: LifetimeBox = { lifetime: null };
     const edge = await startProxyEdge(box);
     const forward = await gateway.startForward(upstream.port);
@@ -254,7 +254,7 @@ describe("proxied operation revocation", () => {
 
   it("releases the lifetime's revocation registration once the response finishes", async () => {
     const upstream = await startStreamUpstream(cleanup, "A");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstream.port]);
     const box: LifetimeBox = { lifetime: null };
     const edge = await startProxyEdge(box);
     const forward = await gateway.startForward(upstream.port);
@@ -290,7 +290,7 @@ describe("proxied operation revocation", () => {
 
   it("stopForward revokes an established proxied WebSocket on both ends", async () => {
     const upstream = await startWebSocketUpstream();
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstream.port]);
     const box: LifetimeBox = { lifetime: null };
     const edge = await startProxyEdge(box);
     const forward = await gateway.startForward(upstream.port);
@@ -345,7 +345,7 @@ describe("proxied operation revocation", () => {
 describe("forward-owned keep-alive pool", () => {
   it("reuses one upstream connection across requests within a live forward", async () => {
     const upstream = await startRawUpstream(cleanup, "A");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstream.port]);
     const box: LifetimeBox = { lifetime: null };
     const edge = await startProxyEdge(box);
     const forward = await gateway.startForward(upstream.port);
@@ -362,7 +362,7 @@ describe("forward-owned keep-alive pool", () => {
 
   it("keeps in-flight sockets in the in-use set and parks them once completed", async () => {
     const upstream = await startStreamUpstream(cleanup, "A");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstream.port]);
     const box: LifetimeBox = { lifetime: null };
     const edge = await startProxyEdge(box);
     const forward = await gateway.startForward(upstream.port);
@@ -393,7 +393,7 @@ describe("forward-owned keep-alive pool", () => {
     // is exactly the agent's own policy (an http.Server upstream would
     // advertise its own, which the client rightly prefers when shorter).
     const upstream = await startRawUpstream(cleanup, "A");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstream.port]);
     const box: LifetimeBox = { lifetime: null };
     const edge = await startProxyEdge(box);
     const forward = await gateway.startForward(upstream.port);
@@ -412,7 +412,7 @@ describe("forward-owned keep-alive pool", () => {
     "destroys the forward's idle pooled sockets on %s",
     async (action) => {
       const upstream = await startRawUpstream(cleanup, "A");
-      const gateway = makeGateway();
+      const gateway = makeGateway([upstream.port]);
       const box: LifetimeBox = { lifetime: null };
       const edge = await startProxyEdge(box);
       const forward = await gateway.startForward(upstream.port);
@@ -434,7 +434,7 @@ describe("forward-owned keep-alive pool", () => {
   it("stopping one forward leaves another forward's pool intact and reusable", async () => {
     const upstreamA = await startRawUpstream(cleanup, "A");
     const upstreamB = await startRawUpstream(cleanup, "B");
-    const gateway = makeGateway();
+    const gateway = makeGateway([upstreamB.port, upstreamA.port]);
     const box: LifetimeBox = { lifetime: null };
     const edge = await startProxyEdge(box);
     const forwardA = await gateway.startForward(upstreamA.port);

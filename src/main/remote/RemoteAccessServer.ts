@@ -50,6 +50,7 @@ import type {
 } from "@/shared/ipc";
 import { buildPairingUrl } from "@/shared/remote/pairingUrl";
 import { RemoteHttpError, RemoteAuthStore, type AuthenticatedRemoteSession } from "./auth";
+import { remoteAccessBindRefusal } from "./config";
 import type { RemoteAccessIdentity } from "./identity";
 import {
   FORWARD_ORIGIN_UNAVAILABLE,
@@ -201,6 +202,12 @@ export interface RemoteAccessServerOptions {
    * connect to any packaged or headless Poracode app.
    */
   readonly isDev?: boolean;
+  /** The bind host for the listener. Composition roots pass the config-level
+   * resolution ({@link remoteAccessHost} in `src/main/remote/config.ts` —
+   * loopback by default; named `loopback`/`tailnet`/`lan` bind modes). A
+   * plaintext all-interfaces host is refused at startup unless the
+   * `PORACODE_ALLOW_PLAINTEXT_LAN=1` acknowledgement is set (Gate 6 item
+   * 4.1), whoever supplied the host. */
   readonly host: string;
   readonly advertisedHost?: string;
   /**
@@ -828,6 +835,11 @@ export class RemoteAccessServer {
   }
 
   private async startListening(): Promise<RemoteAccessServerInfo> {
+    // Gate 6 item 4.1: a plaintext all-interfaces bind starts only with the
+    // explicit acknowledgement — enforced here (not just at config
+    // resolution) so a programmatically supplied host cannot bypass it.
+    const bindRefusal = remoteAccessBindRefusal(this.options.host);
+    if (bindRefusal) throw new Error(`[poracode] ${bindRefusal}`);
     const maxAttempts = this.options.listenRetryAttempts ?? DEFAULT_LISTEN_RETRY_ATTEMPTS;
     for (let attempt = 1; ; attempt += 1) {
       if (this.stopping) throw new Error("Remote access server is stopping.");

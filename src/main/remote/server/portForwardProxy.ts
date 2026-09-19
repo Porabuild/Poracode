@@ -284,8 +284,21 @@ export async function proxyForwardedHttpRequest(
     });
   };
 
-  attempt(orderedLoopbackHosts(targetPort), 0);
+  attempt(dialHosts(lifetime), 0);
   await work.drain();
+}
+
+/**
+ * The loopback families the proxy may dial for this forward: the cached
+ * fallback chain minus the family the forward's own listener shadows (mirrored
+ * bind, see `ForwardLifetime.shadowedLoopback`) — dialing it would loop back
+ * into this very forward's credential-gated listener instead of reaching the
+ * upstream.
+ */
+function dialHosts(lifetime: ForwardLifetime): readonly LoopbackHost[] {
+  return orderedLoopbackHosts(lifetime.targetPort).filter(
+    (host) => host !== lifetime.shadowedLoopback,
+  );
 }
 
 /**
@@ -441,6 +454,6 @@ export async function proxyForwardedWebSocketUpgrade(
     upgradeReq.end();
   };
 
-  attempt(orderedLoopbackHosts(targetPort), 0);
+  attempt(dialHosts(lifetime), 0);
   await work.drain();
 }

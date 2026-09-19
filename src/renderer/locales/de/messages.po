@@ -3517,8 +3517,12 @@ msgid "Copied"
 msgstr "Kopiert"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
-msgstr "Direkte TCP-Adresse kopiert (nur LAN) — öffnet außerhalb der isolierten Weiterleitung."
+#~ msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
+#~ msgstr "Direkte TCP-Adresse kopiert (nur LAN) — öffnet außerhalb der isolierten Weiterleitung."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copied raw TCP address + connect ticket (LAN only) — send the ticket as the first line."
+msgstr "Rohe TCP-Adresse + Verbindungsticket kopiert (nur LAN) — senden Sie das Ticket als erste Zeile."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"

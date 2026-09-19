@@ -91,6 +91,9 @@ async function startConfiguredHost(
     readonly getRelayForwardOrigin?: RemoteAccessServerOptions["getRelayForwardOrigin"];
     readonly exchangeTtlMs?: number;
     readonly enterTokenTtlMs?: number;
+    /** Upstream ports this host's tests forward — the gateway's forward-creation
+     * allowlist (the curated dev-port default would refuse ephemeral ports). */
+    readonly forwardablePorts?: readonly number[];
   } = {},
 ) {
   const forwardOrigin = createForwardOriginIdentity({
@@ -98,7 +101,10 @@ async function startConfiguredHost(
     originSecret: TEST_ORIGIN_SECRET,
     serverId: TEST_SERVER_ID,
   })!;
-  const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+  const gateway = new RemotePortForwardGateway({
+    bindHost: "127.0.0.1",
+    forwardablePorts: overrides.forwardablePorts ?? [],
+  });
   const portProxy = new PortProxy({
     gateway,
     forwardOrigin,
@@ -221,8 +227,8 @@ async function startConfiguredHost(
   };
 }
 
-async function startUnconfiguredHost() {
-  const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+async function startUnconfiguredHost(forwardablePorts: readonly number[] = []) {
+  const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", forwardablePorts });
   const server = new RemoteAccessServer({
     truncateThreadRuntime: () => {},
     appVersion: "test",
@@ -259,7 +265,10 @@ describe("isolated child-origin dispatch", () => {
     };
     let active: typeof relayIdentity | null = relayIdentity;
     const upstream = await startUpstreamEcho();
-    const host = await startConfiguredHost({ getRelayForwardOrigin: () => active });
+    const host = await startConfiguredHost({
+      getRelayForwardOrigin: () => active,
+      forwardablePorts: [upstream.port],
+    });
     const forward = await host.gateway.startForward(upstream.port);
     const url = `http://127.0.0.1:${host.port}`;
     const headers = {
@@ -293,7 +302,10 @@ describe("isolated child-origin dispatch", () => {
     const relayIdentity = { baseUrl: "https://relay-apps.example.test", ownerId: "b".repeat(24) };
     let active: typeof relayIdentity | null = relayIdentity;
     const upstream = await startUpstreamEcho();
-    const host = await startConfiguredHost({ getRelayForwardOrigin: () => active });
+    const host = await startConfiguredHost({
+      getRelayForwardOrigin: () => active,
+      forwardablePorts: [upstream.port],
+    });
     const forward = await host.gateway.startForward(upstream.port);
     const token = host.portProxy.issueEnterToken(forward.id, relayIdentity);
     const exchange = host.portProxy.beginExchange(forward.id, token.token)!;
@@ -322,7 +334,7 @@ describe("isolated child-origin dispatch", () => {
 
   it("proxies a full two-hop entry and routes every child path — /api/* included — upstream", async () => {
     const upstream = await startUpstreamEcho();
-    const host = await startConfiguredHost();
+    const host = await startConfiguredHost({ forwardablePorts: [upstream.port] });
     const session = await host.forwardAndEnter(upstream.port);
 
     // `/` proxies upstream with the rewritten loopback Host.
@@ -366,7 +378,7 @@ describe("isolated child-origin dispatch", () => {
     "bounded-errors %s under the configured base instead of serving the PWA",
     async (_name, authority) => {
       const upstream = await startUpstreamEcho();
-      const host = await startConfiguredHost();
+      const host = await startConfiguredHost({ forwardablePorts: [upstream.port] });
       await host.createForward(upstream.port);
 
       const response = await rawRequestWithAuthority({
@@ -384,7 +396,7 @@ describe("isolated child-origin dispatch", () => {
 
   it("bounded-errors a wrong-port child authority (namespace recognition ignores port)", async () => {
     const upstream = await startUpstreamEcho();
-    const host = await startConfiguredHost();
+    const host = await startConfiguredHost({ forwardablePorts: [upstream.port] });
     const created = await host.createForward(upstream.port);
 
     const response = await rawRequestWithAuthority({
@@ -399,7 +411,7 @@ describe("isolated child-origin dispatch", () => {
 
   it("bounded-errors an unknown or revoked forward on a valid child origin", async () => {
     const upstream = await startUpstreamEcho();
-    const host = await startConfiguredHost();
+    const host = await startConfiguredHost({ forwardablePorts: [upstream.port] });
     const session = await host.forwardAndEnter(upstream.port);
 
     await host.stop(session.id);
@@ -430,7 +442,9 @@ describe("isolated child-origin dispatch", () => {
   it("requires the origin-bound cookie session on every child operation", async () => {
     const upstreamA = await startUpstreamEcho();
     const upstreamB = await startUpstreamEcho();
-    const host = await startConfiguredHost();
+    const host = await startConfiguredHost({
+      forwardablePorts: [upstreamA.port, upstreamB.port],
+    });
     const a = await host.forwardAndEnter(upstreamA.port);
     const b = await host.forwardAndEnter(upstreamB.port);
 
@@ -484,7 +498,7 @@ describe("isolated child-origin dispatch", () => {
     });
     void createServer;
     const upstream = { port: (upstreamWss.address() as AddressInfo).port };
-    const host = await startConfiguredHost();
+    const host = await startConfiguredHost({ forwardablePorts: [upstream.port] });
     const session = await host.forwardAndEnter(upstream.port);
 
     // HTTP with a foreign Origin is rejected…
@@ -546,7 +560,9 @@ describe("isolated child-origin dispatch", () => {
   it("makes the exchange one-use, origin-bound, forward-bound, and short-lived", async () => {
     const upstream = await startUpstreamEcho();
     const otherUpstream = await startUpstreamEcho();
-    const host = await startConfiguredHost();
+    const host = await startConfiguredHost({
+      forwardablePorts: [upstream.port, otherUpstream.port],
+    });
     const created = await host.createForward(upstream.port);
     const childOrigin = childOriginFor(created.forward.id);
     const childAuthority = childAuthorityFor(created.forward.id);
@@ -613,7 +629,10 @@ describe("isolated child-origin dispatch", () => {
     expect(await foreignOriginExchange.text()).toContain("forward_origin_mismatch");
 
     // Short TTL: an expired capability fails closed.
-    const expiringHost = await startConfiguredHost({ exchangeTtlMs: 0 });
+    const expiringHost = await startConfiguredHost({
+      exchangeTtlMs: 0,
+      forwardablePorts: [upstream.port],
+    });
     const expiringCreated = await expiringHost.createForward(upstream.port);
     const expiringEntry = await fetch(
       new URL(
@@ -636,7 +655,7 @@ describe("isolated child-origin dispatch", () => {
 
   it("strips reserved Poracode cookies in both directions and never leaks dispatch headers upstream", async () => {
     const upstream = await startUpstreamEcho();
-    const host = await startConfiguredHost();
+    const host = await startConfiguredHost({ forwardablePorts: [upstream.port] });
     const session = await host.forwardAndEnter(upstream.port);
 
     // Upstream Set-Cookie: reserved names filtered, ordinary cookies pass.
@@ -677,7 +696,7 @@ describe("isolated child-origin dispatch", () => {
 
   it("accepts trusted internal dispatch from loopback with the exact key and context", async () => {
     const upstream = await startUpstreamEcho();
-    const host = await startConfiguredHost();
+    const host = await startConfiguredHost({ forwardablePorts: [upstream.port] });
     const created = await host.createForward(upstream.port);
     const childOrigin = childOriginFor(created.forward.id);
     const entry = await fetch(
@@ -770,7 +789,7 @@ describe("isolated child-origin dispatch", () => {
 
   it("fails browser entry explicitly when browser forwarding is unconfigured, raw forward still works", async () => {
     const upstream = await startUpstreamEcho();
-    const host = await startUnconfiguredHost();
+    const host = await startUnconfiguredHost([upstream.port]);
 
     const created = await fetch(new URL("/api/ports/forward", host.info.httpBaseUrl), {
       method: "POST",
@@ -819,7 +838,10 @@ describe("isolated child-origin dispatch", () => {
 
   it("rejects an invalid or expired entry token with a plain error page and no cookie", async () => {
     const upstream = await startUpstreamEcho();
-    const host = await startConfiguredHost({ enterTokenTtlMs: 0 });
+    const host = await startConfiguredHost({
+      enterTokenTtlMs: 0,
+      forwardablePorts: [upstream.port],
+    });
 
     const bogus = await fetch(
       new URL("/forward/nonexistent-id/enter?fwt=bogus", host.server.getInfo()!.httpBaseUrl),
@@ -1058,7 +1080,7 @@ it("reserves previously minted child authorities once ingress config is removed 
 
 it("reserves authorities minted under a previous base while a new base is configured", async () => {
   const upstream = await startUpstreamEcho();
-  const host = await startConfiguredHost();
+  const host = await startConfiguredHost({ forwardablePorts: [upstream.port] });
   const created = await host.createForward(upstream.port);
   const staleBaseAuthority = `f-${TEST_OWNER}-${created.forward.id.replaceAll("-", "")}.old.example`;
 
@@ -1091,7 +1113,7 @@ it("reserves authorities minted under a previous base while a new base is config
 describe("WS handshake proxying", () => {
   it("filters reserved cookies from the upstream 101 handshake and keeps frames byte-transparent", async () => {
     const upstream = await startHandshakeUpstream();
-    const host = await startConfiguredHost();
+    const host = await startConfiguredHost({ forwardablePorts: [upstream.port] });
     const session = await host.forwardAndEnter(upstream.port);
 
     const handshake = await rawUpgrade({
@@ -1124,7 +1146,7 @@ describe("WS handshake proxying", () => {
 
   it("filters reserved cookies from a non-101 upgrade rejection and ends the socket", async () => {
     const upstream = await startHandshakeUpstream({ rejectWith: 403 });
-    const host = await startConfiguredHost();
+    const host = await startConfiguredHost({ forwardablePorts: [upstream.port] });
     const session = await host.forwardAndEnter(upstream.port);
 
     const handshake = await rawUpgrade({

@@ -3517,8 +3517,12 @@ msgid "Copied"
 msgstr "已复制"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
-msgstr "已复制直接 TCP 地址（仅限局域网）— 将在隔离转发的范围外打开。"
+#~ msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
+#~ msgstr "已复制直接 TCP 地址（仅限局域网）— 将在隔离转发的范围外打开。"
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copied raw TCP address + connect ticket (LAN only) — send the ticket as the first line."
+msgstr "已复制原始 TCP 地址 + 连接票据（仅限局域网）— 请将票据作为第一行发送。"
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"

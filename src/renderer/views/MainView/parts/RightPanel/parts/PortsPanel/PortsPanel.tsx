@@ -383,14 +383,25 @@ export function PortsPanel() {
 
   // Explicit, separately labeled raw-TCP copy. Never used by Open; only
   // meaningful on a direct endpoint where the desktop's LAN address is real.
+  // The forwarded listener is ticket-gated (Gate 6), so the copy re-mints the
+  // connect credential via the idempotent forward call and includes it on a
+  // second line — a raw client presents it as its first LF-terminated line.
   function copyRawForwardAddress(forward: ActivePortForward): void {
     if (!server) return;
-    void navigator.clipboard
-      .writeText(buildRawTcpUrl(host, forward.listenPort))
-      .then(() =>
-        toast.success(t`Copied raw TCP address (LAN only) — opens outside the isolated forward.`),
+    setCopyingForwardId(forward.id);
+    void withClient(server.desktopId, (client) => client.startPortForward(forward.targetPort))
+      .then((result) =>
+        navigator.clipboard.writeText(
+          `${buildRawTcpUrl(host, forward.listenPort)}\n${result.connectTicket}`,
+        ),
       )
-      .catch((error: unknown) => toast.danger(friendlyError(error)));
+      .then(() =>
+        toast.success(
+          t`Copied raw TCP address + connect ticket (LAN only) — send the ticket as the first line.`,
+        ),
+      )
+      .catch((error: unknown) => toast.danger(friendlyError(error)))
+      .finally(() => setCopyingForwardId(null));
   }
 
   const visibleDetected = detected.filter(

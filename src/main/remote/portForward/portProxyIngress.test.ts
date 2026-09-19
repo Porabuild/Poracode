@@ -5,7 +5,9 @@ import { FORWARD_ORIGIN_SESSION_COOKIE_NAME, PortProxy } from "./portProxy";
 
 const direct = { baseUrl: "https://direct.example.test", ownerId: "a".repeat(24) };
 const relay = { baseUrl: "https://relay.example.test", ownerId: "b".repeat(24) };
-const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+// The forward allowlist: the one port this suite forwards (see
+// `RemotePortForwardGateway.startForward`'s `port_not_forwardable` gate).
+const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", forwardablePorts: [3000] });
 afterEach(() => gateway.dispose());
 
 it("binds each ingress token, exchange and session to its selected origin", async () => {

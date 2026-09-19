@@ -3517,8 +3517,12 @@ msgid "Copied"
 msgstr "복사됨"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
-msgstr "직접 TCP 주소가 복사됨(LAN 전용) — 격리된 포워딩 밖에서 열립니다."
+#~ msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
+#~ msgstr "직접 TCP 주소가 복사됨(LAN 전용) — 격리된 포워딩 밖에서 열립니다."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copied raw TCP address + connect ticket (LAN only) — send the ticket as the first line."
+msgstr "원시 TCP 주소 + 연결 티켓이 복사되었습니다(LAN 전용) — 티켓을 첫 줄로 전송하세요."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"

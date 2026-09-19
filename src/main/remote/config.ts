@@ -3,17 +3,274 @@ import { networkInterfaces } from "node:os";
 
 export const DEFAULT_REMOTE_ACCESS_PORT = 49152;
 const MAX_AUTO_REMOTE_ACCESS_PORT = 65535;
-export const DEFAULT_REMOTE_ACCESS_HOST = "0.0.0.0";
+/**
+ * Loopback-only default (Gate 6 S1, plan item 4.1). The remote listener never
+ * exposes a plaintext surface wider than loopback unless a named bind mode or
+ * an explicit host opts in — see {@link resolveRemoteAccessBind}.
+ */
+export const DEFAULT_REMOTE_ACCESS_HOST = "127.0.0.1";
+/** The all-interfaces bind host used by `lan` mode (refused without an
+ * explicit acknowledgement — see {@link PLAINTEXT_LAN_ACK_ENV}). */
+export const LAN_BIND_HOST = "0.0.0.0";
 
 type NetworkInterfaceMap = ReturnType<typeof networkInterfaces>;
 
-function readTrimmedEnv(name: string): string | undefined {
-  const value = process.env[name]?.trim();
+function readTrimmedEnv(name: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const value = env[name]?.trim();
   return value ? value : undefined;
 }
 
+/** Named remote-access bind modes (plan item 4.1). Declared, not inferred:
+ * `loopback` (default), `tailnet` (the Tailscale interface IPv4), `lan` (all
+ * interfaces, acknowledgement-gated while the surface is plaintext). */
+export type RemoteAccessBindMode = "loopback" | "tailnet" | "lan";
+
+export const REMOTE_ACCESS_BIND_MODES: readonly RemoteAccessBindMode[] = [
+  "loopback",
+  "tailnet",
+  "lan",
+];
+
+/** Selects the bind mode when `PORACODE_REMOTE_ACCESS_HOST` is not set. */
+export const REMOTE_BIND_MODE_ENV = "PORACODE_REMOTE_BIND_MODE";
+/**
+ * The explicit acknowledgement that gates `lan` mode (and an explicit
+ * all-interfaces host) while the remote surface is plaintext (TLS arrives in
+ * the Gate 6 TLS batch): set to exactly `1` to allow the bind.
+ */
+export const PLAINTEXT_LAN_ACK_ENV = "PORACODE_ALLOW_PLAINTEXT_LAN";
+
+export function parseRemoteAccessBindMode(
+  raw: string | undefined,
+): RemoteAccessBindMode | undefined {
+  const value = raw?.trim().toLowerCase();
+  return REMOTE_ACCESS_BIND_MODES.find((mode) => mode === value);
+}
+
+export function isLoopbackBindHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase();
+  return (
+    normalized === "localhost" ||
+    normalized === "::1" ||
+    normalized === "[::1]" ||
+    normalized.startsWith("127.")
+  );
+}
+
+export function isWildcardBindHost(host: string): boolean {
+  const normalized = host.trim().toLowerCase();
+  return (
+    normalized === "0.0.0.0" || normalized === "::" || normalized === "::0" || normalized === "[::]"
+  );
+}
+
+/** Whether `address` is an IPv4 in the shared address space reserved for
+ * CGNAT overlays (100.64.0.0/10) — the range Tailscale assigns to tailnet
+ * interfaces. */
+export function isTailnetIpv4(address: string): boolean {
+  const octets = parseIpv4(address.trim());
+  if (!octets) return false;
+  const [first, second] = octets;
+  return first === 100 && second >= 64 && second <= 127;
+}
+
+/** Classifies one concrete bind host into a bind mode. A wildcard host
+ * classifies as `lan` (it binds every interface, so the `lan` acknowledgement
+ * gate applies); loopback addresses as `loopback`; tailnet-range addresses as
+ * `tailnet`; everything else (a specific LAN interface address, a hostname) as
+ * `lan` — a plaintext exposure beyond loopback. */
+export function classifyBindHostExposure(host: string): RemoteAccessBindMode {
+  if (isLoopbackBindHost(host)) return "loopback";
+  if (isTailnetIpv4(host)) return "tailnet";
+  return "lan";
+}
+
+/**
+ * The refusal message for a plaintext all-interfaces bind, or `null` when the
+ * bind may start (host is not a wildcard, or the acknowledgement is set).
+ * Shared by config resolution, `RemoteAccessServer` startup, and `doctor` so
+ * all three enforce exactly one rule.
+ */
+export function remoteAccessBindRefusal(
+  host: string,
+  input?: { readonly env?: NodeJS.ProcessEnv },
+): string | null {
+  if (!isWildcardBindHost(host)) return null;
+  if (plaintextLanAcknowledged(input?.env)) return null;
+  return (
+    `Refusing to bind the remote access listener to ${host.trim()} (all interfaces) over plaintext. ` +
+    `Set ${PLAINTEXT_LAN_ACK_ENV}=1 to acknowledge plaintext LAN exposure, use ` +
+    `${REMOTE_BIND_MODE_ENV}=tailnet, or keep the loopback default. ` +
+    "TLS material arrives in the Gate 6 TLS batch."
+  );
+}
+
+/** Whether the plaintext-LAN acknowledgement env is set to its exact `1` value. */
+export function plaintextLanAcknowledged(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env[PLAINTEXT_LAN_ACK_ENV]?.trim() === "1";
+}
+
+/** The IPv4 address of the Tailscale interface, if one is present: an
+ * interface whose name mentions "tailscale" wins; otherwise any non-internal
+ * IPv4 in the tailnet CGNAT range (100.64.0.0/10). `undefined` when absent. */
+export function detectTailnetIpv4Address(
+  interfaces: NetworkInterfaceMap = networkInterfaces(),
+): string | undefined {
+  let byAddressRange: string | undefined;
+  for (const [interfaceName, addresses] of Object.entries(interfaces)) {
+    for (const info of addresses ?? []) {
+      if (info.family !== "IPv4" || info.internal) continue;
+      if (!isTailnetIpv4(info.address)) continue;
+      if (interfaceName.toLowerCase().includes("tailscale")) return info.address;
+      byAddressRange ??= info.address;
+    }
+  }
+  return byAddressRange;
+}
+
+export interface RemoteAccessBindInput {
+  readonly env?: NodeJS.ProcessEnv;
+  readonly interfaces?: NetworkInterfaceMap;
+}
+
+export interface RemoteAccessBindResolution {
+  readonly mode: RemoteAccessBindMode;
+  /** The host to `listen()` on. */
+  readonly host: string;
+  /** How `host` was chosen: the built-in default, a named bind mode, or an
+   * explicit `PORACODE_REMOTE_ACCESS_HOST` override. */
+  readonly source: "default" | "bind-mode" | "explicit-host";
+  readonly plaintextLanAcknowledged: boolean;
+  /** Non-null: the resolved bind is refused and remote access must not start
+   * (plaintext all-interfaces bind without the acknowledgement). Never
+   * thrown from here — `doctor` reports it; `remoteAccessHost` throws it. */
+  readonly refusalReason: string | null;
+  readonly warnings: readonly string[];
+}
+
+/**
+ * Resolves the remote-access bind from the environment — the single decision
+ * point behind `remoteAccessHost()` (both composition roots), the
+ * `RemoteAccessServer` startup gate, and `poracode-server doctor`. Pure with
+ * respect to process state: warnings and refusals are returned, not logged or
+ * thrown.
+ *
+ * Precedence: an explicit `PORACODE_REMOTE_ACCESS_HOST` wins verbatim (the
+ * documented escape hatch — existing desktop, relay, `tailscale serve`, and
+ * SSH-tunnel flows keep working unchanged), though a wildcard explicit host
+ * still requires the plaintext-LAN acknowledgement. Without it, the named
+ * bind mode applies: `loopback` (default), `tailnet` (Tailscale interface
+ * IPv4, falling back to loopback with a loud warning when absent), or `lan`
+ * (all interfaces, refused without `PORACODE_ALLOW_PLAINTEXT_LAN=1`).
+ */
+export function resolveRemoteAccessBind(
+  input: RemoteAccessBindInput = {},
+): RemoteAccessBindResolution {
+  const env = input.env ?? process.env;
+  const warnings: string[] = [];
+  const acknowledged = plaintextLanAcknowledged(env);
+
+  const explicitHost = readTrimmedEnv("PORACODE_REMOTE_ACCESS_HOST", env);
+  if (explicitHost) {
+    const rawMode = readTrimmedEnv(REMOTE_BIND_MODE_ENV, env);
+    if (rawMode) {
+      warnings.push(
+        `${REMOTE_BIND_MODE_ENV}=${rawMode} is ignored because PORACODE_REMOTE_ACCESS_HOST is set.`,
+      );
+    }
+    const mode = classifyBindHostExposure(explicitHost);
+    if (mode === "lan" && !isWildcardBindHost(explicitHost)) {
+      warnings.push(
+        `Binding the remote access listener to ${explicitHost} in plaintext; prefer the loopback default with tailscale serve or an SSH tunnel.`,
+      );
+    }
+    return {
+      mode,
+      host: explicitHost,
+      source: "explicit-host",
+      plaintextLanAcknowledged: acknowledged,
+      refusalReason: remoteAccessBindRefusal(explicitHost, { env }),
+      warnings,
+    };
+  }
+
+  const rawMode = readTrimmedEnv(REMOTE_BIND_MODE_ENV, env);
+  const mode = parseRemoteAccessBindMode(rawMode);
+  if (rawMode && !mode) {
+    warnings.push(
+      `Unknown ${REMOTE_BIND_MODE_ENV} value "${rawMode}" (expected ${REMOTE_ACCESS_BIND_MODES.join(" | ")}); using the loopback default.`,
+    );
+  }
+  const effectiveMode: RemoteAccessBindMode = mode ?? "loopback";
+  const source = mode === undefined ? "default" : "bind-mode";
+
+  if (effectiveMode === "tailnet") {
+    const tailnetHost = detectTailnetIpv4Address(input.interfaces);
+    if (tailnetHost) {
+      return {
+        mode: "tailnet",
+        host: tailnetHost,
+        source,
+        plaintextLanAcknowledged: acknowledged,
+        refusalReason: null,
+        warnings,
+      };
+    }
+    warnings.push(
+      `${REMOTE_BIND_MODE_ENV}=tailnet: no Tailscale IPv4 interface detected; falling back to the loopback bind ${DEFAULT_REMOTE_ACCESS_HOST}.`,
+    );
+    return {
+      mode: "tailnet",
+      host: DEFAULT_REMOTE_ACCESS_HOST,
+      source,
+      plaintextLanAcknowledged: acknowledged,
+      refusalReason: null,
+      warnings,
+    };
+  }
+
+  if (effectiveMode === "lan") {
+    warnings.push(
+      `Binding the remote access listener to all interfaces (${LAN_BIND_HOST}) in plaintext; TLS is not configured yet (Gate 6 TLS batch).`,
+    );
+    return {
+      mode: "lan",
+      host: LAN_BIND_HOST,
+      source,
+      plaintextLanAcknowledged: acknowledged,
+      refusalReason: remoteAccessBindRefusal(LAN_BIND_HOST, { env }),
+      warnings,
+    };
+  }
+
+  return {
+    mode: "loopback",
+    host: DEFAULT_REMOTE_ACCESS_HOST,
+    source,
+    plaintextLanAcknowledged: acknowledged,
+    refusalReason: null,
+    warnings,
+  };
+}
+
+/** Warns once per process for repeated resolution of the same condition. */
+const warnedBindMessages = new Set<string>();
+
+function warnBindOnce(message: string): void {
+  if (warnedBindMessages.has(message)) return;
+  warnedBindMessages.add(message);
+  console.warn(`[poracode] ${message}`);
+}
+
+/** The bind host the remote-access listener should `listen()` on (the
+ * config-level resolution behind both composition roots). Logs the
+ * resolution's warnings loudly (once each per process) and throws the
+ * refusal when the resolved bind is refused. */
 export function remoteAccessHost(): string {
-  return readTrimmedEnv("PORACODE_REMOTE_ACCESS_HOST") ?? DEFAULT_REMOTE_ACCESS_HOST;
+  const resolution = resolveRemoteAccessBind();
+  for (const warning of resolution.warnings) warnBindOnce(warning);
+  if (resolution.refusalReason) throw new Error(`[poracode] ${resolution.refusalReason}`);
+  return resolution.host;
 }
 
 export function remoteAccessPort(): number | undefined {
@@ -169,7 +426,7 @@ export function remoteAccessAdvertisedHost(input?: {
   if (explicit) return explicit;
 
   const bindHost = input?.bindHost ?? remoteAccessHost();
-  if (bindHost === "0.0.0.0" || bindHost === "::" || bindHost === "::0") {
+  if (isWildcardBindHost(bindHost)) {
     return detectLanIpv4Address(input?.interfaces) ?? "127.0.0.1";
   }
   return bindHost;

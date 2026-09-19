@@ -11,6 +11,7 @@ import {
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import { RUNTIME_BUILD_SOURCE_HASH } from "@/shared/runtimeBuildIdentity";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
+import { resolveRemoteAccessBind, type RemoteAccessBindMode } from "@/main/remote/config";
 import { readPrivateHostFile } from "@/backend/ownership/privateHostFile";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import {
@@ -95,6 +96,17 @@ export interface ServerDoctorReport {
   readonly remoteAccess: {
     readonly configuredHost: string | null;
     readonly configuredPort: number | null;
+    /** The effective bind resolution (Gate 6 item 4.1): the named exposure
+     * mode the listener would/starts with, the host it binds, and the
+     * plaintext-LAN refusal when the all-interfaces bind lacks its
+     * acknowledgement. */
+    readonly bind: {
+      readonly mode: RemoteAccessBindMode;
+      readonly effectiveHost: string;
+      readonly source: "default" | "bind-mode" | "explicit-host";
+      readonly plaintextLanAcknowledged: boolean;
+      readonly refusal: string | null;
+    };
     readonly discovery: { readonly port: number; readonly ownerGeneration: string } | null;
     readonly discoveryError: string | null;
     readonly liveStatus:
@@ -414,6 +426,9 @@ export async function collectServerDoctorReport(
   const credentials = readCredentialSnapshot(paths);
   const discoverySnapshot = readDiscoverySnapshot(paths);
   const rootManifest = readRootManifestSnapshot(paths);
+  // The bind resolution never throws (refusals are reported, not raised) —
+  // the doctor stays an unprivileged reporter even for a refused config.
+  const bind = resolveRemoteAccessBind({ env });
 
   let liveStatus: ServerDoctorReport["remoteAccess"]["liveStatus"];
   try {
@@ -501,6 +516,13 @@ export async function collectServerDoctorReport(
       configuredPort: env.PORACODE_REMOTE_ACCESS_PORT?.trim()
         ? Number(env.PORACODE_REMOTE_ACCESS_PORT)
         : null,
+      bind: {
+        mode: bind.mode,
+        effectiveHost: bind.host,
+        source: bind.source,
+        plaintextLanAcknowledged: bind.plaintextLanAcknowledged,
+        refusal: bind.refusalReason,
+      },
       discovery: discoverySnapshot.discovery,
       discoveryError: discoverySnapshot.error,
       liveStatus,
@@ -523,6 +545,7 @@ export async function collectServerDoctorReport(
       credentials,
       ownerRecord,
       kernelLock,
+      bind,
       discovery: discoverySnapshot.discovery,
       discoveryError: discoverySnapshot.error,
       liveStatus,
@@ -539,6 +562,7 @@ function buildChecks(input: {
   credentials: CredentialSnapshot;
   ownerRecord: ReturnType<typeof readHostOwnerRecord>;
   kernelLock: LeaseKernelLockProbe;
+  bind: ReturnType<typeof resolveRemoteAccessBind>;
   discovery: { port: number; ownerGeneration: string } | null;
   discoveryError: string | null;
   liveStatus: ServerDoctorReport["remoteAccess"]["liveStatus"];
@@ -556,6 +580,38 @@ function buildChecks(input: {
         }
       : { name: "install-layout", status: "error", detail: input.layout.error },
   );
+
+  // Names the effective exposure mode (Gate 6 item 4.1) and warns on every
+  // plaintext exposure beyond loopback; a refused bind is an error.
+  {
+    const bind = input.bind;
+    const exposure =
+      bind.mode === "lan"
+        ? `plaintext LAN (bound to ${bind.host})`
+        : bind.mode === "tailnet"
+          ? `plaintext tailnet (bound to ${bind.host})`
+          : `loopback (bound to ${bind.host})`;
+    checks.push(
+      bind.refusalReason !== null
+        ? {
+            name: "bind-exposure",
+            status: "error",
+            detail: bind.refusalReason,
+          }
+        : {
+            name: "bind-exposure",
+            status: bind.mode === "loopback" ? "ok" : "warn",
+            detail:
+              bind.mode === "loopback"
+                ? `Remote access exposure: ${exposure}.`
+                : `Remote access exposure: ${exposure}${
+                    bind.plaintextLanAcknowledged && bind.mode === "lan"
+                      ? " — plaintext LAN exposure acknowledged (PORACODE_ALLOW_PLAINTEXT_LAN=1); TLS is not configured yet."
+                      : " over plaintext; TLS is not configured yet."
+                  }`,
+          },
+    );
+  }
 
   if (!input.dataRootPresent) {
     checks.push({
