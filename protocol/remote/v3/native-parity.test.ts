@@ -42,7 +42,8 @@ const EXPECTED_COUNTS = {
   httpRoutes: 67,
   procedures: 108,
   webSocketClientMessages: 9,
-  webSocketServerMessages: 10,
+  // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
+  webSocketServerMessages: 11,
   replayableEventTypes: 16,
   runtimeEventTypes: 16,
 } as const;

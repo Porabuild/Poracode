@@ -6830,6 +6830,31 @@
             ]
           }
         }
+      },
+      {
+        "id": "desktop-event",
+        "batch": "explicitly-desktop-only",
+        "ios": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/main/remote/server/desktopInternalStream.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/main/remote/server/desktopInternalStream.ts"]
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "desktop-only",
+            "evidence": ["src/main/remote/server/wsConnections.ts"]
+          },
+          "ui": {
+            "disposition": "desktop-only",
+            "evidence": ["src/main/remote/server/wsConnections.ts"]
+          }
+        },
+        "note": "V5 plan 2.5: desktop-internal loopback sessions only. The server gates the frame on a loopback-origin upgrade opt-in and never delivers it to external or native clients; the desktop-only supervisor families it carries are not part of the native runtime-event union."
       }
     ],
     "replayableEventTypes": [

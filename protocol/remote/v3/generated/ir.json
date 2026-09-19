@@ -18,10 +18,10 @@
     "runtimeEventTypes": 16,
     "voidProcedureResults": 43,
     "webSocketClientMessages": 9,
-    "webSocketServerMessages": 10
+    "webSocketServerMessages": 11
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:b90ee2f612ccb591738bbaf25dff7108ef7c503069bf01e0d8e69cae1383c41f",
+  "manifestHash": "sha256:680ed19fec59987e53d1692af7ea661afebde23a8c3769f3cd280cc2417e3f24",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -34976,7 +34976,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:112b04dcf56486523614dcb74f6c2b8824e952213ed150eaa32938a461bc5757",
+  "sourceHash": "sha256:b011e8c09353731b3029a221037932009a5bf0b319a6eac2e8e966ba3afe314a",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [
@@ -35450,12 +35450,25 @@
         "name": "threadItemInterests",
         "optional": true,
         "repeated": false
+      },
+      {
+        "kind": "0-or-1",
+        "name": "desktopInternal",
+        "optional": true,
+        "repeated": false
+      },
+      {
+        "kind": "int",
+        "name": "lastDesktopSeq",
+        "optional": true,
+        "repeated": false
       }
     ],
     "serverMessages": [
       "browser-frame",
       "browser-mirror-status",
       "browser-state",
+      "desktop-event",
       "event",
       "pong",
       "ready",
@@ -36124,6 +36137,28 @@
             "type",
             "id",
             "cursorSync"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "event": {},
+            "seq": {
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "type": {
+              "const": "desktop-event",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "seq",
+            "event"
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"

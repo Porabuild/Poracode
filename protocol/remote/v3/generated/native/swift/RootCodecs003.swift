@@ -365,7 +365,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_e9a499aee9> = .init(id: "websocket.server", schema: RemoteSchemas.schema_e9a499aee9cc5592)
+  static let websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_5a693f3540> = .init(id: "websocket.server", schema: RemoteSchemas.schema_5a693f3540d056ca)
 }
 
 public extension RemoteRootCodecs {
@@ -378,6 +378,10 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let websocketU2EServerU2EBrowserU2DState: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D5_bd23acb1d6> = .init(id: "websocket.server.browser-state", schema: RemoteSchemas.schema_bd23acb1d60bc91b)
+}
+
+public extension RemoteRootCodecs {
+  static let websocketU2EServerU2EDesktopU2DEvent: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D11_753ef5834e> = .init(id: "websocket.server.desktop-event", schema: RemoteSchemas.schema_753ef5834e6b9f42)
 }
 
 public extension RemoteRootCodecs {

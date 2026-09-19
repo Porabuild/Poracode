@@ -22,6 +22,15 @@ export class ElectronBackendTransport {
   private lastSequence = 0;
   private readonly listeners = new Set<(event: SupervisorEvent) => void>();
   private interests: RendererInterests = { terminalThreadIds: [], runtimeThreadIds: [] };
+  /**
+   * Loopback leg state (V5 plan 2.5): when the co-located remote server is
+   * serving this window's events over the loopback WS, the desktop-IPC relay
+   * is the FALLBACK and stops delivering — except `thread-output`, which has
+   * no loopback leg yet (PTY bytes stay off the remote streams until the
+   * terminal surface migrates to `terminal-watch`). The cursor still advances
+   * for dropped frames so relay dedupe semantics stay exact.
+   */
+  private loopbackActive = false;
 
   constructor(private readonly host: ElectronHostBridge) {
     host.onSupervisorEvent((event, rendererSequence) => {
@@ -29,6 +38,7 @@ export class ElectronBackendTransport {
         if (rendererSequence <= this.lastSequence) return;
         this.lastSequence = rendererSequence;
       }
+      if (this.loopbackActive && event.type !== "thread-output") return;
       this.dispatch(event);
     });
     host.onSupervisorEventGap(() => {
@@ -45,6 +55,25 @@ export class ElectronBackendTransport {
   subscribe(listener: (event: SupervisorEvent) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** Delivers one event that arrived over the loopback leg. The intake only
+   * dispatches while its socket is open, so these never race the IPC leg. */
+  dispatchLoopbackEvent(event: SupervisorEvent): void {
+    this.dispatch(event);
+  }
+
+  /** Flips the primary event leg and rebuilds subscribed threads across the
+   * handoff (both directions) so nothing between the two transports is lost. */
+  setLoopbackActive(active: boolean): void {
+    if (this.loopbackActive === active) return;
+    this.loopbackActive = active;
+    this.dispatchRebuildForInterests();
+  }
+
+  /** Rebuild hook the loopback intake calls on activation, loss, and fallback. */
+  rebuildSubscribedState(lostThreadIds?: ReadonlySet<string>): void {
+    this.dispatchRebuildForInterests(lostThreadIds);
   }
 
   async setEventInterests(interests: RendererInterests): Promise<void> {

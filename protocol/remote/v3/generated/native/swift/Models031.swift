@@ -1,6 +1,24 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
-public enum WebSocketServerMessage_e9a499aee9: Codable, Sendable {
+public struct WebSocketServerMessageU2DOptionU2D9_4655073d71: Codable, Sendable, RemoteModelMetadata {
+  public var cursorSync: WebSocketServerMessageU2DOptionU2D9U2DCursorSync_c533fb8759
+  public var id: String
+  public var typeValue: WebSocketServerMessageU2DOptionU2D9U2DType_0797160858
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "cursorSync", typeName: "WebSocketServerMessageU2DOptionU2D9U2DCursorSync_c533fb8759", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "type", typeName: "WebSocketServerMessageU2DOptionU2D9U2DType_0797160858", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case cursorSync = "cursorSync"
+    case id = "id"
+    case typeValue = "type"
+  }
+}
+
+public enum WebSocketServerMessage_5a693f3540: Codable, Sendable {
   case option1(WebSocketServerMessageU2DOptionU2D1_13762c62f0)
   case option2(WebSocketServerMessageU2DOptionU2D2_8f72d27346)
   case option3(WebSocketServerMessageU2DOptionU2D3_67185a3945)
@@ -11,9 +29,10 @@ public enum WebSocketServerMessage_e9a499aee9: Codable, Sendable {
   case option8(WebSocketServerMessageU2DOptionU2D8_95d0adeb5b)
   case option9(WebSocketServerMessageU2DOptionU2D9_4655073d71)
   case option10(WebSocketServerMessageU2DOptionU2D10_e65689e97e)
+  case option11(WebSocketServerMessageU2DOptionU2D11_753ef5834e)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, WebSocketServerMessage_e9a499aee9)] = []
+    var matches: [(Int, WebSocketServerMessage_5a693f3540)] = []
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("ready")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D1_13762c62f0.self) {
       matches.append((1, .option1(value)))
     }
@@ -44,9 +63,12 @@ public enum WebSocketServerMessage_e9a499aee9: Codable, Sendable {
     if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("terminal-watch-baseline-chunk")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D10_e65689e97e.self) {
       matches.append((10, .option10(value)))
     }
+    if RemoteUnionProbe.matchesProperty(decoder, property: "type", literals: [.string("desktop-event")]), let value = try? container.decode(WebSocketServerMessageU2DOptionU2D11_753ef5834e.self) {
+      matches.append((11, .option11(value)))
+    }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched WebSocketServerMessage_e9a499aee9" : "Ambiguous union WebSocketServerMessage_e9a499aee9 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(WebSocketServerMessage_e9a499aee9.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched WebSocketServerMessage_5a693f3540" : "Ambiguous union WebSocketServerMessage_5a693f3540 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(WebSocketServerMessage_5a693f3540.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }
@@ -63,6 +85,7 @@ public enum WebSocketServerMessage_e9a499aee9: Codable, Sendable {
     case .option8(let value): try container.encode(value)
     case .option9(let value): try container.encode(value)
     case .option10(let value): try container.encode(value)
+    case .option11(let value): try container.encode(value)
     }
   }
 }

@@ -153,6 +153,26 @@ const manifestSchema = z
             transport: z.literal("url-fragment-or-request-body"),
           })
           .strict(),
+        // Desktop-internal loopback stream (V5 plan 2.5): the admission-gated
+        // second replayable sequence only the co-located desktop renderer
+        // consumes.
+        desktopInternalStream: z
+          .object({
+            admission: z.literal("loopback-origin-upgrade-opt-in"),
+            optInParameter: z.string().min(1),
+            resumeCursorParameter: z.string().min(1),
+            serverMessages: z.array(z.string().min(1)).min(1),
+            replayable: z.literal(true),
+            sequencePolicy: z.object({
+              independentOfSharedEventSeq: z.literal(true),
+              snapshotSeqIsLastAppliedEvent: z.literal(false),
+              sendZeroLastSeenSeq: z.literal(true),
+              missingReplayWindow: z.literal("resync-required"),
+              serverSequenceRegression: z.literal("resync-required"),
+            }),
+            externalVisibility: z.literal("never"),
+          })
+          .strict(),
       })
       .strict(),
     scopes: z.array(z.string().min(1)),

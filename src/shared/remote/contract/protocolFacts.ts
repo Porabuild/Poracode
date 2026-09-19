@@ -7,7 +7,11 @@ import {
   remoteWebSocketServerMessageSchema,
 } from "../protocol";
 import { compareUnicodeCodePoints } from "./unicodeOrder";
-import { WEBSOCKET_QUERY_CODECS } from "./queryCodecs";
+import {
+  REMOTE_DESKTOP_INTERNAL_SEQ_PARAM,
+  REMOTE_DESKTOP_INTERNAL_WS_PARAM,
+  WEBSOCKET_QUERY_CODECS,
+} from "./queryCodecs";
 
 /**
  * Protocol-level facts that are NOT route or procedure tables. The route,
@@ -66,7 +70,11 @@ export const REMOTE_RUNTIME_EVENT_TYPES: readonly string[] =
  * Broadcast event types the host stores in its bounded replay buffer and can
  * therefore re-deliver after a reconnect (`RemoteAccessServer`'s
  * `REMOTELY_CONSUMED_EVENT_TYPES`; the conformance suite keeps that set aligned
- * with this list). Everything else is live-only.
+ * with this list). Everything else is live-only on THIS stream — but the
+ * desktop-only supervisor families additionally ride the separate
+ * desktop-internal `desktop-event` stream (see
+ * {@link REMOTE_DESKTOP_INTERNAL_MESSAGES}); external and native clients never
+ * receive those frames.
  */
 export const REMOTE_REPLAYABLE_EVENT_TYPES: readonly string[] = [
   "thread-runtime-event",
@@ -100,6 +108,20 @@ export const REMOTE_OUT_OF_BAND_WS_MESSAGES: readonly string[] = [
   "terminal-watch-result",
   "terminal-watch-baseline-chunk",
 ];
+
+/**
+ * Server messages that ride their own replayable sequence for DESKTOP-INTERNAL
+ * sessions only (V5 plan 2.5): the co-located desktop renderer consumes the
+ * desktop-only supervisor event families through them, and the server never
+ * delivers one to an external or native client — those validate against the
+ * remote runtime-event union and must never observe desktop-only types in any
+ * frame. Declared here so the generated manifest publishes the frame shape and
+ * its gating policy verbatim; the delivery gate itself lives in
+ * `RemoteAccessServer` + `server/wsConnections.ts` (loopback-origin upgrade
+ * opt-in via {@link REMOTE_DESKTOP_INTERNAL_WS_PARAM}, resume cursor via
+ * {@link REMOTE_DESKTOP_INTERNAL_SEQ_PARAM}).
+ */
+export const REMOTE_DESKTOP_INTERNAL_MESSAGES: readonly string[] = ["desktop-event"];
 
 /** Wire-format section of the generated protocol manifest. */
 export const REMOTE_WIRE_FORMAT = {
@@ -143,6 +165,30 @@ export const REMOTE_COMPATIBILITY_POLICY = {
         controlFrameBypass: "half-window",
       },
     },
+  },
+  desktopInternalStream: {
+    /**
+     * V5 plan 2.5: the co-located desktop renderer consumes the desktop-only
+     * supervisor event families over a second replayable sequence scoped to
+     * desktop-internal sessions. Gated at the `/ws` upgrade: the client sets
+     * `desktopInternal=1` and the server honors it ONLY when the upgrade
+     * originates from a loopback address — a remote peer asking for it is
+     * admitted as an ordinary session with the ordinary event surface.
+     */
+    admission: "loopback-origin-upgrade-opt-in",
+    optInParameter: REMOTE_DESKTOP_INTERNAL_WS_PARAM,
+    resumeCursorParameter: REMOTE_DESKTOP_INTERNAL_SEQ_PARAM,
+    serverMessages: [...REMOTE_DESKTOP_INTERNAL_MESSAGES],
+    replayable: true,
+    sequencePolicy: {
+      independentOfSharedEventSeq: true,
+      snapshotSeqIsLastAppliedEvent: false,
+      sendZeroLastSeenSeq: true,
+      missingReplayWindow: "resync-required",
+      serverSequenceRegression: "resync-required",
+    },
+    /** External/native clients never observe these frames or payload types. */
+    externalVisibility: "never",
   },
   pairingCredential: {
     singleUse: true,
