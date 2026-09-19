@@ -2,11 +2,13 @@ import Database from "better-sqlite3";
 import { createHash } from "node:crypto";
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -377,5 +379,32 @@ describe("desktop data-root promotion (V5 plan 1.3)", () => {
     });
     // The staged non-custodial namespace state is untouched.
     expect(existsSync(join(namespace, "userData", "Cookies"))).toBe(true);
+  });
+
+  it("skips Chromium runtime singleton symlinks when promoting a live desktop root", async () => {
+    // A live desktop's Electron userData holds SingletonCookie/Lock/Socket
+    // symlinks naming the RUNNING process's lock/socket. They are process
+    // pointers, not data: the promotion must skip them instead of refusing
+    // the whole profile (regression for the probe staging refusal), and the
+    // promoted root never contains the stale pointers.
+    const root = scratch();
+    const seed = seedPlainRoot(root);
+    mkdirSync(join(seed.namespace, "userData"), { recursive: true });
+    symlinkSync("poracode-1000.sock", join(seed.namespace, "userData", "SingletonCookie"));
+    symlinkSync("poracode-1000.sock", join(seed.namespace, "userData", "SingletonSocket"));
+    const paths = resolveDesktopHostRootPaths(seed.namespace);
+
+    const lease = acquireDesktopLease(seed.namespace);
+    const prepared = await ensureDesktopOwnedRoot(lease, { osSealedKey: fixtureCodec(seed) });
+    expect(prepared.baseDir).toBe(paths.dataRoot);
+    expect(threadCount(join(paths.dataRoot, "state.sqlite"))).toBe(2);
+    // Copied userData content arrives; the runtime pointers do not.
+    expect(existsSync(join(paths.dataRoot, "userData"))).toBe(true);
+    expect(existsSync(join(paths.dataRoot, "userData", "SingletonCookie"))).toBe(false);
+    expect(existsSync(join(paths.dataRoot, "userData", "SingletonSocket"))).toBe(false);
+    // The namespace keeps its originals untouched.
+    expect(lstatSync(join(seed.namespace, "userData", "SingletonCookie")).isSymbolicLink()).toBe(
+      true,
+    );
   });
 });
