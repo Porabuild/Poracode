@@ -31,8 +31,8 @@ function forwardChildOrigin(forwardId: string): string {
   return REVOCATION_POLICY.originFor(REVOCATION_OWNER, forwardId);
 }
 
-async function startHost() {
-  const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+async function startHost(forwardablePorts: readonly number[] = []) {
+  const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", forwardablePorts });
   const forwardOrigin = createForwardOriginIdentity({
     baseUrl: TEST_BASE,
     originSecret: TEST_ORIGIN_SECRET,
@@ -137,7 +137,7 @@ async function openStream(entry: {
 describe("forwarded response lifetime", () => {
   it("closes a disconnected client's upstream without revoking the forward", async () => {
     const upstream = await startStreamUpstream(cleanup, "A");
-    const host = await startHost();
+    const host = await startHost([upstream.port]);
     const entry = await host.forward(upstream.port);
     const first = await openStream({ ...entry, serverPort: host.serverPort });
     expect(new TextDecoder().decode((await first.response.read())!)).toBe("A");
@@ -149,7 +149,7 @@ describe("forwarded response lifetime", () => {
 
   it("does not reuse a stopped forward's idle connection after the target port is replaced", async () => {
     const oldUpstream = await startRawUpstream(cleanup, "A");
-    const host = await startHost();
+    const host = await startHost([oldUpstream.port]);
     const a = await host.forward(oldUpstream.port);
     const first = await rawRequestWithAuthority({
       port: host.serverPort,
@@ -182,7 +182,7 @@ describe("forwarded response lifetime", () => {
       for (const socket of upstream.clients) socket.terminate();
       await new Promise<void>((resolve) => upstream.close(() => resolve()));
     });
-    const host = await startHost();
+    const host = await startHost([(upstream.address() as AddressInfo).port]);
     const entry = await host.forward((upstream.address() as AddressInfo).port);
     const client = new WebSocket(`ws://127.0.0.1:${host.serverPort}/stream`, {
       headers: {
@@ -214,7 +214,7 @@ describe("forwarded response lifetime", () => {
   it.each(["stop", "dispose"] as const)("revokes active HTTP streams on %s", async (action) => {
     const upstreamA = await startStreamUpstream(cleanup, "A");
     const upstreamB = await startStreamUpstream(cleanup, "B");
-    const host = await startHost();
+    const host = await startHost([upstreamA.port, upstreamB.port]);
     const a = await openStream({
       ...(await host.forward(upstreamA.port)),
       serverPort: host.serverPort,

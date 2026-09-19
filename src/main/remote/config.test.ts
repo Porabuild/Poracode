@@ -2,17 +2,25 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_REMOTE_ACCESS_HOST,
   DEFAULT_REMOTE_ACCESS_PORT,
+  LAN_BIND_HOST,
+  PLAINTEXT_LAN_ACK_ENV,
+  classifyBindHostExposure,
   detectLanIpv4Address,
+  detectTailnetIpv4Address,
   remoteAccessAdvertisedHost,
+  remoteAccessBindRefusal,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
   remoteAccessPort,
+  resolveRemoteAccessBind,
   resolveRemoteAccessPort,
 } from "./config";
 
 const ENV_KEYS = [
   "PORACODE_REMOTE_ACCESS_ADVERTISED_HOST",
   "PORACODE_REMOTE_ACCESS_HOST",
+  "PORACODE_REMOTE_BIND_MODE",
+  "PORACODE_ALLOW_PLAINTEXT_LAN",
   "PORACODE_REMOTE_ACCESS_PAIRING_APP_URL",
   "PORACODE_REMOTE_ACCESS_PORT",
 ] as const;
@@ -35,7 +43,8 @@ function ipv4(address: string, internal = false) {
 }
 
 describe("remote access config", () => {
-  it("uses built-in host and pairing defaults without forcing a port", () => {
+  it("defaults to the loopback bind host and pairing defaults without forcing a port", () => {
+    expect(DEFAULT_REMOTE_ACCESS_HOST).toBe("127.0.0.1");
     expect(remoteAccessHost()).toBe(DEFAULT_REMOTE_ACCESS_HOST);
     expect(remoteAccessPort()).toBeUndefined();
     expect(remoteAccessPairingAppUrl()).toBeUndefined();
@@ -115,11 +124,173 @@ describe("remote access config", () => {
   it("advertises the LAN address when binding to every interface", () => {
     expect(
       remoteAccessAdvertisedHost({
-        bindHost: "0.0.0.0",
+        bindHost: LAN_BIND_HOST,
         interfaces: {
           en0: [ipv4("10.0.0.25")],
         },
       }),
     ).toBe("10.0.0.25");
+  });
+});
+
+describe("remote access bind modes (Gate 6 item 4.1)", () => {
+  it("resolves the loopback default when no bind configuration is present", () => {
+    const bind = resolveRemoteAccessBind();
+    expect(bind).toMatchObject({
+      mode: "loopback",
+      host: "127.0.0.1",
+      source: "default",
+      refusalReason: null,
+    });
+    expect(bind.warnings).toEqual([]);
+  });
+
+  it("resolves the tailnet bind to the Tailscale interface IPv4 when present", () => {
+    process.env.PORACODE_REMOTE_BIND_MODE = "tailnet";
+
+    expect(
+      resolveRemoteAccessBind({
+        interfaces: {
+          lo0: [ipv4("127.0.0.1", true)],
+          en0: [ipv4("192.168.1.42")],
+          Tailscale: [ipv4("100.84.12.7")],
+        },
+      }),
+    ).toMatchObject({ mode: "tailnet", host: "100.84.12.7", source: "bind-mode" });
+  });
+
+  it("detects a tailnet address in the CGNAT range even on an unnamed interface", () => {
+    expect(
+      detectTailnetIpv4Address({
+        utun5: [ipv4("100.101.3.4")],
+        en0: [ipv4("192.168.1.42")],
+      }),
+    ).toBe("100.101.3.4");
+    // Outside 100.64.0.0/10 → not a tailnet address.
+    expect(
+      detectTailnetIpv4Address({
+        en0: [ipv4("100.20.30.40")],
+      }),
+    ).toBeUndefined();
+  });
+
+  it("falls back to loopback with a warning when tailnet mode finds no Tailscale interface", () => {
+    process.env.PORACODE_REMOTE_BIND_MODE = "tailnet";
+
+    const bind = resolveRemoteAccessBind({
+      interfaces: {
+        lo0: [ipv4("127.0.0.1", true)],
+        en0: [ipv4("192.168.1.42")],
+      },
+    });
+    expect(bind).toMatchObject({
+      mode: "tailnet",
+      host: "127.0.0.1",
+      source: "bind-mode",
+      refusalReason: null,
+    });
+    expect(bind.warnings.join(" ")).toContain("falling back to the loopback bind");
+  });
+
+  it("refuses the lan bind without the plaintext acknowledgement", () => {
+    process.env.PORACODE_REMOTE_BIND_MODE = "lan";
+
+    const bind = resolveRemoteAccessBind();
+    expect(bind).toMatchObject({ mode: "lan", host: LAN_BIND_HOST, source: "bind-mode" });
+    expect(bind.refusalReason).toContain("PORACODE_ALLOW_PLAINTEXT_LAN=1");
+    // The resolved host throws the same refusal through the listen-host helper.
+    expect(() => remoteAccessHost()).toThrow(/PORACODE_ALLOW_PLAINTEXT_LAN=1/);
+  });
+
+  it("resolves the lan bind with the acknowledgement and a loud plaintext warning", () => {
+    process.env.PORACODE_REMOTE_BIND_MODE = "lan";
+    process.env.PORACODE_ALLOW_PLAINTEXT_LAN = "1";
+
+    const bind = resolveRemoteAccessBind();
+    expect(bind).toMatchObject({
+      mode: "lan",
+      host: LAN_BIND_HOST,
+      plaintextLanAcknowledged: true,
+      refusalReason: null,
+    });
+    expect(bind.warnings.join(" ")).toContain("plaintext");
+  });
+
+  it("keeps an explicit host override working verbatim and classifies its exposure", () => {
+    process.env.PORACODE_REMOTE_ACCESS_HOST = "192.168.1.20";
+
+    expect(remoteAccessHost()).toBe("192.168.1.20");
+    const bind = resolveRemoteAccessBind();
+    expect(bind).toMatchObject({
+      mode: "lan",
+      host: "192.168.1.20",
+      source: "explicit-host",
+      refusalReason: null,
+    });
+    expect(bind.warnings.join(" ")).toContain("plaintext");
+  });
+
+  it("refuses an explicit all-interfaces host without the acknowledgement", () => {
+    process.env.PORACODE_REMOTE_ACCESS_HOST = "0.0.0.0";
+
+    expect(() => remoteAccessHost()).toThrow(/PORACODE_ALLOW_PLAINTEXT_LAN=1/);
+    expect(resolveRemoteAccessBind().refusalReason).toContain("PORACODE_ALLOW_PLAINTEXT_LAN=1");
+
+    process.env.PORACODE_ALLOW_PLAINTEXT_LAN = "1";
+    expect(remoteAccessHost()).toBe("0.0.0.0");
+    expect(resolveRemoteAccessBind().refusalReason).toBeNull();
+  });
+
+  it("lets an explicit loopback host resolve without warnings", () => {
+    process.env.PORACODE_REMOTE_ACCESS_HOST = "127.0.0.1";
+
+    const bind = resolveRemoteAccessBind();
+    expect(bind).toMatchObject({ mode: "loopback", host: "127.0.0.1", source: "explicit-host" });
+    expect(bind.warnings).toEqual([]);
+  });
+
+  it("notes that an explicit host wins over a configured bind mode", () => {
+    process.env.PORACODE_REMOTE_ACCESS_HOST = "127.0.0.1";
+    process.env.PORACODE_REMOTE_BIND_MODE = "lan";
+
+    const bind = resolveRemoteAccessBind();
+    expect(bind).toMatchObject({ mode: "loopback", host: "127.0.0.1" });
+    expect(bind.refusalReason).toBeNull();
+    expect(bind.warnings.join(" ")).toContain("PORACODE_REMOTE_BIND_MODE");
+  });
+
+  it("falls back to loopback with a warning for an unknown bind mode value", () => {
+    process.env.PORACODE_REMOTE_BIND_MODE = "tialnet";
+
+    const bind = resolveRemoteAccessBind();
+    expect(bind).toMatchObject({ mode: "loopback", host: "127.0.0.1", refusalReason: null });
+    expect(bind.warnings.join(" ")).toContain('Unknown PORACODE_REMOTE_BIND_MODE value "tialnet"');
+  });
+
+  it("classifies concrete bind hosts into exposure modes", () => {
+    expect(classifyBindHostExposure("127.0.0.1")).toBe("loopback");
+    expect(classifyBindHostExposure("localhost")).toBe("loopback");
+    expect(classifyBindHostExposure("::1")).toBe("loopback");
+    expect(classifyBindHostExposure("100.84.12.7")).toBe("tailnet");
+    expect(classifyBindHostExposure("192.168.1.20")).toBe("lan");
+    expect(classifyBindHostExposure("10.0.0.9")).toBe("lan");
+    expect(classifyBindHostExposure("0.0.0.0")).toBe("lan");
+  });
+
+  it("computes the wildcard-bind refusal from the host and acknowledgement alone", () => {
+    expect(remoteAccessBindRefusal("127.0.0.1")).toBeNull();
+    expect(remoteAccessBindRefusal("192.168.1.20")).toBeNull();
+    expect(remoteAccessBindRefusal("0.0.0.0")).toContain("PORACODE_ALLOW_PLAINTEXT_LAN=1");
+    expect(remoteAccessBindRefusal("::")).toContain("PORACODE_ALLOW_PLAINTEXT_LAN=1");
+    expect(
+      remoteAccessBindRefusal("0.0.0.0", {
+        env: { [PLAINTEXT_LAN_ACK_ENV]: "1" },
+      }),
+    ).toBeNull();
+    expect(
+      remoteAccessBindRefusal("0.0.0.0", {
+        env: { [PLAINTEXT_LAN_ACK_ENV]: "yes" },
+      }),
+    ).toContain("PORACODE_ALLOW_PLAINTEXT_LAN=1");
   });
 });

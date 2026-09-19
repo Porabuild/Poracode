@@ -13,6 +13,10 @@ export interface PortForwardingOptions {
    * to `RemoteAccessServerOptions.forwardOrigin` — composition roots build it
    * once via `createForwardOriginIdentity`. */
   readonly forwardOrigin?: ForwardOriginIdentity;
+  /** Ports a paired client may forward (one allowlist shared by the discovery
+   * scan and the forward gate; see {@link RemotePortForwardGateway}). Defaults
+   * to the curated dev-port list. An explicit empty list refuses all forwards. */
+  readonly forwardablePorts?: readonly number[];
 }
 
 /**
@@ -35,6 +39,7 @@ export function createPortForwarding(options: PortForwardingOptions): PortForwar
   const gateway = new RemotePortForwardGateway({
     bindHost: options.bindHost,
     remoteAccessPort: options.remoteAccessPort,
+    ...(options.forwardablePorts ? { forwardablePorts: options.forwardablePorts } : {}),
   });
   const proxy = new PortProxy({
     gateway,

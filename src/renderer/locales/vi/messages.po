@@ -3517,8 +3517,12 @@ msgid "Copied"
 msgstr "Đã sao chép"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
-msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
-msgstr "Đã sao chép địa chỉ TCP trực tiếp (chỉ LAN) — mở bên ngoài chuyển tiếp cách ly."
+#~ msgid "Copied raw TCP address (LAN only) — opens outside the isolated forward."
+#~ msgstr "Đã sao chép địa chỉ TCP trực tiếp (chỉ LAN) — mở bên ngoài chuyển tiếp cách ly."
+
+#: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+msgid "Copied raw TCP address + connect ticket (LAN only) — send the ticket as the first line."
+msgstr "Đã sao chép địa chỉ TCP thô + vé kết nối (chỉ LAN) — gửi vé ở dòng đầu tiên."
 
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Copied to clipboard"

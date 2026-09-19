@@ -173,6 +173,73 @@ describe("collectServerDoctorReport", () => {
     expect(statuses["recent-errors"]).toBe("warn");
   });
 
+  it("names the effective bind exposure and warns or refuses on plaintext lan", async () => {
+    const fixture = buildProfileFixture();
+    const base = {
+      profileNamespace: fixture.namespace,
+      controlTimeoutMs: 300,
+      libDir: fixture.prefixLibDir,
+    };
+
+    // Default: loopback exposure, reported as ok.
+    const loopback = await collectServerDoctorReport({ ...base, env: {} });
+    expect(loopback.remoteAccess.bind).toEqual({
+      mode: "loopback",
+      effectiveHost: "127.0.0.1",
+      source: "default",
+      plaintextLanAcknowledged: false,
+      refusal: null,
+    });
+    expect(
+      Object.fromEntries(loopback.checks.map((c) => [c.name, c.status]))["bind-exposure"],
+    ).toBe("ok");
+
+    // lan mode without the acknowledgement: the doctor (a reporter, never an
+    // enforcer) reports the refusal as an error check.
+    const refused = await collectServerDoctorReport({
+      ...base,
+      env: { PORACODE_REMOTE_BIND_MODE: "lan" },
+    });
+    expect(refused.remoteAccess.bind).toMatchObject({
+      mode: "lan",
+      effectiveHost: "0.0.0.0",
+      plaintextLanAcknowledged: false,
+    });
+    expect(refused.remoteAccess.bind.refusal).toContain("PORACODE_ALLOW_PLAINTEXT_LAN=1");
+    expect(
+      Object.fromEntries(refused.checks.map((c) => [c.name, c.detail] as const))["bind-exposure"],
+    ).toContain("PORACODE_ALLOW_PLAINTEXT_LAN=1");
+    expect(Object.fromEntries(refused.checks.map((c) => [c.name, c.status]))["bind-exposure"]).toBe(
+      "error",
+    );
+
+    // Acknowledged lan: still plaintext, so the exposure check stays a warning.
+    const acknowledged = await collectServerDoctorReport({
+      ...base,
+      env: { PORACODE_REMOTE_BIND_MODE: "lan", PORACODE_ALLOW_PLAINTEXT_LAN: "1" },
+    });
+    expect(acknowledged.remoteAccess.bind).toMatchObject({
+      mode: "lan",
+      plaintextLanAcknowledged: true,
+      refusal: null,
+    });
+    expect(
+      Object.fromEntries(acknowledged.checks.map((c) => [c.name, c.status]))["bind-exposure"],
+    ).toBe("warn");
+
+    // An explicit tailnet address classifies as tailnet exposure.
+    const tailnet = await collectServerDoctorReport({
+      ...base,
+      env: { PORACODE_REMOTE_ACCESS_HOST: "100.84.12.7" },
+    });
+    expect(tailnet.remoteAccess.bind).toMatchObject({
+      mode: "tailnet",
+      effectiveHost: "100.84.12.7",
+      source: "explicit-host",
+      refusal: null,
+    });
+  });
+
   it("includes a redacted log tail when a log file is passed", async () => {
     const fixture = buildProfileFixture();
     const logPath = join(fixture.root, "server.log");

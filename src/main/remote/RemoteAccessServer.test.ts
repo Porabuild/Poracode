@@ -2538,26 +2538,59 @@ describe("RemoteAccessServer", () => {
   });
 
   it("advertises a full advertisedBaseUrl over host/port (https → wss)", async () => {
+    // The wildcard bind host requires the plaintext-LAN acknowledgement (Gate
+    // 6 item 4.1); this test exercises advertised-URL precedence only, so it
+    // acknowledges explicitly.
+    process.env.PORACODE_ALLOW_PLAINTEXT_LAN = "1";
+    try {
+      const server = new RemoteAccessServer({
+        truncateThreadRuntime: () => {},
+        appVersion: "1.0.0",
+        identity: { desktopId: "desktop-test", label: "Test Desktop" },
+        host: "0.0.0.0",
+        port: 0,
+        advertisedHost: "192.168.1.5",
+        advertisedBaseUrl: "https://my-machine.tailnet-1234.ts.net",
+        tailscaleHttpBaseUrl: "https://my-machine.tailnet-1234.ts.net",
+        callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+      });
+      servers.push(server);
+      const info = await server.start();
+      expect(info.httpBaseUrl).toBe("https://my-machine.tailnet-1234.ts.net/");
+      expect(info.localHttpBaseUrl).toMatch(/^http:\/\/192\.168\.1\.5:\d+$/);
+      expect(info.tailscaleHttpBaseUrl).toBe("https://my-machine.tailnet-1234.ts.net");
+      expect(info.wsBaseUrl).toBe("wss://my-machine.tailnet-1234.ts.net/");
+      const pairingUrl = new URL(info.pairingUrl);
+      expect(pairingUrl.origin).toBe("https://my-machine.tailnet-1234.ts.net");
+      expect(pairingUrl.pathname).toBe("/");
+    } finally {
+      delete process.env.PORACODE_ALLOW_PLAINTEXT_LAN;
+    }
+  });
+
+  it("refuses to start a plaintext all-interfaces bind without the acknowledgement", async () => {
     const server = new RemoteAccessServer({
       truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
       identity: { desktopId: "desktop-test", label: "Test Desktop" },
       host: "0.0.0.0",
       port: 0,
-      advertisedHost: "192.168.1.5",
-      advertisedBaseUrl: "https://my-machine.tailnet-1234.ts.net",
-      tailscaleHttpBaseUrl: "https://my-machine.tailnet-1234.ts.net",
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
     });
     servers.push(server);
-    const info = await server.start();
-    expect(info.httpBaseUrl).toBe("https://my-machine.tailnet-1234.ts.net/");
-    expect(info.localHttpBaseUrl).toMatch(/^http:\/\/192\.168\.1\.5:\d+$/);
-    expect(info.tailscaleHttpBaseUrl).toBe("https://my-machine.tailnet-1234.ts.net");
-    expect(info.wsBaseUrl).toBe("wss://my-machine.tailnet-1234.ts.net/");
-    const pairingUrl = new URL(info.pairingUrl);
-    expect(pairingUrl.origin).toBe("https://my-machine.tailnet-1234.ts.net");
-    expect(pairingUrl.pathname).toBe("/");
+    // Gate 6 item 4.1: enforced at the server even when the host was supplied
+    // programmatically, not only at config resolution.
+    await expect(server.start()).rejects.toThrow(/PORACODE_ALLOW_PLAINTEXT_LAN=1/);
+
+    // The same bind starts once acknowledged, and the wildcard local base
+    // still advertises loopback.
+    process.env.PORACODE_ALLOW_PLAINTEXT_LAN = "1";
+    try {
+      const info = await server.start();
+      expect(info.localHttpBaseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    } finally {
+      delete process.env.PORACODE_ALLOW_PLAINTEXT_LAN;
+    }
   });
 
   it("trusts the advertisedBaseUrl origin for CORS", async () => {
@@ -5225,6 +5258,12 @@ describe("RemoteAccessServer", () => {
     await new Promise<void>((resolve) => echo.listen(0, "127.0.0.1", resolve));
     const targetPort = (echo.address() as AddressInfo).port;
 
+    const gateway = new RemotePortForwardGateway({
+      bindHost: "127.0.0.1",
+      // The forward allowlist (shared with the discovery scan): this test's
+      // stand-in dev server port, in place of the curated dev-port list.
+      candidatePorts: [targetPort],
+    });
     const server = new RemoteAccessServer({
       truncateThreadRuntime: () => {},
       appVersion: "1.0.0",
@@ -5232,7 +5271,7 @@ describe("RemoteAccessServer", () => {
       host: "127.0.0.1",
       port: 0,
       callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
-      portForward: new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] }),
+      portForward: gateway,
     });
     servers.push(server);
     const info = await server.start();
@@ -5268,7 +5307,12 @@ describe("RemoteAccessServer", () => {
 
     const emptyState = await fetch(new URL("/api/ports", info.httpBaseUrl), { headers });
     expect(emptyState.status).toBe(200);
-    await expect(emptyState.json()).resolves.toEqual({ detected: [], forwards: [] });
+    // The discovery scan probes the SAME allowlist the forward gate admits
+    // (here: just the echo server's port, which it detects).
+    await expect(emptyState.json()).resolves.toEqual({
+      detected: [{ port: targetPort, protocol: "unknown" }],
+      forwards: [],
+    });
 
     const forwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
       method: "POST",
@@ -5282,14 +5326,40 @@ describe("RemoteAccessServer", () => {
     expect(forwardResult.forward.targetPort).toBe(targetPort);
 
     // Idempotent: forwarding the same target port again returns the same forward.
+    // The connect ticket is deliberately NOT compared: each forward call mints
+    // a fresh credential (old tickets stay valid until their own TTL), so
+    // only the forward identity and presence of a ticket are stable.
     const secondForwardResponse = await fetch(new URL("/api/ports/forward", info.httpBaseUrl), {
       method: "POST",
       headers,
       body: JSON.stringify({ targetPort }),
     });
-    await expect(secondForwardResponse.json()).resolves.toEqual(forwardResult);
+    const secondResult = (await secondForwardResponse.json()) as {
+      forward: { id: string; targetPort: number; listenPort: number };
+      connectTicket: string;
+    };
+    expect(secondResult.forward).toEqual(forwardResult.forward);
+    expect(typeof secondResult.connectTicket).toBe("string");
+    expect(secondResult.connectTicket.length).toBeGreaterThan(0);
 
-    // Bytes actually round-trip through the forward to the echo server.
+    // Raw forward connections are credential-gated (plan item 4.5): an
+    // unauthenticated connect is destroyed without reaching the echo server.
+    const unauthenticated = connect(forwardResult.forward.listenPort, "127.0.0.1");
+    await new Promise<void>((resolve, reject) => {
+      unauthenticated.once("connect", () => resolve());
+      unauthenticated.once("error", reject);
+    });
+    const unauthClosed = new Promise<"closed">((resolve) =>
+      unauthenticated.once("close", () => resolve("closed")),
+    );
+    unauthenticated.write("GET / HTTP/1.1\r\nHost: t\r\n\r\n");
+    expect(await unauthClosed).toBe("closed");
+    unauthenticated.end();
+
+    // The paired client authenticates with the per-forward connect ticket
+    // minted through the authenticated gateway API, then bytes round-trip
+    // through the forward to the echo server.
+    const connectTicket = gateway.mintConnectTicket(forwardResult.forward.id);
     const client = connect(forwardResult.forward.listenPort, "127.0.0.1");
     await new Promise<void>((resolve, reject) => {
       client.once("connect", () => resolve());
@@ -5297,7 +5367,7 @@ describe("RemoteAccessServer", () => {
     });
     const echoed = await new Promise<string>((resolve) => {
       client.once("data", (data) => resolve(data.toString("utf8")));
-      client.write("ping");
+      client.write(`${connectTicket}\nping`);
     });
     expect(echoed).toBe("ping");
     client.end();
@@ -5345,7 +5415,10 @@ describe("RemoteAccessServer", () => {
 
   it("proxies HTTP requests to a forwarded dev server through the isolated child-origin session", async () => {
     const upstream = await startUpstreamHttpServer();
-    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const gateway = new RemotePortForwardGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [upstream.port],
+    });
     const forwardOrigin = makeForwardOrigin();
     const portProxy = new PortProxy({ gateway, forwardOrigin });
     const server = new RemoteAccessServer({
@@ -5431,7 +5504,10 @@ describe("RemoteAccessServer", () => {
     "proxies HTTP requests to an IPv6-only forwarded dev server through the isolated child-origin session",
     async () => {
       const upstream = await startUpstreamHttpServer("::1");
-      const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+      const gateway = new RemotePortForwardGateway({
+        bindHost: "127.0.0.1",
+        candidatePorts: [upstream.port],
+      });
       const forwardOrigin = makeForwardOrigin();
       const portProxy = new PortProxy({ gateway, forwardOrigin });
       const server = new RemoteAccessServer({
@@ -5481,7 +5557,10 @@ describe("RemoteAccessServer", () => {
 
   it("keeps forwarded assets on the child origin and never proxies the API origin", async () => {
     const upstream = await startUpstreamHttpServer();
-    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const gateway = new RemotePortForwardGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [upstream.port],
+    });
     const forwardOrigin = makeForwardOrigin();
     const portProxy = new PortProxy({ gateway, forwardOrigin });
     const server = new RemoteAccessServer({
@@ -5541,7 +5620,10 @@ describe("RemoteAccessServer", () => {
 
   it("rejects an invalid or expired forward enter token with a plain error page and no cookie", async () => {
     const upstream = await startUpstreamHttpServer();
-    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const gateway = new RemotePortForwardGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [upstream.port],
+    });
     const forwardOrigin = makeForwardOrigin();
     const portProxy = new PortProxy({ gateway, forwardOrigin, enterTokenTtlMs: 0 });
     const server = new RemoteAccessServer({
@@ -5583,7 +5665,10 @@ describe("RemoteAccessServer", () => {
 
   it("invalidates a forward's child-origin sessions as soon as the forward is stopped", async () => {
     const upstream = await startUpstreamHttpServer();
-    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const gateway = new RemotePortForwardGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [upstream.port],
+    });
     const forwardOrigin = makeForwardOrigin();
     const portProxy = new PortProxy({ gateway, forwardOrigin });
     const server = new RemoteAccessServer({
@@ -5657,7 +5742,10 @@ describe("RemoteAccessServer", () => {
     });
     const upstreamPort = (upstreamWss.address() as AddressInfo).port;
 
-    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const gateway = new RemotePortForwardGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [upstreamPort],
+    });
     const forwardOrigin = makeForwardOrigin();
     const portProxy = new PortProxy({ gateway, forwardOrigin });
     const server = new RemoteAccessServer({
@@ -5735,7 +5823,10 @@ describe("RemoteAccessServer", () => {
 
   it("never lets a child-origin session cookie satisfy or proxy reserved app routes on the API origin", async () => {
     const upstream = await startUpstreamHttpServer();
-    const gateway = new RemotePortForwardGateway({ bindHost: "127.0.0.1", candidatePorts: [] });
+    const gateway = new RemotePortForwardGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [upstream.port],
+    });
     const forwardOrigin = makeForwardOrigin();
     const portProxy = new PortProxy({ gateway, forwardOrigin });
     const server = new RemoteAccessServer({
