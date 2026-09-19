@@ -17,7 +17,7 @@ import {
   RemoteDesktopClient,
 } from "@/shared/remote/client";
 import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
-import { filterKnownRemoteAccessScopes, REMOTE_STANDARD_SCOPES } from "@/shared/remote";
+import { filterKnownRemoteAccessScopes, REMOTE_OPERATOR_SCOPES } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import {
@@ -583,7 +583,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         const factory = get().clientFactory;
         const tokenResult = await factory(normalized).exchangePairingCredential({
           credential: input.token,
-          scopes: REMOTE_STANDARD_SCOPES,
+          // Gate 6 item 4.3 (S2): pairings carry scopes. This client requests
+          // the operator preset by name (the pairing credential remains the
+          // ceiling — the exchange rejects requests beyond it). A read-only
+          // device UI would request REMOTE_VIEWER_SCOPES instead.
+          scopes: REMOTE_OPERATOR_SCOPES,
           client: { label: "Poracode Desktop", deviceType: "desktop" },
         });
         const client = factory(normalized, tokenResult.accessToken);

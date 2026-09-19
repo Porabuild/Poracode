@@ -2,6 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import type { ServerResponse } from "node:http";
 import { extname, resolve } from "node:path";
 import { RemoteHttpError } from "../auth";
+import { writeHardenedImageResponse } from "./httpResponses";
 
 /** Served image payloads are capped so a paired device can't pull huge files. */
 const MAX_LOCAL_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -61,11 +62,13 @@ export async function writeLocalImageFile(
     throw new RemoteHttpError("image_too_large", "The image file is too large.", 413);
   }
   const data = await readFile(filePath);
-  res.appendHeader("Vary", "Authorization");
-  res.writeHead(200, {
-    "content-type": contentType,
-    "content-length": data.length,
-    "cache-control": "private, max-age=300",
+  // Gate 6 item 4.4 (S4): the requested path is client-origin content served
+  // from the client's own origin — the response carries the hardened image
+  // header set (CSP sandbox, nosniff, fixed-filename disposition; SVG as
+  // attachment) instead of bare image bytes.
+  writeHardenedImageResponse(res, {
+    contentType,
+    data,
+    cacheControl: "private, max-age=300",
   });
-  res.end(data);
 }

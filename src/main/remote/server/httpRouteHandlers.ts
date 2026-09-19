@@ -73,7 +73,16 @@ import {
   getProfileTokenStats,
   setProfileIdentityResponse,
 } from "../../profile";
-import { parseBearerAuthorizationHeader, RemoteHttpError } from "../auth";
+import {
+  parseBearerAuthorizationHeader,
+  RemoteHttpError,
+  type AuthenticatedRemoteSession,
+} from "../auth";
+import {
+  REMOTE_AUDIT_LOG_VERSION,
+  type RemoteAuditEvent,
+  type RemoteAuditEventDetail,
+} from "./auditLog";
 import {
   assertRemoteThreadCommandExperimentSafe,
   assertRemoteThreadStartExperimentSafe,
@@ -85,7 +94,12 @@ import {
 import { buildForwardEnterErrorPageHtml } from "../pairingPage";
 import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
 import type { RemoteServerContext } from "./context";
-import { writeHtml, writeJson, writeNegotiatedJsonResponse } from "./httpResponses";
+import {
+  writeHardenedImageResponse,
+  writeHtml,
+  writeJson,
+  writeNegotiatedJsonResponse,
+} from "./httpResponses";
 import { writeLocalImageFile } from "./localImageFile";
 import {
   IMAGE_TICKET_QUERY_PARAM,
@@ -122,7 +136,8 @@ import {
  * `bearerToken` is the authenticated access token when the dispatcher enforced
  * the route's registry scopes (`auth: "bearer"` without procedure-defined
  * scope resolution), and null for every route that owns its own
- * authentication flow.
+ * authentication flow. `session` is the authenticated session for the same
+ * routes (null otherwise) — the audit trail uses its id to attribute events.
  */
 export interface HttpRouteCall {
   readonly ctx: RemoteServerContext;
@@ -131,10 +146,32 @@ export interface HttpRouteCall {
   readonly url: URL;
   readonly forwardOrigin: ForwardOriginIdentity | null;
   readonly bearerToken: string | null;
+  readonly session: AuthenticatedRemoteSession | null;
   readonly params: Readonly<Record<string, string>>;
 }
 
 export type HttpRouteHandler = (call: HttpRouteCall) => Promise<void> | void;
+
+/**
+ * Gate 6 item 4.7 (S7): appends one audit line for a security-relevant route
+ * event. The sink is optional (hosts opt in via `RemoteAccessServerOptions
+ * .audit`); events are attributed to the authenticated session when the
+ * dispatcher enforced one. Recorded before the operation runs, so an append
+ * for an event that later fails still reflects the authenticated attempt.
+ */
+export function auditRouteEvent(
+  call: Pick<HttpRouteCall, "ctx" | "session">,
+  kind: RemoteAuditEvent["kind"],
+  detail?: RemoteAuditEventDetail,
+): void {
+  call.ctx.options.audit?.record({
+    v: REMOTE_AUDIT_LOG_VERSION,
+    at: new Date().toISOString(),
+    kind,
+    ...(call.session ? { sessionId: call.session.sessionId } : {}),
+    ...(detail ? { detail } : {}),
+  });
+}
 
 /**
  * The complete HTTP handler table, keyed by the registry's CLOSED route-id
@@ -546,16 +583,24 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     const bearerToken = parseBearerAuthorizationHeader(header);
     const imageTicket = url.searchParams.get(IMAGE_TICKET_QUERY_PARAM);
     const legacyQueryParamToken = url.searchParams.get("access_token");
+    const imagePath = url.searchParams.get("path");
+    let imageSession: AuthenticatedRemoteSession | null = null;
     if (bearerToken) {
-      ctx.auth.authenticateBearerToken(bearerToken, ["session:read"]);
+      imageSession = ctx.auth.authenticateBearerToken(bearerToken, ["session:read"]);
     } else if (imageTicket) {
-      imageTickets.consume(imageTicket, url.searchParams.get("path") ?? "");
+      imageTickets.consume(imageTicket, imagePath ?? "");
     } else if (legacyQueryParamToken) {
-      ctx.auth.authenticateBearerToken(legacyQueryParamToken, ["session:read"]);
+      imageSession = ctx.auth.authenticateBearerToken(legacyQueryParamToken, ["session:read"]);
     } else {
       throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
     }
-    await writeLocalImageFile(res, url.searchParams.get("path"));
+    // Gate 6 item 4.7 (S7): image reads are audited file reads. The requested
+    // path is client-influenced (the allowlist bounds it to image extensions),
+    // so it is recorded as-is for traceability.
+    auditRouteEvent({ ctx, session: imageSession }, "file_read", {
+      ...(imagePath ? { path: imagePath } : {}),
+    });
+    await writeLocalImageFile(res, imagePath);
   },
 
   "local-image-ticket": async ({ req, res }) => {
@@ -583,31 +628,30 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     if (!token) {
       throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
     }
-    ctx.auth.authenticateBearerToken(token, ["session:read"]);
+    const imageSession = ctx.auth.authenticateBearerToken(token, ["session:read"]);
+    const threadId = decodeURIComponent(params.threadId ?? "");
+    const itemId = decodeURIComponent(params.itemId ?? "");
     const path = parseImageRefPath(url.searchParams.get("path"));
     if (!path) {
       throw new RemoteHttpError("invalid_path", "An image reference path is required.", 400);
     }
-    const resolved = resolveImageRef(
-      decodeURIComponent(params.threadId ?? ""),
-      decodeURIComponent(params.itemId ?? ""),
-      path,
-    );
+    const resolved = resolveImageRef(threadId, itemId, path);
     if (!resolved) {
       throw new RemoteHttpError("image_not_found", "No inline image at that reference.", 404);
     }
-    res.appendHeader("Vary", "Authorization");
-    res.writeHead(200, {
-      "content-type": resolved.mime,
-      "content-length": resolved.data.length,
+    auditRouteEvent({ ctx, session: imageSession }, "file_read", { threadId, itemId });
+    // Gate 6 item 4.4 (S4): client-origin image bytes get the hardened header
+    // set; SVG is forced to attachment.
+    writeHardenedImageResponse(res, {
+      contentType: resolved.mime,
+      data: resolved.data,
       // Immutable: a runtime item's image bytes never change under the same
       // id, so the client can reuse it for the life of the transcript.
-      "cache-control": "private, max-age=31536000, immutable",
+      cacheControl: "private, max-age=31536000, immutable",
     });
-    res.end(resolved.data);
   },
 
-  "attachment-upload": async ({ ctx, req, res, url }) => {
+  "attachment-upload": async ({ ctx, req, res, url, session }) => {
     const threadId = url.searchParams.get("threadId")?.trim();
     const fileName = url.searchParams.get("name")?.trim();
     if (!threadId || !fileName || fileName.length > 255) {
@@ -629,6 +673,7 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     if (data.length === 0) {
       throw new RemoteHttpError("empty_attachment", "The attachment is empty.", 400);
     }
+    auditRouteEvent({ ctx, session }, "file_write", { threadId, name: fileName });
     writeJson(res, 200, {
       path: attachments.save({ threadId, fileName, data }),
     });
@@ -823,9 +868,11 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     );
   },
 
-  "port-forward": async ({ ctx, req, res, forwardOrigin }) => {
+  "port-forward": async ({ ctx, req, res, forwardOrigin, session }) => {
     const { targetPort } = remotePortForwardRequestSchema.parse(await readJsonBody(req));
     const gateway = ctx.requirePortForwardGateway();
+    // Gate 6 item 4.7 (S7): forward opens are audited.
+    auditRouteEvent({ ctx, session }, "forward_open", { targetPort });
     const forward = await gateway.startForward(targetPort);
     // Raw-TCP connect credential, minted at forward creation (Gate 6): the
     // forwarded listener refuses any connection that does not present a live
@@ -988,7 +1035,8 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     );
   },
 
-  "thread-start-existing": async ({ ctx, req, res, url }) => {
+  "thread-start-existing": async (call) => {
+    const { ctx, req, res, url } = call;
     const body = await readJsonBody(req);
     const payload = startThreadPayloadSchema.parse(body);
     const threadId = payload.threadId;
@@ -1026,6 +1074,8 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     }
     const mcpSnapshot =
       ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
+    // Gate 6 item 4.7 (S7): thread creation/opens are audited.
+    auditRouteEvent(call, "thread_create", { threadId });
     const result = await runIdempotentRemoteMutation(req, url.pathname, () =>
       payload.providerSwitch
         ? applyRemoteThreadSwitch(ctx, { ...payload, threadId, ...mcpSnapshot })
@@ -1093,7 +1143,8 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     await writeNegotiatedJsonResponse(req, res, 200, result);
   },
 
-  "thread-command": async ({ ctx, req, res, url, params }) => {
+  "thread-command": async (call) => {
+    const { ctx, req, res, url, params } = call;
     const commandThreadId = requirePathParam(params, "threadId");
     const body = await readJsonBody(req);
     const command = remoteThreadCommandSchema.parse({
@@ -1108,6 +1159,11 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
       );
     }
     assertRemoteThreadCommandExperimentSafe(command);
+    // Gate 6 item 4.7 (S7): the command route's start kind is the other
+    // thread-creation path; the metadata-only kinds are not audited.
+    if (command.kind === "start") {
+      auditRouteEvent(call, "thread_create", { threadId: commandThreadId });
+    }
     const dispatch = async () => {
       if (command.kind === "delete-worktree-group") {
         const linkedThreadIds = dbGetThreads()
@@ -1177,28 +1233,40 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     writeJson(res, 200, result);
   },
 
-  "thread-send": (call) =>
-    forwardThreadBodyPost(
+  "thread-send": (call) => {
+    auditRouteEvent(call, "thread_send", {
+      threadId: requirePathParam(call.params, "threadId"),
+    });
+    return forwardThreadBodyPost(
       call,
       (callSupervisor, body) =>
         callSupervisor("sendThreadInput", sendThreadInputPayloadSchema.parse(body)),
       { idempotent: true },
-    ),
+    );
+  },
 
-  "thread-interrupt": (call) =>
-    forwardThreadBodyPost(call, (callSupervisor, body) =>
+  "thread-interrupt": (call) => {
+    auditRouteEvent(call, "thread_stop", {
+      threadId: requirePathParam(call.params, "threadId"),
+    });
+    return forwardThreadBodyPost(call, (callSupervisor, body) =>
       callSupervisor("interruptThread", interruptThreadPayloadSchema.parse(body)),
-    ),
+    );
+  },
 
   "thread-goal": (call) =>
     forwardThreadBodyPost(call, (callSupervisor, body) =>
       callSupervisor("controlThreadGoal", controlThreadGoalPayloadSchema.parse(body)),
     ),
 
-  "thread-close": (call) =>
-    forwardThreadBodyPost(call, (callSupervisor, body) =>
+  "thread-close": (call) => {
+    auditRouteEvent(call, "thread_stop", {
+      threadId: requirePathParam(call.params, "threadId"),
+    });
+    return forwardThreadBodyPost(call, (callSupervisor, body) =>
       callSupervisor("closeThread", closeThreadPayloadSchema.parse(body)),
-    ),
+    );
+  },
 
   "thread-steer-set": (call) =>
     forwardThreadBodyPost(call, (callSupervisor, body) =>

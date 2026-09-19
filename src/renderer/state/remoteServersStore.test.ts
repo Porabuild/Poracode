@@ -229,6 +229,20 @@ function makeSocket(overrides: Partial<RemoteSocketLike> = {}): RemoteSocketLike
   return { close: vi.fn<() => void>(), onmessage: null, onclose: null, ...overrides };
 }
 
+/**
+ * V5 plan 2.1: the event session treats a seq jump as a client-detected loss
+ * and reconnects from the last applied seq. The real server delivers every
+ * seq to a connected client contiguously, so fixtures raise the resume cursor
+ * densely with silent filler frames before the frame under test.
+ */
+function deliverFillersThrough(socket: RemoteSocketLike, seq: number): void {
+  for (let filler = 2; filler < seq; filler += 1) {
+    socket.onmessage?.({
+      data: JSON.stringify({ type: "event", seq: filler, event: { type: "noop" } }),
+    });
+  }
+}
+
 function makeClient(opts?: {
   snapshotProjects?: Project[];
   snapshotThrows?: boolean;
@@ -2088,7 +2102,7 @@ describe("useRemoteServersStore", () => {
     sockets[0]?.onmessage?.({
       data: JSON.stringify({
         type: "event",
-        seq: 2,
+        seq: 1,
         event: {
           type: "thread-follow-up-queue",
           threadId: "new-thread",
@@ -2109,7 +2123,9 @@ describe("useRemoteServersStore", () => {
     const row = (id: string, status: Thread["status"], updatedAt: string): Thread =>
       ({ ...remoteThread, id, status, updatedAt }) as unknown as Thread;
     let nextSnapshot: RemoteShellSnapshot = {
-      snapshotSeq: 1,
+      // Seq 8: the live events below (9, 10) must stay contiguous with the
+      // initial cursor — the session now treats a seq jump as lost frames.
+      snapshotSeq: 8,
       projects: [proj],
       threads: [
         row("rt-1", "idle", "pair"),
@@ -2235,7 +2251,7 @@ describe("useRemoteServersStore", () => {
     sockets[0]?.onmessage?.({
       data: JSON.stringify({
         type: "event",
-        seq: 10,
+        seq: 2,
         event: { type: "thread-state", threadId: "rt-1", status: "working" },
       }),
     });
@@ -2317,6 +2333,7 @@ describe("useRemoteServersStore", () => {
       updatedAt: "later",
     });
 
+    deliverFillersThrough(sockets[0]!, 7);
     sockets[0]?.onmessage?.({
       data: JSON.stringify({ type: "event", seq: 7, event: { type: "noop" } }),
     });
@@ -3247,6 +3264,7 @@ describe("useRemoteServersStore", () => {
       "ws://192.168.1.9:38987/ws?ticket=ticket-1&last=1",
     );
 
+    deliverFillersThrough(sockets[0]!, 7);
     sockets[0]?.onmessage?.({
       data: JSON.stringify({
         type: "event",
@@ -3992,6 +4010,7 @@ describe("useRemoteServersStore", () => {
     });
     // Unknown checkpoint still forwards anchors (no speculative delete in the
     // reducer) and triggers one authoritative reload.
+    deliverFillersThrough(socket, 30);
     socket.onmessage?.({ data: truncatedUnknown });
     expect(sync.dispatchRemoteSupervisorEvent).toHaveBeenCalledTimes(1);
     await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledTimes(1));
@@ -4094,6 +4113,7 @@ describe("useRemoteServersStore", () => {
     useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
     historySeq.current = 30;
     sync.applyThreadSnapshot.mockReturnValueOnce({ installedAuthoritativeHistory: false });
+    deliverFillersThrough(socket, 30);
     socket.onmessage?.({
       data: JSON.stringify({
         type: "event",
@@ -4165,8 +4185,10 @@ describe("useRemoteServersStore", () => {
           ],
         },
       });
+    deliverFillersThrough(socket, 30);
     socket.onmessage?.({ data: truncated(30) });
     await vi.waitFor(() => expect(threadHistory).toHaveBeenCalledTimes(1));
+    deliverFillersThrough(socket, 35);
     socket.onmessage?.({ data: truncated(35) });
     expect(threadHistory).toHaveBeenCalledTimes(1);
     first.resolve({ ...remoteThreadSnapshot("rt-2"), snapshotSeq: 32 });
@@ -4215,6 +4237,7 @@ describe("useRemoteServersStore", () => {
           ],
         },
       });
+    deliverFillersThrough(socket, 30);
     for (let seq = 30; seq < 36; seq += 1) {
       socket.onmessage?.({ data: truncated(seq) });
     }
@@ -4242,6 +4265,7 @@ describe("useRemoteServersStore", () => {
     threadHistory.mockImplementation(() => pending.promise);
     const applyBefore = sync.applyThreadSnapshot.mock.calls.length;
     useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
+    deliverFillersThrough(socket, 30);
     socket.onmessage?.({
       data: JSON.stringify({
         type: "event",
@@ -4316,6 +4340,7 @@ describe("useRemoteServersStore", () => {
         ],
       },
     });
+    deliverFillersThrough(sockets[0]!, 30);
     sockets[0]?.onmessage?.({ data: truncatedUnknown });
     await vi.advanceTimersByTimeAsync(0);
     expect(threadHistory).toHaveBeenCalledTimes(1);
@@ -4395,6 +4420,7 @@ describe("useRemoteServersStore", () => {
           ],
         },
       });
+    deliverFillersThrough(sockets[0]!, 30);
     for (let seq = 30; seq < 33; seq += 1) {
       sockets[0]?.onmessage?.({ data: truncated(seq) });
       await vi.advanceTimersByTimeAsync(0);
@@ -4437,6 +4463,7 @@ describe("useRemoteServersStore", () => {
     sync.dispatchRemoteSupervisorEvent.mockClear();
     useAppStore.setState({ runtimeItemIdsByThread: {}, runtimeItemsByIdByThread: {} });
     threadHistory.mockRejectedValueOnce(new Error("offline"));
+    deliverFillersThrough(sockets[0]!, 30);
     sockets[0]?.onmessage?.({
       data: JSON.stringify({
         type: "event",
@@ -4888,6 +4915,7 @@ describe("useRemoteServersStore", () => {
     agentStatuses.mockClear();
 
     // A burst of qualifying (metadata-changing) events.
+    deliverFillersThrough(socket, 10);
     for (let i = 0; i < 5; i++) {
       socket.onmessage?.({
         data: JSON.stringify({
@@ -4903,6 +4931,7 @@ describe("useRemoteServersStore", () => {
     expect(snapshot).toHaveBeenCalledTimes(1);
     expect(agentStatuses).not.toHaveBeenCalled();
 
+    deliverFillersThrough(socket, 20);
     socket.onmessage?.({
       data: JSON.stringify({
         type: "event",

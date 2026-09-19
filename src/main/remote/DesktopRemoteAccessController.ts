@@ -56,6 +56,7 @@ import {
 import { RemoteBrowserGateway, type RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
 import { createRemoteMcpSettingsGateway } from "./RemoteMcpSettingsGateway";
 import { ThreadNotificationPublisher } from "./ThreadNotificationPublisher";
+import { createRemoteAuditLog } from "./server/auditLog";
 import {
   disposeAttemptServer,
   RemoteAccessRetirements,
@@ -457,6 +458,10 @@ export function createDesktopRemoteAccessController(
           );
         },
         authStore,
+        // Gate 6 item 4.7 (S7): structured audit trail of security-relevant
+        // remote events under the desktop's owned root. Write failures are
+        // contained by the sink (warn + drop), never the request path.
+        audit: createRemoteAuditLog(options.paths.baseDir),
         host: remoteHost,
         port,
         advertisedHost,

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import {
-  REMOTE_STANDARD_SCOPES,
+  REMOTE_OPERATOR_SCOPES,
   remoteAccessScopeSchema,
   remoteClientMetadataSchema,
   type RemoteAccessScope,
@@ -146,7 +146,12 @@ export class RemoteAuthStore {
     const stored: StoredPairingCredential = {
       id,
       tokenHash: hashCredential(credential),
-      scopes: input?.scopes ?? REMOTE_STANDARD_SCOPES,
+      // Gate 6 item 4.3 (S2): the pairing credential is the scope ceiling. The
+      // default grant is the operator preset (the historical full mutating
+      // set); a host deliberately issuing a read-only device passes the
+      // viewer preset (see REMOTE_ACCESS_SCOPE_PRESETS) and the exchange can
+      // never widen beyond what the credential carries.
+      scopes: input?.scopes ?? REMOTE_OPERATOR_SCOPES,
       label: input?.label,
       expiresAtMs,
     };
@@ -177,6 +182,9 @@ export class RemoteAuthStore {
       throw new RemoteHttpError("invalid_pairing_token", "Invalid pairing token.", 401);
     }
 
+    // The exchange request may narrow (or, when omitted, inherit the
+    // credential's scopes) but never widen them: over-requests are rejected so
+    // a client can never hold more than the issued pairing grant.
     const requestedScopes = input.scopes ?? grant.scopes;
     if (!hasScopes(grant.scopes, requestedScopes)) {
       throw new RemoteHttpError(

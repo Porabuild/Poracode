@@ -6,7 +6,9 @@ import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import { HttpServerConnections } from "@/shared/httpServerConnections";
 import {
   toWebSocketUrl,
+  remoteAccessScopesForPreset,
   type RemoteAccessScope,
+  type RemoteAccessScopePreset,
   type RemoteGitSummaries,
   type RemoteAccessSessionSummary,
   type RemoteAccessTokenResult,
@@ -68,6 +70,11 @@ import {
   handleRemoteAccessUpgrade,
 } from "./server/forwardOriginDispatch";
 import { normalizeHostForUrl, RemoteServerSecurity } from "./server/security";
+import {
+  REMOTE_AUDIT_LOG_VERSION,
+  type RemoteAuditEvent,
+  type RemoteAuditSink,
+} from "./server/auditLog";
 import type {
   BufferedSupervisorEvent,
   RemoteBroadcastEvent,
@@ -274,6 +281,14 @@ export interface RemoteAccessServerOptions {
   /** Grace before closing active transports; admitted handlers are still joined. */
   readonly shutdownConnectionGraceMs?: number;
   readonly authStore?: RemoteAuthStore;
+  /**
+   * Gate 6 item 4.7 (S7): structured audit sink for security-relevant remote
+   * events (pair, token exchange, revoke, thread create/send/stop, file
+   * read/write, forward open). Absent = no audit trail is written. Host
+   * compositions wire {@link createRemoteAuditLog} (append-only JSONL under the
+   * data root); rotation is item 4.9's seam.
+   */
+  readonly audit?: RemoteAuditSink;
   /**
    * Whether this server owns supervisor-event persistence. Headless servers do;
    * desktop servers opt out because the desktop backend host persists first.
@@ -564,6 +579,7 @@ export class RemoteAccessServer {
     this.auth = options.authStore ?? new RemoteAuthStore();
     this.security = new RemoteServerSecurity({
       getHttpBaseUrl: () => this.info?.httpBaseUrl,
+      getLocalHttpBaseUrl: () => this.info?.localHttpBaseUrl,
       options,
       auth: this.auth,
     });
@@ -868,6 +884,9 @@ export class RemoteAccessServer {
       label: "Startup pairing",
     });
     this.activePairingCredential = pairingCredential.credential;
+    this.recordAudit("pair", {
+      detail: { label: "Startup pairing", scopes: pairingCredential.scopes.join(" ") },
+    });
 
     this.info = {
       httpBaseUrl,
@@ -968,12 +987,31 @@ export class RemoteAccessServer {
   revokeAccessSession(sessionId: string): boolean {
     const revoked = this.auth.revokeAccessSession(sessionId);
     if (!revoked) return false;
+    this.recordAudit("revoke", { detail: { sessionId } });
     for (const [client, session] of this.clients) {
       if (session.sessionId === sessionId) {
         client.close(1008, "Remote access session revoked");
       }
     }
     return true;
+  }
+
+  /**
+   * Gate 6 item 4.7 (S7): appends one structured audit line. The sink is
+   * optional; audit failures never propagate into the request path (the file
+   * sink contains its own I/O errors).
+   */
+  private recordAudit(
+    kind: RemoteAuditEvent["kind"],
+    input: { sessionId?: string; detail?: RemoteAuditEvent["detail"] } = {},
+  ): void {
+    this.options.audit?.record({
+      v: REMOTE_AUDIT_LOG_VERSION,
+      at: new Date().toISOString(),
+      kind,
+      ...(input.sessionId ? { sessionId: input.sessionId } : {}),
+      ...(input.detail ? { detail: input.detail } : {}),
+    });
   }
 
   /** Pushes an event onto the replayable WS event stream. Out-of-band desktop
@@ -1163,14 +1201,17 @@ export class RemoteAccessServer {
     }
   }
 
-  issuePairingUrl(label?: string): string {
+  /**
+   * Mints a fresh pairing URL, replacing the displayed QR credential. The
+   * grant defaults to the operator preset (Gate 6 item 4.3); hosts offering a
+   * read-only device pass `preset: "viewer"`.
+   */
+  issuePairingUrl(label?: string, options?: { readonly preset?: RemoteAccessScopePreset }): string {
     const info = this.requireInfo();
     if (this.activePairingCredential) {
       this.auth.revokePairingCredential(this.activePairingCredential);
     }
-    const issued = this.auth.issuePairingCredential({
-      ...(label ? { label } : {}),
-    });
+    const issued = this.issuePresetPairingCredential(label, options?.preset);
     this.activePairingCredential = issued.credential;
     const pairingUrl = this.mintPairingUrl(info.httpBaseUrl, issued.credential);
     this.info = { ...info, pairingUrl, pairingExpiresAt: issued.expiresAt };
@@ -1178,14 +1219,38 @@ export class RemoteAccessServer {
     return pairingUrl;
   }
 
-  /** One-time local-control grants coexist without replacing the displayed QR. */
-  issueIndependentPairingUrl(label?: string): string {
+  /**
+   * One-time local-control grants coexist without replacing the displayed QR.
+   * Accepts the same scope presets as {@link issuePairingUrl}.
+   */
+  issueIndependentPairingUrl(
+    label?: string,
+    options?: { readonly preset?: RemoteAccessScopePreset },
+  ): string {
     if (this.stopping) throw new Error("Remote access server is stopping.");
     const info = this.requireInfo();
+    const issued = this.issuePresetPairingCredential(label, options?.preset);
+    return this.mintPairingUrl(info.httpBaseUrl, issued.credential);
+  }
+
+  private issuePresetPairingCredential(
+    label: string | undefined,
+    preset?: RemoteAccessScopePreset,
+  ) {
     const issued = this.auth.issuePairingCredential({
       ...(label ? { label } : {}),
+      ...(preset ? { scopes: remoteAccessScopesForPreset(preset) } : {}),
     });
-    return this.mintPairingUrl(info.httpBaseUrl, issued.credential);
+    // Gate 6 item 4.7 (S7): every issued (or rotated) pairing credential is an
+    // audited event. Revoked superseded credentials ride the same line.
+    this.recordAudit("pair", {
+      detail: {
+        ...(label ? { label } : {}),
+        ...(preset ? { preset } : {}),
+        scopes: issued.scopes.join(" "),
+      },
+    });
+    return issued;
   }
 
   private exchangePairingCredential(input: {
@@ -1194,6 +1259,13 @@ export class RemoteAccessServer {
     readonly client?: RemoteClientMetadata;
   }): RemoteAccessTokenResult {
     const result = this.auth.exchangePairingCredential(input);
+    this.recordAudit("token_exchange", {
+      detail: {
+        scopes: result.scopes.join(" "),
+        ...(input.client?.label ? { clientLabel: input.client.label } : {}),
+        ...(input.client?.deviceType ? { deviceType: input.client.deviceType } : {}),
+      },
+    });
     this.issuePairingUrl("Automatic pairing");
     return result;
   }

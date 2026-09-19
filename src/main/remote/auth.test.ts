@@ -3,6 +3,14 @@ import { mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  REMOTE_ACCESS_SCOPE_PRESETS,
+  REMOTE_OPERATOR_SCOPES,
+  REMOTE_STANDARD_SCOPES,
+  REMOTE_VIEWER_SCOPES,
+  isRemoteAccessScopePreset,
+  remoteAccessScopesForPreset,
+} from "@/shared/remote";
+import {
   RemoteHttpError,
   RemoteAuthStore,
   parseBearerAuthorizationHeader,
@@ -40,6 +48,58 @@ describe("RemoteAuthStore", () => {
         scopes: ["session:operate"],
       }),
     ).toThrow(/does not grant/);
+  });
+
+  it("defaults the pairing grant to the operator preset (Gate 6 item 4.3)", () => {
+    const store = new RemoteAuthStore();
+    const pairing = store.issuePairingCredential();
+
+    expect(pairing.scopes).toEqual(REMOTE_OPERATOR_SCOPES);
+    expect(pairing.scopes).toEqual(REMOTE_STANDARD_SCOPES);
+
+    // An exchange that names no scopes inherits the credential's grant.
+    const token = store.exchangePairingCredential({ credential: pairing.credential });
+    expect(token.scopes).toEqual(REMOTE_OPERATOR_SCOPES);
+  });
+
+  it("issues viewer-preset pairings limited to read scopes (Gate 6 item 4.3)", () => {
+    const store = new RemoteAuthStore();
+    const viewer = store.issuePairingCredential({ scopes: REMOTE_VIEWER_SCOPES });
+
+    expect(REMOTE_VIEWER_SCOPES).toEqual(["session:read", "terminal:read"]);
+    // Narrowing requests are honored…
+    expect(
+      store.exchangePairingCredential({
+        credential: viewer.credential,
+        scopes: ["session:read"],
+      }).scopes,
+    ).toEqual(["session:read"]);
+
+    // …and an omitted request inherits exactly the viewer grant…
+    const viewerAgain = store.issuePairingCredential({ scopes: REMOTE_VIEWER_SCOPES });
+    expect(store.exchangePairingCredential({ credential: viewerAgain.credential }).scopes).toEqual(
+      REMOTE_VIEWER_SCOPES,
+    );
+
+    // …but the grant ceiling is never widenable, not even to one extra scope.
+    const third = store.issuePairingCredential({ scopes: REMOTE_VIEWER_SCOPES });
+    expect(() =>
+      store.exchangePairingCredential({
+        credential: third.credential,
+        scopes: [...REMOTE_VIEWER_SCOPES, "session:operate"],
+      }),
+    ).toThrow(/does not grant/);
+  });
+
+  it("exposes disjoint operator/viewer presets", () => {
+    expect(REMOTE_ACCESS_SCOPE_PRESETS.operator).toEqual(REMOTE_STANDARD_SCOPES);
+    for (const scope of REMOTE_VIEWER_SCOPES) {
+      expect(REMOTE_STANDARD_SCOPES).toContain(scope);
+    }
+    expect(remoteAccessScopesForPreset("viewer")).toEqual(REMOTE_VIEWER_SCOPES);
+    expect(remoteAccessScopesForPreset("operator")).toEqual(REMOTE_OPERATOR_SCOPES);
+    expect(isRemoteAccessScopePreset("viewer")).toBe(true);
+    expect(isRemoteAccessScopePreset("sewer")).toBe(false);
   });
 
   it("can retire an unconsumed pairing credential", () => {
