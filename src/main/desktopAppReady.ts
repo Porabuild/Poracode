@@ -81,6 +81,13 @@ export async function startDesktopApp(): Promise<void> {
   };
 
   // Seam 3: backend host client, renderer event wiring, native handlers.
+  // The fence path comes from the admission lease's canonical mapping: the
+  // prepared baseDir IS the owned `.host-v1` root since the unification, and
+  // re-deriving the mapping from it would refuse the literal owned root.
+  const ownerFencePath = desktopApp.desktopOwnerLease?.paths.dataFencePath;
+  if (!ownerFencePath) {
+    throw new Error("The desktop host owner lease is required before the backend forks.");
+  }
   const backend = createDesktopBackendHost({
     backendHostPath: dirs.backendHostPath,
     initialize: buildDesktopBackendInitialize({
@@ -89,6 +96,7 @@ export async function startDesktopApp(): Promise<void> {
       channel,
       settingsPath: shell.paths.settingsPath,
       devServerUrl: process.env.VITE_DEV_SERVER_URL,
+      dataFencePath: ownerFencePath,
       supervisor: {
         appVersion: app.getVersion(),
         isDev,
