@@ -3,7 +3,7 @@ import { isQuickComposerWindow, readBridge } from "../bridge";
 import { captureRendererException } from "../diagnostics/sentry";
 import { hasClientCapability } from "../clientRuntime";
 import type { Project, Thread, AppView } from "@/shared/contracts";
-import { getClientEngineHost } from "./remote/engine";
+import { getPersistJsonEngine } from "./remote/engine";
 
 const LARGE_STORAGE_JSON_CHARS = 32 * 1024;
 
@@ -487,7 +487,10 @@ async function parseStorageValue(raw: string | null): Promise<StorageValue<unkno
   if (!raw) return null;
   try {
     if (raw.length >= LARGE_STORAGE_JSON_CHARS) {
-      return (await getClientEngineHost().parseJson(raw)) as StorageValue<unknown>;
+      // Persist-owned engine (V5 2.2): a renderer-stream or remote-socket
+      // engine reset can no longer reject this hydration read and silently
+      // report persisted state as absent.
+      return (await getPersistJsonEngine().parseJson(raw)) as StorageValue<unknown>;
     }
     return JSON.parse(raw) as StorageValue<unknown>;
   } catch {
@@ -499,7 +502,7 @@ async function shouldSkipWrite(name: string, value: StorageValue<unknown>): Prom
   const previous = lastStorageJson.get(name);
   const json =
     previous !== undefined && previous.length >= LARGE_STORAGE_JSON_CHARS
-      ? await getClientEngineHost().stringifyJson(value)
+      ? await getPersistJsonEngine().stringifyJson(value)
       : JSON.stringify(value);
   if (lastStorageJson.get(name) === json) return null;
   lastStorageJson.set(name, json);

@@ -19,9 +19,8 @@ import {
 import { RendererStreamReassembly } from "./rendererStreamReassembly";
 import {
   decodeBackendSync,
-  getClientEngineHost,
+  getBackendStreamEngine,
   isBackendRendererMessage,
-  isClientEngineWorkerActive,
   type BackendRendererMessage,
   type DecodeFrameResult,
 } from "./state/remote/engine";
@@ -48,6 +47,9 @@ interface RendererInterests {
 }
 
 export class ElectronBackendTransport {
+  /** This transport's OWN engine instance (V5 2.2): its overflow reset rejects
+   * only its own in-flight decodes, never remote-socket or persist work. */
+  private readonly engine = getBackendStreamEngine();
   private info: BackendRendererStreamInfo | null = null;
   private socket: WebSocket | null = null;
   private connectPromise: Promise<WebSocket> | null = null;
@@ -97,7 +99,7 @@ export class ElectronBackendTransport {
     });
     host.onRendererStreamRecovery((barrier) => this.handleStreamRecovery(barrier));
     host.onBackendRendererStreamChanged((info) => this.replaceInfo(info));
-    getClientEngineHost().addOverflowListener(() => this.handleClientEngineOverflow());
+    this.engine.addOverflowListener(() => this.handleClientEngineOverflow());
     this.refreshInfo();
   }
 
@@ -316,11 +318,11 @@ export class ElectronBackendTransport {
         frameSpan.end({ bytes: raw.length, ...(frameType ? { type: frameType } : {}) });
       }
     };
-    if (!isClientEngineWorkerActive()) {
+    if (!this.engine.isWorkerActive()) {
       apply(decodeBackendSync(raw));
       return;
     }
-    const decoded = getClientEngineHost().decodeBackend(raw);
+    const decoded = this.engine.decodeBackend(raw);
     this.decodeQueue = this.decodeQueue.then(async () => {
       try {
         apply(await decoded);
@@ -492,7 +494,10 @@ export class ElectronBackendTransport {
     this.ackedSequence = null;
     this.resetOwnershipForConnection();
     this.largeReassembly.dropAll();
-    getClientEngineHost().reset();
+    // Scoped engine reset (V5 2.2): fences only THIS transport's decodes; a
+    // concurrent remote-socket decode or persist stringify keeps its worker
+    // and its in-flight promises.
+    this.engine.reset();
     this.rejectPending(new Error("Backend renderer transport disconnected."));
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = setTimeout(() => {
@@ -512,7 +517,7 @@ export class ElectronBackendTransport {
     this.ackedSequence = null;
     this.resetOwnershipForConnection();
     this.largeReassembly.dropAll();
-    getClientEngineHost().reset();
+    this.engine.reset();
     socket?.close();
     this.rejectPending(error);
   }
