@@ -1,12 +1,11 @@
 import type { WebSocket, WebSocketServer } from "ws";
 import type {
-  RemoteAccessScope,
   RemoteAccessTokenResult,
-  RemoteClientMetadata,
   RemoteGitSummariesEvent,
   RemoteGitStateEvent,
   RemoteProjectsChangedEvent,
   RemoteThreadsChangedEvent,
+  RemoteTokenExchangePayload,
   RemoteUserNotificationEvent,
   RemoteWebSocketServerMessage,
 } from "@/shared/remote";
@@ -79,11 +78,12 @@ export interface RemoteServerContext {
   readonly seq: number;
   /** Becomes true synchronously when external admission closes. */
   readonly stopping: boolean;
-  exchangePairingCredential(input: {
-    readonly credential: string;
-    readonly scopes?: readonly RemoteAccessScope[];
-    readonly client?: RemoteClientMetadata;
-  }): RemoteAccessTokenResult;
+  /**
+   * Item 4.6 (S6): the parsed `/oauth/token` payload — either the
+   * pairing-token grant or the additive refresh_token grant. The server owns
+   * the grant dispatch and the audit line.
+   */
+  exchangePairingCredential(input: RemoteTokenExchangePayload): RemoteAccessTokenResult;
   requireInfo(): RemoteAccessServerInfo;
   requireSettingsGateway(): NonNullable<RemoteAccessServerOptions["settings"]>;
   requireSchedulesGateway(): NonNullable<RemoteAccessServerOptions["schedules"]>;

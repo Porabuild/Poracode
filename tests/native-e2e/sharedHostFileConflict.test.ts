@@ -1,7 +1,7 @@
 import { utimesSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { readRemoteAccessSessions } from "../../src/main/remote/auth.ts";
+import { readRemoteAccessAuthFile } from "../../src/main/remote/auth.ts";
 import { findRepoRoot } from "./harness/paths.ts";
 import { ProcessCleanup } from "./harness/processCleanup.ts";
 import { startRealHost, type RealHostHandle } from "./harness/realHost.ts";
@@ -28,7 +28,7 @@ it.each([false, true])(
         baseDirRoot: join(repoRoot, "tmp", ".tmp", "file-conflict-qa"),
       });
       const initialSessionIds = new Set(
-        readRemoteAccessSessions(host.baseDir).map((session) => session.id),
+        readRemoteAccessAuthFile(host.baseDir).accessSessions.map((session) => session.id),
       );
       const credential = await acquireDeviceCredential(host, "file-conflict");
       for (const label of ["editor-a", "editor-b"]) {
@@ -45,8 +45,8 @@ it.each([false, true])(
         );
       }
       const accessSessionCount = new Set(
-        readRemoteAccessSessions(host.baseDir)
-          .map((session) => session.id)
+        readRemoteAccessAuthFile(host.baseDir)
+          .accessSessions.map((session) => session.id)
           .filter((id) => !initialSessionIds.has(id)),
       ).size;
       expect(accessSessionCount).toBe(separateCredentials ? 2 : 1);

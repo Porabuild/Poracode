@@ -21,7 +21,13 @@ import {
  * which reads to the user as an unreachable desktop.
  */
 const DEFAULT_PAIRING_TTL_MS = 10 * 60 * 1000;
-const DEFAULT_ACCESS_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+/**
+ * Gate 6 item 4.6 (S6): the long-lived 30-day non-rotating bearer is gone.
+ * Access tokens now live 24 hours; the 30-day lifetime moved to the refresh
+ * token, so a captured bearer is worthless after a day instead of a month.
+ */
+const DEFAULT_ACCESS_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const DEFAULT_WEBSOCKET_TICKET_TTL_MS = 30 * 1000;
 
 /** Error surfaced to remote clients as an HTTP status plus a JSON error body. */
@@ -51,6 +57,13 @@ interface StoredAccessSession {
   readonly client: RemoteClientMetadata | undefined;
   readonly issuedAtMs: number;
   readonly expiresAtMs: number;
+  /** Hash of the session's refresh token (Gate 6 item 4.6). Absent on sessions
+   * persisted by a host that predates the refresh lifecycle — those keep their
+   * long-lived access token and simply never refresh. */
+  readonly refreshTokenHash?: string | undefined;
+  /** Absolute expiry of the refresh token; the token VALUE rotates on every
+   * refresh but its deadline is fixed at pairing. */
+  readonly refreshExpiresAtMs?: number | undefined;
 }
 
 const persistedAccessSessionSchema = z.object({
@@ -60,13 +73,33 @@ const persistedAccessSessionSchema = z.object({
   client: remoteClientMetadataSchema.optional(),
   issuedAtMs: z.number().int().nonnegative(),
   expiresAtMs: z.number().int().nonnegative(),
+  refreshTokenHash: z.string().min(1).optional(),
+  refreshExpiresAtMs: z.number().int().nonnegative().optional(),
+});
+
+/**
+ * Server-side revocation list (Gate 6 item 4.6): hashes of access AND refresh
+ * tokens that were explicitly revoked. Rows are deleted on revoke, but the
+ * hash is also remembered until its natural expiry so a replayed token stays
+ * rejected across restarts even if a same-hash row ever reappeared.
+ */
+const persistedRevokedTokenSchema = z.object({
+  tokenHash: z.string().min(1),
+  expiresAtMs: z.number().int().nonnegative(),
 });
 
 const remoteAuthFileSchema = z.object({
   accessSessions: z.array(persistedAccessSessionSchema),
+  revokedTokenHashes: z.array(persistedRevokedTokenSchema).default([]),
 });
 
 type PersistedAccessSession = z.infer<typeof persistedAccessSessionSchema>;
+type PersistedRevokedToken = z.infer<typeof persistedRevokedTokenSchema>;
+
+export interface PersistedRemoteAuthFile {
+  readonly accessSessions: readonly PersistedAccessSession[];
+  readonly revokedTokenHashes: readonly PersistedRevokedToken[];
+}
 
 interface StoredWebSocketTicket {
   readonly ticketHash: string;
@@ -91,7 +124,9 @@ export interface AuthenticatedRemoteSession {
 
 interface RemoteAuthStoreOptions {
   readonly accessSessions?: readonly PersistedAccessSession[];
+  readonly revokedTokenHashes?: readonly PersistedRevokedToken[];
   onAccessSessionsChanged?(sessions: readonly PersistedAccessSession[]): void;
+  onPersistedStateChanged?(state: PersistedRemoteAuthFile): void;
 }
 
 function randomCredential(prefix: string): string {
@@ -123,6 +158,8 @@ export class RemoteAuthStore {
   private readonly pairingCredentials = new Map<string, StoredPairingCredential>();
   private readonly accessSessions = new Map<string, StoredAccessSession>();
   private readonly websocketTickets = new Map<string, StoredWebSocketTicket>();
+  /** Revoked token hashes (access AND refresh) until their natural expiry. */
+  private readonly revokedTokenHashes = new Map<string, number>();
 
   constructor(private readonly options: RemoteAuthStoreOptions = {}) {
     for (const session of options.accessSessions ?? []) {
@@ -131,6 +168,10 @@ export class RemoteAuthStore {
         ...session,
         client: session.client,
       });
+    }
+    for (const entry of options.revokedTokenHashes ?? []) {
+      if (entry.expiresAtMs <= Date.now()) continue;
+      this.revokedTokenHashes.set(entry.tokenHash, entry.expiresAtMs);
     }
   }
 
@@ -196,14 +237,19 @@ export class RemoteAuthStore {
 
     this.pairingCredentials.delete(tokenHash);
     const accessToken = randomCredential("lc_access");
-    const expiresAtMs = Date.now() + (input.ttlMs ?? DEFAULT_ACCESS_TOKEN_TTL_MS);
+    const refreshToken = randomCredential("lc_refresh");
+    const now = Date.now();
+    const expiresAtMs = now + (input.ttlMs ?? DEFAULT_ACCESS_TOKEN_TTL_MS);
+    const refreshExpiresAtMs = now + DEFAULT_REFRESH_TOKEN_TTL_MS;
     const session: StoredAccessSession = {
       id: randomUUID(),
       tokenHash: hashCredential(accessToken),
       scopes: requestedScopes,
       client: input.client,
-      issuedAtMs: Date.now(),
+      issuedAtMs: now,
       expiresAtMs,
+      refreshTokenHash: hashCredential(refreshToken),
+      refreshExpiresAtMs,
     };
     this.accessSessions.set(session.tokenHash, session);
     this.persistAccessSessions();
@@ -213,7 +259,68 @@ export class RemoteAuthStore {
       tokenType: "Bearer",
       expiresAt: toIso(expiresAtMs),
       scopes: [...requestedScopes],
+      refreshToken,
+      refreshTokenExpiresAt: toIso(refreshExpiresAtMs),
     };
+  }
+
+  /**
+   * Gate 6 item 4.6 (S6): exchanges a live refresh token for a fresh
+   * 24-hour access token. The refresh token VALUE rotates on every use
+   * (old value stops working) while its absolute 30-day deadline is fixed at
+   * pairing, so a client that keeps refreshing re-pairs monthly and a captured
+   * refresh token window is one use. Revoked refresh tokens are rejected even
+   * before their row would have been found.
+   */
+  refreshAccessToken(input: {
+    readonly refreshToken: string;
+    readonly accessTtlMs?: number;
+  }): RemoteAccessTokenResult {
+    this.pruneExpired();
+    const refreshTokenHash = hashCredential(input.refreshToken);
+    const session = [...this.accessSessions.values()].find(
+      (entry) => entry.refreshTokenHash === refreshTokenHash,
+    );
+    if (
+      !session ||
+      (session.refreshExpiresAtMs ?? 0) <= Date.now() ||
+      this.isRevoked(refreshTokenHash) ||
+      this.isRevoked(session.tokenHash)
+    ) {
+      throw new RemoteHttpError("invalid_refresh_token", "Invalid refresh token.", 401);
+    }
+
+    this.accessSessions.delete(session.tokenHash);
+    const accessToken = randomCredential("lc_access");
+    const refreshToken = randomCredential("lc_refresh");
+    const rotated: StoredAccessSession = {
+      ...session,
+      tokenHash: hashCredential(accessToken),
+      expiresAtMs: Date.now() + (input.accessTtlMs ?? DEFAULT_ACCESS_TOKEN_TTL_MS),
+      refreshTokenHash: hashCredential(refreshToken),
+    };
+    this.accessSessions.set(rotated.tokenHash, rotated);
+    this.persistAccessSessions();
+
+    return {
+      accessToken,
+      tokenType: "Bearer",
+      expiresAt: toIso(rotated.expiresAtMs),
+      scopes: [...session.scopes],
+      refreshToken,
+      refreshTokenExpiresAt: toIso(session.refreshExpiresAtMs ?? rotated.expiresAtMs),
+    };
+  }
+
+  /** Whether a token hash sits on the revocation list (unexpired). */
+  private isRevoked(tokenHash: string): boolean {
+    const expiresAtMs = this.revokedTokenHashes.get(tokenHash);
+    if (expiresAtMs === undefined) return false;
+    if (expiresAtMs <= Date.now()) {
+      this.revokedTokenHashes.delete(tokenHash);
+      return false;
+    }
+    return true;
   }
 
   authenticateBearerToken(
@@ -221,7 +328,13 @@ export class RemoteAuthStore {
     requiredScopes: readonly RemoteAccessScope[] = [],
   ): AuthenticatedRemoteSession {
     this.pruneExpired();
-    const session = this.accessSessions.get(hashCredential(accessToken));
+    const tokenHash = hashCredential(accessToken);
+    // An explicitly revoked token is rejected outright — even if its session
+    // row were ever restored (restart races, restores from backup).
+    if (this.isRevoked(tokenHash)) {
+      throw new RemoteHttpError("invalid_access_token", "Invalid access token.", 401);
+    }
+    const session = this.accessSessions.get(tokenHash);
     if (!session) {
       throw new RemoteHttpError("invalid_access_token", "Invalid access token.", 401);
     }
@@ -253,6 +366,16 @@ export class RemoteAuthStore {
     for (const [hash, session] of this.accessSessions) {
       if (session.id !== sessionId) continue;
       this.accessSessions.delete(hash);
+      // Gate 6 item 4.6: revocation is remembered for the lifetime of what it
+      // kills — the access token AND its refresh token — so a replayed bearer
+      // or a saved refresh token stays dead across restarts.
+      this.revokedTokenHashes.set(hash, session.expiresAtMs);
+      if (session.refreshTokenHash) {
+        this.revokedTokenHashes.set(
+          session.refreshTokenHash,
+          session.refreshExpiresAtMs ?? session.expiresAtMs,
+        );
+      }
       for (const [ticketHash, ticket] of this.websocketTickets) {
         if (ticket.sessionId === sessionId) {
           this.websocketTickets.delete(ticketHash);
@@ -319,17 +442,28 @@ export class RemoteAuthStore {
         this.websocketTickets.delete(hash);
       }
     }
+    for (const [hash, expiresAtMs] of this.revokedTokenHashes) {
+      if (expiresAtMs <= now) this.revokedTokenHashes.delete(hash);
+    }
     if (accessSessionsChanged) {
       this.persistAccessSessions();
     }
   }
 
   private persistAccessSessions(): void {
-    this.options.onAccessSessionsChanged?.(
-      [...this.accessSessions.values()].map((session) =>
-        persistedAccessSessionSchema.parse(session),
-      ),
+    const sessions = [...this.accessSessions.values()].map((session) =>
+      persistedAccessSessionSchema.parse(session),
     );
+    // Legacy seam first (an injected callback on tests/compositions predating
+    // the revocation list), then the full file shape.
+    this.options.onAccessSessionsChanged?.(sessions);
+    this.options.onPersistedStateChanged?.({
+      accessSessions: sessions,
+      revokedTokenHashes: [...this.revokedTokenHashes].map(([tokenHash, expiresAtMs]) => ({
+        tokenHash,
+        expiresAtMs,
+      })),
+    });
   }
 }
 
@@ -346,33 +480,36 @@ export function remoteAuthFilePath(baseDir: string): string {
   return join(baseDir, "remote-access-auth.json");
 }
 
-export function readRemoteAccessSessions(baseDir: string): PersistedAccessSession[] {
+export function readRemoteAccessAuthFile(baseDir: string): PersistedRemoteAuthFile {
   const path = remoteAuthFilePath(baseDir);
   if (!existsSync(path)) {
-    return [];
+    return { accessSessions: [], revokedTokenHashes: [] };
   }
   try {
     const parsed = remoteAuthFileSchema.parse(JSON.parse(readFileSync(path, "utf8")));
-    return parsed.accessSessions.filter((session) => session.expiresAtMs > Date.now());
+    const now = Date.now();
+    return {
+      accessSessions: parsed.accessSessions.filter((session) => session.expiresAtMs > now),
+      revokedTokenHashes: parsed.revokedTokenHashes.filter((entry) => entry.expiresAtMs > now),
+    };
   } catch {
-    return [];
+    return { accessSessions: [], revokedTokenHashes: [] };
   }
 }
 
-export function writeRemoteAccessSessions(
-  baseDir: string,
-  sessions: readonly PersistedAccessSession[],
-): void {
+export function writeRemoteAccessAuthFile(baseDir: string, state: PersistedRemoteAuthFile): void {
   writeFileAtomic(
     remoteAuthFilePath(baseDir),
-    `${JSON.stringify(remoteAuthFileSchema.parse({ accessSessions: sessions }), null, 2)}\n`,
+    `${JSON.stringify(remoteAuthFileSchema.parse(state), null, 2)}\n`,
     { encoding: "utf8", mode: 0o600 },
   );
 }
 
 export function createPersistentRemoteAuthStore(baseDir: string): RemoteAuthStore {
+  const persisted = readRemoteAccessAuthFile(baseDir);
   return new RemoteAuthStore({
-    accessSessions: readRemoteAccessSessions(baseDir),
-    onAccessSessionsChanged: (sessions) => writeRemoteAccessSessions(baseDir, sessions),
+    accessSessions: persisted.accessSessions,
+    revokedTokenHashes: persisted.revokedTokenHashes,
+    onPersistedStateChanged: (state) => writeRemoteAccessAuthFile(baseDir, state),
   });
 }

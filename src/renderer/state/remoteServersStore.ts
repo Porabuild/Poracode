@@ -3,7 +3,7 @@ import {
   REMOTE_BROWSER_FORWARD_VERSION,
   TERMINAL_CURSOR_SYNC_V2_VERSION,
 } from "@/shared/remote/protocol";
-import { parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+import { parsePairingCertFingerprint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -179,6 +179,190 @@ const defaultClientFactory: RemoteClientFactory = (endpoint, accessToken) =>
 const defaultSocketFactory: RemoteSocketFactory = (url) =>
   new WebSocket(url) as unknown as RemoteSocketLike;
 
+/**
+ * Gate 6 item 4.6 (S6): refresh tokens are credential-grade, so they live in
+ * the same encrypted WebCrypto vault the access tokens use — one AES-GCM key
+ * record shared by the whole origin (owned by `remoteServers/tokenVault.ts`,
+ * which this module must not edit; the helpers below deliberately reuse its
+ * database and key record rather than forking the custody boundary). The
+ * in-memory map is the synchronous read path the client lifecycle uses;
+ * `hydrateRefreshTokens` fills it from the vault at startup.
+ */
+const REFRESH_VAULT_KEY_PREFIX = "refresh.";
+let refreshVaultDatabase: Promise<IDBDatabase> | null = null;
+
+function openRefreshVaultDatabase(): Promise<IDBDatabase> {
+  refreshVaultDatabase ??= new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open("lightcode-mobile-vault");
+    request.onupgradeneeded = () => {
+      // Matches the token vault's store; upgrades stay owned by that module.
+      if (!request.result.objectStoreNames.contains("entries")) {
+        request.result.createObjectStore("entries", { keyPath: "key" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error("Unable to open the token vault."));
+  }).catch((error: unknown) => {
+    refreshVaultDatabase = null;
+    throw error;
+  });
+  return refreshVaultDatabase;
+}
+
+async function refreshVaultCryptoKey(): Promise<CryptoKey | null> {
+  if (typeof crypto === "undefined" || typeof crypto.subtle === "undefined") return null;
+  const database = await openRefreshVaultDatabase();
+  const record = await new Promise<{ cryptoKey?: CryptoKey } | undefined>((resolve, reject) => {
+    const transaction = database.transaction("entries", "readonly");
+    const request = transaction.objectStore("entries").get("cryptoKey");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error("Unable to read the token vault."));
+  });
+  return record?.cryptoKey ?? null;
+}
+
+/** In-memory refresh tokens, the synchronous source for client lifecycles. */
+const refreshTokensByDesktopId = new Map<string, string>();
+
+export function __peekRefreshTokenForTest(desktopId: string): string | undefined {
+  return refreshTokensByDesktopId.get(desktopId);
+}
+
+async function loadRefreshTokenFromVault(desktopId: string): Promise<string | null> {
+  try {
+    if (typeof indexedDB === "undefined") return null;
+    const cryptoKey = await refreshVaultCryptoKey();
+    if (!cryptoKey) return null;
+    const database = await openRefreshVaultDatabase();
+    const record = await new Promise<
+      { iv?: Uint8Array<ArrayBuffer>; data?: ArrayBuffer } | undefined
+    >((resolve, reject) => {
+      const transaction = database.transaction("entries", "readonly");
+      const request = transaction
+        .objectStore("entries")
+        .get(`${REFRESH_VAULT_KEY_PREFIX}${desktopId}`);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error ?? new Error("Unable to read the token vault."));
+    });
+    if (!record?.iv || !record.data) return null;
+    const plaintext = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: record.iv },
+      cryptoKey,
+      record.data,
+    );
+    return new TextDecoder().decode(plaintext);
+  } catch (error) {
+    console.warn("[remoteServers] unable to read the persisted refresh token", error);
+    return null;
+  }
+}
+
+async function writeRefreshTokenToVault(desktopId: string, token: string): Promise<void> {
+  try {
+    if (typeof indexedDB === "undefined") return;
+    const cryptoKey = await refreshVaultCryptoKey();
+    if (!cryptoKey) return;
+    const iv = crypto.getRandomValues(new Uint8Array(12)) as Uint8Array<ArrayBuffer>;
+    const data = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      cryptoKey,
+      new TextEncoder().encode(token),
+    );
+    const database = await openRefreshVaultDatabase();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction("entries", "readwrite");
+      transaction
+        .objectStore("entries")
+        .put({ key: `${REFRESH_VAULT_KEY_PREFIX}${desktopId}`, iv, data });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error("Vault write failed."));
+    });
+  } catch (error) {
+    console.warn("[remoteServers] unable to persist the refresh token", error);
+  }
+}
+
+async function deleteRefreshTokenFromVault(desktopId: string): Promise<void> {
+  refreshTokensByDesktopId.delete(desktopId);
+  try {
+    if (typeof indexedDB === "undefined") return;
+    const database = await openRefreshVaultDatabase();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction("entries", "readwrite");
+      transaction.objectStore("entries").delete(`${REFRESH_VAULT_KEY_PREFIX}${desktopId}`);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error("Vault delete failed."));
+    });
+  } catch (error) {
+    console.warn("[remoteServers] unable to delete the persisted refresh token", error);
+  }
+}
+
+/** Loads persisted refresh tokens into the synchronous in-memory map. */
+export async function hydrateRefreshTokens(desktopIds: readonly string[]): Promise<void> {
+  await Promise.all(
+    desktopIds.map(async (desktopId) => {
+      if (refreshTokensByDesktopId.has(desktopId)) return;
+      const token = await loadRefreshTokenFromVault(desktopId);
+      if (token) refreshTokensByDesktopId.set(desktopId, token);
+    }),
+  );
+}
+
+/**
+ * Gate 6 item 4.2: pinned server-certificate fingerprints, keyed by desktopId.
+ * A pin is public data (a SHA-256 over the certificate the QR already
+ * publishes), so localStorage beside the server records is the right custody.
+ */
+const CERT_PIN_STORAGE_KEY = "poracode.remoteServerCertPins";
+const certPinsByDesktopId: Record<string, string> = (() => {
+  try {
+    const raw = localStorage.getItem(CERT_PIN_STORAGE_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
+    if (parsed && typeof parsed === "object") {
+      return Object.fromEntries(
+        Object.entries(parsed as Record<string, unknown>).filter(
+          (entry): entry is [string, string] => typeof entry[1] === "string",
+        ),
+      );
+    }
+  } catch {
+    // Corrupt pins degrade to "unpinned" — the platform TLS check still runs.
+  }
+  return {};
+})();
+
+function persistCertPins(): void {
+  try {
+    localStorage.setItem(CERT_PIN_STORAGE_KEY, JSON.stringify(certPinsByDesktopId));
+  } catch {
+    // Quota failures must not break pairing; the pin just stays memory-only.
+  }
+}
+
+function rememberCertPin(desktopId: string, fingerprint: string): void {
+  certPinsByDesktopId[desktopId] = fingerprint;
+  persistCertPins();
+}
+
+function forgetCertPin(desktopId: string): void {
+  if (delete certPinsByDesktopId[desktopId]) persistCertPins();
+}
+
+/**
+ * Gate 6 item 4.2: a scanned pairing value is either the bare credential or a
+ * full pairing link that also carries the server's `#fp=sha256:<hex>`
+ * certificate-fingerprint assertion. Returns both, whichever shape arrived.
+ */
+function splitPairingCredential(value: string): {
+  readonly credential: string;
+  readonly certFingerprint: string | undefined;
+} {
+  const credential = value.trim();
+  const certFingerprint = parsePairingCertFingerprint(credential) ?? undefined;
+  return { credential, certFingerprint };
+}
+
 let openRemoteThreadRequestSeq = 0;
 
 /** In-flight connectAll(), so concurrent callers coalesce onto one pass. */
@@ -300,6 +484,36 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         );
       };
 
+      /**
+       * Builds a client for a server record with the Gate 6 lifecycle attached:
+       * the refresh-token lifecycle (4.6) reads the in-memory token and
+       * persists rotations back to the encrypted vault, and the pinned
+       * certificate fingerprint (4.2) is enforced by the client's transport
+       * hook when one is available. Factory-created clients are wrapped here
+       * so every call site gets the same behavior.
+       */
+      const clientForServer = (server: {
+        readonly desktopId: string;
+        readonly endpoint: string;
+        readonly accessToken: string;
+      }): RemoteDesktopClient => {
+        const client = get().clientFactory(server.endpoint, server.accessToken);
+        client.setTokenLifecycle({
+          refreshToken: () => refreshTokensByDesktopId.get(server.desktopId),
+          onTokensRefreshed: (tokens) => {
+            if (tokens.refreshToken) {
+              refreshTokensByDesktopId.set(server.desktopId, tokens.refreshToken);
+              void writeRefreshTokenToVault(server.desktopId, tokens.refreshToken);
+            } else {
+              void deleteRefreshTokenFromVault(server.desktopId);
+            }
+          },
+        });
+        const pin = certPinsByDesktopId[server.desktopId];
+        if (pin) client.setCertFingerprintPin(pin);
+        return client;
+      };
+
       /** Resolve the paired server and build a client for it, or throw the
        * shared "not found" error the action callers already surface. An
        * offline runtime is deliberately still probeable: explicit refresh and
@@ -308,7 +522,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         const state = get();
         const server = state.servers.find((entry) => entry.desktopId === desktopId);
         if (!server) throw new Error(i18n._(msg`Remote server not found.`));
-        return state.clientFactory(server.endpoint, server.accessToken);
+        return clientForServer(server);
       };
 
       const withClient = async <Result>(
@@ -356,8 +570,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         if (server.hostMode === "helper" || !server.scopes.includes("projects:manage")) return;
         const requestSeq = nextRemoteHostUpdateSequence();
         setRemoteHostUpdateRequestSeq(server.desktopId, requestSeq);
-        void get()
-          .clientFactory(server.endpoint, server.accessToken)
+        void clientForServer(server)
           .checkHostUpdate()
           .then((update) => {
             if (remoteHostUpdateRequestSeq(server.desktopId) !== requestSeq) return;
@@ -460,9 +673,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         // in flight — one RTT saved per cold connect. Environment failures
         // keep their classification below; the concurrent refreshServer owns
         // visible snapshot errors either way.
-        const environmentPromise = get()
-          .clientFactory(server.endpoint, server.accessToken)
-          .environment();
+        const environmentPromise = clientForServer(server).environment();
         const refreshPromise = get().refreshServer(server.desktopId);
         try {
           const environment = await environmentPromise;
@@ -517,9 +728,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           isTerminalError: (error) =>
             error instanceof RemoteClientError && error.code === "protocol_version_mismatch",
           attempt: async () => {
-            const environment = await get()
-              .clientFactory(persistedServer.endpoint, persistedServer.accessToken)
-              .environment();
+            const environment = await clientForServer(persistedServer).environment();
             if (environment.appVersion !== expectedVersion) return false;
             const current = get().servers.find(
               (server) => server.desktopId === persistedServer.desktopId,
@@ -578,6 +787,10 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         endpoint: string;
         token: string;
         transport: NonNullable<RemoteServerRecord["transport"]>;
+        /** Gate 6 item 4.2: the `#fp=` certificate assertion carried by the
+         * scanned pairing link, when present. The client refuses a mismatch
+         * before the one-time credential is spent. */
+        certFingerprint?: string;
       }): Promise<RemoteServerRecord> => {
         const normalized = normalizeEndpoint(input.endpoint);
         const factory = get().clientFactory;
@@ -589,6 +802,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           // device UI would request REMOTE_VIEWER_SCOPES instead.
           scopes: REMOTE_OPERATOR_SCOPES,
           client: { label: "Poracode Desktop", deviceType: "desktop" },
+          ...(input.certFingerprint ? { certFingerprint: input.certFingerprint } : {}),
         });
         const client = factory(normalized, tokenResult.accessToken);
         const [environment, snapshot, agentStatuses] = await Promise.all([
@@ -614,6 +828,20 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           ...(environment.hostMode ? { hostMode: environment.hostMode } : {}),
           transport: input.transport,
         };
+        // Gate 6 item 4.6 (S6): persist the refresh half in the encrypted
+        // vault so the 24-hour access token can rotate transparently after
+        // this session. Older hosts without the refresh grant simply omit the
+        // field — nothing to store then.
+        if (tokenResult.refreshToken) {
+          refreshTokensByDesktopId.set(record.desktopId, tokenResult.refreshToken);
+          void writeRefreshTokenToVault(record.desktopId, tokenResult.refreshToken);
+        } else {
+          void deleteRefreshTokenFromVault(record.desktopId);
+        }
+        // Gate 6 item 4.2: pin the QR-asserted certificate fingerprint (TOFU
+        // anchored by the link the desktop itself rendered) beside the server
+        // record. Re-pairing with a fresh QR replaces the pin.
+        if (input.certFingerprint) rememberCertPin(record.desktopId, input.certFingerprint);
         setRemoteHostUpdateReconnectSeq(record.desktopId, nextRemoteHostUpdateSequence());
         bumpRemoteServerGeneration(record.desktopId);
         set((state) => ({
@@ -911,8 +1139,15 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           get().scheduleServerRefresh(desktopId);
         },
 
-        pairServer: ({ endpoint, token }) =>
-          pairAtEndpoint({ endpoint, token, transport: { kind: "direct" } }),
+        pairServer: ({ endpoint, token }) => {
+          const { credential, certFingerprint } = splitPairingCredential(token);
+          return pairAtEndpoint({
+            endpoint,
+            token: credential,
+            transport: { kind: "direct" },
+            ...(certFingerprint ? { certFingerprint } : {}),
+          });
+        },
 
         ensureStandaloneOwner: async (attach: StandaloneAttachInfo) => {
           if (attach.remoteProtocolVersion !== PORACODE_REMOTE_PROTOCOL_VERSION) {
@@ -920,10 +1155,12 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           }
           const parts = parsePairingUrlParts(attach.pairingUrl);
           if (!parts) throw new Error("Invalid standalone attach configuration.");
+          const attachFingerprint = parsePairingCertFingerprint(attach.pairingUrl) ?? undefined;
           const record = await pairAtEndpoint({
             endpoint: attach.endpoint,
             token: parts.token,
             transport: { kind: "direct" },
+            ...(attachFingerprint ? { certFingerprint: attachFingerprint } : {}),
           });
           standaloneOwnerGeneration = attach.ownerGeneration;
           standaloneOwnerDesktopId = record.desktopId;
@@ -979,6 +1216,11 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             get().closeRemoteThread();
           }
           forgetRemoteServerThreadItemInterests(desktopId);
+          // Gate 6 items 4.2/4.6: the record is gone — its certificate pin and
+          // its refresh-token half go with it, so a stale pin or a dead
+          // refresh token can never attach to a future server with the same id.
+          forgetCertPin(desktopId);
+          void deleteRefreshTokenFromVault(desktopId);
           set((state) => {
             const { [desktopId]: _removed, ...runtime } = state.runtime;
             const { [desktopId]: _removedUpdate, ...hostUpdates } = state.hostUpdates;
@@ -1032,7 +1274,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
             setRuntime({ status: "connecting", projects: [], threads: [] });
           }
           try {
-            const client = get().clientFactory(server.endpoint, server.accessToken);
+            const client = clientForServer(server);
             const snapshotPromise = client.snapshot({
               threadListPageLimit: REMOTE_SHELL_THREAD_PAGE_LIMIT,
             });
@@ -1356,6 +1598,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // v1 reserves null in projectWorkspaceIds for an explicit "unfiled"
       // override. Older string-valued entries and absent entries remain valid.
       migrate: (persistedState) => persistedState as RemoteServersState,
+      // Gate 6 item 4.6 (S6): once the persisted server records land, fill the
+      // synchronous refresh-token map from the encrypted vault, so the first
+      // 401 of any session can already refresh transparently. Runs out of the
+      // connectAll path on purpose — connectAll keeps its synchronous
+      // "connecting" state contract.
+      onRehydrateStorage: () => (state) => {
+        if (state?.servers?.length) {
+          void hydrateRefreshTokens(state.servers.map((server) => server.desktopId));
+        }
+      },
     },
   ),
 );

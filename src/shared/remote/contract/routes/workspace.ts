@@ -40,9 +40,17 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     id: "local-image",
     method: "GET",
     path: "/api/files/image",
+    // Gate 6 item 4.6 (S6): the query credential is now the one-time,
+    // path-scoped image ticket (`?ticket=`, minted by
+    // `POST /api/files/image-ticket`); the `?access_token=` bearer-on-URL
+    // acceptance is REMOVED (bearer-in-URL leaks into proxy/relay access
+    // logs). The auth label keeps its historical `bearer-or-query` value on
+    // purpose: the wire shape is still "Authorization header or query
+    // credential", so native consumers' strict auth-kind parsers stay valid,
+    // and their bearer-header image fetches keep working unchanged.
     auth: "bearer-or-query",
     scopes: ["session:read"],
-    queryParameters: ["path", "access_token"],
+    queryParameters: ["path", "ticket"],
     request: { bodyKind: "empty", querySchema: localImageQuerySchema },
     response: {
       wireKind: "binary",
@@ -68,9 +76,12 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     id: "runtime-image",
     method: "GET",
     path: "/api/threads/{threadId}/items/{itemId}/image",
+    // Gate 6 item 4.6 (S6): same ticket affordance as `local-image` — the
+    // ticket is minted for the exact JSON `path` value and consumed once;
+    // the `?access_token=` acceptance is gone (see the sibling route).
     auth: "bearer-or-query",
     scopes: ["session:read"],
-    queryParameters: ["path", "access_token"],
+    queryParameters: ["path", "ticket"],
     request: { bodyKind: "empty", querySchema: runtimeImageQuerySchema },
     response: {
       wireKind: "binary",

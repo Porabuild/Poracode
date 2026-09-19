@@ -1,4 +1,5 @@
 import type { RemoteHttpRouteContract } from "../types";
+import { opsRoutes } from "./ops";
 import { sessionRoutes } from "./session";
 import { threadRoutes } from "./threads";
 import { workspaceRoutes } from "./workspace";
@@ -9,6 +10,8 @@ const MANIFEST_ROUTE_IDS = [
   "environment-legacy",
   "forward-enter",
   "token-exchange",
+  "healthz",
+  "metrics",
   "websocket-ticket",
   "shell-snapshot",
   "agent-statuses",
@@ -72,7 +75,7 @@ const MANIFEST_ROUTE_IDS = [
   "request-resolve",
 ] as const;
 
-const unorderedRoutes = [...sessionRoutes, ...workspaceRoutes, ...threadRoutes];
+const unorderedRoutes = [...sessionRoutes, ...workspaceRoutes, ...threadRoutes, ...opsRoutes];
 
 /**
  * The closed set of HTTP route ids. The HTTP router's handler table is keyed by

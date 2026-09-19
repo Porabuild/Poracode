@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
 import type { AddressInfo } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 import { WebSocket, WebSocketServer } from "ws";
@@ -7,18 +8,17 @@ import { HttpServerConnections } from "@/shared/httpServerConnections";
 import {
   toWebSocketUrl,
   remoteAccessScopesForPreset,
-  type RemoteAccessScope,
   type RemoteAccessScopePreset,
   type RemoteGitSummaries,
   type RemoteAccessSessionSummary,
   type RemoteAccessTokenResult,
-  type RemoteClientMetadata,
   type RemoteHostMode,
   type RemoteHostUpdateStatus,
   type RemotePushRegistration,
   type RemotePushRegistrationRouting,
   type RemoteSettings,
   type RemoteSettingsPatch,
+  type RemoteTokenExchangePayload,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
@@ -50,9 +50,10 @@ import type {
   SupervisorEvent,
   SupervisorProcedureName,
 } from "@/shared/ipc";
-import { buildPairingUrl } from "@/shared/remote/pairingUrl";
+import { buildPairingUrl, formatCertFingerprint } from "@/shared/remote/pairingUrl";
 import { RemoteHttpError, RemoteAuthStore, type AuthenticatedRemoteSession } from "./auth";
 import { remoteAccessBindRefusal } from "./config";
+import { loadRemoteAccessTlsMaterial } from "./server/tlsMaterial";
 import type { RemoteAccessIdentity } from "./identity";
 import {
   FORWARD_ORIGIN_UNAVAILABLE,
@@ -212,10 +213,28 @@ export interface RemoteAccessServerOptions {
   /** The bind host for the listener. Composition roots pass the config-level
    * resolution ({@link remoteAccessHost} in `src/main/remote/config.ts` —
    * loopback by default; named `loopback`/`tailnet`/`lan` bind modes). A
-   * plaintext all-interfaces host is refused at startup unless the
-   * `PORACODE_ALLOW_PLAINTEXT_LAN=1` acknowledgement is set (Gate 6 item
-   * 4.1), whoever supplied the host. */
+   * plaintext all-interfaces host is refused at startup unless TLS material is
+   * configured or the `PORACODE_ALLOW_PLAINTEXT_LAN=1` acknowledgement is set
+   * (Gate 6 items 4.1/4.2), whoever supplied the host. */
   readonly host: string;
+  /**
+   * Gate 6 item 4.2 (TLS): HTTPS material for the listener. When set, the
+   * server listens HTTPS, advertises `https` origins, and carries the leaf
+   * certificate's SHA-256 fingerprint in every pairing URL so clients can pin
+   * it. `null` forces plaintext (tests); UNSET resolves the material from the
+   * environment (`PORACODE_REMOTE_TLS_CERT` + `PORACODE_REMOTE_TLS_KEY`) —
+   * absent env stays plaintext, a broken env fails startup loudly.
+   *
+   * Structural shape on purpose: both a loaded material
+   * (`RemoteAccessTlsMaterial`, with its configured paths) and generated
+   * material (`GeneratedTlsMaterial` from `generateSelfSignedTlsMaterial`)
+   * satisfy it, so compositions can hand either to the server unchanged.
+   */
+  readonly tls?: {
+    readonly cert: string;
+    readonly key: string;
+    readonly fingerprint: string;
+  } | null;
   readonly advertisedHost?: string;
   /**
    * Full advertised origin (e.g. `https://machine.tailnet.ts.net` or a custom
@@ -502,6 +521,11 @@ const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> =
 
 export class RemoteAccessServer {
   private readonly auth: RemoteAuthStore;
+  private readonly tls: {
+    readonly cert: string;
+    readonly key: string;
+    readonly fingerprint: string;
+  } | null;
   private readonly server: Server;
   private readonly connections: HttpServerConnections;
   private readonly work = new AsyncWorkTracker();
@@ -577,6 +601,16 @@ export class RemoteAccessServer {
       this.maxConcurrentIngressWorkPerSource,
     );
     this.auth = options.authStore ?? new RemoteAuthStore();
+    // Gate 6 item 4.2 (TLS): material comes from the option when the
+    // composition supplies it, otherwise from the environment. A partial or
+    // unloadable env configuration throws here (startup failure), never
+    // silently downgrades to plaintext.
+    this.tls =
+      options.tls === undefined
+        ? loadRemoteAccessTlsMaterial()
+        : options.tls === null
+          ? null
+          : options.tls;
     this.security = new RemoteServerSecurity({
       getHttpBaseUrl: () => this.info?.httpBaseUrl,
       getLocalHttpBaseUrl: () => this.info?.localHttpBaseUrl,
@@ -607,7 +641,7 @@ export class RemoteAccessServer {
     // routing: a recognized child origin (or any authority inside the
     // configured forward namespace) is proxied or bounded-errored there and
     // NEVER falls through to Poracode API/PWA handlers.
-    this.server = createServer((req, res) => {
+    const requestHandler = (req: IncomingMessage, res: import("node:http").ServerResponse) => {
       void this.runIngressWork(
         () => handleRemoteAccessHttpRequest(this.context, req, res),
         req.socket,
@@ -618,7 +652,10 @@ export class RemoteAccessServer {
           else writeError(res, error);
         }
       });
-    });
+    };
+    this.server = this.tls
+      ? createHttpsServer({ cert: this.tls.cert, key: this.tls.key }, requestHandler)
+      : createServer(requestHandler);
     this.connections = new HttpServerConnections(this.server);
     this.server.on("upgrade", (req, socket, head) => {
       if (this.stopping) {
@@ -851,10 +888,13 @@ export class RemoteAccessServer {
   }
 
   private async startListening(): Promise<RemoteAccessServerInfo> {
-    // Gate 6 item 4.1: a plaintext all-interfaces bind starts only with the
-    // explicit acknowledgement — enforced here (not just at config
+    // Gate 6 items 4.1/4.2: a plaintext all-interfaces bind starts only with
+    // the explicit acknowledgement — OR with configured TLS material, which
+    // makes the wide bind encrypted. Enforced here (not just at config
     // resolution) so a programmatically supplied host cannot bypass it.
-    const bindRefusal = remoteAccessBindRefusal(this.options.host);
+    const bindRefusal = remoteAccessBindRefusal(this.options.host, {
+      tlsConfigured: this.tls !== null,
+    });
     if (bindRefusal) throw new Error(`[poracode] ${bindRefusal}`);
     const maxAttempts = this.options.listenRetryAttempts ?? DEFAULT_LISTEN_RETRY_ATTEMPTS;
     for (let attempt = 1; ; attempt += 1) {
@@ -1253,14 +1293,31 @@ export class RemoteAccessServer {
     return issued;
   }
 
-  private exchangePairingCredential(input: {
-    readonly credential: string;
-    readonly scopes?: readonly RemoteAccessScope[];
-    readonly client?: RemoteClientMetadata;
-  }): RemoteAccessTokenResult {
-    const result = this.auth.exchangePairingCredential(input);
+  private exchangePairingCredential(input: RemoteTokenExchangePayload): RemoteAccessTokenResult {
+    if (input.grantType === "refresh_token") {
+      if (!input.refreshToken) {
+        throw new RemoteHttpError("invalid_refresh_token", "Invalid refresh token.", 401);
+      }
+      const refreshed = this.auth.refreshAccessToken({ refreshToken: input.refreshToken });
+      this.recordAudit("token_exchange", {
+        detail: {
+          grant: "refresh_token",
+          scopes: refreshed.scopes.join(" "),
+        },
+      });
+      return refreshed;
+    }
+    if (!input.credential) {
+      throw new RemoteHttpError("invalid_pairing_token", "Invalid pairing token.", 401);
+    }
+    const result = this.auth.exchangePairingCredential({
+      credential: input.credential,
+      ...(input.scopes ? { scopes: input.scopes } : {}),
+      ...(input.client ? { client: input.client } : {}),
+    });
     this.recordAudit("token_exchange", {
       detail: {
+        grant: "pairing-token",
         scopes: result.scopes.join(" "),
         ...(input.client?.label ? { clientLabel: input.client.label } : {}),
         ...(input.client?.deviceType ? { deviceType: input.client.deviceType } : {}),
@@ -1280,10 +1337,12 @@ export class RemoteAccessServer {
 
   private mintPairingUrl(httpBaseUrl: string, credential: string): string {
     const pairingAppUrl = this.options.pairingAppUrl ?? this.options.devWebAppUrl;
+    const fingerprint = this.tls?.fingerprint;
     return buildPairingUrl({
       httpBaseUrl,
       credential,
       ...(pairingAppUrl ? { pairingAppUrl } : {}),
+      ...(fingerprint ? { certFingerprint: formatCertFingerprint(fingerprint) } : {}),
     });
   }
 
@@ -1445,7 +1504,16 @@ export class RemoteAccessServer {
     const host =
       this.options.advertisedHost?.trim() ||
       (bindHost === "0.0.0.0" || bindHost === "::" ? "127.0.0.1" : bindHost);
-    return `http://${normalizeHostForUrl(host)}:${listenPort}`;
+    const scheme = this.tls ? "https" : "http";
+    return `${scheme}://${normalizeHostForUrl(host)}:${listenPort}`;
+  }
+
+  /**
+   * Gate 6 item 4.2: the SHA-256 leaf-certificate fingerprint the pairing QR
+   * carries (clients pin it on first pair), or null on the plaintext listener.
+   */
+  tlsFingerprint(): string | null {
+    return this.tls?.fingerprint ?? null;
   }
 
   private requireInfo(): RemoteAccessServerInfo {

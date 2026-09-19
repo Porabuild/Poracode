@@ -35,10 +35,22 @@ export const REMOTE_ACCESS_BIND_MODES: readonly RemoteAccessBindMode[] = [
 export const REMOTE_BIND_MODE_ENV = "PORACODE_REMOTE_BIND_MODE";
 /**
  * The explicit acknowledgement that gates `lan` mode (and an explicit
- * all-interfaces host) while the remote surface is plaintext (TLS arrives in
- * the Gate 6 TLS batch): set to exactly `1` to allow the bind.
+ * all-interfaces host) while the remote surface is plaintext: set to exactly
+ * `1` to allow the bind. Configured TLS material (Gate 6 item 4.2) is the
+ * other way past this gate — an encrypted `lan` exposure does not need the
+ * plaintext acknowledgement.
  */
 export const PLAINTEXT_LAN_ACK_ENV = "PORACODE_ALLOW_PLAINTEXT_LAN";
+/**
+ * Gate 6 item 4.2 (TLS): PEM paths for the remote listener's certificate and
+ * private key. When both are set (and loadable), the server listens HTTPS,
+ * the pairing QR carries the certificate fingerprint, and the plaintext-LAN
+ * acknowledgement is not required for wide binds. Both variables must be set
+ * together; a partial or unloadable configuration fails remote-access startup
+ * loudly rather than silently downgrading to plaintext.
+ */
+export const REMOTE_TLS_CERT_ENV = "PORACODE_REMOTE_TLS_CERT";
+export const REMOTE_TLS_KEY_ENV = "PORACODE_REMOTE_TLS_KEY";
 
 export function parseRemoteAccessBindMode(
   raw: string | undefined,
@@ -87,21 +99,22 @@ export function classifyBindHostExposure(host: string): RemoteAccessBindMode {
 
 /**
  * The refusal message for a plaintext all-interfaces bind, or `null` when the
- * bind may start (host is not a wildcard, or the acknowledgement is set).
- * Shared by config resolution, `RemoteAccessServer` startup, and `doctor` so
- * all three enforce exactly one rule.
+ * bind may start (host is not a wildcard, the acknowledgement is set, or TLS
+ * material is configured). Shared by config resolution, `RemoteAccessServer`
+ * startup, and `doctor` so all three enforce exactly one rule.
  */
 export function remoteAccessBindRefusal(
   host: string,
-  input?: { readonly env?: NodeJS.ProcessEnv },
+  input?: { readonly env?: NodeJS.ProcessEnv; readonly tlsConfigured?: boolean },
 ): string | null {
   if (!isWildcardBindHost(host)) return null;
   if (plaintextLanAcknowledged(input?.env)) return null;
+  if (input?.tlsConfigured) return null;
   return (
     `Refusing to bind the remote access listener to ${host.trim()} (all interfaces) over plaintext. ` +
-    `Set ${PLAINTEXT_LAN_ACK_ENV}=1 to acknowledge plaintext LAN exposure, use ` +
-    `${REMOTE_BIND_MODE_ENV}=tailnet, or keep the loopback default. ` +
-    "TLS material arrives in the Gate 6 TLS batch."
+    `Configure TLS (${REMOTE_TLS_CERT_ENV} + ${REMOTE_TLS_KEY_ENV}), set ` +
+    `${PLAINTEXT_LAN_ACK_ENV}=1 to acknowledge plaintext LAN exposure, use ` +
+    `${REMOTE_BIND_MODE_ENV}=tailnet, or keep the loopback default.`
   );
 }
 
@@ -131,6 +144,9 @@ export function detectTailnetIpv4Address(
 export interface RemoteAccessBindInput {
   readonly env?: NodeJS.ProcessEnv;
   readonly interfaces?: NetworkInterfaceMap;
+  /** Gate 6 item 4.2: whether TLS material is configured (cert + key set).
+   * A TLS-backed wildcard bind does not need the plaintext acknowledgement. */
+  readonly tlsConfigured?: boolean;
 }
 
 export interface RemoteAccessBindResolution {
@@ -141,11 +157,38 @@ export interface RemoteAccessBindResolution {
    * explicit `PORACODE_REMOTE_ACCESS_HOST` override. */
   readonly source: "default" | "bind-mode" | "explicit-host";
   readonly plaintextLanAcknowledged: boolean;
+  /** Whether TLS material is configured for the listener (Gate 6 item 4.2). */
+  readonly tlsConfigured: boolean;
   /** Non-null: the resolved bind is refused and remote access must not start
-   * (plaintext all-interfaces bind without the acknowledgement). Never
-   * thrown from here — `doctor` reports it; `remoteAccessHost` throws it. */
+   * (plaintext all-interfaces bind without the acknowledgement or TLS).
+   * Never thrown from here — `doctor` reports it; `remoteAccessHost` throws
+   * it. */
   readonly refusalReason: string | null;
   readonly warnings: readonly string[];
+}
+
+/**
+ * The configured TLS PEM paths (`null` when neither variable is set). Partial
+ * configuration returns the set path only; the material loader
+ * (`loadRemoteAccessTlsMaterial`) turns that into a loud startup failure so a
+ * typo can never silently downgrade the listener to plaintext.
+ */
+export function remoteTlsCertPaths(
+  env: NodeJS.ProcessEnv = process.env,
+): { readonly certPath: string; readonly keyPath: string } | null {
+  const certPath = readTrimmedEnv(REMOTE_TLS_CERT_ENV, env);
+  const keyPath = readTrimmedEnv(REMOTE_TLS_KEY_ENV, env);
+  if (!certPath && !keyPath) return null;
+  return {
+    ...(certPath ? { certPath } : { certPath: "" }),
+    ...(keyPath ? { keyPath } : { keyPath: "" }),
+  };
+}
+
+/** Whether both TLS paths are set — the shape the bind gate asks about. */
+export function remoteTlsConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  const paths = remoteTlsCertPaths(env);
+  return paths !== null && paths.certPath.length > 0 && paths.keyPath.length > 0;
 }
 
 /**
@@ -158,10 +201,11 @@ export interface RemoteAccessBindResolution {
  * Precedence: an explicit `PORACODE_REMOTE_ACCESS_HOST` wins verbatim (the
  * documented escape hatch — existing desktop, relay, `tailscale serve`, and
  * SSH-tunnel flows keep working unchanged), though a wildcard explicit host
- * still requires the plaintext-LAN acknowledgement. Without it, the named
- * bind mode applies: `loopback` (default), `tailnet` (Tailscale interface
- * IPv4, falling back to loopback with a loud warning when absent), or `lan`
- * (all interfaces, refused without `PORACODE_ALLOW_PLAINTEXT_LAN=1`).
+ * still requires the plaintext-LAN acknowledgement or configured TLS. Without
+ * an explicit host, the named bind mode applies: `loopback` (default),
+ * `tailnet` (Tailscale interface IPv4, falling back to loopback with a loud
+ * warning when absent), or `lan` (all interfaces, refused without TLS material
+ * or `PORACODE_ALLOW_PLAINTEXT_LAN=1`).
  */
 export function resolveRemoteAccessBind(
   input: RemoteAccessBindInput = {},
@@ -169,6 +213,7 @@ export function resolveRemoteAccessBind(
   const env = input.env ?? process.env;
   const warnings: string[] = [];
   const acknowledged = plaintextLanAcknowledged(env);
+  const tlsConfigured = input.tlsConfigured ?? remoteTlsConfigured(env);
 
   const explicitHost = readTrimmedEnv("PORACODE_REMOTE_ACCESS_HOST", env);
   if (explicitHost) {
@@ -179,9 +224,9 @@ export function resolveRemoteAccessBind(
       );
     }
     const mode = classifyBindHostExposure(explicitHost);
-    if (mode === "lan" && !isWildcardBindHost(explicitHost)) {
+    if (mode === "lan" && !isWildcardBindHost(explicitHost) && !tlsConfigured) {
       warnings.push(
-        `Binding the remote access listener to ${explicitHost} in plaintext; prefer the loopback default with tailscale serve or an SSH tunnel.`,
+        `Binding the remote access listener to ${explicitHost} in plaintext; prefer the loopback default, configured TLS, tailscale serve, or an SSH tunnel.`,
       );
     }
     return {
@@ -189,7 +234,8 @@ export function resolveRemoteAccessBind(
       host: explicitHost,
       source: "explicit-host",
       plaintextLanAcknowledged: acknowledged,
-      refusalReason: remoteAccessBindRefusal(explicitHost, { env }),
+      tlsConfigured,
+      refusalReason: remoteAccessBindRefusal(explicitHost, { env, tlsConfigured }),
       warnings,
     };
   }
@@ -212,6 +258,7 @@ export function resolveRemoteAccessBind(
         host: tailnetHost,
         source,
         plaintextLanAcknowledged: acknowledged,
+        tlsConfigured,
         refusalReason: null,
         warnings,
       };
@@ -224,6 +271,7 @@ export function resolveRemoteAccessBind(
       host: DEFAULT_REMOTE_ACCESS_HOST,
       source,
       plaintextLanAcknowledged: acknowledged,
+      tlsConfigured,
       refusalReason: null,
       warnings,
     };
@@ -231,14 +279,17 @@ export function resolveRemoteAccessBind(
 
   if (effectiveMode === "lan") {
     warnings.push(
-      `Binding the remote access listener to all interfaces (${LAN_BIND_HOST}) in plaintext; TLS is not configured yet (Gate 6 TLS batch).`,
+      tlsConfigured
+        ? `Binding the remote access listener to all interfaces (${LAN_BIND_HOST}); TLS material is configured, so the surface is encrypted.`
+        : `Binding the remote access listener to all interfaces (${LAN_BIND_HOST}) in plaintext; configure ${REMOTE_TLS_CERT_ENV} + ${REMOTE_TLS_KEY_ENV} or set ${PLAINTEXT_LAN_ACK_ENV}=1 to acknowledge the exposure.`,
     );
     return {
       mode: "lan",
       host: LAN_BIND_HOST,
       source,
       plaintextLanAcknowledged: acknowledged,
-      refusalReason: remoteAccessBindRefusal(LAN_BIND_HOST, { env }),
+      tlsConfigured,
+      refusalReason: remoteAccessBindRefusal(LAN_BIND_HOST, { env, tlsConfigured }),
       warnings,
     };
   }
@@ -248,6 +299,7 @@ export function resolveRemoteAccessBind(
     host: DEFAULT_REMOTE_ACCESS_HOST,
     source,
     plaintextLanAcknowledged: acknowledged,
+    tlsConfigured,
     refusalReason: null,
     warnings,
   };

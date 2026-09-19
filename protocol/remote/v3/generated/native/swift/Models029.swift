@@ -1,5 +1,31 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D3_8906d017ba: Codable, Sendable, RemoteModelMetadata {
+  public var kind: WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D3U2DKind_19030914d1
+  public var text: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "kind", typeName: "WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D3U2DKind_19030914d1", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "text", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: 1024, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case kind = "kind"
+    case text = "text"
+  }
+}
+
+public enum WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D4U2DKey_7df0b39f18: String, Codable, Sendable {
+  case enter = "enter"
+  case backspace = "backspace"
+  case tab = "tab"
+  case escape = "escape"
+  case arrowU2DUp = "arrow-up"
+  case arrowU2DDown = "arrow-down"
+  case arrowU2DLeft = "arrow-left"
+  case arrowU2DRight = "arrow-right"
+}
+
 public enum WebSocketClientMessageU2DOptionU2D4U2DInputU2DOptionU2D4U2DKind_14221269d8: String, Codable, Sendable {
   case key = "key"
 }

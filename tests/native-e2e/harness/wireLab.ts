@@ -464,7 +464,10 @@ export class WireLab {
     if (auth === "forward-enter-token") {
       throw new LabHttpError("invalid_forward_token", "Invalid forward-enter token.", 401);
     }
-    const token = bearerToken(req, url, auth === "bearer-or-query");
+    // Gate 6 item 4.6: header-only. The image routes' one-time ticket
+    // affordance is not modeled by this mock (native clients authenticate
+    // image fetches with the bearer header).
+    const token = bearerToken(req, url);
     return this.auth.authenticateBearer(token, scopes as readonly RemoteScope[]);
   }
 }

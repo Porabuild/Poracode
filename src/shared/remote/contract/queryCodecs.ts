@@ -123,8 +123,10 @@ function param(name: string, kind: QueryCodecKind, optional: boolean): QueryPara
 /** HTTP route query-parameter codecs, keyed by route id. */
 export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameterCodec[]>> = {
   "forward-enter": [param("fwt", "string", false)],
-  "local-image": [param("path", "string", false), param("access_token", "string", true)],
-  "runtime-image": [param("path", "JSON-string", false), param("access_token", "string", true)],
+  // Gate 6 item 4.6 (S6): the image routes' `<img>` credential is the one-time
+  // path-scoped ticket; the raw bearer query parameter is gone from the wire.
+  "local-image": [param("path", "string", false), param("ticket", "string", true)],
+  "runtime-image": [param("path", "JSON-string", false), param("ticket", "string", true)],
   "attachment-upload": [param("threadId", "string", false), param("name", "string", false)],
   "schedule-runs-read": [param("id", "string", false)],
   "pr-watch-read": [param("projectId", "string", false), param("prNumber", "int", false)],
@@ -167,7 +169,7 @@ export const decodedForwardEnterQuerySchema = z.object({
 
 export const decodedLocalImageQuerySchema = z.object({
   path: z.string().min(1),
-  access_token: z.string().min(1).optional(),
+  ticket: z.string().min(1).optional(),
 });
 
 export const decodedRuntimeImageQuerySchema = z.object({
@@ -175,7 +177,7 @@ export const decodedRuntimeImageQuerySchema = z.object({
     .array(z.union([z.string(), z.number().int()]))
     .min(1)
     .max(8),
-  access_token: z.string().min(1).optional(),
+  ticket: z.string().min(1).optional(),
 });
 
 export const decodedAttachmentUploadQuerySchema = z.object({

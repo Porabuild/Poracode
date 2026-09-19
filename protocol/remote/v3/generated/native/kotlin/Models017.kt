@@ -6,6 +6,70 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RouteprofileU2DCoreU2DStatsResponseU2DAvailableAccountsU2DItem_9ec272a824(
+    @SerialName("key") val key: String,
+    @SerialName("label") val label: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("key", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("label", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteprofileU2DCoreU2DStatsResponseU2DDevice_26f96950d2(
+    @SerialName("id") val id: String,
+    @SerialName("isCurrent") val isCurrent: RemoteField<Boolean> = RemoteField.Missing,
+    @SerialName("label") val label: String,
+    @SerialName("lastActiveAt") val lastActiveAt: RemoteField<Long> = RemoteField.Missing,
+    @SerialName("platform") val platform: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("id", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("isCurrent", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("label", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("lastActiveAt", "Long", false, false, -9007199254740991.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("platform", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteprofileU2DCoreU2DStatsResponseU2DIdentity_da76232259(
+    @SerialName("avatarColor") val avatarColor: String,
+    @SerialName("handle") val handle: String,
+    @SerialName("name") val name: String,
+    @SerialName("plan") val plan: RemoteField<String> = RemoteField.Missing,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("avatarColor", "String", true, false, null, null, null, 64, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("handle", "String", true, false, null, null, null, 40, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("name", "String", true, false, null, null, null, 80, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("plan", "String", false, false, null, null, null, 40, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteprofileU2DCoreU2DStatsResponseU2DInsightsU2DMostActiveHour_58f9a3fda2(
+    @SerialName("count") val count: Long,
+    @SerialName("hour") val hour: Long,
+    @SerialName("label") val label: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("count", "Long", true, false, 0.0, 9007199254740991.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("hour", "Long", true, false, 0.0, 23.0, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("label", "String", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class RouteprofileU2DCoreU2DStatsResponseU2DInsights_d1beee40ea(
     @SerialName("fastModePercent") val fastModePercent: Double,
     @SerialName("mcpToolCalls") val mcpToolCalls: Long,
@@ -366,74 +430,6 @@ data class RouteprojectU2DCommandRequestU2DOptionU2D3U2DSourceU2DOptionU2D2_f977
             RemoteFieldDescriptor("account", "ProcedureghCancelWorkflowRunRequestU2DGhAccount_5646cf57ff", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("kind", "RouteprojectU2DCommandRequestU2DOptionU2D3U2DSourceU2DOptionU2D2U2DKind_cc1f68c41f", true, false, null, null, null, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("nameWithOwner", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable(with = RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29.Serializer::class)
-sealed interface RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29 {
-    data class Option1(val value: RouteprojectU2DCommandRequestU2DOptionU2D3U2DSourceU2DOptionU2D1_06735b175e) : RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29
-    data class Option2(val value: RouteprojectU2DCommandRequestU2DOptionU2D3U2DSourceU2DOptionU2D2_f97770a7e3) : RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29
-    object Serializer : KSerializer<RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29> {
-        override val descriptor: SerialDescriptor = buildClassSerialDescriptor("RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29")
-        override fun deserialize(decoder: Decoder): RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29 {
-            val jsonDecoder = decoder as? JsonDecoder ?: throw SerializationException("RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29 supports JSON only")
-            val element = jsonDecoder.decodeJsonElement()
-            val matches = mutableListOf<RemoteUnionMatch<RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29>>()
-            RemoteUnionCodec.tryOption(matches, 1, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("url")))) { Option1(jsonDecoder.json.decodeFromJsonElement<RouteprojectU2DCommandRequestU2DOptionU2D3U2DSourceU2DOptionU2D1_06735b175e>(element)) }
-            RemoteUnionCodec.tryOption(matches, 2, RemoteUnionCodec.matchesProperty(element, "kind", listOf(JsonPrimitive("github")))) { Option2(jsonDecoder.json.decodeFromJsonElement<RouteprojectU2DCommandRequestU2DOptionU2D3U2DSourceU2DOptionU2D2_f97770a7e3>(element)) }
-            return RemoteUnionCodec.single("RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29", matches)
-        }
-        override fun serialize(encoder: Encoder, value: RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29) {
-            val jsonEncoder = encoder as? JsonEncoder ?: throw SerializationException("RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29 supports JSON only")
-            val element = when (value) {
-                is Option1 -> jsonEncoder.json.encodeToJsonElement<RouteprojectU2DCommandRequestU2DOptionU2D3U2DSourceU2DOptionU2D1_06735b175e>(value.value)
-                is Option2 -> jsonEncoder.json.encodeToJsonElement<RouteprojectU2DCommandRequestU2DOptionU2D3U2DSourceU2DOptionU2D2_f97770a7e3>(value.value)
-            }
-            jsonEncoder.encodeJsonElement(element)
-        }
-    }
-}
-
-@Serializable
-data class RouteprojectU2DCommandRequestU2DOptionU2D3_da66851500(
-    @SerialName("kind") val kind: RouteprojectU2DCommandRequestU2DOptionU2D3U2DKind_8793e38088,
-    @SerialName("name") val name: String,
-    @SerialName("parentPath") val parentPath: String,
-    @SerialName("source") val source: RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("kind", "RouteprojectU2DCommandRequestU2DOptionU2D3U2DKind_8793e38088", true, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("name", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("parentPath", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("source", "RouteprojectU2DCommandRequestU2DOptionU2D3U2DSource_76b2c94b29", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-enum class RouteprojectU2DCommandRequestU2DOptionU2D4U2DKind_cbc64d1458 {
-    @SerialName("update") UPDATE,
-}
-
-typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DGhAccount_eb2798e2cc = ProcedureghCancelWorkflowRunRequestU2DGhAccount_5646cf57ff?
-
-typealias RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DMcpServers_637f685cb2 = List<ProcedurebeginMcpServerOauthRequestU2DServer_c04b1452d1>?
-
-@Serializable
-data class RouteprojectU2DCommandRequestU2DOptionU2D4U2DPatchU2DScriptsU2DOptionU2D1U2DActionsU2DItem_1544bc59ff(
-    @SerialName("command") val command: String,
-    @SerialName("icon") val icon: RemoteField<String> = RemoteField.Missing,
-    @SerialName("id") val id: String,
-    @SerialName("name") val name: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("command", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("icon", "String", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("id", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("name", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

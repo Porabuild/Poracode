@@ -21,9 +21,9 @@ describe("operation-map inventory lock", () => {
     expect(live.manifestHash).toBe(computeManifestHash(manifest, inventorySourceHash()));
     expect(sortCodePoints(Object.keys(live.operations))).toEqual(collectManifestKeys(manifest));
     expect(live).toEqual(committed);
-    expect(committed.keyCount).toBe(224);
+    expect(committed.keyCount).toBe(226);
     expect(committed.counts).toEqual({
-      route: 65,
+      route: 67,
       procedure: 108,
       "ws-client": 9,
       "ws-server": 10,

@@ -413,8 +413,21 @@ export const remoteEnvironmentDescriptorSchema = z.object({
 export type RemoteEnvironmentDescriptor = z.infer<typeof remoteEnvironmentDescriptorSchema>;
 
 export const remoteTokenExchangePayloadSchema = z.object({
-  grantType: z.literal("pairing-token"),
-  credential: z.string().min(1),
+  // Gate 6 item 4.6 (S6): the token endpoint now also serves the refresh
+  // grant. `pairing-token` keeps its exact historical shape, so pre-refresh
+  // clients and servers stay wire-compatible; the additive `refresh_token`
+  // value only ever travels between peers that both understand it.
+  //
+  // The per-grant field requirements (pairing-token -> `credential`,
+  // refresh_token -> `refreshToken`) are enforced by the server's grant
+  // dispatch, not here: this schema feeds the generated native bindings,
+  // which only accept the registry's portable validators (a `.superRefine`
+  // cross-field check would fail `protocol:remote:v3:generate`). The server
+  // answers a missing field with the same 401 shape as an unknown credential,
+  // so nothing is looser in practice.
+  grantType: z.union([z.literal("pairing-token"), z.literal("refresh_token")]),
+  credential: z.string().min(1).optional(),
+  refreshToken: z.string().min(1).optional(),
   scopes: z.array(remoteAccessScopeSchema).optional(),
   client: remoteClientMetadataSchema.optional(),
 });
@@ -428,6 +441,12 @@ export const remoteAccessTokenResultSchema = z.object({
   // exchange happens FIRST on desktop pairing, so a ZodError here would burn
   // the one-time credential; the client narrows to known scopes before use.
   scopes: advertisedRemoteAccessScopesSchema,
+  // Gate 6 item 4.6 (S6): additive refresh lifecycle. Absent from hosts that
+  // predate the 24-hour access-token window (those still mint 30-day
+  // non-rotating bearers); older clients ignore both fields.
+  refreshToken: z.string().min(1).optional(),
+  /** Absolute ISO expiry of `refreshToken` when it is present. */
+  refreshTokenExpiresAt: z.string().min(1).optional(),
 });
 export type RemoteAccessTokenResult = z.infer<typeof remoteAccessTokenResultSchema>;
 

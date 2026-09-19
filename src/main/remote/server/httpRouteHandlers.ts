@@ -203,6 +203,18 @@ export function requirePathParam(params: Readonly<Record<string, string>>, name:
   throw new RemoteHttpError("not_found", "Remote endpoint not found.", 404);
 }
 
+/**
+ * Whether the request arrived from a loopback peer (IPv4 127/8, IPv6 ::1, or
+ * an IPv4-mapped IPv6 loopback). Mirrors the rate-limiter's loopback rule in
+ * `security.ts`; kept local so the metrics gate does not widen that module's
+ * surface.
+ */
+function isLoopbackPeer(req: IncomingMessage): boolean {
+  const raw = req.socket.remoteAddress ?? "";
+  const normalized = raw.startsWith("::ffff:") ? raw.slice("::ffff:".length) : raw;
+  return normalized === "127.0.0.1" || normalized === "::1" || normalized.startsWith("127.");
+}
+
 function remoteCommandId(req: IncomingMessage): string | null {
   const raw = req.headers[REMOTE_COMMAND_ID_HEADER];
   const commandId = (Array.isArray(raw) ? raw[0] : raw)?.trim();
@@ -357,6 +369,39 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     writeJson(res, 200, descriptor(ctx));
   },
 
+  // Operability routes (V5 plan item 4.9 rider). `healthz` discloses a fixed
+  // literal only — a liveness probe authenticates nothing and learns nothing.
+  healthz: ({ res }) => {
+    writeJson(res, 200, { ok: true });
+  },
+
+  // `metrics` answers only loopback peers (the minimal posture gate: the
+  // dispatcher's Host-header allowlist already ran; this adds the socket's
+  // remote-address check). Anything non-loopback is a flat 403 before any
+  // metric value is computed.
+  metrics: ({ ctx, req, res }) => {
+    if (!isLoopbackPeer(req)) {
+      throw new RemoteHttpError(
+        "metrics_loopback_only",
+        "Metrics are only served to loopback clients.",
+        403,
+      );
+    }
+    const memory = process.memoryUsage();
+    writeJson(res, 200, {
+      process: {
+        uptimeSeconds: Math.floor(process.uptime()),
+        rssBytes: memory.rss,
+        heapUsedBytes: memory.heapUsed,
+      },
+      remote: {
+        activeWebSocketClients: ctx.clients.size,
+        eventBufferEntries: ctx.eventBuffer.length,
+        lastEventSeq: ctx.seq,
+      },
+    });
+  },
+
   "forward-enter": async ({ ctx, res, url, params, forwardOrigin }) => {
     // Plain browser navigation (no bearer header available to a top-level
     // GET), so this is deliberately not scope-gated: the capability is the
@@ -398,16 +443,11 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
       "oauth-token",
       ctx.options.tokenExchangeRateLimit ?? DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT,
     );
+    // Gate 6 item 4.6: the parsed payload carries either the historical
+    // pairing-token grant or the additive refresh_token grant; the server
+    // dispatches both (and audits them) behind one context call.
     const payload = remoteTokenExchangePayloadSchema.parse(await readJsonBody(req));
-    writeJson(
-      res,
-      200,
-      ctx.exchangePairingCredential({
-        credential: payload.credential,
-        ...(payload.scopes ? { scopes: payload.scopes } : {}),
-        ...(payload.client ? { client: payload.client } : {}),
-      }),
-    );
+    writeJson(res, 200, ctx.exchangePairingCredential(payload));
   },
 
   "websocket-ticket": ({ ctx, res, bearerToken }) => {
@@ -573,24 +613,22 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     // scopes anyway — while a deliberately scoped-down read-only device would
     // lose chat images under the stronger scope.
     //
-    // Transport: the Authorization header is primary. <img> tags use the
-    // one-time `ticket` query param minted above. The raw `access_token`
-    // query param is DEPRECATED — it is kept only until the hosted PWA client
-    // migrates to tickets and must never be copied into new clients.
+    // Transport (Gate 6 item 4.6, S6): the Authorization header is primary.
+    // <img> tags use the one-time `ticket` query param minted above. The raw
+    // `access_token` query param acceptance is REMOVED — a long-lived bearer
+    // in the URL leaks into proxy/relay access logs, and the ticket mechanism
+    // has been the shipped answer since B5b.
     const header = Array.isArray(req.headers.authorization)
       ? req.headers.authorization[0]
       : req.headers.authorization;
     const bearerToken = parseBearerAuthorizationHeader(header);
     const imageTicket = url.searchParams.get(IMAGE_TICKET_QUERY_PARAM);
-    const legacyQueryParamToken = url.searchParams.get("access_token");
     const imagePath = url.searchParams.get("path");
     let imageSession: AuthenticatedRemoteSession | null = null;
     if (bearerToken) {
       imageSession = ctx.auth.authenticateBearerToken(bearerToken, ["session:read"]);
     } else if (imageTicket) {
       imageTickets.consume(imageTicket, imagePath ?? "");
-    } else if (legacyQueryParamToken) {
-      imageSession = ctx.auth.authenticateBearerToken(legacyQueryParamToken, ["session:read"]);
     } else {
       throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
     }
@@ -619,19 +657,27 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
     // addresses a location inside the thread's own persisted runtime payload and
     // re-verifies that the addressed value really is an inline image, so a
     // prompt-injected tool result cannot steer it at the filesystem or network.
-    // Shares the `access_token` query-param affordance because <img> tags cannot
-    // send an Authorization header.
+    //
+    // Transport (Gate 6 item 4.6, S6): Authorization header or the one-time
+    // image ticket, minted for the exact raw `path` value — the former
+    // `?access_token=` acceptance is gone.
     const header = Array.isArray(req.headers.authorization)
       ? req.headers.authorization[0]
       : req.headers.authorization;
-    const token = parseBearerAuthorizationHeader(header) ?? url.searchParams.get("access_token");
-    if (!token) {
+    const bearerToken = parseBearerAuthorizationHeader(header);
+    const imageTicket = url.searchParams.get(IMAGE_TICKET_QUERY_PARAM);
+    const rawPath = url.searchParams.get("path");
+    let imageSession: AuthenticatedRemoteSession | null = null;
+    if (bearerToken) {
+      imageSession = ctx.auth.authenticateBearerToken(bearerToken, ["session:read"]);
+    } else if (imageTicket) {
+      imageTickets.consume(imageTicket, rawPath ?? "");
+    } else {
       throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
     }
-    const imageSession = ctx.auth.authenticateBearerToken(token, ["session:read"]);
     const threadId = decodeURIComponent(params.threadId ?? "");
     const itemId = decodeURIComponent(params.itemId ?? "");
-    const path = parseImageRefPath(url.searchParams.get("path"));
+    const path = parseImageRefPath(rawPath);
     if (!path) {
       throw new RemoteHttpError("invalid_path", "An image reference path is required.", 400);
     }

@@ -5,8 +5,14 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
-val RemoteRootCodecs.routeU2EThreadU2DSteerU2DClearU2EResponse: RemoteRootCodec<RouteportU2DUnforwardResponse_badd682f35>
-    get() = RemoteRootCodec("route.thread-steer-clear.response", serializer<RouteportU2DUnforwardResponse_badd682f35>(), schema_badd682f3501e022)
+val RemoteRootCodecs.routeU2EThreadU2DSteerU2DClearU2EPath: RemoteRootCodec<ProceduregetThreadFollowUpQueueRequest_09b78d9c1d>
+    get() = RemoteRootCodec("route.thread-steer-clear.path", serializer<ProceduregetThreadFollowUpQueueRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
+
+val RemoteRootCodecs.routeU2EThreadU2DSteerU2DClearU2ERequest: RemoteRootCodec<RoutehostU2DUpdateU2DInstallResponse_81055c9199>
+    get() = RemoteRootCodec("route.thread-steer-clear.request", serializer<RoutehostU2DUpdateU2DInstallResponse_81055c9199>(), schema_81055c9199569630)
+
+val RemoteRootCodecs.routeU2EThreadU2DSteerU2DClearU2EResponse: RemoteRootCodec<RoutehealthzResponse_badd682f35>
+    get() = RemoteRootCodec("route.thread-steer-clear.response", serializer<RoutehealthzResponse_badd682f35>(), schema_badd682f3501e022)
 
 val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2EPath: RemoteRootCodec<ProceduregetThreadFollowUpQueueRequest_09b78d9c1d>
     get() = RemoteRootCodec("route.thread-steer-set.path", serializer<ProceduregetThreadFollowUpQueueRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
@@ -14,17 +20,17 @@ val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2EPath: RemoteRootCodec<Proced
 val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2ERequest: RemoteRootCodec<RoutethreadU2DSteerU2DSetRequest_7b88ef93ea>
     get() = RemoteRootCodec("route.thread-steer-set.request", serializer<RoutethreadU2DSteerU2DSetRequest_7b88ef93ea>(), schema_7b88ef93ea82dd5b)
 
-val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2EResponse: RemoteRootCodec<RouteportU2DUnforwardResponse_badd682f35>
-    get() = RemoteRootCodec("route.thread-steer-set.response", serializer<RouteportU2DUnforwardResponse_badd682f35>(), schema_badd682f3501e022)
+val RemoteRootCodecs.routeU2EThreadU2DSteerU2DSetU2EResponse: RemoteRootCodec<RoutehealthzResponse_badd682f35>
+    get() = RemoteRootCodec("route.thread-steer-set.response", serializer<RoutehealthzResponse_badd682f35>(), schema_badd682f3501e022)
 
-val RemoteRootCodecs.routeU2ETokenU2DExchangeU2ERequest: RemoteRootCodec<RoutetokenU2DExchangeRequest_8dfe4ead4e>
-    get() = RemoteRootCodec("route.token-exchange.request", serializer<RoutetokenU2DExchangeRequest_8dfe4ead4e>(), schema_8dfe4ead4e3bdcdd)
+val RemoteRootCodecs.routeU2ETokenU2DExchangeU2ERequest: RemoteRootCodec<RoutetokenU2DExchangeRequest_39bc2baf33>
+    get() = RemoteRootCodec("route.token-exchange.request", serializer<RoutetokenU2DExchangeRequest_39bc2baf33>(), schema_39bc2baf33179ca7)
 
-val RemoteRootCodecs.routeU2ETokenU2DExchangeU2EResponse: RemoteRootCodec<RoutetokenU2DExchangeResponse_d15a69227c>
-    get() = RemoteRootCodec("route.token-exchange.response", serializer<RoutetokenU2DExchangeResponse_d15a69227c>(), schema_d15a69227c93754c)
+val RemoteRootCodecs.routeU2ETokenU2DExchangeU2EResponse: RemoteRootCodec<RoutetokenU2DExchangeResponse_6da7b36735>
+    get() = RemoteRootCodec("route.token-exchange.response", serializer<RoutetokenU2DExchangeResponse_6da7b36735>(), schema_6da7b367355578d7)
 
-val RemoteRootCodecs.routeU2EWebsocketU2DTicketU2EResponse: RemoteRootCodec<RoutewebsocketU2DTicketResponse_b9dfb5a053>
-    get() = RemoteRootCodec("route.websocket-ticket.response", serializer<RoutewebsocketU2DTicketResponse_b9dfb5a053>(), schema_b9dfb5a053707da9)
+val RemoteRootCodecs.routeU2EWebsocketU2DTicketU2EResponse: RemoteRootCodec<RoutelocalU2DImageU2DTicketResponse_b9dfb5a053>
+    get() = RemoteRootCodec("route.websocket-ticket.response", serializer<RoutelocalU2DImageU2DTicketResponse_b9dfb5a053>(), schema_b9dfb5a053707da9)
 
 val RemoteRootCodecs.websocketU2EClient: RemoteRootCodec<WebSocketClientMessage_872dc7baba>
     get() = RemoteRootCodec("websocket.client", serializer<WebSocketClientMessage_872dc7baba>(), schema_872dc7babad00cd3)

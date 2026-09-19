@@ -19631,6 +19631,21 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "route.healthz.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ok": {
+          "const": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "route.host-update-check.response": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -19944,7 +19959,7 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
-        "expires": {
+        "expiresAt": {
           "minLength": 1,
           "type": "string"
         },
@@ -19955,7 +19970,7 @@
       },
       "required": [
         "ticket",
-        "expires"
+        "expiresAt"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -19964,11 +19979,11 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
-        "access_token": {
+        "path": {
           "minLength": 1,
           "type": "string"
         },
-        "path": {
+        "ticket": {
           "minLength": 1,
           "type": "string"
         }
@@ -21207,6 +21222,72 @@
       },
       "required": [
         "servers"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.metrics.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "process": {
+          "additionalProperties": true,
+          "properties": {
+            "heapUsedBytes": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "rssBytes": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "uptimeSeconds": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "uptimeSeconds",
+            "rssBytes",
+            "heapUsedBytes"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "remote": {
+          "additionalProperties": true,
+          "properties": {
+            "activeWebSocketClients": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "eventBufferEntries": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "lastEventSeq": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "activeWebSocketClients",
+            "eventBufferEntries",
+            "lastEventSeq"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      },
+      "required": [
+        "process",
+        "remote"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -24792,10 +24873,6 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
-        "access_token": {
-          "minLength": 1,
-          "type": "string"
-        },
         "path": {
           "items": {
             "$ref": "#/$defs/__schema0"
@@ -24803,6 +24880,10 @@
           "maxItems": 8,
           "minItems": 1,
           "type": "array"
+        },
+        "ticket": {
+          "minLength": 1,
+          "type": "string"
         }
       },
       "required": [
@@ -32653,7 +32734,19 @@
           "type": "string"
         },
         "grantType": {
-          "const": "pairing-token",
+          "anyOf": [
+            {
+              "const": "pairing-token",
+              "type": "string"
+            },
+            {
+              "const": "refresh_token",
+              "type": "string"
+            }
+          ]
+        },
+        "refreshToken": {
+          "minLength": 1,
           "type": "string"
         },
         "scopes": {
@@ -32673,8 +32766,7 @@
         }
       },
       "required": [
-        "grantType",
-        "credential"
+        "grantType"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -32688,6 +32780,14 @@
           "type": "string"
         },
         "expiresAt": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "refreshToken": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "refreshTokenExpiresAt": {
           "minLength": 1,
           "type": "string"
         },
@@ -32742,13 +32842,13 @@
     "jsonProcedureResults": 65,
     "procedures": 108,
     "replayableEventTypes": 16,
-    "routes": 65,
+    "routes": 67,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 43,
     "webSocketClientMessages": 9,
     "webSocketServerMessages": 10
   },
-  "manifestHash": "sha256:3e73b5337c2833e11634daf78aa27e33a10bd73606071d6dae78b5f40c9bf55c",
+  "manifestHash": "sha256:b90ee2f612ccb591738bbaf25dff7108ef7c503069bf01e0d8e69cae1383c41f",
   "protocolVersion": 12,
-  "sourceHash": "sha256:809e5fdfd434031de05d51b0d7a9a36d0ab101f1a2807f29f66bc2f9d68fb99d"
+  "sourceHash": "sha256:112b04dcf56486523614dcb74f6c2b8824e952213ed150eaa32938a461bc5757"
 }
