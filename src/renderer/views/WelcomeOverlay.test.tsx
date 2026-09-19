@@ -11,6 +11,12 @@ const runtime = vi.hoisted(() => ({ browser: true, localBackend: false }));
 vi.mock("@/renderer/clientRuntime", () => ({
   hasClientCapability: () => runtime.localBackend,
   isBrowserClientRuntime: () => runtime.browser,
+  hasAnyClientBridge: () =>
+    Boolean(
+      (window as { poracode?: unknown }).poracode ??
+      (window as { poracodeHost?: unknown }).poracodeHost,
+    ),
+  hasElectronHostBridge: () => Boolean((window as { poracodeHost?: unknown }).poracodeHost),
 }));
 
 vi.mock("@/renderer/actions/projectActions", () => ({

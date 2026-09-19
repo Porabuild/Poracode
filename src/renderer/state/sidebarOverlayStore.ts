@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { readStoredBoolean } from "@/renderer/utils/localStorage";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
+import { hasElectronHostBridge } from "@/renderer/clientRuntime";
 
 /**
  * Legacy hand-rolled key, retained for Electron where it represents an
@@ -11,7 +12,11 @@ const LEGACY_COLLAPSED_KEY = "poracode-sidebar-collapsed";
 const PERSIST_KEY = "poracode-sidebar-overlay";
 // V1 also captured responsive auto-collapse. V2 stores only an explicit user preference.
 const PERSIST_VERSION = 2;
-const isElectronHost = typeof window !== "undefined" && Boolean(window.poracodeHost);
+// V5 2.4 (T5): resolved through the client runtime instead of a raw
+// `window.poracodeHost` read. This is a client SURFACE fact (an Electron
+// native window owns this renderer, managed or attached); host service
+// availability never derives from it.
+const isElectronHost = hasElectronHostBridge();
 
 interface SidebarOverlayState {
   isCollapsed: boolean;

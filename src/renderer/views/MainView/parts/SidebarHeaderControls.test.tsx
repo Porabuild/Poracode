@@ -7,6 +7,12 @@ import { SidebarHeaderControls } from "./SidebarHeaderControls";
 vi.mock("@/renderer/clientRuntime", () => ({
   isBrowserClientRuntime: () => true,
   hasClientCapability: () => false,
+  hasAnyClientBridge: () =>
+    Boolean(
+      (window as { poracode?: unknown }).poracode ??
+      (window as { poracodeHost?: unknown }).poracodeHost,
+    ),
+  hasElectronHostBridge: () => Boolean((window as { poracodeHost?: unknown }).poracodeHost),
 }));
 
 describe("SidebarHeaderControls", () => {

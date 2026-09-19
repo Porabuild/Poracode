@@ -79,6 +79,35 @@
           }
         ]
       }
+    },
+    {
+      "files": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx"],
+      "excludeFiles": [
+        "src/renderer/**/*.test.ts",
+        "src/renderer/**/*.test.tsx",
+        "src/renderer/**/*.spec.ts",
+        "src/renderer/**/*.spec.tsx",
+        "src/renderer/clientRuntime.ts",
+        "src/renderer/bootstrap.ts",
+        "src/renderer/bridge.ts",
+        "src/renderer/browser/remoteBridge.ts",
+        "src/renderer/RendererCrashScreen.tsx"
+      ],
+      "rules": {
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "window",
+            "property": "poracode",
+            "message": "Read the Poracode bridge through the client runtime (V5 2.4): readClientRuntime() / hasClientCapability() / hasAnyClientBridge(). Raw reads are allowed only in clientRuntime.ts (accessor owner), the installers/facades that materialize the global (bootstrap.ts, bridge.ts, browser/remoteBridge.ts), and RendererCrashScreen.tsx (crash-path diagnostics must read the raw preload globals before the runtime is installed — readBridge()/readClientRuntime() throw in that window and no accessor exposes appVersion/electronVersion/platform/isDev)."
+          },
+          {
+            "object": "window",
+            "property": "poracodeHost",
+            "message": "Read the Electron shell fact through the client runtime (V5 2.4): hasElectronHostBridge() — or, for host service availability, hasClientCapability()/hostCapabilities, never the host kind. Raw reads are allowed only in clientRuntime.ts (accessor owner), the installers/facades that materialize the global (bootstrap.ts, bridge.ts, browser/remoteBridge.ts), and RendererCrashScreen.tsx (crash-path diagnostics must read the raw preload globals before the runtime is installed — readBridge()/readClientRuntime() throw in that window and no accessor exposes appVersion/electronVersion/platform/isDev)."
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": ["dist", "node_modules"]

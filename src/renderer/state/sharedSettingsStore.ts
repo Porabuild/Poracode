@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { readBridge } from "../bridge";
-import { isStandaloneAttachRuntime } from "../clientRuntime";
+import { hasAnyClientBridge, isStandaloneAttachRuntime } from "../clientRuntime";
 import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
@@ -231,10 +231,7 @@ interface SharedSettingsState extends SharedSettings {
 
 const RECENT_MODELS_LIMIT = 16;
 function hasBridge(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    (window.poracodeHost !== undefined || window.poracode !== undefined)
-  );
+  return hasAnyClientBridge();
 }
 
 function loadFallbackSettings(): SharedSettings {

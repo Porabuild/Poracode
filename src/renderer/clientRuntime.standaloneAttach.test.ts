@@ -8,6 +8,8 @@ import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import {
   UNKNOWN_HOST_CAPABILITIES,
+  hasAnyClientBridge,
+  hasElectronHostBridge,
   installAttachedElectronClientRuntime,
   installBrowserClientRuntime,
   installElectronClientRuntime,
@@ -204,5 +206,21 @@ describe("standalone attach client runtime", () => {
     expect(invokeProcedure).not.toHaveBeenCalled();
     expect(attachSettingsSync.push).toHaveBeenCalledOnce();
     expect(attachSettingsSync.push.mock.calls[0]?.[1]).toMatchObject({ themeMode: "dark" });
+  });
+
+  it("keeps the Electron shell surface facts true under attach through the runtime accessors (V5 2.4)", () => {
+    // Attached Electron still runs the preload shell, so client-SURFACE facts
+    // (native window, sidebar desktop-preference semantics, window chrome)
+    // resolve identically to managed — while host SERVICE availability stays
+    // capability-derived (nativeSsh/nativeBrowserWebContents false above).
+    window.poracodeHost = electronHost();
+    installAttachedElectronClientRuntime(electronHost(), attachInfo());
+    expect(hasElectronHostBridge()).toBe(true);
+    expect(hasAnyClientBridge()).toBe(true);
+    expect(isStandaloneAttachRuntime()).toBe(true);
+    expect(readClientRuntime()).toMatchObject({
+      host: "electron",
+      transport: "remote-http-websocket",
+    });
   });
 });

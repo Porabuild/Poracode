@@ -1,7 +1,7 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
 import { isQuickComposerWindow, readBridge } from "../bridge";
 import { captureRendererException } from "../diagnostics/sentry";
-import { hasClientCapability } from "../clientRuntime";
+import { hasAnyClientBridge, hasClientCapability } from "../clientRuntime";
 import type { Project, Thread, AppView } from "@/shared/contracts";
 import { getPersistJsonEngine } from "./remote/engine";
 
@@ -26,11 +26,7 @@ function reportPersistError(operation: string, error: unknown): void {
  * For other stores, it uses the generic key-value `app_state` table.
  */
 function hasBridge(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    (window.poracodeHost !== undefined || window.poracode !== undefined) &&
-    hasClientCapability("localBackend")
-  );
+  return hasAnyClientBridge() && hasClientCapability("localBackend");
 }
 
 const APP_STORE_NAME = "poracode-app-v2";

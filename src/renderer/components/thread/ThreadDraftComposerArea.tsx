@@ -20,6 +20,7 @@ import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
 import { friendlyError } from "@/shared/messages";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isQuickComposerWindow, isRemoteSession, readBridge } from "@/renderer/bridge";
+import { hasAnyClientBridge } from "@/renderer/clientRuntime";
 import {
   AttachmentBar,
   ComputerUseChip,
@@ -147,11 +148,7 @@ function HookInstallProposal(props: {
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    if (
-      props.presentationMode !== "terminal" ||
-      dismissed ||
-      (!window.poracodeHost && !window.poracode)
-    ) {
+    if (props.presentationMode !== "terminal" || dismissed || !hasAnyClientBridge()) {
       setStatus(undefined);
       return;
     }
@@ -341,7 +338,7 @@ export function ThreadDraftComposerArea(props: {
   const isRemoteSurface = isRemoteSession();
   const autoFocus = props.autoFocus ?? ((props.paneCount ?? 1) === 1 && !isRemoteSurface);
   const usesRemoteTransport = props.isRemote === true || isRemoteSurface;
-  const isQuickComposer = window.poracodeHost || window.poracode ? isQuickComposerWindow() : false;
+  const isQuickComposer = hasAnyClientBridge() ? isQuickComposerWindow() : false;
   const voiceInputEnabled = useSharedSettings((s) => s.audio.showVoiceInputButton);
   // Remote sessions have no local capture path: keep the button visible (when
   // enabled) but disabled with the reason, instead of hiding it silently.

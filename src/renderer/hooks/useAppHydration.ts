@@ -1,7 +1,11 @@
 import { startTransition, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
-import { hasClientCapability, isCompactClientRuntimeSurface } from "@/renderer/clientRuntime";
+import {
+  hasAnyClientBridge,
+  hasClientCapability,
+  isCompactClientRuntimeSurface,
+} from "@/renderer/clientRuntime";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
@@ -59,8 +63,7 @@ function getExperimentStoreHydrationSnapshot(): boolean {
 
 export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   const runtimeOwner =
-    options.runtimeOwner ??
-    (!window.poracodeHost && !window.poracode ? true : hasClientCapability("localBackend"));
+    options.runtimeOwner ?? (!hasAnyClientBridge() ? true : hasClientCapability("localBackend"));
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
   const purgeStaleArchivedThreads = useAppStore((state) => state.purgeStaleArchivedThreads);
   const archiveOldDoneThreads = useAppStore((state) => state.archiveOldDoneThreads);
