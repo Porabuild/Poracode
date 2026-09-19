@@ -365,7 +365,13 @@ describe("relay end-to-end", () => {
     expect(env.label).toBe("Relay Test Server");
 
     const token = await client.exchangePairingCredential({ credential: pairing.credential });
-    expect(token.accessToken).toMatch(/^lc_access_/);
+    // Channel binding (plan 4.8, finding T7): a token issued THROUGH the relay
+    // is a bound credential (`lcb1_…`), not a raw `lc_access_` token — the raw
+    // token never crosses the relay link. The authed client below proves the
+    // bound credential still works over its relay channel (the adapter
+    // unwraps it on the loopback hop); relayChannelBinding.test.ts proves the
+    // direct path rejects it.
+    expect(token.accessToken).toMatch(/^lcb1_/);
 
     const authedClient = new RemoteDesktopClient(base, token.accessToken);
     await expect(authedClient.websocketTicket()).resolves.toMatch(/^lc_ws_/);

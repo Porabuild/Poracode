@@ -43,6 +43,12 @@ globalThis.__cliFixture = {
         if (closing) return closing;
         disposeCalls += 1;
         reply({ type: "disposing" });
+        if (outcome === "hang") {
+          // Plan 4.9: a disposal that never settles — the drain deadline must
+          // force the exit and free the lease's kernel lock.
+          closing = new Promise(() => undefined);
+          return closing;
+        }
         closing = Promise.all([opening.promise, drained.promise]).then(() => {
           if (outcome === "failed-join") throw new Error("Synthetic unconfirmed runtime join.");
           lease.release();

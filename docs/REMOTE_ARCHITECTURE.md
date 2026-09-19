@@ -179,6 +179,44 @@ owns project/thread state. The relay terminates visitor HTTP/WebSocket
 connections and can read forwarded credentials and payloads. It must be trusted;
 the relay framing does not provide end-to-end encryption.
 
+### Relay trust and channel binding (plan 4.8, finding T7)
+
+The relay's position is stated plainly: **it is an acknowledged man-in-the-middle
+by design.** It terminates visitor TLS, reads forwarded credentials and
+application payloads, and can impersonate the host toward any client that
+connects through it. Relay compromise therefore equals session takeover at
+token scope. Full end-to-end encryption (clients verifying a host-held key
+through the relay) remains a separate product decision and is not provided by
+this transport.
+
+Channel binding narrows what a captured credential is worth, without E2E. The
+host adapter rewrites the `POST /oauth/token` exchange response for traffic
+arriving through the relay: the raw access token is replaced with a
+**relay-bound credential** — the raw token encrypted (AES-256-GCM) under a key
+derived from the relay enrollment (`HKDF(serverId, registration secret)`).
+The raw token never crosses the relay link. On every tunneled request the
+adapter unwraps the bound credential (Authorization header and the image
+route's `access_token` query parameter) and restores the raw token only on the
+final loopback hop to the server. Consequences:
+
+- A bound credential presented DIRECTLY to the server's listener fails the
+  existing bearer check — it is not a stored token — so a captured relay-issued
+  bearer cannot be replayed off-relay. The direct path never holds the
+  unwrapping key.
+- Directly-paired tokens keep working on both paths unchanged (binding happens
+  only at relay-mediated issuance); a client that later connects directly
+  should pair directly.
+- The binding is per ENROLLMENT, not per TCP connection: relay reconnects and
+  host restarts do not invalidate paired clients. Changing the relay
+  enrollment secret invalidates outstanding bound credentials; those clients
+  re-pair, exactly as for a revoked session.
+- The relay can still unwrap what it forwarded (it sees the enrollment secret
+  in the `register` frame) — that is the acknowledged-MITM property, unchanged.
+  What changed is that a credential leaked by any OTHER means (client token
+  store, logs elsewhere, a copied session) is dead off the relay channel.
+
+`SECURITY.md` maps this mitigation (T7) onto the attacker model.
+
 The self-hostable relay transport has its own wire version
 (`PORACODE_RELAY_PROTOCOL_VERSION`, currently 3). Protocol 3 preserves binary
 WebSocket payloads exactly: they travel between host and relay as binary

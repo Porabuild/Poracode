@@ -21,6 +21,11 @@ import {
   type RelayForwardOrigin,
 } from "@/shared/remote/relayProtocol";
 import { deriveForwardOwner, ForwardOriginPolicy } from "@/main/remote/portForward/forwardOrigin";
+import {
+  isRelayBoundCredential,
+  makeRelayChannelBinding,
+  type RelayChannelBinding,
+} from "./relayChannelBinding";
 
 /**
  * Server-side relay adapter. Dials a relay, registers a server id, and proxies
@@ -28,6 +33,13 @@ import { deriveForwardOwner, ForwardOriginPolicy } from "@/main/remote/portForwa
  * `RemoteAccessServer` is untouched and the device that connected through the
  * relay is served exactly as a direct LAN client would be. See
  * docs/REMOTE_ARCHITECTURE.md, Phase 5, and relayProtocol.ts.
+ *
+ * Channel binding (plan item 4.8, finding T7): the adapter rewrites the
+ * `POST /oauth/token` response, replacing the raw access token with a
+ * relay-bound credential (`relayChannelBinding.ts`). Bound credentials are
+ * unwrapped back to the raw token here — only for tunneled traffic — so a
+ * captured relay-issued bearer fails the server's own bearer check when
+ * replayed directly, off the relay.
  */
 export interface RelayHostOptions {
   /** Relay host-control URL, e.g. `wss://relay.example.com/host`. */
@@ -116,6 +128,12 @@ interface PendingLocalRequest {
 const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 const WEB_SOCKET_OPEN = 1;
 const DROPPABLE_STREAM_SOFT_BUFFER_BYTES = 1_500_000;
+/** The token-exchange response this adapter rewrites is a small JSON document;
+ * anything larger is not an exchange response and passes through untouched
+ * (fail-closed: the rewrite only ever REPLACES the token it can prove). */
+const TOKEN_EXCHANGE_REWRITE_MAX_BYTES = 1_048_576;
+/** The exchange route (src/shared/remote/contract/routes/session.ts). */
+const TOKEN_EXCHANGE_PATHNAME = "/oauth/token";
 
 function isDroppableStreamFrame(data: string): boolean {
   const parsed = safeJsonParse(data);
@@ -186,6 +204,118 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
   const wsChannels = new Map<string, LocalWsChannel>();
   /** frame id → in-flight local request (see `PendingLocalRequest`). */
   const pendingRequests = new Map<string, PendingLocalRequest>();
+  /** Channel binding for this relay enrollment (relayChannelBinding.ts). */
+  const channelBinding: RelayChannelBinding = makeRelayChannelBinding({
+    serverId: options.serverId,
+    relaySecret: options.secret,
+  });
+
+  /** Whether this relayed request is the pairing-credential exchange whose
+   * 200 response carries the raw access token. */
+  const isTokenExchangeRequest = (frame: Pick<RelayRequestFrame, "method" | "path">): boolean => {
+    if (frame.method.toUpperCase() !== "POST") return false;
+    try {
+      return new URL(frame.path, "http://local").pathname === TOKEN_EXCHANGE_PATHNAME;
+    } catch {
+      return false;
+    }
+  };
+
+  /**
+   * Restores raw credentials for the loopback hop. A visitor credential issued
+   * through THIS relay enrollment arrives bound (`lcb1_…`); the server only
+   * knows raw tokens, so the adapter unwraps the Authorization header and the
+   * image-route `access_token` query parameter before the local fetch.
+   * Anything that does not unwrap (raw tokens from direct pairing, foreign or
+   * malformed values) passes through untouched and the server's own auth path
+   * answers it — old clients and direct-paired bearers keep working.
+   */
+  const unwrapBoundCredentials = (
+    frame: RelayRequestFrame,
+  ): { readonly path: string; readonly headers: Record<string, string> } => {
+    /** Splits a bearer credential out of an Authorization header value
+     * (`Bearer <token>`); returns null for other schemes or bare values. */
+    const bearerOf = (value: string): string | null => {
+      const match = /^bearer\s+(.+)$/i.exec(value.trim());
+      return match ? (match[1]?.trim() ?? null) : null;
+    };
+    const headers: Record<string, string> = {};
+    let path = frame.path;
+    for (const [key, value] of Object.entries(frame.headers)) {
+      if (key.toLowerCase() === "authorization") {
+        const trimmed = value.trim();
+        const credential = bearerOf(trimmed) ?? trimmed;
+        if (isRelayBoundCredential(credential)) {
+          const unwrapped = channelBinding.unbind(credential);
+          if (unwrapped !== null) {
+            headers[key] = `Bearer ${unwrapped}`;
+            continue;
+          }
+        }
+      }
+      headers[key] = value;
+    }
+    if (path.includes("access_token=")) {
+      try {
+        const url = new URL(path, "http://local");
+        const bound = url.searchParams.get("access_token");
+        if (bound !== null && isRelayBoundCredential(bound)) {
+          const unwrapped = channelBinding.unbind(bound);
+          if (unwrapped !== null) {
+            url.searchParams.set("access_token", unwrapped);
+            path = url.toString().slice("http://local".length);
+          }
+        }
+      } catch {
+        // Not a parsable URL: leave it alone, the local fetch will answer.
+      }
+    }
+    return { path, headers };
+  };
+
+  /**
+   * Channel binding at issuance: the exchange response's raw access token is
+   * replaced with the relay-bound credential before it crosses the relay, so
+   * the raw token never leaves the host. Reads the (small) response body once
+   * and rebuilds the response so the buffered and streaming paths below carry
+   * the rewritten bytes unchanged. Any response that is not a 200 JSON token
+   * result — errors, foreign shapes, oversized bodies — is returned as-is.
+   */
+  const bindTokenExchangeResponse = async (
+    response: Awaited<ReturnType<typeof fetchImpl>>,
+  ): Promise<Awaited<ReturnType<typeof fetchImpl>>> => {
+    if (response.status !== 200) return response;
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.toLowerCase().includes("application/json")) return response;
+    // Bounded by TOKEN_EXCHANGE_REWRITE_MAX_BYTES; a stalled body read unwinds
+    // through the request's own AbortController (entry timeout / req-cancel).
+    const buffer = await readBoundedResponseBody(response, TOKEN_EXCHANGE_REWRITE_MAX_BYTES);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(Buffer.from(buffer).toString("utf8"));
+    } catch {
+      throw new Error("token exchange response was not valid JSON");
+    }
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      typeof (parsed as { accessToken?: unknown }).accessToken !== "string" ||
+      (parsed as { accessToken: string }).accessToken.length === 0
+    ) {
+      throw new Error("token exchange response did not carry an access token");
+    }
+    const result = parsed as Record<string, unknown>;
+    result.accessToken = channelBinding.bind(result.accessToken as string);
+    // The exchange response is a plain JSON document (no cookies, no content
+    // encoding — the fetch layer already decoded it), so rebuilding it from
+    // the same status/headers preserves everything the visitor expects.
+    const rewritten = new Response(JSON.stringify(result), {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    });
+    return rewritten as Awaited<ReturnType<typeof fetchImpl>>;
+  };
 
   function forwardHeaders(forward: RelayForwardContext | undefined): Record<string, string> {
     if (!forward) return {};
@@ -394,11 +524,14 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     };
     try {
       const body = frame.body === undefined ? undefined : Buffer.from(frame.body, "base64");
-      // Drop hop-by-hop / relay-specific headers; the local fetch sets its own
-      // host and content-length for the (re-encoded) body. Also drop any
-      // client-supplied x-forwarded-for so a visitor can't spoof its own bucket.
+      // Channel binding first: unwrap relay-bound visitor credentials for the
+      // loopback hop (see `unwrapBoundCredentials`), THEN strip hop-by-hop /
+      // relay-specific headers; the local fetch sets its own host and
+      // content-length for the (re-encoded) body. Any client-supplied
+      // x-forwarded-for is dropped so a visitor can't spoof its own bucket.
+      const { path: localPath, headers: visitorHeaders } = unwrapBoundCredentials(frame);
       const requestHeaders: Record<string, string> = {};
-      for (const [key, value] of Object.entries(frame.headers)) {
+      for (const [key, value] of Object.entries(visitorHeaders)) {
         const lower = key.toLowerCase();
         if (
           lower === "host" ||
@@ -421,8 +554,8 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
         requestHeaders,
         frame.forward ? forwardHeaders(frame.forward) : apiDispatchHeaders(),
       );
-      const response = await Promise.race([
-        fetchImpl(`${localHttpBase}${frame.path}`, {
+      let response = await Promise.race([
+        fetchImpl(`${localHttpBase}${localPath}`, {
           method: frame.method,
           headers: requestHeaders,
           signal: controller.signal,
@@ -438,6 +571,12 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
         }),
         timedOut,
       ]);
+      // Channel binding at issuance: a token exchange response has its raw
+      // access token replaced with the relay-bound credential before any byte
+      // of it is framed back to the relay (see `bindTokenExchangeResponse`).
+      if (isTokenExchangeRequest(frame)) {
+        response = await bindTokenExchangeResponse(response);
+      }
       // `headersToRecord` iterates the fetch `Headers` API generically, which
       // collapses/loses repeated `set-cookie` entries (the Headers API has no
       // reliable generic multi-value read for it) — so `set-cookie` is dropped

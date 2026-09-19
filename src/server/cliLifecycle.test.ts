@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HeadlessCompositionShutdownError } from "./headlessRemoteComposition";
 import { runCli } from "./cli";
@@ -22,6 +25,9 @@ vi.mock("@/shared/diagnostics/nodePerformanceDiagnostics", () => ({
 const priorArguments = process.argv;
 const priorExitCode = process.exitCode;
 const signals = new Map<string, () => void>();
+// The synthetic host must expose the owned data root contract: serve() starts
+// the leveled log file under it as soon as the lease is held (plan 4.9).
+let dataRoot: string | undefined;
 beforeEach(() => {
   process.argv = ["synthetic-node", "synthetic-server"];
   process.exitCode = undefined;
@@ -35,6 +41,7 @@ beforeEach(() => {
   vi.stubEnv("PORACODE_WSL_HELPERS_DIR", ensureDeclaredAssetsDir());
   fixture.createHost.mockReset();
   fixture.stopDiagnostics.mockClear();
+  dataRoot = mkdtempSync(join(tmpdir(), "poracode-cli-lifecycle-"));
   signals.clear();
   vi.spyOn(process, "on").mockImplementation(((event: string, listener: () => void) => {
     signals.set(event, listener);
@@ -53,6 +60,8 @@ afterEach(() => {
   process.exitCode = priorExitCode;
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
+  if (dataRoot !== undefined) rmSync(dataRoot, { recursive: true, force: true });
+  dataRoot = undefined;
 });
 
 describe("headless CLI startup lifetime", () => {
@@ -72,7 +81,7 @@ describe("headless CLI startup lifetime", () => {
       fixture.createHost.mockImplementation(async (input) => {
         options = input;
         if (stage === "factory") await opening.promise;
-        return { start, dispose };
+        return { start, dispose, dataRoot: dataRoot! };
       });
       try {
         runCli();
