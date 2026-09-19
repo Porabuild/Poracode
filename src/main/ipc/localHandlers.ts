@@ -247,6 +247,7 @@ export function createLocalIpcHandlers(
     setRendererEventInterests: async (interests, sender?: RendererEventSender) =>
       options.setRendererEventInterests(interests, sender),
     getRemoteAccessPairing: () => callService("getRemoteAccessPairing", {}),
+    getManagedLoopbackBootstrap: () => callService("getManagedLoopbackBootstrap", {}),
     refreshRemoteAccessPairing: () => callService("refreshRemoteAccessPairing", {}),
     setRemoteAccessEnabled: (payload) => callService("setRemoteAccessEnabled", payload),
     sshDiscoverHosts: () => options.sshConnectionManager.discoverHosts(),

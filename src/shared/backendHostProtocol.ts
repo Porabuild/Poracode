@@ -37,6 +37,7 @@ import type {
   SupervisorRequest,
 } from "./ipc";
 import type { LiveEventInterests } from "./liveEventInterests";
+import type { ManagedLoopbackBootstrap } from "./managedLoopback";
 import type { PoracodeChannel } from "./channel";
 
 /** Increment whenever the desktop/backend-host IPC envelope becomes incompatible. */
@@ -184,6 +185,14 @@ type BackendSettingsProcedureMap = {
 
 export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap {
   getRemoteAccessPairing: { payload: Record<string, never>; result: RemoteAccessPairingInfo };
+  // V5 plan 2.5 completion: the managed flavor's always-on loopback attach
+  // payload (endpoint + single-use credential) resolved behind readiness.
+  // Additive same-build procedure: main and the backend child ship in one
+  // bundle, so the backend-host protocol version is unchanged.
+  getManagedLoopbackBootstrap: {
+    payload: Record<string, never>;
+    result: ManagedLoopbackBootstrap | null;
+  };
   refreshRemoteAccessPairing: { payload: Record<string, never>; result: RemoteAccessPairingInfo };
   setRemoteAccessEnabled: { payload: { enabled: boolean }; result: RemoteAccessPairingInfo };
   getRemoteAccessTailscaleStatus: {
@@ -230,6 +239,7 @@ export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap 
 export const BACKEND_SERVICE_PROCEDURE_NAMES = [
   ...BACKEND_SETTINGS_PROCEDURE_NAMES,
   "getRemoteAccessPairing",
+  "getManagedLoopbackBootstrap",
   "refreshRemoteAccessPairing",
   "setRemoteAccessEnabled",
   "getRemoteAccessTailscaleStatus",

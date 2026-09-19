@@ -131,21 +131,27 @@ describe("ElectronBackendTransport loopback leg", () => {
     terminalInstanceId: "gen-1",
   });
 
-  it("keeps thread-output on the relay and drops other relay events while the loopback leg is active", async () => {
+  it("drops every relay event while the loopback leg is active (terminal watches included)", async () => {
     const { transport, emit } = makeTransport();
     const received: SupervisorEvent[] = [];
     transport.subscribe((event) => received.push(event));
-    await transport.setEventInterests({ terminalThreadIds: [], runtimeThreadIds: ["t1"] });
+    await transport.setEventInterests({ terminalThreadIds: ["t1"], runtimeThreadIds: ["t1"] });
 
-    // Leg activation rebuilds every subscribed thread (the handoff primitive).
+    // Leg activation rebuilds every subscribed thread (the handoff primitive):
+    // the terminal interest earns a scrollback resync, the runtime interest a
+    // reset.
     transport.setLoopbackActive(true);
-    expect(received).toEqual([expect.objectContaining({ type: "thread-reset", threadId: "t1" })]);
+    expect(received).toEqual([
+      expect.objectContaining({ type: "thread-scrollback-resync", threadId: "t1" }),
+      expect.objectContaining({ type: "thread-reset", threadId: "t1" }),
+    ]);
 
-    // Relay events while active: thread-reset is dropped (the loopback leg
-    // delivers it), PTY bytes still cross the relay.
+    // Relay events while active: everything is dropped — the loopback leg
+    // delivers shared + desktop-only events, and since the 2.5 completion the
+    // terminal surface consumes PTY bytes via `terminal-watch` on that leg.
     emit({ type: "thread-reset", threadId: "t1" }, 1);
     emit(outputEvent("t1"), 2);
-    expect(received.slice(1)).toEqual([outputEvent("t1")]);
+    expect(received).toHaveLength(2);
 
     // Fallback: the relay delivers everything again.
     transport.setLoopbackActive(false);

@@ -3,6 +3,7 @@ import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
 import type { BrowserPanelManager } from "../browser";
 import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "../db";
 import { readSharedSettingsFile } from "../sharedSettingsFile";
+import type { ManagedLoopbackBootstrap } from "@/shared/managedLoopback";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import type {
   RemoteAccessTailscaleStatus,
@@ -30,6 +31,7 @@ import type { PrWatchService } from "../prWatch";
 import type { GitStateService } from "../gitState";
 import { createPersistentRemoteAuthStore } from "./auth";
 import {
+  DEFAULT_REMOTE_ACCESS_HOST,
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
@@ -130,8 +132,24 @@ export interface DesktopRemoteAccessController {
   /** The supervisor process restarted; its in-session state is gone. */
   handleSupervisorReset(): void;
   updateGitSummaries(summaries: RemoteGitSummaries): void;
+  /** Always-on readiness (V5 plan 2.5 completion): starts the server
+   * unconditionally — full bind when remote access is enabled, loopback-only
+   * otherwise. Resolves once the managed flavor has its loopback server. */
   startIfEnabled(): Promise<void>;
   setEnabled(enabled: boolean): Promise<RemoteAccessPairingInfo>;
+  /** The USER-FACING pairing surface: reports `disabled` while only the
+   * always-on loopback instance runs, so the server stays undiscoverable. */
+  getPairingInfo(): RemoteAccessPairingInfo;
+  /** True when the user actually enabled remote access (not the always-on
+   * loopback-only instance). QR/advertise surfaces gate on this. */
+  isUserEnabled(): boolean;
+  /**
+   * The managed renderer's attach payload (V5 plan 2.5 completion): resolves
+   * only behind readiness — the loopback server is running and a fresh
+   * single-use credential is minted BEFORE the renderer asks. `null` when
+   * disposed or no server can run.
+   */
+  getManagedLoopbackBootstrap(): Promise<ManagedLoopbackBootstrap | null>;
   getTailscaleStatus(): Promise<RemoteAccessTailscaleStatus>;
   setTailscaleHttps(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   startTailscale(): Promise<StartTailscaleResult>;
@@ -202,6 +220,9 @@ export function createDesktopRemoteAccessController(
   let remoteAccessServer: RemoteAccessServer | null = null;
   let remoteAccessStartAttempt: RemoteAccessStartAttempt | null = null;
   let remoteAccessGeneration = 0;
+  /** Whether the settled running server is the loopback-only always-on
+   * instance (attempt-scoped while starting, tracked here once settled). */
+  let runningLoopbackOnly = false;
   let disposed = false;
   let pushCoordinator: PushCoordinator | null = null;
   /** The gateway/proxy pair is reused across an in-place server restart. */
@@ -367,6 +388,21 @@ export function createDesktopRemoteAccessController(
     attempt.generation === remoteAccessGeneration &&
     remoteAccessStartAttempt === attempt;
 
+  /**
+   * The user-facing enablement state of the RUNNING (or starting) server. The
+   * always-on loopback-only instance is deliberately invisible here: the
+   * pairing QR, session list, and refresh flow stay `disabled` until the user
+   * actually enables remote access, so a reachable loopback listener never
+   * becomes a discoverable advertisement (V5 plan 2.5 completion).
+   */
+  const isRemoteAccessUserEnabled = (): boolean => {
+    const attempt = remoteAccessStartAttempt;
+    const server = remoteAccessServer ?? attempt?.server ?? null;
+    if (!server) return false;
+    if (attempt && !attempt.cancelled) return !attempt.loopbackOnly;
+    return !runningLoopbackOnly;
+  };
+
   const teardownAttemptTailscaleServe = (attempt: RemoteAccessStartAttempt): Promise<void> => {
     if (!attempt.tailscaleServeUrl) return Promise.resolve();
     if (attempt.tailscaleTeardownPromise) return attempt.tailscaleTeardownPromise;
@@ -387,7 +423,10 @@ export function createDesktopRemoteAccessController(
 
       remoteTailscaleServeActiveUrl = null;
       const identity = readOrCreateRemoteAccessIdentity(options.paths.baseDir);
-      const remoteHost = remoteAccessHost();
+      // The always-on instance pins the LOOPBACK bind regardless of bind-mode
+      // env: a disabled desktop must never expose a wide listener just because
+      // it is running (V5 plan 2.5 completion).
+      const remoteHost = attempt.loopbackOnly ? DEFAULT_REMOTE_ACCESS_HOST : remoteAccessHost();
       const port = await resolveRemoteAccessPort({ host: remoteHost });
       // Dedicated persistent origin secret + configured HTTPS base → the
       // browser-forward child-origin identity. A malformed explicit
@@ -399,7 +438,8 @@ export function createDesktopRemoteAccessController(
         serverId: identity.desktopId,
       });
       const advertisedHost = remoteAccessAdvertisedHost({ bindHost: remoteHost });
-      const advertisedResolution = await resolveAdvertisedBaseUrl(port);
+      // Loopback-only never advertises: no Tailscale serve, no custom URL.
+      const advertisedResolution = attempt.loopbackOnly ? {} : await resolveAdvertisedBaseUrl(port);
       attempt.tailscaleServeUrl = advertisedResolution.tailscaleServeUrl ?? null;
       if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
       remoteTailscaleServeActiveUrl = attempt.tailscaleServeUrl;
@@ -526,7 +566,9 @@ export function createDesktopRemoteAccessController(
           remove: (deviceId, routing) => pushStore.remove(deviceId, routing),
         },
         onPairingChanged: () => {
-          options.notifyRemoteAccessPairingChanged(getRemoteAccessPairingInfo(server));
+          // Gated like getPairingInfo: the loopback-only instance never
+          // advertises its pairing state to the renderer UI.
+          options.notifyRemoteAccessPairingChanged(getPairingInfo());
         },
         onProjectsChanged: options.notifyProjectStateChanged,
       });
@@ -536,6 +578,13 @@ export function createDesktopRemoteAccessController(
       attempt.serverStartPromise = serverStartPromise;
       const info = await serverStartPromise;
       if (!isCurrentStartAttempt(attempt)) throw new RemoteAccessStartSupersededError();
+      runningLoopbackOnly = attempt.loopbackOnly;
+      if (attempt.loopbackOnly) {
+        // Reachable for the co-located renderer, never advertised: no QR line,
+        // no pairing URL in the log.
+        console.log("[poracode] loopback remote server ready at %s", info.localHttpBaseUrl);
+        return info;
+      }
       console.log("[poracode] remote access enabled at %s", info.httpBaseUrl);
       // The pairing URL carries its live one-time credential in the fragment;
       // the headless CLI never prints raw tokens, and neither does the desktop.
@@ -556,6 +605,7 @@ export function createDesktopRemoteAccessController(
       }
       if (remoteAccessServer === attempt.server) {
         remoteAccessServer = null;
+        runningLoopbackOnly = false;
       }
       if (pushCoordinator === attempt.coordinator) {
         pushCoordinator = null;
@@ -582,15 +632,38 @@ export function createDesktopRemoteAccessController(
     }
   };
 
-  const startRemoteAccessServer = (): Promise<RemoteAccessServerInfo> => {
+  const startRemoteAccessServer = (loopbackOnly: boolean): Promise<RemoteAccessServerInfo> => {
     if (disposed) {
       return Promise.reject(new Error("Remote access controller is disposed."));
     }
     prewarmGitStateOnce();
     const runningInfo = remoteAccessServer?.getInfo();
-    if (runningInfo) return Promise.resolve(runningInfo);
+    // A settled running server satisfies the request only when its bind mode
+    // already matches: a loopback-only always-on instance must be REPLACED by
+    // an enabling start (wide bind/advertised URL), and an enabled server
+    // already covers the loopback role.
+    if (runningInfo && runningLoopbackOnly === loopbackOnly) return Promise.resolve(runningInfo);
+    if (runningInfo && runningLoopbackOnly !== loopbackOnly) {
+      // Mode switch (enable upgrade): retire the settled loopback-only
+      // instance, then start its replacement in this generation.
+      const stale = remoteAccessServer;
+      remoteAccessServer = null;
+      runningLoopbackOnly = false;
+      return retirements
+        .run([() => (stale ? stale.dispose() : undefined), clearEventInterests])
+        .catch(() => undefined)
+        .then(() => {
+          if (disposed) throw new Error("Remote access controller is disposed.");
+          return startRemoteAccessServer(loopbackOnly);
+        });
+    }
     if (remoteAccessStartAttempt) {
-      if (!remoteAccessStartAttempt.cancelled) return remoteAccessStartAttempt.promise;
+      if (
+        !remoteAccessStartAttempt.cancelled &&
+        remoteAccessStartAttempt.loopbackOnly === loopbackOnly
+      ) {
+        return remoteAccessStartAttempt.promise;
+      }
       const queuedGeneration = remoteAccessGeneration;
       return remoteAccessStartAttempt.promise
         .catch(() => undefined)
@@ -598,7 +671,7 @@ export function createDesktopRemoteAccessController(
           if (disposed || queuedGeneration !== remoteAccessGeneration) {
             throw new RemoteAccessStartSupersededError();
           }
-          return startRemoteAccessServer();
+          return startRemoteAccessServer(loopbackOnly);
         });
     }
 
@@ -615,6 +688,7 @@ export function createDesktopRemoteAccessController(
       coordinator: null,
       tailscaleServeUrl: null,
       tailscaleTeardownPromise: null,
+      loopbackOnly,
     };
     remoteAccessStartAttempt = attempt;
     return startPromise;
@@ -627,41 +701,12 @@ export function createDesktopRemoteAccessController(
     return disableTailscaleServe().catch(() => {});
   };
 
-  const stopRemoteAccessServer = () => {
-    const attempt = remoteAccessStartAttempt;
-    remoteAccessGeneration += 1;
-    if (attempt) attempt.cancelled = true;
-    const server = remoteAccessServer ?? attempt?.server ?? null;
-    const coordinator = pushCoordinator ?? attempt?.coordinator ?? null;
-    const forwarding = portForwarding;
-    remoteAccessServer = null;
-    pushCoordinator = null;
-    portForwarding = null;
-    // Full disable keeps forwarding alive until in-flight HTTP requests finish.
-    void retirements
-      .run([
-        async () => {
-          try {
-            if (server)
-              await (attempt?.server === server ? disposeAttemptServer(attempt) : server.dispose());
-          } finally {
-            forwarding?.dispose();
-          }
-        },
-        () => coordinator?.dispose(),
-        clearEventInterests,
-        () =>
-          attempt?.tailscaleServeUrl
-            ? teardownAttemptTailscaleServe(attempt)
-            : teardownTailscaleServe(),
-      ])
-      .then(() => console.log("[poracode] remote access disabled"))
-      .catch((error) =>
-        console.warn("[poracode] remote access failed to stop cleanly:", toErrorMessage(error)),
-      );
-  };
+  // V5 plan 2.5 completion: the unconditional full "stop" path is gone —
+  // disabling DOWNGRADES to the always-on loopback instance
+  // ({@link restartRemoteAccessServer}(true)) instead of tearing the server
+  // out, so the managed desktop never loses its loopback leg.
 
-  const restartRemoteAccessServer = async (): Promise<void> => {
+  const restartRemoteAccessServer = async (loopbackOnly: boolean): Promise<void> => {
     const restartGeneration = remoteAccessGeneration;
     const starting = remoteAccessStartAttempt;
     if (!remoteAccessServer && !starting) return;
@@ -674,6 +719,7 @@ export function createDesktopRemoteAccessController(
     const coordinator = pushCoordinator;
     remoteAccessServer = null;
     pushCoordinator = null;
+    runningLoopbackOnly = false;
     await retirements.run([
       () => server?.dispose(),
       () => coordinator?.dispose(),
@@ -681,7 +727,7 @@ export function createDesktopRemoteAccessController(
     ]);
     if (disposed || restartGeneration !== remoteAccessGeneration) return;
     try {
-      await startRemoteAccessServer();
+      await startRemoteAccessServer(loopbackOnly);
     } catch (error) {
       if (
         error instanceof RemoteAccessStartSupersededError &&
@@ -734,7 +780,7 @@ export function createDesktopRemoteAccessController(
     const previous = readSharedSettingsFile(options.paths.settingsPath).remoteAccessTailscaleHttps;
     await commitSettingsPatch({ remoteAccessTailscaleHttps: enabled });
     try {
-      await restartRemoteAccessServer();
+      await restartRemoteAccessServer(false);
     } catch (error) {
       await revertCommittedSetting("remoteAccessTailscaleHttps", enabled, previous);
       throw error;
@@ -768,7 +814,7 @@ export function createDesktopRemoteAccessController(
     const previous = readSharedSettingsFile(options.paths.settingsPath).remoteAccessAdvertisedUrl;
     await commitSettingsPatch({ remoteAccessAdvertisedUrl: normalized });
     try {
-      await restartRemoteAccessServer();
+      await restartRemoteAccessServer(false);
     } catch (error) {
       await revertCommittedSetting("remoteAccessAdvertisedUrl", normalized, previous);
       throw error;
@@ -778,36 +824,88 @@ export function createDesktopRemoteAccessController(
 
   const setEnabled = async (enabled: boolean): Promise<RemoteAccessPairingInfo> => {
     if (!enabled) {
-      // Persist the disable before stopping: a settings conflict rejects the
+      // Persist the disable before downgrading: a settings conflict rejects the
       // call with the server (and the enabled flag) untouched.
       await writeRemoteAccessEnabledSetting(false);
-      stopRemoteAccessServer();
-      return getRemoteAccessPairingInfo(remoteAccessServer);
+      // V5 plan 2.5 completion: disabling keeps the managed flavor's ALWAYS-ON
+      // loopback instance alive — the renderer's unified leg and the loopback
+      // bootstrap keep working — but the discoverable (advertised) surface is
+      // torn down and pairing info reports `disabled` again. Like the old
+      // stop, the downgrade never blocks on in-flight work (a held push, a
+      // draining request): it runs in the background and the UI reflects
+      // `disabled` immediately.
+      void restartRemoteAccessServer(true).catch(() => {
+        // The persisted disable already succeeded. Restore the always-on
+        // loopback leg in the background; the desktop-IPC relay covers
+        // meanwhile.
+        void startRemoteAccessServer(true).catch(() => undefined);
+      });
+      return getPairingInfo();
     }
 
     await writeRemoteAccessEnabledSetting(true);
     try {
-      await startRemoteAccessServer();
+      await startRemoteAccessServer(false);
     } catch (error) {
       if (error instanceof RemoteAccessStartSupersededError) {
-        return getRemoteAccessPairingInfo(remoteAccessServer);
+        return getPairingInfo();
       }
       throw error;
     }
-    return getRemoteAccessPairingInfo(remoteAccessServer);
+    return getPairingInfo();
   };
 
+  /**
+   * Readiness (V5 plan 2.5 completion): the managed desktop ALWAYS ends up
+   * with a loopback-bound remote server. When remote access is enabled the
+   * full instance covers it; otherwise a loopback-only instance starts so the
+   * co-located renderer can always attach (reachable, not discoverable).
+   * Startup failure is contained (reported, retried on the next readiness
+   * call) — the desktop-IPC relay stays the fallback leg.
+   */
   const startIfEnabled = async (): Promise<void> => {
-    if (!readSharedSettingsFile(options.paths.settingsPath).remoteAccessEnabled) return;
+    const enabled = readSharedSettingsFile(options.paths.settingsPath).remoteAccessEnabled === true;
     try {
-      await startRemoteAccessServer();
+      await startRemoteAccessServer(!enabled);
     } catch (error) {
       if (error instanceof RemoteAccessStartSupersededError) return;
     }
   };
 
+  const getPairingInfo = (): RemoteAccessPairingInfo => {
+    // The always-on loopback instance is deliberately invisible on the
+    // user-facing pairing surface.
+    return getRemoteAccessPairingInfo(isRemoteAccessUserEnabled() ? remoteAccessServer : null);
+  };
+
+  const getManagedLoopbackBootstrap = async (): Promise<ManagedLoopbackBootstrap | null> => {
+    if (disposed) return null;
+    // Serialize behind readiness: the renderer may ask while the always-on
+    // start is still in flight. The credential mint below happens only once
+    // the server is actually serving.
+    try {
+      await startRemoteAccessServer(
+        readSharedSettingsFile(options.paths.settingsPath).remoteAccessEnabled !== true,
+      );
+    } catch {
+      return null;
+    }
+    if (disposed) return null;
+    const server = remoteAccessServer;
+    if (!server) return null;
+    const credential = server.mintLoopbackRendererCredential();
+    if (!credential) return null;
+    return {
+      endpoint: credential.endpoint,
+      pairingUrl: credential.pairingUrl,
+    };
+  };
+
   return {
     getServer: () => remoteAccessServer,
+    getPairingInfo,
+    isUserEnabled: isRemoteAccessUserEnabled,
+    getManagedLoopbackBootstrap,
     handleSupervisorEvent: (event) => {
       remoteAccessServer?.publishSupervisorEvent(event);
       pushCoordinator?.handleSupervisorEvent(event);

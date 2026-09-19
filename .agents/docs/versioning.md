@@ -710,13 +710,91 @@ event}` where `event` is a desktop-only `SupervisorEvent`
     boundary). The intake joins live-only (no replay cursors) and recovers
     through the transport's rebuild dispatch — the same primitive the relay's
     shed/gap signals use — so no desktop reducer gained seq-replay obligations.
-- **What did NOT move yet:** desktop `thread-output` (PTY bytes) still rides
-  the desktop-IPC relay for the terminal UI (the server already admits
-  desktop-internal sessions to `terminal-watch` v1/v2, tested); managed
-  requests still cross the `call-*` operations; main does not yet guarantee an
-  always-on loopback server for managed launches (the intake is opportunistic
-  and the IPC relay remains the documented fallback). Those are the remaining
-  2.5 sub-items.
+- **Completion (V5 plan 2.5, final):** the three recorded not-yet-moved
+  sub-items landed; see the section below.
+
+## Loopback 2.5 completion — terminal-watch migration, loopback request routing, always-on managed server — additive, no version bumps
+
+The last three 2.5 sub-items moved the desktop's terminal bytes, its managed
+requests, and the server guarantee itself onto the loopback leg. The version
+verdict first, boundary by boundary:
+
+- **Remote wire (`PORACODE_REMOTE_PROTOCOL_VERSION`, 12): unchanged, generated
+  artifacts untouched.** The terminal migration consumes the EXISTING
+  `terminal-watch` / `terminal-output` / cursor-sync v1/v2 surface (the
+  desktop-internal admission from the 2.5 continuation). The request-routing
+  and bootstrap surfaces below ride desktop-internal IPC, not the remote
+  manifest; `pnpm protocol:remote:v3:check` stays green with the existing
+  `manifestHash`/`sourceHash` pins.
+- **IPC procedure map (`IPC_PROCEDURE_MAP_VERSION`, 1): additive name, version
+  stays, fingerprint pin moved.** One new main-local procedure,
+  `getManagedLoopbackBootstrap`, was added; every peer loud-rejects unknown
+  names, so per the map's recorded rule the version stays 1 and the pinned
+  fingerprint in `procedureMapVersion.test.ts` was refreshed to force exactly
+  this review.
+- **Backend-host protocol (14): additive same-build service name.**
+  `getManagedLoopbackBootstrap` mirrors through `BackendServiceProcedureMap`;
+  main and the backend child ship in one bundle, so no protocol bump (the
+  same rule as the `dataFencePath` field).
+- **`standaloneAttachInfo` / attach bootstrap: untouched.** The managed
+  bootstrap payload is a separate surface; attach mode and the standalone
+  server are unaffected.
+
+The three sub-items:
+
+- **Terminal UI on `terminal-watch`.** Local (managed) terminal surfaces
+  subscribe through `watchManagedTerminal` (`remoteTerminalFeed.ts`) instead
+  of the raw relay subscription: while the loopback leg is active, PTY bytes
+  and terminal lifecycle ride the loopback session's `terminal-watch`
+  machinery (v2 chunked baselines + cursor sync, v1 downgrade preserved),
+  exactly as remote terminals always have; while it is down, the
+  desktop-IPC relay's `thread-output` is the fallback, and the transport's
+  rebuild dispatch (`thread-scrollback-resync`) drives the existing
+  scrollback-recovery rehydration on every leg flip. The transport now
+  suppresses ALL relay events while the loopback leg is active (the
+  `thread-output` exception is gone — relay dedupe/cursor semantics are
+  unchanged). Renderer terminal interest leases are still held in both
+  modes, so backend retention and rebuild scope do not change. The terminal
+  surface contract (real PTY, byte-exact output, Ctrl chords, resize
+  propagation, scrollback persistence) is regression-covered on the unified
+  path against a real `RemoteAccessServer`
+  (`desktopLoopbackUnification.test.ts`).
+- **Loopback request routing.** While the loopback leg is active, managed
+  remote-routable requests (the `REMOTE_PROCEDURE_ROUTES` set) route over the
+  loopback HTTP leg through an ephemeral, in-memory owner row
+  (`managedLoopbackOwner.ts`, `MANAGED_LOOPBACK_DESKTOP_ID = "managed-loopback"`
+  — a literal that can never collide with a UUID `desktopId`). The managed
+  host mirrors attach mode's owner-row routing for the desktop's OWN
+  entities: identity owners (managed rows are not projected), with local
+  location payloads stamped `remoteServerId` by `stampRemoteOwnerOntoPayload`
+  (the router's `unprojectRemotePayload` strips the stamp before the wire, so
+  the request the server sees is byte-identical). Persisted paired owners
+  still resolve first, so desktop-as-client routing is unchanged. A request
+  whose loopback transport fails mid-flight falls back to preload IPC
+  (transport failures only — never a server verdict, which the same backend
+  would answer identically over IPC). The 32 MiB large-reply acceptance runs
+  on the loopback HTTP path.
+- **Always-on managed server + bootstrap payload.** The desktop-managed
+  flavor ALWAYS has a loopback `RemoteAccessServer` running from readiness:
+  `startIfEnabled` starts unconditionally — the full (advertised) instance
+  when remote access is enabled, otherwise a loopback-only instance whose
+  bind is pinned to `127.0.0.1` regardless of bind-mode env. The loopback
+  instance is reachable but never discoverable: the user-facing pairing
+  surface (`getPairingInfo`, the `remote-access-pairing-changed` broadcast,
+  and `refreshRemoteAccessPairing`'s QR rotation) reports `disabled` while
+  only the loopback instance runs, and no pairing URL is logged for it.
+  Enabling upgrades (replaces the loopback-only instance), disabling
+  downgrades to it — the full stop path is deleted. The renderer learns the
+  attach point through the **managed bootstrap payload**
+  (`ManagedLoopbackBootstrap` = `{ endpoint: <loopback http origin>,
+pairingUrl: <loopback pairing URL with the single-use `#token=` credential> }`)
+  served by `getManagedLoopbackBootstrap`; the controller serializes behind
+  readiness, so the server is running and a fresh dedicated credential
+  (`mintLoopbackRendererCredential`, which never rotates the displayed QR)
+  is minted before the renderer asks. On leg loss the renderer re-asks the
+  bootstrap (fresh endpoint/credential after a server restart); a failed
+  attempt retries on the discovery interval, and the desktop-IPC relay plus
+  preload IPC remain the documented fallback legs throughout.
 
 ## Local delivery-ownership wire boundary (backend-host 13 / renderer stream 5) — SUPERSEDED, deleted in V5 2.5
 

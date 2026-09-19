@@ -16,6 +16,13 @@ export interface RemoteAccessStartAttempt {
   coordinator: PushCoordinator | null;
   tailscaleServeUrl: string | null;
   tailscaleTeardownPromise: Promise<void> | null;
+  /**
+   * True when this attempt starts the ALWAYS-ON loopback-only instance (V5
+   * plan 2.5 completion): bind pinned to loopback, no advertised URL, no
+   * Tailscale serve — reachable for the co-located renderer, not discoverable.
+   * Drives the user-facing pairing-info gate.
+   */
+  loopbackOnly: boolean;
 }
 
 /** Retain disabled/replaced generations until their actual work has settled.

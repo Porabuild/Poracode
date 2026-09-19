@@ -23,12 +23,12 @@ export class ElectronBackendTransport {
   private readonly listeners = new Set<(event: SupervisorEvent) => void>();
   private interests: RendererInterests = { terminalThreadIds: [], runtimeThreadIds: [] };
   /**
-   * Loopback leg state (V5 plan 2.5): when the co-located remote server is
-   * serving this window's events over the loopback WS, the desktop-IPC relay
-   * is the FALLBACK and stops delivering — except `thread-output`, which has
-   * no loopback leg yet (PTY bytes stay off the remote streams until the
-   * terminal surface migrates to `terminal-watch`). The cursor still advances
-   * for dropped frames so relay dedupe semantics stay exact.
+   * Loopback leg state (V5 plan 2.5, completed): when the co-located remote
+   * server is serving this window over the loopback WS — shared events,
+   * desktop-only events, AND since the 2.5 completion PTY bytes via
+   * `terminal-watch` — the desktop-IPC relay is the FALLBACK and stops
+   * delivering entirely. The cursor still advances for dropped frames so
+   * relay dedupe semantics stay exact.
    */
   private loopbackActive = false;
 
@@ -38,7 +38,7 @@ export class ElectronBackendTransport {
         if (rendererSequence <= this.lastSequence) return;
         this.lastSequence = rendererSequence;
       }
-      if (this.loopbackActive && event.type !== "thread-output") return;
+      if (this.loopbackActive) return;
       this.dispatch(event);
     });
     host.onSupervisorEventGap(() => {

@@ -8,22 +8,53 @@ import {
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import { standaloneAttachInfoSchema } from "@/shared/standaloneAttach";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
-import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
+import {
+  PORACODE_REMOTE_PROTOCOL_VERSION,
+  TERMINAL_CURSOR_SYNC_V2_VERSION,
+} from "@/shared/remote/protocol";
+import {
+  REMOTE_OPERATOR_SCOPES,
+  type RemoteWebSocketClientMessage,
+  type RemoteWebSocketServerMessage,
+} from "@/shared/remote";
 import {
   assertIpcProcedureMapVersion,
   createProcedureBridge,
   parseIpcProcedureArgs,
+  type IpcProcedureName,
   type PoracodeBridge,
 } from "@/shared/ipc";
+import { msg } from "@/shared/messages";
 import { ElectronBackendTransport } from "./electronBackendTransport";
 import { isCompactLayoutViewport } from "./adaptiveLayout";
 import { isRemoteRoutableProcedure } from "./remoteProcedureRoutes";
-import { routeRemoteProcedure } from "./remoteProcedureRouter";
+import {
+  readRegisteredRemoteProcedureHost,
+  routeRemoteProcedure,
+  stampRemoteOwnerOntoPayload,
+  type RemoteProcedureHost,
+} from "./remoteProcedureRouter";
+import { isRemoteTransportFailure, RemoteDesktopClient } from "@/shared/remote/client";
+import type { ManagedLoopbackBootstrap } from "@/shared/managedLoopback";
 import {
   DesktopLoopbackIntake,
-  resolveLoopbackTarget,
-  type DesktopPairingEndpointInfo,
+  isLoopbackEndpoint,
+  parsePairingCredential,
+  type DesktopLoopbackSocket,
 } from "./state/remoteServers/desktopLoopbackIntake";
+import {
+  MANAGED_LOOPBACK_DESKTOP_ID,
+  clearManagedLoopbackOwnerRow,
+  isManagedLoopbackRequestRoutingActive,
+  setManagedLoopbackOwnerRow,
+} from "./state/remoteServers/managedLoopbackOwner";
+import {
+  emitRemoteTerminalExited,
+  emitRemoteTerminalReset,
+  handleRemoteTerminalServerMessage,
+  setManagedLoopbackTerminalLeg,
+  setRemoteTerminalSocketSender,
+} from "./state/remoteTerminalFeed";
 
 let installedRuntime: ClientRuntime | null = null;
 
@@ -110,6 +141,15 @@ export function installElectronClientRuntime(host: ElectronHostBridge): void {
     // V5 plan 2.5: every procedure crosses the preload invoke boundary
     // (main → backend-host call-* operations); the direct renderer stream
     // that used to shortcut requests is deleted.
+    //
+    // 2.5 completion: while the loopback HTTP leg is active, remote-routable
+    // requests route over it first and fall back to the preload invoke on
+    // transport failure (leg severed mid-request) — never on a server verdict,
+    // which the same backend would answer identically over IPC.
+    if (isRemoteRoutableProcedure(name) && isManagedLoopbackRequestRoutingActive()) {
+      const routed = routeManagedLoopbackRequest(name, args, host);
+      if (routed !== undefined) return routed;
+    }
     return host.invokeProcedure(name, args);
   });
   const native: PoracodeNativeBridge = {
@@ -145,19 +185,118 @@ const managedLoopback: {
   discoveryTimer: ReturnType<typeof setTimeout> | null;
 } = { transport: null, intake: null, discoveryTimer: null };
 
-/** Re-poll cadence while remote access is disabled/starting (cheap one-procedure
- * check per tick; the main-side always-on loopback guarantee will remove the
- * need for this). */
+/** Test seams for the wiring-created intake (real-server loopback tests drive
+ * the socket with the `ws` package instead of the DOM WebSocket). */
+const managedLoopbackTestSeams: {
+  socketFactory?: (url: string) => DesktopLoopbackSocket;
+  retryDelayMs?: number;
+  discoveryRetryMs?: number;
+} = {};
+
+/** Test seam: inject the intake's socket factory / retry cadence. */
+export function __setDesktopLoopbackIntakeTestSeamsForTest(seams: {
+  readonly socketFactory?: (url: string) => DesktopLoopbackSocket;
+  readonly retryDelayMs?: number;
+  readonly discoveryRetryMs?: number;
+}): void {
+  if (seams.socketFactory !== undefined)
+    managedLoopbackTestSeams.socketFactory = seams.socketFactory;
+  if (seams.retryDelayMs !== undefined) managedLoopbackTestSeams.retryDelayMs = seams.retryDelayMs;
+  if (seams.discoveryRetryMs !== undefined) {
+    managedLoopbackTestSeams.discoveryRetryMs = seams.discoveryRetryMs;
+  }
+}
+
+/** Test seam: whether the managed loopback intake is currently serving. */
+export function isDesktopLoopbackIntakeActive(): boolean {
+  return managedLoopback.intake?.isActive() ?? false;
+}
+
+/** Re-discovery cadence while the loopback server is starting or its
+ * credential was consumed by a server restart (cheap one-procedure check per
+ * tick; the always-on guarantee makes the first ask succeed in practice). */
 const LOOPBACK_DISCOVERY_RETRY_MS = 30_000;
 
 /**
- * Starts the managed window's opportunistic loopback event intake (V5 plan
- * 2.5). Fire-and-forget: remote access may be disabled or still starting, so
- * the coordinator polls the existing `getRemoteAccessPairing` procedure and
- * attaches only to a loopback local endpoint carrying a pairing credential.
- * Every failure is non-fatal — the window keeps working over the desktop-IPC
- * relay (the fallback leg) and both connection and discovery retry in the
- * background.
+ * The managed loopback routing host (V5 plan 2.5 completion). Mirrors attach
+ * mode's owner row for the DESKTOP'S OWN entities: while the loopback leg is
+ * active, local threads/projects/locations resolve to the loopback identity
+ * (id-preserving — managed rows are not projected), and requests execute
+ * through a lean loopback `RemoteDesktopClient`. Persisted paired owners keep
+ * resolving through the registered host first, so desktop-as-client routing
+ * is unchanged.
+ */
+function createManagedLoopbackProcedureHost(
+  endpoint: string,
+  accessToken: string,
+): RemoteProcedureHost {
+  const persisted = readRegisteredRemoteProcedureHost();
+  const client = new RemoteDesktopClient(endpoint, accessToken);
+  return {
+    resolveThreadOwner: (threadId) => {
+      const persistedOwner = persisted?.resolveThreadOwner(threadId);
+      if (persistedOwner) return persistedOwner;
+      return { desktopId: MANAGED_LOOPBACK_DESKTOP_ID, remoteId: threadId };
+    },
+    resolveProjectOwner: (projectId) => {
+      const persistedOwner = persisted?.resolveProjectOwner(projectId);
+      if (persistedOwner) return persistedOwner;
+      return { desktopId: MANAGED_LOOPBACK_DESKTOP_ID, remoteId: projectId };
+    },
+    withClient: (desktopId, invoke) => {
+      if (desktopId !== MANAGED_LOOPBACK_DESKTOP_ID) {
+        if (!persisted) throw new Error(msg("remote.server.unreachable"));
+        return persisted.withClient(desktopId, invoke);
+      }
+      // Lean path: no runtime-row bookkeeping and no failure wrapping — raw
+      // transport failures reach the caller, which is exactly what the IPC
+      // fallback in {@link routeManagedLoopbackRequest} keys on.
+      return invoke(client);
+    },
+  };
+}
+
+let managedLoopbackHost: RemoteProcedureHost | null = null;
+
+/**
+ * Routes one remote-routable managed request over the loopback HTTP leg.
+ * Returns `undefined` when the router resolves the request locally (owner
+ * `none` payloads and procedures whose owner lives on a persisted paired
+ * desktop), so the caller falls through to the preload invoke. Transport
+ * failures on the loopback leg retry over preload IPC — leg severing mid
+ * request degrades, never loses the call.
+ */
+function routeManagedLoopbackRequest(
+  name: IpcProcedureName,
+  args: unknown[],
+  host: ElectronHostBridge,
+): Promise<unknown> | undefined {
+  const loopbackHost = managedLoopbackHost;
+  if (!loopbackHost) return undefined;
+  const payload = parseIpcProcedureArgs(name, args);
+  const stamped = stampRemoteOwnerOntoPayload(
+    payload,
+    MANAGED_LOOPBACK_DESKTOP_ID,
+  ) as typeof payload;
+  const decision = routeRemoteProcedure(name, stamped, loopbackHost);
+  if (decision.kind !== "remote") return undefined;
+  return decision.result.catch((error: unknown) => {
+    if (!isRemoteTransportFailure(error)) throw error;
+    // The leg went down between the activation check and this request (or the
+    // row has not been cleared yet). Preload IPC is the durable fallback: the
+    // same backend answers, so semantics are identical.
+    return host.invokeProcedure(name, [payload]);
+  });
+}
+
+/**
+ * Starts the managed window's loopback intake (V5 plan 2.5, completed by the
+ * always-on guarantee). Fire-and-forget: main mints this launch's attach
+ * payload at readiness (`getManagedLoopbackBootstrap`), so the first ask
+ * normally succeeds; until then (backend still starting) discovery retries in
+ * the background. Every failure is non-fatal — the window keeps working over
+ * the desktop-IPC relay (the fallback leg) for events, terminals, and
+ * requests alike.
  *
  * No-op unless the managed Electron runtime is installed (attached and browser
  * flavors already run their own remote stacks).
@@ -171,29 +310,100 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
   ) {
     return;
   }
-  let info: DesktopPairingEndpointInfo;
-  try {
-    info =
-      (await installedRuntime.procedures.getRemoteAccessPairing()) as DesktopPairingEndpointInfo;
-  } catch {
-    scheduleLoopbackDiscoveryRetry();
-    return;
-  }
-  const target = resolveLoopbackTarget(info);
-  if (!target) {
-    scheduleLoopbackDiscoveryRetry();
-    return;
-  }
   if (managedLoopback.intake) return;
+  let bootstrap: ManagedLoopbackBootstrap | null = null;
+  try {
+    bootstrap =
+      (await installedRuntime.procedures.getManagedLoopbackBootstrap()) as ManagedLoopbackBootstrap | null;
+  } catch {
+    bootstrap = null;
+  }
+  const pairingToken = bootstrap ? parsePairingCredential(bootstrap.pairingUrl) : null;
+  if (!bootstrap || !pairingToken || !isLoopbackEndpoint(bootstrap.endpoint)) {
+    scheduleLoopbackDiscoveryRetry();
+    return;
+  }
+  const endpoint = bootstrap.endpoint;
   const intake = new DesktopLoopbackIntake({
-    endpoint: target.endpoint,
-    pairingToken: target.pairingToken,
-    dispatch: (event) => transport.dispatchLoopbackEvent(event),
+    endpoint,
+    pairingToken,
+    ...(managedLoopbackTestSeams.socketFactory
+      ? { socketFactory: managedLoopbackTestSeams.socketFactory }
+      : {}),
+    ...(managedLoopbackTestSeams.retryDelayMs !== undefined
+      ? { retryDelayMs: managedLoopbackTestSeams.retryDelayMs }
+      : {}),
+    dispatch: (event) => {
+      // Terminal lifecycle rides the feed while the leg is up: mirror
+      // reset/exit into it before the desktop reducer (no-ops for ids with no
+      // watchers).
+      if (event.type === "thread-reset") {
+        emitRemoteTerminalReset(MANAGED_LOOPBACK_DESKTOP_ID, event.threadId);
+      } else if (event.type === "thread-exited") {
+        emitRemoteTerminalExited(
+          MANAGED_LOOPBACK_DESKTOP_ID,
+          event.threadId,
+          typeof event.exitCode === "number" ? event.exitCode : null,
+        );
+      }
+      transport.dispatchLoopbackEvent(event);
+    },
     requestRebuild: () => transport.rebuildSubscribedState(),
-    onActiveChanged: (active) => transport.setLoopbackActive(active),
+    onActiveChanged: (active) => {
+      if (active) {
+        cancelLoopbackRediscovery();
+        // Terminal leg first: watchers switch to the feed before the
+        // transport's rebuild dispatch runs (the baseline supersedes the
+        // resync on activation).
+        setManagedLoopbackTerminalLeg(true);
+        transport.setLoopbackActive(true);
+        const accessToken = intake.getAccessToken();
+        if (accessToken) {
+          managedLoopbackHost = createManagedLoopbackProcedureHost(endpoint, accessToken);
+          setManagedLoopbackOwnerRow({
+            endpoint,
+            accessToken,
+            scopes: [...REMOTE_OPERATOR_SCOPES],
+          });
+        }
+      } else {
+        setManagedLoopbackTerminalLeg(false);
+        transport.setLoopbackActive(false);
+        managedLoopbackHost = null;
+        clearManagedLoopbackOwnerRow();
+        // The retained token may recover a same-endpoint drop via the
+        // intake's own retries; a moved/consumed credential needs a fresh
+        // bootstrap ask.
+        scheduleLoopbackRediscovery();
+      }
+    },
+    onTerminalReady: (send) => {
+      setRemoteTerminalSocketSender(
+        MANAGED_LOOPBACK_DESKTOP_ID,
+        send as (message: RemoteWebSocketClientMessage) => boolean,
+        { cursorSyncVersion: TERMINAL_CURSOR_SYNC_V2_VERSION },
+      );
+    },
+    onTerminalLost: () => {
+      setRemoteTerminalSocketSender(MANAGED_LOOPBACK_DESKTOP_ID, null);
+    },
+    onServerFrame: (message) =>
+      handleRemoteTerminalServerMessage(
+        MANAGED_LOOPBACK_DESKTOP_ID,
+        message as RemoteWebSocketServerMessage,
+      ),
   });
   managedLoopback.intake = intake;
-  void intake.activate();
+  const activated = await intake.activate();
+  if (!activated && managedLoopback.intake === intake) {
+    // The bootstrap target is unusable (server moved its port, credential
+    // consumed): drop the intake and re-ask main after the retry interval —
+    // the always-on guarantee guarantees a fresh answer, not a still-valid
+    // endpoint.
+    intake.dispose();
+    managedLoopback.intake = null;
+    scheduleLoopbackDiscoveryRetry();
+  }
 }
 
 function scheduleLoopbackDiscoveryRetry(): void {
@@ -201,7 +411,32 @@ function scheduleLoopbackDiscoveryRetry(): void {
   managedLoopback.discoveryTimer = setTimeout(() => {
     managedLoopback.discoveryTimer = null;
     void startDesktopLoopbackEventIntake();
-  }, LOOPBACK_DISCOVERY_RETRY_MS);
+  }, managedLoopbackTestSeams.discoveryRetryMs ?? LOOPBACK_DISCOVERY_RETRY_MS);
+  managedLoopback.discoveryTimer.unref?.();
+}
+
+function cancelLoopbackRediscovery(): void {
+  if (!managedLoopback.discoveryTimer) return;
+  clearTimeout(managedLoopback.discoveryTimer);
+  managedLoopback.discoveryTimer = null;
+}
+
+/**
+ * Leg-loss rediscovery (V5 plan 2.5 completion): when the loopback socket
+ * dies for good — a server restart may have moved the port or consumed the
+ * pairing credential — the intake is replaced through a FRESH bootstrap ask
+ * rather than retrying a spent credential forever. The desktop-IPC relay and
+ * preload IPC carry the surface meanwhile; if the intake's own retained-token
+ * retry recovers first, the pending rediscovery is cancelled on re-activation.
+ */
+function scheduleLoopbackRediscovery(): void {
+  cancelLoopbackRediscovery();
+  managedLoopback.discoveryTimer = setTimeout(() => {
+    managedLoopback.discoveryTimer = null;
+    managedLoopback.intake?.dispose();
+    managedLoopback.intake = null;
+    void startDesktopLoopbackEventIntake();
+  }, managedLoopbackTestSeams.discoveryRetryMs ?? LOOPBACK_DISCOVERY_RETRY_MS);
   managedLoopback.discoveryTimer.unref?.();
 }
 
@@ -214,6 +449,9 @@ export function resetDesktopLoopbackIntakeForTest(): void {
   managedLoopback.intake?.dispose();
   managedLoopback.intake = null;
   managedLoopback.transport = null;
+  managedLoopbackHost = null;
+  clearManagedLoopbackOwnerRow();
+  setManagedLoopbackTerminalLeg(false);
 }
 
 export function installBrowserClientRuntime(bridge: PoracodeBridge): void {

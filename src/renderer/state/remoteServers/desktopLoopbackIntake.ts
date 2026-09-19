@@ -1,4 +1,5 @@
 import type { SupervisorEvent } from "@/shared/ipc";
+import { REMOTE_OPERATOR_SCOPES } from "@/shared/remote";
 
 /**
  * Desktop loopback event intake (V5 plan 2.5): the managed desktop renderer's
@@ -12,19 +13,21 @@ import type { SupervisorEvent } from "@/shared/ipc";
  *   families — provider usage, LSP, OSC, crossagent, experiment judging — that
  *   external clients must never observe).
  *
- * PTY bytes never ride either stream: `thread-output` stays on the
- * desktop-IPC relay for the desktop terminal UI until the terminal surface
- * migrates to `terminal-watch` (the server side already admits desktop
- * sessions to terminal watches).
+ * PTY bytes never ride either stream: since the 2.5 completion the terminal
+ * surface consumes them through the `terminal-watch` machinery ON THIS SOCKET
+ * (the server already admits desktop sessions to terminal watches, v1/v2
+ * cursor sync included) — the relay-delivered `thread-output` path remains
+ * only as the fallback while this leg is down.
  *
  * Fallback contract: while the loopback socket is down, the desktop-IPC relay
  * remains the delivery path (the transport stops dropping it), and every
  * activation re-baselines subscribed threads through the transport's rebuild
  * dispatch — the same recovery primitive the relay's shed/gap signals use.
- * Discovery is opportunistic: remote access can be disabled or still starting,
- * so the coordinator polls `getRemoteAccessPairing` and only attaches when the
- * local endpoint is a loopback origin. Every failure stays non-fatal: the
- * intake retries in the background and the desktop keeps working over IPC.
+ * Discovery is driven by main's always-on guarantee: the managed bootstrap
+ * payload (`getManagedLoopbackBootstrap`) resolves the loopback endpoint and
+ * this launch's single-use credential once the server is serving. Every
+ * failure stays non-fatal: the intake retries in the background and the
+ * desktop keeps working over IPC.
  */
 
 export interface DesktopLoopbackSocket {
@@ -46,6 +49,15 @@ export interface DesktopLoopbackIntakeDeps {
   readonly requestRebuild: () => void;
   /** Notified when the loopback leg becomes (in)active for event delivery. */
   readonly onActiveChanged: (active: boolean) => void;
+  /** Terminal-watch activation (V5 plan 2.5 completion): called once the
+   * socket is OPEN with a sender for `terminal-watch` client frames. The
+   * owner installs the shared terminal feed's sender here. */
+  readonly onTerminalReady?: (send: (message: unknown) => boolean) => void;
+  /** Terminal-watch teardown: closes the feed's watches (leg down). */
+  readonly onTerminalLost?: () => void;
+  /** Routes one non-event server frame; returns true when consumed (terminal
+   * `terminal-output` / cursor-sync machinery frames). */
+  readonly onServerFrame?: (message: unknown) => boolean;
   /** Test seams. */
   readonly fetchImpl?: typeof fetch;
   readonly socketFactory?: (url: string) => DesktopLoopbackSocket;
@@ -90,6 +102,10 @@ export class DesktopLoopbackIntake {
   private connecting = false;
   private active = false;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Live bearer token for the loopback HTTP leg, retained from the pairing
+   * exchange so managed `call-*` requests can ride the same leg. */
+  private accessToken: string | null = null;
+  private refreshToken: string | null = null;
 
   constructor(private readonly deps: DesktopLoopbackIntakeDeps) {
     this.retryDelayMs = deps.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
@@ -138,6 +154,26 @@ export class DesktopLoopbackIntake {
     return this.active;
   }
 
+  /** The retained loopback bearer token, once the pairing exchange ran. */
+  getAccessToken(): string | null {
+    return this.accessToken;
+  }
+
+  getRefreshToken(): string | null {
+    return this.refreshToken;
+  }
+
+  /** Installs a token refresh rotation result (the loopback HTTP client's
+   * lifecycle reports rotations back into this intake). */
+  applyTokens(tokens: {
+    readonly accessToken: string;
+    readonly refreshToken?: string | null;
+  }): void {
+    this.accessToken = tokens.accessToken;
+    if (tokens.refreshToken === undefined) return;
+    this.refreshToken = tokens.refreshToken;
+  }
+
   dispose(): void {
     this.disposed = true;
     if (this.retryTimer) {
@@ -146,27 +182,45 @@ export class DesktopLoopbackIntake {
     }
     this.socket?.close();
     this.socket = null;
+    this.deps.onTerminalLost?.();
     this.setActive(false);
   }
 
-  /** One activation attempt: pair, mint a ticket, open the desktop-internal
-   * socket. Resolves true only once the socket is OPEN and serving. */
+  /** One activation attempt: pair (or reuse the retained bearer), mint a
+   * ticket, open the desktop-internal socket. Resolves true only once the
+   * socket is OPEN and serving. Retries reuse the retained access token —
+   * the pairing credential is single-use, so re-exchanging it would fail
+   * forever even when only the socket dropped. */
   async activate(): Promise<boolean> {
     if (this.disposed || this.active || this.connecting) return this.active;
     this.connecting = true;
     try {
       const base = this.deps.endpoint.endsWith("/") ? this.deps.endpoint : `${this.deps.endpoint}/`;
-      const token = await this.exchangePairingToken(base);
+      let token = this.accessToken;
+      if (token) {
+        try {
+          return await this.openWithTicket(base, token);
+        } catch {
+          // Ticket mint refused the retained bearer (expired/rotated): fall
+          // through to a fresh exchange.
+          token = null;
+        }
+      }
+      token = await this.exchangePairingToken(base);
       if (!this.canContinue()) return false;
-      const ticket = await this.mintTicket(base, token);
-      if (!this.canContinue()) return false;
-      return await this.openSocket(base, ticket);
+      return await this.openWithTicket(base, token);
     } catch {
       this.scheduleRetry();
       return false;
     } finally {
       this.connecting = false;
     }
+  }
+
+  private async openWithTicket(base: string, token: string): Promise<boolean> {
+    const ticket = await this.mintTicket(base, token);
+    if (!this.canContinue()) return false;
+    return await this.openSocket(base, ticket);
   }
 
   private canContinue(): boolean {
@@ -180,15 +234,24 @@ export class DesktopLoopbackIntake {
       body: JSON.stringify({
         grantType: "pairing-token",
         credential: this.deps.pairingToken,
-        scopes: ["session:read", "terminal:read"],
+        // The desktop's own renderer is the loopback OWNER: it takes the full
+        // operator scope set so managed `call-*` requests can ride this leg
+        // (session:operate, projects:manage, …) — not the viewer set an
+        // external phone pairs down to.
+        scopes: [...REMOTE_OPERATOR_SCOPES],
         client: { label: "Poracode desktop", deviceType: "desktop" },
       }),
     });
     if (!response.ok) throw new Error(`Pairing exchange failed (${response.status}).`);
-    const payload = (await response.json()) as { accessToken?: unknown };
+    const payload = (await response.json()) as {
+      accessToken?: unknown;
+      refreshToken?: unknown;
+    };
     if (typeof payload.accessToken !== "string" || payload.accessToken === "") {
       throw new Error("Pairing exchange returned no access token.");
     }
+    this.accessToken = payload.accessToken;
+    this.refreshToken = typeof payload.refreshToken === "string" ? payload.refreshToken : null;
     return payload.accessToken;
   }
 
@@ -224,6 +287,17 @@ export class DesktopLoopbackIntake {
         return;
       }
       this.setActive(true);
+      // Terminal-watch activation (2.5 completion): the feed's watches arm on
+      // this socket; the wiring installs the cursor-sync sender.
+      this.deps.onTerminalReady?.((message) => {
+        if (this.socket !== socket) return false;
+        try {
+          socket.send(JSON.stringify(message));
+          return true;
+        } catch {
+          return false;
+        }
+      });
       // Every leg activation re-baselines: events between the IPC handoff
       // and this open are covered by the rebuild.
       this.deps.requestRebuild();
@@ -240,6 +314,9 @@ export class DesktopLoopbackIntake {
       }
       this.socket = null;
       settleOpen?.(false);
+      // Terminal watches close with the leg; the fallback feed resumes (the
+      // rebuild below drives the existing scrollback-recovery semantics).
+      this.deps.onTerminalLost?.();
       this.setActive(false);
       this.deps.requestRebuild();
       this.scheduleRetry();
@@ -262,9 +339,19 @@ export class DesktopLoopbackIntake {
       this.deps.dispatch(event as SupervisorEvent);
       return;
     }
-    // `ready`, `pong`, `resync-required`, terminal and mirror frames are
-    // handled by their owners; a resync on this leg means the server's stream
-    // reset — rebuild once.
+    // Terminal frames (2.5 completion): `terminal-output`,
+    // `terminal-watch-result`, and `terminal-watch-baseline-chunk` route to
+    // the shared terminal feed through the wiring.
+    if (
+      frame.type === "terminal-output" ||
+      frame.type === "terminal-watch-result" ||
+      frame.type === "terminal-watch-baseline-chunk"
+    ) {
+      this.deps.onServerFrame?.(frame);
+      return;
+    }
+    // `ready` and `pong` carry no state; a resync on this leg means the
+    // server's stream reset — rebuild once.
     if (frame.type === "resync-required") this.deps.requestRebuild();
   }
 

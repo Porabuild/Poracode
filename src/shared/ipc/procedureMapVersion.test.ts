@@ -17,7 +17,10 @@ import {
  * changes an already-published peer cannot accept; additive names that every
  * peer loud-rejects by name may keep the version after that review.
  */
-const V1_PIN = `${IPC_PROCEDURE_MAP_VERSION}:294adbd03fbb5d6173dc2d9e18a4c7d3d69ab6ff887dfef87e7ac016f8abd741`;
+// V5 plan 2.5 completion: `getManagedLoopbackBootstrap` added (additive
+// main-local name — every peer loud-rejects unknown names, so the version
+// stays 1; the fingerprint moves to force exactly this review).
+const V1_PIN = `${IPC_PROCEDURE_MAP_VERSION}:16de326b2bc7cbc1fbb5039b80e5106c5fc4ba434e69d5971b89368a903f5c76`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {
