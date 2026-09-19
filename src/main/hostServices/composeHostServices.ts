@@ -23,17 +23,19 @@ import { join } from "node:path";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import type { SharedSettings } from "@/shared/settings";
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
-import {
-  ChromeBridgeServer,
-  ChromeMcpIngress,
-  type BrowserMcpIngress,
-  type BrowserPanelManager,
-} from "../browser";
+// Direct submodule imports, never the ../browser or ../computer-use barrels:
+// the standalone server bundles this module, and the barrels re-export
+// Electron-only pieces (BrowserPanelManager, the desktop overlay, the wake
+// lock), which would drag `electron` into the server bundle.
+import { ChromeBridgeServer } from "../browser/external/ChromeBridgeServer";
+import { ChromeMcpIngress } from "../browser/external/ChromeMcpIngress";
+import type { BrowserMcpIngress } from "../browser/BrowserMcpIngress";
+import type { BrowserPanelManager } from "../browser/BrowserPanelManager";
 import {
   ComputerUseMcpIngress,
-  resolveComputerUseHelperBinaryPath,
   type ComputerUseActivityEvent,
-} from "../computer-use";
+} from "../computer-use/ComputerUseMcpIngress";
+import { resolveComputerUseHelperBinaryPath } from "../computer-use/drivers";
 import { SshConnectionManager } from "../ssh/SshConnectionManager";
 
 export interface HostServicesCore {
