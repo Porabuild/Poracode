@@ -1,6 +1,7 @@
 package com.poracode.app.ui.terminal
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,9 +37,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -213,6 +219,39 @@ fun RichTerminalPane(
                     .fillMaxWidth()
                     .background(Color(0xFF101214))
                     .onSizeChanged { measuredSize = it.width to it.height }
+                    // Raw hardware-keyboard passthrough: tapping the output claims focus, and
+                    // every recognized key press is encoded straight onto the PTY write path
+                    // (matching the iOS transcript surface). Touch typing keeps using the
+                    // composer and the key accessory row below.
+                    .focusable()
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown || !writable) {
+                            return@onPreviewKeyEvent false
+                        }
+                        val hardwareKey = terminalHardwareKey(event.key)
+                            ?: return@onPreviewKeyEvent false
+                        val character = if (hardwareKey == TerminalHardwareKey.Character) {
+                            event.utf16CodePoint.takeIf { it > 0 }?.toChar()?.toString() ?: ""
+                        } else {
+                            ""
+                        }
+                        if (hardwareKey == TerminalHardwareKey.Character && character.isEmpty()) {
+                            return@onPreviewKeyEvent false
+                        }
+                        scope.launch {
+                            runtime.terminal.write(
+                                terminalHardwareKeySequence(
+                                    keyCode = hardwareKey,
+                                    character = character,
+                                    isCtrl = event.isCtrlPressed,
+                                    isShift = event.isShiftPressed,
+                                    isAlt = event.isAltPressed,
+                                    isMeta = event.isMetaPressed,
+                                ),
+                            )
+                        }
+                        true
+                    }
                     .semantics {
                         contentDescription = outputDescription
                     }
@@ -336,35 +375,6 @@ Row(
     }
 }
 
-/** Builds one line's [AnnotatedString], falling back to the plain string when there is no style. */
-private fun terminalLineAnnotatedString(
-    runs: List<TerminalStyledRun>,
-    plainLine: String,
-): AnnotatedString {
-    if (runs.isEmpty()) return AnnotatedString(plainLine.ifEmpty { " " })
-    return buildAnnotatedString {
-        for (run in runs) {
-            var foreground = terminalAnsiColor(run.style.foreground) ?: Color(0xFFE5E7EB)
-            var background = terminalAnsiColor(run.style.background) ?: Color.Transparent
-            if (run.style.inverse) {
-                val swap = foreground
-                foreground = if (background == Color.Transparent) Color(0xFF101214) else background
-                background = swap
-            }
-            withStyle(
-                SpanStyle(
-                    color = foreground,
-                    background = background,
-                    fontWeight = if (run.style.bold) FontWeight.Bold else FontWeight.Normal,
-                    fontStyle = if (run.style.italic) FontStyle.Italic else FontStyle.Normal,
-                    textDecoration = if (run.style.underline) TextDecoration.Underline else TextDecoration.None,
-                ),
-            ) {
-                append(run.text)
-            }
-        }
-    }
-}
 
 internal fun shouldAutoStartProjectTerminal(
     autoStartKey: String?,
@@ -387,110 +397,7 @@ internal fun canStartProjectTerminal(
     !hasTerminalLease &&
     hasProjectLocation
 
-@Composable
-private fun TerminalStatusRow(
-    phase: TerminalConnectionPhase,
-    failure: TerminalConnectionFailure?,
-    processState: TerminalProcessState?,
-    busy: Boolean,
-    onReconnect: () -> Unit,
-) {
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 40.dp).padding(horizontal = 12.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = terminalStatusText(phase, failure, processState),
-            style = MaterialTheme.typography.labelMedium,
-            color = if (failure == null) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.error
-            },
-            modifier = Modifier.weight(1f),
-        )
-        if (phase == TerminalConnectionPhase.Failed) {
-            OutlinedButton(onClick = onReconnect, enabled = !busy) {
-                Text(stringResource(R.string.terminal_reconnect))
-            }
-        }
-    }
-}
 
-@Composable
-private fun terminalStatusText(
-    phase: TerminalConnectionPhase,
-    failure: TerminalConnectionFailure?,
-    processState: TerminalProcessState?,
-): String = when {
-    failure == TerminalConnectionFailure.Authentication ->
-        stringResource(R.string.terminal_status_authentication)
-    failure == TerminalConnectionFailure.Permission ->
-        stringResource(R.string.terminal_status_permission)
-    failure == TerminalConnectionFailure.Unsupported ->
-        stringResource(R.string.terminal_status_unsupported)
-    failure == TerminalConnectionFailure.Protocol ->
-        stringResource(R.string.terminal_status_protocol)
-    failure == TerminalConnectionFailure.Offline -> stringResource(R.string.terminal_status_offline)
-    phase == TerminalConnectionPhase.Reconnecting ->
-        stringResource(R.string.terminal_status_reconnecting)
-    phase == TerminalConnectionPhase.Connecting -> stringResource(R.string.terminal_status_connecting)
-    phase == TerminalConnectionPhase.WaitingForBaseline ->
-        stringResource(R.string.terminal_status_synchronizing)
-    phase == TerminalConnectionPhase.Suspended -> stringResource(R.string.terminal_status_suspended)
-    phase == TerminalConnectionPhase.Failed -> stringResource(R.string.terminal_status_failed)
-    processState == TerminalProcessState.Exited -> stringResource(R.string.terminal_status_exited)
-    phase == TerminalConnectionPhase.Live -> stringResource(R.string.terminal_status_live)
-    else -> stringResource(R.string.terminal_status_idle)
-}
 
-private fun sendInput(
-    runtime: RichChatSessionRuntime,
-    input: String,
-    scope: kotlinx.coroutines.CoroutineScope,
-    onSuccess: () -> Unit,
-) {
-    if (input.isEmpty()) return
-    scope.launch {
-        if (runtime.terminal.write("$input\n") is RichChatOperationResult.Success) onSuccess()
-    }
-}
 
-private fun terminalStartInput(
-    location: ProjectLocation,
-    measuredSize: Pair<Int, Int>,
-    density: androidx.compose.ui.unit.Density,
-    cellSize: Pair<Int, Int>,
-): TerminalStartInput {
-    val shellId = java.util.UUID.randomUUID().toString()
-    val projectLocation = RemoteJson.encodeToJsonElement(
-        ProjectLocation.serializer(),
-        location,
-    ) as kotlinx.serialization.json.JsonObject
-    val dimensions = terminalDimensions(measuredSize, density, cellSize)
-    val columns = dimensions?.first?.coerceAtLeast(20)
-    val rows = dimensions?.second?.coerceAtLeast(5)
-    return TerminalStartInput(
-        shellId = shellId,
-        projectLocation = projectLocation,
-        initialColumns = columns,
-        initialRows = rows,
-    )
-}
 
-private fun terminalDimensions(
-    measuredSize: Pair<Int, Int>,
-    density: androidx.compose.ui.unit.Density,
-    cellSize: Pair<Int, Int>,
-): Pair<Int, Int>? {
-    val (width, height) = measuredSize
-    if (width <= 0 || height <= 0) return null
-    val horizontalPadding = with(density) { 20.dp.toPx() }
-    val verticalPadding = with(density) { 16.dp.toPx() }
-    val contentWidth = (width - horizontalPadding).coerceAtLeast(1f)
-    val contentHeight = (height - verticalPadding).coerceAtLeast(1f)
-    return (contentWidth / cellSize.first).toInt().coerceAtLeast(1) to
-        (contentHeight / cellSize.second).toInt().coerceAtLeast(1)
-}
-
-private const val MAX_INPUT_UTF16_UNITS = 8_192

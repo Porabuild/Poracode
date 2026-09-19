@@ -31,7 +31,7 @@ device and simulator SDKs. Android compiles and targets API 37 while retaining
 `protocol/remote/v3/generated/manifest.json` is the canonical cross-client
 inventory, generated from the contract registry
 (`src/shared/remote/contract/`). It currently declares protocol version 12 with
-65 HTTP routes, 108 supervisor procedures, 9 client WebSocket messages, 10
+67 HTTP routes, 108 supervisor procedures, 9 client WebSocket messages, 10
 server WebSocket messages, and 16 replayable event types. (The `remote/v3` path
 names the contract family; the protocol version inside the manifest is
 authoritative and has moved past 3.)
@@ -58,24 +58,62 @@ membership check. Stable app-owned facades keep hash-derived generated names out
 of UI and domain state while validating the HTTP and WebSocket boundaries that
 are currently implemented.
 
-The bundle contains roots for all 65 routes, 108 procedures, and 19 WebSocket
+The bundle contains roots for all 67 routes, 108 procedures, and 19 WebSocket
 message types, and embeds each route's registry scopes in its
 `RemoteRouteDescriptor`. The native parity ledger
-(`protocol/remote/v3/native-parity.json`) records 221 implemented entries on
-each platform and no planned entries;
-`push-config` is the intentional unsupported-by-wire entry on both. The
-terminal cursor-sync v2 pair (`terminal-watch-baseline-ack`/`-chunk`) and
+(`protocol/remote/v3/native-parity.json`, format version 2) records two
+independent claims per platform for every feature — never one blended
+"parity" claim:
+
+- `wire` — the native platform implements the protocol: the operation is
+  encoded/decoded through the generated bindings and crosses the real HTTP or
+  WebSocket transport. Dispositions: `implemented`, `planned`, `desktop-only`,
+  `unsupported-by-wire`, each with production source evidence.
+- `ui` — a user-visible native surface actually reaches the operation.
+  Dispositions: `implemented`, plus `partial` (reachable in part only; the
+  `note` must name the precise gap), `planned` (wire present, no UI surface
+  yet), and `desktop-only` / `unsupported-by-wire` mirroring the wire claim.
+
+The columns are maintained separately: flipping one must not flip the other.
+The format-2 migration (2026-09-18, V5 plan item 5.4) kept every format-1
+claim as the wire claim unchanged and seeded `ui` by mirroring it, with the
+UI-surface subset of each evidence list as ui evidence; the committed
+`migrationNote` in the ledger records this provenance, and
+`native-parity.test.ts` enforces the column invariants (a UI claim cannot
+outlive its wire claim, a `partial` claim must name its gap) plus a regression
+migration of the previous format-1 shape. Do not read a green `wire` column as
+"users can do this in the app": `thread-list` paging and `local-image-ticket`,
+for example, are wire-`planned` on both natives, and wire-`implemented`
+protocol plumbing (ping/pong, cursor acks, resync frames) has no UI of its
+own.
+
+Interactive terminal (V5 plan item 5.1): the `terminal-write`/`terminal-resize`
+ui claims on both platforms cite the raw hardware-keyboard passthrough
+(`TerminalRawKeyInput.swift`, `TerminalKeyAccessory.kt`) and carry a note that
+on-screen (touch) typing remains line-buffered through the command field plus
+the Ctrl-modifier key row (Ctrl+C, Ctrl+D, Ctrl+L, Esc, Tab, arrows). That is
+the deliberate mobile compromise, not silent desktop parity.
+
+The terminal cursor-sync v2 pair (`terminal-watch-baseline-ack`/`-chunk`) and
 `background_tasks.changed` (session-scoped reduce, replace/drain semantics)
-are implemented on both natives (2026-09-12) with transport/runtime evidence.
-The merged follow-up queue is fully adopted
-on both natives (2026-09-12, `b142c8bc7`/`af5820991`): all eight queue
-procedures and the `thread-follow-up-queue` replayable event are implemented
-with transport/runtime evidence and localized strings, so release claims may
-state native queue parity. Desktop live voice remains experimental and has no
-native or remote surface: do not advertise voice outside the experimental
-desktop toggle. A green binding or parity gate proves executable wire-schema
-coverage and source freshness, not UI end-to-end proof, so native journey tests
-remain the authority for whether an operation is actually user-accessible.
+are wire-implemented on both natives (2026-09-12) with transport/runtime
+evidence. The merged follow-up queue is fully adopted on both natives
+(2026-09-12, `b142c8bc7`/`af5820991`): all eight queue procedures and the
+`thread-follow-up-queue` replayable event are wire-implemented with
+transport/runtime evidence and localized strings. Desktop live voice remains
+experimental and has no native or remote surface: do not advertise voice
+outside the experimental desktop toggle.
+
+LAN discovery (mDNS/Bonjour pairing) remains out of scope until TLS for direct
+connections lands (V5 batch 4 item 4.2): advertising unauthenticated hosts over
+multicast before the transport can be pinned would widen the exact
+first-pairing MITM window the Gate 6 work closes. Revisit discovery together
+with the TLS fingerprint-pairing flow.
+
+A green binding or parity gate proves executable wire-schema coverage, source
+freshness, and the ledger's column invariants — not UI end-to-end proof. The
+native journey tests below remain the authority for whether an operation is
+actually user-accessible.
 
 Check the committed contract before a release:
 
@@ -96,11 +134,19 @@ inside either native app.
 requires:
 
 - synchronized remote-v3 generated artifacts and contract fixtures;
-- 910 Android JVM unit tests, debug APK assembly, and lint against API 37;
+- Android JVM unit tests, debug APK assembly, and lint against API 37 —
+  including the per-family journey tests in
+  `android/app/src/test/kotlin/com/poracode/app/transport/NativeFamilyJourneyTransportTest.kt`
+  (pair, thread steer, permission resolve, terminal write with the 5.1 raw-key
+  sequences, git), which drive the production transports and generated bindings
+  against a loopback HTTP peer;
 - 9 connected instrumentation tests, install, and cold launch on an Android
-  17/API 37 emulator;
+  17/API 37 emulator — the wire-lab UI journey covering pairing, thread
+  send/stop, resync, notifications, and disconnect;
 - a dedicated minimum-SDK launch test on an Android 8/API 26 emulator;
-- iOS `AppTests` (1,148 passed, 1 skipped) on an iOS 26.5 simulator under Xcode 26.6; and
+- iOS `AppTests` on an iOS 26.5 simulator under Xcode 26.6 — including
+  `TerminalRawKeyInputTests` for the interactive-terminal key encoding — plus
+  the portable Swift contract suites; and
 - the host-side native wire lab plus a real production headless-host smoke test.
 
 The Android emulator jobs run the native `androidTest` suite, including API 37

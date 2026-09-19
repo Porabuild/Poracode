@@ -26,8 +26,20 @@ const BATCHES = [
 
 const DISPOSITIONS = ["implemented", "planned", "desktop-only", "unsupported-by-wire"] as const;
 
+/**
+ * The ui column adds `partial`: the operation is reachable from a native
+ * surface in part only, and the precise gap is mandatory in `note`.
+ */
+const UI_DISPOSITIONS = [
+  "implemented",
+  "partial",
+  "planned",
+  "desktop-only",
+  "unsupported-by-wire",
+] as const;
+
 const EXPECTED_COUNTS = {
-  httpRoutes: 65,
+  httpRoutes: 67,
   procedures: 108,
   webSocketClientMessages: 9,
   webSocketServerMessages: 10,
@@ -45,10 +57,32 @@ const evidencePathSchema = z
     },
   );
 
-const platformSchema = z
+const claimSchema = z
   .object({
     disposition: z.enum(DISPOSITIONS),
     evidence: z.array(evidencePathSchema),
+  })
+  .strict();
+
+const uiClaimSchema = z
+  .object({
+    disposition: z.enum(UI_DISPOSITIONS),
+    evidence: z.array(evidencePathSchema),
+    /** Mandatory for `partial`: the precise reason the UI story is incomplete. */
+    note: z.string().min(1).optional(),
+  })
+  .strict();
+
+/**
+ * V5 plan 5.4: every platform claim carries two independent columns — `wire`
+ * (the protocol is implemented) and `ui` (a user-visible native surface
+ * reaches it). The columns are maintained separately: flipping one must not
+ * silently flip the other.
+ */
+const platformSchema = z
+  .object({
+    wire: claimSchema,
+    ui: uiClaimSchema,
   })
   .strict();
 
@@ -73,9 +107,11 @@ const routeEntrySchema = entrySchema.extend({
 
 const ledgerSchema = z
   .object({
-    formatVersion: z.literal(1),
+    formatVersion: z.literal(2),
     contract: z.literal("poracode.remote.native-parity"),
     protocolVersion: z.literal(12),
+    /** Recorded migration provenance beside the version (versioning doc rule). */
+    migrationNote: z.string().min(1).optional(),
     entries: z
       .object({
         httpRoutes: z.array(routeEntrySchema),
@@ -88,6 +124,93 @@ const ledgerSchema = z
       .strict(),
   })
   .strict();
+
+/**
+ * Format-1 shape (the previous released ledger): one flat claim per platform.
+ * Kept as a schema + migration so the format bump is regression-covered from
+ * the previous released shape, per the versioning doc.
+ */
+const legacyEntrySchema = z
+  .object({
+    id: z.string().min(1),
+    batch: z.enum(BATCHES),
+    ios: claimSchema,
+    android: claimSchema,
+    note: z.string().min(1).optional(),
+  })
+  .strict();
+
+const legacyLedgerSchema = z
+  .object({
+    formatVersion: z.literal(1),
+    contract: z.literal("poracode.remote.native-parity"),
+    protocolVersion: z.literal(12),
+    entries: z
+      .object({
+        httpRoutes: z.array(legacyEntrySchema.extend({ scopes: z.array(z.string().min(1)) })),
+        procedures: z.array(legacyEntrySchema),
+        webSocketClientMessages: z.array(legacyEntrySchema),
+        webSocketServerMessages: z.array(legacyEntrySchema),
+        replayableEventTypes: z.array(legacyEntrySchema),
+        runtimeEventTypes: z.array(legacyEntrySchema),
+      })
+      .strict(),
+  })
+  .strict();
+
+/**
+ * Migrates a format-1 ledger to format 2: the audited claim becomes the wire
+ * claim unchanged, and the ui column is seeded by mirroring it — with the
+ * UI-surface subset of the evidence as ui evidence, falling back to the full
+ * list for protocol-plumbing entries that have no distinct UI file. The same
+ * rule produced the committed format-2 migration (see `migrationNote`).
+ */
+export function migrateLedgerV1ToV2(raw: unknown): unknown {
+  const legacy = legacyLedgerSchema.parse(raw);
+  const isUiSurface = (path: string): boolean =>
+    path.includes("/ui/") ||
+    /(View|Views|Surface|Screen|Pane|Sheet|Page|Panel|Overlay|Bar|Card|Row|Item|Field|Composer|Accessory|Button|Menu|Dialog|List|Pill|Banner|Tile|Picker|Section|Chip|Tab|Form|Entry|Image|Avatar|Badge|Grid|Rail|Strip|Modal|Popup|Toast|Hero|Header|Footer)\.(swift|kt)$/.test(
+      path,
+    );
+  const migratePlatform = (claim: z.infer<typeof claimSchema>) => {
+    const uiEvidence =
+      claim.disposition === "planned"
+        ? []
+        : claim.evidence.filter(isUiSurface).length > 0
+          ? claim.evidence.filter(isUiSurface)
+          : [...claim.evidence];
+    return {
+      wire: claim,
+      ui: { disposition: claim.disposition, evidence: uiEvidence },
+    };
+  };
+  return {
+    formatVersion: 2,
+    contract: legacy.contract,
+    protocolVersion: legacy.protocolVersion,
+    entries: Object.fromEntries(
+      Object.entries(legacy.entries).map(([category, entries]) => [
+        category,
+        entries.map((entry) => {
+          const { ios, android, ...rest } = entry;
+          return {
+            ...rest,
+            ios: migratePlatform(ios),
+            android: migratePlatform(android),
+          };
+        }),
+      ]),
+    ),
+  };
+}
+
+/** Accepts the current format and migrates the previous released format. */
+function parseLedgerDocument(raw: unknown): z.infer<typeof ledgerSchema> {
+  const format = z.object({ formatVersion: z.number() }).passthrough().parse(raw).formatVersion;
+  if (format === 2) return ledgerSchema.parse(raw);
+  if (format === 1) return ledgerSchema.parse(migrateLedgerV1ToV2(raw));
+  throw new Error(`unsupported native-parity ledger formatVersion: ${format}`);
+}
 
 const manifestSchema = z.object({
   contract: z.literal("poracode.remote"),
@@ -134,6 +257,8 @@ const PLANNED_ABSENCE_TOKENS: Record<
 type LedgerEntry = z.infer<typeof entrySchema>;
 type Platform = "ios" | "android";
 type Category = keyof Ledger["entries"];
+type WireClaim = z.infer<typeof claimSchema>;
+type UiClaim = z.infer<typeof uiClaimSchema>;
 
 function readJson(relativePath: string): unknown {
   return JSON.parse(readFileSync(join(repositoryRoot, relativePath), "utf8")) as unknown;
@@ -162,8 +287,12 @@ function expectExactInventory(
   expect(sorted(ids), `${category} must exactly match manifest names`).toEqual(sorted(authority));
 }
 
-function expectEvidence(entry: LedgerEntry, platform: Platform): void {
-  const claim = entry[platform];
+function expectEvidence(
+  entry: LedgerEntry,
+  platform: Platform,
+  column: "wire" | "ui",
+  claim: WireClaim | UiClaim,
+): void {
   expect(new Set(claim.evidence).size, `${platform} ${entry.id} evidence must be unique`).toBe(
     claim.evidence.length,
   );
@@ -183,16 +312,16 @@ function expectEvidence(entry: LedgerEntry, platform: Platform): void {
     for (const relativePath of claim.evidence) {
       assertLedger(
         relativePath.startsWith(sourceRoot),
-        `${platform} evidence must be native source`,
+        `${platform} ${column} evidence must be native source`,
       );
       assertLedger(
         !/(?:^|\/)(?:generated|[^/]*(?:test|tests))\//i.test(relativePath),
-        `${platform} evidence cannot be generated or test-only`,
+        `${platform} ${column} evidence cannot be generated or test-only`,
       );
       if (platform === "ios" && relativePath.endsWith(".swift")) {
         assertLedger(
           iosProject.includes(`${basename(relativePath)} in Sources`),
-          `ios ${entry.id} evidence is not compiled by an Xcode source phase: ${relativePath}`,
+          `ios ${entry.id} ${column} evidence is not compiled by an Xcode source phase: ${relativePath}`,
         );
       }
     }
@@ -204,35 +333,74 @@ function expectEvidence(entry: LedgerEntry, platform: Platform): void {
 
 function validateSymmetricClaims(entry: LedgerEntry): void {
   const desktopOnly =
-    entry.ios.disposition === "desktop-only" || entry.android.disposition === "desktop-only";
+    entry.ios.wire.disposition === "desktop-only" ||
+    entry.android.wire.disposition === "desktop-only";
   if (desktopOnly) {
     assertLedger(
-      entry.ios.disposition === "desktop-only",
+      entry.ios.wire.disposition === "desktop-only",
       `${entry.id} desktop-only must be symmetric`,
     );
     assertLedger(
-      entry.android.disposition === "desktop-only",
+      entry.android.wire.disposition === "desktop-only",
       `${entry.id} desktop-only must be symmetric`,
     );
     assertLedger(entry.batch === "explicitly-desktop-only", `${entry.id} desktop-only batch`);
   }
   if (entry.batch === "explicitly-desktop-only") {
-    assertLedger(entry.ios.disposition === "desktop-only", `${entry.id} iOS desktop-only claim`);
     assertLedger(
-      entry.android.disposition === "desktop-only",
+      entry.ios.wire.disposition === "desktop-only",
+      `${entry.id} iOS desktop-only claim`,
+    );
+    assertLedger(
+      entry.android.wire.disposition === "desktop-only",
       `${entry.id} Android desktop-only claim`,
     );
   }
   const unsupported =
-    entry.ios.disposition === "unsupported-by-wire" ||
-    entry.android.disposition === "unsupported-by-wire";
+    entry.ios.wire.disposition === "unsupported-by-wire" ||
+    entry.android.wire.disposition === "unsupported-by-wire";
   if (unsupported) {
     assertLedger(entry.note !== undefined, `${entry.id} unsupported-by-wire requires a rationale`);
   }
 }
 
+/**
+ * The ui column is an independent claim, not a projection of wire: a UI
+ * surface cannot exist without its wire, a partial UI claim must name the
+ * precise gap, and the desktop-only / unsupported-by-wire claims mirror the
+ * wire disposition because there is nothing to surface natively.
+ */
+function validateUiClaim(entry: LedgerEntry, platform: Platform, ui: UiClaim): void {
+  const wire = entry[platform].wire;
+  if (wire.disposition === "desktop-only" || wire.disposition === "unsupported-by-wire") {
+    assertLedger(
+      ui.disposition === wire.disposition,
+      `${platform} ${entry.id} ui must mirror the wire ${wire.disposition} claim`,
+    );
+    return;
+  }
+  if (ui.disposition === "desktop-only" || ui.disposition === "unsupported-by-wire") {
+    assertLedger(
+      false,
+      `${platform} ${entry.id} ui ${ui.disposition} without the matching wire claim`,
+    );
+  }
+  if (wire.disposition !== "implemented") {
+    assertLedger(
+      ui.disposition !== "implemented",
+      `${platform} ${entry.id} ui implemented while wire is ${wire.disposition}`,
+    );
+  }
+  if (ui.disposition === "partial") {
+    assertLedger(
+      ui.note !== undefined,
+      `${platform} ${entry.id} ui partial requires a note naming the precise gap`,
+    );
+  }
+}
+
 describe("remote v3 native parity planning ledger", () => {
-  const ledger = ledgerSchema.parse(readJson("protocol/remote/v3/native-parity.json"));
+  const ledger = parseLedgerDocument(readJson("protocol/remote/v3/native-parity.json"));
   const manifest = manifestSchema.parse(readJson("protocol/remote/v3/generated/manifest.json"));
   const authority: Record<Category, string[]> = {
     httpRoutes: manifest.httpRoutes.map((route) => route.id),
@@ -249,7 +417,7 @@ describe("remote v3 native parity planning ledger", () => {
     for (const category of Object.keys(ledger.entries) as Category[]) {
       for (const entry of ledger.entries[category]) {
         for (const platform of ["ios", "android"] as Platform[]) {
-          if (entry[platform].disposition === "planned") {
+          if (entry[platform].wire.disposition === "planned") {
             plannedClaims.push({ id: entry.id, platform });
           }
         }
@@ -316,10 +484,126 @@ describe("remote v3 native parity planning ledger", () => {
     expect.hasAssertions();
     const entries = Object.values(ledger.entries).flat();
     for (const entry of entries) {
-      expectEvidence(entry, "ios");
-      expectEvidence(entry, "android");
+      expectEvidence(entry, "ios", "wire", entry.ios.wire);
+      expectEvidence(entry, "android", "wire", entry.android.wire);
       validateSymmetricClaims(entry);
     }
+  });
+
+  it("keeps the ui column an independent, valid claim per platform", () => {
+    expect.hasAssertions();
+    const entries = Object.values(ledger.entries).flat();
+    for (const entry of entries) {
+      expectEvidence(entry, "ios", "ui", entry.ios.ui);
+      expectEvidence(entry, "android", "ui", entry.android.ui);
+      validateUiClaim(entry, "ios", entry.ios.ui);
+      validateUiClaim(entry, "android", entry.android.ui);
+    }
+  });
+
+  it("states the interactive-terminal story honestly for both platforms", () => {
+    // V5 plan 5.1/5.4: the audit (P1) found the ledger calling terminal
+    // presentation "implemented" while the native terminal was a read-only
+    // transcript plus a line-buffered command field. The ui claims for the
+    // terminal write/resize entries must therefore carry the interactive
+    // raw-key evidence and the note that names the remaining touch-input
+    // compromise — never silently.
+    expect.hasAssertions();
+    const interactive = new Set(["terminal-write", "terminal-resize"]);
+    const rawEvidence = {
+      ios: "ios/App/App/Features/Terminal/TerminalRawKeyInput.swift",
+      android: "android/app/src/main/kotlin/com/poracode/app/ui/terminal/TerminalKeyAccessory.kt",
+    } as const;
+    const seen = new Set<string>();
+    for (const category of Object.keys(ledger.entries) as Category[]) {
+      for (const entry of ledger.entries[category]) {
+        if (!interactive.has(entry.id)) continue;
+        seen.add(entry.id);
+        for (const platform of ["ios", "android"] as Platform[]) {
+          const ui = entry[platform].ui;
+          expect(
+            ui.disposition === "implemented" || ui.disposition === "partial",
+            `${platform} ${entry.id} ui must be implemented or partial`,
+          ).toBe(true);
+          expect(ui.note !== undefined, `${platform} ${entry.id} ui must note the story`).toBe(
+            true,
+          );
+          expect(
+            ui.evidence.includes(rawEvidence[platform]),
+            `${platform} ${entry.id} ui evidence must cite the raw-key implementation`,
+          ).toBe(true);
+        }
+      }
+    }
+    expect([...seen].sort()).toEqual([...interactive].sort());
+  });
+
+  it("migrates the previous released format-1 shape into valid format-2 claims", () => {
+    // Versioning doc rule 7: the bump is regression-tested from the previous
+    // released shape, not just from a clean v2 file.
+    const legacy = {
+      formatVersion: 1,
+      contract: "poracode.remote.native-parity",
+      protocolVersion: 12,
+      entries: {
+        httpRoutes: [
+          {
+            id: "terminal-write",
+            scopes: ["terminal:operate"],
+            batch: "terminal",
+            ios: {
+              disposition: "implemented",
+              evidence: ["ios/App/App/Features/Terminal/RichTerminalView.swift"],
+            },
+            android: {
+              disposition: "implemented",
+              evidence: [
+                "android/app/src/main/kotlin/com/poracode/app/ui/terminal/RichTerminalPane.kt",
+              ],
+            },
+          },
+          {
+            id: "thread-list",
+            scopes: [],
+            batch: "thread-lifecycle",
+            ios: { disposition: "planned", evidence: [] },
+            android: { disposition: "planned", evidence: [] },
+          },
+          {
+            id: "push-config",
+            scopes: [],
+            batch: "push-system",
+            ios: { disposition: "unsupported-by-wire", evidence: [] },
+            android: { disposition: "unsupported-by-wire", evidence: [] },
+          },
+        ],
+        procedures: [],
+        webSocketClientMessages: [],
+        webSocketServerMessages: [],
+        replayableEventTypes: [],
+        runtimeEventTypes: [],
+      },
+    };
+    const migrated = ledgerSchema.parse(migrateLedgerV1ToV2(legacy));
+    const terminalWrite = migrated.entries.httpRoutes.find((e) => e.id === "terminal-write");
+    assertLedger(terminalWrite !== undefined);
+    // The audited claim survives as the wire claim, unchanged.
+    expect(terminalWrite.ios.wire).toEqual({
+      disposition: "implemented",
+      evidence: ["ios/App/App/Features/Terminal/RichTerminalView.swift"],
+    });
+    // The seeded ui claim mirrors the disposition and keeps UI-surface evidence.
+    expect(terminalWrite.ios.ui.disposition).toBe("implemented");
+    expect(terminalWrite.ios.ui.evidence).toEqual([
+      "ios/App/App/Features/Terminal/RichTerminalView.swift",
+    ]);
+    // Planned wire claims seed a planned ui claim with no evidence invented.
+    const threadList = migrated.entries.httpRoutes.find((e) => e.id === "thread-list");
+    assertLedger(threadList !== undefined);
+    expect(threadList.android.ui).toEqual({ disposition: "planned", evidence: [] });
+    expect(
+      migrated.entries.httpRoutes.find((e) => e.id === "push-config")?.ios.ui.disposition,
+    ).toBe("unsupported-by-wire");
   });
 
   it("keeps generated cardinalities aligned without treating metadata as implementation", () => {

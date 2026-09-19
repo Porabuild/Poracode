@@ -37,7 +37,11 @@ struct RichTerminalView: View {
           TerminalTextSurface(
             transcript: controller.state.cursor?.transcript ?? "",
             accessibilityLabel: TerminalStrings.output,
-            fontSize: terminalPointSize
+            fontSize: terminalPointSize,
+            onRawKeyInput: { value in
+              guard acceptsRawKeyInput else { return }
+              sendControl(value)
+            }
           )
           if controller.state.cursor?.transcript.isEmpty != false {
             Text(TerminalStrings.empty)
@@ -180,6 +184,12 @@ struct RichTerminalView: View {
     TerminalInputAvailability.resolve(canOperate: canOperate, isLive: isLive)
   }
 
+  /// Raw hardware-keyboard passthrough rides the same gate as the virtual
+  /// key row: scope granted, process live, and no operation in flight.
+  private var acceptsRawKeyInput: Bool {
+    canOperate && isLive && controller.state.operation == nil
+  }
+
   private var statusSymbol: String {
     if controller.state.exit != nil { return "stop.circle.fill" }
     switch controller.state.lifecycle {
@@ -258,6 +268,8 @@ enum TerminalVirtualKey: String, CaseIterable, Identifiable, Sendable {
   case right
   case t
   case c
+  case d
+  case l
 
   var id: Self { self }
 
@@ -273,6 +285,8 @@ enum TerminalVirtualKey: String, CaseIterable, Identifiable, Sendable {
     case .right: "→"
     case .t: "T"
     case .c: "C"
+    case .d: "D"
+    case .l: "L"
     }
   }
 }
@@ -316,6 +330,8 @@ enum TerminalVirtualKeyEncoder {
     case .right: "\u{1B}[C"
     case .t: "t"
     case .c: "c"
+    case .d: "d"
+    case .l: "l"
     }
   }
 
@@ -323,6 +339,8 @@ enum TerminalVirtualKeyEncoder {
     switch key {
     case .t: "T"
     case .c: "C"
+    case .d: "D"
+    case .l: "L"
     default: nil
     }
   }
@@ -345,6 +363,8 @@ enum TerminalVirtualKeyEncoder {
     case .tab: 9
     case .t: 84
     case .c: 67
+    case .d: 68
+    case .l: 76
     case .up, .down, .left, .right: nil
     }
   }

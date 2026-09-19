@@ -23,6 +23,7 @@ class PortForwardRemoteApiClientTest {
             MockResponse().setBody(
                 """{
                   "forward":{"id":"fw","targetPort":3000,"listenPort":49160,"createdAt":5},
+                  "connectTicket":"fixture-connect-ticket",
                   "enterPath":"/forward/fw/enter?fwt=browser-secret"
                 }""".trimIndent(),
             ),
@@ -82,7 +83,7 @@ class PortForwardRemoteApiClientTest {
         // Unconfigured host: start still succeeds and returns only the raw forward.
         server.enqueue(
             MockResponse().setBody(
-                """{"forward":{"id":"fw","targetPort":3000,"listenPort":49160,"createdAt":5}}""",
+                """{"forward":{"id":"fw","targetPort":3000,"listenPort":49160,"createdAt":5},"connectTicket":"fixture-connect-ticket"}""",
             ),
         )
         server.enqueue(

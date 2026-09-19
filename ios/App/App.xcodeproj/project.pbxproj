@@ -541,6 +541,8 @@
 		A20000000000000000000004 /* TerminalStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000004 /* TerminalStrings.swift */; };
 		A20000000000000000000005 /* RichTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000005 /* RichTerminalView.swift */; };
 		CE1000000000000000000001 /* TerminalCommandField.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2000000000000000000001 /* TerminalCommandField.swift */; };
+		A2000000000000000000000A /* TerminalRawKeyInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000A /* TerminalRawKeyInput.swift */; };
+		A2000000000000000000000B /* TerminalRawKeyInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000000000000000000000B /* TerminalRawKeyInputTests.swift */; };
 		CE1000000000000000000002 /* TerminalCommandFieldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE2000000000000000000002 /* TerminalCommandFieldTests.swift */; };
 		FE1000000004 /* ProjectShellTerminalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2000000004 /* ProjectShellTerminalView.swift */; };
 		FE1000000003 /* ProjectShellTerminalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2000000003 /* ProjectShellTerminalSession.swift */; };
@@ -1299,6 +1301,8 @@
 		B20000000000000000000004 /* TerminalStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalStrings.swift; sourceTree = "<group>"; };
 		B20000000000000000000005 /* RichTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTerminalView.swift; sourceTree = "<group>"; };
 		CE2000000000000000000001 /* TerminalCommandField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalCommandField.swift; sourceTree = "<group>"; };
+		B2000000000000000000000A /* TerminalRawKeyInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalRawKeyInput.swift; sourceTree = "<group>"; };
+		B2000000000000000000000B /* TerminalRawKeyInputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalRawKeyInputTests.swift; sourceTree = "<group>"; };
 		CE2000000000000000000002 /* TerminalCommandFieldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalCommandFieldTests.swift; sourceTree = "<group>"; };
 		FE2000000004 /* ProjectShellTerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectShellTerminalView.swift; sourceTree = "<group>"; };
 		FE2000000003 /* ProjectShellTerminalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectShellTerminalSession.swift; sourceTree = "<group>"; };
@@ -2058,6 +2062,7 @@
 				B20000000000000000000004 /* TerminalStrings.swift */,
 				B20000000000000000000005 /* RichTerminalView.swift */,
 				CE2000000000000000000001 /* TerminalCommandField.swift */,
+				B2000000000000000000000A /* TerminalRawKeyInput.swift */,
 				FE2000000004 /* ProjectShellTerminalView.swift */,
 				FE2000000003 /* ProjectShellTerminalSession.swift */,
 			);
@@ -2528,6 +2533,7 @@
 				B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */,
 				B91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift */,
 				CE2000000000000000000002 /* TerminalCommandFieldTests.swift */,
+				B2000000000000000000000B /* TerminalRawKeyInputTests.swift */,
 				FE2000000005 /* TerminalStartReachabilityTests.swift */,
 				PU3000000000000000000001 /* PullRequestReviewTests.swift */,
 				B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */,
@@ -3499,6 +3505,7 @@
 				A20000000000000000000004 /* TerminalStrings.swift in Sources */,
 				A20000000000000000000005 /* RichTerminalView.swift in Sources */,
 				CE1000000000000000000001 /* TerminalCommandField.swift in Sources */,
+				A2000000000000000000000A /* TerminalRawKeyInput.swift in Sources */,
 				FE1000000004 /* ProjectShellTerminalView.swift in Sources */,
 				FE1000000003 /* ProjectShellTerminalSession.swift in Sources */,
 			);
@@ -3671,6 +3678,7 @@
 				A91000000000000000000002 /* TerminalBaselineAssemblerTests.swift in Sources */,
 				A91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift in Sources */,
 				CE1000000000000000000002 /* TerminalCommandFieldTests.swift in Sources */,
+				A2000000000000000000000B /* TerminalRawKeyInputTests.swift in Sources */,
 				FE1000000005 /* TerminalStartReachabilityTests.swift in Sources */,
 				PU4000000000000000000001 /* PullRequestReviewTests.swift in Sources */,
 				A20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift in Sources */,
