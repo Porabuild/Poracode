@@ -5,7 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readBoundedNodeRequestBody } from "@/shared/http";
-import { HOST_CONTROL_DISCOVERY_FILE } from "@/shared/hostControlProtocol";
+import {
+  HOST_CONTROL_DISCOVERY_FILE,
+  HOST_CONTROL_PROTOCOL_VERSION,
+} from "@/shared/hostControlProtocol";
 import { HostControlServer, type HostControlContext } from "./HostControlServer";
 import { HostOwnerLease, HostRootInUseError } from "./hostOwnerLease";
 import { resolveHostRootPaths } from "./hostRootPaths";
@@ -38,6 +41,14 @@ async function fixture(
       state: "ready",
       remoteProtocolVersion: 12,
       endpoint: "https://fixture.test/s/host/",
+      capabilities: {
+        ssh: true,
+        browserPanel: false,
+        chromeBridge: true,
+        computerUse: true,
+        nativeSecrets: false,
+        portForward: true,
+      },
     }),
     receiptNow: () => now,
     ...(options.reportError ? { reportError: options.reportError } : {}),
@@ -83,7 +94,7 @@ async function rawCall(
     changed.rawBody ??
     Buffer.from(
       JSON.stringify({
-        version: 1,
+        version: HOST_CONTROL_PROTOCOL_VERSION,
         requestId: randomUUID(),
         ownerGeneration: test.lease.generation,
         operation: "issue-pairing",
@@ -133,7 +144,7 @@ describe("live owner control", () => {
         profileNamespace: test.paths.profileNamespace,
         dataRoot: test.paths.dataRoot,
         mode: "headless",
-        capabilities: ["describe", "issue-pairing"],
+        operations: ["describe", "issue-pairing"],
         endpoint: "https://fixture.test/s/host/",
       },
     });
@@ -141,7 +152,19 @@ describe("live owner control", () => {
       () =>
         new HostControlServer({
           lease: test.lease,
-          describe: () => ({ state: "ready", remoteProtocolVersion: 12, endpoint: null }),
+          describe: () => ({
+            state: "ready",
+            remoteProtocolVersion: 12,
+            endpoint: null,
+            capabilities: {
+              ssh: true,
+              browserPanel: false,
+              chromeBridge: true,
+              computerUse: true,
+              nativeSecrets: false,
+              portForward: true,
+            },
+          }),
           issuePairing: test.issuePairing,
         }),
     ).toThrow("already has");
@@ -217,8 +240,8 @@ describe("live owner control", () => {
   });
 
   it.each([
-    { version: 0 },
-    { version: 2 },
+    { version: 1 },
+    { version: 3 },
     { operation: "attach" },
     { operation: "call-database" },
     { payload: { baseDir: "/other" } },

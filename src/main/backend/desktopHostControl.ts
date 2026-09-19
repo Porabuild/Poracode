@@ -15,6 +15,7 @@
 
 import { HostControlServer } from "@/backend/ownership/HostControlServer";
 import { readHostOwnerRecord, type HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
+import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 
 function ownerPhaseToDescriptionState(lease: HostOwnerLease): "starting" | "ready" | "stopping" {
@@ -29,6 +30,12 @@ function ownerPhaseToDescriptionState(lease: HostOwnerLease): "starting" | "read
 export function startDesktopHostControl(input: {
   lease: HostOwnerLease;
   reportError(error: unknown): void;
+  /**
+   * Host-declared service capabilities from the desktop host-service
+   * composition (V5 plan 1.2): the describe publishes what this owner really
+   * constructed instead of letting clients infer availability from the mode.
+   */
+  capabilities: HostServiceCapabilities;
 }): HostControlServer | null {
   let server: HostControlServer;
   try {
@@ -40,6 +47,7 @@ export function startDesktopHostControl(input: {
         // No client-facing endpoint yet: a desktop owner is discoverable and
         // describable, and attach admission refuses on the kind gate.
         endpoint: null,
+        capabilities: input.capabilities,
       }),
       issuePairing: () =>
         Promise.reject(new Error("The desktop owner does not mint attach pairings.")),

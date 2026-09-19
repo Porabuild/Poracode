@@ -39,6 +39,14 @@ async function startFixtureOwner(): Promise<{
       state: "ready",
       remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
       endpoint: null,
+      capabilities: {
+        ssh: true,
+        browserPanel: true,
+        chromeBridge: true,
+        computerUse: true,
+        nativeSecrets: true,
+        portForward: true,
+      },
     }),
     issuePairing: () => Promise.reject(new Error("Fixture owner mints no pairings.")),
   });
@@ -174,6 +182,14 @@ describe("standalone attach session re-verification (S1.4)", () => {
         state: "ready",
         remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
         endpoint: null,
+        capabilities: {
+          ssh: true,
+          browserPanel: true,
+          chromeBridge: true,
+          computerUse: true,
+          nativeSecrets: true,
+          portForward: true,
+        },
       }),
       issuePairing: () => Promise.reject(new Error("Fixture owner mints no pairings.")),
     });

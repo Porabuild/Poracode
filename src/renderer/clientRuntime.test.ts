@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { PoracodeBridge } from "@/shared/ipc";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import {
+  DESKTOP_MANAGED_HOST_CAPABILITIES,
+  UNKNOWN_HOST_CAPABILITIES,
+  deriveClientCapabilities,
   hasClientCapability,
   isBrowserClientRuntime,
   installBrowserClientRuntime,
@@ -127,5 +130,83 @@ describe("client runtime", () => {
     });
     expect(isRemoteSession()).toBe(true);
     expect(isCompactClientSurface()).toBe(false);
+  });
+});
+
+describe("host-declared capabilities (V5 plan 1.2)", () => {
+  beforeEach(() => {
+    resetClientRuntimeForTest();
+    Reflect.deleteProperty(window, "poracode");
+    Reflect.deleteProperty(window, "poracodeHost");
+  });
+
+  it("keeps the desktop-managed flavor on local host knowledge", () => {
+    installElectronClientRuntime(electronHost("x64"));
+    const runtime = readClientRuntime();
+    expect(runtime.hostCapabilities).toEqual(DESKTOP_MANAGED_HOST_CAPABILITIES);
+    expect(runtime.capabilities).toEqual({
+      localBackend: true,
+      manageRemoteEnvironments: true,
+      nativeAppUpdates: true,
+      nativeShell: true,
+      nativeSsh: DESKTOP_MANAGED_HOST_CAPABILITIES.ssh,
+      nativeBrowserWebContents: DESKTOP_MANAGED_HOST_CAPABILITIES.browserPanel,
+    });
+  });
+
+  it("derives the desktop-managed flavor from declared host capabilities, not the host field", () => {
+    // A desktop-managed client whose host somehow stops composing a service
+    // loses the client capability with it — the conjunction, never an
+    // inference from `host === "electron"`.
+    expect(
+      deriveClientCapabilities({
+        host: { ...DESKTOP_MANAGED_HOST_CAPABILITIES, ssh: false },
+        nativeShell: true,
+        localBackend: true,
+        nativeAppUpdates: true,
+      }),
+    ).toMatchObject({ nativeSsh: false, nativeBrowserWebContents: true });
+  });
+
+  it("keeps the helper-host flavor host-declared with no native-only surfaces", () => {
+    // A helper (headless) host declares exactly what it composes; a client
+    // without the local backend authority never gains SSH/browser surfaces
+    // from it, whatever the host offers remotely.
+    const helperHost = {
+      ssh: true,
+      browserPanel: false,
+      chromeBridge: true,
+      computerUse: true,
+      nativeSecrets: false,
+      portForward: true,
+    };
+    expect(
+      deriveClientCapabilities({
+        host: helperHost,
+        nativeShell: true,
+        localBackend: false,
+        nativeAppUpdates: true,
+      }),
+    ).toEqual({
+      localBackend: false,
+      manageRemoteEnvironments: true,
+      nativeAppUpdates: true,
+      nativeShell: true,
+      nativeSsh: false,
+      nativeBrowserWebContents: false,
+    });
+  });
+
+  it("fails the browser flavor closed to unknown host capabilities", () => {
+    installBrowserClientRuntime(bridge("web"));
+    const runtime = readClientRuntime();
+    expect(runtime.hostCapabilities).toEqual(UNKNOWN_HOST_CAPABILITIES);
+    expect(runtime.capabilities).toMatchObject({
+      localBackend: false,
+      nativeShell: false,
+      nativeSsh: false,
+      nativeBrowserWebContents: false,
+    });
+    expect(hasClientCapability("nativeSsh")).toBe(false);
   });
 });

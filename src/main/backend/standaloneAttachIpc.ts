@@ -24,7 +24,8 @@ import {
 } from "@/shared/ipc";
 import { isAttachDeviceProcedure } from "@/shared/ipc/attachProcedureAllowlist";
 import type { KeybindingsFile } from "@/shared/keybindings";
-import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
+import { readKeybindingsFile } from "../keybindingsFile";
+import { applyKeybindingsWrite } from "../keybindingsApply";
 import { showAndFocusWindow } from "../window/showAndFocusWindow";
 import { requestTrackedRendererReload } from "../window/windowHardening";
 import type { QuickComposerLifecycle } from "../window/quickComposerLifecycle";
@@ -110,22 +111,18 @@ export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): Auto
         case "getKeybindings":
           return readKeybindingsFile(keybindingsPath);
         case "setKeybindings": {
-          // Managed parity: un-suspend capture, re-apply the device shortcuts,
-          // then persist; on write failure roll the shortcuts back to the file
-          // still on disk (the write is atomic).
+          // Managed parity via the shared write-with-rollback helper: un-
+          // suspend capture, re-apply the device shortcuts, then persist; on
+          // write failure roll the shortcuts back to the file still on disk.
           const file = parseIpcProcedureArgs("setKeybindings", request.args);
           deps.setShortcutsSuspended?.(false);
-          deps.onKeybindingsChanged?.(file);
-          try {
-            return writeKeybindingsFile(keybindingsPath, file);
-          } catch (error) {
-            try {
-              deps.onKeybindingsChanged?.(readKeybindingsFile(keybindingsPath).file);
-            } catch (restoreError) {
-              console.error("[poracode] failed to restore global shortcuts:", restoreError);
-            }
-            throw error;
-          }
+          return applyKeybindingsWrite({
+            path: keybindingsPath,
+            file,
+            ...(deps.onKeybindingsChanged
+              ? { onKeybindingsChanged: deps.onKeybindingsChanged }
+              : {}),
+          });
         }
         case "setGlobalShortcutsSuspended":
           deps.setShortcutsSuspended?.(

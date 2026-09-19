@@ -1,24 +1,34 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  HOST_CONTROL_PROTOCOL_VERSION,
   hostControlReplySchema,
   hostControlRequestSchema,
   hostDescriptionSchema,
 } from "./hostControlProtocol";
 
 const request = {
-  version: 1,
+  version: HOST_CONTROL_PROTOCOL_VERSION,
   requestId: randomUUID(),
   ownerGeneration: randomUUID(),
   operation: "describe",
   payload: {},
+};
+const capabilities = {
+  ssh: true,
+  browserPanel: false,
+  chromeBridge: true,
+  computerUse: true,
+  nativeSecrets: false,
+  portForward: true,
 };
 const description = {
   profileNamespace: "/profile",
   dataRoot: "/profile.host-v1",
   mode: "headless",
   state: "ready",
-  capabilities: ["describe", "issue-pairing"],
+  operations: ["describe", "issue-pairing"],
+  capabilities,
   remoteProtocolVersion: 12,
   endpoint: "https://example.test/s/host/",
 };
@@ -32,9 +42,29 @@ describe("owner management contract", () => {
     expect(hostDescriptionSchema.parse(description).endpoint).toBe(description.endpoint);
   });
 
+  it("describes host-declared service capabilities as a closed boolean set", () => {
+    expect(hostDescriptionSchema.parse(description).capabilities).toEqual(capabilities);
+    expect(
+      hostDescriptionSchema.safeParse({
+        ...description,
+        capabilities: { ...capabilities, extra: true },
+      }).success,
+    ).toBe(false);
+    expect(
+      hostDescriptionSchema.safeParse({ ...description, capabilities: { ...capabilities, ssh: 1 } })
+        .success,
+    ).toBe(false);
+    expect(
+      hostDescriptionSchema.safeParse({
+        ...description,
+        capabilities: { ...capabilities, portForward: undefined },
+      }).success,
+    ).toBe(false);
+  });
+
   it.each([
-    { version: 0 },
-    { version: 2 },
+    { version: HOST_CONTROL_PROTOCOL_VERSION - 1 },
+    { version: HOST_CONTROL_PROTOCOL_VERSION + 1 },
     { ownerGeneration: undefined },
     { operation: "attach" },
     { operation: "call-database" },
@@ -42,6 +72,34 @@ describe("owner management contract", () => {
     { actor: "administrator" },
   ])("refuses incompatible or expanded requests (%j)", (changed) => {
     expect(hostControlRequestSchema.safeParse({ ...request, ...changed }).success).toBe(false);
+  });
+
+  it("rejects a version-1 peer on both directions of the capabilities boundary", () => {
+    // Old reader -> new host: a version-1 describe request is refused, so a
+    // pre-capabilities client can never read version-2 semantics loosely.
+    const v1Request = { ...request, version: 1 };
+    expect(hostControlRequestSchema.safeParse(v1Request).success).toBe(false);
+    // Old builder -> new reader: the version-1 describe shape (no
+    // capabilities object, operation list still named `capabilities`) fails
+    // the version-2 schema loudly instead of degrading.
+    const v1Description = {
+      profileNamespace: description.profileNamespace,
+      dataRoot: description.dataRoot,
+      mode: "headless",
+      state: "ready",
+      capabilities: ["describe", "issue-pairing"],
+      remoteProtocolVersion: 12,
+      endpoint: description.endpoint,
+    };
+    expect(hostDescriptionSchema.safeParse(v1Description).success).toBe(false);
+    const v1Reply = {
+      version: 1,
+      requestId: request.requestId,
+      ownerGeneration: request.ownerGeneration,
+      ok: true,
+      result: v1Description,
+    };
+    expect(hostControlReplySchema.safeParse(v1Reply).success).toBe(false);
   });
 
   it.each([
@@ -55,7 +113,7 @@ describe("owner management contract", () => {
 
   it("requires correlated, closed replies with no secret-bearing error details", () => {
     const reply = {
-      version: 1,
+      version: HOST_CONTROL_PROTOCOL_VERSION,
       requestId: request.requestId,
       ownerGeneration: request.ownerGeneration,
       ok: false,

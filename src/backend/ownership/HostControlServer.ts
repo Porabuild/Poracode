@@ -34,7 +34,10 @@ export interface HostControlContext {
 
 interface HostControlServerOptions {
   lease: HostOwnerLease;
-  describe(): Pick<HostDescription, "state" | "remoteProtocolVersion" | "endpoint">;
+  describe(): Pick<
+    HostDescription,
+    "state" | "remoteProtocolVersion" | "endpoint" | "capabilities"
+  >;
   issuePairing(context: HostControlContext): string | Promise<string>;
   reportError?(error: unknown): void;
   receiptNow?(): number;
@@ -288,7 +291,7 @@ export class HostControlServer {
           profileNamespace: this.options.lease.paths.profileNamespace,
           dataRoot: this.options.lease.paths.dataRoot,
           mode: this.options.lease.kind,
-          capabilities: ["describe", "issue-pairing"],
+          operations: ["describe", "issue-pairing"],
         }),
       };
     }

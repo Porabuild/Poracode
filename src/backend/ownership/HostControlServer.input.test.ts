@@ -4,7 +4,10 @@ import { connect, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HOST_CONTROL_MAX_REQUEST_BYTES } from "@/shared/hostControlProtocol";
+import {
+  HOST_CONTROL_MAX_REQUEST_BYTES,
+  HOST_CONTROL_PROTOCOL_VERSION,
+} from "@/shared/hostControlProtocol";
 import { HostControlServer, type HostControlContext } from "./HostControlServer";
 import { HostOwnerLease } from "./hostOwnerLease";
 import { resolveHostRootPaths } from "./hostRootPaths";
@@ -26,7 +29,19 @@ async function fixture(issue?: (context: HostControlContext) => string | Promise
   const control = new HostControlServer({
     lease,
     issuePairing,
-    describe: () => ({ state: "ready", remoteProtocolVersion: 12, endpoint: null }),
+    describe: () => ({
+      state: "ready",
+      remoteProtocolVersion: 12,
+      endpoint: null,
+      capabilities: {
+        ssh: true,
+        browserPanel: false,
+        chromeBridge: true,
+        computerUse: true,
+        nativeSecrets: false,
+        portForward: true,
+      },
+    }),
   });
   const sockets = new Set<Socket>();
   cleanups.push(async () => {
@@ -79,7 +94,7 @@ async function fixture(issue?: (context: HostControlContext) => string | Promise
   }
   function makeBody(size?: number) {
     const json = JSON.stringify({
-      version: 1,
+      version: HOST_CONTROL_PROTOCOL_VERSION,
       requestId: randomUUID(),
       ownerGeneration: lease.generation,
       operation: "issue-pairing",
@@ -175,7 +190,7 @@ describe("owner control input admission", () => {
     held[0]!.client.destroy();
     await held[0]!.closed;
     await expect(callHostControl(test.paths, "describe")).resolves.toMatchObject({
-      result: { capabilities: ["describe", "issue-pairing"] },
+      result: { operations: ["describe", "issue-pairing"] },
     });
     expect(test.issuePairing).not.toHaveBeenCalled();
   });

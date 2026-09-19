@@ -1,4 +1,5 @@
 import type { StandaloneAttachInfo } from "./standaloneAttach";
+import type { HostServiceCapabilities } from "./hostControlProtocol";
 import type {
   BackendRendererStreamInfo,
   RendererStreamOwnershipGrant,
@@ -71,6 +72,15 @@ export interface ClientRuntime {
   readonly surface: ClientSurface;
   readonly transport: ClientTransport;
   readonly capabilities: ClientCapabilities;
+  /**
+   * Host-declared service capabilities this runtime was negotiated with (V5
+   * plan 1.2): the attach payload for attached Electron, local knowledge for
+   * the desktop-managed host, and fail-closed "unknown" for browser clients
+   * until the remote wire carries a describe. Optional so a legacy runtime
+   * source still typechecks; consumers must treat absence as "not offered"
+   * and never infer availability from `host`.
+   */
+  readonly hostCapabilities?: HostServiceCapabilities;
   readonly procedures: PoracodeInvokeBridge;
   readonly native: PoracodeNativeBridge;
 }
