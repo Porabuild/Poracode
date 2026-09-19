@@ -17,7 +17,8 @@ class GeneratedRemoteV3ManifestTest {
         assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, manifest.getInt("protocolVersion"))
         assertEquals(2, manifest.getInt("bindingFormatVersion"))
         assertEquals(3, manifest.getInt("generatorVersion"))
-        assertEquals(1, manifest.getInt("formatVersion"))
+        // Manifest format 2 declares the generated pairing state machine (V5 5.2).
+        assertEquals(2, manifest.getInt("formatVersion"))
         assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, RemoteContractMetadata.protocolVersion)
         assertEquals(2, RemoteContractMetadata.bindingFormatVersion)
         assertEquals(3, RemoteContractMetadata.generatorVersion)

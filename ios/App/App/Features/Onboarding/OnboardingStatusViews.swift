@@ -31,7 +31,7 @@ struct OnboardingStatusBanner: View {
 /// Explicit consent gate for a deep-linked pairing. Confirm and Cancel both stay
 /// user-driven — nothing here pairs on its own.
 struct OnboardingPendingPairingCard: View {
-  let pending: PendingPairingState
+  let pending: RemotePairingPending
   let onCancel: () -> Void
   let onConfirm: () -> Void
 

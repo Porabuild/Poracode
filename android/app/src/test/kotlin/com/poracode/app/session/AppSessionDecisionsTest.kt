@@ -3,6 +3,7 @@ package com.poracode.app.session
 import com.poracode.app.protocol.ComposerDraftPolicy
 import com.poracode.app.protocol.GlobalCursorPolicy
 import com.poracode.app.protocol.ThreadPresentationPolicy
+import com.poracode.remote.v3.generated.RemotePairingMachine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -86,15 +87,16 @@ class AppSessionDecisionsTest {
 
     @Test
     fun browsableConfirmAndFingerprint() {
+        // Generated pairing-machine policy (V5 5.2) surfaced through the SessionPolicies facade.
         assertTrue(SessionPolicies.shouldShowBrowsableConfirm(fromBrowsableIntent = true))
         assertFalse(SessionPolicies.shouldShowBrowsableConfirm(fromBrowsableIntent = false))
-        val fp = SessionPolicies.pairingFingerprint("https://a.test", "secret")
+        val fp = RemotePairingMachine.fingerprint("https://a.test", "secret")
         assertTrue(fp.isNotEmpty())
         assertFalse(fp.contains("secret"))
         // SHA-256 hex is 64 chars; never expose secret.
         assertEquals(64, fp.length)
         assertEquals(
-            SessionPolicies.pairingFingerprint("https://a.test", "secret"),
+            RemotePairingMachine.fingerprint("https://a.test", "secret"),
             fp,
         )
     }
@@ -104,14 +106,14 @@ class AppSessionDecisionsTest {
         // String.hashCode collisions exist; SHA-256 fingerprint must still distinguish them.
         // Classic Java hashCode collision pair: "Aa" / "BB"
         val endpoint = "https://host.test"
-        val a = SessionPolicies.pairingFingerprint(endpoint, "Aa")
-        val b = SessionPolicies.pairingFingerprint(endpoint, "BB")
+        val a = RemotePairingMachine.fingerprint(endpoint, "Aa")
+        val b = RemotePairingMachine.fingerprint(endpoint, "BB")
         assertTrue("Aa".hashCode() == "BB".hashCode())
         assertTrue(a != b)
         assertFalse(a.contains("Aa"))
         assertFalse(b.contains("BB"))
         // Same input always same fingerprint (process-stable).
-        assertEquals(a, SessionPolicies.pairingFingerprint(endpoint, "Aa"))
+        assertEquals(a, RemotePairingMachine.fingerprint(endpoint, "Aa"))
     }
 
     @Test

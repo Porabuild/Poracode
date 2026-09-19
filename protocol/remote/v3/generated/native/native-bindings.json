@@ -3,20 +3,21 @@
   "contract": "poracode.remote",
   "counts": {
     "jsonProcedureResults": 65,
-    "kotlinFiles": 40,
+    "kotlinFiles": 41,
+    "pairingStateMachines": 1,
     "portableTransforms": 3,
     "procedures": 108,
     "routes": 67,
     "schemaRoots": 326,
     "semanticValidators": 17,
     "structuralTypes": 792,
-    "swiftFiles": 45,
+    "swiftFiles": 46,
     "voidProcedureResults": 43,
     "webSocketClientVariants": 9,
     "webSocketServerVariants": 10
   },
   "doNotEdit": "GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.",
-  "formatVersion": 1,
+  "formatVersion": 2,
   "generatorVersion": 3,
   "languages": {
     "kotlin": {
@@ -184,6 +185,12 @@
           "sha256": "sha256:01449d5d367cd205a1cb5df3d8c1079e58242eb27618e0bdeee9a2b1b4d0f934"
         },
         {
+          "bytes": 10643,
+          "lines": 250,
+          "path": "kotlin/PairingMachine.kt",
+          "sha256": "sha256:37b546efbbbe283dfc01d3da58d75930c545b40b4e3ac480770ca6eef02307b1"
+        },
+        {
           "bytes": 40361,
           "lines": 450,
           "path": "kotlin/RootCodecs001.kt",
@@ -263,7 +270,7 @@
         }
       ],
       "languageVersion": "2.4",
-      "lines": 16334,
+      "lines": 16584,
       "treeHash": "sha256:622334a04b2a37ceb336cbc4222f72f2126deaa6f82b9b3e6316609b960f4a23"
     },
     "swift": {
@@ -461,6 +468,12 @@
           "sha256": "sha256:c1ffa76fff96da2c281f4683f06bbd22a345a3109788508181f62783da66a2df"
         },
         {
+          "bytes": 10243,
+          "lines": 203,
+          "path": "swift/PairingMachine.swift",
+          "sha256": "sha256:00f8f46969bfed8ae27aeb9080f8e9b4456f64ea2a010a1031f28ee73a9028f9"
+        },
+        {
           "bytes": 27828,
           "lines": 449,
           "path": "swift/RootCodecs001.swift",
@@ -540,12 +553,26 @@
         }
       ],
       "languageVersion": "6",
-      "lines": 18562,
+      "lines": 18765,
       "treeHash": "sha256:0a2eb41f5ecc2f4ca7f7834114998ea224ecbe4035255817ba269d441ecbb8e1"
     }
   },
   "manifestHash": "sha256:b90ee2f612ccb591738bbaf25dff7108ef7c503069bf01e0d8e69cae1383c41f",
-  "outputHash": "sha256:06d0b7cd8e1c668cb12cde1dcf1960d9fb15ede20f53edb050e8d4a298e75565",
+  "outputHash": "sha256:65212d66f0f963fd42642a8208a897276fe0cf4c1b21f72e1b5eef9103c56297",
   "protocolVersion": 12,
-  "sourceHash": "sha256:112b04dcf56486523614dcb74f6c2b8824e952213ed150eaa32938a461bc5757"
+  "sourceHash": "sha256:112b04dcf56486523614dcb74f6c2b8824e952213ed150eaa32938a461bc5757",
+  "stateMachines": [
+    {
+      "id": "pairing",
+      "intentTransitionCount": 11,
+      "phaseAfterFailureRuleCount": 4,
+      "phaseCount": 8,
+      "sources": {
+        "kotlin": "kotlin/PairingMachine.kt",
+        "swift": "swift/PairingMachine.swift"
+      },
+      "specVersion": 1,
+      "standardScopeCount": 7
+    }
+  ]
 }

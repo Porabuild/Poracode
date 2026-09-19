@@ -10,7 +10,9 @@ enum GeneratedRemoteV3Contract {
   static let expectedProtocolVersion = ProtocolConstants.remoteProtocolVersion
   static let expectedBindingFormatVersion = 2
   static let expectedGeneratorVersion = 3
-  static let expectedNativeBundleManifestFormatVersion = 1
+  /// 2 adds the generated pairing state machine to the native bundle (V5 5.2);
+  /// a v1 manifest predates it and is refused.
+  static let expectedNativeBundleManifestFormatVersion = 2
 
   static var isCompatible: Bool {
     RemoteContractMetadata.protocolVersion == expectedProtocolVersion

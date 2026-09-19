@@ -14,16 +14,10 @@ object ProtocolConstants {
     const val COMMAND_ID_HEADER = "x-poracode-command-id"
     const val BEARER_TOKEN_TYPE = "Bearer"
 
-    /** All seven standard scopes requested at pairing (manifest + TS REMOTE_STANDARD_SCOPES). */
-    val STANDARD_SCOPES: List<String> = listOf(
-        "session:read",
-        "session:operate",
-        "terminal:read",
-        "terminal:operate",
-        "requests:resolve",
-        "projects:manage",
-        "ports:forward",
-    )
+    /** All seven standard scopes requested at pairing. Generated pairing-machine
+     * source of truth (V5 5.2): mirrors TS REMOTE_STANDARD_SCOPES and Swift. */
+    val STANDARD_SCOPES: List<String>
+        get() = com.poracode.remote.v3.generated.RemotePairingMachine.standardScopes
 
     const val ENVIRONMENT_PATH = "/.well-known/poracode/environment"
     const val LEGACY_ENVIRONMENT_PATH = "/.well-known/lightcode/environment"

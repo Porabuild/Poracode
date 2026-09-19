@@ -52,7 +52,7 @@ describe("remote v3 native binding generator", () => {
       expect(first).toEqual(second);
       expect(second).toEqual(third);
       expect(first.manifest).toMatchObject({
-        formatVersion: 1,
+        formatVersion: 2,
         protocolVersion: 12,
         bindingFormatVersion: 2,
         generatorVersion: 3,
@@ -68,8 +68,9 @@ describe("remote v3 native binding generator", () => {
           schemaRoots: 326,
           structuralTypes: 792,
           semanticValidators: 17,
-          swiftFiles: 45,
-          kotlinFiles: 40,
+          swiftFiles: 46,
+          kotlinFiles: 41,
+          pairingStateMachines: 1,
         },
       });
     },

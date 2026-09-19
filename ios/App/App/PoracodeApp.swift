@@ -128,7 +128,7 @@ struct RootView: View {
 /// Root-level consent surface for a deep-linked pairing while Home is visible.
 private struct PendingPairingConsentSheet: View {
   @Bindable var session: AppSession
-  let pending: PendingPairingState
+  let pending: RemotePairingPending
 
   var body: some View {
     ScrollView {

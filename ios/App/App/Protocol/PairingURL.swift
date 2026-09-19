@@ -106,22 +106,13 @@ enum PairingURL {
     }
 
     static func isCleartextLanURL(_ value: String) -> Bool {
-        guard let url = URL(string: value),
-              url.scheme?.lowercased() == "http",
-              let host = url.host?.lowercased()
-        else {
-            return false
-        }
-        return !isLoopbackHostname(host)
+        // Generated pairing-machine policy (V5 5.2): one implementation shared
+        // with Kotlin and the TS contract tests.
+        RemotePairingMachine.isCleartextLanEndpoint(value)
     }
 
     static func isLoopbackHostname(_ hostname: String) -> Bool {
-        let host = hostname.lowercased()
-        return host == "localhost"
-            || host == "127.0.0.1"
-            || host == "::1"
-            || host == "[::1]"
-            || host.hasSuffix(".localhost")
+        RemotePairingMachine.isLoopbackHostname(hostname)
     }
 
     // MARK: - Deep-link validation (before tear-down)

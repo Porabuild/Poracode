@@ -29,36 +29,21 @@ object SessionPolicies {
         ThreadPresentationPolicy.isTerminal(presentationMode)
 
     /**
-     * Process-lifetime deep-link fingerprint (endpoint + credential).
-     * Redacted SHA-256 hex — never the secret; stable across processes (unlike String.hashCode).
-     */
-    fun pairingFingerprint(endpoint: String, credential: String): String {
-        val material = endpoint.trimEnd('/').lowercase() + "\u0000" + credential
-        val digest = java.security.MessageDigest.getInstance("SHA-256")
-            .digest(material.toByteArray(Charsets.UTF_8))
-        return digest.joinToString("") { b -> "%02x".format(b.toInt() and 0xff) }
-    }
-
-    /**
      * BROWSABLE pairing links always require an explicit Confirm UI (sanitized host).
      * Manual onboarding paste pairs immediately without this gate.
+     * Generated pairing-machine policy (V5 5.2): one implementation shared
+     * with Swift and the TS contract tests.
      */
-    fun shouldShowBrowsableConfirm(fromBrowsableIntent: Boolean): Boolean = fromBrowsableIntent
+    fun shouldShowBrowsableConfirm(fromBrowsableIntent: Boolean): Boolean =
+        com.poracode.remote.v3.generated.RemotePairingMachine.requiresBrowsableConfirmation(
+            fromBrowsableIntent,
+        )
 
     fun normalizeEndpointKey(endpoint: String): String =
         endpoint.trimEnd('/').lowercase()
 
-    fun sanitizedHostLabel(endpoint: String): String {
-        val trimmed = endpoint.trim()
-        return try {
-            val uri = java.net.URI(trimmed)
-            val host = uri.host ?: trimmed
-            val port = if (uri.port > 0) ":${uri.port}" else ""
-            host + port
-        } catch (_: Exception) {
-            trimmed.take(80)
-        }
-    }
+    fun sanitizedHostLabel(endpoint: String): String =
+        com.poracode.remote.v3.generated.RemotePairingMachine.sanitizedHostLabel(endpoint)
 }
 
 /**

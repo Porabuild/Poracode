@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 // MARK: - Thread history / live hydration
@@ -261,57 +260,6 @@ enum PairPersistenceCoordinator {
     /// Whether a failure at `phase` requires store rollback of the new token.
     static func needsStoreRollback(phase: WritePhase) -> Bool {
         phase == .afterTokenWriteBeforeMetadata
-    }
-}
-
-// MARK: - Deep-link replay / idempotency
-
-/// Process-lifetime fingerprint tracker for one-time pairing candidates.
-/// Stores only a non-secret digest — never the token or plain URL.
-struct PairingCandidateTracker: Sendable, Equatable {
-    private(set) var inFlightDigest: String?
-    private(set) var lastSucceededDigest: String?
-
-    enum Decision: Sendable, Equatable {
-        case proceed
-        case ignoreDuplicate
-    }
-
-    /// Non-secret fingerprint of endpoint + credential material.
-    static func fingerprint(endpoint: String, credential: String) -> String {
-        let material = Data("\(endpoint)\u{1}\(credential)".utf8)
-        let digest = SHA256.hash(data: material)
-        return digest.map { String(format: "%02x", $0) }.joined()
-    }
-
-    mutating func decide(digest: String) -> Decision {
-        if digest == inFlightDigest { return .ignoreDuplicate }
-        if digest == lastSucceededDigest { return .ignoreDuplicate }
-        return .proceed
-    }
-
-    mutating func markInFlight(_ digest: String) {
-        inFlightDigest = digest
-    }
-
-    mutating func markSucceeded(_ digest: String) {
-        lastSucceededDigest = digest
-        if inFlightDigest == digest {
-            inFlightDigest = nil
-        }
-    }
-
-    /// Failure releases in-flight so a network retry of the same candidate can proceed;
-    /// does not record success (fresh deliberate token for same host still works).
-    mutating func markFailed(_ digest: String) {
-        if inFlightDigest == digest {
-            inFlightDigest = nil
-        }
-    }
-
-    mutating func reset() {
-        inFlightDigest = nil
-        lastSucceededDigest = nil
     }
 }
 

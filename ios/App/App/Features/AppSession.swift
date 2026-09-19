@@ -45,7 +45,7 @@ final class AppSession {
         set { state.globalError = newValue }
     }
 
-    var pendingPairing: PendingPairingState? {
+    var pendingPairing: RemotePairingPending? {
         get { state.pendingPairing }
         set { state.pendingPairing = newValue }
     }

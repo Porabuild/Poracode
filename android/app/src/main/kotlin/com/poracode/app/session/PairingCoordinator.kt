@@ -3,7 +3,6 @@ package com.poracode.app.session
 import com.poracode.app.model.ConnectionProfile
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.protocol.PairingException
-import com.poracode.app.protocol.PairingIntentDecisions
 import com.poracode.app.protocol.PairingUrl
 import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.RemoteAccessScopes
@@ -12,6 +11,7 @@ import com.poracode.app.storage.DurableOperationToken
 import com.poracode.app.storage.SessionCredentialLoadOutcome
 import com.poracode.app.storage.SessionCredentialRepository
 import com.poracode.app.transport.RemoteApiGatewayFactory
+import com.poracode.remote.v3.generated.RemotePairingMachine
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -60,8 +60,8 @@ class PairingCoordinator(
         }.getOrNull() ?: return
         val endpoint = route.endpoint
         val credential = route.token
-        val fingerprint = SessionPolicies.pairingFingerprint(endpoint, credential)
-        if (PairingIntentDecisions.shouldSkipDuplicateFingerprint(
+        val fingerprint = RemotePairingMachine.fingerprint(endpoint, credential)
+        if (RemotePairingMachine.shouldSkipDuplicateFingerprint(
                 fingerprint,
                 consumedPairFingerprints,
             )
@@ -74,12 +74,12 @@ class PairingCoordinator(
                 endpoint = endpoint,
                 credential = credential,
                 fingerprint = fingerprint,
-                sanitizedHost = SessionPolicies.sanitizedHostLabel(endpoint),
+                sanitizedHost = RemotePairingMachine.sanitizedHostLabel(endpoint),
             )
             updateState {
                 it.copy(
                     pendingPairConfirm = AppSession.PendingPairConfirmUi(
-                        sanitizedHost = SessionPolicies.sanitizedHostLabel(endpoint),
+                        sanitizedHost = RemotePairingMachine.sanitizedHostLabel(endpoint),
                         endpoint = endpoint,
                         fingerprint = fingerprint,
                     ),
@@ -145,8 +145,8 @@ class PairingCoordinator(
             pendingPairSecret = null
             try {
                 val (endpoint, credential) = resolvePairing(input)
-                val fp = fingerprint ?: SessionPolicies.pairingFingerprint(endpoint, credential)
-                if (PairingIntentDecisions.shouldSkipDuplicateFingerprint(
+                val fp = fingerprint ?: RemotePairingMachine.fingerprint(endpoint, credential)
+                if (RemotePairingMachine.shouldSkipDuplicateFingerprint(
                         fp,
                         consumedPairFingerprints,
                     )
@@ -450,7 +450,7 @@ class PairingCoordinator(
         if (!owner.isCurrent(sessionToken)) return
         val hasCredential = (retainedProfile != null && !retainedToken.isNullOrBlank()) ||
             (state().profile != null && !accessToken().isNullOrBlank())
-        val nextPhase = PairingPhaseMapping.mapPairingFailurePhase(previousPhase, hasCredential)
+        val nextPhase = mapPairingFailurePhase(previousPhase, hasCredential)
         updateState {
             it.copy(
                 isPairing = false,
@@ -488,12 +488,11 @@ class PairingCoordinator(
         const val NO_KNOWN_SCOPES_MESSAGE =
             "This server did not advertise any supported remote-access scopes."
 
+        /** Generated pairing machine (V5 5.2) + [PairingFailurePhaseMapper] adapter. */
         fun mapPairingFailurePhase(
             previousPhase: AppSession.Phase,
             hasRetainedCredential: Boolean,
-        ): AppSession.Phase = PairingPhaseMapping.mapPairingFailurePhase(
-            previousPhase,
-            hasRetainedCredential,
-        )
+        ): AppSession.Phase =
+            PairingFailurePhaseMapper.mapPairingFailurePhase(previousPhase, hasRetainedCredential)
     }
 }

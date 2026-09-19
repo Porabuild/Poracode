@@ -1,7 +1,10 @@
 import { canonicalize, sha256Prefixed } from "../canonical";
+import { PAIRING_MACHINE_SPEC } from "../pairingMachineSpec";
 import { compareUnicodeCodePoints } from "../unicodeOrder";
 import { emitKotlinBindings } from "./emitKotlin";
+import { emitKotlinPairingMachine } from "./emitPairingKotlin";
 import { emitSwiftBindings } from "./emitSwift";
+import { emitSwiftPairingMachine } from "./emitPairingSwift";
 import {
   assertNativeSchemaKeywordCoverage,
   assertNativeSemanticValidatorCoverage,
@@ -10,7 +13,7 @@ import { buildNativeSchemaGraph, collectNativeSchemaRoots } from "./schemaGraph"
 import type { NativeBindingOutput } from "./types";
 import { parseNativeBindingIr } from "./validate";
 
-export const NATIVE_BINDINGS_MANIFEST_FORMAT_VERSION = 1 as const;
+export const NATIVE_BINDINGS_MANIFEST_FORMAT_VERSION = 2 as const;
 export const NATIVE_BINDINGS_MAX_FILE_LINES = 450 as const;
 export const NATIVE_BINDINGS_MAX_FILE_BYTES = 512_000 as const;
 export const NATIVE_BINDINGS_MAX_LINE_LENGTH = 32_768 as const;
@@ -80,13 +83,25 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
   assertNativeSchemaKeywordCoverage(graph);
   const swift = emitSwiftBindings(ir, graph);
   const kotlin = emitKotlinBindings(ir, graph);
-  const swiftInventory = inventory(swift, "swift");
-  const kotlinInventory = inventory(kotlin, "kotlin");
+  /** V5 5.2: the native pairing state machine ships in the same bundle and
+   * under the same byte-stability, hash, and size bounds as the wire bindings.
+   * The pairing spec is deliberately NOT part of the wire IR — adding a
+   * generated machine must never move sourceHash/manifestHash. */
+  const swiftWithPairing: Record<string, string> = {
+    ...swift,
+    "PairingMachine.swift": emitSwiftPairingMachine(),
+  };
+  const kotlinWithPairing: Record<string, string> = {
+    ...kotlin,
+    "PairingMachine.kt": emitKotlinPairingMachine(),
+  };
+  const swiftInventory = inventory(swiftWithPairing, "swift");
+  const kotlinInventory = inventory(kotlinWithPairing, "kotlin");
   const files: Record<string, string> = {};
-  for (const name of Object.keys(swift).sort(compareUnicodeCodePoints))
-    files[`swift/${name}`] = swift[name]!;
-  for (const name of Object.keys(kotlin).sort(compareUnicodeCodePoints))
-    files[`kotlin/${name}`] = kotlin[name]!;
+  for (const name of Object.keys(swiftWithPairing).sort(compareUnicodeCodePoints))
+    files[`swift/${name}`] = swiftWithPairing[name]!;
+  for (const name of Object.keys(kotlinWithPairing).sort(compareUnicodeCodePoints))
+    files[`kotlin/${name}`] = kotlinWithPairing[name]!;
 
   const outputHash = treeHash(files);
   const nativeManifest = {
@@ -112,7 +127,19 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
       portableTransforms: ir.portableTransformIds.length,
       swiftFiles: swiftInventory.length,
       kotlinFiles: kotlinInventory.length,
+      pairingStateMachines: 1,
     },
+    stateMachines: [
+      {
+        id: PAIRING_MACHINE_SPEC.id,
+        specVersion: PAIRING_MACHINE_SPEC.specVersion,
+        phaseCount: PAIRING_MACHINE_SPEC.phases.length,
+        phaseAfterFailureRuleCount: PAIRING_MACHINE_SPEC.phaseAfterFailure.length,
+        intentTransitionCount: PAIRING_MACHINE_SPEC.intent.transitions.length,
+        standardScopeCount: PAIRING_MACHINE_SPEC.scopes.standardOrder.length,
+        sources: { swift: "swift/PairingMachine.swift", kotlin: "kotlin/PairingMachine.kt" },
+      },
+    ],
     languages: {
       swift: {
         languageVersion: "6",
