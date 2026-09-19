@@ -165,7 +165,9 @@ export class LabRouteWorkspace {
     const id = "forward-fixture-001";
     const forward = { id, targetPort, listenPort: 49160, createdAt: 1_786_534_980_000 };
     this.forwards.set(id, forward);
-    return { forward, enterPath: this.enterPath(id) };
+    // Gate 6: raw-TCP listeners require the first-line connect ticket, so the
+    // authoritative forward response always carries one (min length 1).
+    return { forward, enterPath: this.enterPath(id), connectTicket: `fct-${id}` };
   }
 
   private enterPath(id: string): string {

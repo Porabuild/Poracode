@@ -175,6 +175,68 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  ios_ui:
+    name: iOS XCUITest wire-lab journey
+    needs: ios
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Select Xcode 26.6
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "26.6"
+
+      - name: Show Xcode toolchain
+        run: |
+          xcodebuild -version
+          test "$(xcodebuild -version | sed -n '1s/^Xcode //p')" = "26.6"
+
+      # scripts/native-e2e.mjs creates the fixed "Poracode Native E2E"
+      # simulator on this exact runtime (the iOS analogue of the Android
+      # `poracode-pixel9-api37` convention). Fail with a clear message when
+      # the runner image drops it instead of a confusing simctl create error.
+      - name: Require the iOS 26.5 simulator runtime
+        run: |
+          xcrun simctl list runtimes
+          xcrun simctl list runtimes -j | grep -q 'com.apple.CoreSimulator.SimRuntime.iOS-26-5'
+
+      # The journey drives the mock wire-lab harness (pure Node: no headless
+      # host build, no node-pty rebuild). It starts the harness, builds the
+      # NativeE2ETests UI runner for the fixed simulator, injects the control
+      # URL/capability through a generated xctestrun file, runs
+      # NativeJourneyUITests, and prunes its own per-run artifacts.
+      - name: Run the iOS XCUITest wire-lab journey
+        env:
+          # Slot 1 like scripts/ci-android-api37.sh: slot 0's base port
+          # (49152) is claimed by macOS system services on runner images.
+          PORACODE_NATIVE_E2E_SLOT: "1"
+          NATIVE_E2E_STARTUP_TIMEOUT_MS: "60000"
+        run: node scripts/native-e2e.mjs ios-ui
+
+      - name: Upload iOS journey evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-ui-journey-${{ github.run_attempt }}
+          path: .tmp/native-e2e/ios-ui-*/
+          if-no-files-found: warn
+          retention-days: 7
+
   android_api37_runtime:
     name: Android 17 emulator runtime
     needs: android
@@ -461,6 +523,7 @@ jobs:
       - android_api26_runtime
       - android_api37_runtime
       - ios
+      - ios_ui
       - native_e2e_foundation
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -474,4 +537,5 @@ jobs:
           test "${{ needs.android_api26_runtime.result }}" = "success"
           test "${{ needs.android_api37_runtime.result }}" = "success"
           test "${{ needs.ios.result }}" = "success"
+          test "${{ needs.ios_ui.result }}" = "success"
           test "${{ needs.native_e2e_foundation.result }}" = "success"

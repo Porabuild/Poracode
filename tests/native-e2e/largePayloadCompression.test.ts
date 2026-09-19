@@ -84,7 +84,13 @@ function seedPayloads(baseDir: string): void {
   }
 }
 
-async function readRaw(url: string, token: string, encoding: string, etag?: string) {
+async function readRaw(
+  url: string,
+  token: string,
+  encoding: string,
+  etag?: string,
+  hostHeader?: string,
+) {
   const started = performance.now();
   return new Promise<{
     status: number;
@@ -101,6 +107,10 @@ async function readRaw(url: string, token: string, encoding: string, etag?: stri
           authorization: `Bearer ${token}`,
           "accept-encoding": encoding,
           connection: "close",
+          // Dials through the constrained proxy carry the proxy's port in
+          // the default Host header; the 4.7 gate admits loopback literals
+          // only with the server's OWN bound port, so name the origin.
+          ...(hostHeader ? { host: hostHeader } : {}),
           ...(etag ? { "if-none-match": etag } : {}),
         },
       },
@@ -209,9 +219,21 @@ describe.skipIf(!entrypoint)(
             const from = Date.now();
             const before = proxy.stats();
             const url = `http://127.0.0.1:${proxy.port}${route}`;
-            const identity = await readRaw(url, accessToken, "identity");
+            const identity = await readRaw(
+              url,
+              accessToken,
+              "identity",
+              undefined,
+              `127.0.0.1:${host.hostPort}`,
+            );
             const afterIdentity = proxy.stats();
-            const compressed = await readRaw(url, accessToken, "gzip");
+            const compressed = await readRaw(
+              url,
+              accessToken,
+              "gzip",
+              undefined,
+              `127.0.0.1:${host.hostPort}`,
+            );
             const afterCompressed = proxy.stats();
             expect(identity.status).toBe(200);
             expect(compressed.status).toBe(200);
@@ -232,7 +254,13 @@ describe.skipIf(!entrypoint)(
               );
             }
             expect(compressed.etag).toBeTruthy();
-            const cached = await readRaw(url, accessToken, "gzip", compressed.etag);
+            const cached = await readRaw(
+              url,
+              accessToken,
+              "gzip",
+              compressed.etag,
+              `127.0.0.1:${host.hostPort}`,
+            );
             const afterCached = proxy.stats();
             // Snapshot sequence may change on unrelated live events; history page is stable.
             if (route !== "/api/snapshot") assert.equal(cached.status, 304);

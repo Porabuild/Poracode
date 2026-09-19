@@ -20,19 +20,9 @@ import { FaultEngine } from "./faultEngine.ts";
 import { assertEventFixtures, validateReplayableEvent } from "./eventValidation.ts";
 import { joinBasePath } from "./httpIo.ts";
 import { LabAuthStore, LabHttpError, type AuthenticatedSession } from "./labAuth.ts";
-import {
-  buildReplayableEvent,
-  buildRuntimeEvent,
-  FIXTURE_TERMINAL_ID,
-  FIXTURE_THREAD_ID,
-} from "./labFixtures.ts";
+import { buildReplayableEvent } from "./labFixtures.ts";
 import { bearerToken, handleLabHttp } from "./labHttpDispatch.ts";
-import {
-  broadcastRaw,
-  broadcastServer,
-  broadcastTerminalOutput,
-  handleLabUpgrade,
-} from "./labWsRouter.ts";
+import { handleLabUpgrade } from "./labWsRouter.ts";
 import { loadProtocolManifest, type ProtocolManifest } from "./manifest.ts";
 import { appendScriptEntry, loadScriptJournal, type DurableScriptDraft } from "./durableScripts.ts";
 import { assertGeneratedSchemaDefinitions } from "./generatedContract.ts";
@@ -51,6 +41,7 @@ import type { EmitRequest, FaultConfig, PairingControlResponse, WireLabOptions }
 import { assertWebSocketFixtures, parseServerMessage } from "./wsFixtures.ts";
 import { createWireLabRuntime } from "./wireLabRuntime.ts";
 import { publishWireEvent, type WirePublishOptions } from "./wireLabPublish.ts";
+import { emitLabRequest } from "./frameEmit.ts";
 
 export class WireLab {
   readonly auth = new LabAuthStore();
@@ -84,6 +75,7 @@ export class WireLab {
   private readonly connections = new Set<LabConnection>();
   private nextSocketOrdinal = 0;
   private nextSessionOrdinal = 0;
+  private nextDesktopSeq = 0;
   private readonly sessionKeys = new Map<string, string>();
 
   constructor(
@@ -162,6 +154,12 @@ export class WireLab {
     return { socketId: `socket-${String(++this.nextSocketOrdinal)}`, sessionId };
   }
 
+  /** Desktop-internal stream cursor, fully independent of `ring.seq`. */
+  allocateDesktopSeq(): number {
+    this.nextDesktopSeq += 1;
+    return this.nextDesktopSeq;
+  }
+
   async start(): Promise<{ httpBaseUrl: string; wsBaseUrl: string; port: number }> {
     if (this.info) return this.info;
     const host = assertLoopbackHost(this.options.host ?? LOOPBACK_HOST, "wire lab");
@@ -217,6 +215,7 @@ export class WireLab {
     this.observationLedger.reset();
     this.connections.clear();
     this.activePairing = null;
+    this.nextDesktopSeq = 0;
     const started = await this.start();
     this.replayDurableScripts();
     return started;
@@ -258,6 +257,7 @@ export class WireLab {
     this.routes.reset();
     this.observationLedger.reset();
     this.activePairing = null;
+    this.nextDesktopSeq = 0;
     if (this.info) this.issuePairingCredential();
   }
 
@@ -338,49 +338,7 @@ export class WireLab {
   }
 
   emit(request: EmitRequest): void {
-    switch (request.kind) {
-      case "event": {
-        const type = request.eventType ?? String(request.event?.type ?? "thread-state");
-        const event = request.event ?? buildReplayableEvent(type, request.threadId);
-        this.publishEvent(event);
-        return;
-      }
-      case "runtime": {
-        const threadId = request.threadId ?? FIXTURE_THREAD_ID;
-        const runtime = request.runtimeEvent ?? buildRuntimeEvent("content.delta", threadId);
-        this.publishEvent({
-          type: "thread-runtime-event",
-          threadId,
-          event: runtime,
-        });
-        return;
-      }
-      case "terminal-output": {
-        broadcastTerminalOutput(
-          this.runtime(),
-          request.terminalId ?? FIXTURE_TERMINAL_ID,
-          request.data ?? "",
-        );
-        return;
-      }
-      case "resync-required": {
-        broadcastServer(this.runtime(), {
-          type: "resync-required",
-          seq: this.ring.seq,
-          reason: request.reason ?? "Injected resync.",
-        });
-        return;
-      }
-      case "malformed": {
-        broadcastRaw(this.runtime(), "{not-json");
-        this.ledger.observeWebSocketServer("malformed");
-        return;
-      }
-      case "unknown": {
-        broadcastRaw(this.runtime(), JSON.stringify({ type: "lab-unknown-envelope", payload: {} }));
-        this.ledger.observeWebSocketServer("lab-unknown-envelope");
-      }
-    }
+    emitLabRequest(this, request);
   }
 
   publishEvent(event: Record<string, unknown>, options?: WirePublishOptions): number {

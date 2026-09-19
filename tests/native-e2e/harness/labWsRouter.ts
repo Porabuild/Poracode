@@ -26,12 +26,13 @@ export async function handleLabUpgrade(
     const session = runtime.auth.consumeWebSocketTicket(ticket);
     const lastSeenSeq = parseLastSeenSeq(url.searchParams);
     const initialInterests = parseThreadItemInterests(url.searchParams);
+    const desktopInternal = parseDesktopInternal(url.searchParams);
     wss.handleUpgrade(req, socket, head, (ws) => {
       runtime.observationLedger.recordOperation("ws:connect", {
         path: pathname,
         lastSeenSeq,
       });
-      handleLabConnection(runtime, ws, session, lastSeenSeq, initialInterests);
+      handleLabConnection(runtime, ws, session, lastSeenSeq, initialInterests, desktopInternal);
     });
   } catch (error) {
     if (error instanceof LabHttpError) {
@@ -54,6 +55,7 @@ export function handleLabConnection(
   session: LabConnection["session"],
   lastSeenSeq: number | null,
   initialInterests: ReadonlySet<string> | null,
+  desktopInternal = false,
 ): void {
   const identity = runtime.allocateConnectionIdentity(session.sessionId);
   const connection: LabConnection = {
@@ -66,6 +68,7 @@ export function handleLabConnection(
     terminalWatches: new Set(),
     browserWatching: false,
     gitStateInterests: [],
+    desktopInternal,
   };
   runtime.connections.add(connection);
   ws.on("close", () => {
@@ -228,6 +231,31 @@ export function handleClientMessage(
     }
     return;
   }
+  if (parsed.type === "terminal-watch-baseline-ack") {
+    // Cursor-sync v2 credit release: the acked baseline cursor lets the next
+    // window travel. The fixture continuation is one deterministic window
+    // continuing at the acked cursor (11 UTF-16 units fit any chunk budget).
+    const { id } = parsed;
+    if (!connection.terminalWatches.has(id)) return;
+    runtime.send(connection.ws, {
+      type: "terminal-watch-baseline-chunk",
+      id,
+      cursorSync: {
+        version: 2,
+        watchId: parsed.cursorSync.watchId,
+        generation: "instance-fixture-aaa",
+        chunkIndex: 0,
+        chunkCount: 1,
+        fromCursor: parsed.cursorSync.throughCursor,
+        toCursor: parsed.cursorSync.throughCursor + 11,
+        data: "live window",
+        processState: "running",
+        terminalSize: { cols: 120, rows: 30 },
+        resumeServed: false,
+      },
+    });
+    return;
+  }
   if (parsed.type === "terminal-unwatch") {
     connection.terminalWatches.delete(parsed.id);
   }
@@ -257,6 +285,21 @@ export function broadcastServer(runtime: LabRuntime, message: Record<string, unk
   }
 }
 
+/** Desktop-internal stream delivery: admission-gated, so only connections
+ * that opted in at the `/ws` upgrade ever observe the frame. The lab admits
+ * loopback peers only (the real server's gate), and every lab peer is
+ * loopback by construction, so the query opt-in is honored as-is. */
+export function broadcastDesktopEvent(runtime: LabRuntime, event: Record<string, unknown>): void {
+  for (const connection of runtime.connections) {
+    if (!connection.desktopInternal) continue;
+    runtime.send(connection.ws, {
+      type: "desktop-event",
+      seq: runtime.allocateDesktopSeq(),
+      event,
+    });
+  }
+}
+
 export function broadcastRaw(runtime: LabRuntime, data: string): void {
   for (const connection of runtime.connections) {
     if (connection.ws.readyState === WebSocket.OPEN) connection.ws.send(data);
@@ -282,4 +325,8 @@ export function parseThreadItemInterests(
   } catch {
     return null;
   }
+}
+
+export function parseDesktopInternal(searchParams: URLSearchParams): boolean {
+  return searchParams.get("desktopInternal") === "1";
 }

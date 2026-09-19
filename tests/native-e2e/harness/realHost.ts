@@ -41,6 +41,14 @@ export interface RealHostHandle {
   readonly httpBaseUrl: string;
   readonly wsBaseUrl: string;
   readonly hostPort: number;
+  /**
+   * Host header naming the REAL server origin, set by transparent-TCP-proxy
+   * wrappers whose dial URLs carry the proxy's port instead. The remote
+   * server's Host gate (Gate 6 item 4.7) admits loopback literals only with
+   * the server's own bound port, so clients dialed through a proxy present
+   * this header on HTTP requests and WS upgrades.
+   */
+  readonly originHostHeader?: string;
   readonly entrypoint: string;
   readonly blockers: readonly HarnessBlocker[];
   pair(): Promise<PairingControlResponse>;

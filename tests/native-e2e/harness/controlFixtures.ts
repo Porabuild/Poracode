@@ -38,12 +38,17 @@ export type FaultFixtureId = (typeof FAULT_FIXTURE_IDS)[number];
 export const FRAME_FIXTURE_IDS = [
   "event-agent-status",
   "event-thread-state",
+  "event-thread-pending-steer",
+  "event-thread-pending-steer-cleared",
   "runtime-content-delta",
   "runtime-live-turn-started",
   "runtime-live-user-item-started",
   "runtime-live-item-started",
   "runtime-live-content-delta",
+  "runtime-live-request-opened",
+  "runtime-live-request-resolved",
   "terminal-output",
+  "desktop-event",
   "resync-required",
   "malformed",
   "unknown",
@@ -146,6 +151,38 @@ const FRAME_FIXTURES: Record<
       itemId: "item-native-e2e-live",
       delta: "Native live update",
     },
+  },
+  // Interactive-request family: the request.opened / request.resolved pair
+  // shares the authoritative fixture requestId so a journey can open a prompt
+  // and resolve it deterministically.
+  "runtime-live-request-opened": {
+    kind: "runtime",
+    threadId: FIXTURE_THREAD_ID,
+    runtimeEvent: buildRuntimeEvent("request.opened", FIXTURE_THREAD_ID),
+  },
+  "runtime-live-request-resolved": {
+    kind: "runtime",
+    threadId: FIXTURE_THREAD_ID,
+    runtimeEvent: buildRuntimeEvent("request.resolved", FIXTURE_THREAD_ID),
+  },
+  // Pending-steer family: the envelope shape mirrors
+  // protocol/remote/v3/fixtures/thread-pending-steer-envelope.json — a
+  // non-null `pending` stages the steer, `pending: null` clears it.
+  "event-thread-pending-steer": {
+    kind: "event",
+    eventType: "thread-pending-steer",
+    event: buildReplayableEvent("thread-pending-steer", FIXTURE_THREAD_ID),
+  },
+  "event-thread-pending-steer-cleared": {
+    kind: "event",
+    eventType: "thread-pending-steer",
+    event: { type: "thread-pending-steer", threadId: FIXTURE_THREAD_ID, pending: null },
+  },
+  // Desktop-internal stream fixture: delivered only to sessions that opted in
+  // at the `/ws` upgrade, so a journey can also prove the native gate.
+  "desktop-event": {
+    kind: "desktop-event",
+    desktopEvent: buildReplayableEvent("thread-state", FIXTURE_THREAD_ID),
   },
   "terminal-output": {
     kind: "terminal-output",

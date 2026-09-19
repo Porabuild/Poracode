@@ -176,12 +176,39 @@ export async function exerciseCoreWebSocket(
       },
     }),
   );
-  for (let remaining = firstChunk.cursorSync!.chunkCount - 1; remaining > 0; remaining -= 1) {
+  // The ack releases baseline credit, so the lab answers with the next
+  // deterministic window chunk before anything else is delivered.
+  const continuation = (await first.next()) as {
+    type: string;
+    cursorSync?: { fromCursor: number; toCursor: number; data: string };
+  };
+  assert.equal(continuation.type, "terminal-watch-baseline-chunk");
+  assert.equal(continuation.cursorSync!.fromCursor, firstChunk.cursorSync!.toCursor);
+  for (let remaining = firstChunk.cursorSync!.chunkCount - 1; remaining > 1; remaining -= 1) {
     assert.equal(((await first.next()) as { type: string }).type, "terminal-watch-baseline-chunk");
   }
   first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES.ping));
   assert.equal(((await first.next()) as { type: string }).type, "pong");
   first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES["terminal-unwatch"]));
+  // Desktop-internal stream gate: with no opted-in session connected the
+  // fixture delivers nothing, and the ordinary native socket proves it with a
+  // pong barrier (no desktop-event frame may arrive before the pong).
+  harness.lab.emit({ kind: "desktop-event" });
+  first.ws.send(JSON.stringify(CLIENT_WS_FIXTURES.ping));
+  assert.equal(((await first.next()) as { type: string }).type, "pong");
+  // An opted-in loopback session (`?desktopInternal=1`) receives desktop-event
+  // frames on their own independent sequence.
+  const desktop = await openReadySocket(harness, accessToken, { desktopInternal: true });
+  harness.lab.emit({ kind: "desktop-event" });
+  const desktopFrame = (await desktop.next()) as {
+    type: string;
+    seq: number;
+    event: { type: string };
+  };
+  assert.equal(desktopFrame.type, "desktop-event");
+  assert.equal(desktopFrame.seq, 1);
+  assert.equal(desktopFrame.event.type, "thread-state");
+  desktop.ws.close();
   harness.lab.emit({ kind: "resync-required", reason: "Fixture resync." });
   assert.equal(((await first.next()) as { type: string }).type, "resync-required");
 

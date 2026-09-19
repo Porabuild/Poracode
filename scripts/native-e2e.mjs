@@ -196,6 +196,29 @@ async function runIosUI() {
   process.exit(0);
 }
 
+// Build/simctl children of the ios-ui journey, so a programmatic shutdown can
+// kill the whole tree (an interactive SIGINT reaches them via the terminal
+// process group, `kill <pid>` does not). Declared before the entry guard
+// below: top-level `await main()` pauses module evaluation, so anything the
+// journey touches must be initialized before it.
+const liveChildProcesses = new Set();
+
+function trackChildProcess(processHandle) {
+  liveChildProcesses.add(processHandle);
+  processHandle.once("exit", () => liveChildProcesses.delete(processHandle));
+  return processHandle;
+}
+
+function killTrackedChildren(signal) {
+  for (const processHandle of liveChildProcesses) {
+    try {
+      processHandle.kill(signal);
+    } catch {
+      // already gone
+    }
+  }
+}
+
 if (process.argv[1] && resolvePath(process.argv[1]) === fileURLToPath(import.meta.url)) {
   await main();
 }
@@ -227,27 +250,6 @@ export function selectPrunableIosRunDirs(names, keep = IOS_UI_MAX_RUN_DIRS) {
       return bMs - aMs || bPid - aPid;
     });
   return runs.slice(keep);
-}
-
-// Build/simctl children of the ios-ui journey, so a programmatic shutdown can
-// kill the whole tree (an interactive SIGINT reaches them via the terminal
-// process group, `kill <pid>` does not).
-const liveChildProcesses = new Set();
-
-function trackChildProcess(processHandle) {
-  liveChildProcesses.add(processHandle);
-  processHandle.once("exit", () => liveChildProcesses.delete(processHandle));
-  return processHandle;
-}
-
-function killTrackedChildren(signal) {
-  for (const processHandle of liveChildProcesses) {
-    try {
-      processHandle.kill(signal);
-    } catch {
-      // already gone
-    }
-  }
 }
 
 async function runIosUIJourney({ registerShutdown }) {

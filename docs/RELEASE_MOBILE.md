@@ -157,7 +157,12 @@ requires:
 - a dedicated minimum-SDK launch test on an Android 8/API 26 emulator;
 - iOS `AppTests` on an iOS 26.5 simulator under Xcode 26.6 — including
   `TerminalRawKeyInputTests` for the interactive-terminal key encoding — plus
-  the portable Swift contract suites; and
+  the portable Swift contract suites;
+- the `ios_ui` job: the real-SwiftUI pairing journey
+  (`node scripts/native-e2e.mjs ios-ui`) on an iOS 26.5 simulator under the
+  same Xcode 26.6 pin — it boots the mock wire lab, drives the fixed
+  "Poracode Native E2E" simulator through pairing, thread send/interrupt, and
+  resync against the control plane, and uploads the result bundle; and
 - the host-side native wire lab plus a real production headless-host smoke test.
 
 The Android emulator jobs run the native `androidTest` suite, including API 37
