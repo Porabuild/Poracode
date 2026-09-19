@@ -3,12 +3,21 @@ import {
   parseActivateCliOptions,
   parseBackupCliOptions,
   parseDoctorCliOptions,
+  parseInitTlsCliOptions,
   parseServerCliCommand,
 } from "./cli";
 
 describe("parseServerCliCommand", () => {
   it("serves by default", () => {
     expect(parseServerCliCommand([])).toBe("serve");
+  });
+
+  it("recognizes the TLS material generation command", () => {
+    expect(parseServerCliCommand(["init-tls"])).toBe("init-tls");
+    expect(parseServerCliCommand(["init-tls", "--json"])).toBe("init-tls");
+    expect(parseServerCliCommand(["init-tls", "--cert", "/a/c.pem", "--key", "/a/k.pem"])).toBe(
+      "init-tls",
+    );
   });
 
   it("recognizes the explicit machine-readable pairing command", () => {
@@ -41,6 +50,14 @@ describe("parseServerCliCommand", () => {
 
   it.each(["--help", "-h", "help"])("recognizes %s without starting an owner", (argument) => {
     expect(parseServerCliCommand([argument])).toBe("help");
+  });
+
+  it("recognizes the serve command with operability flags", () => {
+    expect(parseServerCliCommand(["serve"])).toBe("serve");
+    expect(parseServerCliCommand(["serve", "--config", "/tmp/p.json"])).toBe("serve");
+    expect(parseServerCliCommand(["--host", "127.0.0.1"])).toBe("serve");
+    expect(parseServerCliCommand(["--port", "49200"])).toBe("serve");
+    expect(parseServerCliCommand(["serve", "--host", "0.0.0.0", "--port", "49200"])).toBe("serve");
   });
 
   it.each([
@@ -98,6 +115,25 @@ describe("parseDoctorCliOptions", () => {
     "rejects unsupported arguments (%s)",
     (arg) => {
       expect(() => parseDoctorCliOptions([arg!])).toThrow(/Usage/u);
+    },
+  );
+});
+
+describe("parseInitTlsCliOptions", () => {
+  it("defaults to no explicit paths, accepts --cert/--key/--json", () => {
+    expect(parseInitTlsCliOptions([])).toEqual({ json: false });
+    expect(parseInitTlsCliOptions(["--json"])).toEqual({ json: true });
+    expect(parseInitTlsCliOptions(["--cert", "/tls/c.pem", "--key", "/tls/k.pem"])).toEqual({
+      json: false,
+      certPath: "/tls/c.pem",
+      keyPath: "/tls/k.pem",
+    });
+  });
+
+  it.each([["--cert"], ["--key"], ["--out"]])(
+    "rejects %s without a value or unknown flags",
+    (arg) => {
+      expect(() => parseInitTlsCliOptions([arg!])).toThrow(/Usage/u);
     },
   );
 });

@@ -1,5 +1,5 @@
-import { join } from "node:path";
-import { writeSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { writeSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import {
   startNodePerformanceDiagnostics,
   type NodePerformanceDiagnostics,
@@ -14,10 +14,28 @@ import {
 import { requestNativeKeyAdoption } from "@/backend/ownership/nativeSecretKey";
 import { resolveDesktopHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
-import { installShutdown, reportFatalStartupError, reportUnconfirmedShutdown } from "./cliRuntime";
+import {
+  DEFAULT_SHUTDOWN_DRAIN_DEADLINE_MS,
+  installFatalErrorHandlers,
+  installShutdown,
+  reportFatalStartupError,
+  reportUnconfirmedShutdown,
+} from "./cliRuntime";
 import { createHeadlessRemoteHost } from "./createHeadlessRemoteHost";
 import { HeadlessCompositionShutdownError } from "./headlessRemoteComposition";
 import { createHostDataBackup } from "./serverBackup";
+import {
+  defaultTlsSubjectNames,
+  generateSelfSignedTlsMaterial,
+} from "@/main/remote/server/tlsMaterial";
+import {
+  applyServeSettingsToEnv,
+  parseServeCliOptions,
+  resolveServeSettings,
+  SERVER_CONFIG_FILE_NAME,
+  type ServeCliOptions,
+} from "./serverConfig";
+import { serverLogFilePath, startServerLogFile } from "./serverLogFile";
 import { collectServerDoctorReport } from "./serverDoctor";
 import {
   resolveServerInstallLayout,
@@ -41,7 +59,12 @@ function profileNamespace(): string {
 
 let performanceDiagnostics: NodePerformanceDiagnostics | undefined;
 
-async function serve(): Promise<void> {
+/** The log-file sink, started once the owned root exists and joined into the
+ * shutdown drain. Module-level so the fatal-error handlers can mirror their
+ * final report into it. */
+let logFileSink: ReturnType<typeof startServerLogFile> | undefined;
+
+async function serve(options: ServeCliOptions = {}): Promise<void> {
   // Published layout contract (docs/STANDALONE_SERVER.md §1): explicit asset
   // declarations win; otherwise the layout is inferred from the running
   // bundle's directory. An arrangement outside the supported shapes fails
@@ -60,6 +83,25 @@ async function serve(): Promise<void> {
   });
   performanceDiagnostics = startNodePerformanceDiagnostics("server");
   process.env.PORACODE_HEADLESS_SERVER = "1";
+  // Operability configuration (plan item 4.9): optional JSON config file +
+  // --host/--port/--config CLI flags, resolved with the documented precedence
+  // (flag > environment > config file > built-in default) and mapped onto the
+  // environment contract the composed host already reads.
+  const settings = resolveServeSettings({
+    flags: options,
+    env: process.env,
+    defaultConfigPath: join(profileNamespace(), SERVER_CONFIG_FILE_NAME),
+  });
+  for (const warning of settings.warnings) {
+    console.warn("[poracode-server] %s", warning);
+  }
+  const appliedEnv = applyServeSettingsToEnv(settings);
+  if (settings.configPath !== undefined) {
+    console.log("[poracode-server] config file: %s", settings.configPath);
+  }
+  if (appliedEnv.length > 0) {
+    console.log("[poracode-server] configured via CLI/config: %s", appliedEnv.join(", "));
+  }
   const relayUrl = process.env.PORACODE_REMOTE_RELAY_URL?.trim();
   const environmentKey = process.env.PORACODE_SECRET_STORAGE_KEY;
   const relaySecret = process.env.PORACODE_REMOTE_RELAY_SECRET;
@@ -81,16 +123,32 @@ async function serve(): Promise<void> {
     }
     return closingHost;
   };
-  const uninstallShutdown = installShutdown("[poracode-server]", async () => {
-    cancellation.abort(new Error("Headless startup was cancelled by shutdown."));
-    try {
-      // Initiate cancellation while joining startup. Waiting for startup first
-      // would leave a held listener's own cancellation path unreachable.
-      await joinRuntimeShutdown([closeHost, () => startup.promise]);
-    } finally {
-      await performanceDiagnostics?.stop();
-    }
+  const closeLogFile = (): Promise<void> => {
+    logFileSink?.stop();
+    logFileSink = undefined;
+    return Promise.resolve();
+  };
+  installFatalErrorHandlers("[poracode-server]", {
+    onFatal: (level, message, error) => {
+      // Routed through console.error so an installed log sink captures the
+      // final report synchronously before the forced exit.
+      console.error("%s [%s]:", message, level, error);
+    },
   });
+  const uninstallShutdown = installShutdown(
+    "[poracode-server]",
+    async () => {
+      cancellation.abort(new Error("Headless startup was cancelled by shutdown."));
+      try {
+        // Initiate cancellation while joining startup. Waiting for startup first
+        // would leave a held listener's own cancellation path unreachable.
+        await joinRuntimeShutdown([closeHost, () => startup.promise, closeLogFile]);
+      } finally {
+        await performanceDiagnostics?.stop();
+      }
+    },
+    { drainDeadlineMs: settings.shutdownDrainDeadlineMs },
+  );
   let info;
   try {
     host = await createHeadlessRemoteHost({
@@ -113,6 +171,28 @@ async function serve(): Promise<void> {
       reportError: (error) => console.error("[poracode-server] supervisor error:", error),
     });
     cancellation.signal.throwIfAborted();
+    // The lease is held and the owned root exists from here on: start the
+    // leveled, size-rotated log file before anything else logs startup state.
+    // Output before this point (and any startup failure) stays on stderr,
+    // where the service manager journals it.
+    logFileSink = startServerLogFile({
+      path: serverLogFilePath(host.dataRoot),
+      level: settings.logLevel,
+      maxBytes: settings.logMaxBytes,
+      maxFiles: settings.logMaxFiles,
+      env: process.env,
+    });
+    console.log(
+      "[poracode-server] log file: %s (level %s, rotation %d bytes x %d)",
+      serverLogFilePath(host.dataRoot),
+      logFileSink.level,
+      settings.logMaxBytes,
+      settings.logMaxFiles,
+    );
+    console.log(
+      "[poracode-server] shutdown drain deadline: %dms",
+      settings.shutdownDrainDeadlineMs,
+    );
     info = await host.start();
     cancellation.signal.throwIfAborted();
   } catch (error) {
@@ -151,6 +231,7 @@ export type ServerCliCommand =
   | "activate"
   | "doctor"
   | "backup"
+  | "init-tls"
   | "help";
 
 export interface ActivateCliOptions {
@@ -170,9 +251,46 @@ export interface BackupCliOptions {
   readonly to: string;
 }
 
+export interface InitTlsCliOptions {
+  readonly json: boolean;
+  /** Certificate output path; defaults to `<profile>/tls/server.crt`. */
+  readonly certPath?: string;
+  /** Key output path; defaults to `<profile>/tls/server.key` (mode 0600). */
+  readonly keyPath?: string;
+}
+
+const INIT_TLS_USAGE = "Usage: poracode-server init-tls [--json] [--cert <path>] [--key <path>]";
+
+export function parseInitTlsCliOptions(args: readonly string[]): InitTlsCliOptions {
+  let json = false;
+  let certPath: string | undefined;
+  let keyPath: string | undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index]!;
+    if (argument === "--json") {
+      json = true;
+    } else if (argument === "--cert" || argument === "--key") {
+      const value = args[index + 1];
+      if (value === undefined) throw new Error(INIT_TLS_USAGE);
+      if (argument === "--cert") certPath = value;
+      else keyPath = value;
+      index += 1;
+    } else {
+      throw new Error(INIT_TLS_USAGE);
+    }
+  }
+  return { json, ...(certPath ? { certPath } : {}), ...(keyPath ? { keyPath } : {}) };
+}
+
 export function parseServerCliCommand(args: readonly string[]): ServerCliCommand {
   if (args.length === 0) return "serve";
   if (args.length === 1 && ["--help", "-h", "help"].includes(args[0]!)) return "help";
+  // `serve` is the default command; its flags (and the bare `serve` keyword)
+  // are validated here and re-parsed at dispatch (the established pattern).
+  if (args[0] === "serve" || args[0]!.startsWith("--")) {
+    parseServeCliOptions(args);
+    return "serve";
+  }
   if (args.length === 2 && args[0] === "pair" && args[1] === "--json") return "pair-json";
   if (args.length === 2 && args[0] === "status" && args[1] === "--json") return "status-json";
   if (args[0] === "activate") {
@@ -187,9 +305,15 @@ export function parseServerCliCommand(args: readonly string[]): ServerCliCommand
     parseBackupCliOptions(args.slice(1));
     return "backup";
   }
+  if (args[0] === "init-tls") {
+    parseInitTlsCliOptions(args.slice(1));
+    return "init-tls";
+  }
   throw new Error(
-    "Usage: poracode-server [activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | " +
-      "backup --to <directory> [--json] | pair --json | status --json | --help]",
+    `Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] | ` +
+      "activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | " +
+      "backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | " +
+      "pair --json | status --json | --help]",
   );
 }
 
@@ -260,6 +384,50 @@ async function printPairingJson(): Promise<void> {
 async function printStatusJson(): Promise<void> {
   const response = await requestHostStatusFromRunningServer(profileNamespace());
   process.stdout.write(`${JSON.stringify(response)}\n`);
+}
+
+/**
+ * Generate self-signed TLS material for direct connections (V5 plan 4.2).
+ * Writes cert/key files (key 0600), prints the SHA-256 fingerprint clients
+ * pin at first pair, and echoes the env/config wiring for `serve`. Refuses
+ * to overwrite existing files — re-running with the same paths is a user
+ * decision, not a default.
+ */
+async function runInitTls(options: InitTlsCliOptions): Promise<void> {
+  const dir = join(profileNamespace(), "tls");
+  const certPath = options.certPath ?? join(dir, "server.crt");
+  const keyPath = options.keyPath ?? join(dir, "server.key");
+  const material = generateSelfSignedTlsMaterial(defaultTlsSubjectNames());
+  for (const path of [certPath, keyPath]) {
+    if (existsSync(path)) {
+      throw new Error(`Refusing to overwrite existing file: ${path}`);
+    }
+  }
+  mkdirSync(dirname(certPath), { recursive: true });
+  if (dirname(keyPath) !== dirname(certPath)) mkdirSync(dirname(keyPath), { recursive: true });
+  writeFileSync(certPath, material.cert, { encoding: "utf8", mode: 0o644 });
+  writeFileSync(keyPath, material.key, { encoding: "utf8", mode: 0o600 });
+  if (options.json) {
+    process.stdout.write(
+      `${JSON.stringify({
+        certPath,
+        keyPath,
+        fingerprint: material.fingerprint,
+        expiresAt: material.expiresAt,
+      })}\n`,
+    );
+    return;
+  }
+  process.stdout.write(`[poracode-server] TLS material written:\n`);
+  process.stdout.write(`[poracode-server] cert: ${certPath}\n`);
+  process.stdout.write(`[poracode-server] key:  ${keyPath} (0600)\n`);
+  process.stdout.write(`[poracode-server] fingerprint (sha256): ${material.fingerprint}\n`);
+  process.stdout.write(`[poracode-server] expires: ${material.expiresAt}\n`);
+  process.stdout.write(
+    "[poracode-server] serve with: PORACODE_REMOTE_TLS_CERT=" +
+      `${certPath} PORACODE_REMOTE_TLS_KEY=${keyPath}\n` +
+      "  (or the config file's tlsCert/tlsKey fields)\n",
+  );
 }
 
 /**
@@ -373,15 +541,26 @@ async function runBackup(options: BackupCliOptions): Promise<void> {
 
 function printHelp(): void {
   process.stdout.write(
-    "Usage: poracode-server [activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | backup --to <directory> [--json] | pair --json | status --json | --help]\n" +
+    "Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | pair --json | status --json | --help]\n" +
       "\nPORACODE_BASE_DIR selects a profile namespace. The server owns its .host-v1 sibling.\n" +
+      "Running `serve` (the default) reads an optional JSON config file —\n" +
+      "  <profile>/poracode-server.json, or the path given with --config — with fields:\n" +
+      "  host, port, bindMode, relayUrl, tlsCert, tlsKey, logLevel, logMaxBytes,\n" +
+      "  logMaxFiles, shutdownDrainDeadlineMs. CLI flags and the environment take\n" +
+      "  precedence over the file, field by field; logs land in\n" +
+      "  <dataRoot>/logs/server.log and rotate by size; SIGTERM drains within\n" +
+      "  shutdownDrainDeadlineMs (default " +
+      `${DEFAULT_SHUTDOWN_DRAIN_DEADLINE_MS}ms) and then releases the owner lease.\n` +
       "Run activate with the same profile to complete a staged offline import; credentials\n" +
       "  sealed by the desktop app are adopted via one-time desktop cooperation, or\n" +
       "  --sign-in-again starts fresh without migrating stored credentials.\n" +
       "Run doctor [--json] [--log-file <path>] for read-only diagnostics of this profile.\n" +
       "Run backup --to <directory> [--json] to capture a verified copy of the owned root.\n" +
+      "Run init-tls [--json] [--cert <path>] [--key <path>] to generate self-signed TLS material\n" +
+      "  (defaults to <profile>/tls/server.crt + server.key, key 0600); point\n" +
+      "  PORACODE_REMOTE_TLS_CERT/KEY (or the config file's tlsCert/tlsKey) at the files.\n" +
       "Set PORACODE_SECRET_STORAGE_KEY for an explicit 32-byte base64 key, or use the owned key file.\n" +
-      "Set PORACODE_REMOTE_ACCESS_HOST/PORT to configure the remote listener.\n" +
+      "Set PORACODE_REMOTE_ACCESS_HOST/PORT (or the config file's host/port) to configure the remote listener.\n" +
       "Run pair --json with the same profile to request a pairing URL from its running owner.\n" +
       "Run status --json with the same profile to inspect the authenticated running owner.\n" +
       "Pairing credentials are printed only by that explicit command; PID signaling is unsupported.\n",
@@ -410,7 +589,9 @@ export function runCli(): void {
             ? runDoctor(parseDoctorCliOptions(process.argv.slice(3)))
             : command === "backup"
               ? runBackup(parseBackupCliOptions(process.argv.slice(3)))
-              : serve();
+              : command === "init-tls"
+                ? runInitTls(parseInitTlsCliOptions(process.argv.slice(3)))
+                : serve(parseServeCliOptions(process.argv.slice(2)));
   operation.catch(async (error) => {
     await performanceDiagnostics?.stop();
     if (error instanceof HeadlessCompositionShutdownError) {

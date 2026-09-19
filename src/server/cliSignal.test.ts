@@ -73,9 +73,16 @@ async function withinDeadline<T>(work: Promise<T>, description: string): Promise
   }
 }
 
-function runChild(profile: string, stage: string, outcome = "joined", execPath = process.execPath) {
+function runChild(
+  profile: string,
+  stage: string,
+  outcome = "joined",
+  execPath = process.execPath,
+  extraEnv: NodeJS.ProcessEnv = {},
+) {
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
+    ...extraEnv,
     PORACODE_BASE_DIR: profile,
     // The synthetic child bundle lives in a bare temp directory, outside both
     // published install shapes; serve() resolves the layout contract first, so
