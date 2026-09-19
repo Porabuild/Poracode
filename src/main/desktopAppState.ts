@@ -14,6 +14,7 @@ import type { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
 import type { HostCredentialAdoptionService } from "@/backend/ownership/nativeSecretKey";
 import type { BackendHostClient } from "./backend/BackendHostClient";
 import type { BackendStateStore, ShellStateStore } from "./backend/BackendStateStore";
+import type { ComposedHostServices } from "./hostServices/composeHostServices";
 import type {
   DeferredAttachProbe,
   StandaloneAttachSession,
@@ -107,6 +108,10 @@ export interface DesktopAppState {
   computerUseDesktopOverlay: ComputerUseDesktopOverlay | null;
   chromeBridgeServer: ChromeBridgeServer | null;
   chromeMcpIngress: ChromeMcpIngress | null;
+  // One composed host-service bundle (SSH, Chrome bridge, computer-use, and —
+  // with the native shell — the embedded browser ingress). Assigned by the
+  // managed ready path; null in attach mode and before composition.
+  hostServices: ComposedHostServices | null;
   browserExtractWindow: BrowserWindow | null;
   backendHostClient: BackendHostClient | null;
   backendStateStore: BackendStateStore | null;
@@ -149,6 +154,7 @@ export const desktopApp: DesktopAppState = {
   computerUseDesktopOverlay: null,
   chromeBridgeServer: null,
   chromeMcpIngress: null,
+  hostServices: null,
   browserExtractWindow: null,
   backendHostClient: null,
   backendStateStore: null,

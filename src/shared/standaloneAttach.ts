@@ -10,7 +10,13 @@
 //   localStorage; the pairing URL lives in main memory and is fetched via IPC.
 //   No persisted/bootstrap/IPC version bump is required for this additive,
 //   same-build, process-lifetime boundary.
-// - Reuses control 1 / discovery 1 / remote 12 / bridge 2 / facade-runtime 11 /
+// - `capabilities` (V5 plan 1.2) carries the host-declared service
+//   capabilities from the authenticated describe that minted this payload.
+//   Same-build additive optional field: main always provides it for a
+//   version-2 owner, and the renderer fails closed to "not offered" when it
+//   is absent (an owner still advertising control version 1 is refused at the
+//   main-side compat gate long before this payload exists).
+// - Reuses control 2 / discovery 1 / remote 12 / bridge 2 / facade-runtime 13 /
 //   host 13. Stream 5 is untouched here (root batch owns 5->6; integration
 //   expects stream6). Reserved facade9/host8-12/stream4 are never consumed.
 // - `remoteProtocolVersion` is pinned to PORACODE_REMOTE_PROTOCOL_VERSION (12)
@@ -18,6 +24,7 @@
 //   pairing is minted, and the renderer re-checks the literal before exchange.
 
 import { z } from "zod";
+import { hostServiceCapabilitiesSchema } from "./hostControlProtocol";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "./remote/protocol";
 
 const rootSchema = z.string().min(1).max(4_096);
@@ -47,6 +54,8 @@ export const standaloneAttachInfoSchema = z.strictObject({
   ownerGeneration: z.uuid(),
   remoteProtocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
   pairingUrl: z.url().max(8_192),
+  /** Host-declared service capabilities from the minting describe; see above. */
+  capabilities: hostServiceCapabilitiesSchema.optional(),
 });
 
 export type StandaloneAttachInfo = z.infer<typeof standaloneAttachInfoSchema>;

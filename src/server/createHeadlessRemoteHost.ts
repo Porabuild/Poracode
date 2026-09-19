@@ -2,6 +2,7 @@ import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { ComposedHostServices } from "@/main/hostServices/composeHostServices";
 import type { RemoteAccessServer, RemoteAccessServerInfo } from "@/main/remote/RemoteAccessServer";
 import {
   composeHeadlessRemoteHost,
@@ -16,6 +17,11 @@ export { resolveLocalProxyBase } from "./headlessProxyBase";
  * the profile lease, SQLite database and a lazily forked supervisor, then constructs the
  * **same** {@link RemoteAccessServer} the desktop uses. The desktop injects a browser
  * gateway and a renderer-dispatch callback; the headless host injects neither.
+ * Both authorities compose the SAME host services
+ * ({@link ../../main/hostServices/composeHostServices.ts}): SSH environments,
+ * the Chrome bridge and the computer-use ingress are Electron-free, so a
+ * standalone server constructs them whenever its install ships the inputs;
+ * only the WebContentsView browser panel and overlays stay desktop-only.
  *
  * Without a renderer, the SQLite DB is the source of truth — remote thread
  * commands take the DB-backed path inside `RemoteAccessServer`
@@ -33,6 +39,19 @@ export interface HeadlessRemoteHostOptions {
   readonly bundledSkillsDir?: string;
   /** Directory of app-bundled plugins; forwarded to the supervisor. */
   readonly bundledPluginsDir?: string;
+  /**
+   * Staged SSH agent-plugins directory (V5 plan 1.1). When present, the host
+   * composes the SAME `SshConnectionManager` the desktop uses (SSH
+   * capability `true`); runtime staging failures surface loudly on the first
+   * connect. Absence declares no SSH environments.
+   */
+  readonly agentPluginsDir?: string;
+  /**
+   * Root of the staged computer-use helper binaries (V5 plan 1.1). When
+   * present and a binary resolves for this platform/arch, the host composes
+   * the computer-use MCP ingress; otherwise the capability stays `false`.
+   */
+  readonly computerUseHelperRoot?: string;
   /** Explicit base64 32-byte key injection; absence uses the owned key file. */
   readonly environmentKey?: string;
   /** Profile namespace; the owned server root is its versioned sibling. */
@@ -41,6 +60,12 @@ export interface HeadlessRemoteHostOptions {
   readonly port?: number;
   readonly advertisedHost?: string;
   readonly pairingAppUrl?: string;
+  /**
+   * Ports a paired client may forward (Gate 6 shared allowlist; defaults to
+   * the curated dev-port list). Tests use this to admit ephemeral fixture
+   * ports; operators use it to scope the surface.
+   */
+  readonly forwardablePorts?: readonly number[];
   /** Close startup admission on cancellation; disposal still joins owned work. */
   readonly signal?: AbortSignal;
   /**
@@ -73,6 +98,12 @@ export interface HeadlessRemoteHost {
    * forward owner label. Never logged; same trust boundary as the data dir.
    */
   readonly forwardOriginSecret: string;
+  /**
+   * The composed host services (V5 plan 1.1): the same SSH manager, Chrome
+   * bridge and computer-use ingress the desktop constructs, plus the
+   * host-declared capabilities the describe publishes.
+   */
+  readonly hostServices: ComposedHostServices;
   /** Starts the HTTP/WS server. The supervisor starts on its first call. Idempotent. */
   start(): Promise<RemoteAccessServerInfo>;
   /** Stops the server, kills the supervisor, and closes the database. */
@@ -113,6 +144,7 @@ export async function createHeadlessRemoteHost(
       profileNamespace: owner.lease.paths.profileNamespace,
       dataRoot: runtime.paths.baseDir,
       ownerGeneration: owner.lease.generation,
+      hostServices: composition.hostServices,
       async start() {
         options.signal?.throwIfAborted();
         const info = await composition.start();

@@ -26,6 +26,14 @@ async function fixture() {
       state: "ready",
       remoteProtocolVersion: 12,
       endpoint: "https://fixture.test/",
+      capabilities: {
+        ssh: true,
+        browserPanel: false,
+        chromeBridge: true,
+        computerUse: true,
+        nativeSecrets: false,
+        portForward: true,
+      },
     }),
     issuePairing,
   });

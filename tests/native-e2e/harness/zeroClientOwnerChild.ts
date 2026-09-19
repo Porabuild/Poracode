@@ -64,6 +64,14 @@ async function serve(): Promise<void> {
       state: "ready",
       remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
       endpoint: null,
+      capabilities: {
+        ssh: true,
+        browserPanel: false,
+        chromeBridge: true,
+        computerUse: true,
+        nativeSecrets: false,
+        portForward: true,
+      },
     }),
     // The drill never pairs a client; the zero-client invariant needs no
     // attach endpoint.

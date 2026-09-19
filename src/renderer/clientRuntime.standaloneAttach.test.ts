@@ -7,6 +7,7 @@ import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shar
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import {
+  UNKNOWN_HOST_CAPABILITIES,
   installAttachedElectronClientRuntime,
   installBrowserClientRuntime,
   installElectronClientRuntime,
@@ -50,6 +51,15 @@ function attachInfo(): StandaloneAttachInfo {
     ownerGeneration: "11111111-1111-4111-8111-111111111111",
     remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
     pairingUrl: "http://127.0.0.1:49152/#token=fixture-pairing-credential",
+    // Helper (headless) host describe capabilities, as minted by main.
+    capabilities: {
+      ssh: true,
+      browserPanel: false,
+      chromeBridge: true,
+      computerUse: true,
+      nativeSecrets: false,
+      portForward: true,
+    },
   };
 }
 
@@ -97,7 +107,35 @@ describe("standalone attach client runtime", () => {
         nativeSsh: false,
       },
     });
+    // The attached flavor keeps the helper host's declared capabilities
+    // verbatim for consumers (V5 plan 1.2), derived from the attach payload
+    // rather than inferred from the host kind.
+    expect(readClientRuntime().hostCapabilities).toEqual(attachInfo().capabilities);
     expect(isStandaloneAttachRuntime()).toBe(true);
+  });
+
+  it("fails the attached flavor closed when the payload predates capabilities", () => {
+    const legacy = { ...attachInfo() };
+    delete (legacy as { capabilities?: unknown }).capabilities;
+    installAttachedElectronClientRuntime(electronHost(), legacy);
+    expect(readClientRuntime().hostCapabilities).toEqual(UNKNOWN_HOST_CAPABILITIES);
+    expect(readClientRuntime().capabilities).toMatchObject({
+      nativeSsh: false,
+      nativeBrowserWebContents: false,
+    });
+  });
+
+  it("rejects attach payloads with malformed host capabilities", () => {
+    const malformed = {
+      ...attachInfo(),
+      capabilities: { ...attachInfo().capabilities!, browserPanel: "yes" },
+    };
+    expect(parseStandaloneAttachInfo(malformed)).toBeNull();
+    const expanded = {
+      ...attachInfo(),
+      capabilities: { ...attachInfo().capabilities!, extra: true },
+    };
+    expect(parseStandaloneAttachInfo(expanded)).toBeNull();
   });
 
   it("reads attach info from the host bridge and treats absence as managed", async () => {

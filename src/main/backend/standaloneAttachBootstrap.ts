@@ -19,7 +19,7 @@ import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import { standaloneAttachInfoSchema, type StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import { callHostControl } from "@/backend/ownership/hostControlClient";
 import type { HostRootPaths } from "@/backend/ownership/hostRootPaths";
-import type { HostDescription } from "@/shared/hostControlProtocol";
+import type { HostDescription, HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import type { ShellStateStore } from "./BackendStateStore";
 import {
   decideStandaloneAttach,
@@ -119,7 +119,9 @@ export function describeAttachRefusal(
 
 /**
  * Mint the renderer bootstrap payload after an attach decision. Validates the
- * wire shape before it crosses IPC; never logs the pairing URL.
+ * wire shape before it crosses IPC; never logs the pairing URL. The minting
+ * describe's host-declared service capabilities ride the payload (V5 plan
+ * 1.2) so the renderer derives availability from negotiated data.
  */
 export async function buildStandaloneAttachInfoForRenderer(input: {
   endpoint: string;
@@ -127,6 +129,7 @@ export async function buildStandaloneAttachInfoForRenderer(input: {
   profileNamespace: string;
   dataRoot: string;
   controlPaths: HostRootPaths;
+  capabilities: HostServiceCapabilities;
 }): Promise<StandaloneAttachInfo> {
   const pairing = await requestStandalonePairing(input.controlPaths);
   if (pairing.ownerGeneration !== input.ownerGeneration) {
@@ -139,6 +142,7 @@ export async function buildStandaloneAttachInfoForRenderer(input: {
     ownerGeneration: pairing.ownerGeneration,
     remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
     pairingUrl: pairing.pairingUrl,
+    capabilities: input.capabilities,
   });
 }
 

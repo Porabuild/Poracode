@@ -64,6 +64,14 @@ async function startOwner(
       state: overrides.state ?? "ready",
       remoteProtocolVersion: overrides.remoteProtocolVersion ?? PORACODE_REMOTE_PROTOCOL_VERSION,
       endpoint,
+      capabilities: {
+        ssh: true,
+        browserPanel: false,
+        chromeBridge: true,
+        computerUse: true,
+        nativeSecrets: false,
+        portForward: true,
+      },
     }),
   });
   await control.start();
@@ -90,6 +98,14 @@ async function startDesktopOwner(): Promise<OwnerFixture> {
       state: "ready",
       remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
       endpoint: "http://127.0.0.1:9/owner/",
+      capabilities: {
+        ssh: true,
+        browserPanel: true,
+        chromeBridge: true,
+        computerUse: true,
+        nativeSecrets: true,
+        portForward: true,
+      },
     }),
   });
   await control.start();

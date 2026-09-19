@@ -23,7 +23,8 @@ import { createProjectDirectory } from "../projectDirectory";
 import { detectProjectIconFile, listProjectIconFiles } from "../projectIconDetect";
 import { showOsNotification } from "../osNotifications";
 import { showAndFocusWindow } from "../window/showAndFocusWindow";
-import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
+import { readKeybindingsFile } from "../keybindingsFile";
+import { applyKeybindingsWrite } from "../keybindingsApply";
 import type { KeybindingsFile } from "@/shared/keybindings";
 import type { RendererEventSender } from "../backend/rendererEventInterestRegistry";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
@@ -233,19 +234,13 @@ export function createLocalIpcHandlers(
     setKeybindings: (file) => {
       const path = options.requirePoracodePaths().keybindingsPath;
       options.setGlobalShortcutsSuspended?.(false);
-      options.onKeybindingsChanged?.(file);
-      try {
-        return writeKeybindingsFile(path, file);
-      } catch (error) {
-        try {
-          // The write is atomic, so on failure the file still holds the
-          // previous bindings — re-apply them to roll the shortcuts back.
-          options.onKeybindingsChanged?.(readKeybindingsFile(path).file);
-        } catch (restoreError) {
-          console.error("[poracode] failed to restore global shortcuts:", restoreError);
-        }
-        throw error;
-      }
+      return applyKeybindingsWrite({
+        path,
+        file,
+        ...(options.onKeybindingsChanged
+          ? { onKeybindingsChanged: options.onKeybindingsChanged }
+          : {}),
+      });
     },
     setGlobalShortcutsSuspended: (payload) =>
       options.setGlobalShortcutsSuspended?.(payload.suspended),

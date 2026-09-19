@@ -558,6 +558,9 @@ describe("createHeadlessRemoteHost", () => {
           relayUrl: `ws://127.0.0.1:${relayInfo.port}/host`,
           relaySecret: "fixture-relay-secret",
           onRelayRegistered: registered.resolve,
+          // Gate 6: the ephemeral fixture upstream must be on the host's
+          // forwardable-port allowlist for the forward to start.
+          forwardablePorts: [(upstream.address() as AddressInfo).port],
         });
         const info = await host.start();
         const advertisedUrl = new URL(await registered.promise);

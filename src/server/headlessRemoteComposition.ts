@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { dirname, join } from "node:path";
 import { saveUploadedAttachmentFile } from "@/main/attachments/attachmentStorage";
 import {
   dbGetProject,
@@ -43,6 +44,7 @@ import {
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
 
 import type { OwnedHostRuntime } from "@/backend/ownership/HostOwnerController";
+import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import type { HeadlessRemoteHost, HeadlessRemoteHostOptions } from "./createHeadlessRemoteHost";
 import { resolveLocalProxyBase } from "./headlessProxyBase";
 import { readOwnedHeadlessRelaySecret } from "./headlessRelaySecret";
@@ -52,10 +54,26 @@ import {
   type HeadlessSettingsComposition,
 } from "./headlessSettingsAuthority";
 import { createHeadlessPrMergeEffect } from "./headlessPrWatchMerge";
+import { composeHostServices } from "@/main/hostServices/composeHostServices";
+import type { SshConnectionManager } from "@/main/ssh/SshConnectionManager";
+
+/**
+ * Describes a host whose service composition has not been constructed (or has
+ * already been torn down): nothing is offered except the port-forward gateway
+ * the server itself owns. Fail-closed, never "inferred from the host mode".
+ */
+const UNCOMPOSED_HOST_CAPABILITIES: HostServiceCapabilities = {
+  ssh: false,
+  browserPanel: false,
+  chromeBridge: false,
+  computerUse: false,
+  nativeSecrets: false,
+  portForward: true,
+};
 
 export type HeadlessRemoteComposition = Pick<
   HeadlessRemoteHost,
-  "server" | "forwardOriginSecret" | "start" | "dispose"
+  "server" | "forwardOriginSecret" | "hostServices" | "start" | "dispose"
 >;
 
 /** Partial construction failed and its runtime could not confirm shutdown. */
@@ -99,6 +117,15 @@ export async function composeHeadlessRemoteHost(
   let control: HostControlServer | null = null;
   let portForwardingRef: ReturnType<typeof createPortForwarding> | null = null;
   let relayHandle: RelayHostHandle | null = null;
+  // Same host-service composition the desktop uses (V5 plan 1.1): SSH
+  // environments, the Chrome bridge and the computer-use ingress are all
+  // Electron-free and therefore compose on the standalone server too. The
+  // browser panel and overlays stay desktop-only (no native shell here).
+  let hostServicesRef: ReturnType<typeof composeHostServices> | null = null;
+  // Captured separately: the dispose join nulls `hostServicesRef` before the
+  // SSH step runs, and the desktop-owned shutdown order disposes SSH after
+  // the ingress set in its own step.
+  let sshRef: SshConnectionManager | null = null;
   let stopping = false;
   let disposed = false;
   let starting: Promise<RemoteAccessServerInfo> | null = null;
@@ -122,6 +149,20 @@ export async function composeHeadlessRemoteHost(
       () => serverRef?.dispose(),
       () => control?.dispose(),
       () => pushCoordinator?.dispose(),
+      () => {
+        const services = hostServicesRef;
+        hostServicesRef = null;
+        return services?.dispose() ?? Promise.resolve();
+      },
+      () => {
+        const ssh = sshRef;
+        sshRef = null;
+        return ssh
+          ? ssh.dispose().catch((error: unknown) => {
+              options.reportError?.(error);
+            })
+          : Promise.resolve();
+      },
       () => durableServices?.dispose(),
       // Drains queued authority commits before the lease is released.
       () => settingsAuthority?.dispose(),
@@ -165,7 +206,12 @@ export async function composeHeadlessRemoteHost(
         ...(options.bundledPluginsDir ? { bundledPluginsDir: options.bundledPluginsDir } : {}),
         secretStorageKey: runtime.secretStorageKey,
         resolveExtraEnv: () => {
-          return durableServices?.getSupervisorExtraEnv() ?? {};
+          // Composed host services (chrome/computer-use MCP) plus the durable
+          // app-controls ingress share one supervisor env merge.
+          return {
+            ...hostServicesRef?.supervisorExtraEnv(),
+            ...durableServices?.getSupervisorExtraEnv(),
+          };
         },
         ...(options.reportError ? { reportError: (error) => options.reportError?.(error) } : {}),
       },
@@ -224,6 +270,39 @@ export async function composeHeadlessRemoteHost(
     });
     backendHostRef = backendHost;
     const supervisorClient = backendHost.supervisorClient;
+
+    // V5 plan 1.1 (H3): the SAME composeHostServices the desktop startup
+    // calls. The standalone host declares the SSH/Chrome/computer-use inputs
+    // it ships with; there is no native shell here, so the embedded browser
+    // panel and overlays stay desktop-only. Failures after this point dispose
+    // the partial composition through the shared dispose barrier below.
+    options.signal?.throwIfAborted();
+    runtime.lease.assertActive();
+    const hostServices = composeHostServices({
+      baseDir: paths.baseDir,
+      getSharedSettings,
+      ssh: options.agentPluginsDir
+        ? {
+            mainBundleDir: dirname(options.supervisorPath),
+            agentPluginsDir: options.agentPluginsDir,
+            wslHelpersDir: options.wslHelpersDir,
+            ...(options.bundledSkillsDir ? { bundledSkillsDir: options.bundledSkillsDir } : {}),
+            ...(options.bundledPluginsDir ? { bundledPluginsDir: options.bundledPluginsDir } : {}),
+          }
+        : null,
+      computerUse: options.computerUseHelperRoot
+        ? {
+            helperRootDir: options.computerUseHelperRoot,
+            stateDir: join(paths.baseDir, "computer-use"),
+          }
+        : null,
+      // The owned server key is file-based custody, not OS-backed sealing.
+      nativeSecrets: false,
+      // This composition always builds the port-forward gateway below.
+      portForward: true,
+    });
+    hostServicesRef = hostServices;
+    sshRef = hostServices.sshConnectionManager;
 
     const publishHeadlessProjectsChanged = (): void => {
       serverRef?.publishSupervisorEvent({
@@ -336,6 +415,7 @@ export async function composeHeadlessRemoteHost(
       bindHost: host,
       remoteAccessPort: port,
       ...(forwardOrigin ? { forwardOrigin } : {}),
+      ...(options.forwardablePorts ? { forwardablePorts: options.forwardablePorts } : {}),
     });
     portForwardingRef = portForwarding;
 
@@ -401,6 +481,7 @@ export async function composeHeadlessRemoteHost(
         state: stopping ? "stopping" : server.getInfo() ? "ready" : "starting",
         remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
         endpoint: server.getInfo()?.httpBaseUrl ?? null,
+        capabilities: hostServicesRef?.capabilities ?? UNCOMPOSED_HOST_CAPABILITIES,
       }),
       issuePairing: (context) => {
         context.assertActive();
@@ -411,6 +492,7 @@ export async function composeHeadlessRemoteHost(
     return {
       server,
       forwardOriginSecret,
+      hostServices,
       start() {
         try {
           assertRunning();
@@ -430,6 +512,13 @@ export async function composeHeadlessRemoteHost(
     };
     async function start(): Promise<RemoteAccessServerInfo> {
       assertRunning();
+      // Settle the composed MCP ingress starts before anything can fork the
+      // supervisor, so the launch env carries their URL/token pairs (failures
+      // were already logged and degrade the same way the desktop degrades).
+      // No liveness re-check between the two awaits: a stop that lands while
+      // the ingress starts settle must still join this held startup, exactly
+      // like the held durable ingress below.
+      await hostServicesRef?.start();
       await durableServices?.startIngress();
       assertRunning();
       const info = await server.start();

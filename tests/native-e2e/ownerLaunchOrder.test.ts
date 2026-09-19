@@ -93,7 +93,18 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
     // the desktop mapping is not on HostOwnerController yet (Gate 2.5).
     lease.setPhase("ready");
     const reportError = vi.fn<(error: unknown) => void>();
-    const control = startDesktopHostControl({ lease, reportError });
+    const control = startDesktopHostControl({
+      lease,
+      reportError,
+      capabilities: {
+        ssh: true,
+        browserPanel: true,
+        chromeBridge: true,
+        computerUse: true,
+        nativeSecrets: true,
+        portForward: true,
+      },
+    });
     expect(control).not.toBeNull();
 
     try {
@@ -208,6 +219,14 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
         state: "ready",
         remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
         endpoint: "http://127.0.0.1:46511/",
+        capabilities: {
+          ssh: true,
+          browserPanel: false,
+          chromeBridge: true,
+          computerUse: true,
+          nativeSecrets: false,
+          portForward: true,
+        },
       }),
       issuePairing: () => "http://127.0.0.1:46511/pair#token=drill",
     });
