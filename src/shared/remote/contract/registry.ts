@@ -23,15 +23,30 @@ export const REMOTE_CONTRACT_REGISTRY: RemoteContractRegistry = {
   inventory: REMOTE_CONTRACT_INVENTORY,
 };
 
+/**
+ * Structural completeness gate over the ONE registry table. Totals are derived,
+ * never hard-coded: the registry (not a number in this file) is the single
+ * source of truth, so this fails on duplication, drift between the procedure
+ * allowlist and the contracts, or a blocked result — not on a stale count.
+ */
 export function assertRemoteContractComplete(): void {
-  if (REMOTE_HTTP_ROUTES.length !== 56) {
-    throw new Error(`Expected 56 HTTP routes, found ${REMOTE_HTTP_ROUTES.length}`);
+  const routeIds = REMOTE_HTTP_ROUTES.map((route) => route.id);
+  const routeKeys = REMOTE_HTTP_ROUTES.map((route) => `${route.method} ${route.path}`);
+  if (new Set(routeIds).size !== routeIds.length || new Set(routeKeys).size !== routeKeys.length) {
+    throw new Error("REMOTE_HTTP_ROUTES contains duplicate route ids or method+path keys");
   }
-  if (REMOTE_PROCEDURE_CONTRACTS.length !== 100) {
-    throw new Error(`Expected 100 procedures, found ${REMOTE_PROCEDURE_CONTRACTS.length}`);
+  const procedureNames = REMOTE_PROCEDURE_CONTRACTS.map((procedure) => procedure.name);
+  if (new Set(procedureNames).size !== procedureNames.length) {
+    throw new Error("REMOTE_PROCEDURE_CONTRACTS contains duplicate procedure names");
   }
-  if (Object.keys(REMOTE_PROCEDURE_SPECS).length !== 100) {
-    throw new Error("REMOTE_PROCEDURE_SPECS drifted from the 100-procedure allowlist");
+  if (procedureNames.join("\u0000") !== Object.keys(REMOTE_PROCEDURE_SPECS).join("\u0000")) {
+    throw new Error("REMOTE_PROCEDURE_CONTRACTS drifted from the REMOTE_PROCEDURE_SPECS allowlist");
+  }
+  if (REMOTE_CONTRACT_INVENTORY.routes !== REMOTE_HTTP_ROUTES.length) {
+    throw new Error("Contract inventory route count drifted from the registry");
+  }
+  if (REMOTE_CONTRACT_INVENTORY.procedures !== REMOTE_PROCEDURE_CONTRACTS.length) {
+    throw new Error("Contract inventory procedure count drifted from the registry");
   }
   if (BLOCKED_PROCEDURE_RESULTS.length > 0) {
     throw new Error(`Blocked remote procedure results: ${BLOCKED_PROCEDURE_RESULTS.join(", ")}`);

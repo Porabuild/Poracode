@@ -45,16 +45,19 @@ public struct RouteportU2DForwardResponseU2DForward_247ec4acb4: Codable, Sendabl
   }
 }
 
-public struct RouteportU2DForwardResponse_3d1d59fe1c: Codable, Sendable, RemoteModelMetadata {
+public struct RouteportU2DForwardResponse_04de8f3da1: Codable, Sendable, RemoteModelMetadata {
+  public var connectTicket: String
   public var enterPath: RemoteField<String> = .missing
   public var forward: RouteportU2DForwardResponseU2DForward_247ec4acb4
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "connectTicket", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "enterPath", typeName: "String", required: false, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "forward", typeName: "RouteportU2DForwardResponseU2DForward_247ec4acb4", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
+    case connectTicket = "connectTicket"
     case enterPath = "enterPath"
     case forward = "forward"
   }

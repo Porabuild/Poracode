@@ -19,6 +19,7 @@ import {
   TERMINAL_CURSOR_SYNC_VERSION,
   TERMINAL_CURSOR_SYNC_V2_VERSION,
 } from "../../../src/shared/remote/protocol";
+import { REMOTE_HTTP_ROUTES } from "../../../src/shared/remote/contract/routes";
 import { readRemoteImageRef, remoteImageRefPath } from "../../../src/shared/remote/imageRef";
 import { isRemoteOmittedField } from "../../../src/shared/remote/omittedPayload";
 import { REMOTE_PROCEDURE_SPECS } from "../../../src/shared/remote/procedures";
@@ -48,7 +49,13 @@ const routeSchema = z
     scopeResolution: z.literal("procedure-defined").optional(),
     queryParameters: z.array(z.string().min(1)).optional(),
     legacy: z.boolean().optional(),
-    idempotency: z.enum(["command-id-header", "command-id-header-for-start-kind"]).optional(),
+    idempotency: z
+      .enum([
+        "command-id-header",
+        "command-id-header-for-start-kind",
+        "command-id-header-unless-ensure-running",
+      ])
+      .optional(),
   })
   .strict();
 
@@ -163,7 +170,7 @@ const manifestSchema = z
   })
   .strict();
 
-const manifest = manifestSchema.parse(readJson("manifest.json"));
+const manifest = manifestSchema.parse(readJson(join("generated", "manifest.json")));
 
 const EXPECTED_PROCEDURE_NAMES = [
   "rollbackThreadConversation",
@@ -356,7 +363,7 @@ describe("language-neutral remote protocol v3 contract", () => {
     });
   });
 
-  it("keeps the complete HTTP route inventory aligned with the authoritative router", () => {
+  it("keeps the complete HTTP route inventory aligned with the authoritative registry", () => {
     const routeIds = manifest.httpRoutes.map((route) => route.id);
     const routeKeys = manifest.httpRoutes.map(routeKey);
     expect(new Set(routeIds).size).toBe(routeIds.length);
@@ -373,120 +380,24 @@ describe("language-neutral remote protocol v3 contract", () => {
       ).toBe(true);
     }
 
-    const routerSource = readSource("src/main/remote/server/httpRouter.ts");
-    const staticRouteKeys = [
-      ...routerSource.matchAll(
-        /req\.method === "(GET|POST|DELETE)"\s*&&\s*\(?\s*url\.pathname === "([^"]+)"/g,
-      ),
-    ]
-      .map((match) => `${match[1]} ${match[2]}`)
-      .filter((key) => / \/(?:\.well-known\/|oauth\/|api\/)/.test(key));
-    if (routerSource.includes('url.pathname === "/.well-known/lightcode/environment"')) {
-      staticRouteKeys.push("GET /.well-known/lightcode/environment");
-    }
-
-    const manifestStaticRouteKeys = routeKeys.filter((key) => !key.includes("{"));
-    expect(sorted(manifestStaticRouteKeys)).toEqual(sorted(staticRouteKeys));
-
-    const dynamicRouteSourceChecks = new Map<string, readonly RegExp[]>([
-      ["GET /forward/{forwardId}/enter", [/\^\\\/forward\\\/\(\[\^\/\]\+\)\\\/enter\$/]],
-      [
-        "GET /api/projects/{projectId}/notes",
-        [/projectIdFromPath\(url\.pathname, "notes"\)/, /notesProjectId && req\.method === "GET"/],
-      ],
-      [
-        "POST /api/projects/{projectId}/notes",
-        [/projectIdFromPath\(url\.pathname, "notes"\)/, /notesProjectId && req\.method === "POST"/],
-      ],
-      [
-        "GET /api/threads/{threadId}/items/{itemId}/image",
-        [/refImageMatch = \/\^\\\/api\\\/threads\\\//, /req\.method === "GET" && refImageMatch/],
-      ],
-      [
-        "GET /api/projects/{projectId}/settings",
-        [
-          /projectIdFromPath\(url\.pathname, "settings"\)/,
-          /req\.method === "GET" && projectSettingsId/,
-        ],
-      ],
-      [
-        "GET /api/threads/{threadId}/history/items",
-        [
-          /threadIdFromPath\(url\.pathname, "\/history\/items"\)/,
-          /req\.method === "GET" && historyItemsThreadId/,
-        ],
-      ],
-      [
-        "GET /api/threads/{threadId}/history",
-        [
-          /threadIdFromPath\(url\.pathname, "\/history"\)/,
-          /req\.method === "GET" && historyThreadId/,
-        ],
-      ],
-      [
-        "POST /api/threads/{threadId}/runtime/truncate",
-        [
-          /threadIdFromPath\(url\.pathname, "\/runtime\/truncate"\)/,
-          /req\.method === "POST" && truncateThreadId/,
-        ],
-      ],
-      [
-        "POST /api/threads/{threadId}/checkpoint-revert",
-        [
-          /threadIdFromPath\(url\.pathname, "\/checkpoint-revert"\)/,
-          /req\.method === "POST" && revertThreadId/,
-        ],
-      ],
-      [
-        "POST /api/threads/{threadId}/command",
-        [
-          /threadIdFromPath\(url\.pathname, "\/command"\)/,
-          /req\.method === "POST" && commandThreadId/,
-        ],
-      ],
-      [
-        "GET /api/agents/{kind}/slash-commands",
-        [
-          /\/\^\\\/api\\\/agents\\\/\(\[\^\/\]\+\)\\\/slash-commands\$\//,
-          /req\.method === "GET" && url\.pathname\.match\(/,
-          /decodeURIComponent\(agentSlashCommandsMatch\[1\]!\)/,
-        ],
-      ],
-    ]);
-
-    const threadPostBlockStart = routerSource.indexOf("const THREAD_POST_ROUTES");
-    const threadPostBlockEnd = routerSource.indexOf("\n];", threadPostBlockStart);
-    expect(threadPostBlockStart).toBeGreaterThanOrEqual(0);
-    expect(threadPostBlockEnd).toBeGreaterThan(threadPostBlockStart);
-    const threadPostBlock = routerSource.slice(threadPostBlockStart, threadPostBlockEnd);
-    const threadPostRoutes = [...threadPostBlock.matchAll(/suffix:\s*"([^"]+)"/g)].map(
-      (match) => `POST /api/threads/{threadId}${match[1]}`,
+    // The manifest is GENERATED from the contract registry, and the HTTP router
+    // dispatches from that same registry through an exhaustive per-route handler
+    // table, so manifest↔router drift is a typecheck error rather than something
+    // a source-text regex can miss. This assertion only has to pin the committed
+    // artifact to the registry projection.
+    expect(manifest.httpRoutes).toEqual(
+      REMOTE_HTTP_ROUTES.map((route) => ({
+        id: route.id,
+        method: route.method,
+        path: route.path,
+        auth: route.auth,
+        scopes: [...route.scopes],
+        ...(route.scopeResolution ? { scopeResolution: route.scopeResolution } : {}),
+        ...(route.queryParameters ? { queryParameters: [...route.queryParameters] } : {}),
+        ...(route.legacy ? { legacy: true } : {}),
+        ...(route.idempotency ? { idempotency: route.idempotency } : {}),
+      })),
     );
-
-    const dynamicManifestRouteKeys = routeKeys.filter((key) => key.includes("{"));
-    expect(sorted(dynamicManifestRouteKeys)).toEqual(
-      sorted([...dynamicRouteSourceChecks.keys(), ...threadPostRoutes]),
-    );
-    for (const patterns of dynamicRouteSourceChecks.values()) {
-      for (const pattern of patterns) expect(routerSource).toMatch(pattern);
-    }
-
-    const tableScopeBySuffix = new Map(
-      [...threadPostBlock.matchAll(/suffix:\s*"([^"]+)"[\s\S]*?scope:\s*"([^"]+)"/g)].map(
-        (match) => [match[1]!, match[2]!] as const,
-      ),
-    );
-    // THREAD_POST_ROUTES table entries must appear in the manifest with the
-    // matching single-scope declaration. Routes outside that table (e.g.
-    // /runtime/truncate, /command) are covered by the dynamic inventory above.
-    // Assertions are unconditional: iterate the table, never branch on expect.
-    const prefix = "/api/threads/{threadId}";
-    for (const [suffix, expectedScope] of tableScopeBySuffix) {
-      const route = manifest.httpRoutes.find(
-        (candidate) => candidate.method === "POST" && candidate.path === `${prefix}${suffix}`,
-      );
-      expect(route?.scopes).toEqual([expectedScope]);
-    }
   });
 
   it("parses every core golden response, request, runtime event, and socket envelope", () => {

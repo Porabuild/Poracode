@@ -97,20 +97,24 @@ not evidence of complete protocol coverage.
 
 ## Remote-v3 contract boundary
 
-`protocol/remote/v3/manifest.json` is the canonical language-neutral inventory.
-The `v3` directory name is retained; the current wire protocol version is 12.
-The inventory describes:
+The contract registry (`src/shared/remote/contract/`) is the ONE table of
+routes, procedures, scopes, and schemas. `pnpm run protocol:remote:v3:generate`
+derives every published artifact from it: the language-neutral inventory at
+`protocol/remote/v3/generated/manifest.json`, `ir.json`,
+`json-schema.bundle.json`, `inventory.json`, and the native bundle under
+`protocol/remote/v3/generated/native/`. There is no hand-maintained manifest:
+the HTTP router dispatches from the same registry through an exhaustively-typed
+per-route handler table, so a route that is not in the registry fails
+typecheck. The `v3` directory name is retained; the current wire protocol
+version is 12. The inventory describes:
 
-- 63 HTTP routes;
+- 65 HTTP routes;
 - 108 supervisor procedures;
 - 9 client-to-server WebSocket messages; and
 - 10 server-to-client WebSocket messages.
 
-`pnpm run protocol:remote:v3:generate` derives
-`protocol/remote/v3/generated/inventory.json`, `ir.json`,
-`json-schema.bundle.json`, and the manifest-listed native bundle under
-`protocol/remote/v3/generated/native/`. `pnpm run protocol:remote:v3:check` is
-side-effect free and rejects missing, extra, or stale generated artifacts.
+`pnpm run protocol:remote:v3:check` is side-effect free and rejects missing,
+extra, or stale generated artifacts, including a hand-edited manifest.
 
 The generated inventory carries separate compatibility identities:
 

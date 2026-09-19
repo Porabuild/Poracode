@@ -1,18 +1,25 @@
 import { REMOTE_PROCEDURE_SPECS } from "../procedures";
 import {
+  REMOTE_STANDARD_SCOPES,
   remoteWebSocketClientMessageSchema,
   remoteWebSocketServerMessageSchema,
 } from "../protocol";
 import { canonicalize } from "./canonical";
-import {
-  buildRemoteV3AuthorityInput,
-  manifestHashOf,
-  readProtocolManifest,
-  sourceHashOf,
-} from "./hashes";
+import { buildRemoteV3AuthorityInput, manifestHashOf, sourceHashOf } from "./hashes";
 import { zodToJsonSchema } from "./jsonSchema";
 import { buildNativeBindingOutput } from "./native/generate";
 import { WEBSOCKET_QUERY_CODECS } from "./queryCodecs";
+import {
+  REMOTE_COMPATIBILITY_POLICY,
+  REMOTE_DISCOVERY_FALLBACK_PATHS,
+  REMOTE_OUT_OF_BAND_WS_MESSAGES,
+  REMOTE_PROTOCOL_MANIFEST_FORMAT_VERSION,
+  REMOTE_REPLAYABLE_EVENT_TYPES,
+  REMOTE_RUNTIME_EVENT_TYPES,
+  REMOTE_WEBSOCKET_SERVER_MESSAGES,
+  REMOTE_WIRE_FORMAT,
+  discriminatedTypeLiterals,
+} from "./protocolFacts";
 import { REMOTE_CONTRACT_REGISTRY } from "./registry";
 import { collectRegisteredSemanticValidatorIds } from "./semanticValidators";
 import { collectRegisteredPortableTransformIds } from "./portableTransforms";
@@ -26,17 +33,6 @@ import {
 } from "./versions";
 
 const DO_NOT_EDIT = "GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.";
-
-function discriminatedTypeLiterals(schema: unknown): string[] {
-  const options = (schema as { options?: readonly unknown[] }).options ?? [];
-  const names: string[] = [];
-  for (const option of options) {
-    const typeField = (option as { shape?: { type?: { value?: unknown } } }).shape?.type;
-    const value = typeField?.value;
-    if (typeof value === "string") names.push(value);
-  }
-  return names.sort(compareUnicodeCodePoints);
-}
 
 function routeIr(route: (typeof REMOTE_CONTRACT_REGISTRY.routes)[number]) {
   return {
@@ -139,8 +135,73 @@ export function buildRemoteV3UnsignedIr(manifest: unknown): Record<string, unkno
   };
 }
 
+/**
+ * The generated protocol manifest: the language-neutral inventory every client
+ * flavor reads. Built entirely from the contract registry plus
+ * `protocolFacts` — there is no hand-maintained manifest source anymore, so
+ * the manifest cannot drift from the registry that drives the HTTP router.
+ */
+export function buildRemoteProtocolManifest(): Record<string, unknown> {
+  const routePaths = new Set(REMOTE_CONTRACT_REGISTRY.routes.map((route) => route.path));
+  for (const path of REMOTE_DISCOVERY_FALLBACK_PATHS) {
+    if (!routePaths.has(path)) {
+      throw new Error(`Discovery fallback path is not a registered route: ${path}`);
+    }
+  }
+  const serverMessages = new Set(REMOTE_WEBSOCKET_SERVER_MESSAGES);
+  for (const message of REMOTE_OUT_OF_BAND_WS_MESSAGES) {
+    if (!serverMessages.has(message)) {
+      throw new Error(`Out-of-band WebSocket message is not a server message: ${message}`);
+    }
+  }
+  const knownScopes = new Set<string>(REMOTE_STANDARD_SCOPES);
+  for (const route of REMOTE_CONTRACT_REGISTRY.routes) {
+    for (const scope of route.scopes) {
+      if (!knownScopes.has(scope)) {
+        throw new Error(`Route ${route.id} declares unknown scope: ${scope}`);
+      }
+    }
+  }
+  return {
+    formatVersion: REMOTE_PROTOCOL_MANIFEST_FORMAT_VERSION,
+    contract: REMOTE_CONTRACT_NAME,
+    protocolVersion: REMOTE_PROTOCOL_VERSION,
+    wireFormat: { ...REMOTE_WIRE_FORMAT },
+    compatibility: {
+      ...REMOTE_COMPATIBILITY_POLICY,
+      minimumAcceptedProtocolVersion: REMOTE_PROTOCOL_VERSION,
+      maximumAcceptedProtocolVersion: REMOTE_PROTOCOL_VERSION,
+    },
+    scopes: [...REMOTE_STANDARD_SCOPES],
+    httpRoutes: REMOTE_CONTRACT_REGISTRY.routes.map((route) => ({
+      id: route.id,
+      method: route.method,
+      path: route.path,
+      auth: route.auth,
+      scopes: [...route.scopes],
+      ...(route.scopeResolution ? { scopeResolution: route.scopeResolution } : {}),
+      ...(route.queryParameters ? { queryParameters: [...route.queryParameters] } : {}),
+      ...(route.legacy ? { legacy: true } : {}),
+      ...(route.idempotency ? { idempotency: route.idempotency } : {}),
+    })),
+    procedures: REMOTE_CONTRACT_REGISTRY.procedures.map((procedure) => ({
+      name: procedure.name,
+      scope: procedure.scope,
+      owner: procedure.owner,
+      ...(procedure.timeout ? { timeout: procedure.timeout } : {}),
+    })),
+    webSocket: {
+      clientMessages: [...discriminatedTypeLiterals(remoteWebSocketClientMessageSchema)],
+      serverMessages: [...discriminatedTypeLiterals(remoteWebSocketServerMessageSchema)],
+      replayableEventTypes: [...REMOTE_REPLAYABLE_EVENT_TYPES],
+      runtimeEventTypes: [...REMOTE_RUNTIME_EVENT_TYPES],
+      outOfBandMessages: [...REMOTE_OUT_OF_BAND_WS_MESSAGES],
+    },
+  };
+}
+
 export function buildRemoteV3IrDocument(): Record<string, unknown> {
-  const manifest = readProtocolManifest();
+  const manifest = buildRemoteProtocolManifest();
   const unsignedIr = buildRemoteV3UnsignedIr(manifest);
   const authority = buildRemoteV3AuthorityInput({ unsignedIr, manifest });
   return {
@@ -224,25 +285,29 @@ export function buildRemoteV3Inventory(ir: Record<string, unknown>): Record<stri
 }
 
 export const CORE_GENERATED_FILE_NAMES = [
+  "manifest.json",
   "ir.json",
   "json-schema.bundle.json",
   "inventory.json",
 ] as const;
 
 export type RemoteV3GeneratedFiles = Record<string, string> & {
+  readonly "manifest.json": string;
   readonly "ir.json": string;
   readonly "json-schema.bundle.json": string;
   readonly "inventory.json": string;
 };
 
 export function buildRemoteV3GeneratedFiles(): RemoteV3GeneratedFiles {
+  const manifest = buildRemoteProtocolManifest();
   const ir = buildRemoteV3IrDocument();
   const core = {
+    "manifest.json": canonicalize(manifest),
     "ir.json": canonicalize(ir),
     "json-schema.bundle.json": canonicalize(buildRemoteV3JsonSchemaBundle(ir)),
     "inventory.json": canonicalize(buildRemoteV3Inventory(ir)),
   };
-  const native = buildNativeBindingOutput(ir, readProtocolManifest());
+  const native = buildNativeBindingOutput(ir, manifest);
   return {
     ...core,
     ...Object.fromEntries(

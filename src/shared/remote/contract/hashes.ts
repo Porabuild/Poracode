@@ -7,8 +7,6 @@ import {
   REMOTE_PROTOCOL_VERSION,
 } from "./versions";
 
-export { readProtocolManifest } from "./manifestRead";
-
 export function manifestHashOf(manifest: unknown): string {
   return sha256Prefixed(canonicalize(manifest));
 }

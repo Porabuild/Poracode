@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { buildRemoteV3IrDocument } from "../generate";
-import { buildRemoteV3AuthorityInput, readProtocolManifest, sourceHashOf } from "../hashes";
+import { buildRemoteProtocolManifest, buildRemoteV3IrDocument } from "../generate";
+import { buildRemoteV3AuthorityInput, sourceHashOf } from "../hashes";
 import {
   assertNativeSchemaKeywordCoverage,
   assertNativeSemanticValidatorCoverage,
@@ -30,7 +30,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const generatedDirectory = join(here, "../../../../../protocol/remote/v3/generated/native");
 
 function input(): { readonly ir: Record<string, unknown>; readonly manifest: unknown } {
-  return { ir: buildRemoteV3IrDocument(), manifest: readProtocolManifest() };
+  return { ir: buildRemoteV3IrDocument(), manifest: buildRemoteProtocolManifest() };
 }
 
 function resign(ir: Record<string, unknown>, manifest: unknown): void {
@@ -56,8 +56,8 @@ describe("remote v3 native binding generator", () => {
         protocolVersion: 12,
         bindingFormatVersion: 2,
         generatorVersion: 3,
-        sourceHash: "sha256:8016c2161eafce8e63a31f4fb01551975a6f76d3142c619e0edc98a62006e6ca",
-        manifestHash: "sha256:5ceec5d01a6e45ddc682718bd36c7d2e462e431c4ad24fe0a9b93d7ce0a2bc31",
+        sourceHash: "sha256:2316e87ed552aa14255b9b19fe2e8bd04cc72470dfe04d27b585a4df799bd74a",
+        manifestHash: "sha256:3e73b5337c2833e11634daf78aa27e33a10bd73606071d6dae78b5f40c9bf55c",
         counts: {
           routes: 65,
           procedures: 108,

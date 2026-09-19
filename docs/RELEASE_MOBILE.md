@@ -28,18 +28,20 @@ device and simulator SDKs. Android compiles and targets API 37 while retaining
 
 ## Remote-v3 release status
 
-`protocol/remote/v3/manifest.json` is the canonical cross-client inventory. It
-currently declares protocol version 11 with 63 HTTP routes, 108 supervisor
-procedures, 9 client WebSocket messages, 10 server WebSocket messages, and 16
-replayable event types. (The `remote/v3` path names the contract family; the
-protocol version inside the manifest is authoritative and has moved past 3.)
+`protocol/remote/v3/generated/manifest.json` is the canonical cross-client
+inventory, generated from the contract registry
+(`src/shared/remote/contract/`). It currently declares protocol version 12 with
+65 HTTP routes, 108 supervisor procedures, 9 client WebSocket messages, 10
+server WebSocket messages, and 16 replayable event types. (The `remote/v3` path
+names the contract family; the protocol version inside the manifest is
+authoritative and has moved past 3.)
 
 The generator currently commits these normalized artifacts:
 
+- `protocol/remote/v3/generated/manifest.json`
 - `protocol/remote/v3/generated/inventory.json`
 - `protocol/remote/v3/generated/ir.json`
 - `protocol/remote/v3/generated/json-schema.bundle.json`
-- `protocol/remote/v3/generated/native/native-bindings.json`
 - manifest-listed Swift and Kotlin sources under
   `protocol/remote/v3/generated/native/{swift,kotlin}`
 
@@ -56,8 +58,9 @@ membership check. Stable app-owned facades keep hash-derived generated names out
 of UI and domain state while validating the HTTP and WebSocket boundaries that
 are currently implemented.
 
-The bundle contains roots for all 63 routes, 108 procedures, and 19 WebSocket
-message types. The native parity ledger
+The bundle contains roots for all 65 routes, 108 procedures, and 19 WebSocket
+message types, and embeds each route's registry scopes in its
+`RemoteRouteDescriptor`. The native parity ledger
 (`protocol/remote/v3/native-parity.json`) records 221 implemented entries on
 each platform and no planned entries;
 `push-config` is the intentional unsupported-by-wire entry on both. The

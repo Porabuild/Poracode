@@ -74,6 +74,13 @@ const MANIFEST_ROUTE_IDS = [
 
 const unorderedRoutes = [...sessionRoutes, ...workspaceRoutes, ...threadRoutes];
 
+/**
+ * The closed set of HTTP route ids. The HTTP router's handler table is keyed by
+ * this union, so a handler for a route that is not in the registry — or a
+ * registry route without a handler — fails typecheck.
+ */
+export type RemoteHttpRouteId = (typeof MANIFEST_ROUTE_IDS)[number];
+
 export const REMOTE_HTTP_ROUTES: readonly RemoteHttpRouteContract[] = MANIFEST_ROUTE_IDS.map(
   (id) => {
     const route = unorderedRoutes.find((candidate) => candidate.id === id);

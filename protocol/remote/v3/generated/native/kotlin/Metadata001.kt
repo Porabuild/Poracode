@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 12
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:8016c2161eafce8e63a31f4fb01551975a6f76d3142c619e0edc98a62006e6ca"
-    const val manifestHash = "sha256:5ceec5d01a6e45ddc682718bd36c7d2e462e431c4ad24fe0a9b93d7ce0a2bc31"
+    const val sourceHash = "sha256:809e5fdfd434031de05d51b0d7a9a36d0ab101f1a2807f29f66bc2f9d68fb99d"
+    const val manifestHash = "sha256:3e73b5337c2833e11634daf78aa27e33a10bd73606071d6dae78b5f40c9bf55c"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -36,7 +36,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("mcp-settings-operation", "POST", "/api/settings/mcp-servers/operation", "bearer", listOf("projects:manage"), "json", "json", 200, "RoutemcpU2DSettingsU2DOperationRequest_e8fbf0f2cb", "RoutemcpU2DSettingsU2DOperationResponse_20b48750f1", listOf()),
         RemoteRouteDescriptor("mcp-settings-read", "GET", "/api/settings/mcp-servers", "bearer", listOf("projects:manage"), "empty", "json", 200, "RemoteUnit", "RoutemcpU2DSettingsU2DCommandResponse_e761211b82", listOf()),
         RemoteRouteDescriptor("port-enter", "POST", "/api/ports/enter", "bearer", listOf("ports:forward"), "json", "json", 200, "RouteportU2DEnterRequest_4067ad04bf", "RouteportU2DEnterResponse_72ce7899de", listOf()),
-        RemoteRouteDescriptor("port-forward", "POST", "/api/ports/forward", "bearer", listOf("ports:forward"), "json", "json", 200, "RouteportU2DForwardRequest_a26f77dd4a", "RouteportU2DForwardResponse_3d1d59fe1c", listOf()),
+        RemoteRouteDescriptor("port-forward", "POST", "/api/ports/forward", "bearer", listOf("ports:forward"), "json", "json", 200, "RouteportU2DForwardRequest_a26f77dd4a", "RouteportU2DForwardResponse_04de8f3da1", listOf()),
         RemoteRouteDescriptor("port-unforward", "POST", "/api/ports/unforward", "bearer", listOf("ports:forward"), "json", "json", 200, "RouteportU2DEnterRequest_4067ad04bf", "RouteportU2DUnforwardResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("ports-read", "GET", "/api/ports", "bearer", listOf("ports:forward"), "empty", "json", 200, "RemoteUnit", "RouteportsU2DReadResponse_ea993e5b2d", listOf()),
         RemoteRouteDescriptor("pr-watch-agent-sync", "POST", "/api/pr-watches/agent", "bearer", listOf("session:operate"), "json", "json", 200, "RouteprU2DWatchU2DAgentU2DSyncRequest_43aa74a688", "RouteportU2DUnforwardResponse_badd682f35", listOf()),

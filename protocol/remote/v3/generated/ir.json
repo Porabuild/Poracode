@@ -21,7 +21,7 @@
     "webSocketServerMessages": 10
   },
   "manifestFormatVersion": 1,
-  "manifestHash": "sha256:5ceec5d01a6e45ddc682718bd36c7d2e462e431c4ad24fe0a9b93d7ce0a2bc31",
+  "manifestHash": "sha256:3e73b5337c2833e11634daf78aa27e33a10bd73606071d6dae78b5f40c9bf55c",
   "portableTransformIds": [
     "agent-settings.strip-sensitive",
     "push.routing.client-connection-id.lowercase",
@@ -22412,6 +22412,10 @@
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": true,
           "properties": {
+            "connectTicket": {
+              "minLength": 1,
+              "type": "string"
+            },
             "enterPath": {
               "minLength": 1,
               "type": "string"
@@ -22450,7 +22454,8 @@
             }
           },
           "required": [
-            "forward"
+            "forward",
+            "connectTicket"
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"
@@ -34843,7 +34848,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:8016c2161eafce8e63a31f4fb01551975a6f76d3142c619e0edc98a62006e6ca",
+  "sourceHash": "sha256:809e5fdfd434031de05d51b0d7a9a36d0ab101f1a2807f29f66bc2f9d68fb99d",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [
