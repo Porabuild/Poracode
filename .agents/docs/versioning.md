@@ -141,7 +141,7 @@ writer outside the authority and is integrated as of the correction pass.
 | Remote desktop/helper API            | `src/shared/remote/protocol.ts` (`PORACODE_REMOTE_PROTOCOL_VERSION`)                                                                                                                                                                                                                                                                                                                                                                                                 | Desktop server, headless server, renderer client, mobile/PWA client, snapshots, and SSH helper negotiation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Remote binding-format IR             | `src/shared/remote/contract/versions.ts` (`REMOTE_BINDING_FORMAT_VERSION = 2`, `REMOTE_GENERATOR_VERSION = 3`), `src/shared/remote/contract/{generate,hashes}.ts`, and `protocol/remote/v3/generated/{manifest.json,inventory.json,ir.json,json-schema.bundle.json}`                                                                                                                                                                                                 | Binding format 2 covers the normalized IR / JSON Schema 2020-12 envelope and binding semantics; generator 3 adds executable native root validation, portable transforms, and Zod-compatible default semantics while retaining the format-2 IR boundary. `sourceHash` and `manifestHash` are derived integrity values from the live authority and manifest, so regenerate them with `pnpm protocol:remote:v3:generate`, keep `pnpm protocol:remote:v3:check` green, and never hardcode their current values in this inventory. Audit the binding-format version for IR/schema/envelope or wire-encoding semantic changes and the generator version for generation-algorithm changes, even when the remote wire protocol version stays unchanged.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Remote native binding bundle         | `src/shared/remote/contract/native/generate.ts` (`NATIVE_BINDINGS_MANIFEST_FORMAT_VERSION = 1`), `protocol/remote/v3/generated/native/native-bindings.json`, and the recursively generated `protocol/remote/v3/generated/native/{swift,kotlin}/` trees                                                                                                                                                                                                               | Bundle format 1 inventories every generated Swift/Kotlin artifact; `native-bindings.json` `languages.*.files` is the authoritative recursive membership list, including each path, digest, byte count, and line count. Any native generator ABI/API change, semantic-validation behavior or metadata change, union/discriminator codec change, or optional/null/unknown-field representation change requires an intentional audit of both this bundle format and the upstream binding/generator versions. Regenerate rather than hand-editing; stale, missing, or extra tree members must fail `pnpm protocol:remote:v3:check`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Remote native parity ledger          | `protocol/remote/v3/native-parity.json` (`formatVersion = 1`, `protocolVersion = 12`)                                                                                                                                                                                                                                                                                                                                                                                | Format 1 assigns every remote route, procedure, WebSocket message/event, and runtime event to one native implementation batch with per-platform disposition and evidence. Any ledger shape or disposition-semantics change requires a format-version audit. A protocol-version mismatch or any manifest inventory addition, removal, or rename invalidates the ledger and must fail until the complete ledger is reviewed and updated. The `remote/v3` directory name is the established contract-generation family, not the current wire protocol number.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Remote native parity ledger          | `protocol/remote/v3/native-parity.json` (`formatVersion = 2`, `protocolVersion = 12`)                                                                                                                                                                                                                                                                                                                                                                                | Format 1 assigns every remote route, procedure, WebSocket message/event, and runtime event to one native implementation batch with per-platform disposition and evidence. Format 2 splits every feature claim into `wire` and `ui` columns (`{wire:{disposition,evidence}, ui:{disposition,evidence,note?}}`); a `partial` ui disposition REQUIRES a precise `note`. Format-1 ledgers migrate by the recorded rule: the format-1 claim becomes `wire` unchanged and `ui` mirrors it with the UI-surface subset of the evidence. Any ledger shape or disposition-semantics change requires a format-version audit. A protocol-version mismatch or any manifest inventory addition, removal, or rename invalidates the ledger and must fail until the complete ledger is reviewed and updated. The `remote/v3` directory name is the established contract-generation family, not the current wire protocol number.                                                                                                                                                                                                                                                                                          |
 | Remote thread command variants       | `src/shared/contracts/thread.ts` (`remoteThreadCommandSchema`), `src/main/remote/server/threadCommands.ts`, renderer command mirroring, and native `ThreadRemoteCommand` mirrors                                                                                                                                                                                                                                                                                     | New discriminator variants are additive within a wire-protocol version only when all existing payloads retain their encoding and older hosts reject the unknown variant before mutation. Update host durability, renderer mirroring, generated Swift/Kotlin bindings, native manual encoders, and route goldens together. `clear-group` also dissolves a one-member remainder so every persisted/mirrored layer keeps the same grouping invariant.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Native E2E coverage ledger           | `tests/native-e2e/harness/versions.ts` (`NATIVE_E2E_LEDGER_FORMAT_VERSION = 2`, `NATIVE_E2E_OPERATION_MAP_VERSION = 1`), `tests/native-e2e/harness/{coverageLedger,operationMap}.ts`, and `tests/native-e2e/harness/operation-map.json`                                                                                                                                                                                                                              | Ledger format 2 versions the per-operation evidence, status, counts, and completion projections. The operation-map `manifestHash` is a derived boundary over the current protocol manifest identity/format, generated inventory `sourceHash`, and sorted route/procedure/WebSocket/replay/runtime operation keys; never hardcode its current value in this inventory. A ledger shape/meaning change requires a ledger-format audit; a manifest/inventory/key derivation or hash-algorithm change requires regenerating and reviewing the committed operation map and its consumers.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Android push channel IDs             | `website/src/lib/push/fcm.ts` (`STATUS_CHANNEL_ID = "poracode_status_v1"`, `ATTENTION_CHANNEL_ID = "poracode_attention_v1"`)                                                                                                                                                                                                                                                                                                                                         | These IDs are durable Android OS-facing identifiers carried in FCM `channel_id`: silent status updates use `poracode_status_v1`, while attention notifications use `poracode_attention_v1`. The native Android app must create matching channels. Do not rename an ID or reuse it for different sound, importance, or user-visible semantics; introduce a new versioned ID and coordinate gateway and native creation/migration instead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -309,15 +309,24 @@ in-bundle non-renderer consumers (tray, attachment cleanup, headless scans):
   and reviewed per the operation-map lock). `PORACODE_REMOTE_PROTOCOL_VERSION` stays
   12: additive routes plus opt-in optional fields are capabilities, not
   wire-generation changes (same pattern as terminal cursor-sync and push routing).
-- **One-time image tickets (B5b):** `POST /api/files/image-ticket` (bearer,
-  `session:read`) mints a 30-second, one-time, path-bound `lc_img_` ticket
-  (256-bit, stored sha256-hashed, 256-cap oldest-first) consumed by
-  `GET /api/files/image?ticket=…`; any failed consume burns it. The legacy
-  `access_token` query param on the image routes is **deprecated, not removed**
-  — the shipped web client still sends it on the first render per path while a
-  mint is in flight (`client.ts`); removal is tracked with the client migration.
-  Native platforms are `planned` (absence tokens `LocalImageTicket`); they keep
-  using the legacy query-token GET until flipped with production evidence.
+- **One-time image tickets (B5b, query-token removal in V5 4.6):**
+  `POST /api/files/image-ticket` (bearer, `session:read`) mints a 30-second,
+  one-time, path-bound `lc_img_` ticket (256-bit, stored sha256-hashed,
+  256-cap oldest-first) consumed by `GET /api/files/image?ticket=…`; any
+  failed consume burns it. The legacy `access_token` query param on the image
+  routes was **removed** in V5 batch 4 (item 4.6): the host accepts only the
+  Authorization header or the one-time `ticket` query parameter on
+  `local-image`/`runtime-image`. The registry auth label stays
+  `bearer-or-query` on purpose (the wire shape "header or query credential" is
+  unchanged and native strict auth-kind parsers stay valid); only the query
+  credential's name and semantics changed, which is an additive regeneration,
+  not a route removal. The TS client now returns "" for the first render per
+  path while a mint is in flight instead of falling back to a tokened URL, so
+  no client-built URL carries a bearer token. Native platforms keep
+  authenticating image GETs with the bearer header, which the host still
+  accepts — their generated query codecs gained the optional `ticket` field
+  through regeneration; native ticket minting remains `planned`
+  (absence tokens `LocalImageTicket`).
 - The renderer page size (100) is the policy that keeps one page's serialized
   response inside the 64 KiB acceptance bound at realistic thread sizes; it is
   asserted per page by `snapshots.pagination.test.ts` at a 1,000-thread fixture,
@@ -381,6 +390,57 @@ in-bundle non-renderer consumers (tray, attachment cleanup, headless scans):
   (`httpRouter.ts`), proven per route by
   `RemoteAccessServer.scopePresets.test.ts`, which enumerates the mutating and
   read-only route matrices from `REMOTE_HTTP_ROUTES` itself.
+
+## Remote TLS, token lifecycle, and operability routes (V5 batch 4, items 4.2/4.6 + 4.9 rider)
+
+- **TLS for direct connections (4.2).** `PORACODE_REMOTE_TLS_CERT` +
+  `PORACODE_REMOTE_TLS_KEY` (paths, set together) switch the remote listener
+  to HTTPS (`RemoteAccessServer.tls` option; the composition roots resolve the
+  material from the environment through `loadRemoteAccessTlsMaterial` in
+  `src/main/remote/server/tlsMaterial.ts`). A partial or unloadable
+  configuration is a loud startup failure — it never downgrades an operator
+  who asked for encryption to plaintext. A TLS-backed wildcard (`lan`) bind no
+  longer needs `PORACODE_ALLOW_PLAINTEXT_LAN=1`. The pairing URL gains the
+  ADDITIVE `#fp=sha256:<64-hex>` fragment carrying the leaf certificate's
+  SHA-256 fingerprint (`pairingUrl.ts`); clients that ignore it pair exactly
+  as before. The TS client pins on first pair (TOFU anchored by the QR
+  assertion, probed through a `certFingerprintProbe` transport hook) and
+  refuses (`certificate_fingerprint_mismatch`, before credentials are sent)
+  on mismatch; the renderer persists pins in localStorage beside the server
+  records (`remoteServersStore.ts`, key `poracode.remoteServerCertPins`) and
+  drops them with the record. No wire envelope, schema, or version changed —
+  the fragment is inside the existing pairing URL string.
+- **Token lifecycle (4.6).** Access tokens now live 24 hours and every
+  pairing/exchange mints a rotating refresh token with a fixed 30-day
+  absolute deadline; the exchange RESULT gained the additive optional
+  `refreshToken`/`refreshTokenExpiresAt` fields, and the token-exchange
+  PAYLOAD gained the additive `refresh_token` grant type plus an optional
+  `refreshToken` field (`src/shared/remote/protocol.ts`). Older clients strip
+  the unknown response fields (Zod default) and never send the new grant;
+  older hosts reject it loudly, and the TS client then surfaces the original
+  401 rather than a grant-endpoint error. A server-side revocation list
+  (hashes of the access AND refresh halves, remembered until their natural
+  expiry) rides the existing `remote-access-auth.json` shape as the additive
+  `revokedTokenHashes` array (default `[]`) and per-session additive
+  `refreshTokenHash`/`refreshExpiresAtMs` fields: old hosts strip them
+  (sessions keep their remaining validity), new hosts read old files
+  unchanged (pre-refresh 30-day sessions stay valid; regression-tested).
+  The renderer keeps refresh tokens in the existing encrypted WebCrypto vault
+  (not in the Zustand persist — no store-version change) and rotates them
+  transparently on the first 401 of an expired access token.
+- **Operability routes (4.9 rider).** `GET /healthz` (fixed `{ok:true}`, no
+  auth, discloses nothing) and `GET /metrics` (loopback-peer-gated snapshot)
+  are registry contracts (`src/shared/remote/contract/routes/ops.ts`), so
+  route counts moved 65→67 everywhere: the generated artifacts
+  (`pnpm protocol:remote:v3:generate`), the native parity ledger
+  (`unsupported-by-wire` on both platforms — natives never consume them),
+  the committed native-e2e `operation-map.json` (226 keys), and the pinned
+  counts in `registry.test.ts`, `generate.test.ts`, `routeGoldens.test.ts`,
+  `operationMap.ts/.test.ts`, `foundationCoverage.test.ts`, and
+  `unsupportedLedger.test.ts`. `PORACODE_REMOTE_PROTOCOL_VERSION` stays 12:
+  additive routes and opt-in optional fields are capabilities under the
+  established pattern. The native-e2e mock's `bearerToken` helper is now
+  header-only, mirroring the removed `?access_token=` acceptance.
 
 ## Client transport cursor and engine scoping (V5 batch 2, items 2.1/2.2/2.6)
 
