@@ -385,7 +385,7 @@ describe("remote v3 replay/Git-state parity tape", () => {
 
   it("keeps the cursor on ready, duplicates, gaps, and all declared out-of-band messages", () => {
     const tape = fixture();
-    const manifest = JSON.parse(readFileSync(join(here, "manifest.json"), "utf8")) as {
+    const manifest = JSON.parse(readFileSync(join(here, "generated", "manifest.json"), "utf8")) as {
       webSocket: {
         readonly serverMessages: readonly string[];
         readonly outOfBandMessages: readonly string[];

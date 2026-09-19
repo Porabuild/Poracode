@@ -11,7 +11,10 @@ import { REMOTE_CONTRACT_INVENTORY, REMOTE_CONTRACT_REGISTRY } from "./registry"
 
 const manifest = JSON.parse(
   readFileSync(
-    join(dirname(fileURLToPath(import.meta.url)), "../../../../protocol/remote/v3/manifest.json"),
+    join(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../../../protocol/remote/v3/generated/manifest.json",
+    ),
     "utf8",
   ),
 ) as {

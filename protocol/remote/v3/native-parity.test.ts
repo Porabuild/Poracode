@@ -62,6 +62,15 @@ const entrySchema = z
   })
   .strict();
 
+/**
+ * HTTP-route ledger entries additionally carry the route's registry scopes, so
+ * a scope change on a route has to be re-affirmed in the parity ledger the same
+ * way the route itself does.
+ */
+const routeEntrySchema = entrySchema.extend({
+  scopes: z.array(z.string().min(1)),
+});
+
 const ledgerSchema = z
   .object({
     formatVersion: z.literal(1),
@@ -69,7 +78,7 @@ const ledgerSchema = z
     protocolVersion: z.literal(12),
     entries: z
       .object({
-        httpRoutes: z.array(entrySchema),
+        httpRoutes: z.array(routeEntrySchema),
         procedures: z.array(entrySchema),
         webSocketClientMessages: z.array(entrySchema),
         webSocketServerMessages: z.array(entrySchema),
@@ -83,7 +92,7 @@ const ledgerSchema = z
 const manifestSchema = z.object({
   contract: z.literal("poracode.remote"),
   protocolVersion: z.literal(12),
-  httpRoutes: z.array(z.object({ id: z.string().min(1) })),
+  httpRoutes: z.array(z.object({ id: z.string().min(1), scopes: z.array(z.string().min(1)) })),
   procedures: z.array(z.object({ name: z.string().min(1) })),
   webSocket: z.object({
     clientMessages: z.array(z.string().min(1)),
@@ -224,7 +233,7 @@ function validateSymmetricClaims(entry: LedgerEntry): void {
 
 describe("remote v3 native parity planning ledger", () => {
   const ledger = ledgerSchema.parse(readJson("protocol/remote/v3/native-parity.json"));
-  const manifest = manifestSchema.parse(readJson("protocol/remote/v3/manifest.json"));
+  const manifest = manifestSchema.parse(readJson("protocol/remote/v3/generated/manifest.json"));
   const authority: Record<Category, string[]> = {
     httpRoutes: manifest.httpRoutes.map((route) => route.id),
     procedures: manifest.procedures.map((procedure) => procedure.name),
@@ -288,6 +297,18 @@ describe("remote v3 native parity planning ledger", () => {
     expect(ledger.protocolVersion).toBe(manifest.protocolVersion);
     for (const category of Object.keys(EXPECTED_COUNTS) as Category[]) {
       expectExactInventory(category, ledger.entries[category], authority[category]);
+    }
+  });
+
+  it("carries the registry scope of every HTTP route", () => {
+    // Item 3.2: scopes live in the contract registry per route and flow to the
+    // native clients through generation (RemoteRouteDescriptor.scopes in the
+    // generated Swift/Kotlin bundles). The parity ledger must restate exactly
+    // the generated per-route scope list — never a hand-divergent copy.
+    const scopesById = new Map(manifest.httpRoutes.map((route) => [route.id, route.scopes]));
+    expect(ledger.entries.httpRoutes).toHaveLength(scopesById.size);
+    for (const entry of ledger.entries.httpRoutes) {
+      expect(entry.scopes, `route ${entry.id} scopes`).toEqual(scopesById.get(entry.id));
     }
   });
 

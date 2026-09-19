@@ -6,6 +6,7 @@
     "httpRoutes": [
       {
         "id": "environment",
+        "scopes": [],
         "batch": "foundation",
         "ios": {
           "disposition": "implemented",
@@ -18,6 +19,7 @@
       },
       {
         "id": "environment-legacy",
+        "scopes": [],
         "batch": "foundation",
         "ios": {
           "disposition": "implemented",
@@ -30,6 +32,7 @@
       },
       {
         "id": "forward-enter",
+        "scopes": [],
         "batch": "projects",
         "ios": {
           "disposition": "implemented",
@@ -51,6 +54,7 @@
       },
       {
         "id": "token-exchange",
+        "scopes": [],
         "batch": "foundation",
         "ios": {
           "disposition": "implemented",
@@ -63,6 +67,7 @@
       },
       {
         "id": "websocket-ticket",
+        "scopes": ["session:read"],
         "batch": "foundation",
         "ios": {
           "disposition": "implemented",
@@ -75,6 +80,7 @@
       },
       {
         "id": "shell-snapshot",
+        "scopes": ["session:read"],
         "batch": "foundation",
         "ios": {
           "disposition": "implemented",
@@ -91,6 +97,7 @@
       },
       {
         "id": "agent-statuses",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -109,6 +116,7 @@
       },
       {
         "id": "agent-slash-commands",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -130,6 +138,7 @@
       },
       {
         "id": "host-update",
+        "scopes": ["projects:manage"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -150,6 +159,7 @@
       },
       {
         "id": "host-update-check",
+        "scopes": ["projects:manage"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -170,6 +180,7 @@
       },
       {
         "id": "host-update-install",
+        "scopes": ["projects:manage"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -190,6 +201,7 @@
       },
       {
         "id": "provider-usage",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -210,6 +222,7 @@
       },
       {
         "id": "project-notes-read",
+        "scopes": ["session:read"],
         "batch": "projects",
         "ios": {
           "disposition": "implemented",
@@ -228,6 +241,7 @@
       },
       {
         "id": "project-notes-write",
+        "scopes": ["session:operate"],
         "batch": "projects",
         "ios": {
           "disposition": "implemented",
@@ -246,6 +260,7 @@
       },
       {
         "id": "local-image",
+        "scopes": ["session:read"],
         "batch": "attachments",
         "ios": {
           "disposition": "implemented",
@@ -264,6 +279,7 @@
       },
       {
         "id": "local-image-ticket",
+        "scopes": ["session:read"],
         "batch": "attachments",
         "ios": {
           "disposition": "planned",
@@ -276,6 +292,7 @@
       },
       {
         "id": "runtime-image",
+        "scopes": ["session:read"],
         "batch": "attachments",
         "ios": {
           "disposition": "implemented",
@@ -294,6 +311,7 @@
       },
       {
         "id": "attachment-upload",
+        "scopes": ["session:operate"],
         "batch": "attachments",
         "ios": {
           "disposition": "implemented",
@@ -313,6 +331,7 @@
       },
       {
         "id": "profile-devices",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -331,6 +350,7 @@
       },
       {
         "id": "profile-core-stats",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -349,6 +369,7 @@
       },
       {
         "id": "profile-token-stats",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -367,6 +388,7 @@
       },
       {
         "id": "profile-identity",
+        "scopes": ["session:operate"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -385,6 +407,7 @@
       },
       {
         "id": "settings-read",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -405,6 +428,7 @@
       },
       {
         "id": "settings-write",
+        "scopes": ["session:operate"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -424,6 +448,7 @@
       },
       {
         "id": "mcp-settings-read",
+        "scopes": ["projects:manage"],
         "batch": "settings-integrations",
         "note": "The host returns redacted global custom MCP definitions. Credential-bearing environment, header, URL-query, and secret-shaped argument values never leave the host.",
         "ios": {
@@ -445,6 +470,7 @@
       },
       {
         "id": "mcp-settings-command",
+        "scopes": ["projects:manage"],
         "batch": "settings-integrations",
         "note": "iOS supports redaction-preserving global CRUD and host-owned global/project scope transfers. Android bindings are generated, but its native management UI and transport remain planned.",
         "ios": {
@@ -467,6 +493,7 @@
       },
       {
         "id": "mcp-settings-operation",
+        "scopes": ["projects:manage"],
         "batch": "settings-integrations",
         "note": "Probe and OAuth operations are resolved by scope and server id on the host, so configured transport credentials never round-trip through a native client. Android bindings are generated; its native UI remains planned.",
         "ios": {
@@ -488,6 +515,7 @@
       },
       {
         "id": "schedules-read",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -508,6 +536,7 @@
       },
       {
         "id": "schedules-command",
+        "scopes": ["session:operate"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -528,6 +557,7 @@
       },
       {
         "id": "schedule-runs-read",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "note": "Both native clients expose schedule run history and same-host linked thread navigation.",
         "ios": {
@@ -549,6 +579,7 @@
       },
       {
         "id": "pr-watch-read",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -569,6 +600,7 @@
       },
       {
         "id": "pr-watch-check",
+        "scopes": ["session:operate"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -589,6 +621,7 @@
       },
       {
         "id": "pr-watch-agent-sync",
+        "scopes": ["session:operate"],
         "batch": "settings-integrations",
         "note": "Native clients synchronize the selected PR-watch helper before persisting the watch so the host can validate and launch the configured provider.",
         "ios": {
@@ -608,6 +641,7 @@
       },
       {
         "id": "pr-watch-upsert",
+        "scopes": ["session:operate"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -628,6 +662,7 @@
       },
       {
         "id": "pr-watch-delete",
+        "scopes": ["session:operate"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -648,6 +683,7 @@
       },
       {
         "id": "browser-state",
+        "scopes": ["session:read"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -669,6 +705,7 @@
       },
       {
         "id": "browser-command",
+        "scopes": ["session:operate"],
         "batch": "settings-integrations",
         "ios": {
           "disposition": "implemented",
@@ -692,6 +729,7 @@
       },
       {
         "id": "ports-read",
+        "scopes": ["ports:forward"],
         "batch": "projects",
         "ios": {
           "disposition": "implemented",
@@ -712,6 +750,7 @@
       },
       {
         "id": "port-forward",
+        "scopes": ["ports:forward"],
         "batch": "projects",
         "ios": {
           "disposition": "implemented",
@@ -732,6 +771,7 @@
       },
       {
         "id": "port-enter",
+        "scopes": ["ports:forward"],
         "batch": "projects",
         "ios": {
           "disposition": "implemented",
@@ -752,6 +792,7 @@
       },
       {
         "id": "port-unforward",
+        "scopes": ["ports:forward"],
         "batch": "projects",
         "ios": {
           "disposition": "implemented",
@@ -772,6 +813,7 @@
       },
       {
         "id": "procedure-call",
+        "scopes": [],
         "batch": "bindings",
         "ios": {
           "disposition": "implemented",
@@ -791,6 +833,7 @@
       },
       {
         "id": "project-command",
+        "scopes": ["projects:manage"],
         "batch": "projects",
         "ios": {
           "disposition": "implemented",
@@ -813,6 +856,7 @@
       },
       {
         "id": "project-settings",
+        "scopes": ["projects:manage"],
         "batch": "projects",
         "ios": {
           "disposition": "implemented",
@@ -834,6 +878,7 @@
       },
       {
         "id": "push-config",
+        "scopes": ["session:operate"],
         "batch": "push-system",
         "ios": {
           "disposition": "unsupported-by-wire",
@@ -847,6 +892,7 @@
       },
       {
         "id": "push-register",
+        "scopes": ["session:operate"],
         "batch": "push-system",
         "ios": {
           "disposition": "implemented",
@@ -868,6 +914,7 @@
       },
       {
         "id": "push-unregister",
+        "scopes": ["session:operate"],
         "batch": "push-system",
         "ios": {
           "disposition": "implemented",
@@ -886,6 +933,7 @@
       },
       {
         "id": "thread-list",
+        "scopes": ["session:read"],
         "batch": "thread-lifecycle",
         "ios": {
           "disposition": "planned",
@@ -898,6 +946,7 @@
       },
       {
         "id": "thread-history-items",
+        "scopes": ["session:read"],
         "batch": "thread-lifecycle",
         "ios": {
           "disposition": "implemented",
@@ -914,6 +963,7 @@
       },
       {
         "id": "thread-history",
+        "scopes": ["session:read"],
         "batch": "thread-lifecycle",
         "ios": {
           "disposition": "implemented",
@@ -926,6 +976,7 @@
       },
       {
         "id": "thread-start-existing",
+        "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
         "ios": {
           "disposition": "implemented",
@@ -949,6 +1000,7 @@
       },
       {
         "id": "terminal-start",
+        "scopes": ["terminal:operate"],
         "batch": "terminal",
         "ios": {
           "disposition": "implemented",
@@ -969,6 +1021,7 @@
       },
       {
         "id": "thread-runtime-truncate",
+        "scopes": ["session:operate"],
         "batch": "rich-chat-requests",
         "ios": {
           "disposition": "implemented",
@@ -989,6 +1042,7 @@
       },
       {
         "id": "thread-checkpoint-revert",
+        "scopes": ["session:operate"],
         "batch": "rich-chat-requests",
         "note": "WS2 stages 3-5: the host journals the compound revert keyed by an operationKey. Web/iOS/Android issue one idempotent POST to the compound route; the Electron renderer reaches the same journaled operation through the backend-host bridge instead of a client-orchestrated multi-call flow.",
         "ios": {
@@ -1015,6 +1069,7 @@
       },
       {
         "id": "thread-command",
+        "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
         "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping.",
         "ios": {
@@ -1041,6 +1096,7 @@
       },
       {
         "id": "thread-send",
+        "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
         "ios": {
           "disposition": "implemented",
@@ -1053,6 +1109,7 @@
       },
       {
         "id": "thread-interrupt",
+        "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
         "ios": {
           "disposition": "implemented",
@@ -1065,6 +1122,7 @@
       },
       {
         "id": "thread-goal",
+        "scopes": ["session:operate"],
         "batch": "rich-chat-requests",
         "ios": {
           "disposition": "implemented",
@@ -1084,6 +1142,7 @@
       },
       {
         "id": "thread-close",
+        "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
         "ios": {
           "disposition": "implemented",
@@ -1103,6 +1162,7 @@
       },
       {
         "id": "thread-steer-set",
+        "scopes": ["session:operate"],
         "batch": "rich-chat-requests",
         "ios": {
           "disposition": "implemented",
@@ -1122,6 +1182,7 @@
       },
       {
         "id": "thread-steer-clear",
+        "scopes": ["session:operate"],
         "batch": "rich-chat-requests",
         "ios": {
           "disposition": "implemented",
@@ -1141,6 +1202,7 @@
       },
       {
         "id": "terminal-write",
+        "scopes": ["terminal:operate"],
         "batch": "terminal",
         "ios": {
           "disposition": "implemented",
@@ -1159,6 +1221,7 @@
       },
       {
         "id": "terminal-resize",
+        "scopes": ["terminal:operate"],
         "batch": "terminal",
         "ios": {
           "disposition": "implemented",
@@ -1177,6 +1240,7 @@
       },
       {
         "id": "terminal-close",
+        "scopes": ["terminal:operate"],
         "batch": "terminal",
         "ios": {
           "disposition": "implemented",
@@ -1195,6 +1259,7 @@
       },
       {
         "id": "request-resolve",
+        "scopes": ["requests:resolve"],
         "batch": "rich-chat-requests",
         "ios": {
           "disposition": "implemented",

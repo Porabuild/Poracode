@@ -161,8 +161,8 @@ val RemoteRootCodecs.routeU2EPortU2DEnterU2EResponse: RemoteRootCodec<RouteportU
 val RemoteRootCodecs.routeU2EPortU2DForwardU2ERequest: RemoteRootCodec<RouteportU2DForwardRequest_a26f77dd4a>
     get() = RemoteRootCodec("route.port-forward.request", serializer<RouteportU2DForwardRequest_a26f77dd4a>(), schema_a26f77dd4ad13e5b)
 
-val RemoteRootCodecs.routeU2EPortU2DForwardU2EResponse: RemoteRootCodec<RouteportU2DForwardResponse_3d1d59fe1c>
-    get() = RemoteRootCodec("route.port-forward.response", serializer<RouteportU2DForwardResponse_3d1d59fe1c>(), schema_3d1d59fe1c4e9dd4)
+val RemoteRootCodecs.routeU2EPortU2DForwardU2EResponse: RemoteRootCodec<RouteportU2DForwardResponse_04de8f3da1>
+    get() = RemoteRootCodec("route.port-forward.response", serializer<RouteportU2DForwardResponse_04de8f3da1>(), schema_04de8f3da1a2ece8)
 
 val RemoteRootCodecs.routeU2EPortU2DUnforwardU2ERequest: RemoteRootCodec<RouteportU2DEnterRequest_4067ad04bf>
     get() = RemoteRootCodec("route.port-unforward.request", serializer<RouteportU2DEnterRequest_4067ad04bf>(), schema_4067ad04bfbe200c)

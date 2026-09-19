@@ -30,7 +30,7 @@ function isPoracodeRoot(dir: string): boolean {
 }
 
 export function protocolManifestPath(repoRoot = findRepoRoot()): string {
-  return join(repoRoot, "protocol/remote/v3/manifest.json");
+  return join(repoRoot, "protocol/remote/v3/generated/manifest.json");
 }
 
 export function protocolFixturePath(name: string, repoRoot = findRepoRoot()): string {

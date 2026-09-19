@@ -90,12 +90,14 @@ data class RouteportU2DForwardResponseU2DForward_247ec4acb4(
 }
 
 @Serializable
-data class RouteportU2DForwardResponse_3d1d59fe1c(
+data class RouteportU2DForwardResponse_04de8f3da1(
+    @SerialName("connectTicket") val connectTicket: String,
     @SerialName("enterPath") val enterPath: RemoteField<String> = RemoteField.Missing,
     @SerialName("forward") val forward: RouteportU2DForwardResponseU2DForward_247ec4acb4,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("connectTicket", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("enterPath", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("forward", "RouteportU2DForwardResponseU2DForward_247ec4acb4", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())

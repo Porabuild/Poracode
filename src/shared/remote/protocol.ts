@@ -625,6 +625,13 @@ export type RemotePortForwardRequest = z.infer<typeof remotePortForwardRequestSc
 export const remotePortForwardResultSchema = z.object({
   forward: activePortForwardSchema,
   enterPath: z.string().min(1).optional(),
+  /**
+   * Credential a raw-TCP client must present as the first LF-terminated line
+   * on any direct connection to the forward's `listenPort` (Gate 6: forwarded
+   * listeners never accept unauthenticated connects). Browser-origin entry
+   * keeps using `enterPath` with its own session auth.
+   */
+  connectTicket: z.string().min(1),
 });
 export type RemotePortForwardResult = z.infer<typeof remotePortForwardResultSchema>;
 

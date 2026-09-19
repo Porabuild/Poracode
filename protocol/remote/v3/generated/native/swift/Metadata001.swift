@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 12
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 3
-  public static let sourceHash = "sha256:8016c2161eafce8e63a31f4fb01551975a6f76d3142c619e0edc98a62006e6ca"
-  public static let manifestHash = "sha256:5ceec5d01a6e45ddc682718bd36c7d2e462e431c4ad24fe0a9b93d7ce0a2bc31"
+  public static let sourceHash = "sha256:809e5fdfd434031de05d51b0d7a9a36d0ab101f1a2807f29f66bc2f9d68fb99d"
+  public static let manifestHash = "sha256:3e73b5337c2833e11634daf78aa27e33a10bd73606071d6dae78b5f40c9bf55c"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -31,7 +31,7 @@ public enum RemoteContractMetadata {
     .init(id: "mcp-settings-operation", method: "POST", path: "/api/settings/mcp-servers/operation", auth: "bearer", scopes: ["projects:manage"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutemcpU2DSettingsU2DOperationRequest_e8fbf0f2cb", responseType: "RoutemcpU2DSettingsU2DOperationResponse_20b48750f1", queryCodecs: []),
     .init(id: "mcp-settings-read", method: "GET", path: "/api/settings/mcp-servers", auth: "bearer", scopes: ["projects:manage"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutemcpU2DSettingsU2DCommandResponse_e761211b82", queryCodecs: []),
     .init(id: "port-enter", method: "POST", path: "/api/ports/enter", auth: "bearer", scopes: ["ports:forward"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteportU2DEnterRequest_4067ad04bf", responseType: "RouteportU2DEnterResponse_72ce7899de", queryCodecs: []),
-    .init(id: "port-forward", method: "POST", path: "/api/ports/forward", auth: "bearer", scopes: ["ports:forward"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteportU2DForwardRequest_a26f77dd4a", responseType: "RouteportU2DForwardResponse_3d1d59fe1c", queryCodecs: []),
+    .init(id: "port-forward", method: "POST", path: "/api/ports/forward", auth: "bearer", scopes: ["ports:forward"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteportU2DForwardRequest_a26f77dd4a", responseType: "RouteportU2DForwardResponse_04de8f3da1", queryCodecs: []),
     .init(id: "port-unforward", method: "POST", path: "/api/ports/unforward", auth: "bearer", scopes: ["ports:forward"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteportU2DEnterRequest_4067ad04bf", responseType: "RouteportU2DUnforwardResponse_badd682f35", queryCodecs: []),
     .init(id: "ports-read", method: "GET", path: "/api/ports", auth: "bearer", scopes: ["ports:forward"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteportsU2DReadResponse_ea993e5b2d", queryCodecs: []),
     .init(id: "pr-watch-agent-sync", method: "POST", path: "/api/pr-watches/agent", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteprU2DWatchU2DAgentU2DSyncRequest_43aa74a688", responseType: "RouteportU2DUnforwardResponse_badd682f35", queryCodecs: []),

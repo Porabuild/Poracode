@@ -4,8 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { buildRemoteV3IrDocument } from "../generate";
-import { readProtocolManifest } from "../hashes";
+import { buildRemoteProtocolManifest, buildRemoteV3IrDocument } from "../generate";
 import { emitKotlinBindings } from "./emitKotlin";
 import { emitSwiftBindings } from "./emitSwift";
 import { rootAdapters } from "./emitterCommon";
@@ -171,7 +170,7 @@ function authoritativeInput(): {
   readonly files: Readonly<Record<string, string>>;
 } {
   const rawIr = buildRemoteV3IrDocument();
-  const manifest = readProtocolManifest();
+  const manifest = buildRemoteProtocolManifest();
   const ir = parseNativeBindingIr(rawIr, manifest);
   return {
     ir,

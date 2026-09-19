@@ -353,7 +353,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EPortU2DForwardU2EResponse: RemoteRootCodec<RouteportU2DForwardResponse_3d1d59fe1c> = .init(id: "route.port-forward.response", schema: RemoteSchemas.schema_3d1d59fe1c4e9dd4)
+  static let routeU2EPortU2DForwardU2EResponse: RemoteRootCodec<RouteportU2DForwardResponse_04de8f3da1> = .init(id: "route.port-forward.response", schema: RemoteSchemas.schema_04de8f3da1a2ece8)
 }
 
 public extension RemoteRootCodecs {

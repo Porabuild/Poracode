@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { runtimeEventSchema } from "../../../contracts/runtimeEvent";
 import {
@@ -5,8 +8,25 @@ import {
   remoteWebSocketServerMessageSchema,
 } from "../../protocol";
 import { REMOTE_CONTRACT_INVENTORY } from "../registry";
-import { readProtocolManifest } from "../manifestRead";
 import { compareUnicodeCodePoints } from "../unicodeOrder";
+
+/** Reads the committed generated manifest so stale artifacts fail here too. */
+function readGeneratedManifest(): {
+  formatVersion: number;
+  protocolVersion: number;
+  webSocket: {
+    clientMessages: string[];
+    serverMessages: string[];
+    replayableEventTypes: string[];
+    runtimeEventTypes: string[];
+  };
+} {
+  const path = join(
+    dirname(fileURLToPath(import.meta.url)),
+    "../../../../../protocol/remote/v3/generated/manifest.json",
+  );
+  return JSON.parse(readFileSync(path, "utf8"));
+}
 
 function discriminatedTypes(schema: unknown): string[] {
   const options = (schema as { options?: readonly unknown[] }).options ?? [];
@@ -20,16 +40,7 @@ function discriminatedTypes(schema: unknown): string[] {
 
 describe("remote WS/runtime inventory goldens", () => {
   it("derives counts from protocol schemas and the v3 manifest", () => {
-    const manifest = readProtocolManifest() as {
-      formatVersion: number;
-      protocolVersion: number;
-      webSocket: {
-        clientMessages: string[];
-        serverMessages: string[];
-        replayableEventTypes: string[];
-        runtimeEventTypes: string[];
-      };
-    };
+    const manifest = readGeneratedManifest();
     expect(manifest.formatVersion).toBe(1);
     expect(manifest.protocolVersion).toBe(12);
 

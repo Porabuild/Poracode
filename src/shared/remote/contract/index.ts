@@ -15,9 +15,13 @@ export {
   REMOTE_CONTRACT_REGISTRY,
   assertRemoteContractComplete,
 } from "./registry";
-export { REMOTE_HTTP_ROUTES } from "./routes";
+export { REMOTE_HTTP_ROUTES, type RemoteHttpRouteId } from "./routes";
 export { BLOCKED_PROCEDURE_RESULTS, REMOTE_PROCEDURE_CONTRACTS } from "./procedures";
-export { buildRemoteV3GeneratedFiles, buildRemoteV3IrDocument } from "./generate";
+export {
+  buildRemoteProtocolManifest,
+  buildRemoteV3GeneratedFiles,
+  buildRemoteV3IrDocument,
+} from "./generate";
 export { checkRemoteV3Generated, writeRemoteV3Generated } from "./writeGenerated";
 export type {
   RemoteContractInventory,
