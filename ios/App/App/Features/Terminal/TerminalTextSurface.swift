@@ -67,11 +67,14 @@ struct TerminalTextSurface: UIViewRepresentable {
   let transcript: String
   let accessibilityLabel: String
   let fontSize: CGFloat
+  /// Hardware-keyboard passthrough. When nil the surface stays a purely
+  /// read-only transcript and never claims first responder.
+  var onRawKeyInput: ((String) -> Void)?
 
   func makeCoordinator() -> Coordinator { Coordinator() }
 
   func makeUIView(context _: Context) -> UITextView {
-    let view = UITextView()
+    let view = TerminalTranscriptView()
     view.backgroundColor = .clear
     view.isEditable = false
     view.isSelectable = true
@@ -90,6 +93,8 @@ struct TerminalTextSurface: UIViewRepresentable {
   }
 
   func updateUIView(_ view: UITextView, context: Context) {
+    let transcriptView = view as? TerminalTranscriptView
+    transcriptView?.onRawKeyInput = onRawKeyInput
     view.accessibilityLabel = accessibilityLabel
     guard context.coordinator.transcript != transcript || context.coordinator.fontSize != fontSize
     else { return }
