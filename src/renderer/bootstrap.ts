@@ -3,6 +3,7 @@ import {
   installBrowserClientRuntime,
   installElectronClientRuntime,
   resolveElectronAttachBootstrap,
+  startDesktopLoopbackEventIntake,
 } from "./clientRuntime";
 import { msg } from "@lingui/core/macro";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
@@ -102,6 +103,10 @@ if (window.poracodeHost) {
     }
   } else {
     installElectronClientRuntime(window.poracodeHost);
+    // V5 plan 2.5 (loopback unification): the co-located remote server becomes
+    // the preferred event leg when it is reachable; the desktop-IPC relay
+    // stays the documented fallback. Fire-and-forget and non-fatal by design.
+    void startDesktopLoopbackEventIntake();
   }
   const { readBridge } = await import("./bridge");
   window.poracode = readBridge();

@@ -9,9 +9,20 @@ import {
   type RemoteTerminalCursorSyncRequest,
   type RemoteTerminalWatchResult,
 } from "@/shared/remote";
+import {
+  REMOTE_DESKTOP_INTERNAL_SEQ_PARAM,
+  REMOTE_DESKTOP_INTERNAL_WS_PARAM,
+} from "@/shared/remote/contract/queryCodecs";
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
 import type { RemoteBrowserFrame } from "../RemoteBrowserGateway";
 import type { RemoteServerContext } from "./context";
+import {
+  desktopInternalStreamHostOf,
+  isDesktopInternalSession,
+  isLoopbackRemoteAddress,
+  markDesktopInternalSession,
+  unmarkDesktopInternalSession,
+} from "./desktopInternalStream";
 import { MAX_JSON_BODY_BYTES } from "./requestBody";
 import { replayEvents } from "./eventReplay";
 import {
@@ -109,6 +120,29 @@ function parseThreadItemInterests(searchParams: URLSearchParams): ReadonlySet<st
   } catch {
     return null;
   }
+}
+
+function parseLastDesktopSeq(searchParams: URLSearchParams): number | null {
+  try {
+    const raw = searchParams.get(REMOTE_DESKTOP_INTERNAL_SEQ_PARAM);
+    if (raw === null) return null;
+    const seq = Number(raw);
+    return Number.isSafeInteger(seq) && seq >= 0 ? seq : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Desktop-internal admission (V5 plan 2.5): the opt-in query parameter counts
+ * only when the upgrade originates from a loopback address. A remote peer
+ * sending the parameter is admitted as an ordinary session — fail-closed by
+ * construction, so the desktop-only event surface can never be negotiated
+ * across the network.
+ */
+function desktopInternalRequested(req: IncomingMessage, searchParams: URLSearchParams): boolean {
+  if (searchParams.get(REMOTE_DESKTOP_INTERNAL_WS_PARAM) !== "1") return false;
+  return isLoopbackRemoteAddress(req.socket.remoteAddress);
 }
 
 export function rejectUpgrade(socket: Duplex, status: number, reason: string): void {
@@ -300,8 +334,19 @@ export async function handleUpgrade(
     const session = ctx.auth.consumeWebSocketTicket(ticket);
     const lastSeenSeq = parseLastSeenSeq(url.searchParams);
     const initialItemInterests = parseThreadItemInterests(url.searchParams);
+    const desktopInternal = desktopInternalRequested(req, url.searchParams);
+    const lastDesktopSeq = desktopInternal ? parseLastDesktopSeq(url.searchParams) : null;
     ctx.wss.handleUpgrade(req, socket, head, (ws) => {
-      handleConnection(ctx, ws, session, lastSeenSeq, initialItemInterests);
+      if (desktopInternal) markDesktopInternalSession(ctx, ws);
+      handleConnection(
+        ctx,
+        ws,
+        session,
+        lastSeenSeq,
+        initialItemInterests,
+        desktopInternal,
+        lastDesktopSeq,
+      );
     });
   } catch (error) {
     if (error instanceof RemoteHttpError) {
@@ -318,6 +363,8 @@ function handleConnection(
   session: AuthenticatedRemoteSession,
   lastSeenSeq: number | null,
   initialItemInterests: ReadonlySet<string> | null,
+  desktopInternal = false,
+  lastDesktopSeq: number | null = null,
 ): void {
   if (ctx.stopping) {
     ws.terminate();
@@ -363,6 +410,8 @@ function handleConnection(
     ctx.terminalWatches.delete(ws);
     ctx.terminalCursorSync.clearConnection(ws);
     ctx.terminalBaselineStreams.clearConnection(ws);
+    desktopInternalStreamHostOf(ctx)?.detachClient(ws);
+    unmarkDesktopInternalSession(ctx, ws);
     ctx.clients.delete(ws);
     ctx.clientLiveness.delete(ws);
     void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
@@ -517,9 +566,7 @@ function handleConnection(
   if (lastSeenSeq === null || lastSeenSeq === ctx.seq) {
     ctx.replayingClients.delete(ws);
     // No client cursor, or the client is already current — nothing to replay.
-    return;
-  }
-  if (lastSeenSeq > ctx.seq) {
+  } else if (lastSeenSeq > ctx.seq) {
     ctx.replayingClients.delete(ws);
     // Seq regressed below the client's cursor: `ctx.seq` is in-memory and
     // resets to 0 on restart while bearer sessions persist, so a client
@@ -530,10 +577,16 @@ function handleConnection(
       seq: ctx.seq,
       reason: "Server event stream reset; request a fresh snapshot.",
     });
-    return;
+  } else {
+    replayEvents(ctx, ws, lastSeenSeq);
   }
 
-  replayEvents(ctx, ws, lastSeenSeq);
+  // Desktop-internal sessions resume their SECOND, desktop-only replayable
+  // stream independently (own cursor, own bounded buffer). Everything above
+  // behaves exactly as for any other authenticated session.
+  if (isDesktopInternalSession(ctx, ws)) {
+    desktopInternalStreamHostOf(ctx)?.attachClient(ws, lastDesktopSeq);
+  }
 }
 
 export function sweepWebSocketLiveness(

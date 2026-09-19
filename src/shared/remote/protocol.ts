@@ -1410,5 +1410,21 @@ export const remoteWebSocketServerMessageSchema = z.discriminatedUnion("type", [
     id: z.string().min(1),
     cursorSync: remoteTerminalWatchBaselineChunkSchema,
   }),
+  // DESKTOP-INTERNAL sessions only — the server never sends this frame to an
+  // external or native client (gated on a loopback-origin upgrade opt-in; see
+  // `wsConnections.ts` and `REMOTE_DESKTOP_INTERNAL_WS_PARAM`). It carries the
+  // desktop-only supervisor event families the co-located desktop renderer
+  // consumes (provider usage, LSP, OSC, crossagent, experiment judging, …) on
+  // its own contiguous replayable sequence: `seq` is the desktop-stream cursor
+  // (resume via the `lastDesktopSeq` query parameter), fully independent of the
+  // shared `event` stream's sequence. The payload is the desktop SupervisorEvent
+  // union, which deliberately does NOT ride the shared replayable stream —
+  // external clients validate against the remote runtime-event union and must
+  // never observe these types in any frame.
+  z.object({
+    type: z.literal("desktop-event"),
+    seq: z.number().int().positive(),
+    event: z.unknown(),
+  }),
 ]);
 export type RemoteWebSocketServerMessage = z.infer<typeof remoteWebSocketServerMessageSchema>;

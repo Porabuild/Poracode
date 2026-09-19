@@ -101,6 +101,11 @@ import {
   buildCursorTaggedTerminalOutput,
   TerminalCursorSyncRegistry,
 } from "./server/terminalCursorSync";
+import {
+  registerDesktopInternalStreamHost,
+  replayDesktopEvents,
+  type DesktopInternalReplayContext,
+} from "./server/desktopInternalStream";
 import { writeError } from "./server/httpResponses";
 
 // WS5 P1-9: under streaming load the old 500-entry cap was exhausted by small
@@ -519,6 +524,47 @@ const REMOTELY_CONSUMED_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> =
   "remote-user-notification",
 ]);
 
+/**
+ * Desktop-only supervisor event families (V5 plan 2.5): the `SupervisorEvent`
+ * types no external client consumes, which `REMOTELY_CONSUMED_EVENT_TYPES`
+ * therefore withholds from the shared replayable stream. Desktop-internal
+ * loopback sessions (the co-located desktop renderer) receive them on a second
+ * replayable `desktop-event` sequence so the unified loopback path keeps every
+ * desktop feature; external and native clients NEVER observe these types — the
+ * frames are gated on a loopback-origin upgrade opt-in
+ * (`server/wsConnections.ts` + `server/desktopInternalStream.ts`) and the
+ * types never enter the shared buffer or its replay.
+ *
+ * `thread-output` is absent by design on BOTH streams: PTY bytes stay off the
+ * replayable event surface entirely and reach opted-in watchers (desktop
+ * sessions included) through the `terminal-watch` machinery.
+ */
+const DESKTOP_INTERNAL_EVENT_TYPES: ReadonlySet<RemoteBroadcastEvent["type"]> = new Set([
+  // Crossagent routing and selection telemetry.
+  "crossagent-routing-override-changed",
+  "crossagent-selection-used",
+  // Experiments.
+  "experiment-judge-progress",
+  // Voice sessions.
+  "thread-voice",
+  // Terminal scrollback rebuild requests (drives the scrollback resync).
+  "thread-scrollback-resync",
+  // OSC shell notifications and events.
+  "thread-osc-notification",
+  "thread-osc-shell",
+  // Agent detection churn no remote client reads.
+  "agent-detected",
+  // Provider usage snapshots.
+  "provider-usage",
+  "provider-usage-all",
+  // Local-only projections.
+  "git-changed",
+  "project-tree-changed",
+  // Language-server traffic.
+  "lsp-message",
+  "lsp-status",
+]);
+
 export class RemoteAccessServer {
   private readonly auth: RemoteAuthStore;
   private readonly tls: {
@@ -547,6 +593,17 @@ export class RemoteAccessServer {
   /** Per-connection transcript-content scoping; absent = receives everything. */
   private readonly itemInterests = new Map<WebSocket, ReadonlySet<string>>();
   private readonly eventBuffer: BufferedSupervisorEvent[] = [];
+  /**
+   * Desktop-internal stream state (V5 plan 2.5): a second, bounded replayable
+   * buffer carrying ONLY the desktop-only supervisor families, fanned out
+   * exclusively to loopback desktop-internal sessions. Its sequence is fully
+   * independent of the shared `seq`, so external clients' contiguity contract
+   * never observes a desktop-only type.
+   */
+  private desktopSeq = 0;
+  private readonly desktopEventBuffer: BufferedSupervisorEvent[] = [];
+  private readonly desktopInternalClients = new Set<WebSocket>();
+  private readonly desktopReplayingClients = new Set<WebSocket>();
   private readonly backgroundTasksByThread = new Map<string, readonly BackgroundTask[]>();
   private readonly context: RemoteServerContext;
   private readonly maxConcurrentIngressWork: number;
@@ -674,7 +731,7 @@ export class RemoteAccessServer {
 
   private buildContext(): RemoteServerContext {
     const server = this;
-    return {
+    const context: RemoteServerContext = {
       options: this.options,
       auth: this.auth,
       wss: this.wss,
@@ -712,6 +769,56 @@ export class RemoteAccessServer {
       notifyEventInterestsChanged: () => this.notifyEventInterestsChanged(),
       runIngressWork: (operation, source) => this.runIngressWork(operation, source),
       waitForSupervisorEvent: (match, timeoutMs) => this.waitForSupervisorEvent(match, timeoutMs),
+    };
+    registerDesktopInternalStreamHost(context, {
+      attachClient: (ws, lastDesktopSeq) => this.attachDesktopInternalClient(ws, lastDesktopSeq),
+      detachClient: (ws) => this.detachDesktopInternalClient(ws),
+    });
+    return context;
+  }
+
+  /**
+   * Admits a loopback desktop-internal connection to the desktop-only
+   * replayable stream and resumes it from the client's `lastDesktopSeq`
+   * cursor, mirroring the shared stream's reconnect semantics (no cursor or a
+   * current one replays nothing; a cursor ahead of the server's — a server
+   * restart — earns `resync-required`; otherwise the bounded buffer replays
+   * the missing range).
+   */
+  private attachDesktopInternalClient(ws: WebSocket, lastDesktopSeq: number | null): void {
+    if (this.stopping) return;
+    this.desktopInternalClients.add(ws);
+    if (lastDesktopSeq === null || lastDesktopSeq === this.desktopSeq) return;
+    if (lastDesktopSeq > this.desktopSeq) {
+      this.send(ws, {
+        type: "resync-required",
+        seq: this.seq,
+        reason: "Desktop event stream reset; request a fresh snapshot.",
+      });
+      return;
+    }
+    this.desktopReplayingClients.add(ws);
+    replayDesktopEvents(this.desktopReplayContext(), ws, lastDesktopSeq);
+  }
+
+  private detachDesktopInternalClient(ws: WebSocket): void {
+    this.desktopInternalClients.delete(ws);
+    this.desktopReplayingClients.delete(ws);
+  }
+
+  private desktopReplayContext(): DesktopInternalReplayContext {
+    const server = this;
+    return {
+      get seq() {
+        return server.seq;
+      },
+      get desktopSeq() {
+        return server.desktopSeq;
+      },
+      desktopEventBuffer: server.desktopEventBuffer,
+      desktopReplayingClients: server.desktopReplayingClients,
+      send: (ws, message) => server.send(ws, message),
+      sendRaw: (ws, data, onSent) => server.sendRaw(ws, data, onSent),
     };
   }
 
@@ -988,6 +1095,9 @@ export class RemoteAccessServer {
     this.terminalWatches.clear();
     this.terminalCursorSync.clearAll();
     this.terminalBaselineStreams.clearAll();
+    this.desktopInternalClients.clear();
+    this.desktopReplayingClients.clear();
+    this.desktopEventBuffer.length = 0;
     this.gitStateInterests.clear();
     this.itemInterests.clear();
     void Promise.resolve(this.notifyEventInterestsChanged()).catch(() => {});
@@ -1078,8 +1188,12 @@ export class RemoteAccessServer {
     }
     // Only buffer + broadcast events a remote client actually consumes; chatty
     // supervisor events no client reads would waste bandwidth and churn the
-    // bounded replay buffer (see REMOTELY_CONSUMED_EVENT_TYPES).
+    // bounded replay buffer (see REMOTELY_CONSUMED_EVENT_TYPES). The withheld
+    // desktop-only families instead feed the desktop-internal stream, where
+    // loopback desktop sessions consume them without widening the external
+    // event surface.
     if (!REMOTELY_CONSUMED_EVENT_TYPES.has(event.type)) {
+      this.publishDesktopInternalEvent(event);
       return;
     }
     const seq = ++this.seq;
@@ -1136,6 +1250,53 @@ export class RemoteAccessServer {
     // is serialized exactly once per publish rather than once here and again in
     // `broadcast`.
     this.broadcastRaw(`{"type":"event","seq":${seq},"event":${capped.json}}`);
+  }
+
+  /**
+   * Fans one desktop-only supervisor event out to the desktop-internal loopback
+   * sessions on its own contiguous replayable sequence. Never touches the
+   * shared buffer, the shared `seq`, or any non-desktop-internal client, so the
+   * desktop event set can never leak to external or native clients. No
+   * per-client scoping applies here: these families are global (usage, LSP,
+   * OSC, crossagent), not transcript content.
+   */
+  private publishDesktopInternalEvent(event: RemoteBroadcastEvent): void {
+    if (!DESKTOP_INTERNAL_EVENT_TYPES.has(event.type)) return;
+    if (this.desktopInternalClients.size === 0) return;
+    const seq = ++this.desktopSeq;
+    // Same safety valve as the shared stream: an event too large for one frame
+    // would terminate every desktop session and do it again on replay. Advance
+    // `desktopSeq` without buffering and tell the sessions to resync.
+    const capped = capBroadcastEvent(
+      event,
+      maxBroadcastEventBytes(
+        this.options.maxWebSocketOutboundBufferBytes ?? DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES,
+      ),
+    );
+    if (capped.kind === "undeliverable") {
+      this.options.onOversizedEventDropped?.({ type: event.type, bytes: capped.bytes });
+      this.desktopReplayingClients.clear();
+      for (const client of this.desktopInternalClients) {
+        this.send(client, {
+          type: "resync-required",
+          seq: this.seq,
+          reason: "Desktop event too large for the live stream; request a fresh snapshot.",
+        });
+      }
+      return;
+    }
+    this.desktopEventBuffer.push({
+      seq,
+      event: capped.event,
+      bytes: capped.bytes,
+      json: capped.json,
+    });
+    trimEventBuffer(this.desktopEventBuffer, EVENT_BUFFER_LIMIT, EVENT_BUFFER_MAX_BYTES);
+    const data = `{"type":"desktop-event","seq":${seq},"event":${capped.json}}`;
+    for (const client of this.desktopInternalClients) {
+      if (this.desktopReplayingClients.has(client)) continue;
+      this.sendRaw(client, data);
+    }
   }
 
   /** Drops every cached background-task level. The supervisor process that
@@ -1471,6 +1632,7 @@ export class RemoteAccessServer {
     this.clientLiveness.delete(ws);
     this.terminalWatches.delete(ws);
     this.terminalCursorSync.clearConnection(ws);
+    this.detachDesktopInternalClient(ws);
     this.gitStateInterests.delete(ws);
     this.itemInterests.delete(ws);
     void Promise.resolve(this.notifyEventInterestsChanged()).catch(() => {});

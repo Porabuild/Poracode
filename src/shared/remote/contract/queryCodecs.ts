@@ -145,11 +145,32 @@ export const ROUTE_QUERY_CODECS: Readonly<Record<string, readonly QueryParameter
   "thread-list": [param("cursor", "string", true), param("limit", "int", true)],
 };
 
+/**
+ * Desktop-internal loopback opt-in (V5 plan 2.5): the `/ws` query parameter a
+ * co-located desktop renderer sets to request the desktop-internal session
+ * kind. The server honors it only when the upgrade originates from a loopback
+ * address (see `wsConnections.ts`), so a remote peer sending it can never
+ * widen its event surface. Declared here next to the other handshake
+ * parameter names; the compatibility-policy wording lives in
+ * `protocolFacts.ts`, which cannot import this module (the dependency runs
+ * the other way).
+ */
+export const REMOTE_DESKTOP_INTERNAL_WS_PARAM = "desktopInternal";
+
+/** Resume cursor of the desktop-internal replayable stream. */
+export const REMOTE_DESKTOP_INTERNAL_SEQ_PARAM = "lastDesktopSeq";
+
 /** WebSocket handshake query codecs from the protocol manifest. */
 export const WEBSOCKET_QUERY_CODECS: readonly QueryParameterCodec[] = [
   param("ticket", "string", false),
   param("lastSeenSeq", "int", true),
   param("threadItemInterests", "JSON-string", true),
+  // Desktop-internal loopback opt-in. Honored only for loopback-origin
+  // upgrades; every other peer is admitted as an ordinary session.
+  param(REMOTE_DESKTOP_INTERNAL_WS_PARAM, "0-or-1", true),
+  // Resume cursor of the desktop-internal replayable stream. Ignored unless
+  // the connection was admitted as desktop-internal.
+  param(REMOTE_DESKTOP_INTERNAL_SEQ_PARAM, "int", true),
 ];
 
 export const LOSSY_QUERY_METADATA_KINDS = [

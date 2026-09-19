@@ -660,6 +660,64 @@ recovery barriers (`renderer-stream-recovery`) are GONE, together with
   redundant second implementation (stream + grants + chunking + recovery),
   which was the H4 redundancy.
 
+## Desktop-internal loopback sessions (V5 plan 2.5 continuation) — additive remote-wire surface, no version bump
+
+The wire-level blockers that stopped the loopback unification sub-item are
+resolved with an ADDITIVE, admission-gated extension of the remote protocol.
+The co-located desktop renderer can now consume the withheld desktop event
+families over the loopback server without widening the surface any external or
+native client sees.
+
+- **New server message `desktop-event`** (`src/shared/remote/protocol.ts`,
+  carried verbatim in the generated manifest via
+  `REMOTE_DESKTOP_INTERNAL_MESSAGES` in `protocolFacts.ts`): `{type, seq,
+event}` where `event` is a desktop-only `SupervisorEvent`
+  (`DESKTOP_INTERNAL_EVENT_TYPES` in `RemoteAccessServer.ts` — provider usage,
+  LSP, OSC, crossagent, experiment judging, `thread-voice`,
+  `thread-scrollback-resync`, `agent-detected`, `git-changed`,
+  `project-tree-changed`). It rides a SECOND bounded replayable buffer with its
+  own contiguous `desktopSeq`, fully independent of the shared `event`
+  sequence, so external clients' replay-contiguity contract never observes a
+  desktop-only type. `thread-output` is absent from BOTH streams by design
+  (PTY bytes stay on the terminal path).
+- **New `/ws` handshake query parameters** `desktopInternal` (`0-or-1`) and
+  `lastDesktopSeq` (`int`), declared in `WEBSOCKET_QUERY_CODECS` and the
+  `desktopInternalStream` compatibility-policy block. Admission is
+  loopback-origin gated in `wsConnections.ts`: the parameter counts only when
+  the upgrade socket's remote address is loopback (IPv4, IPv6, IPv4-mapped,
+  or a unix socket's empty address); a remote peer sending it is admitted as
+  an ordinary session. Fail-closed by construction.
+- **Version policy: no bump, both directions safe.** The protocol's
+  compatibility policy treats unknown server-message discriminators as
+  accept-and-ignore, so an OLD client never receives the frame (the server
+  gates delivery per connection) and cannot be broken by its existence; an OLD
+  server ignores the two new query parameters, so a NEW desktop client
+  degrades to an ordinary session (live shared events only) and keeps
+  working. `PORACODE_REMOTE_PROTOCOL_VERSION` (12) is unchanged.
+- **Generated artifacts**: `pnpm protocol:remote:v3:generate` regenerated
+  `protocol/remote/v3/generated/**` (manifest, IR, JSON-schema bundle,
+  inventory, Swift/Kotlin bindings) so the `manifestHash`/`sourceHash` pins
+  moved together in one generation — the single-source pipeline, not a hand
+  mirror.
+- **Renderer intake boundary** (`state/remoteServers/desktopLoopbackIntake.ts`
+  - `ElectronBackendTransport`): the intake bootstraps through the EXISTING
+    `getRemoteAccessPairing` main-local procedure and the standard
+    pairing-token → access-token → WS-ticket HTTP flow, so no preload surface,
+    IPC channel, or `standaloneAttachInfo` field changed. The pairing
+    credential it consumes is the same single-use startup credential the
+    desktop already mints per server start (consuming it participates in the
+    existing rotation; the renderer is just a new consumer of an existing
+    boundary). The intake joins live-only (no replay cursors) and recovers
+    through the transport's rebuild dispatch — the same primitive the relay's
+    shed/gap signals use — so no desktop reducer gained seq-replay obligations.
+- **What did NOT move yet:** desktop `thread-output` (PTY bytes) still rides
+  the desktop-IPC relay for the terminal UI (the server already admits
+  desktop-internal sessions to `terminal-watch` v1/v2, tested); managed
+  requests still cross the `call-*` operations; main does not yet guarantee an
+  always-on loopback server for managed launches (the intake is opportunistic
+  and the IPC relay remains the documented fallback). Those are the remaining
+  2.5 sub-items.
+
 ## Local delivery-ownership wire boundary (backend-host 13 / renderer stream 5) — SUPERSEDED, deleted in V5 2.5
 
 > **DELETED (V5 plan 2.5, host protocol 14 / facade 14 / engine protocol 2).**

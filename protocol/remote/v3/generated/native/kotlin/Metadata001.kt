@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 12
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:112b04dcf56486523614dcb74f6c2b8824e952213ed150eaa32938a461bc5757"
-    const val manifestHash = "sha256:b90ee2f612ccb591738bbaf25dff7108ef7c503069bf01e0d8e69cae1383c41f"
+    const val sourceHash = "sha256:b011e8c09353731b3029a221037932009a5bf0b319a6eac2e8e966ba3afe314a"
+    const val manifestHash = "sha256:680ed19fec59987e53d1692af7ea661afebde23a8c3769f3cd280cc2417e3f24"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -210,6 +210,7 @@ object RemoteContractMetadata {
         RemoteWebSocketVariantDescriptor("server", "browser-frame", "WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac"),
         RemoteWebSocketVariantDescriptor("server", "browser-mirror-status", "WebSocketServerMessageU2DOptionU2D7_0ad133ee58"),
         RemoteWebSocketVariantDescriptor("server", "browser-state", "WebSocketServerMessageU2DOptionU2D5_bd23acb1d6"),
+        RemoteWebSocketVariantDescriptor("server", "desktop-event", "WebSocketServerMessageU2DOptionU2D11_753ef5834e"),
         RemoteWebSocketVariantDescriptor("server", "event", "WebSocketServerMessageU2DOptionU2D2_8f72d27346"),
         RemoteWebSocketVariantDescriptor("server", "pong", "WebSocketServerMessageU2DOptionU2D4_17b50a5a25"),
         RemoteWebSocketVariantDescriptor("server", "ready", "WebSocketServerMessageU2DOptionU2D1_13762c62f0"),

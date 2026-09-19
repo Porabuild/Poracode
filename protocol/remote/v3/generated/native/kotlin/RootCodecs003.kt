@@ -62,8 +62,8 @@ val RemoteRootCodecs.websocketU2EClientU2ETerminalU2DWatchU2DBaselineU2DAck: Rem
 val RemoteRootCodecs.websocketU2EClientU2EThreadU2DItemU2DInterests: RemoteRootCodec<WebSocketClientMessageU2DOptionU2D9_93bef3a552>
     get() = RemoteRootCodec("websocket.client.thread-item-interests", serializer<WebSocketClientMessageU2DOptionU2D9_93bef3a552>(), schema_93bef3a552bf787e)
 
-val RemoteRootCodecs.websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_e9a499aee9>
-    get() = RemoteRootCodec("websocket.server", serializer<WebSocketServerMessage_e9a499aee9>(), schema_e9a499aee9cc5592)
+val RemoteRootCodecs.websocketU2EServer: RemoteRootCodec<WebSocketServerMessage_5a693f3540>
+    get() = RemoteRootCodec("websocket.server", serializer<WebSocketServerMessage_5a693f3540>(), schema_5a693f3540d056ca)
 
 val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DFrame: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac>
     get() = RemoteRootCodec("websocket.server.browser-frame", serializer<WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac>(), schema_8f58c1d1acd8bc3c)
@@ -73,6 +73,9 @@ val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DMirrorU2DStatus: RemoteRootC
 
 val RemoteRootCodecs.websocketU2EServerU2EBrowserU2DState: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D5_bd23acb1d6>
     get() = RemoteRootCodec("websocket.server.browser-state", serializer<WebSocketServerMessageU2DOptionU2D5_bd23acb1d6>(), schema_bd23acb1d60bc91b)
+
+val RemoteRootCodecs.websocketU2EServerU2EDesktopU2DEvent: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D11_753ef5834e>
+    get() = RemoteRootCodec("websocket.server.desktop-event", serializer<WebSocketServerMessageU2DOptionU2D11_753ef5834e>(), schema_753ef5834e6b9f42)
 
 val RemoteRootCodecs.websocketU2EServerU2EEvent: RemoteRootCodec<WebSocketServerMessageU2DOptionU2D2_8f72d27346>
     get() = RemoteRootCodec("websocket.server.event", serializer<WebSocketServerMessageU2DOptionU2D2_8f72d27346>(), schema_8f72d273465cb93f)

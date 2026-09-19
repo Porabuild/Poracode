@@ -19,6 +19,11 @@ import { ElectronBackendTransport } from "./electronBackendTransport";
 import { isCompactLayoutViewport } from "./adaptiveLayout";
 import { isRemoteRoutableProcedure } from "./remoteProcedureRoutes";
 import { routeRemoteProcedure } from "./remoteProcedureRouter";
+import {
+  DesktopLoopbackIntake,
+  resolveLoopbackTarget,
+  type DesktopPairingEndpointInfo,
+} from "./state/remoteServers/desktopLoopbackIntake";
 
 let installedRuntime: ClientRuntime | null = null;
 
@@ -97,6 +102,7 @@ export function installElectronClientRuntime(host: ElectronHostBridge): void {
   assertClientRuntimeVersion(host.clientRuntimeVersion);
   assertIpcProcedureMapVersion(host.ipcProcedureMapVersion);
   const transport = new ElectronBackendTransport(host);
+  managedLoopback.transport = transport;
   const procedures = createProcedureBridge((name, args) => {
     if (name === "setRendererEventInterests") {
       return transport.setEventInterests(parseIpcProcedureArgs(name, args));
@@ -125,6 +131,89 @@ export function installElectronClientRuntime(host: ElectronHostBridge): void {
     procedures,
     native,
   });
+}
+
+/**
+ * The managed window's event transports (V5 plan 2.5): the loopback intake is
+ * the preferred leg once the co-located remote server is reachable, and the
+ * desktop-IPC relay stays the fallback. Held so
+ * {@link startDesktopLoopbackEventIntake} can wire them after install.
+ */
+const managedLoopback: {
+  transport: ElectronBackendTransport | null;
+  intake: DesktopLoopbackIntake | null;
+  discoveryTimer: ReturnType<typeof setTimeout> | null;
+} = { transport: null, intake: null, discoveryTimer: null };
+
+/** Re-poll cadence while remote access is disabled/starting (cheap one-procedure
+ * check per tick; the main-side always-on loopback guarantee will remove the
+ * need for this). */
+const LOOPBACK_DISCOVERY_RETRY_MS = 30_000;
+
+/**
+ * Starts the managed window's opportunistic loopback event intake (V5 plan
+ * 2.5). Fire-and-forget: remote access may be disabled or still starting, so
+ * the coordinator polls the existing `getRemoteAccessPairing` procedure and
+ * attaches only to a loopback local endpoint carrying a pairing credential.
+ * Every failure is non-fatal — the window keeps working over the desktop-IPC
+ * relay (the fallback leg) and both connection and discovery retry in the
+ * background.
+ *
+ * No-op unless the managed Electron runtime is installed (attached and browser
+ * flavors already run their own remote stacks).
+ */
+export async function startDesktopLoopbackEventIntake(): Promise<void> {
+  const { transport } = managedLoopback;
+  if (!transport || !installedRuntime) return;
+  if (
+    installedRuntime.host !== "electron" ||
+    installedRuntime.transport !== "electron-backend-host"
+  ) {
+    return;
+  }
+  let info: DesktopPairingEndpointInfo;
+  try {
+    info =
+      (await installedRuntime.procedures.getRemoteAccessPairing()) as DesktopPairingEndpointInfo;
+  } catch {
+    scheduleLoopbackDiscoveryRetry();
+    return;
+  }
+  const target = resolveLoopbackTarget(info);
+  if (!target) {
+    scheduleLoopbackDiscoveryRetry();
+    return;
+  }
+  if (managedLoopback.intake) return;
+  const intake = new DesktopLoopbackIntake({
+    endpoint: target.endpoint,
+    pairingToken: target.pairingToken,
+    dispatch: (event) => transport.dispatchLoopbackEvent(event),
+    requestRebuild: () => transport.rebuildSubscribedState(),
+    onActiveChanged: (active) => transport.setLoopbackActive(active),
+  });
+  managedLoopback.intake = intake;
+  void intake.activate();
+}
+
+function scheduleLoopbackDiscoveryRetry(): void {
+  if (managedLoopback.discoveryTimer || managedLoopback.intake) return;
+  managedLoopback.discoveryTimer = setTimeout(() => {
+    managedLoopback.discoveryTimer = null;
+    void startDesktopLoopbackEventIntake();
+  }, LOOPBACK_DISCOVERY_RETRY_MS);
+  managedLoopback.discoveryTimer.unref?.();
+}
+
+/** Test seam: forget the managed loopback wiring. */
+export function resetDesktopLoopbackIntakeForTest(): void {
+  if (managedLoopback.discoveryTimer) {
+    clearTimeout(managedLoopback.discoveryTimer);
+    managedLoopback.discoveryTimer = null;
+  }
+  managedLoopback.intake?.dispose();
+  managedLoopback.intake = null;
+  managedLoopback.transport = null;
 }
 
 export function installBrowserClientRuntime(bridge: PoracodeBridge): void {

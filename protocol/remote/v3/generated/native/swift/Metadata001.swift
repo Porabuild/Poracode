@@ -8,8 +8,8 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 12
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 3
-  public static let sourceHash = "sha256:112b04dcf56486523614dcb74f6c2b8824e952213ed150eaa32938a461bc5757"
-  public static let manifestHash = "sha256:b90ee2f612ccb591738bbaf25dff7108ef7c503069bf01e0d8e69cae1383c41f"
+  public static let sourceHash = "sha256:b011e8c09353731b3029a221037932009a5bf0b319a6eac2e8e966ba3afe314a"
+  public static let manifestHash = "sha256:680ed19fec59987e53d1692af7ea661afebde23a8c3769f3cd280cc2417e3f24"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
   public static let portableTransformIds = ["agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim"]
@@ -205,6 +205,7 @@ public enum RemoteContractMetadata {
     .init(direction: "server", type: "browser-frame", modelType: "WebSocketServerMessageU2DOptionU2D6_8f58c1d1ac"),
     .init(direction: "server", type: "browser-mirror-status", modelType: "WebSocketServerMessageU2DOptionU2D7_0ad133ee58"),
     .init(direction: "server", type: "browser-state", modelType: "WebSocketServerMessageU2DOptionU2D5_bd23acb1d6"),
+    .init(direction: "server", type: "desktop-event", modelType: "WebSocketServerMessageU2DOptionU2D11_753ef5834e"),
     .init(direction: "server", type: "event", modelType: "WebSocketServerMessageU2DOptionU2D2_8f72d27346"),
     .init(direction: "server", type: "pong", modelType: "WebSocketServerMessageU2DOptionU2D4_17b50a5a25"),
     .init(direction: "server", type: "ready", modelType: "WebSocketServerMessageU2DOptionU2D1_13762c62f0"),

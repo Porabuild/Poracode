@@ -1,5 +1,22 @@
 {
   "compatibility": {
+    "desktopInternalStream": {
+      "admission": "loopback-origin-upgrade-opt-in",
+      "externalVisibility": "never",
+      "optInParameter": "desktopInternal",
+      "replayable": true,
+      "resumeCursorParameter": "lastDesktopSeq",
+      "sequencePolicy": {
+        "independentOfSharedEventSeq": true,
+        "missingReplayWindow": "resync-required",
+        "sendZeroLastSeenSeq": true,
+        "serverSequenceRegression": "resync-required",
+        "snapshotSeqIsLastAppliedEvent": false
+      },
+      "serverMessages": [
+        "desktop-event"
+      ]
+    },
     "discoveryFallback": [
       "/.well-known/poracode/environment",
       "/.well-known/lightcode/environment"
@@ -1325,6 +1342,7 @@
       "browser-frame",
       "browser-mirror-status",
       "browser-state",
+      "desktop-event",
       "event",
       "pong",
       "ready",
@@ -1342,7 +1360,9 @@
     "webSocketQueryParameters": [
       "ticket",
       "lastSeenSeq",
-      "threadItemInterests"
+      "threadItemInterests",
+      "desktopInternal",
+      "lastDesktopSeq"
     ]
   }
 }
