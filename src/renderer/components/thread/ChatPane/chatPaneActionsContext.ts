@@ -6,9 +6,9 @@ export type ChatPaneActions = {
   /** Owning thread — lets inline images open the thread-wide gallery. */
   threadId?: string | undefined;
   /**
-   * File-editor actions are project-scope only: Home-scope threads get a
-   * partial object (today just `openThread`), so every project-dependent
-   * field is optional and consumers must treat absence as "feature off".
+   * Open a referenced file. Project callers accept project-relative or absolute
+   * paths; Home resolves references to absolute paths on its own filesystem.
+   * Actions are optional; consumers treat absence as "feature off".
    */
   openProjectRelativePath?: ((path: string, lineNumber?: number) => Promise<void>) | undefined;
   /** Open a referenced thread; mobile supplies a route-aware implementation. */

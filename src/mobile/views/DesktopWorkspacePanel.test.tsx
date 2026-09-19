@@ -2,6 +2,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useDesktopPanelStore } from "../desktopPanelStore";
@@ -214,6 +215,30 @@ describe("DesktopWorkspacePanel", () => {
       />,
     );
     expect(showTerminalPanel).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens a Home citation without mounting or leaving behind a project file panel", async () => {
+    const homeProject = { ...project, id: HOME_PROJECT_ID, name: "Home" };
+    const homeThread = { ...thread, projectId: HOME_PROJECT_ID };
+    useDesktopPanelStore.getState().showFile(thread.id, "/tmp/report.md", 7);
+    render(
+      <DesktopWorkspacePanel
+        remote={{ ...remote, projects: [homeProject], activeThreads: [homeThread] }}
+        currentThreadId={thread.id}
+      />,
+    );
+    await waitFor(() =>
+      expect(openFileInEditor).toHaveBeenCalledExactlyOnceWith(
+        homeProject,
+        undefined,
+        undefined,
+        "/tmp/report.md",
+        7,
+      ),
+    );
+    expect(screen.queryByTestId("files-view")).not.toBeInTheDocument();
+    expect(useDesktopPanelStore.getState().open).toBe(false);
+    expect(screen.getByRole("button", { name: "Files" })).toBeDisabled();
   });
 
   it("opens file deep links through the shared desktop editor flow", async () => {

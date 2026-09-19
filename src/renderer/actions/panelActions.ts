@@ -5,7 +5,6 @@ import { friendlyError } from "@/shared/messages";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore } from "@/renderer/state/devTerminalStore";
-import { hasDirtyEditorBuffers } from "@/renderer/state/fileEditorSelectors";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { isTabBottomDocked } from "@/renderer/state/panelDockSelectors";
 import {
@@ -22,6 +21,7 @@ import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/
 import { closeThreads } from "@/renderer/utils/shellUtils";
 import { resolveActivePaneId } from "./currentProject";
 import { showTerminalPanel } from "./terminalActions";
+import { activateFileEditorContext, isFileEditorContextActive } from "./fileEditorContext";
 
 function panelContextMatchesThread(
   projectId: string,
@@ -244,23 +244,8 @@ function applyFilesPanel(
     worktreePath ? resolveWorktreeBranch(projectId, worktreePath) : undefined,
   );
 
-  const fileEditor = useFileEditorStore.getState();
-  const currentRoot = fileEditor.rootContext;
-  const isSameContext =
-    currentRoot?.projectId === context.projectId &&
-    currentRoot?.worktreePath === context.worktreePath;
-
-  if (
-    !isSameContext &&
-    hasDirtyEditorBuffers() &&
-    !window.confirm("Discard unsaved editor changes?")
-  ) {
-    return;
-  }
-
-  if (!isSameContext) {
-    fileEditor.setRootContext(context);
-  }
+  const isSameContext = isFileEditorContextActive(context);
+  if (!activateFileEditorContext(context)) return;
 
   const panelStore = usePanelStore.getState();
 

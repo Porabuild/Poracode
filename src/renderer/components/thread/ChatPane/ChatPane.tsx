@@ -18,15 +18,9 @@ import {
   finalizeFileCheckpoint,
   hydrateFileCheckpoints,
 } from "@/renderer/state/fileCheckpointActions";
-import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
-import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import {
-  buildFileEditorContext,
-  openFileInEditor,
-  resolveWorktreeBranch,
-} from "@/renderer/utils/gitHelpers";
+import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
@@ -43,7 +37,7 @@ import {
   type ChatTimelineEntry,
 } from "./chatPaneSelectors";
 import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
-import { normalizeChatProjectPath } from "./chatPathUtils";
+import { createChatPaneFileActions } from "./chatPaneFileActions";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
 import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
@@ -161,57 +155,27 @@ export function ChatPane(props: ChatPaneProps) {
   }, [onOpenThread]);
   const paneActions: ChatPaneActions | null = useMemo(() => {
     const openThread = (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId);
-    // Home scope has no project file context, but a referenced thread can
-    // still be opened — the only action a Home thread gets.
-    if (isHomeScope) return hasOpenThread ? { openThread, threadId } : { threadId };
-    if (!project || !targetContext) return null;
-    return {
+    const contentActions: ChatPaneActions = {
       threadId,
-      openProjectRelativePath: async (path, lineNumber) => {
-        const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
-        const resolvedPath = await resolveBareBasename(
-          normalized,
-          targetContext.projectLocation,
-          projectRootNames,
-        );
-        if (onOpenProjectRelativePath) {
-          onOpenProjectRelativePath(resolvedPath, lineNumber);
-          return;
-        }
-        await openFileInEditor(project, worktreePath, branch, resolvedPath, lineNumber);
-      },
       ...(hasOpenThread ? { openThread } : {}),
-      revealProjectFolderInTree: (path) => {
-        const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
-        if (onRevealProjectFolderInTree) {
-          onRevealProjectFolderInTree(normalized);
-          return;
-        }
-        const fileEditor = useFileEditorStore.getState();
-        const currentRoot = fileEditor.rootContext;
-        const isSameContext =
-          currentRoot?.projectId === targetContext.projectId &&
-          currentRoot?.worktreePath === targetContext.worktreePath;
-        if (!isSameContext) {
-          fileEditor.setRootContext(targetContext);
-        }
-        if (fileEditor.overlayMode !== "fullscreen") {
-          fileEditor.setOverlayMode("modal");
-        }
-        const ancestors = collectPathAncestors(normalized);
-        useProjectTreeStore.getState().expandMany(ancestors);
-      },
-      ...(canShowProjectEntryInExplorer === false
-        ? {}
-        : {
-            showProjectEntryInExplorer: (path: string) => {
-              const normalized = normalizeChatProjectPath(path, targetContext.projectLocation);
-              void readBridge().revealProjectEntry({
-                projectLocation: targetContext.projectLocation,
-                path: normalized,
-              });
-            },
-          }),
+      ...(formatTranscriptMarkdown ? { formatTranscriptMarkdown } : {}),
+    };
+    if (!project || !targetContext) return contentActions;
+    const fileActions = createChatPaneFileActions({
+      project,
+      targetContext,
+      worktreePath,
+      branch,
+      projectRootNames,
+      onOpenProjectRelativePath,
+      onRevealProjectFolderInTree,
+      canShowProjectEntryInExplorer,
+    });
+    // Home can open individual files without enabling project tree or checkpoint actions.
+    if (isHomeScope) return { ...contentActions, ...fileActions };
+    return {
+      ...contentActions,
+      ...fileActions,
       onContentHeightChange: () => scrollControlsRef.current?.onContentHeightChange(),
       isStickToBottom: () => scrollControlsRef.current?.isStickToBottom() ?? false,
       hasRecentUserScrollIntent: () =>
@@ -222,10 +186,7 @@ export function ChatPane(props: ChatPaneProps) {
       registerVirtualScrollToBottom: (handler) => {
         virtualScrollToBottomRef.current = handler;
       },
-      projectLocation: targetContext.projectLocation,
-      projectRootNames,
       ...(markdownImageRoots ? { markdownImageRoots } : {}),
-      ...(formatTranscriptMarkdown ? { formatTranscriptMarkdown } : {}),
       ...(thread.remoteServerId
         ? {
             remoteLocalImageUrl: (url: string) => {
@@ -561,16 +522,6 @@ function isScrollNavigationKey(key: string): boolean {
   );
 }
 
-/** ["", "src", "src/foo", "src/foo/bar"] for "src/foo/bar". Empty string is the tree root. */
-function collectPathAncestors(path: string): string[] {
-  const segments = path.split("/").filter(Boolean);
-  const ancestors: string[] = [""];
-  for (let i = 0; i < segments.length; i++) {
-    ancestors.push(segments.slice(0, i + 1).join("/"));
-  }
-  return ancestors;
-}
-
 function isCompletedTurnAnchorAtTimelineTail(
   anchorItemId: string | null,
   entries: readonly ChatTimelineEntry[],
@@ -626,34 +577,4 @@ function findBaseCheckpointItemId(
     if (itemsById?.[itemId]?.type === "user_message") return itemId;
   }
   return null;
-}
-
-/**
- * When a chat chip carries a bare basename (no directory separator, not
- * absolute) that is NOT a top-level project entry, attempt to resolve it to a
- * real project-relative path via the file search index. Returns the original
- * path unchanged when it already contains a separator, is absolute, or is a
- * known root entry (those resolve directly). Throws when the basename cannot
- * be found so the chip can switch to an inert visual.
- */
-async function resolveBareBasename(
-  path: string,
-  projectLocation: ProjectLocation,
-  rootNames: ReadonlySet<string> | undefined,
-): Promise<string> {
-  const hasSeparator = path.includes("/") || path.includes("\\");
-  const isAbsolute = path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
-  if (hasSeparator || isAbsolute) return path;
-  if (rootNames?.has(path)) return path;
-
-  const result = await readBridge().searchProjectFiles({
-    projectLocation,
-    query: path,
-    limit: 5,
-  });
-  const exact = result.entries.find(
-    (e) => e.type === "file" && e.name.toLowerCase() === path.toLowerCase(),
-  );
-  if (exact) return exact.path;
-  throw new Error(`File not found: ${path}`);
 }

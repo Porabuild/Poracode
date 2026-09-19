@@ -73,7 +73,7 @@ export function useOpenFile(props: {
   readonly initialLineNumber?: number | undefined;
   readonly initialOpenKey?: string | undefined;
   readonly onImmersiveChange?: (immersive: boolean) => void;
-  readonly revealFolder: (path: string) => Promise<void>;
+  readonly revealFolder?: ((path: string) => Promise<void>) | undefined;
 }): OpenFileApi {
   const { t } = useLingui();
   const [openFile, setOpenFile] = useState<OpenFileState | null>(null);
@@ -201,7 +201,7 @@ export function useOpenFile(props: {
         }
       });
     } else if (props.initialFolderPath) {
-      void props.revealFolder(props.initialFolderPath);
+      void props.revealFolder?.(props.initialFolderPath);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- open the route-provided path once per target key
   }, [

@@ -1,29 +1,24 @@
 import { useRef, useState, type CSSProperties } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import {
-  ChevronLeft,
   ChevronRight,
   FilePlus2,
   FolderPlus,
   Loader2,
   Pencil,
-  Save,
   Search,
   Trash2,
   X,
 } from "lucide-react";
-import type {
-  AbsoluteFileReadStatus,
-  Project,
-  ProjectLocation,
-  ProjectTreeEntry,
-} from "@/shared/contracts";
+import type { Project, ProjectLocation, ProjectTreeEntry } from "@/shared/contracts";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { getEntryIconUrl } from "@/renderer/components/common/fileIcons";
 import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { screenStateTransition } from "../navHelpers";
 import { useGuardedInputKeyboard } from "../useGuardedInputKeyboard";
-import { HighlightedEditor } from "../HighlightedEditor";
-import { BottomSheet, Fab, useSheet } from "../components";
+import { BottomSheet, useSheet } from "../components";
+import { HomeFileView } from "./HomeFileView";
+import { MobileFileEditor } from "./MobileFileEditor";
 import { parentPath, useFileTree } from "./useFileTree";
 import { useOpenFile } from "./useOpenFile";
 
@@ -39,13 +34,6 @@ function locationKey(location: ProjectLocation): string {
   return `${location.kind}:${location.path}`;
 }
 
-function fileStatusMessage(status: AbsoluteFileReadStatus) {
-  if (status === "missing") return <Trans>File no longer exists on disk.</Trans>;
-  if (status === "binary") return <Trans>Binary files can't be edited here.</Trans>;
-  if (status === "too_large") return <Trans>This file is too large for the built-in editor.</Trans>;
-  return <Trans>This file uses an unsupported encoding.</Trans>;
-}
-
 /**
  * The "Files" tab of the unified workspace panel: a project/worktree file tree
  * with search and a lightweight inline editor. Like the Changes pane it owns no
@@ -53,7 +41,7 @@ function fileStatusMessage(status: AbsoluteFileReadStatus) {
  * {@link WorkspaceView} shell — and reports its busy/immersive (a file is open)
  * state up so the shell can drive the shared header.
  */
-export function FilesView(props: {
+export interface FilesViewProps {
   readonly target: FilesTarget;
   /** Bumped by the shell's refresh button to reload the tree root. */
   readonly refreshSignal: number;
@@ -65,7 +53,19 @@ export function FilesView(props: {
   readonly onRefreshingChange?: (refreshing: boolean) => void;
   /** True while the inline editor is open (the shell hides its chrome then). */
   readonly onImmersiveChange?: (immersive: boolean) => void;
-}) {
+  /** Home returns to its caller rather than exposing a project file browser. */
+  readonly onClose?: (() => void) | undefined;
+}
+
+export function FilesView(props: FilesViewProps) {
+  return isHomeProjectId(props.target.project.id) ? (
+    <HomeFileView {...props} />
+  ) : (
+    <ProjectFilesView {...props} />
+  );
+}
+
+function ProjectFilesView(props: FilesViewProps) {
   const { t } = useLingui();
   const rootKey = `${props.target.project.id}:${props.target.worktreePath ?? ""}:${locationKey(
     props.target.projectLocation,
@@ -108,8 +108,7 @@ export function FilesView(props: {
     ...(props.onImmersiveChange ? { onImmersiveChange: props.onImmersiveChange } : {}),
     revealFolder,
   });
-  const { openFile, isDirty, saving, openPath, saveOpenFile, closeEditor, setOpenFileContent } =
-    openFileHook;
+  const { openFile, openPath, closeEditor } = openFileHook;
 
   // The bottom search bar sits at the screen edge; a natively tap-focused
   // input there makes iOS pan the whole layout viewport. Run the composer's
@@ -132,48 +131,17 @@ export function FilesView(props: {
     <div className="m-ws-pane">
       <div className="m-files-body">
         {openFile ? (
-          <div className="m-files-editor">
-            <header className="m-files-editor__head">
-              <button
-                className="m-back"
-                type="button"
-                aria-label={t`Back to files`}
-                onClick={closeEditor}
-              >
-                <ChevronLeft className="size-5" />
-              </button>
-              <span className="m-files-editor__path" title={openFile.path}>
-                {openFile.path}
-                {isDirty ? " *" : ""}
-              </span>
-            </header>
-            {openFile.isLoading ? (
-              <div className="m-files-status">
-                <Loader2 className="size-5 m-spin" />
-                <Trans>Loading…</Trans>
-              </div>
-            ) : openFile.status === "ready" ? (
-              <HighlightedEditor
-                value={openFile.content}
-                path={openFile.path}
-                {...(openFile.path === props.initialFilePath && props.initialLineNumber
-                  ? { initialLineNumber: props.initialLineNumber }
-                  : {})}
-                {...(openFile.readOnly ? { readOnly: true } : {})}
-                onChange={(next) => setOpenFileContent(openFile.path, next)}
-              />
-            ) : (
-              <div className="m-files-status">{fileStatusMessage(openFile.status)}</div>
-            )}
-            {!openFile.readOnly && openFile.status === "ready" && !openFile.isLoading ? (
-              <Fab
-                label={t`Save`}
-                disabled={!isDirty || saving}
-                onPress={() => void saveOpenFile()}
-                icon={saving ? <Loader2 className="size-5 m-spin" /> : <Save className="size-5" />}
-              />
-            ) : null}
-          </div>
+          <MobileFileEditor
+            fileApi={openFileHook}
+            backLabel={t`Back to files`}
+            onClose={closeEditor}
+            {...(props.initialFilePath !== undefined
+              ? { initialFilePath: props.initialFilePath }
+              : {})}
+            {...(props.initialLineNumber !== undefined
+              ? { initialLineNumber: props.initialLineNumber }
+              : {})}
+          />
         ) : (
           <div className="m-files-tree">
             <div className="m-files-list">

@@ -2,6 +2,7 @@ import { toast } from "@heroui/react";
 import type { Project } from "@/shared/contracts";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
+import { activateFileEditorContext } from "@/renderer/actions/fileEditorContext";
 import { updateProjectScripts } from "@/renderer/actions/projectActions";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -96,13 +97,7 @@ export async function openFileInEditor(
   if (project.remoteServerId && (path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path))) return;
   const fileEditor = useFileEditorStore.getState();
   const targetContext = buildFileEditorContext(project, worktreePath, worktreeBranch);
-  const currentRoot = fileEditor.rootContext;
-  const isSameContext =
-    currentRoot?.projectId === targetContext.projectId &&
-    currentRoot?.worktreePath === targetContext.worktreePath;
-  if (!isSameContext) {
-    fileEditor.setRootContext(targetContext);
-  }
+  if (!activateFileEditorContext(targetContext)) return;
   const openOptions = typeof options === "number" ? { lineNumber: options } : options;
   let gitDiff: { diff: string } | undefined;
   if (openOptions?.gitDiff && shouldOpenGitDiffEditor(openOptions.gitDiff.status)) {
