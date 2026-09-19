@@ -1,7 +1,7 @@
 import { type Socket } from "node:net";
 import { WebSocket } from "ws";
 import { type RealHostHandle } from "../harness/realHost.ts";
-import { issueTicket } from "./testClient.ts";
+import { httpRequestJson, issueTicket } from "./testClient.ts";
 import { TerminalWatchRecorder, type TerminalWatchState } from "./terminalWatchRecorder.ts";
 
 /**
@@ -180,7 +180,11 @@ export class ProfileClient {
     readonly lastSeenSeq?: number | undefined;
   }): Promise<ProfileClient> {
     const { handle, label } = input;
-    const ticket = await issueTicket(handle.httpBaseUrl, input.accessToken);
+    const ticket = await issueTicket(
+      handle.httpBaseUrl,
+      input.accessToken,
+      handle.originHostHeader,
+    );
     if (ticket.status !== 200 || !ticket.ticket) {
       throw new Error(`${label}: websocket ticket failed with status ${String(ticket.status)}.`);
     }
@@ -190,7 +194,15 @@ export class ProfileClient {
       url.searchParams.set("lastSeenSeq", String(input.lastSeenSeq));
     }
     // Observers attach in the constructor, strictly before any open/message.
-    const client = new ProfileClient(handle, label, input.accessToken, new WebSocket(url));
+    // Proxy-wrapped handles present the origin's Host header on the upgrade.
+    const client = new ProfileClient(
+      handle,
+      label,
+      input.accessToken,
+      new WebSocket(url, {
+        ...(handle.originHostHeader ? { headers: { host: handle.originHostHeader } } : {}),
+      }),
+    );
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
@@ -261,14 +273,26 @@ export class ProfileClient {
     this.metrics.httpRequests += 1;
     this.metrics.httpRequestBodyBytes +=
       requestBody === undefined ? 0 : Buffer.byteLength(requestBody);
-    const response = await fetch(new URL(path, this.handle.httpBaseUrl), {
-      ...(init?.method ? { method: init.method } : {}),
-      ...(requestBody === undefined ? {} : { body: requestBody }),
-      headers: {
-        authorization: `Bearer ${this.accessToken}`,
-        ...(init?.body === undefined ? {} : { "content-type": "application/json" }),
-      },
-    });
+    // Proxy-wrapped handles name the origin for the Host gate (4.7); fetch()
+    // drops the spec-forbidden Host header, so those dials use node:http.
+    const response = this.handle.originHostHeader
+      ? await httpRequestJson(new URL(path, this.handle.httpBaseUrl), {
+          ...(init?.method ? { method: init.method } : {}),
+          ...(requestBody === undefined ? {} : { body: requestBody }),
+          headers: {
+            authorization: `Bearer ${this.accessToken}`,
+            ...(init?.body === undefined ? {} : { "content-type": "application/json" }),
+            host: this.handle.originHostHeader,
+          },
+        })
+      : await fetch(new URL(path, this.handle.httpBaseUrl), {
+          ...(init?.method ? { method: init.method } : {}),
+          ...(requestBody === undefined ? {} : { body: requestBody }),
+          headers: {
+            authorization: `Bearer ${this.accessToken}`,
+            ...(init?.body === undefined ? {} : { "content-type": "application/json" }),
+          },
+        });
     let body: unknown = {};
     const responseBytes = Buffer.from(await response.arrayBuffer());
     this.metrics.httpResponseBodyBytes += responseBytes.length;

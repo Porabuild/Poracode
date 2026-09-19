@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { createConnection } from "node:net";
+import { request } from "node:http";
 import { WebSocket } from "ws";
 import { HARNESS_AUTHORIZATION_SCHEME } from "../harness/constants.ts";
 import { startMockHarness, type StartedMockHarness } from "../harness/startMockHarness.ts";
@@ -63,11 +64,22 @@ export async function exchangeToken(
 export async function issueTicket(
   httpBaseUrl: string,
   accessToken: string,
+  originHostHeader?: string,
 ): Promise<{ ticket: string; status: number; body: unknown }> {
-  const response = await fetch(new URL("api/auth/websocket-ticket", httpBaseUrl), {
-    method: "POST",
-    headers: { authorization: `Bearer ${accessToken}` },
-  });
+  // fetch() silently drops the spec-forbidden Host header (verified against
+  // undici), so origin-named dials go through node:http, which honors it.
+  const response = originHostHeader
+    ? await httpRequestJson(new URL("api/auth/websocket-ticket", httpBaseUrl), {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          host: originHostHeader,
+        },
+      })
+    : await fetch(new URL("api/auth/websocket-ticket", httpBaseUrl), {
+        method: "POST",
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
   const body = await readJson(response);
   return {
     status: response.status,
@@ -77,6 +89,53 @@ export async function issueTicket(
         ? (body as { ticket: string }).ticket
         : "",
   };
+}
+
+/** node:http request with an explicit Host header; fetch-compatible result. */
+export function httpRequestJson(
+  url: URL,
+  init: {
+    readonly method?: string;
+    readonly headers?: Record<string, string>;
+    readonly body?: string;
+  },
+): Promise<{ status: number; arrayBuffer(): Promise<ArrayBuffer>; text(): Promise<string> }> {
+  return new Promise((resolve, reject) => {
+    const req = request(
+      url,
+      {
+        ...(init.method ? { method: init.method } : {}),
+        // One connection per request: the global agent pools sockets the
+        // constrained shaper tears down between calls, and reuse then fails
+        // with ECONNRESET mid-test.
+        agent: false,
+        headers: {
+          ...init.headers,
+          // HTTP/1.1 requires length delimiting: without it a POST makes the
+          // server wait for a body it will never receive (undici always
+          // sends content-length: 0; node:http does not).
+          "content-length": String(Buffer.byteLength(init.body ?? "")),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("error", reject);
+        res.on("end", () => {
+          const body = Buffer.concat(chunks);
+          resolve({
+            status: res.statusCode ?? 0,
+            arrayBuffer: async () =>
+              body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer,
+            text: async () => body.toString("utf8"),
+          });
+        });
+      },
+    );
+    req.on("error", reject);
+    if (init.body !== undefined) req.write(init.body);
+    req.end();
+  });
 }
 
 export async function pairAndAuth(
@@ -102,7 +161,11 @@ const bufferedSockets = new WeakMap<WebSocket, BufferedSocket>();
 export function openSocket(
   wsBaseUrl: string,
   ticket: string,
-  query?: { lastSeenSeq?: number; threadItemInterests?: readonly string[] },
+  query?: {
+    lastSeenSeq?: number;
+    threadItemInterests?: readonly string[];
+    desktopInternal?: boolean;
+  },
 ): WebSocket {
   return openBufferedSocket(wsBaseUrl, ticket, query).ws;
 }
@@ -110,7 +173,11 @@ export function openSocket(
 export function openBufferedSocket(
   wsBaseUrl: string,
   ticket: string,
-  query?: { lastSeenSeq?: number; threadItemInterests?: readonly string[] },
+  query?: {
+    lastSeenSeq?: number;
+    threadItemInterests?: readonly string[];
+    desktopInternal?: boolean;
+  },
 ): BufferedSocket {
   const url = new URL("ws", wsBaseUrl);
   url.searchParams.set("ticket", ticket);
@@ -119,6 +186,9 @@ export function openBufferedSocket(
   }
   if (query?.threadItemInterests) {
     url.searchParams.set("threadItemInterests", JSON.stringify(query.threadItemInterests));
+  }
+  if (query?.desktopInternal === true) {
+    url.searchParams.set("desktopInternal", "1");
   }
   const ws = new WebSocket(url);
   const queued: unknown[] = [];
@@ -178,7 +248,11 @@ export function readWsMessage(ws: WebSocket, timeoutMs = 3_000): Promise<unknown
 export async function openReadySocket(
   harness: StartedMockHarness,
   accessToken: string,
-  query?: { lastSeenSeq?: number; threadItemInterests?: readonly string[] },
+  query?: {
+    lastSeenSeq?: number;
+    threadItemInterests?: readonly string[];
+    desktopInternal?: boolean;
+  },
 ): Promise<{ ws: WebSocket; ready: unknown; next: () => Promise<unknown> }> {
   const ticket = await issueTicket(harness.httpBaseUrl, accessToken);
   if (ticket.status !== 200) throw new Error(`ticket failed: ${JSON.stringify(ticket.body)}`);
@@ -238,7 +312,7 @@ export function postChunked(
   });
 }
 
-async function readJson(response: Response): Promise<unknown> {
+async function readJson(response: Response | { text(): Promise<string> }): Promise<unknown> {
   const text = await response.text();
   if (!text.trim()) return {};
   try {

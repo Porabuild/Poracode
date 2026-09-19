@@ -44,9 +44,9 @@ always deletes `secrets/`.
 
 ## Coverage
 
-`harness/operation-map.json` locks the 226 manifest-derived keys (67 routes,
-108 procedures, 9 client WS, 10 server WS, 16 replay, 16 runtime). The mock-host
-profile positively covers all 207 operations with schema-validated generated
+`harness/operation-map.json` locks the 227 manifest-derived keys (67 routes,
+108 procedures, 9 client WS, 11 server WS, 16 replay, 16 runtime). The mock-host
+profile positively covers all 227 operations with schema-validated generated
 requests, producer-shaped procedure goldens, stateful route/procedure fixtures,
 binary image bytes, raw upload bytes, and a real 302 forward-entry exchange.
 There are no residual operation-level mock gaps. Loading or negatively

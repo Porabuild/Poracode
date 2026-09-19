@@ -28,12 +28,12 @@ const EXPECTED_COUNTS = {
   route: 67,
   procedure: 108,
   "ws-client": 9,
-  "ws-server": 10,
+  "ws-server": 11,
   replay: 16,
   runtime: 16,
 } as const;
 
-export const EXPECTED_OPERATION_KEY_COUNT = 226;
+export const EXPECTED_OPERATION_KEY_COUNT = 227;
 
 interface ProtocolInventoryHeader {
   readonly sourceHash: string;

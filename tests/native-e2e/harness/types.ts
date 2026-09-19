@@ -135,6 +135,7 @@ export interface EmitRequest {
     | "runtime"
     | "terminal-output"
     | "resync-required"
+    | "desktop-event"
     | "malformed"
     | "unknown";
   readonly eventType?: string;
@@ -144,6 +145,8 @@ export interface EmitRequest {
   readonly terminalId?: string;
   readonly data?: string;
   readonly reason?: string;
+  /** Desktop-only supervisor event payload carried by `desktop-event`. */
+  readonly desktopEvent?: Record<string, unknown>;
 }
 
 export interface WireLabOptions {

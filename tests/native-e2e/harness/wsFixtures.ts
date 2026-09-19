@@ -68,11 +68,22 @@ export const BROWSER_SERVER_FIXTURES = [
   },
 ] as const;
 
+export const DESKTOP_INTERNAL_SERVER_FIXTURES = [
+  {
+    type: "desktop-event",
+    seq: 1,
+    event: { type: "thread-state", threadId: FIXTURE_THREAD_ID },
+  },
+] as const;
+
 export function assertWebSocketFixtures(): void {
   for (const fixture of Object.values(CLIENT_WS_FIXTURES)) {
     remoteWebSocketClientMessageSchema.parse(fixture);
   }
   for (const fixture of BROWSER_SERVER_FIXTURES) {
+    remoteWebSocketServerMessageSchema.parse(fixture);
+  }
+  for (const fixture of DESKTOP_INTERNAL_SERVER_FIXTURES) {
     remoteWebSocketServerMessageSchema.parse(fixture);
   }
 }

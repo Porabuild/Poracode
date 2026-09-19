@@ -20,6 +20,7 @@ export function createWireLabRuntime(lab: WireLab): LabRuntime {
     httpBaseUrl: lab.httpBaseUrl,
     wsBaseUrl: lab.wsBaseUrl,
     allocateConnectionIdentity: (authSessionId) => lab.allocateConnectionIdentity(authSessionId),
+    allocateDesktopSeq: () => lab.allocateDesktopSeq(),
     environment: () =>
       buildEnvironmentDescriptor({
         httpBaseUrl: lab.httpBaseUrl,

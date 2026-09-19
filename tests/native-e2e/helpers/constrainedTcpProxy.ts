@@ -268,6 +268,9 @@ export class ConstrainedTcpProxy {
       httpBaseUrl: this.httpBaseUrl,
       wsBaseUrl: this.wsBaseUrl,
       hostPort: this.portValue,
+      // Dial URLs carry the proxy's port; the server's Host gate (4.7) admits
+      // loopback literals only with the origin's OWN bound port.
+      originHostHeader: `127.0.0.1:${handle.hostPort}`,
       get entrypoint() {
         return handle.entrypoint;
       },

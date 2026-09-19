@@ -3,13 +3,13 @@
   "contract": "poracode.remote",
   "protocolVersion": 12,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:77958ade1fc2b56205afdcf9335e6af895ecea4232e168fcd71edbfe8cc9ef50",
-  "keyCount": 226,
+  "manifestHash": "sha256:3717a5ed5999ad206f7aa8edb43d52ec50850a98a80550c7f897f18c61a89bf6",
+  "keyCount": 227,
   "counts": {
     "route": 67,
     "procedure": 108,
     "ws-client": 9,
-    "ws-server": 10,
+    "ws-server": 11,
     "replay": 16,
     "runtime": 16
   },
@@ -889,6 +889,10 @@
     "ws-server:browser-state": {
       "kind": "ws-server",
       "id": "browser-state"
+    },
+    "ws-server:desktop-event": {
+      "kind": "ws-server",
+      "id": "desktop-event"
     },
     "ws-server:event": {
       "kind": "ws-server",

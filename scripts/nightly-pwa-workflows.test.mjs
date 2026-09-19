@@ -96,6 +96,7 @@ void test("native qualification preserves every existing contract, build, and fo
     "android_api26_runtime",
     "android_api37_runtime",
     "ios",
+    "ios_ui",
     "native_e2e_foundation",
     "remote_v3_contract",
   ]);

@@ -20,6 +20,11 @@ export interface LabConnection {
   readonly terminalWatches: Set<string>;
   browserWatching: boolean;
   gitStateInterests: readonly Record<string, unknown>[];
+  /** True when the `/ws` upgrade opted into the desktop-internal stream
+   * (`?desktopInternal=1`). The wire lab only admits loopback peers, which is
+   * exactly the real server's admission gate, so the flag is honored as-is;
+   * ordinary native clients never set it and never observe desktop frames. */
+  desktopInternal: boolean;
 }
 
 export interface LabRuntime {
@@ -40,6 +45,9 @@ export interface LabRuntime {
     readonly socketId: string;
     readonly sessionId: string;
   };
+  /** Next monotonic cursor for the desktop-internal stream, independent of
+   * the shared replayable `event` sequence (protocolFacts.desktopInternalStream). */
+  allocateDesktopSeq(): number;
   environment(): Record<string, unknown>;
   publishEvent(event: Record<string, unknown>): number;
   send(ws: WebSocket, message: Record<string, unknown>): void;
