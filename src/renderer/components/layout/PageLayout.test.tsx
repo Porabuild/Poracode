@@ -20,6 +20,12 @@ vi.mock("@/renderer/bridge", () => ({
 
 vi.mock("@/renderer/clientRuntime", () => ({
   isBrowserClientRuntime: () => !window.poracodeHost,
+  hasAnyClientBridge: () =>
+    Boolean(
+      (window as { poracode?: unknown }).poracode ??
+      (window as { poracodeHost?: unknown }).poracodeHost,
+    ),
+  hasElectronHostBridge: () => Boolean((window as { poracodeHost?: unknown }).poracodeHost),
 }));
 
 describe("PageLayout compact navigation", () => {

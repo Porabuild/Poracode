@@ -1,7 +1,7 @@
 import { setRemoteBridgeClient } from "@/renderer/browser/remoteBridge";
 import { setBrowserSocketSender } from "@/renderer/browser/browserMirror";
 import { applyDesktopSettings, resetDesktopSettings } from "@/renderer/browser/remoteSettingsSync";
-import { readClientRuntime } from "@/renderer/clientRuntime";
+import { hasAnyClientBridge, readClientRuntime } from "@/renderer/clientRuntime";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { getRemoteServerEventSocketEntry } from "./eventSocketRegistry";
@@ -54,7 +54,7 @@ function selectBrowserBridgeClientServer(
  * when the selected browser transport terminates at an Electron desktop host. */
 export function selectBrowserPanelAvailable(state: RemoteServersState): boolean {
   if (typeof window === "undefined") return false;
-  if (!window.poracodeHost && !window.poracode) return true;
+  if (!hasAnyClientBridge()) return true;
   const runtime = readClientRuntime();
   if (runtime.host === "electron") return runtime.capabilities.nativeBrowserWebContents;
   const selected = selectBrowserBridgeServer(state);
@@ -62,7 +62,7 @@ export function selectBrowserPanelAvailable(state: RemoteServersState): boolean 
 }
 
 export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void {
-  if (typeof window === "undefined" || (!window.poracodeHost && !window.poracode)) return;
+  if (!hasAnyClientBridge()) return;
   const runtime = readClientRuntime();
   // Browser PWA and attached Electron both run the remote-http-websocket
   // transport against a paired owner; managed Electron (electron-backend-host)
@@ -127,11 +127,7 @@ export function __resetBrowserBridgeForTest(): void {
   desktopBrowserBridgeClientKey = null;
   desktopBrowserMirrorSocket = null;
   setBrowserSocketSender(null);
-  if (
-    typeof window !== "undefined" &&
-    (!!window.poracodeHost || !!window.poracode) &&
-    readClientRuntime().host === "browser"
-  ) {
+  if (hasAnyClientBridge() && readClientRuntime().host === "browser") {
     setRemoteBridgeClient(null);
   }
 }

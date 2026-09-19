@@ -27,6 +27,12 @@ const clipboard = vi.hoisted(() => ({ readText: vi.fn<() => Promise<string>>() }
 vi.mock("@/renderer/clientRuntime", () => ({
   hasClientCapability: (capability: string) =>
     capability === "nativeSsh" ? capabilities.nativeSsh : false,
+  hasAnyClientBridge: () =>
+    Boolean(
+      (window as { poracode?: unknown }).poracode ??
+      (window as { poracodeHost?: unknown }).poracodeHost,
+    ),
+  hasElectronHostBridge: () => Boolean((window as { poracodeHost?: unknown }).poracodeHost),
 }));
 
 vi.mock("@/renderer/state/remoteServersStore", () => ({

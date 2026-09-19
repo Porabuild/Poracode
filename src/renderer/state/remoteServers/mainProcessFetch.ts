@@ -1,6 +1,6 @@
 import { msg as sharedMsg } from "@/shared/messages";
 import { RemoteClientError, type RemoteFetch } from "@/shared/remote/client";
-import { readClientRuntime } from "@/renderer/clientRuntime";
+import { hasAnyClientBridge, readClientRuntime } from "@/renderer/clientRuntime";
 import { remoteHttpBridgeFetch } from "./remoteHttpBridgeClient";
 
 function isAbortError(error: unknown): boolean {
@@ -16,7 +16,7 @@ function isAbortError(error: unknown): boolean {
  * later call opens a fresh request.
  */
 export const mainProcessFetch: RemoteFetch = async (url, init) => {
-  if ((window.poracodeHost || window.poracode) && readClientRuntime().host === "browser") {
+  if (hasAnyClientBridge() && readClientRuntime().host === "browser") {
     try {
       const body =
         typeof init?.body === "string"

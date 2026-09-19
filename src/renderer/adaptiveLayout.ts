@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { hasElectronHostBridge } from "./clientRuntime";
 import { markMobilePlatformOnRoot } from "./components/mobileComposer/mobilePlatform";
 import { markTouchCapabilityOnRoot } from "./components/mobileComposer/pointerModality";
 import { isStandaloneDisplay } from "./pwa/install";
@@ -27,7 +28,7 @@ function mediaQuery(query: string): MediaQueryList | null {
 }
 
 function supportsCompactLayout(): boolean {
-  return typeof window !== "undefined" && window.poracodeHost === undefined;
+  return !hasElectronHostBridge();
 }
 
 function readCompactLayoutFromEnvironment(): boolean {

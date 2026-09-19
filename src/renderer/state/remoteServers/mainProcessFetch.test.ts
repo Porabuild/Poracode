@@ -13,6 +13,7 @@ vi.mock("./remoteHttpBridgeClient", () => ({
 const runtimeState = vi.hoisted(() => ({ host: "electron" as "electron" | "browser" }));
 vi.mock("@/renderer/clientRuntime", () => ({
   readClientRuntime: () => ({ host: runtimeState.host }),
+  hasAnyClientBridge: () => window.poracodeHost !== undefined || window.poracode !== undefined,
 }));
 
 describe("remote server fetch transport", () => {

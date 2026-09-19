@@ -4,6 +4,7 @@ import type { NotesTodoItem } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import { isRemoteTransportFailure } from "@/shared/remote/client";
 import { readBridge } from "@/renderer/bridge";
+import { hasAnyClientBridge } from "@/renderer/clientRuntime";
 
 export type NotesLoadStatus = "unloaded" | "loading" | "ready";
 
@@ -38,10 +39,7 @@ const persistedEntries = new Map<string, ProjectNotesEntry>();
 let sessionGeneration = 0;
 
 function hasBridge(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    (window.poracodeHost !== undefined || window.poracode !== undefined)
-  );
+  return hasAnyClientBridge();
 }
 
 function makeTodoId(): string {

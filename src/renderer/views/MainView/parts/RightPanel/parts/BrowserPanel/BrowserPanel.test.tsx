@@ -24,6 +24,9 @@ vi.mock("@/renderer/adaptiveLayout", async (importOriginal) => ({
 
 vi.mock("@/renderer/clientRuntime", () => ({
   hasClientCapability: () => clientCapabilities.nativeBrowserWebContents,
+  // Electron-shell surface fact: this suite exercises the Electron flavor.
+  hasElectronHostBridge: () => true,
+  hasAnyClientBridge: () => true,
 }));
 
 vi.mock("./hooks/useElementPicker", () => ({

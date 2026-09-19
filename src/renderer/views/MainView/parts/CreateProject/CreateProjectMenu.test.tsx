@@ -19,6 +19,12 @@ vi.mock("@/renderer/bridge", () => ({
 vi.mock("@/renderer/clientRuntime", () => ({
   hasClientCapability: () => mocks.localBackend,
   isCompactClientRuntimeSurface: () => false,
+  hasAnyClientBridge: () =>
+    Boolean(
+      (window as { poracode?: unknown }).poracode ??
+      (window as { poracodeHost?: unknown }).poracodeHost,
+    ),
+  hasElectronHostBridge: () => Boolean((window as { poracodeHost?: unknown }).poracodeHost),
 }));
 
 import { CreateProjectMenu } from "./CreateProjectMenu";

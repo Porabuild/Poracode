@@ -1,4 +1,4 @@
-import { isThreadTurnActive, type RuntimeEvent, type Thread } from "@/shared/contracts";
+import { isThreadTurnActive, type Thread } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { RemoteGitSummaries, RemoteThreadSnapshot } from "@/shared/remote";
@@ -30,9 +30,10 @@ import { shouldReplaceRuntimeItemsFromSnapshot } from "./guards";
 import { snapshotOlderThanAppliedSeq } from "./snapshotSeqArbitration";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCache";
-import { evictOversizedInactiveThreadRuntimeItems } from "../chatRuntimePersister";
-import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
-import { RuntimeEventQueue } from "../runtimeEventQueue";
+import {
+  createSupervisorEventReducer,
+  type SupervisorEventSideEffects,
+} from "./reducers/supervisorEventReducer";
 
 /**
  * Feeds remote snapshots and live WebSocket events into the same Zustand
@@ -115,9 +116,7 @@ export function applyThreadSnapshot(
   // A delta can already be in the JS event queue when the foreground recovery
   // snapshot resolves. Apply it before comparing/replacing the transcript so
   // the decision observes every event received up to this point.
-  if (pendingRuntimeEvents.has(threadId)) {
-    flushPendingRuntimeEventsSync(threadId);
-  }
+  supervisorReducer.flushSync(threadId);
   const state = useAppStore.getState();
   syncThreadMetadataFromSnapshot(snapshot, options);
 
@@ -478,104 +477,12 @@ function syncRuntimeRequestsFromSnapshot(
 }
 
 // ── Live supervisor event dispatch ──────────────────────────────
-// Mirrors the renderer's module-level IPC listener (src/renderer/app.tsx):
-// visible runtime events are coalesced per animation frame so streaming text
-// cannot re-render faster than the display refreshes. Background threads flush
-// four times per second so several concurrent streams do not saturate the UI.
-
-const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
-const pendingRuntimeEvents = new RuntimeEventQueue();
-const runtimeRecoveryInFlight = new Set<string>();
-const runtimeRecoveryInvalidated = new Set<string>();
-let runtimeFlushHandle: number | null = null;
-let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
-let removeRuntimeSchedulingListeners: (() => void) | null = null;
-
-function isForegroundRuntimeThread(threadId: string): boolean {
-  if (document.visibilityState === "hidden") return false;
-  return isThreadVisible(useAppStore.getState().view, threadId);
-}
-
-function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): void {
-  const store = useAppStore.getState();
-  const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
-  batches.push(...pendingRuntimeEvents.drain(shouldFlush));
-  if (batches.length === 0) return;
-  store.applyRuntimeEventBatches(batches);
-  evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
-}
-
-function schedulePendingRuntimeEvents(): void {
-  let hasForeground = false;
-  let hasBackground = false;
-  for (const threadId of pendingRuntimeEvents.threadIds()) {
-    if (isForegroundRuntimeThread(threadId)) hasForeground = true;
-    else hasBackground = true;
-    if (hasForeground && hasBackground) break;
-  }
-
-  if (hasForeground && runtimeFlushHandle === null) {
-    runtimeFlushHandle = requestAnimationFrame(() => {
-      runtimeFlushHandle = null;
-      flushPendingRuntimeEvents(isForegroundRuntimeThread);
-      schedulePendingRuntimeEvents();
-    });
-  } else if (!hasForeground && runtimeFlushHandle !== null) {
-    cancelAnimationFrame(runtimeFlushHandle);
-    runtimeFlushHandle = null;
-  }
-
-  if (hasBackground && backgroundRuntimeFlushHandle === null) {
-    backgroundRuntimeFlushHandle = setTimeout(() => {
-      backgroundRuntimeFlushHandle = null;
-      flushPendingRuntimeEvents((threadId) => !isForegroundRuntimeThread(threadId));
-      schedulePendingRuntimeEvents();
-    }, BACKGROUND_RUNTIME_EVENT_BATCH_MS);
-  } else if (!hasBackground && backgroundRuntimeFlushHandle !== null) {
-    clearTimeout(backgroundRuntimeFlushHandle);
-    backgroundRuntimeFlushHandle = null;
-  }
-}
-
-function installRuntimeSchedulingListeners(): void {
-  if (removeRuntimeSchedulingListeners) return;
-  const unsubscribe = useAppStore.subscribe((state) => state.view, schedulePendingRuntimeEvents);
-  document.addEventListener("visibilitychange", schedulePendingRuntimeEvents);
-  removeRuntimeSchedulingListeners = () => {
-    unsubscribe();
-    document.removeEventListener("visibilitychange", schedulePendingRuntimeEvents);
-  };
-}
-
-function flushPendingRuntimeEventsSync(threadId: string): void {
-  flushPendingRuntimeEvents((pendingThreadId) => pendingThreadId === threadId);
-  schedulePendingRuntimeEvents();
-}
-
-/** Drop every queued runtime delta and cancel the pending flush, if any. Used
- * when switching or removing a remote host so stale batches cannot cross the
- * session boundary. */
-export function clearPendingRuntimeEvents(): void {
-  if (runtimeFlushHandle !== null) {
-    cancelAnimationFrame(runtimeFlushHandle);
-    runtimeFlushHandle = null;
-  }
-  if (backgroundRuntimeFlushHandle !== null) {
-    clearTimeout(backgroundRuntimeFlushHandle);
-    backgroundRuntimeFlushHandle = null;
-  }
-  removeRuntimeSchedulingListeners?.();
-  removeRuntimeSchedulingListeners = null;
-  pendingRuntimeEvents.clear();
-  runtimeRecoveryInFlight.clear();
-  runtimeRecoveryInvalidated.clear();
-}
-
-function asSupervisorEvent(value: unknown): SupervisorEvent | null {
-  if (!value || typeof value !== "object") return null;
-  if (typeof (value as { type?: unknown }).type !== "string") return null;
-  return value as SupervisorEvent;
-}
+// The remote flavor of THE shared SupervisorEvent reducer
+// (./reducers/supervisorEventReducer.ts), formerly a diverging copy of the
+// desktop listener in src/renderer/app.tsx. Runtime deltas are coalesced per
+// animation frame so streaming text cannot re-render faster than the display
+// refreshes; background threads flush four times per second so several
+// concurrent streams do not saturate the UI.
 
 /**
  * Optional mobile-only side effects that ride supervisor events on the PWA.
@@ -629,170 +536,99 @@ export interface RemoteDispatchHooks {
   readonly onGitState?: (patch: GitStatePatch) => void;
 }
 
-export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDispatchHooks): void {
-  const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
-  if (runtimeBatches.length > 0) {
-    if (hooks?.deliverRuntimeEventsImmediately) {
-      useAppStore
-        .getState()
-        .applyRuntimeEventBatches(
-          runtimeBatches.map((batch) => ({ threadId: batch.threadId, events: [...batch.events] })),
-        );
-      evictOversizedInactiveThreadRuntimeItems(runtimeBatches.map((batch) => batch.threadId));
-      return;
-    }
-    const overflowedThreadIds = new Set<string>();
-    for (const batch of runtimeBatches) {
-      const result = pendingRuntimeEvents.enqueue(batch.threadId, batch.events);
-      if (result.overflowed) {
-        if (runtimeRecoveryInFlight.has(batch.threadId)) {
-          runtimeRecoveryInvalidated.add(batch.threadId);
-          useAppStore.getState().setRuntimeHydrationStatus(batch.threadId, "failed");
-        } else {
-          overflowedThreadIds.add(batch.threadId);
-        }
-        useAppStore.getState().clearThreadRuntimeEvents(batch.threadId);
-        useAppStore.getState().clearAllPendingSteer(batch.threadId);
-        clearRuntimeItemStoreSelectorCacheForThread(batch.threadId);
-      }
-    }
-    if (overflowedThreadIds.size > 0) {
-      const threadIds = [...overflowedThreadIds];
-      for (const threadId of threadIds) runtimeRecoveryInFlight.add(threadId);
-      const resume = (): void => {
-        if (threadIds.some((threadId) => runtimeRecoveryInvalidated.has(threadId))) {
-          return;
-        }
-        for (const threadId of threadIds) {
-          pendingRuntimeEvents.resume(threadId);
-        }
-        schedulePendingRuntimeEvents();
-      };
-      const recovery = hooks?.onRuntimeQueueOverflow?.(threadIds, resume);
-      if (recovery) {
-        void Promise.resolve(recovery).then(
-          (recovered) => {
-            if (
-              recovered !== false &&
-              !threadIds.some((threadId) => runtimeRecoveryInvalidated.has(threadId))
-            ) {
-              resume();
-              for (const threadId of threadIds) {
-                runtimeRecoveryInFlight.delete(threadId);
-                runtimeRecoveryInvalidated.delete(threadId);
-              }
-            } else {
-              for (const threadId of threadIds) {
-                runtimeRecoveryInFlight.delete(threadId);
-                runtimeRecoveryInvalidated.delete(threadId);
-                useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
-              }
-            }
-          },
-          () => {
-            for (const threadId of threadIds) {
-              runtimeRecoveryInFlight.delete(threadId);
-              runtimeRecoveryInvalidated.delete(threadId);
-              useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
-            }
-          },
-        );
-      } else {
-        resume();
-      }
-    }
-    installRuntimeSchedulingListeners();
-    schedulePendingRuntimeEvents();
-    return;
-  }
+/**
+ * The dispatch-time hooks of the in-flight {@link dispatchRemoteSupervisorEvent}
+ * call. The shared reducer invokes the injected recovery strategy
+ * synchronously while dispatching, so the strategy reads the current caller's
+ * hook from here instead of threading per-call state through the core.
+ */
+let currentDispatchHooks: RemoteDispatchHooks | null = null;
 
-  // Out-of-band desktop events ride the same stream as supervisor events.
-  const gitSummaries = remoteGitSummariesEventSchema.safeParse(value);
-  if (gitSummaries.success) {
-    // No core mutation — the per-thread git summaries live in a separate store
-    // the core does not own. Mobile attaches its hydration hook here; desktop
-    // never reaches this branch (its event filter drops desktop-global events).
-    hooks?.onGitSummaries?.(gitSummaries.data.summaries);
-    return;
-  }
-  const gitState = remoteGitStateEventSchema.safeParse(value);
-  if (gitState.success) {
-    hooks?.onGitState?.(gitState.data.patch);
-    return;
-  }
-  const userNotification = remoteUserNotificationEventSchema.safeParse(value);
-  if (userNotification.success) {
-    const { type: _type, ...notification } = userNotification.data;
-    showUserNotification(notification);
-    return;
-  }
-
-  const event = asSupervisorEvent(value);
-  if (!event) return;
-
-  // Non-runtime events observe the same ordering as the IPC stream.
-  if ("threadId" in event && pendingRuntimeEvents.has(event.threadId)) {
-    flushPendingRuntimeEventsSync(event.threadId);
-  }
-
-  switch (event.type) {
-    case "thread-state": {
-      const oldThread = useAppStore.getState().threads.find((t) => t.id === event.threadId);
-      useAppStore
-        .getState()
-        .updateThreadRuntime(event.threadId, normalizeRuntimeSnapshotLaunchConfig(event));
-      if (event.status === "inactive" || event.status === "error") {
-        useAppStore.getState().reconcileStaleSubAgents(event.threadId);
-      }
-      hooks?.onThreadState?.({
-        threadId: event.threadId,
-        status: event.status,
-        oldThread,
-      });
-      return;
-    }
-    case "thread-follow-up-queue": {
-      useThreadFollowUpQueueStore.getState().setQueue(event.threadId, event.queue);
-      break;
-    }
-    case "thread-pending-steer": {
-      useAppStore.getState().setPendingSteer(event.threadId, event.pending);
-      return;
-    }
-    case "thread-reset": {
-      pendingRuntimeEvents.discard(event.threadId);
-      if (!runtimeRecoveryInFlight.has(event.threadId)) {
-        // A reset is the authoritative generation boundary when this caller
-        // has no separate snapshot-recovery promise to await.
-        pendingRuntimeEvents.resume(event.threadId);
-      }
-      useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
-      useAppStore.getState().clearAllPendingSteer(event.threadId);
-      // The id may be a dev shell (no thread); a live terminal surface watching
-      // it clears on restart. Output itself rides the separate terminal-output
-      // channel; reset/exit ride the event stream, so fan them out via the hook.
-      hooks?.onThreadReset?.(event.threadId);
-      return;
-    }
-    case "thread-exited": {
-      useAppStore.getState().markThreadExited(event.threadId);
-      useAppStore.getState().clearAllPendingSteer(event.threadId);
-      hooks?.onThreadExited?.({ threadId: event.threadId, exitCode: event.exitCode });
-      return;
-    }
-    case "agent-status-updated": {
+const supervisorReducer = createSupervisorEventReducer({
+  // INJECTED recovery strategy: HTTP snapshot. Overflow delegates to the
+  // caller's snapshot re-fetch (event socket resync / desktop-as-client
+  // history read); a `thread-reset` has no snapshot to await, so the queue
+  // resumes immediately and fresh deltas keep flowing.
+  recovery: {
+    recoverFromQueueOverflow: (threadIds, resume) =>
+      currentDispatchHooks?.onRuntimeQueueOverflow?.(threadIds, resume),
+    recoverFromThreadReset: (_threadId, resume) => {
+      // A reset is the authoritative generation boundary when this caller
+      // has no separate snapshot-recovery promise to await.
+      resume();
+    },
+  },
+  normalizeThreadState: normalizeRuntimeSnapshotLaunchConfig,
+  onAgentStatusEvent: (event) => {
+    if (event.type === "agent-status-updated") {
       useAgentStatusesStore.getState().mergeAgentStatus(event.status);
-      return;
-    }
-    case "windows-agent-statuses": {
+    } else if (event.type === "windows-agent-statuses") {
       useAgentStatusesStore.getState().setAgentStatuses(event.statuses);
-      return;
-    }
-    case "wsl-agent-statuses": {
+    } else if (event.type === "wsl-agent-statuses") {
       useAgentStatusesStore.getState().setWslAgentStatuses(event.statuses);
+    }
+  },
+});
+
+/** Drop every queued runtime delta and cancel the pending flush, if any. Used
+ * when switching or removing a remote host so stale batches cannot cross the
+ * session boundary. */
+export function clearPendingRuntimeEvents(): void {
+  supervisorReducer.clear();
+}
+
+function asSupervisorEvent(value: unknown): SupervisorEvent | null {
+  if (!value || typeof value !== "object") return null;
+  if (typeof (value as { type?: unknown }).type !== "string") return null;
+  return value as SupervisorEvent;
+}
+
+export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDispatchHooks): void {
+  currentDispatchHooks = hooks ?? null;
+  try {
+    const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
+    if (runtimeBatches.length > 0) {
+      if (hooks?.deliverRuntimeEventsImmediately) {
+        supervisorReducer.enqueueRuntimeBatches(runtimeBatches, {
+          deliverRuntimeEventsImmediately: true,
+        });
+        return;
+      }
+      supervisorReducer.enqueueRuntimeBatches(runtimeBatches);
+      supervisorReducer.installScheduling();
       return;
     }
-    default:
+
+    // Out-of-band desktop events ride the same stream as supervisor events.
+    const gitSummaries = remoteGitSummariesEventSchema.safeParse(value);
+    if (gitSummaries.success) {
+      // No core mutation — the per-thread git summaries live in a separate store
+      // the core does not own. Mobile attaches its hydration hook here; desktop
+      // never reaches this branch (its event filter drops desktop-global events).
+      hooks?.onGitSummaries?.(gitSummaries.data.summaries);
       return;
+    }
+    const gitState = remoteGitStateEventSchema.safeParse(value);
+    if (gitState.success) {
+      hooks?.onGitState?.(gitState.data.patch);
+      return;
+    }
+    const userNotification = remoteUserNotificationEventSchema.safeParse(value);
+    if (userNotification.success) {
+      const { type: _type, ...notification } = userNotification.data;
+      showUserNotification(notification);
+      return;
+    }
+
+    const event = asSupervisorEvent(value);
+    if (!event) return;
+    const sideEffects: SupervisorEventSideEffects = {
+      ...(hooks?.onThreadState ? { onThreadState: hooks.onThreadState } : {}),
+      ...(hooks?.onThreadReset ? { onThreadReset: hooks.onThreadReset } : {}),
+      ...(hooks?.onThreadExited ? { onThreadExited: hooks.onThreadExited } : {}),
+    };
+    supervisorReducer.dispatch(event, undefined, { sideEffects });
+  } finally {
+    currentDispatchHooks = null;
   }
 }

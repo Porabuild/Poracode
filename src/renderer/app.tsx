@@ -5,18 +5,12 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { PixelLoader } from "./components/common/PixelLoader";
 import { StartupRecoveryScreen } from "./components/startup/StartupRecoveryScreen";
 import { msg } from "@/shared/messages";
-import type { RuntimeEvent } from "@/shared/contracts";
-import {
-  isAgentStatusSupervisorEvent,
-  type SupervisorEvent,
-  type UpdateStatus,
-} from "@/shared/ipc";
+import type { UpdateStatus } from "@/shared/ipc";
 import { readBridge } from "./bridge";
 import { hasClientCapability } from "./clientRuntime";
 import { showUserNotification } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
-import { useThreadFollowUpQueueStore } from "./state/threadFollowUpQueueStore";
 import { useExperimentStore } from "./state/experimentStore";
 import { useGitReadModelStore } from "./state/gitReadModelStore";
 import {
@@ -40,17 +34,16 @@ import { useThreadOutputStore } from "./state/threadOutputStore";
 import { applyAgentStatusSupervisorEvent } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
-import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
-import {
-  boundVisibleThreadRuntimeWindows,
-  evictOversizedInactiveThreadRuntimeItems,
-  rehydrateThreadRuntimeItemsAfterReset,
-} from "./state/chatRuntimePersister";
-import { RuntimeEventQueue } from "./state/runtimeEventQueue";
+import { boundVisibleThreadRuntimeWindows } from "./state/chatRuntimePersister";
 import {
   beginRendererPerfSpan,
   startRendererPerfDiagnostics,
 } from "./diagnostics/rendererPerfDiagnostics";
+import { createLocalSnapshotRecovery } from "./state/remote/reducers/localSnapshotRecovery";
+import {
+  createSupervisorEventReducer,
+  type SupervisorEventReducer,
+} from "./state/remote/reducers/supervisorEventReducer";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { usePrWatchAgentSync } from "@/renderer/hooks/usePrWatchAgentSync";
@@ -101,302 +94,81 @@ const isBrowserExtractWindow = windowKind === "browserExtract";
 const isQuickComposerWindow = windowKind === "quickComposer";
 const isMainWindow = windowKind === "main";
 
-// ── Runtime event batcher ───────────────────────────────────────
-// With many concurrent streaming chats, the supervisor produces hundreds of
-// `thread-runtime-event(s)` IPC messages per second. Applying each one
-// synchronously triggers a Zustand `set()` and re-evaluates every subscribed
-// selector. Visible panes flush once per animation frame; hidden panes flush
-// four times per second. Opening a pane promotes its queued events to the next
-// frame. Non-runtime events flush their own thread first so event ordering is
-// preserved without forcing every background thread through the reducer.
-const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
-const pendingRuntimeEvents = new RuntimeEventQueue();
+// ── Supervisor event reduction ──────────────────────────────────
+// The desktop flavor of THE shared SupervisorEvent reducer
+// (state/remote/reducers/supervisorEventReducer.ts). Runtime deltas stay
+// frame-paced (foreground panes flush per animation frame; hidden panes four
+// times per second) and recovery re-reads the authoritative LOCAL snapshot
+// before live deltas resume. Non-runtime events flush their own thread first
+// so event ordering is preserved without forcing every background thread
+// through the reducer.
+//
 // Gate 4 renderer perf diagnostics: inert unless the window was launched with
 // ?poracodePerfDiag=1 (or the localStorage flag), so production is untouched.
 startRendererPerfDiagnostics();
-const runtimeRecoveryInFlight = new Set<string>();
-const runtimeRecoveryInvalidated = new Set<string>();
-const latestRendererSequenceByThread = new Map<string, number>();
-let rendererTransportGeneration = 0;
-let runtimeFlushHandle: number | null = null;
-let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
 
-function isForegroundRuntimeThread(threadId: string): boolean {
-  if (document.visibilityState === "hidden") return false;
-  const view = useAppStore.getState().view;
-  return view.kind === "thread" && view.panes.includes(threadId);
-}
+let supervisorReducerRef: SupervisorEventReducer | null = null;
+const localSnapshotRecovery = createLocalSnapshotRecovery({
+  getArbitration: () => {
+    const reducer = supervisorReducerRef;
+    if (!reducer) throw new Error("Supervisor event reducer is not installed.");
+    return reducer.arbitration;
+  },
+});
 
-function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): void {
-  // Perf-diag spans around the final-consumer drain (no-op when the monitor
-  // was not requested at launch).
-  const drainSpan = beginRendererPerfSpan("runtime-drain");
-  let drainedThreads = 0;
-  let drainedEvents = 0;
-  try {
-    const store = useAppStore.getState();
-    const threads = store.threads;
-    const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
-    batches.push(...pendingRuntimeEvents.drain(shouldFlush));
-    drainedThreads = batches.length;
-    drainedEvents = batches.reduce((total, batch) => total + batch.events.length, 0);
-    if (batches.length === 0) return;
-    // One Zustand set for all concurrent streams — avoids N selector passes when
-    // several chats are working in the background / being switched between.
-    const applySpan = beginRendererPerfSpan("apply-runtime-batches");
-    try {
-      store.applyRuntimeEventBatches(batches);
-    } finally {
-      applySpan.end({ threads: drainedThreads, events: drainedEvents });
-    }
-    evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
-    // Bounded visible window (Gate 4 Batch 1): inactive oversized threads are
-    // evicted wholesale above; LIVE (retained) threads are bytes-bounded here
-    // so an open thread streaming for hours cannot grow memory without bound.
-    boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
-    for (const { threadId, events } of batches) {
-      // Durable usage capture at the canonical layer (all providers normalized).
-      // Thread metadata is resolved lazily inside, so pure-delta frames are free.
-      recordRuntimeUsage(threadId, events, threads);
-    }
-  } finally {
-    drainSpan.end({ threads: drainedThreads, events: drainedEvents });
-  }
-}
-
-function schedulePendingRuntimeEvents(): void {
-  let hasForeground = false;
-  let hasBackground = false;
-  const view = useAppStore.getState().view;
-  const foregroundThreadIds: readonly string[] =
-    document.visibilityState !== "hidden" && view.kind === "thread" ? view.panes : [];
-  for (const threadId of pendingRuntimeEvents.threadIds()) {
-    if (foregroundThreadIds.includes(threadId)) hasForeground = true;
-    else hasBackground = true;
-    if (hasForeground && hasBackground) break;
-  }
-
-  if (hasForeground && runtimeFlushHandle === null) {
-    runtimeFlushHandle = requestAnimationFrame(() => {
-      runtimeFlushHandle = null;
-      flushPendingRuntimeEvents(isForegroundRuntimeThread);
-      schedulePendingRuntimeEvents();
-    });
-  } else if (!hasForeground && runtimeFlushHandle !== null) {
-    cancelAnimationFrame(runtimeFlushHandle);
-    runtimeFlushHandle = null;
-  }
-
-  if (hasBackground && backgroundRuntimeFlushHandle === null) {
-    backgroundRuntimeFlushHandle = setTimeout(() => {
-      backgroundRuntimeFlushHandle = null;
-      flushPendingRuntimeEvents((threadId) => !isForegroundRuntimeThread(threadId));
-      schedulePendingRuntimeEvents();
-    }, BACKGROUND_RUNTIME_EVENT_BATCH_MS);
-  } else if (!hasBackground && backgroundRuntimeFlushHandle !== null) {
-    clearTimeout(backgroundRuntimeFlushHandle);
-    backgroundRuntimeFlushHandle = null;
-  }
-}
-
-function appendRuntimeEvents(
-  threadId: string,
-  events: readonly RuntimeEvent[],
-  rendererSequence?: number,
-): void {
-  const result = pendingRuntimeEvents.enqueue(threadId, events, rendererSequence);
-  if (result.overflowed && runtimeRecoveryInFlight.has(threadId)) {
-    // The bounded post-baseline tail also overflowed. The current snapshot
-    // can no longer prove convergence, so leave this thread blocked and make
-    // the UI surface the retryable hydration failure.
-    runtimeRecoveryInvalidated.add(threadId);
-    useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
-    useAppStore.getState().clearAllPendingSteer(threadId);
-  } else if (result.overflowed) {
-    runtimeRecoveryInFlight.add(threadId);
-    // The backend persists runtime events before broadcasting them. Once a
-    // final-consumer queue overflows, clear the partial projection and reread
-    // the authoritative local history before accepting new deltas.
-    useAppStore.getState().clearThreadRuntimeEvents(threadId);
-    useAppStore.getState().clearAllPendingSteer(threadId);
-    clearRuntimeItemStoreSelectorCacheForThread(threadId);
-    void recoverRuntimeThread(threadId)
-      .then((recovered) => {
-        if (!recovered || runtimeRecoveryInvalidated.has(threadId)) {
-          useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
-          return;
-        }
-        pendingRuntimeEvents.resume(threadId);
-      })
-      .catch((error) => {
-        console.warn("[chat] runtime queue recovery failed", threadId, error);
-      })
-      .finally(() => {
-        runtimeRecoveryInFlight.delete(threadId);
-        runtimeRecoveryInvalidated.delete(threadId);
-        schedulePendingRuntimeEvents();
-      });
-  }
-}
-
-async function recoverRuntimeThread(threadId: string): Promise<boolean> {
-  // A local DB snapshot has no event cursor of its own. Repeat the read when
-  // the renderer observed new sequenced events during it; the next read then
-  // includes those persisted rows. A sustained stream eventually becomes an
-  // explicit failed/retryable state instead of an unbounded recovery loop.
-  const generation = rendererTransportGeneration;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const before = latestRendererSequenceByThread.get(threadId) ?? 0;
-    useAppStore.getState().clearThreadRuntimeEvents(threadId);
-    clearRuntimeItemStoreSelectorCacheForThread(threadId);
-    const recovered = await rehydrateThreadRuntimeItemsAfterReset(threadId);
-    if (!recovered) return false;
-    if (rendererTransportGeneration !== generation) return false;
-    const after = latestRendererSequenceByThread.get(threadId) ?? before;
-    if (after !== before) continue;
-    if (pendingRuntimeEvents.hasUnsequenced(threadId)) return false;
-    pendingRuntimeEvents.discardThroughSequence(threadId, after);
-    return true;
-  }
-  return false;
-}
-
-function flushPendingRuntimeEventsSync(threadId: string): void {
-  flushPendingRuntimeEvents((pendingThreadId) => pendingThreadId === threadId);
-  schedulePendingRuntimeEvents();
-}
-
-function installRuntimeEventScheduling(): () => void {
-  const unsubscribe = useAppStore.subscribe((state) => state.view, schedulePendingRuntimeEvents);
-  document.addEventListener("visibilitychange", schedulePendingRuntimeEvents);
-  return () => {
-    unsubscribe();
-    document.removeEventListener("visibilitychange", schedulePendingRuntimeEvents);
-  };
-}
-
-function handleSupervisorEvent(event: SupervisorEvent, rendererSequence?: number): void {
-  if (rendererSequence !== undefined) {
-    if (event.type === "thread-runtime-events-multi") {
-      for (const batch of event.batches) {
-        latestRendererSequenceByThread.set(
-          batch.threadId,
-          Math.max(latestRendererSequenceByThread.get(batch.threadId) ?? 0, rendererSequence),
-        );
-      }
-    } else if ("threadId" in event) {
-      latestRendererSequenceByThread.set(
-        event.threadId,
-        Math.max(latestRendererSequenceByThread.get(event.threadId) ?? 0, rendererSequence),
-      );
-    }
-  }
-  if ("threadId" in event && event.threadId.startsWith("shell:")) {
+const supervisorReducer = createSupervisorEventReducer({
+  // INJECTED recovery strategy: the local snapshot. The backend persists
+  // runtime events before broadcasting them, so overflow and reset re-read
+  // the authoritative local history before the queue resumes.
+  recovery: localSnapshotRecovery.strategy,
+  onSequencedEvent: localSnapshotRecovery.noteSequencedSupervisorEvent,
+  routeShellEvent: (event) => {
+    if (!("threadId" in event)) return;
     if (event.type === "thread-output") {
       useDevTerminalStore.getState().noteShellOutput(event.threadId);
     } else if (event.type === "thread-exited") {
       useDevTerminalStore.getState().markShellExited(event.threadId);
     }
-    return;
-  }
-
-  // Feed subscribed agent PTY bytes into the renderer-side scrollback
-  // accumulator. Hidden threads stay behind the backend interest filter and
-  // restore from the supervisor transcript when their pane mounts again.
-  // `thread-reset` (a fresh spawn) clears the thread's accumulated bytes.
-  if (event.type === "thread-output") {
-    useThreadOutputStore.getState().appendOutput(event.threadId, event.data);
-  } else if (event.type === "thread-reset" || event.type === "thread-scrollback-resync") {
-    useThreadOutputStore.getState().clearOutput(event.threadId);
-  }
-
-  if (event.type === "thread-runtime-event") {
-    appendRuntimeEvents(event.threadId, [event.event], rendererSequence);
-    schedulePendingRuntimeEvents();
-    return;
-  }
-  if (event.type === "thread-runtime-events") {
-    if (event.events.length > 0) {
-      appendRuntimeEvents(event.threadId, event.events, rendererSequence);
-      schedulePendingRuntimeEvents();
+  },
+  onThreadOutput: (threadId, data) => useThreadOutputStore.getState().appendOutput(threadId, data),
+  onThreadOutputCleared: (threadId) => useThreadOutputStore.getState().clearOutput(threadId),
+  onAgentStatusEvent: (event) =>
+    applyAgentStatusSupervisorEvent(event, { deferFirstLaunchBulk: true }),
+  onProviderUsage: (event) => useProviderUsageStore.getState().mergeSnapshot(event.snapshot),
+  onProviderUsageAll: (event) => useProviderUsageStore.getState().setSnapshots(event.snapshots),
+  wrapFlush: (run, stats) => {
+    const drainSpan = beginRendererPerfSpan("runtime-drain");
+    try {
+      run();
+    } finally {
+      drainSpan.end({ threads: stats.drainedThreads, events: stats.drainedEvents });
     }
-    return;
-  }
-  if (event.type === "thread-runtime-events-multi") {
-    let hasEvents = false;
-    for (const batch of event.batches) {
-      if (batch.events.length === 0) continue;
-      appendRuntimeEvents(batch.threadId, batch.events, rendererSequence);
-      hasEvents = true;
+  },
+  wrapApply: (run, stats) => {
+    // One Zustand set for all concurrent streams — avoids N selector passes
+    // when several chats are working in the background / being switched
+    // between.
+    const applySpan = beginRendererPerfSpan("apply-runtime-batches");
+    try {
+      run();
+    } finally {
+      applySpan.end({ threads: stats.drainedThreads, events: stats.drainedEvents });
     }
-    if (hasEvents) schedulePendingRuntimeEvents();
-    return;
-  }
-
-  // Non-runtime event: drain pending runtime events first so the handler below
-  // observes the same ordering callers expect from the IPC stream.
-  if ("threadId" in event && pendingRuntimeEvents.has(event.threadId)) {
-    flushPendingRuntimeEventsSync(event.threadId);
-  }
-
-  if (event.type === "thread-state") {
-    const appStore = useAppStore.getState();
-    appStore.updateThreadRuntime(event.threadId, event);
-    // Once the agent process is gone, any sub-agent that hadn't completed is
-    // orphaned — its parent `item.completed` will never arrive. Reconcile so
-    // the active dock stops showing it as running.
-    if (event.status === "inactive" || event.status === "error") {
-      useAppStore.getState().reconcileStaleSubAgents(event.threadId);
+  },
+  afterApply: (batches, { threadMetadata }) => {
+    // Bounded visible window (Gate 4 Batch 1): inactive oversized threads are
+    // evicted by the core; LIVE (retained) threads are bytes-bounded here so
+    // an open thread streaming for hours cannot grow memory without bound.
+    boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
+    for (const { threadId, events } of batches) {
+      // Durable usage capture at the canonical layer (all providers
+      // normalized). Thread metadata is resolved lazily inside, so pure-delta
+      // frames are free.
+      recordRuntimeUsage(threadId, events, threadMetadata);
     }
-  }
-  if (event.type === "thread-pending-steer") {
-    useAppStore.getState().setPendingSteer(event.threadId, event.pending);
-  }
-  if (event.type === "thread-follow-up-queue") {
-    useThreadFollowUpQueueStore.getState().setQueue(event.threadId, event.queue);
-  }
-  if (event.type === "thread-reset") {
-    pendingRuntimeEvents.discard(event.threadId);
-    useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
-    useAppStore.getState().clearAllPendingSteer(event.threadId);
-    clearRuntimeItemStoreSelectorCacheForThread(event.threadId);
-    if (!runtimeRecoveryInFlight.has(event.threadId)) {
-      runtimeRecoveryInFlight.add(event.threadId);
-      void recoverRuntimeThread(event.threadId)
-        .then((recovered) => {
-          if (!recovered || runtimeRecoveryInvalidated.has(event.threadId)) {
-            useAppStore.getState().setRuntimeHydrationStatus(event.threadId, "failed");
-            return;
-          }
-          pendingRuntimeEvents.resume(event.threadId);
-        })
-        .catch((error) => {
-          console.warn("[chat] runtime reset recovery failed", event.threadId, error);
-        })
-        .finally(() => {
-          runtimeRecoveryInFlight.delete(event.threadId);
-          runtimeRecoveryInvalidated.delete(event.threadId);
-          schedulePendingRuntimeEvents();
-        });
-    }
-    // WS6 P1-10: the reset wiped the in-memory transcript; re-seed from the
-    // local DB (overlap-aware merge) so a loss-range rebuild or fresh spawn
-    // converges to the backend-persisted state instead of an empty pane.
-  }
-  if (event.type === "thread-exited") {
-    useAppStore.getState().markThreadExited(event.threadId);
-    useAppStore.getState().clearAllPendingSteer(event.threadId);
-  }
-  if (isAgentStatusSupervisorEvent(event)) {
-    applyAgentStatusSupervisorEvent(event, { deferFirstLaunchBulk: true });
-  }
-  if (event.type === "provider-usage") {
-    useProviderUsageStore.getState().mergeSnapshot(event.snapshot);
-  }
-  if (event.type === "provider-usage-all") {
-    useProviderUsageStore.getState().setSnapshots(event.snapshots);
-  }
-}
+  },
+});
+supervisorReducerRef = supervisorReducer;
 
 function installThreadOutputPruning(): () => void {
   const retainActiveOutputs = () => {
@@ -477,20 +249,18 @@ export function installUpdateStatusSync(
 // so only the main window wires these up (and tears them down on HMR dispose).
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
-      readBridge().onSupervisorEvent(handleSupervisorEvent),
+      readBridge().onSupervisorEvent((event, rendererSequence) =>
+        supervisorReducer.dispatch(event, rendererSequence),
+      ),
       ...(readBridge().onBackendRendererStreamGenerationChanged
         ? [
             readBridge().onBackendRendererStreamGenerationChanged!(() => {
-              rendererTransportGeneration += 1;
-              latestRendererSequenceByThread.clear();
-              for (const threadId of runtimeRecoveryInFlight) {
-                runtimeRecoveryInvalidated.add(threadId);
-                useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
-              }
+              localSnapshotRecovery.onTransportGenerationChanged();
+              supervisorReducer.invalidateInFlightRecoveries();
             }),
           ]
         : []),
-      installRuntimeEventScheduling(),
+      supervisorReducer.installScheduling(),
       ...(hasClientCapability("nativeAppUpdates") ? [installUpdateStatusSync()] : []),
       // Thread-metadata commands issued from paired remote clients (mobile PWA).
       // They run through the same actions as local edits so persistence and
@@ -637,18 +407,8 @@ let productAnalyticsStarted = false;
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     for (const cleanup of mainWindowCleanups) cleanup();
-    if (runtimeFlushHandle !== null) {
-      cancelAnimationFrame(runtimeFlushHandle);
-      runtimeFlushHandle = null;
-    }
-    if (backgroundRuntimeFlushHandle !== null) {
-      clearTimeout(backgroundRuntimeFlushHandle);
-      backgroundRuntimeFlushHandle = null;
-    }
-    pendingRuntimeEvents.clear();
-    runtimeRecoveryInFlight.clear();
-    runtimeRecoveryInvalidated.clear();
-    latestRendererSequenceByThread.clear();
+    supervisorReducer.clear();
+    localSnapshotRecovery.clearSequenceTracking();
     uninstallProductAnalytics?.();
     uninstallProductAnalytics = null;
     productAnalyticsStarted = false;

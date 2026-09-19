@@ -262,6 +262,33 @@ export function isStandaloneAttachRuntime(): boolean {
   );
 }
 
+/**
+ * True when this window runs behind the Electron preload shell bridge. This
+ * is the ONLY sanctioned reader of `window.poracodeHost` (V5 plan 2.4 / T5):
+ * the raw globals exist exactly once — here and in the installers that
+ * materialize them (`bootstrap.ts`, `bridge.ts`, `browser/remoteBridge.ts`) —
+ * and every other module reads them through these accessors. The check is a
+ * client SURFACE fact (an Electron native window owns this renderer), valid
+ * for managed and attached Electron alike; host SERVICE availability never
+ * derives from it — use `hasClientCapability` / `hostCapabilities` for that.
+ */
+export function hasElectronHostBridge(): boolean {
+  return typeof window !== "undefined" && Boolean(window.poracodeHost);
+}
+
+/**
+ * True when any Poracode preload bridge is present (`window.poracodeHost` or
+ * `window.poracode`). Shared launcher/persistence gates read this instead of
+ * the globals directly, so a preload-less surface (tests, plain browser tab
+ * before the remote bridge installs) stays the single "no bridge" flavor.
+ */
+export function hasAnyClientBridge(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    (window.poracodeHost !== undefined || window.poracode !== undefined)
+  );
+}
+
 function inferClientRuntime(bridge: PoracodeBridge): ClientRuntime {
   const browser = bridge.arch === "web" || bridge.appVersion === "remote";
   const hostCapabilities = browser ? UNKNOWN_HOST_CAPABILITIES : DESKTOP_MANAGED_HOST_CAPABILITIES;
@@ -301,8 +328,7 @@ export function isBrowserClientRuntime(): boolean {
 
 export function isCompactClientRuntimeSurface(): boolean {
   return (
-    typeof window !== "undefined" &&
-    (!!window.poracodeHost || !!window.poracode) &&
+    hasAnyClientBridge() &&
     readClientRuntime().host === "browser" &&
     readClientRuntime().surface === "adaptive" &&
     isCompactLayoutViewport()

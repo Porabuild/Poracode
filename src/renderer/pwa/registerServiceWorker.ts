@@ -1,3 +1,5 @@
+import { hasElectronHostBridge } from "@/renderer/clientRuntime";
+
 function loadedBuildAssetUrls(buildBasePath: string): string[] {
   if (typeof performance === "undefined") return [];
   const assetPrefix = new URL(`${buildBasePath}assets/`, window.location.href).href;
@@ -25,7 +27,7 @@ function cacheLoadedBuildAssets(
  * deliberately skip this: Electron owns its package lifecycle, while service
  * workers require a secure browser context. */
 export function registerCanonicalServiceWorker(): void {
-  if (import.meta.env.DEV || window.poracodeHost) return;
+  if (import.meta.env.DEV || hasElectronHostBridge()) return;
   if (!("serviceWorker" in navigator) || window.isSecureContext === false) return;
 
   const register = () => {

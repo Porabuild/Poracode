@@ -5,7 +5,9 @@ import {
   DESKTOP_MANAGED_HOST_CAPABILITIES,
   UNKNOWN_HOST_CAPABILITIES,
   deriveClientCapabilities,
+  hasAnyClientBridge,
   hasClientCapability,
+  hasElectronHostBridge,
   isBrowserClientRuntime,
   installBrowserClientRuntime,
   installElectronClientRuntime,
@@ -208,5 +210,30 @@ describe("host-declared capabilities (V5 plan 1.2)", () => {
       nativeBrowserWebContents: false,
     });
     expect(hasClientCapability("nativeSsh")).toBe(false);
+  });
+});
+
+describe("preload-global gateways (V5 plan 2.4 / T5)", () => {
+  beforeEach(() => {
+    resetClientRuntimeForTest();
+    Reflect.deleteProperty(window, "poracode");
+    Reflect.deleteProperty(window, "poracodeHost");
+  });
+
+  it("reports no bridge on a preload-less surface without installing a runtime", () => {
+    expect(hasElectronHostBridge()).toBe(false);
+    expect(hasAnyClientBridge()).toBe(false);
+  });
+
+  it("reads the Electron shell fact from the preload bridge, runtime installed or not", () => {
+    window.poracodeHost = { clientRuntimeVersion: 1 } as unknown as ElectronHostBridge;
+    expect(hasElectronHostBridge()).toBe(true);
+    expect(hasAnyClientBridge()).toBe(true);
+  });
+
+  it("reads a browser-only bridge through hasAnyClientBridge without an Electron shell", () => {
+    window.poracode = bridge("web");
+    expect(hasElectronHostBridge()).toBe(false);
+    expect(hasAnyClientBridge()).toBe(true);
   });
 });

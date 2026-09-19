@@ -1,4 +1,5 @@
 import { isMac, isWindows } from "@/renderer/bridge";
+import { hasElectronHostBridge } from "@/renderer/clientRuntime";
 
 /**
  * Electron owns a native titlebar overlay / hidden-inset window controls.
@@ -6,7 +7,7 @@ import { isMac, isWindows } from "@/renderer/bridge";
  * not reserve that inset even when the paired host is macOS or Windows.
  */
 export function hasNativeWindowChrome(): boolean {
-  return typeof window !== "undefined" && Boolean(window.poracodeHost);
+  return hasElectronHostBridge();
 }
 
 /** Hidden-inset traffic lights exist only in the Electron macOS window. */

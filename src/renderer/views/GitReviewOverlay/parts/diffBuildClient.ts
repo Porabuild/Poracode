@@ -5,7 +5,7 @@ import type {
   DiffBuildResponse,
 } from "@/renderer/workers/diffBuildWorker";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
-import { readClientRuntime } from "@/renderer/clientRuntime";
+import { hasAnyClientBridge, readClientRuntime } from "@/renderer/clientRuntime";
 
 export type { DiffBuildItem };
 export type DiffBuildResult = DiffBuildResponse["results"][number];
@@ -101,7 +101,7 @@ export function buildInWorker(
   // synchronous builder. Electron retains the worker path.
   if (
     typeof Worker === "undefined" ||
-    ((window.poracodeHost || window.poracode) && readClientRuntime().host === "browser")
+    (hasAnyClientBridge() && readClientRuntime().host === "browser")
   ) {
     return Promise.resolve(buildOnMainThread(items, resolvedTheme));
   }
